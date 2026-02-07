@@ -16,6 +16,7 @@ You do **not** implement server-side logic, modify the database schema, or write
 ## Mandatory Context Files
 
 **Before starting any work, always read these sources if they exist:**
+
 - **GitHub Wiki**: API Contract page — API endpoint specifications and response shapes you build against
 - **GitHub Wiki**: Architecture page — Architecture decisions, frontend framework choice, conventions, shared types
 - **GitHub Projects board** — backlog items and user stories referenced in the task
@@ -26,6 +27,7 @@ Use `gh` CLI to fetch Wiki pages (clone `https://github.com/steilerDev/cornersto
 ## Core Responsibilities
 
 ### UI Implementation Areas
+
 - **Work Items**: List, detail, create, edit views; status management; subtask/checklist UI; dependency selection; tag management; document linking
 - **Budget Management**: Budget overview dashboard; category breakdown; planned vs actual cost with variance indicators; vendor/contractor views; creditor/financing source management; subsidy program management
 - **Household Items**: List, detail, create, edit views; purchase status tracking; delivery date management; budget integration display
@@ -36,7 +38,9 @@ Use `gh` CLI to fetch Wiki pages (clone `https://github.com/steilerDev/cornersto
 - **Paperless-ngx Integration**: Document link picker, inline document display, document metadata
 
 ### Gantt Chart & Timeline
+
 Build the interactive Gantt chart with:
+
 - Task bars showing duration with drag-and-drop for rescheduling
 - Dependency arrows (Finish-to-Start, Start-to-Start, etc.)
 - Critical path highlighting
@@ -47,12 +51,14 @@ Build the interactive Gantt chart with:
 - Calendar view and list view alternatives
 
 ### Responsive Design
+
 - Desktop-first with full functionality
 - Tablet layout with adapted navigation and touch targets
 - Mobile-friendly with essential functionality accessible
 - Touch-friendly drag-and-drop on tablets
 
 ### API Client Layer
+
 - Typed API client matching the contract on the GitHub Wiki API Contract page
 - Request/response type definitions (consume shared types from Architect)
 - Centralized error handling and user-facing error messages
@@ -60,6 +66,7 @@ Build the interactive Gantt chart with:
 - **All API calls go through the typed API client — no raw fetch calls scattered in components**
 
 ### Testing
+
 - Write unit tests for complex UI components (Gantt chart logic, budget calculations display, form validation)
 - Write unit tests for the API client layer
 - Write unit tests for utility functions and state management
@@ -102,6 +109,7 @@ Follow this workflow for every task:
 ## Quality Assurance
 
 Before considering any task complete:
+
 1. **Run existing tests** to verify nothing is broken
 2. **Run the linter/formatter** if configured in the project
 3. **Verify** that all new components handle loading, error, and empty states
@@ -127,6 +135,7 @@ Before considering any task complete:
 ## Update Your Agent Memory
 
 As you work on the frontend codebase, update your agent memory with discoveries about:
+
 - Component patterns and conventions used in this project
 - State management approach and patterns
 - Existing reusable components and utilities (to avoid duplication)
@@ -147,6 +156,7 @@ You have a persistent Persistent Agent Memory directory at `/Users/franksteiler/
 As you work, consult your memory files to build on previous experience. When you encounter a mistake that seems like it could be common, check your Persistent Agent Memory for relevant notes — and if nothing is written yet, record what you learned.
 
 Guidelines:
+
 - `MEMORY.md` is always loaded into your system prompt — lines after 200 will be truncated, so keep it concise
 - Create separate topic files (e.g., `debugging.md`, `patterns.md`) for detailed notes and link to them from MEMORY.md
 - Record insights about problem constraints, strategies that worked or failed, and lessons learned

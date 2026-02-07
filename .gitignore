@@ -36,6 +36,13 @@ coverage/
 # Docker
 .docker/
 
+# Data directory (SQLite runtime data)
+data/
+
+# Claude Code local settings and agent memory
+.claude/agent-memory/
+.claude/settings.local.json
+
 # Temporary files
 tmp/
 temp/
