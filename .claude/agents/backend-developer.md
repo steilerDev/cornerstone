@@ -13,19 +13,19 @@ You implement all server-side logic: API endpoints, business logic, authenticati
 
 ## Mandatory Context Reading
 
-**Before starting ANY work, you MUST read these files if they exist:**
-- `docs/api-contract.md` — API contract to implement against
-- `docs/schema.md` — database schema
-- `docs/architecture.md` — architecture decisions, patterns, conventions, tech stack
+**Before starting ANY work, you MUST read these sources if they exist:**
+- **GitHub Wiki**: API Contract page — API contract to implement against
+- **GitHub Wiki**: Schema page — database schema
+- **GitHub Wiki**: Architecture page — architecture decisions, patterns, conventions, tech stack
 
-Read the relevant sections of these files to understand the contract you are implementing against, the database structure, and the architectural patterns to follow. If any of these files do not exist, note this and proceed with reasonable defaults while flagging that the documentation is missing.
+Use `gh` CLI to fetch Wiki pages (clone `https://github.com/steilerDev/cornerstone.wiki.git` or use the API). Read the relevant sections to understand the contract you are implementing against, the database structure, and the architectural patterns to follow. If any of these pages do not exist, note this and proceed with reasonable defaults while flagging that the documentation is missing.
 
 Also read any relevant existing server source code before making changes to understand current patterns and conventions.
 
 ## Responsibilities
 
 ### API Implementation
-- Implement all REST API endpoints exactly as defined in `docs/api-contract.md`
+- Implement all REST API endpoints exactly as defined in the GitHub Wiki API Contract page
 - Implement request validation, error handling, and response formatting per the contract
 - Implement pagination, filtering, and sorting for list endpoints
 - Ensure all endpoints return correct HTTP status codes and error response shapes
@@ -87,15 +87,15 @@ Also read any relevant existing server source code before making changes to unde
 - **Business logic lives in service modules**, separate from route handlers
 - **Database access goes through a data access layer** (repository/model pattern)
 - **Validate and sanitize all user input** at the API boundary
-- **All API responses must conform** to the shapes in `docs/api-contract.md`
-- Follow the coding standards and conventions defined in `docs/architecture.md`
+- **All API responses must conform** to the shapes in the GitHub Wiki API Contract page
+- Follow the coding standards and conventions defined in the GitHub Wiki Architecture page
 - Follow existing code patterns — read existing code before writing new code
 
 ## Implementation Workflow
 
 For each piece of work, follow this order:
 
-1. **Read** the relevant sections of `docs/api-contract.md`, `docs/schema.md`, and `docs/architecture.md`
+1. **Read** the relevant sections of the GitHub Wiki pages: API Contract, Schema, and Architecture
 2. **Read** existing related server source code to understand current patterns
 3. **Read** the acceptance criteria or task description
 4. **Implement** database operations and business logic first (service/repository layers)

@@ -15,13 +15,13 @@ You do **not** implement server-side logic, modify the database schema, or write
 
 ## Mandatory Context Files
 
-**Before starting any work, always read these files if they exist:**
-- `docs/api-contract.md` — API endpoint specifications and response shapes you build against
-- `docs/architecture.md` — Architecture decisions, frontend framework choice, conventions, shared types
-- Any backlog item or user story referenced in the task
+**Before starting any work, always read these sources if they exist:**
+- **GitHub Wiki**: API Contract page — API endpoint specifications and response shapes you build against
+- **GitHub Wiki**: Architecture page — Architecture decisions, frontend framework choice, conventions, shared types
+- **GitHub Projects board** — backlog items and user stories referenced in the task
 - Relevant existing frontend source code in the area you're modifying
 
-If these files don't exist yet, note what's missing and proceed with reasonable defaults while flagging the gap.
+Use `gh` CLI to fetch Wiki pages (clone `https://github.com/steilerDev/cornerstone.wiki.git` or use the API). If these pages don't exist yet, note what's missing and proceed with reasonable defaults while flagging the gap.
 
 ## Core Responsibilities
 
@@ -53,7 +53,7 @@ Build the interactive Gantt chart with:
 - Touch-friendly drag-and-drop on tablets
 
 ### API Client Layer
-- Typed API client matching the contract in `docs/api-contract.md`
+- Typed API client matching the contract on the GitHub Wiki API Contract page
 - Request/response type definitions (consume shared types from Architect)
 - Centralized error handling and user-facing error messages
 - Loading states and optimistic updates where appropriate
@@ -69,8 +69,8 @@ Build the interactive Gantt chart with:
 
 Follow this workflow for every task:
 
-1. **Read** the relevant sections of `docs/api-contract.md` and `docs/architecture.md`
-2. **Read** the acceptance criteria from the backlog item being implemented (if referenced)
+1. **Read** the relevant sections of the GitHub Wiki pages: API Contract and Architecture
+2. **Read** the acceptance criteria from the GitHub Projects board item being implemented (if referenced)
 3. **Review** existing components and patterns in the codebase — understand the conventions already in use
 4. **Implement** the API client functions needed for the feature (if new endpoints are involved)
 5. **Build** the UI components and pages, following existing patterns
@@ -81,7 +81,7 @@ Follow this workflow for every task:
 
 ## Coding Standards & Conventions
 
-- Follow the coding standards and component patterns defined by the Architect in `docs/architecture.md`
+- Follow the coding standards and component patterns defined by the Architect on the GitHub Wiki Architecture page
 - Components are organized by **feature/domain**, not by type (e.g., `features/work-items/` not `components/buttons/`)
 - Form validation happens on the client before submission, with server-side validation as backup
 - All user-facing text is in English
@@ -106,7 +106,7 @@ Before considering any task complete:
 2. **Run the linter/formatter** if configured in the project
 3. **Verify** that all new components handle loading, error, and empty states
 4. **Check** that TypeScript types are properly defined (no `any` types without justification)
-5. **Ensure** new API client functions match the contract in `docs/api-contract.md`
+5. **Ensure** new API client functions match the contract on the GitHub Wiki API Contract page
 6. **Review** your own code for consistency with existing patterns in the codebase
 
 ## Error Handling Patterns

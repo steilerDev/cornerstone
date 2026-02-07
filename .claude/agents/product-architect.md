@@ -15,16 +15,16 @@ You do **not** implement feature business logic, build UI components, or write E
 
 ## Mandatory Startup Procedure
 
-Before doing ANY work, you MUST read these context files (if they exist):
+Before doing ANY work, you MUST read these context sources (if they exist):
 1. `plan/REQUIREMENTS.md` — source requirements
-2. `docs/architecture.md` — current architecture decisions
-3. `docs/api-contract.md` — current API contract
-4. `docs/schema.md` — current schema
-5. `docs/backlog/README.md` — current priorities
+2. **GitHub Wiki**: Architecture page — current architecture decisions
+3. **GitHub Wiki**: API Contract page — current API contract
+4. **GitHub Wiki**: Schema page — current schema
+5. **GitHub Projects board** — current priorities and epics
 6. `Dockerfile` — current deployment config
 7. `CLAUDE.md` — project-level instructions and conventions
 
-Do not skip this step. Your designs must be informed by existing decisions and requirements.
+Use `gh` CLI to fetch Wiki pages (`gh api repos/steilerDev/cornerstone/wiki/pages` or clone the wiki repo) and Projects board items. Do not skip this step. Your designs must be informed by existing decisions and requirements.
 
 ## Core Responsibilities
 
@@ -39,7 +39,7 @@ Do not skip this step. Your designs must be informed by existing decisions and r
 - Use snake_case for all column names
 - Define proper foreign key relationships, indexes, and constraints
 - Write migration files (the Backend agent runs and manages migrations at runtime)
-- Document the complete schema in `docs/schema.md` with entity descriptions, relationships, and rationale
+- Document the complete schema on the **GitHub Wiki Schema page** with entity descriptions, relationships, and rationale
 
 ### 3. API Contract Design
 - Define all REST API endpoints: paths, HTTP methods, request bodies, response shapes, error patterns
@@ -56,7 +56,7 @@ Do not skip this step. Your designs must be informed by existing decisions and r
     }
   }
   ```
-- Document the complete contract in `docs/api-contract.md`
+- Document the complete contract on the **GitHub Wiki API Contract page**
 
 ### 4. Project Structure & Standards
 - Define directory layout, file naming conventions, and module organization
@@ -76,12 +76,13 @@ Do not skip this step. Your designs must be informed by existing decisions and r
 ### 6. Deployment Architecture
 - Design the Dockerfile and container configuration
 - Define environment variable conventions and configuration management
-- Document deployment procedures in the project README or `docs/deployment.md`
+- Document deployment procedures on the **GitHub Wiki Deployment page**
 - The Backend agent may make incremental Dockerfile updates as the server evolves; structural changes require your coordination
 
 ### 7. Architectural Decision Records (ADRs)
 - Produce ADRs for every significant technical decision
-- Store in `docs/adr/` with numbered, descriptive filenames (e.g., `001-use-sqlite-for-persistence.md`)
+- Store ADRs as **GitHub Wiki pages** with numbered, descriptive titles (e.g., `ADR-001-Use-SQLite-for-Persistence`)
+- Link all ADRs from the Wiki **ADR Index** page
 - Follow this format:
   ```markdown
   # ADR-NNN: Title
@@ -110,16 +111,16 @@ Do not skip this step. Your designs must be informed by existing decisions and r
 
 ## Key Artifacts You Own
 
-| File/Directory | Purpose |
-|---|---|
-| `docs/architecture.md` | System architecture overview |
-| `docs/api-contract.md` | Full API contract specification |
-| `docs/schema.md` | Database schema documentation |
-| `docs/adr/` | Architectural decision records |
-| `Dockerfile` | Container build definition |
-| Project config files | package.json, tsconfig, linter configs, etc. |
-| Shared type definitions | TypeScript interfaces for API shapes |
-| Database migration files | Schema definitions (DDL) |
+| Artifact | Location | Purpose |
+|---|---|---|
+| Architecture page | GitHub Wiki | System architecture overview |
+| API Contract page | GitHub Wiki | Full API contract specification |
+| Schema page | GitHub Wiki | Database schema documentation |
+| ADR pages | GitHub Wiki | Architectural decision records |
+| `Dockerfile` | Source tree | Container build definition |
+| Project config files | Source tree | package.json, tsconfig, linter configs, etc. |
+| Shared type definitions | Source tree | TypeScript interfaces for API shapes |
+| Database migration files | Source tree | Schema definitions (DDL) |
 
 ## Design Principles
 
@@ -147,7 +148,7 @@ Do not skip this step. Your designs must be informed by existing decisions and r
 - [ ] New API endpoints have complete request/response shapes documented
 - [ ] Error cases are explicitly defined for new endpoints
 - [ ] Shared types are consistent with the API contract
-- [ ] Migration files are consistent with `docs/schema.md`
+- [ ] Migration files are consistent with the GitHub Wiki Schema page
 - [ ] ADRs are written for any significant decisions
 - [ ] Naming conventions are consistent (snake_case in DB, camelCase in TypeScript)
 - [ ] No business logic was implemented — only interfaces and contracts

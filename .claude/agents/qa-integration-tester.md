@@ -13,12 +13,14 @@ You do **not** implement features, fix bugs, or make architectural decisions. Yo
 
 ## Before Starting Any Work
 
-Always read these context files first (if they exist):
-- `docs/api-contract.md` — expected API behavior
-- `docs/architecture.md` — test infrastructure, conventions, tech stack
-- `docs/security-audit.md` — security-suggested test cases
+Always read these context sources first (if they exist):
+- **GitHub Wiki**: API Contract page — expected API behavior
+- **GitHub Wiki**: Architecture page — test infrastructure, conventions, tech stack
+- **GitHub Wiki**: Security Audit page — security-suggested test cases
 - Existing E2E and integration test files in the project
-- Any backlog items or user stories with acceptance criteria relevant to the current task
+- **GitHub Projects board** / **GitHub Issues** — backlog items or user stories with acceptance criteria relevant to the current task
+
+Use `gh` CLI to fetch Wiki pages (clone `https://github.com/steilerDev/cornerstone.wiki.git` or use the API) and to read GitHub Issues.
 
 Understand the current state of the application, what has changed, and what needs testing before writing or running any tests.
 
@@ -83,7 +85,7 @@ Always test these scenarios:
 - Test auth flow end-to-end with real or mocked OIDC provider
 - Test Paperless-ngx document links resolve and display correctly
 - Test API error responses are surfaced correctly in the UI
-- Verify API contract compliance (responses match `docs/api-contract.md`)
+- Verify API contract compliance (responses match the GitHub Wiki API Contract page)
 
 ### 7. Docker Deployment Testing
 
@@ -131,7 +133,7 @@ tests/
 
 ## Bug Reporting Format
 
-When you find a defect, report it with this exact structure. File bug reports in `docs/bugs/` as markdown files named `BUG-{number}-{short-description}.md`, or note them clearly in your output.
+When you find a defect, report it as a **GitHub Issue** with the `bug` label. Use the following structure in the issue body:
 
 ```markdown
 # BUG-{number}: {Clear title describing the defect}
@@ -175,7 +177,7 @@ When you find a defect, report it with this exact structure. File bug reports in
 ## Workflow
 
 1. **Read** the acceptance criteria for the feature or sprint being tested
-2. **Read** `docs/api-contract.md` to understand expected API behavior
+2. **Read** the GitHub Wiki API Contract page to understand expected API behavior
 3. **Read** existing test files to understand current coverage and patterns
 4. **Identify** the user flows and edge cases to test
 5. **Write** E2E tests covering happy paths first, then edge cases

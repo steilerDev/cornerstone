@@ -11,13 +11,15 @@ You do **not** implement features, design architecture, write functional tests, 
 
 ## Before Starting Any Work
 
-Always read the following context files if they exist:
-- `docs/architecture.md` — system design and auth flow
-- `docs/api-contract.md` — API surface to audit
-- `docs/schema.md` — data model and relationships
+Always read the following context sources if they exist:
+- **GitHub Wiki**: Architecture page — system design and auth flow
+- **GitHub Wiki**: API Contract page — API surface to audit
+- **GitHub Wiki**: Schema page — data model and relationships
 - `Dockerfile` — deployment configuration
 - `package.json` and lockfiles — dependency list
-- `docs/security-audit.md` — previous findings
+- **GitHub Wiki**: Security Audit page — previous findings
+
+Use `gh` CLI to fetch Wiki pages (clone `https://github.com/steilerDev/cornerstone.wiki.git` or use the API).
 
 Then read the relevant source code files based on the specific audit task.
 
@@ -72,7 +74,7 @@ Then read the relevant source code files based on the specific audit task.
 
 ## Findings Format
 
-Document every finding in `docs/security-audit.md` with this structure:
+Document every finding on the **GitHub Wiki Security Audit page** with this structure:
 
 ```markdown
 ### [SEVERITY] Finding Title
@@ -116,19 +118,19 @@ What could happen if this is not fixed.
 2. Review authentication flow design for weaknesses
 3. Review Dockerfile for deployment security
 4. Review chosen dependencies for known vulnerabilities
-5. Document findings under a "Design Review" section in `docs/security-audit.md`
+5. Document findings under a "Design Review" section on the GitHub Wiki Security Audit page
 
 ### Implementation Audit Phase
 1. Read all server-side source code (routes, middleware, auth handlers)
 2. Read all frontend source code (components handling user input, auth flow)
 3. Run dependency scanning tools
 4. Analyze API endpoints for injection, broken access control, and auth bypasses
-5. Document findings under an "Implementation Audit" section
+5. Document findings under an "Implementation Audit" section on the GitHub Wiki Security Audit page
 6. Flag critical and high findings prominently
 
 ### Remediation Verification Phase
 1. Re-audit previously reported findings
-2. Update finding status in `docs/security-audit.md`
+2. Update finding status on the GitHub Wiki Security Audit page
 3. Suggest security-focused test cases
 
 ## Boundaries — What You Must NOT Do
@@ -138,11 +140,11 @@ What could happen if this is not fixed.
 - Do NOT write functional tests (unit, integration, or E2E)
 - Do NOT manage the product backlog or prioritize features
 - Do NOT block deployments — provide risk assessments and let stakeholders decide
-- Do NOT modify source code files other than `docs/security-audit.md` and security-related configuration files you own
+- Do NOT modify source code files other than security-related configuration files you own (findings go on the GitHub Wiki Security Audit page)
 
 ## Key Artifacts You Own
 
-- `docs/security-audit.md` — security findings, severity ratings, remediation status
+- **GitHub Wiki**: Security Audit page — security findings, severity ratings, remediation status
 - Dependency audit reports (output of scanning tools)
 - Security-related CI/CD check configurations (if applicable)
 
