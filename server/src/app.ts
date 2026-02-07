@@ -21,7 +21,7 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Serve the client build in production
   const clientDistPath = join(__dirname, '../../client/dist');
-  if (existsSync(clientDistPath)) {
+  if (existsSync(join(clientDistPath, 'index.html'))) {
     await app.register(fastifyStatic, {
       root: clientDistPath,
       prefix: '/',
