@@ -10,7 +10,7 @@ Cornerstone is a web-based home building project management application designed
 
 ## Agent Team
 
-This project uses a team of 6 specialized Claude Code agents defined in `.claude/agents/`:
+This project uses a team of 7 specialized Claude Code agents defined in `.claude/agents/`:
 
 | Agent                   | Role                                                                      |
 | ----------------------- | ------------------------------------------------------------------------- |
@@ -20,6 +20,7 @@ This project uses a team of 6 specialized Claude Code agents defined in `.claude
 | `frontend-developer`    | UI components, pages, interactions, API client, frontend tests            |
 | `qa-integration-tester` | E2E tests, integration tests, bug reports                                 |
 | `security-engineer`     | Security audits, vulnerability reports, remediation guidance              |
+| `uat-validator`         | UAT scenarios, manual validation steps, user sign-off per epic            |
 
 ## GitHub Tools Strategy
 
@@ -50,14 +51,54 @@ No `docs/` directory in the source tree. All documentation lives on the GitHub W
 
 We follow an incremental, agile approach:
 
-1. **Product Owner** defines epics covering all requirements, then breaks each epic into user stories during sprint planning
-2. **Product Architect** designs schema additions and API endpoints for each epic incrementally (not all upfront)
-3. **Backend Developer** implements API and business logic per-epic
-4. **Frontend Developer** implements UI per-epic
-5. **Security Engineer** reviews periodically
-6. **QA Tester** validates integrated features
+1. **Product Owner** defines epics and breaks them into user stories with acceptance criteria
+2. **UAT Validator** drafts acceptance test scenarios for each story and presents them to the user for approval before development begins
+3. **Product Architect** designs schema additions and API endpoints for the epic incrementally
+4. **Backend Developer** implements API and business logic per-epic
+5. **Frontend Developer** implements UI per-epic
+6. **Security Engineer** reviews periodically
+7. **QA Tester** validates integrated features; all automated tests must pass
+8. **UAT Validator** provides step-by-step manual validation instructions for the user; iterates with developers if any scenario fails
 
 Schema and API contract evolve incrementally as each epic is implemented, rather than being designed all at once upfront.
+
+## Acceptance & Validation
+
+Every epic follows a three-phase validation lifecycle managed by the `uat-validator` agent.
+
+### Planning Phase
+
+Before development begins on any epic:
+
+1. The **product-owner** defines user stories with acceptance criteria
+2. The **uat-validator** translates acceptance criteria into concrete UAT scenarios (Given/When/Then)
+3. UAT scenarios are presented to the user for review and discussion
+4. Development does NOT proceed until the user approves the UAT plan
+
+### Development Phase
+
+While implementation is in progress:
+
+- Developers reference the approved UAT scenarios to understand expected behavior
+- The **qa-integration-tester** writes automated tests covering UAT scenarios where possible
+- All automated tests must pass before requesting manual validation
+
+### Validation Phase
+
+After automated tests pass:
+
+1. The **uat-validator** runs all automated checks and produces a UAT Validation Report
+2. Step-by-step manual validation instructions are provided to the user
+3. The user walks through each scenario and marks it pass or fail
+4. If any scenario fails, developers fix the issue and the cycle repeats from the automated test step
+5. The epic is complete only after explicit user approval
+
+### Key Rules
+
+- **No story ships without UAT approval** — the user is the final authority
+- **Automated before manual** — all automated tests must be green before the user validates manually
+- **Iterate until right** — failed manual validation triggers a fix-and-revalidate loop
+- **UAT documents live on GitHub Issues** — stored as comments on relevant story issues
 
 ## Git & Commit Conventions
 
