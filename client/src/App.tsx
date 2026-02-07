@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import styles from './App.module.css';
 
 interface HealthResponse {
   status: string;
@@ -17,17 +18,17 @@ export function App() {
   }, []);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold text-gray-900">Cornerstone</h1>
-        <p className="mb-6 text-lg text-gray-600">Home Building Project Management</p>
+    <div className={styles.container}>
+      <div className={styles.content}>
+        <h1 className={styles.title}>Cornerstone</h1>
+        <p className={styles.subtitle}>Home Building Project Management</p>
         {health && (
-          <div className="rounded-lg bg-green-50 p-4 text-sm text-green-700">
+          <div className={styles.statusSuccess}>
             Server: {health.status} | {health.timestamp}
           </div>
         )}
         {error && (
-          <div className="rounded-lg bg-red-50 p-4 text-sm text-red-700">
+          <div className={styles.statusError}>
             Server connection failed: {error}
           </div>
         )}
