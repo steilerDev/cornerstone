@@ -108,7 +108,7 @@ All commits follow [Conventional Commits](https://www.conventionalcommits.org/):
 - **Scope** optional but encouraged: `feat(work-items):`, `fix(budget):`, `docs(adr):`
 - **Breaking changes**: Use `!` suffix or `BREAKING CHANGE:` footer
 - Every completed task gets its own commit with a meaningful description
-- **Always commit after verification passes.** When a work session completes and all quality gates (`lint`, `typecheck`, `test`, `format:check`, `build`, `npm audit`) pass, create a commit before ending the session. Do not leave verified work uncommitted.
+- **Always commit and push after verification passes.** When a work session completes and all quality gates (`lint`, `typecheck`, `test`, `format:check`, `build`, `npm audit`) pass, create a commit and push it to the remote before ending the session. Do not leave verified work uncommitted or unpushed.
 
 ## Tech Stack
 
