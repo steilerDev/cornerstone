@@ -118,13 +118,13 @@ All commits follow [Conventional Commits](https://www.conventionalcommits.org/):
 | Client Routing             | React Router            | 7.x     | ADR-002 |
 | Database                   | SQLite (better-sqlite3) | --      | ADR-003 |
 | ORM                        | Drizzle ORM             | 0.38.x  | ADR-003 |
-| Bundler (client)           | Vite                    | 6.x     | ADR-004 |
-| Styling                    | Tailwind CSS            | 4.x     | ADR-006 |
+| Bundler (client)           | Webpack                 | 5.x     | ADR-004 |
+| Styling                    | CSS Modules             | --      | ADR-006 |
 | Testing (unit/integration) | Vitest                  | 3.x     | ADR-005 |
 | Testing (E2E)              | Playwright              | TBD     | ADR-005 |
-| Language                   | TypeScript              | ~5.7    | --      |
-| Runtime                    | Node.js                 | 20 LTS  | --      |
-| Container                  | Docker (Alpine)         | --      | --      |
+| Language                   | TypeScript              | ~5.9    | --      |
+| Runtime                    | Node.js                 | 24 LTS  | --      |
+| Container                  | Docker (DHI Alpine)     | --      | --      |
 | Monorepo                   | npm workspaces          | --      | ADR-007 |
 
 Full rationale for each decision is in the corresponding ADR on the GitHub Wiki.
@@ -133,7 +133,9 @@ Full rationale for each decision is in the corresponding ADR on the GitHub Wiki.
 
 ```
 cornerstone/
+  .sandbox/                 # Dev sandbox template (Dockerfile for Claude Code sandbox)
   package.json              # Root workspace config, shared dev dependencies
+  .nvmrc                    # Node.js version pin (24 LTS)
   tsconfig.base.json        # Base TypeScript config
   eslint.config.js          # ESLint flat config (all packages)
   .prettierrc               # Prettier config
@@ -164,7 +166,7 @@ cornerstone/
   client/                   # @cornerstone/client - React SPA
     package.json
     tsconfig.json
-    vite.config.ts
+    webpack.config.cjs
     index.html
     src/
       main.tsx              # Entry point
@@ -173,7 +175,8 @@ cornerstone/
       pages/                # Route-level pages
       hooks/                # Custom React hooks
       lib/                  # Utilities, API client
-      styles/               # Tailwind entry (index.css)
+      types/                # Type declarations (CSS modules, etc.)
+      styles/               # Global CSS (index.css)
 ```
 
 ### Package Dependency Graph
@@ -185,7 +188,13 @@ cornerstone/
 
 ### Build Order
 
-`shared` (tsc) -> `client` (vite build) -> `server` (tsc)
+`shared` (tsc) -> `client` (webpack build) -> `server` (tsc)
+
+## Dependency Policy
+
+- **Always use the latest stable (LTS if applicable) version** of a package when adding or upgrading dependencies
+- **Pin dependency versions to a specific release** — use exact versions rather than caret ranges (`^`) to prevent unexpected upgrades
+- **Avoid native binary dependencies for frontend tooling.** Tools like esbuild, SWC, Lightning CSS, and Tailwind CSS v4 (oxide engine) ship platform-specific native binaries that crash on ARM64 emulation environments. Prefer pure JavaScript alternatives (Webpack, Babel, PostCSS, CSS Modules). Native addons for the server (e.g., better-sqlite3) are acceptable since the Docker builder can install build tools.
 
 ## Coding Standards
 
@@ -240,8 +249,8 @@ cornerstone/
 
 ### Prerequisites
 
-- Node.js >= 20
-- npm >= 9
+- Node.js >= 24
+- npm >= 11
 - Docker (for container builds)
 
 ### Getting Started
@@ -251,15 +260,15 @@ npm install                   # Install all workspace dependencies
 npm run dev                   # Start server (port 3000) + client dev server (port 5173)
 ```
 
-In development, the Vite dev server at `http://localhost:5173` proxies `/api/*` requests to the Fastify server at `http://localhost:3000`.
+In development, the Webpack dev server at `http://localhost:5173` proxies `/api/*` requests to the Fastify server at `http://localhost:3000`.
 
 ### Common Commands
 
 | Command               | Description                                     |
 | --------------------- | ----------------------------------------------- |
 | `npm run dev`         | Start both server and client in watch mode      |
-| `npm run dev:server`  | Start only the Fastify server (tsx watch)       |
-| `npm run dev:client`  | Start only the Vite dev server                  |
+| `npm run dev:server`  | Start only the Fastify server (node --watch)    |
+| `npm run dev:client`  | Start only the Webpack dev server               |
 | `npm run build`       | Build all packages (shared -> client -> server) |
 | `npm test`            | Run all tests                                   |
 | `npm run lint`        | Lint all code                                   |
@@ -270,8 +279,18 @@ In development, the Vite dev server at `http://localhost:5173` proxies `/api/*` 
 
 ### Docker Build
 
+Production images use [Docker Hardened Images](https://hub.docker.com/r/dhi.io/node) (DHI) for minimal attack surface and near-zero CVEs. The builder stage uses `dhi.io/node:24-alpine3.23-dev` (includes npm + build tools) and the production stage uses `dhi.io/node:24-alpine3.23` (minimal runtime only).
+
 ```bash
+# Standard build
 docker build -t cornerstone .
+
+# Behind a proxy with CA cert
+docker build \
+  --build-arg HTTP_PROXY=$HTTP_PROXY --build-arg HTTPS_PROXY=$HTTPS_PROXY \
+  --secret id=proxy-ca,src=$SSL_CERT_FILE -t cornerstone .
+
+# Run
 docker run -p 3000:3000 -v cornerstone-data:/app/data cornerstone
 ```
 

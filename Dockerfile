@@ -1,16 +1,37 @@
 # =============================================================================
 # Cornerstone - Multi-stage Docker build
 # =============================================================================
-# Stage 1: Install dependencies and build
-# Stage 2: Production runtime (minimal image)
+# Stage 1: Install dependencies and build (DHI dev image with npm + build tools)
+# Stage 2: Production runtime (DHI minimal image, no npm/build tools/shell)
+# =============================================================================
+# Standard build:
+#   docker build -t cornerstone .
+# Behind a proxy with CA cert:
+#   docker build \
+#     --build-arg HTTP_PROXY=$HTTP_PROXY --build-arg HTTPS_PROXY=$HTTPS_PROXY \
+#     --secret id=proxy-ca,src=$SSL_CERT_FILE -t cornerstone .
 # =============================================================================
 
 # ---------------------------------------------------------------------------
 # Stage 1: Build
 # ---------------------------------------------------------------------------
-FROM node:20-alpine AS builder
+FROM dhi.io/node:24-alpine3.23-dev AS builder
 
 WORKDIR /app
+
+# Proxy build args — pass --build-arg HTTP_PROXY=... if behind a proxy
+ARG HTTP_PROXY
+ARG HTTPS_PROXY
+ARG http_proxy
+ARG https_proxy
+
+# Install proxy CA cert if provided, and build tools for better-sqlite3
+RUN --mount=type=secret,id=proxy-ca \
+    if [ -f /run/secrets/proxy-ca ]; then \
+      cat /run/secrets/proxy-ca >> /etc/ssl/certs/ca-certificates.crt && \
+      npm config set cafile /etc/ssl/certs/ca-certificates.crt; \
+    fi && \
+    apk update && apk add --no-cache build-base python3
 
 # Copy package files for dependency installation
 COPY package.json package-lock.json ./
@@ -27,38 +48,34 @@ COPY shared/ shared/
 COPY server/ server/
 COPY client/ client/
 
-# Build shared types, then client (Vite), then server (tsc)
+# Build shared types, then client (Webpack), then server (tsc)
 RUN npm run build
 
-# ---------------------------------------------------------------------------
-# Stage 2: Production
-# ---------------------------------------------------------------------------
-FROM node:20-alpine AS production
+# Remove devDependencies, preserve built artifacts and compiled native addons
+RUN npm prune --omit=dev
 
-# Create non-root user
-RUN addgroup -g 1001 -S cornerstone && \
-    adduser -S cornerstone -u 1001 -G cornerstone
+# ---------------------------------------------------------------------------
+# Stage 2: Production (no shell — exec form only)
+# ---------------------------------------------------------------------------
+FROM dhi.io/node:24-alpine3.23 AS production
 
+# Create data directory (WORKDIR creates intermediate dirs without needing shell)
+WORKDIR /app/data
 WORKDIR /app
 
-# Copy package files and install production dependencies only
-COPY package.json package-lock.json ./
+# Copy package files (needed for workspace resolution)
+COPY package.json ./
 COPY shared/package.json shared/
 COPY server/package.json server/
 COPY client/package.json client/
 
-RUN npm ci --omit=dev && npm cache clean --force
+# Copy production node_modules from builder (npm hoists to root, no workspace node_modules)
+COPY --from=builder /app/node_modules/ node_modules/
 
 # Copy built artifacts from builder
 COPY --from=builder /app/shared/dist/ shared/dist/
 COPY --from=builder /app/server/dist/ server/dist/
 COPY --from=builder /app/client/dist/ client/dist/
-
-# Create data directory for SQLite (to be mounted as a volume)
-RUN mkdir -p /app/data && chown cornerstone:cornerstone /app/data
-
-# Switch to non-root user
-USER cornerstone
 
 # Expose server port
 EXPOSE 3000
@@ -73,10 +90,9 @@ ENV HOST=0.0.0.0
 ENV DATABASE_URL=/app/data/cornerstone.db
 ENV LOG_LEVEL=info
 
-# Health check
+# Health check — exec form required (DHI production image has no /bin/sh)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
+  CMD ["node", "-e", "fetch('http://localhost:3000/api/health').then(r=>{if(!r.ok)throw r.status}).catch(()=>process.exit(1))"]
 
 # Start the server
-# Node.js 20+ handles signals properly as PID 1 when using --experimental-detect-module
 CMD ["node", "server/dist/server.js"]

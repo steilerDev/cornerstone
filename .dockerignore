@@ -14,7 +14,10 @@ data/
 .vscode/
 .idea/
 .claude/
+.sandbox/
+.nvmrc
 plan/
 wiki/
 tmp/
 temp/
+*.tsbuildinfo
