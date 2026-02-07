@@ -16,6 +16,23 @@ export default tseslint.config(
   // TypeScript rules for all TS files
   ...tseslint.configs.recommended,
 
+  // CommonJS files (e.g., webpack config)
+  {
+    files: ['**/*.cjs'],
+    languageOptions: {
+      sourceType: 'commonjs',
+      globals: {
+        require: 'readonly',
+        module: 'readonly',
+        __dirname: 'readonly',
+        __filename: 'readonly',
+      },
+    },
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
+    },
+  },
+
   // React rules for client files
   {
     files: ['client/src/**/*.{ts,tsx}'],

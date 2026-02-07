@@ -195,6 +195,7 @@ cornerstone/
 - **Always use the latest stable (LTS if applicable) version** of a package when adding or upgrading dependencies
 - **Pin dependency versions to a specific release** — use exact versions rather than caret ranges (`^`) to prevent unexpected upgrades
 - **Avoid native binary dependencies for frontend tooling.** Tools like esbuild, SWC, Lightning CSS, and Tailwind CSS v4 (oxide engine) ship platform-specific native binaries that crash on ARM64 emulation environments. Prefer pure JavaScript alternatives (Webpack, Babel, PostCSS, CSS Modules). Native addons for the server (e.g., better-sqlite3) are acceptable since the Docker builder can install build tools.
+- **Zero known fixable vulnerabilities.** Run `npm audit` before committing dependency changes. All fixable vulnerabilities must be resolved. Transitive vulnerabilities in dev-only tools (e.g., esbuild via drizzle-kit) that have no available fix may be accepted and documented.
 
 ## Coding Standards
 
@@ -305,6 +306,10 @@ docker run -p 3000:3000 -v cornerstone-data:/app/data cornerstone
 | `NODE_ENV`     | `production`               | Environment                                   |
 
 Additional variables for OIDC, Paperless-ngx, and sessions will be added as those features are implemented.
+
+## Protected Files
+
+- **`README.md`**: The `> [!NOTE]` block at the top of `README.md` is a personal note from the repository owner. Agents must NEVER modify, remove, or rewrite this note block. Other sections of `README.md` may be edited as needed.
 
 ## Cross-Team Convention
 

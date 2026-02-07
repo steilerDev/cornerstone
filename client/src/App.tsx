@@ -27,11 +27,7 @@ export function App() {
             Server: {health.status} | {health.timestamp}
           </div>
         )}
-        {error && (
-          <div className={styles.statusError}>
-            Server connection failed: {error}
-          </div>
-        )}
+        {error && <div className={styles.statusError}>Server connection failed: {error}</div>}
       </div>
     </div>
   );
