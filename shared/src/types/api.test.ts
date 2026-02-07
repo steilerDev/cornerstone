@@ -1,4 +1,3 @@
-import { describe, it, expect } from 'vitest';
 import type { ApiError, ApiErrorResponse } from './api.js';
 
 describe('API types', () => {

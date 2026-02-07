@@ -17,15 +17,14 @@
     "build:client": "npm run build -w client",
     "build:server": "npm run build -w server",
     "start": "node server/dist/server.js",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
+    "test": "node --experimental-vm-modules node_modules/.bin/jest",
+    "test:watch": "node --experimental-vm-modules node_modules/.bin/jest --watch",
+    "test:coverage": "node --experimental-vm-modules node_modules/.bin/jest --coverage",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "typecheck": "npm run typecheck -w shared && npm run typecheck -w server && npm run typecheck -w client",
-    "db:generate": "npm run db:generate -w server",
     "db:migrate": "npm run db:migrate -w server"
   },
   "type": "module",
@@ -34,15 +33,16 @@
   },
   "devDependencies": {
     "@eslint/js": "9.39.2",
-    "@vitest/coverage-v8": "3.0.5",
+    "@types/jest": "30.0.0",
     "concurrently": "9.1.2",
     "eslint": "9.39.2",
     "eslint-config-prettier": "10.0.1",
     "eslint-plugin-react": "7.37.4",
     "eslint-plugin-react-hooks": "5.1.0",
     "prettier": "3.4.2",
+    "jest": "30.2.0",
+    "ts-jest": "29.4.6",
     "typescript": "5.9.3",
-    "typescript-eslint": "8.54.0",
-    "vitest": "3.0.5"
+    "typescript-eslint": "8.54.0"
   }
 }

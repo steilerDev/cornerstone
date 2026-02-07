@@ -108,6 +108,7 @@ All commits follow [Conventional Commits](https://www.conventionalcommits.org/):
 - **Scope** optional but encouraged: `feat(work-items):`, `fix(budget):`, `docs(adr):`
 - **Breaking changes**: Use `!` suffix or `BREAKING CHANGE:` footer
 - Every completed task gets its own commit with a meaningful description
+- **Always commit after verification passes.** When a work session completes and all quality gates (`lint`, `typecheck`, `test`, `format:check`, `build`, `npm audit`) pass, create a commit before ending the session. Do not leave verified work uncommitted.
 
 ## Tech Stack
 
@@ -120,7 +121,7 @@ All commits follow [Conventional Commits](https://www.conventionalcommits.org/):
 | ORM                        | Drizzle ORM             | 0.38.x  | ADR-003 |
 | Bundler (client)           | Webpack                 | 5.x     | ADR-004 |
 | Styling                    | CSS Modules             | --      | ADR-006 |
-| Testing (unit/integration) | Vitest                  | 3.x     | ADR-005 |
+| Testing (unit/integration) | Jest (ts-jest)          | 30.x    | ADR-005 |
 | Testing (E2E)              | Playwright              | TBD     | ADR-005 |
 | Language                   | TypeScript              | ~5.9    | --      |
 | Runtime                    | Node.js                 | 24 LTS  | --      |
@@ -139,7 +140,7 @@ cornerstone/
   tsconfig.base.json        # Base TypeScript config
   eslint.config.js          # ESLint flat config (all packages)
   .prettierrc               # Prettier config
-  vitest.config.ts          # Vitest config (all packages)
+  jest.config.ts            # Jest config (all packages)
   Dockerfile                # Multi-stage Docker build
   CLAUDE.md                 # This file
   plan/                     # Requirements document
@@ -152,7 +153,6 @@ cornerstone/
   server/                   # @cornerstone/server - Fastify REST API
     package.json
     tsconfig.json
-    drizzle.config.ts       # Drizzle-kit config
     src/
       app.ts                # Fastify app factory
       server.ts             # Entry point
@@ -194,8 +194,8 @@ cornerstone/
 
 - **Always use the latest stable (LTS if applicable) version** of a package when adding or upgrading dependencies
 - **Pin dependency versions to a specific release** — use exact versions rather than caret ranges (`^`) to prevent unexpected upgrades
-- **Avoid native binary dependencies for frontend tooling.** Tools like esbuild, SWC, Lightning CSS, and Tailwind CSS v4 (oxide engine) ship platform-specific native binaries that crash on ARM64 emulation environments. Prefer pure JavaScript alternatives (Webpack, Babel, PostCSS, CSS Modules). Native addons for the server (e.g., better-sqlite3) are acceptable since the Docker builder can install build tools.
-- **Zero known fixable vulnerabilities.** Run `npm audit` before committing dependency changes. All fixable vulnerabilities must be resolved. Transitive vulnerabilities in dev-only tools (e.g., esbuild via drizzle-kit) that have no available fix may be accepted and documented.
+- **Avoid native binary dependencies for frontend tooling.** Tools like esbuild, SWC, Lightning CSS, and Tailwind CSS v4 (oxide engine) ship platform-specific native binaries that crash on ARM64 emulation environments. Prefer pure JavaScript alternatives (Webpack, Babel, PostCSS, CSS Modules). Native addons for the server (e.g., better-sqlite3) are acceptable since the Docker builder can install build tools. esbuild has been fully eliminated from the dependency tree.
+- **Zero known fixable vulnerabilities.** Run `npm audit` before committing dependency changes. All fixable vulnerabilities must be resolved.
 
 ## Coding Standards
 
@@ -238,11 +238,11 @@ cornerstone/
 
 ## Testing Approach
 
-- **Unit & integration tests**: Vitest (co-located with source: `foo.test.ts` next to `foo.ts`)
+- **Unit & integration tests**: Jest with ts-jest (co-located with source: `foo.test.ts` next to `foo.ts`)
 - **API integration tests**: Fastify's `app.inject()` method (no HTTP server needed)
 - **E2E tests**: Playwright (configured by QA agent, runs against built app)
-- **Test command**: `npm test` (runs all Vitest tests across all workspaces)
-- **Coverage**: `npm run test:coverage` (V8 provider)
+- **Test command**: `npm test` (runs all Jest tests across all workspaces via `--experimental-vm-modules` for ESM)
+- **Coverage**: `npm run test:coverage`
 - Test files use `.test.ts` / `.test.tsx` extension
 - No separate `__tests__/` directories -- tests live next to the code they test
 
@@ -265,18 +265,21 @@ In development, the Webpack dev server at `http://localhost:5173` proxies `/api/
 
 ### Common Commands
 
-| Command               | Description                                     |
-| --------------------- | ----------------------------------------------- |
-| `npm run dev`         | Start both server and client in watch mode      |
-| `npm run dev:server`  | Start only the Fastify server (node --watch)    |
-| `npm run dev:client`  | Start only the Webpack dev server               |
-| `npm run build`       | Build all packages (shared -> client -> server) |
-| `npm test`            | Run all tests                                   |
-| `npm run lint`        | Lint all code                                   |
-| `npm run format`      | Format all code                                 |
-| `npm run typecheck`   | Type-check all packages                         |
-| `npm run db:generate` | Generate Drizzle migrations from schema changes |
-| `npm run db:migrate`  | Run pending database migrations                 |
+| Command              | Description                                     |
+| -------------------- | ----------------------------------------------- |
+| `npm run dev`        | Start both server and client in watch mode      |
+| `npm run dev:server` | Start only the Fastify server (node --watch)    |
+| `npm run dev:client` | Start only the Webpack dev server               |
+| `npm run build`      | Build all packages (shared -> client -> server) |
+| `npm test`           | Run all tests                                   |
+| `npm run lint`       | Lint all code                                   |
+| `npm run format`     | Format all code                                 |
+| `npm run typecheck`  | Type-check all packages                         |
+| `npm run db:migrate` | Run pending SQL migrations                      |
+
+### Database Migrations
+
+Migrations are hand-written SQL files in `server/src/db/migrations/`, named with a numeric prefix for ordering (e.g., `0001_create_users.sql`). There is no auto-generation tool — developers write the SQL by hand. Run `npm run db:migrate` to apply pending migrations. The migration runner (`server/src/db/migrate.ts`) tracks applied migrations in a `_migrations` table and applies new ones inside a transaction.
 
 ### Docker Build
 
