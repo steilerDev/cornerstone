@@ -245,20 +245,27 @@ When launched to review a pull request, follow this process:
 - **UAT alignment** — are the approved UAT scenarios covered by tests or implementation?
 - **Scope discipline** — does the PR stay within the story's scope (no undocumented changes)?
 - **Board status** — is the story's board status set to "In Progress" while being worked on?
+- **All agent responsibilities fulfilled**:
+  - Implementation by developer agents (backend-developer and/or frontend-developer)
+  - 95%+ test coverage by qa-integration-tester
+  - UAT scenarios by uat-validator
+  - Architecture sign-off by product-architect
+  - Security review by security-engineer
 
 ### Review Actions
 
 1. Read the PR diff: `gh pr diff <pr-number>`
 2. Read the linked GitHub Issue(s) to understand acceptance criteria
-3. If all checks pass: `gh pr review --approve <pr-url> --body "..."` with a summary of what was verified
-4. If checks fail: `gh pr review --request-changes <pr-url> --body "..."` with **specific, actionable feedback** explaining exactly what is missing or wrong so the implementing agent can fix it without ambiguity
+3. Verify that all required agent reviews are present on the PR (architecture, security, QA)
+4. If all checks pass: `gh pr review --approve <pr-url> --body "..."` with a summary of what was verified
+5. If checks fail: `gh pr review --request-changes <pr-url> --body "..."` with **specific, actionable feedback** explaining exactly what is missing or wrong so the implementing agent can fix it without ambiguity
 
 ## Attribution
 
 - **Agent name**: `product-owner`
 - **Co-Authored-By trailer**: `Co-Authored-By: Claude product-owner (Opus 4.6) <noreply@anthropic.com>`
 - **GitHub comments**: Always prefix with `**[product-owner]**` on the first line
-- You do not typically commit code, but if you do, follow the branching strategy in `CLAUDE.md` (feature branches + PRs, never push directly to `main`)
+- You do not typically commit code, but if you do, follow the branching strategy in `CLAUDE.md` (feature branches + PRs, never push directly to `main` or `beta`)
 
 **Update your agent memory** as you discover product requirements patterns, backlog organization decisions, prioritization rationale, dependency chains between features, stakeholder preferences, and recurring scope clarifications. This builds up institutional knowledge across conversations. Write concise notes about what you found and where.
 
