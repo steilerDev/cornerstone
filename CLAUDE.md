@@ -12,15 +12,15 @@ Cornerstone is a web-based home building project management application designed
 
 This project uses a team of 7 specialized Claude Code agents defined in `.claude/agents/`:
 
-| Agent                   | Role                                                                      |
-| ----------------------- | ------------------------------------------------------------------------- |
-| `product-owner`         | Defines epics, user stories, and acceptance criteria; manages the backlog |
-| `product-architect`     | Tech stack, schema, API contract, project structure, ADRs, Dockerfile     |
-| `backend-developer`     | API endpoints, business logic, auth, database operations, backend tests   |
-| `frontend-developer`    | UI components, pages, interactions, API client, frontend tests            |
-| `qa-integration-tester` | E2E tests, integration tests, bug reports                                 |
-| `security-engineer`     | Security audits, vulnerability reports, remediation guidance              |
-| `uat-validator`         | UAT scenarios, manual validation steps, user sign-off per epic            |
+| Agent                   | Role                                                                        |
+| ----------------------- | --------------------------------------------------------------------------- |
+| `product-owner`         | Defines epics, user stories, and acceptance criteria; manages the backlog   |
+| `product-architect`     | Tech stack, schema, API contract, project structure, ADRs, Dockerfile       |
+| `backend-developer`     | API endpoints, business logic, auth, database operations, backend tests     |
+| `frontend-developer`    | UI components, pages, interactions, API client, frontend tests              |
+| `qa-integration-tester` | Unit test coverage (95%+ target), E2E tests, integration tests, bug reports |
+| `security-engineer`     | Security audits, vulnerability reports, remediation guidance                |
+| `uat-validator`         | UAT scenarios, manual validation steps, user sign-off per epic              |
 
 ## GitHub Tools Strategy
 
@@ -68,6 +68,19 @@ Schema and API contract evolve incrementally as each epic is implemented, rather
 
 **Mark stories in-progress before starting work.** When beginning work on a story, immediately move its GitHub Issue to "In Progress" on the Projects board. This prevents other agents from picking up the same story concurrently.
 
+**The orchestrator delegates, never implements.** The orchestrating Claude coordinates the agent team but must NEVER write production code, tests, or architectural artifacts itself. Every implementation task must be delegated to the appropriate specialized agent:
+
+- **Backend code** → `backend-developer` agent
+- **Frontend code** → `frontend-developer` agent
+- **Schema/API design, ADRs, wiki** → `product-architect` agent
+- **Unit tests & test coverage** → `qa-integration-tester` agent
+- **E2E tests** → `qa-integration-tester` agent
+- **UAT scenarios** → `uat-validator` agent
+- **Story definitions** → `product-owner` agent
+- **Security reviews** → `security-engineer` agent
+
+The orchestrator's role is to: sequence agent launches, pass context between agents, manage the feature branch and PR lifecycle, and ensure the full agile cycle is followed for every story.
+
 ## Acceptance & Validation
 
 Every epic follows a three-phase validation lifecycle managed by the `uat-validator` agent.
@@ -88,8 +101,10 @@ Before development begins on any story:
 While implementation is in progress:
 
 - Developers reference the approved UAT scenarios to understand expected behavior
-- The **qa-integration-tester** writes automated tests covering the approved UAT scenarios
-- All automated tests must pass before requesting manual validation
+- The **qa-integration-tester** owns ALL testing: unit tests, integration tests, and E2E tests
+- The **qa-integration-tester** must achieve **95% unit test coverage** on all new and modified code
+- The **qa-integration-tester** writes automated E2E/integration tests covering the approved UAT scenarios
+- All automated tests (unit + E2E) must pass before requesting manual validation
 
 ### Validation Phase
 
@@ -107,6 +122,8 @@ After automated tests pass:
 - **Automated before manual** — all automated tests must be green before the user validates manually
 - **Iterate until right** — failed manual validation triggers a fix-and-revalidate loop
 - **UAT documents live on GitHub Issues** — stored as comments on relevant story issues
+- **Product owner gates the PR** — the `product-owner` agent only approves a PR after verifying that ALL agent responsibilities were fulfilled: implementation by developer agents, 95%+ test coverage by QA, UAT scenarios by uat-validator, and architecture sign-off by product-architect
+- **QA owns all tests** — the `qa-integration-tester` agent is responsible for writing and maintaining all unit tests, integration tests, and E2E tests. Developer agents do not write tests.
 
 ## Git & Commit Conventions
 
@@ -149,24 +166,26 @@ All agents must clearly identify themselves in commits and GitHub interactions:
   - Use the conventional commit type as the prefix
   - Include the GitHub Issue number when one exists
 
-- **Workflow**:
-  1. Create a feature branch: `git checkout -b <branch-name> main`
-  2. Implement changes, run quality gates, commit
-  3. Push the branch: `git push -u origin <branch-name>`
-  4. Create a PR: `gh pr create --title "..." --body "..."`
-  5. Wait for CI: `gh pr checks <pr-number> --watch`
-  6. **Request agent review**: After CI passes, the orchestrator must launch
-     both review agents **in parallel**:
-     - `product-owner` — verifies requirements coverage, acceptance criteria, and UAT alignment
+- **Workflow** (full agent cycle for each user story):
+  1. **Plan**: Launch `product-owner` (verify story + acceptance criteria) and `product-architect` (design schema/API/architecture) agents
+  2. **UAT Plan**: Launch `uat-validator` to draft UAT scenarios from acceptance criteria; launch `qa-integration-tester` to review testability; present to user for approval
+  3. **Branch**: Create a feature branch: `git checkout -b <branch-name> main`
+  4. **Implement**: Launch the appropriate developer agent (`backend-developer` and/or `frontend-developer`) to write the production code
+  5. **Test**: Launch `qa-integration-tester` to write unit tests (95%+ coverage target) and E2E/integration tests covering UAT scenarios
+  6. **Quality gates**: Run `lint`, `typecheck`, `test`, `format:check`, `build`, `npm audit` — all must pass
+  7. **Commit & PR**: Commit, push the branch, create a PR: `gh pr create --title "..." --body "..."`
+  8. **CI**: Wait for CI: `gh pr checks <pr-number> --watch`
+  9. **Review**: After CI passes, launch both review agents **in parallel**:
+     - `product-owner` — verifies requirements coverage, acceptance criteria, UAT alignment, and that all agent responsibilities were fulfilled (QA coverage, UAT scenarios, etc.). Only approves if all agents have completed their work.
      - `product-architect` — verifies architecture compliance, test coverage, and code quality
        Both agents review the PR diff and comment via `gh pr review`.
-  7. **Fix loop**: If either reviewer requests changes:
-     a. The reviewer posts specific feedback on the PR (`gh pr review --request-changes`)
-     b. The orchestrator launches the original implementing agent on the same branch to address the feedback
-     c. The implementing agent pushes fixes, then the orchestrator re-requests review from the agent(s) that requested changes
-     d. Repeat until both reviewers approve
-  8. **Merge**: Once both agents approve and CI is green, merge: `gh pr merge --squash <pr-url>`
-  9. After merge, clean up: `git checkout main && git pull && git branch -d <branch-name>`
+  10. **Fix loop**: If either reviewer requests changes:
+      a. The reviewer posts specific feedback on the PR (`gh pr review --request-changes`)
+      b. The orchestrator launches the original implementing agent on the same branch to address the feedback
+      c. The implementing agent pushes fixes, then the orchestrator re-requests review from the agent(s) that requested changes
+      d. Repeat until both reviewers approve
+  11. **Merge**: Once both agents approve and CI is green, merge immediately: `gh pr merge --squash <pr-url>`
+  12. After merge, clean up: `git checkout main && git pull && git branch -d <branch-name>`
 
 Note: Dependabot auto-merge (`.github/workflows/dependabot-auto-merge.yml`) is unaffected — it handles automated dependency updates, not agent work.
 
@@ -298,11 +317,13 @@ cornerstone/
 
 ## Testing Approach
 
+All testing is owned by the `qa-integration-tester` agent. Developer agents write production code; the QA agent writes and maintains all tests.
+
 - **Unit & integration tests**: Jest with ts-jest (co-located with source: `foo.test.ts` next to `foo.ts`)
 - **API integration tests**: Fastify's `app.inject()` method (no HTTP server needed)
 - **E2E tests**: Playwright (configured by QA agent, runs against built app)
 - **Test command**: `npm test` (runs all Jest tests across all workspaces via `--experimental-vm-modules` for ESM)
-- **Coverage**: `npm run test:coverage`
+- **Coverage**: `npm run test:coverage` — **95% unit test coverage target** on all new and modified code
 - Test files use `.test.ts` / `.test.tsx` extension
 - No separate `__tests__/` directories -- tests live next to the code they test
 
