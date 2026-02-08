@@ -1,8 +1,5 @@
 import { buildApp } from './app.js';
 
-const PORT = parseInt(process.env.PORT || '3000', 10);
-const HOST = process.env.HOST || '0.0.0.0';
-
 async function main() {
   const app = await buildApp();
 
@@ -22,8 +19,8 @@ async function main() {
   process.on('SIGINT', () => shutdown('SIGINT'));
 
   try {
-    await app.listen({ port: PORT, host: HOST });
-    app.log.info(`Cornerstone server listening on ${HOST}:${PORT}`);
+    await app.listen({ port: app.config.port, host: app.config.host });
+    app.log.info(`Cornerstone server listening on ${app.config.host}:${app.config.port}`);
   } catch (err) {
     app.log.error(err);
     process.exit(1);

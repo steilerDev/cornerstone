@@ -16,7 +16,7 @@ declare module 'fastify' {
 
 export default fp(
   async function dbPlugin(fastify) {
-    const dbPath = process.env.DATABASE_URL || '/app/data/cornerstone.db';
+    const dbPath = fastify.config.databaseUrl;
 
     // Ensure parent directory exists
     mkdirSync(dirname(dbPath), { recursive: true });
@@ -47,5 +47,6 @@ export default fp(
   },
   {
     name: 'db',
+    dependencies: ['config'],
   },
 );

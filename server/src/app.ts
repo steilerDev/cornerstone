@@ -4,6 +4,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { existsSync } from 'fs';
 import fastifyStatic from '@fastify/static';
+import configPlugin from './plugins/config.js';
 import dbPlugin from './plugins/db.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -15,7 +16,10 @@ export async function buildApp(): Promise<FastifyInstance> {
     },
   });
 
-  // Database connection & migrations (must be first)
+  // Configuration (must be first)
+  await app.register(configPlugin);
+
+  // Database connection & migrations
   await app.register(dbPlugin);
 
   // Health check endpoint
