@@ -1,0 +1,28 @@
+.sidebar {
+  width: 240px;
+  background-color: #1f2937;
+  color: #f9fafb;
+  display: flex;
+  flex-direction: column;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 0;
+}
+
+.navLink {
+  padding: 0.75rem 1.5rem;
+  color: #f9fafb;
+  text-decoration: none;
+  transition: background-color 0.2s ease;
+}
+
+.navLink:hover {
+  background-color: #374151;
+}
+
+.active {
+  background-color: #3b82f6;
+}
