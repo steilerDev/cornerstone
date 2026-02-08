@@ -70,19 +70,21 @@ Every epic follows a three-phase validation lifecycle managed by the `uat-valida
 
 ### Planning Phase
 
-Before development begins on any epic:
+Before development begins on any story:
 
 1. The **product-owner** defines user stories with acceptance criteria
 2. The **uat-validator** translates acceptance criteria into concrete UAT scenarios (Given/When/Then)
-3. UAT scenarios are presented to the user for review and discussion
-4. Development does NOT proceed until the user approves the UAT plan
+3. The **qa-integration-tester** reviews the draft UAT scenarios for testability and automation feasibility, suggesting adjustments where needed
+4. The **uat-validator** incorporates QA feedback and posts the final scenarios to the story's GitHub Issue
+5. UAT scenarios are presented to the user for review and approval
+6. Development does NOT proceed until the user approves the UAT plan
 
 ### Development Phase
 
 While implementation is in progress:
 
 - Developers reference the approved UAT scenarios to understand expected behavior
-- The **qa-integration-tester** writes automated tests covering UAT scenarios where possible
+- The **qa-integration-tester** writes automated tests covering the approved UAT scenarios
 - All automated tests must pass before requesting manual validation
 
 ### Validation Phase

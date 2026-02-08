@@ -1,18 +1,16 @@
 import fp from 'fastify-plugin';
+import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
-import type * as BetterSqlite3Namespace from 'better-sqlite3';
-
-type Database = BetterSqlite3Namespace.Database;
 
 // Type augmentation: makes fastify.db available across all routes/plugins
 declare module 'fastify' {
   interface FastifyInstance {
-    db: BetterSQLite3Database<typeof schema> & { $client: Database };
+    db: BetterSQLite3Database<typeof schema> & { $client: Database.Database };
   }
 }
 
@@ -25,13 +23,7 @@ export default fp(
 
     fastify.log.info({ dbPath }, 'Opening SQLite database');
 
-    // Open the raw better-sqlite3 connection (use dynamic import for CJS module)
-    // Node.js ESM wraps CJS default exports in { default: ... }
-    const module: { default: typeof BetterSqlite3Namespace } = (await import(
-      'better-sqlite3'
-    )) as never;
-    // @ts-ignore - TypeScript can't infer the correct constructor type after dynamic import
-    const sqlite = new module.default(dbPath);
+    const sqlite = new Database(dbPath);
 
     // Enable WAL mode for better concurrent read performance
     sqlite.pragma('journal_mode = WAL');

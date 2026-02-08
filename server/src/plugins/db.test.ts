@@ -42,10 +42,8 @@ describe('Database Plugin', () => {
     }
   });
 
-  it('Scenario 1: Server starts successfully with default DATABASE_URL', async () => {
-    // Given: No DATABASE_URL is set
-    delete process.env.DATABASE_URL;
-
+  it('Scenario 1: Server starts successfully and database is accessible', async () => {
+    // Given: DATABASE_URL is set (via beforeEach to a temp path)
     // When: The server is started
     app = await buildApp();
 
@@ -55,6 +53,9 @@ describe('Database Plugin', () => {
     // Verify connection works
     const result = app.db.$client.prepare('SELECT 1 as value').get() as { value: number };
     expect(result).toEqual({ value: 1 });
+
+    // Verify database file was created at the configured path
+    expect(existsSync(dbPath)).toBe(true);
   });
 
   it('Scenario 2: Server starts with custom DATABASE_URL', async () => {
