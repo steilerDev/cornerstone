@@ -627,7 +627,10 @@ describe('apiClient', () => {
 
       await get('/users');
 
-      expect(mockFetch).toHaveBeenCalledWith('https://example.com/api/v1/users', expect.any(Object));
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://example.com/api/v1/users',
+        expect.any(Object),
+      );
     });
 
     it('custom headers do not override Content-Type when body is present', async () => {
