@@ -47,6 +47,33 @@ No `docs/` directory in the source tree. All documentation lives on the GitHub W
 - **Repository**: `steilerDev/cornerstone`
 - **Default branch**: `main`
 
+### Board Status Categories
+
+The GitHub Projects board uses 4 status categories:
+
+| Status          | Option ID  | Color  | Purpose                                      |
+| --------------- | ---------- | ------ | -------------------------------------------- |
+| **Backlog**     | `7404f88c` | Gray   | Epics and future-sprint stories              |
+| **Todo**        | `dc74a3b0` | Blue   | Current sprint stories ready for development |
+| **In Progress** | `296eeabe` | Yellow | Stories actively being developed             |
+| **Done**        | `c558f50d` | Green  | Completed and accepted                       |
+
+Project ID: `PVT_kwHOAGtLQM4BOlve`
+Status Field ID: `PVTSSF_lAHOAGtLQM4BOlvezg9P0yo`
+
+### Issue Relationships
+
+All agents must maintain GitHub's native issue relationships:
+
+- **Sub-issues**: Every user story must be linked as a sub-issue of its parent epic. Use the `addSubIssue` GraphQL mutation.
+- **Blocked-by/Blocking**: When a story or epic has dependencies, create `addBlockedBy` relationships. This populates the "Blocked by" section in the issue sidebar.
+
+**Node ID lookup** (required for GraphQL mutations):
+
+```bash
+gh api graphql -f query='{ repository(owner: "steilerDev", name: "cornerstone") { issue(number: <N>) { id } } }'
+```
+
 ## Agile Workflow
 
 We follow an incremental, agile approach:

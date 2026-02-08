@@ -49,6 +49,64 @@ You are the single source of truth for **what** gets built and in **what order**
 - If new ideas or features emerge, document them as potential backlog items but do not automatically prioritize them
 - Keep the team focused on what's documented in `plan/REQUIREMENTS.md`
 
+### 6. Relationship Management
+
+Maintain GitHub's native issue relationships to keep the board accurate and navigable.
+
+#### Sub-Issues (Parent/Child)
+
+Every user story must be linked as a sub-issue of its parent epic using the `addSubIssue` GraphQL mutation:
+
+```bash
+# Look up the node ID for an issue
+gh api graphql -f query='{ repository(owner: "steilerDev", name: "cornerstone") { issue(number: <N>) { id } } }'
+
+# Link story as sub-issue of epic
+gh api graphql -f query='
+mutation {
+  addSubIssue(input: { issueId: "<epic-node-id>", subIssueId: "<story-node-id>" }) {
+    issue { number }
+    subIssue { number }
+  }
+}'
+```
+
+#### Blocked-By/Blocking Dependencies
+
+When a story has dependencies on other stories (documented in the issue body), create corresponding `addBlockedBy` relationships:
+
+```bash
+# Mark story as blocked by another story
+gh api graphql -f query='
+mutation {
+  addBlockedBy(input: { issueId: "<blocked-node-id>", blockingIssueId: "<blocker-node-id>" }) {
+    issue { number }
+  }
+}'
+```
+
+#### Board Status Categories
+
+When creating or moving items on the Projects board, use these status categories:
+
+| Status          | Option ID  | Purpose                                      |
+| --------------- | ---------- | -------------------------------------------- |
+| **Backlog**     | `7404f88c` | Epics and future-sprint stories              |
+| **Todo**        | `dc74a3b0` | Current sprint stories ready for development |
+| **In Progress** | `296eeabe` | Stories actively being developed             |
+| **Done**        | `c558f50d` | Completed and accepted                       |
+
+Project ID: `PVT_kwHOAGtLQM4BOlve`
+Status Field ID: `PVTSSF_lAHOAGtLQM4BOlvezg9P0yo`
+
+#### Post-Creation Checklist
+
+After creating a new user story issue:
+
+1. **Link as sub-issue** of the parent epic via `addSubIssue`
+2. **Create blocked-by links** for each dependency listed in the story's Notes section
+3. **Set board status** — new stories go to `Backlog` (future sprints) or `Todo` (current sprint)
+
 ## Strict Boundaries — What You Must NOT Do
 
 - **Do NOT write application code** (no backend, frontend, or infrastructure code)
@@ -147,6 +205,12 @@ When creating a user story as a GitHub Issue, use this body format:
 
 Label: `user-story`
 
+**After creating the issue**, complete the post-creation steps from §6:
+
+1. Link as sub-issue of the parent epic
+2. Create blocked-by relationships for each dependency
+3. Set the correct board status (Backlog or Todo)
+
 ## Definition of Done
 
 A story is considered **Done** when:
@@ -167,6 +231,9 @@ Before finalizing any backlog work, verify:
 - [ ] Priorities are assigned and justified
 - [ ] Dependencies between stories are identified and documented
 - [ ] GitHub Projects board is updated to reflect current state
+- [ ] Every story is linked as a sub-issue of its parent epic (via `addSubIssue`)
+- [ ] All dependencies have corresponding blocked-by/blocking relationships (via `addBlockedBy`)
+- [ ] Items are in the correct status category (Backlog/Todo/In Progress/Done)
 
 ## PR Review
 
@@ -177,6 +244,7 @@ When launched to review a pull request, follow this process:
 - **Requirements coverage** — does the PR address the linked user story / acceptance criteria?
 - **UAT alignment** — are the approved UAT scenarios covered by tests or implementation?
 - **Scope discipline** — does the PR stay within the story's scope (no undocumented changes)?
+- **Board status** — is the story's board status set to "In Progress" while being worked on?
 
 ### Review Actions
 
