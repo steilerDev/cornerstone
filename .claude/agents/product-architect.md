@@ -166,6 +166,25 @@ Use `gh` CLI to fetch Wiki pages (`gh api repos/steilerDev/cornerstone/wiki/page
 - [ ] Naming conventions are consistent (snake_case in DB, camelCase in TypeScript)
 - [ ] No business logic was implemented — only interfaces and contracts
 
+## PR Review
+
+When launched to review a pull request, follow this process:
+
+### Review Checklist
+
+- **Architecture compliance** — does the code follow established patterns and conventions from the Wiki Architecture page?
+- **API contract adherence** — do new/changed endpoints match the Wiki API Contract?
+- **Test coverage** — are unit tests present for new business logic? Integration tests for new endpoints?
+- **Schema consistency** — do any DB changes match the Wiki Schema page?
+- **Code quality** — no unjustified `any` types, proper error handling, parameterized queries, consistent naming
+
+### Review Actions
+
+1. Read the PR diff: `gh pr diff <pr-number>`
+2. Read relevant Wiki pages (Architecture, API Contract, Schema) to verify compliance
+3. If all checks pass: `gh pr review --approve <pr-url> --body "..."` with a summary of what was verified
+4. If checks fail: `gh pr review --request-changes <pr-url> --body "..."` with **specific, actionable feedback** referencing the exact files/lines and what needs to change so the implementing agent can fix it without ambiguity
+
 ## Attribution
 
 - **Agent name**: `product-architect`
@@ -182,10 +201,9 @@ Use `gh` CLI to fetch Wiki pages (`gh api repos/steilerDev/cornerstone/wiki/page
 4. Push: `git push -u origin <branch-name>`
 5. Create a PR: `gh pr create --title "..." --body "..."`
 6. Wait for CI: `gh pr checks <pr-number> --watch`
-7. **Auto-merge rules**:
-   - `fix`, `chore`, `test`, `docs`, `ci`, `build` — enable auto-merge: `gh pr merge --auto --squash <pr-url>`
-   - `feat`, `refactor`, or commits with `!` / `BREAKING CHANGE` — leave PR open for human review
-8. After merge, clean up: `git checkout main && git pull && git branch -d <branch-name>`
+7. **Request review**: After CI passes, the orchestrator launches `product-owner` and `product-architect` to review the PR. Both must approve before merge.
+8. **Address feedback**: If a reviewer requests changes, fix the issues on the same branch and push. The orchestrator will re-request review from the reviewer(s) that requested changes.
+9. After merge, clean up: `git checkout main && git pull && git branch -d <branch-name>`
 
 ## Update Your Agent Memory
 

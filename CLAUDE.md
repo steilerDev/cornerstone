@@ -151,10 +151,20 @@ All agents must clearly identify themselves in commits and GitHub interactions:
   3. Push the branch: `git push -u origin <branch-name>`
   4. Create a PR: `gh pr create --title "..." --body "..."`
   5. Wait for CI: `gh pr checks <pr-number> --watch`
-  6. **Auto-merge rules** (based on conventional commit type):
-     - `fix`, `chore`, `test`, `docs`, `ci`, `build` — enable auto-merge: `gh pr merge --auto --squash <pr-url>`
-     - `feat`, `refactor`, or commits with `!` / `BREAKING CHANGE` — leave PR open for human review
-  7. After merge, clean up: `git checkout main && git pull && git branch -d <branch-name>`
+  6. **Request agent review**: After CI passes, the orchestrator must launch
+     both review agents **in parallel**:
+     - `product-owner` — verifies requirements coverage, acceptance criteria, and UAT alignment
+     - `product-architect` — verifies architecture compliance, test coverage, and code quality
+       Both agents review the PR diff and comment via `gh pr review`.
+  7. **Fix loop**: If either reviewer requests changes:
+     a. The reviewer posts specific feedback on the PR (`gh pr review --request-changes`)
+     b. The orchestrator launches the original implementing agent on the same branch to address the feedback
+     c. The implementing agent pushes fixes, then the orchestrator re-requests review from the agent(s) that requested changes
+     d. Repeat until both reviewers approve
+  8. **Merge**: Once both agents approve and CI is green, merge: `gh pr merge --squash <pr-url>`
+  9. After merge, clean up: `git checkout main && git pull && git branch -d <branch-name>`
+
+Note: Dependabot auto-merge (`.github/workflows/dependabot-auto-merge.yml`) is unaffected — it handles automated dependency updates, not agent work.
 
 ## Tech Stack
 
