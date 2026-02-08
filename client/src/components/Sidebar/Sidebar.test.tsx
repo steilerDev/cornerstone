@@ -111,6 +111,23 @@ describe('Sidebar', () => {
     expect(activeLinks[0]).toHaveTextContent(/budget/i);
   });
 
+  it('renders a close button with correct aria-label', () => {
+    renderWithRouter(<Sidebar {...defaultProps} isOpen={true} />);
+
+    const closeButton = screen.getByRole('button', { name: /close menu/i });
+    expect(closeButton).toBeInTheDocument();
+  });
+
+  it('clicking close button calls onClose', async () => {
+    const user = userEvent.setup();
+    renderWithRouter(<Sidebar {...defaultProps} isOpen={true} />);
+
+    const closeButton = screen.getByRole('button', { name: /close menu/i });
+    await user.click(closeButton);
+
+    expect(mockOnClose).toHaveBeenCalledTimes(1);
+  });
+
   it('sidebar has .open class when isOpen is true', () => {
     renderWithRouter(<Sidebar {...defaultProps} isOpen={true} />);
 

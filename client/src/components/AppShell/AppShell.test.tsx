@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  */
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { lazy } from 'react';
 import { Route, Routes } from 'react-router-dom';
@@ -231,8 +231,9 @@ describe('AppShell', () => {
     let overlay = document.querySelector('[aria-hidden="true"]');
     expect(overlay).toBeInTheDocument();
 
-    // Button should now say "Close menu"
-    menuButton = screen.getByRole('button', { name: /close menu/i });
+    // Header button should now say "Close menu"
+    const header = screen.getByRole('banner');
+    menuButton = within(header).getByRole('button', { name: /close menu/i });
 
     // Close
     await user.click(menuButton);
@@ -265,9 +266,40 @@ describe('AppShell', () => {
     // Click to open
     await user.click(menuButton);
 
-    // Button should now show close icon
-    menuButton = screen.getByRole('button', { name: /close menu/i });
+    // Header button should now show close icon
+    const header = screen.getByRole('banner');
+    menuButton = within(header).getByRole('button', { name: /close menu/i });
     expect(menuButton).toHaveTextContent('✕');
+  });
+
+  it('clicking close button inside sidebar closes the sidebar', async () => {
+    const user = userEvent.setup();
+    renderWithRouter(
+      <Routes>
+        <Route element={<AppShell />} path="*">
+          <Route index element={<div>Test Content</div>} />
+        </Route>
+      </Routes>,
+    );
+
+    // Open sidebar
+    const menuButton = screen.getByRole('button', { name: /open menu/i });
+    await user.click(menuButton);
+
+    // Sidebar should be open
+    const sidebar = screen.getByRole('complementary');
+    expect(sidebar.className).toMatch(/open/);
+
+    // Click the close button inside the sidebar
+    const closeButton = within(sidebar).getByRole('button', { name: /close menu/i });
+    await user.click(closeButton);
+
+    // Sidebar should be closed
+    expect(sidebar.className).not.toMatch(/open/);
+
+    // Overlay should be removed
+    const overlay = document.querySelector('[aria-hidden="true"]');
+    expect(overlay).not.toBeInTheDocument();
   });
 
   it('menu button aria-label changes from "Open menu" to "Close menu" when sidebar opens', async () => {
@@ -287,8 +319,9 @@ describe('AppShell', () => {
     // Click to open
     await user.click(menuButton);
 
-    // Button should now have "Close menu" label
-    menuButton = screen.getByRole('button', { name: /close menu/i });
+    // Header button should now have "Close menu" label
+    const header = screen.getByRole('banner');
+    menuButton = within(header).getByRole('button', { name: /close menu/i });
     expect(menuButton).toHaveAttribute('aria-label', 'Close menu');
   });
 });
