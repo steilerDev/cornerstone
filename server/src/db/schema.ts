@@ -8,3 +8,6 @@
 
 // Schema tables will be added here as epics are implemented.
 // Example: export const users = sqliteTable('users', { ... });
+
+// Empty export to make this a module
+export {};
