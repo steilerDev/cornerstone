@@ -93,6 +93,8 @@ Schema and API contract evolve incrementally as each epic is implemented, rather
 
 **One user story per development cycle.** Each cycle completes a single story end-to-end (architecture → implementation → tests → PR → review → merge) before starting the next. This keeps work focused and reduces context-switching.
 
+**Compact context between stories.** After completing each story (merged and moved to Done), the orchestrator must compact its context before starting the next story. Stories are independent units of work — prior conversation history is not needed, only agent memory persists. This prevents context window exhaustion during multi-story epics.
+
 **Mark stories in-progress before starting work.** When beginning work on a story, immediately move its GitHub Issue to "In Progress" on the Projects board. This prevents other agents from picking up the same story concurrently.
 
 **The orchestrator delegates, never implements.** The orchestrating Claude coordinates the agent team but must NEVER write production code, tests, or architectural artifacts itself. Every implementation task must be delegated to the appropriate specialized agent:
