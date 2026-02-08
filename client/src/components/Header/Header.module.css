@@ -34,3 +34,14 @@
   margin-left: 1rem;
   flex: 1;
 }
+
+/* Desktop: hide menu button */
+@media (min-width: 1025px) {
+  .menuButton {
+    display: none;
+  }
+
+  .titleArea {
+    margin-left: 0;
+  }
+}
