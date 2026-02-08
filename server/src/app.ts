@@ -4,6 +4,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { existsSync } from 'fs';
 import fastifyStatic from '@fastify/static';
+import dbPlugin from './plugins/db.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -13,6 +14,9 @@ export async function buildApp(): Promise<FastifyInstance> {
       level: process.env.LOG_LEVEL || 'info',
     },
   });
+
+  // Database connection & migrations (must be first)
+  await app.register(dbPlugin);
 
   // Health check endpoint
   app.get('/api/health', async () => {
