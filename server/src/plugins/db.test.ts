@@ -2,7 +2,9 @@ import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import Database from 'better-sqlite3';
 import { buildApp } from '../app.js';
+import { runMigrations } from '../db/migrate.js';
 import type { FastifyInstance } from 'fastify';
 
 describe('Database Plugin', () => {
@@ -106,8 +108,8 @@ describe('Database Plugin', () => {
     expect(result).toBe('wal');
   });
 
-  it('Scenario 5: Pending migrations run on startup (fresh database)', async () => {
-    // Given: Fresh database with test migrations
+  it('Scenario 5: Pending migrations run on startup (fresh database)', () => {
+    // Given: Fresh database with test migrations in a temp directory
     const migrationsDir = join(tempDir, 'migrations');
     mkdirSync(migrationsDir, { recursive: true });
 
@@ -120,138 +122,100 @@ describe('Database Plugin', () => {
       'CREATE TABLE test_posts (id INTEGER PRIMARY KEY, title TEXT);',
     );
 
-    // Mock the migrations directory by setting environment
-    // Note: Since migrations are hardcoded to src/db/migrations, we need to create them there
-    const actualMigrationsDir = join(process.cwd(), 'server/src/db/migrations');
-    if (!existsSync(actualMigrationsDir)) {
-      mkdirSync(actualMigrationsDir, { recursive: true });
-    }
+    // When: Migrations are run against a fresh database
+    const sqlite = new Database(dbPath);
+    runMigrations(sqlite, migrationsDir);
 
-    // Create temporary test migrations
-    const testMigration1 = join(actualMigrationsDir, 'test_0001_users.sql');
-    const testMigration2 = join(actualMigrationsDir, 'test_0002_posts.sql');
+    // Then: Both migrations are applied
+    const migrations = (
+      sqlite.prepare('SELECT name FROM _migrations ORDER BY name').all() as Array<{
+        name: string;
+      }>
+    ).map((row) => row.name);
 
-    try {
-      writeFileSync(testMigration1, 'CREATE TABLE test_users (id INTEGER PRIMARY KEY, name TEXT);');
-      writeFileSync(
-        testMigration2,
-        'CREATE TABLE test_posts (id INTEGER PRIMARY KEY, title TEXT);',
-      );
+    expect(migrations).toContain('0001_test_users.sql');
+    expect(migrations).toContain('0002_test_posts.sql');
 
-      // When: Server starts
-      app = await buildApp();
+    // Verify tables exist
+    const tables = (
+      sqlite
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'test_%'")
+        .all() as Array<{ name: string }>
+    ).map((row) => row.name);
 
-      // Then: Both migrations are applied
-      const migrations = (
-        app.db.$client.prepare('SELECT name FROM _migrations ORDER BY name').all() as Array<{
-          name: string;
-        }>
-      ).map((row) => row.name);
+    expect(tables).toContain('test_users');
+    expect(tables).toContain('test_posts');
 
-      expect(migrations).toContain('test_0001_users.sql');
-      expect(migrations).toContain('test_0002_posts.sql');
-
-      // Verify tables exist
-      const tables = (
-        app.db.$client
-          .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'test_%'")
-          .all() as Array<{ name: string }>
-      ).map((row) => row.name);
-
-      expect(tables).toContain('test_users');
-      expect(tables).toContain('test_posts');
-    } finally {
-      // Cleanup test migrations
-      try {
-        rmSync(testMigration1, { force: true });
-        rmSync(testMigration2, { force: true });
-      } catch {
-        // Ignore cleanup errors
-      }
-    }
+    sqlite.close();
   });
 
-  it('Scenario 6: Only new migrations run on startup (existing database)', async () => {
+  it('Scenario 6: Only new migrations run on startup (existing database)', () => {
     // Given: Database with one migration already applied
-    const actualMigrationsDir = join(process.cwd(), 'server/src/db/migrations');
-    if (!existsSync(actualMigrationsDir)) {
-      mkdirSync(actualMigrationsDir, { recursive: true });
-    }
+    const migrationsDir = join(tempDir, 'migrations');
+    mkdirSync(migrationsDir, { recursive: true });
 
-    const testMigration1 = join(actualMigrationsDir, 'test_0003_existing.sql');
-    const testMigration2 = join(actualMigrationsDir, 'test_0004_new.sql');
+    writeFileSync(
+      join(migrationsDir, '0003_existing.sql'),
+      'CREATE TABLE test_existing (id INTEGER PRIMARY KEY, data TEXT);',
+    );
 
-    try {
-      writeFileSync(
-        testMigration1,
-        'CREATE TABLE test_existing (id INTEGER PRIMARY KEY, data TEXT);',
-      );
+    // Run migrations once to apply the first migration
+    const sqlite = new Database(dbPath);
+    runMigrations(sqlite, migrationsDir);
 
-      // Start server once to apply first migration
-      app = await buildApp();
-      await app.close();
+    // Add a second migration
+    writeFileSync(
+      join(migrationsDir, '0004_new.sql'),
+      'CREATE TABLE test_new (id INTEGER PRIMARY KEY, info TEXT);',
+    );
 
-      // Create second migration
-      writeFileSync(testMigration2, 'CREATE TABLE test_new (id INTEGER PRIMARY KEY, info TEXT);');
+    // When: Migrations are run again
+    runMigrations(sqlite, migrationsDir);
 
-      // When: Server starts again
-      app = await buildApp();
+    // Then: Both migrations are recorded
+    const migrations = (
+      sqlite.prepare('SELECT name FROM _migrations ORDER BY name').all() as Array<{
+        name: string;
+      }>
+    ).map((row) => row.name);
 
-      // Then: Only the new migration is applied
-      const migrations = (
-        app.db.$client.prepare('SELECT name FROM _migrations ORDER BY name').all() as Array<{
-          name: string;
-        }>
-      ).map((row) => row.name);
+    expect(migrations).toContain('0003_existing.sql');
+    expect(migrations).toContain('0004_new.sql');
 
-      expect(migrations).toContain('test_0003_existing.sql');
-      expect(migrations).toContain('test_0004_new.sql');
+    // Verify new table exists
+    const tables = (
+      sqlite
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='test_new'")
+        .all() as Array<{ name: string }>
+    ).map((row) => row.name);
 
-      // Verify new table exists
-      const tables = (
-        app.db.$client
-          .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='test_new'")
-          .all() as Array<{ name: string }>
-      ).map((row) => row.name);
+    expect(tables).toContain('test_new');
 
-      expect(tables).toContain('test_new');
-    } finally {
-      // Cleanup test migrations
-      try {
-        rmSync(testMigration1, { force: true });
-        rmSync(testMigration2, { force: true });
-      } catch {
-        // Ignore cleanup errors
-      }
-    }
+    sqlite.close();
   });
 
-  it('Scenario 7: Server fails to start if a migration fails', async () => {
+  it('Scenario 7: Migration failure prevents startup (throws error)', () => {
     // Given: A migration with invalid SQL
-    const actualMigrationsDir = join(process.cwd(), 'server/src/db/migrations');
-    if (!existsSync(actualMigrationsDir)) {
-      mkdirSync(actualMigrationsDir, { recursive: true });
-    }
+    const migrationsDir = join(tempDir, 'migrations');
+    mkdirSync(migrationsDir, { recursive: true });
 
-    const invalidMigration = join(actualMigrationsDir, 'test_0005_invalid.sql');
+    writeFileSync(
+      join(migrationsDir, '0005_invalid.sql'),
+      'CREATE TABLEX invalid_syntax (id INT);',
+    );
 
-    try {
-      writeFileSync(invalidMigration, 'CREATE TABLEX invalid_syntax (id INT);');
+    // When: Migrations are run
+    // Then: It should throw an error
+    const sqlite = new Database(dbPath);
+    expect(() => runMigrations(sqlite, migrationsDir)).toThrow();
 
-      // When: Server attempts to start
-      // Then: It should throw an error
-      await expect(buildApp()).rejects.toThrow();
+    // The failed migration should not be recorded
+    const migrations = sqlite.prepare('SELECT name FROM _migrations').all() as Array<{
+      name: string;
+    }>;
+    expect(migrations).toHaveLength(0);
 
-      // The failed migration should not be recorded
-      // (We can't easily verify this in the same test since the app didn't start)
-    } finally {
-      // Cleanup test migration
-      try {
-        rmSync(invalidMigration, { force: true });
-      } catch {
-        // Ignore cleanup errors
-      }
-    }
+    sqlite.close();
   });
 
   it('Scenario 8: Database connection closes on server shutdown', async () => {

@@ -1,8 +1,8 @@
 import Fastify from 'fastify';
 import type { FastifyInstance } from 'fastify';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-import { existsSync } from 'fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { existsSync } from 'node:fs';
 import fastifyStatic from '@fastify/static';
 import configPlugin from './plugins/config.js';
 import dbPlugin from './plugins/db.js';
