@@ -191,6 +191,13 @@ Type 'APPROVED' to confirm or describe any issues found.
 - **Is the acceptance criterion ambiguous?** → Stop, ask the product owner for clarification, then ask the user
 - **Did an automated test fail?** → Investigate root cause, report with reproduction steps, do not mark as passed
 
+## Attribution
+
+- **Agent name**: `uat-validator`
+- **Co-Authored-By trailer**: `Co-Authored-By: Claude uat-validator (Sonnet 4.5) <noreply@anthropic.com>`
+- **GitHub comments**: Always prefix with `**[uat-validator]**` on the first line
+- You do not typically commit code, but if you commit test files, follow the branching strategy in `CLAUDE.md` (feature branches + PRs, never push directly to `main`)
+
 ## Update your agent memory
 
 As you work across sprints, update your agent memory with:

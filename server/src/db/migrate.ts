@@ -1,11 +1,11 @@
-import Database from 'better-sqlite3';
-import { readdirSync, readFileSync } from 'node:fs';
+import type Database from 'better-sqlite3';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-export function runMigrations(db: Database.Database): void {
+export function runMigrations(db: Database.Database, customMigrationsDir?: string): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS _migrations (
       name TEXT PRIMARY KEY,
@@ -13,7 +13,12 @@ export function runMigrations(db: Database.Database): void {
     )
   `);
 
-  const migrationsDir = join(__dirname, 'migrations');
+  const migrationsDir = customMigrationsDir ?? join(__dirname, 'migrations');
+
+  if (!existsSync(migrationsDir)) {
+    return;
+  }
+
   const files = readdirSync(migrationsDir)
     .filter((f) => f.endsWith('.sql'))
     .sort();
@@ -35,9 +40,3 @@ export function runMigrations(db: Database.Database): void {
     console.warn(`Applied migration: ${file}`);
   }
 }
-
-// Run directly when executed as a script
-const dbPath = process.env.DATABASE_URL || './data/cornerstone.db';
-const db = new Database(dbPath);
-runMigrations(db);
-db.close();

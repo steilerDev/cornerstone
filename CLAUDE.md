@@ -70,19 +70,21 @@ Every epic follows a three-phase validation lifecycle managed by the `uat-valida
 
 ### Planning Phase
 
-Before development begins on any epic:
+Before development begins on any story:
 
 1. The **product-owner** defines user stories with acceptance criteria
 2. The **uat-validator** translates acceptance criteria into concrete UAT scenarios (Given/When/Then)
-3. UAT scenarios are presented to the user for review and discussion
-4. Development does NOT proceed until the user approves the UAT plan
+3. The **qa-integration-tester** reviews the draft UAT scenarios for testability and automation feasibility, suggesting adjustments where needed
+4. The **uat-validator** incorporates QA feedback and posts the final scenarios to the story's GitHub Issue
+5. UAT scenarios are presented to the user for review and approval
+6. Development does NOT proceed until the user approves the UAT plan
 
 ### Development Phase
 
 While implementation is in progress:
 
 - Developers reference the approved UAT scenarios to understand expected behavior
-- The **qa-integration-tester** writes automated tests covering UAT scenarios where possible
+- The **qa-integration-tester** writes automated tests covering the approved UAT scenarios
 - All automated tests must pass before requesting manual validation
 
 ### Validation Phase
@@ -111,7 +113,58 @@ All commits follow [Conventional Commits](https://www.conventionalcommits.org/):
 - **Breaking changes**: Use `!` suffix or `BREAKING CHANGE:` footer
 - Every completed task gets its own commit with a meaningful description
 - **Link commits to issues**: When a commit resolves work tracked in a GitHub Issue, include `Fixes #<issue-number>` in the commit message body (one per line for multiple issues). This automatically closes the related issue(s) when merged to `main`.
-- **Always commit and push after verification passes.** When a work session completes and all quality gates (`lint`, `typecheck`, `test`, `format:check`, `build`, `npm audit`) pass, create a commit and push it to the remote before ending the session. Do not leave verified work uncommitted or unpushed.
+- **Always commit, push to a feature branch, and create a PR after verification passes.** When a work session completes and all quality gates (`lint`, `typecheck`, `test`, `format:check`, `build`, `npm audit`) pass, commit, push to the feature branch, and create a PR before ending the session. Do not leave verified work uncommitted or unpushed. Never push directly to `main`.
+
+### Agent Attribution
+
+All agents must clearly identify themselves in commits and GitHub interactions:
+
+- **Commits**: Include the agent name in the `Co-Authored-By` trailer:
+
+  ```
+  Co-Authored-By: Claude <agent-name> (<model>) <noreply@anthropic.com>
+  ```
+
+  Replace `<agent-name>` with one of: `backend-developer`, `frontend-developer`, `product-architect`, `product-owner`, `qa-integration-tester`, `security-engineer`, `uat-validator`, or `orchestrator` (when the orchestrating Claude commits directly). Replace `<model>` with the agent's actual model (e.g., `Opus 4.6`, `Sonnet 4.5`). Each agent's definition file specifies the exact trailer to use.
+
+- **GitHub comments** (on issues, PRs, or discussions): Prefix the first line with the agent name in bold brackets:
+
+  ```
+  **[backend-developer]** This endpoint has been implemented...
+  ```
+
+- When the orchestrator commits work produced by a specific agent, it must use that agent's name in the `Co-Authored-By` trailer, not its own.
+
+### Branching Strategy
+
+**Never commit directly to `main`.** All changes go through feature branches and pull requests.
+
+- **Branch naming**: `<type>/<issue-number>-<short-description>`
+
+  - Examples: `feat/42-work-item-crud`, `fix/55-budget-calc`, `ci/18-dependabot-auto-merge`
+  - Use the conventional commit type as the prefix
+  - Include the GitHub Issue number when one exists
+
+- **Workflow**:
+  1. Create a feature branch: `git checkout -b <branch-name> main`
+  2. Implement changes, run quality gates, commit
+  3. Push the branch: `git push -u origin <branch-name>`
+  4. Create a PR: `gh pr create --title "..." --body "..."`
+  5. Wait for CI: `gh pr checks <pr-number> --watch`
+  6. **Request agent review**: After CI passes, the orchestrator must launch
+     both review agents **in parallel**:
+     - `product-owner` — verifies requirements coverage, acceptance criteria, and UAT alignment
+     - `product-architect` — verifies architecture compliance, test coverage, and code quality
+       Both agents review the PR diff and comment via `gh pr review`.
+  7. **Fix loop**: If either reviewer requests changes:
+     a. The reviewer posts specific feedback on the PR (`gh pr review --request-changes`)
+     b. The orchestrator launches the original implementing agent on the same branch to address the feedback
+     c. The implementing agent pushes fixes, then the orchestrator re-requests review from the agent(s) that requested changes
+     d. Repeat until both reviewers approve
+  8. **Merge**: Once both agents approve and CI is green, merge: `gh pr merge --squash <pr-url>`
+  9. After merge, clean up: `git checkout main && git pull && git branch -d <branch-name>`
+
+Note: Dependabot auto-merge (`.github/workflows/dependabot-auto-merge.yml`) is unaffected — it handles automated dependency updates, not agent work.
 
 ## Tech Stack
 
