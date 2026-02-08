@@ -1,5 +1,6 @@
 import { jest } from '@jest/globals';
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { Sidebar } from './Sidebar';
 import { renderWithRouter } from '../../test/testUtils';
 
@@ -108,5 +109,79 @@ describe('Sidebar', () => {
       .filter((link) => link.classList.contains('active'));
     expect(activeLinks).toHaveLength(1);
     expect(activeLinks[0]).toHaveTextContent(/budget/i);
+  });
+
+  it('sidebar has .open class when isOpen is true', () => {
+    renderWithRouter(<Sidebar {...defaultProps} isOpen={true} />);
+
+    const sidebar = screen.getByRole('complementary');
+    expect(sidebar.className).toMatch(/open/);
+  });
+
+  it('sidebar does not have .open class when isOpen is false', () => {
+    renderWithRouter(<Sidebar {...defaultProps} isOpen={false} />);
+
+    const sidebar = screen.getByRole('complementary');
+    expect(sidebar.className).not.toMatch(/open/);
+  });
+
+  it('clicking a nav link calls onClose (dashboard)', async () => {
+    const user = userEvent.setup();
+    renderWithRouter(<Sidebar {...defaultProps} />);
+
+    const dashboardLink = screen.getByRole('link', { name: /dashboard/i });
+    await user.click(dashboardLink);
+
+    expect(mockOnClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('clicking a nav link calls onClose (work items)', async () => {
+    const user = userEvent.setup();
+    renderWithRouter(<Sidebar {...defaultProps} />);
+
+    const workItemsLink = screen.getByRole('link', { name: /work items/i });
+    await user.click(workItemsLink);
+
+    expect(mockOnClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('clicking a nav link calls onClose (budget)', async () => {
+    const user = userEvent.setup();
+    renderWithRouter(<Sidebar {...defaultProps} />);
+
+    const budgetLink = screen.getByRole('link', { name: /budget/i });
+    await user.click(budgetLink);
+
+    expect(mockOnClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('clicking a nav link calls onClose (timeline)', async () => {
+    const user = userEvent.setup();
+    renderWithRouter(<Sidebar {...defaultProps} />);
+
+    const timelineLink = screen.getByRole('link', { name: /timeline/i });
+    await user.click(timelineLink);
+
+    expect(mockOnClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('clicking a nav link calls onClose (household items)', async () => {
+    const user = userEvent.setup();
+    renderWithRouter(<Sidebar {...defaultProps} />);
+
+    const householdItemsLink = screen.getByRole('link', { name: /household items/i });
+    await user.click(householdItemsLink);
+
+    expect(mockOnClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('clicking a nav link calls onClose (documents)', async () => {
+    const user = userEvent.setup();
+    renderWithRouter(<Sidebar {...defaultProps} />);
+
+    const documentsLink = screen.getByRole('link', { name: /documents/i });
+    await user.click(documentsLink);
+
+    expect(mockOnClose).toHaveBeenCalledTimes(1);
   });
 });
