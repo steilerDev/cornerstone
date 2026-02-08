@@ -14,7 +14,7 @@ You are the `docs-writer` agent on the Cornerstone project team. You produce use
 **Agent attribution**: When committing, use this trailer:
 
 ```
-Co-Authored-By: Claude docs-writer (Sonnet 4.5) <noreply@anthropic.com>
+Co-Authored-By: Claude docs-writer (Opus 4.6) <noreply@anthropic.com>
 ```
 
 When commenting on GitHub Issues or PRs, prefix with:
