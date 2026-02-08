@@ -10,7 +10,7 @@ Cornerstone is a web-based home building project management application designed
 
 ## Agent Team
 
-This project uses a team of 7 specialized Claude Code agents defined in `.claude/agents/`:
+This project uses a team of 8 specialized Claude Code agents defined in `.claude/agents/`:
 
 | Agent                   | Role                                                                        |
 | ----------------------- | --------------------------------------------------------------------------- |
@@ -21,6 +21,7 @@ This project uses a team of 7 specialized Claude Code agents defined in `.claude
 | `qa-integration-tester` | Unit test coverage (95%+ target), E2E tests, integration tests, bug reports |
 | `security-engineer`     | Security audits, vulnerability reports, remediation guidance                |
 | `uat-validator`         | UAT scenarios, manual validation steps, user sign-off per epic              |
+| `docs-writer`           | Updates user-facing README.md after UAT approval per epic                   |
 
 ## GitHub Tools Strategy
 
@@ -90,6 +91,14 @@ We follow an incremental, agile approach:
 
 Schema and API contract evolve incrementally as each epic is implemented, rather than being designed all at once upfront.
 
+**Consistency check at epic start.** Before beginning any new epic, the orchestrator must verify repository consistency against the latest `CLAUDE.md` instructions:
+
+- Agent definitions (`.claude/agents/`) align with current conventions (branch refs, attribution, responsibilities)
+- CI/CD workflows match the current release model (branch triggers, Docker tags)
+- `CLAUDE.md` conventions are internally consistent (agent team table, workflow steps, delegation list)
+- Stale references (e.g., outdated branch names, deprecated tools, wrong tech stack mentions) are identified and fixed
+- Any inconsistencies are corrected in a dedicated `chore/consistency-cleanup` PR before epic work begins
+
 **Important: Planning agents run first.** Always launch the `product-owner` and `product-architect` agents BEFORE implementing any code. These agents must coordinate with the user and validate or adjust the plan before development begins. This catches inconsistencies early and avoids rework.
 
 **One user story per development cycle.** Each cycle completes a single story end-to-end (architecture → implementation → tests → PR → review → merge) before starting the next. This keeps work focused and reduces context-switching.
@@ -108,6 +117,7 @@ Schema and API contract evolve incrementally as each epic is implemented, rather
 - **UAT scenarios** → `uat-validator` agent
 - **Story definitions** → `product-owner` agent
 - **Security reviews** → `security-engineer` agent
+- **User-facing documentation** → `docs-writer` agent
 
 The orchestrator's role is to: sequence agent launches, pass context between agents, manage the feature branch and PR lifecycle, and ensure the full agile cycle is followed for every story.
 
@@ -157,7 +167,8 @@ After the refinement task is complete and all automated tests pass:
 2. Step-by-step manual validation instructions are provided to the user
 3. The user walks through each scenario and marks it pass or fail
 4. If any scenario fails, developers fix the issue and the cycle repeats from the automated test step
-5. The epic is complete only after explicit user approval
+5. After user approval, the **docs-writer** updates `README.md` to reflect the newly shipped features
+6. The epic is complete only after explicit user approval and documentation is updated
 
 ### Key Rules
 
@@ -190,7 +201,7 @@ All agents must clearly identify themselves in commits and GitHub interactions:
   Co-Authored-By: Claude <agent-name> (<model>) <noreply@anthropic.com>
   ```
 
-  Replace `<agent-name>` with one of: `backend-developer`, `frontend-developer`, `product-architect`, `product-owner`, `qa-integration-tester`, `security-engineer`, `uat-validator`, or `orchestrator` (when the orchestrating Claude commits directly). Replace `<model>` with the agent's actual model (e.g., `Opus 4.6`, `Sonnet 4.5`). Each agent's definition file specifies the exact trailer to use.
+  Replace `<agent-name>` with one of: `backend-developer`, `frontend-developer`, `product-architect`, `product-owner`, `qa-integration-tester`, `security-engineer`, `uat-validator`, `docs-writer`, or `orchestrator` (when the orchestrating Claude commits directly). Replace `<model>` with the agent's actual model (e.g., `Opus 4.6`, `Sonnet 4.5`). Each agent's definition file specifies the exact trailer to use.
 
 - **GitHub comments** (on issues, PRs, or discussions): Prefix the first line with the agent name in bold brackets:
 
@@ -231,7 +242,8 @@ All agents must clearly identify themselves in commits and GitHub interactions:
       d. Repeat until all reviewers approve
   11. **Merge**: Once all agents approve and CI is green, merge immediately: `gh pr merge --squash <pr-url>`
   12. After merge, clean up: `git checkout beta && git pull && git branch -d <branch-name>`
-  13. **Epic promotion**: After all stories in an epic are complete (merged to `beta`) and UAT is approved, create a PR from `beta` to `main` using a **merge commit** (not squash): `gh pr create --base main --head beta --title "..." --body "..."` then `gh pr merge --merge <pr-url>`. Merge commits preserve individual commits for semantic-release analysis.
+  13. **Documentation**: Launch `docs-writer` to update `README.md` with newly shipped features. Commit to `beta`.
+  14. **Epic promotion**: After all stories in an epic are complete (merged to `beta`), UAT is approved, and documentation is updated, create a PR from `beta` to `main` using a **merge commit** (not squash): `gh pr create --base main --head beta --title "..." --body "..."` then `gh pr merge --merge <pr-url>`. Merge commits preserve individual commits for semantic-release analysis.
 
 Note: Dependabot auto-merge (`.github/workflows/dependabot-auto-merge.yml`) targets `beta` — it handles automated dependency updates, not agent work.
 
@@ -250,6 +262,24 @@ Cornerstone uses a two-tier release model:
 - **`beta` -> `main`** (epic promotion): Merge commit (preserves individual commits so semantic-release can analyze them)
 
 **Hotfixes:** If a critical fix must go directly to `main`, immediately cherry-pick the fix back to `beta` to keep branches in sync.
+
+### Branch Protection
+
+Both `main` and `beta` have branch protection rules enforced on GitHub:
+
+| Setting                           | `main`                    | `beta`                    |
+| --------------------------------- | ------------------------- | ------------------------- |
+| PR required                       | Yes                       | Yes                       |
+| Required approving reviews        | 0                         | 0                         |
+| Required status checks            | `Quality Gates`, `Docker` | `Quality Gates`, `Docker` |
+| Strict status checks (up-to-date) | Yes                       | No                        |
+| Enforce admins                    | No                        | Yes                       |
+| Force pushes                      | Blocked                   | Blocked                   |
+| Deletions                         | Blocked                   | Blocked                   |
+
+**Why strict differs:** `main` requires branches to be up-to-date before merging, guaranteeing CI ran against the exact merge base for stable releases. `beta` does not require this — as a high-traffic integration branch receiving parallel feature PRs and Dependabot updates, strict mode would create merge queue bottlenecks.
+
+**Why enforce admins differs:** Admin bypass is allowed on `main` for emergency hotfixes. `beta` enforces rules for all users, including admins, to maintain integration branch integrity.
 
 ## Tech Stack
 
