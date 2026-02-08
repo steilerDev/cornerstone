@@ -62,6 +62,8 @@ We follow an incremental, agile approach:
 
 Schema and API contract evolve incrementally as each epic is implemented, rather than being designed all at once upfront.
 
+**Important: Planning agents run first.** Always launch the `product-owner` and `product-architect` agents BEFORE implementing any code. These agents must coordinate with the user and validate or adjust the plan before development begins. This catches inconsistencies early and avoids rework.
+
 ## Acceptance & Validation
 
 Every epic follows a three-phase validation lifecycle managed by the `uat-validator` agent.
@@ -108,6 +110,7 @@ All commits follow [Conventional Commits](https://www.conventionalcommits.org/):
 - **Scope** optional but encouraged: `feat(work-items):`, `fix(budget):`, `docs(adr):`
 - **Breaking changes**: Use `!` suffix or `BREAKING CHANGE:` footer
 - Every completed task gets its own commit with a meaningful description
+- **Link commits to issues**: When a commit resolves work tracked in a GitHub Issue, include `Fixes #<issue-number>` in the commit message body (one per line for multiple issues). This automatically closes the related issue(s) when merged to `main`.
 - **Always commit and push after verification passes.** When a work session completes and all quality gates (`lint`, `typecheck`, `test`, `format:check`, `build`, `npm audit`) pass, create a commit and push it to the remote before ending the session. Do not leave verified work uncommitted or unpushed.
 
 ## Tech Stack
