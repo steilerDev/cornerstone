@@ -1,5 +1,5 @@
 import { Outlet } from 'react-router-dom';
-import { useState, useCallback, useEffect } from 'react';
+import { Suspense, useState, useCallback, useEffect } from 'react';
 import { Header } from '../Header/Header';
 import { Sidebar } from '../Sidebar/Sidebar';
 import styles from './AppShell.module.css';
@@ -37,7 +37,9 @@ export function AppShell() {
       <div className={styles.mainContent}>
         <Header onToggleSidebar={handleToggleSidebar} />
         <main className={styles.pageContent}>
-          <Outlet />
+          <Suspense fallback={<div className={styles.loading}>Loading...</div>}>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
     </div>

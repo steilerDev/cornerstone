@@ -1,12 +1,14 @@
+import { lazy } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AppShell } from './components/AppShell/AppShell';
-import { DashboardPage } from './pages/DashboardPage/DashboardPage';
-import { WorkItemsPage } from './pages/WorkItemsPage/WorkItemsPage';
-import { BudgetPage } from './pages/BudgetPage/BudgetPage';
-import { TimelinePage } from './pages/TimelinePage/TimelinePage';
-import { HouseholdItemsPage } from './pages/HouseholdItemsPage/HouseholdItemsPage';
-import { DocumentsPage } from './pages/DocumentsPage/DocumentsPage';
-import { NotFoundPage } from './pages/NotFoundPage/NotFoundPage';
+
+const DashboardPage = lazy(() => import('./pages/DashboardPage/DashboardPage'));
+const WorkItemsPage = lazy(() => import('./pages/WorkItemsPage/WorkItemsPage'));
+const BudgetPage = lazy(() => import('./pages/BudgetPage/BudgetPage'));
+const TimelinePage = lazy(() => import('./pages/TimelinePage/TimelinePage'));
+const HouseholdItemsPage = lazy(() => import('./pages/HouseholdItemsPage/HouseholdItemsPage'));
+const DocumentsPage = lazy(() => import('./pages/DocumentsPage/DocumentsPage'));
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage/NotFoundPage'));
 
 export function App() {
   return (

@@ -1,6 +1,7 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
+const CssMinimizerPlugin = require('css-minimizer-webpack-plugin');
 
 module.exports = (env, argv) => {
   const isProduction = argv.mode === 'production';
@@ -57,6 +58,19 @@ module.exports = (env, argv) => {
           ],
         },
       ],
+    },
+    optimization: {
+      splitChunks: {
+        chunks: 'all',
+      },
+      ...(isProduction
+        ? {
+            minimizer: [
+              '...',
+              new CssMinimizerPlugin(),
+            ],
+          }
+        : {}),
     },
     plugins: [
       new HtmlWebpackPlugin({

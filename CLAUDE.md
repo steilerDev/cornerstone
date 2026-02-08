@@ -112,7 +112,7 @@ The orchestrator's role is to: sequence agent launches, pass context between age
 
 ## Acceptance & Validation
 
-Every epic follows a three-phase validation lifecycle managed by the `uat-validator` agent.
+Every epic follows a four-phase validation lifecycle managed by the `uat-validator` agent.
 
 ### Planning Phase
 
@@ -135,9 +135,21 @@ While implementation is in progress:
 - The **qa-integration-tester** writes automated E2E/integration tests covering the approved UAT scenarios
 - All automated tests (unit + E2E) must pass before requesting manual validation
 
+### Refinement Phase
+
+After all stories in an epic are merged, but before manual UAT validation:
+
+1. The orchestrator collects all **non-blocking review comments** from PR reviews across the epic (observations, suggestions, and minor improvements that were noted but not required for merge)
+2. A refinement task is created on a dedicated branch (e.g., `chore/<epic-number>-refinement`) to address these items
+3. The appropriate developer agent(s) implement the refinements
+4. The **qa-integration-tester** updates tests if needed
+5. Standard quality gates must pass, then the refinement PR is merged before proceeding to UAT
+
+This ensures that quality feedback from reviews is not lost, while keeping individual story PRs focused on their acceptance criteria.
+
 ### Validation Phase
 
-After automated tests pass:
+After the refinement task is complete and all automated tests pass:
 
 1. The **uat-validator** runs all automated checks and produces a UAT Validation Report
 2. Step-by-step manual validation instructions are provided to the user

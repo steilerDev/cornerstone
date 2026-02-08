@@ -16,6 +16,14 @@
   background-color: #f9fafb;
 }
 
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  color: #6b7280;
+}
+
 .overlay {
   position: fixed;
   inset: 0;
