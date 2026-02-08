@@ -1,9 +1,11 @@
+import type { ErrorCode } from './errors.js';
+
 /**
  * Standard API error shape used across all endpoints.
  */
 export interface ApiError {
-  /** Machine-readable error code (e.g., "RESOURCE_NOT_FOUND") */
-  code: string;
+  /** Machine-readable error code */
+  code: ErrorCode;
   /** Human-readable error description */
   message: string;
   /** Optional additional error details */

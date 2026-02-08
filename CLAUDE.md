@@ -64,6 +64,10 @@ Schema and API contract evolve incrementally as each epic is implemented, rather
 
 **Important: Planning agents run first.** Always launch the `product-owner` and `product-architect` agents BEFORE implementing any code. These agents must coordinate with the user and validate or adjust the plan before development begins. This catches inconsistencies early and avoids rework.
 
+**One user story per development cycle.** Each cycle completes a single story end-to-end (architecture → implementation → tests → PR → review → merge) before starting the next. This keeps work focused and reduces context-switching.
+
+**Mark stories in-progress before starting work.** When beginning work on a story, immediately move its GitHub Issue to "In Progress" on the Projects board. This prevents other agents from picking up the same story concurrently.
+
 ## Acceptance & Validation
 
 Every epic follows a three-phase validation lifecycle managed by the `uat-validator` agent.

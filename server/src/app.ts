@@ -4,8 +4,10 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
 import fastifyStatic from '@fastify/static';
+import type { ApiErrorResponse } from '@cornerstone/shared';
 import configPlugin from './plugins/config.js';
 import dbPlugin from './plugins/db.js';
+import errorHandlerPlugin from './plugins/errorHandler.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -18,6 +20,9 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Configuration (must be first)
   await app.register(configPlugin);
+
+  // Error handler (after config, before routes)
+  await app.register(errorHandlerPlugin);
 
   // Database connection & migrations
   await app.register(dbPlugin);
@@ -38,12 +43,13 @@ export async function buildApp(): Promise<FastifyInstance> {
     // SPA fallback: serve index.html for any non-API route
     app.setNotFoundHandler((request, reply) => {
       if (request.url.startsWith('/api/')) {
-        return reply.status(404).send({
+        const response: ApiErrorResponse = {
           error: {
             code: 'ROUTE_NOT_FOUND',
             message: `Route ${request.method} ${request.url} not found`,
           },
-        });
+        };
+        return reply.status(404).send(response);
       }
       return reply.sendFile('index.html');
     });
@@ -51,19 +57,21 @@ export async function buildApp(): Promise<FastifyInstance> {
     // Development: no static files, just API
     app.setNotFoundHandler((request, reply) => {
       if (request.url.startsWith('/api/')) {
-        return reply.status(404).send({
+        const response: ApiErrorResponse = {
           error: {
             code: 'ROUTE_NOT_FOUND',
             message: `Route ${request.method} ${request.url} not found`,
           },
-        });
+        };
+        return reply.status(404).send(response);
       }
-      return reply.status(404).send({
+      const response: ApiErrorResponse = {
         error: {
           code: 'NOT_FOUND',
           message: 'Client assets not found. Run "npm run build -w client" first.',
         },
-      });
+      };
+      return reply.status(404).send(response);
     });
   }
 
