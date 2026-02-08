@@ -11,6 +11,16 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   return (
     <aside className={sidebarClassName}>
+      <div className={styles.sidebarHeader}>
+        <button
+          type="button"
+          className={styles.closeButton}
+          onClick={onClose}
+          aria-label="Close menu"
+        >
+          ✕
+        </button>
+      </div>
       <nav className={styles.nav} aria-label="Main navigation">
         <NavLink
           to="/"
