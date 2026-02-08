@@ -113,8 +113,6 @@ jobs:
           load: ${{ github.event_name == 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags || 'cornerstone:ci-test' }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
   # ---------------------------------------------------------------------------
   # Job 3: Docker Scout Security Scan (main push + new release only)
