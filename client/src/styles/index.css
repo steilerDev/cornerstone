@@ -6,13 +6,18 @@
   padding: 0;
 }
 
-html,
+html {
+  height: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   height: 100%;
   font-family:
     system-ui,
     -apple-system,
     sans-serif;
+  overflow-x: hidden;
 }
 
 #root {
