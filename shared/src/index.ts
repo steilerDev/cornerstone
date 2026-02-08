@@ -8,3 +8,4 @@
 
 export type { ApiError, ApiErrorResponse } from './types/api.js';
 export type { ErrorCode } from './types/errors.js';
+export type { User, UserResponse, UserRole, AuthProvider } from './types/user.js';
