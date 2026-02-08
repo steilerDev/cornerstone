@@ -49,10 +49,10 @@ COPY server/ server/
 COPY client/ client/
 
 # Build shared types, then client (Webpack), then server (tsc)
-RUN npm run build
+RUN npm run build && ls -la shared/dist/ && ls -la server/dist/ && ls -la client/dist/
 
 # Remove devDependencies, preserve built artifacts and compiled native addons
-RUN npm prune --omit=dev
+RUN npm prune --omit=dev && ls -la shared/dist/ && ls -la server/dist/ && ls -la client/dist/
 
 # ---------------------------------------------------------------------------
 # Stage 2: Production (no shell — exec form only)
