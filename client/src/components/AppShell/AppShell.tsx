@@ -35,7 +35,7 @@ export function AppShell() {
         <div className={styles.overlay} onClick={handleCloseSidebar} aria-hidden="true" />
       )}
       <div className={styles.mainContent}>
-        <Header onToggleSidebar={handleToggleSidebar} />
+        <Header onToggleSidebar={handleToggleSidebar} isSidebarOpen={isSidebarOpen} />
         <main className={styles.pageContent}>
           <Suspense fallback={<div className={styles.loading}>Loading...</div>}>
             <Outlet />

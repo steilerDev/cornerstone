@@ -103,7 +103,7 @@ describe('AppShell', () => {
       </Routes>,
     );
 
-    const menuButton = screen.getByRole('button', { name: /toggle navigation menu/i });
+    const menuButton = screen.getByRole('button', { name: /open menu/i });
     expect(menuButton).toBeInTheDocument();
   });
 
@@ -131,7 +131,7 @@ describe('AppShell', () => {
       </Routes>,
     );
 
-    const menuButton = screen.getByRole('button', { name: /toggle navigation menu/i });
+    const menuButton = screen.getByRole('button', { name: /open menu/i });
     await user.click(menuButton);
 
     // Overlay should now exist in DOM
@@ -150,7 +150,7 @@ describe('AppShell', () => {
     );
 
     // Open sidebar
-    const menuButton = screen.getByRole('button', { name: /toggle navigation menu/i });
+    const menuButton = screen.getByRole('button', { name: /open menu/i });
     await user.click(menuButton);
 
     // Verify overlay exists
@@ -176,7 +176,7 @@ describe('AppShell', () => {
     );
 
     // Open sidebar
-    const menuButton = screen.getByRole('button', { name: /toggle navigation menu/i });
+    const menuButton = screen.getByRole('button', { name: /open menu/i });
     await user.click(menuButton);
 
     // Verify overlay exists
@@ -207,7 +207,7 @@ describe('AppShell', () => {
     expect(sidebar.className).not.toMatch(/open/);
 
     // Toggle sidebar open
-    const menuButton = screen.getByRole('button', { name: /toggle navigation menu/i });
+    const menuButton = screen.getByRole('button', { name: /open menu/i });
     await user.click(menuButton);
 
     // Sidebar should now have 'open' class
@@ -224,21 +224,71 @@ describe('AppShell', () => {
       </Routes>,
     );
 
-    const menuButton = screen.getByRole('button', { name: /toggle navigation menu/i });
+    let menuButton = screen.getByRole('button', { name: /open menu/i });
 
     // Open
     await user.click(menuButton);
     let overlay = document.querySelector('[aria-hidden="true"]');
     expect(overlay).toBeInTheDocument();
 
+    // Button should now say "Close menu"
+    menuButton = screen.getByRole('button', { name: /close menu/i });
+
     // Close
     await user.click(menuButton);
     overlay = document.querySelector('[aria-hidden="true"]');
     expect(overlay).not.toBeInTheDocument();
 
+    // Button should now say "Open menu" again
+    menuButton = screen.getByRole('button', { name: /open menu/i });
+
     // Open again
     await user.click(menuButton);
     overlay = document.querySelector('[aria-hidden="true"]');
     expect(overlay).toBeInTheDocument();
+  });
+
+  it('menu button icon changes from ☰ to ✕ when sidebar opens', async () => {
+    const user = userEvent.setup();
+    renderWithRouter(
+      <Routes>
+        <Route element={<AppShell />} path="*">
+          <Route index element={<div>Test Content</div>} />
+        </Route>
+      </Routes>,
+    );
+
+    // Initially button shows hamburger icon
+    let menuButton = screen.getByRole('button', { name: /open menu/i });
+    expect(menuButton).toHaveTextContent('☰');
+
+    // Click to open
+    await user.click(menuButton);
+
+    // Button should now show close icon
+    menuButton = screen.getByRole('button', { name: /close menu/i });
+    expect(menuButton).toHaveTextContent('✕');
+  });
+
+  it('menu button aria-label changes from "Open menu" to "Close menu" when sidebar opens', async () => {
+    const user = userEvent.setup();
+    renderWithRouter(
+      <Routes>
+        <Route element={<AppShell />} path="*">
+          <Route index element={<div>Test Content</div>} />
+        </Route>
+      </Routes>,
+    );
+
+    // Initially button has "Open menu" label
+    let menuButton = screen.getByRole('button', { name: /open menu/i });
+    expect(menuButton).toHaveAttribute('aria-label', 'Open menu');
+
+    // Click to open
+    await user.click(menuButton);
+
+    // Button should now have "Close menu" label
+    menuButton = screen.getByRole('button', { name: /close menu/i });
+    expect(menuButton).toHaveAttribute('aria-label', 'Close menu');
   });
 });
