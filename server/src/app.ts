@@ -4,6 +4,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
 import fastifyStatic from '@fastify/static';
+import fastifyCompress from '@fastify/compress';
 import type { ApiErrorResponse } from '@cornerstone/shared';
 import configPlugin from './plugins/config.js';
 import dbPlugin from './plugins/db.js';
@@ -24,6 +25,9 @@ export async function buildApp(): Promise<FastifyInstance> {
   // Error handler (after config, before routes)
   await app.register(errorHandlerPlugin);
 
+  // Compression (gzip/deflate/brotli)
+  await app.register(fastifyCompress);
+
   // Database connection & migrations
   await app.register(dbPlugin);
 
@@ -38,6 +42,14 @@ export async function buildApp(): Promise<FastifyInstance> {
     await app.register(fastifyStatic, {
       root: clientDistPath,
       prefix: '/',
+      maxAge: 31536000 * 1000, // 1 year in milliseconds (for hashed assets)
+      immutable: true,
+      setHeaders: (res, filePath) => {
+        // Override cache headers for HTML files (always revalidate)
+        if (filePath.endsWith('.html')) {
+          res.setHeader('Cache-Control', 'no-cache');
+        }
+      },
     });
 
     // SPA fallback: serve index.html for any non-API route

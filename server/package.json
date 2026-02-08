@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@cornerstone/shared": "*",
+    "@fastify/compress": "8.0.2",
     "@fastify/static": "9.0.0",
     "better-sqlite3": "12.6.2",
     "drizzle-orm": "0.45.1",

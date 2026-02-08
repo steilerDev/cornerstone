@@ -1,5 +1,9 @@
-import { screen } from '@testing-library/react';
+/**
+ * @jest-environment jsdom
+ */
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { lazy } from 'react';
 import { Route, Routes } from 'react-router-dom';
 import { AppShell } from './AppShell';
 import { renderWithRouter } from '../../test/testUtils';
@@ -28,6 +32,35 @@ describe('AppShell', () => {
 
     // Outlet content should render
     expect(screen.getByText('Test Content')).toBeInTheDocument();
+  });
+
+  it('shows "Loading..." fallback while lazy component loads', async () => {
+    // Create a lazy component that takes time to resolve
+    const LazyComponent = lazy(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => {
+            resolve({
+              default: () => <div>Loaded Content</div>,
+            } as never);
+          }, 100);
+        }),
+    );
+
+    renderWithRouter(
+      <Routes>
+        <Route element={<AppShell />} path="*">
+          <Route index element={<LazyComponent />} />
+        </Route>
+      </Routes>,
+    );
+
+    // Loading fallback should be visible initially
+    expect(screen.getByText('Loading...')).toBeInTheDocument();
+
+    // Wait for lazy component to resolve and replace the fallback
+    await waitFor(() => expect(screen.queryByText('Loading...')).not.toBeInTheDocument());
+    expect(screen.getByText('Loaded Content')).toBeInTheDocument();
   });
 
   it('sidebar is always visible', () => {
