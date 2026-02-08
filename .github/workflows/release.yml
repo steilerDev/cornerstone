@@ -2,7 +2,7 @@ name: Release
 
 on:
   push:
-    branches: [main]
+    branches: [main, beta]
 
 concurrency:
   group: release-${{ github.ref }}
@@ -10,7 +10,7 @@ concurrency:
 
 jobs:
   # ---------------------------------------------------------------------------
-  # Job 1: Semantic Release (main push only)
+  # Job 1: Semantic Release (main or beta push)
   # ---------------------------------------------------------------------------
   release:
     name: Semantic Release
@@ -24,6 +24,7 @@ jobs:
     outputs:
       new-release-published: ${{ steps.semantic.outputs.new-release-published }}
       new-release-version: ${{ steps.semantic.outputs.new-release-version }}
+      is-prerelease: ${{ steps.semantic.outputs.is-prerelease }}
 
     steps:
       - name: Checkout
@@ -48,12 +49,18 @@ jobs:
           OUTPUT=$(npx semantic-release 2>&1) || true
           echo "$OUTPUT"
           if echo "$OUTPUT" | grep -q "Published release"; then
-            VERSION=$(echo "$OUTPUT" | grep -oP 'Published release \K[0-9]+\.[0-9]+\.[0-9]+' || echo "")
+            VERSION=$(echo "$OUTPUT" | grep -oP 'Published release \K[0-9]+\.[0-9]+\.[0-9]+(-beta\.[0-9]+)?' || echo "")
             echo "new-release-published=true" >> "$GITHUB_OUTPUT"
             echo "new-release-version=$VERSION" >> "$GITHUB_OUTPUT"
+            if echo "$VERSION" | grep -q "beta"; then
+              echo "is-prerelease=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "is-prerelease=false" >> "$GITHUB_OUTPUT"
+            fi
           else
             echo "new-release-published=false" >> "$GITHUB_OUTPUT"
             echo "new-release-version=" >> "$GITHUB_OUTPUT"
+            echo "is-prerelease=false" >> "$GITHUB_OUTPUT"
           fi
 
   # ---------------------------------------------------------------------------
@@ -90,8 +97,19 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Docker metadata
-        id: meta
+      - name: Docker metadata (beta)
+        id: meta-beta
+        if: needs.release.outputs.is-prerelease == 'true'
+        uses: docker/metadata-action@v5
+        with:
+          images: steilerdev/cornerstone
+          tags: |
+            type=raw,value=${{ needs.release.outputs.new-release-version }}
+            type=raw,value=beta
+
+      - name: Docker metadata (stable)
+        id: meta-stable
+        if: needs.release.outputs.is-prerelease == 'false'
         uses: docker/metadata-action@v5
         with:
           images: steilerdev/cornerstone
@@ -105,11 +123,11 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags || 'cornerstone:ci-test' }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.meta-beta.outputs.tags || steps.meta-stable.outputs.tags || 'cornerstone:ci-test' }}
+          labels: ${{ steps.meta-beta.outputs.labels || steps.meta-stable.outputs.labels }}
 
   # ---------------------------------------------------------------------------
-  # Job 3: Docker Scout Security Scan (main push + new release only)
+  # Job 3: Docker Scout Security Scan
   # ---------------------------------------------------------------------------
   scout:
     name: Docker Scout

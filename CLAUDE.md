@@ -46,6 +46,7 @@ No `docs/` directory in the source tree. All documentation lives on the GitHub W
 
 - **Repository**: `steilerDev/cornerstone`
 - **Default branch**: `main`
+- **Integration branch**: `beta` (feature PRs land here; promoted to `main` after epic completion)
 
 ### Board Status Categories
 
@@ -83,7 +84,7 @@ We follow an incremental, agile approach:
 3. **Product Architect** designs schema additions and API endpoints for the epic incrementally
 4. **Backend Developer** implements API and business logic per-epic
 5. **Frontend Developer** implements UI per-epic
-6. **Security Engineer** reviews periodically
+6. **Security Engineer** reviews every PR for security vulnerabilities
 7. **QA Tester** validates integrated features; all automated tests must pass
 8. **UAT Validator** provides step-by-step manual validation instructions for the user; iterates with developers if any scenario fails
 
@@ -133,6 +134,7 @@ While implementation is in progress:
 - The **qa-integration-tester** owns ALL testing: unit tests, integration tests, and E2E tests
 - The **qa-integration-tester** must achieve **95% unit test coverage** on all new and modified code
 - The **qa-integration-tester** writes automated E2E/integration tests covering the approved UAT scenarios
+- The **security-engineer** reviews the PR for security vulnerabilities after implementation
 - All automated tests (unit + E2E) must pass before requesting manual validation
 
 ### Refinement Phase
@@ -163,7 +165,8 @@ After the refinement task is complete and all automated tests pass:
 - **Automated before manual** — all automated tests must be green before the user validates manually
 - **Iterate until right** — failed manual validation triggers a fix-and-revalidate loop
 - **UAT documents live on GitHub Issues** — stored as comments on relevant story issues
-- **Product owner gates the PR** — the `product-owner` agent only approves a PR after verifying that ALL agent responsibilities were fulfilled: implementation by developer agents, 95%+ test coverage by QA, UAT scenarios by uat-validator, and architecture sign-off by product-architect
+- **Security review required** — the `security-engineer` must review every PR before the `product-owner` can approve
+- **Product owner gates the PR** — the `product-owner` agent only approves a PR after verifying that ALL agent responsibilities were fulfilled: implementation by developer agents, 95%+ test coverage by QA, UAT scenarios by uat-validator, architecture sign-off by product-architect, and security review by security-engineer
 - **QA owns all tests** — the `qa-integration-tester` agent is responsible for writing and maintaining all unit tests, integration tests, and E2E tests. Developer agents do not write tests.
 
 ## Git & Commit Conventions
@@ -174,8 +177,8 @@ All commits follow [Conventional Commits](https://www.conventionalcommits.org/):
 - **Scope** optional but encouraged: `feat(work-items):`, `fix(budget):`, `docs(adr):`
 - **Breaking changes**: Use `!` suffix or `BREAKING CHANGE:` footer
 - Every completed task gets its own commit with a meaningful description
-- **Link commits to issues**: When a commit resolves work tracked in a GitHub Issue, include `Fixes #<issue-number>` in the commit message body (one per line for multiple issues). This automatically closes the related issue(s) when merged to `main`.
-- **Always commit, push to a feature branch, and create a PR after verification passes.** When a work session completes and all quality gates (`lint`, `typecheck`, `test`, `format:check`, `build`, `npm audit`) pass, commit, push to the feature branch, and create a PR before ending the session. Do not leave verified work uncommitted or unpushed. Never push directly to `main`.
+- **Link commits to issues**: When a commit resolves work tracked in a GitHub Issue, include `Fixes #<issue-number>` in the commit message body (one per line for multiple issues). Note: `Fixes #N` only auto-closes issues when the commit reaches `main` (not `beta`).
+- **Always commit, push to a feature branch, and create a PR after verification passes.** When a work session completes and all quality gates (`lint`, `typecheck`, `test`, `format:check`, `build`, `npm audit`) pass, commit, push to the feature branch, and create a PR before ending the session. Do not leave verified work uncommitted or unpushed. Never push directly to `main` or `beta`.
 
 ### Agent Attribution
 
@@ -199,7 +202,7 @@ All agents must clearly identify themselves in commits and GitHub interactions:
 
 ### Branching Strategy
 
-**Never commit directly to `main`.** All changes go through feature branches and pull requests.
+**Never commit directly to `main` or `beta`.** All changes go through feature branches and pull requests.
 
 - **Branch naming**: `<type>/<issue-number>-<short-description>`
 
@@ -210,25 +213,43 @@ All agents must clearly identify themselves in commits and GitHub interactions:
 - **Workflow** (full agent cycle for each user story):
   1. **Plan**: Launch `product-owner` (verify story + acceptance criteria) and `product-architect` (design schema/API/architecture) agents
   2. **UAT Plan**: Launch `uat-validator` to draft UAT scenarios from acceptance criteria; launch `qa-integration-tester` to review testability; present to user for approval
-  3. **Branch**: Create a feature branch: `git checkout -b <branch-name> main`
+  3. **Branch**: Create a feature branch from `beta`: `git checkout -b <branch-name> beta`
   4. **Implement**: Launch the appropriate developer agent (`backend-developer` and/or `frontend-developer`) to write the production code
   5. **Test**: Launch `qa-integration-tester` to write unit tests (95%+ coverage target) and E2E/integration tests covering UAT scenarios
   6. **Quality gates**: Run `lint`, `typecheck`, `test`, `format:check`, `build`, `npm audit` — all must pass
-  7. **Commit & PR**: Commit, push the branch, create a PR: `gh pr create --title "..." --body "..."`
+  7. **Commit & PR**: Commit, push the branch, create a PR targeting `beta`: `gh pr create --base beta --title "..." --body "..."`
   8. **CI**: Wait for CI: `gh pr checks <pr-number> --watch`
-  9. **Review**: After CI passes, launch both review agents **in parallel**:
-     - `product-owner` — verifies requirements coverage, acceptance criteria, UAT alignment, and that all agent responsibilities were fulfilled (QA coverage, UAT scenarios, etc.). Only approves if all agents have completed their work.
+  9. **Review**: After CI passes, launch three review agents **in parallel**:
+     - `product-owner` — verifies requirements coverage, acceptance criteria, UAT alignment, and that all agent responsibilities were fulfilled (QA coverage, UAT scenarios, security review, etc.). Only approves if all agents have completed their work.
      - `product-architect` — verifies architecture compliance, test coverage, and code quality
-       Both agents review the PR diff and comment via `gh pr review`.
-  10. **Fix loop**: If either reviewer requests changes:
+     - `security-engineer` — reviews for security vulnerabilities, input validation, authentication/authorization gaps
+       All three agents review the PR diff and comment via `gh pr review`.
+  10. **Fix loop**: If any reviewer requests changes:
       a. The reviewer posts specific feedback on the PR (`gh pr review --request-changes`)
       b. The orchestrator launches the original implementing agent on the same branch to address the feedback
       c. The implementing agent pushes fixes, then the orchestrator re-requests review from the agent(s) that requested changes
-      d. Repeat until both reviewers approve
-  11. **Merge**: Once both agents approve and CI is green, merge immediately: `gh pr merge --squash <pr-url>`
-  12. After merge, clean up: `git checkout main && git pull && git branch -d <branch-name>`
+      d. Repeat until all reviewers approve
+  11. **Merge**: Once all agents approve and CI is green, merge immediately: `gh pr merge --squash <pr-url>`
+  12. After merge, clean up: `git checkout beta && git pull && git branch -d <branch-name>`
+  13. **Epic promotion**: After all stories in an epic are complete (merged to `beta`) and UAT is approved, create a PR from `beta` to `main` using a **merge commit** (not squash): `gh pr create --base main --head beta --title "..." --body "..."` then `gh pr merge --merge <pr-url>`. Merge commits preserve individual commits for semantic-release analysis.
 
-Note: Dependabot auto-merge (`.github/workflows/dependabot-auto-merge.yml`) is unaffected — it handles automated dependency updates, not agent work.
+Note: Dependabot auto-merge (`.github/workflows/dependabot-auto-merge.yml`) targets `beta` — it handles automated dependency updates, not agent work.
+
+### Release Model
+
+Cornerstone uses a two-tier release model:
+
+| Branch | Purpose                                                 | Release Type                            | Docker Tags              |
+| ------ | ------------------------------------------------------- | --------------------------------------- | ------------------------ |
+| `beta` | Integration branch — feature PRs land here              | Beta pre-release (e.g., `1.7.0-beta.1`) | `1.7.0-beta.1`, `beta`   |
+| `main` | Stable releases — `beta` promoted after epic completion | Full release (e.g., `1.7.0`)            | `1.7.0`, `1.7`, `latest` |
+
+**Merge strategies:**
+
+- **Feature PR -> `beta`**: Squash merge (clean history)
+- **`beta` -> `main`** (epic promotion): Merge commit (preserves individual commits so semantic-release can analyze them)
+
+**Hotfixes:** If a critical fix must go directly to `main`, immediately cherry-pick the fix back to `beta` to keep branches in sync.
 
 ## Tech Stack
 
@@ -419,6 +440,17 @@ docker build \
 # Run
 docker run -p 3000:3000 -v cornerstone-data:/app/data cornerstone
 ```
+
+### Docker Compose (Recommended for Deployment)
+
+For end-user deployment, use the provided `docker-compose.yml` with the published image:
+
+```bash
+cp .env.example .env       # Copy and customize environment variables
+docker compose up -d        # Start the application
+```
+
+The `docker-compose.yml` references the published `steilerdev/cornerstone:latest` image (not a local build). See `.env.example` for all available configuration options.
 
 ### Environment Variables
 

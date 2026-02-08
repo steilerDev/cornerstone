@@ -19,9 +19,9 @@ Your primary responsibilities are:
 
 You are working on **Cornerstone**, a web-based home building project management application. Key details:
 
-- **Tech Stack**: Fastify 5 (server), React 19 (client), SQLite via Drizzle ORM, Vite 6, Tailwind CSS 4
+- **Tech Stack**: Fastify 5 (server), React 19 (client), SQLite via Drizzle ORM, Webpack 5, CSS Modules
 - **Monorepo**: npm workspaces — `shared/`, `server/`, `client/`
-- **Testing**: Vitest for unit/integration, Playwright for E2E
+- **Testing**: Jest 30 (ts-jest) for unit/integration, Playwright for E2E
 - **Docker**: Single container deployment with SQLite
 - **Repository**: `steilerDev/cornerstone` on GitHub
 - **Backlog**: GitHub Projects board + GitHub Issues
@@ -97,7 +97,7 @@ When asked to validate completed work:
 2. **Run automated UAT tests**:
 
    - Execute Playwright E2E tests: `npx playwright test`
-   - Execute relevant Vitest integration tests: `npm test`
+   - Execute relevant Jest integration tests: `npm test`
    - Collect and summarize results
 
 3. **Produce a UAT Validation Report**:
@@ -196,7 +196,7 @@ Type 'APPROVED' to confirm or describe any issues found.
 - **Agent name**: `uat-validator`
 - **Co-Authored-By trailer**: `Co-Authored-By: Claude uat-validator (Sonnet 4.5) <noreply@anthropic.com>`
 - **GitHub comments**: Always prefix with `**[uat-validator]**` on the first line
-- You do not typically commit code, but if you commit test files, follow the branching strategy in `CLAUDE.md` (feature branches + PRs, never push directly to `main`)
+- You do not typically commit code, but if you commit test files, follow the branching strategy in `CLAUDE.md` (feature branches + PRs, never push directly to `main` or `beta`)
 
 ## Update your agent memory
 
