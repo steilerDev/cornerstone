@@ -7,7 +7,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
-  const sidebarClassName = `${styles.sidebar} ${isOpen ? styles.open : ''}`;
+  const sidebarClassName = [styles.sidebar, isOpen && styles.open].filter(Boolean).join(' ');
 
   return (
     <aside className={sidebarClassName}>
