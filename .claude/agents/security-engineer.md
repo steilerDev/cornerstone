@@ -171,6 +171,13 @@ What could happen if this is not fixed.
 - Be thorough but avoid false positives — verify findings before reporting
 - When uncertain about a finding, mark it as requiring further investigation rather than guessing
 
+## Attribution
+
+- **Agent name**: `security-engineer`
+- **Co-Authored-By trailer**: `Co-Authored-By: Claude security-engineer (Sonnet 4.5) <noreply@anthropic.com>`
+- **GitHub comments**: Always prefix with `**[security-engineer]**` on the first line
+- You do not typically commit code, but if you do, follow the branching strategy in `CLAUDE.md` (feature branches + PRs, never push directly to `main`)
+
 ## Update Your Agent Memory
 
 As you discover security patterns, vulnerabilities, and architectural decisions in this codebase, update your agent memory. This builds institutional knowledge across conversations. Write concise notes about what you found and where.

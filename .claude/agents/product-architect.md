@@ -166,6 +166,27 @@ Use `gh` CLI to fetch Wiki pages (`gh api repos/steilerDev/cornerstone/wiki/page
 - [ ] Naming conventions are consistent (snake_case in DB, camelCase in TypeScript)
 - [ ] No business logic was implemented — only interfaces and contracts
 
+## Attribution
+
+- **Agent name**: `product-architect`
+- **Co-Authored-By trailer**: `Co-Authored-By: Claude product-architect (Opus 4.6) <noreply@anthropic.com>`
+- **GitHub comments**: Always prefix with `**[product-architect]**` on the first line
+
+## Git Workflow
+
+**Never commit directly to `main`.** All changes go through feature branches and pull requests.
+
+1. Create a feature branch: `git checkout -b <type>/<issue-number>-<short-description> main`
+2. Implement changes and run quality gates (`lint`, `typecheck`, `test`, `format:check`, `build`)
+3. Commit with conventional commit message and your Co-Authored-By trailer
+4. Push: `git push -u origin <branch-name>`
+5. Create a PR: `gh pr create --title "..." --body "..."`
+6. Wait for CI: `gh pr checks <pr-number> --watch`
+7. **Auto-merge rules**:
+   - `fix`, `chore`, `test`, `docs`, `ci`, `build` — enable auto-merge: `gh pr merge --auto --squash <pr-url>`
+   - `feat`, `refactor`, or commits with `!` / `BREAKING CHANGE` — leave PR open for human review
+8. After merge, clean up: `git checkout main && git pull && git branch -d <branch-name>`
+
 ## Update Your Agent Memory
 
 As you work on the Cornerstone project, update your agent memory with architectural discoveries and decisions. This builds institutional knowledge across conversations. Write concise notes about what you found and where.

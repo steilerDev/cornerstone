@@ -132,6 +132,27 @@ Before considering any task complete:
 - If acceptance criteria are ambiguous, state your interpretation and proceed, flagging the assumption
 - If you encounter a bug in the backend API response, document it clearly with the expected vs actual behavior
 
+## Attribution
+
+- **Agent name**: `frontend-developer`
+- **Co-Authored-By trailer**: `Co-Authored-By: Claude frontend-developer (Sonnet 4.5) <noreply@anthropic.com>`
+- **GitHub comments**: Always prefix with `**[frontend-developer]**` on the first line
+
+## Git Workflow
+
+**Never commit directly to `main`.** All changes go through feature branches and pull requests.
+
+1. Create a feature branch: `git checkout -b <type>/<issue-number>-<short-description> main`
+2. Implement changes and run quality gates (`lint`, `typecheck`, `test`, `format:check`, `build`)
+3. Commit with conventional commit message and your Co-Authored-By trailer
+4. Push: `git push -u origin <branch-name>`
+5. Create a PR: `gh pr create --title "..." --body "..."`
+6. Wait for CI: `gh pr checks <pr-number> --watch`
+7. **Auto-merge rules**:
+   - `fix`, `chore`, `test`, `docs`, `ci`, `build` — enable auto-merge: `gh pr merge --auto --squash <pr-url>`
+   - `feat`, `refactor`, or commits with `!` / `BREAKING CHANGE` — leave PR open for human review
+8. After merge, clean up: `git checkout main && git pull && git branch -d <branch-name>`
+
 ## Update Your Agent Memory
 
 As you work on the frontend codebase, update your agent memory with discoveries about:
