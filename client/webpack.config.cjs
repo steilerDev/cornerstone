@@ -59,19 +59,17 @@ module.exports = (env, argv) => {
         },
       ],
     },
-    optimization: {
-      splitChunks: {
-        chunks: 'all',
-      },
-      ...(isProduction
-        ? {
-            minimizer: [
-              '...',
-              new CssMinimizerPlugin(),
-            ],
-          }
-        : {}),
-    },
+    optimization: isProduction
+      ? {
+          splitChunks: {
+            chunks: 'all',
+          },
+          minimizer: [
+            '...',
+            new CssMinimizerPlugin(),
+          ],
+        }
+      : {},
     plugins: [
       new HtmlWebpackPlugin({
         template: './index.html',
