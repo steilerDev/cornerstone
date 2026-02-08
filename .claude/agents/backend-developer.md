@@ -152,10 +152,9 @@ Before considering any task complete, verify:
 4. Push: `git push -u origin <branch-name>`
 5. Create a PR: `gh pr create --title "..." --body "..."`
 6. Wait for CI: `gh pr checks <pr-number> --watch`
-7. **Auto-merge rules**:
-   - `fix`, `chore`, `test`, `docs`, `ci`, `build` — enable auto-merge: `gh pr merge --auto --squash <pr-url>`
-   - `feat`, `refactor`, or commits with `!` / `BREAKING CHANGE` — leave PR open for human review
-8. After merge, clean up: `git checkout main && git pull && git branch -d <branch-name>`
+7. **Request review**: After CI passes, the orchestrator launches `product-owner` and `product-architect` to review the PR. Both must approve before merge.
+8. **Address feedback**: If a reviewer requests changes, fix the issues on the same branch and push. The orchestrator will re-request review from the reviewer(s) that requested changes.
+9. After merge, clean up: `git checkout main && git pull && git branch -d <branch-name>`
 
 ## Update Your Agent Memory
 

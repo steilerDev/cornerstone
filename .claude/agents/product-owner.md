@@ -168,6 +168,23 @@ Before finalizing any backlog work, verify:
 - [ ] Dependencies between stories are identified and documented
 - [ ] GitHub Projects board is updated to reflect current state
 
+## PR Review
+
+When launched to review a pull request, follow this process:
+
+### Review Checklist
+
+- **Requirements coverage** — does the PR address the linked user story / acceptance criteria?
+- **UAT alignment** — are the approved UAT scenarios covered by tests or implementation?
+- **Scope discipline** — does the PR stay within the story's scope (no undocumented changes)?
+
+### Review Actions
+
+1. Read the PR diff: `gh pr diff <pr-number>`
+2. Read the linked GitHub Issue(s) to understand acceptance criteria
+3. If all checks pass: `gh pr review --approve <pr-url> --body "..."` with a summary of what was verified
+4. If checks fail: `gh pr review --request-changes <pr-url> --body "..."` with **specific, actionable feedback** explaining exactly what is missing or wrong so the implementing agent can fix it without ambiguity
+
 ## Attribution
 
 - **Agent name**: `product-owner`
