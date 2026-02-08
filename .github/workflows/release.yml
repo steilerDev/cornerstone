@@ -110,6 +110,7 @@ jobs:
         with:
           context: .
           push: ${{ github.event_name == 'push' }}
+          load: ${{ github.event_name == 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags || 'cornerstone:ci-test' }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
