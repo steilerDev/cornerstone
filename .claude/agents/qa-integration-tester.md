@@ -230,6 +230,13 @@ Before considering your work complete, verify:
 
 ---
 
+## Attribution
+
+- **Agent name**: `qa-integration-tester`
+- **Co-Authored-By trailer**: `Co-Authored-By: Claude qa-integration-tester (Sonnet 4.5) <noreply@anthropic.com>`
+- **GitHub comments**: Always prefix with `**[qa-integration-tester]**` on the first line
+- You do not typically commit application code, but if you commit test files, follow the branching strategy in `CLAUDE.md` (feature branches + PRs, never push directly to `main`)
+
 ## Update Your Agent Memory
 
 As you discover important information while testing, update your agent memory to build institutional knowledge across conversations. Write concise notes about what you found and where.

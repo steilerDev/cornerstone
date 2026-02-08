@@ -113,7 +113,48 @@ All commits follow [Conventional Commits](https://www.conventionalcommits.org/):
 - **Breaking changes**: Use `!` suffix or `BREAKING CHANGE:` footer
 - Every completed task gets its own commit with a meaningful description
 - **Link commits to issues**: When a commit resolves work tracked in a GitHub Issue, include `Fixes #<issue-number>` in the commit message body (one per line for multiple issues). This automatically closes the related issue(s) when merged to `main`.
-- **Always commit and push after verification passes.** When a work session completes and all quality gates (`lint`, `typecheck`, `test`, `format:check`, `build`, `npm audit`) pass, create a commit and push it to the remote before ending the session. Do not leave verified work uncommitted or unpushed.
+- **Always commit, push to a feature branch, and create a PR after verification passes.** When a work session completes and all quality gates (`lint`, `typecheck`, `test`, `format:check`, `build`, `npm audit`) pass, commit, push to the feature branch, and create a PR before ending the session. Do not leave verified work uncommitted or unpushed. Never push directly to `main`.
+
+### Agent Attribution
+
+All agents must clearly identify themselves in commits and GitHub interactions:
+
+- **Commits**: Include the agent name in the `Co-Authored-By` trailer:
+
+  ```
+  Co-Authored-By: Claude <agent-name> (<model>) <noreply@anthropic.com>
+  ```
+
+  Replace `<agent-name>` with one of: `backend-developer`, `frontend-developer`, `product-architect`, `product-owner`, `qa-integration-tester`, `security-engineer`, `uat-validator`, or `orchestrator` (when the orchestrating Claude commits directly). Replace `<model>` with the agent's actual model (e.g., `Opus 4.6`, `Sonnet 4.5`). Each agent's definition file specifies the exact trailer to use.
+
+- **GitHub comments** (on issues, PRs, or discussions): Prefix the first line with the agent name in bold brackets:
+
+  ```
+  **[backend-developer]** This endpoint has been implemented...
+  ```
+
+- When the orchestrator commits work produced by a specific agent, it must use that agent's name in the `Co-Authored-By` trailer, not its own.
+
+### Branching Strategy
+
+**Never commit directly to `main`.** All changes go through feature branches and pull requests.
+
+- **Branch naming**: `<type>/<issue-number>-<short-description>`
+
+  - Examples: `feat/42-work-item-crud`, `fix/55-budget-calc`, `ci/18-dependabot-auto-merge`
+  - Use the conventional commit type as the prefix
+  - Include the GitHub Issue number when one exists
+
+- **Workflow**:
+  1. Create a feature branch: `git checkout -b <branch-name> main`
+  2. Implement changes, run quality gates, commit
+  3. Push the branch: `git push -u origin <branch-name>`
+  4. Create a PR: `gh pr create --title "..." --body "..."`
+  5. Wait for CI: `gh pr checks <pr-number> --watch`
+  6. **Auto-merge rules** (based on conventional commit type):
+     - `fix`, `chore`, `test`, `docs`, `ci`, `build` — enable auto-merge: `gh pr merge --auto --squash <pr-url>`
+     - `feat`, `refactor`, or commits with `!` / `BREAKING CHANGE` — leave PR open for human review
+  7. After merge, clean up: `git checkout main && git pull && git branch -d <branch-name>`
 
 ## Tech Stack
 

@@ -168,6 +168,13 @@ Before finalizing any backlog work, verify:
 - [ ] Dependencies between stories are identified and documented
 - [ ] GitHub Projects board is updated to reflect current state
 
+## Attribution
+
+- **Agent name**: `product-owner`
+- **Co-Authored-By trailer**: `Co-Authored-By: Claude product-owner (Opus 4.6) <noreply@anthropic.com>`
+- **GitHub comments**: Always prefix with `**[product-owner]**` on the first line
+- You do not typically commit code, but if you do, follow the branching strategy in `CLAUDE.md` (feature branches + PRs, never push directly to `main`)
+
 **Update your agent memory** as you discover product requirements patterns, backlog organization decisions, prioritization rationale, dependency chains between features, stakeholder preferences, and recurring scope clarifications. This builds up institutional knowledge across conversations. Write concise notes about what you found and where.
 
 Examples of what to record:
