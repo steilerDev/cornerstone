@@ -1,11 +1,12 @@
 import type { Config } from 'jest';
 
-const config: Config = {
+const baseConfig = {
   preset: 'ts-jest/presets/default-esm',
-  testEnvironment: 'node',
   extensionsToTreatAsEsm: ['.ts', '.tsx'],
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
+    '\\.module\\.css$': 'identity-obj-proxy',
+    '\\.css$': '<rootDir>/client/src/test/styleMock.js',
   },
   transform: {
     '^.+\\.tsx?$': [
@@ -16,15 +17,11 @@ const config: Config = {
           module: 'ESNext',
           moduleResolution: 'bundler',
           esModuleInterop: true,
+          jsx: 'react-jsx',
         },
       },
     ],
   },
-  testMatch: [
-    '<rootDir>/server/src/**/*.test.ts',
-    '<rootDir>/client/src/**/*.test.{ts,tsx}',
-    '<rootDir>/shared/src/**/*.test.ts',
-  ],
   collectCoverageFrom: [
     'server/src/**/*.ts',
     'client/src/**/*.{ts,tsx}',
@@ -33,6 +30,47 @@ const config: Config = {
     '!**/*.test.tsx',
     '!**/types/**',
     '!**/dist/**',
+    '!**/test/**',
+  ],
+};
+
+const config: Config = {
+  projects: [
+    {
+      ...baseConfig,
+      displayName: 'server',
+      testEnvironment: 'node',
+      testMatch: ['<rootDir>/server/src/**/*.test.ts'],
+    },
+    {
+      ...baseConfig,
+      displayName: 'client',
+      testEnvironment: 'jsdom',
+      testMatch: ['<rootDir>/client/src/**/*.test.{ts,tsx}'],
+      setupFilesAfterEnv: ['<rootDir>/client/src/test/setupTests.ts'],
+      transformIgnorePatterns: ['node_modules/(?!@testing-library)'],
+      transform: {
+        '^.+\\.tsx?$': [
+          'ts-jest',
+          {
+            useESM: true,
+            tsconfig: {
+              module: 'ESNext',
+              moduleResolution: 'bundler',
+              esModuleInterop: true,
+              jsx: 'react-jsx',
+              types: ['jest', '@testing-library/jest-dom'],
+            },
+          },
+        ],
+      },
+    },
+    {
+      ...baseConfig,
+      displayName: 'shared',
+      testEnvironment: 'node',
+      testMatch: ['<rootDir>/shared/src/**/*.test.ts'],
+    },
   ],
 };
 
