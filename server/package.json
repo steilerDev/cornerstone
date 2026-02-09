@@ -14,6 +14,7 @@
   "dependencies": {
     "@cornerstone/shared": "*",
     "@fastify/compress": "8.0.2",
+    "@fastify/cookie": "11.0.2",
     "@fastify/static": "9.0.0",
     "argon2": "0.43.0",
     "better-sqlite3": "12.6.2",

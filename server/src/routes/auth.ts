@@ -1,6 +1,9 @@
 import type { FastifyInstance } from 'fastify';
 import { AppError } from '../errors/AppError.js';
 import * as userService from '../services/userService.js';
+import * as sessionService from '../services/sessionService.js';
+
+const COOKIE_NAME = 'cornerstone_session';
 
 // JSON schema for request validation (Fastify/AJV)
 const setupSchema = {
@@ -34,6 +37,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
    *
    * Returns the current authenticated user, or null if not authenticated.
    * Also indicates whether initial setup is required.
+   * This endpoint is public (never returns 401).
    */
   fastify.get('/me', async (request, reply) => {
     const userCount = userService.countUsers(fastify.db);
@@ -47,7 +51,16 @@ export default async function authRoutes(fastify: FastifyInstance) {
       });
     }
 
-    // Users exist but no session yet (session support added in Story #32)
+    // Check if user is authenticated via session
+    if (request.user) {
+      return reply.status(200).send({
+        user: userService.toUserResponse(request.user),
+        setupRequired: false,
+        oidcEnabled: false,
+      });
+    }
+
+    // Users exist but not authenticated
     return reply.status(200).send({
       user: null,
       setupRequired: false,
@@ -83,7 +96,22 @@ export default async function authRoutes(fastify: FastifyInstance) {
       'admin',
     );
 
-    // NOTE: Session creation will be added in Story #32
+    // Create session
+    const sessionId = sessionService.createSession(
+      fastify.db,
+      user.id,
+      fastify.config.sessionDuration,
+    );
+
+    // Set session cookie
+    reply.setCookie(COOKIE_NAME, sessionId, {
+      httpOnly: true,
+      secure: fastify.config.secureCookies,
+      sameSite: 'strict',
+      path: '/',
+      maxAge: fastify.config.sessionDuration,
+    });
+
     return reply.status(201).send({
       user: userService.toUserResponse(user),
     });
@@ -93,8 +121,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
    * POST /api/auth/login
    *
    * Authenticates a local user with email and password.
-   * Returns the user object on success.
-   * NOTE: Session creation will be added in Story #32.
+   * Returns the user object on success and creates a session.
    */
   fastify.post('/login', { schema: loginSchema }, async (request, reply) => {
     const { email, password } = request.body as {
@@ -127,9 +154,50 @@ export default async function authRoutes(fastify: FastifyInstance) {
       throw new AppError('INVALID_CREDENTIALS', 401, 'Invalid email or password');
     }
 
-    // NOTE: Session creation will be added in Story #32
+    // Create session
+    const sessionId = sessionService.createSession(
+      fastify.db,
+      user.id,
+      fastify.config.sessionDuration,
+    );
+
+    // Set session cookie
+    reply.setCookie(COOKIE_NAME, sessionId, {
+      httpOnly: true,
+      secure: fastify.config.secureCookies,
+      sameSite: 'strict',
+      path: '/',
+      maxAge: fastify.config.sessionDuration,
+    });
+
     return reply.status(200).send({
       user: userService.toUserResponse(user),
     });
+  });
+
+  /**
+   * POST /api/auth/logout
+   *
+   * Destroys the current session and clears the session cookie.
+   * Returns 204 No Content on success.
+   */
+  fastify.post('/logout', async (request, reply) => {
+    const sessionId = request.cookies[COOKIE_NAME];
+
+    if (sessionId) {
+      // Destroy the session from the database
+      sessionService.destroySession(fastify.db, sessionId);
+    }
+
+    // Clear the cookie (even if no session was found)
+    reply.setCookie(COOKIE_NAME, '', {
+      httpOnly: true,
+      secure: fastify.config.secureCookies,
+      sameSite: 'strict',
+      path: '/',
+      maxAge: 0,
+    });
+
+    return reply.status(204).send();
   });
 }
