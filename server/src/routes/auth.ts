@@ -121,8 +121,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
    * POST /api/auth/login
    *
    * Authenticates a local user with email and password.
-   * Returns the user object on success.
-   * NOTE: Session creation will be added in Story #32.
+   * Returns the user object on success and creates a session.
    */
   fastify.post('/login', { schema: loginSchema }, async (request, reply) => {
     const { email, password } = request.body as {
