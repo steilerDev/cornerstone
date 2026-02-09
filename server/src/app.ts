@@ -5,10 +5,12 @@ import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
 import fastifyStatic from '@fastify/static';
 import fastifyCompress from '@fastify/compress';
+import fastifyCookie from '@fastify/cookie';
 import type { ApiErrorResponse } from '@cornerstone/shared';
 import configPlugin from './plugins/config.js';
 import dbPlugin from './plugins/db.js';
 import errorHandlerPlugin from './plugins/errorHandler.js';
+import authPlugin from './plugins/auth.js';
 import authRoutes from './routes/auth.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -29,8 +31,14 @@ export async function buildApp(): Promise<FastifyInstance> {
   // Compression (gzip/deflate/brotli)
   await app.register(fastifyCompress);
 
+  // Cookie parsing (required for session management)
+  await app.register(fastifyCookie);
+
   // Database connection & migrations
   await app.register(dbPlugin);
+
+  // Authentication & session management (after db, before routes)
+  await app.register(authPlugin);
 
   // Auth routes
   await app.register(authRoutes, { prefix: '/api/auth' });
