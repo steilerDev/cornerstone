@@ -17,6 +17,8 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         databaseUrl: '/app/data/cornerstone.db',
         logLevel: 'info',
         nodeEnv: 'production',
+        sessionDuration: 604800,
+        secureCookies: true,
       });
     });
 
@@ -35,6 +37,8 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         databaseUrl: '/app/data/cornerstone.db',
         logLevel: 'info',
         nodeEnv: 'production',
+        sessionDuration: 604800,
+        secureCookies: true,
       });
     });
   });
@@ -55,6 +59,8 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         databaseUrl: '/custom/path/db.sqlite',
         logLevel: 'debug',
         nodeEnv: 'development',
+        sessionDuration: 604800,
+        secureCookies: true,
       });
     });
 
@@ -70,6 +76,8 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         databaseUrl: '/app/data/cornerstone.db',
         logLevel: 'warn',
         nodeEnv: 'production',
+        sessionDuration: 604800,
+        secureCookies: true,
       });
     });
   });

@@ -9,6 +9,7 @@ import type { ApiErrorResponse } from '@cornerstone/shared';
 import configPlugin from './plugins/config.js';
 import dbPlugin from './plugins/db.js';
 import errorHandlerPlugin from './plugins/errorHandler.js';
+import authRoutes from './routes/auth.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -30,6 +31,9 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Database connection & migrations
   await app.register(dbPlugin);
+
+  // Auth routes
+  await app.register(authRoutes, { prefix: '/api/auth' });
 
   // Health check endpoint
   app.get('/api/health', async () => {
