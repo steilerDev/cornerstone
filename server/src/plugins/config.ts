@@ -7,6 +7,8 @@ export interface AppConfig {
   databaseUrl: string;
   logLevel: 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal';
   nodeEnv: string;
+  sessionDuration: number; // seconds
+  secureCookies: boolean;
 }
 
 // Type augmentation: makes fastify.config available across all routes/plugins
@@ -61,6 +63,27 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
   // NODE_ENV (simple string, no validation)
   const nodeEnv = getValue('NODE_ENV') ?? 'production';
 
+  // Parse and validate SESSION_DURATION
+  const sessionDurationStr = getValue('SESSION_DURATION') ?? '604800';
+  const sessionDuration = parseInt(sessionDurationStr, 10);
+  if (isNaN(sessionDuration)) {
+    errors.push(`SESSION_DURATION must be a valid number, got: ${sessionDurationStr}`);
+  } else if (sessionDuration <= 0) {
+    errors.push(`SESSION_DURATION must be greater than 0, got: ${sessionDuration}`);
+  }
+
+  // Parse and validate SECURE_COOKIES
+  const secureCookiesStr = (getValue('SECURE_COOKIES') ?? 'true').toLowerCase();
+  let secureCookies: boolean;
+  if (secureCookiesStr === 'true') {
+    secureCookies = true;
+  } else if (secureCookiesStr === 'false') {
+    secureCookies = false;
+  } else {
+    errors.push(`SECURE_COOKIES must be 'true' or 'false', got: ${getValue('SECURE_COOKIES')}`);
+    secureCookies = true; // Default fallback
+  }
+
   // If there are any validation errors, throw a single error listing all of them
   if (errors.length > 0) {
     throw new Error(`Configuration validation failed:\n  - ${errors.join('\n  - ')}`);
@@ -72,6 +95,8 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     databaseUrl,
     logLevel,
     nodeEnv,
+    sessionDuration,
+    secureCookies,
   };
 }
 
@@ -88,6 +113,8 @@ export default fp(
         databaseUrl: config.databaseUrl,
         logLevel: config.logLevel,
         nodeEnv: config.nodeEnv,
+        sessionDuration: config.sessionDuration,
+        secureCookies: config.secureCookies,
       },
       'Configuration loaded',
     );

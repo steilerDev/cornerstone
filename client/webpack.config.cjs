@@ -16,6 +16,10 @@ module.exports = (env, argv) => {
     },
     resolve: {
       extensions: ['.tsx', '.ts', '.js', '.jsx'],
+      extensionAlias: {
+        '.js': ['.ts', '.tsx', '.js'],
+        '.jsx': ['.tsx', '.jsx'],
+      },
     },
     module: {
       rules: [
