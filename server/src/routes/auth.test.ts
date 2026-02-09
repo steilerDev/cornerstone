@@ -92,17 +92,17 @@ describe('Authentication Routes', () => {
       });
     });
 
-    it('returns user: null (session support not yet implemented)', async () => {
-      // Given: User exists but no session support yet
+    it('returns user: null when no session cookie is sent', async () => {
+      // Given: User exists but no session cookie is provided
       await userService.createLocalUser(app.db, 'user@example.com', 'User', 'password123456');
 
-      // When: Getting current auth status
+      // When: Getting current auth status without session cookie
       const response = await app.inject({
         method: 'GET',
         url: '/api/auth/me',
       });
 
-      // Then: user is null (Story #32 will add session support)
+      // Then: user is null (no session cookie provided)
       expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body);
       expect(body.user).toBeNull();
@@ -900,12 +900,6 @@ describe('Authentication Routes', () => {
 
     describe('GET /api/auth/me - with session', () => {
       it('returns user when valid session cookie is sent', async () => {
-        // NOTE: This test currently fails due to a bug in the auth plugin implementation.
-        // /api/auth/me is in PUBLIC_ROUTES, which causes the auth hook to skip validation entirely.
-        // The route handler checks request.user, but request.user is never set for public routes.
-        // EXPECTED: /api/auth/me should optionally validate sessions (set request.user if valid cookie present).
-        // ACTUAL: /api/auth/me always returns user: null because auth hook returns early for public routes.
-
         // Given: User created via setup (which creates a session)
         const setupResponse = await app.inject({
           method: 'POST',
@@ -932,19 +926,15 @@ describe('Authentication Routes', () => {
           headers: { cookie: sessionCookie },
         });
 
-        // Then: Response returns 200
+        // Then: Response returns 200 with user data
         expect(response.statusCode).toBe(200);
         const body = JSON.parse(response.body);
 
-        // BUG: Current implementation returns user: null even with valid session
-        // This test documents the current behavior (which is incorrect)
-        expect(body.user).toBeNull();
-        expect(body.setupRequired).toBe(false);
-
-        // TODO: Fix auth plugin to optionally validate sessions for public routes
-        // Expected behavior after fix:
-        // expect(body.user).not.toBeNull();
-        // expect(body.user.email).toBe('admin@example.com');
+        // Auth plugin now validates sessions for public routes (sets request.user if valid)
+        expect(body.user).not.toBeNull();
+        expect(body.user.email).toBe('admin@example.com');
+        expect(body.user.displayName).toBe('Admin User');
+        expect(body.user.role).toBe('admin');
       });
 
       it('returns user: null when no cookie is sent', async () => {
@@ -1051,42 +1041,35 @@ describe('Authentication Routes', () => {
       });
 
       it('returns 204 even without a session cookie', async () => {
-        // NOTE: This test fails due to a bug in the auth plugin configuration.
-        // /api/auth/logout is NOT in PUBLIC_ROUTES, so it requires authentication.
-        // EXPECTED: Logout should be accessible even without a valid session (to clear stale cookies).
-        // ACTUAL: Returns 401 UNAUTHORIZED when no session cookie is present.
-
         // When: Logging out without a session
         const response = await app.inject({
           method: 'POST',
           url: '/api/auth/logout',
         });
 
-        // Then: Response is 401 (BUG: should be 204)
-        expect(response.statusCode).toBe(401);
+        // Then: Response is 204 (logout is now public)
+        expect(response.statusCode).toBe(204);
 
-        // TODO: Add /api/auth/logout to PUBLIC_ROUTES
-        // Expected behavior after fix: expect(response.statusCode).toBe(204);
+        // And: Cookie is cleared
+        const setCookieHeader = response.headers['set-cookie'] as string;
+        expect(setCookieHeader).toContain('cornerstone_session=');
+        expect(setCookieHeader).toContain('Max-Age=0');
       });
 
       it('clears cookie with correct attributes', async () => {
-        // NOTE: This test fails for the same reason as above - /api/auth/logout requires auth.
-        // BUG: Logout endpoint should be accessible without authentication.
-
         // When: Logging out
         const response = await app.inject({
           method: 'POST',
           url: '/api/auth/logout',
         });
 
-        // Then: Response is 401 (BUG: should be 204)
-        expect(response.statusCode).toBe(401);
+        // Then: Response is 204 (logout is now public)
+        expect(response.statusCode).toBe(204);
 
-        // TODO: Add /api/auth/logout to PUBLIC_ROUTES
-        // Expected behavior after fix:
-        // const setCookieHeader = response.headers['set-cookie'] as string;
-        // expect(setCookieHeader).toContain('cornerstone_session=');
-        // expect(setCookieHeader).toContain('Max-Age=0');
+        // And: Cookie is cleared with correct attributes
+        const setCookieHeader = response.headers['set-cookie'] as string;
+        expect(setCookieHeader).toContain('cornerstone_session=');
+        expect(setCookieHeader).toContain('Max-Age=0');
       });
 
       it('session is invalid after logout', async () => {

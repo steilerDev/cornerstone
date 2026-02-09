@@ -10,6 +10,7 @@ const CLEANUP_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 const PUBLIC_ROUTES = new Set([
   '/api/auth/setup',
   '/api/auth/login',
+  '/api/auth/logout',
   '/api/auth/me',
   '/api/health',
 ]);
@@ -28,9 +29,13 @@ export default fp(
 
     // Start periodic cleanup of expired sessions
     const cleanupTimer = setInterval(() => {
-      const deletedCount = sessionService.cleanupExpiredSessions(fastify.db);
-      if (deletedCount > 0) {
-        fastify.log.info({ deletedCount }, 'Cleaned up expired sessions');
+      try {
+        const deletedCount = sessionService.cleanupExpiredSessions(fastify.db);
+        if (deletedCount > 0) {
+          fastify.log.info({ deletedCount }, 'Cleaned up expired sessions');
+        }
+      } catch (err) {
+        fastify.log.error({ err }, 'Failed to clean up expired sessions');
       }
     }, CLEANUP_INTERVAL_MS);
 
@@ -43,11 +48,6 @@ export default fp(
     // Note: This runs after route matching. For routes that don't exist, Fastify routes
     // to the notFoundHandler which we should let through (to return 404, not 401).
     fastify.addHook('preValidation', async (request, _reply) => {
-      // Skip authentication for public routes
-      if (PUBLIC_ROUTES.has(request.url)) {
-        return;
-      }
-
       // Only protect /api/* routes (allow static file serving without auth)
       if (!request.url.startsWith('/api/')) {
         return;
@@ -61,22 +61,20 @@ export default fp(
         return;
       }
 
-      // Extract session token from cookies
+      // Try to resolve user from session cookie for ALL /api/* routes
       const sessionId = request.cookies[COOKIE_NAME];
+      if (sessionId) {
+        const user = sessionService.validateSession(fastify.db, sessionId);
+        if (user) {
+          request.user = user;
+        }
+      }
 
-      if (!sessionId) {
+      // For protected routes, enforce authentication
+      const isPublicRoute = PUBLIC_ROUTES.has(request.url);
+      if (!isPublicRoute && !request.user) {
         throw new UnauthorizedError('Authentication required');
       }
-
-      // Validate session
-      const user = sessionService.validateSession(fastify.db, sessionId);
-
-      if (!user) {
-        throw new UnauthorizedError('Invalid or expired session');
-      }
-
-      // Attach user to request
-      request.user = user;
     });
   },
   {
