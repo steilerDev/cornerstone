@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from 'react';
-import { login } from '../../lib/authApi.js';
+import { useState, useEffect, type FormEvent } from 'react';
+import { login, getAuthMe } from '../../lib/authApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import styles from './LoginPage.module.css';
 
@@ -8,13 +8,46 @@ interface FormErrors {
   password?: string;
 }
 
+const OIDC_ERROR_MESSAGES: Record<string, string> = {
+  oidc_not_configured: 'Single sign-on is not configured.',
+  oidc_error: 'Authentication failed. Please try again.',
+  invalid_state: 'Authentication session expired. Please try again.',
+  missing_email: 'Your identity provider did not provide an email address.',
+  email_conflict: 'This email is already associated with a different account.',
+  account_deactivated: 'Your account has been deactivated. Please contact an administrator.',
+};
+
 export function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
   const [apiError, setApiError] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [successMessage, setSuccessMessage] = useState<string>('');
+  const [oidcEnabled, setOidcEnabled] = useState(false);
+  const [isLoadingConfig, setIsLoadingConfig] = useState(true);
+
+  useEffect(() => {
+    const loadConfig = async () => {
+      try {
+        const authMeResponse = await getAuthMe();
+        setOidcEnabled(authMeResponse.oidcEnabled);
+      } catch {
+        // If getAuthMe fails, OIDC is not enabled
+        setOidcEnabled(false);
+      } finally {
+        setIsLoadingConfig(false);
+      }
+    };
+
+    // Check for OIDC error in URL
+    const params = new URLSearchParams(window.location.search);
+    const errorCode = params.get('error');
+    if (errorCode && OIDC_ERROR_MESSAGES[errorCode]) {
+      setApiError(OIDC_ERROR_MESSAGES[errorCode]);
+    }
+
+    void loadConfig();
+  }, []);
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -34,7 +67,6 @@ export function LoginPage() {
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setApiError('');
-    setSuccessMessage('');
 
     if (!validateForm()) {
       return;
@@ -43,23 +75,21 @@ export function LoginPage() {
     setIsSubmitting(true);
 
     try {
-      const response = await login({ email, password });
-      setSuccessMessage(
-        `Login successful! Welcome back, ${response.user.displayName}. Session management will be implemented in Story #32.`,
-      );
-      // Clear form
-      setEmail('');
-      setPassword('');
-      setErrors({});
+      await login({ email, password });
+      // Successful login - redirect to app
+      window.location.href = '/';
     } catch (error) {
       if (error instanceof ApiClientError) {
         setApiError(error.error.message);
       } else {
         setApiError('An unexpected error occurred. Please try again.');
       }
-    } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleOidcLogin = () => {
+    window.location.href = '/api/auth/oidc/login';
   };
 
   return (
@@ -74,10 +104,21 @@ export function LoginPage() {
           </div>
         )}
 
-        {successMessage && (
-          <div className={styles.successBanner} role="alert">
-            {successMessage}
-          </div>
+        {!isLoadingConfig && oidcEnabled && (
+          <>
+            <button
+              type="button"
+              onClick={handleOidcLogin}
+              className={styles.ssoButton}
+              disabled={isSubmitting}
+            >
+              Login with SSO
+            </button>
+
+            <div className={styles.divider}>
+              <span className={styles.dividerText}>or</span>
+            </div>
+          </>
         )}
 
         <form onSubmit={handleSubmit} className={styles.form} noValidate>

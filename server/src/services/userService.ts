@@ -7,6 +7,9 @@ import { users } from '../db/schema.js';
 import type { UserResponse } from '@cornerstone/shared';
 import { ConflictError } from '../errors/AppError.js';
 
+// Re-export ConflictError for tests
+export { ConflictError };
+
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
 /**
