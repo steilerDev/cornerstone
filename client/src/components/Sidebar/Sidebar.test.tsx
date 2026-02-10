@@ -15,11 +15,11 @@ describe('Sidebar', () => {
     jest.clearAllMocks();
   });
 
-  it('renders all 6 navigation links', () => {
+  it('renders all 7 navigation links', () => {
     renderWithRouter(<Sidebar {...defaultProps} />);
 
     const links = screen.getAllByRole('link');
-    expect(links).toHaveLength(6);
+    expect(links).toHaveLength(7);
   });
 
   it('renders navigation with correct aria-label', () => {

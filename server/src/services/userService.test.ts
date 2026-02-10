@@ -863,4 +863,262 @@ describe('User Service', () => {
       expect(user.updatedAt).toBe(user.createdAt);
     });
   });
+
+  describe('updateDisplayName()', () => {
+    it('updates display name and updatedAt timestamp', async () => {
+      // Given: User in database
+      const user = await userService.createLocalUser(
+        db,
+        'user@example.com',
+        'Old Name',
+        'password123456',
+      );
+      const originalUpdatedAt = user.updatedAt;
+
+      // When: Updating display name
+      const updatedUser = userService.updateDisplayName(db, user.id, 'New Name');
+
+      // Then: Display name is updated
+      expect(updatedUser.displayName).toBe('New Name');
+      expect(updatedUser.id).toBe(user.id);
+      expect(updatedUser.email).toBe(user.email);
+
+      // And: updatedAt timestamp is newer
+      expect(new Date(updatedUser.updatedAt).getTime()).toBeGreaterThan(
+        new Date(originalUpdatedAt).getTime(),
+      );
+    });
+
+    it('returns the updated user row', async () => {
+      // Given: User in database
+      const user = await userService.createLocalUser(
+        db,
+        'user@example.com',
+        'Old Name',
+        'password123456',
+      );
+
+      // When: Updating display name
+      const updatedUser = userService.updateDisplayName(db, user.id, 'Updated Name');
+
+      // Then: Returned user matches updated data
+      expect(updatedUser).toBeDefined();
+      expect(updatedUser.displayName).toBe('Updated Name');
+      expect(updatedUser.id).toBe(user.id);
+    });
+
+    it('can be verified by re-reading user from DB', async () => {
+      // Given: User in database
+      const user = await userService.createLocalUser(
+        db,
+        'user@example.com',
+        'Original Name',
+        'password123456',
+      );
+
+      // When: Updating display name
+      userService.updateDisplayName(db, user.id, 'Verified Name');
+
+      // And: Re-reading from database
+      const reloadedUser = db.select().from(schema.users).where(eq(schema.users.id, user.id)).get();
+
+      // Then: Update is persisted
+      expect(reloadedUser).toBeDefined();
+      expect(reloadedUser?.displayName).toBe('Verified Name');
+    });
+
+    it('preserves other user fields (email, role, passwordHash)', async () => {
+      // Given: User in database
+      const user = await userService.createLocalUser(
+        db,
+        'preserve@example.com',
+        'Original Name',
+        'password123456',
+        'admin',
+      );
+
+      // When: Updating display name
+      const updatedUser = userService.updateDisplayName(db, user.id, 'New Name');
+
+      // Then: Other fields are preserved
+      expect(updatedUser.email).toBe('preserve@example.com');
+      expect(updatedUser.role).toBe('admin');
+      expect(updatedUser.passwordHash).toBe(user.passwordHash);
+      expect(updatedUser.authProvider).toBe('local');
+      expect(updatedUser.createdAt).toBe(user.createdAt);
+    });
+
+    it('works for OIDC users', () => {
+      // Given: OIDC user
+      const oidcSubject = 'oidc-sub-789';
+      db.insert(schema.users)
+        .values({
+          id: 'oidc-user-3',
+          email: 'oidc@example.com',
+          displayName: 'Original OIDC Name',
+          role: 'member',
+          authProvider: 'oidc',
+          oidcSubject,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        })
+        .run();
+
+      // When: Updating display name
+      const updatedUser = userService.updateDisplayName(db, 'oidc-user-3', 'Updated OIDC Name');
+
+      // Then: Display name is updated
+      expect(updatedUser.displayName).toBe('Updated OIDC Name');
+      expect(updatedUser.authProvider).toBe('oidc');
+      expect(updatedUser.oidcSubject).toBe(oidcSubject);
+    });
+
+    it('handles special characters in display name', async () => {
+      // Given: User in database
+      const user = await userService.createLocalUser(
+        db,
+        'user@example.com',
+        'Plain Name',
+        'password123456',
+      );
+
+      // When: Updating with special characters
+      const specialName = "O'Brien-Smith (Jr.) & Co.";
+      const updatedUser = userService.updateDisplayName(db, user.id, specialName);
+
+      // Then: Special characters are preserved
+      expect(updatedUser.displayName).toBe(specialName);
+    });
+  });
+
+  describe('updatePassword()', () => {
+    it('updates passwordHash and updatedAt timestamp', async () => {
+      // Given: User in database
+      const user = await userService.createLocalUser(
+        db,
+        'user@example.com',
+        'Test User',
+        'oldpassword123',
+      );
+      const originalPasswordHash = user.passwordHash!;
+      const originalUpdatedAt = user.updatedAt;
+
+      // When: Updating password
+      const newPasswordHash = (await userService.verifyPassword(
+        originalPasswordHash,
+        'oldpassword123',
+      ))
+        ? await import('argon2').then((argon2) => argon2.default.hash('newpassword123'))
+        : '';
+      userService.updatePassword(db, user.id, newPasswordHash);
+
+      // Then: Password hash is updated in database
+      const updatedUser = db.select().from(schema.users).where(eq(schema.users.id, user.id)).get();
+      expect(updatedUser?.passwordHash).toBe(newPasswordHash);
+      expect(updatedUser?.passwordHash).not.toBe(originalPasswordHash);
+
+      // And: updatedAt timestamp is newer
+      expect(new Date(updatedUser!.updatedAt).getTime()).toBeGreaterThan(
+        new Date(originalUpdatedAt).getTime(),
+      );
+    });
+
+    it('new hash can be verified with argon2.verify', async () => {
+      // Given: User in database
+      const user = await userService.createLocalUser(
+        db,
+        'user@example.com',
+        'Test User',
+        'oldpassword123',
+      );
+
+      // When: Updating password with new hash
+      const argon2 = await import('argon2');
+      const newPasswordHash = await argon2.default.hash('newpassword456');
+      userService.updatePassword(db, user.id, newPasswordHash);
+
+      // Then: New password can be verified
+      const updatedUser = db.select().from(schema.users).where(eq(schema.users.id, user.id)).get();
+      const isValid = await userService.verifyPassword(
+        updatedUser!.passwordHash!,
+        'newpassword456',
+      );
+      expect(isValid).toBe(true);
+
+      // And: Old password no longer works
+      const isOldValid = await userService.verifyPassword(
+        updatedUser!.passwordHash!,
+        'oldpassword123',
+      );
+      expect(isOldValid).toBe(false);
+    });
+
+    it('does not return a value (void)', async () => {
+      // Given: User in database
+      const user = await userService.createLocalUser(
+        db,
+        'user@example.com',
+        'Test User',
+        'password123456',
+      );
+
+      // When: Updating password
+      const argon2 = await import('argon2');
+      const newPasswordHash = await argon2.default.hash('newpassword789');
+      const result = userService.updatePassword(db, user.id, newPasswordHash);
+
+      // Then: Function returns undefined (void)
+      expect(result).toBeUndefined();
+    });
+
+    it('preserves other user fields (email, displayName, role)', async () => {
+      // Given: User in database
+      const user = await userService.createLocalUser(
+        db,
+        'preserve@example.com',
+        'Preserve User',
+        'oldpassword123',
+        'admin',
+      );
+
+      // When: Updating password
+      const argon2 = await import('argon2');
+      const newPasswordHash = await argon2.default.hash('newpassword999');
+      userService.updatePassword(db, user.id, newPasswordHash);
+
+      // Then: Other fields are preserved
+      const updatedUser = db.select().from(schema.users).where(eq(schema.users.id, user.id)).get();
+      expect(updatedUser?.email).toBe('preserve@example.com');
+      expect(updatedUser?.displayName).toBe('Preserve User');
+      expect(updatedUser?.role).toBe('admin');
+      expect(updatedUser?.authProvider).toBe('local');
+      expect(updatedUser?.createdAt).toBe(user.createdAt);
+    });
+
+    it('allows multiple password updates', async () => {
+      // Given: User in database
+      const user = await userService.createLocalUser(
+        db,
+        'user@example.com',
+        'Test User',
+        'password1',
+      );
+      const argon2 = await import('argon2');
+
+      // When: Updating password multiple times
+      const hash2 = await argon2.default.hash('password2');
+      userService.updatePassword(db, user.id, hash2);
+
+      const hash3 = await argon2.default.hash('password3');
+      userService.updatePassword(db, user.id, hash3);
+
+      // Then: Final password is the last one set
+      const finalUser = db.select().from(schema.users).where(eq(schema.users.id, user.id)).get();
+      const isValid = await userService.verifyPassword(finalUser!.passwordHash!, 'password3');
+      expect(isValid).toBe(true);
+
+      const isOldValid = await userService.verifyPassword(finalUser!.passwordHash!, 'password2');
+      expect(isOldValid).toBe(false);
+    });
+  });
 });

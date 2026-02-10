@@ -32,6 +32,11 @@
   background-color: #3b82f6;
 }
 
+.navSeparator {
+  margin-top: auto;
+  border-top: 1px solid #374151;
+}
+
 .sidebarHeader {
   display: none;
 }

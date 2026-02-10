@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import argon2 from 'argon2';
-import { UnauthorizedError, ForbiddenError } from '../errors/AppError.js';
+import { AppError, UnauthorizedError, ForbiddenError } from '../errors/AppError.js';
 import * as userService from '../services/userService.js';
 
 // JSON schema for PATCH /api/users/me (update display name)
@@ -40,9 +40,7 @@ export default async function userRoutes(fastify: FastifyInstance) {
       throw new UnauthorizedError('Authentication required');
     }
 
-    return reply.status(200).send({
-      user: userService.toUserResponse(request.user),
-    });
+    return reply.status(200).send(userService.toUserResponse(request.user));
   });
 
   /**
@@ -60,9 +58,7 @@ export default async function userRoutes(fastify: FastifyInstance) {
 
     const updatedUser = userService.updateDisplayName(fastify.db, request.user.id, displayName);
 
-    return reply.status(200).send({
-      user: userService.toUserResponse(updatedUser),
-    });
+    return reply.status(200).send(userService.toUserResponse(updatedUser));
   });
 
   /**
@@ -89,7 +85,7 @@ export default async function userRoutes(fastify: FastifyInstance) {
 
     // Verify current password
     if (!request.user.passwordHash) {
-      throw new UnauthorizedError('Invalid credentials');
+      throw new AppError('INVALID_CREDENTIALS', 401, 'Current password is incorrect');
     }
 
     const passwordValid = await userService.verifyPassword(
@@ -98,7 +94,7 @@ export default async function userRoutes(fastify: FastifyInstance) {
     );
 
     if (!passwordValid) {
-      throw new UnauthorizedError('Invalid credentials');
+      throw new AppError('INVALID_CREDENTIALS', 401, 'Current password is incorrect');
     }
 
     // Hash new password and update
