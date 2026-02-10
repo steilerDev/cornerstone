@@ -13,6 +13,7 @@ import errorHandlerPlugin from './plugins/errorHandler.js';
 import authPlugin from './plugins/auth.js';
 import authRoutes from './routes/auth.js';
 import oidcRoutes from './routes/oidc.js';
+import userRoutes from './routes/users.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -46,6 +47,9 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // OIDC routes
   await app.register(oidcRoutes, { prefix: '/api/auth/oidc' });
+
+  // User profile routes
+  await app.register(userRoutes, { prefix: '/api/users' });
 
   // Health check endpoint
   app.get('/api/health', async () => {

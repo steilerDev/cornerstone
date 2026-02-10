@@ -187,3 +187,40 @@ export function findOrCreateOidcUser(
   const row = db.select().from(users).where(eq(users.id, id)).get();
   return row!;
 }
+
+/**
+ * Update a user's display name.
+ *
+ * @param db - Database instance
+ * @param userId - User ID to update
+ * @param displayName - New display name
+ * @returns The updated user row
+ */
+export function updateDisplayName(
+  db: DbType,
+  userId: string,
+  displayName: string,
+): typeof users.$inferSelect {
+  const now = new Date().toISOString();
+
+  db.update(users).set({ displayName, updatedAt: now }).where(eq(users.id, userId)).run();
+
+  const row = db.select().from(users).where(eq(users.id, userId)).get();
+  return row!;
+}
+
+/**
+ * Update a user's password hash.
+ *
+ * @param db - Database instance
+ * @param userId - User ID to update
+ * @param newPasswordHash - New password hash (argon2)
+ */
+export function updatePassword(db: DbType, userId: string, newPasswordHash: string): void {
+  const now = new Date().toISOString();
+
+  db.update(users)
+    .set({ passwordHash: newPasswordHash, updatedAt: now })
+    .where(eq(users.id, userId))
+    .run();
+}
