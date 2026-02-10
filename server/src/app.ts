@@ -12,6 +12,7 @@ import dbPlugin from './plugins/db.js';
 import errorHandlerPlugin from './plugins/errorHandler.js';
 import authPlugin from './plugins/auth.js';
 import authRoutes from './routes/auth.js';
+import oidcRoutes from './routes/oidc.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -42,6 +43,9 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Auth routes
   await app.register(authRoutes, { prefix: '/api/auth' });
+
+  // OIDC routes
+  await app.register(oidcRoutes, { prefix: '/api/auth/oidc' });
 
   // Health check endpoint
   app.get('/api/health', async () => {

@@ -1,10 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import argon2 from 'argon2';
-import { eq, isNull, sql } from 'drizzle-orm';
+import { eq, isNull, sql, and } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import { users } from '../db/schema.js';
 import type { UserResponse } from '@cornerstone/shared';
+import { ConflictError } from '../errors/AppError.js';
+
+// Re-export ConflictError for tests
+export { ConflictError };
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -115,4 +119,71 @@ export function countActiveUsers(db: DbType): number {
     .where(isNull(users.deactivatedAt))
     .get();
   return result?.count ?? 0;
+}
+
+/**
+ * Find a user by OIDC subject.
+ *
+ * @param db - Database instance
+ * @param sub - OIDC subject identifier
+ * @returns User row or undefined if not found
+ */
+export function findByOidcSubject(db: DbType, sub: string): typeof users.$inferSelect | undefined {
+  return db
+    .select()
+    .from(users)
+    .where(and(eq(users.authProvider, 'oidc'), eq(users.oidcSubject, sub)))
+    .get();
+}
+
+/**
+ * Find a user by OIDC subject or create a new one.
+ *
+ * @param db - Database instance
+ * @param sub - OIDC subject identifier
+ * @param email - User email address
+ * @param displayName - User display name
+ * @returns The user row (existing or newly created)
+ * @throws ConflictError if email is already in use by another account
+ */
+export function findOrCreateOidcUser(
+  db: DbType,
+  sub: string,
+  email: string,
+  displayName: string,
+): typeof users.$inferSelect {
+  // First, try to find by OIDC subject
+  const existingUser = findByOidcSubject(db, sub);
+  if (existingUser) {
+    return existingUser;
+  }
+
+  // Check if email is already used by another user
+  const emailUser = findByEmail(db, email);
+  if (emailUser) {
+    throw new ConflictError('Email already in use by another account', {
+      email,
+    });
+  }
+
+  // Create new OIDC user
+  const now = new Date().toISOString();
+  const id = randomUUID();
+
+  db.insert(users)
+    .values({
+      id,
+      email,
+      displayName,
+      role: 'member',
+      authProvider: 'oidc',
+      oidcSubject: sub,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .run();
+
+  // Return the inserted row
+  const row = db.select().from(users).where(eq(users.id, id)).get();
+  return row!;
 }

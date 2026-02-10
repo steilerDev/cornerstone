@@ -13,6 +13,8 @@ const PUBLIC_ROUTES = new Set([
   '/api/auth/login',
   '/api/auth/logout',
   '/api/auth/me',
+  '/api/auth/oidc/login',
+  '/api/auth/oidc/callback',
   '/api/health',
 ]);
 
@@ -99,8 +101,10 @@ export default fp(
         }
       }
 
-      // For protected routes, enforce authentication
-      const isPublicRoute = PUBLIC_ROUTES.has(request.url);
+      // For protected routes, enforce authentication.
+      // Use routeUrl (the route pattern) instead of request.url to avoid
+      // query string mismatches (e.g., /api/auth/oidc/callback?code=abc).
+      const isPublicRoute = PUBLIC_ROUTES.has(routeUrl);
       if (!isPublicRoute && !request.user) {
         throw new UnauthorizedError('Authentication required');
       }

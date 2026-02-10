@@ -47,7 +47,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
       return reply.status(200).send({
         user: null,
         setupRequired: true,
-        oidcEnabled: false,
+        oidcEnabled: fastify.config.oidcEnabled,
       });
     }
 
@@ -56,7 +56,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
       return reply.status(200).send({
         user: userService.toUserResponse(request.user),
         setupRequired: false,
-        oidcEnabled: false,
+        oidcEnabled: fastify.config.oidcEnabled,
       });
     }
 
@@ -64,7 +64,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
     return reply.status(200).send({
       user: null,
       setupRequired: false,
-      oidcEnabled: false,
+      oidcEnabled: fastify.config.oidcEnabled,
     });
   });
 

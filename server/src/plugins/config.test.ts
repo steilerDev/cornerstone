@@ -19,6 +19,11 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         nodeEnv: 'production',
         sessionDuration: 604800,
         secureCookies: true,
+        oidcIssuer: undefined,
+        oidcClientId: undefined,
+        oidcClientSecret: undefined,
+        oidcRedirectUri: undefined,
+        oidcEnabled: false,
       });
     });
 
@@ -39,6 +44,11 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         nodeEnv: 'production',
         sessionDuration: 604800,
         secureCookies: true,
+        oidcIssuer: undefined,
+        oidcClientId: undefined,
+        oidcClientSecret: undefined,
+        oidcRedirectUri: undefined,
+        oidcEnabled: false,
       });
     });
   });
@@ -61,6 +71,11 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         nodeEnv: 'development',
         sessionDuration: 604800,
         secureCookies: true,
+        oidcIssuer: undefined,
+        oidcClientId: undefined,
+        oidcClientSecret: undefined,
+        oidcRedirectUri: undefined,
+        oidcEnabled: false,
       });
     });
 
@@ -78,7 +93,100 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         nodeEnv: 'production',
         sessionDuration: 604800,
         secureCookies: true,
+        oidcIssuer: undefined,
+        oidcClientId: undefined,
+        oidcClientSecret: undefined,
+        oidcRedirectUri: undefined,
+        oidcEnabled: false,
       });
+    });
+  });
+
+  describe('OIDC Configuration', () => {
+    it('config with all OIDC env vars → oidcEnabled is true', () => {
+      const config = loadConfig({
+        OIDC_ISSUER: 'https://oidc.example.com',
+        OIDC_CLIENT_ID: 'client-123',
+        OIDC_CLIENT_SECRET: 'secret-456',
+        OIDC_REDIRECT_URI: 'https://app.example.com/api/auth/oidc/callback',
+      });
+
+      expect(config.oidcEnabled).toBe(true);
+      expect(config.oidcIssuer).toBe('https://oidc.example.com');
+      expect(config.oidcClientId).toBe('client-123');
+      expect(config.oidcClientSecret).toBe('secret-456');
+      expect(config.oidcRedirectUri).toBe('https://app.example.com/api/auth/oidc/callback');
+    });
+
+    it('config with partial OIDC env vars → oidcEnabled is false', () => {
+      const config = loadConfig({
+        OIDC_ISSUER: 'https://oidc.example.com',
+        OIDC_CLIENT_ID: 'client-123',
+        // Missing OIDC_CLIENT_SECRET and OIDC_REDIRECT_URI
+      });
+
+      expect(config.oidcEnabled).toBe(false);
+      expect(config.oidcIssuer).toBe('https://oidc.example.com');
+      expect(config.oidcClientId).toBe('client-123');
+      expect(config.oidcClientSecret).toBeUndefined();
+      expect(config.oidcRedirectUri).toBeUndefined();
+    });
+
+    it('config with empty string OIDC env vars → oidcEnabled is false', () => {
+      const config = loadConfig({
+        OIDC_ISSUER: '',
+        OIDC_CLIENT_ID: '',
+        OIDC_CLIENT_SECRET: '',
+        OIDC_REDIRECT_URI: '',
+      });
+
+      expect(config.oidcEnabled).toBe(false);
+      expect(config.oidcIssuer).toBeUndefined();
+      expect(config.oidcClientId).toBeUndefined();
+      expect(config.oidcClientSecret).toBeUndefined();
+      expect(config.oidcRedirectUri).toBeUndefined();
+    });
+
+    it('verify OIDC values are correctly read from environment', () => {
+      const issuer = 'https://auth.example.com';
+      const clientId = 'my-client-id';
+      const clientSecret = 'my-client-secret';
+      const redirectUri = 'https://app.example.com/callback';
+
+      const config = loadConfig({
+        OIDC_ISSUER: issuer,
+        OIDC_CLIENT_ID: clientId,
+        OIDC_CLIENT_SECRET: clientSecret,
+        OIDC_REDIRECT_URI: redirectUri,
+      });
+
+      expect(config.oidcIssuer).toBe(issuer);
+      expect(config.oidcClientId).toBe(clientId);
+      expect(config.oidcClientSecret).toBe(clientSecret);
+      expect(config.oidcRedirectUri).toBe(redirectUri);
+      expect(config.oidcEnabled).toBe(true);
+    });
+
+    it('missing one OIDC var disables OIDC (missing CLIENT_SECRET)', () => {
+      const config = loadConfig({
+        OIDC_ISSUER: 'https://oidc.example.com',
+        OIDC_CLIENT_ID: 'client-123',
+        OIDC_REDIRECT_URI: 'https://app.example.com/callback',
+        // Missing OIDC_CLIENT_SECRET
+      });
+
+      expect(config.oidcEnabled).toBe(false);
+    });
+
+    it('missing one OIDC var disables OIDC (missing REDIRECT_URI)', () => {
+      const config = loadConfig({
+        OIDC_ISSUER: 'https://oidc.example.com',
+        OIDC_CLIENT_ID: 'client-123',
+        OIDC_CLIENT_SECRET: 'secret-456',
+        // Missing OIDC_REDIRECT_URI
+      });
+
+      expect(config.oidcEnabled).toBe(false);
     });
   });
 
