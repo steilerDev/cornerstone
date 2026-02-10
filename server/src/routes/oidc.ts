@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { AppError } from '../errors/AppError.js';
+import { AppError, ConflictError } from '../errors/AppError.js';
 import * as oidcService from '../services/oidcService.js';
 import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
@@ -132,6 +132,11 @@ export default async function oidcRoutes(fastify: FastifyInstance) {
       // Redirect to the original app path
       return reply.redirect(appRedirect);
     } catch (error) {
+      // Email conflict: OIDC user's email matches a different auth provider's user
+      if (error instanceof ConflictError) {
+        fastify.log.warn({ error }, 'OIDC email conflict');
+        return reply.redirect('/login?error=email_conflict');
+      }
       fastify.log.error({ error }, 'OIDC callback error');
       return reply.redirect('/login?error=oidc_error');
     }
