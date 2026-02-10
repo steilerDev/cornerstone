@@ -9,6 +9,11 @@ export interface AppConfig {
   nodeEnv: string;
   sessionDuration: number; // seconds
   secureCookies: boolean;
+  oidcIssuer?: string;
+  oidcClientId?: string;
+  oidcClientSecret?: string;
+  oidcRedirectUri?: string;
+  oidcEnabled: boolean;
 }
 
 // Type augmentation: makes fastify.config available across all routes/plugins
@@ -84,6 +89,15 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     secureCookies = true; // Default fallback
   }
 
+  // OIDC configuration (all optional)
+  const oidcIssuer = getValue('OIDC_ISSUER');
+  const oidcClientId = getValue('OIDC_CLIENT_ID');
+  const oidcClientSecret = getValue('OIDC_CLIENT_SECRET');
+  const oidcRedirectUri = getValue('OIDC_REDIRECT_URI');
+
+  // OIDC is enabled only when ALL four variables are set
+  const oidcEnabled = !!(oidcIssuer && oidcClientId && oidcClientSecret && oidcRedirectUri);
+
   // If there are any validation errors, throw a single error listing all of them
   if (errors.length > 0) {
     throw new Error(`Configuration validation failed:\n  - ${errors.join('\n  - ')}`);
@@ -97,6 +111,11 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     nodeEnv,
     sessionDuration,
     secureCookies,
+    oidcIssuer,
+    oidcClientId,
+    oidcClientSecret,
+    oidcRedirectUri,
+    oidcEnabled,
   };
 }
 
@@ -105,7 +124,7 @@ export default fp(
     // Load and validate configuration
     const config = loadConfig(process.env);
 
-    // Log the configuration (excluding sensitive values)
+    // Log the configuration (excluding sensitive values like oidcClientSecret)
     fastify.log.info(
       {
         port: config.port,
@@ -115,6 +134,8 @@ export default fp(
         nodeEnv: config.nodeEnv,
         sessionDuration: config.sessionDuration,
         secureCookies: config.secureCookies,
+        oidcEnabled: config.oidcEnabled,
+        oidcIssuer: config.oidcIssuer,
       },
       'Configuration loaded',
     );

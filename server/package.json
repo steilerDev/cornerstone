@@ -20,7 +20,8 @@
     "better-sqlite3": "12.6.2",
     "drizzle-orm": "0.45.1",
     "fastify": "5.7.4",
-    "fastify-plugin": "5.1.0"
+    "fastify-plugin": "5.1.0",
+    "openid-client": "6.8.2"
   },
   "devDependencies": {
     "@types/better-sqlite3": "7.6.13"
