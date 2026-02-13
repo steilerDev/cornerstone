@@ -1,10 +1,11 @@
 import fp from 'fastify-plugin';
 import type { preHandlerHookHandler } from 'fastify';
+import type { UserRole } from '@cornerstone/shared';
 import type { users } from '../db/schema.js';
 import * as sessionService from '../services/sessionService.js';
 import { UnauthorizedError, ForbiddenError } from '../errors/AppError.js';
+import { COOKIE_NAME } from '../constants.js';
 
-const COOKIE_NAME = 'cornerstone_session';
 const CLEANUP_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 
 // Public routes that don't require authentication
@@ -39,7 +40,7 @@ declare module 'fastify' {
  *   // Only admin users can access this route
  * });
  */
-export function requireRole(...roles: string[]): preHandlerHookHandler {
+export function requireRole(...roles: UserRole[]): preHandlerHookHandler {
   return async function roleCheck(request, _reply) {
     // At this point, the preValidation hook has already run.
     // If the user is on a protected route, request.user is set.

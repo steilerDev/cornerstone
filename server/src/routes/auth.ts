@@ -2,8 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { AppError } from '../errors/AppError.js';
 import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
-
-const COOKIE_NAME = 'cornerstone_session';
+import { COOKIE_NAME } from '../constants.js';
 
 // JSON schema for request validation (Fastify/AJV)
 const setupSchema = {
@@ -135,7 +134,10 @@ export default async function authRoutes(fastify: FastifyInstance) {
     // If no user found OR user is OIDC (no password_hash), still hash a dummy password
     // (timing attack prevention)
     if (!user || !user.passwordHash) {
-      // Hash a dummy password to prevent timing attacks
+      // Hardcoded dummy Argon2 hash to prevent timing attacks.
+      // We hash the supplied password against this fixed hash to ensure constant-time
+      // response whether the user exists or not. Generating at module load would require
+      // top-level await, so we use a precomputed hash instead.
       await userService.verifyPassword(
         '$argon2id$v=19$m=65536,t=3,p=4$aGVsbG93b3JsZA$cZn5d+rFz8E4HMhH+3e6Ug',
         password,
