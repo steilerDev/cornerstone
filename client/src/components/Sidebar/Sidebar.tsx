@@ -73,6 +73,13 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         >
           Profile
         </NavLink>
+        <NavLink
+          to="/admin/users"
+          className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
+          onClick={onClose}
+        >
+          User Management
+        </NavLink>
       </nav>
     </aside>
   );

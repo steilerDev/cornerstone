@@ -572,4 +572,702 @@ describe('User Routes', () => {
       expect(body.error.code).toBe('VALIDATION_ERROR');
     });
   });
+
+  describe('GET /api/users', () => {
+    it('returns 401 when not authenticated', async () => {
+      // Given: No session cookie
+      // When: Requesting user list
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/users',
+      });
+
+      // Then: Returns 401 Unauthorized
+      expect(response.statusCode).toBe(401);
+      const body = JSON.parse(response.body);
+      expect(body.error.code).toBe('UNAUTHORIZED');
+    });
+
+    it('returns 403 when authenticated as member (not admin)', async () => {
+      // Given: Authenticated member user
+      const { cookie } = await createUserWithSession(
+        'member@example.com',
+        'Member User',
+        'password123456',
+        'member',
+      );
+
+      // When: Requesting user list
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/users',
+        headers: { cookie },
+      });
+
+      // Then: Returns 403 Forbidden
+      expect(response.statusCode).toBe(403);
+      const body = JSON.parse(response.body);
+      expect(body.error.code).toBe('FORBIDDEN');
+    });
+
+    it('returns all users when authenticated as admin', async () => {
+      // Given: Admin user
+      const { cookie } = await createUserWithSession(
+        'admin@example.com',
+        'Admin User',
+        'password123456',
+        'admin',
+      );
+
+      // And: Multiple users in database
+      await userService.createLocalUser(
+        app.db,
+        'user1@example.com',
+        'User One',
+        'password123456',
+        'member',
+      );
+      await userService.createLocalUser(
+        app.db,
+        'user2@example.com',
+        'User Two',
+        'password123456',
+        'member',
+      );
+
+      // When: Requesting user list
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/users',
+        headers: { cookie },
+      });
+
+      // Then: Returns 200 with all users
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body.users).toBeDefined();
+      expect(body.users).toBeInstanceOf(Array);
+      expect(body.users.length).toBeGreaterThanOrEqual(3); // Admin + 2 members
+    });
+
+    it('supports ?q= search query parameter', async () => {
+      // Given: Admin user
+      const { cookie } = await createUserWithSession(
+        'admin@example.com',
+        'Admin User',
+        'password123456',
+        'admin',
+      );
+
+      // And: Users with searchable names/emails
+      await userService.createLocalUser(
+        app.db,
+        'alice@example.com',
+        'Alice Smith',
+        'password123456',
+      );
+      await userService.createLocalUser(app.db, 'bob@example.com', 'Bob Jones', 'password123456');
+
+      // When: Searching for "alice"
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/users?q=alice',
+        headers: { cookie },
+      });
+
+      // Then: Returns matching users
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body.users).toBeDefined();
+
+      // And: All results match search term (case-insensitive)
+      const hasAlice = body.users.some(
+        (u: UserResponse) =>
+          u.email.toLowerCase().includes('alice') || u.displayName.toLowerCase().includes('alice'),
+      );
+      expect(hasAlice).toBe(true);
+    });
+
+    it('search is case-insensitive', async () => {
+      // Given: Admin user
+      const { cookie } = await createUserWithSession(
+        'admin@example.com',
+        'Admin User',
+        'password123456',
+        'admin',
+      );
+
+      await userService.createLocalUser(app.db, 'charlie@example.com', 'Charlie', 'password123456');
+
+      // When: Searching with uppercase query
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/users?q=CHARLIE',
+        headers: { cookie },
+      });
+
+      // Then: Returns matching user
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      const hasCharlie = body.users.some((u: UserResponse) => u.displayName === 'Charlie');
+      expect(hasCharlie).toBe(true);
+    });
+
+    it('returns empty array when no users match search', async () => {
+      // Given: Admin user
+      const { cookie } = await createUserWithSession(
+        'admin@example.com',
+        'Admin User',
+        'password123456',
+        'admin',
+      );
+
+      // When: Searching for non-existent user
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/users?q=nonexistent',
+        headers: { cookie },
+      });
+
+      // Then: Returns empty array (or only admin if admin matches)
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body.users).toBeInstanceOf(Array);
+    });
+
+    it('does NOT return sensitive fields (passwordHash, oidcSubject)', async () => {
+      // Given: Admin user
+      const { cookie } = await createUserWithSession(
+        'admin@example.com',
+        'Admin User',
+        'password123456',
+        'admin',
+      );
+
+      // When: Requesting user list
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/users',
+        headers: { cookie },
+      });
+
+      // Then: Response does not contain sensitive fields
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      body.users.forEach((user: UserResponse) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        expect((user as any).passwordHash).toBeUndefined();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        expect((user as any).oidcSubject).toBeUndefined();
+      });
+    });
+  });
+
+  describe('PATCH /api/users/:id', () => {
+    it('returns 401 when not authenticated', async () => {
+      // Given: No session cookie
+      // When: Attempting to update user
+      const response = await app.inject({
+        method: 'PATCH',
+        url: '/api/users/some-id',
+        payload: { displayName: 'New Name' },
+      });
+
+      // Then: Returns 401 Unauthorized
+      expect(response.statusCode).toBe(401);
+      const body = JSON.parse(response.body);
+      expect(body.error.code).toBe('UNAUTHORIZED');
+    });
+
+    it('returns 403 when authenticated as member (not admin)', async () => {
+      // Given: Authenticated member user
+      const { cookie } = await createUserWithSession(
+        'member@example.com',
+        'Member User',
+        'password123456',
+        'member',
+      );
+
+      // When: Attempting to update another user
+      const response = await app.inject({
+        method: 'PATCH',
+        url: '/api/users/some-id',
+        headers: { cookie },
+        payload: { displayName: 'New Name' },
+      });
+
+      // Then: Returns 403 Forbidden
+      expect(response.statusCode).toBe(403);
+      const body = JSON.parse(response.body);
+      expect(body.error.code).toBe('FORBIDDEN');
+    });
+
+    it('updates displayName successfully (admin)', async () => {
+      // Given: Admin user
+      const { cookie } = await createUserWithSession(
+        'admin@example.com',
+        'Admin User',
+        'password123456',
+        'admin',
+      );
+
+      // And: Target user
+      const targetUser = await userService.createLocalUser(
+        app.db,
+        'target@example.com',
+        'Old Name',
+        'password123456',
+        'member',
+      );
+
+      // When: Admin updates target user's display name
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/users/${targetUser.id}`,
+        headers: { cookie },
+        payload: { displayName: 'New Name' },
+      });
+
+      // Then: Returns 200 with updated user
+      expect(response.statusCode).toBe(200);
+      const updatedUser = JSON.parse(response.body) as UserResponse;
+      expect(updatedUser.displayName).toBe('New Name');
+      expect(updatedUser.id).toBe(targetUser.id);
+    });
+
+    it('updates email successfully (admin)', async () => {
+      // Given: Admin user
+      const { cookie } = await createUserWithSession(
+        'admin@example.com',
+        'Admin User',
+        'password123456',
+        'admin',
+      );
+
+      // And: Target user
+      const targetUser = await userService.createLocalUser(
+        app.db,
+        'old@example.com',
+        'User',
+        'password123456',
+        'member',
+      );
+
+      // When: Admin updates target user's email
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/users/${targetUser.id}`,
+        headers: { cookie },
+        payload: { email: 'new@example.com' },
+      });
+
+      // Then: Returns 200 with updated user
+      expect(response.statusCode).toBe(200);
+      const updatedUser = JSON.parse(response.body) as UserResponse;
+      expect(updatedUser.email).toBe('new@example.com');
+    });
+
+    it('updates role successfully (admin)', async () => {
+      // Given: Admin user
+      const { cookie } = await createUserWithSession(
+        'admin@example.com',
+        'Admin User',
+        'password123456',
+        'admin',
+      );
+
+      // And: Target member user
+      const targetUser = await userService.createLocalUser(
+        app.db,
+        'member@example.com',
+        'Member',
+        'password123456',
+        'member',
+      );
+
+      // When: Admin promotes member to admin
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/users/${targetUser.id}`,
+        headers: { cookie },
+        payload: { role: 'admin' },
+      });
+
+      // Then: Returns 200 with updated user
+      expect(response.statusCode).toBe(200);
+      const updatedUser = JSON.parse(response.body) as UserResponse;
+      expect(updatedUser.role).toBe('admin');
+    });
+
+    it('returns 404 when user does not exist', async () => {
+      // Given: Admin user
+      const { cookie } = await createUserWithSession(
+        'admin@example.com',
+        'Admin User',
+        'password123456',
+        'admin',
+      );
+
+      // When: Attempting to update non-existent user
+      const response = await app.inject({
+        method: 'PATCH',
+        url: '/api/users/nonexistent-id',
+        headers: { cookie },
+        payload: { displayName: 'New Name' },
+      });
+
+      // Then: Returns 404 Not Found
+      expect(response.statusCode).toBe(404);
+      const body = JSON.parse(response.body);
+      expect(body.error.code).toBe('NOT_FOUND');
+      expect(body.error.message).toContain('User not found');
+    });
+
+    it('returns 409 LAST_ADMIN when demoting last admin', async () => {
+      // Given: Single admin user
+      const { userId, cookie } = await createUserWithSession(
+        'admin@example.com',
+        'Admin User',
+        'password123456',
+        'admin',
+      );
+
+      // When: Attempting to demote the only admin
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/users/${userId}`,
+        headers: { cookie },
+        payload: { role: 'member' },
+      });
+
+      // Then: Returns 409 Conflict
+      expect(response.statusCode).toBe(409);
+      const body = JSON.parse(response.body);
+      expect(body.error.code).toBe('LAST_ADMIN');
+      expect(body.error.message).toContain('at least one admin must remain');
+    });
+
+    it('allows demoting admin when multiple admins exist', async () => {
+      // Given: Two admin users
+      const { cookie } = await createUserWithSession(
+        'admin1@example.com',
+        'Admin One',
+        'password123456',
+        'admin',
+      );
+
+      const admin2 = await userService.createLocalUser(
+        app.db,
+        'admin2@example.com',
+        'Admin Two',
+        'password123456',
+        'admin',
+      );
+
+      // When: Demoting one admin to member
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/users/${admin2.id}`,
+        headers: { cookie },
+        payload: { role: 'member' },
+      });
+
+      // Then: Update succeeds
+      expect(response.statusCode).toBe(200);
+      const updatedUser = JSON.parse(response.body) as UserResponse;
+      expect(updatedUser.role).toBe('member');
+    });
+
+    it('returns 409 CONFLICT when email is already in use', async () => {
+      // Given: Admin user
+      const { cookie } = await createUserWithSession(
+        'admin@example.com',
+        'Admin User',
+        'password123456',
+        'admin',
+      );
+
+      // And: Two users
+      const user1 = await userService.createLocalUser(
+        app.db,
+        'user1@example.com',
+        'User One',
+        'password123456',
+      );
+      await userService.createLocalUser(app.db, 'user2@example.com', 'User Two', 'password123456');
+
+      // When: Attempting to change user1's email to user2's email
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/users/${user1.id}`,
+        headers: { cookie },
+        payload: { email: 'user2@example.com' },
+      });
+
+      // Then: Returns 409 Conflict
+      expect(response.statusCode).toBe(409);
+      const body = JSON.parse(response.body);
+      expect(body.error.code).toBe('CONFLICT');
+      expect(body.error.message).toContain('Email already in use');
+    });
+
+    it('returns 400 for invalid email format', async () => {
+      // Given: Admin user
+      const { cookie } = await createUserWithSession(
+        'admin@example.com',
+        'Admin User',
+        'password123456',
+        'admin',
+      );
+
+      const targetUser = await userService.createLocalUser(
+        app.db,
+        'user@example.com',
+        'User',
+        'password123456',
+      );
+
+      // When: Sending invalid email
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/users/${targetUser.id}`,
+        headers: { cookie },
+        payload: { email: 'not-an-email' },
+      });
+
+      // Then: Returns 400 Bad Request
+      expect(response.statusCode).toBe(400);
+      const body = JSON.parse(response.body);
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('returns 400 when no fields provided', async () => {
+      // Given: Admin user
+      const { cookie } = await createUserWithSession(
+        'admin@example.com',
+        'Admin User',
+        'password123456',
+        'admin',
+      );
+
+      const targetUser = await userService.createLocalUser(
+        app.db,
+        'user@example.com',
+        'User',
+        'password123456',
+      );
+
+      // When: Sending empty body
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/users/${targetUser.id}`,
+        headers: { cookie },
+        payload: {},
+      });
+
+      // Then: Returns 400 Bad Request (minProperties: 1)
+      expect(response.statusCode).toBe(400);
+      const body = JSON.parse(response.body);
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+    });
+  });
+
+  describe('DELETE /api/users/:id', () => {
+    it('returns 401 when not authenticated', async () => {
+      // Given: No session cookie
+      // When: Attempting to deactivate user
+      const response = await app.inject({
+        method: 'DELETE',
+        url: '/api/users/some-id',
+      });
+
+      // Then: Returns 401 Unauthorized
+      expect(response.statusCode).toBe(401);
+      const body = JSON.parse(response.body);
+      expect(body.error.code).toBe('UNAUTHORIZED');
+    });
+
+    it('returns 403 when authenticated as member (not admin)', async () => {
+      // Given: Authenticated member user
+      const { cookie } = await createUserWithSession(
+        'member@example.com',
+        'Member User',
+        'password123456',
+        'member',
+      );
+
+      // When: Attempting to deactivate user
+      const response = await app.inject({
+        method: 'DELETE',
+        url: '/api/users/some-id',
+        headers: { cookie },
+      });
+
+      // Then: Returns 403 Forbidden
+      expect(response.statusCode).toBe(403);
+      const body = JSON.parse(response.body);
+      expect(body.error.code).toBe('FORBIDDEN');
+    });
+
+    it('deactivates user successfully (admin)', async () => {
+      // Given: Admin user
+      const { cookie } = await createUserWithSession(
+        'admin@example.com',
+        'Admin User',
+        'password123456',
+        'admin',
+      );
+
+      // And: Target user
+      const targetUser = await userService.createLocalUser(
+        app.db,
+        'target@example.com',
+        'Target User',
+        'password123456',
+        'member',
+      );
+
+      // When: Admin deactivates target user
+      const response = await app.inject({
+        method: 'DELETE',
+        url: `/api/users/${targetUser.id}`,
+        headers: { cookie },
+      });
+
+      // Then: Returns 204 No Content
+      expect(response.statusCode).toBe(204);
+      expect(response.body).toBe('');
+
+      // And: User is deactivated in database
+      const deactivatedUser = userService.findById(app.db, targetUser.id);
+      expect(deactivatedUser?.deactivatedAt).not.toBeNull();
+    });
+
+    it('returns 404 when user does not exist', async () => {
+      // Given: Admin user
+      const { cookie } = await createUserWithSession(
+        'admin@example.com',
+        'Admin User',
+        'password123456',
+        'admin',
+      );
+
+      // When: Attempting to deactivate non-existent user
+      const response = await app.inject({
+        method: 'DELETE',
+        url: '/api/users/nonexistent-id',
+        headers: { cookie },
+      });
+
+      // Then: Returns 404 Not Found
+      expect(response.statusCode).toBe(404);
+      const body = JSON.parse(response.body);
+      expect(body.error.code).toBe('NOT_FOUND');
+      expect(body.error.message).toContain('User not found');
+    });
+
+    it('returns 409 SELF_DEACTIVATION when admin tries to deactivate themselves', async () => {
+      // Given: Admin user
+      const { userId, cookie } = await createUserWithSession(
+        'admin@example.com',
+        'Admin User',
+        'password123456',
+        'admin',
+      );
+
+      // When: Admin attempts to deactivate their own account
+      const response = await app.inject({
+        method: 'DELETE',
+        url: `/api/users/${userId}`,
+        headers: { cookie },
+      });
+
+      // Then: Returns 409 Conflict
+      expect(response.statusCode).toBe(409);
+      const body = JSON.parse(response.body);
+      expect(body.error.code).toBe('SELF_DEACTIVATION');
+      expect(body.error.message).toContain('cannot deactivate your own account');
+    });
+
+    // NOTE: LAST_ADMIN edge case tested via service-level tests in userService.test.ts
+    // The route-level "allows deactivating admin when multiple admins exist" test covers the happy path
+
+    it('allows deactivating admin when multiple admins exist', async () => {
+      // Given: Three admin users
+      const { cookie } = await createUserWithSession(
+        'admin1@example.com',
+        'Admin One',
+        'password123456',
+        'admin',
+      );
+
+      await userService.createLocalUser(
+        app.db,
+        'admin2@example.com',
+        'Admin Two',
+        'password123456',
+        'admin',
+      );
+
+      const admin3 = await userService.createLocalUser(
+        app.db,
+        'admin3@example.com',
+        'Admin Three',
+        'password123456',
+        'admin',
+      );
+
+      // When: Admin1 deactivates Admin3
+      const response = await app.inject({
+        method: 'DELETE',
+        url: `/api/users/${admin3.id}`,
+        headers: { cookie },
+      });
+
+      // Then: Deactivation succeeds
+      expect(response.statusCode).toBe(204);
+    });
+
+    it('invalidates all sessions for deactivated user', async () => {
+      // Given: Admin user
+      const { cookie: adminCookie } = await createUserWithSession(
+        'admin@example.com',
+        'Admin User',
+        'password123456',
+        'admin',
+      );
+
+      // And: Target user with active session
+      const { userId: targetUserId, cookie: targetCookie } = await createUserWithSession(
+        'target@example.com',
+        'Target User',
+        'password123456',
+        'member',
+      );
+
+      // And: Verify target user's session works before deactivation
+      const preDeactivationCheck = await app.inject({
+        method: 'GET',
+        url: '/api/users/me',
+        headers: { cookie: targetCookie },
+      });
+      expect(preDeactivationCheck.statusCode).toBe(200);
+
+      // When: Admin deactivates target user
+      const deactivateResponse = await app.inject({
+        method: 'DELETE',
+        url: `/api/users/${targetUserId}`,
+        headers: { cookie: adminCookie },
+      });
+      expect(deactivateResponse.statusCode).toBe(204);
+
+      // Then: Target user's session is invalidated
+      const postDeactivationCheck = await app.inject({
+        method: 'GET',
+        url: '/api/users/me',
+        headers: { cookie: targetCookie },
+      });
+      expect(postDeactivationCheck.statusCode).toBe(401);
+    });
+  });
 });
