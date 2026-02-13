@@ -69,6 +69,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         isLoading: false,
         error: null,
       });
+      // Force full page reload to /login so AuthGuard re-runs its mount check
+      window.location.assign('/login');
     }
   };
 
