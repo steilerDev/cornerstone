@@ -69,8 +69,10 @@ COPY shared/package.json shared/
 COPY server/package.json server/
 COPY client/package.json client/
 
-# Copy production node_modules from builder (npm hoists to root, no workspace node_modules)
+# Copy production node_modules from builder (npm hoists most deps to root,
+# but some may remain in workspace-specific node_modules due to version constraints)
 COPY --from=builder /app/node_modules/ node_modules/
+COPY --from=builder /app/server/node_modules/ server/node_modules/
 
 # Copy built artifacts from builder
 COPY --from=builder /app/shared/dist/ shared/dist/
