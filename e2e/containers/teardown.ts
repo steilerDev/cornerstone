@@ -3,7 +3,7 @@ import { execSync } from 'child_process';
 import type { ContainerState } from './setup.js';
 
 const STATE_FILE_PATH = 'e2e/test-results/.state/containers.json';
-const LOGS_DIR = 'e2e/playwright-output/container-logs';
+const LOGS_DIR = 'playwright-output/container-logs';
 
 /**
  * Playwright global teardown function.
@@ -35,6 +35,12 @@ export default async function globalTeardown(): Promise<void> {
           });
           await writeFile(`${LOGS_DIR}/${name}.log`, logs);
           console.log(`📋 ${name} logs saved (${logs.length} bytes)`);
+          // Print cornerstone logs directly to CI for immediate debugging
+          if (name === 'cornerstone') {
+            console.log(`--- ${name} container logs ---`);
+            console.log(logs);
+            console.log(`--- end ${name} container logs ---`);
+          }
         } catch {
           console.warn(`⚠️  Failed to capture ${name} logs`);
         }
