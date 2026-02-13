@@ -80,6 +80,7 @@ describe('ProfilePage', () => {
       isLoading: false,
       error: null,
       refreshAuth: jest.fn(async () => Promise.resolve()),
+      logout: jest.fn(async () => Promise.resolve()),
     });
   });
 
@@ -96,6 +97,7 @@ describe('ProfilePage', () => {
         isLoading: true,
         error: null,
         refreshAuth: jest.fn(async () => Promise.resolve()),
+        logout: jest.fn(async () => Promise.resolve()),
       });
 
       // When: Rendering ProfilePage
@@ -113,6 +115,7 @@ describe('ProfilePage', () => {
         isLoading: false,
         error: null,
         refreshAuth: jest.fn(async () => Promise.resolve()),
+        logout: jest.fn(async () => Promise.resolve()),
       });
 
       // When: Rendering ProfilePage
@@ -142,6 +145,7 @@ describe('ProfilePage', () => {
         isLoading: false,
         error: null,
         refreshAuth: jest.fn(async () => Promise.resolve()),
+        logout: jest.fn(async () => Promise.resolve()),
       });
 
       // When: Rendering ProfilePage
@@ -177,6 +181,7 @@ describe('ProfilePage', () => {
         isLoading: false,
         error: null,
         refreshAuth: jest.fn(async () => Promise.resolve()),
+        logout: jest.fn(async () => Promise.resolve()),
       });
 
       // When: Rendering ProfilePage
@@ -197,6 +202,7 @@ describe('ProfilePage', () => {
         isLoading: false,
         error: null,
         refreshAuth: jest.fn(async () => Promise.resolve()),
+        logout: jest.fn(async () => Promise.resolve()),
       });
 
       // When: Rendering ProfilePage
@@ -214,6 +220,7 @@ describe('ProfilePage', () => {
         isLoading: false,
         error: 'Failed to load profile',
         refreshAuth: jest.fn(async () => Promise.resolve()),
+        logout: jest.fn(async () => Promise.resolve()),
       });
 
       // When: Rendering ProfilePage
@@ -232,6 +239,7 @@ describe('ProfilePage', () => {
         isLoading: false,
         error: 'Network failure',
         refreshAuth: jest.fn(async () => Promise.resolve()),
+        logout: jest.fn(async () => Promise.resolve()),
       });
 
       // When: Rendering ProfilePage
@@ -419,6 +427,7 @@ describe('ProfilePage', () => {
         isLoading: false,
         error: null,
         refreshAuth: jest.fn(async () => Promise.resolve()),
+        logout: jest.fn(async () => Promise.resolve()),
       });
 
       // When: Rendering ProfilePage
@@ -439,6 +448,7 @@ describe('ProfilePage', () => {
         isLoading: false,
         error: null,
         refreshAuth: jest.fn(async () => Promise.resolve()),
+        logout: jest.fn(async () => Promise.resolve()),
       });
 
       // When: Rendering ProfilePage

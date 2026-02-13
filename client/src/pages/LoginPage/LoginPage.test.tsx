@@ -11,6 +11,7 @@ import type * as LoginPageTypes from './LoginPage.js';
 jest.unstable_mockModule('../../lib/authApi.js', () => ({
   getAuthMe: jest.fn(),
   login: jest.fn(),
+  logout: jest.fn(),
 }));
 
 describe('LoginPage', () => {

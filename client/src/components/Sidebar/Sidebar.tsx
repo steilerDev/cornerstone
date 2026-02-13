@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext.js';
 import styles from './Sidebar.module.css';
 
 interface SidebarProps {
@@ -7,6 +8,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
+  const { logout } = useAuth();
   const sidebarClassName = [styles.sidebar, isOpen && styles.open].filter(Boolean).join(' ');
 
   return (
@@ -80,6 +82,16 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         >
           User Management
         </NavLink>
+        <div className={styles.navSeparator} />
+        <button
+          type="button"
+          className={styles.logoutButton}
+          onClick={() => {
+            void logout().then(() => onClose());
+          }}
+        >
+          Logout
+        </button>
       </nav>
     </aside>
   );

@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import { getAuthMe, type AuthMeResponse } from '../lib/authApi.js';
+import { getAuthMe, logout as logoutApi, type AuthMeResponse } from '../lib/authApi.js';
 import type { UserResponse } from '@cornerstone/shared';
 
 export interface AuthContextValue {
@@ -8,6 +8,7 @@ export interface AuthContextValue {
   isLoading: boolean;
   error: string | null;
   refreshAuth: () => Promise<void>;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -56,8 +57,27 @@ export function AuthProvider({ children }: AuthProviderProps) {
     await loadAuth();
   };
 
+  const logout = async () => {
+    try {
+      await logoutApi();
+    } catch {
+      // Ignore errors - clear local state even if server logout fails (e.g., session expired)
+    } finally {
+      setAuthState({
+        user: null,
+        oidcEnabled: false,
+        isLoading: false,
+        error: null,
+      });
+      // Force full page reload to /login so AuthGuard re-runs its mount check
+      window.location.assign('/login');
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ ...authState, refreshAuth }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ ...authState, refreshAuth, logout }}>
+      {children}
+    </AuthContext.Provider>
   );
 }
 

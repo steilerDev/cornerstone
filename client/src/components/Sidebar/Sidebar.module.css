@@ -37,6 +37,27 @@
   border-top: 1px solid #374151;
 }
 
+.logoutButton {
+  padding: 0.75rem 1.5rem;
+  color: #f9fafb;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  width: 100%;
+  transition: background-color 0.2s ease;
+}
+
+.logoutButton:hover {
+  background-color: #374151;
+}
+
+.logoutButton:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: -2px;
+}
+
 .sidebarHeader {
   display: none;
 }
@@ -95,6 +116,12 @@
   }
 
   .navLink {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+
+  .logoutButton {
     min-height: 44px;
     display: flex;
     align-items: center;

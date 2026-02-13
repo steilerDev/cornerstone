@@ -37,3 +37,7 @@ export function setup(payload: SetupPayload): Promise<SetupResponse> {
 export function login(payload: LoginPayload): Promise<LoginResponse> {
   return post<LoginResponse>('/auth/login', payload);
 }
+
+export function logout(): Promise<void> {
+  return post<void>('/auth/logout');
+}

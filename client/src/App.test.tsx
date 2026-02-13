@@ -10,6 +10,7 @@ import type * as AppTypes from './App.js';
 jest.unstable_mockModule('./lib/authApi.js', () => ({
   getAuthMe: jest.fn(),
   login: jest.fn(),
+  logout: jest.fn(),
 }));
 
 describe('App', () => {
