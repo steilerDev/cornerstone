@@ -79,6 +79,9 @@ COPY --from=builder /app/shared/dist/ shared/dist/
 COPY --from=builder /app/server/dist/ server/dist/
 COPY --from=builder /app/client/dist/ client/dist/
 
+# Copy SQL migration files (tsc does not copy non-TS assets)
+COPY --from=builder /app/server/src/db/migrations/ server/dist/db/migrations/
+
 # Expose server port
 EXPOSE 3000
 
