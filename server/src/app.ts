@@ -22,6 +22,7 @@ export async function buildApp(): Promise<FastifyInstance> {
     logger: {
       level: process.env.LOG_LEVEL || 'info',
     },
+    trustProxy: process.env.TRUST_PROXY === 'true',
   });
 
   // Configuration (must be first)

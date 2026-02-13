@@ -19,6 +19,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         nodeEnv: 'production',
         sessionDuration: 604800,
         secureCookies: true,
+        trustProxy: false,
         oidcIssuer: undefined,
         oidcClientId: undefined,
         oidcClientSecret: undefined,
@@ -44,6 +45,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         nodeEnv: 'production',
         sessionDuration: 604800,
         secureCookies: true,
+        trustProxy: false,
         oidcIssuer: undefined,
         oidcClientId: undefined,
         oidcClientSecret: undefined,
@@ -71,6 +73,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         nodeEnv: 'development',
         sessionDuration: 604800,
         secureCookies: true,
+        trustProxy: false,
         oidcIssuer: undefined,
         oidcClientId: undefined,
         oidcClientSecret: undefined,
@@ -93,6 +96,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         nodeEnv: 'production',
         sessionDuration: 604800,
         secureCookies: true,
+        trustProxy: false,
         oidcIssuer: undefined,
         oidcClientId: undefined,
         oidcClientSecret: undefined,
@@ -187,6 +191,34 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
       });
 
       expect(config.oidcEnabled).toBe(false);
+    });
+  });
+
+  describe('TRUST_PROXY Configuration', () => {
+    it('defaults to false when not set', () => {
+      const config = loadConfig({});
+      expect(config.trustProxy).toBe(false);
+    });
+
+    it('parses TRUST_PROXY=true', () => {
+      const config = loadConfig({ TRUST_PROXY: 'true' });
+      expect(config.trustProxy).toBe(true);
+    });
+
+    it('parses TRUST_PROXY=false', () => {
+      const config = loadConfig({ TRUST_PROXY: 'false' });
+      expect(config.trustProxy).toBe(false);
+    });
+
+    it('is case-insensitive', () => {
+      const config = loadConfig({ TRUST_PROXY: 'TRUE' });
+      expect(config.trustProxy).toBe(true);
+    });
+
+    it('rejects invalid value', () => {
+      expect(() => loadConfig({ TRUST_PROXY: 'yes' })).toThrow(
+        "TRUST_PROXY must be 'true' or 'false', got: yes",
+      );
     });
   });
 
