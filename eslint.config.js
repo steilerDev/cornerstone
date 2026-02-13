@@ -66,6 +66,14 @@ export default tseslint.config(
     },
   },
 
+  // E2E test files - allow console.log for test visibility
+  {
+    files: ['e2e/**/*.ts'],
+    rules: {
+      'no-console': 'off',
+    },
+  },
+
   // Disable formatting rules that conflict with Prettier
   prettierConfig,
 );
