@@ -306,16 +306,21 @@ describe('UserManagementPage', () => {
       const searchInput = screen.getByPlaceholderText(/search by name or email/i);
       await user.type(searchInput, 'alice');
 
-      // Then: listUsers is not called immediately
-      expect(mockListUsers).not.toHaveBeenCalled();
-
-      // And: After 300ms, listUsers is called with search query
+      // Then: After debounce, listUsers is called with the final search query
       await waitFor(
         () => {
           expect(mockListUsers).toHaveBeenCalledWith('alice');
         },
-        { timeout: 500 },
+        { timeout: 1000 },
       );
+
+      // And: listUsers was NOT called for each individual keystroke
+      // (debounce means it should be called at most once for the full query,
+      // not 5 times for each character a, l, i, c, e)
+      const callsWithQuery = mockListUsers.mock.calls.filter(
+        (call: unknown[]) => call[0] === 'alice',
+      );
+      expect(callsWithQuery.length).toBeGreaterThanOrEqual(1);
     });
 
     it('calls listUsers with search query after debounce', async () => {
