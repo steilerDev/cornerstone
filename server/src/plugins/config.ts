@@ -9,6 +9,7 @@ export interface AppConfig {
   nodeEnv: string;
   sessionDuration: number; // seconds
   secureCookies: boolean;
+  trustProxy: boolean;
   oidcIssuer?: string;
   oidcClientId?: string;
   oidcClientSecret?: string;
@@ -89,6 +90,18 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     secureCookies = true; // Default fallback
   }
 
+  // Parse TRUST_PROXY (boolean, default false)
+  const trustProxyStr = (getValue('TRUST_PROXY') ?? 'false').toLowerCase();
+  let trustProxy: boolean;
+  if (trustProxyStr === 'true') {
+    trustProxy = true;
+  } else if (trustProxyStr === 'false') {
+    trustProxy = false;
+  } else {
+    errors.push(`TRUST_PROXY must be 'true' or 'false', got: ${getValue('TRUST_PROXY')}`);
+    trustProxy = false; // Default fallback
+  }
+
   // OIDC configuration (all optional)
   const oidcIssuer = getValue('OIDC_ISSUER');
   const oidcClientId = getValue('OIDC_CLIENT_ID');
@@ -111,6 +124,7 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     nodeEnv,
     sessionDuration,
     secureCookies,
+    trustProxy,
     oidcIssuer,
     oidcClientId,
     oidcClientSecret,
@@ -134,6 +148,7 @@ export default fp(
         nodeEnv: config.nodeEnv,
         sessionDuration: config.sessionDuration,
         secureCookies: config.secureCookies,
+        trustProxy: config.trustProxy,
         oidcEnabled: config.oidcEnabled,
         oidcIssuer: config.oidcIssuer,
       },
