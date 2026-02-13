@@ -7,6 +7,7 @@ jest.unstable_mockModule('./apiClient.js', () => ({
   get: jest.fn(),
   post: jest.fn(),
   patch: jest.fn(),
+  del: jest.fn(),
 }));
 
 describe('usersApi', () => {
@@ -16,6 +17,7 @@ describe('usersApi', () => {
   let mockGet: jest.MockedFunction<typeof ApiClientTypes.get>;
   let mockPost: jest.MockedFunction<typeof ApiClientTypes.post>;
   let mockPatch: jest.MockedFunction<typeof ApiClientTypes.patch>;
+  let mockDel: jest.MockedFunction<typeof ApiClientTypes.del>;
 
   beforeEach(async () => {
     // Dynamic import after mocking
@@ -28,10 +30,12 @@ describe('usersApi', () => {
     mockGet = apiClient.get as jest.MockedFunction<typeof apiClient.get>;
     mockPost = apiClient.post as jest.MockedFunction<typeof apiClient.post>;
     mockPatch = apiClient.patch as jest.MockedFunction<typeof apiClient.patch>;
+    mockDel = apiClient.del as jest.MockedFunction<typeof apiClient.del>;
 
     mockGet.mockReset();
     mockPost.mockReset();
     mockPatch.mockReset();
+    mockDel.mockReset();
   });
 
   describe('getProfile()', () => {
@@ -258,6 +262,180 @@ describe('usersApi', () => {
         currentPassword: 'current',
         newPassword: 'new1234567890',
       });
+
+      // Then: No error is thrown
+      expect(result).toBeUndefined();
+    });
+  });
+
+  describe('listUsers()', () => {
+    it('calls GET /users without query when no search term provided', async () => {
+      // Given: Mock response
+      const mockUsers = [
+        {
+          id: 'user-1',
+          email: 'user1@example.com',
+          displayName: 'User One',
+          role: 'member' as const,
+          authProvider: 'local' as const,
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
+          deactivatedAt: null,
+        },
+      ];
+      mockGet.mockResolvedValue({ users: mockUsers });
+
+      // When: Calling listUsers without search
+      const result = await usersApi.listUsers();
+
+      // Then: Calls correct endpoint
+      expect(mockGet).toHaveBeenCalledWith('/users');
+      expect(mockGet).toHaveBeenCalledTimes(1);
+
+      // And: Returns user list
+      expect(result.users).toEqual(mockUsers);
+    });
+
+    it('calls GET /users?q=... when search term provided', async () => {
+      // Given: Mock response
+      mockGet.mockResolvedValue({ users: [] });
+
+      // When: Calling listUsers with search term
+      await usersApi.listUsers('john');
+
+      // Then: Calls correct endpoint with query string
+      expect(mockGet).toHaveBeenCalledWith('/users?q=john');
+      expect(mockGet).toHaveBeenCalledTimes(1);
+    });
+
+    it('encodes search query parameter', async () => {
+      // Given: Mock response
+      mockGet.mockResolvedValue({ users: [] });
+
+      // When: Calling listUsers with special characters
+      await usersApi.listUsers('john@example.com');
+
+      // Then: Query string is encoded
+      expect(mockGet).toHaveBeenCalledWith('/users?q=john%40example.com');
+    });
+
+    it('propagates errors from apiClient', async () => {
+      // Given: API error
+      const error = new Error('Forbidden');
+      mockGet.mockRejectedValue(error);
+
+      // When/Then: Error is propagated
+      await expect(usersApi.listUsers()).rejects.toThrow('Forbidden');
+    });
+  });
+
+  describe('adminUpdateUser()', () => {
+    it('calls PATCH /users/:id with correct body', async () => {
+      // Given: Mock response
+      const mockUpdatedUser = {
+        id: 'user-123',
+        email: 'updated@example.com',
+        displayName: 'Updated Name',
+        role: 'admin' as const,
+        authProvider: 'local' as const,
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-06-10T15:30:00.000Z',
+        deactivatedAt: null,
+      };
+      mockPatch.mockResolvedValue(mockUpdatedUser);
+
+      // When: Calling adminUpdateUser
+      const result = await usersApi.adminUpdateUser('user-123', {
+        displayName: 'Updated Name',
+        email: 'updated@example.com',
+        role: 'admin',
+      });
+
+      // Then: Calls correct endpoint with body
+      expect(mockPatch).toHaveBeenCalledWith('/users/user-123', {
+        displayName: 'Updated Name',
+        email: 'updated@example.com',
+        role: 'admin',
+      });
+      expect(mockPatch).toHaveBeenCalledTimes(1);
+
+      // And: Returns updated user data
+      expect(result).toEqual(mockUpdatedUser);
+    });
+
+    it('sends only changed fields', async () => {
+      // Given: Mock response
+      mockPatch.mockResolvedValue({
+        id: 'user-456',
+        email: 'user@example.com',
+        displayName: 'User',
+        role: 'admin' as const,
+        authProvider: 'local' as const,
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-06-10T16:00:00.000Z',
+        deactivatedAt: null,
+      });
+
+      // When: Calling adminUpdateUser with only role
+      await usersApi.adminUpdateUser('user-456', { role: 'admin' });
+
+      // Then: Body contains only role
+      expect(mockPatch).toHaveBeenCalledWith('/users/user-456', { role: 'admin' });
+    });
+
+    it('propagates errors from apiClient', async () => {
+      // Given: API error
+      const error = new Error('Conflict: Email already in use');
+      mockPatch.mockRejectedValue(error);
+
+      // When/Then: Error is propagated
+      await expect(
+        usersApi.adminUpdateUser('user-789', { email: 'taken@example.com' }),
+      ).rejects.toThrow('Conflict: Email already in use');
+    });
+  });
+
+  describe('deactivateUser()', () => {
+    it('calls DELETE /users/:id', async () => {
+      // Given: Mock response (void - 204 No Content)
+      mockDel.mockResolvedValue(undefined);
+
+      // When: Calling deactivateUser
+      await usersApi.deactivateUser('user-123');
+
+      // Then: Calls correct endpoint
+      expect(mockDel).toHaveBeenCalledWith('/users/user-123');
+      expect(mockDel).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns void (Promise<void>)', async () => {
+      // Given: Mock response
+      mockDel.mockResolvedValue(undefined);
+
+      // When: Calling deactivateUser
+      const result = await usersApi.deactivateUser('user-456');
+
+      // Then: Returns undefined
+      expect(result).toBeUndefined();
+    });
+
+    it('propagates errors from apiClient', async () => {
+      // Given: API error
+      const error = new Error('Cannot deactivate last admin');
+      mockDel.mockRejectedValue(error);
+
+      // When/Then: Error is propagated
+      await expect(usersApi.deactivateUser('user-789')).rejects.toThrow(
+        'Cannot deactivate last admin',
+      );
+    });
+
+    it('handles 204 No Content response', async () => {
+      // Given: Mock 204 response (undefined)
+      mockDel.mockResolvedValue(undefined);
+
+      // When: Calling deactivateUser
+      const result = await usersApi.deactivateUser('user-999');
 
       // Then: No error is thrown
       expect(result).toBeUndefined();

@@ -15,11 +15,11 @@ describe('Sidebar', () => {
     jest.clearAllMocks();
   });
 
-  it('renders all 7 navigation links', () => {
+  it('renders all 8 navigation links', () => {
     renderWithRouter(<Sidebar {...defaultProps} />);
 
     const links = screen.getAllByRole('link');
-    expect(links).toHaveLength(7);
+    expect(links).toHaveLength(8);
   });
 
   it('renders navigation with correct aria-label', () => {
@@ -198,6 +198,32 @@ describe('Sidebar', () => {
 
     const documentsLink = screen.getByRole('link', { name: /documents/i });
     await user.click(documentsLink);
+
+    expect(mockOnClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('user management link has correct href attribute', () => {
+    renderWithRouter(<Sidebar {...defaultProps} />);
+
+    expect(screen.getByRole('link', { name: /user management/i })).toHaveAttribute(
+      'href',
+      '/admin/users',
+    );
+  });
+
+  it('user management link is active at /admin/users', () => {
+    renderWithRouter(<Sidebar {...defaultProps} />, { initialEntries: ['/admin/users'] });
+
+    const userManagementLink = screen.getByRole('link', { name: /user management/i });
+    expect(userManagementLink).toHaveClass('active');
+  });
+
+  it('clicking user management link calls onClose', async () => {
+    const user = userEvent.setup();
+    renderWithRouter(<Sidebar {...defaultProps} />);
+
+    const userManagementLink = screen.getByRole('link', { name: /user management/i });
+    await user.click(userManagementLink);
 
     expect(mockOnClose).toHaveBeenCalledTimes(1);
   });

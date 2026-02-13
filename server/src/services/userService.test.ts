@@ -1121,4 +1121,711 @@ describe('User Service', () => {
       expect(isOldValid).toBe(false);
     });
   });
+
+  describe('listUsers()', () => {
+    it('returns all users when no search term provided', async () => {
+      // Given: Multiple users in database
+      await userService.createLocalUser(db, 'user1@example.com', 'User One', 'password123456');
+      await userService.createLocalUser(db, 'user2@example.com', 'User Two', 'password123456');
+      await userService.createLocalUser(db, 'user3@example.com', 'User Three', 'password123456');
+
+      // When: Listing users without search
+      const users = userService.listUsers(db);
+
+      // Then: Returns all users
+      expect(users).toHaveLength(3);
+    });
+
+    it('returns empty array when no users exist', () => {
+      // Given: Empty database
+      // When: Listing users
+      const users = userService.listUsers(db);
+
+      // Then: Returns empty array
+      expect(users).toEqual([]);
+    });
+
+    it('filters by email (case-insensitive)', async () => {
+      // Given: Users with different emails
+      await userService.createLocalUser(db, 'alice@example.com', 'Alice', 'password123456');
+      await userService.createLocalUser(db, 'bob@example.com', 'Bob', 'password123456');
+      await userService.createLocalUser(db, 'charlie@example.com', 'Charlie', 'password123456');
+
+      // When: Searching by email fragment (lowercase)
+      const users = userService.listUsers(db, 'alice');
+
+      // Then: Returns matching user
+      expect(users).toHaveLength(1);
+      expect(users[0].email).toBe('alice@example.com');
+    });
+
+    it('filters by displayName (case-insensitive)', async () => {
+      // Given: Users with different display names
+      await userService.createLocalUser(db, 'user1@example.com', 'John Smith', 'password123456');
+      await userService.createLocalUser(db, 'user2@example.com', 'Jane Doe', 'password123456');
+      await userService.createLocalUser(db, 'user3@example.com', 'John Doe', 'password123456');
+
+      // When: Searching by display name fragment
+      const users = userService.listUsers(db, 'john');
+
+      // Then: Returns matching users
+      expect(users.length).toBeGreaterThanOrEqual(2);
+      users.forEach((user) => {
+        expect(user.displayName.toLowerCase()).toContain('john');
+      });
+    });
+
+    it('search is case-insensitive (uppercase query)', async () => {
+      // Given: User with lowercase email
+      await userService.createLocalUser(db, 'lowercase@example.com', 'User', 'password123456');
+
+      // When: Searching with uppercase
+      const users = userService.listUsers(db, 'LOWERCASE');
+
+      // Then: Finds user
+      expect(users).toHaveLength(1);
+      expect(users[0].email).toBe('lowercase@example.com');
+    });
+
+    it('search is case-insensitive (mixed case query)', async () => {
+      // Given: User with mixed case display name
+      await userService.createLocalUser(db, 'user@example.com', 'CamelCase', 'password123456');
+
+      // When: Searching with different case
+      const users = userService.listUsers(db, 'camelcase');
+
+      // Then: Finds user
+      expect(users).toHaveLength(1);
+      expect(users[0].displayName).toBe('CamelCase');
+    });
+
+    it('returns empty array when no matches found', async () => {
+      // Given: Users in database
+      await userService.createLocalUser(db, 'user@example.com', 'User', 'password123456');
+
+      // When: Searching for non-existent term
+      const users = userService.listUsers(db, 'nonexistent');
+
+      // Then: Returns empty array
+      expect(users).toEqual([]);
+    });
+
+    it('includes deactivated users in results', async () => {
+      // Given: Active and deactivated users
+      await userService.createLocalUser(db, 'active@example.com', 'Active', 'password123456');
+      const deactivatedUser = await userService.createLocalUser(
+        db,
+        'deactivated@example.com',
+        'Deactivated',
+        'password123456',
+      );
+
+      // Deactivate one user
+      db.update(schema.users)
+        .set({ deactivatedAt: new Date().toISOString() })
+        .where(eq(schema.users.id, deactivatedUser.id))
+        .run();
+
+      // When: Listing all users
+      const users = userService.listUsers(db);
+
+      // Then: Both users are included
+      expect(users).toHaveLength(2);
+    });
+
+    it('returns complete user rows including passwordHash', async () => {
+      // Given: User in database
+      const user = await userService.createLocalUser(
+        db,
+        'user@example.com',
+        'User',
+        'password123456',
+      );
+
+      // When: Listing users
+      const users = userService.listUsers(db);
+
+      // Then: Returns complete rows with sensitive fields
+      expect(users).toHaveLength(1);
+      expect(users[0].passwordHash).toBeDefined();
+      expect(users[0].passwordHash).toBe(user.passwordHash);
+    });
+  });
+
+  describe('findById()', () => {
+    it('returns user when ID exists', async () => {
+      // Given: User in database
+      const user = await userService.createLocalUser(
+        db,
+        'user@example.com',
+        'User',
+        'password123456',
+      );
+
+      // When: Finding by ID
+      const foundUser = userService.findById(db, user.id);
+
+      // Then: User is found
+      expect(foundUser).toBeDefined();
+      expect(foundUser?.id).toBe(user.id);
+      expect(foundUser?.email).toBe(user.email);
+    });
+
+    it('returns undefined when ID does not exist', () => {
+      // Given: Empty database
+      // When: Finding by non-existent ID
+      const foundUser = userService.findById(db, 'nonexistent-id');
+
+      // Then: No user is found
+      expect(foundUser).toBeUndefined();
+    });
+
+    it('returns complete user row including passwordHash', async () => {
+      // Given: User in database
+      const user = await userService.createLocalUser(
+        db,
+        'user@example.com',
+        'User',
+        'password123456',
+      );
+
+      // When: Finding by ID
+      const foundUser = userService.findById(db, user.id);
+
+      // Then: Complete row is returned
+      expect(foundUser).toBeDefined();
+      expect(foundUser?.passwordHash).toBeDefined();
+      expect(foundUser?.passwordHash).toBe(user.passwordHash);
+    });
+
+    it('can find deactivated users', async () => {
+      // Given: Deactivated user
+      const user = await userService.createLocalUser(
+        db,
+        'user@example.com',
+        'User',
+        'password123456',
+      );
+
+      db.update(schema.users)
+        .set({ deactivatedAt: new Date().toISOString() })
+        .where(eq(schema.users.id, user.id))
+        .run();
+
+      // When: Finding by ID
+      const foundUser = userService.findById(db, user.id);
+
+      // Then: User is found
+      expect(foundUser).toBeDefined();
+      expect(foundUser?.deactivatedAt).not.toBeNull();
+    });
+
+    it('can find OIDC users', () => {
+      // Given: OIDC user
+      const oidcSubject = 'oidc-sub-123';
+      db.insert(schema.users)
+        .values({
+          id: 'oidc-user',
+          email: 'oidc@example.com',
+          displayName: 'OIDC User',
+          role: 'member',
+          authProvider: 'oidc',
+          oidcSubject,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        })
+        .run();
+
+      // When: Finding by ID
+      const foundUser = userService.findById(db, 'oidc-user');
+
+      // Then: User is found
+      expect(foundUser).toBeDefined();
+      expect(foundUser?.authProvider).toBe('oidc');
+      expect(foundUser?.oidcSubject).toBe(oidcSubject);
+    });
+  });
+
+  describe('countActiveAdmins()', () => {
+    it('returns 0 for empty database', () => {
+      // Given: Empty database
+      // When: Counting active admins
+      const count = userService.countActiveAdmins(db);
+
+      // Then: Count is 0
+      expect(count).toBe(0);
+    });
+
+    it('counts only users with role=admin', async () => {
+      // Given: Mix of admins and members
+      await userService.createLocalUser(
+        db,
+        'admin1@example.com',
+        'Admin One',
+        'password123456',
+        'admin',
+      );
+      await userService.createLocalUser(
+        db,
+        'admin2@example.com',
+        'Admin Two',
+        'password123456',
+        'admin',
+      );
+      await userService.createLocalUser(
+        db,
+        'member@example.com',
+        'Member',
+        'password123456',
+        'member',
+      );
+
+      // When: Counting active admins
+      const count = userService.countActiveAdmins(db);
+
+      // Then: Count is 2 (only admins)
+      expect(count).toBe(2);
+    });
+
+    it('excludes deactivated admins from count', async () => {
+      // Given: Active and deactivated admins
+      await userService.createLocalUser(
+        db,
+        'admin1@example.com',
+        'Admin One',
+        'password123456',
+        'admin',
+      );
+      const deactivatedAdmin = await userService.createLocalUser(
+        db,
+        'admin2@example.com',
+        'Admin Two',
+        'password123456',
+        'admin',
+      );
+
+      // Deactivate one admin
+      db.update(schema.users)
+        .set({ deactivatedAt: new Date().toISOString() })
+        .where(eq(schema.users.id, deactivatedAdmin.id))
+        .run();
+
+      // When: Counting active admins
+      const count = userService.countActiveAdmins(db);
+
+      // Then: Count is 1 (excludes deactivated)
+      expect(count).toBe(1);
+    });
+
+    it('excludes members from count', async () => {
+      // Given: Admins and members
+      await userService.createLocalUser(
+        db,
+        'admin@example.com',
+        'Admin',
+        'password123456',
+        'admin',
+      );
+      await userService.createLocalUser(
+        db,
+        'member1@example.com',
+        'Member One',
+        'password123456',
+        'member',
+      );
+      await userService.createLocalUser(
+        db,
+        'member2@example.com',
+        'Member Two',
+        'password123456',
+        'member',
+      );
+
+      // When: Counting active admins
+      const count = userService.countActiveAdmins(db);
+
+      // Then: Count is 1 (only admin)
+      expect(count).toBe(1);
+    });
+
+    it('counts correctly with multiple active admins', async () => {
+      // Given: Three active admins
+      await userService.createLocalUser(
+        db,
+        'admin1@example.com',
+        'Admin One',
+        'password123456',
+        'admin',
+      );
+      await userService.createLocalUser(
+        db,
+        'admin2@example.com',
+        'Admin Two',
+        'password123456',
+        'admin',
+      );
+      await userService.createLocalUser(
+        db,
+        'admin3@example.com',
+        'Admin Three',
+        'password123456',
+        'admin',
+      );
+
+      // When: Counting active admins
+      const count = userService.countActiveAdmins(db);
+
+      // Then: Count is 3
+      expect(count).toBe(3);
+    });
+
+    it('counts correctly after deactivating all admins', async () => {
+      // Given: Two admins
+      const admin1 = await userService.createLocalUser(
+        db,
+        'admin1@example.com',
+        'Admin One',
+        'password123456',
+        'admin',
+      );
+      const admin2 = await userService.createLocalUser(
+        db,
+        'admin2@example.com',
+        'Admin Two',
+        'password123456',
+        'admin',
+      );
+
+      // When: Deactivating both admins
+      db.update(schema.users)
+        .set({ deactivatedAt: new Date().toISOString() })
+        .where(eq(schema.users.id, admin1.id))
+        .run();
+      db.update(schema.users)
+        .set({ deactivatedAt: new Date().toISOString() })
+        .where(eq(schema.users.id, admin2.id))
+        .run();
+
+      // Then: Count is 0
+      const count = userService.countActiveAdmins(db);
+      expect(count).toBe(0);
+    });
+  });
+
+  describe('updateUserById()', () => {
+    it('updates displayName successfully', async () => {
+      // Given: User in database
+      const user = await userService.createLocalUser(
+        db,
+        'user@example.com',
+        'Old Name',
+        'password123456',
+      );
+
+      // When: Updating display name
+      const updatedUser = userService.updateUserById(db, user.id, { displayName: 'New Name' });
+
+      // Then: Display name is updated
+      expect(updatedUser.displayName).toBe('New Name');
+      expect(updatedUser.id).toBe(user.id);
+    });
+
+    it('updates email successfully', async () => {
+      // Given: User in database
+      const user = await userService.createLocalUser(
+        db,
+        'old@example.com',
+        'User',
+        'password123456',
+      );
+
+      // When: Updating email
+      const updatedUser = userService.updateUserById(db, user.id, { email: 'new@example.com' });
+
+      // Then: Email is updated
+      expect(updatedUser.email).toBe('new@example.com');
+      expect(updatedUser.id).toBe(user.id);
+    });
+
+    it('updates role successfully', async () => {
+      // Given: Member user
+      const user = await userService.createLocalUser(
+        db,
+        'user@example.com',
+        'User',
+        'password123456',
+        'member',
+      );
+
+      // When: Promoting to admin
+      const updatedUser = userService.updateUserById(db, user.id, { role: 'admin' });
+
+      // Then: Role is updated
+      expect(updatedUser.role).toBe('admin');
+    });
+
+    it('updates multiple fields at once', async () => {
+      // Given: User in database
+      const user = await userService.createLocalUser(
+        db,
+        'old@example.com',
+        'Old Name',
+        'password123456',
+        'member',
+      );
+
+      // When: Updating multiple fields
+      const updatedUser = userService.updateUserById(db, user.id, {
+        displayName: 'New Name',
+        email: 'new@example.com',
+        role: 'admin',
+      });
+
+      // Then: All fields are updated
+      expect(updatedUser.displayName).toBe('New Name');
+      expect(updatedUser.email).toBe('new@example.com');
+      expect(updatedUser.role).toBe('admin');
+    });
+
+    it('throws ConflictError when email is already in use', async () => {
+      // Given: Two users
+      const user1 = await userService.createLocalUser(
+        db,
+        'user1@example.com',
+        'User One',
+        'password123456',
+      );
+      await userService.createLocalUser(db, 'user2@example.com', 'User Two', 'password123456');
+
+      // When/Then: Attempting to change user1's email to user2's email throws
+      expect(() => {
+        userService.updateUserById(db, user1.id, { email: 'user2@example.com' });
+      }).toThrow(userService.ConflictError);
+
+      expect(() => {
+        userService.updateUserById(db, user1.id, { email: 'user2@example.com' });
+      }).toThrow('Email already in use');
+    });
+
+    it('allows updating email to same value (no conflict)', async () => {
+      // Given: User in database
+      const user = await userService.createLocalUser(
+        db,
+        'user@example.com',
+        'User',
+        'password123456',
+      );
+
+      // When: Updating email to same value
+      const updatedUser = userService.updateUserById(db, user.id, { email: 'user@example.com' });
+
+      // Then: Update succeeds without error
+      expect(updatedUser.email).toBe('user@example.com');
+    });
+
+    it('updates updatedAt timestamp', async () => {
+      // Given: User in database
+      const user = await userService.createLocalUser(
+        db,
+        'user@example.com',
+        'User',
+        'password123456',
+      );
+      const originalUpdatedAt = user.updatedAt;
+
+      // When: Updating user
+      const updatedUser = userService.updateUserById(db, user.id, { displayName: 'Updated' });
+
+      // Then: updatedAt is newer
+      expect(new Date(updatedUser.updatedAt).getTime()).toBeGreaterThan(
+        new Date(originalUpdatedAt).getTime(),
+      );
+    });
+
+    it('preserves other fields when updating', async () => {
+      // Given: User in database
+      const user = await userService.createLocalUser(
+        db,
+        'user@example.com',
+        'User',
+        'password123456',
+        'admin',
+      );
+
+      // When: Updating only display name
+      const updatedUser = userService.updateUserById(db, user.id, { displayName: 'New Name' });
+
+      // Then: Other fields are preserved
+      expect(updatedUser.email).toBe('user@example.com');
+      expect(updatedUser.role).toBe('admin');
+      expect(updatedUser.authProvider).toBe('local');
+      expect(updatedUser.createdAt).toBe(user.createdAt);
+    });
+
+    it('returns the updated user row', async () => {
+      // Given: User in database
+      const user = await userService.createLocalUser(
+        db,
+        'user@example.com',
+        'User',
+        'password123456',
+      );
+
+      // When: Updating user
+      const updatedUser = userService.updateUserById(db, user.id, { displayName: 'Updated' });
+
+      // Then: Returned user matches updated data
+      expect(updatedUser).toBeDefined();
+      expect(updatedUser.displayName).toBe('Updated');
+      expect(updatedUser.id).toBe(user.id);
+    });
+  });
+
+  describe('deactivateUser()', () => {
+    it('sets deactivatedAt timestamp', async () => {
+      // Given: Active user
+      const user = await userService.createLocalUser(
+        db,
+        'user@example.com',
+        'User',
+        'password123456',
+      );
+      expect(user.deactivatedAt).toBeNull();
+
+      // When: Deactivating user
+      userService.deactivateUser(db, user.id);
+
+      // Then: deactivatedAt is set
+      const deactivatedUser = db
+        .select()
+        .from(schema.users)
+        .where(eq(schema.users.id, user.id))
+        .get();
+      expect(deactivatedUser?.deactivatedAt).not.toBeNull();
+      expect(deactivatedUser?.deactivatedAt).toMatch(
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/,
+      );
+    });
+
+    it('preserves other user fields', async () => {
+      // Given: User in database
+      const user = await userService.createLocalUser(
+        db,
+        'user@example.com',
+        'User',
+        'password123456',
+        'admin',
+      );
+
+      // When: Deactivating user
+      userService.deactivateUser(db, user.id);
+
+      // Then: Other fields are preserved
+      const deactivatedUser = db
+        .select()
+        .from(schema.users)
+        .where(eq(schema.users.id, user.id))
+        .get();
+      expect(deactivatedUser?.email).toBe('user@example.com');
+      expect(deactivatedUser?.displayName).toBe('User');
+      expect(deactivatedUser?.role).toBe('admin');
+      expect(deactivatedUser?.authProvider).toBe('local');
+      expect(deactivatedUser?.createdAt).toBe(user.createdAt);
+    });
+
+    it('does not return a value (void)', async () => {
+      // Given: User in database
+      const user = await userService.createLocalUser(
+        db,
+        'user@example.com',
+        'User',
+        'password123456',
+      );
+
+      // When: Deactivating user
+      const result = userService.deactivateUser(db, user.id);
+
+      // Then: Function returns undefined (void)
+      expect(result).toBeUndefined();
+    });
+
+    it('can deactivate already deactivated user (idempotent)', async () => {
+      // Given: Already deactivated user
+      const user = await userService.createLocalUser(
+        db,
+        'user@example.com',
+        'User',
+        'password123456',
+      );
+
+      userService.deactivateUser(db, user.id);
+      const firstDeactivation = db
+        .select()
+        .from(schema.users)
+        .where(eq(schema.users.id, user.id))
+        .get();
+      expect(firstDeactivation?.deactivatedAt).toBeDefined();
+
+      // When: Deactivating again
+      userService.deactivateUser(db, user.id);
+
+      // Then: No error is thrown (idempotent)
+      const secondDeactivation = db
+        .select()
+        .from(schema.users)
+        .where(eq(schema.users.id, user.id))
+        .get();
+      expect(secondDeactivation?.deactivatedAt).toBeDefined();
+      // Timestamp may be updated, but that's acceptable
+    });
+
+    it('can be verified by re-reading user from DB', async () => {
+      // Given: Active user
+      const user = await userService.createLocalUser(
+        db,
+        'user@example.com',
+        'User',
+        'password123456',
+      );
+
+      // When: Deactivating user
+      userService.deactivateUser(db, user.id);
+
+      // And: Re-reading from database
+      const reloadedUser = db.select().from(schema.users).where(eq(schema.users.id, user.id)).get();
+
+      // Then: Deactivation is persisted
+      expect(reloadedUser).toBeDefined();
+      expect(reloadedUser?.deactivatedAt).not.toBeNull();
+    });
+
+    it('works for OIDC users', () => {
+      // Given: OIDC user
+      const oidcSubject = 'oidc-sub-456';
+      db.insert(schema.users)
+        .values({
+          id: 'oidc-user',
+          email: 'oidc@example.com',
+          displayName: 'OIDC User',
+          role: 'member',
+          authProvider: 'oidc',
+          oidcSubject,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        })
+        .run();
+
+      // When: Deactivating OIDC user
+      userService.deactivateUser(db, 'oidc-user');
+
+      // Then: User is deactivated
+      const deactivatedUser = db
+        .select()
+        .from(schema.users)
+        .where(eq(schema.users.id, 'oidc-user'))
+        .get();
+      expect(deactivatedUser?.deactivatedAt).not.toBeNull();
+      expect(deactivatedUser?.authProvider).toBe('oidc');
+    });
+  });
 });

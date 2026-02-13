@@ -224,3 +224,98 @@ export function updatePassword(db: DbType, userId: string, newPasswordHash: stri
     .where(eq(users.id, userId))
     .run();
 }
+
+/**
+ * List all users, optionally filtered by search term.
+ * Search is case-insensitive and matches against email and displayName.
+ *
+ * @param db - Database instance
+ * @param searchTerm - Optional search term to filter users
+ * @returns Array of user rows (both active and deactivated)
+ */
+export function listUsers(db: DbType, searchTerm?: string): (typeof users.$inferSelect)[] {
+  if (!searchTerm) {
+    return db.select().from(users).all();
+  }
+
+  // Case-insensitive search on email and displayName
+  const pattern = `%${searchTerm}%`;
+  return db
+    .select()
+    .from(users)
+    .where(
+      sql`(LOWER(${users.email}) LIKE LOWER(${pattern}) OR LOWER(${users.displayName}) LIKE LOWER(${pattern}))`,
+    )
+    .all();
+}
+
+/**
+ * Find a user by ID.
+ *
+ * @param db - Database instance
+ * @param id - User ID to find
+ * @returns User row or undefined if not found
+ */
+export function findById(db: DbType, id: string): typeof users.$inferSelect | undefined {
+  return db.select().from(users).where(eq(users.id, id)).get();
+}
+
+/**
+ * Count active admins (non-deactivated users with role='admin').
+ *
+ * @param db - Database instance
+ * @returns Count of active admin users
+ */
+export function countActiveAdmins(db: DbType): number {
+  const result = db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(users)
+    .where(and(eq(users.role, 'admin'), isNull(users.deactivatedAt)))
+    .get();
+  return result?.count ?? 0;
+}
+
+/**
+ * Update user by ID (admin operation - can change displayName, email, role).
+ *
+ * @param db - Database instance
+ * @param userId - User ID to update
+ * @param updates - Fields to update (all optional)
+ * @returns The updated user row
+ * @throws ConflictError if email is already in use by another user
+ */
+export function updateUserById(
+  db: DbType,
+  userId: string,
+  updates: { displayName?: string; email?: string; role?: 'admin' | 'member' },
+): typeof users.$inferSelect {
+  // If changing email, check for conflicts
+  if (updates.email) {
+    const existingUser = findByEmail(db, updates.email);
+    if (existingUser && existingUser.id !== userId) {
+      throw new ConflictError('Email already in use', { email: updates.email });
+    }
+  }
+
+  const now = new Date().toISOString();
+
+  db.update(users)
+    .set({ ...updates, updatedAt: now })
+    .where(eq(users.id, userId))
+    .run();
+
+  const row = db.select().from(users).where(eq(users.id, userId)).get();
+  return row!;
+}
+
+/**
+ * Deactivate user (soft delete - set deactivatedAt).
+ *
+ * @param db - Database instance
+ * @param userId - User ID to deactivate
+ */
+export function deactivateUser(db: DbType, userId: string): void {
+  const now = new Date().toISOString();
+
+  db.update(users).set({ deactivatedAt: now }).where(eq(users.id, userId)).run();
+}

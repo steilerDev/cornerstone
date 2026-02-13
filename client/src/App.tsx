@@ -11,6 +11,7 @@ const TimelinePage = lazy(() => import('./pages/TimelinePage/TimelinePage'));
 const HouseholdItemsPage = lazy(() => import('./pages/HouseholdItemsPage/HouseholdItemsPage'));
 const DocumentsPage = lazy(() => import('./pages/DocumentsPage/DocumentsPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage/ProfilePage'));
+const UserManagementPage = lazy(() => import('./pages/UserManagementPage/UserManagementPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage/NotFoundPage'));
 
 export function App() {
@@ -44,6 +45,7 @@ export function App() {
           <Route path="household-items" element={<HouseholdItemsPage />} />
           <Route path="documents" element={<DocumentsPage />} />
           <Route path="profile" element={<ProfilePage />} />
+          <Route path="admin/users" element={<UserManagementPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>
