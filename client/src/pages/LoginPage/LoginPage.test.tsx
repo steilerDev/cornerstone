@@ -1,7 +1,10 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
+import type { ReactNode } from 'react';
 import type * as AuthApiTypes from '../../lib/authApi.js';
+import type * as AuthContextTypes from '../../contexts/AuthContext.js';
 import type * as LoginPageTypes from './LoginPage.js';
 
 // Must mock BEFORE importing the component
@@ -13,6 +16,7 @@ jest.unstable_mockModule('../../lib/authApi.js', () => ({
 describe('LoginPage', () => {
   // Dynamic imports inside describe block to avoid top-level await
   let authApi: typeof AuthApiTypes;
+  let AuthContext: typeof AuthContextTypes;
   let LoginPage: typeof LoginPageTypes.LoginPage;
 
   let mockGetAuthMe: jest.MockedFunction<typeof AuthApiTypes.getAuthMe>;
@@ -22,6 +26,7 @@ describe('LoginPage', () => {
     // Dynamic import modules (only once)
     if (!authApi) {
       authApi = await import('../../lib/authApi.js');
+      AuthContext = await import('../../contexts/AuthContext.js');
       const loginPageModule = await import('./LoginPage.js');
       LoginPage = loginPageModule.LoginPage;
     }
@@ -33,7 +38,7 @@ describe('LoginPage', () => {
     mockGetAuthMe.mockReset();
     mockLogin.mockReset();
 
-    // Default: OIDC disabled
+    // Default: OIDC disabled, no user
     mockGetAuthMe.mockResolvedValue({
       user: null,
       setupRequired: false,
@@ -48,8 +53,18 @@ describe('LoginPage', () => {
     cleanup();
   });
 
+  // Helper to wrap component in AuthProvider and MemoryRouter
+  function renderWithAuth(ui: ReactNode) {
+    const { AuthProvider } = AuthContext;
+    return render(
+      <MemoryRouter>
+        <AuthProvider>{ui}</AuthProvider>
+      </MemoryRouter>,
+    );
+  }
+
   it('renders the login form', async () => {
-    render(<LoginPage />);
+    renderWithAuth(<LoginPage />);
 
     await waitFor(() => {
       expect(mockGetAuthMe).toHaveBeenCalled();
@@ -68,7 +83,7 @@ describe('LoginPage', () => {
       oidcEnabled: true,
     });
 
-    render(<LoginPage />);
+    renderWithAuth(<LoginPage />);
 
     const ssoButton = await screen.findByRole('button', { name: /login with sso/i });
     expect(ssoButton).toBeInTheDocument();
@@ -78,7 +93,7 @@ describe('LoginPage', () => {
   });
 
   it('hides "Login with SSO" button when oidcEnabled is false', async () => {
-    render(<LoginPage />);
+    renderWithAuth(<LoginPage />);
 
     await waitFor(() => {
       expect(mockGetAuthMe).toHaveBeenCalled();
@@ -90,7 +105,7 @@ describe('LoginPage', () => {
   it('shows OIDC error message from URL query parameter (oidc_error)', async () => {
     window.history.pushState({}, '', '/login?error=oidc_error');
 
-    render(<LoginPage />);
+    renderWithAuth(<LoginPage />);
 
     expect(await screen.findByText(/authentication failed/i)).toBeInTheDocument();
   });
@@ -98,7 +113,7 @@ describe('LoginPage', () => {
   it('shows OIDC error message from URL query parameter (invalid_state)', async () => {
     window.history.pushState({}, '', '/login?error=invalid_state');
 
-    render(<LoginPage />);
+    renderWithAuth(<LoginPage />);
 
     expect(await screen.findByText(/authentication session expired/i)).toBeInTheDocument();
   });
@@ -106,7 +121,7 @@ describe('LoginPage', () => {
   it('shows OIDC error message from URL query parameter (oidc_not_configured)', async () => {
     window.history.pushState({}, '', '/login?error=oidc_not_configured');
 
-    render(<LoginPage />);
+    renderWithAuth(<LoginPage />);
 
     expect(await screen.findByText(/single sign-on is not configured/i)).toBeInTheDocument();
   });
@@ -114,7 +129,7 @@ describe('LoginPage', () => {
   it('shows OIDC error message from URL query parameter (missing_email)', async () => {
     window.history.pushState({}, '', '/login?error=missing_email');
 
-    render(<LoginPage />);
+    renderWithAuth(<LoginPage />);
 
     expect(
       await screen.findByText(/your identity provider did not provide an email address/i),
@@ -124,7 +139,7 @@ describe('LoginPage', () => {
   it('shows OIDC error message from URL query parameter (email_conflict)', async () => {
     window.history.pushState({}, '', '/login?error=email_conflict');
 
-    render(<LoginPage />);
+    renderWithAuth(<LoginPage />);
 
     expect(
       await screen.findByText(/this email is already associated with a different account/i),
@@ -134,13 +149,13 @@ describe('LoginPage', () => {
   it('shows OIDC error message from URL query parameter (account_deactivated)', async () => {
     window.history.pushState({}, '', '/login?error=account_deactivated');
 
-    render(<LoginPage />);
+    renderWithAuth(<LoginPage />);
 
     expect(await screen.findByText(/your account has been deactivated/i)).toBeInTheDocument();
   });
 
   it('does not show error message when no error in URL', async () => {
-    render(<LoginPage />);
+    renderWithAuth(<LoginPage />);
 
     await waitFor(() => {
       expect(mockGetAuthMe).toHaveBeenCalled();
@@ -152,7 +167,7 @@ describe('LoginPage', () => {
   it('ignores unknown error codes', async () => {
     window.history.pushState({}, '', '/login?error=unknown_error_code');
 
-    render(<LoginPage />);
+    renderWithAuth(<LoginPage />);
 
     await waitFor(() => {
       expect(mockGetAuthMe).toHaveBeenCalled();
@@ -169,7 +184,7 @@ describe('LoginPage', () => {
     });
 
     const user = userEvent.setup();
-    render(<LoginPage />);
+    renderWithAuth(<LoginPage />);
 
     const ssoButton = await screen.findByRole('button', { name: /login with sso/i });
 
@@ -192,7 +207,7 @@ describe('LoginPage', () => {
         }),
     );
 
-    render(<LoginPage />);
+    renderWithAuth(<LoginPage />);
 
     expect(screen.queryByRole('button', { name: /login with sso/i })).not.toBeInTheDocument();
   });
@@ -200,7 +215,7 @@ describe('LoginPage', () => {
   it('shows error message in alert role for accessibility', async () => {
     window.history.pushState({}, '', '/login?error=oidc_error');
 
-    render(<LoginPage />);
+    renderWithAuth(<LoginPage />);
 
     const alert = await screen.findByRole('alert');
     expect(alert).toBeInTheDocument();
@@ -208,7 +223,7 @@ describe('LoginPage', () => {
   });
 
   it('form validation shows email error when email is empty', async () => {
-    render(<LoginPage />);
+    renderWithAuth(<LoginPage />);
 
     await waitFor(() => {
       expect(mockGetAuthMe).toHaveBeenCalled();
@@ -222,7 +237,7 @@ describe('LoginPage', () => {
   });
 
   it('form validation shows password error when password is empty', async () => {
-    render(<LoginPage />);
+    renderWithAuth(<LoginPage />);
 
     await waitFor(() => {
       expect(mockGetAuthMe).toHaveBeenCalled();
@@ -239,7 +254,7 @@ describe('LoginPage', () => {
   });
 
   it('successful login calls API with correct credentials', async () => {
-    render(<LoginPage />);
+    renderWithAuth(<LoginPage />);
 
     await waitFor(() => {
       expect(mockGetAuthMe).toHaveBeenCalled();
