@@ -10,18 +10,19 @@ Cornerstone is a web-based home building project management application designed
 
 ## Agent Team
 
-This project uses a team of 8 specialized Claude Code agents defined in `.claude/agents/`:
+This project uses a team of 9 specialized Claude Code agents defined in `.claude/agents/`:
 
-| Agent                   | Role                                                                        |
-| ----------------------- | --------------------------------------------------------------------------- |
-| `product-owner`         | Defines epics, user stories, and acceptance criteria; manages the backlog   |
-| `product-architect`     | Tech stack, schema, API contract, project structure, ADRs, Dockerfile       |
-| `backend-developer`     | API endpoints, business logic, auth, database operations, backend tests     |
-| `frontend-developer`    | UI components, pages, interactions, API client, frontend tests              |
-| `qa-integration-tester` | Unit test coverage (95%+ target), E2E tests, integration tests, bug reports |
-| `security-engineer`     | Security audits, vulnerability reports, remediation guidance                |
-| `uat-validator`         | UAT scenarios, manual validation steps, user sign-off per epic              |
-| `docs-writer`           | Updates user-facing README.md after UAT approval per epic                   |
+| Agent                   | Role                                                                                 |
+| ----------------------- | ------------------------------------------------------------------------------------ |
+| `product-owner`         | Defines epics, user stories, and acceptance criteria; manages the backlog            |
+| `product-architect`     | Tech stack, schema, API contract, project structure, ADRs, Dockerfile                |
+| `backend-developer`     | API endpoints, business logic, auth, database operations, backend tests              |
+| `frontend-developer`    | UI components, pages, interactions, API client, frontend tests                       |
+| `qa-integration-tester` | Unit test coverage (95%+ target), integration tests, performance testing, bug reports |
+| `e2e-test-engineer`     | Playwright E2E browser tests, test container infrastructure, UAT scenario coverage   |
+| `security-engineer`     | Security audits, vulnerability reports, remediation guidance                          |
+| `uat-validator`         | UAT scenarios, manual validation steps, user sign-off per epic                       |
+| `docs-writer`           | Updates user-facing README.md after UAT approval per epic                            |
 
 ## GitHub Tools Strategy
 
@@ -113,7 +114,7 @@ Schema and API contract evolve incrementally as each epic is implemented, rather
 - **Frontend code** → `frontend-developer` agent
 - **Schema/API design, ADRs, wiki** → `product-architect` agent
 - **Unit tests & test coverage** → `qa-integration-tester` agent
-- **E2E tests** → `qa-integration-tester` agent
+- **E2E tests** → `e2e-test-engineer` agent
 - **UAT scenarios** → `uat-validator` agent
 - **Story definitions** → `product-owner` agent
 - **Security reviews** → `security-engineer` agent
@@ -131,8 +132,8 @@ Before development begins on any story:
 
 1. The **product-owner** defines user stories with acceptance criteria
 2. The **uat-validator** translates acceptance criteria into concrete UAT scenarios (Given/When/Then)
-3. The **qa-integration-tester** reviews the draft UAT scenarios for testability and automation feasibility, suggesting adjustments where needed
-4. The **uat-validator** incorporates QA feedback and posts the final scenarios to the story's GitHub Issue
+3. The **qa-integration-tester** reviews the draft UAT scenarios for unit/integration testability, and the **e2e-test-engineer** reviews for browser automation feasibility, both suggesting adjustments where needed
+4. The **uat-validator** incorporates QA and E2E feedback and posts the final scenarios to the story's GitHub Issue
 5. UAT scenarios are presented to the user for review and approval
 6. Development does NOT proceed until the user approves the UAT plan
 
@@ -141,11 +142,12 @@ Before development begins on any story:
 While implementation is in progress:
 
 - Developers reference the approved UAT scenarios to understand expected behavior
-- The **qa-integration-tester** owns ALL testing: unit tests, integration tests, and E2E tests
+- The **qa-integration-tester** owns unit tests and integration tests
 - The **qa-integration-tester** must achieve **95% unit test coverage** on all new and modified code
-- The **qa-integration-tester** writes automated E2E/integration tests covering the approved UAT scenarios
+- The **qa-integration-tester** writes automated integration tests covering the approved UAT scenarios
+- The **e2e-test-engineer** writes Playwright E2E tests covering the approved UAT scenarios during the story's development cycle
 - The **security-engineer** reviews the PR for security vulnerabilities after implementation
-- All automated tests (unit + E2E) must pass before requesting manual validation
+- All automated tests (unit + integration + E2E) must pass before requesting manual validation
 
 ### Refinement Phase
 
@@ -163,12 +165,13 @@ This ensures that quality feedback from reviews is not lost, while keeping indiv
 
 After the refinement task is complete and all automated tests pass:
 
-1. The **uat-validator** runs all automated checks and produces a UAT Validation Report
-2. Step-by-step manual validation instructions are provided to the user
-3. The user walks through each scenario and marks it pass or fail
-4. If any scenario fails, developers fix the issue and the cycle repeats from the automated test step
-5. After user approval, the **docs-writer** updates `README.md` to reflect the newly shipped features
-6. The epic is complete only after explicit user approval and documentation is updated
+1. The **e2e-test-engineer** confirms all Playwright E2E tests pass and every approved UAT scenario has E2E coverage. This approval is required before proceeding to manual validation.
+2. The **uat-validator** runs all automated checks and produces a UAT Validation Report
+3. Step-by-step manual validation instructions are provided to the user
+4. The user walks through each scenario and marks it pass or fail
+5. If any scenario fails, developers fix the issue and the cycle repeats from the automated test step
+6. After user approval, the **docs-writer** updates `README.md` to reflect the newly shipped features
+7. The epic is complete only after explicit user approval and documentation is updated
 
 ### Key Rules
 
@@ -178,7 +181,8 @@ After the refinement task is complete and all automated tests pass:
 - **UAT documents live on GitHub Issues** — stored as comments on relevant story issues
 - **Security review required** — the `security-engineer` must review every PR before the `product-owner` can approve
 - **Product owner gates the PR** — the `product-owner` agent only approves a PR after verifying that ALL agent responsibilities were fulfilled: implementation by developer agents, 95%+ test coverage by QA, UAT scenarios by uat-validator, architecture sign-off by product-architect, and security review by security-engineer
-- **QA owns all tests** — the `qa-integration-tester` agent is responsible for writing and maintaining all unit tests, integration tests, and E2E tests. Developer agents do not write tests.
+- **QA and E2E split test ownership** — the `qa-integration-tester` agent owns unit tests and integration tests; the `e2e-test-engineer` agent owns Playwright E2E browser tests. Developer agents do not write tests.
+- **E2E gate before manual UAT** — the `e2e-test-engineer` must confirm all E2E tests pass and all UAT scenarios have coverage before the `uat-validator` presents manual validation to the user.
 
 ## Git & Commit Conventions
 
@@ -201,7 +205,7 @@ All agents must clearly identify themselves in commits and GitHub interactions:
   Co-Authored-By: Claude <agent-name> (<model>) <noreply@anthropic.com>
   ```
 
-  Replace `<agent-name>` with one of: `backend-developer`, `frontend-developer`, `product-architect`, `product-owner`, `qa-integration-tester`, `security-engineer`, `uat-validator`, `docs-writer`, or `orchestrator` (when the orchestrating Claude commits directly). Replace `<model>` with the agent's actual model (e.g., `Opus 4.6`, `Sonnet 4.5`). Each agent's definition file specifies the exact trailer to use.
+  Replace `<agent-name>` with one of: `backend-developer`, `frontend-developer`, `product-architect`, `product-owner`, `qa-integration-tester`, `e2e-test-engineer`, `security-engineer`, `uat-validator`, `docs-writer`, or `orchestrator` (when the orchestrating Claude commits directly). Replace `<model>` with the agent's actual model (e.g., `Opus 4.6`, `Sonnet 4.5`). Each agent's definition file specifies the exact trailer to use.
 
 - **GitHub comments** (on issues, PRs, or discussions): Prefix the first line with the agent name in bold brackets:
 
@@ -223,10 +227,10 @@ All agents must clearly identify themselves in commits and GitHub interactions:
 
 - **Workflow** (full agent cycle for each user story):
   1. **Plan**: Launch `product-owner` (verify story + acceptance criteria) and `product-architect` (design schema/API/architecture) agents
-  2. **UAT Plan**: Launch `uat-validator` to draft UAT scenarios from acceptance criteria; launch `qa-integration-tester` to review testability; present to user for approval
+  2. **UAT Plan**: Launch `uat-validator` to draft UAT scenarios from acceptance criteria; launch `qa-integration-tester` to review unit/integration testability and `e2e-test-engineer` to review browser automation feasibility; present to user for approval
   3. **Branch**: Create a feature branch from `beta`: `git checkout -b <branch-name> beta`
   4. **Implement**: Launch the appropriate developer agent (`backend-developer` and/or `frontend-developer`) to write the production code
-  5. **Test**: Launch `qa-integration-tester` to write unit tests (95%+ coverage target) and E2E/integration tests covering UAT scenarios
+  5. **Test**: Launch `qa-integration-tester` to write unit tests (95%+ coverage target) and integration tests; launch `e2e-test-engineer` to write Playwright E2E tests covering UAT scenarios. Both agents work during the story's development cycle.
   6. **Quality gates**: Run `lint`, `typecheck`, `test`, `format:check`, `build`, `npm audit` — all must pass
   7. **Commit & PR**: Commit, push the branch, create a PR targeting `beta`: `gh pr create --base beta --title "..." --body "..."`
   8. **CI**: Wait for CI: `gh pr checks <pr-number> --watch`
@@ -409,11 +413,13 @@ cornerstone/
 
 ## Testing Approach
 
-All testing is owned by the `qa-integration-tester` agent. Developer agents write production code; the QA agent writes and maintains all tests.
+Unit and integration testing is owned by the `qa-integration-tester` agent. E2E browser testing is owned by the `e2e-test-engineer` agent. Developer agents write production code; the QA and E2E agents write and maintain all tests.
 
 - **Unit & integration tests**: Jest with ts-jest (co-located with source: `foo.test.ts` next to `foo.ts`)
 - **API integration tests**: Fastify's `app.inject()` method (no HTTP server needed)
-- **E2E tests**: Playwright (configured by QA agent, runs against built app)
+- **E2E tests**: Playwright (owned by `e2e-test-engineer` agent, runs against built app)
+  - E2E tests run against **desktop, tablet, and mobile** viewports via Playwright projects
+  - Test environment managed by **testcontainers**: app, OIDC provider, upstream proxy
 - **Test command**: `npm test` (runs all Jest tests across all workspaces via `--experimental-vm-modules` for ESM)
 - **Coverage**: `npm run test:coverage` — **95% unit test coverage target** on all new and modified code
 - Test files use `.test.ts` / `.test.tsx` extension
