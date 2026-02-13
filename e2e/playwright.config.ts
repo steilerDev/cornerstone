@@ -39,6 +39,9 @@ export default defineConfig({
 
     /* Take screenshot only on failure */
     screenshot: 'only-on-failure',
+
+    /* Record video on failure for CI debugging */
+    video: 'retain-on-failure',
   },
 
   /* Global setup and teardown */

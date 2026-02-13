@@ -1,5 +1,5 @@
 import { readFile } from 'fs/promises';
-import { DockerClient } from 'testcontainers';
+import { execSync } from 'child_process';
 import type { ContainerState } from './setup.js';
 
 const STATE_FILE_PATH = 'e2e/test-results/.state/containers.json';
@@ -16,42 +16,27 @@ export default async function globalTeardown(): Promise<void> {
     const stateJson = await readFile(STATE_FILE_PATH, 'utf-8');
     const state: ContainerState = JSON.parse(stateJson);
 
-    const dockerClient = new DockerClient();
+    // Stop and remove containers using Docker CLI
+    const containerIds = [
+      { id: state.cornerstoneContainerId, name: 'Cornerstone app' },
+      { id: state.oidcContainerId, name: 'OIDC server' },
+      { id: state.proxyContainerId, name: 'reverse proxy' },
+    ];
 
-    // Stop Cornerstone app container
-    console.log('⏹️  Stopping Cornerstone app...');
-    try {
-      await dockerClient.container.stop(state.cornerstoneContainerId);
-      await dockerClient.container.remove(state.cornerstoneContainerId);
-      console.log('✅ Cornerstone app stopped');
-    } catch (error) {
-      console.warn('⚠️  Failed to stop Cornerstone app:', error);
-    }
-
-    // Stop OIDC server container
-    console.log('⏹️  Stopping OIDC server...');
-    try {
-      await dockerClient.container.stop(state.oidcContainerId);
-      await dockerClient.container.remove(state.oidcContainerId);
-      console.log('✅ OIDC server stopped');
-    } catch (error) {
-      console.warn('⚠️  Failed to stop OIDC server:', error);
-    }
-
-    // Stop proxy container
-    console.log('⏹️  Stopping reverse proxy...');
-    try {
-      await dockerClient.container.stop(state.proxyContainerId);
-      await dockerClient.container.remove(state.proxyContainerId);
-      console.log('✅ Reverse proxy stopped');
-    } catch (error) {
-      console.warn('⚠️  Failed to stop reverse proxy:', error);
+    for (const { id, name } of containerIds) {
+      console.log(`⏹️  Stopping ${name}...`);
+      try {
+        execSync(`docker rm -f ${id}`, { stdio: 'pipe' });
+        console.log(`✅ ${name} stopped`);
+      } catch (error) {
+        console.warn(`⚠️  Failed to stop ${name}:`, error);
+      }
     }
 
     // Remove Docker network
     console.log('🗑️  Removing Docker network...');
     try {
-      await dockerClient.network.remove(state.networkId);
+      execSync(`docker network rm ${state.networkId}`, { stdio: 'pipe' });
       console.log('✅ Docker network removed');
     } catch (error) {
       console.warn('⚠️  Failed to remove Docker network:', error);
