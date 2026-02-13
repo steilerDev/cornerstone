@@ -63,6 +63,10 @@ FROM dhi.io/node:24-alpine3.23 AS production
 WORKDIR /app/data
 WORKDIR /app
 
+# Copy runtime libraries needed by native addons (argon2 requires libgcc/libstdc++)
+COPY --from=builder /usr/lib/libgcc_s.so.1 /usr/lib/
+COPY --from=builder /usr/lib/libstdc++.so.6* /usr/lib/
+
 # Copy package files (needed for workspace resolution)
 COPY package.json ./
 COPY shared/package.json shared/
