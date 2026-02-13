@@ -44,25 +44,13 @@ setup('authenticate as admin', async ({ page }) => {
     console.error(`❌ Setup API error body: ${body}`);
   }
 
-  // Wait for redirect to login page after successful setup (longer timeout for safety)
-  await expect(page).toHaveURL(/\/login/, { timeout: 15000 });
-  console.log('✅ Admin user created, redirected to login');
-
-  // Log in with the newly created admin credentials
-  await expect(page.getByRole('button', { name: /log in/i })).toBeVisible();
-  await page.getByLabel('Email').fill('admin@e2e-test.local');
-  await page.getByLabel('Password').fill('e2e-secure-password-123!');
-
-  const [loginResponse] = await Promise.all([
-    page.waitForResponse((resp) => resp.url().includes('/api/auth/login')),
-    page.getByRole('button', { name: /log in/i }).click(),
-  ]);
-
-  console.log(`📡 Login API response: ${loginResponse.status()} ${loginResponse.statusText()}`);
-
-  // Wait for successful login (redirect to home or dashboard)
-  await expect(page).not.toHaveURL(/\/login/, { timeout: 15000 });
-  console.log('✅ Admin logged in successfully');
+  // The setup endpoint creates a session automatically, so after setup:
+  // /setup -> redirect to /login -> LoginPage detects session -> redirect to /
+  // Wait for the dashboard to load (confirms session is active and redirects completed)
+  await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible({
+    timeout: 15000,
+  });
+  console.log('✅ Admin user created, session established, redirected to dashboard');
 
   // Ensure the auth directory exists
   await mkdir('test-results/.auth', { recursive: true });
