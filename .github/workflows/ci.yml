@@ -111,5 +111,7 @@ jobs:
         with:
           name: e2e-test-results
           path: |
+            e2e/playwright-output/
+            e2e/playwright-report/
             e2e/test-results/
           retention-days: 7

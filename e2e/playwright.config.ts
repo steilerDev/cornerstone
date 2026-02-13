@@ -12,7 +12,7 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
   testDir: './tests',
-  outputDir: './test-results',
+  outputDir: './playwright-output',
 
   /* Run tests in files in parallel */
   fullyParallel: true,
@@ -27,7 +27,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
 
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: [['html', { outputFolder: 'test-results/html-report' }], ['list']],
+  reporter: [['html', { outputFolder: 'playwright-report' }], ['list']],
 
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
@@ -50,6 +50,7 @@ export default defineConfig({
     // Authentication setup project - runs first
     {
       name: 'auth-setup',
+      testDir: '.',
       testMatch: /auth\.setup\.ts/,
       timeout: 120000, // 2 minutes for setup
     },
