@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { setup } from '../../lib/authApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import sharedStyles from '../shared/AuthPage.module.css';
 import styles from './SetupPage.module.css';
 
 interface FormErrors {
@@ -81,28 +82,28 @@ export function SetupPage() {
   };
 
   return (
-    <div className={styles.container}>
-      <div className={styles.card}>
-        <h1 className={styles.title}>Initial Setup</h1>
-        <p className={styles.description}>
+    <div className={sharedStyles.container}>
+      <div className={sharedStyles.card}>
+        <h1 className={sharedStyles.title}>Initial Setup</h1>
+        <p className={sharedStyles.description}>
           Create the admin account to get started with Cornerstone.
         </p>
 
         {apiError && (
-          <div className={styles.errorBanner} role="alert">
+          <div className={sharedStyles.errorBanner} role="alert">
             {apiError}
           </div>
         )}
 
         {successMessage && (
-          <div className={styles.successBanner} role="alert">
+          <div className={sharedStyles.successBanner} role="alert">
             {successMessage}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className={styles.form} noValidate>
-          <div className={styles.field}>
-            <label htmlFor="email" className={styles.label}>
+        <form onSubmit={handleSubmit} className={sharedStyles.form} noValidate>
+          <div className={sharedStyles.field}>
+            <label htmlFor="email" className={sharedStyles.label}>
               Email
             </label>
             <input
@@ -110,20 +111,22 @@ export function SetupPage() {
               id="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className={styles.input}
+              className={sharedStyles.input}
               aria-invalid={!!errors.email}
               aria-describedby={errors.email ? 'email-error' : undefined}
               disabled={isSubmitting}
+              autoComplete="email"
+              maxLength={256}
             />
             {errors.email && (
-              <span id="email-error" className={styles.error} role="alert">
+              <span id="email-error" className={sharedStyles.error} role="alert">
                 {errors.email}
               </span>
             )}
           </div>
 
-          <div className={styles.field}>
-            <label htmlFor="displayName" className={styles.label}>
+          <div className={sharedStyles.field}>
+            <label htmlFor="displayName" className={sharedStyles.label}>
               Display Name
             </label>
             <input
@@ -131,20 +134,21 @@ export function SetupPage() {
               id="displayName"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              className={styles.input}
+              className={sharedStyles.input}
               aria-invalid={!!errors.displayName}
               aria-describedby={errors.displayName ? 'displayName-error' : undefined}
               disabled={isSubmitting}
+              autoComplete="name"
             />
             {errors.displayName && (
-              <span id="displayName-error" className={styles.error} role="alert">
+              <span id="displayName-error" className={sharedStyles.error} role="alert">
                 {errors.displayName}
               </span>
             )}
           </div>
 
-          <div className={styles.field}>
-            <label htmlFor="password" className={styles.label}>
+          <div className={sharedStyles.field}>
+            <label htmlFor="password" className={sharedStyles.label}>
               Password
             </label>
             <input
@@ -152,21 +156,23 @@ export function SetupPage() {
               id="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className={styles.input}
+              className={sharedStyles.input}
               aria-invalid={!!errors.password}
               aria-describedby={errors.password ? 'password-error' : undefined}
               disabled={isSubmitting}
+              autoComplete="new-password"
+              maxLength={256}
             />
             {errors.password && (
-              <span id="password-error" className={styles.error} role="alert">
+              <span id="password-error" className={sharedStyles.error} role="alert">
                 {errors.password}
               </span>
             )}
             <span className={styles.hint}>Minimum 12 characters</span>
           </div>
 
-          <div className={styles.field}>
-            <label htmlFor="confirmPassword" className={styles.label}>
+          <div className={sharedStyles.field}>
+            <label htmlFor="confirmPassword" className={sharedStyles.label}>
               Confirm Password
             </label>
             <input
@@ -174,19 +180,21 @@ export function SetupPage() {
               id="confirmPassword"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className={styles.input}
+              className={sharedStyles.input}
               aria-invalid={!!errors.confirmPassword}
               aria-describedby={errors.confirmPassword ? 'confirmPassword-error' : undefined}
               disabled={isSubmitting}
+              autoComplete="new-password"
+              maxLength={256}
             />
             {errors.confirmPassword && (
-              <span id="confirmPassword-error" className={styles.error} role="alert">
+              <span id="confirmPassword-error" className={sharedStyles.error} role="alert">
                 {errors.confirmPassword}
               </span>
             )}
           </div>
 
-          <button type="submit" className={styles.button} disabled={isSubmitting}>
+          <button type="submit" className={sharedStyles.button} disabled={isSubmitting}>
             {isSubmitting ? 'Creating Account...' : 'Create Admin Account'}
           </button>
         </form>

@@ -284,6 +284,7 @@ export function ProfilePage() {
                   }
                   disabled={isChangingPassword}
                   autoComplete="current-password"
+                  maxLength={256}
                 />
                 {passwordErrors.currentPassword && (
                   <span id="currentPassword-error" className={styles.error} role="alert">
@@ -306,6 +307,7 @@ export function ProfilePage() {
                   aria-describedby={passwordErrors.newPassword ? 'newPassword-error' : undefined}
                   disabled={isChangingPassword}
                   autoComplete="new-password"
+                  maxLength={256}
                 />
                 {passwordErrors.newPassword && (
                   <span id="newPassword-error" className={styles.error} role="alert">
@@ -330,6 +332,7 @@ export function ProfilePage() {
                   }
                   disabled={isChangingPassword}
                   autoComplete="new-password"
+                  maxLength={256}
                 />
                 {passwordErrors.confirmPassword && (
                   <span id="confirmPassword-error" className={styles.error} role="alert">
