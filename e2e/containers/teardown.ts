@@ -23,6 +23,19 @@ export default async function globalTeardown(): Promise<void> {
       { id: state.proxyContainerId, name: 'proxy' },
     ];
 
+    // Check container exit status (137=OOM killed, 139=SEGFAULT)
+    for (const { id, name } of containers) {
+      try {
+        const inspect = execSync(
+          `docker inspect --format='{{.State.Status}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}}' ${id}`,
+          { encoding: 'utf-8' },
+        );
+        console.log(`🔍 ${name} status: ${inspect.trim()}`);
+      } catch {
+        console.warn(`⚠️  Failed to inspect ${name}`);
+      }
+    }
+
     // Capture container logs before stopping (for CI debugging)
     console.log('📋 Capturing container logs...');
     try {
