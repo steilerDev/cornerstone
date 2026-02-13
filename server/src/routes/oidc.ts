@@ -3,8 +3,19 @@ import { AppError, ConflictError } from '../errors/AppError.js';
 import * as oidcService from '../services/oidcService.js';
 import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
+import { COOKIE_NAME } from '../constants.js';
 
-const COOKIE_NAME = 'cornerstone_session';
+/**
+ * Validates that a redirect path is safe to use.
+ * Prevents open redirect vulnerabilities by ensuring the path is relative
+ * and doesn't attempt protocol-based or host-based redirects.
+ *
+ * @param redirect - The redirect path to validate
+ * @returns true if the redirect is safe, false otherwise
+ */
+function isSafeRedirect(redirect: string): boolean {
+  return redirect.startsWith('/') && !redirect.startsWith('//') && !redirect.includes('://');
+}
 
 export default async function oidcRoutes(fastify: FastifyInstance) {
   /**
@@ -19,8 +30,9 @@ export default async function oidcRoutes(fastify: FastifyInstance) {
       throw new AppError('OIDC_NOT_CONFIGURED', 404, 'OIDC is not configured');
     }
 
-    // Read optional redirect query parameter
+    // Read optional redirect query parameter and validate it
     const { redirect = '/' } = request.query as { redirect?: string };
+    const safeRedirect = isSafeRedirect(redirect) ? redirect : '/';
 
     // Discover OIDC configuration
     const config = await oidcService.discoverOidcConfig(
@@ -33,7 +45,7 @@ export default async function oidcRoutes(fastify: FastifyInstance) {
     const { authorizationUrl } = oidcService.buildAuthorizationUrl(
       config,
       fastify.config.oidcRedirectUri!,
-      redirect,
+      safeRedirect,
     );
 
     // Redirect to OIDC provider
