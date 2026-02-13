@@ -1,22 +1,30 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { ReactNode } from 'react';
 import type * as UsersApiTypes from '../../lib/usersApi.js';
+import type * as AuthContextTypes from '../../contexts/AuthContext.js';
 import type * as ProfilePageTypes from './ProfilePage.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 
 // Mock usersApi before importing the component
 jest.unstable_mockModule('../../lib/usersApi.js', () => ({
-  getProfile: jest.fn(),
   updateProfile: jest.fn(),
   changePassword: jest.fn(),
 }));
 
+// Mock AuthContext
+jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
+  useAuth: jest.fn(),
+  AuthProvider: ({ children }: { children: ReactNode }) => children,
+}));
+
 describe('ProfilePage', () => {
   let usersApi: typeof UsersApiTypes;
+  let AuthContext: typeof AuthContextTypes;
   let ProfilePage: typeof ProfilePageTypes.ProfilePage;
 
-  let mockGetProfile: jest.MockedFunction<typeof UsersApiTypes.getProfile>;
+  let mockUseAuth: jest.MockedFunction<typeof AuthContextTypes.useAuth>;
   let mockUpdateProfile: jest.MockedFunction<typeof UsersApiTypes.updateProfile>;
   let mockChangePassword: jest.MockedFunction<typeof UsersApiTypes.changePassword>;
 
@@ -47,12 +55,13 @@ describe('ProfilePage', () => {
     // Dynamic import modules
     if (!usersApi) {
       usersApi = await import('../../lib/usersApi.js');
+      AuthContext = await import('../../contexts/AuthContext.js');
       const profilePageModule = await import('./ProfilePage.js');
       ProfilePage = profilePageModule.ProfilePage;
     }
 
     // Reset mocks
-    mockGetProfile = usersApi.getProfile as jest.MockedFunction<typeof usersApi.getProfile>;
+    mockUseAuth = AuthContext.useAuth as jest.MockedFunction<typeof AuthContext.useAuth>;
     mockUpdateProfile = usersApi.updateProfile as jest.MockedFunction<
       typeof usersApi.updateProfile
     >;
@@ -60,9 +69,18 @@ describe('ProfilePage', () => {
       typeof usersApi.changePassword
     >;
 
-    mockGetProfile.mockReset();
+    mockUseAuth.mockReset();
     mockUpdateProfile.mockReset();
     mockChangePassword.mockReset();
+
+    // Default mock: return local user
+    mockUseAuth.mockReturnValue({
+      user: mockLocalUser,
+      oidcEnabled: false,
+      isLoading: false,
+      error: null,
+      refreshAuth: jest.fn(async () => Promise.resolve()),
+    });
   });
 
   afterEach(() => {
@@ -71,8 +89,14 @@ describe('ProfilePage', () => {
 
   describe('Loading and display', () => {
     it('shows loading state initially', () => {
-      // Given: getProfile is pending
-      mockGetProfile.mockImplementation(() => new Promise(() => {}));
+      // Given: Auth is loading
+      mockUseAuth.mockReturnValue({
+        user: null,
+        oidcEnabled: false,
+        isLoading: true,
+        error: null,
+        refreshAuth: jest.fn(async () => Promise.resolve()),
+      });
 
       // When: Rendering ProfilePage
       render(<ProfilePage />);
@@ -82,140 +106,146 @@ describe('ProfilePage', () => {
     });
 
     it('shows profile information after loading', async () => {
-      // Given: Mock profile data
-      mockGetProfile.mockResolvedValue(mockLocalUser);
+      // Given: Auth loaded with user
+      mockUseAuth.mockReturnValue({
+        user: mockLocalUser,
+        oidcEnabled: false,
+        isLoading: false,
+        error: null,
+        refreshAuth: jest.fn(async () => Promise.resolve()),
+      });
 
       // When: Rendering ProfilePage
       render(<ProfilePage />);
 
       // Then: Profile information is displayed
-      await waitFor(() => {
-        expect(screen.getByText('local@example.com')).toBeInTheDocument();
-      });
-
+      expect(screen.getByText('local@example.com')).toBeInTheDocument();
       expect(screen.getByText('Member')).toBeInTheDocument();
       expect(screen.getByText('Local Account')).toBeInTheDocument();
       expect(screen.getByText('1/1/2024')).toBeInTheDocument();
     });
 
-    it('displays email correctly', async () => {
-      // Given: User profile
-      mockGetProfile.mockResolvedValue(mockLocalUser);
-
+    it('displays email correctly', () => {
+      // Given: User profile (default in beforeEach)
       // When: Rendering ProfilePage
       render(<ProfilePage />);
 
       // Then: Email is shown
-      await waitFor(() => {
-        expect(screen.getByText('local@example.com')).toBeInTheDocument();
-      });
+      expect(screen.getByText('local@example.com')).toBeInTheDocument();
     });
 
-    it('displays role as "Administrator" for admin users', async () => {
+    it('displays role as "Administrator" for admin users', () => {
       // Given: Admin user
-      mockGetProfile.mockResolvedValue({ ...mockLocalUser, role: 'admin' });
+      mockUseAuth.mockReturnValue({
+        user: { ...mockLocalUser, role: 'admin' },
+        oidcEnabled: false,
+        isLoading: false,
+        error: null,
+        refreshAuth: jest.fn(async () => Promise.resolve()),
+      });
 
       // When: Rendering ProfilePage
       render(<ProfilePage />);
 
       // Then: Role is "Administrator"
-      await waitFor(() => {
-        expect(screen.getByText('Administrator')).toBeInTheDocument();
-      });
+      expect(screen.getByText('Administrator')).toBeInTheDocument();
     });
 
-    it('displays role as "Member" for member users', async () => {
-      // Given: Member user
-      mockGetProfile.mockResolvedValue(mockLocalUser);
-
+    it('displays role as "Member" for member users', () => {
+      // Given: Member user (default in beforeEach)
       // When: Rendering ProfilePage
       render(<ProfilePage />);
 
       // Then: Role is "Member"
-      await waitFor(() => {
-        expect(screen.getByText('Member')).toBeInTheDocument();
-      });
+      expect(screen.getByText('Member')).toBeInTheDocument();
     });
 
-    it('displays auth provider as "Local Account" for local users', async () => {
-      // Given: Local user
-      mockGetProfile.mockResolvedValue(mockLocalUser);
-
+    it('displays auth provider as "Local Account" for local users', () => {
+      // Given: Local user (default in beforeEach)
       // When: Rendering ProfilePage
       render(<ProfilePage />);
 
       // Then: Auth provider is "Local Account"
-      await waitFor(() => {
-        expect(screen.getByText('Local Account')).toBeInTheDocument();
-      });
+      expect(screen.getByText('Local Account')).toBeInTheDocument();
     });
 
-    it('displays auth provider as "Single Sign-On (OIDC)" for OIDC users', async () => {
+    it('displays auth provider as "Single Sign-On (OIDC)" for OIDC users', () => {
       // Given: OIDC user
-      mockGetProfile.mockResolvedValue(mockOidcUser);
+      mockUseAuth.mockReturnValue({
+        user: mockOidcUser,
+        oidcEnabled: true,
+        isLoading: false,
+        error: null,
+        refreshAuth: jest.fn(async () => Promise.resolve()),
+      });
 
       // When: Rendering ProfilePage
       render(<ProfilePage />);
 
       // Then: Auth provider is "Single Sign-On (OIDC)"
-      await waitFor(() => {
-        expect(screen.getByText('Single Sign-On (OIDC)')).toBeInTheDocument();
-      });
+      expect(screen.getByText('Single Sign-On (OIDC)')).toBeInTheDocument();
     });
 
-    it('displays member since date formatted', async () => {
+    it('displays member since date formatted', () => {
       // Given: User with specific created date
-      mockGetProfile.mockResolvedValue({
-        ...mockLocalUser,
-        createdAt: '2024-06-15T10:30:00.000Z',
+      mockUseAuth.mockReturnValue({
+        user: {
+          ...mockLocalUser,
+          createdAt: '2024-06-15T10:30:00.000Z',
+        },
+        oidcEnabled: false,
+        isLoading: false,
+        error: null,
+        refreshAuth: jest.fn(async () => Promise.resolve()),
       });
 
       // When: Rendering ProfilePage
       render(<ProfilePage />);
 
       // Then: Date is formatted (exact format depends on locale, check for presence)
-      await waitFor(() => {
-        expect(screen.getByText(/2024/)).toBeInTheDocument();
-      });
+      expect(screen.getByText(/2024/)).toBeInTheDocument();
     });
 
-    it('shows error message when profile loading fails', async () => {
-      // Given: getProfile fails
-      mockGetProfile.mockRejectedValue(
-        new ApiClientError(500, {
-          code: 'INTERNAL_ERROR',
-          message: 'Failed to load profile',
-        }),
-      );
+    it('shows error message when profile loading fails', () => {
+      // Given: Auth loading failed
+      mockUseAuth.mockReturnValue({
+        user: null,
+        oidcEnabled: false,
+        isLoading: false,
+        error: 'Failed to load profile',
+        refreshAuth: jest.fn(async () => Promise.resolve()),
+      });
 
       // When: Rendering ProfilePage
       render(<ProfilePage />);
 
       // Then: Error message is shown
-      await waitFor(() => {
-        expect(screen.getByText('Failed to load profile')).toBeInTheDocument();
-      });
+      expect(screen.getByText('Failed to load profile')).toBeInTheDocument();
       expect(screen.getByRole('alert')).toBeInTheDocument();
     });
 
-    it('shows generic error for non-ApiClientError failures', async () => {
-      // Given: Network error
-      mockGetProfile.mockRejectedValue(new Error('Network failure'));
+    it('shows generic error for non-ApiClientError failures', () => {
+      // Given: Generic error
+      mockUseAuth.mockReturnValue({
+        user: null,
+        oidcEnabled: false,
+        isLoading: false,
+        error: 'Network failure',
+        refreshAuth: jest.fn(async () => Promise.resolve()),
+      });
 
       // When: Rendering ProfilePage
       render(<ProfilePage />);
 
       // Then: Generic error message is shown
-      await waitFor(() => {
-        expect(screen.getByText(/failed to load profile/i)).toBeInTheDocument();
-      });
+      expect(screen.getByText('Network failure')).toBeInTheDocument();
     });
   });
 
   describe('Display name form', () => {
     it('pre-populates display name input with current value', async () => {
       // Given: User profile
-      mockGetProfile.mockResolvedValue(mockLocalUser);
+      // User already mocked in beforeEach
 
       // When: Rendering ProfilePage
       render(<ProfilePage />);
@@ -227,7 +257,7 @@ describe('ProfilePage', () => {
 
     it('allows editing display name', async () => {
       // Given: User profile loaded
-      mockGetProfile.mockResolvedValue(mockLocalUser);
+      // User already mocked in beforeEach
       const user = userEvent.setup();
 
       render(<ProfilePage />);
@@ -244,7 +274,7 @@ describe('ProfilePage', () => {
 
     it('submits display name update successfully', async () => {
       // Given: Profile loaded and update succeeds
-      mockGetProfile.mockResolvedValue(mockLocalUser);
+      // User already mocked in beforeEach
       mockUpdateProfile.mockResolvedValue({
         ...mockLocalUser,
         displayName: 'Updated Name',
@@ -273,7 +303,7 @@ describe('ProfilePage', () => {
 
     it('shows validation error for empty display name', async () => {
       // Given: Profile loaded
-      mockGetProfile.mockResolvedValue(mockLocalUser);
+      // User already mocked in beforeEach
       const user = userEvent.setup();
 
       render(<ProfilePage />);
@@ -296,7 +326,7 @@ describe('ProfilePage', () => {
 
     it('enforces maxLength of 100 chars on input field', async () => {
       // Given: Profile loaded
-      mockGetProfile.mockResolvedValue(mockLocalUser);
+      // User already mocked in beforeEach
       const user = userEvent.setup();
 
       render(<ProfilePage />);
@@ -319,7 +349,7 @@ describe('ProfilePage', () => {
 
     it('shows API error when display name update fails', async () => {
       // Given: Profile loaded, update fails
-      mockGetProfile.mockResolvedValue(mockLocalUser);
+      // User already mocked in beforeEach
       mockUpdateProfile.mockRejectedValue(
         new ApiClientError(400, {
           code: 'VALIDATION_ERROR',
@@ -346,7 +376,7 @@ describe('ProfilePage', () => {
 
     it('disables button while update is in progress', async () => {
       // Given: Profile loaded, update pending
-      mockGetProfile.mockResolvedValue(mockLocalUser);
+      // User already mocked in beforeEach
       mockUpdateProfile.mockImplementation(() => new Promise(() => {}));
 
       const user = userEvent.setup();
@@ -369,56 +399,60 @@ describe('ProfilePage', () => {
   });
 
   describe('Password form (local users)', () => {
-    it('shows password form for local users', async () => {
-      // Given: Local user
-      mockGetProfile.mockResolvedValue(mockLocalUser);
-
+    it('shows password form for local users', () => {
+      // Given: Local user (default in beforeEach)
       // When: Rendering ProfilePage
       render(<ProfilePage />);
 
       // Then: Password form is visible
-      await waitFor(() => {
-        expect(screen.getByLabelText(/current password/i)).toBeInTheDocument();
-      });
+      expect(screen.getByLabelText(/current password/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/^new password$/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/confirm new password/i)).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /change password/i })).toBeInTheDocument();
     });
 
-    it('hides password form for OIDC users', async () => {
+    it('hides password form for OIDC users', () => {
       // Given: OIDC user
-      mockGetProfile.mockResolvedValue(mockOidcUser);
+      mockUseAuth.mockReturnValue({
+        user: mockOidcUser,
+        oidcEnabled: true,
+        isLoading: false,
+        error: null,
+        refreshAuth: jest.fn(async () => Promise.resolve()),
+      });
 
       // When: Rendering ProfilePage
       render(<ProfilePage />);
 
       // Then: Password form is hidden
-      await waitFor(() => {
-        expect(screen.queryByLabelText(/current password/i)).not.toBeInTheDocument();
-      });
+      expect(screen.queryByLabelText(/current password/i)).not.toBeInTheDocument();
       expect(screen.queryByLabelText(/^new password$/i)).not.toBeInTheDocument();
       expect(screen.queryByLabelText(/confirm new password/i)).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /change password/i })).not.toBeInTheDocument();
     });
 
-    it('shows identity provider message for OIDC users', async () => {
+    it('shows identity provider message for OIDC users', () => {
       // Given: OIDC user
-      mockGetProfile.mockResolvedValue(mockOidcUser);
+      mockUseAuth.mockReturnValue({
+        user: mockOidcUser,
+        oidcEnabled: true,
+        isLoading: false,
+        error: null,
+        refreshAuth: jest.fn(async () => Promise.resolve()),
+      });
 
       // When: Rendering ProfilePage
       render(<ProfilePage />);
 
       // Then: OIDC message is shown
-      await waitFor(() => {
-        expect(
-          screen.getByText(/your credentials are managed by your identity provider/i),
-        ).toBeInTheDocument();
-      });
+      expect(
+        screen.getByText(/your credentials are managed by your identity provider/i),
+      ).toBeInTheDocument();
     });
 
     it('allows typing in all password fields', async () => {
       // Given: Local user
-      mockGetProfile.mockResolvedValue(mockLocalUser);
+      // User already mocked in beforeEach
       const user = userEvent.setup();
 
       render(<ProfilePage />);
@@ -444,7 +478,7 @@ describe('ProfilePage', () => {
 
     it('shows validation error for empty current password', async () => {
       // Given: Local user
-      mockGetProfile.mockResolvedValue(mockLocalUser);
+      // User already mocked in beforeEach
       const user = userEvent.setup();
 
       render(<ProfilePage />);
@@ -463,7 +497,7 @@ describe('ProfilePage', () => {
 
     it('shows validation error for empty new password', async () => {
       // Given: Local user
-      mockGetProfile.mockResolvedValue(mockLocalUser);
+      // User already mocked in beforeEach
       const user = userEvent.setup();
 
       render(<ProfilePage />);
@@ -485,7 +519,7 @@ describe('ProfilePage', () => {
 
     it('shows validation error for new password < 12 chars', async () => {
       // Given: Local user
-      mockGetProfile.mockResolvedValue(mockLocalUser);
+      // User already mocked in beforeEach
       const user = userEvent.setup();
 
       render(<ProfilePage />);
@@ -512,7 +546,7 @@ describe('ProfilePage', () => {
 
     it('shows validation error when passwords do not match', async () => {
       // Given: Local user
-      mockGetProfile.mockResolvedValue(mockLocalUser);
+      // User already mocked in beforeEach
       const user = userEvent.setup();
 
       render(<ProfilePage />);
@@ -540,7 +574,7 @@ describe('ProfilePage', () => {
 
     it('changes password successfully', async () => {
       // Given: Local user, password change succeeds
-      mockGetProfile.mockResolvedValue(mockLocalUser);
+      // User already mocked in beforeEach
       mockChangePassword.mockResolvedValue(undefined);
 
       const user = userEvent.setup();
@@ -580,7 +614,7 @@ describe('ProfilePage', () => {
 
     it('shows API error when password change fails', async () => {
       // Given: Local user, password change fails
-      mockGetProfile.mockResolvedValue(mockLocalUser);
+      // User already mocked in beforeEach
       mockChangePassword.mockRejectedValue(
         new ApiClientError(401, {
           code: 'INVALID_CREDENTIALS',
@@ -614,7 +648,7 @@ describe('ProfilePage', () => {
 
     it('disables button while password change is in progress', async () => {
       // Given: Local user, password change pending
-      mockGetProfile.mockResolvedValue(mockLocalUser);
+      // User already mocked in beforeEach
       mockChangePassword.mockImplementation(() => new Promise(() => {}));
 
       const user = userEvent.setup();

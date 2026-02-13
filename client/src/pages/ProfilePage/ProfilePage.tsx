@@ -1,7 +1,7 @@
 import { useState, useEffect, type FormEvent } from 'react';
-import { getProfile, updateProfile, changePassword } from '../../lib/usersApi.js';
+import { updateProfile, changePassword } from '../../lib/usersApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
-import type { UserResponse } from '@cornerstone/shared';
+import { useAuth } from '../../contexts/AuthContext.js';
 import styles from './ProfilePage.module.css';
 
 interface PasswordFormErrors {
@@ -11,9 +11,7 @@ interface PasswordFormErrors {
 }
 
 export function ProfilePage() {
-  const [user, setUser] = useState<UserResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string>('');
+  const { user, isLoading, error: loadError, refreshAuth } = useAuth();
 
   // Display name state
   const [displayName, setDisplayName] = useState('');
@@ -31,24 +29,10 @@ export function ProfilePage() {
   const [passwordSuccess, setPasswordSuccess] = useState<string>('');
 
   useEffect(() => {
-    const loadProfile = async () => {
-      try {
-        const profile = await getProfile();
-        setUser(profile);
-        setDisplayName(profile.displayName);
-      } catch (error) {
-        if (error instanceof ApiClientError) {
-          setLoadError(error.error.message);
-        } else {
-          setLoadError('Failed to load profile. Please try again.');
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    void loadProfile();
-  }, []);
+    if (user) {
+      setDisplayName(user.displayName);
+    }
+  }, [user]);
 
   const validateDisplayName = (): boolean => {
     if (!displayName.trim()) {
@@ -75,8 +59,8 @@ export function ProfilePage() {
     setIsUpdatingDisplayName(true);
 
     try {
-      const updatedUser = await updateProfile({ displayName: displayName.trim() });
-      setUser(updatedUser);
+      await updateProfile({ displayName: displayName.trim() });
+      await refreshAuth();
       setDisplayNameSuccess('Display name updated successfully');
     } catch (error) {
       if (error instanceof ApiClientError) {
