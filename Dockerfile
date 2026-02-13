@@ -40,7 +40,9 @@ COPY server/package.json server/
 COPY client/package.json client/
 
 # Install all dependencies (including devDependencies for build)
-RUN npm ci
+# Force native addons to compile from source instead of using prebuilds,
+# ensuring compatibility with the Alpine musl libc in the production image
+RUN npm ci --build-from-source
 
 # Copy source code
 COPY tsconfig.base.json ./
