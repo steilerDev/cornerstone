@@ -1,5 +1,6 @@
-import { useState, type FormEvent } from 'react';
-import { setup } from '../../lib/authApi.js';
+import { useState, useEffect, type FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { setup, getAuthMe } from '../../lib/authApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import sharedStyles from '../shared/AuthPage.module.css';
 import styles from './SetupPage.module.css';
@@ -12,6 +13,7 @@ interface FormErrors {
 }
 
 export function SetupPage() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [password, setPassword] = useState('');
@@ -19,7 +21,25 @@ export function SetupPage() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [apiError, setApiError] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [successMessage, setSuccessMessage] = useState<string>('');
+  const [isCheckingSetup, setIsCheckingSetup] = useState(true);
+
+  useEffect(() => {
+    const checkSetupRequired = async () => {
+      try {
+        const response = await getAuthMe();
+        if (!response.setupRequired) {
+          // Setup already complete, redirect to login
+          navigate('/login', { replace: true });
+        }
+      } catch {
+        // If API call fails, allow setup form to render
+      } finally {
+        setIsCheckingSetup(false);
+      }
+    };
+
+    void checkSetupRequired();
+  }, [navigate]);
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -51,7 +71,6 @@ export function SetupPage() {
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setApiError('');
-    setSuccessMessage('');
 
     if (!validateForm()) {
       return;
@@ -60,16 +79,9 @@ export function SetupPage() {
     setIsSubmitting(true);
 
     try {
-      const response = await setup({ email, displayName, password });
-      setSuccessMessage(
-        `Setup complete! Admin account created for ${response.user.email}. Session management will be implemented in Story #32.`,
-      );
-      // Clear form
-      setEmail('');
-      setDisplayName('');
-      setPassword('');
-      setConfirmPassword('');
-      setErrors({});
+      await setup({ email, displayName, password });
+      // Setup complete, redirect to login
+      navigate('/login', { replace: true });
     } catch (error) {
       if (error instanceof ApiClientError) {
         setApiError(error.error.message);
@@ -80,6 +92,16 @@ export function SetupPage() {
       setIsSubmitting(false);
     }
   };
+
+  if (isCheckingSetup) {
+    return (
+      <div className={sharedStyles.container}>
+        <div className={sharedStyles.card}>
+          <p>Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={sharedStyles.container}>
@@ -92,12 +114,6 @@ export function SetupPage() {
         {apiError && (
           <div className={sharedStyles.errorBanner} role="alert">
             {apiError}
-          </div>
-        )}
-
-        {successMessage && (
-          <div className={sharedStyles.successBanner} role="alert">
-            {successMessage}
           </div>
         )}
 

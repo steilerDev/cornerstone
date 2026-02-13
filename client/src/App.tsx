@@ -1,6 +1,8 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AppShell } from './components/AppShell/AppShell';
+import { AuthProvider } from './contexts/AuthContext';
+import { AuthGuard } from './components/AuthGuard/AuthGuard';
 
 const SetupPage = lazy(() => import('./pages/SetupPage/SetupPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage/LoginPage'));
@@ -17,38 +19,42 @@ const NotFoundPage = lazy(() => import('./pages/NotFoundPage/NotFoundPage'));
 export function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        {/* Auth routes (no AppShell wrapper) */}
-        <Route
-          path="setup"
-          element={
-            <Suspense fallback={<div>Loading...</div>}>
-              <SetupPage />
-            </Suspense>
-          }
-        />
-        <Route
-          path="login"
-          element={
-            <Suspense fallback={<div>Loading...</div>}>
-              <LoginPage />
-            </Suspense>
-          }
-        />
+      <AuthProvider>
+        <Routes>
+          {/* Auth routes (no AppShell wrapper) */}
+          <Route
+            path="setup"
+            element={
+              <Suspense fallback={<div>Loading...</div>}>
+                <SetupPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="login"
+            element={
+              <Suspense fallback={<div>Loading...</div>}>
+                <LoginPage />
+              </Suspense>
+            }
+          />
 
-        {/* App routes (with AppShell wrapper) */}
-        <Route element={<AppShell />}>
-          <Route index element={<DashboardPage />} />
-          <Route path="work-items" element={<WorkItemsPage />} />
-          <Route path="budget" element={<BudgetPage />} />
-          <Route path="timeline" element={<TimelinePage />} />
-          <Route path="household-items" element={<HouseholdItemsPage />} />
-          <Route path="documents" element={<DocumentsPage />} />
-          <Route path="profile" element={<ProfilePage />} />
-          <Route path="admin/users" element={<UserManagementPage />} />
-          <Route path="*" element={<NotFoundPage />} />
-        </Route>
-      </Routes>
+          {/* Protected app routes (with AuthGuard and AppShell wrapper) */}
+          <Route element={<AuthGuard />}>
+            <Route element={<AppShell />}>
+              <Route index element={<DashboardPage />} />
+              <Route path="work-items" element={<WorkItemsPage />} />
+              <Route path="budget" element={<BudgetPage />} />
+              <Route path="timeline" element={<TimelinePage />} />
+              <Route path="household-items" element={<HouseholdItemsPage />} />
+              <Route path="documents" element={<DocumentsPage />} />
+              <Route path="profile" element={<ProfilePage />} />
+              <Route path="admin/users" element={<UserManagementPage />} />
+              <Route path="*" element={<NotFoundPage />} />
+            </Route>
+          </Route>
+        </Routes>
+      </AuthProvider>
     </BrowserRouter>
   );
 }

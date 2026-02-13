@@ -1,4 +1,5 @@
 import { useState, useEffect, type FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { login, getAuthMe } from '../../lib/authApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import sharedStyles from '../shared/AuthPage.module.css';
@@ -19,6 +20,7 @@ const OIDC_ERROR_MESSAGES: Record<string, string> = {
 };
 
 export function LoginPage() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
@@ -31,6 +33,11 @@ export function LoginPage() {
     const loadConfig = async () => {
       try {
         const authMeResponse = await getAuthMe();
+        // If user is already authenticated, redirect to home
+        if (authMeResponse.user) {
+          navigate('/', { replace: true });
+          return;
+        }
         setOidcEnabled(authMeResponse.oidcEnabled);
       } catch {
         // If getAuthMe fails, OIDC is not enabled
@@ -48,7 +55,7 @@ export function LoginPage() {
     }
 
     void loadConfig();
-  }, []);
+  }, [navigate]);
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -78,7 +85,7 @@ export function LoginPage() {
     try {
       await login({ email, password });
       // Successful login - redirect to app
-      window.location.href = '/';
+      navigate('/', { replace: true });
     } catch (error) {
       if (error instanceof ApiClientError) {
         setApiError(error.error.message);
