@@ -10,6 +10,7 @@ import type * as AuthGuardTypes from './AuthGuard.js';
 // Must mock BEFORE importing the component
 jest.unstable_mockModule('../../lib/authApi.js', () => ({
   getAuthMe: jest.fn(),
+  logout: jest.fn(),
 }));
 
 describe('AuthGuard', () => {

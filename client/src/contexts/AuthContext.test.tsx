@@ -11,6 +11,7 @@ import type * as AuthContextTypes from './AuthContext.js';
 // Must mock BEFORE importing the component
 jest.unstable_mockModule('../lib/authApi.js', () => ({
   getAuthMe: jest.fn(),
+  logout: jest.fn(),
 }));
 
 describe('AuthContext', () => {
@@ -19,6 +20,7 @@ describe('AuthContext', () => {
   let AuthContext: typeof AuthContextTypes;
 
   let mockGetAuthMe: jest.MockedFunction<typeof AuthApiTypes.getAuthMe>;
+  let mockLogout: jest.MockedFunction<typeof AuthApiTypes.logout>;
 
   beforeEach(async () => {
     // Dynamic import modules (only once)
@@ -29,17 +31,26 @@ describe('AuthContext', () => {
 
     // Reset mocks
     mockGetAuthMe = authApi.getAuthMe as jest.MockedFunction<typeof authApi.getAuthMe>;
+    mockLogout = authApi.logout as jest.MockedFunction<typeof authApi.logout>;
     mockGetAuthMe.mockReset();
+    mockLogout.mockReset();
   });
 
   function TestComponent() {
-    const { user, oidcEnabled, isLoading, error } = AuthContext.useAuth();
+    const { user, oidcEnabled, isLoading, error, logout } = AuthContext.useAuth();
     return (
       <div>
         <div data-testid="loading">{isLoading ? 'Loading' : 'Loaded'}</div>
         <div data-testid="user">{user ? user.email : 'No user'}</div>
         <div data-testid="oidc">{oidcEnabled ? 'OIDC Enabled' : 'OIDC Disabled'}</div>
         {error && <div data-testid="error">{error}</div>}
+        <button
+          onClick={() => {
+            void logout();
+          }}
+        >
+          Logout
+        </button>
       </div>
     );
   }
@@ -232,6 +243,182 @@ describe('AuthContext', () => {
     // Then: getAuthMe is called once
     await waitFor(() => {
       expect(mockGetAuthMe).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('logout', () => {
+    it('clears user state on successful logout', async () => {
+      // Given: Authenticated user
+      mockGetAuthMe.mockResolvedValue({
+        user: {
+          id: 'user-123',
+          email: 'test@example.com',
+          displayName: 'Test User',
+          role: 'member',
+          authProvider: 'local',
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
+          deactivatedAt: null,
+        },
+        setupRequired: false,
+        oidcEnabled: false,
+      });
+      mockLogout.mockResolvedValue(undefined);
+
+      renderWithProvider();
+
+      // Wait for initial auth to load
+      await waitFor(() => {
+        expect(screen.getByTestId('user')).toHaveTextContent('test@example.com');
+      });
+
+      // When: logout() is called
+      await act(async () => {
+        screen.getByRole('button', { name: /logout/i }).click();
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      });
+
+      // Then: user becomes null
+      await waitFor(() => {
+        expect(screen.getByTestId('user')).toHaveTextContent('No user');
+      });
+    });
+
+    it('clears user state even when API call fails', async () => {
+      // Given: Authenticated user, logout API rejects
+      mockGetAuthMe.mockResolvedValue({
+        user: {
+          id: 'user-123',
+          email: 'test@example.com',
+          displayName: 'Test User',
+          role: 'member',
+          authProvider: 'local',
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
+          deactivatedAt: null,
+        },
+        setupRequired: false,
+        oidcEnabled: false,
+      });
+      mockLogout.mockRejectedValue(new Error('Network error'));
+
+      renderWithProvider();
+
+      // Wait for initial auth to load
+      await waitFor(() => {
+        expect(screen.getByTestId('user')).toHaveTextContent('test@example.com');
+      });
+
+      // When: logout() is called
+      await act(async () => {
+        screen.getByRole('button', { name: /logout/i }).click();
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      });
+
+      // Then: user still becomes null (graceful handling)
+      await waitFor(() => {
+        expect(screen.getByTestId('user')).toHaveTextContent('No user');
+      });
+    });
+
+    it('calls the logout API function', async () => {
+      // Given: Authenticated user
+      mockGetAuthMe.mockResolvedValue({
+        user: {
+          id: 'user-123',
+          email: 'test@example.com',
+          displayName: 'Test User',
+          role: 'member',
+          authProvider: 'local',
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
+          deactivatedAt: null,
+        },
+        setupRequired: false,
+        oidcEnabled: false,
+      });
+      mockLogout.mockResolvedValue(undefined);
+
+      renderWithProvider();
+
+      // Wait for initial auth to load
+      await waitFor(() => {
+        expect(screen.getByTestId('user')).toHaveTextContent('test@example.com');
+      });
+
+      // When: logout() is called
+      await act(async () => {
+        screen.getByRole('button', { name: /logout/i }).click();
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      });
+
+      // Then: logoutApi was called once
+      await waitFor(() => {
+        expect(mockLogout).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('resets oidcEnabled flag after logout', async () => {
+      // Given: Authenticated user with OIDC enabled
+      mockGetAuthMe.mockResolvedValue({
+        user: {
+          id: 'user-123',
+          email: 'test@example.com',
+          displayName: 'Test User',
+          role: 'member',
+          authProvider: 'oidc',
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
+          deactivatedAt: null,
+        },
+        setupRequired: false,
+        oidcEnabled: true,
+      });
+      mockLogout.mockResolvedValue(undefined);
+
+      renderWithProvider();
+
+      // Wait for initial auth to load
+      await waitFor(() => {
+        expect(screen.getByTestId('oidc')).toHaveTextContent('OIDC Enabled');
+      });
+
+      // When: logout() is called
+      await act(async () => {
+        screen.getByRole('button', { name: /logout/i }).click();
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      });
+
+      // Then: oidcEnabled becomes false
+      await waitFor(() => {
+        expect(screen.getByTestId('oidc')).toHaveTextContent('OIDC Disabled');
+      });
+    });
+
+    it('clears any existing error state on logout', async () => {
+      // Given: Auth context with an error
+      mockGetAuthMe.mockRejectedValue(new Error('Initial error'));
+
+      renderWithProvider();
+
+      // Wait for initial error
+      await waitFor(() => {
+        expect(screen.getByTestId('error')).toHaveTextContent('Initial error');
+      });
+
+      // Now set up successful logout
+      mockLogout.mockResolvedValue(undefined);
+
+      // When: logout() is called
+      await act(async () => {
+        screen.getByRole('button', { name: /logout/i }).click();
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      });
+
+      // Then: error is cleared
+      await waitFor(() => {
+        expect(screen.queryByTestId('error')).not.toBeInTheDocument();
+      });
     });
   });
 });

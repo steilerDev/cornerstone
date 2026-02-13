@@ -1,18 +1,48 @@
 /**
  * @jest-environment jsdom
  */
+import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { lazy } from 'react';
 import { Route, Routes } from 'react-router-dom';
-import { AppShell } from './AppShell';
 import { renderWithRouter } from '../../test/testUtils';
+import type * as AppShellTypes from './AppShell.js';
+
+// Mock AuthContext so Sidebar can call useAuth()
+jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
+  useAuth: () => ({
+    user: {
+      id: '1',
+      email: 'test@example.com',
+      displayName: 'Test',
+      role: 'admin',
+      authProvider: 'local',
+      createdAt: '',
+      updatedAt: '',
+      deactivatedAt: null,
+    },
+    oidcEnabled: false,
+    isLoading: false,
+    error: null,
+    refreshAuth: jest.fn(),
+    logout: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+  }),
+}));
 
 describe('AppShell', () => {
+  let AppShellModule: typeof AppShellTypes;
+
+  beforeEach(async () => {
+    if (!AppShellModule) {
+      AppShellModule = await import('./AppShell.js');
+    }
+  });
+
   it('renders sidebar, header, and outlet area', () => {
     renderWithRouter(
       <Routes>
-        <Route element={<AppShell />} path="*">
+        <Route element={<AppShellModule.AppShell />} path="*">
           <Route index element={<div>Test Content</div>} />
         </Route>
       </Routes>,
@@ -49,7 +79,7 @@ describe('AppShell', () => {
 
     renderWithRouter(
       <Routes>
-        <Route element={<AppShell />} path="*">
+        <Route element={<AppShellModule.AppShell />} path="*">
           <Route index element={<LazyComponent />} />
         </Route>
       </Routes>,
@@ -66,7 +96,7 @@ describe('AppShell', () => {
   it('sidebar is always visible', () => {
     renderWithRouter(
       <Routes>
-        <Route element={<AppShell />} path="*">
+        <Route element={<AppShellModule.AppShell />} path="*">
           <Route index element={<div>Test Content</div>} />
         </Route>
       </Routes>,
@@ -79,7 +109,7 @@ describe('AppShell', () => {
   it('renders navigation links in sidebar', () => {
     renderWithRouter(
       <Routes>
-        <Route element={<AppShell />} path="*">
+        <Route element={<AppShellModule.AppShell />} path="*">
           <Route index element={<div>Test Content</div>} />
         </Route>
       </Routes>,
@@ -97,7 +127,7 @@ describe('AppShell', () => {
   it('renders header with menu toggle button', () => {
     renderWithRouter(
       <Routes>
-        <Route element={<AppShell />} path="*">
+        <Route element={<AppShellModule.AppShell />} path="*">
           <Route index element={<div>Test Content</div>} />
         </Route>
       </Routes>,
@@ -110,7 +140,7 @@ describe('AppShell', () => {
   it('overlay is not visible initially (sidebar starts closed)', () => {
     renderWithRouter(
       <Routes>
-        <Route element={<AppShell />} path="*">
+        <Route element={<AppShellModule.AppShell />} path="*">
           <Route index element={<div>Test Content</div>} />
         </Route>
       </Routes>,
@@ -125,7 +155,7 @@ describe('AppShell', () => {
     const user = userEvent.setup();
     renderWithRouter(
       <Routes>
-        <Route element={<AppShell />} path="*">
+        <Route element={<AppShellModule.AppShell />} path="*">
           <Route index element={<div>Test Content</div>} />
         </Route>
       </Routes>,
@@ -143,7 +173,7 @@ describe('AppShell', () => {
     const user = userEvent.setup();
     renderWithRouter(
       <Routes>
-        <Route element={<AppShell />} path="*">
+        <Route element={<AppShellModule.AppShell />} path="*">
           <Route index element={<div>Test Content</div>} />
         </Route>
       </Routes>,
@@ -169,7 +199,7 @@ describe('AppShell', () => {
     const user = userEvent.setup();
     renderWithRouter(
       <Routes>
-        <Route element={<AppShell />} path="*">
+        <Route element={<AppShellModule.AppShell />} path="*">
           <Route index element={<div>Test Content</div>} />
         </Route>
       </Routes>,
@@ -195,7 +225,7 @@ describe('AppShell', () => {
     const user = userEvent.setup();
     renderWithRouter(
       <Routes>
-        <Route element={<AppShell />} path="*">
+        <Route element={<AppShellModule.AppShell />} path="*">
           <Route index element={<div>Test Content</div>} />
         </Route>
       </Routes>,
@@ -218,7 +248,7 @@ describe('AppShell', () => {
     const user = userEvent.setup();
     renderWithRouter(
       <Routes>
-        <Route element={<AppShell />} path="*">
+        <Route element={<AppShellModule.AppShell />} path="*">
           <Route index element={<div>Test Content</div>} />
         </Route>
       </Routes>,
@@ -253,7 +283,7 @@ describe('AppShell', () => {
     const user = userEvent.setup();
     renderWithRouter(
       <Routes>
-        <Route element={<AppShell />} path="*">
+        <Route element={<AppShellModule.AppShell />} path="*">
           <Route index element={<div>Test Content</div>} />
         </Route>
       </Routes>,
@@ -276,7 +306,7 @@ describe('AppShell', () => {
     const user = userEvent.setup();
     renderWithRouter(
       <Routes>
-        <Route element={<AppShell />} path="*">
+        <Route element={<AppShellModule.AppShell />} path="*">
           <Route index element={<div>Test Content</div>} />
         </Route>
       </Routes>,
@@ -306,7 +336,7 @@ describe('AppShell', () => {
     const user = userEvent.setup();
     renderWithRouter(
       <Routes>
-        <Route element={<AppShell />} path="*">
+        <Route element={<AppShellModule.AppShell />} path="*">
           <Route index element={<div>Test Content</div>} />
         </Route>
       </Routes>,

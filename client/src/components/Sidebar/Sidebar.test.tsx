@@ -1,36 +1,72 @@
-import { jest } from '@jest/globals';
+/**
+ * @jest-environment jsdom
+ */
+import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { Sidebar } from './Sidebar';
-import { renderWithRouter } from '../../test/testUtils';
+import { renderWithRouter } from '../../test/testUtils.js';
+import type * as SidebarTypes from './Sidebar.js';
+
+// Mock the AuthContext BEFORE importing Sidebar
+const mockLogout = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
+
+jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
+  useAuth: () => ({
+    user: {
+      id: '1',
+      email: 'test@example.com',
+      displayName: 'Test',
+      role: 'admin',
+      authProvider: 'local',
+      createdAt: '',
+      updatedAt: '',
+      deactivatedAt: null,
+    },
+    oidcEnabled: false,
+    isLoading: false,
+    error: null,
+    refreshAuth: jest.fn(),
+    logout: mockLogout,
+  }),
+}));
 
 describe('Sidebar', () => {
-  const mockOnClose = jest.fn();
-  const defaultProps = {
-    isOpen: false,
-    onClose: mockOnClose,
-  };
+  let SidebarModule: typeof SidebarTypes;
+  let mockOnClose: jest.MockedFunction<() => void>;
+
+  beforeEach(async () => {
+    if (!SidebarModule) {
+      SidebarModule = await import('./Sidebar.js');
+    }
+    mockOnClose = jest.fn<() => void>();
+    mockLogout.mockReset().mockResolvedValue(undefined);
+  });
 
   afterEach(() => {
     jest.clearAllMocks();
   });
 
+  const getDefaultProps = () => ({
+    isOpen: false,
+    onClose: mockOnClose,
+  });
+
   it('renders all 8 navigation links', () => {
-    renderWithRouter(<Sidebar {...defaultProps} />);
+    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
 
     const links = screen.getAllByRole('link');
     expect(links).toHaveLength(8);
   });
 
   it('renders navigation with correct aria-label', () => {
-    renderWithRouter(<Sidebar {...defaultProps} />);
+    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
 
     const nav = screen.getByRole('navigation', { name: /main navigation/i });
     expect(nav).toBeInTheDocument();
   });
 
   it('links have correct href attributes', () => {
-    renderWithRouter(<Sidebar {...defaultProps} />);
+    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
 
     expect(screen.getByRole('link', { name: /dashboard/i })).toHaveAttribute('href', '/');
     expect(screen.getByRole('link', { name: /work items/i })).toHaveAttribute(
@@ -47,7 +83,7 @@ describe('Sidebar', () => {
   });
 
   it('dashboard link is active at exact / path only (end prop)', () => {
-    renderWithRouter(<Sidebar {...defaultProps} />, { initialEntries: ['/'] });
+    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />, { initialEntries: ['/'] });
 
     const dashboardLink = screen.getByRole('link', { name: /dashboard/i });
     expect(dashboardLink).toHaveClass('active');
@@ -57,14 +93,18 @@ describe('Sidebar', () => {
   });
 
   it('dashboard link is not active on nested routes', () => {
-    renderWithRouter(<Sidebar {...defaultProps} />, { initialEntries: ['/work-items'] });
+    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />, {
+      initialEntries: ['/work-items'],
+    });
 
     const dashboardLink = screen.getByRole('link', { name: /dashboard/i });
     expect(dashboardLink).not.toHaveClass('active');
   });
 
   it('work items link is active at /work-items', () => {
-    renderWithRouter(<Sidebar {...defaultProps} />, { initialEntries: ['/work-items'] });
+    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />, {
+      initialEntries: ['/work-items'],
+    });
 
     const workItemsLink = screen.getByRole('link', { name: /work items/i });
     expect(workItemsLink).toHaveClass('active');
@@ -74,35 +114,45 @@ describe('Sidebar', () => {
   });
 
   it('budget link is active at /budget', () => {
-    renderWithRouter(<Sidebar {...defaultProps} />, { initialEntries: ['/budget'] });
+    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />, {
+      initialEntries: ['/budget'],
+    });
 
     const budgetLink = screen.getByRole('link', { name: /budget/i });
     expect(budgetLink).toHaveClass('active');
   });
 
   it('timeline link is active at /timeline', () => {
-    renderWithRouter(<Sidebar {...defaultProps} />, { initialEntries: ['/timeline'] });
+    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />, {
+      initialEntries: ['/timeline'],
+    });
 
     const timelineLink = screen.getByRole('link', { name: /timeline/i });
     expect(timelineLink).toHaveClass('active');
   });
 
   it('household items link is active at /household-items', () => {
-    renderWithRouter(<Sidebar {...defaultProps} />, { initialEntries: ['/household-items'] });
+    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />, {
+      initialEntries: ['/household-items'],
+    });
 
     const householdItemsLink = screen.getByRole('link', { name: /household items/i });
     expect(householdItemsLink).toHaveClass('active');
   });
 
   it('documents link is active at /documents', () => {
-    renderWithRouter(<Sidebar {...defaultProps} />, { initialEntries: ['/documents'] });
+    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />, {
+      initialEntries: ['/documents'],
+    });
 
     const documentsLink = screen.getByRole('link', { name: /documents/i });
     expect(documentsLink).toHaveClass('active');
   });
 
   it('only one link is active at a time', () => {
-    renderWithRouter(<Sidebar {...defaultProps} />, { initialEntries: ['/budget'] });
+    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />, {
+      initialEntries: ['/budget'],
+    });
 
     const activeLinks = screen
       .getAllByRole('link')
@@ -112,7 +162,7 @@ describe('Sidebar', () => {
   });
 
   it('renders a close button with correct aria-label', () => {
-    renderWithRouter(<Sidebar {...defaultProps} isOpen={true} />);
+    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} isOpen={true} />);
 
     const closeButton = screen.getByRole('button', { name: /close menu/i });
     expect(closeButton).toBeInTheDocument();
@@ -120,7 +170,7 @@ describe('Sidebar', () => {
 
   it('clicking close button calls onClose', async () => {
     const user = userEvent.setup();
-    renderWithRouter(<Sidebar {...defaultProps} isOpen={true} />);
+    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} isOpen={true} />);
 
     const closeButton = screen.getByRole('button', { name: /close menu/i });
     await user.click(closeButton);
@@ -129,14 +179,14 @@ describe('Sidebar', () => {
   });
 
   it('sidebar has .open class when isOpen is true', () => {
-    renderWithRouter(<Sidebar {...defaultProps} isOpen={true} />);
+    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} isOpen={true} />);
 
     const sidebar = screen.getByRole('complementary');
     expect(sidebar.className).toMatch(/open/);
   });
 
   it('sidebar does not have .open class when isOpen is false', () => {
-    renderWithRouter(<Sidebar {...defaultProps} isOpen={false} />);
+    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} isOpen={false} />);
 
     const sidebar = screen.getByRole('complementary');
     expect(sidebar.className).not.toMatch(/open/);
@@ -144,7 +194,7 @@ describe('Sidebar', () => {
 
   it('clicking a nav link calls onClose (dashboard)', async () => {
     const user = userEvent.setup();
-    renderWithRouter(<Sidebar {...defaultProps} />);
+    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
 
     const dashboardLink = screen.getByRole('link', { name: /dashboard/i });
     await user.click(dashboardLink);
@@ -154,7 +204,7 @@ describe('Sidebar', () => {
 
   it('clicking a nav link calls onClose (work items)', async () => {
     const user = userEvent.setup();
-    renderWithRouter(<Sidebar {...defaultProps} />);
+    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
 
     const workItemsLink = screen.getByRole('link', { name: /work items/i });
     await user.click(workItemsLink);
@@ -164,7 +214,7 @@ describe('Sidebar', () => {
 
   it('clicking a nav link calls onClose (budget)', async () => {
     const user = userEvent.setup();
-    renderWithRouter(<Sidebar {...defaultProps} />);
+    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
 
     const budgetLink = screen.getByRole('link', { name: /budget/i });
     await user.click(budgetLink);
@@ -174,7 +224,7 @@ describe('Sidebar', () => {
 
   it('clicking a nav link calls onClose (timeline)', async () => {
     const user = userEvent.setup();
-    renderWithRouter(<Sidebar {...defaultProps} />);
+    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
 
     const timelineLink = screen.getByRole('link', { name: /timeline/i });
     await user.click(timelineLink);
@@ -184,7 +234,7 @@ describe('Sidebar', () => {
 
   it('clicking a nav link calls onClose (household items)', async () => {
     const user = userEvent.setup();
-    renderWithRouter(<Sidebar {...defaultProps} />);
+    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
 
     const householdItemsLink = screen.getByRole('link', { name: /household items/i });
     await user.click(householdItemsLink);
@@ -194,7 +244,7 @@ describe('Sidebar', () => {
 
   it('clicking a nav link calls onClose (documents)', async () => {
     const user = userEvent.setup();
-    renderWithRouter(<Sidebar {...defaultProps} />);
+    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
 
     const documentsLink = screen.getByRole('link', { name: /documents/i });
     await user.click(documentsLink);
@@ -203,7 +253,7 @@ describe('Sidebar', () => {
   });
 
   it('user management link has correct href attribute', () => {
-    renderWithRouter(<Sidebar {...defaultProps} />);
+    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
 
     expect(screen.getByRole('link', { name: /user management/i })).toHaveAttribute(
       'href',
@@ -212,7 +262,9 @@ describe('Sidebar', () => {
   });
 
   it('user management link is active at /admin/users', () => {
-    renderWithRouter(<Sidebar {...defaultProps} />, { initialEntries: ['/admin/users'] });
+    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />, {
+      initialEntries: ['/admin/users'],
+    });
 
     const userManagementLink = screen.getByRole('link', { name: /user management/i });
     expect(userManagementLink).toHaveClass('active');
@@ -220,11 +272,81 @@ describe('Sidebar', () => {
 
   it('clicking user management link calls onClose', async () => {
     const user = userEvent.setup();
-    renderWithRouter(<Sidebar {...defaultProps} />);
+    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
 
     const userManagementLink = screen.getByRole('link', { name: /user management/i });
     await user.click(userManagementLink);
 
     expect(mockOnClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders a logout button', () => {
+    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
+
+    expect(screen.getByRole('button', { name: /logout/i })).toBeInTheDocument();
+  });
+
+  it('clicking logout button calls logout from context', async () => {
+    const user = userEvent.setup();
+    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
+
+    const logoutButton = screen.getByRole('button', { name: /logout/i });
+    await user.click(logoutButton);
+
+    // Wait for async logout to complete
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(mockLogout).toHaveBeenCalledTimes(1);
+  });
+
+  it('clicking logout button calls onClose after logout', async () => {
+    const user = userEvent.setup();
+    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
+
+    const logoutButton = screen.getByRole('button', { name: /logout/i });
+    await user.click(logoutButton);
+
+    // Wait for async logout to complete
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(mockOnClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('onClose is called after logout completes, not before', async () => {
+    const user = userEvent.setup();
+    let resolveLogout: () => void;
+    const logoutPromise = new Promise<void>((resolve) => {
+      resolveLogout = resolve;
+    });
+    mockLogout.mockReturnValue(logoutPromise);
+
+    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
+
+    const logoutButton = screen.getByRole('button', { name: /logout/i });
+    await user.click(logoutButton);
+
+    // onClose should not be called yet
+    expect(mockOnClose).not.toHaveBeenCalled();
+
+    // Resolve logout
+    resolveLogout!();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    // Now onClose should be called
+    expect(mockOnClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('logout button does not interfere with navigation link count', () => {
+    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
+
+    const links = screen.getAllByRole('link');
+    const buttons = screen.getAllByRole('button');
+
+    // Still 8 navigation links
+    expect(links).toHaveLength(8);
+    // 2 buttons: close button + logout button
+    expect(buttons).toHaveLength(2);
+    expect(buttons[0]).toHaveAttribute('aria-label', 'Close menu');
+    expect(buttons[1]).toHaveTextContent(/logout/i);
   });
 });
