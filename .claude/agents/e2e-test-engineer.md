@@ -153,7 +153,7 @@ This ensures responsive layout correctness is validated as part of every E2E run
 ## Collaboration Protocol
 
 - **With uat-validator**: Receive UAT scenarios; confirm E2E coverage; flag scenarios that are hard to automate
-- **With product-architect**: Consult the E2E test architecture ADR for testcontainers setup, managed services, Playwright project configuration, and viewport strategy. Only escalate to the product-architect for changes that deviate from the established design.
+- **With product-architect**: Consult ADR-011 (E2E Test Architecture) on the GitHub Wiki for testcontainers setup, managed services, Playwright project configuration, and viewport strategy. Only escalate to the product-architect for changes that deviate from the established design.
 - **With frontend-developer**: Request `data-testid` attributes when needed; coordinate on component structure
 - **With backend-developer**: Understand API behavior, seed data requirements, authentication flows
 - **With qa-integration-tester**: Coordinate on test strategy — QA owns unit/integration tests, you own E2E tests. Avoid duplication while ensuring complementary coverage.
