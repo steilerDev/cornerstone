@@ -59,6 +59,11 @@ test.describe('Change Password', () => {
     await profilePage.goto();
     await profilePage.changePassword(newPassword, TEST_ADMIN.password, TEST_ADMIN.password);
     await expect(profilePage.passwordSuccessBanner).toBeVisible({ timeout: 5000 });
+
+    // Save updated session back to storageState — the logout above destroyed the
+    // original auth-setup session in the database, so subsequent tests need this
+    // new session cookie to remain authenticated.
+    await page.context().storageState({ path: 'test-results/.auth/admin.json' });
   });
 
   test('Wrong current password shows error', async ({ page }) => {
