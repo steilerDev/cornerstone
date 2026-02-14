@@ -5,10 +5,11 @@
  * The Cornerstone server communicates with the OIDC provider via Docker network alias
  * (oidc-server:8080), while the browser accesses it via localhost:${mappedPort}.
  *
- * Strategy: Intercept the /api/auth/oidc/login response (a 302 redirect to the Docker
- * alias) and rewrite the Location header to use the host-mapped port. This avoids
- * relying on page.route() to intercept cross-origin redirect targets, which browsers
- * may resolve at the network layer before Playwright can intercept.
+ * Strategy: Intercept the /api/auth/oidc/login request, fetch the 302 response
+ * server-side (with maxRedirects:0), extract the Location header pointing to the
+ * Docker alias, and return an HTML page with a JS redirect to the rewritten URL.
+ * Playwright does not allow route.fulfill() with redirect status codes, and
+ * page.route() cannot reliably intercept cross-origin redirect targets.
  */
 
 import { test, expect } from '@playwright/test';
@@ -37,16 +38,20 @@ test.describe('OIDC SSO Flow', () => {
   });
 
   test.beforeEach(async ({ page }) => {
-    // Intercept the OIDC login endpoint response and rewrite the Location header.
-    // The server returns a 302 pointing to http://oidc-server:8080/... (Docker alias),
-    // which the browser cannot resolve. We rewrite it to localhost:${mappedPort}.
+    // Intercept the OIDC login endpoint: the server returns a 302 to
+    // http://oidc-server:8080/... (Docker alias) which the browser cannot resolve.
+    // We fetch the 302 manually, rewrite the Location, and return an HTML page
+    // that performs a JS redirect (Playwright forbids route.fulfill with 3xx status).
     await page.route('**/api/auth/oidc/login*', async (route) => {
       const response = await route.fetch({ maxRedirects: 0 });
       const location = response.headers()['location'] || '';
       if (location.includes('oidc-server:8080')) {
-        const newLocation = location.replace(/oidc-server:8080/g, oidcHostPort);
-        const headers = { ...response.headers(), location: newLocation };
-        await route.fulfill({ status: response.status(), headers });
+        const rewritten = location.replace(/oidc-server:8080/g, oidcHostPort);
+        await route.fulfill({
+          status: 200,
+          contentType: 'text/html',
+          body: `<html><script>window.location.replace(${JSON.stringify(rewritten)});</script></html>`,
+        });
       } else {
         await route.fulfill({ response });
       }
