@@ -16,8 +16,10 @@ export interface StartedOidcContainer {
  */
 export async function startOidcContainer(network: Network): Promise<StartedOidcContainer> {
   // Mock OIDC server configuration
+  // interactiveLogin: false → auto-grants without showing a login form
+  // Claims match TEST_MEMBER in testData.ts
   const jsonConfig = JSON.stringify({
-    interactiveLogin: true,
+    interactiveLogin: false,
     httpServer: 'NettyWrapper',
     tokenCallbacks: [
       {
@@ -28,10 +30,10 @@ export async function startOidcContainer(network: Network): Promise<StartedOidcC
             requestParam: 'grant_type',
             match: 'authorization_code',
             claims: {
-              sub: 'e2e-test-user',
-              email: 'e2e@test.local',
+              sub: 'e2e-member-user',
+              email: 'member@e2e-test.local',
               email_verified: true,
-              name: 'E2E Test User',
+              name: 'E2E Member',
             },
           },
         ],

@@ -108,8 +108,8 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
   const oidcClientSecret = getValue('OIDC_CLIENT_SECRET');
   const oidcRedirectUri = getValue('OIDC_REDIRECT_URI');
 
-  // OIDC is enabled only when ALL four variables are set
-  const oidcEnabled = !!(oidcIssuer && oidcClientId && oidcClientSecret && oidcRedirectUri);
+  // OIDC is enabled when issuer, client ID, and client secret are set (redirect URI is optional)
+  const oidcEnabled = !!(oidcIssuer && oidcClientId && oidcClientSecret);
 
   // If there are any validation errors, throw a single error listing all of them
   if (errors.length > 0) {

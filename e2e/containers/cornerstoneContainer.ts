@@ -33,13 +33,13 @@ export async function startCornerstoneContainer(
   };
 
   // Add OIDC configuration if port is provided
+  // Uses Docker network alias so the server can reach the OIDC provider container-to-container
+  // OIDC_REDIRECT_URI is omitted — the server derives it from the incoming request
   if (oidcPort) {
     Object.assign(environment, {
-      OIDC_ISSUER: `http://localhost:${oidcPort}/default`,
+      OIDC_ISSUER: 'http://oidc-server:8080/default',
       OIDC_CLIENT_ID: 'cornerstone-e2e',
       OIDC_CLIENT_SECRET: 'e2e-secret',
-      // Will be updated with actual mapped port after container starts
-      OIDC_REDIRECT_URI: 'http://localhost:PLACEHOLDER/api/auth/oidc/callback',
     });
   }
 
@@ -70,15 +70,6 @@ export async function startCornerstoneContainer(
 
   const mappedPort = container.getMappedPort(3000);
   const baseUrl = `http://localhost:${mappedPort}`;
-
-  // Update OIDC redirect URI with actual mapped port if OIDC is configured
-  if (oidcPort) {
-    await container.exec([
-      'sh',
-      '-c',
-      `export OIDC_REDIRECT_URI=${baseUrl}/api/auth/oidc/callback`,
-    ]);
-  }
 
   return {
     container,
