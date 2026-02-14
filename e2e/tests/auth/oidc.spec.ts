@@ -65,10 +65,12 @@ test.describe('OIDC SSO Flow', () => {
     await expect(page).toHaveURL(ROUTES.home, { timeout: 15000 });
 
     // And: /api/auth/me should return authenticated user
+    // The response wraps user data: { user: { email, ... }, setupRequired, oidcEnabled }
     const meResponse = await page.request.get(API.authMe);
     expect(meResponse.ok()).toBe(true);
     const me = await meResponse.json();
-    expect(me.email).toBe(TEST_MEMBER.email);
+    expect(me.user).not.toBeNull();
+    expect(me.user.email).toBe(TEST_MEMBER.email);
   });
 
   test('Auto-provisioned OIDC user has correct attributes', async ({ page }) => {
@@ -84,10 +86,11 @@ test.describe('OIDC SSO Flow', () => {
     const meResponse = await page.request.get(API.authMe);
     expect(meResponse.ok()).toBe(true);
     const me = await meResponse.json();
-    expect(me.email).toBe(TEST_MEMBER.email);
-    expect(me.displayName).toBe(TEST_MEMBER.displayName);
-    expect(me.role).toBe('member');
-    expect(me.authProvider).toBe('oidc');
+    expect(me.user).not.toBeNull();
+    expect(me.user.email).toBe(TEST_MEMBER.email);
+    expect(me.user.displayName).toBe(TEST_MEMBER.displayName);
+    expect(me.user.role).toBe('member');
+    expect(me.user.authProvider).toBe('oidc');
   });
 
   test('OIDC user appears in admin user management', async ({ page, browser }) => {
