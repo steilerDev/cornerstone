@@ -25,7 +25,7 @@ export class LoginPage {
     this.signInButton = page.getByRole('button', { name: /Sign In|Signing In/ });
     this.ssoButton = page.getByRole('button', { name: 'Login with SSO' });
     this.errorBanner = page.locator('[role="alert"]').first();
-    this.divider = page.getByText('or');
+    this.divider = page.getByText('or', { exact: true });
   }
 
   async goto(): Promise<void> {
