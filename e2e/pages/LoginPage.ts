@@ -43,8 +43,12 @@ export class LoginPage {
   }
 
   async getErrorBanner(): Promise<string | null> {
-    const isVisible = await this.errorBanner.isVisible();
-    return isVisible ? await this.errorBanner.textContent() : null;
+    try {
+      await this.errorBanner.waitFor({ state: 'visible', timeout: 5000 });
+      return await this.errorBanner.textContent();
+    } catch {
+      return null;
+    }
   }
 
   async isSSOButtonVisible(): Promise<boolean> {

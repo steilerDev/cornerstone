@@ -34,13 +34,14 @@ test.describe('Database Migrations', () => {
     expect(loginResponse.ok()).toBeTruthy();
 
     // When: Verifying the session
-    const statusResponse = await request.get(API.authStatus);
+    const meResponse = await request.get(API.authMe);
 
-    // Then: The session should be authenticated
-    expect(statusResponse.ok()).toBeTruthy();
-    const status = await statusResponse.json();
-    expect(status.authenticated).toBeTruthy();
-    expect(status.user).toHaveProperty('email', TEST_ADMIN.email);
+    // Then: The session should be authenticated with the correct user
+    expect(meResponse.ok()).toBeTruthy();
+    const meBody = await meResponse.json();
+    expect(meBody.user).toBeTruthy();
+    expect(meBody.user).toHaveProperty('email', TEST_ADMIN.email);
+    expect(meBody).toHaveProperty('setupRequired', false);
   });
 
   test('should handle idempotent startup', async ({ request }) => {
@@ -72,19 +73,19 @@ test.describe('Database Migrations', () => {
     expect(loginResponse.ok()).toBeTruthy();
 
     // And: Verifying the session persists across multiple requests
-    const firstStatusCheck = await request.get(API.authStatus);
-    const secondStatusCheck = await request.get(API.authStatus);
+    const firstMeCheck = await request.get(API.authMe);
+    const secondMeCheck = await request.get(API.authMe);
 
     // Then: Session should persist (sessions table works correctly)
-    expect(firstStatusCheck.ok()).toBeTruthy();
-    expect(secondStatusCheck.ok()).toBeTruthy();
+    expect(firstMeCheck.ok()).toBeTruthy();
+    expect(secondMeCheck.ok()).toBeTruthy();
 
-    const firstStatus = await firstStatusCheck.json();
-    const secondStatus = await secondStatusCheck.json();
+    const firstMe = await firstMeCheck.json();
+    const secondMe = await secondMeCheck.json();
 
-    expect(firstStatus.authenticated).toBeTruthy();
-    expect(secondStatus.authenticated).toBeTruthy();
-    expect(firstStatus.user.id).toBe(secondStatus.user.id);
+    expect(firstMe.user).toBeTruthy();
+    expect(secondMe.user).toBeTruthy();
+    expect(firstMe.user.id).toBe(secondMe.user.id);
   });
 
   test('should support logout and session cleanup', async ({ request }) => {
@@ -98,10 +99,10 @@ test.describe('Database Migrations', () => {
     expect(loginResponse.ok()).toBeTruthy();
 
     // Verify authenticated
-    const statusBeforeLogout = await request.get(API.authStatus);
-    expect(statusBeforeLogout.ok()).toBeTruthy();
-    const statusBefore = await statusBeforeLogout.json();
-    expect(statusBefore.authenticated).toBeTruthy();
+    const meBeforeLogout = await request.get(API.authMe);
+    expect(meBeforeLogout.ok()).toBeTruthy();
+    const meBefore = await meBeforeLogout.json();
+    expect(meBefore.user).toBeTruthy();
 
     // When: Logging out
     const logoutResponse = await request.post(API.logout);
@@ -110,9 +111,9 @@ test.describe('Database Migrations', () => {
     expect(logoutResponse.ok()).toBeTruthy();
 
     // And: Session should no longer be authenticated
-    const statusAfterLogout = await request.get(API.authStatus);
-    expect(statusAfterLogout.ok()).toBeTruthy();
-    const statusAfter = await statusAfterLogout.json();
-    expect(statusAfter.authenticated).toBeFalsy();
+    const meAfterLogout = await request.get(API.authMe);
+    expect(meAfterLogout.ok()).toBeTruthy();
+    const meAfter = await meAfterLogout.json();
+    expect(meAfter.user).toBeNull();
   });
 });

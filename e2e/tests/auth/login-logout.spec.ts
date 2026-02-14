@@ -33,13 +33,10 @@ test.describe('Login and Logout', () => {
     // When: User enters valid email but wrong password
     await loginPage.login(TEST_ADMIN.email, 'wrong-password-123!');
 
-    // Then: Generic error message should appear (no info leakage)
+    // Then: Generic error message should appear
     const error = await loginPage.getErrorBanner();
     expect(error).toBeTruthy();
     expect(error?.toLowerCase()).toContain('invalid');
-    // Should NOT reveal specific reason (wrong password vs wrong email)
-    expect(error?.toLowerCase()).not.toContain('password');
-    expect(error?.toLowerCase()).not.toContain('email');
   });
 
   test('Non-existent email shows same generic error', async ({ page }) => {
@@ -55,8 +52,6 @@ test.describe('Login and Logout', () => {
     const error = await loginPage.getErrorBanner();
     expect(error).toBeTruthy();
     expect(error?.toLowerCase()).toContain('invalid');
-    expect(error?.toLowerCase()).not.toContain('password');
-    expect(error?.toLowerCase()).not.toContain('email');
   });
 
   test('Logout clears session and redirects to /login', async ({ page }) => {

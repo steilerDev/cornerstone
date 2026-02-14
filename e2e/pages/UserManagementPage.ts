@@ -45,10 +45,8 @@ export class UserManagementPage {
     this.table = page.locator('table');
     this.emptyState = page.getByText(/No users found/);
 
-    // Edit modal
-    this.editModal = page
-      .locator('.modal')
-      .filter({ has: page.getByRole('heading', { level: 2, name: 'Edit User' }) });
+    // Edit modal (uses role="dialog" with aria-label)
+    this.editModal = page.getByRole('dialog', { name: 'Edit User' });
     this.editModalHeading = this.editModal.getByRole('heading', { level: 2, name: 'Edit User' });
     this.editModalCloseButton = this.editModal.getByRole('button', { name: 'Close' });
     this.editDisplayNameInput = page.locator('#editDisplayName');
@@ -58,10 +56,8 @@ export class UserManagementPage {
     this.editSaveButton = this.editModal.getByRole('button', { name: /Save Changes|Saving/ });
     this.editModalError = this.editModal.locator('[role="alert"]');
 
-    // Deactivate modal
-    this.deactivateModal = page
-      .locator('.modal')
-      .filter({ has: page.getByRole('heading', { level: 2, name: 'Deactivate User' }) });
+    // Deactivate modal (uses role="dialog" with aria-label)
+    this.deactivateModal = page.getByRole('dialog', { name: 'Deactivate User' });
     this.deactivateModalHeading = this.deactivateModal.getByRole('heading', {
       level: 2,
       name: 'Deactivate User',
@@ -90,6 +86,8 @@ export class UserManagementPage {
   }
 
   async getUserRow(email: string): Promise<Locator | null> {
+    // Wait for table data to load
+    await this.table.locator('tbody tr').first().waitFor({ state: 'visible', timeout: 10000 });
     const rows = await this.getUserRows();
     for (const row of rows) {
       const rowEmail = await row.locator('td').nth(1).textContent();

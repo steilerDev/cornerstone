@@ -307,7 +307,7 @@ export function UserManagementPage() {
       {/* Edit Modal */}
       {editingUser && (
         <div className={styles.modalOverlay}>
-          <div className={styles.modal}>
+          <div className={styles.modal} role="dialog" aria-label="Edit User">
             <div className={styles.modalHeader}>
               <h2 className={styles.modalTitle}>Edit User</h2>
               <button
@@ -411,7 +411,7 @@ export function UserManagementPage() {
       {/* Deactivate Confirmation Modal */}
       {deactivatingUser && (
         <div className={styles.modalOverlay}>
-          <div className={styles.modal}>
+          <div className={styles.modal} role="dialog" aria-label="Deactivate User">
             <div className={styles.modalHeader}>
               <h2 className={styles.modalTitle}>Deactivate User</h2>
               <button

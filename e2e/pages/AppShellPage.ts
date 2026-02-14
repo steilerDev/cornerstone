@@ -40,9 +40,8 @@ export class AppShellPage {
   }
 
   async isSidebarOpen(): Promise<boolean> {
-    // Check if sidebar has 'open' class
-    const sidebarClass = await this.sidebar.getAttribute('class');
-    return sidebarClass?.includes('open') ?? false;
+    const dataOpen = await this.sidebar.getAttribute('data-open');
+    return dataOpen === 'true';
   }
 
   async isOverlayVisible(): Promise<boolean> {
@@ -60,8 +59,8 @@ export class AppShellPage {
 
   async isNavLinkActive(name: string): Promise<boolean> {
     const link = this.nav.getByRole('link', { name });
-    const className = await link.getAttribute('class');
-    return className?.includes('active') ?? false;
+    const ariaCurrent = await link.getAttribute('aria-current');
+    return ariaCurrent === 'page';
   }
 
   async logout(): Promise<void> {

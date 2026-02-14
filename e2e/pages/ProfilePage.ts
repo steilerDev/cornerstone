@@ -82,27 +82,26 @@ export class ProfilePage {
   }
 
   async getProfileInfo(): Promise<ProfileInfo> {
-    // Extract info from the info grid
-    const infoRows = await this.profileInfoSection.locator('.infoRow').all();
-    const info: Partial<ProfileInfo> = {};
+    // Extract info using text-based selectors (CSS module classes are hashed in production)
+    const section = this.profileInfoSection;
 
-    for (const row of infoRows) {
-      const label = await row.locator('.infoLabel').textContent();
-      const value = await row.locator('.infoValue').textContent();
-      if (label && value) {
-        if (label.includes('Email')) {
-          info.email = value;
-        } else if (label.includes('Role')) {
-          info.role = value;
-        } else if (label.includes('Authentication')) {
-          info.authProvider = value;
-        } else if (label.includes('Member Since')) {
-          info.memberSince = value;
-        }
-      }
-    }
+    const getValueForLabel = async (labelText: string): Promise<string> => {
+      // Find the span containing the label text, then get its sibling span's text
+      const labelLocator = section.getByText(labelText, { exact: true });
+      // The value span is the next sibling of the label span within the same row div
+      const row = labelLocator.locator('..');
+      const spans = row.locator('span');
+      // The second span in the row is the value
+      const valueSpan = spans.nth(1);
+      return (await valueSpan.textContent()) ?? '';
+    };
 
-    return info as ProfileInfo;
+    return {
+      email: await getValueForLabel('Email'),
+      role: await getValueForLabel('Role'),
+      authProvider: await getValueForLabel('Authentication'),
+      memberSince: await getValueForLabel('Member Since'),
+    };
   }
 
   async updateDisplayName(name: string): Promise<void> {

@@ -63,8 +63,8 @@ test.describe('View Profile', () => {
     // When: User views profile info
     const profileInfo = await profilePage.getProfileInfo();
 
-    // Then: Auth provider should show "Local"
-    expect(profileInfo.authProvider).toBe('Local');
+    // Then: Auth provider should show "Local Account"
+    expect(profileInfo.authProvider).toBe('Local Account');
   });
 
   test('Member Since shows valid date', async ({ page }) => {

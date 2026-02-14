@@ -119,9 +119,16 @@ test.describe('Reverse Proxy Setup', () => {
     await expect(page).not.toHaveURL(/\/login/);
 
     // When: Logging out through the proxy
-    // Navigate to profile page (where logout button is)
     await page.goto(`${proxyBaseUrl}/profile`);
-    const logoutButton = page.getByRole('button', { name: /log out/i });
+
+    // Open sidebar on mobile/tablet viewports where it's hidden
+    const viewport = page.viewportSize();
+    if (viewport && viewport.width < 1024) {
+      const menuButton = page.getByRole('button', { name: /Open menu|Close menu/ });
+      await menuButton.click();
+    }
+
+    const logoutButton = page.getByRole('button', { name: /logout/i });
     await logoutButton.click();
 
     // Then: Should redirect to login page
@@ -148,10 +155,10 @@ test.describe('Reverse Proxy Setup', () => {
     expect(loginResponse.ok()).toBeTruthy();
 
     // And: Session should be properly created with correct cookie attributes
-    const statusResponse = await request.get(`${proxyBaseUrl}${API.authStatus}`);
-    expect(statusResponse.ok()).toBeTruthy();
-    const status = await statusResponse.json();
-    expect(status.authenticated).toBeTruthy();
+    const meResponse = await request.get(`${proxyBaseUrl}${API.authMe}`);
+    expect(meResponse.ok()).toBeTruthy();
+    const meBody = await meResponse.json();
+    expect(meBody.user).toBeTruthy();
   });
 
   test('should serve static assets through proxy', async ({ page }) => {

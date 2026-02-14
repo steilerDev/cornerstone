@@ -29,7 +29,7 @@ export const ROUTES = {
 
 export const API = {
   health: '/api/health',
-  authStatus: '/api/auth/status',
+  authMe: '/api/auth/me',
   login: '/api/auth/login',
   logout: '/api/auth/logout',
   setup: '/api/auth/setup',
