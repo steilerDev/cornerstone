@@ -3,21 +3,18 @@
  *
  * These tests verify the full OIDC authentication flow using a mock OIDC provider.
  * The Cornerstone server communicates with the OIDC provider via Docker network alias
- * (oidc-server:8080), while the browser accesses it via localhost:${mappedPort}.
+ * (oidc-server:8080), while the browser accesses it through the Nginx proxy.
  *
- * Strategy: Intercept the /api/auth/oidc/login request, fetch the 302 response
- * server-side (with maxRedirects:0), extract the Location header pointing to the
- * Docker alias, and return an HTML page with a JS redirect to the rewritten URL.
- * Playwright does not allow route.fulfill() with redirect status codes, and
- * page.route() cannot reliably intercept cross-origin redirect targets.
+ * Strategy: All traffic goes through the Nginx reverse proxy, which rewrites OIDC
+ * redirects from the Docker network alias (http://oidc-server:8080/...) to
+ * browser-accessible URLs (/oidc-proxy/...). The proxy forwards /oidc-proxy/* requests
+ * to the OIDC server with Host: oidc-server:8080 to ensure the issuer claim matches.
  */
 
 import { test, expect } from '@playwright/test';
-import { readFile } from 'fs/promises';
 import { LoginPage } from '../../pages/LoginPage.js';
 import { UserManagementPage } from '../../pages/UserManagementPage.js';
 import { TEST_MEMBER, ROUTES, API } from '../../fixtures/testData.js';
-import type { ContainerState } from '../../containers/setup.js';
 
 // Serial mode: test 3 creates the OIDC user, tests 4 and 5 verify it
 test.describe.configure({ mode: 'serial' });
@@ -25,38 +22,6 @@ test.describe.configure({ mode: 'serial' });
 test.describe('OIDC SSO Flow', () => {
   // Unauthenticated context for OIDC login tests
   test.use({ storageState: { cookies: [], origins: [] } });
-
-  let oidcHostPort: string;
-
-  test.beforeAll(async () => {
-    // Read the OIDC issuer URL from the container state file
-    const stateJson = await readFile('e2e/test-results/.state/containers.json', 'utf-8');
-    const state: ContainerState = JSON.parse(stateJson);
-    // Extract host:port from the issuer URL (e.g., "http://localhost:12345/default" → "localhost:12345")
-    const issuerUrl = new URL(state.oidcIssuerUrl);
-    oidcHostPort = issuerUrl.host;
-  });
-
-  test.beforeEach(async ({ page }) => {
-    // Intercept the OIDC login endpoint: the server returns a 302 to
-    // http://oidc-server:8080/... (Docker alias) which the browser cannot resolve.
-    // We fetch the 302 manually, rewrite the Location, and return an HTML page
-    // that performs a JS redirect (Playwright forbids route.fulfill with 3xx status).
-    await page.route('**/api/auth/oidc/login*', async (route) => {
-      const response = await route.fetch({ maxRedirects: 0 });
-      const location = response.headers()['location'] || '';
-      if (location.includes('oidc-server:8080')) {
-        const rewritten = location.replace(/oidc-server:8080/g, oidcHostPort);
-        await route.fulfill({
-          status: 200,
-          contentType: 'text/html',
-          body: `<html><script>window.location.replace(${JSON.stringify(rewritten)});</script></html>`,
-        });
-      } else {
-        await route.fulfill({ response });
-      }
-    });
-  });
 
   test('Login page shows SSO button when OIDC is enabled', async ({ page }) => {
     const loginPage = new LoginPage(page);

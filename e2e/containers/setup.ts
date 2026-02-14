@@ -57,9 +57,9 @@ export default async function globalSetup(): Promise<void> {
     );
   }
 
-  // Start Nginx reverse proxy
+  // Start Nginx reverse proxy with OIDC proxy support
   console.log('🔄 Starting reverse proxy...');
-  const proxy = await startProxyContainer(network);
+  const proxy = await startProxyContainer(network, oidc.port);
   console.log(`✅ Reverse proxy ready at ${proxy.proxyUrl}`);
 
   // Prepare state object
@@ -79,7 +79,9 @@ export default async function globalSetup(): Promise<void> {
   console.log(`💾 Container state saved to ${STATE_FILE_PATH}`);
 
   // Set environment variables for Playwright tests
-  process.env.APP_BASE_URL = app.baseUrl;
+  // IMPORTANT: Use proxy URL as APP_BASE_URL so all tests go through the proxy
+  // This ensures OIDC redirects are rewritten to browser-accessible URLs
+  process.env.APP_BASE_URL = proxy.proxyUrl;
   process.env.PROXY_BASE_URL = proxy.proxyUrl;
   process.env.OIDC_ISSUER_URL = oidc.issuerUrl;
 
