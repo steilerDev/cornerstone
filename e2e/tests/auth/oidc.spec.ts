@@ -3,8 +3,12 @@
  *
  * These tests verify the full OIDC authentication flow using a mock OIDC provider.
  * The Cornerstone server communicates with the OIDC provider via Docker network alias
- * (oidc-server:8080), while the browser uses Playwright route interception to rewrite
- * those URLs to localhost:${mappedPort}.
+ * (oidc-server:8080), while the browser accesses it via localhost:${mappedPort}.
+ *
+ * Strategy: Intercept the /api/auth/oidc/login response (a 302 redirect to the Docker
+ * alias) and rewrite the Location header to use the host-mapped port. This avoids
+ * relying on page.route() to intercept cross-origin redirect targets, which browsers
+ * may resolve at the network layer before Playwright can intercept.
  */
 
 import { test, expect } from '@playwright/test';
@@ -33,12 +37,19 @@ test.describe('OIDC SSO Flow', () => {
   });
 
   test.beforeEach(async ({ page }) => {
-    // Intercept requests to the Docker network alias (oidc-server:8080)
-    // and rewrite them to the host-mapped port (localhost:${mappedPort})
-    await page.route(/oidc-server:8080/, async (route) => {
-      const originalUrl = route.request().url();
-      const rewrittenUrl = originalUrl.replace('oidc-server:8080', oidcHostPort);
-      await route.continue({ url: rewrittenUrl });
+    // Intercept the OIDC login endpoint response and rewrite the Location header.
+    // The server returns a 302 pointing to http://oidc-server:8080/... (Docker alias),
+    // which the browser cannot resolve. We rewrite it to localhost:${mappedPort}.
+    await page.route('**/api/auth/oidc/login*', async (route) => {
+      const response = await route.fetch({ maxRedirects: 0 });
+      const location = response.headers()['location'] || '';
+      if (location.includes('oidc-server:8080')) {
+        const newLocation = location.replace(/oidc-server:8080/g, oidcHostPort);
+        const headers = { ...response.headers(), location: newLocation };
+        await route.fulfill({ status: response.status(), headers });
+      } else {
+        await route.fulfill({ response });
+      }
     });
   });
 
