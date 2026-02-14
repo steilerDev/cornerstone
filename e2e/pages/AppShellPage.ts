@@ -17,8 +17,11 @@ export class AppShellPage {
     this.page = page;
     this.header = page.locator('header');
     this.sidebar = page.locator('aside');
-    this.menuButton = page.getByRole('button', { name: /Open menu|Close menu/ });
-    this.sidebarCloseButton = page.getByRole('button', { name: 'Close menu' });
+    // Scope menuButton to header to avoid strict mode violation
+    // (sidebar also has a "Close menu" button)
+    this.menuButton = page.locator('header').getByRole('button', { name: /Open menu|Close menu/ });
+    // Scope sidebarCloseButton to aside to avoid matching header button when both say "Close menu"
+    this.sidebarCloseButton = page.locator('aside').getByRole('button', { name: 'Close menu' });
     this.nav = page.getByRole('navigation', { name: 'Main navigation' });
     this.overlay = page.locator('div[aria-hidden="true"]').last();
   }
@@ -27,7 +30,8 @@ export class AppShellPage {
     const isOpen = await this.isSidebarOpen();
     if (!isOpen) {
       await this.menuButton.click();
-      await this.sidebar.waitFor({ state: 'visible' });
+      // Wait for data-open attribute to become "true" (sidebar CSS uses transform, not display)
+      await this.page.locator('aside[data-open="true"]').waitFor({ timeout: 5000 });
     }
   }
 
@@ -35,7 +39,8 @@ export class AppShellPage {
     const isOpen = await this.isSidebarOpen();
     if (isOpen) {
       await this.sidebarCloseButton.click();
-      await this.sidebar.waitFor({ state: 'hidden' });
+      // Wait for data-open attribute to become "false"
+      await this.page.locator('aside[data-open="false"]').waitFor({ timeout: 5000 });
     }
   }
 

@@ -149,12 +149,20 @@ export class UserManagementPage {
   }
 
   async getEditModalError(): Promise<string | null> {
-    const isVisible = await this.editModalError.isVisible();
-    return isVisible ? await this.editModalError.textContent() : null;
+    try {
+      await this.editModalError.waitFor({ state: 'visible', timeout: 5000 });
+      return await this.editModalError.textContent();
+    } catch {
+      return null;
+    }
   }
 
   async getDeactivateModalError(): Promise<string | null> {
-    const isVisible = await this.deactivateModalError.isVisible();
-    return isVisible ? await this.deactivateModalError.textContent() : null;
+    try {
+      await this.deactivateModalError.waitFor({ state: 'visible', timeout: 5000 });
+      return await this.deactivateModalError.textContent();
+    } catch {
+      return null;
+    }
   }
 }

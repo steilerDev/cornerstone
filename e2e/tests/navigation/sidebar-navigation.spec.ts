@@ -9,33 +9,43 @@ import { ROUTES } from '../../fixtures/testData.js';
 test.describe('Sidebar Navigation', () => {
   test('Navigate to each section via sidebar links', async ({ page }) => {
     const appShell = new AppShellPage(page);
+    const viewport = page.viewportSize();
+    const isMobile = viewport !== null && viewport.width < 1024;
+
+    // Helper: open sidebar on mobile/tablet before each click
+    const clickNav = async (name: string) => {
+      if (isMobile) {
+        await appShell.openSidebar();
+      }
+      await appShell.clickNavLink(name);
+    };
 
     // Given: User is on the dashboard
     await page.goto(ROUTES.home);
 
     // When/Then: Navigate to each section and verify URL
-    await appShell.clickNavLink('Work Items');
+    await clickNav('Work Items');
     await expect(page).toHaveURL(ROUTES.workItems);
 
-    await appShell.clickNavLink('Budget');
+    await clickNav('Budget');
     await expect(page).toHaveURL(ROUTES.budget);
 
-    await appShell.clickNavLink('Timeline');
+    await clickNav('Timeline');
     await expect(page).toHaveURL(ROUTES.timeline);
 
-    await appShell.clickNavLink('Household Items');
+    await clickNav('Household Items');
     await expect(page).toHaveURL(ROUTES.householdItems);
 
-    await appShell.clickNavLink('Documents');
+    await clickNav('Documents');
     await expect(page).toHaveURL(ROUTES.documents);
 
-    await appShell.clickNavLink('Profile');
+    await clickNav('Profile');
     await expect(page).toHaveURL(ROUTES.profile);
 
-    await appShell.clickNavLink('User Management');
+    await clickNav('User Management');
     await expect(page).toHaveURL(ROUTES.userManagement);
 
-    await appShell.clickNavLink('Dashboard');
+    await clickNav('Dashboard');
     await expect(page).toHaveURL(ROUTES.home);
   });
 

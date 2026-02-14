@@ -121,23 +121,39 @@ export class ProfilePage {
   }
 
   async getDisplayNameSuccessBanner(): Promise<string | null> {
-    const isVisible = await this.displayNameSuccessBanner.isVisible();
-    return isVisible ? await this.displayNameSuccessBanner.textContent() : null;
+    try {
+      await this.displayNameSuccessBanner.waitFor({ state: 'visible', timeout: 5000 });
+      return await this.displayNameSuccessBanner.textContent();
+    } catch {
+      return null;
+    }
   }
 
   async getDisplayNameErrorBanner(): Promise<string | null> {
-    const isVisible = await this.displayNameErrorBanner.isVisible();
-    return isVisible ? await this.displayNameErrorBanner.textContent() : null;
+    try {
+      await this.displayNameErrorBanner.waitFor({ state: 'visible', timeout: 5000 });
+      return await this.displayNameErrorBanner.textContent();
+    } catch {
+      return null;
+    }
   }
 
   async getPasswordSuccessBanner(): Promise<string | null> {
-    const isVisible = await this.passwordSuccessBanner.isVisible();
-    return isVisible ? await this.passwordSuccessBanner.textContent() : null;
+    try {
+      await this.passwordSuccessBanner.waitFor({ state: 'visible', timeout: 5000 });
+      return await this.passwordSuccessBanner.textContent();
+    } catch {
+      return null;
+    }
   }
 
   async getPasswordErrorBanner(): Promise<string | null> {
-    const isVisible = await this.passwordErrorBanner.isVisible();
-    return isVisible ? await this.passwordErrorBanner.textContent() : null;
+    try {
+      await this.passwordErrorBanner.waitFor({ state: 'visible', timeout: 5000 });
+      return await this.passwordErrorBanner.textContent();
+    } catch {
+      return null;
+    }
   }
 
   async isOidcUser(): Promise<boolean> {
