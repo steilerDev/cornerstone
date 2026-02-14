@@ -34,13 +34,17 @@ server {
         proxy_pass http://cornerstone-app:3000;
         proxy_set_header X-Forwarded-For $remote_addr;
         proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header X-Forwarded-Host $host;
-        proxy_set_header Host $host;
+        # Use $http_host (not $host) to preserve the port number.
+        # $host strips the port, which breaks redirect_uri construction.
+        proxy_set_header X-Forwarded-Host $http_host;
+        proxy_set_header Host $http_host;
 
-        # Rewrite OIDC redirects from Docker network alias to browser-accessible URL
-        # The OIDC server redirects to http://oidc-server:8080/... which the browser cannot resolve
-        # Rewrite to /oidc-proxy/... so the browser can reach it via this proxy
-        proxy_redirect ~*^http://oidc-server:8080/(.*)$ /oidc-proxy/$1;
+        # Rewrite OIDC redirects from Docker network alias to browser-accessible URL.
+        # The Cornerstone server redirects to http://oidc-server:8080/... (Docker alias)
+        # which the browser cannot resolve. Rewrite to an absolute URL using $http_host
+        # so the browser reaches the OIDC server through this proxy's /oidc-proxy/ path.
+        # Must use a full URL (not relative path) because server_name is '_' (wildcard).
+        proxy_redirect ~*^http://oidc-server:8080/(.*)$ http://$http_host/oidc-proxy/$1;
     }
 
     # OIDC server proxy (browser-accessible endpoint)
@@ -54,7 +58,7 @@ server {
         proxy_set_header Host oidc-server:8080;
         proxy_set_header X-Forwarded-For $remote_addr;
         proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Host $http_host;
     }
 }
 `;
