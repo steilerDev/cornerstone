@@ -75,10 +75,10 @@ test.describe('Change Password', () => {
     // When: User enters wrong current password
     await profilePage.changePassword('wrong-password', 'new-password-123!', 'new-password-123!');
 
-    // Then: Error message should appear
+    // Then: Error message should appear (server returns "Current password is incorrect")
     const errorBanner = await profilePage.getPasswordErrorBanner();
     expect(errorBanner).toBeTruthy();
-    expect(errorBanner?.toLowerCase()).toContain('invalid');
+    expect(errorBanner?.toLowerCase()).toContain('incorrect');
   });
 
   test('New passwords must match validation', async ({ page }) => {

@@ -120,11 +120,14 @@ test.describe('Edit User', () => {
     await userManagementPage.editEmailInput.fill('not-an-email');
     await userManagementPage.editSaveButton.click();
 
-    // Then: Should show error or button disabled
+    // Then: Should show error, button disabled, or HTML5 validation constraint
     const isDisabled = await userManagementPage.editSaveButton.isDisabled();
     const error = await userManagementPage.getEditModalError();
+    const isInputInvalid = await userManagementPage.editEmailInput.evaluate(
+      (el: HTMLInputElement) => !el.validity.valid,
+    );
 
-    expect(isDisabled || error).toBeTruthy();
+    expect(isDisabled || error || isInputInvalid).toBeTruthy();
   });
 
   /**

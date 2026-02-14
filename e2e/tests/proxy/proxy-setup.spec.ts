@@ -99,7 +99,7 @@ test.describe('Reverse Proxy Setup', () => {
     await page.goto(`${proxyBaseUrl}/profile`);
 
     // Then: The session should persist and the page should load
-    await expect(page.getByRole('heading', { name: 'Profile' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Profile', level: 1 })).toBeVisible();
 
     await context.close();
   });
@@ -124,8 +124,13 @@ test.describe('Reverse Proxy Setup', () => {
     // Open sidebar on mobile/tablet viewports where it's hidden
     const viewport = page.viewportSize();
     if (viewport && viewport.width < 1024) {
-      const menuButton = page.getByRole('button', { name: /Open menu|Close menu/ });
+      // Scope to header to avoid strict mode violation (sidebar also has a Close menu button)
+      const menuButton = page
+        .locator('header')
+        .getByRole('button', { name: /Open menu|Close menu/ });
       await menuButton.click();
+      // Wait for sidebar to open (CSS transform-based, not display-based)
+      await page.locator('aside[data-open="true"]').waitFor({ timeout: 5000 });
     }
 
     const logoutButton = page.getByRole('button', { name: /logout/i });
