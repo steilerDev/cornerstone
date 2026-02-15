@@ -7,6 +7,7 @@ jest.unstable_mockModule('openid-client', () => ({
   discovery: jest.fn(),
   buildAuthorizationUrl: jest.fn(),
   authorizationCodeGrant: jest.fn(),
+  allowInsecureRequests: Symbol('allowInsecureRequests'),
 }));
 
 describe('OIDC Service', () => {
@@ -43,6 +44,9 @@ describe('OIDC Service', () => {
     mockDiscovery.mockReset();
     mockBuildAuthorizationUrl.mockReset();
     mockAuthorizationCodeGrant.mockReset();
+
+    // Reset OIDC cache between tests
+    oidcService.resetCache();
 
     // Mock Date.now() to control time in tests
     originalDateNow = Date.now;
@@ -395,9 +399,40 @@ describe('OIDC Service', () => {
       // Then: Returns configuration
       expect(result).toBe(mockConfig);
 
-      // And: discovery was called with correct params
+      // And: discovery was called with correct params (HTTPS → no allowInsecureRequests)
       expect(mockDiscovery).toHaveBeenCalledTimes(1);
-      expect(mockDiscovery).toHaveBeenCalledWith(new URL(issuerUrl), clientId, clientSecret);
+      expect(mockDiscovery).toHaveBeenCalledWith(
+        new URL(issuerUrl),
+        clientId,
+        clientSecret,
+        undefined,
+        undefined,
+      );
+    });
+
+    it('passes allowInsecureRequests for HTTP issuer URLs', async () => {
+      // Given: HTTP issuer URL
+      const issuerUrl = 'http://oidc-server:8080/default';
+      const clientId = 'client-123';
+      const clientSecret = 'secret-456';
+      const mockConfig = {
+        issuer: issuerUrl,
+      } as never;
+
+      mockDiscovery.mockResolvedValue(mockConfig);
+
+      // When: Discovering OIDC configuration
+      await oidcService.discoverOidcConfig(issuerUrl, clientId, clientSecret);
+
+      // Then: discovery was called with allowInsecureRequests in execute array
+      expect(mockDiscovery).toHaveBeenCalledTimes(1);
+      expect(mockDiscovery).toHaveBeenCalledWith(
+        new URL(issuerUrl),
+        clientId,
+        clientSecret,
+        undefined,
+        { execute: [oidcClient.allowInsecureRequests] },
+      );
     });
 
     it('caches the result (second call does not invoke discovery again)', async () => {

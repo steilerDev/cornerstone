@@ -111,10 +111,10 @@ describe('OIDC Routes', () => {
     });
 
     it('oidcEnabled is false when only some OIDC env vars are set', async () => {
-      // Given: Partial OIDC configuration
+      // Given: Partial OIDC configuration (missing CLIENT_SECRET)
       process.env.OIDC_ISSUER = 'https://oidc.example.com';
       process.env.OIDC_CLIENT_ID = 'client-123';
-      // Missing OIDC_CLIENT_SECRET and OIDC_REDIRECT_URI
+      // Missing OIDC_CLIENT_SECRET
 
       app = await buildApp();
 
@@ -122,12 +122,11 @@ describe('OIDC Routes', () => {
       expect(app.config.oidcEnabled).toBe(false);
     });
 
-    it('oidcEnabled is true when all OIDC env vars are set', async () => {
-      // Given: Complete OIDC configuration
+    it('oidcEnabled is true when required OIDC env vars are set', async () => {
+      // Given: Required OIDC configuration (redirect URI is optional)
       process.env.OIDC_ISSUER = 'https://oidc.example.com';
       process.env.OIDC_CLIENT_ID = 'client-123';
       process.env.OIDC_CLIENT_SECRET = 'secret-456';
-      process.env.OIDC_REDIRECT_URI = 'https://app.example.com/api/auth/oidc/callback';
 
       app = await buildApp();
 

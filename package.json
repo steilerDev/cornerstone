@@ -6,7 +6,8 @@
   "workspaces": [
     "shared",
     "server",
-    "client"
+    "client",
+    "e2e"
   ],
   "scripts": {
     "dev": "concurrently -n server,client -c blue,green \"npm run dev -w server\" \"npm run dev -w client\"",
@@ -20,6 +21,7 @@
     "test": "node --experimental-vm-modules node_modules/.bin/jest --maxWorkers=2",
     "test:watch": "node --experimental-vm-modules node_modules/.bin/jest --watch --maxWorkers=2",
     "test:coverage": "node --experimental-vm-modules node_modules/.bin/jest --coverage --maxWorkers=2",
+    "test:e2e": "npm test -w e2e",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md}\"",

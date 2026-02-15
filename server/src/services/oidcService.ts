@@ -13,6 +13,7 @@ const stateStore = new Map<string, StateData>();
 
 // Cached OIDC configuration
 let cachedConfig: client.Configuration | null = null;
+let cachedInsecure = false;
 
 /**
  * Discover the OIDC provider configuration and cache it.
@@ -32,7 +33,17 @@ export async function discoverOidcConfig(
     return cachedConfig;
   }
 
-  cachedConfig = await client.discovery(new URL(issuerUrl), clientId, clientSecret);
+  const url = new URL(issuerUrl);
+  cachedInsecure = url.protocol === 'http:';
+  const execute = cachedInsecure ? [client.allowInsecureRequests] : undefined;
+
+  cachedConfig = await client.discovery(
+    url,
+    clientId,
+    clientSecret,
+    undefined,
+    execute ? { execute } : undefined,
+  );
 
   return cachedConfig;
 }
@@ -82,7 +93,9 @@ export async function handleCallback(
   callbackUrl: URL,
   expectedState: string,
 ): Promise<{ sub: string; email: string; name: string }> {
-  const tokenResponse = await client.authorizationCodeGrant(config, callbackUrl, { expectedState });
+  const tokenResponse = await client.authorizationCodeGrant(config, callbackUrl, {
+    expectedState,
+  });
 
   const claims = tokenResponse.claims();
 
@@ -141,6 +154,15 @@ export function consumeState(state: string): string | null {
   // Remove the state after consuming it
   stateStore.delete(state);
   return data.redirect;
+}
+
+/**
+ * Reset the cached OIDC configuration.
+ * Only intended for testing — allows discovery to be re-invoked.
+ */
+export function resetCache(): void {
+  cachedConfig = null;
+  cachedInsecure = false;
 }
 
 /**

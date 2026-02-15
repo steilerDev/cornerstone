@@ -28,6 +28,9 @@ npm-debug.log*
 
 # Testing
 coverage/
+playwright-output/
+playwright-report/
+test-results/
 
 # SQLite
 *.sqlite

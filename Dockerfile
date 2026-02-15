@@ -40,7 +40,9 @@ COPY server/package.json server/
 COPY client/package.json client/
 
 # Install all dependencies (including devDependencies for build)
-RUN npm ci
+# Force native addons to compile from source instead of using prebuilds,
+# ensuring compatibility with the Alpine musl libc in the production image
+RUN npm ci --build-from-source
 
 # Copy source code
 COPY tsconfig.base.json ./
@@ -62,6 +64,10 @@ FROM dhi.io/node:24-alpine3.23 AS production
 # Create data directory (WORKDIR creates intermediate dirs without needing shell)
 WORKDIR /app/data
 WORKDIR /app
+
+# Copy runtime libraries needed by native addons (argon2 requires libgcc/libstdc++)
+COPY --from=builder /usr/lib/libgcc_s.so.1 /usr/lib/
+COPY --from=builder /usr/lib/libstdc++.so.6* /usr/lib/
 
 # Copy package files (needed for workspace resolution)
 COPY package.json ./

@@ -126,7 +126,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
       const config = loadConfig({
         OIDC_ISSUER: 'https://oidc.example.com',
         OIDC_CLIENT_ID: 'client-123',
-        // Missing OIDC_CLIENT_SECRET and OIDC_REDIRECT_URI
+        // Missing OIDC_CLIENT_SECRET
       });
 
       expect(config.oidcEnabled).toBe(false);
@@ -182,15 +182,16 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
       expect(config.oidcEnabled).toBe(false);
     });
 
-    it('missing one OIDC var disables OIDC (missing REDIRECT_URI)', () => {
+    it('OIDC enabled without OIDC_REDIRECT_URI (optional, derived from request)', () => {
       const config = loadConfig({
         OIDC_ISSUER: 'https://oidc.example.com',
         OIDC_CLIENT_ID: 'client-123',
         OIDC_CLIENT_SECRET: 'secret-456',
-        // Missing OIDC_REDIRECT_URI
+        // No OIDC_REDIRECT_URI — server derives it from the request
       });
 
-      expect(config.oidcEnabled).toBe(false);
+      expect(config.oidcEnabled).toBe(true);
+      expect(config.oidcRedirectUri).toBeUndefined();
     });
   });
 
