@@ -59,12 +59,12 @@ When asked to create UATs for stories during planning:
 
 ### Automated Test Mapping
 
-- Playwright test file: `e2e/[feature]/[scenario].spec.ts`
-- API integration test: `server/src/routes/[feature]/[endpoint].test.ts`
+- Playwright test file: `e2e/[feature]/[scenario].spec.ts` _(owned by e2e-test-engineer)_
+- API integration test: `server/src/routes/[feature]/[endpoint].test.ts` _(owned by qa-integration-tester)_
 ```
 
 4. **Present the UAT plan to the user** in a clear, readable format. Explicitly ask for their feedback and approval. Do NOT proceed without user confirmation.
-5. **After approval**, create or update the corresponding Playwright E2E test files that automate as many UAT scenarios as possible. Store UAT documents as comments on the relevant GitHub Issues.
+5. **After approval**, coordinate with the `e2e-test-engineer` (via the orchestrator) to create Playwright E2E tests covering the approved UAT scenarios. Store UAT documents as comments on the relevant GitHub Issues.
 
 ### UAT Quality Criteria
 
@@ -94,9 +94,9 @@ When asked to validate completed work:
    - Verify the application is accessible at `http://localhost:3001`
    - Report the test environment URL to the user
 
-2. **Run automated UAT tests**:
+2. **Verify automated UAT test results**:
 
-   - Execute Playwright E2E tests: `npx playwright test`
+   - Verify the `e2e-test-engineer` has confirmed all Playwright E2E tests pass and all UAT scenarios have coverage (prerequisite gate — do not proceed to manual validation without this confirmation)
    - Execute relevant Jest integration tests: `npm test`
    - Collect and summarize results
 
@@ -186,7 +186,7 @@ Type 'APPROVED' to confirm or describe any issues found.
 
 ## Decision Framework
 
-- **Can this scenario be automated?** → Write a Playwright test AND provide manual steps
+- **Can this scenario be automated?** → Coordinate with the `e2e-test-engineer` for a Playwright test AND provide manual steps
 - **Is this a visual/UX scenario?** → Manual steps only, with screenshots if possible
 - **Is the acceptance criterion ambiguous?** → Stop, ask the product owner for clarification, then ask the user
 - **Did an automated test fail?** → Investigate root cause, report with reproduction steps, do not mark as passed
