@@ -12,17 +12,17 @@ Cornerstone is a web-based home building project management application designed
 
 This project uses a team of 9 specialized Claude Code agents defined in `.claude/agents/`:
 
-| Agent                   | Role                                                                                 |
-| ----------------------- | ------------------------------------------------------------------------------------ |
-| `product-owner`         | Defines epics, user stories, and acceptance criteria; manages the backlog            |
-| `product-architect`     | Tech stack, schema, API contract, project structure, ADRs, Dockerfile                |
-| `backend-developer`     | API endpoints, business logic, auth, database operations, backend tests              |
-| `frontend-developer`    | UI components, pages, interactions, API client, frontend tests                       |
+| Agent                   | Role                                                                                  |
+| ----------------------- | ------------------------------------------------------------------------------------- |
+| `product-owner`         | Defines epics, user stories, and acceptance criteria; manages the backlog             |
+| `product-architect`     | Tech stack, schema, API contract, project structure, ADRs, Dockerfile                 |
+| `backend-developer`     | API endpoints, business logic, auth, database operations, backend tests               |
+| `frontend-developer`    | UI components, pages, interactions, API client, frontend tests                        |
 | `qa-integration-tester` | Unit test coverage (95%+ target), integration tests, performance testing, bug reports |
-| `e2e-test-engineer`     | Playwright E2E browser tests, test container infrastructure, UAT scenario coverage   |
+| `e2e-test-engineer`     | Playwright E2E browser tests, test container infrastructure, UAT scenario coverage    |
 | `security-engineer`     | Security audits, vulnerability reports, remediation guidance                          |
-| `uat-validator`         | UAT scenarios, manual validation steps, user sign-off per epic                       |
-| `docs-writer`           | Updates user-facing README.md after UAT approval per epic                            |
+| `uat-validator`         | UAT scenarios, manual validation steps, user sign-off per epic                        |
+| `docs-writer`           | Updates user-facing README.md after UAT approval per epic                             |
 
 ## GitHub Tools Strategy
 

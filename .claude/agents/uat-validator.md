@@ -59,8 +59,8 @@ When asked to create UATs for stories during planning:
 
 ### Automated Test Mapping
 
-- Playwright test file: `e2e/[feature]/[scenario].spec.ts` *(owned by e2e-test-engineer)*
-- API integration test: `server/src/routes/[feature]/[endpoint].test.ts` *(owned by qa-integration-tester)*
+- Playwright test file: `e2e/[feature]/[scenario].spec.ts` _(owned by e2e-test-engineer)_
+- API integration test: `server/src/routes/[feature]/[endpoint].test.ts` _(owned by qa-integration-tester)_
 ```
 
 4. **Present the UAT plan to the user** in a clear, readable format. Explicitly ask for their feedback and approval. Do NOT proceed without user confirmation.
