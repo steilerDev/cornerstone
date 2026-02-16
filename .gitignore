@@ -10,6 +10,7 @@ build/
 .env
 .env.local
 .env.*.local
+.env.worktree
 
 # OS files
 .DS_Store
@@ -28,6 +29,9 @@ npm-debug.log*
 
 # Testing
 coverage/
+playwright-output/
+playwright-report/
+test-results/
 
 # SQLite
 *.sqlite

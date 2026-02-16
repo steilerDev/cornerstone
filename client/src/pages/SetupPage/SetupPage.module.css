@@ -1,0 +1,7 @@
+/* SetupPage-specific styles (hint message) */
+/* Shared auth styles are in ../shared/AuthPage.module.css */
+
+.hint {
+  font-size: 0.75rem;
+  color: #6b7280;
+}

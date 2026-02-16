@@ -26,6 +26,7 @@ export default tseslint.config(
         module: 'readonly',
         __dirname: 'readonly',
         __filename: 'readonly',
+        process: 'readonly',
       },
     },
     rules: {
@@ -63,6 +64,14 @@ export default tseslint.config(
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/consistent-type-imports': 'error',
       'no-console': ['warn', { allow: ['warn', 'error'] }],
+    },
+  },
+
+  // E2E test files - allow console.log for test visibility
+  {
+    files: ['e2e/**/*.ts'],
+    rules: {
+      'no-console': 'off',
     },
   },
 

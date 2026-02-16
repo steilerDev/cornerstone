@@ -7,6 +7,14 @@ export interface AppConfig {
   databaseUrl: string;
   logLevel: 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal';
   nodeEnv: string;
+  sessionDuration: number; // seconds
+  secureCookies: boolean;
+  trustProxy: boolean;
+  oidcIssuer?: string;
+  oidcClientId?: string;
+  oidcClientSecret?: string;
+  oidcRedirectUri?: string;
+  oidcEnabled: boolean;
 }
 
 // Type augmentation: makes fastify.config available across all routes/plugins
@@ -61,6 +69,48 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
   // NODE_ENV (simple string, no validation)
   const nodeEnv = getValue('NODE_ENV') ?? 'production';
 
+  // Parse and validate SESSION_DURATION
+  const sessionDurationStr = getValue('SESSION_DURATION') ?? '604800';
+  const sessionDuration = parseInt(sessionDurationStr, 10);
+  if (isNaN(sessionDuration)) {
+    errors.push(`SESSION_DURATION must be a valid number, got: ${sessionDurationStr}`);
+  } else if (sessionDuration <= 0) {
+    errors.push(`SESSION_DURATION must be greater than 0, got: ${sessionDuration}`);
+  }
+
+  // Parse and validate SECURE_COOKIES
+  const secureCookiesStr = (getValue('SECURE_COOKIES') ?? 'true').toLowerCase();
+  let secureCookies: boolean;
+  if (secureCookiesStr === 'true') {
+    secureCookies = true;
+  } else if (secureCookiesStr === 'false') {
+    secureCookies = false;
+  } else {
+    errors.push(`SECURE_COOKIES must be 'true' or 'false', got: ${getValue('SECURE_COOKIES')}`);
+    secureCookies = true; // Default fallback
+  }
+
+  // Parse TRUST_PROXY (boolean, default false)
+  const trustProxyStr = (getValue('TRUST_PROXY') ?? 'false').toLowerCase();
+  let trustProxy: boolean;
+  if (trustProxyStr === 'true') {
+    trustProxy = true;
+  } else if (trustProxyStr === 'false') {
+    trustProxy = false;
+  } else {
+    errors.push(`TRUST_PROXY must be 'true' or 'false', got: ${getValue('TRUST_PROXY')}`);
+    trustProxy = false; // Default fallback
+  }
+
+  // OIDC configuration (all optional)
+  const oidcIssuer = getValue('OIDC_ISSUER');
+  const oidcClientId = getValue('OIDC_CLIENT_ID');
+  const oidcClientSecret = getValue('OIDC_CLIENT_SECRET');
+  const oidcRedirectUri = getValue('OIDC_REDIRECT_URI');
+
+  // OIDC is enabled when issuer, client ID, and client secret are set (redirect URI is optional)
+  const oidcEnabled = !!(oidcIssuer && oidcClientId && oidcClientSecret);
+
   // If there are any validation errors, throw a single error listing all of them
   if (errors.length > 0) {
     throw new Error(`Configuration validation failed:\n  - ${errors.join('\n  - ')}`);
@@ -72,6 +122,14 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     databaseUrl,
     logLevel,
     nodeEnv,
+    sessionDuration,
+    secureCookies,
+    trustProxy,
+    oidcIssuer,
+    oidcClientId,
+    oidcClientSecret,
+    oidcRedirectUri,
+    oidcEnabled,
   };
 }
 
@@ -80,7 +138,7 @@ export default fp(
     // Load and validate configuration
     const config = loadConfig(process.env);
 
-    // Log the configuration (excluding sensitive values)
+    // Log the configuration (excluding sensitive values like oidcClientSecret)
     fastify.log.info(
       {
         port: config.port,
@@ -88,6 +146,11 @@ export default fp(
         databaseUrl: config.databaseUrl,
         logLevel: config.logLevel,
         nodeEnv: config.nodeEnv,
+        sessionDuration: config.sessionDuration,
+        secureCookies: config.secureCookies,
+        trustProxy: config.trustProxy,
+        oidcEnabled: config.oidcEnabled,
+        oidcIssuer: config.oidcIssuer,
       },
       'Configuration loaded',
     );

@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext.js';
 import styles from './Sidebar.module.css';
 
 interface SidebarProps {
@@ -7,10 +8,11 @@ interface SidebarProps {
 }
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
+  const { user, logout } = useAuth();
   const sidebarClassName = [styles.sidebar, isOpen && styles.open].filter(Boolean).join(' ');
 
   return (
-    <aside className={sidebarClassName}>
+    <aside className={sidebarClassName} data-open={isOpen}>
       <div className={styles.sidebarHeader}>
         <button
           type="button"
@@ -65,6 +67,33 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         >
           Documents
         </NavLink>
+        <div className={styles.navSeparator} />
+        <NavLink
+          to="/profile"
+          className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
+          onClick={onClose}
+        >
+          Profile
+        </NavLink>
+        {user?.role === 'admin' && (
+          <NavLink
+            to="/admin/users"
+            className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
+            onClick={onClose}
+          >
+            User Management
+          </NavLink>
+        )}
+        <div className={styles.navSeparator} />
+        <button
+          type="button"
+          className={styles.logoutButton}
+          onClick={() => {
+            void logout().then(() => onClose());
+          }}
+        >
+          Logout
+        </button>
       </nav>
     </aside>
   );

@@ -17,6 +17,14 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         databaseUrl: '/app/data/cornerstone.db',
         logLevel: 'info',
         nodeEnv: 'production',
+        sessionDuration: 604800,
+        secureCookies: true,
+        trustProxy: false,
+        oidcIssuer: undefined,
+        oidcClientId: undefined,
+        oidcClientSecret: undefined,
+        oidcRedirectUri: undefined,
+        oidcEnabled: false,
       });
     });
 
@@ -35,6 +43,14 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         databaseUrl: '/app/data/cornerstone.db',
         logLevel: 'info',
         nodeEnv: 'production',
+        sessionDuration: 604800,
+        secureCookies: true,
+        trustProxy: false,
+        oidcIssuer: undefined,
+        oidcClientId: undefined,
+        oidcClientSecret: undefined,
+        oidcRedirectUri: undefined,
+        oidcEnabled: false,
       });
     });
   });
@@ -55,6 +71,14 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         databaseUrl: '/custom/path/db.sqlite',
         logLevel: 'debug',
         nodeEnv: 'development',
+        sessionDuration: 604800,
+        secureCookies: true,
+        trustProxy: false,
+        oidcIssuer: undefined,
+        oidcClientId: undefined,
+        oidcClientSecret: undefined,
+        oidcRedirectUri: undefined,
+        oidcEnabled: false,
       });
     });
 
@@ -70,7 +94,132 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         databaseUrl: '/app/data/cornerstone.db',
         logLevel: 'warn',
         nodeEnv: 'production',
+        sessionDuration: 604800,
+        secureCookies: true,
+        trustProxy: false,
+        oidcIssuer: undefined,
+        oidcClientId: undefined,
+        oidcClientSecret: undefined,
+        oidcRedirectUri: undefined,
+        oidcEnabled: false,
       });
+    });
+  });
+
+  describe('OIDC Configuration', () => {
+    it('config with all OIDC env vars → oidcEnabled is true', () => {
+      const config = loadConfig({
+        OIDC_ISSUER: 'https://oidc.example.com',
+        OIDC_CLIENT_ID: 'client-123',
+        OIDC_CLIENT_SECRET: 'secret-456',
+        OIDC_REDIRECT_URI: 'https://app.example.com/api/auth/oidc/callback',
+      });
+
+      expect(config.oidcEnabled).toBe(true);
+      expect(config.oidcIssuer).toBe('https://oidc.example.com');
+      expect(config.oidcClientId).toBe('client-123');
+      expect(config.oidcClientSecret).toBe('secret-456');
+      expect(config.oidcRedirectUri).toBe('https://app.example.com/api/auth/oidc/callback');
+    });
+
+    it('config with partial OIDC env vars → oidcEnabled is false', () => {
+      const config = loadConfig({
+        OIDC_ISSUER: 'https://oidc.example.com',
+        OIDC_CLIENT_ID: 'client-123',
+        // Missing OIDC_CLIENT_SECRET
+      });
+
+      expect(config.oidcEnabled).toBe(false);
+      expect(config.oidcIssuer).toBe('https://oidc.example.com');
+      expect(config.oidcClientId).toBe('client-123');
+      expect(config.oidcClientSecret).toBeUndefined();
+      expect(config.oidcRedirectUri).toBeUndefined();
+    });
+
+    it('config with empty string OIDC env vars → oidcEnabled is false', () => {
+      const config = loadConfig({
+        OIDC_ISSUER: '',
+        OIDC_CLIENT_ID: '',
+        OIDC_CLIENT_SECRET: '',
+        OIDC_REDIRECT_URI: '',
+      });
+
+      expect(config.oidcEnabled).toBe(false);
+      expect(config.oidcIssuer).toBeUndefined();
+      expect(config.oidcClientId).toBeUndefined();
+      expect(config.oidcClientSecret).toBeUndefined();
+      expect(config.oidcRedirectUri).toBeUndefined();
+    });
+
+    it('verify OIDC values are correctly read from environment', () => {
+      const issuer = 'https://auth.example.com';
+      const clientId = 'my-client-id';
+      const clientSecret = 'my-client-secret';
+      const redirectUri = 'https://app.example.com/callback';
+
+      const config = loadConfig({
+        OIDC_ISSUER: issuer,
+        OIDC_CLIENT_ID: clientId,
+        OIDC_CLIENT_SECRET: clientSecret,
+        OIDC_REDIRECT_URI: redirectUri,
+      });
+
+      expect(config.oidcIssuer).toBe(issuer);
+      expect(config.oidcClientId).toBe(clientId);
+      expect(config.oidcClientSecret).toBe(clientSecret);
+      expect(config.oidcRedirectUri).toBe(redirectUri);
+      expect(config.oidcEnabled).toBe(true);
+    });
+
+    it('missing one OIDC var disables OIDC (missing CLIENT_SECRET)', () => {
+      const config = loadConfig({
+        OIDC_ISSUER: 'https://oidc.example.com',
+        OIDC_CLIENT_ID: 'client-123',
+        OIDC_REDIRECT_URI: 'https://app.example.com/callback',
+        // Missing OIDC_CLIENT_SECRET
+      });
+
+      expect(config.oidcEnabled).toBe(false);
+    });
+
+    it('OIDC enabled without OIDC_REDIRECT_URI (optional, derived from request)', () => {
+      const config = loadConfig({
+        OIDC_ISSUER: 'https://oidc.example.com',
+        OIDC_CLIENT_ID: 'client-123',
+        OIDC_CLIENT_SECRET: 'secret-456',
+        // No OIDC_REDIRECT_URI — server derives it from the request
+      });
+
+      expect(config.oidcEnabled).toBe(true);
+      expect(config.oidcRedirectUri).toBeUndefined();
+    });
+  });
+
+  describe('TRUST_PROXY Configuration', () => {
+    it('defaults to false when not set', () => {
+      const config = loadConfig({});
+      expect(config.trustProxy).toBe(false);
+    });
+
+    it('parses TRUST_PROXY=true', () => {
+      const config = loadConfig({ TRUST_PROXY: 'true' });
+      expect(config.trustProxy).toBe(true);
+    });
+
+    it('parses TRUST_PROXY=false', () => {
+      const config = loadConfig({ TRUST_PROXY: 'false' });
+      expect(config.trustProxy).toBe(false);
+    });
+
+    it('is case-insensitive', () => {
+      const config = loadConfig({ TRUST_PROXY: 'TRUE' });
+      expect(config.trustProxy).toBe(true);
+    });
+
+    it('rejects invalid value', () => {
+      expect(() => loadConfig({ TRUST_PROXY: 'yes' })).toThrow(
+        "TRUST_PROXY must be 'true' or 'false', got: yes",
+      );
     });
   });
 

@@ -5,10 +5,17 @@ import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
 import fastifyStatic from '@fastify/static';
 import fastifyCompress from '@fastify/compress';
+import fastifyCookie from '@fastify/cookie';
+import { sql } from 'drizzle-orm';
 import type { ApiErrorResponse } from '@cornerstone/shared';
 import configPlugin from './plugins/config.js';
 import dbPlugin from './plugins/db.js';
 import errorHandlerPlugin from './plugins/errorHandler.js';
+import authPlugin from './plugins/auth.js';
+import authRoutes from './routes/auth.js';
+import oidcRoutes from './routes/oidc.js';
+import userRoutes from './routes/users.js';
+import { hashPassword, verifyPassword } from './services/userService.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -17,6 +24,7 @@ export async function buildApp(): Promise<FastifyInstance> {
     logger: {
       level: process.env.LOG_LEVEL || 'info',
     },
+    trustProxy: process.env.TRUST_PROXY === 'true',
   });
 
   // Configuration (must be first)
@@ -28,12 +36,40 @@ export async function buildApp(): Promise<FastifyInstance> {
   // Compression (gzip/deflate/brotli)
   await app.register(fastifyCompress);
 
+  // Cookie parsing (required for session management)
+  await app.register(fastifyCookie);
+
   // Database connection & migrations
   await app.register(dbPlugin);
 
-  // Health check endpoint
+  // Authentication & session management (after db, before routes)
+  await app.register(authPlugin);
+
+  // Auth routes
+  await app.register(authRoutes, { prefix: '/api/auth' });
+
+  // OIDC routes
+  await app.register(oidcRoutes, { prefix: '/api/auth/oidc' });
+
+  // User profile routes
+  await app.register(userRoutes, { prefix: '/api/users' });
+
+  // Health check endpoint (liveness)
   app.get('/api/health', async () => {
     return { status: 'ok', timestamp: new Date().toISOString() };
+  });
+
+  // Readiness probe — verifies critical runtime components
+  app.get('/api/health/ready', async () => {
+    // Verify database is accessible
+    app.db.run(sql`SELECT 1`);
+
+    // Verify password hashing round-trip
+    const hash = await hashPassword('healthcheck');
+    const valid = await verifyPassword(hash, 'healthcheck');
+    if (!valid) throw new Error('Password hash verification failed');
+
+    return { status: 'ready', timestamp: new Date().toISOString() };
   });
 
   // Serve the client build in production

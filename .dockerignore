@@ -21,4 +21,5 @@ plan/
 wiki/
 tmp/
 temp/
+e2e/
 **/*.tsbuildinfo

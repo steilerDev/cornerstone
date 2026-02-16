@@ -10,17 +10,19 @@ Cornerstone is a web-based home building project management application designed
 
 ## Agent Team
 
-This project uses a team of 7 specialized Claude Code agents defined in `.claude/agents/`:
+This project uses a team of 9 specialized Claude Code agents defined in `.claude/agents/`:
 
-| Agent                   | Role                                                                        |
-| ----------------------- | --------------------------------------------------------------------------- |
-| `product-owner`         | Defines epics, user stories, and acceptance criteria; manages the backlog   |
-| `product-architect`     | Tech stack, schema, API contract, project structure, ADRs, Dockerfile       |
-| `backend-developer`     | API endpoints, business logic, auth, database operations, backend tests     |
-| `frontend-developer`    | UI components, pages, interactions, API client, frontend tests              |
-| `qa-integration-tester` | Unit test coverage (95%+ target), E2E tests, integration tests, bug reports |
-| `security-engineer`     | Security audits, vulnerability reports, remediation guidance                |
-| `uat-validator`         | UAT scenarios, manual validation steps, user sign-off per epic              |
+| Agent                   | Role                                                                                  |
+| ----------------------- | ------------------------------------------------------------------------------------- |
+| `product-owner`         | Defines epics, user stories, and acceptance criteria; manages the backlog             |
+| `product-architect`     | Tech stack, schema, API contract, project structure, ADRs, Dockerfile                 |
+| `backend-developer`     | API endpoints, business logic, auth, database operations, backend tests               |
+| `frontend-developer`    | UI components, pages, interactions, API client, frontend tests                        |
+| `qa-integration-tester` | Unit test coverage (95%+ target), integration tests, performance testing, bug reports |
+| `e2e-test-engineer`     | Playwright E2E browser tests, test container infrastructure, UAT scenario coverage    |
+| `security-engineer`     | Security audits, vulnerability reports, remediation guidance                          |
+| `uat-validator`         | UAT scenarios, manual validation steps, user sign-off per epic                        |
+| `docs-writer`           | Updates user-facing README.md after UAT approval per epic                             |
 
 ## GitHub Tools Strategy
 
@@ -46,6 +48,7 @@ No `docs/` directory in the source tree. All documentation lives on the GitHub W
 
 - **Repository**: `steilerDev/cornerstone`
 - **Default branch**: `main`
+- **Integration branch**: `beta` (feature PRs land here; promoted to `main` after epic completion)
 
 ### Board Status Categories
 
@@ -83,11 +86,19 @@ We follow an incremental, agile approach:
 3. **Product Architect** designs schema additions and API endpoints for the epic incrementally
 4. **Backend Developer** implements API and business logic per-epic
 5. **Frontend Developer** implements UI per-epic
-6. **Security Engineer** reviews periodically
+6. **Security Engineer** reviews every PR for security vulnerabilities
 7. **QA Tester** validates integrated features; all automated tests must pass
 8. **UAT Validator** provides step-by-step manual validation instructions for the user; iterates with developers if any scenario fails
 
 Schema and API contract evolve incrementally as each epic is implemented, rather than being designed all at once upfront.
+
+**Consistency check at epic start.** Before beginning any new epic, the orchestrator must verify repository consistency against the latest `CLAUDE.md` instructions:
+
+- Agent definitions (`.claude/agents/`) align with current conventions (branch refs, attribution, responsibilities)
+- CI/CD workflows match the current release model (branch triggers, Docker tags)
+- `CLAUDE.md` conventions are internally consistent (agent team table, workflow steps, delegation list)
+- Stale references (e.g., outdated branch names, deprecated tools, wrong tech stack mentions) are identified and fixed
+- Any inconsistencies are corrected in a dedicated `chore/consistency-cleanup` PR before epic work begins
 
 **Important: Planning agents run first.** Always launch the `product-owner` and `product-architect` agents BEFORE implementing any code. These agents must coordinate with the user and validate or adjust the plan before development begins. This catches inconsistencies early and avoids rework.
 
@@ -103,10 +114,11 @@ Schema and API contract evolve incrementally as each epic is implemented, rather
 - **Frontend code** → `frontend-developer` agent
 - **Schema/API design, ADRs, wiki** → `product-architect` agent
 - **Unit tests & test coverage** → `qa-integration-tester` agent
-- **E2E tests** → `qa-integration-tester` agent
+- **E2E tests** → `e2e-test-engineer` agent
 - **UAT scenarios** → `uat-validator` agent
 - **Story definitions** → `product-owner` agent
 - **Security reviews** → `security-engineer` agent
+- **User-facing documentation** → `docs-writer` agent
 
 The orchestrator's role is to: sequence agent launches, pass context between agents, manage the feature branch and PR lifecycle, and ensure the full agile cycle is followed for every story.
 
@@ -120,8 +132,8 @@ Before development begins on any story:
 
 1. The **product-owner** defines user stories with acceptance criteria
 2. The **uat-validator** translates acceptance criteria into concrete UAT scenarios (Given/When/Then)
-3. The **qa-integration-tester** reviews the draft UAT scenarios for testability and automation feasibility, suggesting adjustments where needed
-4. The **uat-validator** incorporates QA feedback and posts the final scenarios to the story's GitHub Issue
+3. The **qa-integration-tester** reviews the draft UAT scenarios for unit/integration testability, and the **e2e-test-engineer** reviews for browser automation feasibility, both suggesting adjustments where needed
+4. The **uat-validator** incorporates QA and E2E feedback and posts the final scenarios to the story's GitHub Issue
 5. UAT scenarios are presented to the user for review and approval
 6. Development does NOT proceed until the user approves the UAT plan
 
@@ -130,10 +142,12 @@ Before development begins on any story:
 While implementation is in progress:
 
 - Developers reference the approved UAT scenarios to understand expected behavior
-- The **qa-integration-tester** owns ALL testing: unit tests, integration tests, and E2E tests
+- The **qa-integration-tester** owns unit tests and integration tests
 - The **qa-integration-tester** must achieve **95% unit test coverage** on all new and modified code
-- The **qa-integration-tester** writes automated E2E/integration tests covering the approved UAT scenarios
-- All automated tests (unit + E2E) must pass before requesting manual validation
+- The **qa-integration-tester** writes automated integration tests covering the approved UAT scenarios
+- The **e2e-test-engineer** writes Playwright E2E tests covering the approved UAT scenarios during the story's development cycle
+- The **security-engineer** reviews the PR for security vulnerabilities after implementation
+- All automated tests (unit + integration + E2E) must pass before requesting manual validation
 
 ### Refinement Phase
 
@@ -151,11 +165,13 @@ This ensures that quality feedback from reviews is not lost, while keeping indiv
 
 After the refinement task is complete and all automated tests pass:
 
-1. The **uat-validator** runs all automated checks and produces a UAT Validation Report
-2. Step-by-step manual validation instructions are provided to the user
-3. The user walks through each scenario and marks it pass or fail
-4. If any scenario fails, developers fix the issue and the cycle repeats from the automated test step
-5. The epic is complete only after explicit user approval
+1. The **e2e-test-engineer** confirms all Playwright E2E tests pass and every approved UAT scenario has E2E coverage. This approval is required before proceeding to manual validation.
+2. The **uat-validator** runs all automated checks and produces a UAT Validation Report
+3. Step-by-step manual validation instructions are provided to the user
+4. The user walks through each scenario and marks it pass or fail
+5. If any scenario fails, developers fix the issue and the cycle repeats from the automated test step
+6. After user approval, the **docs-writer** updates `README.md` to reflect the newly shipped features
+7. The epic is complete only after explicit user approval and documentation is updated
 
 ### Key Rules
 
@@ -163,8 +179,10 @@ After the refinement task is complete and all automated tests pass:
 - **Automated before manual** — all automated tests must be green before the user validates manually
 - **Iterate until right** — failed manual validation triggers a fix-and-revalidate loop
 - **UAT documents live on GitHub Issues** — stored as comments on relevant story issues
-- **Product owner gates the PR** — the `product-owner` agent only approves a PR after verifying that ALL agent responsibilities were fulfilled: implementation by developer agents, 95%+ test coverage by QA, UAT scenarios by uat-validator, and architecture sign-off by product-architect
-- **QA owns all tests** — the `qa-integration-tester` agent is responsible for writing and maintaining all unit tests, integration tests, and E2E tests. Developer agents do not write tests.
+- **Security review required** — the `security-engineer` must review every PR before the `product-owner` can approve
+- **Product owner gates the PR** — the `product-owner` agent only approves a PR after verifying that ALL agent responsibilities were fulfilled: implementation by developer agents, 95%+ test coverage by QA, UAT scenarios by uat-validator, architecture sign-off by product-architect, and security review by security-engineer
+- **QA and E2E split test ownership** — the `qa-integration-tester` agent owns unit tests and integration tests; the `e2e-test-engineer` agent owns Playwright E2E browser tests. Developer agents do not write tests.
+- **E2E gate before manual UAT** — the `e2e-test-engineer` must confirm all E2E tests pass and all UAT scenarios have coverage before the `uat-validator` presents manual validation to the user.
 
 ## Git & Commit Conventions
 
@@ -174,8 +192,8 @@ All commits follow [Conventional Commits](https://www.conventionalcommits.org/):
 - **Scope** optional but encouraged: `feat(work-items):`, `fix(budget):`, `docs(adr):`
 - **Breaking changes**: Use `!` suffix or `BREAKING CHANGE:` footer
 - Every completed task gets its own commit with a meaningful description
-- **Link commits to issues**: When a commit resolves work tracked in a GitHub Issue, include `Fixes #<issue-number>` in the commit message body (one per line for multiple issues). This automatically closes the related issue(s) when merged to `main`.
-- **Always commit, push to a feature branch, and create a PR after verification passes.** When a work session completes and all quality gates (`lint`, `typecheck`, `test`, `format:check`, `build`, `npm audit`) pass, commit, push to the feature branch, and create a PR before ending the session. Do not leave verified work uncommitted or unpushed. Never push directly to `main`.
+- **Link commits to issues**: When a commit resolves work tracked in a GitHub Issue, include `Fixes #<issue-number>` in the commit message body (one per line for multiple issues). Note: `Fixes #N` only auto-closes issues when the commit reaches `main` (not `beta`).
+- **Always commit, push to a feature branch, and create a PR after verification passes.** When a work session completes and all quality gates (`lint`, `typecheck`, `test`, `format:check`, `build`, `npm audit`) pass, commit, push to the feature branch, and create a PR before ending the session. Do not leave verified work uncommitted or unpushed. Never push directly to `main` or `beta`.
 
 ### Agent Attribution
 
@@ -187,7 +205,7 @@ All agents must clearly identify themselves in commits and GitHub interactions:
   Co-Authored-By: Claude <agent-name> (<model>) <noreply@anthropic.com>
   ```
 
-  Replace `<agent-name>` with one of: `backend-developer`, `frontend-developer`, `product-architect`, `product-owner`, `qa-integration-tester`, `security-engineer`, `uat-validator`, or `orchestrator` (when the orchestrating Claude commits directly). Replace `<model>` with the agent's actual model (e.g., `Opus 4.6`, `Sonnet 4.5`). Each agent's definition file specifies the exact trailer to use.
+  Replace `<agent-name>` with one of: `backend-developer`, `frontend-developer`, `product-architect`, `product-owner`, `qa-integration-tester`, `e2e-test-engineer`, `security-engineer`, `uat-validator`, `docs-writer`, or `orchestrator` (when the orchestrating Claude commits directly). Replace `<model>` with the agent's actual model (e.g., `Opus 4.6`, `Sonnet 4.5`). Each agent's definition file specifies the exact trailer to use.
 
 - **GitHub comments** (on issues, PRs, or discussions): Prefix the first line with the agent name in bold brackets:
 
@@ -199,36 +217,120 @@ All agents must clearly identify themselves in commits and GitHub interactions:
 
 ### Branching Strategy
 
-**Never commit directly to `main`.** All changes go through feature branches and pull requests.
+**Never commit directly to `main` or `beta`.** All changes go through feature branches and pull requests.
 
 - **Branch naming**: `<type>/<issue-number>-<short-description>`
-
   - Examples: `feat/42-work-item-crud`, `fix/55-budget-calc`, `ci/18-dependabot-auto-merge`
   - Use the conventional commit type as the prefix
   - Include the GitHub Issue number when one exists
 
 - **Workflow** (full agent cycle for each user story):
   1. **Plan**: Launch `product-owner` (verify story + acceptance criteria) and `product-architect` (design schema/API/architecture) agents
-  2. **UAT Plan**: Launch `uat-validator` to draft UAT scenarios from acceptance criteria; launch `qa-integration-tester` to review testability; present to user for approval
-  3. **Branch**: Create a feature branch: `git checkout -b <branch-name> main`
+  2. **UAT Plan**: Launch `uat-validator` to draft UAT scenarios from acceptance criteria; launch `qa-integration-tester` to review unit/integration testability and `e2e-test-engineer` to review browser automation feasibility; present to user for approval
+  3. **Branch**: Create a feature branch from `beta`: `git checkout -b <branch-name> beta`
   4. **Implement**: Launch the appropriate developer agent (`backend-developer` and/or `frontend-developer`) to write the production code
-  5. **Test**: Launch `qa-integration-tester` to write unit tests (95%+ coverage target) and E2E/integration tests covering UAT scenarios
+  5. **Test**: Launch `qa-integration-tester` to write unit tests (95%+ coverage target) and integration tests; launch `e2e-test-engineer` to write Playwright E2E tests covering UAT scenarios. Both agents work during the story's development cycle.
   6. **Quality gates**: Run `lint`, `typecheck`, `test`, `format:check`, `build`, `npm audit` — all must pass
-  7. **Commit & PR**: Commit, push the branch, create a PR: `gh pr create --title "..." --body "..."`
+  7. **Commit & PR**: Commit, push the branch, create a PR targeting `beta`: `gh pr create --base beta --title "..." --body "..."`
   8. **CI**: Wait for CI: `gh pr checks <pr-number> --watch`
-  9. **Review**: After CI passes, launch both review agents **in parallel**:
-     - `product-owner` — verifies requirements coverage, acceptance criteria, UAT alignment, and that all agent responsibilities were fulfilled (QA coverage, UAT scenarios, etc.). Only approves if all agents have completed their work.
+  9. **Review**: After CI passes, launch three review agents **in parallel**:
+     - `product-owner` — verifies requirements coverage, acceptance criteria, UAT alignment, and that all agent responsibilities were fulfilled (QA coverage, UAT scenarios, security review, etc.). Only approves if all agents have completed their work.
      - `product-architect` — verifies architecture compliance, test coverage, and code quality
-       Both agents review the PR diff and comment via `gh pr review`.
-  10. **Fix loop**: If either reviewer requests changes:
+     - `security-engineer` — reviews for security vulnerabilities, input validation, authentication/authorization gaps
+       All three agents review the PR diff and comment via `gh pr review`.
+  10. **Fix loop**: If any reviewer requests changes:
       a. The reviewer posts specific feedback on the PR (`gh pr review --request-changes`)
       b. The orchestrator launches the original implementing agent on the same branch to address the feedback
       c. The implementing agent pushes fixes, then the orchestrator re-requests review from the agent(s) that requested changes
-      d. Repeat until both reviewers approve
-  11. **Merge**: Once both agents approve and CI is green, merge immediately: `gh pr merge --squash <pr-url>`
-  12. After merge, clean up: `git checkout main && git pull && git branch -d <branch-name>`
+      d. Repeat until all reviewers approve
+  11. **Merge**: Once all agents approve and CI is green, merge immediately: `gh pr merge --squash <pr-url>`
+  12. After merge, clean up: `git checkout beta && git pull && git branch -d <branch-name>`
+  13. **Documentation**: Launch `docs-writer` to update `README.md` with newly shipped features. Commit to `beta`.
+  14. **Epic promotion**: After all stories in an epic are complete (merged to `beta`), UAT is approved, and documentation is updated, create a PR from `beta` to `main` using a **merge commit** (not squash): `gh pr create --base main --head beta --title "..." --body "..."` then `gh pr merge --merge <pr-url>`. Merge commits preserve individual commits for semantic-release analysis.
 
-Note: Dependabot auto-merge (`.github/workflows/dependabot-auto-merge.yml`) is unaffected — it handles automated dependency updates, not agent work.
+Note: Dependabot auto-merge (`.github/workflows/dependabot-auto-merge.yml`) targets `beta` — it handles automated dependency updates, not agent work.
+
+### Release Model
+
+Cornerstone uses a two-tier release model:
+
+| Branch | Purpose                                                 | Release Type                            | Docker Tags              |
+| ------ | ------------------------------------------------------- | --------------------------------------- | ------------------------ |
+| `beta` | Integration branch — feature PRs land here              | Beta pre-release (e.g., `1.7.0-beta.1`) | `1.7.0-beta.1`, `beta`   |
+| `main` | Stable releases — `beta` promoted after epic completion | Full release (e.g., `1.7.0`)            | `1.7.0`, `1.7`, `latest` |
+
+**Merge strategies:**
+
+- **Feature PR -> `beta`**: Squash merge (clean history)
+- **`beta` -> `main`** (epic promotion): Merge commit (preserves individual commits so semantic-release can analyze them)
+
+**Hotfixes:** If a critical fix must go directly to `main`, immediately cherry-pick the fix back to `beta` to keep branches in sync.
+
+### Branch Protection
+
+Both `main` and `beta` have branch protection rules enforced on GitHub:
+
+| Setting                           | `main`                    | `beta`                    |
+| --------------------------------- | ------------------------- | ------------------------- |
+| PR required                       | Yes                       | Yes                       |
+| Required approving reviews        | 0                         | 0                         |
+| Required status checks            | `Quality Gates`, `Docker` | `Quality Gates`, `Docker` |
+| Strict status checks (up-to-date) | Yes                       | No                        |
+| Enforce admins                    | No                        | Yes                       |
+| Force pushes                      | Blocked                   | Blocked                   |
+| Deletions                         | Blocked                   | Blocked                   |
+
+**Why strict differs:** `main` requires branches to be up-to-date before merging, guaranteeing CI ran against the exact merge base for stable releases. `beta` does not require this — as a high-traffic integration branch receiving parallel feature PRs and Dependabot updates, strict mode would create merge queue bottlenecks.
+
+**Why enforce admins differs:** Admin bypass is allowed on `main` for emergency hotfixes. `beta` enforces rules for all users, including admins, to maintain integration branch integrity.
+
+## Parallel Coding Sessions
+
+Multiple Claude Code sessions can run in parallel using [gwq](https://github.com/d-kuro/gwq) for git worktree management. Each session gets its own worktree directory with isolated `node_modules/`, database, and dev server ports.
+
+### Setup
+
+gwq is pre-installed in the sandbox Dockerfile. For existing sandboxes, run `scripts/install-gwq.sh`.
+
+### Port Allocation
+
+Each worktree uses a unique port slot to avoid conflicts:
+
+| Slot | Server (`PORT`) | Client (`CLIENT_DEV_PORT`) | Usage                   |
+| ---- | --------------- | -------------------------- | ----------------------- |
+| 0    | 3000            | 5173                       | Main worktree (default) |
+| 1    | 3001            | 5174                       | Session 1               |
+| 2    | 3002            | 5175                       | Session 2               |
+| 3    | 3003            | 5176                       | Session 3               |
+
+### Worktree Lifecycle
+
+```bash
+# Create a worktree (auto-selects next free slot)
+scripts/worktree-create.sh feat/42-work-item-crud
+
+# Create with explicit slot
+scripts/worktree-create.sh feat/42-work-item-crud 2
+
+# Start dev servers in a worktree
+cd <worktree-path>
+source .env.worktree && npm run dev
+
+# Remove a worktree
+scripts/worktree-remove.sh feat/42-work-item-crud
+
+# Remove worktree and delete local branch
+scripts/worktree-remove.sh feat/42-work-item-crud --delete-branch
+```
+
+### Key Details
+
+- **gwq config**: `.gwq.toml` at repo root sets worktree basedir to `~/worktrees`
+- **Database isolation**: Each worktree has its own `data/cornerstone.db` (data/ is in `.gitignore`)
+- **Agent memory sharing**: `worktree-create.sh` symlinks `.claude/agent-memory/` from the main worktree so learnings persist across sessions
+- **Bootstrap**: `worktree-create.sh` runs `npm install`, `npm rebuild better-sqlite3`, and `npm run build -w shared` automatically
+- **Main worktree**: Stays on `beta` as home base; slot 0 ports are the default
+- **Quick reference**: `gwq list` (show worktrees), `gwq remove <branch>` (remove worktree)
 
 ## Tech Stack
 
@@ -358,11 +460,13 @@ cornerstone/
 
 ## Testing Approach
 
-All testing is owned by the `qa-integration-tester` agent. Developer agents write production code; the QA agent writes and maintains all tests.
+Unit and integration testing is owned by the `qa-integration-tester` agent. E2E browser testing is owned by the `e2e-test-engineer` agent. Developer agents write production code; the QA and E2E agents write and maintain all tests.
 
 - **Unit & integration tests**: Jest with ts-jest (co-located with source: `foo.test.ts` next to `foo.ts`)
 - **API integration tests**: Fastify's `app.inject()` method (no HTTP server needed)
-- **E2E tests**: Playwright (configured by QA agent, runs against built app)
+- **E2E tests**: Playwright (owned by `e2e-test-engineer` agent, runs against built app)
+  - E2E tests run against **desktop, tablet, and mobile** viewports via Playwright projects
+  - Test environment managed by **testcontainers**: app, OIDC provider, upstream proxy
 - **Test command**: `npm test` (runs all Jest tests across all workspaces via `--experimental-vm-modules` for ESM)
 - **Coverage**: `npm run test:coverage` — **95% unit test coverage target** on all new and modified code
 - Test files use `.test.ts` / `.test.tsx` extension
@@ -420,15 +524,27 @@ docker build \
 docker run -p 3000:3000 -v cornerstone-data:/app/data cornerstone
 ```
 
+### Docker Compose (Recommended for Deployment)
+
+For end-user deployment, use the provided `docker-compose.yml` with the published image:
+
+```bash
+cp .env.example .env       # Copy and customize environment variables
+docker compose up -d        # Start the application
+```
+
+The `docker-compose.yml` references the published `steilerdev/cornerstone:latest` image (not a local build). See `.env.example` for all available configuration options.
+
 ### Environment Variables
 
-| Variable       | Default                    | Description                                   |
-| -------------- | -------------------------- | --------------------------------------------- |
-| `PORT`         | `3000`                     | Server port                                   |
-| `HOST`         | `0.0.0.0`                  | Server bind address                           |
-| `DATABASE_URL` | `/app/data/cornerstone.db` | SQLite database path                          |
-| `LOG_LEVEL`    | `info`                     | Log level (trace/debug/info/warn/error/fatal) |
-| `NODE_ENV`     | `production`               | Environment                                   |
+| Variable          | Default                    | Description                                   |
+| ----------------- | -------------------------- | --------------------------------------------- |
+| `PORT`            | `3000`                     | Server port                                   |
+| `HOST`            | `0.0.0.0`                  | Server bind address                           |
+| `DATABASE_URL`    | `/app/data/cornerstone.db` | SQLite database path                          |
+| `LOG_LEVEL`       | `info`                     | Log level (trace/debug/info/warn/error/fatal) |
+| `NODE_ENV`        | `production`               | Environment                                   |
+| `CLIENT_DEV_PORT` | `5173`                     | Webpack dev server port (development only)    |
 
 Additional variables for OIDC, Paperless-ngx, and sessions will be added as those features are implemented.
 

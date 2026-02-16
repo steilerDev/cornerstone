@@ -216,6 +216,14 @@ A web-based project management application designed to help homeowners manage th
 - This applicaiton should be deployed through a Docker container
 - Try to keep the architecture and dependecies as simple as possible.
 
+#### Deployment
+
+- **Docker Compose** is the recommended deployment method for end users
+- Single-service architecture: one container with one named volume for persistent data (SQLite database)
+- All configuration is provided via a `.env` file (see `.env.example` for available options)
+- Quick-start: `cp .env.example .env && docker compose up -d`
+- The `docker-compose.yml` file uses the published Docker image from the registry
+
 ### 3.3 Security & Privacy
 
 #### Authentication

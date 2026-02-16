@@ -12,7 +12,7 @@ echo "Building sandbox template image ..."
 docker build -t "$IMAGE_NAME" -f "$PROJECT_DIR/.sandbox/Dockerfile" "$PROJECT_DIR/.sandbox"
 
 echo "Launching sandbox ..."
-docker sandbox run --load-local-template -t "$IMAGE_NAME" claude "$PROJECT_DIR"
+docker sandbox run -t "$IMAGE_NAME" claude "$PROJECT_DIR"
 
 # After creating a new sandbox, we need to run the following to authenticate:
 # docker sandbox exec -it claude-cornerstone gh auth login

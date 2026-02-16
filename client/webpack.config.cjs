@@ -16,6 +16,10 @@ module.exports = (env, argv) => {
     },
     resolve: {
       extensions: ['.tsx', '.ts', '.js', '.jsx'],
+      extensionAlias: {
+        '.js': ['.ts', '.tsx', '.js'],
+        '.jsx': ['.tsx', '.jsx'],
+      },
     },
     module: {
       rules: [
@@ -83,13 +87,13 @@ module.exports = (env, argv) => {
         : []),
     ],
     devServer: {
-      port: 5173,
+      port: parseInt(process.env.CLIENT_DEV_PORT || '5173', 10),
       hot: true,
       historyApiFallback: true,
       proxy: [
         {
           context: ['/api'],
-          target: 'http://localhost:3000',
+          target: `http://localhost:${process.env.PORT || '3000'}`,
           changeOrigin: true,
         },
       ],
