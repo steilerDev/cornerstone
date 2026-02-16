@@ -29,7 +29,7 @@ Then read the relevant source code files based on the specific audit task.
 ### 1. Authentication Review
 
 - **OIDC Implementation**: Validate token handling (ID token, access token, refresh token), token validation logic, state parameter for CSRF protection, nonce handling, and redirect URI validation. Look for token leakage in logs, URLs, or client-side storage.
-- **Local Admin Authentication**: Verify password hashing algorithm (bcrypt/argon2 with proper cost factors), brute-force protection (rate limiting, account lockout), and secure credential storage.
+- **Local Admin Authentication**: Verify password hashing algorithm (scrypt with OWASP-recommended cost factors), brute-force protection (rate limiting, account lockout), and secure credential storage.
 - **Session Management**: Check session token generation for sufficient entropy and uniqueness. Verify cookie flags (HttpOnly, Secure, SameSite=Strict or Lax). Confirm session expiration, idle timeout, invalidation on logout, and CSRF protection for state-changing requests.
 
 ### 2. Authorization Audit

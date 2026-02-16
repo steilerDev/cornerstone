@@ -1,5 +1,6 @@
-import { randomUUID } from 'node:crypto';
-import argon2 from 'argon2';
+import { randomUUID, scrypt as scryptCb, randomBytes, timingSafeEqual } from 'node:crypto';
+import type { BinaryLike, ScryptOptions } from 'node:crypto';
+import { promisify } from 'node:util';
 import { eq, isNull, sql, and } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
@@ -11,6 +12,67 @@ import { ConflictError } from '../errors/AppError.js';
 export { ConflictError };
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
+
+const scryptAsync = promisify(scryptCb) as (
+  password: BinaryLike,
+  salt: BinaryLike,
+  keylen: number,
+  options: ScryptOptions,
+) => Promise<Buffer>;
+
+const SCRYPT_N = 16384;
+const SCRYPT_R = 8;
+const SCRYPT_P = 1;
+const KEY_LEN = 64;
+const SALT_LEN = 16;
+// OpenSSL requires slightly more than 128*N*r; use 128*r*(N+p+2) as safe minimum
+const MAX_MEM = 128 * SCRYPT_R * (SCRYPT_N + SCRYPT_P + 2);
+
+/**
+ * Hash a password using Node.js crypto.scrypt.
+ * Returns a PHC-format string: $scrypt$n=N,r=R,p=P$<base64-salt>$<base64-hash>
+ *
+ * @param password - Plain text password to hash
+ * @returns PHC-format hash string
+ */
+export async function hashPassword(password: string): Promise<string> {
+  const salt = randomBytes(SALT_LEN);
+  const derived = (await scryptAsync(password, salt, KEY_LEN, {
+    N: SCRYPT_N,
+    r: SCRYPT_R,
+    p: SCRYPT_P,
+    maxmem: MAX_MEM,
+  })) as Buffer;
+  return `$scrypt$n=${SCRYPT_N},r=${SCRYPT_R},p=${SCRYPT_P}$${salt.toString('base64')}$${derived.toString('base64')}`;
+}
+
+/**
+ * Verify a password against a scrypt PHC-format hash using timing-safe comparison.
+ *
+ * @param hash - The scrypt PHC-format password hash
+ * @param password - The plain text password to verify
+ * @returns True if password matches, false otherwise
+ */
+export async function verifyPassword(hash: string, password: string): Promise<boolean> {
+  const parts = hash.split('$'); // ['', 'scrypt', 'n=...,r=...,p=...', '<salt>', '<hash>']
+  if (parts.length !== 5 || parts[1] !== 'scrypt') return false;
+
+  const params = Object.fromEntries(parts[2].split(',').map((p) => p.split('=')));
+  const salt = Buffer.from(parts[3], 'base64');
+  const expected = Buffer.from(parts[4], 'base64');
+  const n = Number(params.n);
+  const r = Number(params.r);
+  const p = Number(params.p);
+
+  const derived = (await scryptAsync(password, salt, expected.length, {
+    N: n,
+    r,
+    p,
+    maxmem: 128 * r * (n + p + 2),
+  })) as Buffer;
+
+  return timingSafeEqual(derived, expected);
+}
 
 /**
  * Convert DB row to UserResponse (never includes password_hash or oidc_subject).
@@ -49,7 +111,7 @@ export async function createLocalUser(
   role: 'admin' | 'member' = 'member',
 ): Promise<typeof users.$inferSelect> {
   const now = new Date().toISOString();
-  const passwordHash = await argon2.hash(password);
+  const passwordHash = await hashPassword(password);
   const id = randomUUID();
 
   db.insert(users)
@@ -68,17 +130,6 @@ export async function createLocalUser(
   // Return the inserted row
   const row = db.select().from(users).where(eq(users.id, id)).get();
   return row!;
-}
-
-/**
- * Verify a password against an argon2 hash.
- *
- * @param hash - The argon2 password hash
- * @param password - The plain text password to verify
- * @returns True if password matches, false otherwise
- */
-export async function verifyPassword(hash: string, password: string): Promise<boolean> {
-  return argon2.verify(hash, password);
 }
 
 /**
@@ -214,7 +265,7 @@ export function updateDisplayName(
  *
  * @param db - Database instance
  * @param userId - User ID to update
- * @param newPasswordHash - New password hash (argon2)
+ * @param newPasswordHash - New password hash (scrypt PHC format)
  */
 export function updatePassword(db: DbType, userId: string, newPasswordHash: string): void {
   const now = new Date().toISOString();

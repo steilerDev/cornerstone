@@ -41,7 +41,7 @@ describe('User Service', () => {
         displayName: 'Test User',
         role: 'admin',
         authProvider: 'local',
-        passwordHash: '$argon2id$v=19$m=65536,t=3,p=4$hashedpassword',
+        passwordHash: '$scrypt$n=16384,r=8,p=1$c29tZXNhbHQ=$c29tZWhhc2g=',
         oidcSubject: null,
         createdAt: '2024-01-01T00:00:00.000Z',
         updatedAt: '2024-01-02T00:00:00.000Z',
@@ -78,7 +78,7 @@ describe('User Service', () => {
         displayName: 'Local User',
         role: 'member',
         authProvider: 'local',
-        passwordHash: '$argon2id$v=19$m=65536,t=3,p=4$somehash',
+        passwordHash: '$scrypt$n=16384,r=8,p=1$c29tZXNhbHQ=$c29tZWhhc2g=',
         oidcSubject: null,
         createdAt: '2024-01-01T00:00:00.000Z',
         updatedAt: '2024-01-01T00:00:00.000Z',
@@ -126,7 +126,7 @@ describe('User Service', () => {
         displayName: 'Deactivated User',
         role: 'member',
         authProvider: 'local',
-        passwordHash: '$argon2id$v=19$m=65536,t=3,p=4$hash',
+        passwordHash: '$scrypt$n=16384,r=8,p=1$c29tZXNhbHQ=$c29tZWhhc2g=',
         oidcSubject: null,
         createdAt: '2024-01-01T00:00:00.000Z',
         updatedAt: '2024-01-01T00:00:00.000Z',
@@ -161,8 +161,8 @@ describe('User Service', () => {
       expect(user.passwordHash).toBeDefined();
       expect(user.passwordHash).not.toBe(password);
 
-      // And: passwordHash is argon2 format
-      expect(user.passwordHash).toMatch(/^\$argon2id\$/);
+      // And: passwordHash is scrypt PHC format
+      expect(user.passwordHash).toMatch(/^\$scrypt\$/);
     });
 
     it('defaults role to member when not specified', async () => {
@@ -704,7 +704,7 @@ describe('User Service', () => {
           displayName: 'Local User Two',
           role: 'member',
           authProvider: 'local',
-          passwordHash: '$argon2id$v=19$m=65536,t=3,p=4$hash',
+          passwordHash: '$scrypt$n=16384,r=8,p=1$c29tZXNhbHQ=$c29tZWhhc2g=',
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         })
@@ -1003,13 +1003,9 @@ describe('User Service', () => {
       const originalPasswordHash = user.passwordHash!;
       const originalUpdatedAt = user.updatedAt;
 
-      // When: Updating password
-      const newPasswordHash = (await userService.verifyPassword(
-        originalPasswordHash,
-        'oldpassword123',
-      ))
-        ? await import('argon2').then((argon2) => argon2.default.hash('newpassword123'))
-        : '';
+      // When: Updating password with a new hash
+      const { hashPassword } = await import('./userService.js');
+      const newPasswordHash = await hashPassword('newpassword123');
       userService.updatePassword(db, user.id, newPasswordHash);
 
       // Then: Password hash is updated in database
@@ -1023,7 +1019,7 @@ describe('User Service', () => {
       );
     });
 
-    it('new hash can be verified with argon2.verify', async () => {
+    it('new hash can be verified with verifyPassword', async () => {
       // Given: User in database
       const user = await userService.createLocalUser(
         db,
@@ -1033,8 +1029,8 @@ describe('User Service', () => {
       );
 
       // When: Updating password with new hash
-      const argon2 = await import('argon2');
-      const newPasswordHash = await argon2.default.hash('newpassword456');
+      const { hashPassword } = await import('./userService.js');
+      const newPasswordHash = await hashPassword('newpassword456');
       userService.updatePassword(db, user.id, newPasswordHash);
 
       // Then: New password can be verified
@@ -1063,8 +1059,8 @@ describe('User Service', () => {
       );
 
       // When: Updating password
-      const argon2 = await import('argon2');
-      const newPasswordHash = await argon2.default.hash('newpassword789');
+      const { hashPassword } = await import('./userService.js');
+      const newPasswordHash = await hashPassword('newpassword789');
       const result = userService.updatePassword(db, user.id, newPasswordHash);
 
       // Then: Function returns undefined (void)
@@ -1082,8 +1078,8 @@ describe('User Service', () => {
       );
 
       // When: Updating password
-      const argon2 = await import('argon2');
-      const newPasswordHash = await argon2.default.hash('newpassword999');
+      const { hashPassword } = await import('./userService.js');
+      const newPasswordHash = await hashPassword('newpassword999');
       userService.updatePassword(db, user.id, newPasswordHash);
 
       // Then: Other fields are preserved
@@ -1103,13 +1099,13 @@ describe('User Service', () => {
         'Test User',
         'password1',
       );
-      const argon2 = await import('argon2');
+      const { hashPassword } = await import('./userService.js');
 
       // When: Updating password multiple times
-      const hash2 = await argon2.default.hash('password2');
+      const hash2 = await hashPassword('password2');
       userService.updatePassword(db, user.id, hash2);
 
-      const hash3 = await argon2.default.hash('password3');
+      const hash3 = await hashPassword('password3');
       userService.updatePassword(db, user.id, hash3);
 
       // Then: Final password is the last one set

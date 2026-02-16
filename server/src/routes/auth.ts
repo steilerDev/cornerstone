@@ -86,34 +86,42 @@ export default async function authRoutes(fastify: FastifyInstance) {
       throw new AppError('SETUP_COMPLETE', 403, 'Setup already complete');
     }
 
-    // Create the first admin user
-    const user = await userService.createLocalUser(
-      fastify.db,
-      email,
-      displayName,
-      password,
-      'admin',
-    );
+    try {
+      // Create the first admin user
+      request.log.info('Hashing password for new admin user');
+      const user = await userService.createLocalUser(
+        fastify.db,
+        email,
+        displayName,
+        password,
+        'admin',
+      );
+      request.log.info({ userId: user.id }, 'Admin user created');
 
-    // Create session
-    const sessionId = sessionService.createSession(
-      fastify.db,
-      user.id,
-      fastify.config.sessionDuration,
-    );
+      // Create session
+      const sessionId = sessionService.createSession(
+        fastify.db,
+        user.id,
+        fastify.config.sessionDuration,
+      );
+      request.log.info('Session created for new admin user');
 
-    // Set session cookie
-    reply.setCookie(COOKIE_NAME, sessionId, {
-      httpOnly: true,
-      secure: fastify.config.secureCookies,
-      sameSite: 'strict',
-      path: '/',
-      maxAge: fastify.config.sessionDuration,
-    });
+      // Set session cookie
+      reply.setCookie(COOKIE_NAME, sessionId, {
+        httpOnly: true,
+        secure: fastify.config.secureCookies,
+        sameSite: 'strict',
+        path: '/',
+        maxAge: fastify.config.sessionDuration,
+      });
 
-    return reply.status(201).send({
-      user: userService.toUserResponse(user),
-    });
+      return reply.status(201).send({
+        user: userService.toUserResponse(user),
+      });
+    } catch (err) {
+      request.log.error({ err }, 'Failed during user setup');
+      throw err;
+    }
   });
 
   /**
@@ -134,12 +142,10 @@ export default async function authRoutes(fastify: FastifyInstance) {
     // If no user found OR user is OIDC (no password_hash), still hash a dummy password
     // (timing attack prevention)
     if (!user || !user.passwordHash) {
-      // Hardcoded dummy Argon2 hash to prevent timing attacks.
-      // We hash the supplied password against this fixed hash to ensure constant-time
-      // response whether the user exists or not. Generating at module load would require
-      // top-level await, so we use a precomputed hash instead.
+      // Pre-computed scrypt hash to prevent timing attacks.
+      // Verifying against this ensures constant-time response whether the user exists or not.
       await userService.verifyPassword(
-        '$argon2id$v=19$m=65536,t=3,p=4$aGVsbG93b3JsZA$cZn5d+rFz8E4HMhH+3e6Ug',
+        '$scrypt$n=16384,r=8,p=1$eIPA3bA+j890PhMRXL2ALg==$0vGnikxLJhnan8L03D8sFKeoOQ1qqQzXE2vlG92RsGmKFYIU7TukjzGgTIYX5y7Rleq6OAnnx5pR92KVnzj0ag==',
         password,
       );
       throw new AppError('INVALID_CREDENTIALS', 401, 'Invalid email or password');
@@ -151,9 +157,15 @@ export default async function authRoutes(fastify: FastifyInstance) {
     }
 
     // Verify password
-    const passwordValid = await userService.verifyPassword(user.passwordHash, password);
-    if (!passwordValid) {
-      throw new AppError('INVALID_CREDENTIALS', 401, 'Invalid email or password');
+    try {
+      const passwordValid = await userService.verifyPassword(user.passwordHash, password);
+      if (!passwordValid) {
+        throw new AppError('INVALID_CREDENTIALS', 401, 'Invalid email or password');
+      }
+    } catch (err) {
+      if (err instanceof AppError) throw err;
+      request.log.error({ err }, 'Failed during password verification');
+      throw err;
     }
 
     // Create session
@@ -162,6 +174,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
       user.id,
       fastify.config.sessionDuration,
     );
+    request.log.info({ userId: user.id }, 'User logged in');
 
     // Set session cookie
     reply.setCookie(COOKIE_NAME, sessionId, {

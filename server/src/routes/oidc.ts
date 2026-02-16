@@ -41,10 +41,15 @@ export default async function oidcRoutes(fastify: FastifyInstance) {
       fastify.config.oidcClientSecret!,
     );
 
+    // Derive redirect URI from config or from the incoming request
+    const redirectUri =
+      fastify.config.oidcRedirectUri ||
+      `${request.protocol}://${request.host}/api/auth/oidc/callback`;
+
     // Build authorization URL
     const { authorizationUrl } = oidcService.buildAuthorizationUrl(
       config,
-      fastify.config.oidcRedirectUri!,
+      redirectUri,
       safeRedirect,
     );
 
@@ -99,8 +104,8 @@ export default async function oidcRoutes(fastify: FastifyInstance) {
 
       // Build the callback URL from the request
       // The openid-client library expects the full callback URL including query params
-      const protocol = request.headers['x-forwarded-proto'] || 'https';
-      const callbackUrl = new URL(request.url, `${protocol}://${request.hostname}`);
+      // Fastify's request.protocol respects trustProxy + x-forwarded-proto
+      const callbackUrl = new URL(request.url, `${request.protocol}://${request.host}`);
 
       // Exchange code for tokens and extract claims
       const { sub, email, name } = await oidcService.handleCallback(config, callbackUrl, state);

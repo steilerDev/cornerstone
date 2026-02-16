@@ -1,5 +1,4 @@
 import type { FastifyInstance } from 'fastify';
-import argon2 from 'argon2';
 import { AppError, UnauthorizedError, ForbiddenError, NotFoundError } from '../errors/AppError.js';
 import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
@@ -132,7 +131,7 @@ export default async function userRoutes(fastify: FastifyInstance) {
     }
 
     // Hash new password and update
-    const newPasswordHash = await argon2.hash(newPassword);
+    const newPasswordHash = await userService.hashPassword(newPassword);
     userService.updatePassword(fastify.db, request.user.id, newPasswordHash);
 
     return reply.status(204).send();

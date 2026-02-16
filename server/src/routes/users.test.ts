@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import argon2 from 'argon2';
 import { eq } from 'drizzle-orm';
 import { buildApp } from '../app.js';
 import * as userService from '../services/userService.js';
@@ -412,7 +411,7 @@ describe('User Routes', () => {
       expect(user.passwordHash).toBeDefined();
 
       // And: New password can be verified
-      const isValid = await argon2.verify(user.passwordHash!, 'newpassword123');
+      const isValid = await userService.verifyPassword(user.passwordHash!, 'newpassword123');
       expect(isValid).toBe(true);
     });
 
