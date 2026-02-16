@@ -17,6 +17,7 @@ const PUBLIC_ROUTES = new Set([
   '/api/auth/oidc/login',
   '/api/auth/oidc/callback',
   '/api/health',
+  '/api/health/ready',
 ]);
 
 // Type augmentation: makes request.user available throughout the app
