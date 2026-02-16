@@ -627,7 +627,7 @@ describe('Authentication Routes', () => {
       // Then: Response is 401
       expect(response.statusCode).toBe(401);
 
-      // And: Response took reasonable time (argon2 hash takes >50ms typically)
+      // And: Response took reasonable time (scrypt hash takes >10ms typically)
       // This is a weak assertion but verifies the dummy hash is executed
       expect(elapsed).toBeGreaterThan(10); // At least some processing time
     });

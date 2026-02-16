@@ -65,7 +65,7 @@ FROM dhi.io/node:24-alpine3.23 AS production
 WORKDIR /app/data
 WORKDIR /app
 
-# Copy runtime libraries needed by native addons (argon2 requires libgcc/libstdc++)
+# Copy runtime libraries needed by native addons (better-sqlite3 requires libgcc/libstdc++)
 COPY --from=builder /usr/lib/libgcc_s.so.1 /usr/lib/
 COPY --from=builder /usr/lib/libstdc++.so.6* /usr/lib/
 
@@ -102,8 +102,9 @@ ENV DATABASE_URL=/app/data/cornerstone.db
 ENV LOG_LEVEL=info
 
 # Health check — exec form required (DHI production image has no /bin/sh)
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD ["node", "-e", "fetch('http://localhost:3000/api/health').then(r=>{if(!r.ok)throw r.status}).catch(()=>process.exit(1))"]
+# Uses /api/health/ready which verifies DB access and password hashing round-trip
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+  CMD ["node", "-e", "fetch('http://localhost:3000/api/health/ready').then(r=>{if(!r.ok)throw r.status}).catch(()=>process.exit(1))"]
 
 # Start the server
 CMD ["node", "server/dist/server.js"]

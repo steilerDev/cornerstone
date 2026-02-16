@@ -41,22 +41,6 @@ export default async function globalSetup(): Promise<void> {
   });
   console.log(`✅ Cornerstone app ready at ${app.baseUrl}`);
 
-  // Validate argon2 native addon works inside the container
-  console.log('🔐 Validating argon2 in container...');
-  const argon2Check = await app.container.exec([
-    'node',
-    '--input-type=module',
-    '-e',
-    'import argon2 from "argon2"; const h = await argon2.hash("test"); console.log("argon2 OK:", h.substring(0, 30) + "...");',
-  ]);
-  console.log(`  argon2 check exit code: ${argon2Check.exitCode}`);
-  console.log(`  argon2 check output: ${argon2Check.output.trim()}`);
-  if (argon2Check.exitCode !== 0) {
-    throw new Error(
-      `argon2 validation failed inside container (exit code: ${argon2Check.exitCode}): ${argon2Check.output}`,
-    );
-  }
-
   // Start Nginx reverse proxy with OIDC proxy support
   console.log('🔄 Starting reverse proxy...');
   const proxy = await startProxyContainer(network, oidc.port);

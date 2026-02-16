@@ -53,7 +53,7 @@ export async function startCornerstoneContainer(
     .withNetworkAliases('cornerstone-app')
     .withExposedPorts(3000)
     .withEnvironment(environment)
-    .withWaitStrategy(Wait.forHttp('/api/health', 3000).forStatusCode(200));
+    .withWaitStrategy(Wait.forHttp('/api/health/ready', 3000).forStatusCode(200));
 
   // Add proxy configuration if available
   if (httpProxy || httpsProxy) {
