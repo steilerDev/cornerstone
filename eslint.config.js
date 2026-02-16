@@ -26,6 +26,7 @@ export default tseslint.config(
         module: 'readonly',
         __dirname: 'readonly',
         __filename: 'readonly',
+        process: 'readonly',
       },
     },
     rules: {
