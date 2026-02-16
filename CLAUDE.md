@@ -340,11 +340,11 @@ scripts/worktree-remove.sh feat/42-work-item-crud --delete-branch
 | Client                     | React                   | 19.x    | ADR-002 |
 | Client Routing             | React Router            | 7.x     | ADR-002 |
 | Database                   | SQLite (better-sqlite3) | --      | ADR-003 |
-| ORM                        | Drizzle ORM             | 0.38.x  | ADR-003 |
+| ORM                        | Drizzle ORM             | 0.45.x  | ADR-003 |
 | Bundler (client)           | Webpack                 | 5.x     | ADR-004 |
 | Styling                    | CSS Modules             | --      | ADR-006 |
 | Testing (unit/integration) | Jest (ts-jest)          | 30.x    | ADR-005 |
-| Testing (E2E)              | Playwright              | TBD     | ADR-005 |
+| Testing (E2E)              | Playwright              | 1.58.x  | ADR-005 |
 | Language                   | TypeScript              | ~5.9    | --      |
 | Runtime                    | Node.js                 | 24 LTS  | --      |
 | Container                  | Docker (DHI Alpine)     | --      | --      |
@@ -364,6 +364,9 @@ cornerstone/
   .prettierrc               # Prettier config
   jest.config.ts            # Jest config (all packages)
   Dockerfile                # Multi-stage Docker build
+  docker-compose.yml        # Docker Compose for end-user deployment
+  .env.example              # Example environment variables
+  .releaserc.json           # semantic-release configuration
   CLAUDE.md                 # This file
   plan/                     # Requirements document
   shared/                   # @cornerstone/shared - TypeScript types
@@ -399,6 +402,15 @@ cornerstone/
       lib/                  # Utilities, API client
       types/                # Type declarations (CSS modules, etc.)
       styles/               # Global CSS (index.css)
+  e2e/                      # @cornerstone/e2e - Playwright E2E tests
+    package.json
+    tsconfig.json
+    playwright.config.ts    # Playwright configuration
+    auth.setup.ts           # Authentication setup for tests
+    containers/             # Testcontainers setup modules
+    fixtures/               # Test fixtures and helpers
+    pages/                  # Page Object Models
+    tests/                  # Test files organized by feature/epic
 ```
 
 ### Package Dependency Graph
@@ -406,6 +418,7 @@ cornerstone/
 ```
 @cornerstone/shared  <--  @cornerstone/server
                      <--  @cornerstone/client
+@cornerstone/e2e     (standalone — runs against built app via testcontainers)
 ```
 
 ### Build Order
@@ -465,6 +478,7 @@ Unit and integration testing is owned by the `qa-integration-tester` agent. E2E 
 - **Unit & integration tests**: Jest with ts-jest (co-located with source: `foo.test.ts` next to `foo.ts`)
 - **API integration tests**: Fastify's `app.inject()` method (no HTTP server needed)
 - **E2E tests**: Playwright (owned by `e2e-test-engineer` agent, runs against built app)
+  - E2E test files live in `e2e/tests/` (separate workspace, not co-located with source)
   - E2E tests run against **desktop, tablet, and mobile** viewports via Playwright projects
   - Test environment managed by **testcontainers**: app, OIDC provider, upstream proxy
 - **Test command**: `npm test` (runs all Jest tests across all workspaces via `--experimental-vm-modules` for ESM)
@@ -555,3 +569,7 @@ Additional variables for OIDC, Paperless-ngx, and sessions will be added as thos
 ## Cross-Team Convention
 
 Any agent making a decision that affects other agents (e.g., a new naming convention, a shared pattern, a configuration change) must update this file so the convention is documented in one place.
+
+### Agent Memory Maintenance
+
+When a code change invalidates information in agent memory (e.g., fixing a bug documented in memory, changing a public API, updating routes), the implementing agent must update the relevant agent memory files. During the refinement phase, the orchestrator should verify that no stale memory entries exist for completed work.
