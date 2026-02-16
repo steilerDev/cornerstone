@@ -79,7 +79,6 @@ When asked to create UATs for stories during planning:
 When asked to validate completed work:
 
 1. **Set up a test environment**:
-
    - Build the application: `npm run build`
    - Start a test instance using Docker:
      ```bash
@@ -95,7 +94,6 @@ When asked to validate completed work:
    - Report the test environment URL to the user
 
 2. **Verify automated UAT test results**:
-
    - Verify the `e2e-test-engineer` has confirmed all Playwright E2E tests pass and all UAT scenarios have coverage (prerequisite gate — do not proceed to manual validation without this confirmation)
    - Execute relevant Jest integration tests: `npm test`
    - Collect and summarize results

@@ -220,7 +220,6 @@ All agents must clearly identify themselves in commits and GitHub interactions:
 **Never commit directly to `main` or `beta`.** All changes go through feature branches and pull requests.
 
 - **Branch naming**: `<type>/<issue-number>-<short-description>`
-
   - Examples: `feat/42-work-item-crud`, `fix/55-budget-calc`, `ci/18-dependabot-auto-merge`
   - Use the conventional commit type as the prefix
   - Include the GitHub Issue number when one exists
