@@ -284,6 +284,54 @@ Both `main` and `beta` have branch protection rules enforced on GitHub:
 
 **Why enforce admins differs:** Admin bypass is allowed on `main` for emergency hotfixes. `beta` enforces rules for all users, including admins, to maintain integration branch integrity.
 
+## Parallel Coding Sessions
+
+Multiple Claude Code sessions can run in parallel using [gwq](https://github.com/d-kuro/gwq) for git worktree management. Each session gets its own worktree directory with isolated `node_modules/`, database, and dev server ports.
+
+### Setup
+
+gwq is pre-installed in the sandbox Dockerfile. For existing sandboxes, run `scripts/install-gwq.sh`.
+
+### Port Allocation
+
+Each worktree uses a unique port slot to avoid conflicts:
+
+| Slot | Server (`PORT`) | Client (`CLIENT_DEV_PORT`) | Usage                   |
+| ---- | --------------- | -------------------------- | ----------------------- |
+| 0    | 3000            | 5173                       | Main worktree (default) |
+| 1    | 3001            | 5174                       | Session 1               |
+| 2    | 3002            | 5175                       | Session 2               |
+| 3    | 3003            | 5176                       | Session 3               |
+
+### Worktree Lifecycle
+
+```bash
+# Create a worktree (auto-selects next free slot)
+scripts/worktree-create.sh feat/42-work-item-crud
+
+# Create with explicit slot
+scripts/worktree-create.sh feat/42-work-item-crud 2
+
+# Start dev servers in a worktree
+cd <worktree-path>
+source .env.worktree && npm run dev
+
+# Remove a worktree
+scripts/worktree-remove.sh feat/42-work-item-crud
+
+# Remove worktree and delete local branch
+scripts/worktree-remove.sh feat/42-work-item-crud --delete-branch
+```
+
+### Key Details
+
+- **gwq config**: `.gwq.toml` at repo root sets worktree basedir to `~/worktrees`
+- **Database isolation**: Each worktree has its own `data/cornerstone.db` (data/ is in `.gitignore`)
+- **Agent memory sharing**: `worktree-create.sh` symlinks `.claude/agent-memory/` from the main worktree so learnings persist across sessions
+- **Bootstrap**: `worktree-create.sh` runs `npm install`, `npm rebuild better-sqlite3`, and `npm run build -w shared` automatically
+- **Main worktree**: Stays on `beta` as home base; slot 0 ports are the default
+- **Quick reference**: `gwq list` (show worktrees), `gwq remove <branch>` (remove worktree)
+
 ## Tech Stack
 
 | Layer                      | Technology              | Version | ADR     |
@@ -489,13 +537,14 @@ The `docker-compose.yml` references the published `steilerdev/cornerstone:latest
 
 ### Environment Variables
 
-| Variable       | Default                    | Description                                   |
-| -------------- | -------------------------- | --------------------------------------------- |
-| `PORT`         | `3000`                     | Server port                                   |
-| `HOST`         | `0.0.0.0`                  | Server bind address                           |
-| `DATABASE_URL` | `/app/data/cornerstone.db` | SQLite database path                          |
-| `LOG_LEVEL`    | `info`                     | Log level (trace/debug/info/warn/error/fatal) |
-| `NODE_ENV`     | `production`               | Environment                                   |
+| Variable          | Default                    | Description                                   |
+| ----------------- | -------------------------- | --------------------------------------------- |
+| `PORT`            | `3000`                     | Server port                                   |
+| `HOST`            | `0.0.0.0`                  | Server bind address                           |
+| `DATABASE_URL`    | `/app/data/cornerstone.db` | SQLite database path                          |
+| `LOG_LEVEL`       | `info`                     | Log level (trace/debug/info/warn/error/fatal) |
+| `NODE_ENV`        | `production`               | Environment                                   |
+| `CLIENT_DEV_PORT` | `5173`                     | Webpack dev server port (development only)    |
 
 Additional variables for OIDC, Paperless-ngx, and sessions will be added as those features are implemented.
 
