@@ -8,7 +8,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const sidebarClassName = [styles.sidebar, isOpen && styles.open].filter(Boolean).join(' ');
 
   return (
@@ -75,13 +75,15 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         >
           Profile
         </NavLink>
-        <NavLink
-          to="/admin/users"
-          className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
-          onClick={onClose}
-        >
-          User Management
-        </NavLink>
+        {user?.role === 'admin' && (
+          <NavLink
+            to="/admin/users"
+            className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
+            onClick={onClose}
+          >
+            User Management
+          </NavLink>
+        )}
         <div className={styles.navSeparator} />
         <button
           type="button"
