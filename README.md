@@ -3,34 +3,153 @@
 > [!NOTE]
 > I'm using this project to test out 'vibe coding' - I use this as a playground to better understand how to use an agentic development workflow. My plan is to write as little code as possible, but rely on a set of agents to build this application. I currently have a time-limited need for this (relatievely) simple application - which is why I'm not necessarily concerned about long-term maintainability.
 
-A web-based home building project management application designed to help homeowners manage their construction project. Track work items, budgets, timelines, and household item purchases — all from a single self-hosted Docker container.
+A self-hosted home building project management tool for homeowners. Track work items, budgets, timelines, and household item purchases from a single Docker container backed by SQLite -- no external database required.
 
 ## Features
 
-- **Work Item Management** — Create tasks with start/end dates, dependencies, status tracking, and scheduling constraints. Automatic rescheduling when dates change.
-- **Gantt Chart** — Visual timeline with dependency arrows, critical path highlighting, milestones, drag-and-drop rescheduling, and household item delivery dates.
-- **Budget Tracking** — Category-based budgeting with planned vs. actual costs, multiple financing sources (bank loans, credit lines, savings), vendor/contractor payment tracking, and subsidy program support.
-- **Household Items** — Track furniture and appliance purchases with delivery dates, costs, and links to related work items.
-- **Document Integration** — Reference documents stored in [Paperless-ngx](https://docs.paperless-ngx.com/) — invoices, receipts, contracts, warranties — without local document storage.
-- **Authentication** — OIDC (OpenID Connect) with automatic user provisioning. Supports Keycloak, Auth0, Okta, Google, Azure AD, and other standard providers.
+### Authentication and User Management
+
+- **First-Run Setup** -- On first launch, a setup wizard walks you through creating the initial admin account. No command-line setup needed.
+- **Local Authentication** -- Email and password login with bcrypt password hashing and secure session cookies.
+- **OIDC Single Sign-On** -- Connect to your existing identity provider (Authentik, Keycloak, and other OpenID Connect providers) for seamless login. New users are automatically provisioned on their first OIDC login.
+- **User Profiles** -- Users can view and edit their display name and change their password (local accounts).
+- **Admin User Management** -- Admins can list, search, edit roles, and deactivate user accounts.
+- **Role-Based Access Control** -- Admin and Member roles control access to management features.
+
+### Application Shell
+
+- **Responsive Layout** -- Full sidebar navigation on desktop, collapsible menu on mobile and tablet.
+- **Health Checks** -- Built-in `/api/health/ready` and `/api/health/live` endpoints for Docker and orchestrator health monitoring.
+
+### Planned Features
+
+The following features are on the roadmap but not yet available:
+
+- Work item management and scheduling
+- Gantt chart with dependency tracking
+- Budget tracking with multiple financing sources
+- Household item and furniture tracking
+- Paperless-ngx document integration
+- Dashboard and reporting
+
+See the [Roadmap](#roadmap) section for details.
 
 ## Quick Start
 
+### 1. Start the container
+
 ```bash
-docker run -p 3000:3000 -v cornerstone-data:/app/data cornerstone
+docker run -d \
+  --name cornerstone \
+  -p 3000:3000 \
+  -v cornerstone-data:/app/data \
+  steilerdev/cornerstone:latest
 ```
 
-Open `http://localhost:3000` in your browser.
+### 2. Create your admin account
 
-### Environment Variables
+Open `http://localhost:3000` in your browser. On first launch, you will be redirected to the setup wizard where you create the initial admin account.
 
-| Variable       | Default                    | Description                |
-| -------------- | -------------------------- | -------------------------- |
-| `PORT`         | `3000`                     | Server port                |
-| `HOST`         | `0.0.0.0`                  | Server bind address        |
-| `DATABASE_URL` | `/app/data/cornerstone.db` | SQLite database path       |
-| `LOG_LEVEL`    | `info`                     | Log level (trace to fatal) |
-| `NODE_ENV`     | `production`               | Environment                |
+### 3. Log in and start managing your project
+
+After setup, log in with your new admin credentials. You can invite additional users through the admin user management panel.
+
+### Docker Compose (recommended)
+
+For a more maintainable setup, use Docker Compose. Copy the example environment file and adjust as needed:
+
+```bash
+# Download the files
+curl -O https://raw.githubusercontent.com/steilerDev/cornerstone/main/docker-compose.yml
+curl -O https://raw.githubusercontent.com/steilerDev/cornerstone/main/.env.example
+
+# Configure your environment
+cp .env.example .env
+# Edit .env with your preferred settings
+
+# Start the application
+docker compose up -d
+```
+
+The default configuration works out of the box -- the only thing you must do is complete the first-run setup wizard in the browser.
+
+## Configuration
+
+All configuration is done through environment variables. The defaults are suitable for most setups.
+
+### Server
+
+| Variable       | Default                    | Description                                                        |
+| -------------- | -------------------------- | ------------------------------------------------------------------ |
+| `PORT`         | `3000`                     | Port the server listens on                                         |
+| `HOST`         | `0.0.0.0`                  | Bind address                                                       |
+| `DATABASE_URL` | `/app/data/cornerstone.db` | Path to the SQLite database file                                   |
+| `LOG_LEVEL`    | `info`                     | Log verbosity (`trace`, `debug`, `info`, `warn`, `error`, `fatal`) |
+| `NODE_ENV`     | `production`               | Environment mode                                                   |
+
+### Sessions
+
+| Variable           | Default  | Description                                      |
+| ------------------ | -------- | ------------------------------------------------ |
+| `SESSION_DURATION` | `604800` | Session lifetime in seconds (default: 7 days)    |
+| `SECURE_COOKIES`   | `true`   | Send cookies with `Secure` flag (requires HTTPS) |
+
+> **Note:** `SECURE_COOKIES` defaults to `true`, which means cookies are only sent over HTTPS. If you are testing locally without HTTPS, set this to `false`. Behind a reverse proxy with TLS termination, keep the default `true`.
+
+### Reverse Proxy
+
+| Variable      | Default | Description                                                                     |
+| ------------- | ------- | ------------------------------------------------------------------------------- |
+| `TRUST_PROXY` | `false` | Set to `true` when running behind a reverse proxy (nginx, Caddy, Traefik, etc.) |
+
+When deploying behind a reverse proxy, set `TRUST_PROXY=true` so the server correctly reads forwarded headers (`X-Forwarded-For`, `X-Forwarded-Proto`, etc.). This is required for secure cookies and OIDC redirects to work properly.
+
+### OIDC (Single Sign-On)
+
+OIDC is automatically enabled when `OIDC_ISSUER`, `OIDC_CLIENT_ID`, and `OIDC_CLIENT_SECRET` are all set. No separate "enable" flag is needed.
+
+| Variable             | Default | Description                                                                                                                                                                            |
+| -------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OIDC_ISSUER`        | --      | Your OIDC provider's issuer URL (e.g., `https://auth.example.com/realms/main`)                                                                                                         |
+| `OIDC_CLIENT_ID`     | --      | Client ID registered with your OIDC provider                                                                                                                                           |
+| `OIDC_CLIENT_SECRET` | --      | Client secret for the OIDC client                                                                                                                                                      |
+| `OIDC_REDIRECT_URI`  | --      | Callback URL (optional -- auto-derived from the request if not set). Set this if your app is behind a reverse proxy. Example: `https://cornerstone.example.com/api/auth/oidc/callback` |
+
+**Setting up OIDC with your identity provider:**
+
+1. Register a new client/application in your OIDC provider (Authentik, Keycloak, etc.)
+2. Set the redirect URI to `https://<your-domain>/api/auth/oidc/callback`
+3. Copy the issuer URL, client ID, and client secret into your environment variables
+4. Users who log in via OIDC for the first time are automatically created with the Member role
+
+**Example `.env` for OIDC:**
+
+```env
+TRUST_PROXY=true
+SECURE_COOKIES=true
+OIDC_ISSUER=https://auth.example.com/realms/main
+OIDC_CLIENT_ID=cornerstone
+OIDC_CLIENT_SECRET=your-client-secret
+OIDC_REDIRECT_URI=https://cornerstone.example.com/api/auth/oidc/callback
+```
+
+## Roadmap
+
+Cornerstone is under active development. Here is the current state of planned features:
+
+- [x] **EPIC-02: Application Shell and Infrastructure** ([#2](https://github.com/steilerDev/cornerstone/issues/2)) -- Responsive layout, routing, API client, health checks, error handling
+- [x] **EPIC-11: CI/CD Infrastructure** ([#12](https://github.com/steilerDev/cornerstone/issues/12)) -- Automated builds, semantic versioning, Docker image publishing
+- [x] **EPIC-01: Authentication and User Management** ([#1](https://github.com/steilerDev/cornerstone/issues/1)) -- Local login, OIDC SSO, user profiles, admin panel, role-based access
+- [ ] **EPIC-03: Work Items** ([#3](https://github.com/steilerDev/cornerstone/issues/3)) -- Core CRUD operations and properties for construction tasks
+- [ ] **EPIC-04: Household Items** ([#4](https://github.com/steilerDev/cornerstone/issues/4)) -- Furniture and appliance purchase tracking
+- [ ] **EPIC-05: Budget Management** ([#5](https://github.com/steilerDev/cornerstone/issues/5)) -- Category-based budgeting, financing sources, cost tracking
+- [ ] **EPIC-06: Timeline and Gantt Chart** ([#6](https://github.com/steilerDev/cornerstone/issues/6)) -- Visual timeline with dependencies and scheduling
+- [ ] **EPIC-07: Reporting and Export** ([#7](https://github.com/steilerDev/cornerstone/issues/7)) -- Document export and reporting features
+- [ ] **EPIC-08: Paperless-ngx Integration** ([#8](https://github.com/steilerDev/cornerstone/issues/8)) -- Reference documents from a Paperless-ngx instance
+- [ ] **EPIC-09: Dashboard and Overview** ([#9](https://github.com/steilerDev/cornerstone/issues/9)) -- Project dashboard with budget summary and activity
+- [ ] **EPIC-10: UX Polish and Accessibility** ([#10](https://github.com/steilerDev/cornerstone/issues/10)) -- Accessibility improvements and UI refinements
+
+Track live progress on the [GitHub Projects board](https://github.com/users/steilerDev/projects/4).
 
 ## Tech Stack
 
@@ -53,11 +172,11 @@ See [`CLAUDE.md`](CLAUDE.md) for the full project guide, coding standards, and d
 
 ## Documentation
 
-Architecture decisions, API contract, database schema, and security audit documentation live on the [GitHub Wiki](../../wiki).
+Architecture decisions, API contract, database schema, and security audit documentation live on the [GitHub Wiki](https://github.com/steilerDev/cornerstone/wiki).
 
-## Project Planning
+## Contributing
 
-The product backlog, epics, and user stories are managed on the [GitHub Projects board](../../projects). The full requirements document is in [`plan/REQUIREMENTS.md`](plan/REQUIREMENTS.md).
+Cornerstone is a personal project built primarily through an agentic development workflow. If you have questions or suggestions, feel free to [open an issue](https://github.com/steilerDev/cornerstone/issues).
 
 ## License
 
