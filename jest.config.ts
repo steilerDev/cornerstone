@@ -1,5 +1,7 @@
 import type { Config } from 'jest';
 
+const isCI = process.env.CI === 'true';
+
 const baseConfig = {
   preset: 'ts-jest/presets/default-esm',
   extensionsToTreatAsEsm: ['.ts', '.tsx'],
@@ -35,6 +37,10 @@ const baseConfig = {
 };
 
 const config: Config = {
+  // In CI (GitHub Actions sets CI=true) use defaults (auto-detect workers).
+  // Locally (sandbox VM with limited memory) restrict to 1 worker and recycle
+  // it when heap exceeds 200 MB to avoid OOM kills.
+  ...(isCI ? {} : { maxWorkers: 1, workerIdleMemoryLimit: '200M' }),
   projects: [
     {
       ...baseConfig,
