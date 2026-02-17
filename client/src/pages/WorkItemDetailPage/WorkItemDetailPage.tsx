@@ -1,4 +1,4 @@
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, useMemo, type FormEvent } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import type {
   WorkItemDetail,
@@ -24,6 +24,8 @@ import { fetchTags, createTag } from '../../lib/tagsApi.js';
 import { listUsers } from '../../lib/usersApi.js';
 import { TagPicker } from '../../components/TagPicker/TagPicker.js';
 import { useAuth } from '../../contexts/AuthContext.js';
+import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
+import { KeyboardShortcutsHelp } from '../../components/KeyboardShortcutsHelp/KeyboardShortcutsHelp.js';
 import styles from './WorkItemDetailPage.module.css';
 
 export default function WorkItemDetailPage() {
@@ -67,6 +69,8 @@ export default function WorkItemDetailPage() {
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
 
   // Load all data on mount
   useEffect(() => {
@@ -457,6 +461,74 @@ export default function WorkItemDetailPage() {
       setIsDeleting(false);
     }
   };
+
+  // Keyboard shortcuts
+  const shortcuts = useMemo(
+    () => [
+      {
+        key: 'e',
+        handler: () => {
+          if (!isEditingTitle && !isEditingDescription && !editingNoteId && !editingSubtaskId) {
+            startEditingTitle();
+          }
+        },
+        description: 'Edit title',
+      },
+      {
+        key: 'Delete',
+        handler: () => {
+          if (!showDeleteConfirm) {
+            setShowDeleteConfirm(true);
+          }
+        },
+        description: 'Delete work item',
+      },
+      {
+        key: 'Backspace',
+        handler: () => {
+          if (!showDeleteConfirm) {
+            setShowDeleteConfirm(true);
+          }
+        },
+        description: 'Delete work item',
+      },
+      {
+        key: 'Escape',
+        handler: () => {
+          if (showShortcutsHelp) {
+            setShowShortcutsHelp(false);
+          } else if (showDeleteConfirm) {
+            setShowDeleteConfirm(false);
+          } else if (isEditingTitle) {
+            cancelTitleEdit();
+          } else if (isEditingDescription) {
+            cancelDescriptionEdit();
+          } else if (editingNoteId) {
+            cancelNoteEdit();
+          } else if (editingSubtaskId) {
+            cancelSubtaskEdit();
+          }
+        },
+        description: 'Cancel edit or close dialog',
+      },
+      {
+        key: '?',
+        handler: () => setShowShortcutsHelp(true),
+        description: 'Show keyboard shortcuts',
+      },
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      isEditingTitle,
+      isEditingDescription,
+      editingNoteId,
+      editingSubtaskId,
+      showDeleteConfirm,
+      showShortcutsHelp,
+    ],
+  );
+
+  useKeyboardShortcuts(shortcuts);
 
   if (isLoading) {
     return (
@@ -1010,6 +1082,11 @@ export default function WorkItemDetailPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Keyboard shortcuts help */}
+      {showShortcutsHelp && (
+        <KeyboardShortcutsHelp shortcuts={shortcuts} onClose={() => setShowShortcutsHelp(false)} />
       )}
     </div>
   );
