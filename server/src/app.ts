@@ -17,6 +17,8 @@ import oidcRoutes from './routes/oidc.js';
 import userRoutes from './routes/users.js';
 import workItemRoutes from './routes/workItems.js';
 import tagRoutes from './routes/tags.js';
+import noteRoutes from './routes/notes.js';
+import subtaskRoutes from './routes/subtasks.js';
 import { hashPassword, verifyPassword } from './services/userService.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -61,6 +63,12 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Tag routes
   await app.register(tagRoutes, { prefix: '/api/tags' });
+
+  // Note routes (nested under work items)
+  await app.register(noteRoutes, { prefix: '/api/work-items/:workItemId/notes' });
+
+  // Subtask routes (nested under work items)
+  await app.register(subtaskRoutes, { prefix: '/api/work-items/:workItemId/subtasks' });
 
   // Health check endpoint (liveness)
   app.get('/api/health', async () => {
