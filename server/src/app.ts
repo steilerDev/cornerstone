@@ -16,6 +16,7 @@ import authRoutes from './routes/auth.js';
 import oidcRoutes from './routes/oidc.js';
 import userRoutes from './routes/users.js';
 import workItemRoutes from './routes/workItems.js';
+import tagRoutes from './routes/tags.js';
 import { hashPassword, verifyPassword } from './services/userService.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -57,6 +58,9 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Work item routes
   await app.register(workItemRoutes, { prefix: '/api/work-items' });
+
+  // Tag routes
+  await app.register(tagRoutes, { prefix: '/api/tags' });
 
   // Health check endpoint (liveness)
   app.get('/api/health', async () => {
