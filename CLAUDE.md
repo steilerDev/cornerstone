@@ -245,8 +245,9 @@ All agents must clearly identify themselves in commits and GitHub interactions:
       d. Repeat until all reviewers approve
   11. **Merge**: Once all agents approve and CI is green, merge immediately: `gh pr merge --squash <pr-url>`
   12. After merge, clean up: `git checkout beta && git pull && git branch -d <branch-name>`
-  13. **Documentation**: Launch `docs-writer` to update `README.md` with newly shipped features. Commit to `beta`.
-  14. **Epic promotion**: After all stories in an epic are complete (merged to `beta`), UAT is approved, and documentation is updated, create a PR from `beta` to `main` using a **merge commit** (not squash): `gh pr create --base main --head beta --title "..." --body "..."` then `gh pr merge --merge <pr-url>`. Merge commits preserve individual commits for semantic-release analysis.
+  13. **Close issue**: Manually close the story's GitHub Issue with a completion comment (`gh issue close <number>`). Move the board status to Done. Note: `Fixes #N` only auto-closes on `main`, not `beta`.
+  14. **Documentation**: Launch `docs-writer` to update `README.md` with newly shipped features. Commit to `beta`.
+  15. **Epic promotion**: After all stories in an epic are complete (merged to `beta`), UAT is approved, and documentation is updated, create a PR from `beta` to `main` using a **merge commit** (not squash): `gh pr create --base main --head beta --title "..." --body "..."` then `gh pr merge --merge <pr-url>`. Merge commits preserve individual commits for semantic-release analysis.
 
 Note: Dependabot auto-merge (`.github/workflows/dependabot-auto-merge.yml`) targets `beta` — it handles automated dependency updates, not agent work.
 
