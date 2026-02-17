@@ -89,7 +89,10 @@ function getAssignedUser(db: DbType, assignedUserId: string | null): UserSummary
 /**
  * Convert database work item row to WorkItemSummary shape.
  */
-function toWorkItemSummary(db: DbType, workItem: typeof workItems.$inferSelect): WorkItemSummary {
+export function toWorkItemSummary(
+  db: DbType,
+  workItem: typeof workItems.$inferSelect,
+): WorkItemSummary {
   const assignedUser = getAssignedUser(db, workItem.assignedUserId);
   const itemTags = getWorkItemTags(db, workItem.id);
 
