@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import type { WorkItemSummary, WorkItemStatus, UserResponse } from '@cornerstone/shared';
 import { listWorkItems, deleteWorkItem } from '../../lib/workItemsApi.js';
@@ -8,6 +8,8 @@ import type { TagResponse } from '@cornerstone/shared';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { StatusBadge } from '../../components/StatusBadge/StatusBadge.js';
 import { TagPill } from '../../components/TagPill/TagPill.js';
+import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
+import { KeyboardShortcutsHelp } from '../../components/KeyboardShortcutsHelp/KeyboardShortcutsHelp.js';
 import styles from './WorkItemsPage.module.css';
 
 const STATUS_OPTIONS: { value: WorkItemStatus; label: string }[] = [
@@ -71,6 +73,11 @@ export function WorkItemsPage() {
   // Action menu state
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // Keyboard shortcuts state
+  const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Load users and tags on mount
   useEffect(() => {
@@ -275,6 +282,77 @@ export function WorkItemsPage() {
     return sortOrder === 'asc' ? ' ↑' : ' ↓';
   };
 
+  // Keyboard shortcuts
+  const shortcuts = useMemo(
+    () => [
+      {
+        key: 'n',
+        handler: () => navigate('/work-items/new'),
+        description: 'New work item',
+      },
+      {
+        key: '/',
+        handler: () => searchInputRef.current?.focus(),
+        description: 'Focus search',
+      },
+      {
+        key: 'ArrowDown',
+        handler: () => {
+          if (workItems.length > 0) {
+            setSelectedIndex((prev) => Math.min(prev + 1, workItems.length - 1));
+          }
+        },
+        description: 'Select next item',
+      },
+      {
+        key: 'ArrowUp',
+        handler: () => {
+          if (workItems.length > 0) {
+            setSelectedIndex((prev) => Math.max(prev - 1, 0));
+          }
+        },
+        description: 'Select previous item',
+      },
+      {
+        key: 'Enter',
+        handler: () => {
+          if (workItems.length > 0 && workItems[selectedIndex]) {
+            navigate(`/work-items/${workItems[selectedIndex].id}`);
+          }
+        },
+        description: 'Open selected item',
+      },
+      {
+        key: '?',
+        handler: () => setShowShortcutsHelp(true),
+        description: 'Show keyboard shortcuts',
+      },
+      {
+        key: 'Escape',
+        handler: () => {
+          if (showShortcutsHelp) {
+            setShowShortcutsHelp(false);
+          } else if (deletingWorkItem) {
+            setDeletingWorkItem(null);
+          } else if (activeMenuId) {
+            setActiveMenuId(null);
+          }
+        },
+        description: 'Close dialog or cancel',
+      },
+    ],
+    [navigate, workItems, selectedIndex, showShortcutsHelp, deletingWorkItem, activeMenuId],
+  );
+
+  useKeyboardShortcuts(shortcuts);
+
+  // Reset selected index when work items change
+  useEffect(() => {
+    if (selectedIndex >= workItems.length) {
+      setSelectedIndex(Math.max(0, workItems.length - 1));
+    }
+  }, [workItems.length, selectedIndex]);
+
   if (isLoading && workItems.length === 0) {
     return (
       <div className={styles.container}>
@@ -306,6 +384,7 @@ export function WorkItemsPage() {
       <div className={styles.filtersCard}>
         <div className={styles.searchRow}>
           <input
+            ref={searchInputRef}
             type="search"
             placeholder="Search work items..."
             value={searchInput}
@@ -446,10 +525,10 @@ export function WorkItemsPage() {
                 </tr>
               </thead>
               <tbody>
-                {workItems.map((item) => (
+                {workItems.map((item, index) => (
                   <tr
                     key={item.id}
-                    className={styles.tableRow}
+                    className={`${styles.tableRow} ${index === selectedIndex ? styles.tableRowSelected : ''}`}
                     onClick={() => handleRowClick(item.id)}
                   >
                     <td className={styles.titleCell}>{item.title}</td>
@@ -668,6 +747,11 @@ export function WorkItemsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Keyboard shortcuts help */}
+      {showShortcutsHelp && (
+        <KeyboardShortcutsHelp shortcuts={shortcuts} onClose={() => setShowShortcutsHelp(false)} />
       )}
     </div>
   );

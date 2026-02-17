@@ -200,6 +200,14 @@
   background-color: #f9fafb;
 }
 
+.tableRowSelected {
+  background-color: #dbeafe;
+}
+
+.tableRowSelected:hover {
+  background-color: #bfdbfe;
+}
+
 .table td {
   padding: 1rem;
   font-size: 0.875rem;
