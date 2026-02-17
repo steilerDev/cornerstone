@@ -144,11 +144,7 @@ export function updateNote(
   ensureWorkItemExists(db, workItemId);
 
   // Fetch note
-  const note = db
-    .select()
-    .from(workItemNotes)
-    .where(eq(workItemNotes.id, noteId))
-    .get();
+  const note = db.select().from(workItemNotes).where(eq(workItemNotes.id, noteId)).get();
 
   if (!note) {
     throw new NotFoundError('Note not found');
@@ -211,11 +207,7 @@ export function deleteNote(
   ensureWorkItemExists(db, workItemId);
 
   // Fetch note
-  const note = db
-    .select()
-    .from(workItemNotes)
-    .where(eq(workItemNotes.id, noteId))
-    .get();
+  const note = db.select().from(workItemNotes).where(eq(workItemNotes.id, noteId)).get();
 
   if (!note) {
     throw new NotFoundError('Note not found');

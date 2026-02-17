@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { eq, asc, sql, inArray } from 'drizzle-orm';
+import { eq, asc, sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import { workItemSubtasks, workItems } from '../db/schema.js';
@@ -72,7 +72,8 @@ export function createSubtask(
   }
 
   // Determine sort order
-  const sortOrder = data.sortOrder !== undefined ? data.sortOrder : getNextSortOrder(db, workItemId);
+  const sortOrder =
+    data.sortOrder !== undefined ? data.sortOrder : getNextSortOrder(db, workItemId);
 
   // Create subtask
   const id = randomUUID();
@@ -179,10 +180,7 @@ export function updateSubtask(
   }
 
   // Perform update
-  db.update(workItemSubtasks)
-    .set(updates)
-    .where(eq(workItemSubtasks.id, subtaskId))
-    .run();
+  db.update(workItemSubtasks).set(updates).where(eq(workItemSubtasks.id, subtaskId)).run();
 
   // Fetch and return updated subtask
   const updated = db
