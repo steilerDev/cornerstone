@@ -140,21 +140,17 @@ export default async function userRoutes(fastify: FastifyInstance) {
   /**
    * GET /api/users
    *
-   * List all users (admin only).
+   * List all users (all authenticated users).
    * Supports optional ?q=search query parameter for case-insensitive search on email/displayName.
    */
-  fastify.get(
-    '/',
-    { schema: listUsersSchema, preHandler: requireRole('admin') },
-    async (request, reply) => {
-      const { q } = request.query as { q?: string };
+  fastify.get('/', { schema: listUsersSchema }, async (request, reply) => {
+    const { q } = request.query as { q?: string };
 
-      const userRows = userService.listUsers(fastify.db, q);
-      const users = userRows.map(userService.toUserResponse);
+    const userRows = userService.listUsers(fastify.db, q);
+    const users = userRows.map(userService.toUserResponse);
 
-      return reply.status(200).send({ users });
-    },
-  );
+    return reply.status(200).send({ users });
+  });
 
   /**
    * PATCH /api/users/:id
