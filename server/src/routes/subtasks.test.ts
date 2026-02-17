@@ -551,18 +551,19 @@ describe('Subtask Routes', () => {
     });
 
     it('returns 400 if subtaskIds contains invalid ID (UAT-3.4-33)', async () => {
-      // Given: Work item with one subtask
+      // Given: Work item with two subtasks
       const { userId, cookie } = await createUserWithSession(
         'user@example.com',
         'Test User',
         'password',
       );
       const workItemId = createTestWorkItem(userId, 'Test Work Item');
-      const subtaskId = createTestSubtask(workItemId, 'Valid subtask', 0);
+      const subtask0Id = createTestSubtask(workItemId, 'Valid subtask 1', 0);
+      createTestSubtask(workItemId, 'Valid subtask 2', 1);
 
-      // When: Reordering with invalid ID
+      // When: Reordering with invalid ID (but correct count)
       const body: ReorderSubtasksRequest = {
-        subtaskIds: [subtaskId, 'invalid-subtask-id'],
+        subtaskIds: [subtask0Id, 'invalid-subtask-id'],
       };
       const response = await app.inject({
         method: 'PATCH',
@@ -596,6 +597,34 @@ describe('Subtask Routes', () => {
       expect(response.statusCode).toBe(401);
       const error = response.json<ApiErrorResponse>();
       expect(error.error.code).toBe('UNAUTHORIZED');
+    });
+
+    it('returns 400 if partial reorder is attempted (not all IDs provided)', async () => {
+      // Given: Work item with 3 subtasks
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'Test User',
+        'password',
+      );
+      const workItemId = createTestWorkItem(userId, 'Test Work Item');
+      const subtask0Id = createTestSubtask(workItemId, 'First', 0);
+      const subtask1Id = createTestSubtask(workItemId, 'Second', 1);
+      createTestSubtask(workItemId, 'Third', 2);
+
+      // When: Reordering only 2 out of 3 subtasks
+      const body: ReorderSubtasksRequest = { subtaskIds: [subtask1Id, subtask0Id] };
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/work-items/${workItemId}/subtasks/reorder`,
+        headers: { cookie },
+        payload: body,
+      });
+
+      // Then: 400 Validation Error (API contract requires all IDs)
+      expect(response.statusCode).toBe(400);
+      const error = response.json<ApiErrorResponse>();
+      expect(error.error.code).toBe('VALIDATION_ERROR');
+      expect(error.error.message).toContain('All subtask IDs must be provided for reorder');
     });
   });
 

@@ -596,14 +596,15 @@ describe('Subtask Service', () => {
     });
 
     it('throws ValidationError if subtaskIds contains invalid ID (UAT-3.4-33)', () => {
-      // Given: A work item with one subtask
+      // Given: A work item with two subtasks
       const userId = createTestUser('user@example.com', 'Test User');
       const workItemId = createTestWorkItem(userId, 'Test Work Item');
-      const subtaskId = createTestSubtask(workItemId, 'Valid subtask', 0);
+      const subtask0Id = createTestSubtask(workItemId, 'Valid subtask 1', 0);
+      createTestSubtask(workItemId, 'Valid subtask 2', 1);
 
-      // When: Reordering with invalid ID
+      // When: Reordering with invalid ID (but correct count)
       const data: ReorderSubtasksRequest = {
-        subtaskIds: [subtaskId, 'invalid-subtask-id'],
+        subtaskIds: [subtask0Id, 'invalid-subtask-id'],
       };
 
       // Then: ValidationError is thrown
@@ -620,11 +621,12 @@ describe('Subtask Service', () => {
       const userId = createTestUser('user@example.com', 'Test User');
       const workItem1Id = createTestWorkItem(userId, 'Work Item 1');
       const workItem2Id = createTestWorkItem(userId, 'Work Item 2');
-      const subtask1Id = createTestSubtask(workItem1Id, 'Subtask on item 1', 0);
+      const subtask1aId = createTestSubtask(workItem1Id, 'Subtask 1a on item 1', 0);
+      createTestSubtask(workItem1Id, 'Subtask 1b on item 1', 1);
       const subtask2Id = createTestSubtask(workItem2Id, 'Subtask on item 2', 0);
 
-      // When: Trying to reorder using subtask from different work item
-      const data: ReorderSubtasksRequest = { subtaskIds: [subtask1Id, subtask2Id] };
+      // When: Trying to reorder using subtask from different work item (but correct count)
+      const data: ReorderSubtasksRequest = { subtaskIds: [subtask1aId, subtask2Id] };
 
       // Then: ValidationError is thrown
       expect(() => {
@@ -649,27 +651,24 @@ describe('Subtask Service', () => {
       }).toThrow('Work item not found');
     });
 
-    it('handles partial reordering (subset of subtasks)', () => {
+    it('rejects partial reordering (subset of subtasks)', () => {
       // Given: A work item with 3 subtasks
       const userId = createTestUser('user@example.com', 'Test User');
       const workItemId = createTestWorkItem(userId, 'Test Work Item');
       const subtask0Id = createTestSubtask(workItemId, 'First', 0);
       const subtask1Id = createTestSubtask(workItemId, 'Second', 1);
-      const subtask2Id = createTestSubtask(workItemId, 'Third', 2);
+      createTestSubtask(workItemId, 'Third', 2);
 
       // When: Reordering only 2 out of 3 subtasks
       const data: ReorderSubtasksRequest = { subtaskIds: [subtask1Id, subtask0Id] };
-      const result = subtaskService.reorderSubtasks(db, workItemId, data);
 
-      // Then: Only specified subtasks are reordered
-      expect(result).toHaveLength(3);
-      expect(result[0].id).toBe(subtask1Id);
-      expect(result[0].sortOrder).toBe(0);
-      expect(result[1].id).toBe(subtask0Id);
-      expect(result[1].sortOrder).toBe(1);
-      // subtask2Id remains at original sortOrder
-      expect(result[2].id).toBe(subtask2Id);
-      expect(result[2].sortOrder).toBe(2);
+      // Then: ValidationError is thrown (API contract requires all IDs)
+      expect(() => {
+        subtaskService.reorderSubtasks(db, workItemId, data);
+      }).toThrow(ValidationError);
+      expect(() => {
+        subtaskService.reorderSubtasks(db, workItemId, data);
+      }).toThrow('All subtask IDs must be provided for reorder');
     });
   });
 });

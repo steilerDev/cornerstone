@@ -13,7 +13,7 @@ const createSubtaskSchema = {
     type: 'object',
     required: ['title'],
     properties: {
-      title: { type: 'string', minLength: 1 },
+      title: { type: 'string', minLength: 1, maxLength: 500 },
       sortOrder: { type: 'integer', minimum: 0 },
     },
     additionalProperties: false,
@@ -32,7 +32,7 @@ const updateSubtaskSchema = {
   body: {
     type: 'object',
     properties: {
-      title: { type: 'string', minLength: 1 },
+      title: { type: 'string', minLength: 1, maxLength: 500 },
       isCompleted: { type: 'boolean' },
       sortOrder: { type: 'integer', minimum: 0 },
     },
@@ -59,6 +59,7 @@ const reorderSubtasksSchema = {
         type: 'array',
         items: { type: 'string' },
         minItems: 1,
+        maxItems: 1000,
       },
     },
     additionalProperties: false,

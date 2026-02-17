@@ -9,7 +9,7 @@ const createNoteSchema = {
     type: 'object',
     required: ['content'],
     properties: {
-      content: { type: 'string', minLength: 1 },
+      content: { type: 'string', minLength: 1, maxLength: 10000 },
     },
     additionalProperties: false,
   },
@@ -28,7 +28,7 @@ const updateNoteSchema = {
     type: 'object',
     required: ['content'],
     properties: {
-      content: { type: 'string', minLength: 1 },
+      content: { type: 'string', minLength: 1, maxLength: 10000 },
     },
     additionalProperties: false,
   },

@@ -245,6 +245,11 @@ export function reorderSubtasks(
     .where(eq(workItemSubtasks.workItemId, workItemId))
     .all();
 
+  // Verify all subtask IDs are provided (API contract requirement)
+  if (data.subtaskIds.length !== existingSubtasks.length) {
+    throw new ValidationError('All subtask IDs must be provided for reorder');
+  }
+
   // Verify all provided IDs belong to this work item
   const existingIds = new Set(existingSubtasks.map((s) => s.id));
   const invalidIds = data.subtaskIds.filter((id) => !existingIds.has(id));
