@@ -16,6 +16,11 @@ export interface KeyboardShortcut {
 export function useKeyboardShortcuts(shortcuts: KeyboardShortcut[]): KeyboardShortcut[] {
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
+      // Ignore shortcuts when modifier keys are held
+      if (event.ctrlKey || event.altKey || event.metaKey) {
+        return;
+      }
+
       // Ignore shortcuts when focus is on input elements
       const target = event.target as HTMLElement;
       const isInputField =

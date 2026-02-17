@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { eq, asc, sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { workItemSubtasks, workItems } from '../db/schema.js';
+import { workItemSubtasks } from '../db/schema.js';
 import type {
   SubtaskResponse,
   CreateSubtaskRequest,
@@ -10,6 +10,7 @@ import type {
   ReorderSubtasksRequest,
 } from '@cornerstone/shared';
 import { NotFoundError, ValidationError } from '../errors/AppError.js';
+import { ensureWorkItemExists } from './workItemService.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -25,17 +26,6 @@ function toSubtaskResponse(subtask: typeof workItemSubtasks.$inferSelect): Subta
     createdAt: subtask.createdAt,
     updatedAt: subtask.updatedAt,
   };
-}
-
-/**
- * Verify a work item exists.
- * @throws NotFoundError if work item does not exist
- */
-function ensureWorkItemExists(db: DbType, workItemId: string): void {
-  const workItem = db.select().from(workItems).where(eq(workItems.id, workItemId)).get();
-  if (!workItem) {
-    throw new NotFoundError('Work item not found');
-  }
 }
 
 /**

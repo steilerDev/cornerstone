@@ -25,14 +25,16 @@ export function KeyboardShortcutsHelp({ shortcuts, onClose }: KeyboardShortcutsH
             </tr>
           </thead>
           <tbody>
-            {shortcuts.map((shortcut) => (
-              <tr key={shortcut.key}>
-                <td className={styles.keyCell}>
-                  <kbd className={styles.kbd}>{shortcut.key}</kbd>
-                </td>
-                <td className={styles.descriptionCell}>{shortcut.description}</td>
-              </tr>
-            ))}
+            {shortcuts
+              .filter((shortcut) => shortcut.description)
+              .map((shortcut) => (
+                <tr key={shortcut.key}>
+                  <td className={styles.keyCell}>
+                    <kbd className={styles.kbd}>{shortcut.key}</kbd>
+                  </td>
+                  <td className={styles.descriptionCell}>{shortcut.description}</td>
+                </tr>
+              ))}
           </tbody>
         </table>
       </div>
