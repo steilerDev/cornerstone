@@ -8,6 +8,8 @@ const SetupPage = lazy(() => import('./pages/SetupPage/SetupPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage/LoginPage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage/DashboardPage'));
 const WorkItemsPage = lazy(() => import('./pages/WorkItemsPage/WorkItemsPage'));
+const WorkItemCreatePage = lazy(() => import('./pages/WorkItemCreatePage/WorkItemCreatePage'));
+const WorkItemDetailPage = lazy(() => import('./pages/WorkItemDetailPage/WorkItemDetailPage'));
 const BudgetPage = lazy(() => import('./pages/BudgetPage/BudgetPage'));
 const TimelinePage = lazy(() => import('./pages/TimelinePage/TimelinePage'));
 const HouseholdItemsPage = lazy(() => import('./pages/HouseholdItemsPage/HouseholdItemsPage'));
@@ -45,6 +47,8 @@ export function App() {
             <Route element={<AppShell />}>
               <Route index element={<DashboardPage />} />
               <Route path="work-items" element={<WorkItemsPage />} />
+              <Route path="work-items/new" element={<WorkItemCreatePage />} />
+              <Route path="work-items/:id" element={<WorkItemDetailPage />} />
               <Route path="budget" element={<BudgetPage />} />
               <Route path="timeline" element={<TimelinePage />} />
               <Route path="household-items" element={<HouseholdItemsPage />} />
