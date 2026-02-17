@@ -88,6 +88,15 @@
   border-top: 1px solid #e5e7eb;
 }
 
+.createError {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 0.25rem;
+  padding: 0.5rem;
+  font-size: 0.75rem;
+  color: #991b1b;
+}
+
 .createHeader {
   font-size: 0.875rem;
   color: #374151;

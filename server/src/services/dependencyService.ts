@@ -32,10 +32,17 @@ function ensureWorkItemExists(db: DbType, workItemId: string, context: string): 
  * @returns The cycle path if detected, null otherwise
  */
 function detectCycle(db: DbType, successorId: string, predecessorId: string): string[] | null {
+  const MAX_ITERATIONS = 10000;
   const visited = new Set<string>();
   const path: string[] = [predecessorId];
+  let iterations = 0;
 
   function dfs(currentId: string): boolean {
+    // Prevent DoS on pathological graphs
+    if (++iterations > MAX_ITERATIONS) {
+      return false;
+    }
+
     if (currentId === successorId) {
       path.push(successorId);
       return true; // Cycle detected
@@ -86,14 +93,14 @@ export function createDependency(
 ): DependencyCreatedResponse {
   const { predecessorId, dependencyType = 'finish_to_start' } = data;
 
-  // Validate both work items exist
-  ensureWorkItemExists(db, workItemId, 'Successor work item');
-  ensureWorkItemExists(db, predecessorId, 'Predecessor work item');
-
-  // Reject self-reference
+  // Reject self-reference (check before DB queries)
   if (workItemId === predecessorId) {
     throw new ValidationError('A work item cannot depend on itself');
   }
+
+  // Validate both work items exist
+  ensureWorkItemExists(db, workItemId, 'Successor work item');
+  ensureWorkItemExists(db, predecessorId, 'Predecessor work item');
 
   // Check for duplicate dependency
   const existing = db
@@ -126,7 +133,7 @@ export function createDependency(
 
     throw new ConflictError(`Circular dependency detected: ${cycleWithTitles.join(' → ')}`, {
       code: 'CIRCULAR_DEPENDENCY',
-      cyclePath: cycle,
+      cycle,
     });
   }
 

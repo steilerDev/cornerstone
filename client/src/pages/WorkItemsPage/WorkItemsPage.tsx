@@ -72,11 +72,11 @@ export function WorkItemsPage() {
 
   // Action menu state
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Keyboard shortcuts state
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
-  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Load users and tags on mount
@@ -162,7 +162,7 @@ export function WorkItemsPage() {
   // Close menu when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setActiveMenuId(null);
       }
     }
@@ -299,7 +299,9 @@ export function WorkItemsPage() {
         key: 'ArrowDown',
         handler: () => {
           if (workItems.length > 0) {
-            setSelectedIndex((prev) => Math.min(prev + 1, workItems.length - 1));
+            setSelectedIndex((prev) =>
+              prev === -1 ? 0 : Math.min(prev + 1, workItems.length - 1),
+            );
           }
         },
         description: 'Select next item',
@@ -308,7 +310,7 @@ export function WorkItemsPage() {
         key: 'ArrowUp',
         handler: () => {
           if (workItems.length > 0) {
-            setSelectedIndex((prev) => Math.max(prev - 1, 0));
+            setSelectedIndex((prev) => (prev === -1 ? 0 : Math.max(prev - 1, 0)));
           }
         },
         description: 'Select previous item',
@@ -316,7 +318,7 @@ export function WorkItemsPage() {
       {
         key: 'Enter',
         handler: () => {
-          if (workItems.length > 0 && workItems[selectedIndex]) {
+          if (selectedIndex >= 0 && workItems[selectedIndex]) {
             navigate(`/work-items/${workItems[selectedIndex].id}`);
           }
         },
@@ -336,6 +338,8 @@ export function WorkItemsPage() {
             setDeletingWorkItem(null);
           } else if (activeMenuId) {
             setActiveMenuId(null);
+          } else if (selectedIndex >= 0) {
+            setSelectedIndex(-1);
           }
         },
         description: 'Close dialog or cancel',
@@ -349,7 +353,7 @@ export function WorkItemsPage() {
   // Reset selected index when work items change
   useEffect(() => {
     if (selectedIndex >= workItems.length) {
-      setSelectedIndex(Math.max(0, workItems.length - 1));
+      setSelectedIndex(-1);
     }
   }, [workItems.length, selectedIndex]);
 
@@ -362,7 +366,7 @@ export function WorkItemsPage() {
   }
 
   return (
-    <div className={styles.container}>
+    <div className={styles.container} ref={containerRef}>
       <div className={styles.header}>
         <h1 className={styles.pageTitle}>Work Items</h1>
         <button
@@ -484,15 +488,34 @@ export function WorkItemsPage() {
       {/* Work items list */}
       {workItems.length === 0 ? (
         <div className={styles.emptyState}>
-          <h2>No work items yet</h2>
-          <p>Get started by creating your first work item to track construction tasks.</p>
-          <button
-            type="button"
-            className={styles.primaryButton}
-            onClick={() => navigate('/work-items/new')}
-          >
-            Create First Work Item
-          </button>
+          {searchQuery || statusFilter || assignedUserFilter || tagFilter ? (
+            <>
+              <h2>No work items match your filters</h2>
+              <p>Try adjusting your search or filter criteria.</p>
+              <button
+                type="button"
+                className={styles.secondaryButton}
+                onClick={() => {
+                  setSearchInput('');
+                  setSearchParams(new URLSearchParams());
+                }}
+              >
+                Clear All Filters
+              </button>
+            </>
+          ) : (
+            <>
+              <h2>No work items yet</h2>
+              <p>Get started by creating your first work item to track construction tasks.</p>
+              <button
+                type="button"
+                className={styles.primaryButton}
+                onClick={() => navigate('/work-items/new')}
+              >
+                Create First Work Item
+              </button>
+            </>
+          )}
         </div>
       ) : (
         <>
@@ -548,7 +571,7 @@ export function WorkItemsPage() {
                       </div>
                     </td>
                     <td className={styles.actionsCell} onClick={(e) => e.stopPropagation()}>
-                      <div className={styles.actionsMenu} ref={menuRef}>
+                      <div className={styles.actionsMenu}>
                         <button
                           type="button"
                           className={styles.menuButton}
@@ -590,7 +613,7 @@ export function WorkItemsPage() {
                 <div className={styles.cardHeader}>
                   <h3 className={styles.cardTitle}>{item.title}</h3>
                   <div className={styles.cardActions} onClick={(e) => e.stopPropagation()}>
-                    <div className={styles.actionsMenu} ref={menuRef}>
+                    <div className={styles.actionsMenu}>
                       <button
                         type="button"
                         className={styles.menuButton}

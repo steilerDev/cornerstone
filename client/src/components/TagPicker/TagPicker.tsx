@@ -9,6 +9,7 @@ interface TagPickerProps {
   onSelectionChange: (tagIds: string[]) => void;
   onCreateTag?: (name: string, color: string | null) => Promise<TagResponse>;
   disabled?: boolean;
+  onError?: (message: string) => void;
 }
 
 export function TagPicker({
@@ -17,11 +18,13 @@ export function TagPicker({
   onSelectionChange,
   onCreateTag,
   disabled = false,
+  onError,
 }: TagPickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [newTagColor, setNewTagColor] = useState<string>('#3b82f6');
+  const [createError, setCreateError] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -71,6 +74,7 @@ export function TagPicker({
     if (!onCreateTag || !canCreateNew) return;
 
     setIsCreating(true);
+    setCreateError(null);
 
     try {
       const newTag = await onCreateTag(searchTerm.trim(), newTagColor);
@@ -78,9 +82,12 @@ export function TagPicker({
       setSearchTerm('');
       setNewTagColor('#3b82f6'); // Reset to default
       inputRef.current?.focus();
-    } catch (error) {
-      // Error handling should be done by parent component
-      console.error('Failed to create tag:', error);
+    } catch {
+      const errorMessage = 'Failed to create tag. Please try again.';
+      setCreateError(errorMessage);
+      if (onError) {
+        onError(errorMessage);
+      }
     } finally {
       setIsCreating(false);
     }
@@ -128,6 +135,11 @@ export function TagPicker({
 
           {canCreateNew && (
             <form className={styles.createForm} onSubmit={handleCreateTag}>
+              {createError && (
+                <div className={styles.createError} role="alert">
+                  {createError}
+                </div>
+              )}
               <div className={styles.createHeader}>
                 Create new tag: <strong>{searchTerm.trim()}</strong>
               </div>

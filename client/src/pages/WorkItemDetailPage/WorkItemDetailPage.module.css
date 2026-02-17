@@ -16,6 +16,35 @@
   color: #dc2626;
 }
 
+.errorBanner {
+  position: relative;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  color: #991b1b;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.closeError {
+  background: transparent;
+  border: none;
+  color: #991b1b;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  transition: background 0.15s;
+}
+
+.closeError:hover {
+  background: rgba(153, 27, 27, 0.1);
+}
+
 /* Header */
 .header {
   margin-bottom: 2rem;

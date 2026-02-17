@@ -72,6 +72,11 @@ export default function WorkItemDetailPage() {
 
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
 
+  const [inlineError, setInlineError] = useState<string | null>(null);
+  const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
+  const [deletingSubtaskId, setDeletingSubtaskId] = useState<string | null>(null);
+  const [deletingDependencyId, setDeletingDependencyId] = useState<string | null>(null);
+
   // Load all data on mount
   useEffect(() => {
     if (!id) return;
@@ -168,12 +173,13 @@ export default function WorkItemDetailPage() {
 
   const saveTitle = async () => {
     if (!id || !editedTitle.trim()) return;
+    setInlineError(null);
     try {
       await updateWorkItem(id, { title: editedTitle.trim() });
       setIsEditingTitle(false);
       await reloadWorkItem();
     } catch (err) {
-      alert('Failed to update title');
+      setInlineError('Failed to update title');
       console.error('Failed to update title:', err);
     }
   };
@@ -192,12 +198,13 @@ export default function WorkItemDetailPage() {
 
   const saveDescription = async () => {
     if (!id) return;
+    setInlineError(null);
     try {
       await updateWorkItem(id, { description: editedDescription.trim() || null });
       setIsEditingDescription(false);
       await reloadWorkItem();
     } catch (err) {
-      alert('Failed to update description');
+      setInlineError('Failed to update description');
       console.error('Failed to update description:', err);
     }
   };
@@ -210,11 +217,12 @@ export default function WorkItemDetailPage() {
   // Status change
   const handleStatusChange = async (newStatus: WorkItemStatus) => {
     if (!id) return;
+    setInlineError(null);
     try {
       await updateWorkItem(id, { status: newStatus });
       await reloadWorkItem();
     } catch (err) {
-      alert('Failed to update status');
+      setInlineError('Failed to update status');
       console.error('Failed to update status:', err);
     }
   };
@@ -222,11 +230,12 @@ export default function WorkItemDetailPage() {
   // Assigned user change
   const handleAssignedUserChange = async (userId: string) => {
     if (!id) return;
+    setInlineError(null);
     try {
       await updateWorkItem(id, { assignedUserId: userId || null });
       await reloadWorkItem();
     } catch (err) {
-      alert('Failed to update assigned user');
+      setInlineError('Failed to update assigned user');
       console.error('Failed to update assigned user:', err);
     }
   };
@@ -234,11 +243,12 @@ export default function WorkItemDetailPage() {
   // Date changes
   const handleDateChange = async (field: 'startDate' | 'endDate', value: string) => {
     if (!id) return;
+    setInlineError(null);
     try {
       await updateWorkItem(id, { [field]: value || null });
       await reloadWorkItem();
     } catch (err) {
-      alert(`Failed to update ${field}`);
+      setInlineError(`Failed to update ${field}`);
       console.error(`Failed to update ${field}:`, err);
     }
   };
@@ -249,11 +259,12 @@ export default function WorkItemDetailPage() {
     const duration = value ? Number(value) : null;
     if (duration !== null && (isNaN(duration) || duration < 0)) return;
 
+    setInlineError(null);
     try {
       await updateWorkItem(id, { durationDays: duration });
       await reloadWorkItem();
     } catch (err) {
-      alert('Failed to update duration');
+      setInlineError('Failed to update duration');
       console.error('Failed to update duration:', err);
     }
   };
@@ -261,11 +272,12 @@ export default function WorkItemDetailPage() {
   // Constraint changes
   const handleConstraintChange = async (field: 'startAfter' | 'startBefore', value: string) => {
     if (!id) return;
+    setInlineError(null);
     try {
       await updateWorkItem(id, { [field]: value || null });
       await reloadWorkItem();
     } catch (err) {
-      alert(`Failed to update ${field}`);
+      setInlineError(`Failed to update ${field}`);
       console.error(`Failed to update ${field}:`, err);
     }
   };
@@ -273,11 +285,12 @@ export default function WorkItemDetailPage() {
   // Tags change
   const handleTagsChange = async (tagIds: string[]) => {
     if (!id) return;
+    setInlineError(null);
     try {
       await updateWorkItem(id, { tagIds });
       await reloadWorkItem();
     } catch (err) {
-      alert('Failed to update tags');
+      setInlineError('Failed to update tags');
       console.error('Failed to update tags:', err);
     }
   };
@@ -288,12 +301,13 @@ export default function WorkItemDetailPage() {
     if (!id || !newNoteContent.trim()) return;
 
     setIsAddingNote(true);
+    setInlineError(null);
     try {
       await createNote(id, { content: newNoteContent.trim() });
       setNewNoteContent('');
       await reloadNotes();
     } catch (err) {
-      alert('Failed to add note');
+      setInlineError('Failed to add note');
       console.error('Failed to add note:', err);
     } finally {
       setIsAddingNote(false);
@@ -307,13 +321,14 @@ export default function WorkItemDetailPage() {
 
   const saveNoteEdit = async (noteId: string) => {
     if (!id || !editedNoteContent.trim()) return;
+    setInlineError(null);
     try {
       await updateNote(id, noteId, { content: editedNoteContent.trim() });
       setEditingNoteId(null);
       setEditedNoteContent('');
       await reloadNotes();
     } catch (err) {
-      alert('Failed to update note');
+      setInlineError('Failed to update note');
       console.error('Failed to update note:', err);
     }
   };
@@ -324,12 +339,19 @@ export default function WorkItemDetailPage() {
   };
 
   const handleDeleteNote = async (noteId: string) => {
-    if (!id || !confirm('Delete this note?')) return;
+    if (!id) return;
+    setDeletingNoteId(noteId);
+  };
+
+  const confirmDeleteNote = async () => {
+    if (!id || !deletingNoteId) return;
+    setInlineError(null);
     try {
-      await deleteNote(id, noteId);
+      await deleteNote(id, deletingNoteId);
+      setDeletingNoteId(null);
       await reloadNotes();
     } catch (err) {
-      alert('Failed to delete note');
+      setInlineError('Failed to delete note');
       console.error('Failed to delete note:', err);
     }
   };
@@ -340,12 +362,13 @@ export default function WorkItemDetailPage() {
     if (!id || !newSubtaskTitle.trim()) return;
 
     setIsAddingSubtask(true);
+    setInlineError(null);
     try {
       await createSubtask(id, { title: newSubtaskTitle.trim() });
       setNewSubtaskTitle('');
       await reloadSubtasks();
     } catch (err) {
-      alert('Failed to add subtask');
+      setInlineError('Failed to add subtask');
       console.error('Failed to add subtask:', err);
     } finally {
       setIsAddingSubtask(false);
@@ -354,11 +377,12 @@ export default function WorkItemDetailPage() {
 
   const handleToggleSubtask = async (subtaskId: string, isCompleted: boolean) => {
     if (!id) return;
+    setInlineError(null);
     try {
       await updateSubtask(id, subtaskId, { isCompleted });
       await reloadSubtasks();
     } catch (err) {
-      alert('Failed to update subtask');
+      setInlineError('Failed to update subtask');
       console.error('Failed to update subtask:', err);
     }
   };
@@ -370,13 +394,14 @@ export default function WorkItemDetailPage() {
 
   const saveSubtaskEdit = async (subtaskId: string) => {
     if (!id || !editedSubtaskTitle.trim()) return;
+    setInlineError(null);
     try {
       await updateSubtask(id, subtaskId, { title: editedSubtaskTitle.trim() });
       setEditingSubtaskId(null);
       setEditedSubtaskTitle('');
       await reloadSubtasks();
     } catch (err) {
-      alert('Failed to update subtask');
+      setInlineError('Failed to update subtask');
       console.error('Failed to update subtask:', err);
     }
   };
@@ -387,12 +412,19 @@ export default function WorkItemDetailPage() {
   };
 
   const handleDeleteSubtask = async (subtaskId: string) => {
-    if (!id || !confirm('Delete this subtask?')) return;
+    if (!id) return;
+    setDeletingSubtaskId(subtaskId);
+  };
+
+  const confirmDeleteSubtask = async () => {
+    if (!id || !deletingSubtaskId) return;
+    setInlineError(null);
     try {
-      await deleteSubtask(id, subtaskId);
+      await deleteSubtask(id, deletingSubtaskId);
+      setDeletingSubtaskId(null);
       await reloadSubtasks();
     } catch (err) {
-      alert('Failed to delete subtask');
+      setInlineError('Failed to delete subtask');
       console.error('Failed to delete subtask:', err);
     }
   };
@@ -406,11 +438,12 @@ export default function WorkItemDetailPage() {
     const [moved] = reordered.splice(index, 1);
     reordered.splice(newIndex, 0, moved);
 
+    setInlineError(null);
     try {
       await reorderSubtasks(id, { subtaskIds: reordered.map((s) => s.id) });
       await reloadSubtasks();
     } catch (err) {
-      alert('Failed to reorder subtasks');
+      setInlineError('Failed to reorder subtasks');
       console.error('Failed to reorder subtasks:', err);
     }
   };
@@ -421,6 +454,7 @@ export default function WorkItemDetailPage() {
     if (!id || !newDependencyPredecessorId) return;
 
     setIsAddingDependency(true);
+    setInlineError(null);
     try {
       await createDependency(id, {
         predecessorId: newDependencyPredecessorId,
@@ -430,7 +464,7 @@ export default function WorkItemDetailPage() {
       setNewDependencyType('finish_to_start');
       await reloadDependencies();
     } catch (err) {
-      alert('Failed to add dependency');
+      setInlineError('Failed to add dependency');
       console.error('Failed to add dependency:', err);
     } finally {
       setIsAddingDependency(false);
@@ -438,12 +472,19 @@ export default function WorkItemDetailPage() {
   };
 
   const handleDeleteDependency = async (predecessorId: string) => {
-    if (!id || !confirm('Remove this dependency?')) return;
+    if (!id) return;
+    setDeletingDependencyId(predecessorId);
+  };
+
+  const confirmDeleteDependency = async () => {
+    if (!id || !deletingDependencyId) return;
+    setInlineError(null);
     try {
-      await deleteDependency(id, predecessorId);
+      await deleteDependency(id, deletingDependencyId);
+      setDeletingDependencyId(null);
       await reloadDependencies();
     } catch (err) {
-      alert('Failed to remove dependency');
+      setInlineError('Failed to remove dependency');
       console.error('Failed to remove dependency:', err);
     }
   };
@@ -452,11 +493,12 @@ export default function WorkItemDetailPage() {
   const handleDeleteWorkItem = async () => {
     if (!id) return;
     setIsDeleting(true);
+    setInlineError(null);
     try {
       await deleteWorkItem(id);
       navigate('/work-items');
     } catch (err) {
-      alert('Failed to delete work item');
+      setInlineError('Failed to delete work item');
       console.error('Failed to delete work item:', err);
       setIsDeleting(false);
     }
@@ -481,7 +523,7 @@ export default function WorkItemDetailPage() {
             setShowDeleteConfirm(true);
           }
         },
-        description: 'Delete work item',
+        description: 'Delete work item (Delete / Backspace)',
       },
       {
         key: 'Backspace',
@@ -490,7 +532,7 @@ export default function WorkItemDetailPage() {
             setShowDeleteConfirm(true);
           }
         },
-        description: 'Delete work item',
+        description: '', // Empty description to hide in help overlay
       },
       {
         key: 'Escape',
@@ -566,6 +608,21 @@ export default function WorkItemDetailPage() {
 
   return (
     <div className={styles.container}>
+      {/* Inline error banner */}
+      {inlineError && (
+        <div className={styles.errorBanner} role="alert">
+          {inlineError}
+          <button
+            type="button"
+            className={styles.closeError}
+            onClick={() => setInlineError(null)}
+            aria-label="Dismiss error"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div className={styles.header}>
         <button type="button" className={styles.backButton} onClick={() => navigate('/work-items')}>
@@ -749,6 +806,7 @@ export default function WorkItemDetailPage() {
               selectedTagIds={workItem.tags.map((t) => t.id)}
               onSelectionChange={handleTagsChange}
               onCreateTag={handleCreateTag}
+              onError={(message) => setInlineError(message)}
             />
           </section>
         </div>
@@ -1087,6 +1145,93 @@ export default function WorkItemDetailPage() {
       {/* Keyboard shortcuts help */}
       {showShortcutsHelp && (
         <KeyboardShortcutsHelp shortcuts={shortcuts} onClose={() => setShowShortcutsHelp(false)} />
+      )}
+
+      {/* Note deletion confirmation modal */}
+      {deletingNoteId && (
+        <div className={styles.modal}>
+          <div className={styles.modalBackdrop} onClick={() => setDeletingNoteId(null)} />
+          <div className={styles.modalContent}>
+            <h2 className={styles.modalTitle}>Delete Note?</h2>
+            <p className={styles.modalText}>
+              Are you sure you want to delete this note? This action cannot be undone.
+            </p>
+            <div className={styles.modalActions}>
+              <button
+                type="button"
+                className={styles.modalCancelButton}
+                onClick={() => setDeletingNoteId(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={styles.modalDeleteButton}
+                onClick={confirmDeleteNote}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Subtask deletion confirmation modal */}
+      {deletingSubtaskId && (
+        <div className={styles.modal}>
+          <div className={styles.modalBackdrop} onClick={() => setDeletingSubtaskId(null)} />
+          <div className={styles.modalContent}>
+            <h2 className={styles.modalTitle}>Delete Subtask?</h2>
+            <p className={styles.modalText}>
+              Are you sure you want to delete this subtask? This action cannot be undone.
+            </p>
+            <div className={styles.modalActions}>
+              <button
+                type="button"
+                className={styles.modalCancelButton}
+                onClick={() => setDeletingSubtaskId(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={styles.modalDeleteButton}
+                onClick={confirmDeleteSubtask}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dependency deletion confirmation modal */}
+      {deletingDependencyId && (
+        <div className={styles.modal}>
+          <div className={styles.modalBackdrop} onClick={() => setDeletingDependencyId(null)} />
+          <div className={styles.modalContent}>
+            <h2 className={styles.modalTitle}>Remove Dependency?</h2>
+            <p className={styles.modalText}>
+              Are you sure you want to remove this dependency? This action cannot be undone.
+            </p>
+            <div className={styles.modalActions}>
+              <button
+                type="button"
+                className={styles.modalCancelButton}
+                onClick={() => setDeletingDependencyId(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={styles.modalDeleteButton}
+                onClick={confirmDeleteDependency}
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

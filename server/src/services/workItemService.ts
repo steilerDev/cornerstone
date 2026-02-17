@@ -342,6 +342,17 @@ export function findWorkItemById(
 }
 
 /**
+ * Verify a work item exists.
+ * @throws NotFoundError if work item does not exist
+ */
+export function ensureWorkItemExists(db: DbType, workItemId: string): void {
+  const workItem = findWorkItemById(db, workItemId);
+  if (!workItem) {
+    throw new NotFoundError('Work item not found');
+  }
+}
+
+/**
  * Get work item detail by ID.
  * Throws NotFoundError if work item does not exist.
  */
@@ -481,11 +492,13 @@ export function listWorkItems(
   }
 
   if (query.q) {
-    const pattern = `%${query.q}%`;
+    // Escape SQL LIKE wildcards (% and _) in user input
+    const escapedQ = query.q.replace(/%/g, '\\%').replace(/_/g, '\\_');
+    const pattern = `%${escapedQ}%`;
     conditions.push(
       or(
-        sql`LOWER(${workItems.title}) LIKE LOWER(${pattern})`,
-        sql`LOWER(${workItems.description}) LIKE LOWER(${pattern})`,
+        sql`LOWER(${workItems.title}) LIKE LOWER(${pattern}) ESCAPE '\\'`,
+        sql`LOWER(${workItems.description}) LIKE LOWER(${pattern}) ESCAPE '\\'`,
       )!,
     );
   }

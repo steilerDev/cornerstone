@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { eq, desc } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { workItemNotes, workItems, users } from '../db/schema.js';
+import { workItemNotes, users } from '../db/schema.js';
 import type {
   NoteResponse,
   NoteUserSummary,
@@ -10,6 +10,7 @@ import type {
   UpdateNoteRequest,
 } from '@cornerstone/shared';
 import { NotFoundError, ForbiddenError, ValidationError } from '../errors/AppError.js';
+import { ensureWorkItemExists } from './workItemService.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -38,17 +39,6 @@ function toNoteResponse(
     createdAt: note.createdAt,
     updatedAt: note.updatedAt,
   };
-}
-
-/**
- * Verify a work item exists.
- * @throws NotFoundError if work item does not exist
- */
-function ensureWorkItemExists(db: DbType, workItemId: string): void {
-  const workItem = db.select().from(workItems).where(eq(workItems.id, workItemId)).get();
-  if (!workItem) {
-    throw new NotFoundError('Work item not found');
-  }
 }
 
 /**

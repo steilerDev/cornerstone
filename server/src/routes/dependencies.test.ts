@@ -296,7 +296,7 @@ describe('Dependency Routes', () => {
       expect(body.error.code).toBe('CONFLICT');
       expect(body.error.message).toContain('Circular dependency detected');
       expect(body.error.details?.code).toBe('CIRCULAR_DEPENDENCY');
-      expect(body.error.details?.cyclePath).toBeDefined();
+      expect(body.error.details?.cycle).toBeDefined();
     });
 
     it('should return 400 when dependencyType is invalid', async () => {

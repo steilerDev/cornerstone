@@ -210,7 +210,7 @@ describe('Dependency Service', () => {
         expect(error).toBeInstanceOf(ConflictError);
         if (error instanceof ConflictError) {
           expect(error.details?.code).toBe('CIRCULAR_DEPENDENCY');
-          expect(error.details?.cyclePath).toBeDefined();
+          expect(error.details?.cycle).toBeDefined();
         }
       }
     });
