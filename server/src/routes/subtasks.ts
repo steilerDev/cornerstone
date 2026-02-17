@@ -194,11 +194,7 @@ export default async function subtaskRoutes(fastify: FastifyInstance) {
         throw new UnauthorizedError();
       }
 
-      subtaskService.deleteSubtask(
-        fastify.db,
-        request.params.workItemId,
-        request.params.subtaskId,
-      );
+      subtaskService.deleteSubtask(fastify.db, request.params.workItemId, request.params.subtaskId);
       return reply.status(204).send();
     },
   );
