@@ -19,6 +19,7 @@ import workItemRoutes from './routes/workItems.js';
 import tagRoutes from './routes/tags.js';
 import noteRoutes from './routes/notes.js';
 import subtaskRoutes from './routes/subtasks.js';
+import dependencyRoutes from './routes/dependencies.js';
 import { hashPassword, verifyPassword } from './services/userService.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -69,6 +70,9 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Subtask routes (nested under work items)
   await app.register(subtaskRoutes, { prefix: '/api/work-items/:workItemId/subtasks' });
+
+  // Dependency routes (nested under work items)
+  await app.register(dependencyRoutes, { prefix: '/api/work-items/:workItemId/dependencies' });
 
   // Health check endpoint (liveness)
   app.get('/api/health', async () => {
