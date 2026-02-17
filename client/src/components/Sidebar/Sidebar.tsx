@@ -67,6 +67,13 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         >
           Documents
         </NavLink>
+        <NavLink
+          to="/tags"
+          className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
+          onClick={onClose}
+        >
+          Tags
+        </NavLink>
         <div className={styles.navSeparator} />
         <NavLink
           to="/profile"

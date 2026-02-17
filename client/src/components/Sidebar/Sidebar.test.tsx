@@ -51,11 +51,11 @@ describe('Sidebar', () => {
     onClose: mockOnClose,
   });
 
-  it('renders all 8 navigation links', () => {
+  it('renders all 9 navigation links', () => {
     renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
 
     const links = screen.getAllByRole('link');
-    expect(links).toHaveLength(8);
+    expect(links).toHaveLength(9);
   });
 
   it('renders navigation with correct aria-label', () => {
@@ -342,8 +342,8 @@ describe('Sidebar', () => {
     const links = screen.getAllByRole('link');
     const buttons = screen.getAllByRole('button');
 
-    // Still 8 navigation links
-    expect(links).toHaveLength(8);
+    // Still 9 navigation links
+    expect(links).toHaveLength(9);
     // 2 buttons: close button + logout button
     expect(buttons).toHaveLength(2);
     expect(buttons[0]).toHaveAttribute('aria-label', 'Close menu');
