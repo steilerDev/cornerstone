@@ -12,7 +12,7 @@ CREATE TABLE work_items (
   start_after TEXT,
   start_before TEXT,
   assigned_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
-  created_by TEXT NOT NULL REFERENCES users(id) ON DELETE SET NULL,
+  created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
@@ -40,7 +40,7 @@ CREATE TABLE work_item_notes (
   id TEXT PRIMARY KEY,
   work_item_id TEXT NOT NULL REFERENCES work_items(id) ON DELETE CASCADE,
   content TEXT NOT NULL,
-  created_by TEXT NOT NULL REFERENCES users(id) ON DELETE SET NULL,
+  created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
