@@ -88,7 +88,7 @@ describe('App', () => {
     render(<App />);
 
     // Wait for lazy-loaded WorkItems component to resolve
-    const heading = await screen.findByRole('heading', { name: /work items/i });
+    const heading = await screen.findByRole('heading', { name: /work items/i, level: 1 });
     expect(heading).toBeInTheDocument();
   });
 
