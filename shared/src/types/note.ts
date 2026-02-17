@@ -18,7 +18,7 @@ export interface Note {
   id: string;
   workItemId: string;
   content: string;
-  createdBy: string;
+  createdBy: string | null;
   createdAt: string;
   updatedAt: string;
 }

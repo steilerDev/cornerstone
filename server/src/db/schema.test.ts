@@ -723,15 +723,15 @@ describe('Work Items Database Schema & Migration', () => {
       const statusCol = columns.find((col) => col.name === 'status');
       expect(statusCol?.notnull).toBe(1);
 
-      const createdByCol = columns.find((col) => col.name === 'created_by');
-      expect(createdByCol?.notnull).toBe(1);
-
       // Verify nullable columns
       const descriptionCol = columns.find((col) => col.name === 'description');
       expect(descriptionCol?.notnull).toBe(0);
 
       const assignedUserCol = columns.find((col) => col.name === 'assigned_user_id');
       expect(assignedUserCol?.notnull).toBe(0);
+
+      const createdByCol = columns.find((col) => col.name === 'created_by');
+      expect(createdByCol?.notnull).toBe(0);
     });
 
     it('UAT-3.1-04: tags table has correct columns', () => {
@@ -803,8 +803,9 @@ describe('Work Items Database Schema & Migration', () => {
       const contentCol = columns.find((col) => col.name === 'content');
       expect(contentCol?.notnull).toBe(1);
 
+      // Verify nullable columns
       const createdByCol = columns.find((col) => col.name === 'created_by');
-      expect(createdByCol?.notnull).toBe(1);
+      expect(createdByCol?.notnull).toBe(0);
     });
 
     it('UAT-3.1-07: work_item_subtasks table has correct columns', () => {
@@ -1248,7 +1249,7 @@ describe('Work Items Database Schema & Migration', () => {
       expect(workItems[0].assignedUserId).toBeNull();
     });
 
-    it('UAT-3.1-15: deleting a user with created_by constraint (SCHEMA BUG)', async () => {
+    it('UAT-3.1-15: deleting a user sets created_by to NULL', async () => {
       const now = new Date().toISOString();
       const noteAuthorId = 'user-note-author-1';
 
@@ -1294,24 +1295,22 @@ describe('Work Items Database Schema & Migration', () => {
       });
 
       // Verify note exists with author
-      const notes = await db
+      const notesBefore = await db
         .select()
         .from(schema.workItemNotes)
         .where(eq(schema.workItemNotes.id, 'note-3'));
-      expect(notes[0].createdBy).toBe(noteAuthorId);
+      expect(notesBefore[0].createdBy).toBe(noteAuthorId);
 
-      // BUG: The schema defines created_by as NOT NULL with ON DELETE SET NULL
-      // This is contradictory - SQLite cannot set a NOT NULL column to NULL
-      // When we delete the note author, we expect a constraint violation
-      let error: Error | undefined;
-      try {
-        await db.delete(schema.users).where(eq(schema.users.id, noteAuthorId));
-      } catch (err) {
-        error = err as Error;
-      }
+      // Delete the note author - should succeed and set created_by to NULL
+      await db.delete(schema.users).where(eq(schema.users.id, noteAuthorId));
 
-      expect(error).toBeDefined();
-      expect(error?.message).toMatch(/NOT NULL constraint failed: work_item_notes.created_by/);
+      // Verify note still exists but created_by is now NULL
+      const notesAfter = await db
+        .select()
+        .from(schema.workItemNotes)
+        .where(eq(schema.workItemNotes.id, 'note-3'));
+      expect(notesAfter).toHaveLength(1);
+      expect(notesAfter[0].createdBy).toBeNull();
     });
 
     it('UAT-3.1-16: deleting a tag cascades to work_item_tags', async () => {

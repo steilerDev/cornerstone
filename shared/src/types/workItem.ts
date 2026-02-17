@@ -36,7 +36,7 @@ export interface WorkItem {
   startAfter: string | null;
   startBefore: string | null;
   assignedUserId: string | null;
-  createdBy: string;
+  createdBy: string | null;
   createdAt: string;
   updatedAt: string;
 }

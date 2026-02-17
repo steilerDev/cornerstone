@@ -86,9 +86,7 @@ export const workItems = sqliteTable(
     assignedUserId: text('assigned_user_id').references(() => users.id, {
       onDelete: 'set null',
     }),
-    createdBy: text('created_by')
-      .notNull()
-      .references(() => users.id, { onDelete: 'set null' }),
+    createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
   },
@@ -141,9 +139,7 @@ export const workItemNotes = sqliteTable(
       .notNull()
       .references(() => workItems.id, { onDelete: 'cascade' }),
     content: text('content').notNull(),
-    createdBy: text('created_by')
-      .notNull()
-      .references(() => users.id, { onDelete: 'set null' }),
+    createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
   },
