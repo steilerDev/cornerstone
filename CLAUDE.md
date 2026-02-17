@@ -246,7 +246,12 @@ All agents must clearly identify themselves in commits and GitHub interactions:
   11. **Merge**: Once all agents approve and CI is green, merge immediately: `gh pr merge --squash <pr-url>`
   12. After merge, clean up: `git checkout beta && git pull && git branch -d <branch-name>`
   13. **Documentation**: Launch `docs-writer` to update `README.md` with newly shipped features. Commit to `beta`.
-  14. **Epic promotion**: After all stories in an epic are complete (merged to `beta`), UAT is approved, and documentation is updated, create a PR from `beta` to `main` using a **merge commit** (not squash): `gh pr create --base main --head beta --title "..." --body "..."` then `gh pr merge --merge <pr-url>`. Merge commits preserve individual commits for semantic-release analysis.
+  14. **Epic promotion**: After all stories in an epic are complete (merged to `beta`), refinement is done, and documentation is updated:
+      a. Create a PR from `beta` to `main` using a **merge commit** (not squash): `gh pr create --base main --head beta --title "..." --body "..."`
+      b. Post UAT validation criteria and manual testing steps as comments on the promotion PR — this gives the user a single place to review what was built and how to validate it
+      c. Wait for all CI checks to pass on the PR. If any check fails, investigate and resolve before proceeding
+      d. Once CI is green and the UAT criteria are posted, **wait for user approval** before merging. The user reviews the PR, validates the UAT scenarios, and approves
+      e. After user approval, merge: `gh pr merge --merge <pr-url>`. Merge commits preserve individual commits for semantic-release analysis.
   15. **Merge-back**: After the stable release is published on `main`, merge `main` back into `beta` so the release tag is reachable from beta's history. This is automated by the `merge-back` job in `release.yml`, which creates a PR from `main` into `beta`. If the automated PR fails (e.g., merge conflicts), manually resolve: create a branch from `beta`, merge `origin/main`, push, and PR to `beta`. **Without this step, semantic-release on beta cannot see the stable tag and keeps incrementing the old pre-release version.**
 
 Note: Dependabot auto-merge (`.github/workflows/dependabot-auto-merge.yml`) targets `beta` — it handles automated dependency updates, not agent work.
