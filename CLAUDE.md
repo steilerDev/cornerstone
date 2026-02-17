@@ -247,6 +247,7 @@ All agents must clearly identify themselves in commits and GitHub interactions:
   12. After merge, clean up: `git checkout beta && git pull && git branch -d <branch-name>`
   13. **Documentation**: Launch `docs-writer` to update `README.md` with newly shipped features. Commit to `beta`.
   14. **Epic promotion**: After all stories in an epic are complete (merged to `beta`), UAT is approved, and documentation is updated, create a PR from `beta` to `main` using a **merge commit** (not squash): `gh pr create --base main --head beta --title "..." --body "..."` then `gh pr merge --merge <pr-url>`. Merge commits preserve individual commits for semantic-release analysis.
+  15. **Merge-back**: After the stable release is published on `main`, merge `main` back into `beta` so the release tag is reachable from beta's history. This is automated by the `merge-back` job in `release.yml`, which creates a PR from `main` into `beta`. If the automated PR fails (e.g., merge conflicts), manually resolve: create a branch from `beta`, merge `origin/main`, push, and PR to `beta`. **Without this step, semantic-release on beta cannot see the stable tag and keeps incrementing the old pre-release version.**
 
 Note: Dependabot auto-merge (`.github/workflows/dependabot-auto-merge.yml`) targets `beta` — it handles automated dependency updates, not agent work.
 
@@ -263,6 +264,8 @@ Cornerstone uses a two-tier release model:
 
 - **Feature PR -> `beta`**: Squash merge (clean history)
 - **`beta` -> `main`** (epic promotion): Merge commit (preserves individual commits so semantic-release can analyze them)
+
+**Merge-back after promotion:** After each epic promotion (`beta` -> `main`), `main` must be merged back into `beta`. This ensures the stable release tag (e.g., `v1.7.0`) is reachable from beta's git history. Without this, semantic-release on beta continues incrementing the old pre-release series. The `release.yml` workflow automates this via a `merge-back` job.
 
 **Hotfixes:** If a critical fix must go directly to `main`, immediately cherry-pick the fix back to `beta` to keep branches in sync.
 
