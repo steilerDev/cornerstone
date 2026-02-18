@@ -16,6 +16,7 @@ jest.unstable_mockModule('../../lib/workItemsApi.js', () => ({
   getWorkItem: jest.fn(),
   updateWorkItem: jest.fn(),
   deleteWorkItem: jest.fn(),
+  listWorkItems: jest.fn(),
 }));
 
 jest.unstable_mockModule('../../lib/notesApi.js', () => ({
