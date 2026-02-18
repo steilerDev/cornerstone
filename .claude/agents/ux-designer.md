@@ -38,6 +38,7 @@ Define and maintain `client/src/styles/tokens.css` — CSS custom properties org
 - **Layer 3 — Dark Theme Overrides**: Inverted mappings via `@media (prefers-color-scheme: dark)` and `.theme-dark` class
 
 Token categories:
+
 - **Colors**: Background, text, border, accent, status (success/warning/error/info), interactive states
 - **Typography**: Font families, sizes, weights, line heights, letter spacing
 - **Spacing**: Consistent spacing scale (4px base unit)
