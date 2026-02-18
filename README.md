@@ -60,6 +60,12 @@ A self-hosted home building project management tool for homeowners. Track work i
 - **Responsive Layout** -- Full sidebar navigation on desktop, collapsible menu on mobile and tablet.
 - **Health Checks** -- Built-in `/api/health/ready` and `/api/health/live` endpoints for Docker and orchestrator health monitoring.
 
+### Design System
+
+- **Design Token System** -- All visual values (colors, spacing, typography, shadows, radii, transitions) are defined as CSS custom properties in a 3-layer architecture: a raw color palette (Layer 1), purpose-driven semantic aliases (Layer 2), and dark mode overrides (Layer 3). No hardcoded color values exist in component CSS.
+- **Dark Mode** -- Choose Light, Dark, or System (follows your OS preference). Your selection is persisted to localStorage and applied immediately with no flash on page load.
+- **Brand Identity** -- Custom Cornerstone logo and favicon.
+
 ### Planned Features
 
 The following features are on the roadmap but not yet available:
@@ -179,6 +185,7 @@ Cornerstone is under active development. Here is the current state of planned fe
 - [x] **EPIC-11: CI/CD Infrastructure** ([#12](https://github.com/steilerDev/cornerstone/issues/12)) -- Automated builds, semantic versioning, Docker image publishing
 - [x] **EPIC-01: Authentication and User Management** ([#1](https://github.com/steilerDev/cornerstone/issues/1)) -- Local login, OIDC SSO, user profiles, admin panel, role-based access
 - [x] **EPIC-03: Work Items** ([#3](https://github.com/steilerDev/cornerstone/issues/3)) -- Work item CRUD, tags, notes, subtasks, dependencies, keyboard shortcuts, list and detail pages
+- [x] **EPIC-12: Design System Bootstrap** ([#115](https://github.com/steilerDev/cornerstone/issues/115)) -- Design token system, dark mode, brand identity, CSS module migration, style guide
 - [ ] **EPIC-04: Household Items** ([#4](https://github.com/steilerDev/cornerstone/issues/4)) -- Furniture and appliance purchase tracking
 - [ ] **EPIC-05: Budget Management** ([#5](https://github.com/steilerDev/cornerstone/issues/5)) -- Category-based budgeting, financing sources, cost tracking
 - [ ] **EPIC-06: Timeline and Gantt Chart** ([#6](https://github.com/steilerDev/cornerstone/issues/6)) -- Visual timeline with dependencies and scheduling
@@ -210,7 +217,7 @@ See [`CLAUDE.md`](CLAUDE.md) for the full project guide, coding standards, and d
 
 ## Documentation
 
-Architecture decisions, API contract, database schema, and security audit documentation live on the [GitHub Wiki](https://github.com/steilerDev/cornerstone/wiki).
+Architecture decisions, API contract, database schema, and security audit documentation live on the [GitHub Wiki](https://github.com/steilerDev/cornerstone/wiki). The [Style Guide](https://github.com/steilerDev/cornerstone/wiki/Style-Guide) documents the design token system, color palette, typography, and component patterns for contributors.
 
 ## Contributing
 
