@@ -14,29 +14,29 @@
 .pageTitle {
   font-size: 2rem;
   font-weight: 700;
-  color: #111827;
+  color: var(--color-text-primary);
   margin: 0;
 }
 
 .loading {
   text-align: center;
   padding: 3rem;
-  color: #6b7280;
+  color: var(--color-text-muted);
   font-size: 1rem;
 }
 
 .errorBanner {
-  background-color: #fee2e2;
-  border: 1px solid #fecaca;
+  background-color: var(--color-danger-bg-strong);
+  border: 1px solid var(--color-danger-border);
   border-radius: 0.5rem;
   padding: 1rem;
   margin-bottom: 1.5rem;
-  color: #991b1b;
+  color: var(--color-danger-active);
 }
 
 .primaryButton {
-  background-color: #2563eb;
-  color: white;
+  background-color: var(--color-primary-hover);
+  color: var(--color-primary-text);
   border: none;
   border-radius: 0.5rem;
   padding: 0.625rem 1.25rem;
@@ -47,18 +47,18 @@
 }
 
 .primaryButton:hover {
-  background-color: #1d4ed8;
+  background-color: var(--color-primary-active);
 }
 
 .primaryButton:disabled {
-  background-color: #9ca3af;
+  background-color: var(--color-text-placeholder);
   cursor: not-allowed;
 }
 
 .secondaryButton {
-  background-color: #f3f4f6;
-  color: #374151;
-  border: 1px solid #d1d5db;
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border-strong);
   border-radius: 0.5rem;
   padding: 0.5rem 1rem;
   font-size: 0.875rem;
@@ -68,17 +68,17 @@
 }
 
 .secondaryButton:hover {
-  background-color: #e5e7eb;
+  background-color: var(--color-border);
 }
 
 /* Filters Card */
 .filtersCard {
-  background-color: white;
-  border: 1px solid #e5e7eb;
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
   border-radius: 0.5rem;
   padding: 1.5rem;
   margin-bottom: 1.5rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
 }
 
 .searchRow {
@@ -88,7 +88,7 @@
 .searchInput {
   width: 100%;
   padding: 0.625rem 1rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--color-border-strong);
   border-radius: 0.5rem;
   font-size: 0.875rem;
   transition: border-color 0.2s;
@@ -96,8 +96,8 @@
 
 .searchInput:focus {
   outline: none;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  border-color: var(--color-primary-hover);
+  box-shadow: var(--shadow-focus-primary-alt);
 }
 
 .filtersRow {
@@ -117,35 +117,35 @@
 .filterLabel {
   font-size: 0.75rem;
   font-weight: 500;
-  color: #6b7280;
+  color: var(--color-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.025em;
 }
 
 .filterSelect {
   padding: 0.5rem 0.75rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--color-border-strong);
   border-radius: 0.5rem;
   font-size: 0.875rem;
-  background-color: white;
+  background-color: var(--color-bg-primary);
   cursor: pointer;
   transition: border-color 0.2s;
 }
 
 .filterSelect:focus {
   outline: none;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  border-color: var(--color-primary-hover);
+  box-shadow: var(--shadow-focus-primary-alt);
 }
 
 /* Table View (Desktop) */
 .tableContainer {
   display: block;
-  background-color: white;
-  border: 1px solid #e5e7eb;
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
   border-radius: 0.5rem;
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
 }
 
 .table {
@@ -154,8 +154,8 @@
 }
 
 .table thead {
-  background-color: #f9fafb;
-  border-bottom: 1px solid #e5e7eb;
+  background-color: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .table th {
@@ -163,7 +163,7 @@
   text-align: left;
   font-size: 0.75rem;
   font-weight: 600;
-  color: #6b7280;
+  color: var(--color-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -175,7 +175,7 @@
 }
 
 .sortableHeader:hover {
-  color: #2563eb;
+  color: var(--color-primary-hover);
 }
 
 .actionsColumn {
@@ -184,7 +184,7 @@
 }
 
 .table tbody tr {
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .table tbody tr:last-child {
@@ -197,26 +197,26 @@
 }
 
 .tableRow:hover {
-  background-color: #f9fafb;
+  background-color: var(--color-bg-secondary);
 }
 
 .tableRowSelected {
-  background-color: #dbeafe;
+  background-color: var(--color-primary-bg);
 }
 
 .tableRowSelected:hover {
-  background-color: #bfdbfe;
+  background-color: var(--color-primary-bg-hover);
 }
 
 .table td {
   padding: 1rem;
   font-size: 0.875rem;
-  color: #374151;
+  color: var(--color-text-secondary);
 }
 
 .titleCell {
   font-weight: 500;
-  color: #111827;
+  color: var(--color-text-primary);
 }
 
 .tagsCell {
@@ -237,7 +237,7 @@
 .menuButton {
   background: none;
   border: none;
-  color: #6b7280;
+  color: var(--color-text-muted);
   font-size: 1.25rem;
   font-weight: 700;
   cursor: pointer;
@@ -249,8 +249,8 @@
 }
 
 .menuButton:hover {
-  background-color: #f3f4f6;
-  color: #111827;
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
 }
 
 .menuDropdown {
@@ -258,10 +258,10 @@
   right: 0;
   top: 100%;
   margin-top: 0.25rem;
-  background-color: white;
-  border: 1px solid #e5e7eb;
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
   border-radius: 0.5rem;
-  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-lg);
   min-width: 120px;
   z-index: 10;
 }
@@ -273,14 +273,14 @@
   text-align: left;
   background: none;
   border: none;
-  color: #374151;
+  color: var(--color-text-secondary);
   font-size: 0.875rem;
   cursor: pointer;
   transition: background-color 0.2s;
 }
 
 .menuItem:hover {
-  background-color: #f3f4f6;
+  background-color: var(--color-bg-tertiary);
 }
 
 .menuItem:first-child {
@@ -292,11 +292,11 @@
 }
 
 .menuItemDanger {
-  color: #dc2626;
+  color: var(--color-danger);
 }
 
 .menuItemDanger:hover {
-  background-color: #fee2e2;
+  background-color: var(--color-danger-bg-strong);
 }
 
 /* Card View (Mobile) */
@@ -307,17 +307,17 @@
 }
 
 .card {
-  background-color: white;
-  border: 1px solid #e5e7eb;
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
   border-radius: 0.5rem;
   padding: 1rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
   cursor: pointer;
   transition: box-shadow 0.2s;
 }
 
 .card:hover {
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
 }
 
 .cardHeader {
@@ -326,13 +326,13 @@
   align-items: flex-start;
   margin-bottom: 0.75rem;
   padding-bottom: 0.75rem;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .cardTitle {
   font-size: 1rem;
   font-weight: 600;
-  color: #111827;
+  color: var(--color-text-primary);
   margin: 0;
   flex: 1;
   padding-right: 0.5rem;
@@ -357,7 +357,7 @@
 
 .cardLabel {
   font-weight: 500;
-  color: #6b7280;
+  color: var(--color-text-muted);
   min-width: 80px;
 }
 
@@ -365,21 +365,21 @@
 .emptyState {
   text-align: center;
   padding: 4rem 2rem;
-  background-color: white;
-  border: 1px solid #e5e7eb;
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
   border-radius: 0.5rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
 }
 
 .emptyState h2 {
   font-size: 1.5rem;
   font-weight: 600;
-  color: #111827;
+  color: var(--color-text-primary);
   margin-bottom: 0.5rem;
 }
 
 .emptyState p {
-  color: #6b7280;
+  color: var(--color-text-muted);
   margin-bottom: 1.5rem;
 }
 
@@ -390,12 +390,12 @@
   align-items: center;
   margin-top: 1.5rem;
   padding-top: 1rem;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--color-border);
 }
 
 .paginationInfo {
   font-size: 0.875rem;
-  color: #6b7280;
+  color: var(--color-text-muted);
 }
 
 .paginationControls {
@@ -410,12 +410,12 @@
 }
 
 .paginationButton {
-  background-color: white;
-  border: 1px solid #d1d5db;
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border-strong);
   border-radius: 0.375rem;
   padding: 0.5rem 0.75rem;
   font-size: 0.875rem;
-  color: #374151;
+  color: var(--color-text-secondary);
   cursor: pointer;
   transition:
     background-color 0.2s,
@@ -424,24 +424,24 @@
 }
 
 .paginationButton:hover:not(:disabled) {
-  background-color: #f3f4f6;
-  border-color: #9ca3af;
+  background-color: var(--color-bg-tertiary);
+  border-color: var(--color-text-placeholder);
 }
 
 .paginationButton:disabled {
-  color: #9ca3af;
+  color: var(--color-text-placeholder);
   cursor: not-allowed;
 }
 
 .paginationButtonActive {
-  background-color: #2563eb;
-  border-color: #2563eb;
-  color: white;
+  background-color: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+  color: var(--color-primary-text);
 }
 
 .paginationButtonActive:hover {
-  background-color: #1d4ed8;
-  border-color: #1d4ed8;
+  background-color: var(--color-primary-active);
+  border-color: var(--color-primary-active);
 }
 
 /* Modal */
@@ -464,36 +464,36 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: var(--color-overlay);
 }
 
 .modalContent {
   position: relative;
-  background-color: white;
+  background-color: var(--color-bg-primary);
   border-radius: 0.5rem;
   padding: 1.5rem;
   max-width: 28rem;
   width: 100%;
-  box-shadow: 0 20px 25px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-xl);
 }
 
 .modalTitle {
   font-size: 1.25rem;
   font-weight: 600;
-  color: #111827;
+  color: var(--color-text-primary);
   margin: 0 0 0.75rem 0;
 }
 
 .modalText {
   font-size: 0.875rem;
-  color: #374151;
+  color: var(--color-text-secondary);
   margin: 0 0 0.5rem 0;
   line-height: 1.5;
 }
 
 .modalWarning {
   font-size: 0.875rem;
-  color: #dc2626;
+  color: var(--color-danger);
   margin: 0 0 1.5rem 0;
   line-height: 1.5;
 }
@@ -505,9 +505,9 @@
 }
 
 .cancelButton {
-  background-color: white;
-  color: #374151;
-  border: 1px solid #d1d5db;
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border-strong);
   border-radius: 0.5rem;
   padding: 0.625rem 1.25rem;
   font-size: 0.875rem;
@@ -517,18 +517,18 @@
 }
 
 .cancelButton:hover:not(:disabled) {
-  background-color: #f3f4f6;
+  background-color: var(--color-bg-tertiary);
 }
 
 .cancelButton:disabled {
-  color: #9ca3af;
-  border-color: #e5e7eb;
+  color: var(--color-text-placeholder);
+  border-color: var(--color-border);
   cursor: not-allowed;
 }
 
 .confirmDeleteButton {
-  background-color: #dc2626;
-  color: white;
+  background-color: var(--color-danger);
+  color: var(--color-danger-text);
   border: none;
   border-radius: 0.5rem;
   padding: 0.625rem 1.25rem;
@@ -539,11 +539,11 @@
 }
 
 .confirmDeleteButton:hover:not(:disabled) {
-  background-color: #b91c1c;
+  background-color: var(--color-danger-hover);
 }
 
 .confirmDeleteButton:disabled {
-  background-color: #9ca3af;
+  background-color: var(--color-text-placeholder);
   cursor: not-allowed;
 }
 

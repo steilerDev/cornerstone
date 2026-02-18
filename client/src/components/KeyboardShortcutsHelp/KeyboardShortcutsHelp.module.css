@@ -18,17 +18,17 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: var(--color-overlay);
 }
 
 .modalContent {
   position: relative;
-  background-color: white;
+  background-color: var(--color-bg-primary);
   border-radius: 0.5rem;
   padding: 0;
   max-width: 32rem;
   width: 100%;
-  box-shadow: 0 20px 25px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-xl);
   max-height: 80vh;
   overflow: hidden;
   display: flex;
@@ -40,20 +40,20 @@
   justify-content: space-between;
   align-items: center;
   padding: 1.5rem 1.5rem 1rem 1.5rem;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .modalTitle {
   font-size: 1.25rem;
   font-weight: 600;
-  color: #111827;
+  color: var(--color-text-primary);
   margin: 0;
 }
 
 .closeButton {
   background: none;
   border: none;
-  color: #6b7280;
+  color: var(--color-text-muted);
   font-size: 2rem;
   line-height: 1;
   cursor: pointer;
@@ -70,8 +70,8 @@
 }
 
 .closeButton:hover {
-  background-color: #f3f4f6;
-  color: #111827;
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
 }
 
 /* Shortcuts Table */
@@ -82,7 +82,7 @@
 }
 
 .shortcutsTable thead {
-  background-color: #f9fafb;
+  background-color: var(--color-bg-secondary);
   position: sticky;
   top: 0;
 }
@@ -92,10 +92,10 @@
   text-align: left;
   font-size: 0.75rem;
   font-weight: 600;
-  color: #6b7280;
+  color: var(--color-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .keyColumn {
@@ -107,7 +107,7 @@
 }
 
 .shortcutsTable tbody tr {
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .shortcutsTable tbody tr:last-child {
@@ -120,11 +120,11 @@
 }
 
 .keyCell {
-  color: #374151;
+  color: var(--color-text-secondary);
 }
 
 .descriptionCell {
-  color: #374151;
+  color: var(--color-text-secondary);
 }
 
 .kbd {
@@ -136,11 +136,11 @@
   font-size: 0.75rem;
   font-weight: 600;
   line-height: 1;
-  color: #1f2937;
-  background-color: #f3f4f6;
-  border: 1px solid #d1d5db;
+  color: var(--color-bg-inverse);
+  background-color: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border-strong);
   border-radius: 0.25rem;
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-kbd);
 }
 
 /* Responsive */

@@ -8,22 +8,22 @@
 .error {
   text-align: center;
   padding: 3rem;
-  color: #6b7280;
+  color: var(--color-text-muted);
   font-size: 1rem;
 }
 
 .error {
-  color: #dc2626;
+  color: var(--color-danger);
 }
 
 .errorBanner {
   position: relative;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
+  background: var(--color-danger-bg);
+  border: 1px solid var(--color-danger-border);
   border-radius: 0.5rem;
   padding: 1rem;
   margin-bottom: 1rem;
-  color: #991b1b;
+  color: var(--color-danger-active);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -32,7 +32,7 @@
 .closeError {
   background: transparent;
   border: none;
-  color: #991b1b;
+  color: var(--color-danger-active);
   font-size: 1.5rem;
   line-height: 1;
   cursor: pointer;
@@ -42,7 +42,7 @@
 }
 
 .closeError:hover {
-  background: rgba(153, 27, 27, 0.1);
+  background: var(--color-overlay-danger);
 }
 
 /* Header */
@@ -57,17 +57,17 @@
   padding: 0.5rem 1rem;
   margin-bottom: 1rem;
   background: transparent;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--color-border-strong);
   border-radius: 0.375rem;
   font-size: 0.875rem;
-  color: #374151;
+  color: var(--color-text-secondary);
   cursor: pointer;
   transition: all 0.15s;
 }
 
 .backButton:hover:not(:disabled) {
-  background: #f3f4f6;
-  border-color: #9ca3af;
+  background: var(--color-bg-tertiary);
+  border-color: var(--color-text-placeholder);
 }
 
 .backButton:disabled {
@@ -89,7 +89,7 @@
 .title {
   font-size: 2rem;
   font-weight: 700;
-  color: #111827;
+  color: var(--color-text-primary);
   margin: 0;
   cursor: pointer;
   padding: 0.5rem;
@@ -98,7 +98,7 @@
 }
 
 .title:hover {
-  background: #f3f4f6;
+  background: var(--color-bg-tertiary);
 }
 
 .titleEdit {
@@ -111,7 +111,7 @@
   font-size: 2rem;
   font-weight: 700;
   padding: 0.5rem;
-  border: 2px solid #3b82f6;
+  border: 2px solid var(--color-primary);
   border-radius: 0.375rem;
   font-family: inherit;
   width: 100%;
@@ -119,7 +119,7 @@
 
 .titleInput:focus {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  box-shadow: var(--shadow-focus-subtle);
 }
 
 .titleEditActions,
@@ -135,19 +135,19 @@
 
 .statusSelect {
   padding: 0.625rem 1rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--color-border-strong);
   border-radius: 0.375rem;
   font-size: 0.875rem;
   font-weight: 500;
-  background: white;
+  background: var(--color-bg-primary);
   cursor: pointer;
   transition: border-color 0.15s;
 }
 
 .statusSelect:focus {
   outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-focus-subtle);
 }
 
 /* Content Grid */
@@ -167,8 +167,8 @@
 
 /* Section */
 .section {
-  background: white;
-  border: 1px solid #e5e7eb;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
   border-radius: 0.5rem;
   padding: 1.5rem;
 }
@@ -176,13 +176,13 @@
 .sectionTitle {
   font-size: 1.125rem;
   font-weight: 600;
-  color: #111827;
+  color: var(--color-text-primary);
   margin: 0 0 1rem 0;
 }
 
 /* Description */
 .description {
-  color: #374151;
+  color: var(--color-text-secondary);
   line-height: 1.6;
   cursor: pointer;
   padding: 0.5rem;
@@ -192,11 +192,11 @@
 }
 
 .description:hover {
-  background: #f3f4f6;
+  background: var(--color-bg-tertiary);
 }
 
 .placeholder {
-  color: #9ca3af;
+  color: var(--color-text-placeholder);
 }
 
 .descriptionEdit {
@@ -208,7 +208,7 @@
 .descriptionTextarea {
   width: 100%;
   padding: 0.625rem;
-  border: 2px solid #3b82f6;
+  border: 2px solid var(--color-primary);
   border-radius: 0.375rem;
   font-size: 0.875rem;
   font-family: inherit;
@@ -218,7 +218,7 @@
 
 .descriptionTextarea:focus {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  box-shadow: var(--shadow-focus-subtle);
 }
 
 /* Properties */
@@ -237,25 +237,25 @@
 .propertyLabel {
   font-size: 0.875rem;
   font-weight: 500;
-  color: #6b7280;
+  color: var(--color-text-muted);
 }
 
 .propertyInput,
 .propertySelect {
   padding: 0.625rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--color-border-strong);
   border-radius: 0.375rem;
   font-size: 0.875rem;
   font-family: inherit;
-  background: white;
+  background: var(--color-bg-primary);
   transition: border-color 0.15s;
 }
 
 .propertyInput:focus,
 .propertySelect:focus {
   outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-focus-subtle);
 }
 
 /* Notes */
@@ -269,7 +269,7 @@
 .noteTextarea {
   width: 100%;
   padding: 0.625rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--color-border-strong);
   border-radius: 0.375rem;
   font-size: 0.875rem;
   font-family: inherit;
@@ -278,12 +278,12 @@
 
 .noteTextarea:focus {
   outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-focus-subtle);
 }
 
 .noteTextarea:disabled {
-  background: #f3f4f6;
+  background: var(--color-bg-tertiary);
   cursor: not-allowed;
 }
 
@@ -295,8 +295,8 @@
 
 .noteItem {
   padding: 1rem;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
   border-radius: 0.375rem;
 }
 
@@ -309,15 +309,15 @@
 
 .noteAuthor {
   font-weight: 500;
-  color: #111827;
+  color: var(--color-text-primary);
 }
 
 .noteDate {
-  color: #6b7280;
+  color: var(--color-text-muted);
 }
 
 .noteContent {
-  color: #374151;
+  color: var(--color-text-secondary);
   line-height: 1.6;
   margin-bottom: 0.5rem;
 }
@@ -343,7 +343,7 @@
 .subtaskInput {
   flex: 1;
   padding: 0.625rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--color-border-strong);
   border-radius: 0.375rem;
   font-size: 0.875rem;
   font-family: inherit;
@@ -351,12 +351,12 @@
 
 .subtaskInput:focus {
   outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-focus-subtle);
 }
 
 .subtaskInput:disabled {
-  background: #f3f4f6;
+  background: var(--color-bg-tertiary);
   cursor: not-allowed;
 }
 
@@ -371,14 +371,14 @@
   align-items: center;
   gap: 0.75rem;
   padding: 0.75rem;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
   border-radius: 0.375rem;
   transition: background 0.15s;
 }
 
 .subtaskItem:hover {
-  background: #f3f4f6;
+  background: var(--color-bg-tertiary);
 }
 
 .subtaskCheckbox {
@@ -392,12 +392,12 @@
   flex: 1;
   cursor: pointer;
   font-size: 0.875rem;
-  color: #374151;
+  color: var(--color-text-secondary);
 }
 
 .subtaskCompleted {
   text-decoration: line-through;
-  color: #9ca3af;
+  color: var(--color-text-placeholder);
 }
 
 .subtaskEdit {
@@ -415,8 +415,8 @@
 
 .moveButton {
   padding: 0.25rem 0.5rem;
-  background: white;
-  border: 1px solid #d1d5db;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-strong);
   border-radius: 0.25rem;
   font-size: 0.875rem;
   cursor: pointer;
@@ -424,8 +424,8 @@
 }
 
 .moveButton:hover:not(:disabled) {
-  background: #f3f4f6;
-  border-color: #9ca3af;
+  background: var(--color-bg-tertiary);
+  border-color: var(--color-text-placeholder);
 }
 
 .moveButton:disabled {
@@ -443,7 +443,7 @@
 .dependencySubtitle {
   font-size: 0.875rem;
   font-weight: 600;
-  color: #6b7280;
+  color: var(--color-text-muted);
   margin: 0 0 0.75rem 0;
 }
 
@@ -458,14 +458,14 @@
   align-items: center;
   gap: 0.75rem;
   padding: 0.75rem;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
   border-radius: 0.375rem;
 }
 
 .dependencyLink {
   flex: 1;
-  color: #3b82f6;
+  color: var(--color-primary);
   text-decoration: none;
   font-size: 0.875rem;
   font-weight: 500;
@@ -477,9 +477,9 @@
 
 .dependencyType {
   font-size: 0.75rem;
-  color: #6b7280;
+  color: var(--color-text-muted);
   padding: 0.25rem 0.5rem;
-  background: #e5e7eb;
+  background: var(--color-border);
   border-radius: 0.25rem;
 }
 
@@ -488,22 +488,22 @@
   flex-direction: column;
   gap: 0.75rem;
   padding-top: 1rem;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--color-border);
 }
 
 .dependencySelect {
   padding: 0.625rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--color-border-strong);
   border-radius: 0.375rem;
   font-size: 0.875rem;
   font-family: inherit;
-  background: white;
+  background: var(--color-bg-primary);
 }
 
 .dependencySelect:focus {
   outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-focus-subtle);
 }
 
 /* Buttons */
@@ -522,12 +522,12 @@
 }
 
 .addButton {
-  background: #3b82f6;
-  color: white;
+  background: var(--color-primary);
+  color: var(--color-primary-text);
 }
 
 .addButton:hover:not(:disabled) {
-  background: #2563eb;
+  background: var(--color-primary-hover);
 }
 
 .addButton:disabled {
@@ -536,49 +536,49 @@
 }
 
 .saveButton {
-  background: #10b981;
-  color: white;
+  background: var(--color-success);
+  color: var(--color-primary-text);
 }
 
 .saveButton:hover {
-  background: #059669;
+  background: var(--color-success-hover);
 }
 
 .editButton {
   background: transparent;
-  border: 1px solid #d1d5db;
-  color: #374151;
+  border: 1px solid var(--color-border-strong);
+  color: var(--color-text-secondary);
 }
 
 .editButton:hover {
-  background: #f3f4f6;
+  background: var(--color-bg-tertiary);
 }
 
 .deleteButton {
   background: transparent;
-  border: 1px solid #dc2626;
-  color: #dc2626;
+  border: 1px solid var(--color-danger);
+  color: var(--color-danger);
 }
 
 .deleteButton:hover {
-  background: #dc2626;
-  color: white;
+  background: var(--color-danger);
+  color: var(--color-primary-text);
 }
 
 .cancelButton {
-  background: white;
-  border: 1px solid #d1d5db;
-  color: #374151;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-strong);
+  color: var(--color-text-secondary);
 }
 
 .cancelButton:hover {
-  background: #f3f4f6;
+  background: var(--color-bg-tertiary);
 }
 
 .emptyState {
   padding: 1.5rem;
   text-align: center;
-  color: #9ca3af;
+  color: var(--color-text-placeholder);
   font-size: 0.875rem;
   font-style: italic;
 }
@@ -589,8 +589,8 @@
   justify-content: space-between;
   align-items: center;
   padding: 1.5rem;
-  background: white;
-  border: 1px solid #e5e7eb;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
   border-radius: 0.5rem;
 }
 
@@ -599,13 +599,13 @@
   flex-direction: column;
   gap: 0.25rem;
   font-size: 0.875rem;
-  color: #6b7280;
+  color: var(--color-text-muted);
 }
 
 .deleteWorkItemButton {
   padding: 0.625rem 1.5rem;
-  background: #dc2626;
-  color: white;
+  background: var(--color-danger);
+  color: var(--color-danger-text);
   border: none;
   border-radius: 0.375rem;
   font-size: 0.875rem;
@@ -615,7 +615,7 @@
 }
 
 .deleteWorkItemButton:hover {
-  background: #b91c1c;
+  background: var(--color-danger-hover);
 }
 
 /* Modal */
@@ -638,30 +638,28 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--color-overlay);
 }
 
 .modalContent {
   position: relative;
-  background: white;
+  background: var(--color-bg-primary);
   border-radius: 0.5rem;
   padding: 2rem;
   max-width: 500px;
   width: 100%;
-  box-shadow:
-    0 20px 25px -5px rgba(0, 0, 0, 0.1),
-    0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--shadow-xl-strong);
 }
 
 .modalTitle {
   font-size: 1.25rem;
   font-weight: 600;
-  color: #111827;
+  color: var(--color-text-primary);
   margin: 0 0 1rem 0;
 }
 
 .modalText {
-  color: #6b7280;
+  color: var(--color-text-muted);
   line-height: 1.6;
   margin: 0 0 1.5rem 0;
 }
@@ -684,22 +682,22 @@
 }
 
 .modalCancelButton {
-  background: white;
-  border: 1px solid #d1d5db;
-  color: #374151;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-strong);
+  color: var(--color-text-secondary);
 }
 
 .modalCancelButton:hover:not(:disabled) {
-  background: #f3f4f6;
+  background: var(--color-bg-tertiary);
 }
 
 .modalDeleteButton {
-  background: #dc2626;
-  color: white;
+  background: var(--color-danger);
+  color: var(--color-danger-text);
 }
 
 .modalDeleteButton:hover:not(:disabled) {
-  background: #b91c1c;
+  background: var(--color-danger-hover);
 }
 
 .modalCancelButton:disabled,
