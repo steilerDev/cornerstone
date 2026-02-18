@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { Logo } from '../Logo/Logo.js';
+import { ThemeToggle } from '../ThemeToggle/ThemeToggle.js';
 import styles from './Sidebar.module.css';
 
 interface SidebarProps {
@@ -96,6 +97,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             User Management
           </NavLink>
         )}
+        <div className={styles.navSeparator} />
+        <div className={styles.themeSection}>
+          <ThemeToggle />
+        </div>
         <div className={styles.navSeparator} />
         <button
           type="button"

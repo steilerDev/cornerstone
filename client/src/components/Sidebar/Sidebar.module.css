@@ -80,6 +80,11 @@
   outline-offset: -2px;
 }
 
+.themeSection {
+  /* Wrapper keeps the toggle flush with sidebar nav style */
+  padding: var(--spacing-1) 0;
+}
+
 .sidebarHeader {
   display: none;
 }
