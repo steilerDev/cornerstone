@@ -6,6 +6,28 @@
   flex-direction: column;
 }
 
+.logoArea {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.25rem 1.5rem 1rem;
+  border-bottom: 1px solid #374151;
+  flex-shrink: 0;
+}
+
+.logo {
+  flex-shrink: 0;
+  color: #60a5fa;
+}
+
+.logoText {
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #f9fafb;
+  white-space: nowrap;
+}
+
 .nav {
   display: flex;
   flex-direction: column;
