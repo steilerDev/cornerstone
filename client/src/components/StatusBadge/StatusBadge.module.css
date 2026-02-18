@@ -10,21 +10,21 @@
 }
 
 .not_started {
-  background-color: #e5e7eb;
-  color: #374151;
+  background-color: var(--color-status-not-started-bg);
+  color: var(--color-status-not-started-text);
 }
 
 .in_progress {
-  background-color: #dbeafe;
-  color: #1e40af;
+  background-color: var(--color-status-in-progress-bg);
+  color: var(--color-status-in-progress-text);
 }
 
 .completed {
-  background-color: #d1fae5;
-  color: #065f46;
+  background-color: var(--color-status-completed-bg);
+  color: var(--color-status-completed-text);
 }
 
 .blocked {
-  background-color: #fee2e2;
-  color: #991b1b;
+  background-color: var(--color-status-blocked-bg);
+  color: var(--color-status-blocked-text);
 }

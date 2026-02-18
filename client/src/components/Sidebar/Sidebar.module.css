@@ -1,7 +1,7 @@
 .sidebar {
   width: 240px;
-  background-color: #1f2937;
-  color: #f9fafb;
+  background-color: var(--color-sidebar-bg);
+  color: var(--color-sidebar-text);
   display: flex;
   flex-direction: column;
 }
@@ -11,20 +11,20 @@
   align-items: center;
   gap: 0.75rem;
   padding: 1.25rem 1.5rem 1rem;
-  border-bottom: 1px solid #374151;
+  border-bottom: 1px solid var(--color-sidebar-separator);
   flex-shrink: 0;
 }
 
 .logo {
   flex-shrink: 0;
-  color: #60a5fa;
+  color: var(--color-sidebar-focus-ring);
 }
 
 .logoText {
   font-size: 1.125rem;
   font-weight: 700;
   letter-spacing: -0.01em;
-  color: #f9fafb;
+  color: var(--color-sidebar-text);
   white-space: nowrap;
 }
 
@@ -36,32 +36,32 @@
 
 .navLink {
   padding: 0.75rem 1.5rem;
-  color: #f9fafb;
+  color: var(--color-sidebar-text);
   text-decoration: none;
   transition: background-color 0.2s ease;
 }
 
 .navLink:hover {
-  background-color: #374151;
+  background-color: var(--color-sidebar-hover);
 }
 
 .navLink:focus-visible {
-  outline: 2px solid #60a5fa;
+  outline: 2px solid var(--color-sidebar-focus-ring);
   outline-offset: -2px;
 }
 
 .active {
-  background-color: #3b82f6;
+  background-color: var(--color-sidebar-active);
 }
 
 .navSeparator {
   margin-top: auto;
-  border-top: 1px solid #374151;
+  border-top: 1px solid var(--color-sidebar-separator);
 }
 
 .logoutButton {
   padding: 0.75rem 1.5rem;
-  color: #f9fafb;
+  color: var(--color-sidebar-text);
   background: transparent;
   border: none;
   cursor: pointer;
@@ -72,11 +72,11 @@
 }
 
 .logoutButton:hover {
-  background-color: #374151;
+  background-color: var(--color-sidebar-hover);
 }
 
 .logoutButton:focus-visible {
-  outline: 2px solid #60a5fa;
+  outline: 2px solid var(--color-sidebar-focus-ring);
   outline-offset: -2px;
 }
 
@@ -113,7 +113,7 @@
     min-height: 44px;
     border: none;
     background: transparent;
-    color: #f9fafb;
+    color: var(--color-sidebar-text);
     font-size: 1.5rem;
     cursor: pointer;
     display: flex;
@@ -125,11 +125,11 @@
   }
 
   .closeButton:hover {
-    background-color: #374151;
+    background-color: var(--color-sidebar-hover);
   }
 
   .closeButton:focus-visible {
-    outline: 2px solid #60a5fa;
+    outline: 2px solid var(--color-sidebar-focus-ring);
     outline-offset: 2px;
   }
 
