@@ -7,30 +7,29 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import type * as AuthApiTypes from '../../lib/authApi.js';
 import type * as AuthGuardTypes from './AuthGuard.js';
 
+const mockGetAuthMe = jest.fn<typeof AuthApiTypes.getAuthMe>();
+const mockLogout = jest.fn<typeof AuthApiTypes.logout>();
+
 // Must mock BEFORE importing the component
 jest.unstable_mockModule('../../lib/authApi.js', () => ({
-  getAuthMe: jest.fn(),
-  logout: jest.fn(),
+  getAuthMe: mockGetAuthMe,
+  logout: mockLogout,
 }));
 
 describe('AuthGuard', () => {
   // Dynamic imports
-  let authApi: typeof AuthApiTypes;
   let AuthGuard: typeof AuthGuardTypes.AuthGuard;
-
-  let mockGetAuthMe: jest.MockedFunction<typeof AuthApiTypes.getAuthMe>;
 
   beforeEach(async () => {
     // Dynamic import modules (only once)
-    if (!authApi) {
-      authApi = await import('../../lib/authApi.js');
+    if (!AuthGuard) {
       const authGuardModule = await import('./AuthGuard.js');
       AuthGuard = authGuardModule.AuthGuard;
     }
 
     // Reset mocks
-    mockGetAuthMe = authApi.getAuthMe as jest.MockedFunction<typeof authApi.getAuthMe>;
     mockGetAuthMe.mockReset();
+    mockLogout.mockReset();
   });
 
   function renderWithRouter(initialRoute = '/') {

@@ -9,27 +9,32 @@ import type * as UsersApiTypes from '../../lib/usersApi.js';
 import type * as TagsApiTypes from '../../lib/tagsApi.js';
 import type { WorkItemListResponse, WorkItemSummary } from '@cornerstone/shared';
 
+const mockListWorkItems = jest.fn<typeof WorkItemsApiTypes.listWorkItems>();
+const mockDeleteWorkItem = jest.fn<typeof WorkItemsApiTypes.deleteWorkItem>();
+const mockGetWorkItem = jest.fn<typeof WorkItemsApiTypes.getWorkItem>();
+const mockCreateWorkItem = jest.fn<typeof WorkItemsApiTypes.createWorkItem>();
+const mockUpdateWorkItem = jest.fn<typeof WorkItemsApiTypes.updateWorkItem>();
+const mockListUsers = jest.fn<typeof UsersApiTypes.listUsers>();
+const mockFetchTags = jest.fn<typeof TagsApiTypes.fetchTags>();
+
 // Mock API modules BEFORE importing components
 jest.unstable_mockModule('../../lib/workItemsApi.js', () => ({
-  listWorkItems: jest.fn(),
-  deleteWorkItem: jest.fn(),
-  getWorkItem: jest.fn(),
-  createWorkItem: jest.fn(),
-  updateWorkItem: jest.fn(),
+  listWorkItems: mockListWorkItems,
+  deleteWorkItem: mockDeleteWorkItem,
+  getWorkItem: mockGetWorkItem,
+  createWorkItem: mockCreateWorkItem,
+  updateWorkItem: mockUpdateWorkItem,
 }));
 
 jest.unstable_mockModule('../../lib/usersApi.js', () => ({
-  listUsers: jest.fn(),
+  listUsers: mockListUsers,
 }));
 
 jest.unstable_mockModule('../../lib/tagsApi.js', () => ({
-  fetchTags: jest.fn(),
+  fetchTags: mockFetchTags,
 }));
 
 describe('WorkItemsPage', () => {
-  let workItemsApi: typeof WorkItemsApiTypes;
-  let usersApi: typeof UsersApiTypes;
-  let tagsApi: typeof TagsApiTypes;
   let WorkItemsPage: React.ComponentType;
 
   // Sample data
@@ -72,26 +77,19 @@ describe('WorkItemsPage', () => {
 
   beforeEach(async () => {
     // Import modules once
-    if (!workItemsApi) {
-      workItemsApi = await import('../../lib/workItemsApi.js');
-      usersApi = await import('../../lib/usersApi.js');
-      tagsApi = await import('../../lib/tagsApi.js');
+    if (!WorkItemsPage) {
       const module = await import('./WorkItemsPage.js');
       WorkItemsPage = module.default;
     }
 
     // Reset all mocks
-    (
-      workItemsApi.listWorkItems as jest.MockedFunction<typeof workItemsApi.listWorkItems>
-    ).mockReset();
-    (
-      workItemsApi.deleteWorkItem as jest.MockedFunction<typeof workItemsApi.deleteWorkItem>
-    ).mockReset();
-    (usersApi.listUsers as jest.MockedFunction<typeof usersApi.listUsers>).mockReset();
-    (tagsApi.fetchTags as jest.MockedFunction<typeof tagsApi.fetchTags>).mockReset();
+    mockListWorkItems.mockReset();
+    mockDeleteWorkItem.mockReset();
+    mockListUsers.mockReset();
+    mockFetchTags.mockReset();
 
     // Default mock responses
-    (usersApi.listUsers as jest.MockedFunction<typeof usersApi.listUsers>).mockResolvedValue({
+    mockListUsers.mockResolvedValue({
       users: [
         {
           id: 'user-1',
@@ -106,7 +104,7 @@ describe('WorkItemsPage', () => {
       ],
     });
 
-    (tagsApi.fetchTags as jest.MockedFunction<typeof tagsApi.fetchTags>).mockResolvedValue({
+    mockFetchTags.mockResolvedValue({
       tags: [{ id: 'tag-1', name: 'Electrical', color: '#FF0000' }],
     });
   });
@@ -121,9 +119,7 @@ describe('WorkItemsPage', () => {
 
   describe('Page structure and states', () => {
     it('renders page heading', async () => {
-      (
-        workItemsApi.listWorkItems as jest.MockedFunction<typeof workItemsApi.listWorkItems>
-      ).mockResolvedValueOnce(emptyResponse);
+      mockListWorkItems.mockResolvedValueOnce(emptyResponse);
 
       renderPage();
 
@@ -133,9 +129,7 @@ describe('WorkItemsPage', () => {
     });
 
     it('renders "New Work Item" button in header', async () => {
-      (
-        workItemsApi.listWorkItems as jest.MockedFunction<typeof workItemsApi.listWorkItems>
-      ).mockResolvedValueOnce(emptyResponse);
+      mockListWorkItems.mockResolvedValueOnce(emptyResponse);
 
       renderPage();
 
@@ -146,9 +140,7 @@ describe('WorkItemsPage', () => {
     });
 
     it('shows loading indicator while fetching data', async () => {
-      (
-        workItemsApi.listWorkItems as jest.MockedFunction<typeof workItemsApi.listWorkItems>
-      ).mockReturnValueOnce(new Promise(() => {})); // Never resolves
+      mockListWorkItems.mockReturnValueOnce(new Promise(() => {})); // Never resolves
 
       renderPage();
 
@@ -156,9 +148,7 @@ describe('WorkItemsPage', () => {
     });
 
     it('hides loading indicator after data loads', async () => {
-      (
-        workItemsApi.listWorkItems as jest.MockedFunction<typeof workItemsApi.listWorkItems>
-      ).mockResolvedValueOnce(listResponse);
+      mockListWorkItems.mockResolvedValueOnce(listResponse);
 
       renderPage();
 
@@ -168,9 +158,7 @@ describe('WorkItemsPage', () => {
     });
 
     it('shows empty state message when no work items exist', async () => {
-      (
-        workItemsApi.listWorkItems as jest.MockedFunction<typeof workItemsApi.listWorkItems>
-      ).mockResolvedValueOnce(emptyResponse);
+      mockListWorkItems.mockResolvedValueOnce(emptyResponse);
 
       renderPage();
 
@@ -180,9 +168,7 @@ describe('WorkItemsPage', () => {
     });
 
     it('shows "Create First Work Item" button in empty state', async () => {
-      (
-        workItemsApi.listWorkItems as jest.MockedFunction<typeof workItemsApi.listWorkItems>
-      ).mockResolvedValueOnce(emptyResponse);
+      mockListWorkItems.mockResolvedValueOnce(emptyResponse);
 
       renderPage();
 
@@ -192,9 +178,7 @@ describe('WorkItemsPage', () => {
     });
 
     it('displays error message when API call fails', async () => {
-      (
-        workItemsApi.listWorkItems as jest.MockedFunction<typeof workItemsApi.listWorkItems>
-      ).mockRejectedValueOnce(new Error('Network error'));
+      mockListWorkItems.mockRejectedValueOnce(new Error('Network error'));
 
       renderPage();
 
@@ -207,9 +191,7 @@ describe('WorkItemsPage', () => {
 
   describe('Work items list display', () => {
     it('displays work item titles', async () => {
-      (
-        workItemsApi.listWorkItems as jest.MockedFunction<typeof workItemsApi.listWorkItems>
-      ).mockResolvedValue(listResponse);
+      mockListWorkItems.mockResolvedValue(listResponse);
 
       renderPage();
 
@@ -221,9 +203,7 @@ describe('WorkItemsPage', () => {
     });
 
     it('displays work item statuses using StatusBadge', async () => {
-      (
-        workItemsApi.listWorkItems as jest.MockedFunction<typeof workItemsApi.listWorkItems>
-      ).mockResolvedValue(listResponse);
+      mockListWorkItems.mockResolvedValue(listResponse);
 
       renderPage();
 
@@ -235,9 +215,7 @@ describe('WorkItemsPage', () => {
     });
 
     it('displays assigned user names', async () => {
-      (
-        workItemsApi.listWorkItems as jest.MockedFunction<typeof workItemsApi.listWorkItems>
-      ).mockResolvedValue(listResponse);
+      mockListWorkItems.mockResolvedValue(listResponse);
 
       renderPage();
 
@@ -247,9 +225,7 @@ describe('WorkItemsPage', () => {
     });
 
     it('displays formatted dates', async () => {
-      (
-        workItemsApi.listWorkItems as jest.MockedFunction<typeof workItemsApi.listWorkItems>
-      ).mockResolvedValue(listResponse);
+      mockListWorkItems.mockResolvedValue(listResponse);
 
       renderPage();
 
@@ -262,9 +238,7 @@ describe('WorkItemsPage', () => {
 
   describe('Search and filters', () => {
     it('renders search input', async () => {
-      (
-        workItemsApi.listWorkItems as jest.MockedFunction<typeof workItemsApi.listWorkItems>
-      ).mockResolvedValueOnce(listResponse);
+      mockListWorkItems.mockResolvedValueOnce(listResponse);
 
       renderPage();
 
@@ -274,9 +248,7 @@ describe('WorkItemsPage', () => {
     });
 
     it('renders status filter dropdown', async () => {
-      (
-        workItemsApi.listWorkItems as jest.MockedFunction<typeof workItemsApi.listWorkItems>
-      ).mockResolvedValueOnce(listResponse);
+      mockListWorkItems.mockResolvedValueOnce(listResponse);
 
       renderPage();
 
@@ -286,9 +258,7 @@ describe('WorkItemsPage', () => {
     });
 
     it('renders assigned user filter dropdown', async () => {
-      (
-        workItemsApi.listWorkItems as jest.MockedFunction<typeof workItemsApi.listWorkItems>
-      ).mockResolvedValueOnce(listResponse);
+      mockListWorkItems.mockResolvedValueOnce(listResponse);
 
       renderPage();
 
@@ -298,9 +268,7 @@ describe('WorkItemsPage', () => {
     });
 
     it('renders tag filter dropdown', async () => {
-      (
-        workItemsApi.listWorkItems as jest.MockedFunction<typeof workItemsApi.listWorkItems>
-      ).mockResolvedValueOnce(listResponse);
+      mockListWorkItems.mockResolvedValueOnce(listResponse);
 
       renderPage();
 
@@ -310,9 +278,7 @@ describe('WorkItemsPage', () => {
     });
 
     it('renders sort dropdown', async () => {
-      (
-        workItemsApi.listWorkItems as jest.MockedFunction<typeof workItemsApi.listWorkItems>
-      ).mockResolvedValueOnce(listResponse);
+      mockListWorkItems.mockResolvedValueOnce(listResponse);
 
       renderPage();
 

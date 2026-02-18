@@ -3,85 +3,84 @@
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import type { WorkItemDetail, WorkItemSummary } from '@cornerstone/shared';
+import type * as AuthContextTypes from '../../contexts/AuthContext.js';
+import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
+import type * as NotesApiTypes from '../../lib/notesApi.js';
+import type * as SubtasksApiTypes from '../../lib/subtasksApi.js';
+import type * as DependenciesApiTypes from '../../lib/dependenciesApi.js';
+import type * as TagsApiTypes from '../../lib/tagsApi.js';
+import type * as UsersApiTypes from '../../lib/usersApi.js';
 import type * as WorkItemDetailPageTypes from './WorkItemDetailPage.js';
+
+// Module-scope mocks
+const mockUseAuth = jest.fn<typeof AuthContextTypes.useAuth>();
+const mockGetWorkItem = jest.fn<typeof WorkItemsApiTypes.getWorkItem>();
+const mockUpdateWorkItem = jest.fn<typeof WorkItemsApiTypes.updateWorkItem>();
+const mockDeleteWorkItem = jest.fn<typeof WorkItemsApiTypes.deleteWorkItem>();
+const mockListWorkItems = jest.fn<typeof WorkItemsApiTypes.listWorkItems>();
+const mockListNotes = jest.fn<typeof NotesApiTypes.listNotes>();
+const mockCreateNote = jest.fn<typeof NotesApiTypes.createNote>();
+const mockUpdateNote = jest.fn<typeof NotesApiTypes.updateNote>();
+const mockDeleteNote = jest.fn<typeof NotesApiTypes.deleteNote>();
+const mockListSubtasks = jest.fn<typeof SubtasksApiTypes.listSubtasks>();
+const mockCreateSubtask = jest.fn<typeof SubtasksApiTypes.createSubtask>();
+const mockUpdateSubtask = jest.fn<typeof SubtasksApiTypes.updateSubtask>();
+const mockDeleteSubtask = jest.fn<typeof SubtasksApiTypes.deleteSubtask>();
+const mockReorderSubtasks = jest.fn<typeof SubtasksApiTypes.reorderSubtasks>();
+const mockGetDependencies = jest.fn<typeof DependenciesApiTypes.getDependencies>();
+const mockCreateDependency = jest.fn<typeof DependenciesApiTypes.createDependency>();
+const mockDeleteDependency = jest.fn<typeof DependenciesApiTypes.deleteDependency>();
+const mockFetchTags = jest.fn<typeof TagsApiTypes.fetchTags>();
+const mockCreateTag = jest.fn<typeof TagsApiTypes.createTag>();
+const mockListUsers = jest.fn<typeof UsersApiTypes.listUsers>();
 
 // Mock AuthContext
 jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
-  useAuth: jest.fn(),
+  useAuth: mockUseAuth,
 }));
 
-// Mock all API modules
+// Mock all API modules — do NOT mock react-router-dom (causes OOM)
 jest.unstable_mockModule('../../lib/workItemsApi.js', () => ({
-  getWorkItem: jest.fn(),
-  updateWorkItem: jest.fn(),
-  deleteWorkItem: jest.fn(),
-  listWorkItems: jest.fn(),
+  getWorkItem: mockGetWorkItem,
+  updateWorkItem: mockUpdateWorkItem,
+  deleteWorkItem: mockDeleteWorkItem,
+  listWorkItems: mockListWorkItems,
 }));
 
 jest.unstable_mockModule('../../lib/notesApi.js', () => ({
-  listNotes: jest.fn(),
-  createNote: jest.fn(),
-  updateNote: jest.fn(),
-  deleteNote: jest.fn(),
+  listNotes: mockListNotes,
+  createNote: mockCreateNote,
+  updateNote: mockUpdateNote,
+  deleteNote: mockDeleteNote,
 }));
 
 jest.unstable_mockModule('../../lib/subtasksApi.js', () => ({
-  listSubtasks: jest.fn(),
-  createSubtask: jest.fn(),
-  updateSubtask: jest.fn(),
-  deleteSubtask: jest.fn(),
-  reorderSubtasks: jest.fn(),
+  listSubtasks: mockListSubtasks,
+  createSubtask: mockCreateSubtask,
+  updateSubtask: mockUpdateSubtask,
+  deleteSubtask: mockDeleteSubtask,
+  reorderSubtasks: mockReorderSubtasks,
 }));
 
 jest.unstable_mockModule('../../lib/dependenciesApi.js', () => ({
-  getDependencies: jest.fn(),
-  createDependency: jest.fn(),
-  deleteDependency: jest.fn(),
+  getDependencies: mockGetDependencies,
+  createDependency: mockCreateDependency,
+  deleteDependency: mockDeleteDependency,
 }));
 
 jest.unstable_mockModule('../../lib/tagsApi.js', () => ({
-  fetchTags: jest.fn(),
-  createTag: jest.fn(),
+  fetchTags: mockFetchTags,
+  createTag: mockCreateTag,
 }));
 
 jest.unstable_mockModule('../../lib/usersApi.js', () => ({
-  listUsers: jest.fn(),
+  listUsers: mockListUsers,
 }));
-
-// Mock react-router-dom
-jest.unstable_mockModule('react-router-dom', () => ({
-  ...jest.requireActual<object>('react-router-dom'),
-  useParams: jest.fn(),
-  useNavigate: jest.fn(),
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Link: jest.fn().mockImplementation((props: any) => (
-    <a href={props.to} className={props.className}>
-      {props.children}
-    </a>
-  )),
-}));
-
-const mockNavigate = jest.fn();
 
 describe('WorkItemDetailPage', () => {
   let WorkItemDetailPageModule: typeof WorkItemDetailPageTypes;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let authContext: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let workItemsApi: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let notesApi: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let subtasksApi: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let dependenciesApi: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let tagsApi: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let usersApi: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let routerDom: any;
 
   const mockWorkItem: WorkItemDetail = {
     id: 'work-1',
@@ -123,27 +122,33 @@ describe('WorkItemDetailPage', () => {
   };
 
   beforeEach(async () => {
-    jest.clearAllMocks();
+    // Reset all mocks
+    mockUseAuth.mockReset();
+    mockGetWorkItem.mockReset();
+    mockUpdateWorkItem.mockReset();
+    mockDeleteWorkItem.mockReset();
+    mockListWorkItems.mockReset();
+    mockListNotes.mockReset();
+    mockCreateNote.mockReset();
+    mockUpdateNote.mockReset();
+    mockDeleteNote.mockReset();
+    mockListSubtasks.mockReset();
+    mockCreateSubtask.mockReset();
+    mockUpdateSubtask.mockReset();
+    mockDeleteSubtask.mockReset();
+    mockReorderSubtasks.mockReset();
+    mockGetDependencies.mockReset();
+    mockCreateDependency.mockReset();
+    mockDeleteDependency.mockReset();
+    mockFetchTags.mockReset();
+    mockCreateTag.mockReset();
+    mockListUsers.mockReset();
 
     if (!WorkItemDetailPageModule) {
       WorkItemDetailPageModule = await import('./WorkItemDetailPage.js');
-      authContext = await import('../../contexts/AuthContext.js');
-      workItemsApi = await import('../../lib/workItemsApi.js');
-      notesApi = await import('../../lib/notesApi.js');
-      subtasksApi = await import('../../lib/subtasksApi.js');
-      dependenciesApi = await import('../../lib/dependenciesApi.js');
-      tagsApi = await import('../../lib/tagsApi.js');
-      usersApi = await import('../../lib/usersApi.js');
-      routerDom = await import('react-router-dom');
     }
 
-    (routerDom.useParams as jest.MockedFunction<typeof routerDom.useParams>).mockReturnValue({
-      id: 'work-1',
-    });
-    (routerDom.useNavigate as jest.MockedFunction<typeof routerDom.useNavigate>).mockReturnValue(
-      mockNavigate as ReturnType<typeof routerDom.useNavigate>,
-    );
-    (authContext.useAuth as jest.MockedFunction<typeof authContext.useAuth>).mockReturnValue({
+    mockUseAuth.mockReturnValue({
       user: mockUser,
       isLoading: false,
       error: null,
@@ -153,29 +158,27 @@ describe('WorkItemDetailPage', () => {
     });
 
     // Setup default successful API responses
-    (
-      workItemsApi.getWorkItem as jest.MockedFunction<typeof workItemsApi.getWorkItem>
-    ).mockResolvedValue(mockWorkItem);
-    (notesApi.listNotes as jest.MockedFunction<typeof notesApi.listNotes>).mockResolvedValue({
-      notes: [],
-    });
-    (
-      subtasksApi.listSubtasks as jest.MockedFunction<typeof subtasksApi.listSubtasks>
-    ).mockResolvedValue({ subtasks: [] });
-    (
-      dependenciesApi.getDependencies as jest.MockedFunction<typeof dependenciesApi.getDependencies>
-    ).mockResolvedValue({ predecessors: [], successors: [] });
-    (tagsApi.fetchTags as jest.MockedFunction<typeof tagsApi.fetchTags>).mockResolvedValue({
-      tags: [],
-    });
-    (usersApi.listUsers as jest.MockedFunction<typeof usersApi.listUsers>).mockResolvedValue({
-      users: [],
-    });
+    mockGetWorkItem.mockResolvedValue(mockWorkItem);
+    mockListNotes.mockResolvedValue({ notes: [] });
+    mockListSubtasks.mockResolvedValue({ subtasks: [] });
+    mockGetDependencies.mockResolvedValue({ predecessors: [], successors: [] });
+    mockFetchTags.mockResolvedValue({ tags: [] });
+    mockListUsers.mockResolvedValue({ users: [] });
   });
+
+  function renderPage(id = 'work-1') {
+    return render(
+      <MemoryRouter initialEntries={[`/work-items/${id}`]}>
+        <Routes>
+          <Route path="/work-items/:id" element={<WorkItemDetailPageModule.default />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+  }
 
   describe('initial render', () => {
     it('shows loading state initially', async () => {
-      render(<WorkItemDetailPageModule.default />);
+      renderPage();
 
       expect(screen.getByText('Loading work item...')).toBeInTheDocument();
 
@@ -185,7 +188,7 @@ describe('WorkItemDetailPage', () => {
     });
 
     it('renders work item title after loading', async () => {
-      render(<WorkItemDetailPageModule.default />);
+      renderPage();
 
       await waitFor(() => {
         expect(screen.getByText('Test Work Item')).toBeInTheDocument();
@@ -193,7 +196,7 @@ describe('WorkItemDetailPage', () => {
     });
 
     it('renders work item description', async () => {
-      render(<WorkItemDetailPageModule.default />);
+      renderPage();
 
       await waitFor(() => {
         expect(screen.getByText('This is a test work item')).toBeInTheDocument();
@@ -201,7 +204,7 @@ describe('WorkItemDetailPage', () => {
     });
 
     it('renders all property sections', async () => {
-      render(<WorkItemDetailPageModule.default />);
+      renderPage();
 
       await waitFor(() => {
         expect(screen.getByText('Description')).toBeInTheDocument();
@@ -219,11 +222,9 @@ describe('WorkItemDetailPage', () => {
 
   describe('error states', () => {
     it('shows error message when work item not found', async () => {
-      (
-        workItemsApi.getWorkItem as jest.MockedFunction<typeof workItemsApi.getWorkItem>
-      ).mockRejectedValue({ statusCode: 404 });
+      mockGetWorkItem.mockRejectedValue({ statusCode: 404 });
 
-      render(<WorkItemDetailPageModule.default />);
+      renderPage();
 
       await waitFor(() => {
         expect(screen.getByText('Work item not found')).toBeInTheDocument();
@@ -233,11 +234,9 @@ describe('WorkItemDetailPage', () => {
     });
 
     it('shows generic error message on other errors', async () => {
-      (
-        workItemsApi.getWorkItem as jest.MockedFunction<typeof workItemsApi.getWorkItem>
-      ).mockRejectedValue(new Error('Network error'));
+      mockGetWorkItem.mockRejectedValue(new Error('Network error'));
 
-      render(<WorkItemDetailPageModule.default />);
+      renderPage();
 
       await waitFor(() => {
         expect(screen.getByText('Failed to load work item. Please try again.')).toBeInTheDocument();
@@ -248,11 +247,9 @@ describe('WorkItemDetailPage', () => {
   describe('work item with no description', () => {
     it('shows placeholder text when description is null', async () => {
       const workItemNoDescription = { ...mockWorkItem, description: null };
-      (
-        workItemsApi.getWorkItem as jest.MockedFunction<typeof workItemsApi.getWorkItem>
-      ).mockResolvedValue(workItemNoDescription);
+      mockGetWorkItem.mockResolvedValue(workItemNoDescription);
 
-      render(<WorkItemDetailPageModule.default />);
+      renderPage();
 
       await waitFor(() => {
         expect(screen.getByText('No description')).toBeInTheDocument();
@@ -262,7 +259,7 @@ describe('WorkItemDetailPage', () => {
 
   describe('notes display', () => {
     it('shows empty state when no notes exist', async () => {
-      render(<WorkItemDetailPageModule.default />);
+      renderPage();
 
       await waitFor(() => {
         expect(screen.getByText('No notes yet')).toBeInTheDocument();
@@ -270,7 +267,7 @@ describe('WorkItemDetailPage', () => {
     });
 
     it('renders existing notes', async () => {
-      (notesApi.listNotes as jest.MockedFunction<typeof notesApi.listNotes>).mockResolvedValue({
+      mockListNotes.mockResolvedValue({
         notes: [
           {
             id: 'note-1',
@@ -285,7 +282,7 @@ describe('WorkItemDetailPage', () => {
         ],
       });
 
-      render(<WorkItemDetailPageModule.default />);
+      renderPage();
 
       await waitFor(() => {
         expect(screen.getByText('First note')).toBeInTheDocument();
@@ -297,7 +294,7 @@ describe('WorkItemDetailPage', () => {
 
   describe('subtasks display', () => {
     it('shows empty state when no subtasks exist', async () => {
-      render(<WorkItemDetailPageModule.default />);
+      renderPage();
 
       await waitFor(() => {
         expect(screen.getByText('No subtasks yet')).toBeInTheDocument();
@@ -305,9 +302,7 @@ describe('WorkItemDetailPage', () => {
     });
 
     it('renders existing subtasks', async () => {
-      (
-        subtasksApi.listSubtasks as jest.MockedFunction<typeof subtasksApi.listSubtasks>
-      ).mockResolvedValue({
+      mockListSubtasks.mockResolvedValue({
         subtasks: [
           {
             id: 'subtask-1',
@@ -320,7 +315,7 @@ describe('WorkItemDetailPage', () => {
         ],
       });
 
-      render(<WorkItemDetailPageModule.default />);
+      renderPage();
 
       await waitFor(() => {
         expect(screen.getByText('First subtask')).toBeInTheDocument();
@@ -330,7 +325,7 @@ describe('WorkItemDetailPage', () => {
 
   describe('dependencies display', () => {
     it('shows empty state when no dependencies exist', async () => {
-      render(<WorkItemDetailPageModule.default />);
+      renderPage();
 
       await waitFor(() => {
         expect(screen.getByText('No predecessors')).toBeInTheDocument();
@@ -353,11 +348,7 @@ describe('WorkItemDetailPage', () => {
         updatedAt: '2024-01-01T00:00:00Z',
       };
 
-      (
-        dependenciesApi.getDependencies as jest.MockedFunction<
-          typeof dependenciesApi.getDependencies
-        >
-      ).mockResolvedValue({
+      mockGetDependencies.mockResolvedValue({
         predecessors: [
           {
             workItem: predecessorWorkItem,
@@ -367,7 +358,7 @@ describe('WorkItemDetailPage', () => {
         successors: [],
       });
 
-      render(<WorkItemDetailPageModule.default />);
+      renderPage();
 
       await waitFor(() => {
         expect(screen.getByText('Foundation work')).toBeInTheDocument();
