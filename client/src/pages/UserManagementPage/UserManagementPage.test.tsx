@@ -7,11 +7,15 @@ import type * as UserManagementPageTypes from './UserManagementPage.js';
 import { renderWithRouter } from '../../test/testUtils.js';
 import type { UserResponse } from '@cornerstone/shared';
 
+const mockListUsers = jest.fn<typeof UsersApiTypes.listUsers>();
+const mockAdminUpdateUser = jest.fn<typeof UsersApiTypes.adminUpdateUser>();
+const mockDeactivateUser = jest.fn<typeof UsersApiTypes.deactivateUser>();
+
 // Mock usersApi
 jest.unstable_mockModule('../../lib/usersApi.js', () => ({
-  listUsers: jest.fn(),
-  adminUpdateUser: jest.fn(),
-  deactivateUser: jest.fn(),
+  listUsers: mockListUsers,
+  adminUpdateUser: mockAdminUpdateUser,
+  deactivateUser: mockDeactivateUser,
 }));
 
 // Mock apiClient (for ApiClientError)
@@ -28,13 +32,8 @@ jest.unstable_mockModule('../../lib/apiClient.js', () => ({
 }));
 
 describe('UserManagementPage', () => {
-  let usersApi: typeof UsersApiTypes;
   let ApiClient: typeof ApiClientTypes;
   let UserManagementPage: typeof UserManagementPageTypes;
-
-  let mockListUsers: jest.MockedFunction<typeof UsersApiTypes.listUsers>;
-  let mockAdminUpdateUser: jest.MockedFunction<typeof UsersApiTypes.adminUpdateUser>;
-  let mockDeactivateUser: jest.MockedFunction<typeof UsersApiTypes.deactivateUser>;
 
   const mockUsers: UserResponse[] = [
     {
@@ -71,21 +70,12 @@ describe('UserManagementPage', () => {
 
   beforeEach(async () => {
     // Dynamic import after mocking
-    if (!usersApi) {
-      usersApi = await import('../../lib/usersApi.js');
+    if (!UserManagementPage) {
       ApiClient = await import('../../lib/apiClient.js');
       UserManagementPage = await import('./UserManagementPage.js');
     }
 
     // Reset mocks
-    mockListUsers = usersApi.listUsers as jest.MockedFunction<typeof usersApi.listUsers>;
-    mockAdminUpdateUser = usersApi.adminUpdateUser as jest.MockedFunction<
-      typeof usersApi.adminUpdateUser
-    >;
-    mockDeactivateUser = usersApi.deactivateUser as jest.MockedFunction<
-      typeof usersApi.deactivateUser
-    >;
-
     mockListUsers.mockReset();
     mockAdminUpdateUser.mockReset();
     mockDeactivateUser.mockReset();

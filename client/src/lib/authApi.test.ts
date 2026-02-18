@@ -5,24 +5,21 @@ import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import type * as ApiClientTypes from './apiClient.js';
 import type * as AuthApiTypes from './authApi.js';
 
+const mockGet = jest.fn<typeof ApiClientTypes.get>();
+const mockPost = jest.fn<typeof ApiClientTypes.post>();
+
 jest.unstable_mockModule('./apiClient.js', () => ({
-  get: jest.fn(),
-  post: jest.fn(),
+  get: mockGet,
+  post: mockPost,
 }));
 
 describe('authApi', () => {
-  let apiClient: typeof ApiClientTypes;
   let authApi: typeof AuthApiTypes;
-  let mockGet: jest.MockedFunction<typeof ApiClientTypes.get>;
-  let mockPost: jest.MockedFunction<typeof ApiClientTypes.post>;
 
   beforeEach(async () => {
-    if (!apiClient) {
-      apiClient = await import('./apiClient.js');
+    if (!authApi) {
       authApi = await import('./authApi.js');
     }
-    mockGet = apiClient.get as jest.MockedFunction<typeof apiClient.get>;
-    mockPost = apiClient.post as jest.MockedFunction<typeof apiClient.post>;
     mockGet.mockReset();
     mockPost.mockReset();
   });

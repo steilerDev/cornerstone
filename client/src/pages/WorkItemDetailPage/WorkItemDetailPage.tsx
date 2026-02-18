@@ -23,6 +23,7 @@ import { getDependencies, createDependency, deleteDependency } from '../../lib/d
 import { fetchTags, createTag } from '../../lib/tagsApi.js';
 import { listUsers } from '../../lib/usersApi.js';
 import { TagPicker } from '../../components/TagPicker/TagPicker.js';
+import { WorkItemPicker } from '../../components/WorkItemPicker/WorkItemPicker.js';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import { KeyboardShortcutsHelp } from '../../components/KeyboardShortcutsHelp/KeyboardShortcutsHelp.js';
@@ -503,6 +504,15 @@ export default function WorkItemDetailPage() {
       setIsDeleting(false);
     }
   };
+
+  const excludedWorkItemIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (id) ids.add(id);
+    for (const dep of dependencies.predecessors) {
+      ids.add(dep.workItem.id);
+    }
+    return Array.from(ids);
+  }, [id, dependencies.predecessors]);
 
   // Keyboard shortcuts
   const shortcuts = useMemo(
@@ -1054,16 +1064,14 @@ export default function WorkItemDetailPage() {
               </div>
 
               <form className={styles.addDependencyForm} onSubmit={handleAddDependency}>
-                <h3 className={styles.dependencySubtitle}>Add Predecessor</h3>
-                <select
-                  className={styles.dependencySelect}
+                <h3 className={styles.dependencySubtitle}>Add Dependency</h3>
+                <WorkItemPicker
                   value={newDependencyPredecessorId}
-                  onChange={(e) => setNewDependencyPredecessorId(e.target.value)}
+                  onChange={setNewDependencyPredecessorId}
+                  excludeIds={excludedWorkItemIds}
                   disabled={isAddingDependency}
-                >
-                  <option value="">Select work item...</option>
-                  {/* TODO: Load all work items and filter out self */}
-                </select>
+                  placeholder="Search for a work item..."
+                />
                 <select
                   className={styles.dependencySelect}
                   value={newDependencyType}

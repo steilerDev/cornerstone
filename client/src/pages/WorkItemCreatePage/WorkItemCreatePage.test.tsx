@@ -4,41 +4,40 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import type { TagResponse, UserResponse } from '@cornerstone/shared';
+import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
+import type * as TagsApiTypes from '../../lib/tagsApi.js';
+import type * as UsersApiTypes from '../../lib/usersApi.js';
 import type * as WorkItemCreatePageTypes from './WorkItemCreatePage.js';
 
-// Mock all API modules BEFORE importing component
+const mockCreateWorkItem = jest.fn<typeof WorkItemsApiTypes.createWorkItem>();
+const mockFetchTags = jest.fn<typeof TagsApiTypes.fetchTags>();
+const mockCreateTag = jest.fn<typeof TagsApiTypes.createTag>();
+const mockListUsers = jest.fn<typeof UsersApiTypes.listUsers>();
+
+// Mock only API modules — do NOT mock react-router-dom (causes OOM)
 jest.unstable_mockModule('../../lib/workItemsApi.js', () => ({
-  createWorkItem: jest.fn(),
+  createWorkItem: mockCreateWorkItem,
 }));
 
 jest.unstable_mockModule('../../lib/tagsApi.js', () => ({
-  fetchTags: jest.fn(),
-  createTag: jest.fn(),
+  fetchTags: mockFetchTags,
+  createTag: mockCreateTag,
 }));
 
 jest.unstable_mockModule('../../lib/usersApi.js', () => ({
-  listUsers: jest.fn(),
+  listUsers: mockListUsers,
 }));
 
-// Mock react-router-dom
-jest.unstable_mockModule('react-router-dom', () => ({
-  ...jest.requireActual<object>('react-router-dom'),
-  useNavigate: jest.fn(),
-}));
-
-const mockNavigate = jest.fn();
+// Helper to capture current location
+function LocationDisplay() {
+  const location = useLocation();
+  return <div data-testid="location">{location.pathname}</div>;
+}
 
 describe('WorkItemCreatePage', () => {
   let WorkItemCreatePageModule: typeof WorkItemCreatePageTypes;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let workItemsApi: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let tagsApi: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let usersApi: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let routerDom: any;
 
   const mockTags: TagResponse[] = [
     { id: 'tag-1', name: 'Frontend', color: '#FF5733', createdAt: '2024-01-01T00:00:00Z' },
@@ -66,30 +65,35 @@ describe('WorkItemCreatePage', () => {
   ];
 
   beforeEach(async () => {
-    jest.clearAllMocks();
+    mockCreateWorkItem.mockReset();
+    mockFetchTags.mockReset();
+    mockCreateTag.mockReset();
+    mockListUsers.mockReset();
 
     if (!WorkItemCreatePageModule) {
       WorkItemCreatePageModule = await import('./WorkItemCreatePage.js');
-      workItemsApi = await import('../../lib/workItemsApi.js');
-      tagsApi = await import('../../lib/tagsApi.js');
-      usersApi = await import('../../lib/usersApi.js');
-      routerDom = await import('react-router-dom');
     }
 
-    (routerDom.useNavigate as jest.MockedFunction<typeof routerDom.useNavigate>).mockReturnValue(
-      mockNavigate as ReturnType<typeof routerDom.useNavigate>,
-    );
-    (tagsApi.fetchTags as jest.MockedFunction<typeof tagsApi.fetchTags>).mockResolvedValue({
-      tags: mockTags,
-    });
-    (usersApi.listUsers as jest.MockedFunction<typeof usersApi.listUsers>).mockResolvedValue({
-      users: mockUsers,
-    });
+    mockFetchTags.mockResolvedValue({ tags: mockTags });
+    mockListUsers.mockResolvedValue({ users: mockUsers });
   });
+
+  function renderPage() {
+    return render(
+      <MemoryRouter initialEntries={['/work-items/new']}>
+        <Routes>
+          <Route path="/work-items/new" element={<WorkItemCreatePageModule.default />} />
+          <Route path="/work-items/:id" element={<div>Work Item Detail</div>} />
+          <Route path="/work-items" element={<div>Work Items List</div>} />
+        </Routes>
+        <LocationDisplay />
+      </MemoryRouter>,
+    );
+  }
 
   describe('initial render', () => {
     it('shows loading state initially', async () => {
-      render(<WorkItemCreatePageModule.default />);
+      renderPage();
 
       expect(screen.getByText('Loading...')).toBeInTheDocument();
 
@@ -99,7 +103,7 @@ describe('WorkItemCreatePage', () => {
     });
 
     it('renders form with all required fields after loading', async () => {
-      render(<WorkItemCreatePageModule.default />);
+      renderPage();
 
       // Wait for any field to appear (indicates form loaded)
       await waitFor(() => {
@@ -120,7 +124,7 @@ describe('WorkItemCreatePage', () => {
     });
 
     it('renders submit and cancel buttons', async () => {
-      render(<WorkItemCreatePageModule.default />);
+      renderPage();
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /create work item/i })).toBeInTheDocument();
@@ -130,7 +134,7 @@ describe('WorkItemCreatePage', () => {
     });
 
     it('renders back button', async () => {
-      render(<WorkItemCreatePageModule.default />);
+      renderPage();
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /back to work items/i })).toBeInTheDocument();
@@ -138,7 +142,7 @@ describe('WorkItemCreatePage', () => {
     });
 
     it('filters out deactivated users from assignment dropdown', async () => {
-      render(<WorkItemCreatePageModule.default />);
+      renderPage();
 
       await waitFor(() => {
         expect(screen.getByLabelText(/assigned to/i)).toBeInTheDocument();
@@ -155,7 +159,7 @@ describe('WorkItemCreatePage', () => {
   describe('validation', () => {
     it('shows validation error when submitting with empty title', async () => {
       const user = userEvent.setup();
-      render(<WorkItemCreatePageModule.default />);
+      renderPage();
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /create work item/i })).toBeInTheDocument();
@@ -168,12 +172,12 @@ describe('WorkItemCreatePage', () => {
         expect(screen.getByText('Title is required')).toBeInTheDocument();
       });
 
-      expect(workItemsApi.createWorkItem).not.toHaveBeenCalled();
+      expect(mockCreateWorkItem).not.toHaveBeenCalled();
     });
 
     it('shows validation error when start date is after end date', async () => {
       const user = userEvent.setup();
-      render(<WorkItemCreatePageModule.default />);
+      renderPage();
 
       await waitFor(() => {
         expect(screen.getByLabelText(/title/i)).toBeInTheDocument();
@@ -192,12 +196,12 @@ describe('WorkItemCreatePage', () => {
         ).toBeInTheDocument();
       });
 
-      expect(workItemsApi.createWorkItem).not.toHaveBeenCalled();
+      expect(mockCreateWorkItem).not.toHaveBeenCalled();
     });
 
     it('shows validation error when start after is after start before', async () => {
       const user = userEvent.setup();
-      render(<WorkItemCreatePageModule.default />);
+      renderPage();
 
       await waitFor(() => {
         expect(screen.getByLabelText(/title/i)).toBeInTheDocument();
@@ -216,12 +220,12 @@ describe('WorkItemCreatePage', () => {
         ).toBeInTheDocument();
       });
 
-      expect(workItemsApi.createWorkItem).not.toHaveBeenCalled();
+      expect(mockCreateWorkItem).not.toHaveBeenCalled();
     });
 
     it('validates negative duration on submit', async () => {
       const user = userEvent.setup();
-      render(<WorkItemCreatePageModule.default />);
+      renderPage();
 
       await waitFor(() => {
         expect(screen.getByLabelText(/title/i)).toBeInTheDocument();
@@ -238,16 +242,14 @@ describe('WorkItemCreatePage', () => {
       await user.click(submitButton);
 
       // Validation should prevent submission
-      expect(workItemsApi.createWorkItem).not.toHaveBeenCalled();
+      expect(mockCreateWorkItem).not.toHaveBeenCalled();
     });
   });
 
   describe('form submission', () => {
     it('navigates to work item detail page on successful creation', async () => {
       const user = userEvent.setup();
-      (
-        workItemsApi.createWorkItem as jest.MockedFunction<typeof workItemsApi.createWorkItem>
-      ).mockResolvedValue({
+      mockCreateWorkItem.mockResolvedValue({
         id: 'work-1',
         title: 'Test Work Item',
         description: null,
@@ -273,7 +275,7 @@ describe('WorkItemCreatePage', () => {
         updatedAt: '2024-01-01T00:00:00Z',
       });
 
-      render(<WorkItemCreatePageModule.default />);
+      renderPage();
 
       await waitFor(() => {
         expect(screen.getByLabelText(/title/i)).toBeInTheDocument();
@@ -284,18 +286,17 @@ describe('WorkItemCreatePage', () => {
       const submitButton = screen.getByRole('button', { name: /create work item/i });
       await user.click(submitButton);
 
+      // After successful creation, navigates to /work-items/work-1
       await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith('/work-items/work-1');
+        expect(screen.getByTestId('location')).toHaveTextContent('/work-items/work-1');
       });
     });
 
     it('shows error banner on creation failure', async () => {
       const user = userEvent.setup();
-      (
-        workItemsApi.createWorkItem as jest.MockedFunction<typeof workItemsApi.createWorkItem>
-      ).mockRejectedValue(new Error('Network error'));
+      mockCreateWorkItem.mockRejectedValue(new Error('Network error'));
 
-      render(<WorkItemCreatePageModule.default />);
+      renderPage();
 
       await waitFor(() => {
         expect(screen.getByLabelText(/title/i)).toBeInTheDocument();
@@ -317,7 +318,7 @@ describe('WorkItemCreatePage', () => {
   describe('navigation', () => {
     it('navigates back to work items list on back button click', async () => {
       const user = userEvent.setup();
-      render(<WorkItemCreatePageModule.default />);
+      renderPage();
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /back to work items/i })).toBeInTheDocument();
@@ -326,12 +327,14 @@ describe('WorkItemCreatePage', () => {
       const backButton = screen.getByRole('button', { name: /back to work items/i });
       await user.click(backButton);
 
-      expect(mockNavigate).toHaveBeenCalledWith('/work-items');
+      await waitFor(() => {
+        expect(screen.getByTestId('location')).toHaveTextContent('/work-items');
+      });
     });
 
     it('navigates back to work items list on cancel button click', async () => {
       const user = userEvent.setup();
-      render(<WorkItemCreatePageModule.default />);
+      renderPage();
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
@@ -340,7 +343,9 @@ describe('WorkItemCreatePage', () => {
       const cancelButton = screen.getByRole('button', { name: /cancel/i });
       await user.click(cancelButton);
 
-      expect(mockNavigate).toHaveBeenCalledWith('/work-items');
+      await waitFor(() => {
+        expect(screen.getByTestId('location')).toHaveTextContent('/work-items');
+      });
     });
   });
 });

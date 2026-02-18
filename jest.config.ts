@@ -47,6 +47,19 @@ const config: Config = {
       displayName: 'server',
       testEnvironment: 'node',
       testMatch: ['<rootDir>/server/src/**/*.test.ts'],
+      transform: {
+        '^.+\\.tsx?$': [
+          'ts-jest',
+          {
+            useESM: true,
+            tsconfig: {
+              module: 'NodeNext',
+              moduleResolution: 'NodeNext',
+              esModuleInterop: true,
+            },
+          },
+        ],
+      },
     },
     {
       ...baseConfig,

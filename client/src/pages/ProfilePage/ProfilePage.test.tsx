@@ -7,26 +7,24 @@ import type * as AuthContextTypes from '../../contexts/AuthContext.js';
 import type * as ProfilePageTypes from './ProfilePage.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 
+const mockUpdateProfile = jest.fn<typeof UsersApiTypes.updateProfile>();
+const mockChangePassword = jest.fn<typeof UsersApiTypes.changePassword>();
+const mockUseAuth = jest.fn<typeof AuthContextTypes.useAuth>();
+
 // Mock usersApi before importing the component
 jest.unstable_mockModule('../../lib/usersApi.js', () => ({
-  updateProfile: jest.fn(),
-  changePassword: jest.fn(),
+  updateProfile: mockUpdateProfile,
+  changePassword: mockChangePassword,
 }));
 
 // Mock AuthContext
 jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
-  useAuth: jest.fn(),
+  useAuth: mockUseAuth,
   AuthProvider: ({ children }: { children: ReactNode }) => children,
 }));
 
 describe('ProfilePage', () => {
-  let usersApi: typeof UsersApiTypes;
-  let AuthContext: typeof AuthContextTypes;
   let ProfilePage: typeof ProfilePageTypes.ProfilePage;
-
-  let mockUseAuth: jest.MockedFunction<typeof AuthContextTypes.useAuth>;
-  let mockUpdateProfile: jest.MockedFunction<typeof UsersApiTypes.updateProfile>;
-  let mockChangePassword: jest.MockedFunction<typeof UsersApiTypes.changePassword>;
 
   // Mock user data
   const mockLocalUser = {
@@ -53,22 +51,12 @@ describe('ProfilePage', () => {
 
   beforeEach(async () => {
     // Dynamic import modules
-    if (!usersApi) {
-      usersApi = await import('../../lib/usersApi.js');
-      AuthContext = await import('../../contexts/AuthContext.js');
+    if (!ProfilePage) {
       const profilePageModule = await import('./ProfilePage.js');
       ProfilePage = profilePageModule.ProfilePage;
     }
 
     // Reset mocks
-    mockUseAuth = AuthContext.useAuth as jest.MockedFunction<typeof AuthContext.useAuth>;
-    mockUpdateProfile = usersApi.updateProfile as jest.MockedFunction<
-      typeof usersApi.updateProfile
-    >;
-    mockChangePassword = usersApi.changePassword as jest.MockedFunction<
-      typeof usersApi.changePassword
-    >;
-
     mockUseAuth.mockReset();
     mockUpdateProfile.mockReset();
     mockChangePassword.mockReset();
