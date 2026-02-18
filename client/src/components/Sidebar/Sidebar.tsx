@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext.js';
+import { Logo } from '../Logo/Logo.js';
 import styles from './Sidebar.module.css';
 
 interface SidebarProps {
@@ -13,6 +14,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   return (
     <aside className={sidebarClassName} data-open={isOpen}>
+      <div className={styles.logoArea}>
+        <Logo size={32} className={styles.logo} />
+        <span className={styles.logoText}>Cornerstone</span>
+      </div>
       <div className={styles.sidebarHeader}>
         <button
           type="button"
