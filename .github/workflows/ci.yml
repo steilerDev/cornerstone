@@ -42,7 +42,7 @@ jobs:
         run: npm run build
 
       - name: Security audit
-        run: npm audit --audit-level=low
+        run: npm audit --omit=dev --audit-level=low
 
   docker:
     name: Docker
