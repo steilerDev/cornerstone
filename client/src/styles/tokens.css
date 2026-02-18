@@ -63,6 +63,31 @@
   --color-green-700: #166534;
   --color-green-900: #065f46;
 
+  /* --- Dark Palette (used exclusively in dark theme overrides) --- */
+  /* Slate scale — backgrounds, borders, text in dark mode */
+  --color-slate-900: #0f172a;
+  --color-slate-800: #1a1a2e;
+  --color-slate-700: #16213e;
+  --color-slate-600: #1e293b;
+  --color-slate-500: #334155;
+  --color-slate-400: #475569;
+  --color-slate-300: #64748b;
+  --color-slate-200: #94a3b8;
+  --color-slate-150: #cbd5e1;
+  --color-slate-100: #e2e8f0;
+  --color-slate-50: #f1f5f9;
+
+  /* Blue scale additions — dark mode primary variants */
+  --color-blue-300: #93c5fd;
+
+  /* Red scale additions — dark mode danger variants */
+  --color-red-300: #fca5a5;
+
+  /* Emerald scale — dark mode success variants */
+  --color-emerald-400: #34d399;
+  --color-emerald-300: #6ee7b7;
+  --color-emerald-200: #a7f3d0;
+
   /* ============================================================
    * LAYER 2 — SEMANTIC TOKENS (purpose-driven)
    * ============================================================ */
@@ -112,6 +137,7 @@
   /* --- Success (green) --- */
   --color-success: var(--color-green-500);
   --color-success-hover: var(--color-green-600);
+  --color-success-text: var(--color-white);
   --color-success-bg: var(--color-green-50);
   --color-success-border: var(--color-green-200);
   --color-success-text-on-light: var(--color-green-700);
@@ -280,64 +306,65 @@
 
 [data-theme='dark'] {
   /* --- Backgrounds --- */
-  --color-bg-primary: #1a1a2e;
-  --color-bg-secondary: #16213e;
-  --color-bg-tertiary: #1e293b;
+  --color-bg-primary: var(--color-slate-800);
+  --color-bg-secondary: var(--color-slate-700);
+  --color-bg-tertiary: var(--color-slate-600);
   --color-bg-inverse: var(--color-gray-100);
-  --color-bg-hover: #1e293b;
+  --color-bg-hover: var(--color-slate-600);
 
   /* --- Text --- */
-  --color-text-primary: #f1f5f9;
-  --color-text-secondary: #cbd5e1;
-  --color-text-body: #94a3b8;
-  --color-text-muted: #64748b;
-  --color-text-subtle: #94a3b8;
+  --color-text-primary: var(--color-slate-50);
+  --color-text-secondary: var(--color-slate-150);
+  --color-text-body: var(--color-slate-200);
+  --color-text-muted: var(--color-slate-300);
+  --color-text-subtle: var(--color-slate-200);
   --color-text-inverse: var(--color-gray-900);
-  --color-text-placeholder: #475569;
-  --color-text-disabled: #475569;
+  --color-text-placeholder: var(--color-slate-400);
+  --color-text-disabled: var(--color-slate-400);
 
   /* --- Borders --- */
-  --color-border: #334155;
-  --color-border-strong: #475569;
-  --color-border-focus: #60a5fa;
+  --color-border: var(--color-slate-500);
+  --color-border-strong: var(--color-slate-400);
+  --color-border-focus: var(--color-blue-400);
 
   /* --- Primary action --- */
-  --color-primary: #60a5fa;
-  --color-primary-hover: #3b82f6;
-  --color-primary-active: #2563eb;
+  --color-primary: var(--color-blue-400);
+  --color-primary-hover: var(--color-blue-500);
+  --color-primary-active: var(--color-blue-600);
   --color-primary-text: var(--color-gray-900);
   --color-primary-bg: rgba(59, 130, 246, 0.15);
   --color-primary-bg-hover: rgba(59, 130, 246, 0.25);
-  --color-primary-badge-text: #93c5fd;
+  --color-primary-badge-text: var(--color-blue-300);
 
   /* --- Danger / Error --- */
-  --color-danger: #f87171;
-  --color-danger-hover: #ef4444;
-  --color-danger-active: #dc2626;
+  --color-danger: var(--color-red-400);
+  --color-danger-hover: var(--color-red-400);
+  --color-danger-active: var(--color-red-500);
   --color-danger-text: var(--color-gray-900);
   --color-danger-bg: rgba(239, 68, 68, 0.1);
   --color-danger-bg-strong: rgba(239, 68, 68, 0.2);
   --color-danger-border: rgba(239, 68, 68, 0.3);
-  --color-danger-text-on-light: #fca5a5;
-  --color-danger-input-border: #ef4444;
+  --color-danger-text-on-light: var(--color-red-300);
+  --color-danger-input-border: var(--color-red-400);
 
   /* --- Success --- */
-  --color-success: #34d399;
-  --color-success-hover: #10b981;
+  --color-success: var(--color-emerald-400);
+  --color-success-hover: var(--color-green-500);
+  --color-success-text: var(--color-white);
   --color-success-bg: rgba(16, 185, 129, 0.1);
   --color-success-border: rgba(16, 185, 129, 0.3);
-  --color-success-text-on-light: #6ee7b7;
+  --color-success-text-on-light: var(--color-emerald-300);
   --color-success-badge-bg: rgba(16, 185, 129, 0.15);
   --color-success-badge-bg-alt: rgba(16, 185, 129, 0.2);
-  --color-success-badge-text: #a7f3d0;
+  --color-success-badge-text: var(--color-emerald-200);
 
   /* --- Sidebar --- */
-  --color-sidebar-bg: #0f172a;
-  --color-sidebar-text: #e2e8f0;
-  --color-sidebar-hover: #1e293b;
-  --color-sidebar-active: #3b82f6;
-  --color-sidebar-focus-ring: #60a5fa;
-  --color-sidebar-separator: #334155;
+  --color-sidebar-bg: var(--color-slate-900);
+  --color-sidebar-text: var(--color-slate-100);
+  --color-sidebar-hover: var(--color-slate-600);
+  --color-sidebar-active: var(--color-blue-500);
+  --color-sidebar-focus-ring: var(--color-blue-400);
+  --color-sidebar-separator: var(--color-slate-500);
 
   /* --- Focus rings --- */
   --color-focus-ring: rgba(96, 165, 250, 0.4);
@@ -353,26 +380,26 @@
   --color-overlay-delete: rgba(239, 68, 68, 0.15);
 
   /* --- Status badges --- */
-  --color-status-not-started-bg: #334155;
-  --color-status-not-started-text: #94a3b8;
+  --color-status-not-started-bg: var(--color-slate-500);
+  --color-status-not-started-text: var(--color-slate-200);
   --color-status-in-progress-bg: rgba(59, 130, 246, 0.2);
-  --color-status-in-progress-text: #93c5fd;
+  --color-status-in-progress-text: var(--color-blue-300);
   --color-status-completed-bg: rgba(16, 185, 129, 0.15);
-  --color-status-completed-text: #a7f3d0;
+  --color-status-completed-text: var(--color-emerald-200);
   --color-status-blocked-bg: rgba(239, 68, 68, 0.15);
-  --color-status-blocked-text: #fca5a5;
+  --color-status-blocked-text: var(--color-red-300);
 
   /* --- Role badges --- */
   --color-role-admin-bg: rgba(59, 130, 246, 0.2);
-  --color-role-admin-text: #93c5fd;
-  --color-role-member-bg: #334155;
-  --color-role-member-text: #94a3b8;
+  --color-role-admin-text: var(--color-blue-300);
+  --color-role-member-bg: var(--color-slate-500);
+  --color-role-member-text: var(--color-slate-200);
 
   /* --- User status badges --- */
   --color-user-active-bg: rgba(16, 185, 129, 0.15);
-  --color-user-active-text: #6ee7b7;
+  --color-user-active-text: var(--color-emerald-300);
   --color-user-inactive-bg: rgba(239, 68, 68, 0.15);
-  --color-user-inactive-text: #fca5a5;
+  --color-user-inactive-text: var(--color-red-300);
 
   /* --- Shadows (deeper/darker in dark mode) --- */
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);

@@ -226,7 +226,7 @@
 }
 
 .editButton:hover:not(:disabled) {
-  background-color: var(--color-border);
+  background-color: var(--color-bg-tertiary);
 }
 
 .editButton:disabled {
@@ -307,7 +307,7 @@
 }
 
 .cancelButton:hover:not(:disabled) {
-  background-color: var(--color-border);
+  background-color: var(--color-bg-tertiary);
 }
 
 .cancelButton:disabled {

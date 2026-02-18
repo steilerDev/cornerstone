@@ -43,9 +43,11 @@ interface ThemeProviderProps {
 }
 
 export function ThemeProvider({ children }: ThemeProviderProps) {
-  const [theme, setThemeState] = useState<ThemePreference>(readStoredPreference);
+  // Read localStorage once, derive both initial states from the single value.
+  const initialPreference = readStoredPreference();
+  const [theme, setThemeState] = useState<ThemePreference>(initialPreference);
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() =>
-    resolveTheme(readStoredPreference()),
+    resolveTheme(initialPreference),
   );
 
   // Apply the resolved theme to <html data-theme="...">

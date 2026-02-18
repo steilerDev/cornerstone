@@ -35,7 +35,7 @@
 }
 
 .primaryButton {
-  background-color: var(--color-primary-hover);
+  background-color: var(--color-primary);
   color: var(--color-primary-text);
   border: none;
   border-radius: 0.5rem;
@@ -47,7 +47,7 @@
 }
 
 .primaryButton:hover {
-  background-color: var(--color-primary-active);
+  background-color: var(--color-primary-hover);
 }
 
 .primaryButton:disabled {

@@ -537,7 +537,7 @@
 
 .saveButton {
   background: var(--color-success);
-  color: var(--color-primary-text);
+  color: var(--color-success-text);
 }
 
 .saveButton:hover {
