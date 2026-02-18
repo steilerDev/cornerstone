@@ -1,0 +1,294 @@
+/**
+ * Cornerstone Design Token System
+ *
+ * 3-layer architecture:
+ *   Layer 1 — Palette: raw named color scales (source of truth)
+ *   Layer 2 — Semantic: purpose-driven aliases using var() references
+ *   Layer 3 — Dark mode stubs: overrides scoped to [data-theme="dark"]
+ *
+ * All values verified against the 25 CSS Module files in client/src/.
+ * Do NOT hardcode these values in component CSS — always reference Layer 2
+ * semantic tokens (or Layer 1 palette tokens when no semantic alias fits).
+ */
+
+/* ============================================================
+ * LAYER 1 — PALETTE (raw color scales)
+ * ============================================================ */
+
+:root {
+  /* --- Grayscale --- */
+  --color-white: #ffffff;
+  --color-black: #000000;
+
+  --color-gray-50: #f9fafb;
+  --color-gray-100: #f3f4f6;
+  --color-gray-200: #e5e7eb;
+  --color-gray-300: #d1d5db;
+  --color-gray-400: #9ca3af;
+  --color-gray-500: #6b7280;
+  --color-gray-600: #4b5563;
+  --color-gray-700: #374151;
+  --color-gray-800: #1f2937;
+  --color-gray-900: #111827;
+
+  /* --- Blue --- */
+  --color-blue-100: #dbeafe;
+  --color-blue-200: #bfdbfe;
+  --color-blue-400: #60a5fa;
+  --color-blue-500: #3b82f6;
+  --color-blue-600: #2563eb;
+  --color-blue-700: #1d4ed8;
+  --color-blue-800: #1e40af;
+
+  /* --- Red --- */
+  --color-red-50: #fef2f2;
+  --color-red-100: #fee2e2;
+  --color-red-200: #fecaca;
+  --color-red-400: #ef4444;
+  --color-red-500: #dc2626;
+  --color-red-600: #b91c1c;
+  --color-red-700: #991b1b;
+
+  /* --- Green ---
+   * Note: these values map to Tailwind's mixed green/emerald scales.
+   * --color-green-100 (#d1fae5) = Tailwind emerald-100
+   * --color-green-150 (#dcfce7) = Tailwind green-100 (non-standard step, kept for semantic alias continuity)
+   */
+  --color-green-50: #f0fdf4;
+  --color-green-100: #d1fae5;
+  --color-green-150: #dcfce7;
+  --color-green-200: #bbf7d0;
+  --color-green-500: #10b981;
+  --color-green-600: #059669;
+  --color-green-700: #166534;
+  --color-green-900: #065f46;
+
+  /* ============================================================
+   * LAYER 2 — SEMANTIC TOKENS (purpose-driven)
+   * ============================================================ */
+
+  /* --- Backgrounds --- */
+  --color-bg-primary: var(--color-white);
+  --color-bg-secondary: var(--color-gray-50);
+  --color-bg-tertiary: var(--color-gray-100);
+  --color-bg-inverse: var(--color-gray-800);
+  --color-bg-hover: var(--color-gray-50);
+
+  /* --- Text --- */
+  --color-text-primary: var(--color-gray-900);
+  --color-text-secondary: var(--color-gray-700);
+  --color-text-body: var(--color-gray-700);
+  --color-text-muted: var(--color-gray-500);
+  --color-text-subtle: var(--color-gray-600);
+  --color-text-inverse: var(--color-white);
+  --color-text-placeholder: var(--color-gray-400);
+  --color-text-disabled: var(--color-gray-400);
+
+  /* --- Borders --- */
+  --color-border: var(--color-gray-200);
+  --color-border-strong: var(--color-gray-300);
+  --color-border-focus: var(--color-blue-500);
+
+  /* --- Primary action (blue) --- */
+  --color-primary: var(--color-blue-500);
+  --color-primary-hover: var(--color-blue-600);
+  --color-primary-active: var(--color-blue-700);
+  --color-primary-text: var(--color-white);
+  --color-primary-bg: var(--color-blue-100);
+  --color-primary-bg-hover: var(--color-blue-200);
+  --color-primary-badge-text: var(--color-blue-800);
+
+  /* --- Danger / Error (red) --- */
+  --color-danger: var(--color-red-500);
+  --color-danger-hover: var(--color-red-600);
+  --color-danger-active: var(--color-red-700);
+  --color-danger-text: var(--color-white);
+  --color-danger-bg: var(--color-red-50);
+  --color-danger-bg-strong: var(--color-red-100);
+  --color-danger-border: var(--color-red-200);
+  --color-danger-text-on-light: var(--color-red-700);
+  --color-danger-input-border: var(--color-red-400);
+
+  /* --- Success (green) --- */
+  --color-success: var(--color-green-500);
+  --color-success-hover: var(--color-green-600);
+  --color-success-bg: var(--color-green-50);
+  --color-success-border: var(--color-green-200);
+  --color-success-text-on-light: var(--color-green-700);
+  --color-success-badge-bg: var(--color-green-100);
+  --color-success-badge-bg-alt: var(--color-green-150);
+  --color-success-badge-text: var(--color-green-900);
+
+  /* --- Sidebar / inverse surface --- */
+  --color-sidebar-bg: var(--color-gray-800);
+  --color-sidebar-text: var(--color-gray-50);
+  --color-sidebar-hover: var(--color-gray-700);
+  --color-sidebar-active: var(--color-blue-500);
+  --color-sidebar-focus-ring: var(--color-blue-400);
+  --color-sidebar-separator: var(--color-gray-700);
+
+  /* --- Focus ring --- */
+  --color-focus-ring: rgba(59, 130, 246, 0.3);
+  --color-focus-ring-subtle: rgba(59, 130, 246, 0.1);
+  --color-focus-ring-danger: rgba(220, 38, 38, 0.1);
+  --color-focus-ring-primary-alt: rgba(37, 99, 235, 0.1);
+
+  /* --- Overlay / backdrop --- */
+  --color-overlay: rgba(0, 0, 0, 0.5);
+  --color-overlay-light: rgba(0, 0, 0, 0.1);
+  --color-overlay-medium: rgba(0, 0, 0, 0.15);
+  --color-overlay-danger: rgba(153, 27, 27, 0.1);
+  --color-overlay-delete: rgba(220, 38, 38, 0.1);
+
+  /* ============================================================
+   * LAYER 2 — COMPONENT-SPECIFIC STATUS TOKENS
+   * ============================================================ */
+
+  /* Status badge: Not Started */
+  --color-status-not-started-bg: var(--color-gray-200);
+  --color-status-not-started-text: var(--color-gray-700);
+
+  /* Status badge: In Progress */
+  --color-status-in-progress-bg: var(--color-blue-100);
+  --color-status-in-progress-text: var(--color-blue-800);
+
+  /* Status badge: Completed */
+  --color-status-completed-bg: var(--color-green-100);
+  --color-status-completed-text: var(--color-green-900);
+
+  /* Status badge: Blocked */
+  --color-status-blocked-bg: var(--color-red-100);
+  --color-status-blocked-text: var(--color-red-700);
+
+  /* Role badge: Admin */
+  --color-role-admin-bg: var(--color-blue-100);
+  --color-role-admin-text: var(--color-blue-800);
+
+  /* Role badge: Member */
+  --color-role-member-bg: var(--color-gray-100);
+  --color-role-member-text: var(--color-gray-700);
+
+  /* User status badge: Active */
+  --color-user-active-bg: var(--color-green-150);
+  --color-user-active-text: var(--color-green-700);
+
+  /* User status badge: Inactive */
+  --color-user-inactive-bg: var(--color-red-100);
+  --color-user-inactive-text: var(--color-red-700);
+
+  /* ============================================================
+   * LAYER 2 — SHADOWS
+   * ============================================================ */
+
+  /* Card / surface shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.15);
+  --shadow-xl-strong: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --shadow-2xl: 0 20px 25px rgba(0, 0, 0, 0.2);
+  --shadow-inset-deep: 0 10px 25px rgba(0, 0, 0, 0.2);
+  --shadow-kbd: 0 1px 0 rgba(0, 0, 0, 0.05);
+
+  /* Focus rings (box-shadow form) */
+  --shadow-focus: 0 0 0 3px rgba(59, 130, 246, 0.3);
+  --shadow-focus-subtle: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  --shadow-focus-primary-alt: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  --shadow-focus-danger: 0 0 0 3px rgba(220, 38, 38, 0.1);
+
+  /* ============================================================
+   * LAYER 2 — SPACING
+   * ============================================================ */
+
+  --spacing-0: 0;
+  --spacing-px: 1px;
+  --spacing-0-5: 0.125rem; /* 2px */
+  --spacing-1: 0.25rem; /* 4px */
+  --spacing-1-5: 0.375rem; /* 6px */
+  --spacing-2: 0.5rem; /* 8px */
+  --spacing-2-5: 0.625rem; /* 10px */
+  --spacing-3: 0.75rem; /* 12px */
+  --spacing-4: 1rem; /* 16px */
+  --spacing-5: 1.25rem; /* 20px */
+  --spacing-6: 1.5rem; /* 24px */
+  --spacing-7: 1.75rem; /* 28px */
+  --spacing-8: 2rem; /* 32px */
+  --spacing-10: 2.5rem; /* 40px */
+  --spacing-12: 3rem; /* 48px */
+  --spacing-16: 4rem; /* 64px */
+
+  /* ============================================================
+   * LAYER 2 — BORDER RADIUS
+   * ============================================================ */
+
+  --radius-sm: 0.25rem; /* 4px — small elements, badges, kbd */
+  --radius-md: 0.375rem; /* 6px — inputs, buttons, dropdowns */
+  --radius-lg: 0.5rem; /* 8px — cards, modals, sections */
+  --radius-circle: 50%; /* circles */
+  --radius-full: 9999px; /* pills (tags, status badges) */
+
+  /* ============================================================
+   * LAYER 2 — TRANSITIONS
+   * ============================================================ */
+
+  --transition-fast: 0.1s ease; /* opacity fade (sidebar close button) */
+  --transition-normal: 0.15s ease; /* most interactive elements */
+  --transition-medium: 0.2s ease; /* hover effects on larger elements */
+  --transition-slow: 0.3s ease; /* sidebar slide, modals */
+
+  /* Specific multi-property transitions used in form inputs */
+  --transition-input: border-color var(--transition-normal), box-shadow var(--transition-normal);
+  --transition-button:
+    background-color var(--transition-normal), box-shadow var(--transition-normal);
+  --transition-button-border:
+    background-color var(--transition-normal), border-color var(--transition-normal);
+
+  /* ============================================================
+   * LAYER 2 — TYPOGRAPHY
+   * ============================================================ */
+
+  --font-size-2xs: 0.8125rem; /* 13px — between xs and sm */
+  --font-size-xs: 0.75rem; /* 12px */
+  --font-size-sm: 0.875rem; /* 14px */
+  --font-size-base: 1rem; /* 16px */
+  --font-size-lg: 1.125rem; /* 18px */
+  --font-size-xl: 1.25rem; /* 20px */
+  --font-size-2xl: 1.5rem; /* 24px */
+  --font-size-3xl: 1.875rem; /* 30px */
+  --font-size-4xl: 2rem; /* 32px */
+
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* ============================================================
+   * LAYER 2 — Z-INDEX SCALE
+   * ============================================================ */
+
+  --z-dropdown: 10;
+  --z-overlay: 50;
+  --z-sidebar: 100;
+  --z-modal: 1000;
+}
+
+/* ============================================================
+ * LAYER 3 — DARK MODE STUBS
+ * Overrides are implemented in Story 12.4
+ * ============================================================ */
+
+/* [data-theme="dark"] {
+  --color-bg-primary: var(--color-gray-900);
+  --color-bg-secondary: var(--color-gray-800);
+  --color-bg-tertiary: var(--color-gray-700);
+  --color-bg-hover: var(--color-gray-800);
+
+  --color-text-primary: var(--color-white);
+  --color-text-secondary: var(--color-gray-200);
+  --color-text-body: var(--color-gray-300);
+  --color-text-muted: var(--color-gray-400);
+  --color-text-subtle: var(--color-gray-400);
+
+  --color-border: var(--color-gray-700);
+  --color-border-strong: var(--color-gray-600);
+} */
