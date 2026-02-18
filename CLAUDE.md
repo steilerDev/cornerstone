@@ -10,12 +10,13 @@ Cornerstone is a web-based home building project management application designed
 
 ## Agent Team
 
-This project uses a team of 9 specialized Claude Code agents defined in `.claude/agents/`:
+This project uses a team of 10 specialized Claude Code agents defined in `.claude/agents/`:
 
 | Agent                   | Role                                                                                  |
 | ----------------------- | ------------------------------------------------------------------------------------- |
 | `product-owner`         | Defines epics, user stories, and acceptance criteria; manages the backlog             |
 | `product-architect`     | Tech stack, schema, API contract, project structure, ADRs, Dockerfile                 |
+| `ux-designer`           | Design tokens, brand identity, component styling specs, dark mode, accessibility      |
 | `backend-developer`     | API endpoints, business logic, auth, database operations, backend tests               |
 | `frontend-developer`    | UI components, pages, interactions, API client, frontend tests                        |
 | `qa-integration-tester` | Unit test coverage (95%+ target), integration tests, performance testing, bug reports |
@@ -35,7 +36,7 @@ This project uses a team of 9 specialized Claude Code agents defined in `.claude
 
 No `docs/` directory in the source tree. All documentation lives on the GitHub Wiki. The GitHub Projects board is the single source of truth for backlog management.
 
-### GitHub Wiki Pages (managed by product-architect and security-engineer)
+### GitHub Wiki Pages (managed by product-architect, security-engineer, and ux-designer)
 
 - **Architecture** — system design, tech stack, conventions
 - **API Contract** — REST API endpoint specifications
@@ -43,6 +44,7 @@ No `docs/` directory in the source tree. All documentation lives on the GitHub W
 - **ADR Index** — links to all architectural decision records
 - **ADR-NNN-Title** — individual ADR pages
 - **Security Audit** — security findings and remediation status
+- **Style Guide** — design system, tokens, color palette, typography, component patterns, dark mode
 
 ### GitHub Repo
 
@@ -84,11 +86,12 @@ We follow an incremental, agile approach:
 1. **Product Owner** defines epics and breaks them into user stories with acceptance criteria
 2. **UAT Validator** drafts acceptance test scenarios for each story and presents them to the user for approval before development begins
 3. **Product Architect** designs schema additions and API endpoints for the epic incrementally
-4. **Backend Developer** implements API and business logic per-epic
-5. **Frontend Developer** implements UI per-epic
-6. **Security Engineer** reviews every PR for security vulnerabilities
-7. **QA Tester** validates integrated features; all automated tests must pass
-8. **UAT Validator** provides step-by-step manual validation instructions for the user; iterates with developers if any scenario fails
+4. **UX Designer** produces visual specs for stories with UI components (which tokens, states, responsive behavior, accessibility)
+5. **Backend Developer** implements API and business logic per-epic
+6. **Frontend Developer** implements UI per-epic (references UX Designer's visual specs)
+7. **Security Engineer** reviews every PR for security vulnerabilities
+8. **QA Tester** validates integrated features; all automated tests must pass
+9. **UAT Validator** provides step-by-step manual validation instructions for the user; iterates with developers if any scenario fails
 
 Schema and API contract evolve incrementally as each epic is implemented, rather than being designed all at once upfront.
 
@@ -112,6 +115,7 @@ Schema and API contract evolve incrementally as each epic is implemented, rather
 
 - **Backend code** → `backend-developer` agent
 - **Frontend code** → `frontend-developer` agent
+- **Visual specs, design tokens, brand assets, CSS files** → `ux-designer` agent
 - **Schema/API design, ADRs, wiki** → `product-architect` agent
 - **Unit tests & test coverage** → `qa-integration-tester` agent
 - **E2E tests** → `e2e-test-engineer` agent
@@ -180,7 +184,7 @@ After the refinement task is complete and all automated tests pass:
 - **Iterate until right** — failed manual validation triggers a fix-and-revalidate loop
 - **UAT documents live on GitHub Issues** — stored as comments on relevant story issues
 - **Security review required** — the `security-engineer` must review every PR before the `product-owner` can approve
-- **Product owner gates the PR** — the `product-owner` agent only approves a PR after verifying that ALL agent responsibilities were fulfilled: implementation by developer agents, 95%+ test coverage by QA, UAT scenarios by uat-validator, architecture sign-off by product-architect, and security review by security-engineer
+- **Product owner gates the PR** — the `product-owner` agent only approves a PR after verifying that ALL agent responsibilities were fulfilled: implementation by developer agents, 95%+ test coverage by QA, UAT scenarios by uat-validator, architecture sign-off by product-architect, security review by security-engineer, and visual spec/review by ux-designer (for frontend PRs)
 - **QA and E2E split test ownership** — the `qa-integration-tester` agent owns unit tests and integration tests; the `e2e-test-engineer` agent owns Playwright E2E browser tests. Developer agents do not write tests.
 - **E2E gate before manual UAT** — the `e2e-test-engineer` must confirm all E2E tests pass and all UAT scenarios have coverage before the `uat-validator` presents manual validation to the user.
 
@@ -205,7 +209,7 @@ All agents must clearly identify themselves in commits and GitHub interactions:
   Co-Authored-By: Claude <agent-name> (<model>) <noreply@anthropic.com>
   ```
 
-  Replace `<agent-name>` with one of: `backend-developer`, `frontend-developer`, `product-architect`, `product-owner`, `qa-integration-tester`, `e2e-test-engineer`, `security-engineer`, `uat-validator`, `docs-writer`, or `orchestrator` (when the orchestrating Claude commits directly). Replace `<model>` with the agent's actual model (e.g., `Opus 4.6`, `Sonnet 4.5`). Each agent's definition file specifies the exact trailer to use.
+  Replace `<agent-name>` with one of: `backend-developer`, `frontend-developer`, `ux-designer`, `product-architect`, `product-owner`, `qa-integration-tester`, `e2e-test-engineer`, `security-engineer`, `uat-validator`, `docs-writer`, or `orchestrator` (when the orchestrating Claude commits directly). Replace `<model>` with the agent's actual model (e.g., `Opus 4.6`, `Sonnet 4.5`). Each agent's definition file specifies the exact trailer to use.
 
 - **GitHub comments** (on issues, PRs, or discussions): Prefix the first line with the agent name in bold brackets:
 
@@ -227,32 +231,34 @@ All agents must clearly identify themselves in commits and GitHub interactions:
 - **Workflow** (full agent cycle for each user story):
   1. **Plan**: Launch `product-owner` (verify story + acceptance criteria) and `product-architect` (design schema/API/architecture) agents
   2. **UAT Plan**: Launch `uat-validator` to draft UAT scenarios from acceptance criteria; launch `qa-integration-tester` to review unit/integration testability and `e2e-test-engineer` to review browser automation feasibility; present to user for approval
-  3. **Branch**: Create a feature branch from `beta`: `git checkout -b <branch-name> beta`
-  4. **Implement**: Launch the appropriate developer agent (`backend-developer` and/or `frontend-developer`) to write the production code
-  5. **Test**: Launch `qa-integration-tester` to write unit tests (95%+ coverage target) and integration tests; launch `e2e-test-engineer` to write Playwright E2E tests covering UAT scenarios. Both agents work during the story's development cycle.
-  6. **Quality gates**: Run `lint`, `typecheck`, `test`, `format:check`, `build`, `npm audit` — all must pass
-  7. **Commit & PR**: Commit, push the branch, create a PR targeting `beta`: `gh pr create --base beta --title "..." --body "..."`
-  8. **CI**: Wait for CI: `gh pr checks <pr-number> --watch`
-  9. **Review**: After CI passes, launch three review agents **in parallel**:
-     - `product-owner` — verifies requirements coverage, acceptance criteria, UAT alignment, and that all agent responsibilities were fulfilled (QA coverage, UAT scenarios, security review, etc.). Only approves if all agents have completed their work.
-     - `product-architect` — verifies architecture compliance, test coverage, and code quality
-     - `security-engineer` — reviews for security vulnerabilities, input validation, authentication/authorization gaps
-       All three agents review the PR diff and comment via `gh pr review`.
-  10. **Fix loop**: If any reviewer requests changes:
+  3. **Visual Spec** (stories with UI only): Launch `ux-designer` to post a styling specification on the GitHub Issue — which tokens, interactive states, responsive behavior, animations, and accessibility requirements. Backend-only stories skip this step.
+  4. **Branch**: Create a feature branch from `beta`: `git checkout -b <branch-name> beta`
+  5. **Implement**: Launch the appropriate developer agent (`backend-developer` and/or `frontend-developer`) to write the production code. Frontend developers reference the ux-designer's visual spec.
+  6. **Test**: Launch `qa-integration-tester` to write unit tests (95%+ coverage target) and integration tests; launch `e2e-test-engineer` to write Playwright E2E tests covering UAT scenarios. Both agents work during the story's development cycle.
+  7. **Quality gates**: Run `lint`, `typecheck`, `test`, `format:check`, `build`, `npm audit` — all must pass
+  8. **Commit & PR**: Commit, push the branch, create a PR targeting `beta`: `gh pr create --base beta --title "..." --body "..."`
+  9. **CI**: Wait for CI: `gh pr checks <pr-number> --watch`
+  10. **Review**: After CI passes, launch review agents **in parallel**:
+      - `product-owner` — verifies requirements coverage, acceptance criteria, UAT alignment, and that all agent responsibilities were fulfilled (QA coverage, UAT scenarios, security review, visual spec, etc.). Only approves if all agents have completed their work.
+      - `product-architect` — verifies architecture compliance, test coverage, and code quality
+      - `security-engineer` — reviews for security vulnerabilities, input validation, authentication/authorization gaps
+      - `ux-designer` — reviews frontend PRs (those touching `client/src/`) for token adherence, visual consistency, and accessibility. Skipped for backend-only PRs.
+        All agents review the PR diff and comment via `gh pr review`.
+  11. **Fix loop**: If any reviewer requests changes:
       a. The reviewer posts specific feedback on the PR (`gh pr review --request-changes`)
       b. The orchestrator launches the original implementing agent on the same branch to address the feedback
       c. The implementing agent pushes fixes, then the orchestrator re-requests review from the agent(s) that requested changes
       d. Repeat until all reviewers approve
-  11. **Merge**: Once all agents approve and CI is green, merge immediately: `gh pr merge --squash <pr-url>`
-  12. After merge, clean up: `git checkout beta && git pull && git branch -d <branch-name>`
-  13. **Documentation**: Launch `docs-writer` to update `README.md` with newly shipped features. Commit to `beta`.
-  14. **Epic promotion**: After all stories in an epic are complete (merged to `beta`), refinement is done, and documentation is updated:
+  12. **Merge**: Once all agents approve and CI is green, merge immediately: `gh pr merge --squash <pr-url>`
+  13. After merge, clean up: `git checkout beta && git pull && git branch -d <branch-name>`
+  14. **Documentation**: Launch `docs-writer` to update `README.md` with newly shipped features. Commit to `beta`.
+  15. **Epic promotion**: After all stories in an epic are complete (merged to `beta`), refinement is done, and documentation is updated:
       a. Create a PR from `beta` to `main` using a **merge commit** (not squash): `gh pr create --base main --head beta --title "..." --body "..."`
       b. Post UAT validation criteria and manual testing steps as comments on the promotion PR — this gives the user a single place to review what was built and how to validate it
       c. Wait for all CI checks to pass on the PR. If any check fails, investigate and resolve before proceeding
       d. Once CI is green and the UAT criteria are posted, **wait for user approval** before merging. The user reviews the PR, validates the UAT scenarios, and approves
       e. After user approval, merge: `gh pr merge --merge <pr-url>`. Merge commits preserve individual commits for semantic-release analysis.
-  15. **Merge-back**: After the stable release is published on `main`, merge `main` back into `beta` so the release tag is reachable from beta's history. This is automated by the `merge-back` job in `release.yml`, which creates a PR from `main` into `beta`. If the automated PR fails (e.g., merge conflicts), manually resolve: create a branch from `beta`, merge `origin/main`, push, and PR to `beta`. **Without this step, semantic-release on beta cannot see the stable tag and keeps incrementing the old pre-release version.**
+  16. **Merge-back**: After the stable release is published on `main`, merge `main` back into `beta` so the release tag is reachable from beta's history. This is automated by the `merge-back` job in `release.yml`, which creates a PR from `main` into `beta`. If the automated PR fails (e.g., merge conflicts), manually resolve: create a branch from `beta`, merge `origin/main`, push, and PR to `beta`. **Without this step, semantic-release on beta cannot see the stable tag and keeps incrementing the old pre-release version.**
 
 Note: Dependabot auto-merge (`.github/workflows/dependabot-auto-merge.yml`) targets `beta` — it handles automated dependency updates, not agent work.
 

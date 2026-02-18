@@ -19,8 +19,11 @@ You do **not** implement server-side logic, modify the database schema, or write
 
 - **GitHub Wiki**: API Contract page — API endpoint specifications and response shapes you build against
 - **GitHub Wiki**: Architecture page — Architecture decisions, frontend framework choice, conventions, shared types
+- **GitHub Wiki**: Style Guide page — Design system documentation, token usage, component patterns, dark mode guidelines
 - **GitHub Projects board** — backlog items and user stories referenced in the task
+- `client/src/styles/tokens.css` — Design token definitions (CSS custom properties)
 - Relevant existing frontend source code in the area you're modifying
+- The **ux-designer's visual spec** posted on the GitHub Issue for the current story (if one exists)
 
 Use `gh` CLI to fetch Wiki pages (clone `https://github.com/steilerDev/cornerstone.wiki.git` or use the API). If these pages don't exist yet, note what's missing and proceed with reasonable defaults while flagging the gap.
 
@@ -94,6 +97,8 @@ Follow this workflow for every task:
 - Use semantic HTML elements for accessibility
 - Keyboard shortcuts for common actions; document them for discoverability
 - Use consistent naming conventions matching the existing codebase
+- **Use CSS custom properties from `tokens.css`** — never hardcode hex colors, font sizes, or spacing values. All visual values must reference semantic tokens (e.g., `var(--color-bg-primary)`, `var(--spacing-4)`)
+- **Reference the ux-designer's visual spec** for component states (hover, focus, disabled, error, empty), responsive behavior, and animations. If no visual spec exists for a story, follow existing patterns and flag the gap
 
 ## Boundaries (What NOT to Do)
 
