@@ -2,6 +2,7 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import type React from 'react';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithRouter } from '../../test/testUtils.js';
@@ -28,6 +29,18 @@ jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
     refreshAuth: jest.fn(),
     logout: mockLogout,
   }),
+}));
+
+// Mock ThemeContext so Sidebar tests don't need a ThemeProvider
+const mockSetTheme = jest.fn<(theme: string) => void>();
+
+jest.unstable_mockModule('../../contexts/ThemeContext.js', () => ({
+  useTheme: () => ({
+    theme: 'system',
+    resolvedTheme: 'light',
+    setTheme: mockSetTheme,
+  }),
+  ThemeProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
 describe('Sidebar', () => {
@@ -344,9 +357,9 @@ describe('Sidebar', () => {
 
     // Still 9 navigation links
     expect(links).toHaveLength(9);
-    // 2 buttons: close button + logout button
-    expect(buttons).toHaveLength(2);
+    // 3 buttons: close button + theme toggle + logout button
+    expect(buttons).toHaveLength(3);
     expect(buttons[0]).toHaveAttribute('aria-label', 'Close menu');
-    expect(buttons[1]).toHaveTextContent(/logout/i);
+    expect(buttons[2]).toHaveTextContent(/logout/i);
   });
 });

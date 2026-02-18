@@ -32,7 +32,12 @@ export function AppShell() {
     <div className={styles.appShell}>
       <Sidebar isOpen={isSidebarOpen} onClose={handleCloseSidebar} />
       {isSidebarOpen && (
-        <div className={styles.overlay} onClick={handleCloseSidebar} aria-hidden="true" />
+        <div
+          className={styles.overlay}
+          onClick={handleCloseSidebar}
+          aria-hidden="true"
+          data-testid="sidebar-overlay"
+        />
       )}
       <div className={styles.mainContent}>
         <Header onToggleSidebar={handleToggleSidebar} isSidebarOpen={isSidebarOpen} />
