@@ -37,10 +37,9 @@ const baseConfig = {
 };
 
 const config: Config = {
-  // In CI (GitHub Actions sets CI=true) use defaults (auto-detect workers).
-  // Locally (sandbox VM with limited memory) restrict to 1 worker and recycle
-  // it when heap exceeds 200 MB to avoid OOM kills.
-  ...(isCI ? {} : { maxWorkers: 1, workerIdleMemoryLimit: '200M' }),
+  // Locally, use up to 2 workers and recycle when heap exceeds 512 MB.
+  // CI auto-detects workers (GitHub Actions sets CI=true).
+  ...(isCI ? {} : { maxWorkers: 2, workerIdleMemoryLimit: '512M' }),
   projects: [
     {
       ...baseConfig,
