@@ -86,6 +86,11 @@ describe('WorkItemCreatePage', () => {
 
     mockFetchTags.mockResolvedValue({ tags: mockTags });
     mockListUsers.mockResolvedValue({ users: mockUsers });
+    // Default: empty list response for WorkItemPicker in DependencySentenceBuilder
+    mockListWorkItems.mockResolvedValue({
+      items: [],
+      pagination: { page: 1, pageSize: 15, totalItems: 0, totalPages: 0 },
+    });
   });
 
   function renderPage() {
@@ -322,6 +327,84 @@ describe('WorkItemCreatePage', () => {
           screen.getByText('Failed to create work item. Please try again.'),
         ).toBeInTheDocument();
       });
+    });
+  });
+
+  describe('dependencies section', () => {
+    it('renders the dependency sentence builder on the create form', async () => {
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/title/i)).toBeInTheDocument();
+      });
+
+      // The sentence builder should be rendered in the form
+      expect(screen.getByRole('combobox', { name: /predecessor verb/i })).toBeInTheDocument();
+      expect(screen.getByRole('combobox', { name: /successor verb/i })).toBeInTheDocument();
+    });
+
+    it('does not render direction toggle buttons (old UX removed)', async () => {
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/title/i)).toBeInTheDocument();
+      });
+
+      expect(
+        screen.queryByRole('button', { name: /this item depends on/i }),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /this item blocks/i })).not.toBeInTheDocument();
+    });
+
+    it('shows pending dependency in sentence format after adding', async () => {
+      const user = userEvent.setup();
+      // Provide a work item for the picker to show
+      mockListWorkItems.mockResolvedValue({
+        items: [
+          {
+            id: 'wi-1',
+            title: 'Foundation',
+            status: 'completed' as const,
+            startDate: null,
+            endDate: null,
+            durationDays: null,
+            assignedUser: null,
+            tags: [],
+            createdAt: '2024-01-01T00:00:00Z',
+            updatedAt: '2024-01-01T00:00:00Z',
+          },
+        ],
+        pagination: { page: 1, pageSize: 15, totalItems: 1, totalPages: 1 },
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/title/i)).toBeInTheDocument();
+      });
+
+      // Focus slot 1 picker to open it
+      const pickerInputs = screen.getAllByPlaceholderText('Search work items...');
+      await user.click(pickerInputs[0]);
+
+      await waitFor(() => {
+        expect(screen.getByText('Foundation')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByText('Foundation'));
+
+      // Click Add button
+      const addButton = screen.getByRole('button', { name: /^add$/i });
+      await user.click(addButton);
+
+      // A pending dependency chip should appear with sentence text
+      await waitFor(() => {
+        expect(screen.getByRole('list', { name: /pending dependencies/i })).toBeInTheDocument();
+      });
+
+      // Verify the sentence format is used (not old direction pill format)
+      const list = screen.getByRole('list', { name: /pending dependencies/i });
+      expect(list.textContent).toMatch(/must finish before|must start before/i);
     });
   });
 
