@@ -510,6 +510,65 @@
   box-shadow: var(--shadow-focus-subtle);
 }
 
+/* Direction toggle segmented button group */
+.directionToggle {
+  display: flex;
+  border-radius: 0.375rem;
+  overflow: hidden;
+  border: 1px solid var(--color-border-strong);
+}
+
+.directionButton {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+  border: none;
+  border-radius: 0;
+  background: var(--color-bg-primary);
+  color: var(--color-text-secondary);
+}
+
+.directionButton:not(:last-child) {
+  border-right: 1px solid var(--color-border-strong);
+}
+
+.directionButton:hover:not(:disabled):not(.directionButtonActive) {
+  background: var(--color-bg-tertiary);
+}
+
+.directionButton:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+  z-index: 1;
+  position: relative;
+}
+
+.directionButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.directionButtonActive {
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+}
+
+.directionButtonActive:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+/* Dependency type help text */
+.dependencyHelpText {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin: 0.375rem 0 0 0;
+  font-style: italic;
+}
+
 /* Buttons */
 .addButton,
 .saveButton,
