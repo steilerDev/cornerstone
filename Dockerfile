@@ -39,10 +39,10 @@ COPY shared/package.json shared/
 COPY server/package.json server/
 COPY client/package.json client/
 
-# Install all dependencies (including devDependencies for build)
-# Force native addons to compile from source instead of using prebuilds,
-# ensuring compatibility with the Alpine musl libc in the production image
-RUN npm ci --build-from-source
+# Install all dependencies (including devDependencies for build).
+# Native addons (better-sqlite3) auto-detect musl libc and compile from
+# source when no matching prebuild is available — no --build-from-source needed.
+RUN --mount=type=cache,target=/root/.npm npm ci
 
 # Stamp the release version into package.json (set at build time by CI;
 # defaults to 0.0.0-dev for local builds). This keeps the version visible
