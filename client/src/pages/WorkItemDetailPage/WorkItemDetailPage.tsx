@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, type FormEvent } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import type {
   WorkItemDetail,
   WorkItemStatus,
@@ -7,7 +7,6 @@ import type {
   UserResponse,
   NoteResponse,
   SubtaskResponse,
-  DependencyType,
   DependencyResponse,
 } from '@cornerstone/shared';
 import { getWorkItem, updateWorkItem, deleteWorkItem } from '../../lib/workItemsApi.js';
@@ -23,25 +22,15 @@ import { getDependencies, createDependency, deleteDependency } from '../../lib/d
 import { fetchTags, createTag } from '../../lib/tagsApi.js';
 import { listUsers } from '../../lib/usersApi.js';
 import { TagPicker } from '../../components/TagPicker/TagPicker.js';
-import { WorkItemPicker } from '../../components/WorkItemPicker/WorkItemPicker.js';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import { KeyboardShortcutsHelp } from '../../components/KeyboardShortcutsHelp/KeyboardShortcutsHelp.js';
+import {
+  DependencySentenceBuilder,
+  DependencySentenceDisplay,
+} from '../../components/DependencySentenceBuilder/index.js';
+import type { DependencyType } from '@cornerstone/shared';
 import styles from './WorkItemDetailPage.module.css';
-
-const DEPENDENCY_TYPE_LABELS: Record<DependencyType, string> = {
-  finish_to_start: 'Finish-to-Start',
-  start_to_start: 'Start-to-Start',
-  finish_to_finish: 'Finish-to-Finish',
-  start_to_finish: 'Start-to-Finish',
-};
-
-const DEPENDENCY_TYPE_DESCRIPTIONS: Record<DependencyType, string> = {
-  finish_to_start: 'Must finish before the other starts',
-  start_to_start: 'Both start together',
-  finish_to_finish: 'Both finish together',
-  start_to_finish: 'Must start before the other finishes',
-};
 
 interface DeletingDependency {
   type: 'predecessor' | 'successor';
@@ -84,11 +73,6 @@ export default function WorkItemDetailPage() {
   const [editingSubtaskId, setEditingSubtaskId] = useState<string | null>(null);
   const [editedSubtaskTitle, setEditedSubtaskTitle] = useState('');
 
-  const [newDependencyPredecessorId, setNewDependencyPredecessorId] = useState('');
-  const [newDependencyType, setNewDependencyType] = useState<DependencyType>('finish_to_start');
-  const [dependencyDirection, setDependencyDirection] = useState<'depends_on' | 'blocks'>(
-    'depends_on',
-  );
   const [isAddingDependency, setIsAddingDependency] = useState(false);
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -472,34 +456,33 @@ export default function WorkItemDetailPage() {
     }
   };
 
-  // Dependencies
-  const handleAddDependency = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!id || !newDependencyPredecessorId) return;
+  // Dependencies — sentence builder callback
+  const handleAddDependency = async (data: {
+    predecessorId: string;
+    successorId: string;
+    dependencyType: DependencyType;
+    otherItemTitle: string;
+  }) => {
+    if (!id) return;
 
     setIsAddingDependency(true);
     setInlineError(null);
     try {
-      if (dependencyDirection === 'depends_on') {
-        // Current item depends on picked item (predecessor)
+      if (data.successorId === id) {
+        // This item is the successor → create from this item's perspective
         await createDependency(id, {
-          predecessorId: newDependencyPredecessorId,
-          dependencyType: newDependencyType,
+          predecessorId: data.predecessorId,
+          dependencyType: data.dependencyType,
         });
       } else {
-        // Current item blocks picked item (successor)
-        // Swap: create dependency on the OTHER item, making current item the predecessor
-        await createDependency(newDependencyPredecessorId, {
+        // This item is the predecessor → create from the other item's perspective
+        await createDependency(data.successorId, {
           predecessorId: id,
-          dependencyType: newDependencyType,
+          dependencyType: data.dependencyType,
         });
       }
-      setNewDependencyPredecessorId('');
-      setNewDependencyType('finish_to_start');
-      setDependencyDirection('depends_on');
       await reloadDependencies();
     } catch (err) {
-      // Check for 409 (circular dependency or duplicate)
       const apiErr = err as { statusCode?: number; message?: string };
       if (apiErr.statusCode === 409) {
         setInlineError(
@@ -1068,127 +1051,20 @@ export default function WorkItemDetailPage() {
           <section className={styles.section}>
             <h2 className={styles.sectionTitle}>Dependencies</h2>
 
-            <div className={styles.dependenciesSection}>
-              <h3 className={styles.dependencySubtitle}>Depends On</h3>
-              <div className={styles.dependenciesList}>
-                {dependencies.predecessors.length === 0 && (
-                  <div className={styles.emptyState}>No dependencies</div>
-                )}
-                {dependencies.predecessors.map((dep) => (
-                  <div key={dep.workItem.id} className={styles.dependencyItem}>
-                    <Link to={`/work-items/${dep.workItem.id}`} className={styles.dependencyLink}>
-                      {dep.workItem.title}
-                    </Link>
-                    <span className={styles.dependencyType}>
-                      {DEPENDENCY_TYPE_LABELS[dep.dependencyType]}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleDeleteDependency('predecessor', dep.workItem.id, dep.workItem.title)
-                      }
-                      className={styles.deleteButton}
-                      aria-label={`Remove dependency on ${dep.workItem.title}`}
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
+            <DependencySentenceDisplay
+              predecessors={dependencies.predecessors}
+              successors={dependencies.successors}
+              onDelete={handleDeleteDependency}
+            />
 
-              <h3 className={styles.dependencySubtitle}>Blocks</h3>
-              <div className={styles.dependenciesList}>
-                {dependencies.successors.length === 0 && (
-                  <div className={styles.emptyState}>No items blocked</div>
-                )}
-                {dependencies.successors.map((dep) => (
-                  <div key={dep.workItem.id} className={styles.dependencyItem}>
-                    <Link to={`/work-items/${dep.workItem.id}`} className={styles.dependencyLink}>
-                      {dep.workItem.title}
-                    </Link>
-                    <span className={styles.dependencyType}>
-                      {DEPENDENCY_TYPE_LABELS[dep.dependencyType]}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleDeleteDependency('successor', dep.workItem.id, dep.workItem.title)
-                      }
-                      className={styles.deleteButton}
-                      aria-label={`Remove block on ${dep.workItem.title}`}
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              <form className={styles.addDependencyForm} onSubmit={handleAddDependency}>
-                <h3 className={styles.dependencySubtitle}>Add Dependency</h3>
-
-                {/* Direction toggle */}
-                <div
-                  className={styles.directionToggle}
-                  role="group"
-                  aria-label="Dependency direction"
-                >
-                  <button
-                    type="button"
-                    className={`${styles.directionButton} ${
-                      dependencyDirection === 'depends_on' ? styles.directionButtonActive : ''
-                    }`}
-                    aria-pressed={dependencyDirection === 'depends_on'}
-                    onClick={() => setDependencyDirection('depends_on')}
-                    disabled={isAddingDependency}
-                  >
-                    This item depends on
-                  </button>
-                  <button
-                    type="button"
-                    className={`${styles.directionButton} ${
-                      dependencyDirection === 'blocks' ? styles.directionButtonActive : ''
-                    }`}
-                    aria-pressed={dependencyDirection === 'blocks'}
-                    onClick={() => setDependencyDirection('blocks')}
-                    disabled={isAddingDependency}
-                  >
-                    This item blocks
-                  </button>
-                </div>
-
-                <WorkItemPicker
-                  value={newDependencyPredecessorId}
-                  onChange={setNewDependencyPredecessorId}
-                  excludeIds={excludedWorkItemIds}
-                  disabled={isAddingDependency}
-                  placeholder="Search for a work item..."
-                />
-
-                <div>
-                  <select
-                    className={styles.dependencySelect}
-                    value={newDependencyType}
-                    onChange={(e) => setNewDependencyType(e.target.value as DependencyType)}
-                    disabled={isAddingDependency}
-                  >
-                    <option value="finish_to_start">Finish-to-Start</option>
-                    <option value="start_to_start">Start-to-Start</option>
-                    <option value="finish_to_finish">Finish-to-Finish</option>
-                    <option value="start_to_finish">Start-to-Finish</option>
-                  </select>
-                  <p className={styles.dependencyHelpText}>
-                    {DEPENDENCY_TYPE_DESCRIPTIONS[newDependencyType]}
-                  </p>
-                </div>
-
-                <button
-                  type="submit"
-                  className={styles.addButton}
-                  disabled={!newDependencyPredecessorId || isAddingDependency}
-                >
-                  {isAddingDependency ? 'Adding...' : 'Add Dependency'}
-                </button>
-              </form>
+            <div className={styles.addDependencySection}>
+              <DependencySentenceBuilder
+                thisItemId={id!}
+                thisItemLabel={workItem.title}
+                excludeIds={excludedWorkItemIds}
+                disabled={isAddingDependency}
+                onAdd={handleAddDependency}
+              />
             </div>
           </section>
         </div>

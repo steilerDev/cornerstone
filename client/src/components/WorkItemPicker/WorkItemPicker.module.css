@@ -133,6 +133,35 @@
   color: var(--color-danger);
 }
 
+/* Special options (e.g. "This item") */
+.specialOption {
+  background: var(--color-bg-secondary);
+}
+
+.specialOption:hover {
+  background: var(--color-bg-tertiary);
+}
+
+.specialOptionLabel {
+  font-style: italic;
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
+/* Divider between special options and regular search results */
+.optionsDivider {
+  height: 1px;
+  background: var(--color-border);
+  margin: 0.25rem 0;
+}
+
+/* Selected display when a special option is active */
+.selectedTitleSpecial {
+  font-style: italic;
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
 @media (max-width: 767px) {
   .dropdown {
     max-height: 250px;

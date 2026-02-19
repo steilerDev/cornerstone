@@ -1,0 +1,94 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.emptyState {
+  font-size: 0.875rem;
+  color: var(--color-text-placeholder);
+  font-style: italic;
+  margin: 0;
+  padding: 0.5rem 0;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.groupHeader {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  margin: 0;
+  text-transform: lowercase;
+}
+
+/* Capitalize only first char */
+.groupHeader::first-letter {
+  text-transform: uppercase;
+}
+
+.itemList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  transition: background 0.15s;
+}
+
+.item:hover {
+  background: var(--color-bg-tertiary);
+}
+
+.itemLink {
+  flex: 1;
+  color: var(--color-primary);
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.itemLink:hover {
+  text-decoration: underline;
+}
+
+.deleteButton {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  font-size: 1.125rem;
+  line-height: 1;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  transition: all 0.15s;
+}
+
+.deleteButton:hover {
+  color: var(--color-danger);
+  background: var(--color-overlay-delete);
+}
+
+.deleteButton:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}

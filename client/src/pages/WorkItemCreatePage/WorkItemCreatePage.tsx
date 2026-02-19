@@ -11,27 +11,18 @@ import { createDependency } from '../../lib/dependenciesApi.js';
 import { fetchTags, createTag } from '../../lib/tagsApi.js';
 import { listUsers } from '../../lib/usersApi.js';
 import { TagPicker } from '../../components/TagPicker/TagPicker.js';
-import { WorkItemPicker } from '../../components/WorkItemPicker/WorkItemPicker.js';
+import {
+  DependencySentenceBuilder,
+  THIS_ITEM_ID,
+  dependencyTypeToVerbs,
+} from '../../components/DependencySentenceBuilder/index.js';
 import styles from './WorkItemCreatePage.module.css';
 
-const DEPENDENCY_TYPE_LABELS: Record<DependencyType, string> = {
-  finish_to_start: 'Finish-to-Start',
-  start_to_start: 'Start-to-Start',
-  finish_to_finish: 'Finish-to-Finish',
-  start_to_finish: 'Start-to-Finish',
-};
-
-const DEPENDENCY_TYPE_DESCRIPTIONS: Record<DependencyType, string> = {
-  finish_to_start: 'Must finish before the other starts',
-  start_to_start: 'Both start together',
-  finish_to_finish: 'Both finish together',
-  start_to_finish: 'Must start before the other finishes',
-};
-
 interface PendingDependency {
-  workItemId: string;
-  workItemTitle: string;
-  direction: 'depends_on' | 'blocks';
+  predecessorId: string; // THIS_ITEM_ID or real ID
+  successorId: string; // THIS_ITEM_ID or real ID
+  otherItemId: string; // The non-"this" item's real ID
+  otherItemTitle: string;
   dependencyType: DependencyType;
 }
 
@@ -49,12 +40,8 @@ export default function WorkItemCreatePage() {
   const [assignedUserId, setAssignedUserId] = useState('');
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
 
-  // Dependency form state
+  // Dependency state
   const [pendingDependencies, setPendingDependencies] = useState<PendingDependency[]>([]);
-  const [depDirection, setDepDirection] = useState<'depends_on' | 'blocks'>('depends_on');
-  const [depWorkItemId, setDepWorkItemId] = useState('');
-  const [depWorkItemTitle, setDepWorkItemTitle] = useState('');
-  const [depType, setDepType] = useState<DependencyType>('finish_to_start');
 
   const [availableTags, setAvailableTags] = useState<TagResponse[]>([]);
   const [users, setUsers] = useState<UserResponse[]>([]);
@@ -114,33 +101,37 @@ export default function WorkItemCreatePage() {
     return Object.keys(errors).length === 0;
   };
 
-  // IDs to exclude from picker (already pending dependencies)
+  // IDs to exclude from pickers (already pending dependencies — use otherItemId)
   const excludedDepIds = useMemo(
-    () => pendingDependencies.map((d) => d.workItemId),
+    () => pendingDependencies.map((d) => d.otherItemId),
     [pendingDependencies],
   );
 
-  const handleAddPendingDependency = () => {
-    if (!depWorkItemId) return;
+  const handleAddPendingDependency = (data: {
+    predecessorId: string;
+    successorId: string;
+    dependencyType: DependencyType;
+    otherItemTitle: string;
+  }) => {
+    const otherItemId = data.predecessorId === THIS_ITEM_ID ? data.successorId : data.predecessorId;
+
     // Prevent duplicates
-    if (pendingDependencies.some((d) => d.workItemId === depWorkItemId)) return;
+    if (pendingDependencies.some((d) => d.otherItemId === otherItemId)) return;
 
     setPendingDependencies((prev) => [
       ...prev,
       {
-        workItemId: depWorkItemId,
-        workItemTitle: depWorkItemTitle || depWorkItemId,
-        direction: depDirection,
-        dependencyType: depType,
+        predecessorId: data.predecessorId,
+        successorId: data.successorId,
+        otherItemId,
+        otherItemTitle: data.otherItemTitle,
+        dependencyType: data.dependencyType,
       },
     ]);
-    setDepWorkItemId('');
-    setDepWorkItemTitle('');
-    setDepType('finish_to_start');
   };
 
-  const handleRemovePendingDependency = (workItemId: string) => {
-    setPendingDependencies((prev) => prev.filter((d) => d.workItemId !== workItemId));
+  const handleRemovePendingDependency = (otherItemId: string) => {
+    setPendingDependencies((prev) => prev.filter((d) => d.otherItemId !== otherItemId));
   };
 
   const handleSubmit = async (event: FormEvent) => {
@@ -167,24 +158,20 @@ export default function WorkItemCreatePage() {
         tagIds: selectedTagIds,
       });
 
-      // Create dependencies sequentially
+      // Create dependencies sequentially, replacing THIS_ITEM_ID with actual ID
       const failedDeps: string[] = [];
       for (const dep of pendingDependencies) {
         try {
-          if (dep.direction === 'depends_on') {
-            await createDependency(workItem.id, {
-              predecessorId: dep.workItemId,
-              dependencyType: dep.dependencyType,
-            });
-          } else {
-            // "blocks": current item is the predecessor, picked item is the successor
-            await createDependency(dep.workItemId, {
-              predecessorId: workItem.id,
-              dependencyType: dep.dependencyType,
-            });
-          }
+          const predecessorId =
+            dep.predecessorId === THIS_ITEM_ID ? workItem.id : dep.predecessorId;
+          const successorId = dep.successorId === THIS_ITEM_ID ? workItem.id : dep.successorId;
+
+          await createDependency(successorId, {
+            predecessorId,
+            dependencyType: dep.dependencyType,
+          });
         } catch {
-          failedDeps.push(dep.workItemTitle);
+          failedDeps.push(dep.otherItemTitle);
         }
       }
 
@@ -401,103 +388,42 @@ export default function WorkItemCreatePage() {
         <div className={styles.formGroup}>
           <label className={styles.label}>Dependencies</label>
           <div className={styles.dependenciesSection}>
-            {/* Direction toggle + picker row */}
-            <div className={styles.addDependencyRow}>
-              <div
-                className={styles.directionToggle}
-                role="group"
-                aria-label="Dependency direction"
-              >
-                <button
-                  type="button"
-                  className={`${styles.directionButton} ${
-                    depDirection === 'depends_on' ? styles.directionButtonActive : ''
-                  }`}
-                  aria-pressed={depDirection === 'depends_on'}
-                  onClick={() => setDepDirection('depends_on')}
-                  disabled={isSubmitting}
-                >
-                  This item depends on
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.directionButton} ${
-                    depDirection === 'blocks' ? styles.directionButtonActive : ''
-                  }`}
-                  aria-pressed={depDirection === 'blocks'}
-                  onClick={() => setDepDirection('blocks')}
-                  disabled={isSubmitting}
-                >
-                  This item blocks
-                </button>
-              </div>
-
-              <WorkItemPicker
-                value={depWorkItemId}
-                onChange={setDepWorkItemId}
-                onSelectItem={(item) => {
-                  setDepWorkItemId(item.id);
-                  setDepWorkItemTitle(item.title);
-                }}
-                excludeIds={excludedDepIds}
-                disabled={isSubmitting}
-                placeholder="Search for a work item..."
-              />
-
-              <div className={styles.depTypeGroup}>
-                <select
-                  className={`${styles.select} ${styles.depTypeSelect}`}
-                  value={depType}
-                  onChange={(e) => setDepType(e.target.value as DependencyType)}
-                  disabled={isSubmitting}
-                >
-                  <option value="finish_to_start">Finish-to-Start</option>
-                  <option value="start_to_start">Start-to-Start</option>
-                  <option value="finish_to_finish">Finish-to-Finish</option>
-                  <option value="start_to_finish">Start-to-Finish</option>
-                </select>
-                <p className={styles.dependencyHelpText}>{DEPENDENCY_TYPE_DESCRIPTIONS[depType]}</p>
-              </div>
-
-              <button
-                type="button"
-                className={styles.addDepButton}
-                onClick={handleAddPendingDependency}
-                disabled={!depWorkItemId || isSubmitting}
-              >
-                Add to list
-              </button>
-            </div>
+            {/* Sentence builder */}
+            <DependencySentenceBuilder
+              thisItemId={THIS_ITEM_ID}
+              thisItemLabel="This item"
+              excludeIds={excludedDepIds}
+              disabled={isSubmitting}
+              onAdd={handleAddPendingDependency}
+            />
 
             {/* Pending dependencies list */}
             {pendingDependencies.length > 0 && (
               <ul className={styles.pendingDependenciesList} aria-label="Pending dependencies">
-                {pendingDependencies.map((dep) => (
-                  <li key={dep.workItemId} className={styles.pendingDependencyChip}>
-                    <span
-                      className={`${styles.directionPill} ${
-                        dep.direction === 'depends_on'
-                          ? styles.directionPillDependsOn
-                          : styles.directionPillBlocks
-                      }`}
-                    >
-                      {dep.direction === 'depends_on' ? 'depends on' : 'blocks'}
-                    </span>
-                    <span className={styles.chipTitle}>{dep.workItemTitle}</span>
-                    <span className={styles.chipType}>
-                      {DEPENDENCY_TYPE_LABELS[dep.dependencyType]}
-                    </span>
-                    <button
-                      type="button"
-                      className={styles.chipRemove}
-                      onClick={() => handleRemovePendingDependency(dep.workItemId)}
-                      aria-label={`Remove ${dep.direction === 'depends_on' ? 'dependency on' : 'block on'} ${dep.workItemTitle}`}
-                      disabled={isSubmitting}
-                    >
-                      ×
-                    </button>
-                  </li>
-                ))}
+                {pendingDependencies.map((dep) => {
+                  const { predecessorVerb, successorVerb } = dependencyTypeToVerbs(
+                    dep.dependencyType,
+                  );
+                  const isThisItemPredecessor = dep.predecessorId === THIS_ITEM_ID;
+                  const sentence = isThisItemPredecessor
+                    ? `This item must ${predecessorVerb} before "${dep.otherItemTitle}" can ${successorVerb}`
+                    : `"${dep.otherItemTitle}" must ${predecessorVerb} before this item can ${successorVerb}`;
+
+                  return (
+                    <li key={dep.otherItemId} className={styles.pendingDependencyChip}>
+                      <span className={styles.chipSentence}>{sentence}</span>
+                      <button
+                        type="button"
+                        className={styles.chipRemove}
+                        onClick={() => handleRemovePendingDependency(dep.otherItemId)}
+                        aria-label={`Remove dependency involving ${dep.otherItemTitle}`}
+                        disabled={isSubmitting}
+                      >
+                        &times;
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>

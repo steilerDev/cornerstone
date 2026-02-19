@@ -164,6 +164,11 @@ describe('WorkItemDetailPage', () => {
     mockGetDependencies.mockResolvedValue({ predecessors: [], successors: [] });
     mockFetchTags.mockResolvedValue({ tags: [] });
     mockListUsers.mockResolvedValue({ users: [] });
+    // WorkItemPicker in DependencySentenceBuilder may call listWorkItems on focus
+    mockListWorkItems.mockResolvedValue({
+      items: [],
+      pagination: { page: 1, pageSize: 15, totalItems: 0, totalPages: 0 },
+    });
   });
 
   function renderPage(id = 'work-1') {
@@ -191,7 +196,7 @@ describe('WorkItemDetailPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText('Test Work Item')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Test Work Item', level: 1 })).toBeInTheDocument();
       });
     });
 
@@ -330,8 +335,6 @@ describe('WorkItemDetailPage', () => {
       await waitFor(() => {
         expect(screen.getByText('No dependencies')).toBeInTheDocument();
       });
-
-      expect(screen.getByText('No items blocked')).toBeInTheDocument();
     });
 
     it('renders existing predecessors', async () => {
@@ -364,9 +367,9 @@ describe('WorkItemDetailPage', () => {
         expect(screen.getByText('Foundation work')).toBeInTheDocument();
       });
 
-      // Query within "Depends On" list to avoid matching the form dropdown
-      const predecessorsList = screen.getByText('Depends On').closest('div');
-      expect(predecessorsList).toHaveTextContent('Finish-to-Start');
+      // The new sentence builder shows predecessors under a group header like:
+      // "Must finish before this can start:"
+      expect(screen.getByText(/must finish before/i)).toBeInTheDocument();
     });
   });
 });
