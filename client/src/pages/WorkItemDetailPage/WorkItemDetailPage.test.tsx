@@ -328,10 +328,10 @@ describe('WorkItemDetailPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText('No predecessors')).toBeInTheDocument();
+        expect(screen.getByText('No dependencies')).toBeInTheDocument();
       });
 
-      expect(screen.getByText('No successors')).toBeInTheDocument();
+      expect(screen.getByText('No items blocked')).toBeInTheDocument();
     });
 
     it('renders existing predecessors', async () => {
@@ -364,8 +364,8 @@ describe('WorkItemDetailPage', () => {
         expect(screen.getByText('Foundation work')).toBeInTheDocument();
       });
 
-      // Query within predecessors list to avoid matching the form dropdown
-      const predecessorsList = screen.getByText('Predecessors (Blocking This)').closest('div');
+      // Query within "Depends On" list to avoid matching the form dropdown
+      const predecessorsList = screen.getByText('Depends On').closest('div');
       expect(predecessorsList).toHaveTextContent('Finish-to-Start');
     });
   });

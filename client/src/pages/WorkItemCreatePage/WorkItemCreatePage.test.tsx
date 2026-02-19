@@ -9,16 +9,20 @@ import type { TagResponse, UserResponse } from '@cornerstone/shared';
 import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
 import type * as TagsApiTypes from '../../lib/tagsApi.js';
 import type * as UsersApiTypes from '../../lib/usersApi.js';
+import type * as DependenciesApiTypes from '../../lib/dependenciesApi.js';
 import type * as WorkItemCreatePageTypes from './WorkItemCreatePage.js';
 
 const mockCreateWorkItem = jest.fn<typeof WorkItemsApiTypes.createWorkItem>();
+const mockListWorkItems = jest.fn<typeof WorkItemsApiTypes.listWorkItems>();
 const mockFetchTags = jest.fn<typeof TagsApiTypes.fetchTags>();
 const mockCreateTag = jest.fn<typeof TagsApiTypes.createTag>();
 const mockListUsers = jest.fn<typeof UsersApiTypes.listUsers>();
+const mockCreateDependency = jest.fn<typeof DependenciesApiTypes.createDependency>();
 
 // Mock only API modules — do NOT mock react-router-dom (causes OOM)
 jest.unstable_mockModule('../../lib/workItemsApi.js', () => ({
   createWorkItem: mockCreateWorkItem,
+  listWorkItems: mockListWorkItems,
 }));
 
 jest.unstable_mockModule('../../lib/tagsApi.js', () => ({
@@ -28,6 +32,10 @@ jest.unstable_mockModule('../../lib/tagsApi.js', () => ({
 
 jest.unstable_mockModule('../../lib/usersApi.js', () => ({
   listUsers: mockListUsers,
+}));
+
+jest.unstable_mockModule('../../lib/dependenciesApi.js', () => ({
+  createDependency: mockCreateDependency,
 }));
 
 // Helper to capture current location
@@ -66,6 +74,8 @@ describe('WorkItemCreatePage', () => {
 
   beforeEach(async () => {
     mockCreateWorkItem.mockReset();
+    mockListWorkItems.mockReset();
+    mockCreateDependency.mockReset();
     mockFetchTags.mockReset();
     mockCreateTag.mockReset();
     mockListUsers.mockReset();

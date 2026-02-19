@@ -7,6 +7,7 @@ import styles from './WorkItemPicker.module.css';
 interface WorkItemPickerProps {
   value: string;
   onChange: (id: string) => void;
+  onSelectItem?: (item: { id: string; title: string }) => void;
   excludeIds: string[];
   disabled?: boolean;
   placeholder?: string;
@@ -15,6 +16,7 @@ interface WorkItemPickerProps {
 export function WorkItemPicker({
   value,
   onChange,
+  onSelectItem,
   excludeIds,
   disabled = false,
   placeholder = 'Search work items...',
@@ -104,6 +106,7 @@ export function WorkItemPicker({
   const handleSelect = (item: WorkItemSummary) => {
     setSelectedItem(item);
     onChange(item.id);
+    onSelectItem?.({ id: item.id, title: item.title });
     setIsOpen(false);
     setSearchTerm('');
     setResults([]);
