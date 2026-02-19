@@ -44,6 +44,12 @@ COPY client/package.json client/
 # ensuring compatibility with the Alpine musl libc in the production image
 RUN npm ci --build-from-source
 
+# Stamp the release version into package.json (set at build time by CI;
+# defaults to 0.0.0-dev for local builds). This keeps the version visible
+# in the running container without committing it back to the repo.
+ARG APP_VERSION=0.0.0-dev
+RUN npm pkg set "version=${APP_VERSION}"
+
 # Copy source code
 COPY tsconfig.base.json ./
 COPY shared/ shared/
