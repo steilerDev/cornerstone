@@ -66,7 +66,7 @@ jobs:
         run: docker save cornerstone:e2e -o cornerstone-e2e.tar
 
       - name: Upload image artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: cornerstone-docker-image
           path: cornerstone-e2e.tar
@@ -109,7 +109,7 @@ jobs:
 
       - name: Upload test results
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: e2e-test-results
           path: |
