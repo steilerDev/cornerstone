@@ -13,7 +13,7 @@
 .pageContent {
   flex: 1;
   padding: 2rem;
-  background-color: #f9fafb;
+  background-color: var(--color-bg-secondary);
 }
 
 .loading {
@@ -21,13 +21,13 @@
   align-items: center;
   justify-content: center;
   padding: 2rem;
-  color: #6b7280;
+  color: var(--color-text-muted);
 }
 
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--color-overlay);
   z-index: 50;
   display: none;
 }

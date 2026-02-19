@@ -6,31 +6,32 @@ import { render, screen, waitFor } from '@testing-library/react';
 import type * as AuthApiTypes from './lib/authApi.js';
 import type * as AppTypes from './App.js';
 
+const mockGetAuthMe = jest.fn<typeof AuthApiTypes.getAuthMe>();
+const mockLogin = jest.fn<typeof AuthApiTypes.login>();
+const mockLogout = jest.fn<typeof AuthApiTypes.logout>();
+
 // Must mock BEFORE importing the component
 jest.unstable_mockModule('./lib/authApi.js', () => ({
-  getAuthMe: jest.fn(),
-  login: jest.fn(),
-  logout: jest.fn(),
+  getAuthMe: mockGetAuthMe,
+  login: mockLogin,
+  logout: mockLogout,
 }));
 
 describe('App', () => {
   // Dynamic imports
-  let authApi: typeof AuthApiTypes;
   let App: typeof AppTypes.App;
-
-  let mockGetAuthMe: jest.MockedFunction<typeof AuthApiTypes.getAuthMe>;
 
   beforeEach(async () => {
     // Dynamic import modules (only once)
-    if (!authApi) {
-      authApi = await import('./lib/authApi.js');
+    if (!App) {
       const appModule = await import('./App.js');
       App = appModule.App;
     }
 
     // Reset mocks
-    mockGetAuthMe = authApi.getAuthMe as jest.MockedFunction<typeof authApi.getAuthMe>;
     mockGetAuthMe.mockReset();
+    mockLogin.mockReset();
+    mockLogout.mockReset();
 
     // Default: authenticated user (no setup required)
     mockGetAuthMe.mockResolvedValue({
@@ -88,7 +89,7 @@ describe('App', () => {
     render(<App />);
 
     // Wait for lazy-loaded WorkItems component to resolve
-    const heading = await screen.findByRole('heading', { name: /work items/i });
+    const heading = await screen.findByRole('heading', { name: /work items/i, level: 1 });
     expect(heading).toBeInTheDocument();
   });
 

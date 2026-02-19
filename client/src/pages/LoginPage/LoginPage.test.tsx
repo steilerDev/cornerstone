@@ -7,37 +7,34 @@ import type * as AuthApiTypes from '../../lib/authApi.js';
 import type * as AuthContextTypes from '../../contexts/AuthContext.js';
 import type * as LoginPageTypes from './LoginPage.js';
 
+const mockGetAuthMe = jest.fn<typeof AuthApiTypes.getAuthMe>();
+const mockLogin = jest.fn<typeof AuthApiTypes.login>();
+const mockLogout = jest.fn<typeof AuthApiTypes.logout>();
+
 // Must mock BEFORE importing the component
 jest.unstable_mockModule('../../lib/authApi.js', () => ({
-  getAuthMe: jest.fn(),
-  login: jest.fn(),
-  logout: jest.fn(),
+  getAuthMe: mockGetAuthMe,
+  login: mockLogin,
+  logout: mockLogout,
 }));
 
 describe('LoginPage', () => {
   // Dynamic imports inside describe block to avoid top-level await
-  let authApi: typeof AuthApiTypes;
   let AuthContext: typeof AuthContextTypes;
   let LoginPage: typeof LoginPageTypes.LoginPage;
 
-  let mockGetAuthMe: jest.MockedFunction<typeof AuthApiTypes.getAuthMe>;
-  let mockLogin: jest.MockedFunction<typeof AuthApiTypes.login>;
-
   beforeEach(async () => {
     // Dynamic import modules (only once)
-    if (!authApi) {
-      authApi = await import('../../lib/authApi.js');
+    if (!LoginPage) {
       AuthContext = await import('../../contexts/AuthContext.js');
       const loginPageModule = await import('./LoginPage.js');
       LoginPage = loginPageModule.LoginPage;
     }
 
     // Reset mocks
-    mockGetAuthMe = authApi.getAuthMe as jest.MockedFunction<typeof authApi.getAuthMe>;
-    mockLogin = authApi.login as jest.MockedFunction<typeof authApi.login>;
-
     mockGetAuthMe.mockReset();
     mockLogin.mockReset();
+    mockLogout.mockReset();
 
     // Default: OIDC disabled, no user
     mockGetAuthMe.mockResolvedValue({

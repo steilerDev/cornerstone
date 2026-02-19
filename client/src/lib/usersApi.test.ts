@@ -2,36 +2,29 @@ import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import type * as ApiClientTypes from './apiClient.js';
 import type * as UsersApiTypes from './usersApi.js';
 
+const mockGet = jest.fn<typeof ApiClientTypes.get>();
+const mockPost = jest.fn<typeof ApiClientTypes.post>();
+const mockPatch = jest.fn<typeof ApiClientTypes.patch>();
+const mockDel = jest.fn<typeof ApiClientTypes.del>();
+
 // Mock apiClient before importing usersApi
 jest.unstable_mockModule('./apiClient.js', () => ({
-  get: jest.fn(),
-  post: jest.fn(),
-  patch: jest.fn(),
-  del: jest.fn(),
+  get: mockGet,
+  post: mockPost,
+  patch: mockPatch,
+  del: mockDel,
 }));
 
 describe('usersApi', () => {
-  let apiClient: typeof ApiClientTypes;
   let usersApi: typeof UsersApiTypes;
-
-  let mockGet: jest.MockedFunction<typeof ApiClientTypes.get>;
-  let mockPost: jest.MockedFunction<typeof ApiClientTypes.post>;
-  let mockPatch: jest.MockedFunction<typeof ApiClientTypes.patch>;
-  let mockDel: jest.MockedFunction<typeof ApiClientTypes.del>;
 
   beforeEach(async () => {
     // Dynamic import after mocking
-    if (!apiClient) {
-      apiClient = await import('./apiClient.js');
+    if (!usersApi) {
       usersApi = await import('./usersApi.js');
     }
 
     // Reset mocks
-    mockGet = apiClient.get as jest.MockedFunction<typeof apiClient.get>;
-    mockPost = apiClient.post as jest.MockedFunction<typeof apiClient.post>;
-    mockPatch = apiClient.patch as jest.MockedFunction<typeof apiClient.patch>;
-    mockDel = apiClient.del as jest.MockedFunction<typeof apiClient.del>;
-
     mockGet.mockReset();
     mockPost.mockReset();
     mockPatch.mockReset();

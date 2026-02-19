@@ -2,6 +2,7 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import type React from 'react';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithRouter } from '../../test/testUtils.js';
@@ -30,6 +31,18 @@ jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
   }),
 }));
 
+// Mock ThemeContext so Sidebar tests don't need a ThemeProvider
+const mockSetTheme = jest.fn<(theme: string) => void>();
+
+jest.unstable_mockModule('../../contexts/ThemeContext.js', () => ({
+  useTheme: () => ({
+    theme: 'system',
+    resolvedTheme: 'light',
+    setTheme: mockSetTheme,
+  }),
+  ThemeProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
 describe('Sidebar', () => {
   let SidebarModule: typeof SidebarTypes;
   let mockOnClose: jest.MockedFunction<() => void>;
@@ -51,11 +64,12 @@ describe('Sidebar', () => {
     onClose: mockOnClose,
   });
 
-  it('renders all 8 navigation links', () => {
+  it('renders all 9 navigation links plus 1 GitHub footer link', () => {
     renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
 
     const links = screen.getAllByRole('link');
-    expect(links).toHaveLength(8);
+    // 9 nav links + 1 GitHub link in the footer
+    expect(links).toHaveLength(10);
   });
 
   it('renders navigation with correct aria-label', () => {
@@ -342,11 +356,11 @@ describe('Sidebar', () => {
     const links = screen.getAllByRole('link');
     const buttons = screen.getAllByRole('button');
 
-    // Still 8 navigation links
-    expect(links).toHaveLength(8);
-    // 2 buttons: close button + logout button
-    expect(buttons).toHaveLength(2);
+    // 9 nav links + 1 GitHub link in the footer
+    expect(links).toHaveLength(10);
+    // 3 buttons: close button + theme toggle + logout button
+    expect(buttons).toHaveLength(3);
     expect(buttons[0]).toHaveAttribute('aria-label', 'Close menu');
-    expect(buttons[1]).toHaveTextContent(/logout/i);
+    expect(buttons[2]).toHaveTextContent(/logout/i);
   });
 });

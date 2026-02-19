@@ -80,27 +80,17 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
 
   // Parse and validate SECURE_COOKIES
   const secureCookiesStr = (getValue('SECURE_COOKIES') ?? 'true').toLowerCase();
-  let secureCookies: boolean;
-  if (secureCookiesStr === 'true') {
-    secureCookies = true;
-  } else if (secureCookiesStr === 'false') {
-    secureCookies = false;
-  } else {
+  if (secureCookiesStr !== 'true' && secureCookiesStr !== 'false') {
     errors.push(`SECURE_COOKIES must be 'true' or 'false', got: ${getValue('SECURE_COOKIES')}`);
-    secureCookies = true; // Default fallback
   }
+  const secureCookies = secureCookiesStr === 'true';
 
-  // Parse TRUST_PROXY (boolean, default false)
+  // Parse and validate TRUST_PROXY
   const trustProxyStr = (getValue('TRUST_PROXY') ?? 'false').toLowerCase();
-  let trustProxy: boolean;
-  if (trustProxyStr === 'true') {
-    trustProxy = true;
-  } else if (trustProxyStr === 'false') {
-    trustProxy = false;
-  } else {
+  if (trustProxyStr !== 'true' && trustProxyStr !== 'false') {
     errors.push(`TRUST_PROXY must be 'true' or 'false', got: ${getValue('TRUST_PROXY')}`);
-    trustProxy = false; // Default fallback
   }
+  const trustProxy = trustProxyStr === 'true';
 
   // OIDC configuration (all optional)
   const oidcIssuer = getValue('OIDC_ISSUER');

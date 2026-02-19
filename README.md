@@ -7,6 +7,45 @@ A self-hosted home building project management tool for homeowners. Track work i
 
 ## Features
 
+### Work Items Management
+
+- **Full CRUD Operations** -- Create, view, edit, and delete work items with titles, descriptions, statuses, dates, durations, and scheduling constraints.
+- **Status Tracking** -- Track each item as Not Started, In Progress, Completed, or Blocked.
+- **Scheduling** -- Set start and end dates, durations, and "start after" / "start before" constraints for vendor or weather dependencies.
+- **User Assignment** -- Assign work items to any registered user on your instance.
+- **Filtering and Search** -- Filter by status, assigned user, or tag. Full-text search with debounced input for fast results.
+- **Sorting and Pagination** -- Sort by title, status, start date, end date, created date, or updated date. Paginated results for large projects.
+- **Responsive Views** -- Table layout on desktop, card layout on mobile and tablet. URL state sync keeps your filters bookmarkable.
+
+### Tags
+
+- **Custom Tags** -- Create colored tags to categorize and organize your work items (e.g., "Electrical", "Plumbing", "Exterior").
+- **Tag Management Page** -- Dedicated page for creating, editing, and deleting tags, accessible from the sidebar.
+- **Color-Coded Pills** -- Tags appear as colored pills throughout the interface for quick visual identification.
+
+### Notes
+
+- **Work Item Notes** -- Add notes to any work item to track progress, record decisions, or leave information for other users.
+- **Author Attribution** -- Each note shows who wrote it and when, with timestamps.
+- **Edit and Delete** -- Note authors and admins can edit or delete notes.
+
+### Subtasks
+
+- **Checklist Items** -- Break down work items into smaller subtasks with a checklist interface.
+- **Toggle Completion** -- Mark subtasks as complete or incomplete with a single click.
+- **Reorder** -- Rearrange subtasks using up/down buttons (no drag-and-drop -- designed for accessibility).
+
+### Dependencies
+
+- **Predecessor and Successor Links** -- Define relationships between work items to track what must happen before or after each task.
+- **Four Dependency Types** -- Finish-to-Start, Start-to-Start, Finish-to-Finish, and Start-to-Finish relationships.
+- **Circular Dependency Detection** -- The system automatically prevents circular dependencies using depth-first cycle detection.
+
+### Keyboard Shortcuts
+
+- **List Page** -- Press `n` to create a new work item, `/` to focus search, arrow keys to navigate, `?` for help.
+- **Detail Page** -- Press `e` to edit, `Delete` to delete, `Escape` to cancel.
+
 ### Authentication and User Management
 
 - **First-Run Setup** -- On first launch, a setup wizard walks you through creating the initial admin account. No command-line setup needed.
@@ -21,12 +60,17 @@ A self-hosted home building project management tool for homeowners. Track work i
 - **Responsive Layout** -- Full sidebar navigation on desktop, collapsible menu on mobile and tablet.
 - **Health Checks** -- Built-in `/api/health/ready` and `/api/health/live` endpoints for Docker and orchestrator health monitoring.
 
+### Design System
+
+- **Design Token System** -- All visual values (colors, spacing, typography, shadows, radii, transitions) are defined as CSS custom properties in a 3-layer architecture: a raw color palette (Layer 1), purpose-driven semantic aliases (Layer 2), and dark mode overrides (Layer 3). No hardcoded color values exist in component CSS.
+- **Dark Mode** -- Choose Light, Dark, or System (follows your OS preference). Your selection is persisted to localStorage and applied immediately with no flash on page load.
+- **Brand Identity** -- Custom Cornerstone logo and favicon.
+
 ### Planned Features
 
 The following features are on the roadmap but not yet available:
 
-- Work item management and scheduling
-- Gantt chart with dependency tracking
+- Gantt chart with dependency visualization and scheduling
 - Budget tracking with multiple financing sources
 - Household item and furniture tracking
 - Paperless-ngx document integration
@@ -140,7 +184,8 @@ Cornerstone is under active development. Here is the current state of planned fe
 - [x] **EPIC-02: Application Shell and Infrastructure** ([#2](https://github.com/steilerDev/cornerstone/issues/2)) -- Responsive layout, routing, API client, health checks, error handling
 - [x] **EPIC-11: CI/CD Infrastructure** ([#12](https://github.com/steilerDev/cornerstone/issues/12)) -- Automated builds, semantic versioning, Docker image publishing
 - [x] **EPIC-01: Authentication and User Management** ([#1](https://github.com/steilerDev/cornerstone/issues/1)) -- Local login, OIDC SSO, user profiles, admin panel, role-based access
-- [ ] **EPIC-03: Work Items** ([#3](https://github.com/steilerDev/cornerstone/issues/3)) -- Core CRUD operations and properties for construction tasks
+- [x] **EPIC-03: Work Items** ([#3](https://github.com/steilerDev/cornerstone/issues/3)) -- Work item CRUD, tags, notes, subtasks, dependencies, keyboard shortcuts, list and detail pages
+- [x] **EPIC-12: Design System Bootstrap** ([#115](https://github.com/steilerDev/cornerstone/issues/115)) -- Design token system, dark mode, brand identity, CSS module migration, style guide
 - [ ] **EPIC-04: Household Items** ([#4](https://github.com/steilerDev/cornerstone/issues/4)) -- Furniture and appliance purchase tracking
 - [ ] **EPIC-05: Budget Management** ([#5](https://github.com/steilerDev/cornerstone/issues/5)) -- Category-based budgeting, financing sources, cost tracking
 - [ ] **EPIC-06: Timeline and Gantt Chart** ([#6](https://github.com/steilerDev/cornerstone/issues/6)) -- Visual timeline with dependencies and scheduling
@@ -172,7 +217,7 @@ See [`CLAUDE.md`](CLAUDE.md) for the full project guide, coding standards, and d
 
 ## Documentation
 
-Architecture decisions, API contract, database schema, and security audit documentation live on the [GitHub Wiki](https://github.com/steilerDev/cornerstone/wiki).
+Architecture decisions, API contract, database schema, and security audit documentation live on the [GitHub Wiki](https://github.com/steilerDev/cornerstone/wiki). The [Style Guide](https://github.com/steilerDev/cornerstone/wiki/Style-Guide) documents the design token system, color palette, typography, and component patterns for contributors.
 
 ## Contributing
 

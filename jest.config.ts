@@ -37,16 +37,28 @@ const baseConfig = {
 };
 
 const config: Config = {
-  // In CI (GitHub Actions sets CI=true) use defaults (auto-detect workers).
-  // Locally (sandbox VM with limited memory) restrict to 1 worker and recycle
-  // it when heap exceeds 200 MB to avoid OOM kills.
-  ...(isCI ? {} : { maxWorkers: 1, workerIdleMemoryLimit: '200M' }),
+  // Locally, use up to 2 workers and recycle when heap exceeds 512 MB.
+  // CI auto-detects workers (GitHub Actions sets CI=true).
+  ...(isCI ? {} : { maxWorkers: 2, workerIdleMemoryLimit: '512M' }),
   projects: [
     {
       ...baseConfig,
       displayName: 'server',
       testEnvironment: 'node',
       testMatch: ['<rootDir>/server/src/**/*.test.ts'],
+      transform: {
+        '^.+\\.tsx?$': [
+          'ts-jest',
+          {
+            useESM: true,
+            tsconfig: {
+              module: 'NodeNext',
+              moduleResolution: 'NodeNext',
+              esModuleInterop: true,
+            },
+          },
+        ],
+      },
     },
     {
       ...baseConfig,
@@ -55,6 +67,10 @@ const config: Config = {
       testMatch: ['<rootDir>/client/src/**/*.test.{ts,tsx}'],
       setupFilesAfterEnv: ['<rootDir>/client/src/test/setupTests.ts'],
       transformIgnorePatterns: ['node_modules/(?!@testing-library)'],
+      // Define webpack globals so tests don't need the webpack build pipeline
+      globals: {
+        __APP_VERSION__: '0.0.0-test',
+      },
       transform: {
         '^.+\\.tsx?$': [
           'ts-jest',

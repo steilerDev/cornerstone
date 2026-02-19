@@ -9,7 +9,7 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
-    "db:migrate": "node src/db/runMigrate.ts"
+    "db:migrate": "node dist/db/runMigrate.js"
   },
   "dependencies": {
     "@cornerstone/shared": "*",

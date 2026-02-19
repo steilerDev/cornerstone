@@ -2,6 +2,7 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import type React from 'react';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { lazy } from 'react';
@@ -28,6 +29,16 @@ jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
     refreshAuth: jest.fn(),
     logout: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
   }),
+}));
+
+// Mock ThemeContext so ThemeToggle (inside Sidebar) can call useTheme()
+jest.unstable_mockModule('../../contexts/ThemeContext.js', () => ({
+  useTheme: () => ({
+    theme: 'system',
+    resolvedTheme: 'light',
+    setTheme: jest.fn(),
+  }),
+  ThemeProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
 describe('AppShell', () => {
@@ -147,7 +158,7 @@ describe('AppShell', () => {
     );
 
     // Overlay should not exist in DOM when sidebar is closed
-    const overlay = document.querySelector('[aria-hidden="true"]');
+    const overlay = document.querySelector('[data-testid="sidebar-overlay"]');
     expect(overlay).not.toBeInTheDocument();
   });
 
@@ -165,7 +176,7 @@ describe('AppShell', () => {
     await user.click(menuButton);
 
     // Overlay should now exist in DOM
-    const overlay = document.querySelector('[aria-hidden="true"]');
+    const overlay = document.querySelector('[data-testid="sidebar-overlay"]');
     expect(overlay).toBeInTheDocument();
   });
 
@@ -184,14 +195,14 @@ describe('AppShell', () => {
     await user.click(menuButton);
 
     // Verify overlay exists
-    let overlay = document.querySelector('[aria-hidden="true"]');
+    let overlay = document.querySelector('[data-testid="sidebar-overlay"]');
     expect(overlay).toBeInTheDocument();
 
     // Click overlay to close
     await user.click(overlay as HTMLElement);
 
     // Overlay should be removed
-    overlay = document.querySelector('[aria-hidden="true"]');
+    overlay = document.querySelector('[data-testid="sidebar-overlay"]');
     expect(overlay).not.toBeInTheDocument();
   });
 
@@ -210,14 +221,14 @@ describe('AppShell', () => {
     await user.click(menuButton);
 
     // Verify overlay exists
-    let overlay = document.querySelector('[aria-hidden="true"]');
+    let overlay = document.querySelector('[data-testid="sidebar-overlay"]');
     expect(overlay).toBeInTheDocument();
 
     // Press Escape
     await user.keyboard('{Escape}');
 
     // Overlay should be removed
-    overlay = document.querySelector('[aria-hidden="true"]');
+    overlay = document.querySelector('[data-testid="sidebar-overlay"]');
     expect(overlay).not.toBeInTheDocument();
   });
 
@@ -258,7 +269,7 @@ describe('AppShell', () => {
 
     // Open
     await user.click(menuButton);
-    let overlay = document.querySelector('[aria-hidden="true"]');
+    let overlay = document.querySelector('[data-testid="sidebar-overlay"]');
     expect(overlay).toBeInTheDocument();
 
     // Header button should now say "Close menu"
@@ -267,7 +278,7 @@ describe('AppShell', () => {
 
     // Close
     await user.click(menuButton);
-    overlay = document.querySelector('[aria-hidden="true"]');
+    overlay = document.querySelector('[data-testid="sidebar-overlay"]');
     expect(overlay).not.toBeInTheDocument();
 
     // Button should now say "Open menu" again
@@ -275,7 +286,7 @@ describe('AppShell', () => {
 
     // Open again
     await user.click(menuButton);
-    overlay = document.querySelector('[aria-hidden="true"]');
+    overlay = document.querySelector('[data-testid="sidebar-overlay"]');
     expect(overlay).toBeInTheDocument();
   });
 
@@ -328,7 +339,7 @@ describe('AppShell', () => {
     expect(sidebar.className).not.toMatch(/open/);
 
     // Overlay should be removed
-    const overlay = document.querySelector('[aria-hidden="true"]');
+    const overlay = document.querySelector('[data-testid="sidebar-overlay"]');
     expect(overlay).not.toBeInTheDocument();
   });
 

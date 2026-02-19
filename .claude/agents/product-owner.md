@@ -247,6 +247,7 @@ When launched to review a pull request, follow this process:
   - UAT scenarios by uat-validator
   - Architecture sign-off by product-architect
   - Security review by security-engineer
+  - Visual spec and design review by ux-designer (for PRs touching `client/src/`)
 
 ### Review Actions
 

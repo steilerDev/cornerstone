@@ -1,45 +1,97 @@
 .sidebar {
   width: 240px;
-  background-color: #1f2937;
-  color: #f9fafb;
+  background-color: var(--color-sidebar-bg);
+  color: var(--color-sidebar-text);
   display: flex;
   flex-direction: column;
+}
+
+.logoArea {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.25rem 1.5rem 1rem;
+  border-bottom: 1px solid var(--color-sidebar-separator);
+  flex-shrink: 0;
+}
+
+.logo {
+  flex-shrink: 0;
+  color: var(--color-sidebar-focus-ring);
+}
+
+.logoText {
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-sidebar-text);
+  white-space: nowrap;
 }
 
 .nav {
   display: flex;
   flex-direction: column;
   padding: 1rem 0;
+  flex: 1;
+  overflow-y: auto;
 }
 
 .navLink {
   padding: 0.75rem 1.5rem;
-  color: #f9fafb;
+  color: var(--color-sidebar-text);
   text-decoration: none;
   transition: background-color 0.2s ease;
 }
 
 .navLink:hover {
-  background-color: #374151;
+  background-color: var(--color-sidebar-hover);
 }
 
 .navLink:focus-visible {
-  outline: 2px solid #60a5fa;
+  outline: 2px solid var(--color-sidebar-focus-ring);
   outline-offset: -2px;
 }
 
 .active {
-  background-color: #3b82f6;
+  background-color: var(--color-sidebar-active);
 }
 
 .navSeparator {
+  border-top: 1px solid var(--color-sidebar-separator);
+  margin: var(--spacing-2) 0;
+}
+
+.sidebarFooter {
   margin-top: auto;
-  border-top: 1px solid #374151;
+  padding: var(--spacing-3) 0;
+  border-top: 1px solid var(--color-sidebar-separator);
+  flex-shrink: 0;
+}
+
+.projectInfo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-1);
+  padding: var(--spacing-2) var(--spacing-6);
+  font-size: var(--font-size-xs);
+  color: var(--color-sidebar-text);
+  opacity: 0.5;
+}
+
+.githubLink {
+  color: inherit;
+  text-decoration: none;
+}
+
+.githubLink:hover {
+  text-decoration: underline;
+  opacity: 0.8;
 }
 
 .logoutButton {
   padding: 0.75rem 1.5rem;
-  color: #f9fafb;
+  color: var(--color-sidebar-text);
   background: transparent;
   border: none;
   cursor: pointer;
@@ -50,11 +102,11 @@
 }
 
 .logoutButton:hover {
-  background-color: #374151;
+  background-color: var(--color-sidebar-hover);
 }
 
 .logoutButton:focus-visible {
-  outline: 2px solid #60a5fa;
+  outline: 2px solid var(--color-sidebar-focus-ring);
   outline-offset: -2px;
 }
 
@@ -91,7 +143,7 @@
     min-height: 44px;
     border: none;
     background: transparent;
-    color: #f9fafb;
+    color: var(--color-sidebar-text);
     font-size: 1.5rem;
     cursor: pointer;
     display: flex;
@@ -103,11 +155,11 @@
   }
 
   .closeButton:hover {
-    background-color: #374151;
+    background-color: var(--color-sidebar-hover);
   }
 
   .closeButton:focus-visible {
-    outline: 2px solid #60a5fa;
+    outline: 2px solid var(--color-sidebar-focus-ring);
     outline-offset: 2px;
   }
 

@@ -1,0 +1,689 @@
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.loading,
+.error {
+  text-align: center;
+  padding: 3rem;
+  color: var(--color-text-muted);
+  font-size: 1rem;
+}
+
+.error {
+  color: var(--color-danger);
+}
+
+.errorBanner {
+  position: relative;
+  background: var(--color-danger-bg);
+  border: 1px solid var(--color-danger-border);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  color: var(--color-danger-active);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.closeError {
+  background: transparent;
+  border: none;
+  color: var(--color-danger-active);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  transition: background 0.15s;
+}
+
+.closeError:hover {
+  background: var(--color-overlay-danger);
+}
+
+/* Header */
+.header {
+  margin-bottom: 2rem;
+}
+
+.backButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  margin-bottom: 1rem;
+  background: transparent;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.backButton:hover:not(:disabled) {
+  background: var(--color-bg-tertiary);
+  border-color: var(--color-text-placeholder);
+}
+
+.backButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.headerRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 2rem;
+}
+
+.titleSection {
+  flex: 1;
+}
+
+.title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+  transition: background 0.15s;
+}
+
+.title:hover {
+  background: var(--color-bg-tertiary);
+}
+
+.titleEdit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.titleInput {
+  font-size: 2rem;
+  font-weight: 700;
+  padding: 0.5rem;
+  border: 2px solid var(--color-primary);
+  border-radius: 0.375rem;
+  font-family: inherit;
+  width: 100%;
+  background-color: var(--color-bg-primary);
+}
+
+.titleInput:focus {
+  outline: none;
+  box-shadow: var(--shadow-focus-subtle);
+}
+
+.titleEditActions,
+.descriptionEditActions,
+.noteEditActions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.statusSection {
+  flex-shrink: 0;
+}
+
+.statusSelect {
+  padding: 0.625rem 1rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  background: var(--color-bg-primary);
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.statusSelect:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-focus-subtle);
+}
+
+/* Content Grid */
+.contentGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+.leftColumn,
+.rightColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Section */
+.section {
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+}
+
+.sectionTitle {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0 0 1rem 0;
+}
+
+/* Description */
+.description {
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+  transition: background 0.15s;
+  min-height: 3rem;
+}
+
+.description:hover {
+  background: var(--color-bg-tertiary);
+}
+
+.placeholder {
+  color: var(--color-text-placeholder);
+}
+
+.descriptionEdit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.descriptionTextarea {
+  width: 100%;
+  padding: 0.625rem;
+  border: 2px solid var(--color-primary);
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 150px;
+  background-color: var(--color-bg-primary);
+}
+
+.descriptionTextarea:focus {
+  outline: none;
+  box-shadow: var(--shadow-focus-subtle);
+}
+
+/* Properties */
+.propertyGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.property {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.propertyLabel {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.propertyInput,
+.propertySelect {
+  padding: 0.625rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-family: inherit;
+  background: var(--color-bg-primary);
+  transition: border-color 0.15s;
+}
+
+.propertyInput:focus,
+.propertySelect:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-focus-subtle);
+}
+
+/* Notes */
+.addNoteForm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.noteTextarea {
+  width: 100%;
+  padding: 0.625rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-family: inherit;
+  resize: vertical;
+  background-color: var(--color-bg-primary);
+}
+
+.noteTextarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-focus-subtle);
+}
+
+.noteTextarea:disabled {
+  background: var(--color-bg-tertiary);
+  cursor: not-allowed;
+}
+
+.notesList {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.noteItem {
+  padding: 1rem;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+}
+
+.noteHeader {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.noteAuthor {
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.noteDate {
+  color: var(--color-text-muted);
+}
+
+.noteContent {
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  margin-bottom: 0.5rem;
+}
+
+.noteEdit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.noteActions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* Subtasks */
+.addSubtaskForm {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.subtaskInput {
+  flex: 1;
+  padding: 0.625rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-family: inherit;
+  background-color: var(--color-bg-primary);
+}
+
+.subtaskInput:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-focus-subtle);
+}
+
+.subtaskInput:disabled {
+  background: var(--color-bg-tertiary);
+  cursor: not-allowed;
+}
+
+.subtasksList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.subtaskItem {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  transition: background 0.15s;
+}
+
+.subtaskItem:hover {
+  background: var(--color-bg-tertiary);
+}
+
+.subtaskCheckbox {
+  flex-shrink: 0;
+  width: 1.125rem;
+  height: 1.125rem;
+  cursor: pointer;
+}
+
+.subtaskTitle {
+  flex: 1;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+.subtaskCompleted {
+  text-decoration: line-through;
+  color: var(--color-text-placeholder);
+}
+
+.subtaskEdit {
+  display: flex;
+  flex: 1;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.subtaskActions {
+  display: flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.moveButton {
+  padding: 0.25rem 0.5rem;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.moveButton:hover:not(:disabled) {
+  background: var(--color-bg-tertiary);
+  border-color: var(--color-text-placeholder);
+}
+
+.moveButton:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Dependencies */
+.addDependencySection {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border);
+}
+
+/* Buttons */
+.addButton,
+.saveButton,
+.editButton,
+.deleteButton,
+.cancelButton {
+  padding: 0.625rem 1rem;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  border: none;
+}
+
+.addButton {
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+}
+
+.addButton:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+.addButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.saveButton {
+  background: var(--color-success);
+  color: var(--color-success-text);
+}
+
+.saveButton:hover {
+  background: var(--color-success-hover);
+}
+
+.editButton {
+  background: transparent;
+  border: 1px solid var(--color-border-strong);
+  color: var(--color-text-secondary);
+}
+
+.editButton:hover {
+  background: var(--color-bg-tertiary);
+}
+
+.deleteButton {
+  background: transparent;
+  border: 1px solid var(--color-danger);
+  color: var(--color-danger);
+}
+
+.deleteButton:hover {
+  background: var(--color-danger);
+  color: var(--color-primary-text);
+}
+
+.cancelButton {
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-strong);
+  color: var(--color-text-secondary);
+}
+
+.cancelButton:hover {
+  background: var(--color-bg-tertiary);
+}
+
+.emptyState {
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--color-text-placeholder);
+  font-size: 0.875rem;
+  font-style: italic;
+}
+
+/* Footer */
+.footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+}
+
+.timestamps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.deleteWorkItemButton {
+  padding: 0.625rem 1.5rem;
+  background: var(--color-danger);
+  color: var(--color-danger-text);
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.deleteWorkItemButton:hover {
+  background: var(--color-danger-hover);
+}
+
+/* Modal */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.modalBackdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--color-overlay);
+}
+
+.modalContent {
+  position: relative;
+  background: var(--color-bg-primary);
+  border-radius: 0.5rem;
+  padding: 2rem;
+  max-width: 500px;
+  width: 100%;
+  box-shadow: var(--shadow-xl-strong);
+}
+
+.modalTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0 0 1rem 0;
+}
+
+.modalText {
+  color: var(--color-text-muted);
+  line-height: 1.6;
+  margin: 0 0 1.5rem 0;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+}
+
+.modalCancelButton,
+.modalDeleteButton {
+  padding: 0.625rem 1.5rem;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  border: none;
+}
+
+.modalCancelButton {
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-strong);
+  color: var(--color-text-secondary);
+}
+
+.modalCancelButton:hover:not(:disabled) {
+  background: var(--color-bg-tertiary);
+}
+
+.modalDeleteButton {
+  background: var(--color-danger);
+  color: var(--color-danger-text);
+}
+
+.modalDeleteButton:hover:not(:disabled) {
+  background: var(--color-danger-hover);
+}
+
+.modalCancelButton:disabled,
+.modalDeleteButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 1024px) {
+  .contentGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 767px) {
+  .container {
+    padding: 1rem;
+  }
+
+  .headerRow {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .title {
+    font-size: 1.5rem;
+  }
+
+  .titleInput {
+    font-size: 1.5rem;
+  }
+
+  .section {
+    padding: 1rem;
+  }
+
+  .propertyGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .footer {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+
+  .deleteWorkItemButton {
+    width: 100%;
+  }
+}

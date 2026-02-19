@@ -1,5 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext.js';
+import { Logo } from '../Logo/Logo.js';
+import { ThemeToggle } from '../ThemeToggle/ThemeToggle.js';
 import styles from './Sidebar.module.css';
 
 interface SidebarProps {
@@ -13,6 +15,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   return (
     <aside className={sidebarClassName} data-open={isOpen}>
+      <div className={styles.logoArea}>
+        <Logo size={32} className={styles.logo} />
+        <span className={styles.logoText}>Cornerstone</span>
+      </div>
       <div className={styles.sidebarHeader}>
         <button
           type="button"
@@ -67,6 +73,13 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         >
           Documents
         </NavLink>
+        <NavLink
+          to="/tags"
+          className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
+          onClick={onClose}
+        >
+          Tags
+        </NavLink>
         <div className={styles.navSeparator} />
         <NavLink
           to="/profile"
@@ -84,7 +97,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             User Management
           </NavLink>
         )}
-        <div className={styles.navSeparator} />
+      </nav>
+      <div className={styles.sidebarFooter}>
+        <ThemeToggle />
         <button
           type="button"
           className={styles.logoutButton}
@@ -94,7 +109,18 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         >
           Logout
         </button>
-      </nav>
+        <div className={styles.projectInfo}>
+          <span>Cornerstone v{__APP_VERSION__}</span>
+          <a
+            href="https://github.com/steilerDev/cornerstone"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={styles.githubLink}
+          >
+            GitHub
+          </a>
+        </div>
+      </div>
     </aside>
   );
 }

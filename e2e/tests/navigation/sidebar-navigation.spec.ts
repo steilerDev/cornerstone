@@ -120,7 +120,7 @@ test.describe('Sidebar Navigation', () => {
     }
 
     // Then: Logout button should be visible in the sidebar
-    const logoutButton = appShell.nav.getByRole('button', { name: 'Logout' });
+    const logoutButton = appShell.sidebar.getByRole('button', { name: 'Logout' });
     await expect(logoutButton).toBeVisible();
   });
 });

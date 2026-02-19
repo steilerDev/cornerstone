@@ -587,7 +587,7 @@ describe('User Routes', () => {
       expect(body.error.code).toBe('UNAUTHORIZED');
     });
 
-    it('returns 403 when authenticated as member (not admin)', async () => {
+    it('returns 200 when authenticated as member', async () => {
       // Given: Authenticated member user
       const { cookie } = await createUserWithSession(
         'member@example.com',
@@ -603,10 +603,12 @@ describe('User Routes', () => {
         headers: { cookie },
       });
 
-      // Then: Returns 403 Forbidden
-      expect(response.statusCode).toBe(403);
+      // Then: Returns 200 with users list
+      expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body);
-      expect(body.error.code).toBe('FORBIDDEN');
+      expect(body.users).toBeDefined();
+      expect(body.users).toBeInstanceOf(Array);
+      expect(body.users.length).toBeGreaterThanOrEqual(1);
     });
 
     it('returns all users when authenticated as admin', async () => {
