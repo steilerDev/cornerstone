@@ -585,7 +585,7 @@ export function WorkItemsPage() {
                             <button
                               type="button"
                               className={styles.menuItem}
-                              onClick={() => navigate(`/work-items/${item.id}/edit`)}
+                              onClick={() => navigate(`/work-items/${item.id}`)}
                             >
                               Edit
                             </button>
@@ -627,7 +627,7 @@ export function WorkItemsPage() {
                           <button
                             type="button"
                             className={styles.menuItem}
-                            onClick={() => navigate(`/work-items/${item.id}/edit`)}
+                            onClick={() => navigate(`/work-items/${item.id}`)}
                           >
                             Edit
                           </button>
