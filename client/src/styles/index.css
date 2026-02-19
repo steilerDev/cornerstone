@@ -24,6 +24,15 @@ body {
   color: var(--color-text-primary);
 }
 
+input,
+textarea,
+select,
+button {
+  font: inherit;
+  color: inherit;
+  background-color: transparent;
+}
+
 #root {
   min-height: 100vh;
 }

@@ -97,11 +97,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             User Management
           </NavLink>
         )}
-        <div className={styles.navSeparator} />
-        <div className={styles.themeSection}>
-          <ThemeToggle />
-        </div>
-        <div className={styles.navSeparator} />
+      </nav>
+      <div className={styles.sidebarFooter}>
+        <ThemeToggle />
         <button
           type="button"
           className={styles.logoutButton}
@@ -111,7 +109,18 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         >
           Logout
         </button>
-      </nav>
+        <div className={styles.projectInfo}>
+          <span>Cornerstone v{__APP_VERSION__}</span>
+          <a
+            href="https://github.com/steilerDev/cornerstone"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={styles.githubLink}
+          >
+            GitHub
+          </a>
+        </div>
+      </div>
     </aside>
   );
 }

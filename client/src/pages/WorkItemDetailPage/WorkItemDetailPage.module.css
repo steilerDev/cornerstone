@@ -115,6 +115,7 @@
   border-radius: 0.375rem;
   font-family: inherit;
   width: 100%;
+  background-color: var(--color-bg-primary);
 }
 
 .titleInput:focus {
@@ -214,6 +215,7 @@
   font-family: inherit;
   resize: vertical;
   min-height: 150px;
+  background-color: var(--color-bg-primary);
 }
 
 .descriptionTextarea:focus {
@@ -274,6 +276,7 @@
   font-size: 0.875rem;
   font-family: inherit;
   resize: vertical;
+  background-color: var(--color-bg-primary);
 }
 
 .noteTextarea:focus {
@@ -347,6 +350,7 @@
   border-radius: 0.375rem;
   font-size: 0.875rem;
   font-family: inherit;
+  background-color: var(--color-bg-primary);
 }
 
 .subtaskInput:focus {
