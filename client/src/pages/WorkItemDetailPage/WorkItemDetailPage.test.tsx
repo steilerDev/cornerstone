@@ -196,7 +196,9 @@ describe('WorkItemDetailPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Test Work Item', level: 1 })).toBeInTheDocument();
+        expect(
+          screen.getByRole('heading', { name: 'Test Work Item', level: 1 }),
+        ).toBeInTheDocument();
       });
     });
 
