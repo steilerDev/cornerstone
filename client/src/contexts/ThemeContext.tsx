@@ -50,9 +50,12 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     resolveTheme(initialPreference),
   );
 
-  // Apply the resolved theme to <html data-theme="...">
+  // Apply the resolved theme to <html data-theme="..."> and set color-scheme
+  // so the browser renders native widgets (date inputs, selects, scrollbars)
+  // in the appropriate color scheme.
   useEffect(() => {
     document.documentElement.dataset.theme = resolvedTheme;
+    document.documentElement.style.colorScheme = resolvedTheme;
   }, [resolvedTheme]);
 
   // Listen for OS-level dark mode changes when preference is 'system'

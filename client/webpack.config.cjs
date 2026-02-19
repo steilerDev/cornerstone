@@ -3,6 +3,8 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const CssMinimizerPlugin = require('css-minimizer-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
+const { DefinePlugin } = require('webpack');
+const rootPkg = require('../package.json');
 
 module.exports = (env, argv) => {
   const isProduction = argv.mode === 'production';
@@ -76,6 +78,9 @@ module.exports = (env, argv) => {
         }
       : {},
     plugins: [
+      new DefinePlugin({
+        __APP_VERSION__: JSON.stringify(rootPkg.version),
+      }),
       new HtmlWebpackPlugin({
         template: './index.html',
       }),

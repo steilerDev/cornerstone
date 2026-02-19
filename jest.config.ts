@@ -68,6 +68,10 @@ const config: Config = {
       testMatch: ['<rootDir>/client/src/**/*.test.{ts,tsx}'],
       setupFilesAfterEnv: ['<rootDir>/client/src/test/setupTests.ts'],
       transformIgnorePatterns: ['node_modules/(?!@testing-library)'],
+      // Define webpack globals so tests don't need the webpack build pipeline
+      globals: {
+        __APP_VERSION__: '0.0.0-test',
+      },
       transform: {
         '^.+\\.tsx?$': [
           'ts-jest',
