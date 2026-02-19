@@ -69,7 +69,7 @@ export class AppShellPage {
   }
 
   async logout(): Promise<void> {
-    const logoutButton = this.nav.getByRole('button', { name: 'Logout' });
+    const logoutButton = this.sidebar.getByRole('button', { name: 'Logout' });
     await logoutButton.click();
   }
 
