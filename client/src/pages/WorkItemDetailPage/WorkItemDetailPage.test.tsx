@@ -339,7 +339,7 @@ describe('WorkItemDetailPage', () => {
       });
     });
 
-    it('renders existing predecessors', async () => {
+    it('renders existing predecessors with sentence group header', async () => {
       const predecessorWorkItem: WorkItemSummary = {
         id: 'work-0',
         title: 'Foundation work',
@@ -372,6 +372,70 @@ describe('WorkItemDetailPage', () => {
       // The new sentence builder shows predecessors under a group header like:
       // "Must finish before this can start:"
       expect(screen.getByText(/must finish before/i)).toBeInTheDocument();
+    });
+
+    it('renders existing successors with sentence group header', async () => {
+      const successorWorkItem: WorkItemSummary = {
+        id: 'work-3',
+        title: 'Roofing',
+        status: 'not_started',
+        startDate: null,
+        endDate: null,
+        durationDays: null,
+        assignedUser: null,
+        tags: [],
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:00Z',
+      };
+
+      mockGetDependencies.mockResolvedValue({
+        predecessors: [],
+        successors: [
+          {
+            workItem: successorWorkItem,
+            dependencyType: 'finish_to_start',
+          },
+        ],
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Roofing')).toBeInTheDocument();
+      });
+
+      // Successors show "This must finish before ... can start:" header
+      expect(screen.getByText(/this must finish before/i)).toBeInTheDocument();
+    });
+
+    it('renders dependency sentence builder form', async () => {
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Dependencies')).toBeInTheDocument();
+      });
+
+      // The sentence builder contains verb selects
+      expect(screen.getByRole('combobox', { name: /predecessor verb/i })).toBeInTheDocument();
+      expect(screen.getByRole('combobox', { name: /successor verb/i })).toBeInTheDocument();
+      // Conjunction words indicate the sentence builder form is rendered
+      expect(screen.getByText('must')).toBeInTheDocument();
+      expect(screen.getByText('before')).toBeInTheDocument();
+      expect(screen.getByText('can')).toBeInTheDocument();
+    });
+
+    it('does not render direction toggle buttons (old UX removed)', async () => {
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Dependencies')).toBeInTheDocument();
+      });
+
+      // Old direction toggle buttons should NOT be present
+      expect(
+        screen.queryByRole('button', { name: /this item depends on/i }),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /this item blocks/i })).not.toBeInTheDocument();
     });
   });
 });
