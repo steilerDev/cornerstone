@@ -161,7 +161,7 @@
 }
 
 .sortOrderButton:hover {
-  background-color: var(--color-border);
+  background-color: var(--color-bg-hover);
 }
 
 .sortOrderButton:focus-visible {
@@ -290,6 +290,12 @@
 .contactLink:hover {
   text-decoration: underline;
   text-underline-offset: 2px;
+}
+
+.contactLink:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
 }
 
 .actionsCell {
@@ -422,7 +428,7 @@
 }
 
 .secondaryButton:hover {
-  background-color: var(--color-border);
+  background-color: var(--color-bg-hover);
 }
 
 .secondaryButton:focus-visible {
@@ -492,7 +498,7 @@
 }
 
 .cancelButton:hover:not(:disabled) {
-  background-color: var(--color-border);
+  background-color: var(--color-bg-hover);
 }
 
 .cancelButton:focus-visible {

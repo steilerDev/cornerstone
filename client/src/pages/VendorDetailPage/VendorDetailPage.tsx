@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, type FormEvent } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import type {
   VendorDetail,
   UpdateVendorRequest,
@@ -214,7 +214,7 @@ export function VendorDetailPage() {
       if (err instanceof ApiClientError) {
         if (err.statusCode === 409) {
           setDeleteError(
-            'This vendor cannot be deleted because they are referenced by one or more invoices.',
+            'This vendor cannot be deleted because they have associated invoices or work items. Remove those references first.',
           );
         } else {
           setDeleteError(err.error.message);
@@ -444,13 +444,9 @@ export function VendorDetailPage() {
       <div className={styles.content}>
         {/* Back navigation */}
         <div className={styles.breadcrumb}>
-          <button
-            type="button"
-            className={styles.backLink}
-            onClick={() => navigate('/budget/vendors')}
-          >
+          <Link to="/budget/vendors" className={styles.backLink}>
             Vendors
-          </button>
+          </Link>
           <span className={styles.breadcrumbSeparator} aria-hidden="true">
             /
           </span>
@@ -658,12 +654,12 @@ export function VendorDetailPage() {
                 <dt className={styles.infoLabel}>Address</dt>
                 <dd className={styles.infoValue}>{vendor.address || '—'}</dd>
               </div>
-              {vendor.notes && (
-                <div className={styles.infoRow}>
-                  <dt className={styles.infoLabel}>Notes</dt>
-                  <dd className={`${styles.infoValue} ${styles.infoValueNotes}`}>{vendor.notes}</dd>
-                </div>
-              )}
+              <div className={styles.infoRow}>
+                <dt className={styles.infoLabel}>Notes</dt>
+                <dd className={`${styles.infoValue} ${vendor.notes ? styles.infoValueNotes : ''}`}>
+                  {vendor.notes || '—'}
+                </dd>
+              </div>
               <div className={styles.infoRow}>
                 <dt className={styles.infoLabel}>Created by</dt>
                 <dd className={styles.infoValue}>{vendor.createdBy?.displayName ?? '—'}</dd>
