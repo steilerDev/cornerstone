@@ -105,3 +105,14 @@ export type {
   BudgetSourceListResponse,
   BudgetSourceResponse,
 } from './types/budgetSource.js';
+
+// Subsidy Programs
+export type {
+  SubsidyProgram,
+  SubsidyReductionType,
+  SubsidyApplicationStatus,
+  CreateSubsidyProgramRequest,
+  UpdateSubsidyProgramRequest,
+  SubsidyProgramListResponse,
+  SubsidyProgramResponse,
+} from './types/subsidyProgram.js';

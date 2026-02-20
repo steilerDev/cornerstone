@@ -24,6 +24,7 @@ import budgetCategoryRoutes from './routes/budgetCategories.js';
 import budgetSourceRoutes from './routes/budgetSources.js';
 import vendorRoutes from './routes/vendors.js';
 import invoiceRoutes from './routes/invoices.js';
+import subsidyProgramRoutes from './routes/subsidyPrograms.js';
 import { hashPassword, verifyPassword } from './services/userService.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -89,6 +90,9 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Invoice routes (nested under vendors)
   await app.register(invoiceRoutes, { prefix: '/api/vendors/:vendorId/invoices' });
+
+  // Subsidy program routes
+  await app.register(subsidyProgramRoutes, { prefix: '/api/subsidy-programs' });
 
   // Health check endpoint (liveness)
   app.get('/api/health', async () => {
