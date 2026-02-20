@@ -70,7 +70,7 @@
 }
 
 .pageTitle {
-  font-size: var(--font-size-4xl);
+  font-size: var(--font-size-3xl);
   font-weight: var(--font-weight-bold);
   color: var(--color-text-primary);
   margin: 0;
@@ -198,6 +198,12 @@
 
 .infoLink:hover {
   color: var(--color-primary-hover);
+}
+
+.infoLink:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
 }
 
 /* ---- Coming soon placeholder (kept for reference, no longer used) ---- */
@@ -691,7 +697,7 @@
 }
 
 .secondaryButton:hover {
-  background-color: var(--color-border);
+  background-color: var(--color-bg-hover);
 }
 
 .secondaryButton:focus-visible {
@@ -780,7 +786,7 @@
 }
 
 .cancelButton:hover:not(:disabled) {
-  background-color: var(--color-border);
+  background-color: var(--color-bg-hover);
 }
 
 .cancelButton:focus-visible {

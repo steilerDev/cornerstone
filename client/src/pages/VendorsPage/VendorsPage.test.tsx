@@ -584,7 +584,7 @@ describe('VendorsPage', () => {
       await waitFor(() => {
         // The dialog should show the in-use error message
         expect(within(dialog).getByRole('alert')).toBeInTheDocument();
-        expect(within(dialog).getByText(/referenced by one or more invoices/i)).toBeInTheDocument();
+        expect(within(dialog).getByText(/associated invoices or work items/i)).toBeInTheDocument();
       });
     });
 

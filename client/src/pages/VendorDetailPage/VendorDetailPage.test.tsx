@@ -320,7 +320,7 @@ describe('VendorDetailPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /vendors/i })).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /vendors/i })).toBeInTheDocument();
       });
     });
   });
@@ -746,7 +746,7 @@ describe('VendorDetailPage', () => {
 
       await waitFor(() => {
         expect(within(dialog).getByRole('alert')).toBeInTheDocument();
-        expect(within(dialog).getByText(/referenced by one or more invoices/i)).toBeInTheDocument();
+        expect(within(dialog).getByText(/associated invoices or work items/i)).toBeInTheDocument();
       });
     });
 

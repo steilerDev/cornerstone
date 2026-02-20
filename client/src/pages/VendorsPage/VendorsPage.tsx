@@ -210,7 +210,7 @@ export function VendorsPage() {
       if (err instanceof ApiClientError) {
         if (err.statusCode === 409) {
           setDeleteError(
-            'This vendor cannot be deleted because they are referenced by one or more invoices.',
+            'This vendor cannot be deleted because they have associated invoices or work items. Remove those references first.',
           );
         } else {
           setDeleteError(err.error.message);
@@ -269,7 +269,7 @@ export function VendorsPage() {
         <div className={styles.searchCard}>
           <input
             type="search"
-            placeholder="Search vendors by name, specialty, phone, or email..."
+            placeholder="Search vendors by name or specialty..."
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             className={styles.searchInput}
