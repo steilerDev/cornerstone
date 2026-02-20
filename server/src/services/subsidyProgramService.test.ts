@@ -709,7 +709,11 @@ describe('Subsidy Program Service', () => {
 
   describe('updateSubsidyProgram()', () => {
     it('updates name only (partial update)', () => {
-      const id = insertRawProgram({ name: 'Old Name', reductionType: 'percentage', reductionValue: 10 });
+      const id = insertRawProgram({
+        name: 'Old Name',
+        reductionType: 'percentage',
+        reductionValue: 10,
+      });
 
       const data: UpdateSubsidyProgramRequest = { name: 'New Name' };
       const result = subsidyProgramService.updateSubsidyProgram(db, id, data);
@@ -721,7 +725,11 @@ describe('Subsidy Program Service', () => {
     });
 
     it('updates reductionType only', () => {
-      const id = insertRawProgram({ name: 'Type Update', reductionType: 'percentage', reductionValue: 10 });
+      const id = insertRawProgram({
+        name: 'Type Update',
+        reductionType: 'percentage',
+        reductionValue: 10,
+      });
 
       const data: UpdateSubsidyProgramRequest = { reductionType: 'fixed' };
       const result = subsidyProgramService.updateSubsidyProgram(db, id, data);
@@ -731,7 +739,11 @@ describe('Subsidy Program Service', () => {
     });
 
     it('updates reductionValue only', () => {
-      const id = insertRawProgram({ name: 'Value Update', reductionType: 'percentage', reductionValue: 5 });
+      const id = insertRawProgram({
+        name: 'Value Update',
+        reductionType: 'percentage',
+        reductionValue: 5,
+      });
 
       const data: UpdateSubsidyProgramRequest = { reductionValue: 20 };
       const result = subsidyProgramService.updateSubsidyProgram(db, id, data);
@@ -864,7 +876,11 @@ describe('Subsidy Program Service', () => {
 
     it('updates all fields at once', () => {
       const catId = insertBudgetCategory('All Field Cat');
-      const id = insertRawProgram({ name: 'All Fields', reductionType: 'percentage', reductionValue: 5 });
+      const id = insertRawProgram({
+        name: 'All Fields',
+        reductionType: 'percentage',
+        reductionValue: 5,
+      });
 
       const data: UpdateSubsidyProgramRequest = {
         name: 'Completely Updated',
@@ -931,10 +947,17 @@ describe('Subsidy Program Service', () => {
     });
 
     it('validates percentage <= 100 using new reductionType when both are updated', () => {
-      const id = insertRawProgram({ name: 'Both Type Value', reductionType: 'fixed', reductionValue: 1000 });
+      const id = insertRawProgram({
+        name: 'Both Type Value',
+        reductionType: 'fixed',
+        reductionValue: 1000,
+      });
 
       // Switch to percentage but provide value > 100
-      const data: UpdateSubsidyProgramRequest = { reductionType: 'percentage', reductionValue: 110 };
+      const data: UpdateSubsidyProgramRequest = {
+        reductionType: 'percentage',
+        reductionValue: 110,
+      };
 
       expect(() => {
         subsidyProgramService.updateSubsidyProgram(db, id, data);
@@ -1110,9 +1133,7 @@ describe('Subsidy Program Service', () => {
       const workItemId = insertRawWorkItem();
 
       // Link work item to subsidy program
-      db.insert(schema.workItemSubsidies)
-        .values({ workItemId, subsidyProgramId: id })
-        .run();
+      db.insert(schema.workItemSubsidies).values({ workItemId, subsidyProgramId: id }).run();
 
       expect(() => {
         subsidyProgramService.deleteSubsidyProgram(db, id);
@@ -1122,9 +1143,7 @@ describe('Subsidy Program Service', () => {
     it('SubsidyProgramInUseError has correct code and statusCode', () => {
       const id = insertRawProgram({ name: 'In Use Program 2' });
       const workItemId = insertRawWorkItem();
-      db.insert(schema.workItemSubsidies)
-        .values({ workItemId, subsidyProgramId: id })
-        .run();
+      db.insert(schema.workItemSubsidies).values({ workItemId, subsidyProgramId: id }).run();
 
       let error: SubsidyProgramInUseError | undefined;
       try {

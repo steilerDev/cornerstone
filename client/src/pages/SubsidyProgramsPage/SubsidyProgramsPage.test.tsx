@@ -410,12 +410,8 @@ describe('SubsidyProgramsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(
-          screen.getByRole('button', { name: /edit energy rebate/i }),
-        ).toBeInTheDocument();
-        expect(
-          screen.getByRole('button', { name: /edit fixed grant/i }),
-        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /edit energy rebate/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /edit fixed grant/i })).toBeInTheDocument();
       });
     });
 
@@ -425,12 +421,8 @@ describe('SubsidyProgramsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(
-          screen.getByRole('button', { name: /delete energy rebate/i }),
-        ).toBeInTheDocument();
-        expect(
-          screen.getByRole('button', { name: /delete fixed grant/i }),
-        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /delete energy rebate/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /delete fixed grant/i })).toBeInTheDocument();
       });
     });
 
@@ -556,7 +548,9 @@ describe('SubsidyProgramsPage', () => {
       fireEvent.submit(form!);
 
       await waitFor(() => {
-        expect(screen.getByText(/reduction value must be a non-negative number/i)).toBeInTheDocument();
+        expect(
+          screen.getByText(/reduction value must be a non-negative number/i),
+        ).toBeInTheDocument();
       });
     });
 
@@ -799,9 +793,7 @@ describe('SubsidyProgramsPage', () => {
       await user.click(screen.getByRole('button', { name: /add program/i }));
 
       await waitFor(() => {
-        expect(
-          screen.queryByText(/applicable budget categories/i),
-        ).not.toBeInTheDocument();
+        expect(screen.queryByText(/applicable budget categories/i)).not.toBeInTheDocument();
       });
     });
 
@@ -915,12 +907,8 @@ describe('SubsidyProgramsPage', () => {
       await user.click(screen.getByRole('button', { name: /edit energy rebate/i }));
 
       // The other program's edit/delete buttons should be disabled
-      expect(
-        screen.getByRole('button', { name: /edit fixed grant/i }),
-      ).toBeDisabled();
-      expect(
-        screen.getByRole('button', { name: /delete fixed grant/i }),
-      ).toBeDisabled();
+      expect(screen.getByRole('button', { name: /edit fixed grant/i })).toBeDisabled();
+      expect(screen.getByRole('button', { name: /delete fixed grant/i })).toBeDisabled();
     });
 
     it('cancels edit and hides edit form when Cancel is clicked', async () => {
@@ -939,9 +927,7 @@ describe('SubsidyProgramsPage', () => {
       const form = screen.getByRole('form', { name: /edit energy rebate/i });
       await user.click(within(form).getByRole('button', { name: /cancel/i }));
 
-      expect(
-        screen.queryByRole('form', { name: /edit energy rebate/i }),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('form', { name: /edit energy rebate/i })).not.toBeInTheDocument();
     });
 
     it('calls updateSubsidyProgram and updates program in list on success', async () => {
@@ -1131,9 +1117,7 @@ describe('SubsidyProgramsPage', () => {
       await user.click(screen.getByRole('button', { name: /delete energy rebate/i }));
 
       expect(screen.getByRole('dialog')).toBeInTheDocument();
-      expect(
-        screen.getByRole('heading', { name: /delete subsidy program/i }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /delete subsidy program/i })).toBeInTheDocument();
     });
 
     it('shows program name in delete modal', async () => {
@@ -1236,7 +1220,10 @@ describe('SubsidyProgramsPage', () => {
     it('shows error when delete fails with 409 in-use error', async () => {
       mockFetchSubsidyPrograms.mockResolvedValueOnce(listResponse);
       mockDeleteSubsidyProgram.mockRejectedValueOnce(
-        new ApiClientError(409, { code: 'SUBSIDY_PROGRAM_IN_USE', message: 'Subsidy program is in use' }),
+        new ApiClientError(409, {
+          code: 'SUBSIDY_PROGRAM_IN_USE',
+          message: 'Subsidy program is in use',
+        }),
       );
       const user = userEvent.setup();
 
@@ -1253,7 +1240,9 @@ describe('SubsidyProgramsPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(/this subsidy program cannot be deleted because it is currently referenced/i),
+          screen.getByText(
+            /this subsidy program cannot be deleted because it is currently referenced/i,
+          ),
         ).toBeInTheDocument();
       });
     });
@@ -1278,7 +1267,9 @@ describe('SubsidyProgramsPage', () => {
 
       await waitFor(() => {
         // After in-use error, the Delete Program button is no longer shown
-        expect(within(dialog).queryByRole('button', { name: /delete program/i })).not.toBeInTheDocument();
+        expect(
+          within(dialog).queryByRole('button', { name: /delete program/i }),
+        ).not.toBeInTheDocument();
       });
     });
 

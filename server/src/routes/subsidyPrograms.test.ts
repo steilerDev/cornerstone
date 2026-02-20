@@ -13,7 +13,13 @@ import type {
   ApiErrorResponse,
   CreateSubsidyProgramRequest,
 } from '@cornerstone/shared';
-import { subsidyPrograms, subsidyProgramCategories, workItems, workItemSubsidies, budgetCategories } from '../db/schema.js';
+import {
+  subsidyPrograms,
+  subsidyProgramCategories,
+  workItems,
+  workItemSubsidies,
+  budgetCategories,
+} from '../db/schema.js';
 
 describe('Subsidy Program Routes', () => {
   let app: FastifyInstance;
@@ -144,10 +150,7 @@ describe('Subsidy Program Routes', () => {
       })
       .run();
 
-    app.db
-      .insert(workItemSubsidies)
-      .values({ workItemId, subsidyProgramId })
-      .run();
+    app.db.insert(workItemSubsidies).values({ workItemId, subsidyProgramId }).run();
 
     return workItemId;
   }
@@ -633,7 +636,11 @@ describe('Subsidy Program Routes', () => {
   describe('GET /api/subsidy-programs/:id', () => {
     it('returns a program by ID', async () => {
       const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
-      const prog = createTestProgram({ name: 'Get By ID', reductionType: 'percentage', reductionValue: 20 });
+      const prog = createTestProgram({
+        name: 'Get By ID',
+        reductionType: 'percentage',
+        reductionValue: 20,
+      });
 
       const response = await app.inject({
         method: 'GET',
@@ -652,7 +659,11 @@ describe('Subsidy Program Routes', () => {
     it('returns full program detail with applicableCategories', async () => {
       const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
       const catId = createTestCategory('TestDesign');
-      const prog = createTestProgram({ name: 'Full Detail', reductionType: 'fixed', reductionValue: 2500 });
+      const prog = createTestProgram({
+        name: 'Full Detail',
+        reductionType: 'fixed',
+        reductionValue: 2500,
+      });
       app.db
         .insert(subsidyProgramCategories)
         .values({ subsidyProgramId: prog.id, budgetCategoryId: catId })
@@ -757,7 +768,11 @@ describe('Subsidy Program Routes', () => {
 
     it('updates reductionValue only', async () => {
       const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
-      const prog = createTestProgram({ name: 'Value Patch', reductionType: 'percentage', reductionValue: 5 });
+      const prog = createTestProgram({
+        name: 'Value Patch',
+        reductionType: 'percentage',
+        reductionValue: 5,
+      });
 
       const response = await app.inject({
         method: 'PATCH',
@@ -834,7 +849,11 @@ describe('Subsidy Program Routes', () => {
     it('updates all fields at once', async () => {
       const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
       const catId = createTestCategory('All Cat');
-      const prog = createTestProgram({ name: 'All Fields', reductionType: 'percentage', reductionValue: 5 });
+      const prog = createTestProgram({
+        name: 'All Fields',
+        reductionType: 'percentage',
+        reductionValue: 5,
+      });
 
       const response = await app.inject({
         method: 'PATCH',
