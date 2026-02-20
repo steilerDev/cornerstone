@@ -104,33 +104,8 @@ jobs:
         run: npx playwright install chromium webkit --with-deps
         working-directory: e2e
 
-      - name: Start resource profiler
-        run: |
-          mkdir -p e2e/test-results
-          while true; do
-            echo "=== $(date -u +%H:%M:%S) ==="
-            echo "LOAD: $(cat /proc/loadavg)"
-            echo "CPU: $(grep 'cpu ' /proc/stat)"
-            free -m | grep -E '^(Mem|Swap):'
-            echo "DOCKER: $(docker stats --no-stream --format 'table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}' 2>/dev/null || echo 'no containers')"
-            echo ""
-            sleep 5
-          done > e2e/test-results/resource-profile.log 2>&1 &
-          echo $! > /tmp/profiler-pid
-
       - name: Run E2E tests
         run: npm run test:e2e
-
-      - name: Stop resource profiler
-        if: always()
-        run: |
-          kill "$(cat /tmp/profiler-pid)" 2>/dev/null || true
-          echo "=== Resource Profile Summary ==="
-          if [ -f e2e/test-results/resource-profile.log ]; then
-            grep '^Mem:' e2e/test-results/resource-profile.log | awk '{print $3}' | sort -n | tail -1 | xargs -I{} echo "Peak memory used: {} MB"
-            grep '^LOAD:' e2e/test-results/resource-profile.log | awk '{print $2}' | sort -t. -k1 -n | tail -1 | xargs -I{} echo "Peak load avg: {}"
-            grep -c '^===' e2e/test-results/resource-profile.log | xargs -I{} echo "Samples collected: {}"
-          fi
 
       - name: Upload test results
         if: ${{ always() }}
