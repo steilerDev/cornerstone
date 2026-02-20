@@ -23,8 +23,8 @@ export default defineConfig({
   /* Retry on CI only */
   retries: process.env.CI ? 1 : 0,
 
-  /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : undefined,
+  /* Use 4 workers on CI (GitHub Actions ubuntu-latest has 4 vCPUs, 16GB RAM). */
+  workers: process.env.CI ? 4 : undefined,
 
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [['html', { outputFolder: 'playwright-report' }], ['list']],
@@ -58,9 +58,9 @@ export default defineConfig({
       timeout: 120000, // 2 minutes for setup
     },
 
-    // Desktop large viewport (1920x1080)
+    // Desktop (1920x1080, chromium) — all tests
     {
-      name: 'desktop-lg',
+      name: 'desktop',
       dependencies: ['auth-setup'],
       use: {
         ...devices['Desktop Chrome'],
@@ -69,18 +69,7 @@ export default defineConfig({
       },
     },
 
-    // Desktop medium viewport (1440x900)
-    {
-      name: 'desktop-md',
-      dependencies: ['auth-setup'],
-      use: {
-        ...devices['Desktop Chrome'],
-        viewport: { width: 1440, height: 900 },
-        storageState: 'test-results/.auth/admin.json',
-      },
-    },
-
-    // Tablet viewport (iPad Gen 7)
+    // Tablet (iPad Gen 7, webkit) — all tests, provides webkit engine coverage
     {
       name: 'tablet',
       dependencies: ['auth-setup'],
@@ -90,22 +79,13 @@ export default defineConfig({
       },
     },
 
-    // Mobile iPhone viewport (iPhone 13)
+    // Mobile (iPhone 13, webkit) — only @responsive-tagged tests
     {
-      name: 'mobile-iphone',
+      name: 'mobile',
       dependencies: ['auth-setup'],
+      grep: /@responsive/,
       use: {
         ...devices['iPhone 13'],
-        storageState: 'test-results/.auth/admin.json',
-      },
-    },
-
-    // Mobile Android viewport (Pixel 5)
-    {
-      name: 'mobile-android',
-      dependencies: ['auth-setup'],
-      use: {
-        ...devices['Pixel 5'],
         storageState: 'test-results/.auth/admin.json',
       },
     },

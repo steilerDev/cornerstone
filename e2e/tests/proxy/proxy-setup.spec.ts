@@ -25,7 +25,7 @@ test.beforeAll(async () => {
   }
 });
 
-test.describe('Reverse Proxy Setup', () => {
+test.describe('Reverse Proxy Setup', { tag: '@responsive' }, () => {
   test('should return healthy status through proxy', async ({ request }) => {
     // Given: A reverse proxy forwarding to the Cornerstone app
     // When: Checking the health endpoint through the proxy

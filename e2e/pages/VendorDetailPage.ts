@@ -130,7 +130,7 @@ export class VendorDetailPage {
 
   async goto(vendorId: string): Promise<void> {
     await this.page.goto(`/budget/vendors/${vendorId}`);
-    await this.pageTitle.waitFor({ state: 'visible', timeout: 15000 });
+    await this.pageTitle.waitFor({ state: 'visible', timeout: 8000 });
   }
 
   /**

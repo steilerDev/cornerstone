@@ -77,8 +77,9 @@ export class UserManagementPage {
 
   async searchUsers(query: string): Promise<void> {
     await this.searchInput.fill(query);
-    // Wait for debounce (300ms in the component)
-    await this.page.waitForTimeout(400);
+    await this.page.waitForResponse(
+      (resp) => resp.url().includes('/api/users') && resp.status() === 200,
+    );
   }
 
   async getUserRows(): Promise<Locator[]> {

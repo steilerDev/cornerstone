@@ -62,7 +62,7 @@ async function deleteVendorViaApi(page: Page, id: string): Promise<void> {
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 1: Empty state when no vendors exist
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Empty state (Scenario 1)', () => {
+test.describe('Empty state (Scenario 1)', { tag: '@responsive' }, () => {
   test('Empty state message and "Add Vendor" CTA shown when no vendors exist', async ({ page }) => {
     const vendorsPage = new VendorsPage(page);
 
@@ -130,7 +130,7 @@ test.describe('Empty state (Scenario 1)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 2: Create a vendor — full details (happy path)
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Create vendor — full details (Scenario 2)', () => {
+test.describe('Create vendor — full details (Scenario 2)', { tag: '@responsive' }, () => {
   test('Create a vendor with all fields — appears in the vendor list', async ({ page }) => {
     const vendorsPage = new VendorsPage(page);
     let createdId: string | null = null;
@@ -210,7 +210,7 @@ test.describe('Create vendor — full details (Scenario 2)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 3: Create a vendor — name only (minimal required fields)
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Create vendor — name only (Scenario 3)', () => {
+test.describe('Create vendor — name only (Scenario 3)', { tag: '@responsive' }, () => {
   test('Create vendor with only name — succeeds and appears in list', async ({ page }) => {
     const vendorsPage = new VendorsPage(page);
     let createdId: string | null = null;
@@ -243,7 +243,7 @@ test.describe('Create vendor — name only (Scenario 3)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 4: Create vendor fails — missing required name
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Create vendor validation (Scenario 4)', () => {
+test.describe('Create vendor validation (Scenario 4)', { tag: '@responsive' }, () => {
   test('"Add Vendor" submit button is disabled when name field is empty', async ({ page }) => {
     const vendorsPage = new VendorsPage(page);
 
@@ -322,7 +322,7 @@ test.describe('Create vendor validation (Scenario 4)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 5: View vendor detail page
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Vendor detail page (Scenario 5)', () => {
+test.describe('Vendor detail page (Scenario 5)', { tag: '@responsive' }, () => {
   test('Clicking a vendor name navigates to the detail page with all fields', async ({ page }) => {
     const vendorsPage = new VendorsPage(page);
     const detailPage = new VendorDetailPage(page);
@@ -417,7 +417,7 @@ test.describe('Vendor detail page (Scenario 5)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 6: Edit vendor details
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Edit vendor (Scenario 6)', () => {
+test.describe('Edit vendor (Scenario 6)', { tag: '@responsive' }, () => {
   test('Edit phone and notes — changes shown on detail page and persist on reload', async ({
     page,
   }) => {
@@ -518,7 +518,7 @@ test.describe('Edit vendor (Scenario 6)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 8: Delete a vendor — no references (happy path)
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Delete vendor — no references (Scenario 8)', () => {
+test.describe('Delete vendor — no references (Scenario 8)', { tag: '@responsive' }, () => {
   test('Delete confirmation modal opens with vendor name; confirming removes vendor', async ({
     page,
   }) => {
@@ -610,7 +610,7 @@ test.describe('Delete vendor — no references (Scenario 8)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 9: Delete blocked when invoices exist (409)
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Delete blocked by 409 (Scenario 9)', () => {
+test.describe('Delete blocked by 409 (Scenario 9)', { tag: '@responsive' }, () => {
   test('409 response on delete shows error in modal; confirm button hidden; vendor remains', async ({
     page,
   }) => {
@@ -720,7 +720,7 @@ test.describe('Delete blocked by 409 (Scenario 9)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 11: Pagination
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Pagination (Scenario 11)', () => {
+test.describe('Pagination (Scenario 11)', { tag: '@responsive' }, () => {
   test('Pagination controls visible when API returns totalPages > 1', async ({ page }) => {
     const vendorsPage = new VendorsPage(page);
 
@@ -821,7 +821,7 @@ test.describe('Pagination (Scenario 11)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 12: Search by name (case-insensitive)
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Search vendors (Scenario 12)', () => {
+test.describe('Search vendors (Scenario 12)', { tag: '@responsive' }, () => {
   test('Search by partial name — only matching vendor is shown (case-insensitive)', async ({
     page,
   }) => {
@@ -874,7 +874,7 @@ test.describe('Search vendors (Scenario 12)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 13: Filter by specialty via search
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Search by specialty (Scenario 13)', () => {
+test.describe('Search by specialty (Scenario 13)', { tag: '@responsive' }, () => {
   test('Searching for a specialty term filters vendors to matching ones', async ({ page }) => {
     const vendorsPage = new VendorsPage(page);
     const created: string[] = [];
@@ -914,7 +914,7 @@ test.describe('Search by specialty (Scenario 13)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 14: List shows scannable key info (name, specialty, contact)
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('List shows key info (Scenario 14)', () => {
+test.describe('List shows key info (Scenario 14)', { tag: '@responsive' }, () => {
   test('Table row shows vendor name, specialty, phone, and email', async ({ page }) => {
     const vendorsPage = new VendorsPage(page);
     let createdId: string | null = null;
@@ -976,7 +976,7 @@ test.describe('List shows key info (Scenario 14)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Navigation tests
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Navigation between list and detail pages', () => {
+test.describe('Navigation between list and detail pages', { tag: '@responsive' }, () => {
   test('Clicking vendor link navigates to detail page; breadcrumb "Vendors" returns to list', async ({
     page,
   }) => {
@@ -1025,7 +1025,7 @@ test.describe('Navigation between list and detail pages', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 17: Responsive layout
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Responsive layout (Scenario 17)', () => {
+test.describe('Responsive layout (Scenario 17)', { tag: '@responsive' }, () => {
   test('Vendors list page renders without horizontal scroll on current viewport', async ({
     page,
   }) => {
@@ -1138,7 +1138,7 @@ test.describe('Responsive layout (Scenario 17)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Dark mode rendering
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Dark mode rendering', () => {
+test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
   test('Vendors list page renders correctly in dark mode', async ({ page }) => {
     const vendorsPage = new VendorsPage(page);
 
