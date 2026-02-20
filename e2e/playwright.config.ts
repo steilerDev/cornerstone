@@ -23,7 +23,9 @@ export default defineConfig({
   /* Retry on CI only */
   retries: process.env.CI ? 1 : 0,
 
-  /* Use 8 workers on CI to maximize parallelism. */
+  /* CI workers: 2x vCPU count (4 vCPUs on ubuntu-latest). Profiling showed 12 workers
+     causes load avg 126+ and 208 test failures from CPU contention. Memory headroom
+     exists (9.7/16 GB) but browsers are CPU-heavy. 8 workers is the sweet spot. */
   workers: process.env.CI ? 8 : undefined,
 
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
