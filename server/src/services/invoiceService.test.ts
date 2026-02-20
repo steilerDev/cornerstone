@@ -536,7 +536,7 @@ describe('Invoice Service', () => {
   describe('updateInvoice()', () => {
     it('updates the amount of an existing invoice', () => {
       const vendorId = createTestVendor('Update Amount Vendor');
-      const userId = createTestUser('user@test.com', 'User');
+      createTestUser('user@test.com', 'User');
       const invoiceId = insertRawInvoice(vendorId, { amount: 1000 });
 
       const result = invoiceService.updateInvoice(db, vendorId, invoiceId, { amount: 2000 });
