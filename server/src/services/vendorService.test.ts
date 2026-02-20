@@ -778,7 +778,9 @@ describe('Vendor Service', () => {
 
       await new Promise((resolve) => setTimeout(resolve, 2));
 
-      const result = vendorService.updateVendor(db, vendor.id, { name: 'Updated Timestamp Vendor' });
+      const result = vendorService.updateVendor(db, vendor.id, {
+        name: 'Updated Timestamp Vendor',
+      });
 
       expect(result.updatedAt).not.toBe(vendor.updatedAt);
     });

@@ -370,12 +370,10 @@ describe('VendorsPage', () => {
       };
 
       // First call: initial load; second: after create
-      mockFetchVendors
-        .mockResolvedValueOnce(emptyResponse)
-        .mockResolvedValueOnce({
-          vendors: [newVendor],
-          pagination: { page: 1, pageSize: 25, totalItems: 1, totalPages: 1 },
-        });
+      mockFetchVendors.mockResolvedValueOnce(emptyResponse).mockResolvedValueOnce({
+        vendors: [newVendor],
+        pagination: { page: 1, pageSize: 25, totalItems: 1, totalPages: 1 },
+      });
       mockCreateVendor.mockResolvedValueOnce(newVendor);
 
       const user = userEvent.setup();
@@ -488,9 +486,7 @@ describe('VendorsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(
-          screen.getByRole('button', { name: /delete smith plumbing/i }),
-        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /delete smith plumbing/i })).toBeInTheDocument();
       });
 
       await user.click(screen.getByRole('button', { name: /delete smith plumbing/i }));
@@ -506,9 +502,7 @@ describe('VendorsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(
-          screen.getByRole('button', { name: /delete smith plumbing/i }),
-        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /delete smith plumbing/i })).toBeInTheDocument();
       });
 
       await user.click(screen.getByRole('button', { name: /delete smith plumbing/i }));
@@ -524,9 +518,7 @@ describe('VendorsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(
-          screen.getByRole('button', { name: /delete smith plumbing/i }),
-        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /delete smith plumbing/i })).toBeInTheDocument();
       });
 
       await user.click(screen.getByRole('button', { name: /delete smith plumbing/i }));
@@ -538,21 +530,17 @@ describe('VendorsPage', () => {
     });
 
     it('deletes vendor and reloads list on confirm', async () => {
-      mockFetchVendors
-        .mockResolvedValueOnce(listResponse)
-        .mockResolvedValueOnce({
-          vendors: [sampleVendor2],
-          pagination: { page: 1, pageSize: 25, totalItems: 1, totalPages: 1 },
-        });
+      mockFetchVendors.mockResolvedValueOnce(listResponse).mockResolvedValueOnce({
+        vendors: [sampleVendor2],
+        pagination: { page: 1, pageSize: 25, totalItems: 1, totalPages: 1 },
+      });
       mockDeleteVendor.mockResolvedValueOnce(undefined);
 
       const user = userEvent.setup();
       renderPage();
 
       await waitFor(() => {
-        expect(
-          screen.getByRole('button', { name: /delete smith plumbing/i }),
-        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /delete smith plumbing/i })).toBeInTheDocument();
       });
 
       await user.click(screen.getByRole('button', { name: /delete smith plumbing/i }));
@@ -584,9 +572,7 @@ describe('VendorsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(
-          screen.getByRole('button', { name: /delete smith plumbing/i }),
-        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /delete smith plumbing/i })).toBeInTheDocument();
       });
 
       await user.click(screen.getByRole('button', { name: /delete smith plumbing/i }));
@@ -615,9 +601,7 @@ describe('VendorsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(
-          screen.getByRole('button', { name: /delete smith plumbing/i }),
-        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /delete smith plumbing/i })).toBeInTheDocument();
       });
 
       await user.click(screen.getByRole('button', { name: /delete smith plumbing/i }));
@@ -630,7 +614,9 @@ describe('VendorsPage', () => {
       });
 
       // Delete Vendor button should be gone after the error
-      expect(within(dialog).queryByRole('button', { name: /delete vendor/i })).not.toBeInTheDocument();
+      expect(
+        within(dialog).queryByRole('button', { name: /delete vendor/i }),
+      ).not.toBeInTheDocument();
     });
 
     it('shows generic delete error for non-409 failures', async () => {
@@ -641,9 +627,7 @@ describe('VendorsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(
-          screen.getByRole('button', { name: /delete smith plumbing/i }),
-        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /delete smith plumbing/i })).toBeInTheDocument();
       });
 
       await user.click(screen.getByRole('button', { name: /delete smith plumbing/i }));

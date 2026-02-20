@@ -402,7 +402,11 @@ describe('Vendor Routes', () => {
     });
 
     it('sets createdBy to the authenticated user', async () => {
-      const { cookie, userId } = await createUserWithSession('user@test.com', 'Test User', 'password');
+      const { cookie, userId } = await createUserWithSession(
+        'user@test.com',
+        'Test User',
+        'password',
+      );
 
       const response = await app.inject({
         method: 'POST',

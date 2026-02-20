@@ -246,9 +246,7 @@ describe('VendorDetailPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(
-          screen.getByRole('heading', { name: /vendor information/i }),
-        ).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /vendor information/i })).toBeInTheDocument();
       });
     });
 
@@ -529,7 +527,9 @@ describe('VendorDetailPage', () => {
 
       await waitFor(() => {
         expect(screen.getByRole('alert')).toBeInTheDocument();
-        expect(screen.getByText(/vendor name must be between 1 and 200 characters/i)).toBeInTheDocument();
+        expect(
+          screen.getByText(/vendor name must be between 1 and 200 characters/i),
+        ).toBeInTheDocument();
       });
     });
 
@@ -712,7 +712,9 @@ describe('VendorDetailPage', () => {
         expect(within(dialog).getByRole('alert')).toBeInTheDocument();
       });
 
-      expect(within(dialog).queryByRole('button', { name: /delete vendor/i })).not.toBeInTheDocument();
+      expect(
+        within(dialog).queryByRole('button', { name: /delete vendor/i }),
+      ).not.toBeInTheDocument();
     });
 
     it('shows generic delete error for non-409 failures', async () => {

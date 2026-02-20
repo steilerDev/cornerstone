@@ -90,10 +90,7 @@ describe('vendorsApi', () => {
 
       await fetchVendors({ page: 2 });
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('page=2'),
-        expect.any(Object),
-      );
+      expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('page=2'), expect.any(Object));
     });
 
     it('includes pageSize parameter when provided', async () => {
