@@ -361,9 +361,8 @@ test.describe('Vendor detail page (Scenario 5)', { tag: '@responsive' }, () => {
       // When: I click on the vendor name link
       await vendorsPage.clickView(vendorName);
 
-      // Then: I am on the vendor detail page
-      await detailPage.pageTitle.waitFor({ state: 'visible', timeout: 8000 });
-      expect(page.url()).toContain(`/budget/vendors/${createdId}`);
+      // Then: I am on the vendor detail page (wait for URL, not h1 which matches list page too)
+      await page.waitForURL(`**/budget/vendors/${createdId}`, { timeout: 8000 });
 
       // And: The page heading is the vendor name
       await expect(detailPage.pageTitle).toHaveText(vendorName);
@@ -1035,10 +1034,9 @@ test.describe('Navigation between list and detail pages', { tag: '@responsive' }
       await vendorsPage.goto();
       await vendorsPage.waitForVendorsLoaded();
 
-      // Navigate to detail
+      // Navigate to detail (wait for URL change, not h1 which matches list page too)
       await vendorsPage.clickView(vendorName);
-      await detailPage.pageTitle.waitFor({ state: 'visible', timeout: 8000 });
-      expect(page.url()).toContain('/budget/vendors/');
+      await page.waitForURL('**/budget/vendors/*', { timeout: 8000 });
 
       // Navigate back via breadcrumb
       await detailPage.goBackToVendors();

@@ -148,6 +148,7 @@ test.describe('Sort order display (Scenario 2 & 13)', { tag: '@responsive' }, ()
       createdId = await createCategoryViaApi(page, categoryName, 0);
 
       await categoriesPage.goto();
+      await categoriesPage.waitForCategoriesLoaded();
 
       // Then: The new category appears first in the list
       const names = await categoriesPage.getCategoryNames();
