@@ -23,27 +23,27 @@ test.describe('Sidebar Navigation', { tag: '@responsive' }, () => {
     // Given: User is on the dashboard
     await page.goto(ROUTES.home);
 
-    // When/Then: Navigate to each section and verify URL
+    // When/Then: Navigate to each section and verify URL (use regex to allow query params)
     await clickNav('Work Items');
-    await expect(page).toHaveURL(ROUTES.workItems);
+    await expect(page).toHaveURL(new RegExp(`${ROUTES.workItems}(\\?.*)?$`));
 
     await clickNav('Budget');
-    await expect(page).toHaveURL(ROUTES.budget);
+    await expect(page).toHaveURL(new RegExp(`${ROUTES.budget}(\\?.*)?$`));
 
     await clickNav('Timeline');
-    await expect(page).toHaveURL(ROUTES.timeline);
+    await expect(page).toHaveURL(new RegExp(`${ROUTES.timeline}(\\?.*)?$`));
 
     await clickNav('Household Items');
-    await expect(page).toHaveURL(ROUTES.householdItems);
+    await expect(page).toHaveURL(new RegExp(`${ROUTES.householdItems}(\\?.*)?$`));
 
     await clickNav('Documents');
-    await expect(page).toHaveURL(ROUTES.documents);
+    await expect(page).toHaveURL(new RegExp(`${ROUTES.documents}(\\?.*)?$`));
 
     await clickNav('Profile');
-    await expect(page).toHaveURL(ROUTES.profile);
+    await expect(page).toHaveURL(new RegExp(`${ROUTES.profile}(\\?.*)?$`));
 
     await clickNav('User Management');
-    await expect(page).toHaveURL(ROUTES.userManagement);
+    await expect(page).toHaveURL(new RegExp(`${ROUTES.userManagement}(\\?.*)?$`));
 
     await clickNav('Dashboard');
     await expect(page).toHaveURL(ROUTES.home);

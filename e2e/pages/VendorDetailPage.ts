@@ -71,8 +71,8 @@ export class VendorDetailPage {
   constructor(page: Page) {
     this.page = page;
 
-    // Breadcrumb
-    this.backToVendorsButton = page.getByRole('button', { name: 'Vendors', exact: true });
+    // Breadcrumb — the "Vendors" back link is a React Router <Link> (renders <a>)
+    this.backToVendorsButton = page.getByRole('link', { name: 'Vendors', exact: true });
     this.breadcrumbCurrent = page.locator('[class*="breadcrumbCurrent"]');
 
     // Page header
@@ -140,7 +140,7 @@ export class VendorDetailPage {
    */
   async goBackToVendors(): Promise<void> {
     await this.backToVendorsButton.click();
-    await this.page.waitForURL('/budget/vendors', { timeout: 5000 });
+    await this.page.waitForURL('**/budget/vendors', { timeout: 5000 });
   }
 
   /**
