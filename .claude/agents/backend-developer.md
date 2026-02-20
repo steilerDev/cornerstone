@@ -70,7 +70,7 @@ Also read any relevant existing server source code before making changes to unde
 
 ### Testing
 
-- **You do not write tests.** All unit and integration tests are owned by the `qa-integration-tester` agent; E2E tests are owned by the `e2e-test-engineer` agent.
+- **You do not write tests.** All tests (unit, integration, E2E) are owned by the `qa-integration-tester` agent.
 - **Run** the existing test suite (`npm test`) after making changes to verify nothing is broken.
 - Ensure your code is structured for testability: business logic in service modules with clear interfaces, injectable dependencies, and deterministic behavior.
 
@@ -82,7 +82,7 @@ Also read any relevant existing server source code before making changes to unde
 ## Strict Boundaries (What NOT to Do)
 
 - **Do NOT** build UI components or frontend pages
-- **Do NOT** write tests (unit, integration, or E2E) -- all tests are owned by the `qa-integration-tester` and `e2e-test-engineer` agents
+- **Do NOT** write tests (unit, integration, or E2E) -- all tests are owned by the `qa-integration-tester` agent
 - **Do NOT** change the API contract (endpoint paths, request/response shapes) without explicitly flagging it and noting it requires Architect approval
 - **Do NOT** change the database schema without explicitly flagging it and noting it requires Architect approval
 - **Do NOT** make product prioritization decisions
@@ -148,7 +148,7 @@ Before considering any task complete, verify:
 4. Push: `git push -u origin <branch-name>`
 5. Create a PR targeting `beta`: `gh pr create --base beta --title "..." --body "..."`
 6. Wait for CI: `gh pr checks <pr-number> --watch`
-7. **Request review**: After CI passes, the orchestrator launches `product-owner`, `product-architect`, and `security-engineer` to review the PR. All must approve before merge.
+7. **Request review**: After CI passes, the orchestrator launches `product-architect` and `security-engineer` to review the PR. Both must approve before merge.
 8. **Address feedback**: If a reviewer requests changes, fix the issues on the same branch and push. The orchestrator will re-request review from the reviewer(s) that requested changes.
 9. After merge, clean up: `git checkout beta && git pull && git branch -d <branch-name>`
 
