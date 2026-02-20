@@ -88,7 +88,7 @@ export class UserManagementPage {
 
   async getUserRow(email: string): Promise<Locator | null> {
     // Wait for table data to load
-    await this.table.locator('tbody tr').first().waitFor({ state: 'visible', timeout: 10000 });
+    await this.table.locator('tbody tr').first().waitFor({ state: 'visible', timeout: 5000 });
     const rows = await this.getUserRows();
     for (const row of rows) {
       const rowEmail = await row.locator('td').nth(1).textContent();

@@ -130,7 +130,7 @@ export class VendorDetailPage {
 
   async goto(vendorId: string): Promise<void> {
     await this.page.goto(`/budget/vendors/${vendorId}`);
-    await this.pageTitle.waitFor({ state: 'visible', timeout: 8000 });
+    await this.pageTitle.waitFor({ state: 'visible', timeout: 5000 });
   }
 
   /**
@@ -138,7 +138,7 @@ export class VendorDetailPage {
    */
   async goBackToVendors(): Promise<void> {
     await this.backToVendorsButton.click();
-    await this.page.waitForURL('/budget/vendors', { timeout: 10000 });
+    await this.page.waitForURL('/budget/vendors', { timeout: 5000 });
   }
 
   /**
@@ -179,7 +179,7 @@ export class VendorDetailPage {
    */
   async saveEdit(): Promise<void> {
     await this.saveChangesButton.click();
-    await this.editNameInput.waitFor({ state: 'hidden', timeout: 10000 });
+    await this.editNameInput.waitFor({ state: 'hidden', timeout: 5000 });
   }
 
   /**
