@@ -22,6 +22,7 @@ import subtaskRoutes from './routes/subtasks.js';
 import dependencyRoutes from './routes/dependencies.js';
 import budgetCategoryRoutes from './routes/budgetCategories.js';
 import vendorRoutes from './routes/vendors.js';
+import invoiceRoutes from './routes/invoices.js';
 import { hashPassword, verifyPassword } from './services/userService.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -81,6 +82,9 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Vendor/contractor routes
   await app.register(vendorRoutes, { prefix: '/api/vendors' });
+
+  // Invoice routes (nested under vendors)
+  await app.register(invoiceRoutes, { prefix: '/api/vendors/:vendorId/invoices' });
 
   // Health check endpoint (liveness)
   app.get('/api/health', async () => {
