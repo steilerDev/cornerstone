@@ -95,11 +95,12 @@ export class BudgetCategoriesPage {
       .locator('..')
       .locator('[role="alert"]');
 
-    // Categories list section — inside the section with heading starting with "Categories"
+    // Categories list section — inside the section with heading "Categories (N)"
+    // Use the count pattern to distinguish from the bare "Categories" sub-nav heading
     this.categoriesSection = page
-      .getByRole('heading', { level: 2, name: /^Categories/ })
+      .getByRole('heading', { level: 2, name: /^Categories \(/ })
       .locator('..');
-    this.categoriesListHeading = page.getByRole('heading', { level: 2, name: /^Categories/ });
+    this.categoriesListHeading = page.getByRole('heading', { level: 2, name: /^Categories \(/ });
     this.categoriesList = page.locator('[class*="categoriesList"]');
     this.emptyState = page.getByText(/No budget categories yet/);
 

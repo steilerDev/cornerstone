@@ -105,6 +105,7 @@ export class UserManagementPage {
       throw new Error(`User with email ${email} not found`);
     }
     const editButton = row.getByRole('button', { name: 'Edit' });
+    await editButton.scrollIntoViewIfNeeded();
     await editButton.click();
     await this.editModalHeading.waitFor({ state: 'visible' });
   }
@@ -132,6 +133,7 @@ export class UserManagementPage {
       throw new Error(`User with email ${email} not found`);
     }
     const deactivateButton = row.getByRole('button', { name: 'Deactivate' });
+    await deactivateButton.scrollIntoViewIfNeeded();
     await deactivateButton.click();
     await this.deactivateModalHeading.waitFor({ state: 'visible' });
   }

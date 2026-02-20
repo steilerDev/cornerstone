@@ -19,7 +19,7 @@ export const ROUTES = {
   setup: '/setup',
   login: '/login',
   workItems: '/work-items',
-  budget: '/budget',
+  budget: '/budget/overview',
   budgetCategories: '/budget/categories',
   budgetVendors: '/budget/vendors',
   timeline: '/timeline',

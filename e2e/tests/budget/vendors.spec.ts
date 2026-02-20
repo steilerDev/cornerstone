@@ -103,13 +103,16 @@ test.describe('Empty state (Scenario 1)', { tag: '@responsive' }, () => {
     }
   });
 
-  test('Empty state for search "no matches" shows different message', async ({ page }) => {
+  test('Empty state for search "no matches" shows different message', async ({
+    page,
+    testPrefix,
+  }) => {
     const vendorsPage = new VendorsPage(page);
     let createdId: string | null = null;
 
     try {
       // Given: At least one vendor exists
-      createdId = await createVendorViaApi(page, { name: 'E2E Search Mismatch Vendor' });
+      createdId = await createVendorViaApi(page, { name: `${testPrefix} Search Mismatch Vendor` });
 
       await vendorsPage.goto();
       await vendorsPage.waitForVendorsLoaded();
@@ -131,9 +134,13 @@ test.describe('Empty state (Scenario 1)', { tag: '@responsive' }, () => {
 // Scenario 2: Create a vendor — full details (happy path)
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Create vendor — full details (Scenario 2)', { tag: '@responsive' }, () => {
-  test('Create a vendor with all fields — appears in the vendor list', async ({ page }) => {
+  test('Create a vendor with all fields — appears in the vendor list', async ({
+    page,
+    testPrefix,
+  }) => {
     const vendorsPage = new VendorsPage(page);
     let createdId: string | null = null;
+    const vendorName = `${testPrefix} Apex Construction LLC`;
 
     try {
       // Given: I am on the Budget > Vendors page
@@ -145,7 +152,7 @@ test.describe('Create vendor — full details (Scenario 2)', { tag: '@responsive
 
       // And: I fill in all fields
       await vendorsPage.createVendor({
-        name: 'E2E Apex Construction LLC',
+        name: vendorName,
         specialty: 'General Contractor',
         phone: '+1-555-234-5678',
         email: 'contact@e2e-apex.example.com',
@@ -159,19 +166,19 @@ test.describe('Create vendor — full details (Scenario 2)', { tag: '@responsive
       // And: The new vendor appears in the list
       await vendorsPage.waitForVendorsLoaded();
       const names = await vendorsPage.getVendorNames();
-      expect(names).toContain('E2E Apex Construction LLC');
+      expect(names).toContain(vendorName);
 
       // And: The list entry shows name, specialty, and contact info
-      const row = await vendorsPage.getTableRowByName('E2E Apex Construction LLC');
+      const row = await vendorsPage.getTableRowByName(vendorName);
       if (row) {
         // Specialty visible in table
         const rowText = await row.textContent();
         expect(rowText).toContain('General Contractor');
 
         // Cleanup: locate the ID via API for deletion
-        const resp = await page.request.get(`${API.vendors}?q=E2E+Apex+Construction+LLC`);
+        const resp = await page.request.get(`${API.vendors}?q=${encodeURIComponent(vendorName)}`);
         const body = (await resp.json()) as { vendors: VendorApiResponse[] };
-        const found = body.vendors.find((v) => v.name === 'E2E Apex Construction LLC');
+        const found = body.vendors.find((v) => v.name === vendorName);
         if (found) createdId = found.id;
       }
     } finally {
@@ -179,9 +186,10 @@ test.describe('Create vendor — full details (Scenario 2)', { tag: '@responsive
     }
   });
 
-  test('Create modal closes and resets after successful creation', async ({ page }) => {
+  test('Create modal closes and resets after successful creation', async ({ page, testPrefix }) => {
     const vendorsPage = new VendorsPage(page);
     let createdId: string | null = null;
+    const vendorName = `${testPrefix} Create Reset Test Vendor`;
 
     try {
       await vendorsPage.goto();
@@ -189,7 +197,7 @@ test.describe('Create vendor — full details (Scenario 2)', { tag: '@responsive
       await vendorsPage.openCreateModal();
 
       // When: I fill the name and submit
-      await vendorsPage.createVendor({ name: 'E2E Create Reset Test Vendor' });
+      await vendorsPage.createVendor({ name: vendorName });
 
       // Then: The modal closes
       await expect(vendorsPage.createModal).not.toBeVisible({ timeout: 8000 });
@@ -198,9 +206,9 @@ test.describe('Create vendor — full details (Scenario 2)', { tag: '@responsive
       await expect(vendorsPage.addVendorButton).toBeVisible();
       await expect(vendorsPage.addVendorButton).toBeEnabled();
     } finally {
-      const resp = await page.request.get(`${API.vendors}?q=E2E+Create+Reset+Test+Vendor`);
+      const resp = await page.request.get(`${API.vendors}?q=${encodeURIComponent(vendorName)}`);
       const body = (await resp.json()) as { vendors: VendorApiResponse[] };
-      const found = body.vendors.find((v) => v.name === 'E2E Create Reset Test Vendor');
+      const found = body.vendors.find((v) => v.name === vendorName);
       if (found) createdId = found.id;
       if (createdId) await deleteVendorViaApi(page, createdId);
     }
@@ -211,9 +219,13 @@ test.describe('Create vendor — full details (Scenario 2)', { tag: '@responsive
 // Scenario 3: Create a vendor — name only (minimal required fields)
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Create vendor — name only (Scenario 3)', { tag: '@responsive' }, () => {
-  test('Create vendor with only name — succeeds and appears in list', async ({ page }) => {
+  test('Create vendor with only name — succeeds and appears in list', async ({
+    page,
+    testPrefix,
+  }) => {
     const vendorsPage = new VendorsPage(page);
     let createdId: string | null = null;
+    const vendorName = `${testPrefix} Name Only Vendor`;
 
     try {
       await vendorsPage.goto();
@@ -221,7 +233,7 @@ test.describe('Create vendor — name only (Scenario 3)', { tag: '@responsive' }
       await vendorsPage.openCreateModal();
 
       // When: I fill in only the name
-      await vendorsPage.createVendor({ name: 'E2E Name Only Vendor' });
+      await vendorsPage.createVendor({ name: vendorName });
 
       // Then: The modal closes — vendor was created
       await expect(vendorsPage.createModal).not.toBeVisible({ timeout: 8000 });
@@ -229,11 +241,11 @@ test.describe('Create vendor — name only (Scenario 3)', { tag: '@responsive' }
       // And: The vendor appears in the list
       await vendorsPage.waitForVendorsLoaded();
       const names = await vendorsPage.getVendorNames();
-      expect(names).toContain('E2E Name Only Vendor');
+      expect(names).toContain(vendorName);
     } finally {
-      const resp = await page.request.get(`${API.vendors}?q=E2E+Name+Only+Vendor`);
+      const resp = await page.request.get(`${API.vendors}?q=${encodeURIComponent(vendorName)}`);
       const body = (await resp.json()) as { vendors: VendorApiResponse[] };
-      const found = body.vendors.find((v) => v.name === 'E2E Name Only Vendor');
+      const found = body.vendors.find((v) => v.name === vendorName);
       if (found) createdId = found.id;
       if (createdId) await deleteVendorViaApi(page, createdId);
     }
@@ -323,15 +335,19 @@ test.describe('Create vendor validation (Scenario 4)', { tag: '@responsive' }, (
 // Scenario 5: View vendor detail page
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Vendor detail page (Scenario 5)', { tag: '@responsive' }, () => {
-  test('Clicking a vendor name navigates to the detail page with all fields', async ({ page }) => {
+  test('Clicking a vendor name navigates to the detail page with all fields', async ({
+    page,
+    testPrefix,
+  }) => {
     const vendorsPage = new VendorsPage(page);
     const detailPage = new VendorDetailPage(page);
     let createdId: string | null = null;
+    const vendorName = `${testPrefix} Detail View Vendor`;
 
     try {
       // Given: A vendor with full details exists
       createdId = await createVendorViaApi(page, {
-        name: 'E2E Detail View Vendor',
+        name: vendorName,
         specialty: 'Plumbing',
         phone: '+1-555-111-2222',
         email: 'detail@e2e-test.example.com',
@@ -343,18 +359,18 @@ test.describe('Vendor detail page (Scenario 5)', { tag: '@responsive' }, () => {
       await vendorsPage.waitForVendorsLoaded();
 
       // When: I click on the vendor name link
-      await vendorsPage.clickView('E2E Detail View Vendor');
+      await vendorsPage.clickView(vendorName);
 
       // Then: I am on the vendor detail page
       await detailPage.pageTitle.waitFor({ state: 'visible', timeout: 8000 });
       expect(page.url()).toContain(`/budget/vendors/${createdId}`);
 
       // And: The page heading is the vendor name
-      await expect(detailPage.pageTitle).toHaveText('E2E Detail View Vendor');
+      await expect(detailPage.pageTitle).toHaveText(vendorName);
 
       // And: All vendor fields are shown in the info card
       const fields = await detailPage.getInfoFields();
-      expect(fields['Name']).toBe('E2E Detail View Vendor');
+      expect(fields['Name']).toBe(vendorName);
       expect(fields['Specialty']).toBe('Plumbing');
       expect(fields['Phone']).toContain('+1-555-111-2222');
       expect(fields['Email']).toContain('detail@e2e-test.example.com');
@@ -383,20 +399,22 @@ test.describe('Vendor detail page (Scenario 5)', { tag: '@responsive' }, () => {
 
   test('Detail page heading matches vendor name; breadcrumb shows vendor name', async ({
     page,
+    testPrefix,
   }) => {
     const detailPage = new VendorDetailPage(page);
     let createdId: string | null = null;
+    const vendorName = `${testPrefix} Breadcrumb Vendor`;
 
     try {
       createdId = await createVendorViaApi(page, {
-        name: 'E2E Breadcrumb Vendor',
+        name: vendorName,
         specialty: 'Roofing',
       });
 
       await detailPage.goto(createdId);
 
-      await expect(detailPage.pageTitle).toHaveText('E2E Breadcrumb Vendor');
-      await expect(detailPage.breadcrumbCurrent).toHaveText('E2E Breadcrumb Vendor');
+      await expect(detailPage.pageTitle).toHaveText(vendorName);
+      await expect(detailPage.breadcrumbCurrent).toHaveText(vendorName);
     } finally {
       if (createdId) await deleteVendorViaApi(page, createdId);
     }
@@ -420,6 +438,7 @@ test.describe('Vendor detail page (Scenario 5)', { tag: '@responsive' }, () => {
 test.describe('Edit vendor (Scenario 6)', { tag: '@responsive' }, () => {
   test('Edit phone and notes — changes shown on detail page and persist on reload', async ({
     page,
+    testPrefix,
   }) => {
     const detailPage = new VendorDetailPage(page);
     let createdId: string | null = null;
@@ -427,7 +446,7 @@ test.describe('Edit vendor (Scenario 6)', { tag: '@responsive' }, () => {
     try {
       // Given: A vendor exists
       createdId = await createVendorViaApi(page, {
-        name: 'E2E Editable Vendor',
+        name: `${testPrefix} Editable Vendor`,
         specialty: 'General Contractor',
         phone: '+1-555-000-0001',
         notes: 'Original notes',
@@ -463,13 +482,14 @@ test.describe('Edit vendor (Scenario 6)', { tag: '@responsive' }, () => {
 
   test('Edit — cancelling restores original values without making API changes', async ({
     page,
+    testPrefix,
   }) => {
     const detailPage = new VendorDetailPage(page);
     let createdId: string | null = null;
 
     try {
       createdId = await createVendorViaApi(page, {
-        name: 'E2E Cancel Edit Vendor',
+        name: `${testPrefix} Cancel Edit Vendor`,
         specialty: 'Electrician',
         phone: '+1-555-777-8888',
       });
@@ -489,13 +509,13 @@ test.describe('Edit vendor (Scenario 6)', { tag: '@responsive' }, () => {
     }
   });
 
-  test('Edit — clearing name disables Save Changes button', async ({ page }) => {
+  test('Edit — clearing name disables Save Changes button', async ({ page, testPrefix }) => {
     const detailPage = new VendorDetailPage(page);
     let createdId: string | null = null;
 
     try {
       createdId = await createVendorViaApi(page, {
-        name: 'E2E Save Guard Vendor',
+        name: `${testPrefix} Save Guard Vendor`,
       });
 
       await detailPage.goto(createdId);
@@ -521,21 +541,23 @@ test.describe('Edit vendor (Scenario 6)', { tag: '@responsive' }, () => {
 test.describe('Delete vendor — no references (Scenario 8)', { tag: '@responsive' }, () => {
   test('Delete confirmation modal opens with vendor name; confirming removes vendor', async ({
     page,
+    testPrefix,
   }) => {
     const vendorsPage = new VendorsPage(page);
+    const vendorName = `${testPrefix} Delete Target Vendor`;
 
     // Given: A vendor exists with no invoices
-    const createdId = await createVendorViaApi(page, { name: 'E2E Delete Target Vendor' });
+    const createdId = await createVendorViaApi(page, { name: vendorName });
 
     // When: I navigate to Budget > Vendors
     await vendorsPage.goto();
     await vendorsPage.waitForVendorsLoaded();
 
     const namesBefore = await vendorsPage.getVendorNames();
-    expect(namesBefore).toContain('E2E Delete Target Vendor');
+    expect(namesBefore).toContain(vendorName);
 
     // And: I click Delete on the vendor
-    await vendorsPage.openDeleteModal('E2E Delete Target Vendor');
+    await vendorsPage.openDeleteModal(vendorName);
 
     // Then: The modal is visible
     await expect(vendorsPage.deleteModal).toBeVisible();
@@ -545,7 +567,7 @@ test.describe('Delete vendor — no references (Scenario 8)', { tag: '@responsiv
 
     // And: The modal text mentions the vendor name
     const modalText = await vendorsPage.deleteModal.textContent();
-    expect(modalText).toContain('E2E Delete Target Vendor');
+    expect(modalText).toContain(vendorName);
 
     // When: I confirm deletion
     await vendorsPage.confirmDelete();
@@ -556,28 +578,29 @@ test.describe('Delete vendor — no references (Scenario 8)', { tag: '@responsiv
     // And: The vendor is removed from the list
     await vendorsPage.waitForVendorsLoaded();
     const namesAfter = await vendorsPage.getVendorNames();
-    expect(namesAfter).not.toContain('E2E Delete Target Vendor');
+    expect(namesAfter).not.toContain(vendorName);
 
     // Note: vendor was deleted via UI — no API cleanup needed
     void createdId;
   });
 
-  test('Cancelling delete modal leaves vendor in the list', async ({ page }) => {
+  test('Cancelling delete modal leaves vendor in the list', async ({ page, testPrefix }) => {
     const vendorsPage = new VendorsPage(page);
     let createdId: string | null = null;
+    const vendorName = `${testPrefix} Cancel Delete Vendor`;
 
     try {
-      createdId = await createVendorViaApi(page, { name: 'E2E Cancel Delete Vendor' });
+      createdId = await createVendorViaApi(page, { name: vendorName });
 
       await vendorsPage.goto();
       await vendorsPage.waitForVendorsLoaded();
 
-      await vendorsPage.openDeleteModal('E2E Cancel Delete Vendor');
+      await vendorsPage.openDeleteModal(vendorName);
       await vendorsPage.cancelDelete();
 
       // Vendor still in list
       const names = await vendorsPage.getVendorNames();
-      expect(names).toContain('E2E Cancel Delete Vendor');
+      expect(names).toContain(vendorName);
     } finally {
       if (createdId) await deleteVendorViaApi(page, createdId);
     }
@@ -585,11 +608,14 @@ test.describe('Delete vendor — no references (Scenario 8)', { tag: '@responsiv
 
   test('Delete from detail page — navigates back to vendor list after confirmation', async ({
     page,
+    testPrefix,
   }) => {
     const detailPage = new VendorDetailPage(page);
 
     // Given: A vendor exists
-    const createdId = await createVendorViaApi(page, { name: 'E2E Detail Delete Vendor' });
+    const createdId = await createVendorViaApi(page, {
+      name: `${testPrefix} Detail Delete Vendor`,
+    });
 
     // When: I navigate to its detail page and click Delete
     await detailPage.goto(createdId);
@@ -613,12 +639,13 @@ test.describe('Delete vendor — no references (Scenario 8)', { tag: '@responsiv
 test.describe('Delete blocked by 409 (Scenario 9)', { tag: '@responsive' }, () => {
   test('409 response on delete shows error in modal; confirm button hidden; vendor remains', async ({
     page,
+    testPrefix,
   }) => {
     const vendorsPage = new VendorsPage(page);
     let createdId: string | null = null;
 
     try {
-      createdId = await createVendorViaApi(page, { name: 'E2E Delete Blocked Vendor' });
+      createdId = await createVendorViaApi(page, { name: `${testPrefix} Delete Blocked Vendor` });
 
       // Intercept DELETE to return 409
       await page.route(`${API.vendors}/${createdId}`, async (route) => {
@@ -643,7 +670,7 @@ test.describe('Delete blocked by 409 (Scenario 9)', { tag: '@responsive' }, () =
       await vendorsPage.waitForVendorsLoaded();
 
       // When: I attempt to delete and confirm
-      await vendorsPage.openDeleteModal('E2E Delete Blocked Vendor');
+      await vendorsPage.openDeleteModal(`${testPrefix} Delete Blocked Vendor`);
       await vendorsPage.confirmDelete();
 
       // Then: Error message appears in the modal
@@ -667,12 +694,15 @@ test.describe('Delete blocked by 409 (Scenario 9)', { tag: '@responsive' }, () =
 
   test('409 on detail page delete shows error in modal; vendor not navigated away', async ({
     page,
+    testPrefix,
   }) => {
     const detailPage = new VendorDetailPage(page);
     let createdId: string | null = null;
 
     try {
-      createdId = await createVendorViaApi(page, { name: 'E2E Detail Delete Blocked Vendor' });
+      createdId = await createVendorViaApi(page, {
+        name: `${testPrefix} Detail Delete Blocked Vendor`,
+      });
 
       // Intercept DELETE on this vendor
       await page.route(`${API.vendors}/${createdId}`, async (route) => {
@@ -824,27 +854,31 @@ test.describe('Pagination (Scenario 11)', { tag: '@responsive' }, () => {
 test.describe('Search vendors (Scenario 12)', { tag: '@responsive' }, () => {
   test('Search by partial name — only matching vendor is shown (case-insensitive)', async ({
     page,
+    testPrefix,
   }) => {
     const vendorsPage = new VendorsPage(page);
     const created: string[] = [];
+    const alphaName = `${testPrefix} Alpha Construction`;
+    const betaName = `${testPrefix} Beta Plumbing`;
+    const gammaName = `${testPrefix} Gamma Electric`;
 
     try {
       // Given: Multiple vendors exist
-      created.push(await createVendorViaApi(page, { name: 'E2E Alpha Construction' }));
-      created.push(await createVendorViaApi(page, { name: 'E2E Beta Plumbing' }));
-      created.push(await createVendorViaApi(page, { name: 'E2E Gamma Electric' }));
+      created.push(await createVendorViaApi(page, { name: alphaName }));
+      created.push(await createVendorViaApi(page, { name: betaName }));
+      created.push(await createVendorViaApi(page, { name: gammaName }));
 
       await vendorsPage.goto();
       await vendorsPage.waitForVendorsLoaded();
 
-      // When: I type "alpha" (lowercase) in the search field
-      await vendorsPage.search('alpha');
+      // When: I type the prefix + "alpha" in the search field
+      await vendorsPage.search(`${testPrefix} Alpha`);
 
-      // Then: Only "E2E Alpha Construction" is visible
+      // Then: Only the alpha vendor is visible
       const names = await vendorsPage.getVendorNames();
-      expect(names).toContain('E2E Alpha Construction');
-      expect(names).not.toContain('E2E Beta Plumbing');
-      expect(names).not.toContain('E2E Gamma Electric');
+      expect(names).toContain(alphaName);
+      expect(names).not.toContain(betaName);
+      expect(names).not.toContain(gammaName);
     } finally {
       for (const id of created) {
         await deleteVendorViaApi(page, id);
@@ -852,16 +886,17 @@ test.describe('Search vendors (Scenario 12)', { tag: '@responsive' }, () => {
     }
   });
 
-  test('Search is updated via URL query param ?q=', async ({ page }) => {
+  test('Search is updated via URL query param ?q=', async ({ page, testPrefix }) => {
     const vendorsPage = new VendorsPage(page);
     let createdId: string | null = null;
+    const vendorName = `${testPrefix} URL Search Vendor`;
 
     try {
-      createdId = await createVendorViaApi(page, { name: 'E2E URL Search Vendor' });
+      createdId = await createVendorViaApi(page, { name: vendorName });
 
       await vendorsPage.goto();
       await vendorsPage.waitForVendorsLoaded();
-      await vendorsPage.search('E2E URL Search');
+      await vendorsPage.search(vendorName);
 
       // The URL should contain the q param
       expect(page.url()).toContain('q=');
@@ -875,20 +910,25 @@ test.describe('Search vendors (Scenario 12)', { tag: '@responsive' }, () => {
 // Scenario 13: Filter by specialty via search
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Search by specialty (Scenario 13)', { tag: '@responsive' }, () => {
-  test('Searching for a specialty term filters vendors to matching ones', async ({ page }) => {
+  test('Searching for a specialty term filters vendors to matching ones', async ({
+    page,
+    testPrefix,
+  }) => {
     const vendorsPage = new VendorsPage(page);
     const created: string[] = [];
+    // Use testPrefix in the specialty to make it unique across workers
+    const uniqueSpecialty = `${testPrefix}SpecialtyXYZ`;
 
     try {
       created.push(
         await createVendorViaApi(page, {
-          name: 'E2E Specialty Match',
-          specialty: 'E2ESpecialtyXYZ',
+          name: `${testPrefix} Specialty Match`,
+          specialty: uniqueSpecialty,
         }),
       );
       created.push(
         await createVendorViaApi(page, {
-          name: 'E2E Specialty No Match',
+          name: `${testPrefix} Specialty No Match`,
           specialty: 'OtherTrade',
         }),
       );
@@ -896,13 +936,13 @@ test.describe('Search by specialty (Scenario 13)', { tag: '@responsive' }, () =>
       await vendorsPage.goto();
       await vendorsPage.waitForVendorsLoaded();
 
-      // When: I search for the specialty term
-      await vendorsPage.search('E2ESpecialtyXYZ');
+      // When: I search for the unique specialty term
+      await vendorsPage.search(uniqueSpecialty);
 
       // Then: Only the vendor with that specialty is shown
       const names = await vendorsPage.getVendorNames();
-      expect(names).toContain('E2E Specialty Match');
-      expect(names).not.toContain('E2E Specialty No Match');
+      expect(names).toContain(`${testPrefix} Specialty Match`);
+      expect(names).not.toContain(`${testPrefix} Specialty No Match`);
     } finally {
       for (const id of created) {
         await deleteVendorViaApi(page, id);
@@ -915,13 +955,14 @@ test.describe('Search by specialty (Scenario 13)', { tag: '@responsive' }, () =>
 // Scenario 14: List shows scannable key info (name, specialty, contact)
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('List shows key info (Scenario 14)', { tag: '@responsive' }, () => {
-  test('Table row shows vendor name, specialty, phone, and email', async ({ page }) => {
+  test('Table row shows vendor name, specialty, phone, and email', async ({ page, testPrefix }) => {
     const vendorsPage = new VendorsPage(page);
     let createdId: string | null = null;
+    const vendorName = `${testPrefix} Full Info Vendor`;
 
     try {
       createdId = await createVendorViaApi(page, {
-        name: 'E2E Full Info Vendor',
+        name: vendorName,
         specialty: 'Landscaping',
         phone: '+1-555-333-4444',
         email: 'fullinfo@e2e-test.example.com',
@@ -931,9 +972,9 @@ test.describe('List shows key info (Scenario 14)', { tag: '@responsive' }, () =>
       await vendorsPage.waitForVendorsLoaded();
 
       // Search to find this vendor specifically
-      await vendorsPage.search('E2E Full Info Vendor');
+      await vendorsPage.search(vendorName);
 
-      const row = await vendorsPage.getTableRowByName('E2E Full Info Vendor');
+      const row = await vendorsPage.getTableRowByName(vendorName);
       expect(row).not.toBeNull();
 
       if (row) {
@@ -949,13 +990,14 @@ test.describe('List shows key info (Scenario 14)', { tag: '@responsive' }, () =>
 
   test('Table has correct column headers: Name, Specialty, Phone, Email, Actions', async ({
     page,
+    testPrefix,
   }) => {
     const vendorsPage = new VendorsPage(page);
     let createdId: string | null = null;
 
     try {
       // Need at least one vendor to display the table
-      createdId = await createVendorViaApi(page, { name: 'E2E Header Check Vendor' });
+      createdId = await createVendorViaApi(page, { name: `${testPrefix} Header Check Vendor` });
 
       await vendorsPage.goto();
       await vendorsPage.waitForVendorsLoaded();
@@ -979,20 +1021,22 @@ test.describe('List shows key info (Scenario 14)', { tag: '@responsive' }, () =>
 test.describe('Navigation between list and detail pages', { tag: '@responsive' }, () => {
   test('Clicking vendor link navigates to detail page; breadcrumb "Vendors" returns to list', async ({
     page,
+    testPrefix,
   }) => {
     const vendorsPage = new VendorsPage(page);
     const detailPage = new VendorDetailPage(page);
     let createdId: string | null = null;
+    const vendorName = `${testPrefix} Navigation Vendor`;
 
     try {
-      createdId = await createVendorViaApi(page, { name: 'E2E Navigation Vendor' });
+      createdId = await createVendorViaApi(page, { name: vendorName });
 
       // Start at list
       await vendorsPage.goto();
       await vendorsPage.waitForVendorsLoaded();
 
       // Navigate to detail
-      await vendorsPage.clickView('E2E Navigation Vendor');
+      await vendorsPage.clickView(vendorName);
       await detailPage.pageTitle.waitFor({ state: 'visible', timeout: 8000 });
       expect(page.url()).toContain('/budget/vendors/');
 
@@ -1046,12 +1090,15 @@ test.describe('Responsive layout (Scenario 17)', { tag: '@responsive' }, () => {
 
   test('Vendor detail page renders without horizontal scroll on current viewport', async ({
     page,
+    testPrefix,
   }) => {
     const detailPage = new VendorDetailPage(page);
     let createdId: string | null = null;
 
     try {
-      createdId = await createVendorViaApi(page, { name: 'E2E Responsive Detail Vendor' });
+      createdId = await createVendorViaApi(page, {
+        name: `${testPrefix} Responsive Detail Vendor`,
+      });
 
       await detailPage.goto(createdId);
 
@@ -1065,7 +1112,10 @@ test.describe('Responsive layout (Scenario 17)', { tag: '@responsive' }, () => {
     }
   });
 
-  test('Mobile: card view is shown instead of table (viewport < 768px)', async ({ page }) => {
+  test('Mobile: card view is shown instead of table (viewport < 768px)', async ({
+    page,
+    testPrefix,
+  }) => {
     const viewport = page.viewportSize();
 
     // Only run the mobile-specific assertion on narrow viewports
@@ -1079,7 +1129,7 @@ test.describe('Responsive layout (Scenario 17)', { tag: '@responsive' }, () => {
 
     try {
       createdId = await createVendorViaApi(page, {
-        name: 'E2E Mobile Card Vendor',
+        name: `${testPrefix} Mobile Card Vendor`,
         specialty: 'Plumbing',
         phone: '+1-555-100-2000',
       });
@@ -1095,7 +1145,7 @@ test.describe('Responsive layout (Scenario 17)', { tag: '@responsive' }, () => {
     }
   });
 
-  test('Desktop: table is visible (viewport >= 768px)', async ({ page }) => {
+  test('Desktop: table is visible (viewport >= 768px)', async ({ page, testPrefix }) => {
     const viewport = page.viewportSize();
 
     // Only run on desktop/tablet viewports
@@ -1108,7 +1158,9 @@ test.describe('Responsive layout (Scenario 17)', { tag: '@responsive' }, () => {
     let createdId: string | null = null;
 
     try {
-      createdId = await createVendorViaApi(page, { name: 'E2E Desktop Table Vendor' });
+      createdId = await createVendorViaApi(page, {
+        name: `${testPrefix} Desktop Table Vendor`,
+      });
 
       await vendorsPage.goto();
       await vendorsPage.waitForVendorsLoaded();
@@ -1182,12 +1234,14 @@ test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
     await expect(vendorsPage.createModal).not.toBeVisible({ timeout: 5000 });
   });
 
-  test('Vendor detail page renders correctly in dark mode', async ({ page }) => {
+  test('Vendor detail page renders correctly in dark mode', async ({ page, testPrefix }) => {
     const detailPage = new VendorDetailPage(page);
     let createdId: string | null = null;
 
     try {
-      createdId = await createVendorViaApi(page, { name: 'E2E Dark Mode Detail Vendor' });
+      createdId = await createVendorViaApi(page, {
+        name: `${testPrefix} Dark Mode Detail Vendor`,
+      });
 
       await page.goto(`/budget/vendors/${createdId}`);
       await page.evaluate(() => {
@@ -1209,12 +1263,13 @@ test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
     }
   });
 
-  test('Delete modal is usable in dark mode', async ({ page }) => {
+  test('Delete modal is usable in dark mode', async ({ page, testPrefix }) => {
     const vendorsPage = new VendorsPage(page);
     let createdId: string | null = null;
+    const vendorName = `${testPrefix} Dark Mode Delete Vendor`;
 
     try {
-      createdId = await createVendorViaApi(page, { name: 'E2E Dark Mode Delete Vendor' });
+      createdId = await createVendorViaApi(page, { name: vendorName });
 
       await page.goto('/budget/vendors');
       await page.evaluate(() => {
@@ -1223,7 +1278,7 @@ test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
 
       await vendorsPage.heading.waitFor({ state: 'visible', timeout: 8000 });
 
-      await vendorsPage.openDeleteModal('E2E Dark Mode Delete Vendor');
+      await vendorsPage.openDeleteModal(vendorName);
 
       // Modal visible and usable
       await expect(vendorsPage.deleteModal).toBeVisible();

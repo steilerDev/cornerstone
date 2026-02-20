@@ -9,6 +9,9 @@ import { AppShellPage } from '../../pages/AppShellPage.js';
 import { TEST_ADMIN, ROUTES } from '../../fixtures/testData.js';
 
 test.describe('Change Password', { tag: '@responsive' }, () => {
+  // Serialize tests within this describe block — they all modify the shared admin
+  // user's password and must not run in parallel with each other.
+  test.describe.configure({ mode: 'serial' });
   test('Local user sees password change form', async ({ page }) => {
     const profilePage = new ProfilePage(page);
 

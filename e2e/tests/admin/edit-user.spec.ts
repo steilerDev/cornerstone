@@ -7,6 +7,9 @@ import { UserManagementPage } from '../../pages/UserManagementPage.js';
 import { TEST_ADMIN } from '../../fixtures/testData.js';
 
 test.describe('Edit User', () => {
+  // Serialize tests within this describe block — they all modify the shared admin
+  // user record and must not run in parallel with each other.
+  test.describe.configure({ mode: 'serial' });
   test('Edit modal opens with pre-filled data', async ({ page }) => {
     const userManagementPage = new UserManagementPage(page);
 
