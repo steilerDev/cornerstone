@@ -61,6 +61,50 @@ describe('Work Item Service', () => {
     return tagId;
   }
 
+  /**
+   * Helper: Create a test budget category
+   */
+  function createTestBudgetCategory(name: string) {
+    const id = `cat-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    const now = new Date().toISOString();
+    db.insert(schema.budgetCategories)
+      .values({
+        id,
+        name,
+        description: null,
+        color: null,
+        sortOrder: 100,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    return id;
+  }
+
+  /**
+   * Helper: Create a test budget source
+   */
+  function createTestBudgetSource(name: string) {
+    const id = `src-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    const now = new Date().toISOString();
+    db.insert(schema.budgetSources)
+      .values({
+        id,
+        name,
+        sourceType: 'bank_loan',
+        totalAmount: 500000,
+        interestRate: null,
+        terms: null,
+        notes: null,
+        status: 'active',
+        createdBy: null,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    return id;
+  }
+
   beforeEach(() => {
     const testDb = createTestDb();
     sqlite = testDb.sqlite;
@@ -1031,6 +1075,383 @@ describe('Work Item Service', () => {
       // Then: Assigned user summary is included
       expect(result.items[0].assignedUser).toBeDefined();
       expect(result.items[0].assignedUser?.displayName).toBe('Assignee User');
+    });
+  });
+
+  // ─── Budget fields: createWorkItem() ──────────────────────────────────────
+
+  describe('createWorkItem() — budget fields (Story #147)', () => {
+    it('creates work item with all budget fields set', () => {
+      // Given: Valid budget category and source
+      const userId = createTestUser('budget-user@example.com', 'Budget User');
+      const categoryId = createTestBudgetCategory('Site-Specific Labor');
+      const sourceId = createTestBudgetSource('Home Equity Loan');
+
+      const result = workItemService.createWorkItem(db, userId, {
+        title: 'Install electrical',
+        plannedBudget: 15000,
+        actualCost: 12500.5,
+        confidencePercent: 80,
+        budgetCategoryId: categoryId,
+        budgetSourceId: sourceId,
+      });
+
+      expect(result.plannedBudget).toBe(15000);
+      expect(result.actualCost).toBe(12500.5);
+      expect(result.confidencePercent).toBe(80);
+      expect(result.budgetCategoryId).toBe(categoryId);
+      expect(result.budgetSourceId).toBe(sourceId);
+    });
+
+    it('budget fields default to null when not provided', () => {
+      const userId = createTestUser('user2@example.com', 'User 2');
+
+      const result = workItemService.createWorkItem(db, userId, {
+        title: 'No Budget Task',
+      });
+
+      expect(result.plannedBudget).toBeNull();
+      expect(result.actualCost).toBeNull();
+      expect(result.confidencePercent).toBeNull();
+      expect(result.budgetCategoryId).toBeNull();
+      expect(result.budgetSourceId).toBeNull();
+    });
+
+    it('allows plannedBudget of 0', () => {
+      const userId = createTestUser('user3@example.com', 'User 3');
+
+      const result = workItemService.createWorkItem(db, userId, {
+        title: 'Zero Budget Task',
+        plannedBudget: 0,
+      });
+
+      expect(result.plannedBudget).toBe(0);
+    });
+
+    it('allows actualCost of 0', () => {
+      const userId = createTestUser('user4@example.com', 'User 4');
+
+      const result = workItemService.createWorkItem(db, userId, {
+        title: 'Zero Cost Task',
+        actualCost: 0,
+      });
+
+      expect(result.actualCost).toBe(0);
+    });
+
+    it('allows confidencePercent of 0 (boundary)', () => {
+      const userId = createTestUser('user5@example.com', 'User 5');
+
+      const result = workItemService.createWorkItem(db, userId, {
+        title: 'Zero Confidence Task',
+        confidencePercent: 0,
+      });
+
+      expect(result.confidencePercent).toBe(0);
+    });
+
+    it('allows confidencePercent of 100 (boundary)', () => {
+      const userId = createTestUser('user6@example.com', 'User 6');
+
+      const result = workItemService.createWorkItem(db, userId, {
+        title: 'Full Confidence Task',
+        confidencePercent: 100,
+      });
+
+      expect(result.confidencePercent).toBe(100);
+    });
+
+    it('throws ValidationError when plannedBudget is negative', () => {
+      const userId = createTestUser('user7@example.com', 'User 7');
+
+      expect(() =>
+        workItemService.createWorkItem(db, userId, {
+          title: 'Test',
+          plannedBudget: -1,
+        }),
+      ).toThrow(ValidationError);
+      expect(() =>
+        workItemService.createWorkItem(db, userId, {
+          title: 'Test',
+          plannedBudget: -1,
+        }),
+      ).toThrow('plannedBudget must be >= 0');
+    });
+
+    it('throws ValidationError when actualCost is negative', () => {
+      const userId = createTestUser('user8@example.com', 'User 8');
+
+      expect(() =>
+        workItemService.createWorkItem(db, userId, {
+          title: 'Test',
+          actualCost: -0.01,
+        }),
+      ).toThrow(ValidationError);
+      expect(() =>
+        workItemService.createWorkItem(db, userId, {
+          title: 'Test',
+          actualCost: -0.01,
+        }),
+      ).toThrow('actualCost must be >= 0');
+    });
+
+    it('throws ValidationError when confidencePercent is below 0', () => {
+      const userId = createTestUser('user9@example.com', 'User 9');
+
+      expect(() =>
+        workItemService.createWorkItem(db, userId, {
+          title: 'Test',
+          confidencePercent: -1,
+        }),
+      ).toThrow(ValidationError);
+      expect(() =>
+        workItemService.createWorkItem(db, userId, {
+          title: 'Test',
+          confidencePercent: -1,
+        }),
+      ).toThrow('confidencePercent must be between 0 and 100');
+    });
+
+    it('throws ValidationError when confidencePercent is above 100', () => {
+      const userId = createTestUser('user10@example.com', 'User 10');
+
+      expect(() =>
+        workItemService.createWorkItem(db, userId, {
+          title: 'Test',
+          confidencePercent: 101,
+        }),
+      ).toThrow(ValidationError);
+      expect(() =>
+        workItemService.createWorkItem(db, userId, {
+          title: 'Test',
+          confidencePercent: 101,
+        }),
+      ).toThrow('confidencePercent must be between 0 and 100');
+    });
+
+    it('throws ValidationError when budgetCategoryId does not exist', () => {
+      const userId = createTestUser('user11@example.com', 'User 11');
+
+      expect(() =>
+        workItemService.createWorkItem(db, userId, {
+          title: 'Test',
+          budgetCategoryId: 'non-existent-category',
+        }),
+      ).toThrow(ValidationError);
+      expect(() =>
+        workItemService.createWorkItem(db, userId, {
+          title: 'Test',
+          budgetCategoryId: 'non-existent-category',
+        }),
+      ).toThrow('Budget category not found: non-existent-category');
+    });
+
+    it('throws ValidationError when budgetSourceId does not exist', () => {
+      const userId = createTestUser('user12@example.com', 'User 12');
+
+      expect(() =>
+        workItemService.createWorkItem(db, userId, {
+          title: 'Test',
+          budgetSourceId: 'non-existent-source',
+        }),
+      ).toThrow(ValidationError);
+      expect(() =>
+        workItemService.createWorkItem(db, userId, {
+          title: 'Test',
+          budgetSourceId: 'non-existent-source',
+        }),
+      ).toThrow('Budget source not found: non-existent-source');
+    });
+  });
+
+  // ─── Budget fields: updateWorkItem() ──────────────────────────────────────
+
+  describe('updateWorkItem() — budget fields (Story #147)', () => {
+    it('updates plannedBudget on existing work item', () => {
+      const userId = createTestUser('budget-upd@example.com', 'Budget Update');
+      const workItem = workItemService.createWorkItem(db, userId, {
+        title: 'Budget Work',
+        plannedBudget: 10000,
+      });
+
+      const updated = workItemService.updateWorkItem(db, workItem.id, {
+        plannedBudget: 20000,
+      });
+
+      expect(updated.plannedBudget).toBe(20000);
+    });
+
+    it('updates actualCost on existing work item', () => {
+      const userId = createTestUser('cost-upd@example.com', 'Cost Update');
+      const workItem = workItemService.createWorkItem(db, userId, {
+        title: 'Cost Work',
+        actualCost: 5000,
+      });
+
+      const updated = workItemService.updateWorkItem(db, workItem.id, {
+        actualCost: 7500.75,
+      });
+
+      expect(updated.actualCost).toBe(7500.75);
+    });
+
+    it('updates confidencePercent on existing work item', () => {
+      const userId = createTestUser('conf-upd@example.com', 'Confidence Update');
+      const workItem = workItemService.createWorkItem(db, userId, {
+        title: 'Confidence Work',
+        confidencePercent: 50,
+      });
+
+      const updated = workItemService.updateWorkItem(db, workItem.id, {
+        confidencePercent: 90,
+      });
+
+      expect(updated.confidencePercent).toBe(90);
+    });
+
+    it('sets budgetCategoryId on existing work item', () => {
+      const userId = createTestUser('cat-upd@example.com', 'Category Update');
+      const categoryId = createTestBudgetCategory('Roof-Specific Materials');
+      const workItem = workItemService.createWorkItem(db, userId, { title: 'Category Work' });
+
+      const updated = workItemService.updateWorkItem(db, workItem.id, {
+        budgetCategoryId: categoryId,
+      });
+
+      expect(updated.budgetCategoryId).toBe(categoryId);
+    });
+
+    it('clears budgetCategoryId by setting to null', () => {
+      const userId = createTestUser('cat-clr@example.com', 'Category Clear');
+      const categoryId = createTestBudgetCategory('Temporary Category');
+      const workItem = workItemService.createWorkItem(db, userId, {
+        title: 'Work With Category',
+        budgetCategoryId: categoryId,
+      });
+
+      const updated = workItemService.updateWorkItem(db, workItem.id, {
+        budgetCategoryId: null,
+      });
+
+      expect(updated.budgetCategoryId).toBeNull();
+    });
+
+    it('sets budgetSourceId on existing work item', () => {
+      const userId = createTestUser('src-upd@example.com', 'Source Update');
+      const sourceId = createTestBudgetSource('Construction Loan');
+      const workItem = workItemService.createWorkItem(db, userId, { title: 'Source Work' });
+
+      const updated = workItemService.updateWorkItem(db, workItem.id, {
+        budgetSourceId: sourceId,
+      });
+
+      expect(updated.budgetSourceId).toBe(sourceId);
+    });
+
+    it('clears budgetSourceId by setting to null', () => {
+      const userId = createTestUser('src-clr@example.com', 'Source Clear');
+      const sourceId = createTestBudgetSource('Temporary Source');
+      const workItem = workItemService.createWorkItem(db, userId, {
+        title: 'Work With Source',
+        budgetSourceId: sourceId,
+      });
+
+      const updated = workItemService.updateWorkItem(db, workItem.id, {
+        budgetSourceId: null,
+      });
+
+      expect(updated.budgetSourceId).toBeNull();
+    });
+
+    it('clears plannedBudget by setting to null', () => {
+      const userId = createTestUser('plan-clr@example.com', 'Plan Clear');
+      const workItem = workItemService.createWorkItem(db, userId, {
+        title: 'Work With Budget',
+        plannedBudget: 50000,
+      });
+
+      const updated = workItemService.updateWorkItem(db, workItem.id, {
+        plannedBudget: null,
+      });
+
+      expect(updated.plannedBudget).toBeNull();
+    });
+
+    it('throws ValidationError when updating plannedBudget to negative', () => {
+      const userId = createTestUser('neg-plan@example.com', 'Neg Plan');
+      const workItem = workItemService.createWorkItem(db, userId, { title: 'Test' });
+
+      expect(() =>
+        workItemService.updateWorkItem(db, workItem.id, { plannedBudget: -500 }),
+      ).toThrow(ValidationError);
+      expect(() =>
+        workItemService.updateWorkItem(db, workItem.id, { plannedBudget: -500 }),
+      ).toThrow('plannedBudget must be >= 0');
+    });
+
+    it('throws ValidationError when updating actualCost to negative', () => {
+      const userId = createTestUser('neg-cost@example.com', 'Neg Cost');
+      const workItem = workItemService.createWorkItem(db, userId, { title: 'Test' });
+
+      expect(() =>
+        workItemService.updateWorkItem(db, workItem.id, { actualCost: -1 }),
+      ).toThrow(ValidationError);
+      expect(() =>
+        workItemService.updateWorkItem(db, workItem.id, { actualCost: -1 }),
+      ).toThrow('actualCost must be >= 0');
+    });
+
+    it('throws ValidationError when updating confidencePercent below 0', () => {
+      const userId = createTestUser('neg-conf@example.com', 'Neg Conf');
+      const workItem = workItemService.createWorkItem(db, userId, { title: 'Test' });
+
+      expect(() =>
+        workItemService.updateWorkItem(db, workItem.id, { confidencePercent: -1 }),
+      ).toThrow(ValidationError);
+      expect(() =>
+        workItemService.updateWorkItem(db, workItem.id, { confidencePercent: -1 }),
+      ).toThrow('confidencePercent must be between 0 and 100');
+    });
+
+    it('throws ValidationError when updating confidencePercent above 100', () => {
+      const userId = createTestUser('over-conf@example.com', 'Over Conf');
+      const workItem = workItemService.createWorkItem(db, userId, { title: 'Test' });
+
+      expect(() =>
+        workItemService.updateWorkItem(db, workItem.id, { confidencePercent: 101 }),
+      ).toThrow(ValidationError);
+    });
+
+    it('throws ValidationError when updating budgetCategoryId to non-existent ID', () => {
+      const userId = createTestUser('bad-cat@example.com', 'Bad Cat');
+      const workItem = workItemService.createWorkItem(db, userId, { title: 'Test' });
+
+      expect(() =>
+        workItemService.updateWorkItem(db, workItem.id, {
+          budgetCategoryId: 'non-existent-category',
+        }),
+      ).toThrow(ValidationError);
+      expect(() =>
+        workItemService.updateWorkItem(db, workItem.id, {
+          budgetCategoryId: 'non-existent-category',
+        }),
+      ).toThrow('Budget category not found: non-existent-category');
+    });
+
+    it('throws ValidationError when updating budgetSourceId to non-existent ID', () => {
+      const userId = createTestUser('bad-src@example.com', 'Bad Src');
+      const workItem = workItemService.createWorkItem(db, userId, { title: 'Test' });
+
+      expect(() =>
+        workItemService.updateWorkItem(db, workItem.id, {
+          budgetSourceId: 'non-existent-source',
+        }),
+      ).toThrow(ValidationError);
+      expect(() =>
+        workItemService.updateWorkItem(db, workItem.id, {
+          budgetSourceId: 'non-existent-source',
+        }),
+      ).toThrow('Budget source not found: non-existent-source');
     });
   });
 });
