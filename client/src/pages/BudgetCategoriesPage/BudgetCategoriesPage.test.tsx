@@ -101,14 +101,15 @@ describe('BudgetCategoriesPage', () => {
   // ─── Page structure ─────────────────────────────────────────────────────────
 
   describe('page structure', () => {
-    it('renders the page heading "Budget Categories"', async () => {
+    it('renders the page heading "Budget" and section heading "Categories"', async () => {
       mockFetchBudgetCategories.mockResolvedValueOnce(emptyResponse);
 
       renderPage();
 
       await waitFor(() => {
+        expect(screen.getByRole('heading', { name: /^budget$/i, level: 1 })).toBeInTheDocument();
         expect(
-          screen.getByRole('heading', { name: /budget categories/i, level: 1 }),
+          screen.getByRole('heading', { name: /^categories$/i, level: 2 }),
         ).toBeInTheDocument();
       });
     });

@@ -64,12 +64,12 @@ describe('Sidebar', () => {
     onClose: mockOnClose,
   });
 
-  it('renders all 13 navigation links plus 1 GitHub footer link', () => {
+  it('renders all 9 navigation links plus 1 GitHub footer link', () => {
     renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
 
     const links = screen.getAllByRole('link');
-    // 13 nav links + 1 GitHub link in the footer
-    expect(links).toHaveLength(14);
+    // 9 nav links + 1 GitHub link in the footer
+    expect(links).toHaveLength(10);
   });
 
   it('renders navigation with correct aria-label', () => {
@@ -87,10 +87,7 @@ describe('Sidebar', () => {
       'href',
       '/work-items',
     );
-    expect(screen.getByRole('link', { name: /budget categories/i })).toHaveAttribute(
-      'href',
-      '/budget/categories',
-    );
+    expect(screen.getByRole('link', { name: /^budget$/i })).toHaveAttribute('href', '/budget');
     expect(screen.getByRole('link', { name: /timeline/i })).toHaveAttribute('href', '/timeline');
     expect(screen.getByRole('link', { name: /household items/i })).toHaveAttribute(
       'href',
@@ -130,12 +127,12 @@ describe('Sidebar', () => {
     expect(screen.getByRole('link', { name: /dashboard/i })).not.toHaveClass('active');
   });
 
-  it('budget categories link is active at /budget/categories', () => {
+  it('budget link is active at /budget', () => {
     renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />, {
-      initialEntries: ['/budget/categories'],
+      initialEntries: ['/budget'],
     });
 
-    const budgetLink = screen.getByRole('link', { name: /budget categories/i });
+    const budgetLink = screen.getByRole('link', { name: /^budget$/i });
     expect(budgetLink).toHaveClass('active');
   });
 
@@ -168,14 +165,14 @@ describe('Sidebar', () => {
 
   it('only one link is active at a time', () => {
     renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />, {
-      initialEntries: ['/budget/categories'],
+      initialEntries: ['/budget'],
     });
 
     const activeLinks = screen
       .getAllByRole('link')
       .filter((link) => link.classList.contains('active'));
     expect(activeLinks).toHaveLength(1);
-    expect(activeLinks[0]).toHaveTextContent(/budget categories/i);
+    expect(activeLinks[0]).toHaveTextContent(/^budget$/i);
   });
 
   it('renders a close button with correct aria-label', () => {
@@ -229,11 +226,11 @@ describe('Sidebar', () => {
     expect(mockOnClose).toHaveBeenCalledTimes(1);
   });
 
-  it('clicking a nav link calls onClose (budget categories)', async () => {
+  it('clicking a nav link calls onClose (budget)', async () => {
     const user = userEvent.setup();
     renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
 
-    const budgetLink = screen.getByRole('link', { name: /budget categories/i });
+    const budgetLink = screen.getByRole('link', { name: /^budget$/i });
     await user.click(budgetLink);
 
     expect(mockOnClose).toHaveBeenCalledTimes(1);
@@ -359,8 +356,8 @@ describe('Sidebar', () => {
     const links = screen.getAllByRole('link');
     const buttons = screen.getAllByRole('button');
 
-    // 13 nav links + 1 GitHub link in the footer
-    expect(links).toHaveLength(14);
+    // 9 nav links + 1 GitHub link in the footer
+    expect(links).toHaveLength(10);
     // 3 buttons: close button + theme toggle + logout button
     expect(buttons).toHaveLength(3);
     expect(buttons[0]).toHaveAttribute('aria-label', 'Close menu');

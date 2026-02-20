@@ -13,6 +13,8 @@ import {
 } from '../../lib/subsidyProgramsApi.js';
 import { fetchBudgetCategories } from '../../lib/budgetCategoriesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { formatCurrency } from '../../lib/formatters.js';
+import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
 import styles from './SubsidyProgramsPage.module.css';
 
 // ---- Display helpers ----
@@ -27,19 +29,14 @@ const STATUS_LABELS: Record<SubsidyApplicationStatus, string> = {
 
 const REDUCTION_TYPE_LABELS: Record<SubsidyReductionType, string> = {
   percentage: 'Percentage (%)',
-  fixed: 'Fixed Amount ($)',
+  fixed: 'Fixed Amount (€)',
 };
 
 function formatReduction(reductionType: SubsidyReductionType, reductionValue: number): string {
   if (reductionType === 'percentage') {
     return `${reductionValue}%`;
   }
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(reductionValue);
+  return formatCurrency(reductionValue);
 }
 
 function formatDeadline(deadline: string | null): string {
@@ -340,7 +337,13 @@ export function SubsidyProgramsPage() {
   if (isLoading) {
     return (
       <div className={styles.container}>
-        <div className={styles.loading}>Loading subsidy programs...</div>
+        <div className={styles.content}>
+          <div className={styles.pageHeader}>
+            <h1 className={styles.pageTitle}>Budget</h1>
+          </div>
+          <BudgetSubNav />
+          <div className={styles.loading}>Loading subsidy programs...</div>
+        </div>
       </div>
     );
   }
@@ -348,12 +351,18 @@ export function SubsidyProgramsPage() {
   if (error && programs.length === 0) {
     return (
       <div className={styles.container}>
-        <div className={styles.errorCard} role="alert">
-          <h2 className={styles.errorTitle}>Error</h2>
-          <p>{error}</p>
-          <button type="button" className={styles.button} onClick={() => void loadData()}>
-            Retry
-          </button>
+        <div className={styles.content}>
+          <div className={styles.pageHeader}>
+            <h1 className={styles.pageTitle}>Budget</h1>
+          </div>
+          <BudgetSubNav />
+          <div className={styles.errorCard} role="alert">
+            <h2 className={styles.errorTitle}>Error</h2>
+            <p>{error}</p>
+            <button type="button" className={styles.button} onClick={() => void loadData()}>
+              Retry
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -364,7 +373,15 @@ export function SubsidyProgramsPage() {
       <div className={styles.content}>
         {/* Page header */}
         <div className={styles.pageHeader}>
-          <h1 className={styles.pageTitle}>Subsidy Programs</h1>
+          <h1 className={styles.pageTitle}>Budget</h1>
+        </div>
+
+        {/* Budget sub-navigation */}
+        <BudgetSubNav />
+
+        {/* Section header */}
+        <div className={styles.sectionHeader}>
+          <h2 className={styles.sectionTitle}>Subsidy Programs</h2>
           <button
             type="button"
             className={styles.button}

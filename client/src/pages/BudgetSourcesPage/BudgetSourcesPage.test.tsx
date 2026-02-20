@@ -117,15 +117,14 @@ describe('BudgetSourcesPage', () => {
   // ─── Page structure ──────────────────────────────────────────────────────────
 
   describe('page structure', () => {
-    it('renders the page heading "Budget Sources"', async () => {
+    it('renders the page heading "Budget" and section heading "Sources"', async () => {
       mockFetchBudgetSources.mockResolvedValueOnce(emptyResponse);
 
       renderPage();
 
       await waitFor(() => {
-        expect(
-          screen.getByRole('heading', { name: /budget sources/i, level: 1 }),
-        ).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /^budget$/i, level: 1 })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /^sources$/i, level: 2 })).toBeInTheDocument();
       });
     });
 
@@ -250,8 +249,8 @@ describe('BudgetSourcesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        // $200,000.00 formatted — appears for both Total and Available
-        expect(screen.getAllByText('$200,000.00').length).toBeGreaterThanOrEqual(1);
+        // €200,000.00 formatted — appears for both Total and Available
+        expect(screen.getAllByText('€200,000.00').length).toBeGreaterThanOrEqual(1);
       });
     });
 
@@ -263,8 +262,8 @@ describe('BudgetSourcesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        // usedAmount = 0 → $0.00; availableAmount = 200000 → $200,000.00
-        expect(screen.getByText('$0.00')).toBeInTheDocument();
+        // usedAmount = 0 → €0.00; availableAmount = 200000 → €200,000.00
+        expect(screen.getByText('€0.00')).toBeInTheDocument();
       });
     });
 

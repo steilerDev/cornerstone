@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import type { Vendor, CreateVendorRequest, VendorListQuery } from '@cornerstone/shared';
 import { fetchVendors, createVendor, deleteVendor } from '../../lib/vendorsApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
 import styles from './VendorsPage.module.css';
 
 export function VendorsPage() {
@@ -225,7 +226,13 @@ export function VendorsPage() {
   if (isLoading && vendors.length === 0) {
     return (
       <div className={styles.container}>
-        <div className={styles.loading}>Loading vendors...</div>
+        <div className={styles.content}>
+          <div className={styles.pageHeader}>
+            <h1 className={styles.pageTitle}>Budget</h1>
+          </div>
+          <BudgetSubNav />
+          <div className={styles.loading}>Loading vendors...</div>
+        </div>
       </div>
     );
   }
@@ -235,7 +242,15 @@ export function VendorsPage() {
       <div className={styles.content}>
         {/* Page header */}
         <div className={styles.pageHeader}>
-          <h1 className={styles.pageTitle}>Vendors</h1>
+          <h1 className={styles.pageTitle}>Budget</h1>
+        </div>
+
+        {/* Budget sub-navigation */}
+        <BudgetSubNav />
+
+        {/* Section header */}
+        <div className={styles.sectionHeader}>
+          <h2 className={styles.sectionTitle}>Vendors</h2>
           <button type="button" className={styles.button} onClick={openCreateModal}>
             Add Vendor
           </button>

@@ -12,6 +12,8 @@ import {
   deleteBudgetSource,
 } from '../../lib/budgetSourcesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { formatCurrency, formatPercent } from '../../lib/formatters.js';
+import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
 import styles from './BudgetSourcesPage.module.css';
 
 // ---- Display helpers ----
@@ -46,19 +48,6 @@ function getStatusClass(styles: Record<string, string>, status: BudgetSourceStat
     closed: styles.statusClosed ?? '',
   };
   return map[status] ?? '';
-}
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
-}
-
-function formatPercent(rate: number): string {
-  return `${rate.toFixed(2)}%`;
 }
 
 // ---- Editing state shape ----
@@ -309,7 +298,13 @@ export function BudgetSourcesPage() {
   if (isLoading) {
     return (
       <div className={styles.container}>
-        <div className={styles.loading}>Loading budget sources...</div>
+        <div className={styles.content}>
+          <div className={styles.pageHeader}>
+            <h1 className={styles.pageTitle}>Budget</h1>
+          </div>
+          <BudgetSubNav />
+          <div className={styles.loading}>Loading budget sources...</div>
+        </div>
       </div>
     );
   }
@@ -317,12 +312,18 @@ export function BudgetSourcesPage() {
   if (error && sources.length === 0) {
     return (
       <div className={styles.container}>
-        <div className={styles.errorCard} role="alert">
-          <h2 className={styles.errorTitle}>Error</h2>
-          <p>{error}</p>
-          <button type="button" className={styles.button} onClick={() => void loadSources()}>
-            Retry
-          </button>
+        <div className={styles.content}>
+          <div className={styles.pageHeader}>
+            <h1 className={styles.pageTitle}>Budget</h1>
+          </div>
+          <BudgetSubNav />
+          <div className={styles.errorCard} role="alert">
+            <h2 className={styles.errorTitle}>Error</h2>
+            <p>{error}</p>
+            <button type="button" className={styles.button} onClick={() => void loadSources()}>
+              Retry
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -333,7 +334,15 @@ export function BudgetSourcesPage() {
       <div className={styles.content}>
         {/* Page header */}
         <div className={styles.pageHeader}>
-          <h1 className={styles.pageTitle}>Budget Sources</h1>
+          <h1 className={styles.pageTitle}>Budget</h1>
+        </div>
+
+        {/* Budget sub-navigation */}
+        <BudgetSubNav />
+
+        {/* Section header */}
+        <div className={styles.sectionHeader}>
+          <h2 className={styles.sectionTitle}>Sources</h2>
           <button
             type="button"
             className={styles.button}
