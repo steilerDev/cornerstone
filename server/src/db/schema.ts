@@ -10,6 +10,7 @@ import {
   sqliteTable,
   text,
   integer,
+  real,
   index,
   uniqueIndex,
   primaryKey,
@@ -192,5 +193,173 @@ export const workItemDependencies = sqliteTable(
   (table) => ({
     pk: primaryKey({ columns: [table.predecessorId, table.successorId] }),
     successorIdIdx: index('idx_work_item_dependencies_successor_id').on(table.successorId),
+  }),
+);
+
+// ─── EPIC-05: Budget Management ───────────────────────────────────────────────
+
+/**
+ * Budget categories table - organizes construction costs into categories.
+ * Pre-seeded with 10 default categories; users can add more.
+ */
+export const budgetCategories = sqliteTable('budget_categories', {
+  id: text('id').primaryKey(),
+  name: text('name').unique().notNull(),
+  description: text('description'),
+  color: text('color'),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
+
+/**
+ * Vendors table - tracks contractors and vendors involved in the project.
+ */
+export const vendors = sqliteTable(
+  'vendors',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    specialty: text('specialty'),
+    phone: text('phone'),
+    email: text('email'),
+    address: text('address'),
+    notes: text('notes'),
+    createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => ({
+    nameIdx: index('idx_vendors_name').on(table.name),
+  }),
+);
+
+/**
+ * Invoices table - tracks vendor invoices for payment management.
+ */
+export const invoices = sqliteTable(
+  'invoices',
+  {
+    id: text('id').primaryKey(),
+    vendorId: text('vendor_id')
+      .notNull()
+      .references(() => vendors.id, { onDelete: 'cascade' }),
+    invoiceNumber: text('invoice_number'),
+    amount: real('amount').notNull(),
+    date: text('date').notNull(),
+    dueDate: text('due_date'),
+    status: text('status', { enum: ['pending', 'paid', 'overdue'] })
+      .notNull()
+      .default('pending'),
+    notes: text('notes'),
+    createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => ({
+    vendorIdIdx: index('idx_invoices_vendor_id').on(table.vendorId),
+    statusIdx: index('idx_invoices_status').on(table.status),
+    dateIdx: index('idx_invoices_date').on(table.date),
+  }),
+);
+
+/**
+ * Budget sources table - financing sources (bank loans, credit lines, savings, etc.).
+ */
+export const budgetSources = sqliteTable('budget_sources', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  sourceType: text('source_type', {
+    enum: ['bank_loan', 'credit_line', 'savings', 'other'],
+  }).notNull(),
+  totalAmount: real('total_amount').notNull(),
+  interestRate: real('interest_rate'),
+  terms: text('terms'),
+  notes: text('notes'),
+  status: text('status', { enum: ['active', 'exhausted', 'closed'] })
+    .notNull()
+    .default('active'),
+  createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
+
+/**
+ * Subsidy programs table - government/institutional programs reducing construction costs.
+ */
+export const subsidyPrograms = sqliteTable('subsidy_programs', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  description: text('description'),
+  eligibility: text('eligibility'),
+  reductionType: text('reduction_type', { enum: ['percentage', 'fixed'] }).notNull(),
+  reductionValue: real('reduction_value').notNull(),
+  applicationStatus: text('application_status', {
+    enum: ['eligible', 'applied', 'approved', 'received', 'rejected'],
+  })
+    .notNull()
+    .default('eligible'),
+  applicationDeadline: text('application_deadline'),
+  notes: text('notes'),
+  createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
+
+/**
+ * Subsidy program categories junction table - links subsidy programs to budget categories (M:N).
+ */
+export const subsidyProgramCategories = sqliteTable(
+  'subsidy_program_categories',
+  {
+    subsidyProgramId: text('subsidy_program_id')
+      .notNull()
+      .references(() => subsidyPrograms.id, { onDelete: 'cascade' }),
+    budgetCategoryId: text('budget_category_id')
+      .notNull()
+      .references(() => budgetCategories.id, { onDelete: 'cascade' }),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.subsidyProgramId, table.budgetCategoryId] }),
+  }),
+);
+
+/**
+ * Work item vendors junction table - links work items to vendors (M:N).
+ */
+export const workItemVendors = sqliteTable(
+  'work_item_vendors',
+  {
+    workItemId: text('work_item_id')
+      .notNull()
+      .references(() => workItems.id, { onDelete: 'cascade' }),
+    vendorId: text('vendor_id')
+      .notNull()
+      .references(() => vendors.id, { onDelete: 'cascade' }),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.workItemId, table.vendorId] }),
+    vendorIdIdx: index('idx_work_item_vendors_vendor_id').on(table.vendorId),
+  }),
+);
+
+/**
+ * Work item subsidies junction table - links work items to subsidy programs (M:N).
+ */
+export const workItemSubsidies = sqliteTable(
+  'work_item_subsidies',
+  {
+    workItemId: text('work_item_id')
+      .notNull()
+      .references(() => workItems.id, { onDelete: 'cascade' }),
+    subsidyProgramId: text('subsidy_program_id')
+      .notNull()
+      .references(() => subsidyPrograms.id, { onDelete: 'cascade' }),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.workItemId, table.subsidyProgramId] }),
+    subsidyProgramIdIdx: index('idx_work_item_subsidies_subsidy_program_id').on(
+      table.subsidyProgramId,
+    ),
   }),
 );

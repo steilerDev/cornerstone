@@ -57,3 +57,13 @@ export class ConflictError extends AppError {
     this.name = 'ConflictError';
   }
 }
+
+export class CategoryInUseError extends AppError {
+  constructor(
+    message = 'Budget category is in use and cannot be deleted',
+    details?: Record<string, unknown>,
+  ) {
+    super('CATEGORY_IN_USE', 409, message, details);
+    this.name = 'CategoryInUseError';
+  }
+}
