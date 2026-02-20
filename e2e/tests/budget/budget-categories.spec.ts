@@ -771,13 +771,17 @@ test.describe('Empty state (Scenario 18)', { tag: '@responsive' }, () => {
 // Page structure and navigation
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Page structure and accessibility', { tag: '@responsive' }, () => {
-  test('Page has correct h1 heading "Budget Categories"', async ({ page }) => {
+  test('Page has correct h1 heading "Budget"', async ({ page }) => {
     const categoriesPage = new BudgetCategoriesPage(page);
 
     await categoriesPage.goto();
 
     await expect(categoriesPage.heading).toBeVisible();
-    await expect(categoriesPage.heading).toHaveText('Budget Categories');
+    await expect(categoriesPage.heading).toHaveText('Budget');
+
+    // Verify the correct sub-page loaded via the h2 section heading
+    const sectionHeading = page.getByRole('heading', { level: 2, name: /^Categories/ });
+    await expect(sectionHeading).toBeVisible();
   });
 
   test('"Add Category" button is visible on page load', async ({ page }) => {
