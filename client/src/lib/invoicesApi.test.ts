@@ -40,10 +40,7 @@ describe('invoicesApi', () => {
 
       await fetchInvoices('vendor-1');
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        '/api/vendors/vendor-1/invoices',
-        expect.any(Object),
-      );
+      expect(mockFetch).toHaveBeenCalledWith('/api/vendors/vendor-1/invoices', expect.any(Object));
     });
 
     it('returns an empty array when no invoices exist', async () => {
@@ -364,9 +361,7 @@ describe('invoicesApi', () => {
         json: async () => ({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }),
       } as Response);
 
-      await expect(
-        updateInvoice('vendor-1', 'invoice-1', { status: 'paid' }),
-      ).rejects.toThrow();
+      await expect(updateInvoice('vendor-1', 'invoice-1', { status: 'paid' })).rejects.toThrow();
     });
 
     it('uses the correct vendorId and invoiceId in URL', async () => {

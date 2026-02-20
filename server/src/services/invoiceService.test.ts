@@ -382,20 +382,10 @@ describe('Invoice Service', () => {
       const userId = createTestUser('user@test.com', 'User');
 
       expect(() => {
-        invoiceService.createInvoice(
-          db,
-          vendorId,
-          { amount: 0, date: '2026-01-01' },
-          userId,
-        );
+        invoiceService.createInvoice(db, vendorId, { amount: 0, date: '2026-01-01' }, userId);
       }).toThrow(ValidationError);
       expect(() => {
-        invoiceService.createInvoice(
-          db,
-          vendorId,
-          { amount: 0, date: '2026-01-01' },
-          userId,
-        );
+        invoiceService.createInvoice(db, vendorId, { amount: 0, date: '2026-01-01' }, userId);
       }).toThrow('Amount must be greater than 0');
     });
 
@@ -404,12 +394,7 @@ describe('Invoice Service', () => {
       const userId = createTestUser('user@test.com', 'User');
 
       expect(() => {
-        invoiceService.createInvoice(
-          db,
-          vendorId,
-          { amount: -100, date: '2026-01-01' },
-          userId,
-        );
+        invoiceService.createInvoice(db, vendorId, { amount: -100, date: '2026-01-01' }, userId);
       }).toThrow(ValidationError);
     });
 
@@ -426,12 +411,7 @@ describe('Invoice Service', () => {
         );
       }).toThrow(ValidationError);
       expect(() => {
-        invoiceService.createInvoice(
-          db,
-          vendorId,
-          { amount: 100, date: '01-15-2026' },
-          userId,
-        );
+        invoiceService.createInvoice(db, vendorId, { amount: 100, date: '01-15-2026' }, userId);
       }).toThrow('Date must be a valid ISO date (YYYY-MM-DD)');
     });
 

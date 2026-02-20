@@ -1363,9 +1363,7 @@ describe('VendorDetailPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(
-          screen.getByRole('button', { name: /edit invoice INV-001/i }),
-        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /edit invoice INV-001/i })).toBeInTheDocument();
       });
 
       await user.click(screen.getByRole('button', { name: /edit invoice INV-001/i }));
@@ -1385,9 +1383,7 @@ describe('VendorDetailPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(
-          screen.getByRole('button', { name: /edit invoice INV-001/i }),
-        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /edit invoice INV-001/i })).toBeInTheDocument();
       });
 
       await user.click(screen.getByRole('button', { name: /edit invoice INV-001/i }));
@@ -1409,9 +1405,7 @@ describe('VendorDetailPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(
-          screen.getByRole('button', { name: /edit invoice INV-001/i }),
-        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /edit invoice INV-001/i })).toBeInTheDocument();
       });
 
       await user.click(screen.getByRole('button', { name: /edit invoice INV-001/i }));
@@ -1522,9 +1516,7 @@ describe('VendorDetailPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(
-          screen.getByRole('button', { name: /delete invoice INV-001/i }),
-        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /delete invoice INV-001/i })).toBeInTheDocument();
       });
 
       await user.click(screen.getByRole('button', { name: /delete invoice INV-001/i }));
@@ -1703,7 +1695,9 @@ describe('VendorDetailPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByRole('button', { name: new RegExp(`delete invoice ${overdueInvoice.id}`, 'i') }),
+          screen.getByRole('button', {
+            name: new RegExp(`delete invoice ${overdueInvoice.id}`, 'i'),
+          }),
         ).toBeInTheDocument();
       });
 
@@ -1718,4 +1712,3 @@ describe('VendorDetailPage', () => {
     });
   });
 });
-
