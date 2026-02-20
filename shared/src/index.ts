@@ -116,3 +116,10 @@ export type {
   SubsidyProgramListResponse,
   SubsidyProgramResponse,
 } from './types/subsidyProgram.js';
+
+// Budget Overview
+export type {
+  CategoryBudgetSummary,
+  BudgetOverview,
+  BudgetOverviewResponse,
+} from './types/budgetOverview.js';
