@@ -42,6 +42,8 @@ test.describe('Responsive Layout', { tag: '@responsive' }, () => {
 
     // Given: User is on dashboard (mobile/tablet viewport < 1024px)
     await page.goto(ROUTES.home);
+    // Wait for React to render the app shell before checking sidebar state
+    await page.locator('#root').waitFor({ state: 'visible', timeout: 15000 });
 
     // Then: Sidebar should be initially hidden
     const isOpen = await appShell.isSidebarOpen();
@@ -65,6 +67,8 @@ test.describe('Responsive Layout', { tag: '@responsive' }, () => {
 
     // Given: User is on dashboard (mobile/tablet viewport)
     await page.goto(ROUTES.home);
+    // Wait for React to render the app shell before checking sidebar state
+    await page.locator('#root').waitFor({ state: 'visible', timeout: 15000 });
 
     // And: Sidebar is initially closed
     let isOpen = await appShell.isSidebarOpen();
@@ -98,6 +102,8 @@ test.describe('Responsive Layout', { tag: '@responsive' }, () => {
 
     // Given: User is on dashboard (mobile/tablet viewport)
     await page.goto(ROUTES.home);
+    // Wait for React to render the app shell before checking sidebar state
+    await page.locator('#root').waitFor({ state: 'visible', timeout: 15000 });
 
     // And: Sidebar is initially closed
     let isOpen = await appShell.isSidebarOpen();

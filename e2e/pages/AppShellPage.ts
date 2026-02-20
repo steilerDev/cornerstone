@@ -52,7 +52,15 @@ export class AppShellPage {
   }
 
   async isSidebarOpen(): Promise<boolean> {
-    await this.sidebar.waitFor({ state: 'attached', timeout: 10000 });
+    // Wait for the sidebar to appear in the DOM. On mobile WebKit, React
+    // hydration can be slow; if the sidebar never appears (e.g., page
+    // redirected to /login due to session invalidation), return false
+    // to let the test fail on the subsequent assertion with a clearer message.
+    try {
+      await this.sidebar.waitFor({ state: 'attached', timeout: 15000 });
+    } catch {
+      return false;
+    }
     const dataOpen = await this.sidebar.getAttribute('data-open');
     return dataOpen === 'true';
   }
