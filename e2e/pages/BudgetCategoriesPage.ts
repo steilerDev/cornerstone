@@ -64,7 +64,7 @@ export class BudgetCategoriesPage {
     this.page = page;
 
     // Page header
-    this.heading = page.getByRole('heading', { level: 1, name: 'Budget Categories', exact: true });
+    this.heading = page.getByRole('heading', { level: 1, name: 'Budget', exact: true });
     this.addCategoryButton = page.getByRole('button', { name: 'Add Category', exact: true });
 
     // Global banners — scoped to first role="alert" outside the form/modal for each type

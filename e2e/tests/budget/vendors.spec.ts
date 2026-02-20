@@ -1013,12 +1013,16 @@ test.describe('Navigation between list and detail pages', { tag: '@responsive' }
     expect(page.url()).toContain('/budget/vendors');
   });
 
-  test('Page heading is "Vendors" (h1)', async ({ page }) => {
+  test('Page heading is "Budget" (h1)', async ({ page }) => {
     const vendorsPage = new VendorsPage(page);
 
     await vendorsPage.goto();
     await expect(vendorsPage.heading).toBeVisible();
-    await expect(vendorsPage.heading).toHaveText('Vendors');
+    await expect(vendorsPage.heading).toHaveText('Budget');
+
+    // Verify the correct sub-page loaded via the h2 section heading
+    const sectionHeading = page.getByRole('heading', { level: 2, name: 'Vendors' });
+    await expect(sectionHeading).toBeVisible();
   });
 });
 
