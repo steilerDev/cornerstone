@@ -21,6 +21,7 @@ import noteRoutes from './routes/notes.js';
 import subtaskRoutes from './routes/subtasks.js';
 import dependencyRoutes from './routes/dependencies.js';
 import budgetCategoryRoutes from './routes/budgetCategories.js';
+import budgetSourceRoutes from './routes/budgetSources.js';
 import vendorRoutes from './routes/vendors.js';
 import invoiceRoutes from './routes/invoices.js';
 import { hashPassword, verifyPassword } from './services/userService.js';
@@ -79,6 +80,9 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Budget category routes
   await app.register(budgetCategoryRoutes, { prefix: '/api/budget-categories' });
+
+  // Budget source routes
+  await app.register(budgetSourceRoutes, { prefix: '/api/budget-sources' });
 
   // Vendor/contractor routes
   await app.register(vendorRoutes, { prefix: '/api/vendors' });
