@@ -20,6 +20,7 @@ export const ROUTES = {
   login: '/login',
   workItems: '/work-items',
   budget: '/budget',
+  budgetCategories: '/budget/categories',
   timeline: '/timeline',
   householdItems: '/household-items',
   documents: '/documents',
@@ -35,4 +36,5 @@ export const API = {
   setup: '/api/auth/setup',
   users: '/api/users',
   profile: '/api/users/me',
+  budgetCategories: '/api/budget-categories',
 };

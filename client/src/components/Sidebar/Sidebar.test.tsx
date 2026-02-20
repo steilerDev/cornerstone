@@ -87,7 +87,10 @@ describe('Sidebar', () => {
       'href',
       '/work-items',
     );
-    expect(screen.getByRole('link', { name: /budget/i })).toHaveAttribute('href', '/budget');
+    expect(screen.getByRole('link', { name: /budget categories/i })).toHaveAttribute(
+      'href',
+      '/budget/categories',
+    );
     expect(screen.getByRole('link', { name: /timeline/i })).toHaveAttribute('href', '/timeline');
     expect(screen.getByRole('link', { name: /household items/i })).toHaveAttribute(
       'href',
@@ -127,12 +130,12 @@ describe('Sidebar', () => {
     expect(screen.getByRole('link', { name: /dashboard/i })).not.toHaveClass('active');
   });
 
-  it('budget link is active at /budget', () => {
+  it('budget categories link is active at /budget/categories', () => {
     renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />, {
-      initialEntries: ['/budget'],
+      initialEntries: ['/budget/categories'],
     });
 
-    const budgetLink = screen.getByRole('link', { name: /budget/i });
+    const budgetLink = screen.getByRole('link', { name: /budget categories/i });
     expect(budgetLink).toHaveClass('active');
   });
 
@@ -165,14 +168,14 @@ describe('Sidebar', () => {
 
   it('only one link is active at a time', () => {
     renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />, {
-      initialEntries: ['/budget'],
+      initialEntries: ['/budget/categories'],
     });
 
     const activeLinks = screen
       .getAllByRole('link')
       .filter((link) => link.classList.contains('active'));
     expect(activeLinks).toHaveLength(1);
-    expect(activeLinks[0]).toHaveTextContent(/budget/i);
+    expect(activeLinks[0]).toHaveTextContent(/budget categories/i);
   });
 
   it('renders a close button with correct aria-label', () => {
@@ -226,11 +229,11 @@ describe('Sidebar', () => {
     expect(mockOnClose).toHaveBeenCalledTimes(1);
   });
 
-  it('clicking a nav link calls onClose (budget)', async () => {
+  it('clicking a nav link calls onClose (budget categories)', async () => {
     const user = userEvent.setup();
     renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
 
-    const budgetLink = screen.getByRole('link', { name: /budget/i });
+    const budgetLink = screen.getByRole('link', { name: /budget categories/i });
     await user.click(budgetLink);
 
     expect(mockOnClose).toHaveBeenCalledTimes(1);

@@ -64,3 +64,12 @@ export type {
   CreateDependencyRequest,
   DependencyCreatedResponse,
 } from './types/dependency.js';
+
+// Budget Categories
+export type {
+  BudgetCategory,
+  CreateBudgetCategoryRequest,
+  UpdateBudgetCategoryRequest,
+  BudgetCategoryListResponse,
+  BudgetCategoryResponse,
+} from './types/budgetCategory.js';
