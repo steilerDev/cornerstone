@@ -27,6 +27,7 @@ import invoiceRoutes from './routes/invoices.js';
 import subsidyProgramRoutes from './routes/subsidyPrograms.js';
 import workItemVendorRoutes from './routes/workItemVendors.js';
 import workItemSubsidyRoutes from './routes/workItemSubsidies.js';
+import budgetOverviewRoutes from './routes/budgetOverview.js';
 import { hashPassword, verifyPassword } from './services/userService.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -101,6 +102,9 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Work item subsidy linking routes (nested under work items)
   await app.register(workItemSubsidyRoutes, { prefix: '/api/work-items/:workItemId/subsidies' });
+
+  // Budget overview (aggregation dashboard endpoint)
+  await app.register(budgetOverviewRoutes, { prefix: '/api/budget' });
 
   // Health check endpoint (liveness)
   app.get('/api/health', async () => {
