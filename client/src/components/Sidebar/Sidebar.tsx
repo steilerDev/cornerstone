@@ -53,6 +53,13 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           Budget Categories
         </NavLink>
         <NavLink
+          to="/budget/vendors"
+          className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
+          onClick={onClose}
+        >
+          Vendors
+        </NavLink>
+        <NavLink
           to="/timeline"
           className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
           onClick={onClose}
