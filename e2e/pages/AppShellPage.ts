@@ -52,6 +52,7 @@ export class AppShellPage {
   }
 
   async isSidebarOpen(): Promise<boolean> {
+    await this.sidebar.waitFor({ state: 'attached', timeout: 10000 });
     const dataOpen = await this.sidebar.getAttribute('data-open');
     return dataOpen === 'true';
   }

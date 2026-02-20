@@ -82,9 +82,12 @@ export default defineConfig({
       name: 'tablet',
       dependencies: ['auth-setup'],
       timeout: 30_000, // WebKit is significantly slower than Chromium
+      expect: { timeout: 15_000 }, // WebKit expect assertions need more time
       use: {
         ...devices['iPad (gen 7)'],
         storageState: 'test-results/.auth/admin.json',
+        actionTimeout: 15_000, // WebKit click/fill actions need more time
+        navigationTimeout: 15_000, // WebKit page loads need more time
       },
     },
 
@@ -94,9 +97,12 @@ export default defineConfig({
       dependencies: ['auth-setup'],
       grep: /@responsive/,
       timeout: 30_000, // WebKit is significantly slower than Chromium
+      expect: { timeout: 15_000 }, // WebKit expect assertions need more time
       use: {
         ...devices['iPhone 13'],
         storageState: 'test-results/.auth/admin.json',
+        actionTimeout: 15_000, // WebKit click/fill actions need more time
+        navigationTimeout: 15_000, // WebKit page loads need more time
       },
     },
   ],
