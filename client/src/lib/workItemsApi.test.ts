@@ -773,13 +773,10 @@ describe('workItemsApi', () => {
       );
     });
 
-    it('returns the subsidyPrograms array from the response', async () => {
-      // The client reads r.subsidyPrograms (matches what the GET route returns as "subsidies"
-      // key — there is a mismatch BUG in the API client: it reads "subsidyPrograms" but
-      // the route sends "subsidies". Test the actual client code behavior here.
+    it('returns the subsidies array from the response', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ subsidyPrograms: [mockSubsidy] }),
+        json: async () => ({ subsidies: [mockSubsidy] }),
       } as Response);
 
       const result = await fetchWorkItemSubsidies('work-123');
@@ -792,7 +789,7 @@ describe('workItemsApi', () => {
     it('returns empty array when no subsidies linked', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ subsidyPrograms: [] }),
+        json: async () => ({ subsidies: [] }),
       } as Response);
 
       const result = await fetchWorkItemSubsidies('work-123');
