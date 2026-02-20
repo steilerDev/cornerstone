@@ -12,7 +12,12 @@ import {
   linkWorkItemSubsidy,
   unlinkWorkItemSubsidy,
 } from './workItemsApi.js';
-import type { WorkItemListResponse, WorkItemDetail, Vendor, SubsidyProgram } from '@cornerstone/shared';
+import type {
+  WorkItemListResponse,
+  WorkItemDetail,
+  Vendor,
+  SubsidyProgram,
+} from '@cornerstone/shared';
 
 describe('workItemsApi', () => {
   let mockFetch: jest.MockedFunction<typeof globalThis.fetch>;

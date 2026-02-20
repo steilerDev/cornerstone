@@ -103,8 +103,8 @@ export function unlinkWorkItemVendor(workItemId: string, vendorId: string): Prom
  * Fetches all subsidy programs linked to a work item.
  */
 export function fetchWorkItemSubsidies(workItemId: string): Promise<SubsidyProgram[]> {
-  return get<{ subsidyPrograms: SubsidyProgram[] }>(`/work-items/${workItemId}/subsidies`).then(
-    (r) => r.subsidyPrograms,
+  return get<{ subsidies: SubsidyProgram[] }>(`/work-items/${workItemId}/subsidies`).then(
+    (r) => r.subsidies,
   );
 }
 

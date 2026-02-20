@@ -1393,12 +1393,12 @@ describe('Work Item Service', () => {
       const userId = createTestUser('neg-cost@example.com', 'Neg Cost');
       const workItem = workItemService.createWorkItem(db, userId, { title: 'Test' });
 
-      expect(() =>
-        workItemService.updateWorkItem(db, workItem.id, { actualCost: -1 }),
-      ).toThrow(ValidationError);
-      expect(() =>
-        workItemService.updateWorkItem(db, workItem.id, { actualCost: -1 }),
-      ).toThrow('actualCost must be >= 0');
+      expect(() => workItemService.updateWorkItem(db, workItem.id, { actualCost: -1 })).toThrow(
+        ValidationError,
+      );
+      expect(() => workItemService.updateWorkItem(db, workItem.id, { actualCost: -1 })).toThrow(
+        'actualCost must be >= 0',
+      );
     });
 
     it('throws ValidationError when updating confidencePercent below 0', () => {

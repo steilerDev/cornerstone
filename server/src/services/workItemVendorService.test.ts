@@ -19,11 +19,7 @@ describe('workItemVendorService', () => {
     return { sqlite: sqliteDb, db: drizzle(sqliteDb, { schema }) };
   }
 
-  function insertTestUser(
-    id = 'user-001',
-    email = 'test@example.com',
-    displayName = 'Test User',
-  ) {
+  function insertTestUser(id = 'user-001', email = 'test@example.com', displayName = 'Test User') {
     const now = new Date().toISOString();
     db.insert(schema.users)
       .values({

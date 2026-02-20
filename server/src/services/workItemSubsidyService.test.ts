@@ -19,11 +19,7 @@ describe('workItemSubsidyService', () => {
     return { sqlite: sqliteDb, db: drizzle(sqliteDb, { schema }) };
   }
 
-  function insertTestUser(
-    id = 'user-001',
-    email = 'test@example.com',
-    displayName = 'Test User',
-  ) {
+  function insertTestUser(id = 'user-001', email = 'test@example.com', displayName = 'Test User') {
     const now = new Date().toISOString();
     db.insert(schema.users)
       .values({
@@ -120,9 +116,7 @@ describe('workItemSubsidyService', () => {
         createdBy: 'user-001',
       });
 
-      db.insert(schema.workItemSubsidies)
-        .values({ workItemId, subsidyProgramId: subsidyId })
-        .run();
+      db.insert(schema.workItemSubsidies).values({ workItemId, subsidyProgramId: subsidyId }).run();
 
       const result = workItemSubsidyService.listWorkItemSubsidies(db, workItemId);
 
@@ -173,9 +167,7 @@ describe('workItemSubsidyService', () => {
       const workItemId = insertTestWorkItem();
       const subsidyId = insertTestSubsidyProgram('Category Subsidy');
 
-      db.insert(schema.workItemSubsidies)
-        .values({ workItemId, subsidyProgramId: subsidyId })
-        .run();
+      db.insert(schema.workItemSubsidies).values({ workItemId, subsidyProgramId: subsidyId }).run();
 
       const result = workItemSubsidyService.listWorkItemSubsidies(db, workItemId);
 
@@ -187,9 +179,7 @@ describe('workItemSubsidyService', () => {
       const workItemId = insertTestWorkItem();
       const subsidyId = insertTestSubsidyProgram('Anonymous Subsidy', { createdBy: null });
 
-      db.insert(schema.workItemSubsidies)
-        .values({ workItemId, subsidyProgramId: subsidyId })
-        .run();
+      db.insert(schema.workItemSubsidies).values({ workItemId, subsidyProgramId: subsidyId }).run();
 
       const result = workItemSubsidyService.listWorkItemSubsidies(db, workItemId);
 
@@ -280,9 +270,7 @@ describe('workItemSubsidyService', () => {
         .values({ subsidyProgramId: subsidyId, budgetCategoryId: categories[0].id })
         .run();
 
-      db.insert(schema.workItemSubsidies)
-        .values({ workItemId, subsidyProgramId: subsidyId })
-        .run();
+      db.insert(schema.workItemSubsidies).values({ workItemId, subsidyProgramId: subsidyId }).run();
 
       const result = workItemSubsidyService.listWorkItemSubsidies(db, workItemId);
       expect(result[0].applicableCategories).toHaveLength(1);
@@ -400,19 +388,11 @@ describe('workItemSubsidyService', () => {
       const workItemId = insertTestWorkItem();
 
       expect(() => {
-        workItemSubsidyService.unlinkSubsidyFromWorkItem(
-          db,
-          workItemId,
-          'non-existent-subsidy',
-        );
+        workItemSubsidyService.unlinkSubsidyFromWorkItem(db, workItemId, 'non-existent-subsidy');
       }).toThrow(NotFoundError);
 
       expect(() => {
-        workItemSubsidyService.unlinkSubsidyFromWorkItem(
-          db,
-          workItemId,
-          'non-existent-subsidy',
-        );
+        workItemSubsidyService.unlinkSubsidyFromWorkItem(db, workItemId, 'non-existent-subsidy');
       }).toThrow('Subsidy program is not linked to this work item');
     });
   });
