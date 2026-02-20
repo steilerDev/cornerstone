@@ -20,6 +20,8 @@ test.describe('Responsive Layout', { tag: '@responsive' }, () => {
 
     // Given: User is on dashboard (desktop viewport >= 1024px)
     await page.goto(ROUTES.home);
+    // Wait for React to render the app shell before checking sidebar state
+    await page.locator('#root').waitFor({ state: 'visible', timeout: 15000 });
 
     // Then: Sidebar should be visible
     await expect(appShell.sidebar).toBeVisible();

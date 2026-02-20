@@ -960,6 +960,12 @@ test.describe('Search by specialty (Scenario 13)', { tag: '@responsive' }, () =>
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('List shows key info (Scenario 14)', { tag: '@responsive' }, () => {
   test('Table row shows vendor name, specialty, phone, and email', async ({ page, testPrefix }) => {
+    // Table is hidden on mobile (< 768px) — cards are shown instead
+    const viewport = page.viewportSize();
+    if (viewport && viewport.width < 768) {
+      test.skip();
+      return;
+    }
     const vendorsPage = new VendorsPage(page);
     let createdId: string | null = null;
     const vendorName = `${testPrefix} Full Info Vendor`;
@@ -996,6 +1002,12 @@ test.describe('List shows key info (Scenario 14)', { tag: '@responsive' }, () =>
     page,
     testPrefix,
   }) => {
+    // Table is hidden on mobile (< 768px) — cards are shown instead
+    const viewport = page.viewportSize();
+    if (viewport && viewport.width < 768) {
+      test.skip();
+      return;
+    }
     const vendorsPage = new VendorsPage(page);
     let createdId: string | null = null;
 

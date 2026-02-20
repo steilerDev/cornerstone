@@ -79,6 +79,7 @@ export class ProfilePage {
 
   async goto(): Promise<void> {
     await this.page.goto(ROUTES.profile);
+    await this.heading.waitFor({ state: 'visible', timeout: 15000 });
   }
 
   async getProfileInfo(): Promise<ProfileInfo> {

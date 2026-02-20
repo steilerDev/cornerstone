@@ -466,6 +466,7 @@ export function VendorsPage() {
                       type="button"
                       className={styles.deleteButton}
                       onClick={() => openDeleteConfirm(vendor)}
+                      aria-label={`Delete ${vendor.name}`}
                     >
                       Delete
                     </button>
