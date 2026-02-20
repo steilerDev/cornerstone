@@ -357,6 +357,8 @@ test.describe('Vendor detail page (Scenario 5)', { tag: '@responsive' }, () => {
 
       await vendorsPage.goto();
       await vendorsPage.waitForVendorsLoaded();
+      // Search for the vendor to avoid pagination issues from parallel tests
+      await vendorsPage.search(vendorName);
 
       // When: I click on the vendor name link
       await vendorsPage.clickView(vendorName);
@@ -388,9 +390,9 @@ test.describe('Vendor detail page (Scenario 5)', { tag: '@responsive' }, () => {
       const balance = await detailPage.getOutstandingBalance();
       expect(balance?.trim()).toMatch(/\$0\.00/);
 
-      // And: Invoices coming-soon section is visible
+      // And: Invoices section is visible with empty state (no invoices yet)
       await expect(detailPage.invoicesSection).toBeVisible();
-      await expect(detailPage.comingSoonText).toBeVisible();
+      await expect(detailPage.invoicesEmptyState).toBeVisible();
     } finally {
       if (createdId) await deleteVendorViaApi(page, createdId);
     }
@@ -548,9 +550,10 @@ test.describe('Delete vendor — no references (Scenario 8)', { tag: '@responsiv
     // Given: A vendor exists with no invoices
     const createdId = await createVendorViaApi(page, { name: vendorName });
 
-    // When: I navigate to Budget > Vendors
+    // When: I navigate to Budget > Vendors and search for this vendor
     await vendorsPage.goto();
     await vendorsPage.waitForVendorsLoaded();
+    await vendorsPage.search(vendorName);
 
     const namesBefore = await vendorsPage.getVendorNames();
     expect(namesBefore).toContain(vendorName);
@@ -593,6 +596,7 @@ test.describe('Delete vendor — no references (Scenario 8)', { tag: '@responsiv
 
       await vendorsPage.goto();
       await vendorsPage.waitForVendorsLoaded();
+      await vendorsPage.search(vendorName);
 
       await vendorsPage.openDeleteModal(vendorName);
       await vendorsPage.cancelDelete();
@@ -667,6 +671,7 @@ test.describe('Delete blocked by 409 (Scenario 9)', { tag: '@responsive' }, () =
 
       await vendorsPage.goto();
       await vendorsPage.waitForVendorsLoaded();
+      await vendorsPage.search(`${testPrefix} Delete Blocked Vendor`);
 
       // When: I attempt to delete and confirm
       await vendorsPage.openDeleteModal(`${testPrefix} Delete Blocked Vendor`);
@@ -1030,9 +1035,11 @@ test.describe('Navigation between list and detail pages', { tag: '@responsive' }
     try {
       createdId = await createVendorViaApi(page, { name: vendorName });
 
-      // Start at list
+      // Start at list — search for the vendor to avoid pagination issues
+      // when parallel tests create many vendors
       await vendorsPage.goto();
       await vendorsPage.waitForVendorsLoaded();
+      await vendorsPage.search(vendorName);
 
       // Navigate to detail (wait for URL change, not h1 which matches list page too)
       await vendorsPage.clickView(vendorName);
@@ -1275,6 +1282,7 @@ test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
       });
 
       await vendorsPage.heading.waitFor({ state: 'visible', timeout: 8000 });
+      await vendorsPage.search(vendorName);
 
       await vendorsPage.openDeleteModal(vendorName);
 

@@ -54,9 +54,9 @@ export class VendorDetailPage {
   readonly cancelEditButton: Locator;
   readonly editErrorBanner: Locator;
 
-  // Invoices placeholder section
+  // Invoices section
   readonly invoicesSection: Locator;
-  readonly comingSoonText: Locator;
+  readonly invoicesEmptyState: Locator;
 
   // Error card (shown when vendor not found or load fails)
   readonly errorCard: Locator;
@@ -111,7 +111,7 @@ export class VendorDetailPage {
     this.invoicesSection = page.locator('section').filter({
       has: page.getByRole('heading', { name: 'Invoices', exact: true }),
     });
-    this.comingSoonText = this.invoicesSection.locator('[class*="comingSoon"]');
+    this.invoicesEmptyState = this.invoicesSection.getByText('No invoices yet.');
 
     // Error card (load failure / not found) — role="alert" is on the element itself,
     // not a descendant, so use a combined CSS selector instead of { has: ... }

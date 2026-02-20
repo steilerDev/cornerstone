@@ -144,8 +144,8 @@ test.describe('Sort order display (Scenario 2 & 13)', { tag: '@responsive' }, ()
     const categoryName = `${testPrefix} Sort Test Zero`;
 
     try {
-      // When: I create a category with sort_order = 0
-      createdId = await createCategoryViaApi(page, categoryName, 0);
+      // When: I create a category with sort_order = -1 (lower than Materials at 0)
+      createdId = await createCategoryViaApi(page, categoryName, -1);
 
       await categoriesPage.goto();
       await categoriesPage.waitForCategoriesLoaded();
