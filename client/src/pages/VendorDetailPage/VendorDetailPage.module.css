@@ -200,7 +200,7 @@
   color: var(--color-primary-hover);
 }
 
-/* ---- Coming soon placeholder ---- */
+/* ---- Coming soon placeholder (kept for reference, no longer used) ---- */
 
 .comingSoon {
   padding: var(--spacing-8);
@@ -215,6 +215,299 @@
   margin-left: auto;
   margin-right: auto;
   line-height: 1.6;
+}
+
+/* ---- Select element ---- */
+
+.select {
+  padding: var(--spacing-2) var(--spacing-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-primary);
+  transition: var(--transition-input);
+  width: 100%;
+  box-sizing: border-box;
+  cursor: pointer;
+}
+
+.select:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-focus-subtle);
+}
+
+.select:disabled {
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
+/* ---- Invoice section header ---- */
+
+.invoiceHeaderRight {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+}
+
+.outstandingBalance {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.outstandingAmount {
+  color: var(--color-danger);
+}
+
+/* ---- Wide modal (for invoice forms) ---- */
+
+.modalContentWide {
+  max-width: 38rem;
+}
+
+/* ---- Invoice table (desktop) ---- */
+
+.tableWrapper {
+  overflow-x: auto;
+  margin: 0 calc(-1 * var(--spacing-6));
+  padding: 0 var(--spacing-6);
+}
+
+.invoiceTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.tableHeader {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: left;
+  padding: var(--spacing-2) var(--spacing-3);
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.tableHeaderRight {
+  text-align: right;
+}
+
+.tableRow {
+  border-bottom: 1px solid var(--color-border);
+  transition: background-color var(--transition-fast);
+}
+
+.tableRow:last-child {
+  border-bottom: none;
+}
+
+.tableRow:hover {
+  background-color: var(--color-bg-hover);
+}
+
+.tableCell {
+  padding: var(--spacing-3);
+  color: var(--color-text-primary);
+  vertical-align: middle;
+}
+
+.tableCellRight {
+  text-align: right;
+}
+
+.invoiceNumber {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-medium);
+}
+
+.invoiceNumberNone {
+  color: var(--color-text-placeholder);
+}
+
+.amountCell {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-semibold);
+}
+
+/* ---- Row action buttons ---- */
+
+.rowActions {
+  display: flex;
+  gap: var(--spacing-2);
+  justify-content: flex-end;
+}
+
+.rowActionButton {
+  padding: var(--spacing-1) var(--spacing-2-5);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: var(--transition-button-border);
+  white-space: nowrap;
+}
+
+.rowActionButton:hover {
+  background-color: var(--color-bg-secondary);
+}
+
+.rowActionButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.rowActionButtonDanger {
+  background-color: var(--color-danger-bg);
+  color: var(--color-danger);
+  border-color: var(--color-danger-border);
+}
+
+.rowActionButtonDanger:hover {
+  background-color: var(--color-danger-bg-strong);
+}
+
+.rowActionButtonDanger:focus-visible {
+  box-shadow: var(--shadow-focus-danger);
+}
+
+/* ---- Invoice status badges ---- */
+
+.invoiceStatusBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--spacing-0-5) var(--spacing-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+}
+
+/* paid — green (success) */
+.status_paid {
+  background-color: var(--color-success-badge-bg);
+  color: var(--color-success-badge-text);
+}
+
+/* pending — amber/yellow (use palette tokens directly — no warning semantic token exists) */
+.status_pending {
+  background-color: var(--color-status-not-started-bg);
+  color: var(--color-status-not-started-text);
+}
+
+/* overdue — red (danger) */
+.status_overdue {
+  background-color: var(--color-status-blocked-bg);
+  color: var(--color-status-blocked-text);
+}
+
+/* ---- Invoice loading / error / empty states ---- */
+
+.invoicesLoading {
+  text-align: center;
+  padding: var(--spacing-8) 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  margin: 0;
+}
+
+.invoicesError {
+  padding: var(--spacing-4);
+  background-color: var(--color-danger-bg);
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+}
+
+.invoicesError p {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-danger-text-on-light);
+}
+
+.invoicesEmpty {
+  padding: var(--spacing-8);
+  text-align: center;
+}
+
+.invoicesEmptyText {
+  margin: 0 0 var(--spacing-2) 0;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-muted);
+}
+
+.invoicesEmptyHint {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-subtle);
+}
+
+/* ---- Invoice mobile card list (hidden on desktop) ---- */
+
+.invoiceCardList {
+  display: none;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  gap: var(--spacing-3);
+  flex-direction: column;
+}
+
+.invoiceCard {
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.invoiceCardRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.invoiceCardNumber {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.invoiceCardAmount {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.invoiceCardDate {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.invoiceCardMeta {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-subtle);
+}
+
+.invoiceCardActions {
+  display: flex;
+  gap: var(--spacing-2);
+  margin-top: var(--spacing-1);
 }
 
 /* ---- Loading / Error states ---- */
@@ -680,6 +973,36 @@
   .errorActions {
     flex-direction: column;
   }
+
+  /* Invoice section header: stack on mobile */
+  .invoiceHeaderRight {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--spacing-2);
+  }
+
+  /* Hide table, show card list on mobile */
+  .tableWrapper {
+    display: none;
+  }
+
+  .invoiceCardList {
+    display: flex;
+  }
+
+  /* Invoice action buttons: full width on mobile */
+  .invoiceCardActions .rowActionButton {
+    flex: 1;
+    text-align: center;
+    min-height: 44px;
+  }
+
+  /* Invoice header "Add Invoice" button: full width */
+  .invoiceHeaderRight .button {
+    width: 100%;
+    text-align: center;
+    min-height: 44px;
+  }
 }
 
 /* ============================================================
@@ -700,5 +1023,11 @@
   .cancelButton,
   .confirmDeleteButton {
     min-height: 44px;
+  }
+
+  /* Touch-friendly row action buttons on tablet */
+  .rowActionButton {
+    min-height: 44px;
+    padding: var(--spacing-2) var(--spacing-3);
   }
 }
