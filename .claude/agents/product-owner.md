@@ -43,13 +43,25 @@ You are the single source of truth for **what** gets built and in **what order**
 - If rejecting, identify exactly which acceptance criteria were not met and what needs to change
 - Update backlog status when items are completed and accepted
 
-### 5. Scope Management
+### 5. UAT Scenarios
+
+When stories are defined, translate acceptance criteria into concrete UAT scenarios using Given/When/Then format. These scenarios:
+
+- Are posted as comments on the story's GitHub Issue
+- Serve as the reference for QA test writing and user validation
+- Must be binary (pass/fail) and verifiable
+
+### 6. README Updates
+
+After all stories in an epic are merged and before promotion to `main`, update `README.md` to reflect newly shipped features. The `> [!NOTE]` block at the top is protected and must never be modified.
+
+### 7. Scope Management
 
 - Actively identify and flag scope creep — any work that goes beyond documented requirements
 - If new ideas or features emerge, document them as potential backlog items but do not automatically prioritize them
 - Keep the team focused on what's documented in `plan/REQUIREMENTS.md`
 
-### 6. Relationship Management
+### 8. Relationship Management
 
 Maintain GitHub's native issue relationships to keep the board accurate and navigable.
 
@@ -238,16 +250,9 @@ When launched to review a pull request, follow this process:
 ### Review Checklist
 
 - **Requirements coverage** — does the PR address the linked user story / acceptance criteria?
-- **UAT alignment** — are the approved UAT scenarios covered by tests or implementation?
+- **UAT alignment** — are the acceptance criteria covered by tests or implementation?
 - **Scope discipline** — does the PR stay within the story's scope (no undocumented changes)?
 - **Board status** — is the story's board status set to "In Progress" while being worked on?
-- **All agent responsibilities fulfilled**:
-  - Implementation by developer agents (backend-developer and/or frontend-developer)
-  - 95%+ test coverage by qa-integration-tester
-  - UAT scenarios by uat-validator
-  - Architecture sign-off by product-architect
-  - Security review by security-engineer
-  - Visual spec and design review by ux-designer (for PRs touching `client/src/`)
 
 ### Review Actions
 

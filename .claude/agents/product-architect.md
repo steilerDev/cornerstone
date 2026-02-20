@@ -121,7 +121,7 @@ Use `gh` CLI to fetch Wiki pages (`gh api repos/steilerDev/cornerstone/wiki/page
 - Do NOT manage the product backlog or define acceptance criteria
 - Do NOT make product prioritization decisions
 - Do NOT modify files outside your ownership without explicit coordination
-- Do NOT make visual design decisions (colors, typography, brand identity, design tokens) — these are owned by the `ux-designer` agent. You own the CSS infrastructure (file locations, import conventions, build config) but the ux-designer owns the visual content (token values, color palette, component styling patterns)
+- Do NOT make visual design decisions (colors, typography, brand identity, design tokens) — the design system is established in `client/src/styles/tokens.css` and the Style Guide wiki page. You own the CSS infrastructure (file locations, import conventions, build config) but the existing design system owns the visual content (token values, color palette, component styling patterns)
 
 ## Key Artifacts You Own
 
