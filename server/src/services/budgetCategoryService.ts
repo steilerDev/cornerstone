@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { eq, asc, sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { budgetCategories, subsidyProgramCategories } from '../db/schema.js';
+import { budgetCategories, subsidyProgramCategories, workItems } from '../db/schema.js';
 import type {
   BudgetCategory,
   CreateBudgetCategoryRequest,
@@ -241,8 +241,13 @@ export function deleteBudgetCategory(db: DbType, id: string): void {
     .where(eq(subsidyProgramCategories.budgetCategoryId, id))
     .all();
 
-  // Work item references will be added when budget_category_id FK is added to work_items (later story)
-  const workItemCount = 0;
+  // Check for work item references (budget_category_id FK added via migration 0004)
+  const workItemRef = db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(workItems)
+    .where(eq(workItems.budgetCategoryId, id))
+    .get();
+  const workItemCount = workItemRef?.count ?? 0;
 
   if (subsidyRefs.length > 0 || workItemCount > 0) {
     throw new CategoryInUseError('Budget category is in use and cannot be deleted', {
