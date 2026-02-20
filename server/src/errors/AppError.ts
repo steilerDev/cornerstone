@@ -77,3 +77,13 @@ export class VendorInUseError extends AppError {
     this.name = 'VendorInUseError';
   }
 }
+
+export class BudgetSourceInUseError extends AppError {
+  constructor(
+    message = 'Budget source is in use and cannot be deleted',
+    details?: { workItemCount: number },
+  ) {
+    super('BUDGET_SOURCE_IN_USE', 409, message, details);
+    this.name = 'BudgetSourceInUseError';
+  }
+}

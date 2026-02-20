@@ -94,3 +94,14 @@ export type {
   InvoiceListResponse,
   InvoiceResponse,
 } from './types/invoice.js';
+
+// Budget Sources
+export type {
+  BudgetSource,
+  BudgetSourceType,
+  BudgetSourceStatus,
+  CreateBudgetSourceRequest,
+  UpdateBudgetSourceRequest,
+  BudgetSourceListResponse,
+  BudgetSourceResponse,
+} from './types/budgetSource.js';
