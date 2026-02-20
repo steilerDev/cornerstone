@@ -671,7 +671,11 @@ describe('Budget Source Routes', () => {
 
     it('updates totalAmount only', async () => {
       const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
-      const src = createTestSource({ name: 'Amount Patch', sourceType: 'savings', totalAmount: 5000 });
+      const src = createTestSource({
+        name: 'Amount Patch',
+        sourceType: 'savings',
+        totalAmount: 5000,
+      });
 
       const response = await app.inject({
         method: 'PATCH',
@@ -751,7 +755,11 @@ describe('Budget Source Routes', () => {
 
     it('updates all fields at once', async () => {
       const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
-      const src = createTestSource({ name: 'All Fields', sourceType: 'bank_loan', totalAmount: 100 });
+      const src = createTestSource({
+        name: 'All Fields',
+        sourceType: 'bank_loan',
+        totalAmount: 100,
+      });
 
       const response = await app.inject({
         method: 'PATCH',
@@ -893,7 +901,11 @@ describe('Budget Source Routes', () => {
         'password',
         'member',
       );
-      const src = createTestSource({ name: 'Member Update', sourceType: 'other', totalAmount: 500 });
+      const src = createTestSource({
+        name: 'Member Update',
+        sourceType: 'other',
+        totalAmount: 500,
+      });
 
       const response = await app.inject({
         method: 'PATCH',
@@ -979,7 +991,11 @@ describe('Budget Source Routes', () => {
         'password',
         'member',
       );
-      const src = createTestSource({ name: 'Member Delete', sourceType: 'other', totalAmount: 100 });
+      const src = createTestSource({
+        name: 'Member Delete',
+        sourceType: 'other',
+        totalAmount: 100,
+      });
 
       const response = await app.inject({
         method: 'DELETE',

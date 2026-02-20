@@ -402,10 +402,7 @@ describe('budgetSourcesApi', () => {
 
       await updateBudgetSource('custom-id', { name: 'Updated' });
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        '/api/budget-sources/custom-id',
-        expect.any(Object),
-      );
+      expect(mockFetch).toHaveBeenCalledWith('/api/budget-sources/custom-id', expect.any(Object));
     });
   });
 

@@ -5,15 +5,8 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
 import * as budgetSourceService from './budgetSourceService.js';
-import {
-  NotFoundError,
-  ValidationError,
-  BudgetSourceInUseError,
-} from '../errors/AppError.js';
-import type {
-  CreateBudgetSourceRequest,
-  UpdateBudgetSourceRequest,
-} from '@cornerstone/shared';
+import { NotFoundError, ValidationError, BudgetSourceInUseError } from '../errors/AppError.js';
+import type { CreateBudgetSourceRequest, UpdateBudgetSourceRequest } from '@cornerstone/shared';
 
 describe('Budget Source Service', () => {
   let sqlite: Database.Database;
@@ -720,7 +713,11 @@ describe('Budget Source Service', () => {
     });
 
     it('updates all fields at once', () => {
-      const raw = insertRawSource({ name: 'All Fields', sourceType: 'bank_loan', totalAmount: 100 });
+      const raw = insertRawSource({
+        name: 'All Fields',
+        sourceType: 'bank_loan',
+        totalAmount: 100,
+      });
 
       const data: UpdateBudgetSourceRequest = {
         name: 'Completely Updated',
@@ -753,7 +750,11 @@ describe('Budget Source Service', () => {
     });
 
     it('sets updatedAt to a new timestamp on update', async () => {
-      const raw = insertRawSource({ name: 'Timestamp Test', sourceType: 'savings', totalAmount: 100 });
+      const raw = insertRawSource({
+        name: 'Timestamp Test',
+        sourceType: 'savings',
+        totalAmount: 100,
+      });
 
       await new Promise((resolve) => setTimeout(resolve, 1));
 
@@ -764,7 +765,11 @@ describe('Budget Source Service', () => {
     });
 
     it('allows updating name to the same value', () => {
-      const raw = insertRawSource({ name: 'Same Name', sourceType: 'bank_loan', totalAmount: 5000 });
+      const raw = insertRawSource({
+        name: 'Same Name',
+        sourceType: 'bank_loan',
+        totalAmount: 5000,
+      });
 
       const data: UpdateBudgetSourceRequest = { name: 'Same Name' };
       const result = budgetSourceService.updateBudgetSource(db, raw.id, data);
@@ -797,7 +802,11 @@ describe('Budget Source Service', () => {
     });
 
     it('throws ValidationError for empty name on update', () => {
-      const raw = insertRawSource({ name: 'Valid Name', sourceType: 'bank_loan', totalAmount: 1000 });
+      const raw = insertRawSource({
+        name: 'Valid Name',
+        sourceType: 'bank_loan',
+        totalAmount: 1000,
+      });
 
       const data: UpdateBudgetSourceRequest = { name: '' };
 
@@ -807,7 +816,11 @@ describe('Budget Source Service', () => {
     });
 
     it('throws ValidationError for whitespace-only name on update', () => {
-      const raw = insertRawSource({ name: 'Valid Name', sourceType: 'bank_loan', totalAmount: 1000 });
+      const raw = insertRawSource({
+        name: 'Valid Name',
+        sourceType: 'bank_loan',
+        totalAmount: 1000,
+      });
 
       const data: UpdateBudgetSourceRequest = { name: '   ' };
 
@@ -817,7 +830,11 @@ describe('Budget Source Service', () => {
     });
 
     it('throws ValidationError for name exceeding 200 characters on update', () => {
-      const raw = insertRawSource({ name: 'Valid Name', sourceType: 'bank_loan', totalAmount: 1000 });
+      const raw = insertRawSource({
+        name: 'Valid Name',
+        sourceType: 'bank_loan',
+        totalAmount: 1000,
+      });
 
       const data: UpdateBudgetSourceRequest = { name: 'A'.repeat(201) };
 

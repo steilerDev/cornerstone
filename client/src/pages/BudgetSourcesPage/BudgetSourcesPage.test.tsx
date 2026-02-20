@@ -467,9 +467,7 @@ describe('BudgetSourcesPage', () => {
       await user.click(screen.getByRole('button', { name: /add source/i }));
       await user.click(screen.getByRole('button', { name: /cancel/i }));
 
-      expect(
-        screen.queryByRole('heading', { name: /new budget source/i }),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: /new budget source/i })).not.toBeInTheDocument();
     });
 
     it('"Create Source" submit button is disabled when name is empty', async () => {
@@ -657,9 +655,7 @@ describe('BudgetSourcesPage', () => {
       await user.click(screen.getByRole('button', { name: /create source/i }));
 
       await waitFor(() => {
-        expect(
-          screen.getByText(/total amount must be a positive number/i),
-        ).toBeInTheDocument();
+        expect(screen.getByText(/total amount must be a positive number/i)).toBeInTheDocument();
       });
     });
 
@@ -1022,9 +1018,7 @@ describe('BudgetSourcesPage', () => {
       await user.click(screen.getByRole('button', { name: /delete home loan/i }));
 
       const dialog = screen.getByRole('dialog');
-      expect(dialog).toContainElement(
-        screen.getByRole('button', { name: /delete source/i }),
-      );
+      expect(dialog).toContainElement(screen.getByRole('button', { name: /delete source/i }));
     });
 
     it('closes the modal when Cancel is clicked', async () => {
@@ -1116,7 +1110,9 @@ describe('BudgetSourcesPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(/this budget source cannot be deleted because it is currently referenced/i),
+          screen.getByText(
+            /this budget source cannot be deleted because it is currently referenced/i,
+          ),
         ).toBeInTheDocument();
       });
     });
@@ -1142,7 +1138,9 @@ describe('BudgetSourcesPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(/this budget source cannot be deleted because it is currently referenced/i),
+          screen.getByText(
+            /this budget source cannot be deleted because it is currently referenced/i,
+          ),
         ).toBeInTheDocument();
       });
 
