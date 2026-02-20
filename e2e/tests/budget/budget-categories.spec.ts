@@ -801,7 +801,7 @@ test.describe('Page structure and accessibility', { tag: '@responsive' }, () => 
     await expect(categoriesPage.heading).toHaveText('Budget');
 
     // Verify the correct sub-page loaded via the h2 section heading
-    const sectionHeading = page.getByRole('heading', { level: 2, name: /^Categories/ });
+    const sectionHeading = page.getByRole('heading', { level: 2, name: /^Categories \(/ });
     await expect(sectionHeading).toBeVisible();
   });
 

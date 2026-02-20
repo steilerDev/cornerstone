@@ -49,7 +49,7 @@ module.exports = (env, argv) => {
                 modules: {
                   namedExport: false,
                   localIdentName: isProduction
-                    ? '[hash:base64:8]'
+                    ? '[local]_[hash:base64:5]'
                     : '[name]__[local]--[hash:base64:5]',
                 },
               },
