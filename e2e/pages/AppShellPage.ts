@@ -27,6 +27,11 @@ export class AppShellPage {
   }
 
   async openSidebar(): Promise<void> {
+    // Wait for the sidebar element to be present in the DOM before reading its state.
+    // On mobile, the React app shell may not have finished rendering when openSidebar()
+    // is called immediately after page.goto(), causing isSidebarOpen() to read a
+    // null attribute and menuButton.click() to race against the mount cycle.
+    await this.sidebar.waitFor({ state: 'attached', timeout: 5000 });
     const isOpen = await this.isSidebarOpen();
     if (!isOpen) {
       await this.menuButton.click();
@@ -36,6 +41,8 @@ export class AppShellPage {
   }
 
   async closeSidebar(): Promise<void> {
+    // Wait for the sidebar element to be present in the DOM before reading its state.
+    await this.sidebar.waitFor({ state: 'attached', timeout: 5000 });
     const isOpen = await this.isSidebarOpen();
     if (isOpen) {
       await this.sidebarCloseButton.click();
