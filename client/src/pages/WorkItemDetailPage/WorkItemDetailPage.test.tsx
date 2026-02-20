@@ -12,6 +12,10 @@ import type * as SubtasksApiTypes from '../../lib/subtasksApi.js';
 import type * as DependenciesApiTypes from '../../lib/dependenciesApi.js';
 import type * as TagsApiTypes from '../../lib/tagsApi.js';
 import type * as UsersApiTypes from '../../lib/usersApi.js';
+import type * as BudgetCategoriesApiTypes from '../../lib/budgetCategoriesApi.js';
+import type * as BudgetSourcesApiTypes from '../../lib/budgetSourcesApi.js';
+import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
+import type * as SubsidyProgramsApiTypes from '../../lib/subsidyProgramsApi.js';
 import type * as WorkItemDetailPageTypes from './WorkItemDetailPage.js';
 
 // Module-scope mocks
@@ -20,6 +24,12 @@ const mockGetWorkItem = jest.fn<typeof WorkItemsApiTypes.getWorkItem>();
 const mockUpdateWorkItem = jest.fn<typeof WorkItemsApiTypes.updateWorkItem>();
 const mockDeleteWorkItem = jest.fn<typeof WorkItemsApiTypes.deleteWorkItem>();
 const mockListWorkItems = jest.fn<typeof WorkItemsApiTypes.listWorkItems>();
+const mockFetchWorkItemVendors = jest.fn<typeof WorkItemsApiTypes.fetchWorkItemVendors>();
+const mockLinkWorkItemVendor = jest.fn<typeof WorkItemsApiTypes.linkWorkItemVendor>();
+const mockUnlinkWorkItemVendor = jest.fn<typeof WorkItemsApiTypes.unlinkWorkItemVendor>();
+const mockFetchWorkItemSubsidies = jest.fn<typeof WorkItemsApiTypes.fetchWorkItemSubsidies>();
+const mockLinkWorkItemSubsidy = jest.fn<typeof WorkItemsApiTypes.linkWorkItemSubsidy>();
+const mockUnlinkWorkItemSubsidy = jest.fn<typeof WorkItemsApiTypes.unlinkWorkItemSubsidy>();
 const mockListNotes = jest.fn<typeof NotesApiTypes.listNotes>();
 const mockCreateNote = jest.fn<typeof NotesApiTypes.createNote>();
 const mockUpdateNote = jest.fn<typeof NotesApiTypes.updateNote>();
@@ -35,6 +45,10 @@ const mockDeleteDependency = jest.fn<typeof DependenciesApiTypes.deleteDependenc
 const mockFetchTags = jest.fn<typeof TagsApiTypes.fetchTags>();
 const mockCreateTag = jest.fn<typeof TagsApiTypes.createTag>();
 const mockListUsers = jest.fn<typeof UsersApiTypes.listUsers>();
+const mockFetchBudgetCategories = jest.fn<typeof BudgetCategoriesApiTypes.fetchBudgetCategories>();
+const mockFetchBudgetSources = jest.fn<typeof BudgetSourcesApiTypes.fetchBudgetSources>();
+const mockFetchVendors = jest.fn<typeof VendorsApiTypes.fetchVendors>();
+const mockFetchSubsidyPrograms = jest.fn<typeof SubsidyProgramsApiTypes.fetchSubsidyPrograms>();
 
 // Mock AuthContext
 jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
@@ -47,6 +61,12 @@ jest.unstable_mockModule('../../lib/workItemsApi.js', () => ({
   updateWorkItem: mockUpdateWorkItem,
   deleteWorkItem: mockDeleteWorkItem,
   listWorkItems: mockListWorkItems,
+  fetchWorkItemVendors: mockFetchWorkItemVendors,
+  linkWorkItemVendor: mockLinkWorkItemVendor,
+  unlinkWorkItemVendor: mockUnlinkWorkItemVendor,
+  fetchWorkItemSubsidies: mockFetchWorkItemSubsidies,
+  linkWorkItemSubsidy: mockLinkWorkItemSubsidy,
+  unlinkWorkItemSubsidy: mockUnlinkWorkItemSubsidy,
 }));
 
 jest.unstable_mockModule('../../lib/notesApi.js', () => ({
@@ -77,6 +97,22 @@ jest.unstable_mockModule('../../lib/tagsApi.js', () => ({
 
 jest.unstable_mockModule('../../lib/usersApi.js', () => ({
   listUsers: mockListUsers,
+}));
+
+jest.unstable_mockModule('../../lib/budgetCategoriesApi.js', () => ({
+  fetchBudgetCategories: mockFetchBudgetCategories,
+}));
+
+jest.unstable_mockModule('../../lib/budgetSourcesApi.js', () => ({
+  fetchBudgetSources: mockFetchBudgetSources,
+}));
+
+jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
+  fetchVendors: mockFetchVendors,
+}));
+
+jest.unstable_mockModule('../../lib/subsidyProgramsApi.js', () => ({
+  fetchSubsidyPrograms: mockFetchSubsidyPrograms,
 }));
 
 describe('WorkItemDetailPage', () => {
@@ -133,6 +169,12 @@ describe('WorkItemDetailPage', () => {
     mockUpdateWorkItem.mockReset();
     mockDeleteWorkItem.mockReset();
     mockListWorkItems.mockReset();
+    mockFetchWorkItemVendors.mockReset();
+    mockLinkWorkItemVendor.mockReset();
+    mockUnlinkWorkItemVendor.mockReset();
+    mockFetchWorkItemSubsidies.mockReset();
+    mockLinkWorkItemSubsidy.mockReset();
+    mockUnlinkWorkItemSubsidy.mockReset();
     mockListNotes.mockReset();
     mockCreateNote.mockReset();
     mockUpdateNote.mockReset();
@@ -148,6 +190,10 @@ describe('WorkItemDetailPage', () => {
     mockFetchTags.mockReset();
     mockCreateTag.mockReset();
     mockListUsers.mockReset();
+    mockFetchBudgetCategories.mockReset();
+    mockFetchBudgetSources.mockReset();
+    mockFetchVendors.mockReset();
+    mockFetchSubsidyPrograms.mockReset();
 
     if (!WorkItemDetailPageModule) {
       WorkItemDetailPageModule = await import('./WorkItemDetailPage.js');
@@ -174,6 +220,16 @@ describe('WorkItemDetailPage', () => {
       items: [],
       pagination: { page: 1, pageSize: 15, totalItems: 0, totalPages: 0 },
     });
+    // Budget-related defaults
+    mockFetchBudgetCategories.mockResolvedValue({ categories: [] });
+    mockFetchBudgetSources.mockResolvedValue({ budgetSources: [] });
+    mockFetchVendors.mockResolvedValue({
+      vendors: [],
+      pagination: { page: 1, pageSize: 500, totalItems: 0, totalPages: 0 },
+    });
+    mockFetchWorkItemVendors.mockResolvedValue([]);
+    mockFetchSubsidyPrograms.mockResolvedValue({ subsidyPrograms: [] });
+    mockFetchWorkItemSubsidies.mockResolvedValue([]);
   });
 
   function renderPage(id = 'work-1') {
@@ -226,6 +282,7 @@ describe('WorkItemDetailPage', () => {
       expect(screen.getByText('Constraints')).toBeInTheDocument();
       expect(screen.getByText('Assignment')).toBeInTheDocument();
       expect(screen.getByText('Tags')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Budget', level: 2 })).toBeInTheDocument();
       expect(screen.getByText('Notes')).toBeInTheDocument();
       expect(screen.getByText('Subtasks')).toBeInTheDocument();
       expect(screen.getByText('Dependencies')).toBeInTheDocument();

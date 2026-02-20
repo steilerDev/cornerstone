@@ -8,8 +8,22 @@ import type {
   NoteResponse,
   SubtaskResponse,
   DependencyResponse,
+  BudgetCategory,
+  BudgetSource,
+  Vendor,
+  SubsidyProgram,
 } from '@cornerstone/shared';
-import { getWorkItem, updateWorkItem, deleteWorkItem } from '../../lib/workItemsApi.js';
+import {
+  getWorkItem,
+  updateWorkItem,
+  deleteWorkItem,
+  fetchWorkItemVendors,
+  linkWorkItemVendor,
+  unlinkWorkItemVendor,
+  fetchWorkItemSubsidies,
+  linkWorkItemSubsidy,
+  unlinkWorkItemSubsidy,
+} from '../../lib/workItemsApi.js';
 import { listNotes, createNote, updateNote, deleteNote } from '../../lib/notesApi.js';
 import {
   listSubtasks,
@@ -21,6 +35,10 @@ import {
 import { getDependencies, createDependency, deleteDependency } from '../../lib/dependenciesApi.js';
 import { fetchTags, createTag } from '../../lib/tagsApi.js';
 import { listUsers } from '../../lib/usersApi.js';
+import { fetchBudgetCategories } from '../../lib/budgetCategoriesApi.js';
+import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
+import { fetchVendors } from '../../lib/vendorsApi.js';
+import { fetchSubsidyPrograms } from '../../lib/subsidyProgramsApi.js';
 import { TagPicker } from '../../components/TagPicker/TagPicker.js';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
@@ -53,6 +71,28 @@ export default function WorkItemDetailPage() {
 
   const [availableTags, setAvailableTags] = useState<TagResponse[]>([]);
   const [users, setUsers] = useState<UserResponse[]>([]);
+
+  // Budget-related state
+  const [budgetCategories, setBudgetCategories] = useState<BudgetCategory[]>([]);
+  const [budgetSources, setBudgetSources] = useState<BudgetSource[]>([]);
+  const [linkedVendors, setLinkedVendors] = useState<Vendor[]>([]);
+  const [linkedSubsidies, setLinkedSubsidies] = useState<SubsidyProgram[]>([]);
+  const [allVendors, setAllVendors] = useState<Vendor[]>([]);
+  const [allSubsidyPrograms, setAllSubsidyPrograms] = useState<SubsidyProgram[]>([]);
+
+  // Budget edit state
+  const [isEditingBudget, setIsEditingBudget] = useState(false);
+  const [editedPlannedBudget, setEditedPlannedBudget] = useState('');
+  const [editedActualCost, setEditedActualCost] = useState('');
+  const [editedConfidencePercent, setEditedConfidencePercent] = useState('');
+  const [editedBudgetCategoryId, setEditedBudgetCategoryId] = useState('');
+  const [editedBudgetSourceId, setEditedBudgetSourceId] = useState('');
+
+  // Vendor/Subsidy picker state
+  const [selectedVendorId, setSelectedVendorId] = useState('');
+  const [selectedSubsidyId, setSelectedSubsidyId] = useState('');
+  const [isLinkingVendor, setIsLinkingVendor] = useState(false);
+  const [isLinkingSubsidy, setIsLinkingSubsidy] = useState(false);
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -94,15 +134,33 @@ export default function WorkItemDetailPage() {
       setError(null);
 
       try {
-        const [workItemData, notesData, subtasksData, depsData, tagsData, usersData] =
-          await Promise.all([
-            getWorkItem(id!),
-            listNotes(id!),
-            listSubtasks(id!),
-            getDependencies(id!),
-            fetchTags(),
-            listUsers(),
-          ]);
+        const [
+          workItemData,
+          notesData,
+          subtasksData,
+          depsData,
+          tagsData,
+          usersData,
+          categoriesData,
+          sourcesData,
+          vendorsData,
+          linkedVendorsData,
+          subsidiesData,
+          linkedSubsidiesData,
+        ] = await Promise.all([
+          getWorkItem(id!),
+          listNotes(id!),
+          listSubtasks(id!),
+          getDependencies(id!),
+          fetchTags(),
+          listUsers(),
+          fetchBudgetCategories(),
+          fetchBudgetSources(),
+          fetchVendors({ pageSize: 500 }),
+          fetchWorkItemVendors(id!),
+          fetchSubsidyPrograms(),
+          fetchWorkItemSubsidies(id!),
+        ]);
 
         setWorkItem(workItemData);
         setNotes(notesData.notes);
@@ -110,6 +168,12 @@ export default function WorkItemDetailPage() {
         setDependencies(depsData);
         setAvailableTags(tagsData.tags);
         setUsers(usersData.users.filter((u) => !u.deactivatedAt));
+        setBudgetCategories(categoriesData.categories);
+        setBudgetSources(sourcesData.budgetSources);
+        setAllVendors(vendorsData.vendors);
+        setLinkedVendors(linkedVendorsData);
+        setAllSubsidyPrograms(subsidiesData.subsidyPrograms);
+        setLinkedSubsidies(linkedSubsidiesData);
       } catch (err: unknown) {
         if ((err as { statusCode?: number })?.statusCode === 404) {
           setError('Work item not found');
@@ -163,6 +227,151 @@ export default function WorkItemDetailPage() {
       setDependencies(depsData);
     } catch (err) {
       console.error('Failed to reload dependencies:', err);
+    }
+  };
+
+  const reloadLinkedVendors = async () => {
+    if (!id) return;
+    try {
+      const data = await fetchWorkItemVendors(id);
+      setLinkedVendors(data);
+    } catch (err) {
+      console.error('Failed to reload linked vendors:', err);
+    }
+  };
+
+  const reloadLinkedSubsidies = async () => {
+    if (!id) return;
+    try {
+      const data = await fetchWorkItemSubsidies(id);
+      setLinkedSubsidies(data);
+    } catch (err) {
+      console.error('Failed to reload linked subsidies:', err);
+    }
+  };
+
+  // Budget field editing
+  const startEditingBudget = () => {
+    if (!workItem) return;
+    setEditedPlannedBudget(workItem.plannedBudget !== null ? String(workItem.plannedBudget) : '');
+    setEditedActualCost(workItem.actualCost !== null ? String(workItem.actualCost) : '');
+    setEditedConfidencePercent(
+      workItem.confidencePercent !== null ? String(workItem.confidencePercent) : '',
+    );
+    setEditedBudgetCategoryId(workItem.budgetCategoryId || '');
+    setEditedBudgetSourceId(workItem.budgetSourceId || '');
+    setIsEditingBudget(true);
+  };
+
+  const saveBudget = async () => {
+    if (!id) return;
+    setInlineError(null);
+    try {
+      const plannedBudget = editedPlannedBudget !== '' ? parseFloat(editedPlannedBudget) : null;
+      const actualCost = editedActualCost !== '' ? parseFloat(editedActualCost) : null;
+      const confidencePercent =
+        editedConfidencePercent !== '' ? parseInt(editedConfidencePercent, 10) : null;
+
+      if (plannedBudget !== null && isNaN(plannedBudget)) {
+        setInlineError('Planned budget must be a valid number');
+        return;
+      }
+      if (actualCost !== null && isNaN(actualCost)) {
+        setInlineError('Actual cost must be a valid number');
+        return;
+      }
+      if (
+        confidencePercent !== null &&
+        (isNaN(confidencePercent) || confidencePercent < 0 || confidencePercent > 100)
+      ) {
+        setInlineError('Confidence must be between 0 and 100');
+        return;
+      }
+
+      await updateWorkItem(id, {
+        plannedBudget,
+        actualCost,
+        confidencePercent,
+        budgetCategoryId: editedBudgetCategoryId || null,
+        budgetSourceId: editedBudgetSourceId || null,
+      });
+      setIsEditingBudget(false);
+      await reloadWorkItem();
+    } catch (err) {
+      setInlineError('Failed to update budget fields');
+      console.error('Failed to update budget fields:', err);
+    }
+  };
+
+  const cancelBudgetEdit = () => {
+    setIsEditingBudget(false);
+  };
+
+  // Vendor linking
+  const handleLinkVendor = async () => {
+    if (!id || !selectedVendorId) return;
+    setIsLinkingVendor(true);
+    setInlineError(null);
+    try {
+      await linkWorkItemVendor(id, selectedVendorId);
+      setSelectedVendorId('');
+      await reloadLinkedVendors();
+    } catch (err) {
+      const apiErr = err as { statusCode?: number; message?: string };
+      if (apiErr.statusCode === 409) {
+        setInlineError('This vendor is already linked');
+      } else {
+        setInlineError('Failed to link vendor');
+      }
+      console.error('Failed to link vendor:', err);
+    } finally {
+      setIsLinkingVendor(false);
+    }
+  };
+
+  const handleUnlinkVendor = async (vendorId: string) => {
+    if (!id) return;
+    setInlineError(null);
+    try {
+      await unlinkWorkItemVendor(id, vendorId);
+      await reloadLinkedVendors();
+    } catch (err) {
+      setInlineError('Failed to unlink vendor');
+      console.error('Failed to unlink vendor:', err);
+    }
+  };
+
+  // Subsidy linking
+  const handleLinkSubsidy = async () => {
+    if (!id || !selectedSubsidyId) return;
+    setIsLinkingSubsidy(true);
+    setInlineError(null);
+    try {
+      await linkWorkItemSubsidy(id, selectedSubsidyId);
+      setSelectedSubsidyId('');
+      await reloadLinkedSubsidies();
+    } catch (err) {
+      const apiErr = err as { statusCode?: number; message?: string };
+      if (apiErr.statusCode === 409) {
+        setInlineError('This subsidy program is already linked');
+      } else {
+        setInlineError('Failed to link subsidy program');
+      }
+      console.error('Failed to link subsidy:', err);
+    } finally {
+      setIsLinkingSubsidy(false);
+    }
+  };
+
+  const handleUnlinkSubsidy = async (subsidyProgramId: string) => {
+    if (!id) return;
+    setInlineError(null);
+    try {
+      await unlinkWorkItemSubsidy(id, subsidyProgramId);
+      await reloadLinkedSubsidies();
+    } catch (err) {
+      setInlineError('Failed to unlink subsidy program');
+      console.error('Failed to unlink subsidy:', err);
     }
   };
 
@@ -646,6 +855,41 @@ export default function WorkItemDetailPage() {
 
   const isAdmin = user?.role === 'admin';
 
+  // Currency formatting helper
+  const formatCurrency = (value: number): string =>
+    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
+
+  // Confidence percent color class
+  const confidenceColorClass = (pct: number): string => {
+    if (pct > 75) return styles.confidenceHigh;
+    if (pct >= 25) return styles.confidenceMedium;
+    return styles.confidenceLow;
+  };
+
+  // Compute net cost: plannedBudget minus subsidy reductions
+  const computeNetCost = (): number | null => {
+    if (workItem.plannedBudget === null) return null;
+    let net = workItem.plannedBudget;
+    for (const subsidy of linkedSubsidies) {
+      if (subsidy.reductionType === 'percentage') {
+        net -= workItem.plannedBudget * (subsidy.reductionValue / 100);
+      } else {
+        net -= subsidy.reductionValue;
+      }
+    }
+    return net;
+  };
+
+  const netCost = computeNetCost();
+
+  // Vendors not yet linked
+  const unlinkableVendorIds = new Set(linkedVendors.map((v) => v.id));
+  const availableVendors = allVendors.filter((v) => !unlinkableVendorIds.has(v.id));
+
+  // Subsidies not yet linked
+  const linkedSubsidyIds = new Set(linkedSubsidies.map((s) => s.id));
+  const availableSubsidies = allSubsidyPrograms.filter((s) => !linkedSubsidyIds.has(s.id));
+
   return (
     <div className={styles.container}>
       {/* Inline error banner */}
@@ -848,6 +1092,316 @@ export default function WorkItemDetailPage() {
               onCreateTag={handleCreateTag}
               onError={(message) => setInlineError(message)}
             />
+          </section>
+
+          {/* Budget */}
+          <section className={styles.section}>
+            <div className={styles.sectionHeader}>
+              <h2 className={styles.sectionTitle}>Budget</h2>
+              {!isEditingBudget && (
+                <button
+                  type="button"
+                  className={styles.editButton}
+                  onClick={startEditingBudget}
+                  aria-label="Edit budget fields"
+                >
+                  Edit
+                </button>
+              )}
+            </div>
+
+            {isEditingBudget ? (
+              <div className={styles.budgetEditForm}>
+                <div className={styles.propertyGrid}>
+                  <div className={styles.property}>
+                    <label className={styles.propertyLabel} htmlFor="editPlannedBudget">
+                      Planned Budget ($)
+                    </label>
+                    <input
+                      type="number"
+                      id="editPlannedBudget"
+                      className={styles.propertyInput}
+                      value={editedPlannedBudget}
+                      onChange={(e) => setEditedPlannedBudget(e.target.value)}
+                      min="0"
+                      step="0.01"
+                      placeholder="0.00"
+                    />
+                  </div>
+
+                  <div className={styles.property}>
+                    <label className={styles.propertyLabel} htmlFor="editActualCost">
+                      Actual Cost ($)
+                    </label>
+                    <input
+                      type="number"
+                      id="editActualCost"
+                      className={styles.propertyInput}
+                      value={editedActualCost}
+                      onChange={(e) => setEditedActualCost(e.target.value)}
+                      min="0"
+                      step="0.01"
+                      placeholder="0.00"
+                    />
+                  </div>
+
+                  <div className={styles.property}>
+                    <label className={styles.propertyLabel} htmlFor="editConfidence">
+                      Confidence (0-100%)
+                    </label>
+                    <input
+                      type="number"
+                      id="editConfidence"
+                      className={styles.propertyInput}
+                      value={editedConfidencePercent}
+                      onChange={(e) => setEditedConfidencePercent(e.target.value)}
+                      min="0"
+                      max="100"
+                      placeholder="—"
+                    />
+                  </div>
+                </div>
+
+                <div className={styles.propertyGrid}>
+                  <div className={styles.property}>
+                    <label className={styles.propertyLabel} htmlFor="editBudgetCategory">
+                      Budget Category
+                    </label>
+                    <select
+                      id="editBudgetCategory"
+                      className={styles.propertySelect}
+                      value={editedBudgetCategoryId}
+                      onChange={(e) => setEditedBudgetCategoryId(e.target.value)}
+                    >
+                      <option value="">None</option>
+                      {budgetCategories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className={styles.property}>
+                    <label className={styles.propertyLabel} htmlFor="editBudgetSource">
+                      Budget Source
+                    </label>
+                    <select
+                      id="editBudgetSource"
+                      className={styles.propertySelect}
+                      value={editedBudgetSourceId}
+                      onChange={(e) => setEditedBudgetSourceId(e.target.value)}
+                    >
+                      <option value="">None</option>
+                      {budgetSources.map((src) => (
+                        <option key={src.id} value={src.id}>
+                          {src.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className={styles.budgetEditActions}>
+                  <button type="button" onClick={saveBudget} className={styles.saveButton}>
+                    Save
+                  </button>
+                  <button type="button" onClick={cancelBudgetEdit} className={styles.cancelButton}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className={styles.budgetDisplay}>
+                <div className={styles.propertyGrid}>
+                  <div className={styles.property}>
+                    <span className={styles.propertyLabel}>Planned Budget</span>
+                    <span className={styles.budgetValue}>
+                      {workItem.plannedBudget !== null ? (
+                        formatCurrency(workItem.plannedBudget)
+                      ) : (
+                        <em className={styles.placeholder}>Not set</em>
+                      )}
+                    </span>
+                  </div>
+
+                  <div className={styles.property}>
+                    <span className={styles.propertyLabel}>Actual Cost</span>
+                    <span className={styles.budgetValue}>
+                      {workItem.actualCost !== null ? (
+                        formatCurrency(workItem.actualCost)
+                      ) : (
+                        <em className={styles.placeholder}>Not set</em>
+                      )}
+                    </span>
+                  </div>
+
+                  <div className={styles.property}>
+                    <span className={styles.propertyLabel}>Confidence</span>
+                    {workItem.confidencePercent !== null ? (
+                      <span
+                        className={`${styles.confidenceBadge} ${confidenceColorClass(workItem.confidencePercent)}`}
+                      >
+                        {workItem.confidencePercent}%
+                      </span>
+                    ) : (
+                      <em className={styles.placeholder}>Not set</em>
+                    )}
+                  </div>
+                </div>
+
+                <div className={styles.propertyGrid}>
+                  <div className={styles.property}>
+                    <span className={styles.propertyLabel}>Budget Category</span>
+                    <span className={styles.budgetValue}>
+                      {workItem.budgetCategoryId ? (
+                        (budgetCategories.find((c) => c.id === workItem.budgetCategoryId)?.name ?? (
+                          <em className={styles.placeholder}>Unknown</em>
+                        ))
+                      ) : (
+                        <em className={styles.placeholder}>None</em>
+                      )}
+                    </span>
+                  </div>
+
+                  <div className={styles.property}>
+                    <span className={styles.propertyLabel}>Budget Source</span>
+                    <span className={styles.budgetValue}>
+                      {workItem.budgetSourceId ? (
+                        (budgetSources.find((s) => s.id === workItem.budgetSourceId)?.name ?? (
+                          <em className={styles.placeholder}>Unknown</em>
+                        ))
+                      ) : (
+                        <em className={styles.placeholder}>None</em>
+                      )}
+                    </span>
+                  </div>
+                </div>
+
+                {netCost !== null && linkedSubsidies.length > 0 && (
+                  <div className={styles.netCostRow}>
+                    <span className={styles.netCostLabel}>Net Cost (after subsidies)</span>
+                    <span className={styles.netCostValue}>{formatCurrency(netCost)}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Linked Vendors */}
+            <div className={styles.budgetSubsection}>
+              <h3 className={styles.subsectionTitle}>Vendors</h3>
+
+              <div className={styles.linkedList}>
+                {linkedVendors.length === 0 && (
+                  <div className={styles.emptyState}>No vendors linked</div>
+                )}
+                {linkedVendors.map((vendor) => (
+                  <div key={vendor.id} className={styles.linkedItem}>
+                    <div className={styles.linkedItemInfo}>
+                      <span className={styles.linkedItemName}>{vendor.name}</span>
+                      {vendor.specialty && (
+                        <span className={styles.linkedItemMeta}>{vendor.specialty}</span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      className={styles.unlinkButton}
+                      onClick={() => handleUnlinkVendor(vendor.id)}
+                      aria-label={`Unlink vendor ${vendor.name}`}
+                    >
+                      &times;
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {availableVendors.length > 0 && (
+                <div className={styles.linkPickerRow}>
+                  <select
+                    className={styles.linkPickerSelect}
+                    value={selectedVendorId}
+                    onChange={(e) => setSelectedVendorId(e.target.value)}
+                    aria-label="Select vendor to link"
+                  >
+                    <option value="">Select vendor...</option>
+                    {availableVendors.map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.name}
+                        {v.specialty ? ` — ${v.specialty}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className={styles.addButton}
+                    onClick={handleLinkVendor}
+                    disabled={!selectedVendorId || isLinkingVendor}
+                  >
+                    {isLinkingVendor ? 'Linking...' : 'Add Vendor'}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Linked Subsidies */}
+            <div className={styles.budgetSubsection}>
+              <h3 className={styles.subsectionTitle}>Subsidies</h3>
+
+              <div className={styles.linkedList}>
+                {linkedSubsidies.length === 0 && (
+                  <div className={styles.emptyState}>No subsidies linked</div>
+                )}
+                {linkedSubsidies.map((subsidy) => (
+                  <div key={subsidy.id} className={styles.linkedItem}>
+                    <div className={styles.linkedItemInfo}>
+                      <span className={styles.linkedItemName}>{subsidy.name}</span>
+                      <span className={styles.linkedItemMeta}>
+                        {subsidy.reductionType === 'percentage'
+                          ? `${subsidy.reductionValue}% reduction`
+                          : `${formatCurrency(subsidy.reductionValue)} reduction`}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className={styles.unlinkButton}
+                      onClick={() => handleUnlinkSubsidy(subsidy.id)}
+                      aria-label={`Unlink subsidy ${subsidy.name}`}
+                    >
+                      &times;
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {availableSubsidies.length > 0 && (
+                <div className={styles.linkPickerRow}>
+                  <select
+                    className={styles.linkPickerSelect}
+                    value={selectedSubsidyId}
+                    onChange={(e) => setSelectedSubsidyId(e.target.value)}
+                    aria-label="Select subsidy program to link"
+                  >
+                    <option value="">Select subsidy program...</option>
+                    {availableSubsidies.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                        {s.reductionType === 'percentage'
+                          ? ` (${s.reductionValue}%)`
+                          : ` (${formatCurrency(s.reductionValue)})`}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className={styles.addButton}
+                    onClick={handleLinkSubsidy}
+                    disabled={!selectedSubsidyId || isLinkingSubsidy}
+                  >
+                    {isLinkingSubsidy ? 'Linking...' : 'Add Subsidy'}
+                  </button>
+                </div>
+              )}
+            </div>
           </section>
         </div>
 
