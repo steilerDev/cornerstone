@@ -5,11 +5,15 @@ import type {
   UserResponse,
   WorkItemStatus,
   DependencyType,
+  BudgetCategory,
+  BudgetSource,
 } from '@cornerstone/shared';
 import { createWorkItem } from '../../lib/workItemsApi.js';
 import { createDependency } from '../../lib/dependenciesApi.js';
 import { fetchTags, createTag } from '../../lib/tagsApi.js';
 import { listUsers } from '../../lib/usersApi.js';
+import { fetchBudgetCategories } from '../../lib/budgetCategoriesApi.js';
+import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { TagPicker } from '../../components/TagPicker/TagPicker.js';
 import {
   DependencySentenceBuilder,
@@ -40,27 +44,44 @@ export default function WorkItemCreatePage() {
   const [assignedUserId, setAssignedUserId] = useState('');
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
 
+  // Budget fields
+  const [plannedBudget, setPlannedBudget] = useState('');
+  const [actualCost, setActualCost] = useState('');
+  const [confidencePercent, setConfidencePercent] = useState('');
+  const [budgetCategoryId, setBudgetCategoryId] = useState('');
+  const [budgetSourceId, setBudgetSourceId] = useState('');
+
   // Dependency state
   const [pendingDependencies, setPendingDependencies] = useState<PendingDependency[]>([]);
 
   const [availableTags, setAvailableTags] = useState<TagResponse[]>([]);
   const [users, setUsers] = useState<UserResponse[]>([]);
+  const [budgetCategories, setBudgetCategories] = useState<BudgetCategory[]>([]);
+  const [budgetSources, setBudgetSources] = useState<BudgetSource[]>([]);
 
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
-  // Load tags and users on mount
+  // Load tags, users, budget categories, and budget sources on mount
   useEffect(() => {
     async function loadData() {
       setIsLoadingData(true);
       try {
-        const [tagsResponse, usersResponse] = await Promise.all([fetchTags(), listUsers()]);
+        const [tagsResponse, usersResponse, categoriesResponse, sourcesResponse] =
+          await Promise.all([
+            fetchTags(),
+            listUsers(),
+            fetchBudgetCategories(),
+            fetchBudgetSources(),
+          ]);
         setAvailableTags(tagsResponse.tags);
         setUsers(usersResponse.users.filter((u) => !u.deactivatedAt));
+        setBudgetCategories(categoriesResponse.categories);
+        setBudgetSources(sourcesResponse.budgetSources);
       } catch (err) {
-        setError('Failed to load tags and users. Please try again.');
+        setError('Failed to load form data. Please try again.');
         console.error('Failed to load data:', err);
       } finally {
         setIsLoadingData(false);
@@ -95,6 +116,22 @@ export default function WorkItemCreatePage() {
     // Validate duration
     if (durationDays && (isNaN(Number(durationDays)) || Number(durationDays) < 0)) {
       errors.durationDays = 'Duration must be a positive number';
+    }
+
+    // Validate budget fields
+    if (plannedBudget && (isNaN(Number(plannedBudget)) || Number(plannedBudget) < 0)) {
+      errors.plannedBudget = 'Planned budget must be a non-negative number';
+    }
+    if (actualCost && (isNaN(Number(actualCost)) || Number(actualCost) < 0)) {
+      errors.actualCost = 'Actual cost must be a non-negative number';
+    }
+    if (
+      confidencePercent &&
+      (isNaN(Number(confidencePercent)) ||
+        Number(confidencePercent) < 0 ||
+        Number(confidencePercent) > 100)
+    ) {
+      errors.confidencePercent = 'Confidence must be between 0 and 100';
     }
 
     setValidationErrors(errors);
@@ -156,6 +193,11 @@ export default function WorkItemCreatePage() {
         startBefore: startBefore || null,
         assignedUserId: assignedUserId || null,
         tagIds: selectedTagIds,
+        plannedBudget: plannedBudget ? Number(plannedBudget) : null,
+        actualCost: actualCost ? Number(actualCost) : null,
+        confidencePercent: confidencePercent ? Number(confidencePercent) : null,
+        budgetCategoryId: budgetCategoryId || null,
+        budgetSourceId: budgetSourceId || null,
       });
 
       // Create dependencies sequentially, replacing THIS_ITEM_ID with actual ID
@@ -382,6 +424,116 @@ export default function WorkItemCreatePage() {
             onCreateTag={handleCreateTag}
             disabled={isSubmitting}
           />
+        </div>
+
+        {/* Budget Section */}
+        <div className={styles.budgetSection}>
+          <h2 className={styles.sectionHeading}>Budget</h2>
+          <p className={styles.sectionHint}>All budget fields are optional.</p>
+
+          <div className={styles.formRow}>
+            <div className={styles.formGroup}>
+              <label htmlFor="plannedBudget" className={styles.label}>
+                Planned Budget ($)
+              </label>
+              <input
+                type="number"
+                id="plannedBudget"
+                className={`${styles.input} ${validationErrors.plannedBudget ? styles.inputError : ''}`}
+                value={plannedBudget}
+                onChange={(e) => setPlannedBudget(e.target.value)}
+                disabled={isSubmitting}
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+              />
+              {validationErrors.plannedBudget && (
+                <div className={styles.errorText}>{validationErrors.plannedBudget}</div>
+              )}
+            </div>
+
+            <div className={styles.formGroup}>
+              <label htmlFor="actualCost" className={styles.label}>
+                Actual Cost ($)
+              </label>
+              <input
+                type="number"
+                id="actualCost"
+                className={`${styles.input} ${validationErrors.actualCost ? styles.inputError : ''}`}
+                value={actualCost}
+                onChange={(e) => setActualCost(e.target.value)}
+                disabled={isSubmitting}
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+              />
+              {validationErrors.actualCost && (
+                <div className={styles.errorText}>{validationErrors.actualCost}</div>
+              )}
+            </div>
+
+            <div className={styles.formGroup}>
+              <label htmlFor="confidencePercent" className={styles.label}>
+                Confidence (0-100%)
+              </label>
+              <input
+                type="number"
+                id="confidencePercent"
+                className={`${styles.input} ${validationErrors.confidencePercent ? styles.inputError : ''}`}
+                value={confidencePercent}
+                onChange={(e) => setConfidencePercent(e.target.value)}
+                disabled={isSubmitting}
+                min="0"
+                max="100"
+                placeholder="—"
+              />
+              {validationErrors.confidencePercent && (
+                <div className={styles.errorText}>{validationErrors.confidencePercent}</div>
+              )}
+            </div>
+          </div>
+
+          <div className={styles.formRow}>
+            <div className={styles.formGroup}>
+              <label htmlFor="budgetCategoryId" className={styles.label}>
+                Budget Category
+              </label>
+              <select
+                id="budgetCategoryId"
+                className={styles.select}
+                value={budgetCategoryId}
+                onChange={(e) => setBudgetCategoryId(e.target.value)}
+                disabled={isSubmitting}
+              >
+                <option value="">None</option>
+                {budgetCategories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className={styles.formGroup}>
+              <label htmlFor="budgetSourceId" className={styles.label}>
+                Budget Source
+              </label>
+              <select
+                id="budgetSourceId"
+                className={styles.select}
+                value={budgetSourceId}
+                onChange={(e) => setBudgetSourceId(e.target.value)}
+                disabled={isSubmitting}
+              >
+                <option value="">None</option>
+                {budgetSources.map((src) => (
+                  <option key={src.id} value={src.id}>
+                    {src.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
 
         {/* Dependencies Section */}

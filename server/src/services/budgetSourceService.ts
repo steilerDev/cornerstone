@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import { eq, asc } from 'drizzle-orm';
+import { eq, asc, sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { budgetSources, users } from '../db/schema.js';
+import { budgetSources, workItems, users } from '../db/schema.js';
 import type {
   BudgetSource,
   BudgetSourceType,
@@ -64,12 +64,28 @@ function toBudgetSource(
 
 /**
  * Compute the used amount for a budget source.
- * Currently returns 0 because the budget_source_id FK on work_items does not exist yet.
- * Story 6 (work item budget linkage) will update this to sum actual_cost from work_items.
+ * Sums actual_cost from work_items where budget_source_id matches.
+ * Returns 0 if no work items reference this source.
  */
-function computeUsedAmount(_db: DbType, _sourceId: string): number {
-  // TODO (Story 6): Sum actual_cost from work_items WHERE budget_source_id = sourceId
-  return 0;
+function computeUsedAmount(db: DbType, sourceId: string): number {
+  const result = db
+    .select({ total: sql<number>`COALESCE(SUM(${workItems.actualCost}), 0)` })
+    .from(workItems)
+    .where(eq(workItems.budgetSourceId, sourceId))
+    .get();
+  return result?.total ?? 0;
+}
+
+/**
+ * Count work items referencing a budget source.
+ */
+function countWorkItemReferences(db: DbType, sourceId: string): number {
+  const result = db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(workItems)
+    .where(eq(workItems.budgetSourceId, sourceId))
+    .get();
+  return result?.count ?? 0;
 }
 
 /**
@@ -261,8 +277,8 @@ export function deleteBudgetSource(db: DbType, id: string): void {
     throw new NotFoundError('Budget source not found');
   }
 
-  // TODO (Story 6): Check for work item references when budget_source_id FK is added to work_items
-  const workItemCount = computeUsedAmount(db, id) > 0 ? 1 : 0; // placeholder: 0 until Story 6
+  // Check for work item references
+  const workItemCount = countWorkItemReferences(db, id);
   if (workItemCount > 0) {
     throw new BudgetSourceInUseError('Budget source is in use and cannot be deleted', {
       workItemCount,

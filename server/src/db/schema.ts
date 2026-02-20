@@ -67,6 +67,8 @@ export const sessions = sqliteTable(
 /**
  * Work items table - stores construction work items/tasks.
  * EPIC-03: Work Items Core CRUD & Properties
+ * EPIC-05 Story #147: budget fields (plannedBudget, actualCost, confidencePercent,
+ *   budgetCategoryId, budgetSourceId) added via migration 0004.
  */
 export const workItems = sqliteTable(
   'work_items',
@@ -88,6 +90,16 @@ export const workItems = sqliteTable(
       onDelete: 'set null',
     }),
     createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
+    // EPIC-05: budget fields
+    plannedBudget: real('planned_budget'),
+    actualCost: real('actual_cost'),
+    confidencePercent: integer('confidence_percent'),
+    budgetCategoryId: text('budget_category_id').references(() => budgetCategories.id, {
+      onDelete: 'set null',
+    }),
+    budgetSourceId: text('budget_source_id').references(() => budgetSources.id, {
+      onDelete: 'set null',
+    }),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
   },
@@ -95,6 +107,8 @@ export const workItems = sqliteTable(
     statusIdx: index('idx_work_items_status').on(table.status),
     assignedUserIdIdx: index('idx_work_items_assigned_user_id').on(table.assignedUserId),
     createdAtIdx: index('idx_work_items_created_at').on(table.createdAt),
+    budgetCategoryIdx: index('idx_work_items_budget_category').on(table.budgetCategoryId),
+    budgetSourceIdx: index('idx_work_items_budget_source').on(table.budgetSourceId),
   }),
 );
 

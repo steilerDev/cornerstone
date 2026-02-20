@@ -25,6 +25,8 @@ import budgetSourceRoutes from './routes/budgetSources.js';
 import vendorRoutes from './routes/vendors.js';
 import invoiceRoutes from './routes/invoices.js';
 import subsidyProgramRoutes from './routes/subsidyPrograms.js';
+import workItemVendorRoutes from './routes/workItemVendors.js';
+import workItemSubsidyRoutes from './routes/workItemSubsidies.js';
 import { hashPassword, verifyPassword } from './services/userService.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -93,6 +95,12 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Subsidy program routes
   await app.register(subsidyProgramRoutes, { prefix: '/api/subsidy-programs' });
+
+  // Work item vendor linking routes (nested under work items)
+  await app.register(workItemVendorRoutes, { prefix: '/api/work-items/:workItemId/vendors' });
+
+  // Work item subsidy linking routes (nested under work items)
+  await app.register(workItemSubsidyRoutes, { prefix: '/api/work-items/:workItemId/subsidies' });
 
   // Health check endpoint (liveness)
   app.get('/api/health', async () => {

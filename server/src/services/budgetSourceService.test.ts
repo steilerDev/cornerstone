@@ -76,11 +76,35 @@ describe('Budget Source Service', () => {
     return { id, ...overrides, createdAt: ts, updatedAt: ts };
   }
 
+  let workItemCounter = 0;
+
+  /**
+   * Helper: Insert a raw work item with a budget_source_id reference.
+   * Used for testing computeUsedAmount and deleteBudgetSource blocking.
+   */
+  function insertRawWorkItemWithSource(sourceId: string, actualCost: number | null) {
+    const id = `wi-src-test-${++workItemCounter}`;
+    const ts = new Date(Date.now() + workItemCounter).toISOString();
+    db.insert(schema.workItems)
+      .values({
+        id,
+        title: `Test Work Item ${workItemCounter}`,
+        status: 'not_started',
+        budgetSourceId: sourceId,
+        actualCost,
+        createdAt: ts,
+        updatedAt: ts,
+      })
+      .run();
+    return id;
+  }
+
   beforeEach(() => {
     const testDb = createTestDb();
     sqlite = testDb.sqlite;
     db = testDb.db;
     timestampOffset = 0;
+    workItemCounter = 0;
     insertTestUser();
   });
 
@@ -166,12 +190,67 @@ describe('Budget Source Service', () => {
       expect(result[0].createdBy).toBeNull();
     });
 
-    it('computes usedAmount as 0 (Story 6 not yet implemented)', () => {
+    it('computes usedAmount as 0 when no work items reference the source', () => {
       insertRawSource({ name: 'Computing Loan', sourceType: 'bank_loan', totalAmount: 50000 });
 
       const result = budgetSourceService.listBudgetSources(db);
       expect(result[0].usedAmount).toBe(0);
       expect(result[0].availableAmount).toBe(50000);
+    });
+
+    it('computes usedAmount as sum of work item actualCost values', () => {
+      const raw = insertRawSource({
+        name: 'Used Amount Loan',
+        sourceType: 'bank_loan',
+        totalAmount: 100000,
+      });
+
+      // Insert work items that reference this source
+      insertRawWorkItemWithSource(raw.id, 10000);
+      insertRawWorkItemWithSource(raw.id, 7500.5);
+
+      const result = budgetSourceService.listBudgetSources(db);
+      const source = result.find((s) => s.id === raw.id)!;
+      expect(source.usedAmount).toBe(17500.5);
+      expect(source.availableAmount).toBe(82499.5);
+    });
+
+    it('ignores work items with null actualCost in usedAmount calculation', () => {
+      const raw = insertRawSource({
+        name: 'Null Cost Loan',
+        sourceType: 'savings',
+        totalAmount: 50000,
+      });
+
+      // Work item with no actualCost
+      insertRawWorkItemWithSource(raw.id, null);
+
+      const result = budgetSourceService.listBudgetSources(db);
+      const source = result.find((s) => s.id === raw.id)!;
+      expect(source.usedAmount).toBe(0);
+    });
+
+    it('does not count work items from other sources', () => {
+      const rawA = insertRawSource({
+        name: 'Source A',
+        sourceType: 'bank_loan',
+        totalAmount: 100000,
+      });
+      const rawB = insertRawSource({
+        name: 'Source B',
+        sourceType: 'savings',
+        totalAmount: 20000,
+      });
+
+      insertRawWorkItemWithSource(rawA.id, 5000);
+      insertRawWorkItemWithSource(rawB.id, 3000);
+
+      const result = budgetSourceService.listBudgetSources(db);
+      const sourceA = result.find((s) => s.id === rawA.id)!;
+      const sourceB = result.find((s) => s.id === rawB.id)!;
+
+      expect(sourceA.usedAmount).toBe(5000);
+      expect(sourceB.usedAmount).toBe(3000);
     });
 
     it('returns multiple sources with correct data', () => {
@@ -254,6 +333,21 @@ describe('Budget Source Service', () => {
 
       const result = budgetSourceService.getBudgetSourceById(db, raw.id);
       expect(result.createdBy).toBeNull();
+    });
+
+    it('computes usedAmount from linked work items via getBudgetSourceById', () => {
+      const raw = insertRawSource({
+        name: 'Get By ID Used',
+        sourceType: 'bank_loan',
+        totalAmount: 100000,
+      });
+
+      insertRawWorkItemWithSource(raw.id, 20000);
+      insertRawWorkItemWithSource(raw.id, 5000);
+
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      expect(result.usedAmount).toBe(25000);
+      expect(result.availableAmount).toBe(75000);
     });
   });
 
@@ -940,26 +1034,73 @@ describe('Budget Source Service', () => {
     });
 
     it('BudgetSourceInUseError has code BUDGET_SOURCE_IN_USE and statusCode 409', () => {
-      // Currently computeUsedAmount always returns 0 (Story 6 not yet done),
-      // so this path is unreachable via normal service flow. We test the error class
-      // independently to verify its properties.
       const err = new BudgetSourceInUseError('Budget source is in use', { workItemCount: 3 });
       expect(err.code).toBe('BUDGET_SOURCE_IN_USE');
       expect(err.statusCode).toBe(409);
       expect(err.details?.workItemCount).toBe(3);
     });
 
-    it('does not throw BudgetSourceInUseError for a source with 0 usedAmount (Story 6 placeholder)', () => {
+    it('does not throw BudgetSourceInUseError when no work items reference the source', () => {
       const raw = insertRawSource({
         name: 'Zero Used',
         sourceType: 'bank_loan',
         totalAmount: 100000,
       });
 
-      // Should not throw — workItemCount is always 0 at this stage
       expect(() => {
         budgetSourceService.deleteBudgetSource(db, raw.id);
       }).not.toThrow();
+    });
+
+    it('throws BudgetSourceInUseError when work items reference the source', () => {
+      const raw = insertRawSource({
+        name: 'In Use Source',
+        sourceType: 'bank_loan',
+        totalAmount: 200000,
+      });
+
+      // Link a work item to this source
+      insertRawWorkItemWithSource(raw.id, 25000);
+
+      expect(() => {
+        budgetSourceService.deleteBudgetSource(db, raw.id);
+      }).toThrow(BudgetSourceInUseError);
+    });
+
+    it('BudgetSourceInUseError includes workItemCount in details', () => {
+      const raw = insertRawSource({
+        name: 'Multi-WI Source',
+        sourceType: 'credit_line',
+        totalAmount: 50000,
+      });
+
+      insertRawWorkItemWithSource(raw.id, 1000);
+      insertRawWorkItemWithSource(raw.id, 2000);
+
+      let thrownErr: BudgetSourceInUseError | undefined;
+      try {
+        budgetSourceService.deleteBudgetSource(db, raw.id);
+      } catch (err) {
+        thrownErr = err as BudgetSourceInUseError;
+      }
+
+      expect(thrownErr).toBeDefined();
+      expect(thrownErr?.details?.workItemCount).toBe(2);
+    });
+
+    it('blocks delete even when work item actualCost is null', () => {
+      const raw = insertRawSource({
+        name: 'Source With Null Cost WI',
+        sourceType: 'savings',
+        totalAmount: 10000,
+      });
+
+      // Work item referencing the source but with no actualCost
+      insertRawWorkItemWithSource(raw.id, null);
+
+      expect(() => {
+        budgetSourceService.deleteBudgetSource(db, raw.id);
+      }).toThrow(BudgetSourceInUseError);
     });
   });
 });
