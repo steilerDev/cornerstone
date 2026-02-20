@@ -54,18 +54,16 @@ async function deleteCategoryViaApi(page: Page, id: string): Promise<void> {
 // Scenario 1 & 2: Default categories present and list view
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Default categories (Scenario 1 & 2)', { tag: '@responsive' }, () => {
-  test('Exactly 10 default categories are present after fresh migration', async ({ page }) => {
+  test('All 10 default categories are present after fresh migration', async ({ page }) => {
     // Given: EPIC-05 migration applied; default seeds loaded
     const categoriesPage = new BudgetCategoriesPage(page);
 
     // When: I navigate to Budget > Categories
     await categoriesPage.goto();
 
-    // Then: I see exactly 10 categories
-    const count = await categoriesPage.getCategoriesCount();
-    expect(count).toBe(DEFAULT_CATEGORIES.length);
-
-    // And: All 10 named default categories appear in the list
+    // Then: All 10 named default categories appear in the list
+    // (we check for presence rather than exact count=10 since parallel workers
+    //  may have created additional categories in the shared database)
     const names = await categoriesPage.getCategoryNames();
     for (const expectedName of DEFAULT_CATEGORIES) {
       expect(names).toContain(expectedName);
@@ -93,15 +91,20 @@ test.describe('Default categories (Scenario 1 & 2)', { tag: '@responsive' }, () 
     }
   });
 
-  test('Categories list heading shows correct count', async ({ page }) => {
+  test('Categories list heading shows at least 10 (the default seed count)', async ({ page }) => {
     // Given: Default categories are seeded
     const categoriesPage = new BudgetCategoriesPage(page);
 
     // When: I navigate to Budget > Categories
     await categoriesPage.goto();
 
-    // Then: The "Categories (10)" heading is visible
-    await expect(categoriesPage.categoriesListHeading).toContainText('10');
+    // Then: The heading shows a count >= 10
+    // (exact count may be higher if parallel workers have added test categories)
+    const count = await categoriesPage.getCategoriesCount();
+    expect(count).toBeGreaterThanOrEqual(DEFAULT_CATEGORIES.length);
+
+    // And: The heading pattern "Categories (N)" is present
+    await expect(categoriesPage.categoriesListHeading).toContainText(/Categories \(\d+\)/);
   });
 });
 
@@ -133,20 +136,22 @@ test.describe('Sort order display (Scenario 2 & 13)', { tag: '@responsive' }, ()
 
   test('Newly created category with lower sort_order appears before higher sort_order categories', async ({
     page,
+    testPrefix,
   }) => {
     // Given: Default categories have sort_order >= 1
     const categoriesPage = new BudgetCategoriesPage(page);
     let createdId: string | null = null;
+    const categoryName = `${testPrefix} Sort Test Zero`;
 
     try {
       // When: I create a category with sort_order = 0
-      createdId = await createCategoryViaApi(page, 'E2E Sort Test Zero', 0);
+      createdId = await createCategoryViaApi(page, categoryName, 0);
 
       await categoriesPage.goto();
 
-      // Then: "E2E Sort Test Zero" appears first in the list
+      // Then: The new category appears first in the list
       const names = await categoriesPage.getCategoryNames();
-      expect(names[0]).toBe('E2E Sort Test Zero');
+      expect(names[0]).toBe(categoryName);
     } finally {
       if (createdId) {
         await deleteCategoryViaApi(page, createdId);
@@ -161,8 +166,10 @@ test.describe('Sort order display (Scenario 2 & 13)', { tag: '@responsive' }, ()
 test.describe('Create category — happy path (Scenario 3)', { tag: '@responsive' }, () => {
   test('Create new category with all fields — appears in list at correct position', async ({
     page,
+    testPrefix,
   }) => {
     const categoriesPage = new BudgetCategoriesPage(page);
+    const categoryName = `${testPrefix} Excavation`;
 
     // Given: I am on the Budget > Categories page
     await categoriesPage.goto();
@@ -172,7 +179,7 @@ test.describe('Create category — happy path (Scenario 3)', { tag: '@responsive
 
     // And: I fill in all fields
     await categoriesPage.createCategory({
-      name: 'Excavation',
+      name: categoryName,
       description: 'Site clearing and foundation digging',
       color: '#8b4513',
       sortOrder: 50,
@@ -180,17 +187,17 @@ test.describe('Create category — happy path (Scenario 3)', { tag: '@responsive
 
     // Then: Success banner appears
     const successText = await categoriesPage.getSuccessBannerText();
-    expect(successText).toContain('Excavation');
+    expect(successText).toContain(categoryName);
 
     // And: The form closes
     await expect(categoriesPage.createFormHeading).not.toBeVisible({ timeout: 5000 });
 
     // And: The new category appears in the list
     const names = await categoriesPage.getCategoryNames();
-    expect(names).toContain('Excavation');
+    expect(names).toContain(categoryName);
 
     // And: The description is shown
-    const description = await categoriesPage.getCategoryDescription('Excavation');
+    const description = await categoriesPage.getCategoryDescription(categoryName);
     expect(description).toBe('Site clearing and foundation digging');
 
     // Cleanup: delete the created category via API
@@ -199,9 +206,9 @@ test.describe('Create category — happy path (Scenario 3)', { tag: '@responsive
     for (const row of rows) {
       const nameEl = row.locator('[class*="categoryName"]');
       const rowText = await nameEl.textContent();
-      if (rowText?.trim() === 'Excavation') {
+      if (rowText?.trim() === categoryName) {
         // Get the delete button aria-label to find the category
-        const deleteBtn = row.getByRole('button', { name: 'Delete Excavation' });
+        const deleteBtn = row.getByRole('button', { name: `Delete ${categoryName}` });
         const ariaLabel = await deleteBtn.getAttribute('aria-label');
         // Delete via modal
         if (ariaLabel) {
@@ -219,16 +226,17 @@ test.describe('Create category — happy path (Scenario 3)', { tag: '@responsive
       // Reload and try API-based cleanup by finding the new category's id
       const response = await page.request.get(API.budgetCategories);
       const body = (await response.json()) as { categories: Array<{ id: string; name: string }> };
-      const found = body.categories.find((c) => c.name === 'Excavation');
+      const found = body.categories.find((c) => c.name === categoryName);
       if (found) {
         await deleteCategoryViaApi(page, found.id);
       }
     }
   });
 
-  test('Create form resets after successful creation', async ({ page }) => {
+  test('Create form resets after successful creation', async ({ page, testPrefix }) => {
     const categoriesPage = new BudgetCategoriesPage(page);
     let createdId: string | null = null;
+    const categoryName = `${testPrefix} Create Reset Test`;
 
     try {
       await categoriesPage.goto();
@@ -236,7 +244,7 @@ test.describe('Create category — happy path (Scenario 3)', { tag: '@responsive
 
       // When: Create a category
       await categoriesPage.createCategory({
-        name: 'E2E Create Reset Test',
+        name: categoryName,
         sortOrder: 998,
       });
 
@@ -252,7 +260,7 @@ test.describe('Create category — happy path (Scenario 3)', { tag: '@responsive
       // Cleanup via API
       const response = await page.request.get(API.budgetCategories);
       const body = (await response.json()) as { categories: Array<{ id: string; name: string }> };
-      const found = body.categories.find((c) => c.name === 'E2E Create Reset Test');
+      const found = body.categories.find((c) => c.name === categoryName);
       if (found) {
         createdId = found.id;
         await deleteCategoryViaApi(page, createdId);
@@ -343,6 +351,10 @@ test.describe('Duplicate name validation (Scenario 6)', { tag: '@responsive' }, 
 
     // Given: "Labor" already exists (seeded by default)
     await categoriesPage.goto();
+
+    // Record the count before attempting the duplicate (may include test categories from other workers)
+    const countBefore = await categoriesPage.getCategoriesCount();
+
     await categoriesPage.openCreateForm();
 
     // When: I attempt to create a new category with Name = "Labor"
@@ -354,9 +366,9 @@ test.describe('Duplicate name validation (Scenario 6)', { tag: '@responsive' }, 
     // Error should mention uniqueness or duplication
     expect(errorText?.toLowerCase()).toMatch(/already exists|unique|duplicate|conflict/);
 
-    // And: The category count remains 10 (no duplicate created)
-    const count = await categoriesPage.getCategoriesCount();
-    expect(count).toBe(DEFAULT_CATEGORIES.length);
+    // And: The category count is unchanged (no duplicate created)
+    const countAfter = await categoriesPage.getCategoriesCount();
+    expect(countAfter).toBe(countBefore);
   });
 
   test('Duplicate name error does not close the create form', async ({ page }) => {
@@ -515,17 +527,21 @@ test.describe('Edit category (Scenario 8 & 9)', { tag: '@responsive' }, () => {
 // Scenario 11: Delete a category not referenced by any work item
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Delete category (Scenario 11)', { tag: '@responsive' }, () => {
-  test('Delete confirmation modal opens with category name in text', async ({ page }) => {
+  test('Delete confirmation modal opens with category name in text', async ({
+    page,
+    testPrefix,
+  }) => {
     const categoriesPage = new BudgetCategoriesPage(page);
     let createdId: string | null = null;
+    const categoryName = `${testPrefix} Delete Modal Test`;
 
     try {
       // Given: A test category exists that is not referenced
-      createdId = await createCategoryViaApi(page, 'E2E Delete Modal Test', 997);
+      createdId = await createCategoryViaApi(page, categoryName, 997);
 
       // When: I navigate to Budget > Categories and click Delete
       await categoriesPage.goto();
-      await categoriesPage.openDeleteModal('E2E Delete Modal Test');
+      await categoriesPage.openDeleteModal(categoryName);
 
       // Then: The modal is visible
       await expect(categoriesPage.deleteModal).toBeVisible();
@@ -535,7 +551,7 @@ test.describe('Delete category (Scenario 11)', { tag: '@responsive' }, () => {
 
       // And: The modal text mentions the category name
       const modalText = await categoriesPage.deleteModalText.textContent();
-      expect(modalText).toContain('E2E Delete Modal Test');
+      expect(modalText).toContain(categoryName);
     } finally {
       if (createdId) {
         await deleteCategoryViaApi(page, createdId);
@@ -543,19 +559,20 @@ test.describe('Delete category (Scenario 11)', { tag: '@responsive' }, () => {
     }
   });
 
-  test('Confirming deletion removes category from list', async ({ page }) => {
+  test('Confirming deletion removes category from list', async ({ page, testPrefix }) => {
     const categoriesPage = new BudgetCategoriesPage(page);
+    const categoryName = `${testPrefix} Delete Confirm Test`;
 
     // Given: A test category exists (created fresh for this test)
-    const createdId = await createCategoryViaApi(page, 'E2E Delete Confirm Test', 996);
+    const createdId = await createCategoryViaApi(page, categoryName, 996);
 
     // When: I navigate to Budget > Categories
     await categoriesPage.goto();
 
     const countBefore = await categoriesPage.getCategoriesCount();
 
-    // And: I click Delete on "E2E Delete Confirm Test" and confirm
-    await categoriesPage.openDeleteModal('E2E Delete Confirm Test');
+    // And: I click Delete on the category and confirm
+    await categoriesPage.openDeleteModal(categoryName);
     await categoriesPage.confirmDelete();
 
     // Then: The modal closes
@@ -567,7 +584,7 @@ test.describe('Delete category (Scenario 11)', { tag: '@responsive' }, () => {
 
     // And: The category is removed from the list
     const names = await categoriesPage.getCategoryNames();
-    expect(names).not.toContain('E2E Delete Confirm Test');
+    expect(names).not.toContain(categoryName);
 
     // And: Count decreased by 1
     const countAfter = await categoriesPage.getCategoriesCount();
@@ -577,25 +594,26 @@ test.describe('Delete category (Scenario 11)', { tag: '@responsive' }, () => {
     void createdId; // suppress unused variable warning
   });
 
-  test('Cancelling deletion modal leaves category in list', async ({ page }) => {
+  test('Cancelling deletion modal leaves category in list', async ({ page, testPrefix }) => {
     const categoriesPage = new BudgetCategoriesPage(page);
     let createdId: string | null = null;
+    const categoryName = `${testPrefix} Cancel Delete Test`;
 
     try {
       // Given: A test category exists
-      createdId = await createCategoryViaApi(page, 'E2E Cancel Delete Test', 995);
+      createdId = await createCategoryViaApi(page, categoryName, 995);
 
       await categoriesPage.goto();
 
       const countBefore = await categoriesPage.getCategoriesCount();
 
       // When: I click Delete then Cancel
-      await categoriesPage.openDeleteModal('E2E Cancel Delete Test');
+      await categoriesPage.openDeleteModal(categoryName);
       await categoriesPage.cancelDelete();
 
       // Then: The category is still in the list
       const names = await categoriesPage.getCategoryNames();
-      expect(names).toContain('E2E Cancel Delete Test');
+      expect(names).toContain(categoryName);
 
       // And: Count is unchanged
       const countAfter = await categoriesPage.getCategoriesCount();
@@ -609,17 +627,19 @@ test.describe('Delete category (Scenario 11)', { tag: '@responsive' }, () => {
 
   test('Delete confirmation does not show an error for an unreferenced category', async ({
     page,
+    testPrefix,
   }) => {
     const categoriesPage = new BudgetCategoriesPage(page);
+    const categoryName = `${testPrefix} Delete No Error Test`;
 
     // Given: An unreferenced category exists
-    const createdId = await createCategoryViaApi(page, 'E2E Delete No Error Test', 994);
+    const createdId = await createCategoryViaApi(page, categoryName, 994);
 
     try {
       await categoriesPage.goto();
 
       // When: I open the delete modal
-      await categoriesPage.openDeleteModal('E2E Delete No Error Test');
+      await categoriesPage.openDeleteModal(categoryName);
 
       // Then: No error banner is shown — only the warning text
       await expect(categoriesPage.deleteModalWarning).toBeVisible();
@@ -641,15 +661,16 @@ test.describe('Delete category (Scenario 11)', { tag: '@responsive' }, () => {
 // Scenario 12: Delete blocked when category is in use (409 error)
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Delete blocked when in use (Scenario 12)', { tag: '@responsive' }, () => {
-  test('Delete confirmation button is not shown after 409 error', async ({ page }) => {
+  test('Delete confirmation button is not shown after 409 error', async ({ page, testPrefix }) => {
     // This test verifies the UI behavior when the API returns a 409 conflict.
     // We simulate this by intercepting the DELETE request and returning 409.
     const categoriesPage = new BudgetCategoriesPage(page);
     let createdId: string | null = null;
+    const categoryName = `${testPrefix} Delete Blocked Test`;
 
     try {
       // Given: A test category exists
-      createdId = await createCategoryViaApi(page, 'E2E Delete Blocked Test', 993);
+      createdId = await createCategoryViaApi(page, categoryName, 993);
 
       // Intercept the DELETE request for this category and force a 409 response
       await page.route(`${API.budgetCategories}/**`, async (route) => {
@@ -673,7 +694,7 @@ test.describe('Delete blocked when in use (Scenario 12)', { tag: '@responsive' }
       await categoriesPage.goto();
 
       // When: I attempt to delete the category and confirm
-      await categoriesPage.openDeleteModal('E2E Delete Blocked Test');
+      await categoriesPage.openDeleteModal(categoryName);
       await categoriesPage.confirmDelete();
 
       // Then: An error message appears explaining the category is in use
@@ -812,10 +833,10 @@ test.describe('Page structure and accessibility', { tag: '@responsive' }, () => 
     expect(page.url()).toContain('/budget/categories');
   });
 
-  test('Navigating to /budget redirects to /budget/categories', async ({ page }) => {
+  test('Navigating to /budget redirects to /budget/overview', async ({ page }) => {
     await page.goto('/budget');
-    await page.waitForURL('/budget/categories');
-    expect(page.url()).toContain('/budget/categories');
+    await page.waitForURL('/budget/overview');
+    expect(page.url()).toContain('/budget/overview');
   });
 });
 
@@ -968,12 +989,13 @@ test.describe('Dark mode rendering (Scenario 10)', { tag: '@responsive' }, () =>
     await cancelButton.click();
   });
 
-  test('Delete modal is usable in dark mode', async ({ page }) => {
+  test('Delete modal is usable in dark mode', async ({ page, testPrefix }) => {
     const categoriesPage = new BudgetCategoriesPage(page);
     let createdId: string | null = null;
+    const categoryName = `${testPrefix} Dark Mode Delete Test`;
 
     try {
-      createdId = await createCategoryViaApi(page, 'E2E Dark Mode Delete Test', 992);
+      createdId = await createCategoryViaApi(page, categoryName, 992);
 
       await page.goto('/budget/categories');
       await page.evaluate(() => {
@@ -983,7 +1005,7 @@ test.describe('Dark mode rendering (Scenario 10)', { tag: '@responsive' }, () =>
       await categoriesPage.heading.waitFor({ state: 'visible', timeout: 8000 });
 
       // Open delete modal in dark mode
-      await categoriesPage.openDeleteModal('E2E Dark Mode Delete Test');
+      await categoriesPage.openDeleteModal(categoryName);
 
       // Modal should be visible and usable
       await expect(categoriesPage.deleteModal).toBeVisible();
@@ -1019,14 +1041,15 @@ test.describe('Color field (Scenario 17)', { tag: '@responsive' }, () => {
     await cancelButton.click();
   });
 
-  test('Color input accepts hex color values', async ({ page }) => {
+  test('Color input accepts hex color values', async ({ page, testPrefix }) => {
     const categoriesPage = new BudgetCategoriesPage(page);
     let createdId: string | null = null;
+    const categoryName = `${testPrefix} Color Test`;
 
     try {
       // Create a category with a specific color via API
       const response = await page.request.post(API.budgetCategories, {
-        data: { name: 'E2E Color Test', color: '#ff6b35', sortOrder: 991 },
+        data: { name: categoryName, color: '#ff6b35', sortOrder: 991 },
       });
       expect(response.ok()).toBeTruthy();
       const body = (await response.json()) as { id: string };
@@ -1035,7 +1058,7 @@ test.describe('Color field (Scenario 17)', { tag: '@responsive' }, () => {
       await categoriesPage.goto();
 
       // The category should be in the list with its color swatch
-      const row = await categoriesPage.getCategoryRow('E2E Color Test');
+      const row = await categoriesPage.getCategoryRow(categoryName);
       expect(row).not.toBeNull();
 
       if (row) {

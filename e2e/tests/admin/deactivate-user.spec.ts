@@ -7,6 +7,9 @@ import { UserManagementPage } from '../../pages/UserManagementPage.js';
 import { TEST_ADMIN } from '../../fixtures/testData.js';
 
 test.describe('Deactivate User', () => {
+  // Serialize tests within this describe block — they all interact with the shared
+  // admin user's deactivation modal and must not run in parallel with each other.
+  test.describe.configure({ mode: 'serial' });
   test('Deactivate confirmation modal appears', async ({ page }) => {
     const userManagementPage = new UserManagementPage(page);
 

@@ -294,11 +294,16 @@ export class VendorsPage {
   }
 
   /**
-   * Wait for vendor list to load (at least one row visible or empty state).
+   * Wait for vendor list to load (at least one row visible, at least one card visible, or empty state).
+   * On mobile/tablet viewports vendors render as cards rather than a table, so we race all three.
    */
   async waitForVendorsLoaded(): Promise<void> {
     await Promise.race([
       this.tableBody.locator('tr').first().waitFor({ state: 'visible', timeout: 5000 }),
+      this.cardsContainer
+        .locator('[class*="card"]')
+        .first()
+        .waitFor({ state: 'visible', timeout: 5000 }),
       this.emptyState.waitFor({ state: 'visible', timeout: 5000 }),
     ]);
   }

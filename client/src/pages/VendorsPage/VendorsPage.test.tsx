@@ -7,7 +7,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
-import type { Vendor, VendorListQuery } from '@cornerstone/shared';
+import type { Vendor } from '@cornerstone/shared';
 
 // Mock the API module BEFORE importing the component
 const mockFetchVendors = jest.fn<typeof VendorsApiTypes.fetchVendors>();
