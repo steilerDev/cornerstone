@@ -81,7 +81,8 @@ test.describe('Reverse Proxy Setup', { tag: '@responsive' }, () => {
     await page.getByRole('button', { name: /sign in/i }).click();
 
     // Then: Should redirect away from login page (to dashboard or home)
-    await expect(page).not.toHaveURL(/\/login/);
+    // Proxy login goes through an extra nginx hop — give it more time than the default 5s
+    await expect(page).not.toHaveURL(/\/login/, { timeout: 15000 });
 
     await context.close();
   });
@@ -100,7 +101,7 @@ test.describe('Reverse Proxy Setup', { tag: '@responsive' }, () => {
     await page.getByLabel(/email/i).fill(TEST_ADMIN.email);
     await page.getByLabel(/password/i).fill(TEST_ADMIN.password);
     await page.getByRole('button', { name: /sign in/i }).click();
-    await expect(page).not.toHaveURL(/\/login/);
+    await expect(page).not.toHaveURL(/\/login/, { timeout: 15000 });
 
     // And: Navigating to a protected route
     await page.goto(`${proxyBaseUrl}/profile`);
@@ -125,7 +126,7 @@ test.describe('Reverse Proxy Setup', { tag: '@responsive' }, () => {
     await page.getByLabel(/email/i).fill(TEST_ADMIN.email);
     await page.getByLabel(/password/i).fill(TEST_ADMIN.password);
     await page.getByRole('button', { name: /sign in/i }).click();
-    await expect(page).not.toHaveURL(/\/login/);
+    await expect(page).not.toHaveURL(/\/login/, { timeout: 15000 });
 
     // When: Logging out through the proxy
     await page.goto(`${proxyBaseUrl}/profile`);

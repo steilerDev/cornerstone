@@ -1070,7 +1070,7 @@ test.describe('Navigation between list and detail pages', { tag: '@responsive' }
     await expect(vendorsPage.heading).toHaveText('Budget');
 
     // Verify the correct sub-page loaded via the h2 section heading
-    const sectionHeading = page.getByRole('heading', { level: 2, name: 'Vendors' });
+    const sectionHeading = page.getByRole('heading', { level: 2, name: 'Vendors', exact: true });
     await expect(sectionHeading).toBeVisible();
   });
 });
