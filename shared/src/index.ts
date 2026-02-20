@@ -84,3 +84,13 @@ export type {
   VendorCreateResponse,
   VendorDetailResponse,
 } from './types/vendor.js';
+
+// Invoices
+export type {
+  Invoice,
+  InvoiceStatus,
+  CreateInvoiceRequest,
+  UpdateInvoiceRequest,
+  InvoiceListResponse,
+  InvoiceResponse,
+} from './types/invoice.js';
