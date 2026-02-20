@@ -99,8 +99,8 @@ export default defineConfig({
     },
   ],
 
-  /* Test timeout */
-  timeout: 15000, // 15 seconds per test
+  /* Test timeout — most passing tests complete in 2-5s */
+  timeout: 7000, // 7 seconds per test
 
   /* Global timeout: cap the entire suite at 30 minutes on CI to prevent stuck runs */
   globalTimeout: process.env.CI ? 30 * 60 * 1000 : undefined,
