@@ -64,12 +64,12 @@ describe('Sidebar', () => {
     onClose: mockOnClose,
   });
 
-  it('renders all 11 navigation links plus 1 GitHub footer link', () => {
+  it('renders all 12 navigation links plus 1 GitHub footer link', () => {
     renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
 
     const links = screen.getAllByRole('link');
-    // 11 nav links + 1 GitHub link in the footer
-    expect(links).toHaveLength(12);
+    // 12 nav links + 1 GitHub link in the footer
+    expect(links).toHaveLength(13);
   });
 
   it('renders navigation with correct aria-label', () => {
@@ -359,8 +359,8 @@ describe('Sidebar', () => {
     const links = screen.getAllByRole('link');
     const buttons = screen.getAllByRole('button');
 
-    // 11 nav links + 1 GitHub link in the footer
-    expect(links).toHaveLength(12);
+    // 12 nav links + 1 GitHub link in the footer
+    expect(links).toHaveLength(13);
     // 3 buttons: close button + theme toggle + logout button
     expect(buttons).toHaveLength(3);
     expect(buttons[0]).toHaveAttribute('aria-label', 'Close menu');

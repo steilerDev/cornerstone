@@ -17,6 +17,7 @@ const BudgetCategoriesPage = lazy(
 const VendorsPage = lazy(() => import('./pages/VendorsPage/VendorsPage'));
 const VendorDetailPage = lazy(() => import('./pages/VendorDetailPage/VendorDetailPage'));
 const BudgetSourcesPage = lazy(() => import('./pages/BudgetSourcesPage/BudgetSourcesPage'));
+const SubsidyProgramsPage = lazy(() => import('./pages/SubsidyProgramsPage/SubsidyProgramsPage'));
 const TimelinePage = lazy(() => import('./pages/TimelinePage/TimelinePage'));
 const HouseholdItemsPage = lazy(() => import('./pages/HouseholdItemsPage/HouseholdItemsPage'));
 const DocumentsPage = lazy(() => import('./pages/DocumentsPage/DocumentsPage'));
@@ -62,6 +63,7 @@ export function App() {
                   <Route path="vendors" element={<VendorsPage />} />
                   <Route path="vendors/:id" element={<VendorDetailPage />} />
                   <Route path="sources" element={<BudgetSourcesPage />} />
+                  <Route path="subsidies" element={<SubsidyProgramsPage />} />
                 </Route>
                 <Route path="timeline" element={<TimelinePage />} />
                 <Route path="household-items" element={<HouseholdItemsPage />} />

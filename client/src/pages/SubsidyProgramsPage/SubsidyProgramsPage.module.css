@@ -1,0 +1,833 @@
+.container {
+  padding: var(--spacing-8);
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-6);
+}
+
+/* ---- Page header ---- */
+
+.pageHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+}
+
+.pageTitle {
+  font-size: var(--font-size-4xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+/* ---- Banners ---- */
+
+.successBanner {
+  background-color: var(--color-success-bg);
+  border: 1px solid var(--color-success-border);
+  border-radius: var(--radius-md);
+  color: var(--color-success-text-on-light);
+  padding: var(--spacing-3);
+  font-size: var(--font-size-sm);
+}
+
+.errorBanner {
+  background-color: var(--color-danger-bg);
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-md);
+  color: var(--color-danger-active);
+  padding: var(--spacing-3);
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--spacing-4);
+}
+
+/* ---- Loading / full-page error ---- */
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  font-size: var(--font-size-base);
+  color: var(--color-text-muted);
+}
+
+.errorCard {
+  background: var(--color-bg-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--spacing-8);
+  text-align: center;
+}
+
+.errorTitle {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-danger);
+  margin: 0 0 var(--spacing-4) 0;
+}
+
+/* ---- Card ---- */
+
+.card {
+  background: var(--color-bg-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--spacing-6);
+}
+
+.cardTitle {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0 0 var(--spacing-2) 0;
+}
+
+.cardDescription {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  margin: 0 0 var(--spacing-6) 0;
+}
+
+/* ---- Form ---- */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.formRow {
+  display: flex;
+  gap: var(--spacing-4);
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.editFormRow {
+  display: flex;
+  gap: var(--spacing-4);
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
+/* Name / description stretches to fill available space */
+.fieldGrow {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
+/* Select fields (type, status) */
+.fieldSelect {
+  width: 12rem;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
+/* Narrow numeric/date fields */
+.fieldNarrow {
+  width: 9rem;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
+.label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.required {
+  color: var(--color-danger);
+  margin-left: var(--spacing-0-5);
+}
+
+.input {
+  padding: var(--spacing-2) var(--spacing-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-primary);
+  transition: var(--transition-input);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.input:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-focus-subtle);
+}
+
+.input:disabled {
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
+.select {
+  padding: var(--spacing-2) var(--spacing-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-primary);
+  transition: var(--transition-input);
+  width: 100%;
+  box-sizing: border-box;
+  cursor: pointer;
+  appearance: auto;
+}
+
+.select:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-focus-subtle);
+}
+
+.select:disabled {
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
+.textarea {
+  padding: var(--spacing-2) var(--spacing-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-primary);
+  transition: var(--transition-input);
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  font-family: inherit;
+  line-height: var(--line-height-normal);
+}
+
+.textarea:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-focus-subtle);
+}
+
+.textarea:disabled {
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
+/* ---- Category checkbox list ---- */
+
+.categoryCheckboxList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+  margin-top: var(--spacing-1);
+}
+
+.categoryCheckboxItem {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1-5);
+  padding: var(--spacing-1-5) var(--spacing-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  background-color: var(--color-bg-primary);
+  transition: var(--transition-button-border);
+  user-select: none;
+}
+
+.categoryCheckboxItem:hover:not(.categoryCheckboxItemDisabled) {
+  background-color: var(--color-bg-secondary);
+  border-color: var(--color-border-strong);
+}
+
+.categoryCheckboxItemDisabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.checkbox {
+  width: 1rem;
+  height: 1rem;
+  cursor: pointer;
+  accent-color: var(--color-primary);
+}
+
+.checkbox:disabled {
+  cursor: not-allowed;
+}
+
+.categoryCheckboxLabel {
+  line-height: 1;
+}
+
+/* ---- Form actions row ---- */
+
+.formActions {
+  display: flex;
+  gap: var(--spacing-3);
+  align-items: center;
+}
+
+/* ---- Buttons ---- */
+
+.button {
+  padding: var(--spacing-2-5) var(--spacing-4);
+  background-color: var(--color-primary);
+  color: var(--color-primary-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition-button);
+  white-space: nowrap;
+}
+
+.button:hover:not(:disabled) {
+  background-color: var(--color-primary-hover);
+}
+
+.button:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.button:disabled {
+  background-color: var(--color-text-placeholder);
+  cursor: not-allowed;
+}
+
+.saveButton {
+  padding: var(--spacing-1-5) var(--spacing-3);
+  background-color: var(--color-primary);
+  color: var(--color-primary-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition-button);
+}
+
+.saveButton:hover:not(:disabled) {
+  background-color: var(--color-primary-hover);
+}
+
+.saveButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.saveButton:disabled {
+  background-color: var(--color-text-placeholder);
+  cursor: not-allowed;
+}
+
+.cancelButton {
+  padding: var(--spacing-1-5) var(--spacing-3);
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition-button-border);
+}
+
+.cancelButton:hover:not(:disabled) {
+  background-color: var(--color-bg-tertiary);
+  border-color: var(--color-border-strong);
+}
+
+.cancelButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.cancelButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.editButton {
+  padding: var(--spacing-1-5) var(--spacing-3);
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition-button-border);
+}
+
+.editButton:hover:not(:disabled) {
+  background-color: var(--color-bg-tertiary);
+}
+
+.editButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.editButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.deleteButton {
+  padding: var(--spacing-1-5) var(--spacing-3);
+  background-color: var(--color-danger-bg);
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background-color var(--transition-normal);
+}
+
+.deleteButton:hover:not(:disabled) {
+  background-color: var(--color-danger-bg-strong);
+}
+
+.deleteButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus-danger);
+}
+
+.deleteButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ---- Programs list ---- */
+
+.programsList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.programRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: var(--spacing-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  gap: var(--spacing-4);
+  transition: background-color var(--transition-normal);
+}
+
+.programRow:hover {
+  background-color: var(--color-bg-secondary);
+}
+
+/* ---- Program info (left side) ---- */
+
+.programInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.programMain {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  flex-wrap: wrap;
+}
+
+.programName {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.programBadges {
+  display: flex;
+  gap: var(--spacing-2);
+  flex-wrap: wrap;
+}
+
+/* ---- Application status badges ---- */
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--spacing-0-5) var(--spacing-2);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+/* Eligible — blue (in-progress palette) */
+.statusEligible {
+  background-color: var(--color-status-in-progress-bg);
+  color: var(--color-status-in-progress-text);
+}
+
+/* Applied — yellow/neutral */
+.statusApplied {
+  background-color: var(--color-status-not-started-bg);
+  color: var(--color-text-secondary);
+}
+
+/* Approved — green */
+.statusApproved {
+  background-color: var(--color-success-badge-bg);
+  color: var(--color-success-badge-text);
+}
+
+/* Received — green/bold */
+.statusReceived {
+  background-color: var(--color-success-badge-bg-alt);
+  color: var(--color-success-badge-text);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Rejected — red */
+.statusRejected {
+  background-color: var(--color-status-blocked-bg);
+  color: var(--color-status-blocked-text);
+}
+
+/* ---- Reduction badge ---- */
+
+.reductionBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--spacing-0-5) var(--spacing-2);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.4;
+  white-space: nowrap;
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Deadline ---- */
+
+.programDeadline {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.deadlineLabel {
+  font-weight: var(--font-weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.deadlineValue {
+  font-weight: var(--font-weight-normal);
+}
+
+/* ---- Program description ---- */
+
+.programDescription {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---- Category pills (display mode) ---- */
+
+.categoryPills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-1-5);
+}
+
+.categoryPill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  padding: var(--spacing-0-5) var(--spacing-2);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.4;
+  white-space: nowrap;
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+}
+
+.categoryDot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-circle);
+  flex-shrink: 0;
+}
+
+/* ---- Program actions (right side) ---- */
+
+.programActions {
+  display: flex;
+  gap: var(--spacing-2);
+  flex-shrink: 0;
+}
+
+/* ---- Edit form inside list row ---- */
+
+.editForm {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.editActions {
+  display: flex;
+  gap: var(--spacing-2);
+}
+
+/* ---- Empty state ---- */
+
+.emptyState {
+  padding: var(--spacing-8);
+  text-align: center;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+/* ---- Modal ---- */
+
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modalBackdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--color-overlay);
+}
+
+.modalContent {
+  position: relative;
+  background: var(--color-bg-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-2xl);
+  padding: var(--spacing-6);
+  max-width: 28rem;
+  width: calc(100% - var(--spacing-8));
+  margin: var(--spacing-4);
+}
+
+.modalTitle {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0 0 var(--spacing-4) 0;
+}
+
+.modalText {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin: 0 0 var(--spacing-3) 0;
+}
+
+.modalWarning {
+  font-size: var(--font-size-sm);
+  color: var(--color-danger);
+  margin: 0 0 var(--spacing-6) 0;
+}
+
+.modalActions {
+  display: flex;
+  gap: var(--spacing-3);
+  justify-content: flex-end;
+}
+
+.confirmDeleteButton {
+  padding: var(--spacing-2-5) var(--spacing-4);
+  background-color: var(--color-danger);
+  color: var(--color-danger-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background-color var(--transition-normal);
+}
+
+.confirmDeleteButton:hover:not(:disabled) {
+  background-color: var(--color-danger-hover);
+}
+
+.confirmDeleteButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus-danger);
+}
+
+.confirmDeleteButton:disabled {
+  background-color: var(--color-text-placeholder);
+  cursor: not-allowed;
+}
+
+/* ============================================================
+ * RESPONSIVE — Mobile (max 767px)
+ * ============================================================ */
+
+@media (max-width: 767px) {
+  .container {
+    padding: var(--spacing-4);
+  }
+
+  .pageTitle {
+    font-size: var(--font-size-2xl);
+  }
+
+  .card {
+    padding: var(--spacing-4);
+  }
+
+  /* Stack page header vertically */
+  .pageHeader {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .button {
+    width: 100%;
+    text-align: center;
+  }
+
+  /* Stack form rows vertically on mobile */
+  .formRow,
+  .editFormRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .fieldSelect,
+  .fieldNarrow {
+    width: 100%;
+  }
+
+  .formActions {
+    flex-direction: column;
+  }
+
+  .formActions .button,
+  .formActions .cancelButton {
+    width: 100%;
+    text-align: center;
+  }
+
+  /* Program row becomes a column on mobile */
+  .programRow {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--spacing-3);
+  }
+
+  .programActions {
+    justify-content: stretch;
+  }
+
+  .editButton,
+  .deleteButton {
+    flex: 1;
+  }
+
+  .editActions {
+    flex-direction: column;
+  }
+
+  .saveButton,
+  .editActions .cancelButton {
+    width: 100%;
+  }
+
+  /* Modal actions */
+  .modalActions {
+    flex-direction: column-reverse;
+  }
+
+  .confirmDeleteButton,
+  .modalActions .cancelButton {
+    width: 100%;
+  }
+
+  /* Category checkboxes wrap naturally on mobile */
+  .categoryCheckboxList {
+    gap: var(--spacing-1-5);
+  }
+}
+
+/* ============================================================
+ * RESPONSIVE — Tablet (768px – 1024px)
+ * ============================================================ */
+
+@media (min-width: 768px) and (max-width: 1024px) {
+  .container {
+    padding: var(--spacing-6);
+  }
+
+  /* Touch-friendly minimum heights */
+  .button,
+  .saveButton,
+  .cancelButton,
+  .editButton,
+  .deleteButton,
+  .confirmDeleteButton {
+    min-height: 44px;
+  }
+
+  /* Allow form rows to wrap on tablet */
+  .formRow,
+  .editFormRow {
+    flex-wrap: wrap;
+  }
+}
