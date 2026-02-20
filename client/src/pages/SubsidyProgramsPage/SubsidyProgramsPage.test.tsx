@@ -165,14 +165,15 @@ describe('SubsidyProgramsPage', () => {
   // ─── Page structure ────────────────────────────────────────────────────────
 
   describe('page structure', () => {
-    it('renders the page heading "Subsidy Programs"', async () => {
+    it('renders the page heading "Budget" and section heading "Subsidy Programs"', async () => {
       mockFetchSubsidyPrograms.mockResolvedValueOnce(emptyProgramsResponse);
 
       renderPage();
 
       await waitFor(() => {
+        expect(screen.getByRole('heading', { name: /^budget$/i, level: 1 })).toBeInTheDocument();
         expect(
-          screen.getByRole('heading', { name: /subsidy programs/i, level: 1 }),
+          screen.getByRole('heading', { name: /subsidy programs/i, level: 2 }),
         ).toBeInTheDocument();
       });
     });
@@ -335,7 +336,7 @@ describe('SubsidyProgramsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText('$5,000.00')).toBeInTheDocument();
+        expect(screen.getByText('€5,000.00')).toBeInTheDocument();
       });
     });
 

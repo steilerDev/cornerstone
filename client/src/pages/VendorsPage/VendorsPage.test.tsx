@@ -108,13 +108,14 @@ describe('VendorsPage', () => {
   // ─── Page structure ────────────────────────────────────────────────────────
 
   describe('page structure', () => {
-    it('renders the page heading "Vendors"', async () => {
+    it('renders the page heading "Budget" and section heading "Vendors"', async () => {
       mockFetchVendors.mockResolvedValueOnce(emptyResponse);
 
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('heading', { name: /^vendors$/i, level: 1 })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /^budget$/i, level: 1 })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /^vendors$/i, level: 2 })).toBeInTheDocument();
       });
     });
 

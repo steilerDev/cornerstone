@@ -2,18 +2,9 @@ import { useState, useEffect } from 'react';
 import type { BudgetOverview } from '@cornerstone/shared';
 import { fetchBudgetOverview } from '../../lib/budgetOverviewApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { formatCurrency } from '../../lib/formatters.js';
+import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
 import styles from './BudgetOverviewPage.module.css';
-
-// ---- Formatting helpers ----
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'EUR',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
-}
 
 // ---- Sub-components ----
 
@@ -93,8 +84,14 @@ export function BudgetOverviewPage() {
   if (isLoading) {
     return (
       <div className={styles.container}>
-        <div className={styles.loading} role="status" aria-label="Loading budget overview">
-          Loading budget overview...
+        <div className={styles.content}>
+          <div className={styles.pageHeader}>
+            <h1 className={styles.pageTitle}>Budget</h1>
+          </div>
+          <BudgetSubNav />
+          <div className={styles.loading} role="status" aria-label="Loading budget overview">
+            Loading budget overview...
+          </div>
         </div>
       </div>
     );
@@ -104,12 +101,22 @@ export function BudgetOverviewPage() {
   if (error) {
     return (
       <div className={styles.container}>
-        <div className={styles.errorCard} role="alert">
-          <h2 className={styles.errorTitle}>Error</h2>
-          <p>{error}</p>
-          <button type="button" className={styles.retryButton} onClick={() => void loadOverview()}>
-            Retry
-          </button>
+        <div className={styles.content}>
+          <div className={styles.pageHeader}>
+            <h1 className={styles.pageTitle}>Budget</h1>
+          </div>
+          <BudgetSubNav />
+          <div className={styles.errorCard} role="alert">
+            <h2 className={styles.errorTitle}>Error</h2>
+            <p>{error}</p>
+            <button
+              type="button"
+              className={styles.retryButton}
+              onClick={() => void loadOverview()}
+            >
+              Retry
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -132,8 +139,11 @@ export function BudgetOverviewPage() {
       <div className={styles.content}>
         {/* Page header */}
         <div className={styles.pageHeader}>
-          <h1 className={styles.pageTitle}>Budget Overview</h1>
+          <h1 className={styles.pageTitle}>Budget</h1>
         </div>
+
+        {/* Budget sub-navigation */}
+        <BudgetSubNav />
 
         {/* Empty state */}
         {!hasData && (

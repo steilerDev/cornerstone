@@ -7,6 +7,7 @@ import {
   deleteBudgetCategory,
 } from '../../lib/budgetCategoriesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
 import styles from './BudgetCategoriesPage.module.css';
 
 const DEFAULT_COLOR = '#3b82f6';
@@ -220,7 +221,13 @@ export function BudgetCategoriesPage() {
   if (isLoading) {
     return (
       <div className={styles.container}>
-        <div className={styles.loading}>Loading budget categories...</div>
+        <div className={styles.content}>
+          <div className={styles.pageHeader}>
+            <h1 className={styles.pageTitle}>Budget</h1>
+          </div>
+          <BudgetSubNav />
+          <div className={styles.loading}>Loading budget categories...</div>
+        </div>
       </div>
     );
   }
@@ -228,12 +235,18 @@ export function BudgetCategoriesPage() {
   if (error && categories.length === 0) {
     return (
       <div className={styles.container}>
-        <div className={styles.errorCard} role="alert">
-          <h2 className={styles.errorTitle}>Error</h2>
-          <p>{error}</p>
-          <button type="button" className={styles.button} onClick={() => void loadCategories()}>
-            Retry
-          </button>
+        <div className={styles.content}>
+          <div className={styles.pageHeader}>
+            <h1 className={styles.pageTitle}>Budget</h1>
+          </div>
+          <BudgetSubNav />
+          <div className={styles.errorCard} role="alert">
+            <h2 className={styles.errorTitle}>Error</h2>
+            <p>{error}</p>
+            <button type="button" className={styles.button} onClick={() => void loadCategories()}>
+              Retry
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -244,7 +257,15 @@ export function BudgetCategoriesPage() {
       <div className={styles.content}>
         {/* Page header */}
         <div className={styles.pageHeader}>
-          <h1 className={styles.pageTitle}>Budget Categories</h1>
+          <h1 className={styles.pageTitle}>Budget</h1>
+        </div>
+
+        {/* Budget sub-navigation */}
+        <BudgetSubNav />
+
+        {/* Section header with action button */}
+        <div className={styles.sectionHeader}>
+          <h2 className={styles.sectionTitle}>Categories</h2>
           <button
             type="button"
             className={styles.button}

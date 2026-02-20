@@ -1,0 +1,78 @@
+/* ============================================================
+ * BudgetSubNav — horizontal tab navigation for the Budget section
+ * ============================================================ */
+
+.subNav {
+  width: 100%;
+}
+
+/* Scrollable tab row — scrolls horizontally when tabs overflow on mobile */
+.tabList {
+  display: flex;
+  flex-direction: row;
+  gap: 0;
+  border-bottom: 2px solid var(--color-border);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  /* Hide scrollbar on browsers that support it — tabs still scroll on touch */
+  scrollbar-width: none; /* Firefox */
+}
+
+.tabList::-webkit-scrollbar {
+  display: none; /* Chrome / Safari */
+}
+
+/* Individual tab link */
+.tab {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--spacing-2-5) var(--spacing-4);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  /* Pull the tab border down so it overlaps the container border */
+  margin-bottom: -2px;
+  transition:
+    color var(--transition-normal),
+    border-color var(--transition-normal),
+    background-color var(--transition-normal);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+
+.tab:hover {
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-secondary);
+}
+
+.tab:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus-subtle);
+  border-radius: var(--radius-sm);
+}
+
+/* Active tab */
+.tabActive {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.tabActive:hover {
+  color: var(--color-primary-hover);
+  background-color: var(--color-bg-secondary);
+  border-bottom-color: var(--color-primary-hover);
+}
+
+/* ============================================================
+ * RESPONSIVE — Mobile (max 767px): reduce padding for smaller screens
+ * ============================================================ */
+
+@media (max-width: 767px) {
+  .tab {
+    padding: var(--spacing-2) var(--spacing-3);
+    font-size: var(--font-size-xs);
+  }
+}

@@ -118,7 +118,8 @@ describe('App', () => {
     render(<App />);
 
     // Wait for lazy-loaded BudgetCategories component to resolve
-    const heading = await screen.findByRole('heading', { name: /budget categories/i, level: 1 });
+    // h1 now says "Budget" (shared across all budget pages); h2 says "Categories"
+    const heading = await screen.findByRole('heading', { name: /^budget$/i, level: 1 });
     expect(heading).toBeInTheDocument();
   });
 

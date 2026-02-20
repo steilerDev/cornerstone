@@ -46,39 +46,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           Work Items
         </NavLink>
         <NavLink
-          to="/budget/overview"
+          to="/budget"
           className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
           onClick={onClose}
         >
-          Budget Overview
-        </NavLink>
-        <NavLink
-          to="/budget/categories"
-          className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
-          onClick={onClose}
-        >
-          Budget Categories
-        </NavLink>
-        <NavLink
-          to="/budget/vendors"
-          className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
-          onClick={onClose}
-        >
-          Vendors
-        </NavLink>
-        <NavLink
-          to="/budget/sources"
-          className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
-          onClick={onClose}
-        >
-          Budget Sources
-        </NavLink>
-        <NavLink
-          to="/budget/subsidies"
-          className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
-          onClick={onClose}
-        >
-          Subsidies
+          Budget
         </NavLink>
         <NavLink
           to="/timeline"

@@ -208,7 +208,7 @@ describe('BudgetOverviewPage', () => {
       await user.click(screen.getByRole('button', { name: /retry/i }));
 
       await waitFor(() => {
-        expect(screen.getByRole('heading', { name: /budget overview/i })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /^budget$/i, level: 1 })).toBeInTheDocument();
       });
 
       // fetchBudgetOverview should have been called twice (initial + retry)
@@ -243,15 +243,13 @@ describe('BudgetOverviewPage', () => {
   // ─── Page header ──────────────────────────────────────────────────────────
 
   describe('page header', () => {
-    it('renders "Budget Overview" heading when data is loaded', async () => {
+    it('renders "Budget" heading when data is loaded', async () => {
       mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
 
       renderPage();
 
       await waitFor(() => {
-        expect(
-          screen.getByRole('heading', { name: /budget overview/i, level: 1 }),
-        ).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /^budget$/i, level: 1 })).toBeInTheDocument();
       });
     });
   });
