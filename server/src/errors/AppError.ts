@@ -87,3 +87,13 @@ export class BudgetSourceInUseError extends AppError {
     this.name = 'BudgetSourceInUseError';
   }
 }
+
+export class SubsidyProgramInUseError extends AppError {
+  constructor(
+    message = 'Subsidy program is in use and cannot be deleted',
+    details?: { workItemCount: number },
+  ) {
+    super('SUBSIDY_PROGRAM_IN_USE', 409, message, details);
+    this.name = 'SubsidyProgramInUseError';
+  }
+}
