@@ -142,7 +142,7 @@ export class VendorsPage {
   async goto(): Promise<void> {
     await this.page.goto(VENDORS_ROUTE);
     // Wait for either the heading (data loaded) or the loading indicator to clear
-    await this.heading.waitFor({ state: 'visible', timeout: 8000 });
+    await this.heading.waitFor({ state: 'visible', timeout: 5000 });
   }
 
   /**
@@ -197,7 +197,7 @@ export class VendorsPage {
    */
   async getTableRowByName(vendorName: string): Promise<Locator | null> {
     try {
-      await this.tableBody.locator('tr').first().waitFor({ state: 'visible', timeout: 10000 });
+      await this.tableBody.locator('tr').first().waitFor({ state: 'visible', timeout: 5000 });
     } catch {
       return null;
     }
@@ -298,8 +298,8 @@ export class VendorsPage {
    */
   async waitForVendorsLoaded(): Promise<void> {
     await Promise.race([
-      this.tableBody.locator('tr').first().waitFor({ state: 'visible', timeout: 8000 }),
-      this.emptyState.waitFor({ state: 'visible', timeout: 8000 }),
+      this.tableBody.locator('tr').first().waitFor({ state: 'visible', timeout: 5000 }),
+      this.emptyState.waitFor({ state: 'visible', timeout: 5000 }),
     ]);
   }
 

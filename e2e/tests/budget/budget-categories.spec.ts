@@ -929,7 +929,7 @@ test.describe('Dark mode rendering (Scenario 10)', { tag: '@responsive' }, () =>
     });
 
     // Wait for categories to load
-    await categoriesPage.heading.waitFor({ state: 'visible', timeout: 15000 });
+    await categoriesPage.heading.waitFor({ state: 'visible', timeout: 8000 });
 
     // Then: The heading is visible (not hidden by theme issues)
     await expect(categoriesPage.heading).toBeVisible();
@@ -956,7 +956,7 @@ test.describe('Dark mode rendering (Scenario 10)', { tag: '@responsive' }, () =>
       document.documentElement.setAttribute('data-theme', 'dark');
     });
 
-    await categoriesPage.heading.waitFor({ state: 'visible', timeout: 15000 });
+    await categoriesPage.heading.waitFor({ state: 'visible', timeout: 8000 });
     await categoriesPage.openCreateForm();
 
     // Form inputs should be visible in dark mode
@@ -980,7 +980,7 @@ test.describe('Dark mode rendering (Scenario 10)', { tag: '@responsive' }, () =>
         document.documentElement.setAttribute('data-theme', 'dark');
       });
 
-      await categoriesPage.heading.waitFor({ state: 'visible', timeout: 15000 });
+      await categoriesPage.heading.waitFor({ state: 'visible', timeout: 8000 });
 
       // Open delete modal in dark mode
       await categoriesPage.openDeleteModal('E2E Dark Mode Delete Test');

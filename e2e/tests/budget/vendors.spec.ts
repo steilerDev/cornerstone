@@ -87,7 +87,7 @@ test.describe('Empty state (Scenario 1)', { tag: '@responsive' }, () => {
       await vendorsPage.goto();
 
       // Then: The empty state is visible
-      await expect(vendorsPage.emptyState).toBeVisible({ timeout: 10000 });
+      await expect(vendorsPage.emptyState).toBeVisible({ timeout: 8000 });
 
       // And: The heading mentions "No vendors yet"
       const emptyText = await vendorsPage.emptyState.textContent();
@@ -118,7 +118,7 @@ test.describe('Empty state (Scenario 1)', { tag: '@responsive' }, () => {
       await vendorsPage.search('ZZZNOMATCH99999');
 
       // Then: Empty state appears with a search-specific message
-      await expect(vendorsPage.emptyState).toBeVisible({ timeout: 10000 });
+      await expect(vendorsPage.emptyState).toBeVisible({ timeout: 8000 });
       const emptyText = await vendorsPage.emptyState.textContent();
       expect(emptyText?.toLowerCase()).toMatch(/no vendors match|try different/);
     } finally {
@@ -154,7 +154,7 @@ test.describe('Create vendor — full details (Scenario 2)', { tag: '@responsive
       });
 
       // Then: The modal closes
-      await expect(vendorsPage.createModal).not.toBeVisible({ timeout: 10000 });
+      await expect(vendorsPage.createModal).not.toBeVisible({ timeout: 8000 });
 
       // And: The new vendor appears in the list
       await vendorsPage.waitForVendorsLoaded();
@@ -192,7 +192,7 @@ test.describe('Create vendor — full details (Scenario 2)', { tag: '@responsive
       await vendorsPage.createVendor({ name: 'E2E Create Reset Test Vendor' });
 
       // Then: The modal closes
-      await expect(vendorsPage.createModal).not.toBeVisible({ timeout: 10000 });
+      await expect(vendorsPage.createModal).not.toBeVisible({ timeout: 8000 });
 
       // And: The "Add Vendor" button is still visible and enabled
       await expect(vendorsPage.addVendorButton).toBeVisible();
@@ -224,7 +224,7 @@ test.describe('Create vendor — name only (Scenario 3)', { tag: '@responsive' }
       await vendorsPage.createVendor({ name: 'E2E Name Only Vendor' });
 
       // Then: The modal closes — vendor was created
-      await expect(vendorsPage.createModal).not.toBeVisible({ timeout: 10000 });
+      await expect(vendorsPage.createModal).not.toBeVisible({ timeout: 8000 });
 
       // And: The vendor appears in the list
       await vendorsPage.waitForVendorsLoaded();
@@ -346,7 +346,7 @@ test.describe('Vendor detail page (Scenario 5)', { tag: '@responsive' }, () => {
       await vendorsPage.clickView('E2E Detail View Vendor');
 
       // Then: I am on the vendor detail page
-      await detailPage.pageTitle.waitFor({ state: 'visible', timeout: 10000 });
+      await detailPage.pageTitle.waitFor({ state: 'visible', timeout: 8000 });
       expect(page.url()).toContain(`/budget/vendors/${createdId}`);
 
       // And: The page heading is the vendor name
@@ -408,7 +408,7 @@ test.describe('Vendor detail page (Scenario 5)', { tag: '@responsive' }, () => {
     await page.goto('/budget/vendors/nonexistent-vendor-id-12345');
 
     // Then: An error card is shown
-    await expect(detailPage.errorCard).toBeVisible({ timeout: 10000 });
+    await expect(detailPage.errorCard).toBeVisible({ timeout: 8000 });
     const errorText = await detailPage.errorCard.textContent();
     expect(errorText?.toLowerCase()).toMatch(/not found|deleted|error/);
   });
@@ -551,7 +551,7 @@ test.describe('Delete vendor — no references (Scenario 8)', { tag: '@responsiv
     await vendorsPage.confirmDelete();
 
     // Then: The modal closes
-    await expect(vendorsPage.deleteModal).not.toBeVisible({ timeout: 10000 });
+    await expect(vendorsPage.deleteModal).not.toBeVisible({ timeout: 8000 });
 
     // And: The vendor is removed from the list
     await vendorsPage.waitForVendorsLoaded();
@@ -599,7 +599,7 @@ test.describe('Delete vendor — no references (Scenario 8)', { tag: '@responsiv
     await detailPage.confirmDelete();
 
     // Then: I am redirected to the vendors list
-    await page.waitForURL('/budget/vendors', { timeout: 10000 });
+    await page.waitForURL('/budget/vendors', { timeout: 8000 });
     expect(page.url()).toContain('/budget/vendors');
 
     // Note: vendor was deleted via UI — no API cleanup needed
@@ -757,7 +757,7 @@ test.describe('Pagination (Scenario 11)', { tag: '@responsive' }, () => {
       await vendorsPage.goto();
 
       // Then: Pagination controls are visible
-      await expect(vendorsPage.pagination).toBeVisible({ timeout: 10000 });
+      await expect(vendorsPage.pagination).toBeVisible({ timeout: 8000 });
       await expect(vendorsPage.nextPageButton).toBeVisible();
       await expect(vendorsPage.prevPageButton).toBeVisible();
 
@@ -993,13 +993,13 @@ test.describe('Navigation between list and detail pages', { tag: '@responsive' }
 
       // Navigate to detail
       await vendorsPage.clickView('E2E Navigation Vendor');
-      await detailPage.pageTitle.waitFor({ state: 'visible', timeout: 10000 });
+      await detailPage.pageTitle.waitFor({ state: 'visible', timeout: 8000 });
       expect(page.url()).toContain('/budget/vendors/');
 
       // Navigate back via breadcrumb
       await detailPage.goBackToVendors();
       expect(page.url()).toContain('/budget/vendors');
-      await vendorsPage.heading.waitFor({ state: 'visible', timeout: 10000 });
+      await vendorsPage.heading.waitFor({ state: 'visible', timeout: 8000 });
     } finally {
       if (createdId) await deleteVendorViaApi(page, createdId);
     }
@@ -1151,7 +1151,7 @@ test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
       document.documentElement.setAttribute('data-theme', 'dark');
     });
 
-    await vendorsPage.heading.waitFor({ state: 'visible', timeout: 15000 });
+    await vendorsPage.heading.waitFor({ state: 'visible', timeout: 8000 });
 
     // Heading visible
     await expect(vendorsPage.heading).toBeVisible();
@@ -1171,7 +1171,7 @@ test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
       document.documentElement.setAttribute('data-theme', 'dark');
     });
 
-    await vendorsPage.heading.waitFor({ state: 'visible', timeout: 15000 });
+    await vendorsPage.heading.waitFor({ state: 'visible', timeout: 8000 });
     await vendorsPage.openCreateModal();
 
     // Modal inputs should be visible in dark mode
@@ -1194,7 +1194,7 @@ test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
         document.documentElement.setAttribute('data-theme', 'dark');
       });
 
-      await detailPage.pageTitle.waitFor({ state: 'visible', timeout: 15000 });
+      await detailPage.pageTitle.waitFor({ state: 'visible', timeout: 8000 });
 
       await expect(detailPage.pageTitle).toBeVisible();
       await expect(detailPage.editButton).toBeVisible();
@@ -1221,7 +1221,7 @@ test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
         document.documentElement.setAttribute('data-theme', 'dark');
       });
 
-      await vendorsPage.heading.waitFor({ state: 'visible', timeout: 15000 });
+      await vendorsPage.heading.waitFor({ state: 'visible', timeout: 8000 });
 
       await vendorsPage.openDeleteModal('E2E Dark Mode Delete Vendor');
 

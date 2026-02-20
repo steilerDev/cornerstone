@@ -23,8 +23,8 @@ export default defineConfig({
   /* Retry on CI only */
   retries: process.env.CI ? 1 : 0,
 
-  /* Use 4 workers on CI (GitHub Actions ubuntu-latest has 4 vCPUs, 16GB RAM). */
-  workers: process.env.CI ? 4 : undefined,
+  /* Use 8 workers on CI to maximize parallelism. */
+  workers: process.env.CI ? 8 : undefined,
 
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [['html', { outputFolder: 'playwright-report' }], ['list']],
@@ -42,6 +42,12 @@ export default defineConfig({
 
     /* Record video on failure for CI debugging */
     video: 'retain-on-failure',
+
+    /* Fail click()/fill() fast instead of falling through to test timeout */
+    actionTimeout: 5000,
+
+    /* Fail page.goto() at 10s instead of test timeout */
+    navigationTimeout: 10000,
   },
 
   /* Global setup and teardown */
@@ -92,8 +98,8 @@ export default defineConfig({
   ],
 
   /* Test timeout */
-  timeout: 30000, // 30 seconds per test
+  timeout: 15000, // 15 seconds per test
 
-  /* Global timeout: cap the entire suite at 45 minutes on CI to prevent stuck runs */
-  globalTimeout: process.env.CI ? 45 * 60 * 1000 : undefined,
+  /* Global timeout: cap the entire suite at 30 minutes on CI to prevent stuck runs */
+  globalTimeout: process.env.CI ? 30 * 60 * 1000 : undefined,
 });

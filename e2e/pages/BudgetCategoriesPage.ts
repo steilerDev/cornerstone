@@ -118,7 +118,7 @@ export class BudgetCategoriesPage {
   async goto(): Promise<void> {
     await this.page.goto(BUDGET_CATEGORIES_ROUTE);
     // Wait for the page heading to appear (data loaded)
-    await this.heading.waitFor({ state: 'visible', timeout: 8000 });
+    await this.heading.waitFor({ state: 'visible', timeout: 5000 });
   }
 
   /**
@@ -165,7 +165,7 @@ export class BudgetCategoriesPage {
       await this.page
         .locator('[class*="categoryRow"]')
         .first()
-        .waitFor({ state: 'visible', timeout: 10000 });
+        .waitFor({ state: 'visible', timeout: 5000 });
     } catch {
       return null;
     }
@@ -360,8 +360,8 @@ export class BudgetCategoriesPage {
       this.page
         .locator('[class*="categoryRow"]')
         .first()
-        .waitFor({ state: 'visible', timeout: 8000 }),
-      this.emptyState.waitFor({ state: 'visible', timeout: 8000 }),
+        .waitFor({ state: 'visible', timeout: 5000 }),
+      this.emptyState.waitFor({ state: 'visible', timeout: 5000 }),
     ]);
   }
 
