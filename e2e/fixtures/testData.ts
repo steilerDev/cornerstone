@@ -21,6 +21,7 @@ export const ROUTES = {
   workItems: '/work-items',
   budget: '/budget',
   budgetCategories: '/budget/categories',
+  budgetVendors: '/budget/vendors',
   timeline: '/timeline',
   householdItems: '/household-items',
   documents: '/documents',
@@ -37,4 +38,5 @@ export const API = {
   users: '/api/users',
   profile: '/api/users/me',
   budgetCategories: '/api/budget-categories',
+  vendors: '/api/vendors',
 };

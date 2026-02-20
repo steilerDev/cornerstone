@@ -73,3 +73,14 @@ export type {
   BudgetCategoryListResponse,
   BudgetCategoryResponse,
 } from './types/budgetCategory.js';
+
+// Vendors
+export type {
+  Vendor,
+  VendorDetail,
+  CreateVendorRequest,
+  UpdateVendorRequest,
+  VendorListQuery,
+  VendorCreateResponse,
+  VendorDetailResponse,
+} from './types/vendor.js';

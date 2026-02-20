@@ -67,3 +67,13 @@ export class CategoryInUseError extends AppError {
     this.name = 'CategoryInUseError';
   }
 }
+
+export class VendorInUseError extends AppError {
+  constructor(
+    message = 'Vendor is in use and cannot be deleted',
+    details?: { invoiceCount: number; workItemCount: number },
+  ) {
+    super('VENDOR_IN_USE', 409, message, details);
+    this.name = 'VendorInUseError';
+  }
+}

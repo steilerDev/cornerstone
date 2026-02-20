@@ -14,6 +14,8 @@ const WorkItemDetailPage = lazy(() => import('./pages/WorkItemDetailPage/WorkIte
 const BudgetCategoriesPage = lazy(
   () => import('./pages/BudgetCategoriesPage/BudgetCategoriesPage'),
 );
+const VendorsPage = lazy(() => import('./pages/VendorsPage/VendorsPage'));
+const VendorDetailPage = lazy(() => import('./pages/VendorDetailPage/VendorDetailPage'));
 const TimelinePage = lazy(() => import('./pages/TimelinePage/TimelinePage'));
 const HouseholdItemsPage = lazy(() => import('./pages/HouseholdItemsPage/HouseholdItemsPage'));
 const DocumentsPage = lazy(() => import('./pages/DocumentsPage/DocumentsPage'));
@@ -56,6 +58,8 @@ export function App() {
                 <Route path="budget">
                   <Route index element={<Navigate to="categories" replace />} />
                   <Route path="categories" element={<BudgetCategoriesPage />} />
+                  <Route path="vendors" element={<VendorsPage />} />
+                  <Route path="vendors/:id" element={<VendorDetailPage />} />
                 </Route>
                 <Route path="timeline" element={<TimelinePage />} />
                 <Route path="household-items" element={<HouseholdItemsPage />} />
