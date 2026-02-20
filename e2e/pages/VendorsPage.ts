@@ -142,7 +142,7 @@ export class VendorsPage {
   async goto(): Promise<void> {
     await this.page.goto(VENDORS_ROUTE);
     // Wait for either the heading (data loaded) or the loading indicator to clear
-    await this.heading.waitFor({ state: 'visible', timeout: 15000 });
+    await this.heading.waitFor({ state: 'visible', timeout: 8000 });
   }
 
   /**
@@ -274,27 +274,23 @@ export class VendorsPage {
   }
 
   /**
-   * Type into the search field and wait for debounce (300ms + network).
+   * Type into the search field and wait for the debounced API response.
    */
   async search(query: string): Promise<void> {
     await this.searchInput.fill(query);
-    // Wait for the debounced request to complete (300ms debounce + render)
-    await this.page.waitForTimeout(400);
-    // Wait for list to update — either rows visible or empty state
-    await Promise.race([
-      this.tableBody.locator('tr').first().waitFor({ state: 'visible', timeout: 10000 }),
-      this.emptyState.waitFor({ state: 'visible', timeout: 10000 }),
-    ]).catch(() => {
-      // If neither appears within timeout, proceed — the test assertion will catch it
-    });
+    await this.page.waitForResponse(
+      (resp) => resp.url().includes('/api/vendors') && resp.status() === 200,
+    );
   }
 
   /**
-   * Clear the search input.
+   * Clear the search input and wait for the debounced API response.
    */
   async clearSearch(): Promise<void> {
     await this.searchInput.clear();
-    await this.page.waitForTimeout(400);
+    await this.page.waitForResponse(
+      (resp) => resp.url().includes('/api/vendors') && resp.status() === 200,
+    );
   }
 
   /**
@@ -302,8 +298,8 @@ export class VendorsPage {
    */
   async waitForVendorsLoaded(): Promise<void> {
     await Promise.race([
-      this.tableBody.locator('tr').first().waitFor({ state: 'visible', timeout: 15000 }),
-      this.emptyState.waitFor({ state: 'visible', timeout: 15000 }),
+      this.tableBody.locator('tr').first().waitFor({ state: 'visible', timeout: 8000 }),
+      this.emptyState.waitFor({ state: 'visible', timeout: 8000 }),
     ]);
   }
 

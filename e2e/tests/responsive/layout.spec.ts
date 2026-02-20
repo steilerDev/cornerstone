@@ -6,7 +6,7 @@ import { test, expect } from '../../fixtures/auth.js';
 import { AppShellPage } from '../../pages/AppShellPage.js';
 import { ROUTES } from '../../fixtures/testData.js';
 
-test.describe('Responsive Layout', () => {
+test.describe('Responsive Layout', { tag: '@responsive' }, () => {
   test('Desktop: sidebar always visible, no hamburger button', async ({ page }) => {
     const viewport = page.viewportSize();
 

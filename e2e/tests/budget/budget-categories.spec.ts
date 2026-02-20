@@ -53,7 +53,7 @@ async function deleteCategoryViaApi(page: Page, id: string): Promise<void> {
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 1 & 2: Default categories present and list view
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Default categories (Scenario 1 & 2)', () => {
+test.describe('Default categories (Scenario 1 & 2)', { tag: '@responsive' }, () => {
   test('Exactly 10 default categories are present after fresh migration', async ({ page }) => {
     // Given: EPIC-05 migration applied; default seeds loaded
     const categoriesPage = new BudgetCategoriesPage(page);
@@ -108,7 +108,7 @@ test.describe('Default categories (Scenario 1 & 2)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 8 (order) & Scenario 2: Categories sorted by sort_order
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Sort order display (Scenario 2 & 13)', () => {
+test.describe('Sort order display (Scenario 2 & 13)', { tag: '@responsive' }, () => {
   test('Categories are displayed in ascending sort_order: Materials before Labor before Permits', async ({
     page,
   }) => {
@@ -158,7 +158,7 @@ test.describe('Sort order display (Scenario 2 & 13)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 3: Create category — happy path (all fields)
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Create category — happy path (Scenario 3)', () => {
+test.describe('Create category — happy path (Scenario 3)', { tag: '@responsive' }, () => {
   test('Create new category with all fields — appears in list at correct position', async ({
     page,
   }) => {
@@ -264,7 +264,7 @@ test.describe('Create category — happy path (Scenario 3)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 5: Create category fails — missing required name
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Create category validation (Scenario 5)', () => {
+test.describe('Create category validation (Scenario 5)', { tag: '@responsive' }, () => {
   test('Create button is disabled when name field is empty', async ({ page }) => {
     const categoriesPage = new BudgetCategoriesPage(page);
 
@@ -337,7 +337,7 @@ test.describe('Create category validation (Scenario 5)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 6: Create category fails — duplicate name
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Duplicate name validation (Scenario 6)', () => {
+test.describe('Duplicate name validation (Scenario 6)', { tag: '@responsive' }, () => {
   test('Creating category with duplicate name "Labor" shows error', async ({ page }) => {
     const categoriesPage = new BudgetCategoriesPage(page);
 
@@ -377,7 +377,7 @@ test.describe('Duplicate name validation (Scenario 6)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 8: Edit an existing budget category
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Edit category (Scenario 8 & 9)', () => {
+test.describe('Edit category (Scenario 8 & 9)', { tag: '@responsive' }, () => {
   test('Edit "Design" description and color — changes persist after reload', async ({ page }) => {
     const categoriesPage = new BudgetCategoriesPage(page);
     const originalDescription = 'Design';
@@ -514,7 +514,7 @@ test.describe('Edit category (Scenario 8 & 9)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 11: Delete a category not referenced by any work item
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Delete category (Scenario 11)', () => {
+test.describe('Delete category (Scenario 11)', { tag: '@responsive' }, () => {
   test('Delete confirmation modal opens with category name in text', async ({ page }) => {
     const categoriesPage = new BudgetCategoriesPage(page);
     let createdId: string | null = null;
@@ -640,7 +640,7 @@ test.describe('Delete category (Scenario 11)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 12: Delete blocked when category is in use (409 error)
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Delete blocked when in use (Scenario 12)', () => {
+test.describe('Delete blocked when in use (Scenario 12)', { tag: '@responsive' }, () => {
   test('Delete confirmation button is not shown after 409 error', async ({ page }) => {
     // This test verifies the UI behavior when the API returns a 409 conflict.
     // We simulate this by intercepting the DELETE request and returning 409.
@@ -703,7 +703,7 @@ test.describe('Delete blocked when in use (Scenario 12)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 18: Empty state when all categories deleted
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Empty state (Scenario 18)', () => {
+test.describe('Empty state (Scenario 18)', { tag: '@responsive' }, () => {
   test('Empty state message shown when no categories exist', async ({ page }) => {
     // Note: This test uses API route mocking to simulate an empty list
     // without actually deleting all 10 default categories (which would be destructive).
@@ -770,7 +770,7 @@ test.describe('Empty state (Scenario 18)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Page structure and navigation
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Page structure and accessibility', () => {
+test.describe('Page structure and accessibility', { tag: '@responsive' }, () => {
   test('Page has correct h1 heading "Budget Categories"', async ({ page }) => {
     const categoriesPage = new BudgetCategoriesPage(page);
 
@@ -818,7 +818,7 @@ test.describe('Page structure and accessibility', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Responsive layout (Scenario 9)
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Responsive layout (Scenario 9)', () => {
+test.describe('Responsive layout (Scenario 9)', { tag: '@responsive' }, () => {
   test('Page renders without horizontal scroll on current viewport', async ({ page }) => {
     const categoriesPage = new BudgetCategoriesPage(page);
 
@@ -912,7 +912,7 @@ test.describe('Responsive layout (Scenario 9)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Dark mode rendering (Scenario 10)
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Dark mode rendering (Scenario 10)', () => {
+test.describe('Dark mode rendering (Scenario 10)', { tag: '@responsive' }, () => {
   test('Page renders correctly in dark mode — no white-on-white or black-on-black text', async ({
     page,
   }) => {
@@ -999,7 +999,7 @@ test.describe('Dark mode rendering (Scenario 10)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Color field behavior (Scenario 17)
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Color field (Scenario 17)', () => {
+test.describe('Color field (Scenario 17)', { tag: '@responsive' }, () => {
   test('Color swatch reflects selected color in create form', async ({ page }) => {
     const categoriesPage = new BudgetCategoriesPage(page);
 

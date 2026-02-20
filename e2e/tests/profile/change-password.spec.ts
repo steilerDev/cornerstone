@@ -8,7 +8,7 @@ import { LoginPage } from '../../pages/LoginPage.js';
 import { AppShellPage } from '../../pages/AppShellPage.js';
 import { TEST_ADMIN, ROUTES } from '../../fixtures/testData.js';
 
-test.describe('Change Password', () => {
+test.describe('Change Password', { tag: '@responsive' }, () => {
   test('Local user sees password change form', async ({ page }) => {
     const profilePage = new ProfilePage(page);
 

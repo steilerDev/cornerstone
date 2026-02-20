@@ -6,7 +6,7 @@ import { test, expect } from '../../fixtures/auth.js';
 import { AppShellPage } from '../../pages/AppShellPage.js';
 import { ROUTES } from '../../fixtures/testData.js';
 
-test.describe('Sidebar Navigation', () => {
+test.describe('Sidebar Navigation', { tag: '@responsive' }, () => {
   test('Navigate to each section via sidebar links', async ({ page }) => {
     const appShell = new AppShellPage(page);
     const viewport = page.viewportSize();
