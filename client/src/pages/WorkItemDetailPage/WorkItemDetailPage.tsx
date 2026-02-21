@@ -156,7 +156,7 @@ export default function WorkItemDetailPage() {
           listUsers(),
           fetchBudgetCategories(),
           fetchBudgetSources(),
-          fetchVendors({ pageSize: 500 }),
+          fetchVendors({ pageSize: 100 }),
           fetchWorkItemVendors(id!),
           fetchSubsidyPrograms(),
           fetchWorkItemSubsidies(id!),

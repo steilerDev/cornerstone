@@ -50,6 +50,7 @@ Own all Playwright E2E browser tests in `e2e/tests/`. This includes:
 - **Page Object Models**: Maintain page objects in `e2e/pages/` for stable, reusable UI interactions
 - **Complementary coverage**: Integration tests validate API behavior and business logic; E2E tests validate browser-level user flows. Ensure they are complementary, not redundant.
 - **Auth setup**: Authentication setup in `e2e/auth.setup.ts` using storageState
+- **Full page/route coverage**: Every page/route in the application must have E2E test coverage. When new pages are added during a story, E2E tests must be created before the story is considered complete. Fully implemented pages need comprehensive tests (CRUD, validation, responsive, dark mode). Stub/placeholder pages need at minimum a smoke test verifying the page loads and renders its heading.
 
 ### 3. Gantt Chart Testing (Integration)
 
