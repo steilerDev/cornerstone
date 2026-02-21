@@ -24,18 +24,20 @@ export function fetchBudgetSource(id: string): Promise<BudgetSourceResponse> {
 /**
  * Creates a new budget source.
  */
-export function createBudgetSource(data: CreateBudgetSourceRequest): Promise<BudgetSource> {
-  return post<BudgetSource>('/budget-sources', data);
+export async function createBudgetSource(data: CreateBudgetSourceRequest): Promise<BudgetSource> {
+  const response = await post<BudgetSourceResponse>('/budget-sources', data);
+  return response.budgetSource;
 }
 
 /**
  * Updates an existing budget source.
  */
-export function updateBudgetSource(
+export async function updateBudgetSource(
   id: string,
   data: UpdateBudgetSourceRequest,
 ): Promise<BudgetSource> {
-  return patch<BudgetSource>(`/budget-sources/${id}`, data);
+  const response = await patch<BudgetSourceResponse>(`/budget-sources/${id}`, data);
+  return response.budgetSource;
 }
 
 /**

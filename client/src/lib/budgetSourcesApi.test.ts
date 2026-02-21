@@ -183,7 +183,7 @@ describe('budgetSourcesApi', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 201,
-        json: async () => sampleSource,
+        json: async () => ({ budgetSource: sampleSource }),
       } as Response);
 
       const requestData = {
@@ -206,7 +206,7 @@ describe('budgetSourcesApi', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 201,
-        json: async () => sampleSource,
+        json: async () => ({ budgetSource: sampleSource }),
       } as Response);
 
       const result = await createBudgetSource({
@@ -228,7 +228,7 @@ describe('budgetSourcesApi', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 201,
-        json: async () => sampleSource,
+        json: async () => ({ budgetSource: sampleSource }),
       } as Response);
 
       const requestData = {
@@ -289,7 +289,7 @@ describe('budgetSourcesApi', () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => updatedSource,
+        json: async () => ({ budgetSource: updatedSource }),
       } as Response);
 
       const updateData = { name: 'Updated Loan' };
@@ -314,7 +314,7 @@ describe('budgetSourcesApi', () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => updatedSource,
+        json: async () => ({ budgetSource: updatedSource }),
       } as Response);
 
       const result = await updateBudgetSource('src-1', {
@@ -333,7 +333,7 @@ describe('budgetSourcesApi', () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => updatedSource,
+        json: async () => ({ budgetSource: updatedSource }),
       } as Response);
 
       const updateData = { status: 'closed' as const };
@@ -353,7 +353,7 @@ describe('budgetSourcesApi', () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => updatedSource,
+        json: async () => ({ budgetSource: updatedSource }),
       } as Response);
 
       const updateData = { interestRate: null };
@@ -397,7 +397,7 @@ describe('budgetSourcesApi', () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => updatedSource,
+        json: async () => ({ budgetSource: updatedSource }),
       } as Response);
 
       await updateBudgetSource('custom-id', { name: 'Updated' });
