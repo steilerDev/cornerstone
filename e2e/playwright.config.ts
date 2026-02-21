@@ -81,7 +81,7 @@ export default defineConfig({
     {
       name: 'tablet',
       dependencies: ['auth-setup'],
-      timeout: 30_000, // WebKit is significantly slower than Chromium
+      timeout: 60_000, // WebKit is significantly slower than Chromium; multi-step tests need 40-50s
       expect: { timeout: 15_000 }, // WebKit expect assertions need more time
       use: {
         ...devices['iPad (gen 7)'],
@@ -96,7 +96,7 @@ export default defineConfig({
       name: 'mobile',
       dependencies: ['auth-setup'],
       grep: /@responsive/,
-      timeout: 30_000, // WebKit is significantly slower than Chromium
+      timeout: 60_000, // WebKit is significantly slower than Chromium; multi-step tests need 40-50s
       expect: { timeout: 15_000 }, // WebKit expect assertions need more time
       use: {
         ...devices['iPhone 13'],
