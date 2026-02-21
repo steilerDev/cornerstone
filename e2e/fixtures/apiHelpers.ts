@@ -25,8 +25,8 @@ export async function createWorkItemViaApi(
 ): Promise<string> {
   const response = await page.request.post(API.workItems, { data });
   expect(response.ok()).toBeTruthy();
-  const body = (await response.json()) as { workItem: { id: string } };
-  return body.workItem.id;
+  const body = (await response.json()) as { id: string };
+  return body.id;
 }
 
 export async function deleteWorkItemViaApi(page: Page, id: string): Promise<void> {
@@ -63,8 +63,8 @@ export async function createBudgetSourceViaApi(
     data: { sourceType: 'savings', status: 'active', ...data },
   });
   expect(response.ok()).toBeTruthy();
-  const body = (await response.json()) as { id: string };
-  return body.id;
+  const body = (await response.json()) as { budgetSource: { id: string } };
+  return body.budgetSource.id;
 }
 
 export async function deleteBudgetSourceViaApi(page: Page, id: string): Promise<void> {
@@ -88,8 +88,8 @@ export async function createSubsidyProgramViaApi(
     data: { reductionType: 'percentage', ...data },
   });
   expect(response.ok()).toBeTruthy();
-  const body = (await response.json()) as { id: string };
-  return body.id;
+  const body = (await response.json()) as { subsidyProgram: { id: string } };
+  return body.subsidyProgram.id;
 }
 
 export async function deleteSubsidyProgramViaApi(page: Page, id: string): Promise<void> {

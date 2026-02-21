@@ -149,7 +149,7 @@ test.describe('Empty state', { tag: '@responsive' }, () => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify(emptyOverviewResponse()),
+          body: JSON.stringify({ overview: emptyOverviewResponse() }),
         });
       } else {
         await route.continue();
@@ -192,7 +192,7 @@ test.describe('Empty state', { tag: '@responsive' }, () => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify(responseBody),
+          body: JSON.stringify({ overview: responseBody }),
         });
       } else {
         await route.continue();
@@ -227,7 +227,7 @@ test.describe('Summary cards', { tag: '@responsive' }, () => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify(populatedOverviewResponse()),
+          body: JSON.stringify({ overview: populatedOverviewResponse() }),
         });
       } else {
         await route.continue();
@@ -262,7 +262,7 @@ test.describe('Summary cards', { tag: '@responsive' }, () => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify(populatedOverviewResponse()),
+          body: JSON.stringify({ overview: populatedOverviewResponse() }),
         });
       } else {
         await route.continue();
@@ -294,7 +294,7 @@ test.describe('Summary cards', { tag: '@responsive' }, () => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify(populatedOverviewResponse()),
+          body: JSON.stringify({ overview: populatedOverviewResponse() }),
         });
       } else {
         await route.continue();
@@ -326,7 +326,7 @@ test.describe('Summary cards', { tag: '@responsive' }, () => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify(populatedOverviewResponse()),
+          body: JSON.stringify({ overview: populatedOverviewResponse() }),
         });
       } else {
         await route.continue();
@@ -355,7 +355,7 @@ test.describe('Summary cards', { tag: '@responsive' }, () => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify(populatedOverviewResponse()),
+          body: JSON.stringify({ overview: populatedOverviewResponse() }),
         });
       } else {
         await route.continue();
@@ -388,7 +388,7 @@ test.describe('Category breakdown table', { tag: '@responsive' }, () => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify(populatedOverviewResponse()),
+          body: JSON.stringify({ overview: populatedOverviewResponse() }),
         });
       } else {
         await route.continue();
@@ -532,7 +532,7 @@ test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify(populatedOverviewResponse()),
+          body: JSON.stringify({ overview: populatedOverviewResponse() }),
         });
       } else {
         await route.continue();
