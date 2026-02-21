@@ -10,8 +10,6 @@ import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
 import type * as TagsApiTypes from '../../lib/tagsApi.js';
 import type * as UsersApiTypes from '../../lib/usersApi.js';
 import type * as DependenciesApiTypes from '../../lib/dependenciesApi.js';
-import type * as BudgetCategoriesApiTypes from '../../lib/budgetCategoriesApi.js';
-import type * as BudgetSourcesApiTypes from '../../lib/budgetSourcesApi.js';
 import type * as WorkItemCreatePageTypes from './WorkItemCreatePage.js';
 
 const mockCreateWorkItem = jest.fn<typeof WorkItemsApiTypes.createWorkItem>();
@@ -20,8 +18,6 @@ const mockFetchTags = jest.fn<typeof TagsApiTypes.fetchTags>();
 const mockCreateTag = jest.fn<typeof TagsApiTypes.createTag>();
 const mockListUsers = jest.fn<typeof UsersApiTypes.listUsers>();
 const mockCreateDependency = jest.fn<typeof DependenciesApiTypes.createDependency>();
-const mockFetchBudgetCategories = jest.fn<typeof BudgetCategoriesApiTypes.fetchBudgetCategories>();
-const mockFetchBudgetSources = jest.fn<typeof BudgetSourcesApiTypes.fetchBudgetSources>();
 
 // Mock only API modules — do NOT mock react-router-dom (causes OOM)
 jest.unstable_mockModule('../../lib/workItemsApi.js', () => ({
@@ -40,14 +36,6 @@ jest.unstable_mockModule('../../lib/usersApi.js', () => ({
 
 jest.unstable_mockModule('../../lib/dependenciesApi.js', () => ({
   createDependency: mockCreateDependency,
-}));
-
-jest.unstable_mockModule('../../lib/budgetCategoriesApi.js', () => ({
-  fetchBudgetCategories: mockFetchBudgetCategories,
-}));
-
-jest.unstable_mockModule('../../lib/budgetSourcesApi.js', () => ({
-  fetchBudgetSources: mockFetchBudgetSources,
 }));
 
 // Helper to capture current location
@@ -91,8 +79,6 @@ describe('WorkItemCreatePage', () => {
     mockFetchTags.mockReset();
     mockCreateTag.mockReset();
     mockListUsers.mockReset();
-    mockFetchBudgetCategories.mockReset();
-    mockFetchBudgetSources.mockReset();
 
     if (!WorkItemCreatePageModule) {
       WorkItemCreatePageModule = await import('./WorkItemCreatePage.js');
@@ -105,8 +91,6 @@ describe('WorkItemCreatePage', () => {
       items: [],
       pagination: { page: 1, pageSize: 15, totalItems: 0, totalPages: 0 },
     });
-    mockFetchBudgetCategories.mockResolvedValue({ categories: [] });
-    mockFetchBudgetSources.mockResolvedValue({ budgetSources: [] });
   });
 
   function renderPage() {

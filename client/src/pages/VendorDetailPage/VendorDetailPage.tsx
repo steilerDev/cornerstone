@@ -986,7 +986,7 @@ export function VendorDetailPage() {
                 >
                   <option value="pending">Pending</option>
                   <option value="paid">Paid</option>
-                  <option value="overdue">Overdue</option>
+                  <option value="claimed">Claimed</option>
                 </select>
               </div>
 
@@ -1138,7 +1138,7 @@ export function VendorDetailPage() {
                 >
                   <option value="pending">Pending</option>
                   <option value="paid">Paid</option>
-                  <option value="overdue">Overdue</option>
+                  <option value="claimed">Claimed</option>
                 </select>
               </div>
 
