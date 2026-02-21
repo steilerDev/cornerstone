@@ -60,9 +60,7 @@ test.describe('Deactivate User', () => {
     await userManagementPage.deactivateCancelButton.click();
 
     // Then: Modal should close
-    await expect(userManagementPage.deactivateModal).not.toBeVisible({
-      timeout: 5000,
-    });
+    await expect(userManagementPage.deactivateModal).not.toBeVisible();
 
     // And: User should still be active
     const adminRow = await userManagementPage.getUserRow(TEST_ADMIN.email);
@@ -80,9 +78,7 @@ test.describe('Deactivate User', () => {
     await userManagementPage.closeDeactivateModal();
 
     // Then: Modal should close
-    await expect(userManagementPage.deactivateModal).not.toBeVisible({
-      timeout: 5000,
-    });
+    await expect(userManagementPage.deactivateModal).not.toBeVisible();
   });
 
   /**

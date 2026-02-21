@@ -124,7 +124,7 @@ export class BudgetOverviewPage {
       has: this.page.locator('[class*="statLabel"]').filter({ hasText: label }),
     });
     try {
-      await row.waitFor({ state: 'visible', timeout: 5000 });
+      await row.waitFor({ state: 'visible' });
     } catch {
       return null;
     }
@@ -138,7 +138,7 @@ export class BudgetOverviewPage {
    */
   async getTableRowCount(): Promise<number> {
     try {
-      await this.categoryBreakdownTableBody.waitFor({ state: 'visible', timeout: 5000 });
+      await this.categoryBreakdownTableBody.waitFor({ state: 'visible' });
       const rows = await this.categoryBreakdownTableBody.locator('tr').all();
       return rows.length;
     } catch {
@@ -151,7 +151,7 @@ export class BudgetOverviewPage {
    */
   async getTableRows(): Promise<Locator[]> {
     try {
-      await this.categoryBreakdownTableBody.waitFor({ state: 'visible', timeout: 5000 });
+      await this.categoryBreakdownTableBody.waitFor({ state: 'visible' });
       return await this.categoryBreakdownTableBody.locator('tr').all();
     } catch {
       return [];

@@ -132,7 +132,7 @@ export class VendorDetailPage {
 
   async goto(vendorId: string): Promise<void> {
     await this.page.goto(`/budget/vendors/${vendorId}`);
-    await this.pageTitle.waitFor({ state: 'visible', timeout: 5000 });
+    await this.pageTitle.waitFor({ state: 'visible' });
   }
 
   /**
@@ -140,7 +140,7 @@ export class VendorDetailPage {
    */
   async goBackToVendors(): Promise<void> {
     await this.backToVendorsButton.click();
-    await this.page.waitForURL('**/budget/vendors', { timeout: 5000 });
+    await this.page.waitForURL('**/budget/vendors');
   }
 
   /**
@@ -148,7 +148,7 @@ export class VendorDetailPage {
    */
   async startEdit(): Promise<void> {
     await this.editButton.click();
-    await this.editNameInput.waitFor({ state: 'visible', timeout: 5000 });
+    await this.editNameInput.waitFor({ state: 'visible' });
   }
 
   /**
@@ -181,7 +181,7 @@ export class VendorDetailPage {
    */
   async saveEdit(): Promise<void> {
     await this.saveChangesButton.click();
-    await this.editNameInput.waitFor({ state: 'hidden', timeout: 5000 });
+    await this.editNameInput.waitFor({ state: 'hidden' });
   }
 
   /**
@@ -189,7 +189,7 @@ export class VendorDetailPage {
    */
   async cancelEdit(): Promise<void> {
     await this.cancelEditButton.click();
-    await this.editNameInput.waitFor({ state: 'hidden', timeout: 5000 });
+    await this.editNameInput.waitFor({ state: 'hidden' });
   }
 
   /**
@@ -197,7 +197,7 @@ export class VendorDetailPage {
    */
   async openDeleteModal(): Promise<void> {
     await this.deleteButton.click();
-    await this.deleteModal.waitFor({ state: 'visible', timeout: 5000 });
+    await this.deleteModal.waitFor({ state: 'visible' });
   }
 
   /**
@@ -212,7 +212,7 @@ export class VendorDetailPage {
    */
   async cancelDelete(): Promise<void> {
     await this.deleteCancelButton.click();
-    await this.deleteModal.waitFor({ state: 'hidden', timeout: 5000 });
+    await this.deleteModal.waitFor({ state: 'hidden' });
   }
 
   /**
@@ -253,7 +253,7 @@ export class VendorDetailPage {
    */
   async getDeleteErrorText(): Promise<string | null> {
     try {
-      await this.deleteErrorBanner.waitFor({ state: 'visible', timeout: 5000 });
+      await this.deleteErrorBanner.waitFor({ state: 'visible' });
       return await this.deleteErrorBanner.textContent();
     } catch {
       return null;
@@ -265,7 +265,7 @@ export class VendorDetailPage {
    */
   async getEditErrorText(): Promise<string | null> {
     try {
-      await this.editErrorBanner.waitFor({ state: 'visible', timeout: 5000 });
+      await this.editErrorBanner.waitFor({ state: 'visible' });
       return await this.editErrorBanner.textContent();
     } catch {
       return null;

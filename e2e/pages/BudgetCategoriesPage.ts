@@ -119,7 +119,7 @@ export class BudgetCategoriesPage {
   async goto(): Promise<void> {
     await this.page.goto(BUDGET_CATEGORIES_ROUTE);
     // Wait for the page heading to appear (data loaded)
-    await this.heading.waitFor({ state: 'visible', timeout: 5000 });
+    await this.heading.waitFor({ state: 'visible' });
   }
 
   /**
@@ -127,7 +127,7 @@ export class BudgetCategoriesPage {
    */
   async openCreateForm(): Promise<void> {
     await this.addCategoryButton.click();
-    await this.createFormHeading.waitFor({ state: 'visible', timeout: 5000 });
+    await this.createFormHeading.waitFor({ state: 'visible' });
   }
 
   /**
@@ -163,10 +163,7 @@ export class BudgetCategoriesPage {
   async getCategoryRow(name: string): Promise<Locator | null> {
     // Wait for at least one row to be visible before searching
     try {
-      await this.page
-        .locator('[class*="categoryRow"]')
-        .first()
-        .waitFor({ state: 'visible', timeout: 5000 });
+      await this.page.locator('[class*="categoryRow"]').first().waitFor({ state: 'visible' });
     } catch {
       return null;
     }
@@ -219,7 +216,7 @@ export class BudgetCategoriesPage {
     // Wait for the edit form to appear (identified by its aria-label)
     await this.page
       .getByRole('form', { name: `Edit ${categoryName}` })
-      .waitFor({ state: 'visible', timeout: 5000 });
+      .waitFor({ state: 'visible' });
   }
 
   /**
@@ -289,7 +286,7 @@ export class BudgetCategoriesPage {
     }
     const deleteButton = row.getByRole('button', { name: `Delete ${categoryName}` });
     await deleteButton.click();
-    await this.deleteModal.waitFor({ state: 'visible', timeout: 5000 });
+    await this.deleteModal.waitFor({ state: 'visible' });
   }
 
   /**
@@ -304,7 +301,7 @@ export class BudgetCategoriesPage {
    */
   async cancelDelete(): Promise<void> {
     await this.deleteCancelButton.click();
-    await this.deleteModal.waitFor({ state: 'hidden', timeout: 5000 });
+    await this.deleteModal.waitFor({ state: 'hidden' });
   }
 
   /**
@@ -317,7 +314,7 @@ export class BudgetCategoriesPage {
         .locator('[role="alert"]')
         .filter({ hasText: /successfully/i })
         .first();
-      await banner.waitFor({ state: 'visible', timeout: 5000 });
+      await banner.waitFor({ state: 'visible' });
       return await banner.textContent();
     } catch {
       return null;
@@ -329,7 +326,7 @@ export class BudgetCategoriesPage {
    */
   async getCreateErrorText(): Promise<string | null> {
     try {
-      await this.createErrorBanner.waitFor({ state: 'visible', timeout: 5000 });
+      await this.createErrorBanner.waitFor({ state: 'visible' });
       return await this.createErrorBanner.textContent();
     } catch {
       return null;
@@ -341,7 +338,7 @@ export class BudgetCategoriesPage {
    */
   async getDeleteModalErrorText(): Promise<string | null> {
     try {
-      await this.deleteModalErrorBanner.waitFor({ state: 'visible', timeout: 5000 });
+      await this.deleteModalErrorBanner.waitFor({ state: 'visible' });
       return await this.deleteModalErrorBanner.textContent();
     } catch {
       return null;
@@ -361,11 +358,8 @@ export class BudgetCategoriesPage {
   async waitForCategoriesLoaded(): Promise<void> {
     // Either there's at least one row, or the empty state is visible
     await Promise.race([
-      this.page
-        .locator('[class*="categoryRow"]')
-        .first()
-        .waitFor({ state: 'visible', timeout: 5000 }),
-      this.emptyState.waitFor({ state: 'visible', timeout: 5000 }),
+      this.page.locator('[class*="categoryRow"]').first().waitFor({ state: 'visible' }),
+      this.emptyState.waitFor({ state: 'visible' }),
     ]);
   }
 

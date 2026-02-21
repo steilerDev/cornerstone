@@ -73,7 +73,7 @@ test.describe('Back button navigation (Scenario 2)', { tag: '@responsive' }, () 
 
     await createPage.backButton.click();
 
-    await page.waitForURL('**/work-items', { timeout: 5000 });
+    await page.waitForURL('**/work-items');
     expect(page.url()).toContain('/work-items');
     // Verify we're on the list page (not the create page)
     expect(page.url()).not.toContain('/work-items/new');
@@ -252,7 +252,7 @@ test.describe('Cancel navigation (Scenario 6)', { tag: '@responsive' }, () => {
     await createPage.cancelButton.click();
 
     // Should navigate to the list
-    await page.waitForURL('**/work-items', { timeout: 5000 });
+    await page.waitForURL('**/work-items');
     expect(page.url()).toContain('/work-items');
     expect(page.url()).not.toContain('/work-items/new');
 
@@ -278,7 +278,7 @@ test.describe('Cancel navigation (Scenario 6)', { tag: '@responsive' }, () => {
     await createPage.fillTitle(`${testPrefix} Back Button Cancelled`);
     await createPage.backButton.click();
 
-    await page.waitForURL('**/work-items', { timeout: 5000 });
+    await page.waitForURL('**/work-items');
     expect(page.url()).toContain('/work-items');
     expect(page.url()).not.toContain('/work-items/new');
   });

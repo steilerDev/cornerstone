@@ -128,7 +128,7 @@ test.describe('"New Work Item" navigation (Scenario 3)', { tag: '@responsive' },
     await workItemsPage.newWorkItemButton.click();
 
     // Should navigate to /work-items/new
-    await page.waitForURL('**/work-items/new', { timeout: 5000 });
+    await page.waitForURL('**/work-items/new');
     expect(page.url()).toContain('/work-items/new');
   });
 });
@@ -423,7 +423,7 @@ test.describe('Pagination (Scenario 8)', { tag: '@responsive' }, () => {
       await workItemsPage.waitForLoaded();
 
       // Pagination should NOT be visible
-      await expect(workItemsPage.pagination).not.toBeVisible({ timeout: 5000 });
+      await expect(workItemsPage.pagination).not.toBeVisible();
     } finally {
       await page.unroute(`${API.workItems}*`);
     }

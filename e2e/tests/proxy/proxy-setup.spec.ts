@@ -140,7 +140,7 @@ test.describe('Reverse Proxy Setup', { tag: '@responsive' }, () => {
         .getByRole('button', { name: /Open menu|Close menu/ });
       await menuButton.click();
       // Wait for sidebar to open (CSS transform-based, not display-based)
-      await page.locator('aside[data-open="true"]').waitFor({ timeout: 5000 });
+      await page.locator('aside[data-open="true"]').waitFor();
     }
 
     const logoutButton = page.getByRole('button', { name: /logout/i });
