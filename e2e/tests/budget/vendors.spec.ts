@@ -342,6 +342,9 @@ test.describe('Vendor detail page (Scenario 5)', { tag: '@responsive' }, () => {
     page,
     testPrefix,
   }) => {
+    // This test creates a vendor, searches, navigates to detail, and asserts
+    // 10+ fields/stats — legitimately takes 12-15s even on desktop Chromium.
+    test.slow();
     const vendorsPage = new VendorsPage(page);
     const detailPage = new VendorDetailPage(page);
     let createdId: string | null = null;
