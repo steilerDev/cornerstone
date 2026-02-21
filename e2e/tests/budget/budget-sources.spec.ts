@@ -76,7 +76,8 @@ test.describe('Page heading and navigation', { tag: '@responsive' }, () => {
     const sourcesPage = new BudgetSourcesPage(page);
 
     await sourcesPage.goto();
-    await sourcesPage.heading.waitFor({ state: 'visible', timeout: 5000 });
+    // No explicit timeout — uses project-level actionTimeout (15s for WebKit).
+    await sourcesPage.heading.waitFor({ state: 'visible' });
 
     // h1 "Budget"
     await expect(sourcesPage.heading).toBeVisible();
@@ -91,7 +92,8 @@ test.describe('Page heading and navigation', { tag: '@responsive' }, () => {
     const sourcesPage = new BudgetSourcesPage(page);
 
     await sourcesPage.goto();
-    await sourcesPage.heading.waitFor({ state: 'visible', timeout: 5000 });
+    // No explicit timeout — uses project-level actionTimeout (15s for WebKit).
+    await sourcesPage.heading.waitFor({ state: 'visible' });
 
     const subNav = page.getByRole('navigation', { name: 'Budget section navigation' });
     await expect(subNav).toBeVisible();
@@ -134,7 +136,8 @@ test.describe('Empty state', { tag: '@responsive' }, () => {
       await sourcesPage.goto();
       await sourcesPage.waitForSourcesLoaded();
 
-      await expect(sourcesPage.emptyState).toBeVisible({ timeout: 8000 });
+      // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
+      await expect(sourcesPage.emptyState).toBeVisible();
       const emptyText = await sourcesPage.emptyState.textContent();
       expect(emptyText?.toLowerCase()).toMatch(/no budget sources yet/);
     } finally {
@@ -146,7 +149,8 @@ test.describe('Empty state', { tag: '@responsive' }, () => {
     const sourcesPage = new BudgetSourcesPage(page);
 
     await sourcesPage.goto();
-    await sourcesPage.heading.waitFor({ state: 'visible', timeout: 5000 });
+    // No explicit timeout — uses project-level actionTimeout (15s for WebKit).
+    await sourcesPage.heading.waitFor({ state: 'visible' });
 
     await expect(sourcesPage.addSourceButton).toBeVisible();
     await expect(sourcesPage.addSourceButton).toBeEnabled();
@@ -179,7 +183,8 @@ test.describe('Create source — full fields', { tag: '@responsive' }, () => {
       });
 
       // Then: Form closes and success banner appears
-      await expect(sourcesPage.createFormHeading).not.toBeVisible({ timeout: 8000 });
+      // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
+      await expect(sourcesPage.createFormHeading).not.toBeVisible();
 
       const successText = await sourcesPage.getSuccessBannerText();
       expect(successText).toContain(sourceName);
@@ -214,7 +219,8 @@ test.describe('Create source — full fields', { tag: '@responsive' }, () => {
       await sourcesPage.createSource({ name: sourceName, totalAmount: 50000 });
 
       // Form dismissed
-      await expect(sourcesPage.createFormHeading).not.toBeVisible({ timeout: 8000 });
+      // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
+      await expect(sourcesPage.createFormHeading).not.toBeVisible();
 
       // Add Source button re-enabled
       await expect(sourcesPage.addSourceButton).toBeEnabled();
@@ -244,7 +250,8 @@ test.describe('Create source — minimal fields', { tag: '@responsive' }, () => 
 
       await sourcesPage.createSource({ name: sourceName, totalAmount: 75000 });
 
-      await expect(sourcesPage.createFormHeading).not.toBeVisible({ timeout: 8000 });
+      // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
+      await expect(sourcesPage.createFormHeading).not.toBeVisible();
 
       await sourcesPage.waitForSourcesLoaded();
       const names = await sourcesPage.getSourceNames();
@@ -277,7 +284,8 @@ test.describe('Create validation', { tag: '@responsive' }, () => {
     await expect(sourcesPage.createSubmitButton).toBeDisabled();
 
     await sourcesPage.createCancelButton.click();
-    await expect(sourcesPage.createFormHeading).not.toBeVisible({ timeout: 5000 });
+    // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
+    await expect(sourcesPage.createFormHeading).not.toBeVisible();
   });
 
   test('"Create Source" button is disabled when amount field is empty', async ({ page }) => {
@@ -294,7 +302,8 @@ test.describe('Create validation', { tag: '@responsive' }, () => {
     await expect(sourcesPage.createSubmitButton).toBeDisabled();
 
     await sourcesPage.createCancelButton.click();
-    await expect(sourcesPage.createFormHeading).not.toBeVisible({ timeout: 5000 });
+    // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
+    await expect(sourcesPage.createFormHeading).not.toBeVisible();
   });
 
   test('"Create Source" button enabled when both name and amount are filled', async ({ page }) => {
@@ -310,7 +319,8 @@ test.describe('Create validation', { tag: '@responsive' }, () => {
     await expect(sourcesPage.createSubmitButton).toBeEnabled();
 
     await sourcesPage.createCancelButton.click();
-    await expect(sourcesPage.createFormHeading).not.toBeVisible({ timeout: 5000 });
+    // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
+    await expect(sourcesPage.createFormHeading).not.toBeVisible();
   });
 
   test('"Add Source" button is disabled while create form is open', async ({ page }) => {
@@ -323,7 +333,8 @@ test.describe('Create validation', { tag: '@responsive' }, () => {
     await expect(sourcesPage.addSourceButton).toBeDisabled();
 
     await sourcesPage.createCancelButton.click();
-    await expect(sourcesPage.createFormHeading).not.toBeVisible({ timeout: 5000 });
+    // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
+    await expect(sourcesPage.createFormHeading).not.toBeVisible();
   });
 
   test('Cancel button dismisses create form without creating a source', async ({ page }) => {
@@ -339,7 +350,8 @@ test.describe('Create validation', { tag: '@responsive' }, () => {
     await sourcesPage.createTotalAmountInput.fill('10000');
     await sourcesPage.createCancelButton.click();
 
-    await expect(sourcesPage.createFormHeading).not.toBeVisible({ timeout: 5000 });
+    // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
+    await expect(sourcesPage.createFormHeading).not.toBeVisible();
 
     const namesAfter = await sourcesPage.getSourceNames();
     expect(namesAfter).not.toContain('Should Not Be Created');
@@ -489,7 +501,8 @@ test.describe('Delete source', { tag: '@responsive' }, () => {
     await sourcesPage.confirmDelete();
 
     // Modal closes
-    await expect(sourcesPage.deleteModal).not.toBeVisible({ timeout: 8000 });
+    // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
+    await expect(sourcesPage.deleteModal).not.toBeVisible();
 
     // Success banner appears
     const successText = await sourcesPage.getSuccessBannerText();
@@ -572,7 +585,8 @@ test.describe('Delete blocked by 409', { tag: '@responsive' }, () => {
       expect(errorText?.toLowerCase()).toMatch(/cannot be deleted|referenced|budget entries/);
 
       // Confirm button is hidden after error
-      await expect(sourcesPage.deleteConfirmButton).not.toBeVisible({ timeout: 3000 });
+      // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
+      await expect(sourcesPage.deleteConfirmButton).not.toBeVisible();
 
       // Modal still open
       await expect(sourcesPage.deleteModal).toBeVisible();
@@ -617,7 +631,8 @@ test.describe('Responsive layout', { tag: '@responsive' }, () => {
     await expect(sourcesPage.createSubmitButton).toBeVisible();
 
     await sourcesPage.createCancelButton.click();
-    await expect(sourcesPage.createFormHeading).not.toBeVisible({ timeout: 5000 });
+    // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
+    await expect(sourcesPage.createFormHeading).not.toBeVisible();
   });
 });
 
@@ -633,7 +648,8 @@ test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
       document.documentElement.setAttribute('data-theme', 'dark');
     });
 
-    await sourcesPage.heading.waitFor({ state: 'visible', timeout: 8000 });
+    // No explicit timeout — uses project-level actionTimeout (15s for WebKit).
+    await sourcesPage.heading.waitFor({ state: 'visible' });
 
     // Heading visible
     await expect(sourcesPage.heading).toBeVisible();
@@ -656,7 +672,8 @@ test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
       document.documentElement.setAttribute('data-theme', 'dark');
     });
 
-    await sourcesPage.heading.waitFor({ state: 'visible', timeout: 8000 });
+    // No explicit timeout — uses project-level actionTimeout (15s for WebKit).
+    await sourcesPage.heading.waitFor({ state: 'visible' });
     await sourcesPage.openCreateForm();
 
     await expect(sourcesPage.createNameInput).toBeVisible();
@@ -664,7 +681,8 @@ test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
     await expect(sourcesPage.createSubmitButton).toBeVisible();
 
     await sourcesPage.createCancelButton.click();
-    await expect(sourcesPage.createFormHeading).not.toBeVisible({ timeout: 5000 });
+    // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
+    await expect(sourcesPage.createFormHeading).not.toBeVisible();
   });
 
   test('Delete modal usable in dark mode', async ({ page, testPrefix }) => {
@@ -680,7 +698,8 @@ test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
         document.documentElement.setAttribute('data-theme', 'dark');
       });
 
-      await sourcesPage.heading.waitFor({ state: 'visible', timeout: 8000 });
+      // No explicit timeout — uses project-level actionTimeout (15s for WebKit).
+      await sourcesPage.heading.waitFor({ state: 'visible' });
       await sourcesPage.waitForSourcesLoaded();
 
       await sourcesPage.openDeleteModal(sourceName);

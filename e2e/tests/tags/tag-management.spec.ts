@@ -187,7 +187,8 @@ test.describe('Create tag — happy path (Scenario 2)', { tag: '@responsive' }, 
       await tagsPage.createTag(tagName);
 
       // Then: Success banner visible
-      await tagsPage.successBanner.waitFor({ state: 'visible', timeout: 5000 });
+      // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
+      await tagsPage.successBanner.waitFor({ state: 'visible' });
 
       // And: The name input is cleared
       await expect(tagsPage.createTagNameInput).toHaveValue('');
@@ -528,7 +529,8 @@ test.describe('Delete tag — confirm (Scenario 8)', { tag: '@responsive' }, () 
     await tagsPage.confirmDelete();
 
     // Then: The modal closes
-    await expect(tagsPage.deleteModal).not.toBeVisible({ timeout: 8000 });
+    // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
+    await expect(tagsPage.deleteModal).not.toBeVisible();
 
     // And: A success banner appears
     const successText = await tagsPage.getSuccessBannerText();
@@ -559,7 +561,8 @@ test.describe('Delete tag — confirm (Scenario 8)', { tag: '@responsive' }, () 
     // Delete via UI
     await tagsPage.openDeleteModal(tagName);
     await tagsPage.confirmDelete();
-    await expect(tagsPage.deleteModal).not.toBeVisible({ timeout: 8000 });
+    // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
+    await expect(tagsPage.deleteModal).not.toBeVisible();
 
     // Then: The count in the heading decreased by 1
     const countAfter = await tagsPage.getTagCount();
@@ -590,7 +593,8 @@ test.describe('Delete tag — cancel (Scenario 9)', { tag: '@responsive' }, () =
       await tagsPage.cancelDelete();
 
       // Then: The modal is closed
-      await expect(tagsPage.deleteModal).not.toBeVisible({ timeout: 5000 });
+      // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
+      await expect(tagsPage.deleteModal).not.toBeVisible();
 
       // And: The tag is still in the list
       const names = await tagsPage.getTagNames();
@@ -618,11 +622,14 @@ test.describe('Delete tag — cancel (Scenario 9)', { tag: '@responsive' }, () =
       await tagsPage.openDeleteModal(tagName);
       await expect(tagsPage.deleteModal).toBeVisible();
 
-      // Click the backdrop (outside the modal content box)
-      await page.locator('[class*="modalBackdrop"]').click();
+      // Click the backdrop at the top-left corner — outside the centered modal content box.
+      // Clicking center would hit the modal content div that sits on top of the backdrop.
+      // No explicit timeout — uses project-level actionTimeout (15s for WebKit).
+      await page.locator('[class*="modalBackdrop"]').click({ position: { x: 10, y: 10 } });
 
       // Then: The modal closes
-      await expect(tagsPage.deleteModal).not.toBeVisible({ timeout: 5000 });
+      // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
+      await expect(tagsPage.deleteModal).not.toBeVisible();
 
       // And: The tag is still present
       const names = await tagsPage.getTagNames();
@@ -657,7 +664,8 @@ test.describe('Empty state (Scenario 10)', { tag: '@responsive' }, () => {
       await tagsPage.goto();
 
       // Then: The empty state paragraph is visible
-      await expect(tagsPage.emptyState).toBeVisible({ timeout: 8000 });
+      // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
+      await expect(tagsPage.emptyState).toBeVisible();
 
       // And: The empty state text matches expected message
       const emptyText = await tagsPage.emptyState.textContent();
@@ -745,7 +753,8 @@ test.describe('Dark mode rendering (Scenario 12)', { tag: '@responsive' }, () =>
       document.documentElement.setAttribute('data-theme', 'dark');
     });
 
-    await tagsPage.heading.waitFor({ state: 'visible', timeout: 8000 });
+    // No explicit timeout — uses project-level actionTimeout (15s for WebKit).
+    await tagsPage.heading.waitFor({ state: 'visible' });
 
     // Heading is visible
     await expect(tagsPage.heading).toBeVisible();
@@ -774,7 +783,8 @@ test.describe('Dark mode rendering (Scenario 12)', { tag: '@responsive' }, () =>
         document.documentElement.setAttribute('data-theme', 'dark');
       });
 
-      await tagsPage.heading.waitFor({ state: 'visible', timeout: 8000 });
+      // No explicit timeout — uses project-level actionTimeout (15s for WebKit).
+      await tagsPage.heading.waitFor({ state: 'visible' });
       await tagsPage.waitForTagsLoaded();
       await tagsPage.openDeleteModal(tagName);
 
