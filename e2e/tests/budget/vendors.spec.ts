@@ -362,6 +362,8 @@ test.describe('Vendor detail page (Scenario 5)', { tag: '@responsive' }, () => {
       await vendorsPage.waitForVendorsLoaded();
       // Search for the vendor to avoid pagination issues from parallel tests
       await vendorsPage.search(vendorName);
+      // Wait for the search results to render the vendor link before clicking
+      await expect(page.getByRole('link', { name: vendorName }).first()).toBeVisible();
 
       // When: I click on the vendor name link
       await vendorsPage.clickView(vendorName);
@@ -372,7 +374,7 @@ test.describe('Vendor detail page (Scenario 5)', { tag: '@responsive' }, () => {
       // And: The page heading is the vendor name
       // Wait for the detail page info card to render — the h1 transitions from
       // "Budget" (list page) to the vendor name after React fetches and renders
-      await detailPage.infoCard.waitFor({ state: 'visible' });
+      await expect(detailPage.infoCard).toBeVisible();
       await expect(detailPage.pageTitle).toHaveText(vendorName);
 
       // And: All vendor fields are shown in the info card
@@ -1058,13 +1060,15 @@ test.describe('Navigation between list and detail pages', { tag: '@responsive' }
       await vendorsPage.goto();
       await vendorsPage.waitForVendorsLoaded();
       await vendorsPage.search(vendorName);
+      // Wait for the search results to render the vendor link before clicking
+      await expect(page.getByRole('link', { name: vendorName }).first()).toBeVisible();
 
       // Navigate to detail (wait for URL change, not h1 which matches list page too)
       await vendorsPage.clickView(vendorName);
       await page.waitForURL('**/budget/vendors/*', { timeout: 8000 });
 
       // Wait for detail page to fully render before interacting with breadcrumb
-      await detailPage.infoCard.waitFor({ state: 'visible' });
+      await expect(detailPage.infoCard).toBeVisible();
 
       // Navigate back via breadcrumb
       await detailPage.goBackToVendors();
