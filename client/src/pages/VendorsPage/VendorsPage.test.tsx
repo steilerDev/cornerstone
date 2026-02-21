@@ -219,8 +219,12 @@ describe('VendorsPage', () => {
 
       // Both table and card views render delete buttons with aria-label (duplicates in jsdom)
       await waitFor(() => {
-        expect(screen.getAllByRole('button', { name: /delete smith plumbing/i }).length).toBeGreaterThan(0);
-        expect(screen.getAllByRole('button', { name: /delete jones electric/i }).length).toBeGreaterThan(0);
+        expect(
+          screen.getAllByRole('button', { name: /delete smith plumbing/i }).length,
+        ).toBeGreaterThan(0);
+        expect(
+          screen.getAllByRole('button', { name: /delete jones electric/i }).length,
+        ).toBeGreaterThan(0);
       });
     });
   });
@@ -488,7 +492,9 @@ describe('VendorsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByRole('button', { name: /delete smith plumbing/i })[0]).toBeInTheDocument();
+        expect(
+          screen.getAllByRole('button', { name: /delete smith plumbing/i })[0],
+        ).toBeInTheDocument();
       });
 
       await user.click(screen.getAllByRole('button', { name: /delete smith plumbing/i })[0]);
@@ -504,7 +510,9 @@ describe('VendorsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByRole('button', { name: /delete smith plumbing/i })[0]).toBeInTheDocument();
+        expect(
+          screen.getAllByRole('button', { name: /delete smith plumbing/i })[0],
+        ).toBeInTheDocument();
       });
 
       await user.click(screen.getAllByRole('button', { name: /delete smith plumbing/i })[0]);
@@ -520,7 +528,9 @@ describe('VendorsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByRole('button', { name: /delete smith plumbing/i })[0]).toBeInTheDocument();
+        expect(
+          screen.getAllByRole('button', { name: /delete smith plumbing/i })[0],
+        ).toBeInTheDocument();
       });
 
       await user.click(screen.getAllByRole('button', { name: /delete smith plumbing/i })[0]);
@@ -542,7 +552,9 @@ describe('VendorsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByRole('button', { name: /delete smith plumbing/i })[0]).toBeInTheDocument();
+        expect(
+          screen.getAllByRole('button', { name: /delete smith plumbing/i })[0],
+        ).toBeInTheDocument();
       });
 
       await user.click(screen.getAllByRole('button', { name: /delete smith plumbing/i })[0]);
@@ -574,7 +586,9 @@ describe('VendorsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByRole('button', { name: /delete smith plumbing/i })[0]).toBeInTheDocument();
+        expect(
+          screen.getAllByRole('button', { name: /delete smith plumbing/i })[0],
+        ).toBeInTheDocument();
       });
 
       await user.click(screen.getAllByRole('button', { name: /delete smith plumbing/i })[0]);
@@ -603,7 +617,9 @@ describe('VendorsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByRole('button', { name: /delete smith plumbing/i })[0]).toBeInTheDocument();
+        expect(
+          screen.getAllByRole('button', { name: /delete smith plumbing/i })[0],
+        ).toBeInTheDocument();
       });
 
       await user.click(screen.getAllByRole('button', { name: /delete smith plumbing/i })[0]);
@@ -629,7 +645,9 @@ describe('VendorsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByRole('button', { name: /delete smith plumbing/i })[0]).toBeInTheDocument();
+        expect(
+          screen.getAllByRole('button', { name: /delete smith plumbing/i })[0],
+        ).toBeInTheDocument();
       });
 
       await user.click(screen.getAllByRole('button', { name: /delete smith plumbing/i })[0]);
