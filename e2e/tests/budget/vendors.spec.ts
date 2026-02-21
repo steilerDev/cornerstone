@@ -270,7 +270,7 @@ test.describe('Create vendor validation (Scenario 4)', { tag: '@responsive' }, (
 
     // Cleanup: close modal
     await vendorsPage.createCancelButton.click();
-    await expect(vendorsPage.createModal).not.toBeVisible({ timeout: 5000 });
+    await expect(vendorsPage.createModal).not.toBeVisible();
   });
 
   test('Submit button becomes enabled when name is filled in', async ({ page }) => {
@@ -288,7 +288,7 @@ test.describe('Create vendor validation (Scenario 4)', { tag: '@responsive' }, (
 
     // Cleanup: close modal
     await vendorsPage.createCancelButton.click();
-    await expect(vendorsPage.createModal).not.toBeVisible({ timeout: 5000 });
+    await expect(vendorsPage.createModal).not.toBeVisible();
   });
 
   test('Clearing the name after typing disables the submit button again', async ({ page }) => {
@@ -306,7 +306,7 @@ test.describe('Create vendor validation (Scenario 4)', { tag: '@responsive' }, (
     await expect(vendorsPage.createSubmitButton).toBeDisabled();
 
     await vendorsPage.createCancelButton.click();
-    await expect(vendorsPage.createModal).not.toBeVisible({ timeout: 5000 });
+    await expect(vendorsPage.createModal).not.toBeVisible();
   });
 
   test('Cancel button closes the modal without creating a vendor', async ({ page }) => {
@@ -322,7 +322,7 @@ test.describe('Create vendor validation (Scenario 4)', { tag: '@responsive' }, (
     await vendorsPage.createCancelButton.click();
 
     // Modal closes
-    await expect(vendorsPage.createModal).not.toBeVisible({ timeout: 5000 });
+    await expect(vendorsPage.createModal).not.toBeVisible();
 
     // List unchanged
     const namesAfter = await vendorsPage.getVendorNames();
@@ -845,7 +845,7 @@ test.describe('Pagination (Scenario 11)', { tag: '@responsive' }, () => {
       await vendorsPage.waitForVendorsLoaded();
 
       // Pagination section should NOT be visible
-      await expect(vendorsPage.pagination).not.toBeVisible({ timeout: 5000 });
+      await expect(vendorsPage.pagination).not.toBeVisible();
     } finally {
       await page.unroute(`${API.vendors}*`);
     }
@@ -1204,7 +1204,7 @@ test.describe('Responsive layout (Scenario 17)', { tag: '@responsive' }, () => {
     await expect(vendorsPage.createSubmitButton).toBeVisible();
 
     await vendorsPage.createCancelButton.click();
-    await expect(vendorsPage.createModal).not.toBeVisible({ timeout: 5000 });
+    await expect(vendorsPage.createModal).not.toBeVisible();
   });
 });
 
@@ -1248,7 +1248,7 @@ test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
     await expect(vendorsPage.createSubmitButton).toBeVisible();
 
     await vendorsPage.createCancelButton.click();
-    await expect(vendorsPage.createModal).not.toBeVisible({ timeout: 5000 });
+    await expect(vendorsPage.createModal).not.toBeVisible();
   });
 
   test('Vendor detail page renders correctly in dark mode', async ({ page, testPrefix }) => {

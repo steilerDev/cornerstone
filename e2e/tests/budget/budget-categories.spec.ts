@@ -195,7 +195,7 @@ test.describe('Create category — happy path (Scenario 3)', { tag: '@responsive
     expect(successText).toContain(categoryName);
 
     // And: The form closes
-    await expect(categoriesPage.createFormHeading).not.toBeVisible({ timeout: 5000 });
+    await expect(categoriesPage.createFormHeading).not.toBeVisible();
 
     // And: The new category appears in the list
     const names = await categoriesPage.getCategoryNames();
@@ -218,9 +218,9 @@ test.describe('Create category — happy path (Scenario 3)', { tag: '@responsive
         // Delete via modal
         if (ariaLabel) {
           await deleteBtn.click();
-          await categoriesPage.deleteModal.waitFor({ state: 'visible', timeout: 5000 });
+          await categoriesPage.deleteModal.waitFor({ state: 'visible' });
           await categoriesPage.confirmDelete();
-          await categoriesPage.deleteModal.waitFor({ state: 'hidden', timeout: 5000 });
+          await categoriesPage.deleteModal.waitFor({ state: 'hidden' });
           createdId = 'deleted';
         }
         break;
@@ -257,7 +257,7 @@ test.describe('Create category — happy path (Scenario 3)', { tag: '@responsive
       await categoriesPage.getSuccessBannerText();
 
       // Then: The create form is dismissed (collapsed)
-      await expect(categoriesPage.createFormHeading).not.toBeVisible({ timeout: 5000 });
+      await expect(categoriesPage.createFormHeading).not.toBeVisible();
 
       // And: "Add Category" button is enabled again
       await expect(categoriesPage.addCategoryButton).toBeEnabled();
@@ -335,7 +335,7 @@ test.describe('Create category validation (Scenario 5)', { tag: '@responsive' },
     await cancelButton.click();
 
     // Then: The form should be dismissed
-    await expect(categoriesPage.createFormHeading).not.toBeVisible({ timeout: 5000 });
+    await expect(categoriesPage.createFormHeading).not.toBeVisible();
 
     // And: No new category was created
     const countAfter = await categoriesPage.getCategoriesCount();
@@ -387,7 +387,7 @@ test.describe('Duplicate name validation (Scenario 6)', { tag: '@responsive' }, 
     await categoriesPage.createCategory({ name: 'Materials' });
 
     // Then: The create form remains visible (not closed on error)
-    await expect(categoriesPage.createFormHeading).toBeVisible({ timeout: 5000 });
+    await expect(categoriesPage.createFormHeading).toBeVisible();
   });
 });
 
@@ -431,7 +431,7 @@ test.describe('Edit category (Scenario 8 & 9)', { tag: '@responsive' }, () => {
     expect(successText).toContain('Design');
 
     // And: The edit form closes
-    await expect(categoriesPage.getEditForm('Design')).not.toBeVisible({ timeout: 5000 });
+    await expect(categoriesPage.getEditForm('Design')).not.toBeVisible();
 
     // And: The updated description is visible in the list
     const description = await categoriesPage.getCategoryDescription('Design');
@@ -474,7 +474,7 @@ test.describe('Edit category (Scenario 8 & 9)', { tag: '@responsive' }, () => {
     await cancelButton.click();
 
     // Then: The edit form is dismissed
-    await expect(categoriesPage.getEditForm('Equipment')).not.toBeVisible({ timeout: 5000 });
+    await expect(categoriesPage.getEditForm('Equipment')).not.toBeVisible();
 
     // And: The original name "Equipment" is still in the list
     const names = await categoriesPage.getCategoryNames();
@@ -581,7 +581,7 @@ test.describe('Delete category (Scenario 11)', { tag: '@responsive' }, () => {
     await categoriesPage.confirmDelete();
 
     // Then: The modal closes
-    await expect(categoriesPage.deleteModal).not.toBeVisible({ timeout: 5000 });
+    await expect(categoriesPage.deleteModal).not.toBeVisible();
 
     // And: Success banner appears
     const successText = await categoriesPage.getSuccessBannerText();

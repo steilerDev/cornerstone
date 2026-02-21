@@ -144,7 +144,7 @@ export class VendorsPage {
   async goto(): Promise<void> {
     await this.page.goto(VENDORS_ROUTE);
     // Wait for either the heading (data loaded) or the loading indicator to clear
-    await this.heading.waitFor({ state: 'visible', timeout: 5000 });
+    await this.heading.waitFor({ state: 'visible' });
   }
 
   /**
@@ -152,7 +152,7 @@ export class VendorsPage {
    */
   async openCreateModal(): Promise<void> {
     await this.addVendorButton.click();
-    await this.createModal.waitFor({ state: 'visible', timeout: 5000 });
+    await this.createModal.waitFor({ state: 'visible' });
   }
 
   /**
@@ -199,7 +199,7 @@ export class VendorsPage {
    */
   async getTableRowByName(vendorName: string): Promise<Locator | null> {
     try {
-      await this.tableBody.locator('tr').first().waitFor({ state: 'visible', timeout: 5000 });
+      await this.tableBody.locator('tr').first().waitFor({ state: 'visible' });
     } catch {
       return null;
     }
@@ -257,7 +257,7 @@ export class VendorsPage {
       .getByRole('button', { name: `Delete ${vendorName}` })
       .first()
       .click();
-    await this.deleteModal.waitFor({ state: 'visible', timeout: 5000 });
+    await this.deleteModal.waitFor({ state: 'visible' });
   }
 
   /**
@@ -272,7 +272,7 @@ export class VendorsPage {
    */
   async cancelDelete(): Promise<void> {
     await this.deleteCancelButton.click();
-    await this.deleteModal.waitFor({ state: 'hidden', timeout: 5000 });
+    await this.deleteModal.waitFor({ state: 'hidden' });
   }
 
   /**
@@ -301,12 +301,9 @@ export class VendorsPage {
    */
   async waitForVendorsLoaded(): Promise<void> {
     await Promise.race([
-      this.tableBody.locator('tr').first().waitFor({ state: 'visible', timeout: 5000 }),
-      this.cardsContainer
-        .locator('[class*="card"]')
-        .first()
-        .waitFor({ state: 'visible', timeout: 5000 }),
-      this.emptyState.waitFor({ state: 'visible', timeout: 5000 }),
+      this.tableBody.locator('tr').first().waitFor({ state: 'visible' }),
+      this.cardsContainer.locator('[class*="card"]').first().waitFor({ state: 'visible' }),
+      this.emptyState.waitFor({ state: 'visible' }),
     ]);
   }
 
@@ -315,7 +312,7 @@ export class VendorsPage {
    */
   async getCreateErrorText(): Promise<string | null> {
     try {
-      await this.createErrorBanner.waitFor({ state: 'visible', timeout: 5000 });
+      await this.createErrorBanner.waitFor({ state: 'visible' });
       return await this.createErrorBanner.textContent();
     } catch {
       return null;
@@ -327,7 +324,7 @@ export class VendorsPage {
    */
   async getDeleteErrorText(): Promise<string | null> {
     try {
-      await this.deleteErrorBanner.waitFor({ state: 'visible', timeout: 5000 });
+      await this.deleteErrorBanner.waitFor({ state: 'visible' });
       return await this.deleteErrorBanner.textContent();
     } catch {
       return null;

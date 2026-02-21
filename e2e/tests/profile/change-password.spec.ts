@@ -61,7 +61,7 @@ test.describe('Change Password', { tag: '@responsive' }, () => {
     // Restore original password for subsequent tests
     await profilePage.goto();
     await profilePage.changePassword(newPassword, TEST_ADMIN.password, TEST_ADMIN.password);
-    await expect(profilePage.passwordSuccessBanner).toBeVisible({ timeout: 5000 });
+    await expect(profilePage.passwordSuccessBanner).toBeVisible();
 
     // Save updated session back to storageState — the logout above destroyed the
     // original auth-setup session in the database, so subsequent tests need this

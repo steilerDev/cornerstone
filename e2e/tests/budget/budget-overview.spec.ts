@@ -131,7 +131,7 @@ test.describe('Page heading and navigation', { tag: '@responsive' }, () => {
 
   test('Navigating to /budget redirects to /budget/overview', async ({ page }) => {
     await page.goto('/budget');
-    await page.waitForURL('/budget/overview', { timeout: 5000 });
+    await page.waitForURL('/budget/overview');
     expect(page.url()).toContain('/budget/overview');
   });
 });
@@ -245,7 +245,7 @@ test.describe('Summary cards', { tag: '@responsive' }, () => {
       const cardTitles = ['Total Budget', 'Financing', 'Vendors', 'Subsidies'];
       for (const title of cardTitles) {
         const card = overviewPage.getSummaryCard(title);
-        await expect(card).toBeVisible({ timeout: 5000 });
+        await expect(card).toBeVisible();
         // Heading inside the card is present
         await expect(card.getByRole('heading', { name: title, exact: true })).toBeVisible();
       }
@@ -404,7 +404,7 @@ test.describe('Category breakdown table', { tag: '@responsive' }, () => {
       await expect(overviewPage.categoryBreakdownHeading).toHaveText('Category Breakdown');
 
       // The table is visible
-      await expect(overviewPage.categoryBreakdownTable).toBeVisible({ timeout: 5000 });
+      await expect(overviewPage.categoryBreakdownTable).toBeVisible();
 
       // Column headers present
       const table = overviewPage.categoryBreakdownTable;

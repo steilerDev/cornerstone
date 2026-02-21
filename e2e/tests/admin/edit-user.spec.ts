@@ -41,7 +41,7 @@ test.describe('Edit User', () => {
     await userManagementPage.editUser({ displayName: newName });
 
     // Wait for modal to close
-    await expect(userManagementPage.editModal).not.toBeVisible({ timeout: 5000 });
+    await expect(userManagementPage.editModal).not.toBeVisible();
 
     // Then: Table should reflect the change
     const adminRow = await userManagementPage.getUserRow(TEST_ADMIN.email);
@@ -54,7 +54,7 @@ test.describe('Edit User', () => {
     // Restore original name
     await userManagementPage.openEditModal(TEST_ADMIN.email);
     await userManagementPage.editUser({ displayName: TEST_ADMIN.displayName });
-    await expect(userManagementPage.editModal).not.toBeVisible({ timeout: 5000 });
+    await expect(userManagementPage.editModal).not.toBeVisible();
   });
 
   test('Modal can be closed without saving', async ({ page }) => {
@@ -69,7 +69,7 @@ test.describe('Edit User', () => {
     await userManagementPage.editCancelButton.click();
 
     // Then: Modal should close
-    await expect(userManagementPage.editModal).not.toBeVisible({ timeout: 5000 });
+    await expect(userManagementPage.editModal).not.toBeVisible();
 
     // And: Changes should not be saved
     const adminRow = await userManagementPage.getUserRow(TEST_ADMIN.email);
@@ -91,7 +91,7 @@ test.describe('Edit User', () => {
     await userManagementPage.closeEditModal();
 
     // Then: Modal should close
-    await expect(userManagementPage.editModal).not.toBeVisible({ timeout: 5000 });
+    await expect(userManagementPage.editModal).not.toBeVisible();
   });
 
   test('Validation: empty display name rejected', async ({ page }) => {

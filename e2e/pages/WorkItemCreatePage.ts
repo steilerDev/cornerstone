@@ -185,7 +185,7 @@ export class WorkItemCreatePage {
    */
   async cancel(): Promise<void> {
     await this.cancelButton.click();
-    await this.page.waitForURL('**/work-items', { timeout: 5000 });
+    await this.page.waitForURL('**/work-items');
   }
 
   /**

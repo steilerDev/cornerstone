@@ -59,7 +59,7 @@ test.describe('Sidebar Navigation', { tag: '@responsive' }, () => {
     await expect(async () => {
       const isActive = await appShell.isNavLinkActive('Work Items');
       expect(isActive).toBe(true);
-    }).toPass({ timeout: 5000 });
+    }).toPass();
 
     // When: User navigates to Budget
     await page.goto(ROUTES.budget);
@@ -68,13 +68,13 @@ test.describe('Sidebar Navigation', { tag: '@responsive' }, () => {
     await expect(async () => {
       const isActive = await appShell.isNavLinkActive('Budget');
       expect(isActive).toBe(true);
-    }).toPass({ timeout: 5000 });
+    }).toPass();
 
     // And: Work Items link should not be active
     await expect(async () => {
       const isActive = await appShell.isNavLinkActive('Work Items');
       expect(isActive).toBe(false);
-    }).toPass({ timeout: 5000 });
+    }).toPass();
   });
 
   test('All nav links rendered and visible', async ({ page }) => {
