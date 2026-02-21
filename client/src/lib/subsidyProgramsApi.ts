@@ -24,18 +24,22 @@ export function fetchSubsidyProgram(id: string): Promise<SubsidyProgramResponse>
 /**
  * Creates a new subsidy program.
  */
-export function createSubsidyProgram(data: CreateSubsidyProgramRequest): Promise<SubsidyProgram> {
-  return post<SubsidyProgram>('/subsidy-programs', data);
+export async function createSubsidyProgram(
+  data: CreateSubsidyProgramRequest,
+): Promise<SubsidyProgram> {
+  const response = await post<SubsidyProgramResponse>('/subsidy-programs', data);
+  return response.subsidyProgram;
 }
 
 /**
  * Updates an existing subsidy program.
  */
-export function updateSubsidyProgram(
+export async function updateSubsidyProgram(
   id: string,
   data: UpdateSubsidyProgramRequest,
 ): Promise<SubsidyProgram> {
-  return patch<SubsidyProgram>(`/subsidy-programs/${id}`, data);
+  const response = await patch<SubsidyProgramResponse>(`/subsidy-programs/${id}`, data);
+  return response.subsidyProgram;
 }
 
 /**

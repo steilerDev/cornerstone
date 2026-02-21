@@ -202,7 +202,7 @@ describe('subsidyProgramsApi', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 201,
-        json: async () => sampleProgram,
+        json: async () => ({ subsidyProgram: sampleProgram }),
       } as Response);
 
       const requestData = {
@@ -225,7 +225,7 @@ describe('subsidyProgramsApi', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 201,
-        json: async () => sampleProgram,
+        json: async () => ({ subsidyProgram: sampleProgram }),
       } as Response);
 
       const result = await createSubsidyProgram({
@@ -251,7 +251,7 @@ describe('subsidyProgramsApi', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 201,
-        json: async () => sampleProgram,
+        json: async () => ({ subsidyProgram: sampleProgram }),
       } as Response);
 
       const requestData = {
@@ -314,7 +314,7 @@ describe('subsidyProgramsApi', () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => updatedProgram,
+        json: async () => ({ subsidyProgram: updatedProgram }),
       } as Response);
 
       const updateData = { name: 'Updated Rebate' };
@@ -339,7 +339,7 @@ describe('subsidyProgramsApi', () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => updatedProgram,
+        json: async () => ({ subsidyProgram: updatedProgram }),
       } as Response);
 
       const result = await updateSubsidyProgram('prog-1', {
@@ -359,7 +359,7 @@ describe('subsidyProgramsApi', () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => updatedProgram,
+        json: async () => ({ subsidyProgram: updatedProgram }),
       } as Response);
 
       const updateData = { reductionType: 'fixed' as const };
@@ -379,7 +379,7 @@ describe('subsidyProgramsApi', () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => updatedProgram,
+        json: async () => ({ subsidyProgram: updatedProgram }),
       } as Response);
 
       const updateData = { description: null };
@@ -399,7 +399,7 @@ describe('subsidyProgramsApi', () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => updatedProgram,
+        json: async () => ({ subsidyProgram: updatedProgram }),
       } as Response);
 
       const updateData = { categoryIds: ['cat-1', 'cat-2'] };
@@ -448,7 +448,7 @@ describe('subsidyProgramsApi', () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => updatedProgram,
+        json: async () => ({ subsidyProgram: updatedProgram }),
       } as Response);
 
       await updateSubsidyProgram('custom-prog-id', { name: 'Updated' });
