@@ -50,7 +50,10 @@ interface VendorApiResponse {
 
 async function createVendorViaApi(page: Page, data: VendorApiData): Promise<string> {
   const response = await page.request.post(API.vendors, { data });
-  expect(response.ok()).toBeTruthy();
+  if (!response.ok()) {
+    const body = await response.text();
+    throw new Error(`POST ${API.vendors} returned ${response.status()}: ${body}`);
+  }
   const body = (await response.json()) as { vendor: VendorApiResponse };
   return body.vendor.id;
 }
@@ -367,6 +370,9 @@ test.describe('Vendor detail page (Scenario 5)', { tag: '@responsive' }, () => {
       await page.waitForURL(`**/budget/vendors/${createdId}`, { timeout: 8000 });
 
       // And: The page heading is the vendor name
+      // Wait for the detail page info card to render — the h1 transitions from
+      // "Budget" (list page) to the vendor name after React fetches and renders
+      await detailPage.infoCard.waitFor({ state: 'visible' });
       await expect(detailPage.pageTitle).toHaveText(vendorName);
 
       // And: All vendor fields are shown in the info card
@@ -1056,6 +1062,9 @@ test.describe('Navigation between list and detail pages', { tag: '@responsive' }
       // Navigate to detail (wait for URL change, not h1 which matches list page too)
       await vendorsPage.clickView(vendorName);
       await page.waitForURL('**/budget/vendors/*', { timeout: 8000 });
+
+      // Wait for detail page to fully render before interacting with breadcrumb
+      await detailPage.infoCard.waitFor({ state: 'visible' });
 
       // Navigate back via breadcrumb
       await detailPage.goBackToVendors();

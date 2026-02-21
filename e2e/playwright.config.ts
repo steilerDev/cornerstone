@@ -70,6 +70,7 @@ export default defineConfig({
     {
       name: 'desktop',
       dependencies: ['auth-setup'],
+      expect: { timeout: 7_000 }, // React SPA transitions need more than the 5s default
       use: {
         ...devices['Desktop Chrome'],
         viewport: { width: 1920, height: 1080 },
