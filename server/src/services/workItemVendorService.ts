@@ -1,4 +1,4 @@
-import { eq, and, isNotNull } from 'drizzle-orm';
+import { eq, and, isNotNull, isNull } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
@@ -132,11 +132,11 @@ export function linkVendorToWorkItem(db: DbType, workItemId: string, vendorId: s
 }
 
 /**
- * Unlink a vendor from a work item by removing all budget lines that reference
- * only that vendor with no other data (placeholder budget lines created by
- * linkVendorToWorkItem). If the vendor has budget lines with real data, those
- * are preserved and a NotFoundError is thrown as if not linked.
- * @throws NotFoundError if work item does not exist, or if the link does not exist
+ * Unlink a vendor from a work item by removing only placeholder budget lines
+ * (those with plannedAmount = 0, no description, no budgetCategoryId, and
+ * no budgetSourceId — i.e. created by linkVendorToWorkItem). Budget lines
+ * with real data are preserved.
+ * @throws NotFoundError if work item does not exist, or if no link exists
  */
 export function unlinkVendorFromWorkItem(db: DbType, workItemId: string, vendorId: string): void {
   assertWorkItemExists(db, workItemId);
@@ -151,7 +151,17 @@ export function unlinkVendorFromWorkItem(db: DbType, workItemId: string, vendorI
     throw new NotFoundError('Vendor is not linked to this work item');
   }
 
+  // Only delete placeholder budget lines (no real data)
   db.delete(workItemBudgets)
-    .where(and(eq(workItemBudgets.workItemId, workItemId), eq(workItemBudgets.vendorId, vendorId)))
+    .where(
+      and(
+        eq(workItemBudgets.workItemId, workItemId),
+        eq(workItemBudgets.vendorId, vendorId),
+        eq(workItemBudgets.plannedAmount, 0),
+        isNull(workItemBudgets.description),
+        isNull(workItemBudgets.budgetCategoryId),
+        isNull(workItemBudgets.budgetSourceId),
+      ),
+    )
     .run();
 }

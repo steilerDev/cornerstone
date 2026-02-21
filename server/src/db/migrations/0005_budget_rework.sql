@@ -15,7 +15,7 @@ CREATE TABLE work_item_budgets (
   id TEXT PRIMARY KEY,
   work_item_id TEXT NOT NULL REFERENCES work_items(id) ON DELETE CASCADE,
   description TEXT,
-  planned_amount REAL NOT NULL DEFAULT 0,
+  planned_amount REAL NOT NULL DEFAULT 0 CHECK(planned_amount >= 0),
   confidence TEXT NOT NULL DEFAULT 'own_estimate' CHECK(confidence IN ('own_estimate', 'professional_estimate', 'quote', 'invoice')),
   budget_category_id TEXT REFERENCES budget_categories(id) ON DELETE SET NULL,
   budget_source_id TEXT REFERENCES budget_sources(id) ON DELETE SET NULL,
