@@ -108,7 +108,8 @@ test.describe('Back button navigation (Scenario 2)', { tag: '@responsive' }, () 
 
       await detailPage.backButton.click();
 
-      await page.waitForURL('**/work-items', { timeout: 5000 });
+      // No explicit timeout — uses project-level navigationTimeout (15s for WebKit).
+      await page.waitForURL('**/work-items');
       expect(page.url()).toContain('/work-items');
       expect(page.url()).not.toMatch(/\/work-items\/[a-z0-9]/);
     } finally {
@@ -228,7 +229,8 @@ test.describe('Add subtask (Scenario 4)', { tag: '@responsive' }, () => {
 
       // Toggle on
       await checkbox.click();
-      await expect(checkbox).toBeChecked({ timeout: 5000 });
+      // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
+      await expect(checkbox).toBeChecked();
     } finally {
       if (createdId) await deleteWorkItemViaApi(page, createdId);
     }
@@ -313,7 +315,8 @@ test.describe(
         expect(errorText).toBeNull();
 
         // Vendor picker select is visible (because availableVendors.length > 0)
-        await expect(detailPage.vendorPicker).toBeVisible({ timeout: 7000 });
+        // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
+        await expect(detailPage.vendorPicker).toBeVisible();
       } finally {
         if (workItemId) await deleteWorkItemViaApi(page, workItemId);
         if (vendorId) await page.request.delete(`${API.vendors}/${vendorId}`);
@@ -400,12 +403,13 @@ test.describe('Inline description edit (Scenario 6)', { tag: '@responsive' }, ()
         .getByRole('button', { name: 'Cancel', exact: true })
         .click();
 
-      // Original description should still be visible
+      // Original description should still be visible.
+      // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
       await expect(
         detailPage.descriptionSection
           .locator('[class*="description"]')
           .filter({ hasText: originalDescription }),
-      ).toBeVisible({ timeout: 5000 });
+      ).toBeVisible();
     } finally {
       if (createdId) await deleteWorkItemViaApi(page, createdId);
     }
@@ -438,7 +442,8 @@ test.describe('Delete work item (Scenario 7)', { tag: '@responsive' }, () => {
     // Confirm deletion — navigates to /work-items
     await detailPage.confirmDelete();
 
-    await page.waitForURL('**/work-items', { timeout: 7000 });
+    // No explicit timeout — uses project-level navigationTimeout (15s for WebKit).
+    await page.waitForURL('**/work-items');
     expect(page.url()).toContain('/work-items');
     expect(page.url()).not.toMatch(/\/work-items\/[a-z0-9]/);
 
@@ -468,7 +473,8 @@ test.describe('Delete work item (Scenario 7)', { tag: '@responsive' }, () => {
       expect(page.url()).toContain(`/work-items/${createdId}`);
 
       // Modal is closed
-      await expect(detailPage.deleteConfirmButton).not.toBeVisible({ timeout: 3000 });
+      // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
+      await expect(detailPage.deleteConfirmButton).not.toBeVisible();
     } finally {
       if (createdId) await deleteWorkItemViaApi(page, createdId);
     }
@@ -492,7 +498,8 @@ test.describe('Error state for non-existent ID (Scenario 8)', { tag: '@responsiv
     const backButton = detailPage.errorState.getByRole('button', {
       name: /Back to Work Items/i,
     });
-    await expect(backButton).toBeVisible({ timeout: 7000 });
+    // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
+    await expect(backButton).toBeVisible();
   });
 
   test('Error state "Back to Work Items" button navigates to the list', async ({ page }) => {
@@ -508,7 +515,8 @@ test.describe('Error state for non-existent ID (Scenario 8)', { tag: '@responsiv
     });
     await backButton.click();
 
-    await page.waitForURL('**/work-items', { timeout: 5000 });
+    // No explicit timeout — uses project-level navigationTimeout (15s for WebKit).
+    await page.waitForURL('**/work-items');
     expect(page.url()).toContain('/work-items');
     expect(page.url()).not.toMatch(/\/work-items\/[a-z0-9]/);
   });
@@ -583,7 +591,8 @@ test.describe('Dark mode rendering (Scenario 10)', { tag: '@responsive' }, () =>
         document.documentElement.setAttribute('data-theme', 'dark');
       });
 
-      await detailPage.heading.waitFor({ state: 'visible', timeout: 7000 });
+      // No explicit timeout — uses project-level actionTimeout (15s for WebKit).
+      await detailPage.heading.waitFor({ state: 'visible' });
 
       // Key elements visible in dark mode
       await expect(detailPage.heading).toBeVisible();
@@ -614,7 +623,8 @@ test.describe('Dark mode rendering (Scenario 10)', { tag: '@responsive' }, () =>
         document.documentElement.setAttribute('data-theme', 'dark');
       });
 
-      await detailPage.heading.waitFor({ state: 'visible', timeout: 7000 });
+      // No explicit timeout — uses project-level actionTimeout (15s for WebKit).
+      await detailPage.heading.waitFor({ state: 'visible' });
       await detailPage.openDeleteModal();
 
       // Modal confirm and cancel buttons visible in dark mode

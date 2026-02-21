@@ -81,7 +81,8 @@ test.describe('Page heading and navigation', { tag: '@responsive' }, () => {
     const subsidyPage = new SubsidyProgramsPage(page);
 
     await subsidyPage.goto();
-    await subsidyPage.heading.waitFor({ state: 'visible', timeout: 5000 });
+    // No explicit timeout — uses project-level actionTimeout (15s for WebKit).
+    await subsidyPage.heading.waitFor({ state: 'visible' });
 
     await expect(subsidyPage.heading).toBeVisible();
     await expect(subsidyPage.heading).toHaveText('Budget');
@@ -94,7 +95,8 @@ test.describe('Page heading and navigation', { tag: '@responsive' }, () => {
     const subsidyPage = new SubsidyProgramsPage(page);
 
     await subsidyPage.goto();
-    await subsidyPage.heading.waitFor({ state: 'visible', timeout: 5000 });
+    // No explicit timeout — uses project-level actionTimeout (15s for WebKit).
+    await subsidyPage.heading.waitFor({ state: 'visible' });
 
     const subNav = page.getByRole('navigation', { name: 'Budget section navigation' });
     await expect(subNav).toBeVisible();
@@ -136,7 +138,8 @@ test.describe('Empty state', { tag: '@responsive' }, () => {
       await subsidyPage.goto();
       await subsidyPage.waitForProgramsLoaded();
 
-      await expect(subsidyPage.emptyState).toBeVisible({ timeout: 8000 });
+      // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
+      await expect(subsidyPage.emptyState).toBeVisible();
       const emptyText = await subsidyPage.emptyState.textContent();
       expect(emptyText?.toLowerCase()).toMatch(/no subsidy programs yet/);
     } finally {
@@ -148,7 +151,8 @@ test.describe('Empty state', { tag: '@responsive' }, () => {
     const subsidyPage = new SubsidyProgramsPage(page);
 
     await subsidyPage.goto();
-    await subsidyPage.heading.waitFor({ state: 'visible', timeout: 5000 });
+    // No explicit timeout — uses project-level actionTimeout (15s for WebKit).
+    await subsidyPage.heading.waitFor({ state: 'visible' });
 
     await expect(subsidyPage.addProgramButton).toBeVisible();
     await expect(subsidyPage.addProgramButton).toBeEnabled();
@@ -185,7 +189,8 @@ test.describe('Create program — percentage type', { tag: '@responsive' }, () =
       });
 
       // Then: Form closes and success banner appears
-      await expect(subsidyPage.createFormHeading).not.toBeVisible({ timeout: 8000 });
+      // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
+      await expect(subsidyPage.createFormHeading).not.toBeVisible();
 
       const successText = await subsidyPage.getSuccessBannerText();
       expect(successText).toContain(programName);
@@ -262,7 +267,8 @@ test.describe('Create program — fixed-amount type', { tag: '@responsive' }, ()
         applicationStatus: 'eligible',
       });
 
-      await expect(subsidyPage.createFormHeading).not.toBeVisible({ timeout: 8000 });
+      // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
+      await expect(subsidyPage.createFormHeading).not.toBeVisible();
 
       await subsidyPage.waitForProgramsLoaded();
       const names = await subsidyPage.getProgramNames();
@@ -302,7 +308,8 @@ test.describe('Create validation', { tag: '@responsive' }, () => {
     await expect(subsidyPage.createSubmitButton).toBeDisabled();
 
     await subsidyPage.createCancelButton.click();
-    await expect(subsidyPage.createFormHeading).not.toBeVisible({ timeout: 5000 });
+    // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
+    await expect(subsidyPage.createFormHeading).not.toBeVisible();
   });
 
   test('"Create Program" button is disabled when reduction value is empty', async ({ page }) => {
@@ -318,7 +325,8 @@ test.describe('Create validation', { tag: '@responsive' }, () => {
     await expect(subsidyPage.createSubmitButton).toBeDisabled();
 
     await subsidyPage.createCancelButton.click();
-    await expect(subsidyPage.createFormHeading).not.toBeVisible({ timeout: 5000 });
+    // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
+    await expect(subsidyPage.createFormHeading).not.toBeVisible();
   });
 
   test('"Create Program" button enabled when name and reduction value filled', async ({ page }) => {
@@ -334,7 +342,8 @@ test.describe('Create validation', { tag: '@responsive' }, () => {
     await expect(subsidyPage.createSubmitButton).toBeEnabled();
 
     await subsidyPage.createCancelButton.click();
-    await expect(subsidyPage.createFormHeading).not.toBeVisible({ timeout: 5000 });
+    // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
+    await expect(subsidyPage.createFormHeading).not.toBeVisible();
   });
 
   test('"Add Program" button is disabled while create form is open', async ({ page }) => {
@@ -347,7 +356,8 @@ test.describe('Create validation', { tag: '@responsive' }, () => {
     await expect(subsidyPage.addProgramButton).toBeDisabled();
 
     await subsidyPage.createCancelButton.click();
-    await expect(subsidyPage.createFormHeading).not.toBeVisible({ timeout: 5000 });
+    // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
+    await expect(subsidyPage.createFormHeading).not.toBeVisible();
   });
 
   test('Cancel dismisses create form without creating a program', async ({ page }) => {
@@ -363,7 +373,8 @@ test.describe('Create validation', { tag: '@responsive' }, () => {
     await subsidyPage.createReductionValueInput.fill('5');
     await subsidyPage.createCancelButton.click();
 
-    await expect(subsidyPage.createFormHeading).not.toBeVisible({ timeout: 5000 });
+    // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
+    await expect(subsidyPage.createFormHeading).not.toBeVisible();
 
     const countAfter = await subsidyPage.getProgramsCount();
     expect(countAfter).toBe(countBefore);
@@ -387,7 +398,8 @@ test.describe('Category checkboxes in create form', { tag: '@responsive' }, () =
     await subsidyPage.openCreateForm();
 
     // The checkbox list should be visible
-    await expect(subsidyPage.createCategoryCheckboxList).toBeVisible({ timeout: 5000 });
+    // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
+    await expect(subsidyPage.createCategoryCheckboxList).toBeVisible();
 
     // At least one default category (e.g. "Materials") should be listed
     const categoryNames = await subsidyPage.getCreateFormCategoryNames();
@@ -395,7 +407,8 @@ test.describe('Category checkboxes in create form', { tag: '@responsive' }, () =
     expect(categoryNames).toContain('Materials');
 
     await subsidyPage.createCancelButton.click();
-    await expect(subsidyPage.createFormHeading).not.toBeVisible({ timeout: 5000 });
+    // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
+    await expect(subsidyPage.createFormHeading).not.toBeVisible();
   });
 
   test('Checking a category associates it with a created program', async ({ page, testPrefix }) => {
@@ -415,7 +428,8 @@ test.describe('Category checkboxes in create form', { tag: '@responsive' }, () =
         categoryNames: ['Materials'],
       });
 
-      await expect(subsidyPage.createFormHeading).not.toBeVisible({ timeout: 8000 });
+      // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
+      await expect(subsidyPage.createFormHeading).not.toBeVisible();
       await subsidyPage.waitForProgramsLoaded();
 
       // Row for the created program should show the category pill
@@ -570,7 +584,8 @@ test.describe('Delete program', { tag: '@responsive' }, () => {
     await subsidyPage.confirmDelete();
 
     // Modal closes
-    await expect(subsidyPage.deleteModal).not.toBeVisible({ timeout: 8000 });
+    // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
+    await expect(subsidyPage.deleteModal).not.toBeVisible();
 
     // Success banner
     const successText = await subsidyPage.getSuccessBannerText();
@@ -653,7 +668,8 @@ test.describe('Delete blocked by 409', { tag: '@responsive' }, () => {
       expect(errorText?.toLowerCase()).toMatch(/cannot be deleted|referenced|budget entries/);
 
       // Confirm button hidden after error
-      await expect(subsidyPage.deleteConfirmButton).not.toBeVisible({ timeout: 3000 });
+      // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
+      await expect(subsidyPage.deleteConfirmButton).not.toBeVisible();
 
       // Modal still open
       await expect(subsidyPage.deleteModal).toBeVisible();
@@ -699,7 +715,8 @@ test.describe('Responsive layout', { tag: '@responsive' }, () => {
     await expect(subsidyPage.createSubmitButton).toBeVisible();
 
     await subsidyPage.createCancelButton.click();
-    await expect(subsidyPage.createFormHeading).not.toBeVisible({ timeout: 5000 });
+    // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
+    await expect(subsidyPage.createFormHeading).not.toBeVisible();
   });
 });
 
@@ -715,7 +732,8 @@ test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
       document.documentElement.setAttribute('data-theme', 'dark');
     });
 
-    await subsidyPage.heading.waitFor({ state: 'visible', timeout: 8000 });
+    // No explicit timeout — uses project-level actionTimeout (15s for WebKit).
+    await subsidyPage.heading.waitFor({ state: 'visible' });
 
     await expect(subsidyPage.heading).toBeVisible();
     await expect(subsidyPage.addProgramButton).toBeVisible();
@@ -734,7 +752,8 @@ test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
       document.documentElement.setAttribute('data-theme', 'dark');
     });
 
-    await subsidyPage.heading.waitFor({ state: 'visible', timeout: 8000 });
+    // No explicit timeout — uses project-level actionTimeout (15s for WebKit).
+    await subsidyPage.heading.waitFor({ state: 'visible' });
     await subsidyPage.openCreateForm();
 
     await expect(subsidyPage.createNameInput).toBeVisible();
@@ -742,7 +761,8 @@ test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
     await expect(subsidyPage.createSubmitButton).toBeVisible();
 
     await subsidyPage.createCancelButton.click();
-    await expect(subsidyPage.createFormHeading).not.toBeVisible({ timeout: 5000 });
+    // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
+    await expect(subsidyPage.createFormHeading).not.toBeVisible();
   });
 
   test('Delete modal usable in dark mode', async ({ page, testPrefix }) => {
@@ -758,7 +778,8 @@ test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
         document.documentElement.setAttribute('data-theme', 'dark');
       });
 
-      await subsidyPage.heading.waitFor({ state: 'visible', timeout: 8000 });
+      // No explicit timeout — uses project-level actionTimeout (15s for WebKit).
+      await subsidyPage.heading.waitFor({ state: 'visible' });
       await subsidyPage.waitForProgramsLoaded();
 
       await subsidyPage.openDeleteModal(programName);

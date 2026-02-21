@@ -314,10 +314,19 @@ export class WorkItemDetailPage {
 
   /**
    * Start inline editing of the description by clicking the description body.
+   * Uses a specific selector that only matches the display-mode .description div
+   * (not .descriptionEdit / .descriptionTextarea / .descriptionEditActions).
    * No explicit timeout — uses project-level actionTimeout (15s for WebKit).
    */
   async startEditingDescription(): Promise<void> {
-    const descriptionBody = this.descriptionSection.locator('[class*="description"]');
+    // Use a scoped selector that excludes the edit-mode variants:
+    // .descriptionEdit, .descriptionTextarea, .descriptionEditActions all
+    // contain "description" as a substring, but only .description div
+    // is present in display mode.  The :not() chain prevents strict-mode
+    // violations if the edit state briefly overlaps.
+    const descriptionBody = this.descriptionSection.locator(
+      'div[class*="description"]:not([class*="descriptionEdit"]):not([class*="descriptionTextarea"]):not([class*="descriptionEditActions"])',
+    );
     await descriptionBody.click();
     // Wait for the textarea to appear
     await this.descriptionSection
@@ -327,9 +336,18 @@ export class WorkItemDetailPage {
 
   /**
    * Save the current inline description edit.
+   * Clicks Save and waits for the textarea to disappear (edit mode exits)
+   * so the caller can immediately assert on the display-mode description text.
+   * No explicit timeout — uses project-level actionTimeout (15s for WebKit).
    */
   async saveDescription(): Promise<void> {
     await this.descriptionSection.getByRole('button', { name: 'Save', exact: true }).click();
+    // Wait for the textarea to disappear so assertions after this call don't
+    // encounter a mixed edit+display state (strict-mode violation on
+    // [class*="description"] which matches 3 elements in edit mode).
+    await this.descriptionSection
+      .locator('[class*="descriptionTextarea"]')
+      .waitFor({ state: 'hidden' });
   }
 
   /**
