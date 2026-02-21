@@ -116,7 +116,7 @@ export class TagManagementPage {
    */
   async goto(): Promise<void> {
     await this.page.goto(TAG_MANAGEMENT_ROUTE);
-    await this.heading.waitFor({ state: 'visible', timeout: 5000 });
+    await this.heading.waitFor({ state: 'visible' });
   }
 
   /**
@@ -161,10 +161,7 @@ export class TagManagementPage {
    */
   async getTagRow(tagName: string): Promise<Locator | null> {
     try {
-      await this.tagsList
-        .locator('[class*="tagRow"]')
-        .first()
-        .waitFor({ state: 'visible', timeout: 5000 });
+      await this.tagsList.locator('[class*="tagRow"]').first().waitFor({ state: 'visible' });
     } catch {
       return null;
     }
@@ -192,7 +189,7 @@ export class TagManagementPage {
     }
     const deleteButton = row.getByRole('button', { name: 'Delete', exact: true });
     await deleteButton.click();
-    await this.deleteModal.waitFor({ state: 'visible', timeout: 5000 });
+    await this.deleteModal.waitFor({ state: 'visible' });
   }
 
   /**
@@ -207,7 +204,7 @@ export class TagManagementPage {
    */
   async cancelDelete(): Promise<void> {
     await this.deleteCancelButton.click();
-    await this.deleteModal.waitFor({ state: 'hidden', timeout: 5000 });
+    await this.deleteModal.waitFor({ state: 'hidden' });
   }
 
   /**
@@ -222,7 +219,7 @@ export class TagManagementPage {
     const editButton = row.getByRole('button', { name: 'Edit', exact: true });
     await editButton.click();
     // Wait for the edit form inputs to appear in the row
-    await row.locator('input[type="text"]').waitFor({ state: 'visible', timeout: 5000 });
+    await row.locator('input[type="text"]').waitFor({ state: 'visible' });
   }
 
   /**
@@ -266,9 +263,7 @@ export class TagManagementPage {
     const saveButton = row.getByRole('button', { name: /^Save$|^Saving\.\.\.$/ });
     await saveButton.click();
     // Wait for the edit form to close (edit inputs disappear)
-    await this.page
-      .locator('[class*="tagRow"] input[type="text"]')
-      .waitFor({ state: 'hidden', timeout: 5000 });
+    await this.page.locator('[class*="tagRow"] input[type="text"]').waitFor({ state: 'hidden' });
   }
 
   /**
@@ -279,9 +274,7 @@ export class TagManagementPage {
     const cancelButton = row.getByRole('button', { name: 'Cancel', exact: true });
     await cancelButton.click();
     // Wait for the edit form to close
-    await this.page
-      .locator('[class*="tagRow"] input[type="text"]')
-      .waitFor({ state: 'hidden', timeout: 5000 });
+    await this.page.locator('[class*="tagRow"] input[type="text"]').waitFor({ state: 'hidden' });
   }
 
   /**
@@ -289,7 +282,7 @@ export class TagManagementPage {
    */
   async getSuccessBannerText(): Promise<string | null> {
     try {
-      await this.successBanner.waitFor({ state: 'visible', timeout: 5000 });
+      await this.successBanner.waitFor({ state: 'visible' });
       return await this.successBanner.textContent();
     } catch {
       return null;
@@ -303,7 +296,7 @@ export class TagManagementPage {
    */
   async getCreateErrorText(): Promise<string | null> {
     try {
-      await this.createErrorBanner.waitFor({ state: 'visible', timeout: 5000 });
+      await this.createErrorBanner.waitFor({ state: 'visible' });
       return await this.createErrorBanner.textContent();
     } catch {
       return null;
@@ -326,11 +319,8 @@ export class TagManagementPage {
    */
   async waitForTagsLoaded(): Promise<void> {
     await Promise.race([
-      this.tagsList
-        .locator('[class*="tagRow"]')
-        .first()
-        .waitFor({ state: 'visible', timeout: 5000 }),
-      this.emptyState.waitFor({ state: 'visible', timeout: 5000 }),
+      this.tagsList.locator('[class*="tagRow"]').first().waitFor({ state: 'visible' }),
+      this.emptyState.waitFor({ state: 'visible' }),
     ]);
   }
 }

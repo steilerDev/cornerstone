@@ -152,29 +152,29 @@ export class SubsidyProgramsPage {
 
   async goto(): Promise<void> {
     await this.page.goto(SUBSIDY_PROGRAMS_ROUTE);
-    await this.heading.waitFor({ state: 'visible', timeout: 5000 });
+    // No explicit timeout — uses project-level actionTimeout (15s for WebKit).
+    await this.heading.waitFor({ state: 'visible' });
   }
 
   /**
    * Wait for the programs list to settle — at least one program row visible,
    * or the empty state visible.
+   * No explicit timeout — uses project-level actionTimeout (15s for WebKit).
    */
   async waitForProgramsLoaded(): Promise<void> {
     await Promise.race([
-      this.page
-        .locator('[class*="programRow"]')
-        .first()
-        .waitFor({ state: 'visible', timeout: 5000 }),
-      this.emptyState.waitFor({ state: 'visible', timeout: 5000 }),
+      this.page.locator('[class*="programRow"]').first().waitFor({ state: 'visible' }),
+      this.emptyState.waitFor({ state: 'visible' }),
     ]);
   }
 
   /**
    * Open the create form by clicking "Add Program".
+   * No explicit timeout — uses project-level actionTimeout (15s for WebKit).
    */
   async openCreateForm(): Promise<void> {
     await this.addProgramButton.click();
-    await this.createFormHeading.waitFor({ state: 'visible', timeout: 5000 });
+    await this.createFormHeading.waitFor({ state: 'visible' });
   }
 
   /**
@@ -242,13 +242,11 @@ export class SubsidyProgramsPage {
   /**
    * Find the program row that contains the given program name.
    * Returns null if not found.
+   * No explicit timeout — uses project-level actionTimeout (15s for WebKit).
    */
   async getProgramRow(name: string): Promise<Locator | null> {
     try {
-      await this.page
-        .locator('[class*="programRow"]')
-        .first()
-        .waitFor({ state: 'visible', timeout: 5000 });
+      await this.page.locator('[class*="programRow"]').first().waitFor({ state: 'visible' });
     } catch {
       return null;
     }
@@ -265,12 +263,11 @@ export class SubsidyProgramsPage {
 
   /**
    * Click the Edit button for the named program to enter inline edit mode.
+   * No explicit timeout — uses project-level actionTimeout (15s for WebKit).
    */
   async startEdit(name: string): Promise<void> {
     await this.page.getByRole('button', { name: `Edit ${name}`, exact: true }).click();
-    await this.page
-      .getByRole('form', { name: `Edit ${name}` })
-      .waitFor({ state: 'visible', timeout: 5000 });
+    await this.page.getByRole('form', { name: `Edit ${name}` }).waitFor({ state: 'visible' });
   }
 
   /**
@@ -298,13 +295,14 @@ export class SubsidyProgramsPage {
 
   /**
    * Open the delete confirmation modal for the program with the given name.
+   * No explicit timeout — uses project-level actionTimeout (15s for WebKit).
    */
   async openDeleteModal(name: string): Promise<void> {
     await this.page
       .getByRole('button', { name: `Delete ${name}`, exact: true })
       .first()
       .click();
-    await this.deleteModal.waitFor({ state: 'visible', timeout: 5000 });
+    await this.deleteModal.waitFor({ state: 'visible' });
   }
 
   /**
@@ -316,18 +314,20 @@ export class SubsidyProgramsPage {
 
   /**
    * Cancel deletion — click "Cancel" and wait for the modal to close.
+   * No explicit timeout — uses project-level actionTimeout (15s for WebKit).
    */
   async cancelDelete(): Promise<void> {
     await this.deleteCancelButton.click();
-    await this.deleteModal.waitFor({ state: 'hidden', timeout: 5000 });
+    await this.deleteModal.waitFor({ state: 'hidden' });
   }
 
   /**
    * Get the visible success banner text, or null if not present.
+   * No explicit timeout — uses project-level actionTimeout (15s for WebKit).
    */
   async getSuccessBannerText(): Promise<string | null> {
     try {
-      await this.successBanner.waitFor({ state: 'visible', timeout: 5000 });
+      await this.successBanner.waitFor({ state: 'visible' });
       return await this.successBanner.textContent();
     } catch {
       return null;
@@ -336,10 +336,11 @@ export class SubsidyProgramsPage {
 
   /**
    * Get the create form error banner text, or null if not visible.
+   * No explicit timeout — uses project-level actionTimeout (15s for WebKit).
    */
   async getCreateErrorText(): Promise<string | null> {
     try {
-      await this.createErrorBanner.waitFor({ state: 'visible', timeout: 5000 });
+      await this.createErrorBanner.waitFor({ state: 'visible' });
       return await this.createErrorBanner.textContent();
     } catch {
       return null;
@@ -348,10 +349,11 @@ export class SubsidyProgramsPage {
 
   /**
    * Get the delete modal error banner text, or null if not visible.
+   * No explicit timeout — uses project-level actionTimeout (15s for WebKit).
    */
   async getDeleteErrorText(): Promise<string | null> {
     try {
-      await this.deleteErrorBanner.waitFor({ state: 'visible', timeout: 5000 });
+      await this.deleteErrorBanner.waitFor({ state: 'visible' });
       return await this.deleteErrorBanner.textContent();
     } catch {
       return null;

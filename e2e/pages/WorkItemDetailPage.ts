@@ -187,9 +187,10 @@ export class WorkItemDetailPage {
    */
   async goto(id: string): Promise<void> {
     await this.page.goto(`/work-items/${id}`);
+    // No explicit timeout — uses project-level actionTimeout (15s for WebKit).
     await Promise.race([
-      this.heading.waitFor({ state: 'visible', timeout: 7000 }),
-      this.errorState.waitFor({ state: 'visible', timeout: 7000 }),
+      this.heading.waitFor({ state: 'visible' }),
+      this.errorState.waitFor({ state: 'visible' }),
     ]);
   }
 
@@ -207,11 +208,12 @@ export class WorkItemDetailPage {
   async addNote(text: string): Promise<void> {
     await this.noteTextarea.fill(text);
     await this.addNoteButton.click();
-    // Wait for the note to appear in the notes list
+    // Wait for the note to appear in the notes list.
+    // No explicit timeout — uses project-level actionTimeout (15s for WebKit).
     await this.notesSection
       .locator('[class*="noteContent"]')
       .filter({ hasText: text })
-      .waitFor({ state: 'visible', timeout: 5000 });
+      .waitFor({ state: 'visible' });
   }
 
   /**
@@ -221,11 +223,12 @@ export class WorkItemDetailPage {
   async addSubtask(text: string): Promise<void> {
     await this.subtaskInput.fill(text);
     await this.addSubtaskButton.click();
-    // Wait for the subtask to appear in the subtask list
+    // Wait for the subtask to appear in the subtask list.
+    // No explicit timeout — uses project-level actionTimeout (15s for WebKit).
     await this.subtasksSection
       .locator('[class*="subtaskTitle"]')
       .filter({ hasText: text })
-      .waitFor({ state: 'visible', timeout: 5000 });
+      .waitFor({ state: 'visible' });
   }
 
   /**
@@ -236,11 +239,12 @@ export class WorkItemDetailPage {
   async linkVendor(vendorName: string): Promise<void> {
     await this.vendorPicker.selectOption({ label: vendorName });
     await this.addVendorButton.click();
-    // Wait for the vendor to appear in the linked list
+    // Wait for the vendor to appear in the linked list.
+    // No explicit timeout — uses project-level actionTimeout (15s for WebKit).
     await this.budgetSection
       .locator('[class*="linkedItemName"]')
       .filter({ hasText: vendorName })
-      .waitFor({ state: 'visible', timeout: 5000 });
+      .waitFor({ state: 'visible' });
   }
 
   /**
@@ -250,11 +254,12 @@ export class WorkItemDetailPage {
   async linkSubsidy(subsidyName: string): Promise<void> {
     await this.subsidyPicker.selectOption({ label: subsidyName });
     await this.addSubsidyButton.click();
-    // Wait for the subsidy to appear in the linked list
+    // Wait for the subsidy to appear in the linked list.
+    // No explicit timeout — uses project-level actionTimeout (15s for WebKit).
     await this.budgetSection
       .locator('[class*="linkedItemName"]')
       .filter({ hasText: subsidyName })
-      .waitFor({ state: 'visible', timeout: 5000 });
+      .waitFor({ state: 'visible' });
   }
 
   /**
@@ -262,7 +267,8 @@ export class WorkItemDetailPage {
    */
   async openDeleteModal(): Promise<void> {
     await this.deleteButton.click();
-    await this.deleteConfirmButton.waitFor({ state: 'visible', timeout: 5000 });
+    // No explicit timeout — uses project-level actionTimeout (15s for WebKit).
+    await this.deleteConfirmButton.waitFor({ state: 'visible' });
   }
 
   /**
@@ -270,7 +276,8 @@ export class WorkItemDetailPage {
    */
   async confirmDelete(): Promise<void> {
     await this.deleteConfirmButton.click();
-    await this.page.waitForURL('**/work-items', { timeout: 7000 });
+    // No explicit timeout — uses project-level navigationTimeout (15s for WebKit).
+    await this.page.waitForURL('**/work-items');
   }
 
   /**
@@ -278,7 +285,8 @@ export class WorkItemDetailPage {
    */
   async cancelDelete(): Promise<void> {
     await this.deleteCancelButton.click();
-    await this.deleteConfirmButton.waitFor({ state: 'hidden', timeout: 5000 });
+    // No explicit timeout — uses project-level actionTimeout (15s for WebKit).
+    await this.deleteConfirmButton.waitFor({ state: 'hidden' });
   }
 
   /**
@@ -295,6 +303,8 @@ export class WorkItemDetailPage {
    */
   async isInErrorState(): Promise<boolean> {
     try {
+      // Use a short timeout since we are probing for an optional state.
+      // 3000ms is intentionally short — we don't want to wait long for an error state.
       await this.errorState.waitFor({ state: 'visible', timeout: 3000 });
       return true;
     } catch {
@@ -304,6 +314,7 @@ export class WorkItemDetailPage {
 
   /**
    * Start inline editing of the description by clicking the description body.
+   * No explicit timeout — uses project-level actionTimeout (15s for WebKit).
    */
   async startEditingDescription(): Promise<void> {
     const descriptionBody = this.descriptionSection.locator('[class*="description"]');
@@ -311,7 +322,7 @@ export class WorkItemDetailPage {
     // Wait for the textarea to appear
     await this.descriptionSection
       .locator('[class*="descriptionTextarea"]')
-      .waitFor({ state: 'visible', timeout: 3000 });
+      .waitFor({ state: 'visible' });
   }
 
   /**
@@ -323,6 +334,7 @@ export class WorkItemDetailPage {
 
   /**
    * Get the inline error banner text, or null if not visible.
+   * Uses a short timeout (3000ms) since we are probing for an optional state.
    */
   async getInlineErrorText(): Promise<string | null> {
     try {

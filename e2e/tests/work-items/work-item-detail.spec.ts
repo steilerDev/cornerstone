@@ -357,12 +357,13 @@ test.describe('Inline description edit (Scenario 6)', { tag: '@responsive' }, ()
       // Save
       await detailPage.saveDescription();
 
-      // The updated description is now visible in the display view
+      // The updated description is now visible in the display view.
+      // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
       await expect(
         detailPage.descriptionSection.locator('[class*="description"]').filter({
           hasText: updatedDescription,
         }),
-      ).toBeVisible({ timeout: 5000 });
+      ).toBeVisible();
 
       // Verify it persisted by reloading
       await detailPage.goto(createdId);
