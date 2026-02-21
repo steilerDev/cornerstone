@@ -18,6 +18,7 @@ describe('invoicesApi', () => {
   const sampleInvoice: Invoice = {
     id: 'invoice-1',
     vendorId: 'vendor-1',
+    workItemBudgetId: null,
     invoiceNumber: 'INV-001',
     amount: 2500.0,
     date: '2026-02-01',
@@ -279,14 +280,14 @@ describe('invoicesApi', () => {
     });
 
     it('handles partial update (status only)', async () => {
-      const updated: Invoice = { ...sampleInvoice, status: 'overdue' };
+      const updated: Invoice = { ...sampleInvoice, status: 'claimed' };
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ invoice: updated }),
       } as Response);
 
-      const data = { status: 'overdue' as const };
+      const data = { status: 'claimed' as const };
       await updateInvoice('vendor-1', 'invoice-1', data);
 
       expect(mockFetch).toHaveBeenCalledWith(

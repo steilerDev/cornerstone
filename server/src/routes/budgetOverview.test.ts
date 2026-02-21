@@ -76,14 +76,59 @@ describe('Budget Overview Routes', () => {
         id,
         title: `Route Work Item ${id}`,
         status: 'not_started',
-        plannedBudget: opts.plannedBudget ?? null,
-        actualCost: opts.actualCost ?? null,
-        budgetCategoryId: opts.budgetCategoryId ?? null,
-        budgetSourceId: opts.budgetSourceId ?? null,
         createdAt: now,
         updatedAt: now,
       })
       .run();
+
+    // Create a budget line if budget fields are provided (Story 5.9 migration)
+    const hasBudgetData =
+      opts.plannedBudget != null ||
+      opts.actualCost != null ||
+      opts.budgetCategoryId != null ||
+      opts.budgetSourceId != null;
+    if (hasBudgetData) {
+      const budgetId = `bud-route-${idCounter++}`;
+      app.db
+        .insert(schema.workItemBudgets)
+        .values({
+          id: budgetId,
+          workItemId: id,
+          plannedAmount: opts.plannedBudget ?? 0,
+          confidence: 'own_estimate',
+          budgetCategoryId: opts.budgetCategoryId ?? null,
+          budgetSourceId: opts.budgetSourceId ?? null,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+
+      // When actualCost is provided, create a vendor + paid invoice linked to this budget line.
+      // Story 5.9: actual costs are tracked via invoices with work_item_budget_id set.
+      if (opts.actualCost != null && opts.actualCost > 0) {
+        const vendorId = `wi-route-vendor-${idCounter++}`;
+        app.db
+          .insert(schema.vendors)
+          .values({ id: vendorId, name: `Auto Vendor ${vendorId}`, createdAt: now, updatedAt: now })
+          .run();
+
+        const invoiceId = `wi-route-inv-${idCounter++}`;
+        app.db
+          .insert(schema.invoices)
+          .values({
+            id: invoiceId,
+            vendorId,
+            workItemBudgetId: budgetId,
+            amount: opts.actualCost,
+            date: '2026-01-01',
+            status: 'paid',
+            createdAt: now,
+            updatedAt: now,
+          })
+          .run();
+      }
+    }
+
     return id;
   }
 
@@ -100,7 +145,7 @@ describe('Budget Overview Routes', () => {
   function insertInvoice(
     vendorId: string,
     amount: number,
-    status: 'pending' | 'paid' | 'overdue',
+    status: 'pending' | 'paid' | 'claimed',
   ): string {
     const id = `inv-route-${idCounter++}`;
     const now = new Date().toISOString();
@@ -264,7 +309,7 @@ describe('Budget Overview Routes', () => {
 
       const vendorId = insertVendor();
       insertInvoice(vendorId, 10000, 'paid');
-      insertInvoice(vendorId, 3000, 'overdue');
+      insertInvoice(vendorId, 3000, 'claimed');
 
       const response = await app.inject({
         method: 'GET',

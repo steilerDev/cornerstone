@@ -88,7 +88,7 @@ describe('Vendor Service', () => {
    */
   function createTestInvoice(
     vendorId: string,
-    status: 'pending' | 'paid' | 'overdue' = 'pending',
+    status: 'pending' | 'paid' | 'claimed' = 'pending',
     amount = 1000,
   ) {
     const id = `invoice-${Date.now()}-${Math.random().toString(36).substring(7)}`;
@@ -108,10 +108,22 @@ describe('Vendor Service', () => {
   }
 
   /**
-   * Helper: Link a vendor to a work item.
+   * Helper: Link a vendor to a work item via a budget line.
    */
   function createWorkItemVendorLink(workItemId: string, vendorId: string) {
-    db.insert(schema.workItemVendors).values({ workItemId, vendorId }).run();
+    const budgetId = `bud-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    const now = new Date().toISOString();
+    db.insert(schema.workItemBudgets)
+      .values({
+        id: budgetId,
+        workItemId,
+        vendorId,
+        plannedAmount: 0,
+        confidence: 'own_estimate',
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
   }
 
   /**
@@ -432,17 +444,17 @@ describe('Vendor Service', () => {
       const vendor = createTestVendor('Multi Invoice Vendor');
       createTestInvoice(vendor.id, 'pending', 500);
       createTestInvoice(vendor.id, 'paid', 300);
-      createTestInvoice(vendor.id, 'overdue', 200);
+      createTestInvoice(vendor.id, 'claimed', 200);
 
       const result = vendorService.getVendorById(db, vendor.id);
 
       expect(result.invoiceCount).toBe(3);
     });
 
-    it('calculates outstandingBalance as sum of pending + overdue invoices', () => {
+    it('calculates outstandingBalance as sum of pending + claimed invoices', () => {
       const vendor = createTestVendor('Balance Vendor');
       createTestInvoice(vendor.id, 'pending', 500);
-      createTestInvoice(vendor.id, 'overdue', 300);
+      createTestInvoice(vendor.id, 'claimed', 300);
       createTestInvoice(vendor.id, 'paid', 1000); // paid — should NOT count
 
       const result = vendorService.getVendorById(db, vendor.id);
@@ -921,10 +933,10 @@ describe('Vendor Service', () => {
 
       expect(thrown).not.toBeNull();
       expect(thrown?.details?.invoiceCount).toBe(2);
-      expect(thrown?.details?.workItemCount).toBe(0);
+      expect(thrown?.details?.budgetLineCount).toBe(0);
     });
 
-    it('VendorInUseError includes workItemCount in details', () => {
+    it('VendorInUseError includes budgetLineCount in details', () => {
       const vendor = createTestVendor('WorkItem Count Vendor');
       const wi1 = createTestWorkItem();
       const wi2 = createTestWorkItem();
@@ -942,7 +954,7 @@ describe('Vendor Service', () => {
 
       expect(thrown).not.toBeNull();
       expect(thrown?.details?.invoiceCount).toBe(0);
-      expect(thrown?.details?.workItemCount).toBe(2);
+      expect(thrown?.details?.budgetLineCount).toBe(2);
     });
 
     it('VendorInUseError has code VENDOR_IN_USE and statusCode 409', () => {
@@ -979,7 +991,7 @@ describe('Vendor Service', () => {
 
       expect(thrown).not.toBeNull();
       expect(thrown?.details?.invoiceCount).toBe(1);
-      expect(thrown?.details?.workItemCount).toBe(1);
+      expect(thrown?.details?.budgetLineCount).toBe(1);
     });
 
     it('can delete a vendor that has paid invoices only (no — invoices block regardless of status)', () => {

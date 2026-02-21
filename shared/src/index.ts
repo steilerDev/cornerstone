@@ -123,3 +123,16 @@ export type {
   BudgetOverview,
   BudgetOverviewResponse,
 } from './types/budgetOverview.js';
+
+// Work Item Budgets
+export type {
+  ConfidenceLevel,
+  BudgetSourceSummary,
+  VendorSummary,
+  WorkItemBudgetLine,
+  CreateWorkItemBudgetRequest,
+  UpdateWorkItemBudgetRequest,
+  WorkItemBudgetListResponse,
+  WorkItemBudgetResponse,
+} from './types/workItemBudget.js';
+export { CONFIDENCE_MARGINS } from './types/workItemBudget.js';

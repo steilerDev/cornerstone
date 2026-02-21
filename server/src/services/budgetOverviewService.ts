@@ -6,16 +6,31 @@ import type { BudgetOverview, CategoryBudgetSummary } from '@cornerstone/shared'
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
 /**
- * Get the full project-level budget overview, aggregating data from work items,
+ * Get the full project-level budget overview, aggregating data from work_item_budgets,
  * budget categories, budget sources, vendors/invoices, and subsidy programs.
+ *
+ * Updated for EPIC-05 Story 5.9: budget data is now in work_item_budgets, not work_items.
+ *
+ * Cost semantics:
+ *   - totalPlannedBudget: SUM of planned_amount across all work_item_budgets
+ *   - totalActualCost: SUM of invoice amounts linked to a work_item_budget (work_item_budget_id IS NOT NULL)
+ *   - financingSummary.totalUsed: SUM of invoices for budget lines tied to an active source
+ *   - categorySummaries.actualCost: SUM of invoices for budget lines in that category
+ *   - vendorSummary: ALL invoices (regardless of budget line link)
  */
 export function getBudgetOverview(db: DbType): BudgetOverview {
-  // ── 1. Project-level totals from work_items ──────────────────────────────
+  // ── 1. Project-level totals ────────────────────────────────────────────────
+  // plannedBudget from work_item_budgets.planned_amount
+  // actualCost from invoices linked to a budget line (work_item_budget_id IS NOT NULL)
   const totalsRow = db.get<{ plannedBudget: number | null; actualCost: number | null }>(
     sql`SELECT
-      COALESCE(SUM(planned_budget), 0) AS plannedBudget,
-      COALESCE(SUM(actual_cost), 0)    AS actualCost
-    FROM work_items`,
+      COALESCE(SUM(planned_amount), 0) AS plannedBudget,
+      COALESCE((
+        SELECT SUM(amount)
+        FROM invoices
+        WHERE work_item_budget_id IS NOT NULL
+      ), 0) AS actualCost
+    FROM work_item_budgets`,
   );
 
   const totalPlannedBudget = totalsRow?.plannedBudget ?? 0;
@@ -23,8 +38,9 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
   const totalVariance = totalPlannedBudget - totalActualCost;
 
   // ── 2. Category summaries ─────────────────────────────────────────────────
-  // All categories (even with no work items), plus uncategorised work items.
-  // LEFT JOIN budget_categories → work_items to include 0-count categories.
+  // All categories (even with no budget lines), plus the aggregate for each.
+  // LEFT JOIN budget_categories → work_item_budgets to include 0-count categories.
+  // actualCost per category = SUM of invoices linked to budget lines in that category.
   const categoryRows = db.all<{
     categoryId: string;
     categoryName: string;
@@ -37,11 +53,16 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
       bc.id            AS categoryId,
       bc.name          AS categoryName,
       bc.color         AS categoryColor,
-      COALESCE(SUM(wi.planned_budget), 0) AS plannedBudget,
-      COALESCE(SUM(wi.actual_cost),    0) AS actualCost,
-      COUNT(wi.id)                        AS workItemCount
+      COALESCE(SUM(wib.planned_amount), 0)                          AS plannedBudget,
+      COALESCE((
+        SELECT SUM(inv.amount)
+        FROM invoices inv
+        INNER JOIN work_item_budgets wib2 ON wib2.id = inv.work_item_budget_id
+        WHERE wib2.budget_category_id = bc.id
+      ), 0)                                                          AS actualCost,
+      COUNT(DISTINCT wib.work_item_id)                              AS workItemCount
     FROM budget_categories bc
-    LEFT JOIN work_items wi ON wi.budget_category_id = bc.id
+    LEFT JOIN work_item_budgets wib ON wib.budget_category_id = bc.id
     GROUP BY bc.id, bc.name, bc.color
     ORDER BY bc.sort_order ASC, bc.name ASC`,
   );
@@ -58,7 +79,7 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
 
   // ── 3. Financing summary (budget sources) ─────────────────────────────────
   // totalAvailable = SUM(total_amount) for active sources
-  // totalUsed      = SUM(actual_cost) for work items that reference an active source
+  // totalUsed      = SUM of invoice amounts for budget lines linked to active sources
   const financingRow = db.get<{
     totalAvailable: number | null;
     sourceCount: number;
@@ -71,9 +92,10 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
   );
 
   const financingUsedRow = db.get<{ totalUsed: number | null }>(
-    sql`SELECT COALESCE(SUM(wi.actual_cost), 0) AS totalUsed
-    FROM work_items wi
-    INNER JOIN budget_sources bs ON bs.id = wi.budget_source_id
+    sql`SELECT COALESCE(SUM(inv.amount), 0) AS totalUsed
+    FROM invoices inv
+    INNER JOIN work_item_budgets wib ON wib.id = inv.work_item_budget_id
+    INNER JOIN budget_sources bs ON bs.id = wib.budget_source_id
     WHERE bs.status = 'active'`,
   );
 
@@ -88,18 +110,22 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
   };
 
   // ── 4. Vendor summary (invoices) ──────────────────────────────────────────
+  // Counts only invoices NOT linked to a budget line (work_item_budget_id IS NULL).
+  // Budget-line-linked invoices are tracked under work item / category cost metrics.
+  // "Free-floating" vendor invoices represent direct vendor payments not tied to a specific budget line.
   const invoiceRow = db.get<{
     totalPaid: number | null;
     totalOutstanding: number | null;
   }>(
     sql`SELECT
-      COALESCE(SUM(CASE WHEN status = 'paid'                   THEN amount ELSE 0 END), 0) AS totalPaid,
-      COALESCE(SUM(CASE WHEN status IN ('pending', 'overdue')  THEN amount ELSE 0 END), 0) AS totalOutstanding
-    FROM invoices`,
+      COALESCE(SUM(CASE WHEN status = 'paid'                     THEN amount ELSE 0 END), 0) AS totalPaid,
+      COALESCE(SUM(CASE WHEN status IN ('pending', 'claimed')    THEN amount ELSE 0 END), 0) AS totalOutstanding
+    FROM invoices
+    WHERE work_item_budget_id IS NULL`,
   );
 
   const vendorCountRow = db.get<{ vendorCount: number }>(
-    sql`SELECT COUNT(DISTINCT vendor_id) AS vendorCount FROM invoices`,
+    sql`SELECT COUNT(DISTINCT vendor_id) AS vendorCount FROM invoices WHERE work_item_budget_id IS NULL`,
   );
 
   const vendorSummary = {
@@ -111,8 +137,8 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
   // ── 5. Subsidy summary ────────────────────────────────────────────────────
   // activeSubsidyCount = programs not rejected
   // totalReductions    = sum of computed reductions across all work item ↔ subsidy links
-  //   For 'percentage' type: work_item.planned_budget * (reduction_value / 100)
-  //   For 'fixed' type:      reduction_value (capped at planned_budget if available)
+  //   For 'percentage' type: SUM(wib.planned_amount) * (reduction_value / 100)
+  //   For 'fixed' type:      reduction_value per linked work item
   const subsidyCountRow = db.get<{ activeSubsidyCount: number }>(
     sql`SELECT COUNT(*) AS activeSubsidyCount
     FROM subsidy_programs
@@ -122,8 +148,12 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
   const subsidyReductionRow = db.get<{ totalReductions: number | null }>(
     sql`SELECT COALESCE(SUM(
       CASE
-        WHEN sp.reduction_type = 'percentage' AND wi.planned_budget IS NOT NULL
-          THEN wi.planned_budget * sp.reduction_value / 100.0
+        WHEN sp.reduction_type = 'percentage'
+          THEN (
+            SELECT COALESCE(SUM(wib2.planned_amount), 0)
+            FROM work_item_budgets wib2
+            WHERE wib2.work_item_id = wis.work_item_id
+          ) * sp.reduction_value / 100.0
         WHEN sp.reduction_type = 'fixed'
           THEN sp.reduction_value
         ELSE 0
@@ -131,7 +161,6 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
     ), 0) AS totalReductions
     FROM work_item_subsidies wis
     INNER JOIN subsidy_programs sp ON sp.id = wis.subsidy_program_id
-    INNER JOIN work_items wi ON wi.id = wis.work_item_id
     WHERE sp.application_status != 'rejected'`,
   );
 

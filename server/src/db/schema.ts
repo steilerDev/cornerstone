@@ -67,8 +67,7 @@ export const sessions = sqliteTable(
 /**
  * Work items table - stores construction work items/tasks.
  * EPIC-03: Work Items Core CRUD & Properties
- * EPIC-05 Story #147: budget fields (plannedBudget, actualCost, confidencePercent,
- *   budgetCategoryId, budgetSourceId) added via migration 0004.
+ * EPIC-05 Story 5.9: budget fields removed (moved to work_item_budgets table).
  */
 export const workItems = sqliteTable(
   'work_items',
@@ -90,16 +89,6 @@ export const workItems = sqliteTable(
       onDelete: 'set null',
     }),
     createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
-    // EPIC-05: budget fields
-    plannedBudget: real('planned_budget'),
-    actualCost: real('actual_cost'),
-    confidencePercent: integer('confidence_percent'),
-    budgetCategoryId: text('budget_category_id').references(() => budgetCategories.id, {
-      onDelete: 'set null',
-    }),
-    budgetSourceId: text('budget_source_id').references(() => budgetSources.id, {
-      onDelete: 'set null',
-    }),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
   },
@@ -107,8 +96,6 @@ export const workItems = sqliteTable(
     statusIdx: index('idx_work_items_status').on(table.status),
     assignedUserIdIdx: index('idx_work_items_assigned_user_id').on(table.assignedUserId),
     createdAtIdx: index('idx_work_items_created_at').on(table.createdAt),
-    budgetCategoryIdx: index('idx_work_items_budget_category').on(table.budgetCategoryId),
-    budgetSourceIdx: index('idx_work_items_budget_source').on(table.budgetSourceId),
   }),
 );
 
@@ -249,35 +236,6 @@ export const vendors = sqliteTable(
 );
 
 /**
- * Invoices table - tracks vendor invoices for payment management.
- */
-export const invoices = sqliteTable(
-  'invoices',
-  {
-    id: text('id').primaryKey(),
-    vendorId: text('vendor_id')
-      .notNull()
-      .references(() => vendors.id, { onDelete: 'cascade' }),
-    invoiceNumber: text('invoice_number'),
-    amount: real('amount').notNull(),
-    date: text('date').notNull(),
-    dueDate: text('due_date'),
-    status: text('status', { enum: ['pending', 'paid', 'overdue'] })
-      .notNull()
-      .default('pending'),
-    notes: text('notes'),
-    createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
-    createdAt: text('created_at').notNull(),
-    updatedAt: text('updated_at').notNull(),
-  },
-  (table) => ({
-    vendorIdIdx: index('idx_invoices_vendor_id').on(table.vendorId),
-    statusIdx: index('idx_invoices_status').on(table.status),
-    dateIdx: index('idx_invoices_date').on(table.date),
-  }),
-);
-
-/**
  * Budget sources table - financing sources (bank loans, credit lines, savings, etc.).
  */
 export const budgetSources = sqliteTable('budget_sources', {
@@ -297,6 +255,80 @@ export const budgetSources = sqliteTable('budget_sources', {
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
 });
+
+/**
+ * Work item budget lines table - tracks individual budget estimates/allocations for work items.
+ * EPIC-05 Story 5.9: replaces the flat budget fields that were on work_items.
+ * Each line can reference a vendor, budget category, and budget source.
+ */
+export const workItemBudgets = sqliteTable(
+  'work_item_budgets',
+  {
+    id: text('id').primaryKey(),
+    workItemId: text('work_item_id')
+      .notNull()
+      .references(() => workItems.id, { onDelete: 'cascade' }),
+    description: text('description'),
+    plannedAmount: real('planned_amount').notNull().default(0),
+    confidence: text('confidence', {
+      enum: ['own_estimate', 'professional_estimate', 'quote', 'invoice'],
+    })
+      .notNull()
+      .default('own_estimate'),
+    budgetCategoryId: text('budget_category_id').references(() => budgetCategories.id, {
+      onDelete: 'set null',
+    }),
+    budgetSourceId: text('budget_source_id').references(() => budgetSources.id, {
+      onDelete: 'set null',
+    }),
+    vendorId: text('vendor_id').references(() => vendors.id, { onDelete: 'set null' }),
+    createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => ({
+    workItemIdIdx: index('idx_work_item_budgets_work_item_id').on(table.workItemId),
+    vendorIdIdx: index('idx_work_item_budgets_vendor_id').on(table.vendorId),
+    budgetCategoryIdIdx: index('idx_work_item_budgets_budget_category_id').on(
+      table.budgetCategoryId,
+    ),
+    budgetSourceIdIdx: index('idx_work_item_budgets_budget_source_id').on(table.budgetSourceId),
+  }),
+);
+
+/**
+ * Invoices table - tracks vendor invoices for payment management.
+ * EPIC-05 Story 5.9: added workItemBudgetId FK; changed 'overdue' status to 'claimed'.
+ */
+export const invoices = sqliteTable(
+  'invoices',
+  {
+    id: text('id').primaryKey(),
+    vendorId: text('vendor_id')
+      .notNull()
+      .references(() => vendors.id, { onDelete: 'cascade' }),
+    invoiceNumber: text('invoice_number'),
+    amount: real('amount').notNull(),
+    date: text('date').notNull(),
+    dueDate: text('due_date'),
+    status: text('status', { enum: ['pending', 'paid', 'claimed'] })
+      .notNull()
+      .default('pending'),
+    notes: text('notes'),
+    workItemBudgetId: text('work_item_budget_id').references(() => workItemBudgets.id, {
+      onDelete: 'set null',
+    }),
+    createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => ({
+    vendorIdIdx: index('idx_invoices_vendor_id').on(table.vendorId),
+    statusIdx: index('idx_invoices_status').on(table.status),
+    dateIdx: index('idx_invoices_date').on(table.date),
+    workItemBudgetIdIdx: index('idx_invoices_work_item_budget_id').on(table.workItemBudgetId),
+  }),
+);
 
 /**
  * Subsidy programs table - government/institutional programs reducing construction costs.
@@ -335,25 +367,6 @@ export const subsidyProgramCategories = sqliteTable(
   },
   (table) => ({
     pk: primaryKey({ columns: [table.subsidyProgramId, table.budgetCategoryId] }),
-  }),
-);
-
-/**
- * Work item vendors junction table - links work items to vendors (M:N).
- */
-export const workItemVendors = sqliteTable(
-  'work_item_vendors',
-  {
-    workItemId: text('work_item_id')
-      .notNull()
-      .references(() => workItems.id, { onDelete: 'cascade' }),
-    vendorId: text('vendor_id')
-      .notNull()
-      .references(() => vendors.id, { onDelete: 'cascade' }),
-  },
-  (table) => ({
-    pk: primaryKey({ columns: [table.workItemId, table.vendorId] }),
-    vendorIdIdx: index('idx_work_item_vendors_vendor_id').on(table.vendorId),
   }),
 );
 

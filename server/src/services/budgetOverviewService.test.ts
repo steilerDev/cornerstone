@@ -64,6 +64,10 @@ describe('getBudgetOverview', () => {
 
   /**
    * Insert a work item with optional budget fields.
+   * NOTE: Story 5.9 — budget data moved from work_items to work_item_budgets.
+   * This helper now creates a work item + budget line when budget fields are provided.
+   * When actualCost is provided, a budget line is created AND a paid invoice is inserted
+   * with work_item_budget_id set, so the service can aggregate actualCost from invoices.
    */
   function insertWorkItem(
     opts: {
@@ -81,14 +85,61 @@ describe('getBudgetOverview', () => {
         id,
         title: opts.title ?? `Work Item ${id}`,
         status: 'not_started',
-        plannedBudget: opts.plannedBudget ?? null,
-        actualCost: opts.actualCost ?? null,
-        budgetCategoryId: opts.budgetCategoryId ?? null,
-        budgetSourceId: opts.budgetSourceId ?? null,
         createdAt: now,
         updatedAt: now,
       })
       .run();
+
+    // Create a budget line if any budget fields are provided
+    const hasBudgetData =
+      opts.plannedBudget != null ||
+      opts.actualCost != null ||
+      opts.budgetCategoryId != null ||
+      opts.budgetSourceId != null;
+    if (hasBudgetData) {
+      const budgetId = `bud-test-${idCounter++}`;
+      db.insert(schema.workItemBudgets)
+        .values({
+          id: budgetId,
+          workItemId: id,
+          plannedAmount: opts.plannedBudget ?? 0,
+          confidence: 'own_estimate',
+          budgetCategoryId: opts.budgetCategoryId ?? null,
+          budgetSourceId: opts.budgetSourceId ?? null,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+
+      // When actualCost is provided, create a vendor + paid invoice linked to this budget line.
+      // This models how actual costs are tracked in Story 5.9: via invoices with work_item_budget_id.
+      if (opts.actualCost != null && opts.actualCost > 0) {
+        const vendorId = `wi-vendor-${idCounter++}`;
+        db.insert(schema.vendors)
+          .values({
+            id: vendorId,
+            name: `Auto Vendor ${vendorId}`,
+            createdAt: now,
+            updatedAt: now,
+          })
+          .run();
+
+        const invoiceId = `wi-inv-${idCounter++}`;
+        db.insert(schema.invoices)
+          .values({
+            id: invoiceId,
+            vendorId,
+            workItemBudgetId: budgetId,
+            amount: opts.actualCost,
+            date: '2026-01-01',
+            status: 'paid',
+            createdAt: now,
+            updatedAt: now,
+          })
+          .run();
+      }
+    }
+
     return id;
   }
 
@@ -115,7 +166,8 @@ describe('getBudgetOverview', () => {
   function insertInvoice(opts: {
     vendorId: string;
     amount: number;
-    status: 'pending' | 'paid' | 'overdue';
+    status: 'pending' | 'paid' | 'claimed';
+    workItemBudgetId?: string | null;
   }): string {
     const id = `inv-test-${idCounter++}`;
     const now = new Date().toISOString();
@@ -123,6 +175,7 @@ describe('getBudgetOverview', () => {
       .values({
         id,
         vendorId: opts.vendorId,
+        workItemBudgetId: opts.workItemBudgetId ?? null,
         amount: opts.amount,
         date: '2026-01-01',
         status: opts.status,
@@ -555,9 +608,9 @@ describe('getBudgetOverview', () => {
       expect(result.vendorSummary.totalOutstanding).toBe(3500);
     });
 
-    it('sums overdue invoice amounts as totalOutstanding', () => {
+    it('sums claimed invoice amounts as totalOutstanding', () => {
       const vendorId = insertVendor('Contractor C');
-      insertInvoice({ vendorId, amount: 4000, status: 'overdue' });
+      insertInvoice({ vendorId, amount: 4000, status: 'claimed' });
 
       const result = getBudgetOverview(db);
 
@@ -567,7 +620,7 @@ describe('getBudgetOverview', () => {
     it('combines pending and overdue in totalOutstanding', () => {
       const vendorId = insertVendor('Contractor D');
       insertInvoice({ vendorId, amount: 1000, status: 'pending' });
-      insertInvoice({ vendorId, amount: 2000, status: 'overdue' });
+      insertInvoice({ vendorId, amount: 2000, status: 'claimed' });
       insertInvoice({ vendorId, amount: 5000, status: 'paid' });
 
       const result = getBudgetOverview(db);
@@ -785,7 +838,7 @@ describe('getBudgetOverview', () => {
       // 4. Vendors and invoices
       const vendor = insertVendor('Main Contractor');
       insertInvoice({ vendorId: vendor, amount: 45000, status: 'paid' });
-      insertInvoice({ vendorId: vendor, amount: 5000, status: 'overdue' });
+      insertInvoice({ vendorId: vendor, amount: 5000, status: 'claimed' });
 
       // 5. Subsidy programs
       const prog = insertSubsidyProgram({

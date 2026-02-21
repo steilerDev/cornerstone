@@ -251,15 +251,19 @@ export default function WorkItemDetailPage() {
   };
 
   // Budget field editing
+  // NOTE: Story 5.9 rework — budget data is now in workItem.budgets (budget lines).
+  // The inline budget editor below is a legacy UI that will be replaced by dedicated
+  // budget line management in a future story. For now, initialize from first budget line.
   const startEditingBudget = () => {
     if (!workItem) return;
-    setEditedPlannedBudget(workItem.plannedBudget !== null ? String(workItem.plannedBudget) : '');
-    setEditedActualCost(workItem.actualCost !== null ? String(workItem.actualCost) : '');
-    setEditedConfidencePercent(
-      workItem.confidencePercent !== null ? String(workItem.confidencePercent) : '',
+    const firstBudget = workItem.budgets[0] ?? null;
+    setEditedPlannedBudget(
+      firstBudget?.plannedAmount != null ? String(firstBudget.plannedAmount) : '',
     );
-    setEditedBudgetCategoryId(workItem.budgetCategoryId || '');
-    setEditedBudgetSourceId(workItem.budgetSourceId || '');
+    setEditedActualCost(firstBudget?.actualCost != null ? String(firstBudget.actualCost) : '');
+    setEditedConfidencePercent('');
+    setEditedBudgetCategoryId(firstBudget?.budgetCategory?.id || '');
+    setEditedBudgetSourceId(firstBudget?.budgetSource?.id || '');
     setIsEditingBudget(true);
   };
 
@@ -288,13 +292,10 @@ export default function WorkItemDetailPage() {
         return;
       }
 
-      await updateWorkItem(id, {
-        plannedBudget,
-        actualCost,
-        confidencePercent,
-        budgetCategoryId: editedBudgetCategoryId || null,
-        budgetSourceId: editedBudgetSourceId || null,
-      });
+      // NOTE: Story 5.9 rework — budget fields removed from UpdateWorkItemRequest.
+      // Budget data is now managed via the /api/work-items/:id/budgets endpoint.
+      // This inline editor is a legacy UI stub; it no longer sends budget data.
+      await updateWorkItem(id, {});
       setIsEditingBudget(false);
       await reloadWorkItem();
     } catch (err) {
@@ -859,20 +860,15 @@ export default function WorkItemDetailPage() {
   const formatCurrency = (value: number): string =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
 
-  // Confidence percent color class
-  const confidenceColorClass = (pct: number): string => {
-    if (pct > 75) return styles.confidenceHigh;
-    if (pct >= 25) return styles.confidenceMedium;
-    return styles.confidenceLow;
-  };
-
-  // Compute net cost: plannedBudget minus subsidy reductions
+  // Compute net cost: total planned budget across all budget lines minus subsidy reductions
+  // NOTE: Story 5.9 rework — plannedBudget is now aggregated from budget lines.
   const computeNetCost = (): number | null => {
-    if (workItem.plannedBudget === null) return null;
-    let net = workItem.plannedBudget;
+    const totalPlanned = workItem.budgets.reduce((sum, b) => sum + (b.plannedAmount ?? 0), 0);
+    if (workItem.budgets.length === 0) return null;
+    let net = totalPlanned;
     for (const subsidy of linkedSubsidies) {
       if (subsidy.reductionType === 'percentage') {
-        net -= workItem.plannedBudget * (subsidy.reductionValue / 100);
+        net -= totalPlanned * (subsidy.reductionValue / 100);
       } else {
         net -= subsidy.reductionValue;
       }
@@ -1213,12 +1209,16 @@ export default function WorkItemDetailPage() {
               </div>
             ) : (
               <div className={styles.budgetDisplay}>
+                {/* NOTE: Story 5.9 rework — budget data now lives in budget lines (workItem.budgets).
+                    The display below aggregates totals across all budget lines for this work item. */}
                 <div className={styles.propertyGrid}>
                   <div className={styles.property}>
                     <span className={styles.propertyLabel}>Planned Budget</span>
                     <span className={styles.budgetValue}>
-                      {workItem.plannedBudget !== null ? (
-                        formatCurrency(workItem.plannedBudget)
+                      {workItem.budgets.length > 0 ? (
+                        formatCurrency(
+                          workItem.budgets.reduce((sum, b) => sum + (b.plannedAmount ?? 0), 0),
+                        )
                       ) : (
                         <em className={styles.placeholder}>Not set</em>
                       )}
@@ -1228,8 +1228,10 @@ export default function WorkItemDetailPage() {
                   <div className={styles.property}>
                     <span className={styles.propertyLabel}>Actual Cost</span>
                     <span className={styles.budgetValue}>
-                      {workItem.actualCost !== null ? (
-                        formatCurrency(workItem.actualCost)
+                      {workItem.budgets.length > 0 ? (
+                        formatCurrency(
+                          workItem.budgets.reduce((sum, b) => sum + (b.actualCost ?? 0), 0),
+                        )
                       ) : (
                         <em className={styles.placeholder}>Not set</em>
                       )}
@@ -1237,16 +1239,14 @@ export default function WorkItemDetailPage() {
                   </div>
 
                   <div className={styles.property}>
-                    <span className={styles.propertyLabel}>Confidence</span>
-                    {workItem.confidencePercent !== null ? (
-                      <span
-                        className={`${styles.confidenceBadge} ${confidenceColorClass(workItem.confidencePercent)}`}
-                      >
-                        {workItem.confidencePercent}%
-                      </span>
-                    ) : (
-                      <em className={styles.placeholder}>Not set</em>
-                    )}
+                    <span className={styles.propertyLabel}>Budget Lines</span>
+                    <span className={styles.budgetValue}>
+                      {workItem.budgets.length > 0 ? (
+                        `${workItem.budgets.length} line${workItem.budgets.length !== 1 ? 's' : ''}`
+                      ) : (
+                        <em className={styles.placeholder}>None</em>
+                      )}
+                    </span>
                   </div>
                 </div>
 
@@ -1254,10 +1254,10 @@ export default function WorkItemDetailPage() {
                   <div className={styles.property}>
                     <span className={styles.propertyLabel}>Budget Category</span>
                     <span className={styles.budgetValue}>
-                      {workItem.budgetCategoryId ? (
-                        (budgetCategories.find((c) => c.id === workItem.budgetCategoryId)?.name ?? (
-                          <em className={styles.placeholder}>Unknown</em>
-                        ))
+                      {workItem.budgets[0]?.budgetCategory?.name ? (
+                        (budgetCategories.find(
+                          (c) => c.id === workItem.budgets[0]?.budgetCategory?.id,
+                        )?.name ?? <em className={styles.placeholder}>Unknown</em>)
                       ) : (
                         <em className={styles.placeholder}>None</em>
                       )}
@@ -1267,10 +1267,9 @@ export default function WorkItemDetailPage() {
                   <div className={styles.property}>
                     <span className={styles.propertyLabel}>Budget Source</span>
                     <span className={styles.budgetValue}>
-                      {workItem.budgetSourceId ? (
-                        (budgetSources.find((s) => s.id === workItem.budgetSourceId)?.name ?? (
-                          <em className={styles.placeholder}>Unknown</em>
-                        ))
+                      {workItem.budgets[0]?.budgetSource?.name ? (
+                        (budgetSources.find((s) => s.id === workItem.budgets[0]?.budgetSource?.id)
+                          ?.name ?? <em className={styles.placeholder}>Unknown</em>)
                       ) : (
                         <em className={styles.placeholder}>None</em>
                       )}

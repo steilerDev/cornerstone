@@ -95,7 +95,7 @@ describe('Invoice Routes', () => {
       amount?: number;
       date?: string;
       dueDate?: string | null;
-      status?: 'pending' | 'paid' | 'overdue';
+      status?: 'pending' | 'paid' | 'claimed';
       notes?: string | null;
     } = {},
   ): string {
@@ -513,20 +513,20 @@ describe('Invoice Routes', () => {
       expect(response.statusCode).toBe(201);
     });
 
-    it('applies overdue status when creating an invoice', async () => {
+    it('applies claimed status when creating an invoice', async () => {
       const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
-      const vendorId = createTestVendor('Overdue Status Vendor');
+      const vendorId = createTestVendor('Claimed Status Vendor');
 
       const response = await app.inject({
         method: 'POST',
         url: `/api/vendors/${vendorId}/invoices`,
         headers: { cookie },
-        payload: { amount: 750, date: '2025-06-01', status: 'overdue' },
+        payload: { amount: 750, date: '2025-06-01', status: 'claimed' },
       });
 
       expect(response.statusCode).toBe(201);
       const body = response.json<{ invoice: Invoice }>();
-      expect(body.invoice.status).toBe('overdue');
+      expect(body.invoice.status).toBe('claimed');
     });
   });
 

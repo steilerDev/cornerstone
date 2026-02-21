@@ -79,24 +79,37 @@ describe('Budget Source Service', () => {
   let workItemCounter = 0;
 
   /**
-   * Helper: Insert a raw work item with a budget_source_id reference.
+   * Helper: Insert a work item budget line with a budget_source_id reference.
    * Used for testing computeUsedAmount and deleteBudgetSource blocking.
+   * NOTE: Story 5.9 — budget data moved from work_items to work_item_budgets.
    */
-  function insertRawWorkItemWithSource(sourceId: string, actualCost: number | null) {
-    const id = `wi-src-test-${++workItemCounter}`;
+  function insertRawWorkItemWithSource(sourceId: string, plannedAmount: number | null) {
+    const wiId = `wi-src-test-${++workItemCounter}`;
+    const budgetId = `bud-src-test-${workItemCounter}`;
     const ts = new Date(Date.now() + workItemCounter).toISOString();
+    // Create work item first
     db.insert(schema.workItems)
       .values({
-        id,
+        id: wiId,
         title: `Test Work Item ${workItemCounter}`,
         status: 'not_started',
-        budgetSourceId: sourceId,
-        actualCost,
         createdAt: ts,
         updatedAt: ts,
       })
       .run();
-    return id;
+    // Create budget line referencing the budget source
+    db.insert(schema.workItemBudgets)
+      .values({
+        id: budgetId,
+        workItemId: wiId,
+        budgetSourceId: sourceId,
+        plannedAmount: plannedAmount ?? 0,
+        confidence: 'own_estimate',
+        createdAt: ts,
+        updatedAt: ts,
+      })
+      .run();
+    return wiId;
   }
 
   beforeEach(() => {
@@ -1034,10 +1047,10 @@ describe('Budget Source Service', () => {
     });
 
     it('BudgetSourceInUseError has code BUDGET_SOURCE_IN_USE and statusCode 409', () => {
-      const err = new BudgetSourceInUseError('Budget source is in use', { workItemCount: 3 });
+      const err = new BudgetSourceInUseError('Budget source is in use', { budgetLineCount: 3 });
       expect(err.code).toBe('BUDGET_SOURCE_IN_USE');
       expect(err.statusCode).toBe(409);
-      expect(err.details?.workItemCount).toBe(3);
+      expect(err.details?.budgetLineCount).toBe(3);
     });
 
     it('does not throw BudgetSourceInUseError when no work items reference the source', () => {
@@ -1067,7 +1080,7 @@ describe('Budget Source Service', () => {
       }).toThrow(BudgetSourceInUseError);
     });
 
-    it('BudgetSourceInUseError includes workItemCount in details', () => {
+    it('BudgetSourceInUseError includes budgetLineCount in details', () => {
       const raw = insertRawSource({
         name: 'Multi-WI Source',
         sourceType: 'credit_line',
@@ -1085,7 +1098,7 @@ describe('Budget Source Service', () => {
       }
 
       expect(thrownErr).toBeDefined();
-      expect(thrownErr?.details?.workItemCount).toBe(2);
+      expect(thrownErr?.details?.budgetLineCount).toBe(2);
     });
 
     it('blocks delete even when work item actualCost is null', () => {

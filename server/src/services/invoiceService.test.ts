@@ -78,7 +78,7 @@ describe('Invoice Service', () => {
       amount?: number;
       date?: string;
       dueDate?: string | null;
-      status?: 'pending' | 'paid' | 'overdue';
+      status?: 'pending' | 'paid' | 'claimed';
       notes?: string | null;
       createdBy?: string | null;
     } = {},
@@ -516,18 +516,18 @@ describe('Invoice Service', () => {
       expect(result.dueDate).toBeNull();
     });
 
-    it('accepts overdue status on creation', () => {
-      const vendorId = createTestVendor('Overdue Vendor');
+    it('accepts claimed status on creation', () => {
+      const vendorId = createTestVendor('Claimed Vendor');
       const userId = createTestUser('user@test.com', 'User');
 
       const result = invoiceService.createInvoice(
         db,
         vendorId,
-        { amount: 500, date: '2025-01-01', status: 'overdue' },
+        { amount: 500, date: '2025-01-01', status: 'claimed' },
         userId,
       );
 
-      expect(result.status).toBe('overdue');
+      expect(result.status).toBe('claimed');
     });
   });
 

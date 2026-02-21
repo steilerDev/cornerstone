@@ -9,9 +9,8 @@ import {
   users,
   workItemSubtasks,
   workItemDependencies,
-  budgetCategories,
-  budgetSources,
 } from '../db/schema.js';
+import { listWorkItemBudgets } from './workItemBudgetService.js';
 import type {
   WorkItemDetail,
   WorkItemSummary,
@@ -23,6 +22,7 @@ import type {
   UpdateWorkItemRequest,
   WorkItemListQuery,
   PaginationMeta,
+  WorkItemBudgetLine,
 } from '@cornerstone/shared';
 import { NotFoundError, ValidationError } from '../errors/AppError.js';
 
@@ -183,6 +183,8 @@ export function toWorkItemDetail(
   const subtasks = getWorkItemSubtasks(db, workItem.id);
   const dependencies = getWorkItemDependencies(db, workItem.id);
 
+  const budgets: WorkItemBudgetLine[] = listWorkItemBudgets(db, workItem.id);
+
   return {
     id: workItem.id,
     title: workItem.title,
@@ -198,11 +200,7 @@ export function toWorkItemDetail(
     tags: itemTags,
     subtasks,
     dependencies,
-    plannedBudget: workItem.plannedBudget ?? null,
-    actualCost: workItem.actualCost ?? null,
-    confidencePercent: workItem.confidencePercent ?? null,
-    budgetCategoryId: workItem.budgetCategoryId ?? null,
-    budgetSourceId: workItem.budgetSourceId ?? null,
+    budgets,
     createdAt: workItem.createdAt,
     updatedAt: workItem.updatedAt,
   };
@@ -245,54 +243,6 @@ function validateTagIds(db: DbType, tagIds: string[]): void {
     if (!tag) {
       throw new ValidationError(`Tag not found: ${tagId}`);
     }
-  }
-}
-
-/**
- * Validate budget-specific numeric fields.
- * Throws ValidationError if values are out of range.
- */
-function validateBudgetFields(data: {
-  plannedBudget?: number | null;
-  actualCost?: number | null;
-  confidencePercent?: number | null;
-}): void {
-  if (data.plannedBudget !== undefined && data.plannedBudget !== null && data.plannedBudget < 0) {
-    throw new ValidationError('plannedBudget must be >= 0');
-  }
-  if (data.actualCost !== undefined && data.actualCost !== null && data.actualCost < 0) {
-    throw new ValidationError('actualCost must be >= 0');
-  }
-  if (data.confidencePercent !== undefined && data.confidencePercent !== null) {
-    if (data.confidencePercent < 0 || data.confidencePercent > 100) {
-      throw new ValidationError('confidencePercent must be between 0 and 100');
-    }
-  }
-}
-
-/**
- * Validate that a budget category ID exists.
- * Throws ValidationError if the category does not exist.
- */
-function validateBudgetCategoryId(db: DbType, budgetCategoryId: string): void {
-  const category = db
-    .select()
-    .from(budgetCategories)
-    .where(eq(budgetCategories.id, budgetCategoryId))
-    .get();
-  if (!category) {
-    throw new ValidationError(`Budget category not found: ${budgetCategoryId}`);
-  }
-}
-
-/**
- * Validate that a budget source ID exists.
- * Throws ValidationError if the source does not exist.
- */
-function validateBudgetSourceId(db: DbType, budgetSourceId: string): void {
-  const source = db.select().from(budgetSources).where(eq(budgetSources.id, budgetSourceId)).get();
-  if (!source) {
-    throw new ValidationError(`Budget source not found: ${budgetSourceId}`);
   }
 }
 
@@ -354,19 +304,6 @@ export function createWorkItem(
     validateTagIds(db, data.tagIds);
   }
 
-  // Validate budget fields
-  validateBudgetFields(data);
-
-  // Validate budgetCategoryId if provided
-  if (data.budgetCategoryId) {
-    validateBudgetCategoryId(db, data.budgetCategoryId);
-  }
-
-  // Validate budgetSourceId if provided
-  if (data.budgetSourceId) {
-    validateBudgetSourceId(db, data.budgetSourceId);
-  }
-
   const now = new Date().toISOString();
   const id = randomUUID();
 
@@ -384,11 +321,6 @@ export function createWorkItem(
       startBefore: data.startBefore ?? null,
       assignedUserId: data.assignedUserId ?? null,
       createdBy: userId,
-      plannedBudget: data.plannedBudget ?? null,
-      actualCost: data.actualCost ?? null,
-      confidencePercent: data.confidencePercent ?? null,
-      budgetCategoryId: data.budgetCategoryId ?? null,
-      budgetSourceId: data.budgetSourceId ?? null,
       createdAt: now,
       updatedAt: now,
     })
@@ -499,46 +431,6 @@ export function updateWorkItem(
       validateAssignedUser(db, data.assignedUserId);
     }
     updateData.assignedUserId = data.assignedUserId ?? null;
-  }
-
-  // Budget fields
-  if ('plannedBudget' in data) {
-    if (data.plannedBudget !== null && data.plannedBudget !== undefined && data.plannedBudget < 0) {
-      throw new ValidationError('plannedBudget must be >= 0');
-    }
-    updateData.plannedBudget = data.plannedBudget ?? null;
-  }
-
-  if ('actualCost' in data) {
-    if (data.actualCost !== null && data.actualCost !== undefined && data.actualCost < 0) {
-      throw new ValidationError('actualCost must be >= 0');
-    }
-    updateData.actualCost = data.actualCost ?? null;
-  }
-
-  if ('confidencePercent' in data) {
-    if (
-      data.confidencePercent !== null &&
-      data.confidencePercent !== undefined &&
-      (data.confidencePercent < 0 || data.confidencePercent > 100)
-    ) {
-      throw new ValidationError('confidencePercent must be between 0 and 100');
-    }
-    updateData.confidencePercent = data.confidencePercent ?? null;
-  }
-
-  if ('budgetCategoryId' in data) {
-    if (data.budgetCategoryId) {
-      validateBudgetCategoryId(db, data.budgetCategoryId);
-    }
-    updateData.budgetCategoryId = data.budgetCategoryId ?? null;
-  }
-
-  if ('budgetSourceId' in data) {
-    if (data.budgetSourceId) {
-      validateBudgetSourceId(db, data.budgetSourceId);
-    }
-    updateData.budgetSourceId = data.budgetSourceId ?? null;
   }
 
   // Validate date constraints with merged data

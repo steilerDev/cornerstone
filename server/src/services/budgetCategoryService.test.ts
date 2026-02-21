@@ -768,7 +768,7 @@ describe('Budget Category Service', () => {
 
       expect(thrownError).not.toBeNull();
       expect(thrownError?.details?.subsidyProgramCount).toBe(1);
-      expect(thrownError?.details?.workItemCount).toBe(0);
+      expect(thrownError?.details?.budgetLineCount).toBe(0);
     });
 
     it('successfully deletes a category not referenced by any subsidy program', () => {

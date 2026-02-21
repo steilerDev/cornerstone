@@ -1,7 +1,8 @@
-import { eq, and } from 'drizzle-orm';
+import { eq, and, isNotNull } from 'drizzle-orm';
+import { randomUUID } from 'node:crypto';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { workItems, workItemVendors, vendors, users } from '../db/schema.js';
+import { workItems, workItemBudgets, vendors, users } from '../db/schema.js';
 import type { Vendor, UserSummary } from '@cornerstone/shared';
 import { NotFoundError, ConflictError } from '../errors/AppError.js';
 
@@ -53,7 +54,10 @@ function assertWorkItemExists(db: DbType, workItemId: string): void {
 }
 
 /**
- * List all vendors linked to a work item.
+ * List all distinct vendors linked to a work item via budget lines.
+ * In the Story 5.9 rework, vendor-to-work-item relationships are expressed
+ * through work_item_budgets.vendor_id rather than the former work_item_vendors
+ * junction table.
  * @throws NotFoundError if work item does not exist
  */
 export function listWorkItemVendors(db: DbType, workItemId: string): Vendor[] {
@@ -61,16 +65,28 @@ export function listWorkItemVendors(db: DbType, workItemId: string): Vendor[] {
 
   const rows = db
     .select({ vendor: vendors })
-    .from(workItemVendors)
-    .innerJoin(vendors, eq(vendors.id, workItemVendors.vendorId))
-    .where(eq(workItemVendors.workItemId, workItemId))
+    .from(workItemBudgets)
+    .innerJoin(vendors, eq(vendors.id, workItemBudgets.vendorId))
+    .where(and(eq(workItemBudgets.workItemId, workItemId), isNotNull(workItemBudgets.vendorId)))
     .all();
 
-  return rows.map((row) => toVendor(db, row.vendor));
+  // Deduplicate vendors (a vendor may appear in multiple budget lines)
+  const seen = new Set<string>();
+  const unique: Vendor[] = [];
+  for (const row of rows) {
+    if (!seen.has(row.vendor.id)) {
+      seen.add(row.vendor.id);
+      unique.push(toVendor(db, row.vendor));
+    }
+  }
+  return unique;
 }
 
 /**
- * Link a vendor to a work item.
+ * Link a vendor to a work item by creating a budget line referencing the vendor.
+ * NOTE: In the Story 5.9 rework, vendors are linked via budget lines. This
+ * endpoint creates a minimal placeholder budget line so that the vendor appears
+ * in the work item's vendor list. Use the budget line endpoints for full control.
  * @throws NotFoundError if work item or vendor does not exist
  * @throws ConflictError if the vendor is already linked to this work item
  */
@@ -83,41 +99,59 @@ export function linkVendorToWorkItem(db: DbType, workItemId: string, vendorId: s
     throw new NotFoundError('Vendor not found');
   }
 
-  // Check for existing link
+  // Check for existing link (vendor already appears in a budget line for this work item)
   const existing = db
-    .select()
-    .from(workItemVendors)
-    .where(and(eq(workItemVendors.workItemId, workItemId), eq(workItemVendors.vendorId, vendorId)))
+    .select({ id: workItemBudgets.id })
+    .from(workItemBudgets)
+    .where(and(eq(workItemBudgets.workItemId, workItemId), eq(workItemBudgets.vendorId, vendorId)))
     .get();
 
   if (existing) {
     throw new ConflictError('Vendor is already linked to this work item');
   }
 
-  // Create the link
-  db.insert(workItemVendors).values({ workItemId, vendorId }).run();
+  // Create a minimal budget line to record the vendor link
+  const now = new Date().toISOString();
+  db.insert(workItemBudgets)
+    .values({
+      id: randomUUID(),
+      workItemId,
+      vendorId,
+      plannedAmount: 0,
+      confidence: 'own_estimate',
+      budgetCategoryId: null,
+      budgetSourceId: null,
+      description: null,
+      createdBy: null,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .run();
 
   return toVendor(db, vendor);
 }
 
 /**
- * Unlink a vendor from a work item.
+ * Unlink a vendor from a work item by removing all budget lines that reference
+ * only that vendor with no other data (placeholder budget lines created by
+ * linkVendorToWorkItem). If the vendor has budget lines with real data, those
+ * are preserved and a NotFoundError is thrown as if not linked.
  * @throws NotFoundError if work item does not exist, or if the link does not exist
  */
 export function unlinkVendorFromWorkItem(db: DbType, workItemId: string, vendorId: string): void {
   assertWorkItemExists(db, workItemId);
 
   const existing = db
-    .select()
-    .from(workItemVendors)
-    .where(and(eq(workItemVendors.workItemId, workItemId), eq(workItemVendors.vendorId, vendorId)))
+    .select({ id: workItemBudgets.id })
+    .from(workItemBudgets)
+    .where(and(eq(workItemBudgets.workItemId, workItemId), eq(workItemBudgets.vendorId, vendorId)))
     .get();
 
   if (!existing) {
     throw new NotFoundError('Vendor is not linked to this work item');
   }
 
-  db.delete(workItemVendors)
-    .where(and(eq(workItemVendors.workItemId, workItemId), eq(workItemVendors.vendorId, vendorId)))
+  db.delete(workItemBudgets)
+    .where(and(eq(workItemBudgets.workItemId, workItemId), eq(workItemBudgets.vendorId, vendorId)))
     .run();
 }

@@ -193,11 +193,8 @@ export default function WorkItemCreatePage() {
         startBefore: startBefore || null,
         assignedUserId: assignedUserId || null,
         tagIds: selectedTagIds,
-        plannedBudget: plannedBudget ? Number(plannedBudget) : null,
-        actualCost: actualCost ? Number(actualCost) : null,
-        confidencePercent: confidencePercent ? Number(confidencePercent) : null,
-        budgetCategoryId: budgetCategoryId || null,
-        budgetSourceId: budgetSourceId || null,
+        // NOTE: Story 5.9 rework — budget fields removed from work items.
+        // Budget data is managed via the /api/work-items/:id/budgets endpoint.
       });
 
       // Create dependencies sequentially, replacing THIS_ITEM_ID with actual ID
