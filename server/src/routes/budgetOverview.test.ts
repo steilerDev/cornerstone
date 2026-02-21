@@ -62,10 +62,11 @@ describe('Budget Overview Routes', () => {
 
   function insertWorkItem(
     opts: {
-      plannedBudget?: number | null;
-      actualCost?: number | null;
+      plannedAmount?: number | null;
+      confidence?: 'own_estimate' | 'professional_estimate' | 'quote' | 'invoice';
       budgetCategoryId?: string | null;
       budgetSourceId?: string | null;
+      actualCost?: number | null;
     } = {},
   ): string {
     const id = `wi-route-${idCounter++}`;
@@ -81,12 +82,8 @@ describe('Budget Overview Routes', () => {
       })
       .run();
 
-    // Create a budget line if budget fields are provided (Story 5.9 migration)
     const hasBudgetData =
-      opts.plannedBudget != null ||
-      opts.actualCost != null ||
-      opts.budgetCategoryId != null ||
-      opts.budgetSourceId != null;
+      opts.plannedAmount != null || opts.budgetCategoryId != null || opts.budgetSourceId != null;
     if (hasBudgetData) {
       const budgetId = `bud-route-${idCounter++}`;
       app.db
@@ -94,8 +91,8 @@ describe('Budget Overview Routes', () => {
         .values({
           id: budgetId,
           workItemId: id,
-          plannedAmount: opts.plannedBudget ?? 0,
-          confidence: 'own_estimate',
+          plannedAmount: opts.plannedAmount ?? 0,
+          confidence: opts.confidence ?? 'own_estimate',
           budgetCategoryId: opts.budgetCategoryId ?? null,
           budgetSourceId: opts.budgetSourceId ?? null,
           createdAt: now,
@@ -103,8 +100,6 @@ describe('Budget Overview Routes', () => {
         })
         .run();
 
-      // When actualCost is provided, create a vendor + paid invoice linked to this budget line.
-      // Story 5.9: actual costs are tracked via invoices with work_item_budget_id set.
       if (opts.actualCost != null && opts.actualCost > 0) {
         const vendorId = `wi-route-vendor-${idCounter++}`;
         app.db
@@ -132,30 +127,19 @@ describe('Budget Overview Routes', () => {
     return id;
   }
 
-  function insertVendor(): string {
-    const id = `vendor-route-${idCounter++}`;
-    const now = new Date().toISOString();
-    app.db
-      .insert(schema.vendors)
-      .values({ id, name: `Route Vendor ${id}`, createdAt: now, updatedAt: now })
-      .run();
-    return id;
-  }
-
-  function insertInvoice(
-    vendorId: string,
-    amount: number,
-    status: 'pending' | 'paid' | 'claimed',
+  function insertBudgetSource(
+    totalAmount: number,
+    status: 'active' | 'exhausted' | 'closed' = 'active',
   ): string {
-    const id = `inv-route-${idCounter++}`;
+    const id = `src-route-${idCounter++}`;
     const now = new Date().toISOString();
     app.db
-      .insert(schema.invoices)
+      .insert(schema.budgetSources)
       .values({
         id,
-        vendorId,
-        amount,
-        date: '2026-01-01',
+        name: `Route Source ${id}`,
+        sourceType: 'bank_loan',
+        totalAmount,
         status,
         createdAt: now,
         updatedAt: now,
@@ -237,24 +221,22 @@ describe('Budget Overview Routes', () => {
       const body = response.json<BudgetOverviewResponse>();
       const overview = body.overview;
 
-      // Top-level numeric fields
-      expect(typeof overview.totalPlannedBudget).toBe('number');
-      expect(typeof overview.totalActualCost).toBe('number');
-      expect(typeof overview.totalVariance).toBe('number');
+      // Top-level numeric fields (new shape from Story 5.11)
+      expect(typeof overview.availableFunds).toBe('number');
+      expect(typeof overview.sourceCount).toBe('number');
+      expect(typeof overview.minPlanned).toBe('number');
+      expect(typeof overview.maxPlanned).toBe('number');
+      expect(typeof overview.actualCost).toBe('number');
+      expect(typeof overview.actualCostPaid).toBe('number');
+
+      // Four remaining perspectives
+      expect(typeof overview.remainingVsMinPlanned).toBe('number');
+      expect(typeof overview.remainingVsMaxPlanned).toBe('number');
+      expect(typeof overview.remainingVsActualCost).toBe('number');
+      expect(typeof overview.remainingVsActualPaid).toBe('number');
 
       // categorySummaries array
       expect(Array.isArray(overview.categorySummaries)).toBe(true);
-
-      // financingSummary object
-      expect(typeof overview.financingSummary.totalAvailable).toBe('number');
-      expect(typeof overview.financingSummary.totalUsed).toBe('number');
-      expect(typeof overview.financingSummary.totalRemaining).toBe('number');
-      expect(typeof overview.financingSummary.sourceCount).toBe('number');
-
-      // vendorSummary object
-      expect(typeof overview.vendorSummary.totalPaid).toBe('number');
-      expect(typeof overview.vendorSummary.totalOutstanding).toBe('number');
-      expect(typeof overview.vendorSummary.vendorCount).toBe('number');
 
       // subsidySummary object
       expect(typeof overview.subsidySummary.totalReductions).toBe('number');
@@ -274,21 +256,28 @@ describe('Budget Overview Routes', () => {
       const body = response.json<BudgetOverviewResponse>();
       const { overview } = body;
 
-      expect(overview.totalPlannedBudget).toBe(0);
-      expect(overview.totalActualCost).toBe(0);
-      expect(overview.totalVariance).toBe(0);
+      expect(overview.availableFunds).toBe(0);
+      expect(overview.minPlanned).toBe(0);
+      expect(overview.maxPlanned).toBe(0);
+      expect(overview.actualCost).toBe(0);
+      expect(overview.actualCostPaid).toBe(0);
+      expect(overview.remainingVsMinPlanned).toBe(0);
+      expect(overview.remainingVsMaxPlanned).toBe(0);
+      expect(overview.remainingVsActualCost).toBe(0);
+      expect(overview.remainingVsActualPaid).toBe(0);
       // 10 seeded categories
       expect(overview.categorySummaries).toHaveLength(10);
-      expect(overview.financingSummary.sourceCount).toBe(0);
-      expect(overview.vendorSummary.vendorCount).toBe(0);
+      expect(overview.sourceCount).toBe(0);
       expect(overview.subsidySummary.activeSubsidyCount).toBe(0);
     });
 
-    it('reflects work item budget data in totals', async () => {
+    it('applies confidence margins to min/max planned', async () => {
       const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
 
-      insertWorkItem({ plannedBudget: 50000, actualCost: 42000 });
-      insertWorkItem({ plannedBudget: 20000, actualCost: 18000 });
+      // invoice confidence = 0% margin → min=max=plannedAmount
+      insertWorkItem({ plannedAmount: 50000, confidence: 'invoice' });
+      // own_estimate = 20% margin → min=40000, max=60000
+      insertWorkItem({ plannedAmount: 50000, confidence: 'own_estimate' });
 
       const response = await app.inject({
         method: 'GET',
@@ -299,17 +288,16 @@ describe('Budget Overview Routes', () => {
       expect(response.statusCode).toBe(200);
       const { overview } = response.json<BudgetOverviewResponse>();
 
-      expect(overview.totalPlannedBudget).toBe(70000);
-      expect(overview.totalActualCost).toBe(60000);
-      expect(overview.totalVariance).toBe(10000);
+      // sum: invoice(50000/50000) + own_estimate(40000/60000)
+      expect(overview.minPlanned).toBeCloseTo(90000, 5);
+      expect(overview.maxPlanned).toBeCloseTo(110000, 5);
     });
 
-    it('reflects invoice data in vendor summary', async () => {
+    it('reflects available funds from active budget sources', async () => {
       const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
 
-      const vendorId = insertVendor();
-      insertInvoice(vendorId, 10000, 'paid');
-      insertInvoice(vendorId, 3000, 'claimed');
+      insertBudgetSource(100000, 'active');
+      insertBudgetSource(50000, 'exhausted'); // should be excluded
 
       const response = await app.inject({
         method: 'GET',
@@ -320,9 +308,27 @@ describe('Budget Overview Routes', () => {
       expect(response.statusCode).toBe(200);
       const { overview } = response.json<BudgetOverviewResponse>();
 
-      expect(overview.vendorSummary.totalPaid).toBe(10000);
-      expect(overview.vendorSummary.totalOutstanding).toBe(3000);
-      expect(overview.vendorSummary.vendorCount).toBe(1);
+      expect(overview.availableFunds).toBe(100000);
+      expect(overview.sourceCount).toBe(1);
+    });
+
+    it('reflects invoice data in actualCost and actualCostPaid', async () => {
+      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+
+      insertWorkItem({ plannedAmount: 50000, confidence: 'invoice', actualCost: 42000 });
+      insertWorkItem({ plannedAmount: 20000, confidence: 'invoice', actualCost: 18000 });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/budget/overview',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const { overview } = response.json<BudgetOverviewResponse>();
+
+      expect(overview.actualCost).toBe(60000);
+      expect(overview.actualCostPaid).toBe(60000); // both are paid
     });
 
     it('returns each category summary with required fields', async () => {
@@ -337,14 +343,15 @@ describe('Budget Overview Routes', () => {
       expect(response.statusCode).toBe(200);
       const { overview } = response.json<BudgetOverviewResponse>();
 
-      // Each category summary has required fields
+      // Each category summary has required fields from new shape
       for (const cat of overview.categorySummaries) {
         expect(typeof cat.categoryId).toBe('string');
         expect(typeof cat.categoryName).toBe('string');
-        expect(typeof cat.plannedBudget).toBe('number');
+        expect(typeof cat.minPlanned).toBe('number');
+        expect(typeof cat.maxPlanned).toBe('number');
         expect(typeof cat.actualCost).toBe('number');
-        expect(typeof cat.variance).toBe('number');
-        expect(typeof cat.workItemCount).toBe('number');
+        expect(typeof cat.actualCostPaid).toBe('number');
+        expect(typeof cat.budgetLineCount).toBe('number');
       }
     });
   });
