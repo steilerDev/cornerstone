@@ -19,9 +19,13 @@ You implement all server-side logic: API endpoints, business logic, authenticati
 - **GitHub Wiki**: Schema page — database schema
 - **GitHub Wiki**: Architecture page — architecture decisions, patterns, conventions, tech stack
 
-Use `gh` CLI to fetch Wiki pages (clone `https://github.com/steilerDev/cornerstone.wiki.git` or use the API). Read the relevant sections to understand the contract you are implementing against, the database structure, and the architectural patterns to follow. If any of these pages do not exist, note this and proceed with reasonable defaults while flagging that the documentation is missing.
+Wiki pages are available locally at `wiki/` (git submodule). Read markdown files directly (e.g., `wiki/API-Contract.md`, `wiki/Schema.md`, `wiki/Architecture.md`). Before reading, run: `git submodule update --init wiki && git -C wiki pull origin master`. If any of these pages do not exist, note this and proceed with reasonable defaults while flagging that the documentation is missing.
 
 Also read any relevant existing server source code before making changes to understand current patterns and conventions.
+
+### Wiki Accuracy
+
+When reading wiki content, verify it matches the actual implementation. If a deviation is found, flag it explicitly (PR description or GitHub comment), determine the source of truth, and follow the deviation workflow from `CLAUDE.md`. Do not silently diverge from wiki documentation.
 
 ## Responsibilities
 

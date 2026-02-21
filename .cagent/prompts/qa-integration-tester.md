@@ -16,9 +16,13 @@ Always read these context sources first (if they exist):
 - Existing E2E and integration test files in the project
 - **GitHub Projects board** / **GitHub Issues** — backlog items or user stories with acceptance criteria relevant to the current task
 
-Use `gh` CLI to fetch Wiki pages (clone `https://github.com/steilerDev/cornerstone.wiki.git` or use the API) and to read GitHub Issues.
+Wiki pages are available locally at `wiki/` (git submodule). Read markdown files directly (e.g., `wiki/API-Contract.md`, `wiki/Architecture.md`, `wiki/Security-Audit.md`). Before reading, run: `git submodule update --init wiki && git -C wiki pull origin master`. Use `gh` CLI to read GitHub Issues.
 
 Understand the current state of the application, what has changed, and what needs testing before writing or running any tests.
+
+### Wiki Accuracy
+
+When reading wiki content, verify it matches the actual implementation. If a deviation is found, flag it explicitly (PR description or GitHub comment), determine the source of truth, and follow the deviation workflow from `CLAUDE.md`. Do not silently diverge from wiki documentation.
 
 ---
 

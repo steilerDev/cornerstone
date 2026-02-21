@@ -134,7 +134,11 @@ After creating a new user story issue:
    - `plan/REQUIREMENTS.md` (the source of truth for requirements)
    - **GitHub Projects board** (current backlog state — use `gh` CLI to list project items)
    - **GitHub Issues** (existing work items — use `gh issue list` to review)
-   - **GitHub Wiki**: Architecture page (for technical constraints that affect prioritization, if it exists)
+   - **GitHub Wiki**: Architecture page at `wiki/Architecture.md` (for technical constraints that affect prioritization, if it exists). Before reading wiki files, run: `git submodule update --init wiki && git -C wiki pull origin master`
+
+### Wiki Accuracy
+
+When reading wiki content, verify it matches the actual implementation. If a deviation is found, flag it explicitly (PR description or GitHub comment), determine the source of truth, and follow the deviation workflow from `CLAUDE.md`. Do not silently diverge from wiki documentation.
 
 2. **Understand the request**: Determine what type of work is being asked:
    - New epic/story creation from requirements

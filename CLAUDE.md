@@ -30,7 +30,7 @@ This project uses a team of 6 specialized Claude Code agents defined in `.claude
 | Code review                                              | **GitHub Pull Requests**                      |
 | Source tree                                              | Code, configs, `Dockerfile`, `CLAUDE.md` only |
 
-No `docs/` directory in the source tree. All documentation lives on the GitHub Wiki. The GitHub Projects board is the single source of truth for backlog management.
+The GitHub Wiki is checked out as a git submodule at `wiki/` in the project root. All architecture documentation lives as markdown files in this submodule. The GitHub Projects board is the single source of truth for backlog management.
 
 ### GitHub Wiki Pages (managed by product-architect and security-engineer)
 
@@ -41,6 +41,49 @@ No `docs/` directory in the source tree. All documentation lives on the GitHub W
 - **ADR-NNN-Title** — individual ADR pages
 - **Security Audit** — security findings and remediation status
 - **Style Guide** — design system, tokens, color palette, typography, component patterns, dark mode
+
+### Wiki Submodule
+
+The GitHub Wiki is checked out as a git submodule at `wiki/`. This gives all agents instant local access to architecture documentation via the Read tool, without needing to clone or fetch via the `gh` API each session.
+
+#### Reading Wiki Pages
+
+Wiki pages are markdown files in `wiki/` (e.g., `wiki/Architecture.md`, `wiki/API-Contract.md`, `wiki/Schema.md`). Before reading, ensure the submodule is initialized and up to date:
+
+```bash
+git submodule update --init wiki && git -C wiki pull origin master
+```
+
+Then read files directly using the Read tool.
+
+#### Writing Wiki Pages
+
+To update wiki content:
+
+1. Edit the markdown file in `wiki/` using the Edit/Write tools
+2. Commit inside the submodule: `git -C wiki add -A && git -C wiki commit -m "docs: description"`
+3. Push the submodule: `git -C wiki push origin master`
+4. Stage the updated submodule ref in the parent repo: `git add wiki`
+5. Commit the parent repo ref update alongside your other changes
+
+#### Wiki Page Naming
+
+Wiki files use hyphenated names matching GitHub Wiki conventions:
+
+- `Architecture.md`, `API-Contract.md`, `Schema.md`, `Style-Guide.md`
+- `ADR-001-Server-Framework.md`, `ADR-Index.md`
+- `Security-Audit.md`
+
+#### Implementation-Wiki Deviation Workflow
+
+When any agent discovers that wiki documentation does not match the actual implementation:
+
+1. **Flag the deviation explicitly** — mention it in the PR description or as a GitHub comment on the relevant issue
+2. **Determine the source of truth** — is the wiki outdated (implementation is correct) or is the code wrong (wiki is correct)?
+3. **Product-architect approval required** for wiki content changes (except `Security-Audit.md`, which is owned by the `security-engineer`)
+4. **Fix and wiki update should land together** — do not merge code that knowingly contradicts the wiki without also updating the wiki in the same PR
+5. **Log the deviation in the wiki page** — add a "Deviation Log" entry at the bottom of the affected wiki page documenting what deviated, when it was discovered, and how it was resolved
+6. **Log on the relevant GitHub Issue** as well, for traceability
 
 ### GitHub Repo
 
@@ -248,54 +291,6 @@ Both `main` and `beta` have branch protection rules enforced on GitHub:
 
 **Why enforce admins differs:** Admin bypass is allowed on `main` for emergency hotfixes. `beta` enforces rules for all users, including admins, to maintain integration branch integrity.
 
-## Parallel Coding Sessions
-
-Multiple Claude Code sessions can run in parallel using [gwq](https://github.com/d-kuro/gwq) for git worktree management. Each session gets its own worktree directory with isolated `node_modules/`, database, and dev server ports.
-
-### Setup
-
-gwq is pre-installed in the sandbox Dockerfile. For existing sandboxes, run `scripts/install-gwq.sh`.
-
-### Port Allocation
-
-Each worktree uses a unique port slot to avoid conflicts:
-
-| Slot | Server (`PORT`) | Client (`CLIENT_DEV_PORT`) | Usage                   |
-| ---- | --------------- | -------------------------- | ----------------------- |
-| 0    | 3000            | 5173                       | Main worktree (default) |
-| 1    | 3001            | 5174                       | Session 1               |
-| 2    | 3002            | 5175                       | Session 2               |
-| 3    | 3003            | 5176                       | Session 3               |
-
-### Worktree Lifecycle
-
-```bash
-# Create a worktree (auto-selects next free slot)
-scripts/worktree-create.sh feat/42-work-item-crud
-
-# Create with explicit slot
-scripts/worktree-create.sh feat/42-work-item-crud 2
-
-# Start dev servers in a worktree
-cd <worktree-path>
-source .env.worktree && npm run dev
-
-# Remove a worktree
-scripts/worktree-remove.sh feat/42-work-item-crud
-
-# Remove worktree and delete local branch
-scripts/worktree-remove.sh feat/42-work-item-crud --delete-branch
-```
-
-### Key Details
-
-- **gwq config**: `.gwq.toml` at repo root sets worktree basedir to `~/worktrees`
-- **Database isolation**: Each worktree has its own `data/cornerstone.db` (data/ is in `.gitignore`)
-- **Agent memory sharing**: `worktree-create.sh` symlinks `.claude/agent-memory/` from the main worktree so learnings persist across sessions
-- **Bootstrap**: `worktree-create.sh` runs `npm install`, `npm rebuild better-sqlite3`, and `npm run build -w shared` automatically
-- **Main worktree**: Stays on `beta` as home base; slot 0 ports are the default
-- **Quick reference**: `gwq list` (show worktrees), `gwq remove <branch>` (remove worktree)
-
 ## Tech Stack
 
 | Layer                      | Technology              | Version | ADR     |
@@ -333,6 +328,7 @@ cornerstone/
   .releaserc.json           # semantic-release configuration
   CLAUDE.md                 # This file
   plan/                     # Requirements document
+  wiki/                     # GitHub Wiki (git submodule) - architecture docs, API contract, schema, ADRs
   shared/                   # @cornerstone/shared - TypeScript types
     package.json
     tsconfig.json
@@ -462,6 +458,7 @@ All automated testing is owned by the `qa-integration-tester` agent. Developer a
 ### Getting Started
 
 ```bash
+git submodule update --init   # Initialize wiki submodule
 npm install                   # Install all workspace dependencies
 npm run dev                   # Start server (port 3000) + client dev server (port 5173)
 ```
