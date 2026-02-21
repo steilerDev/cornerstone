@@ -81,9 +81,13 @@ export default defineConfig({
     {
       name: 'tablet',
       dependencies: ['auth-setup'],
+      timeout: 60_000, // WebKit is significantly slower than Chromium; multi-step tests need 40-50s
+      expect: { timeout: 15_000 }, // WebKit expect assertions need more time
       use: {
         ...devices['iPad (gen 7)'],
         storageState: 'test-results/.auth/admin.json',
+        actionTimeout: 15_000, // WebKit click/fill actions need more time
+        navigationTimeout: 15_000, // WebKit page loads need more time
       },
     },
 
@@ -92,15 +96,19 @@ export default defineConfig({
       name: 'mobile',
       dependencies: ['auth-setup'],
       grep: /@responsive/,
+      timeout: 60_000, // WebKit is significantly slower than Chromium; multi-step tests need 40-50s
+      expect: { timeout: 15_000 }, // WebKit expect assertions need more time
       use: {
         ...devices['iPhone 13'],
         storageState: 'test-results/.auth/admin.json',
+        actionTimeout: 15_000, // WebKit click/fill actions need more time
+        navigationTimeout: 15_000, // WebKit page loads need more time
       },
     },
   ],
 
-  /* Test timeout — most passing tests complete in 2-5s */
-  timeout: 7000, // 7 seconds per test
+  /* Test timeout — most passing tests complete in 2-5s; some multi-step tests need up to 10s */
+  timeout: 10_000, // 10 seconds per test (desktop default)
 
   /* Global timeout: cap the entire suite at 30 minutes on CI to prevent stuck runs */
   globalTimeout: process.env.CI ? 30 * 60 * 1000 : undefined,

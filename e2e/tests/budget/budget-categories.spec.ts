@@ -138,20 +138,25 @@ test.describe('Sort order display (Scenario 2 & 13)', { tag: '@responsive' }, ()
     page,
     testPrefix,
   }) => {
-    // Given: Default categories have sort_order >= 1
+    // Given: Default categories: Materials(0), Labor(1), Permits(2), + seeded Design/Utilities/etc.
     const categoriesPage = new BudgetCategoriesPage(page);
     let createdId: string | null = null;
     const categoryName = `${testPrefix} Sort Test Zero`;
 
     try {
-      // When: I create a category with sort_order = 0
+      // When: I create a category with sort_order = 0 (same as Materials, lower than Labor)
       createdId = await createCategoryViaApi(page, categoryName, 0);
 
       await categoriesPage.goto();
+      await categoriesPage.waitForCategoriesLoaded();
 
-      // Then: The new category appears first in the list
+      // Then: The new category appears before "Labor" (sort_order=1) in the list
       const names = await categoriesPage.getCategoryNames();
-      expect(names[0]).toBe(categoryName);
+      const newIdx = names.indexOf(categoryName);
+      const laborIdx = names.indexOf('Labor');
+      expect(newIdx).toBeGreaterThanOrEqual(0);
+      expect(laborIdx).toBeGreaterThanOrEqual(0);
+      expect(newIdx).toBeLessThan(laborIdx);
     } finally {
       if (createdId) {
         await deleteCategoryViaApi(page, createdId);
@@ -801,7 +806,7 @@ test.describe('Page structure and accessibility', { tag: '@responsive' }, () => 
     await expect(categoriesPage.heading).toHaveText('Budget');
 
     // Verify the correct sub-page loaded via the h2 section heading
-    const sectionHeading = page.getByRole('heading', { level: 2, name: /^Categories/ });
+    const sectionHeading = page.getByRole('heading', { level: 2, name: /^Categories \(/ });
     await expect(sectionHeading).toBeVisible();
   });
 

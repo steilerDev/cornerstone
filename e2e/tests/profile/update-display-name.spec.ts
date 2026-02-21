@@ -42,7 +42,7 @@ test.describe('Update Display Name', () => {
     await profilePage.updateDisplayName('Test Name');
 
     // Then: Success banner should be visible
-    await expect(profilePage.displayNameSuccessBanner).toBeVisible({ timeout: 5000 });
+    await expect(profilePage.displayNameSuccessBanner).toBeVisible();
 
     // Restore original name
     await profilePage.updateDisplayName(TEST_ADMIN.displayName);
@@ -73,7 +73,7 @@ test.describe('Update Display Name', () => {
     await profilePage.goto();
     const testName = 'Persistent Test Name';
     await profilePage.updateDisplayName(testName);
-    await expect(profilePage.displayNameSuccessBanner).toBeVisible({ timeout: 5000 });
+    await expect(profilePage.displayNameSuccessBanner).toBeVisible();
 
     // When: User reloads the page
     await page.reload();

@@ -105,8 +105,10 @@ export class VendorsPage {
     // Mobile cards
     this.cardsContainer = page.locator('[class*="cardsContainer"]');
 
-    // Pagination
-    this.pagination = page.locator('[class*="pagination"]');
+    // Pagination — use `.first()` because `[class*="pagination"]` matches the
+    // outer container plus child elements (paginationInfo, paginationButton, etc.)
+    // which causes strict mode violations in production CSS Modules.
+    this.pagination = page.locator('[class*="pagination"]').first();
     this.paginationInfo = page.locator('[class*="paginationInfo"]');
     this.prevPageButton = page.getByLabel('Previous page');
     this.nextPageButton = page.getByLabel('Next page');

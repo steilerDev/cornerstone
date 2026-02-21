@@ -54,9 +54,9 @@ export class VendorDetailPage {
   readonly cancelEditButton: Locator;
   readonly editErrorBanner: Locator;
 
-  // Invoices placeholder section
+  // Invoices section
   readonly invoicesSection: Locator;
-  readonly comingSoonText: Locator;
+  readonly invoicesEmptyState: Locator;
 
   // Error card (shown when vendor not found or load fails)
   readonly errorCard: Locator;
@@ -71,8 +71,8 @@ export class VendorDetailPage {
   constructor(page: Page) {
     this.page = page;
 
-    // Breadcrumb
-    this.backToVendorsButton = page.getByRole('button', { name: 'Vendors', exact: true });
+    // Breadcrumb — the "Vendors" back link is a React Router <Link> (renders <a>)
+    this.backToVendorsButton = page.getByRole('link', { name: 'Vendors', exact: true });
     this.breadcrumbCurrent = page.locator('[class*="breadcrumbCurrent"]');
 
     // Page header
@@ -89,9 +89,10 @@ export class VendorDetailPage {
       .locator('[class*="statCard"]')
       .filter({ hasText: /Outstanding Balance/ });
 
-    // Info card
+    // Info card — <section> without aria-label has no implicit 'region' role,
+    // so we use locator('section').filter() instead of getByRole('region')
     this.infoCard = page
-      .getByRole('region')
+      .locator('section')
       .filter({ has: page.getByRole('heading', { name: 'Vendor Information' }) });
     this.infoList = this.infoCard.locator('dl');
 
@@ -106,14 +107,15 @@ export class VendorDetailPage {
     this.cancelEditButton = page.getByRole('button', { name: 'Cancel', exact: true });
     this.editErrorBanner = page.locator('[class*="form"]').locator('[role="alert"]');
 
-    // Invoices placeholder
-    this.invoicesSection = page.getByRole('region').filter({
+    // Invoices section — <section> without aria-label has no implicit 'region' role
+    this.invoicesSection = page.locator('section').filter({
       has: page.getByRole('heading', { name: 'Invoices', exact: true }),
     });
-    this.comingSoonText = this.invoicesSection.locator('[class*="comingSoon"]');
+    this.invoicesEmptyState = this.invoicesSection.getByText('No invoices yet.');
 
-    // Error card (load failure / not found)
-    this.errorCard = page.locator('[class*="errorCard"]', { has: page.locator('[role="alert"]') });
+    // Error card (load failure / not found) — role="alert" is on the element itself,
+    // not a descendant, so use a combined CSS selector instead of { has: ... }
+    this.errorCard = page.locator('[class*="errorCard"][role="alert"]');
 
     // Delete modal
     this.deleteModal = page.getByRole('dialog', { name: 'Delete Vendor' });
@@ -138,7 +140,7 @@ export class VendorDetailPage {
    */
   async goBackToVendors(): Promise<void> {
     await this.backToVendorsButton.click();
-    await this.page.waitForURL('/budget/vendors', { timeout: 5000 });
+    await this.page.waitForURL('**/budget/vendors', { timeout: 5000 });
   }
 
   /**

@@ -173,6 +173,9 @@ export class BudgetCategoriesPage {
     const rows = await this.getCategoryRows();
     for (const row of rows) {
       const nameEl = row.locator('[class*="categoryName"]');
+      // Skip rows that are in edit mode (no visible categoryName element)
+      const count = await nameEl.count();
+      if (count === 0) continue;
       const rowText = await nameEl.textContent();
       if (rowText?.trim() === name) {
         return row;
