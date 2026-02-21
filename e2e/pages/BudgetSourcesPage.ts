@@ -124,7 +124,8 @@ export class BudgetSourcesPage {
 
   async goto(): Promise<void> {
     await this.page.goto(BUDGET_SOURCES_ROUTE);
-    await this.heading.waitFor({ state: 'visible', timeout: 5000 });
+    // No explicit timeout — uses project-level actionTimeout (15s for WebKit).
+    await this.heading.waitFor({ state: 'visible' });
   }
 
   /**
@@ -132,7 +133,8 @@ export class BudgetSourcesPage {
    */
   async openCreateForm(): Promise<void> {
     await this.addSourceButton.click();
-    await this.createFormHeading.waitFor({ state: 'visible', timeout: 5000 });
+    // No explicit timeout — uses project-level actionTimeout (15s for WebKit).
+    await this.createFormHeading.waitFor({ state: 'visible' });
   }
 
   /**
@@ -163,14 +165,12 @@ export class BudgetSourcesPage {
   /**
    * Wait for the sources list to be in a settled state — either at least one
    * source row is visible, or the empty state paragraph is visible.
+   * No explicit timeout — uses project-level actionTimeout (15s for WebKit).
    */
   async waitForSourcesLoaded(): Promise<void> {
     await Promise.race([
-      this.sourcesList
-        .locator('[class*="sourceRow"]')
-        .first()
-        .waitFor({ state: 'visible', timeout: 5000 }),
-      this.emptyState.waitFor({ state: 'visible', timeout: 5000 }),
+      this.sourcesList.locator('[class*="sourceRow"]').first().waitFor({ state: 'visible' }),
+      this.emptyState.waitFor({ state: 'visible' }),
     ]);
   }
 
@@ -198,13 +198,11 @@ export class BudgetSourcesPage {
   /**
    * Find the source row that contains the given source name.
    * Returns null if not found.
+   * No explicit timeout — uses project-level actionTimeout (15s for WebKit).
    */
   async getSourceRow(name: string): Promise<Locator | null> {
     try {
-      await this.page
-        .locator('[class*="sourceRow"]')
-        .first()
-        .waitFor({ state: 'visible', timeout: 5000 });
+      await this.page.locator('[class*="sourceRow"]').first().waitFor({ state: 'visible' });
     } catch {
       return null;
     }
@@ -221,13 +219,12 @@ export class BudgetSourcesPage {
 
   /**
    * Click the Edit button for the named source to enter inline edit mode.
+   * No explicit timeout — uses project-level actionTimeout (15s for WebKit).
    */
   async startEdit(name: string): Promise<void> {
     await this.page.getByRole('button', { name: `Edit ${name}`, exact: true }).click();
     // Wait for the edit form (identified by its aria-label)
-    await this.page
-      .getByRole('form', { name: `Edit ${name}` })
-      .waitFor({ state: 'visible', timeout: 5000 });
+    await this.page.getByRole('form', { name: `Edit ${name}` }).waitFor({ state: 'visible' });
   }
 
   /**
@@ -255,13 +252,14 @@ export class BudgetSourcesPage {
 
   /**
    * Open the delete confirmation modal for the source with the given name.
+   * No explicit timeout — uses project-level actionTimeout (15s for WebKit).
    */
   async openDeleteModal(name: string): Promise<void> {
     await this.page
       .getByRole('button', { name: `Delete ${name}`, exact: true })
       .first()
       .click();
-    await this.deleteModal.waitFor({ state: 'visible', timeout: 5000 });
+    await this.deleteModal.waitFor({ state: 'visible' });
   }
 
   /**
@@ -273,18 +271,20 @@ export class BudgetSourcesPage {
 
   /**
    * Cancel deletion — click "Cancel" and wait for the modal to close.
+   * No explicit timeout — uses project-level actionTimeout (15s for WebKit).
    */
   async cancelDelete(): Promise<void> {
     await this.deleteCancelButton.click();
-    await this.deleteModal.waitFor({ state: 'hidden', timeout: 5000 });
+    await this.deleteModal.waitFor({ state: 'hidden' });
   }
 
   /**
    * Get the visible success banner text, or null if not present.
+   * No explicit timeout — uses project-level actionTimeout (15s for WebKit).
    */
   async getSuccessBannerText(): Promise<string | null> {
     try {
-      await this.successBanner.waitFor({ state: 'visible', timeout: 5000 });
+      await this.successBanner.waitFor({ state: 'visible' });
       return await this.successBanner.textContent();
     } catch {
       return null;
@@ -293,10 +293,11 @@ export class BudgetSourcesPage {
 
   /**
    * Get the create form error banner text, or null if not visible.
+   * No explicit timeout — uses project-level actionTimeout (15s for WebKit).
    */
   async getCreateErrorText(): Promise<string | null> {
     try {
-      await this.createErrorBanner.waitFor({ state: 'visible', timeout: 5000 });
+      await this.createErrorBanner.waitFor({ state: 'visible' });
       return await this.createErrorBanner.textContent();
     } catch {
       return null;
@@ -305,10 +306,11 @@ export class BudgetSourcesPage {
 
   /**
    * Get the delete modal error banner text, or null if not visible.
+   * No explicit timeout — uses project-level actionTimeout (15s for WebKit).
    */
   async getDeleteErrorText(): Promise<string | null> {
     try {
-      await this.deleteErrorBanner.waitFor({ state: 'visible', timeout: 5000 });
+      await this.deleteErrorBanner.waitFor({ state: 'visible' });
       return await this.deleteErrorBanner.textContent();
     } catch {
       return null;

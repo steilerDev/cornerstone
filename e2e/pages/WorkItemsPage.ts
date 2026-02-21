@@ -105,24 +105,23 @@ export class WorkItemsPage {
 
   /**
    * Navigate to the work items list page.
+   * No explicit timeout — uses project-level actionTimeout (15s for WebKit).
    */
   async goto(): Promise<void> {
     await this.page.goto(WORK_ITEMS_ROUTE);
-    await this.heading.waitFor({ state: 'visible', timeout: 7000 });
+    await this.heading.waitFor({ state: 'visible' });
   }
 
   /**
    * Wait for the work items list to finish loading.
    * Races: table rows visible, mobile cards visible, or empty state visible.
+   * No explicit timeout — uses project-level actionTimeout (15s for WebKit).
    */
   async waitForLoaded(): Promise<void> {
     await Promise.race([
-      this.tableBody.locator('tr').first().waitFor({ state: 'visible', timeout: 7000 }),
-      this.cardsContainer
-        .locator('[class*="card"]')
-        .first()
-        .waitFor({ state: 'visible', timeout: 7000 }),
-      this.emptyState.waitFor({ state: 'visible', timeout: 7000 }),
+      this.tableBody.locator('tr').first().waitFor({ state: 'visible' }),
+      this.cardsContainer.locator('[class*="card"]').first().waitFor({ state: 'visible' }),
+      this.emptyState.waitFor({ state: 'visible' }),
     ]);
   }
 
@@ -174,32 +173,40 @@ export class WorkItemsPage {
 
   /**
    * Open the delete modal for the work item with the given title.
-   * Clicks the Actions menu button (⋮) in the table row, then clicks "Delete".
-   * For mobile, finds the card and uses its Actions menu.
+   * Clicks the Actions menu button (⋮) in the table row (desktop), then clicks "Delete".
+   * On mobile (when the table is CSS-hidden), falls back to the card view.
+   * No explicit timeout — uses project-level actionTimeout (15s for WebKit).
    */
   async openDeleteModal(title: string): Promise<void> {
-    // Find the row in the table by title text
-    const rows = await this.tableBody.locator('tr').all();
-    for (const row of rows) {
-      const rowText = await row.textContent();
-      if (rowText?.includes(title)) {
-        // Open the actions menu
-        await row.locator('[aria-label="Actions menu"]').click();
-        // Click Delete in the dropdown
-        await row.getByRole('button', { name: 'Delete' }).click();
-        await this.deleteModal.waitFor({ state: 'visible', timeout: 5000 });
-        return;
+    // Determine whether the desktop table is actually visible.
+    // On mobile viewports the table has `display: none` via CSS — elements inside
+    // are still in the DOM but are not interactable. Always use the card view on mobile.
+    const tableVisible = await this.tableContainer.isVisible();
+
+    if (tableVisible) {
+      // Desktop: find the row in the table by title text
+      const rows = await this.tableBody.locator('tr').all();
+      for (const row of rows) {
+        const rowText = await row.textContent();
+        if (rowText?.includes(title)) {
+          // Open the actions menu
+          await row.locator('[aria-label="Actions menu"]').click();
+          // Click Delete in the dropdown
+          await row.getByRole('button', { name: 'Delete' }).click();
+          await this.deleteModal.waitFor({ state: 'visible' });
+          return;
+        }
       }
     }
 
-    // Mobile fallback: search in cards
+    // Mobile fallback (or if table row not found): search in cards
     const cards = await this.cardsContainer.locator('[class*="card"]').all();
     for (const card of cards) {
       const cardText = await card.textContent();
       if (cardText?.includes(title)) {
         await card.locator('[aria-label="Actions menu"]').click();
         await card.getByRole('button', { name: 'Delete' }).click();
-        await this.deleteModal.waitFor({ state: 'visible', timeout: 5000 });
+        await this.deleteModal.waitFor({ state: 'visible' });
         return;
       }
     }
@@ -209,18 +216,20 @@ export class WorkItemsPage {
 
   /**
    * Confirm the deletion in the delete modal.
+   * No explicit timeout — uses project-level actionTimeout (15s for WebKit).
    */
   async confirmDelete(): Promise<void> {
     await this.deleteConfirmButton.click();
-    await this.deleteModal.waitFor({ state: 'hidden', timeout: 7000 });
+    await this.deleteModal.waitFor({ state: 'hidden' });
   }
 
   /**
    * Cancel the delete modal without deleting.
+   * No explicit timeout — uses project-level actionTimeout (15s for WebKit).
    */
   async cancelDelete(): Promise<void> {
     await this.deleteCancelButton.click();
-    await this.deleteModal.waitFor({ state: 'hidden', timeout: 5000 });
+    await this.deleteModal.waitFor({ state: 'hidden' });
   }
 
   /**
@@ -244,7 +253,7 @@ export class WorkItemsPage {
   async getPaginationInfoText(): Promise<string | null> {
     try {
       const info = this.page.locator('[class*="paginationInfo"]');
-      await info.waitFor({ state: 'visible', timeout: 3000 });
+      await info.waitFor({ state: 'visible' });
       return await info.textContent();
     } catch {
       return null;

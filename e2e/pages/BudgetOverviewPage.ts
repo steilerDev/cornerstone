@@ -58,8 +58,11 @@ export class BudgetOverviewPage {
     });
     this.retryButton = this.errorCard.getByRole('button', { name: 'Retry', exact: true });
 
-    // Empty state: class `.emptyState` rendered when no budget data exists
-    this.emptyState = page.locator('[class*="emptyState"]');
+    // Empty state: class `.emptyState` rendered when no budget data exists.
+    // Use div[class*="emptyState"] to avoid matching child elements
+    // (.emptyStateTitle, .emptyStateDescription) which also contain "emptyState" in
+    // their class names and would cause a strict mode violation.
+    this.emptyState = page.locator('div[class*="emptyState"]');
 
     // Summary cards: the grid container
     this.cardsGrid = page.locator('[class*="cardsGrid"]');
@@ -75,8 +78,9 @@ export class BudgetOverviewPage {
 
   async goto(): Promise<void> {
     await this.page.goto(BUDGET_OVERVIEW_ROUTE);
-    // Wait for either the heading or loading indicator to appear
-    await this.heading.waitFor({ state: 'visible', timeout: 5000 });
+    // Wait for either the heading or loading indicator to appear.
+    // No explicit timeout — uses the project-level actionTimeout (15s for WebKit).
+    await this.heading.waitFor({ state: 'visible' });
   }
 
   /**
