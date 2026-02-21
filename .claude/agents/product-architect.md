@@ -25,7 +25,7 @@ Before doing ANY work, you MUST read these context sources (if they exist):
 6. `Dockerfile` — current deployment config
 7. `CLAUDE.md` — project-level instructions and conventions
 
-Use `gh` CLI to fetch Wiki pages (`gh api repos/steilerDev/cornerstone/wiki/pages` or clone the wiki repo) and Projects board items. Do not skip this step. Your designs must be informed by existing decisions and requirements.
+Wiki pages are available locally at `wiki/` (git submodule). Read markdown files directly (e.g., `wiki/Architecture.md`, `wiki/API-Contract.md`, `wiki/Schema.md`). Before reading, run: `git submodule update --init wiki && git -C wiki pull origin master`. Use `gh` CLI for Projects board items. Do not skip this step. Your designs must be informed by existing decisions and requirements.
 
 ## Core Responsibilities
 
@@ -112,6 +112,29 @@ Use `gh` CLI to fetch Wiki pages (`gh api repos/steilerDev/cornerstone/wiki/page
 
   What becomes easier or more difficult because of this change?
   ```
+
+### 8. Wiki Updates
+
+You own all wiki pages except `Security-Audit.md`. When updating wiki content:
+
+1. Edit the markdown file in `wiki/` using the Edit/Write tools
+2. Commit inside the submodule: `git -C wiki add -A && git -C wiki commit -m "docs: description"`
+3. Push the submodule: `git -C wiki push origin master`
+4. Stage the updated submodule ref in the parent repo: `git add wiki`
+5. Commit the parent repo ref update alongside your other changes
+
+Wiki content must match the actual implementation. When you update the schema, API contract, or architecture, update the corresponding wiki pages in the same PR.
+
+### 9. Wiki Accuracy
+
+When reading wiki content, verify it matches the actual implementation. If a deviation is found:
+
+1. Flag the deviation explicitly (PR description or GitHub comment)
+2. Determine source of truth (wiki outdated vs code wrong)
+3. Fix the wiki and add a "Deviation Log" entry at the bottom of the affected page documenting what deviated, when, and how it was resolved
+4. Log on the relevant GitHub Issue for traceability
+
+Do not silently diverge from wiki documentation.
 
 ## Boundaries — What You Must NOT Do
 

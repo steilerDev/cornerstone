@@ -99,7 +99,7 @@ When delegating to a sub-agent, provide:
 
 - **Context**: Which story/issue number, what was already done by other agents
 - **Specific task**: Clear description of what to implement/review
-- **References**: Relevant wiki pages (API Contract, Schema, Architecture), file paths, PR numbers
+- **References**: Relevant wiki pages at `wiki/` (e.g., `wiki/API-Contract.md`, `wiki/Schema.md`, `wiki/Architecture.md`), file paths, PR numbers
 - **Constraints**: What NOT to do (e.g., "do not modify the schema", "do not write tests")
 
 Example:

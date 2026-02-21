@@ -32,7 +32,7 @@ This project uses a team of 6 specialized agents plus an orchestrator:
 | Code review                                              | **GitHub Pull Requests**                      |
 | Source tree                                              | Code, configs, `Dockerfile`, `CLAUDE.md` only |
 
-No `docs/` directory in the source tree. All documentation lives on the GitHub Wiki. The GitHub Projects board is the single source of truth for backlog management.
+The GitHub Wiki is checked out as a git submodule at `wiki/` in the project root. All architecture documentation lives as markdown files in this submodule. The GitHub Projects board is the single source of truth for backlog management.
 
 ### GitHub Wiki Pages (managed by product-architect and security-engineer)
 
@@ -230,27 +230,6 @@ Both `main` and `beta` have branch protection rules enforced on GitHub:
 | Force pushes                      | Blocked                   | Blocked                   |
 | Deletions                         | Blocked                   | Blocked                   |
 
-## Parallel Coding Sessions
-
-Multiple sessions can run in parallel using [gwq](https://github.com/d-kuro/gwq) for git worktree management. Each session gets its own worktree directory with isolated `node_modules/`, database, and dev server ports.
-
-### Port Allocation
-
-| Slot | Server (`PORT`) | Client (`CLIENT_DEV_PORT`) | Usage                   |
-| ---- | --------------- | -------------------------- | ----------------------- |
-| 0    | 3000            | 5173                       | Main worktree (default) |
-| 1    | 3001            | 5174                       | Session 1               |
-| 2    | 3002            | 5175                       | Session 2               |
-| 3    | 3003            | 5176                       | Session 3               |
-
-### Worktree Lifecycle
-
-```bash
-scripts/worktree-create.sh feat/42-work-item-crud   # Create (auto-selects slot)
-scripts/worktree-create.sh feat/42-work-item-crud 2  # Create with explicit slot
-scripts/worktree-remove.sh feat/42-work-item-crud    # Remove
-```
-
 ## Tech Stack
 
 | Layer                      | Technology              | Version | ADR     |
@@ -287,6 +266,7 @@ cornerstone/
   CLAUDE.md                 # Project guide (Claude Code)
   cagent.yaml               # Agent configuration (cagent)
   plan/                     # Requirements document
+  wiki/                     # GitHub Wiki (git submodule) - architecture docs, API contract, schema, ADRs
   shared/                   # @cornerstone/shared - TypeScript types
     package.json
     tsconfig.json
@@ -415,6 +395,7 @@ All automated testing is owned by the `qa-integration-tester` agent. Developer a
 ### Getting Started
 
 ```bash
+git submodule update --init   # Initialize wiki submodule
 npm install                   # Install all workspace dependencies
 npm run dev                   # Start server (port 3000) + client dev server (port 5173)
 ```

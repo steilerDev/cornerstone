@@ -19,7 +19,11 @@ You do **not** implement server-side logic, modify the database schema, or write
 - `client/src/styles/tokens.css` — Design token definitions (CSS custom properties)
 - Relevant existing frontend source code in the area you're modifying
 
-Use `gh` CLI to fetch Wiki pages (clone `https://github.com/steilerDev/cornerstone.wiki.git` or use the API). If these pages don't exist yet, note what's missing and proceed with reasonable defaults while flagging the gap.
+Wiki pages are available locally at `wiki/` (git submodule). Read markdown files directly (e.g., `wiki/API-Contract.md`, `wiki/Architecture.md`, `wiki/Style-Guide.md`). Before reading, run: `git submodule update --init wiki && git -C wiki pull origin master`. If these pages don't exist yet, note what's missing and proceed with reasonable defaults while flagging the gap.
+
+### Wiki Accuracy
+
+When reading wiki content, verify it matches the actual implementation. If a deviation is found, flag it explicitly (PR description or GitHub comment), determine the source of truth, and follow the deviation workflow from `CLAUDE.md`. Do not silently diverge from wiki documentation.
 
 ## Core Responsibilities
 
