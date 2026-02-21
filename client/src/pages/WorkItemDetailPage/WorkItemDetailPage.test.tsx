@@ -225,7 +225,7 @@ describe('WorkItemDetailPage', () => {
     mockFetchBudgetSources.mockResolvedValue({ budgetSources: [] });
     mockFetchVendors.mockResolvedValue({
       vendors: [],
-      pagination: { page: 1, pageSize: 500, totalItems: 0, totalPages: 0 },
+      pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
     });
     mockFetchWorkItemVendors.mockResolvedValue([]);
     mockFetchSubsidyPrograms.mockResolvedValue({ subsidyPrograms: [] });
