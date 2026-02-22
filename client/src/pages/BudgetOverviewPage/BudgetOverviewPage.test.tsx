@@ -503,9 +503,7 @@ describe('BudgetOverviewPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(
-          screen.getByRole('button', { name: /categories:/i }),
-        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /categories:/i })).toBeInTheDocument();
       });
     });
 
@@ -514,9 +512,7 @@ describe('BudgetOverviewPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(
-          screen.queryByRole('button', { name: /categories:/i }),
-        ).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /categories:/i })).not.toBeInTheDocument();
       });
     });
 
@@ -748,9 +744,7 @@ describe('BudgetOverviewPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(
-          screen.getByRole('button', { name: /remaining budget/i }),
-        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /remaining budget/i })).toBeInTheDocument();
       });
 
       const remainingBtn = screen.getByRole('button', { name: /remaining budget/i });

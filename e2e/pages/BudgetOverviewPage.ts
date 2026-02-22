@@ -6,9 +6,14 @@
  * - BudgetSubNav (tab-style nav for the Budget section)
  * - Loading indicator while data is fetched
  * - Error card with a Retry button if the API fails
- * - Empty state when no budget data has been entered
- * - A 4-card summary grid: Planned Budget, Actual Cost, Financing, Subsidies
- * - A Category Breakdown table (may be empty if no categories are assigned)
+ * - Empty state when no budget data has been entered (all-zero response)
+ * - Budget Health Hero card containing:
+ *   - An h2 "Budget Health" heading
+ *   - A BudgetHealthIndicator badge (role="status") showing "On Budget" / "At Risk" / "Over Budget"
+ *   - A key metrics row: Available Funds, Projected Cost Range, Remaining
+ *   - A BudgetBar stacked bar chart (role="img")
+ *   - A footer showing subsidies and sources info
+ *   - A category filter dropdown button
  */
 
 import type { Page, Locator } from '@playwright/test';
@@ -34,14 +39,12 @@ export class BudgetOverviewPage {
   // Empty state
   readonly emptyState: Locator;
 
-  // Summary cards grid
-  readonly cardsGrid: Locator;
-
-  // Category breakdown section
-  readonly categoryBreakdownHeading: Locator;
-  readonly categoryBreakdownTable: Locator;
-  readonly categoryBreakdownTableBody: Locator;
-  readonly categoryBreakdownTableFooter: Locator;
+  // Budget Health Hero card
+  readonly heroCard: Locator;
+  readonly heroTitle: Locator;
+  readonly healthBadge: Locator;
+  readonly budgetBar: Locator;
+  readonly categoryFilterButton: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -64,16 +67,20 @@ export class BudgetOverviewPage {
     // their class names and would cause a strict mode violation.
     this.emptyState = page.locator('div[class*="emptyState"]');
 
-    // Summary cards: the grid container
-    this.cardsGrid = page.locator('[class*="cardsGrid"]');
+    // Budget Health Hero card: <section aria-labelledby="budget-health-heading">
+    this.heroCard = page.locator('[aria-labelledby="budget-health-heading"]');
 
-    // Category breakdown: the section is identified by its heading id
-    this.categoryBreakdownHeading = page.locator('#category-breakdown-heading');
-    this.categoryBreakdownTable = page
-      .locator('[aria-labelledby="category-breakdown-heading"]')
-      .locator('table');
-    this.categoryBreakdownTableBody = this.categoryBreakdownTable.locator('tbody');
-    this.categoryBreakdownTableFooter = this.categoryBreakdownTable.locator('tfoot');
+    // Hero title: <h2 id="budget-health-heading">Budget Health</h2>
+    this.heroTitle = page.locator('#budget-health-heading');
+
+    // Health badge: BudgetHealthIndicator with role="status" inside the hero card
+    this.healthBadge = this.heroCard.getByRole('status');
+
+    // Budget bar: BudgetBar stacked bar chart with role="img"
+    this.budgetBar = page.getByRole('img').filter({ has: page.locator('[class*="bar"]') });
+
+    // Category filter dropdown button
+    this.categoryFilterButton = page.getByRole('button', { name: /categories/i });
   }
 
   async goto(): Promise<void> {
@@ -85,7 +92,7 @@ export class BudgetOverviewPage {
 
   /**
    * Wait until the page has finished loading data (loading indicator gone,
-   * either error card, empty state, or cards grid is visible).
+   * either error card, empty state, or hero card is visible).
    */
   async waitForLoaded(): Promise<void> {
     // Wait for the loading indicator to disappear
@@ -96,66 +103,8 @@ export class BudgetOverviewPage {
     await Promise.race([
       this.errorCard.waitFor({ state: 'visible', timeout: 10000 }),
       this.emptyState.waitFor({ state: 'visible', timeout: 10000 }),
-      this.cardsGrid.waitFor({ state: 'visible', timeout: 10000 }),
+      this.heroCard.waitFor({ state: 'visible', timeout: 10000 }),
     ]);
-  }
-
-  /**
-   * Get a summary card section by its title (e.g., "Planned Budget", "Financing").
-   * Cards are `<section aria-labelledby="card-<slug>">`.
-   */
-  getSummaryCard(title: string): Locator {
-    const slug = title.replace(/\s+/g, '-').toLowerCase();
-    return this.page.locator(`section[aria-labelledby="card-${slug}"]`);
-  }
-
-  /**
-   * Get the displayed value for a given label within a named summary card.
-   * Searches for the stat row with the matching label text and returns the
-   * value span text.
-   *
-   * @param cardTitle - e.g., "Planned Budget"
-   * @param label - e.g., "Planned", "Actual Cost", "Variance"
-   */
-  async getSummaryCardValue(cardTitle: string, label: string): Promise<string | null> {
-    const card = this.getSummaryCard(cardTitle);
-    // Each stat row: <div class="statRow"><span class="statLabel">label</span><span>value</span>
-    const row = card.locator('[class*="statRow"]').filter({
-      has: this.page.locator('[class*="statLabel"]').filter({ hasText: label }),
-    });
-    try {
-      await row.waitFor({ state: 'visible' });
-    } catch {
-      return null;
-    }
-    const valueSpan = row.locator('[class*="statValue"]');
-    return await valueSpan.textContent();
-  }
-
-  /**
-   * Get the number of data rows in the Category Breakdown table body.
-   * Returns 0 if the table does not exist or has no rows.
-   */
-  async getTableRowCount(): Promise<number> {
-    try {
-      await this.categoryBreakdownTableBody.waitFor({ state: 'visible' });
-      const rows = await this.categoryBreakdownTableBody.locator('tr').all();
-      return rows.length;
-    } catch {
-      return 0;
-    }
-  }
-
-  /**
-   * Get all row locators in the Category Breakdown table body.
-   */
-  async getTableRows(): Promise<Locator[]> {
-    try {
-      await this.categoryBreakdownTableBody.waitFor({ state: 'visible' });
-      return await this.categoryBreakdownTableBody.locator('tr').all();
-    } catch {
-      return [];
-    }
   }
 
   /**

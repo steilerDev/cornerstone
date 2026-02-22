@@ -1326,7 +1326,12 @@ describe('getBudgetOverview', () => {
       const now = new Date().toISOString();
       const vendorId = `wi-vendor-${idCounter++}`;
       db.insert(schema.vendors)
-        .values({ id: vendorId, name: `Claimed Vendor ${vendorId}`, createdAt: now, updatedAt: now })
+        .values({
+          id: vendorId,
+          name: `Claimed Vendor ${vendorId}`,
+          createdAt: now,
+          updatedAt: now,
+        })
         .run();
       const invoiceId = `wi-inv-claimed-${idCounter++}`;
       db.insert(schema.invoices)
@@ -1445,8 +1450,14 @@ describe('getBudgetOverview', () => {
 
     it('aggregates per-category actualCostClaimed correctly', () => {
       const catId = insertBudgetCategory('Cat Claimed Test');
-      const { budgetLineId: bl1 } = insertWorkItem({ plannedAmount: 10000, budgetCategoryId: catId });
-      const { budgetLineId: bl2 } = insertWorkItem({ plannedAmount: 8000, budgetCategoryId: catId });
+      const { budgetLineId: bl1 } = insertWorkItem({
+        plannedAmount: 10000,
+        budgetCategoryId: catId,
+      });
+      const { budgetLineId: bl2 } = insertWorkItem({
+        plannedAmount: 8000,
+        budgetCategoryId: catId,
+      });
       insertClaimedInvoice(bl1!, 4000);
       insertClaimedInvoice(bl2!, 2000);
 
@@ -1472,7 +1483,10 @@ describe('getBudgetOverview', () => {
       const catA = insertBudgetCategory('Cat Claimed A');
       const catB = insertBudgetCategory('Cat Claimed B');
 
-      const { budgetLineId: blA } = insertWorkItem({ plannedAmount: 10000, budgetCategoryId: catA });
+      const { budgetLineId: blA } = insertWorkItem({
+        plannedAmount: 10000,
+        budgetCategoryId: catA,
+      });
       const { budgetLineId: blB } = insertWorkItem({ plannedAmount: 8000, budgetCategoryId: catB });
       insertClaimedInvoice(blA!, 3500);
       insertClaimedInvoice(blB!, 1800);
@@ -1494,7 +1508,10 @@ describe('getBudgetOverview', () => {
         budgetCategoryId: catId,
         actualCost: 5000, // paid
       });
-      const { budgetLineId: bl2 } = insertWorkItem({ plannedAmount: 8000, budgetCategoryId: catId });
+      const { budgetLineId: bl2 } = insertWorkItem({
+        plannedAmount: 8000,
+        budgetCategoryId: catId,
+      });
       insertClaimedInvoice(bl2!, 3000); // claimed
 
       const result = getBudgetOverview(db);

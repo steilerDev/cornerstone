@@ -1,12 +1,15 @@
 /**
- * E2E tests for the Budget Overview page (Story #148)
+ * E2E tests for the Budget Overview page (Story #148 + feat/budget-hero-bar)
  *
  * UAT Scenarios covered:
  * - Page loads with the correct h1 "Budget" heading
  * - Budget sub-navigation (tabs) is visible
  * - Empty state shown when no budget data exists
- * - Summary cards visible when data is present
- * - Category breakdown table visible when categories have data
+ * - Budget Health Hero card visible when data is present
+ * - Health badge shows budget status
+ * - Budget bar (stacked chart) is visible
+ * - Category filter button is accessible
+ * - Error state with Retry button when API returns 500
  * - Responsive layout: no horizontal scroll
  * - Dark mode rendering
  */
@@ -28,10 +31,16 @@ function emptyOverviewResponse() {
     maxPlanned: 0,
     actualCost: 0,
     actualCostPaid: 0,
+    projectedMin: 0,
+    projectedMax: 0,
+    actualCostClaimed: 0,
     remainingVsMinPlanned: 0,
     remainingVsMaxPlanned: 0,
     remainingVsActualCost: 0,
     remainingVsActualPaid: 0,
+    remainingVsProjectedMin: 0,
+    remainingVsProjectedMax: 0,
+    remainingVsActualClaimed: 0,
     categorySummaries: [],
     subsidySummary: {
       totalReductions: 0,
@@ -40,7 +49,7 @@ function emptyOverviewResponse() {
   };
 }
 
-/** BudgetOverview response with data in all four summary cards and two category rows. */
+/** BudgetOverview response with data populated across all hero card metrics and two category rows. */
 function populatedOverviewResponse() {
   return {
     availableFunds: 300000,
@@ -49,10 +58,16 @@ function populatedOverviewResponse() {
     maxPlanned: 275000,
     actualCost: 185000,
     actualCostPaid: 150000,
+    projectedMin: 260000,
+    projectedMax: 270000,
+    actualCostClaimed: 80000,
     remainingVsMinPlanned: 50000,
     remainingVsMaxPlanned: 25000,
     remainingVsActualCost: 115000,
     remainingVsActualPaid: 150000,
+    remainingVsProjectedMin: 40000,
+    remainingVsProjectedMax: 30000,
+    remainingVsActualClaimed: 220000,
     categorySummaries: [
       {
         categoryId: 'cat-001',
@@ -62,6 +77,9 @@ function populatedOverviewResponse() {
         maxPlanned: 132000,
         actualCost: 95000,
         actualCostPaid: 80000,
+        projectedMin: 125000,
+        projectedMax: 130000,
+        actualCostClaimed: 50000,
         budgetLineCount: 4,
       },
       {
@@ -72,6 +90,9 @@ function populatedOverviewResponse() {
         maxPlanned: 143000,
         actualCost: 90000,
         actualCostPaid: 70000,
+        projectedMin: 135000,
+        projectedMax: 140000,
+        actualCostClaimed: 30000,
         budgetLineCount: 3,
       },
     ],
@@ -165,54 +186,13 @@ test.describe('Empty state', { tag: '@responsive' }, () => {
       await page.unroute(`${API.budgetOverview}`);
     }
   });
-
-  test('Category breakdown empty state shown when no categories have data', async ({ page }) => {
-    const overviewPage = new BudgetOverviewPage(page);
-
-    // Return a response with real financial data but no category summaries
-    const responseBody = {
-      ...emptyOverviewResponse(),
-      minPlanned: 50000,
-      maxPlanned: 55000,
-      availableFunds: 100000,
-      sourceCount: 1,
-      remainingVsMinPlanned: 50000,
-      remainingVsMaxPlanned: 45000,
-    };
-
-    await page.route(`${API.budgetOverview}`, async (route) => {
-      if (route.request().method() === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ overview: responseBody }),
-        });
-      } else {
-        await route.continue();
-      }
-    });
-
-    try {
-      await overviewPage.goto();
-      await overviewPage.waitForLoaded();
-
-      // Category breakdown section exists but shows an empty text
-      await expect(overviewPage.categoryBreakdownHeading).toBeVisible({ timeout: 8000 });
-
-      // Table is not present — empty text paragraph shown instead
-      const tableVisible = await overviewPage.categoryBreakdownTable.isVisible();
-      expect(tableVisible).toBe(false);
-    } finally {
-      await page.unroute(`${API.budgetOverview}`);
-    }
-  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Summary cards
+// Budget Health Hero
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Summary cards', { tag: '@responsive' }, () => {
-  test('All four summary cards visible when budget data is present', async ({ page }) => {
+test.describe('Budget Health Hero', { tag: '@responsive' }, () => {
+  test('Hero card is visible with Budget Health heading when data is present', async ({ page }) => {
     const overviewPage = new BudgetOverviewPage(page);
 
     await page.route(`${API.budgetOverview}`, async (route) => {
@@ -231,25 +211,18 @@ test.describe('Summary cards', { tag: '@responsive' }, () => {
       await overviewPage.goto();
       await overviewPage.waitForLoaded();
 
-      // Then: The cards grid is visible
-      await expect(overviewPage.cardsGrid).toBeVisible({ timeout: 8000 });
+      // Then: The hero card is visible
+      await expect(overviewPage.heroCard).toBeVisible({ timeout: 8000 });
 
-      // And: All four cards are present
-      const cardTitles = ['Planned Budget', 'Actual Cost', 'Financing', 'Subsidies'];
-      for (const title of cardTitles) {
-        const card = overviewPage.getSummaryCard(title);
-        await expect(card).toBeVisible();
-        // Heading inside the card is present
-        await expect(card.getByRole('heading', { name: title, exact: true })).toBeVisible();
-      }
+      // And: The hero card has a "Budget Health" heading
+      await expect(overviewPage.heroTitle).toBeVisible();
+      await expect(overviewPage.heroTitle).toHaveText('Budget Health');
     } finally {
       await page.unroute(`${API.budgetOverview}`);
     }
   });
 
-  test('Planned Budget card shows Min (optimistic) and Max (pessimistic) stats', async ({
-    page,
-  }) => {
+  test('Health badge shows budget status', async ({ page }) => {
     const overviewPage = new BudgetOverviewPage(page);
 
     await page.route(`${API.budgetOverview}`, async (route) => {
@@ -268,17 +241,14 @@ test.describe('Summary cards', { tag: '@responsive' }, () => {
       await overviewPage.goto();
       await overviewPage.waitForLoaded();
 
-      const min = await overviewPage.getSummaryCardValue('Planned Budget', 'Min (optimistic)');
-      expect(min).toMatch(/250,000/);
-
-      const max = await overviewPage.getSummaryCardValue('Planned Budget', 'Max (pessimistic)');
-      expect(max).toMatch(/275,000/);
+      // Then: The health badge (role="status") is visible inside the hero card
+      await expect(overviewPage.healthBadge).toBeVisible({ timeout: 8000 });
     } finally {
       await page.unroute(`${API.budgetOverview}`);
     }
   });
 
-  test('Financing card shows Available Funds and Remaining stats', async ({ page }) => {
+  test('Budget bar is visible', async ({ page }) => {
     const overviewPage = new BudgetOverviewPage(page);
 
     await page.route(`${API.budgetOverview}`, async (route) => {
@@ -297,26 +267,14 @@ test.describe('Summary cards', { tag: '@responsive' }, () => {
       await overviewPage.goto();
       await overviewPage.waitForLoaded();
 
-      const available = await overviewPage.getSummaryCardValue('Financing', 'Available Funds');
-      expect(available).toMatch(/300,000/);
-
-      const optimistic = await overviewPage.getSummaryCardValue(
-        'Financing',
-        'Remaining (optimistic)',
-      );
-      expect(optimistic).toMatch(/50,000/);
-
-      const pessimistic = await overviewPage.getSummaryCardValue(
-        'Financing',
-        'Remaining (pessimistic)',
-      );
-      expect(pessimistic).toMatch(/25,000/);
+      // Then: The BudgetBar stacked bar chart is visible (role="img")
+      await expect(page.getByRole('img')).toBeVisible({ timeout: 8000 });
     } finally {
       await page.unroute(`${API.budgetOverview}`);
     }
   });
 
-  test('Subsidies card shows Total Reductions stat', async ({ page }) => {
+  test('Category filter button is visible', async ({ page }) => {
     const overviewPage = new BudgetOverviewPage(page);
 
     await page.route(`${API.budgetOverview}`, async (route) => {
@@ -335,67 +293,8 @@ test.describe('Summary cards', { tag: '@responsive' }, () => {
       await overviewPage.goto();
       await overviewPage.waitForLoaded();
 
-      const reductions = await overviewPage.getSummaryCardValue('Subsidies', 'Total Reductions');
-      expect(reductions).toMatch(/12,500/);
-    } finally {
-      await page.unroute(`${API.budgetOverview}`);
-    }
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Category Breakdown table
-// ─────────────────────────────────────────────────────────────────────────────
-test.describe('Category breakdown table', { tag: '@responsive' }, () => {
-  test('Category breakdown table is visible with data rows when categories have budget', async ({
-    page,
-  }) => {
-    const overviewPage = new BudgetOverviewPage(page);
-
-    await page.route(`${API.budgetOverview}`, async (route) => {
-      if (route.request().method() === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ overview: populatedOverviewResponse() }),
-        });
-      } else {
-        await route.continue();
-      }
-    });
-
-    try {
-      await overviewPage.goto();
-      await overviewPage.waitForLoaded();
-
-      // The "Category Breakdown" heading is visible
-      await expect(overviewPage.categoryBreakdownHeading).toBeVisible({ timeout: 8000 });
-      await expect(overviewPage.categoryBreakdownHeading).toHaveText('Category Breakdown');
-
-      // The table is visible
-      await expect(overviewPage.categoryBreakdownTable).toBeVisible();
-
-      // Column headers present
-      const table = overviewPage.categoryBreakdownTable;
-      await expect(table.getByRole('columnheader', { name: 'Category' })).toBeVisible();
-      await expect(table.getByRole('columnheader', { name: 'Min Planned' })).toBeVisible();
-      await expect(table.getByRole('columnheader', { name: 'Max Planned' })).toBeVisible();
-      await expect(table.getByRole('columnheader', { name: 'Actual Cost' })).toBeVisible();
-      await expect(table.getByRole('columnheader', { name: 'Budget Lines' })).toBeVisible();
-
-      // Two data rows (from the mocked response)
-      const rowCount = await overviewPage.getTableRowCount();
-      expect(rowCount).toBe(2);
-
-      // First row contains "Materials"
-      const rows = await overviewPage.getTableRows();
-      const firstRowText = await rows[0].textContent();
-      expect(firstRowText).toContain('Materials');
-
-      // Footer "Total" row present
-      await expect(overviewPage.categoryBreakdownTableFooter).toBeVisible();
-      const footerText = await overviewPage.categoryBreakdownTableFooter.textContent();
-      expect(footerText).toContain('Total');
+      // Then: The category filter dropdown button is visible
+      await expect(overviewPage.categoryFilterButton).toBeVisible({ timeout: 8000 });
     } finally {
       await page.unroute(`${API.budgetOverview}`);
     }
@@ -493,7 +392,7 @@ test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
     expect(hasHorizontalScroll).toBe(false);
   });
 
-  test('Summary cards visible in dark mode when budget data is mocked', async ({ page }) => {
+  test('Hero card visible in dark mode when budget data is mocked', async ({ page }) => {
     const overviewPage = new BudgetOverviewPage(page);
 
     await page.route(`${API.budgetOverview}`, async (route) => {
@@ -516,11 +415,11 @@ test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
 
       await overviewPage.waitForLoaded();
 
-      // Cards grid visible in dark mode
-      await expect(overviewPage.cardsGrid).toBeVisible({ timeout: 8000 });
+      // Hero card visible in dark mode
+      await expect(overviewPage.heroCard).toBeVisible({ timeout: 8000 });
 
-      const plannedBudgetCard = overviewPage.getSummaryCard('Planned Budget');
-      await expect(plannedBudgetCard).toBeVisible();
+      // Hero title visible in dark mode
+      await expect(overviewPage.heroTitle).toBeVisible();
     } finally {
       await page.unroute(`${API.budgetOverview}`);
     }

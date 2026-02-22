@@ -290,9 +290,7 @@ describe('BudgetBar', () => {
   it('calls onSegmentClick(null) when Enter is pressed on the bar', () => {
     const onSegmentClick = jest.fn<(s: BudgetBarSegment | null) => void>();
 
-    render(
-      <BudgetBar segments={baseSegments} maxValue={100000} onSegmentClick={onSegmentClick} />,
-    );
+    render(<BudgetBar segments={baseSegments} maxValue={100000} onSegmentClick={onSegmentClick} />);
 
     const bar = screen.getByRole('img');
     fireEvent.keyDown(bar, { key: 'Enter' });
@@ -303,9 +301,7 @@ describe('BudgetBar', () => {
   it('calls onSegmentClick(null) when Space is pressed on the bar', () => {
     const onSegmentClick = jest.fn<(s: BudgetBarSegment | null) => void>();
 
-    render(
-      <BudgetBar segments={baseSegments} maxValue={100000} onSegmentClick={onSegmentClick} />,
-    );
+    render(<BudgetBar segments={baseSegments} maxValue={100000} onSegmentClick={onSegmentClick} />);
 
     const bar = screen.getByRole('img');
     fireEvent.keyDown(bar, { key: ' ' });
@@ -316,9 +312,7 @@ describe('BudgetBar', () => {
   it('does not call onSegmentClick for other key presses', () => {
     const onSegmentClick = jest.fn<(s: BudgetBarSegment | null) => void>();
 
-    render(
-      <BudgetBar segments={baseSegments} maxValue={100000} onSegmentClick={onSegmentClick} />,
-    );
+    render(<BudgetBar segments={baseSegments} maxValue={100000} onSegmentClick={onSegmentClick} />);
 
     const bar = screen.getByRole('img');
     fireEvent.keyDown(bar, { key: 'Escape' });
