@@ -108,7 +108,7 @@ function getInvoiceAggregates(
   }>(
     sql`SELECT
       COALESCE(SUM(amount), 0) AS actualCost,
-      COALESCE(SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END), 0) AS actualCostPaid,
+      COALESCE(SUM(CASE WHEN status IN ('paid', 'claimed') THEN amount ELSE 0 END), 0) AS actualCostPaid,
       COUNT(*) AS invoiceCount
     FROM invoices
     WHERE work_item_budget_id = ${budgetId}`,

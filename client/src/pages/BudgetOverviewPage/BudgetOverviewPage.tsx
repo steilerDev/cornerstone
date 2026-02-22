@@ -238,7 +238,7 @@ export function BudgetOverviewPage() {
                 </thead>
                 <tbody>
                   {overview.categorySummaries.map((cat) => (
-                    <tr key={cat.categoryId} className={styles.tableRow}>
+                    <tr key={cat.categoryId ?? '__uncategorized__'} className={styles.tableRow}>
                       <td className={styles.tdCategory}>
                         <div className={styles.categoryCell}>
                           <span

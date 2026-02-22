@@ -23,7 +23,7 @@ type DbType = BetterSQLite3Database<typeof schemaTypes>;
  *
  *   Available Funds = SUM(active budget_sources.total_amount)
  *   Actual Cost     = SUM(invoices.amount WHERE work_item_budget_id IS NOT NULL)
- *   Actual Paid     = SUM(invoices.amount WHERE work_item_budget_id IS NOT NULL AND status = 'paid')
+ *   Actual Paid     = SUM(invoices.amount WHERE work_item_budget_id IS NOT NULL AND status IN ('paid', 'claimed'))
  */
 export function getBudgetOverview(db: DbType): BudgetOverview {
   // ── 1. Available funds from active budget sources ──────────────────────────
@@ -134,7 +134,7 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
 
   // Category summaries: categoryId -> running totals
   const categoryAgg = new Map<
-    string,
+    string | null,
     {
       minPlanned: number;
       maxPlanned: number;
@@ -157,14 +157,17 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
     let subsidyReduction = 0;
 
     const linkedSubsidyIds = workItemSubsidyMap.get(line.workItemId);
-    if (linkedSubsidyIds && line.budgetCategoryId !== null) {
+    if (linkedSubsidyIds) {
       for (const subsidyId of linkedSubsidyIds) {
         const meta = subsidyMeta.get(subsidyId);
         if (!meta) continue;
 
         const applicableCategories = subsidyCategoryMap.get(subsidyId);
-        if (!applicableCategories || applicableCategories.size === 0) continue;
-        if (!applicableCategories.has(line.budgetCategoryId)) continue;
+        const isUniversalSubsidy = !applicableCategories || applicableCategories.size === 0;
+        if (!isUniversalSubsidy) {
+          if (line.budgetCategoryId === null || !applicableCategories.has(line.budgetCategoryId))
+            continue;
+        }
 
         // This subsidy applies to this line
         if (meta.reductionType === 'percentage') {
@@ -175,12 +178,13 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
           const cacheKey = `${line.workItemId}:${subsidyId}`;
           let matchingLineCount = fixedSubsidyLineCountCache.get(cacheKey);
           if (matchingLineCount === undefined) {
-            // Count budget lines for this work item whose category matches
+            // Universal subsidies match ALL budget lines for the work item;
+            // category-scoped subsidies match only lines with a matching category.
             matchingLineCount = budgetLines.filter(
               (l) =>
                 l.workItemId === line.workItemId &&
-                l.budgetCategoryId !== null &&
-                applicableCategories.has(l.budgetCategoryId),
+                (isUniversalSubsidy ||
+                  (l.budgetCategoryId !== null && applicableCategories.has(l.budgetCategoryId))),
             ).length;
             // Guard: if somehow 0, use 1 to avoid division by zero
             if (matchingLineCount === 0) matchingLineCount = 1;
@@ -197,30 +201,28 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
     totalMinPlanned += minPlanned;
     totalMaxPlanned += maxPlanned;
 
-    // Aggregate per category
-    if (line.budgetCategoryId !== null) {
-      let agg = categoryAgg.get(line.budgetCategoryId);
-      if (!agg) {
-        agg = {
-          minPlanned: 0,
-          maxPlanned: 0,
-          actualCost: 0,
-          actualCostPaid: 0,
-          budgetLineCount: 0,
-        };
-        categoryAgg.set(line.budgetCategoryId, agg);
-      }
-      agg.minPlanned += minPlanned;
-      agg.maxPlanned += maxPlanned;
-      agg.budgetLineCount += 1;
+    // Aggregate per category (null key = uncategorized)
+    let agg = categoryAgg.get(line.budgetCategoryId);
+    if (!agg) {
+      agg = {
+        minPlanned: 0,
+        maxPlanned: 0,
+        actualCost: 0,
+        actualCostPaid: 0,
+        budgetLineCount: 0,
+      };
+      categoryAgg.set(line.budgetCategoryId, agg);
     }
+    agg.minPlanned += minPlanned;
+    agg.maxPlanned += maxPlanned;
+    agg.budgetLineCount += 1;
   }
 
   // ── 7. Actual costs from invoices linked to budget lines ──────────────────
   const invoiceTotalsRow = db.get<{ actualCost: number | null; actualCostPaid: number | null }>(
     sql`SELECT
       COALESCE(SUM(amount), 0)                                                       AS actualCost,
-      COALESCE(SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END), 0)             AS actualCostPaid
+      COALESCE(SUM(CASE WHEN status IN ('paid', 'claimed') THEN amount ELSE 0 END), 0) AS actualCostPaid
     FROM invoices
     WHERE work_item_budget_id IS NOT NULL`,
   );
@@ -230,17 +232,16 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
 
   // ── 8. Per-category actual costs from invoices ────────────────────────────
   const categoryInvoiceRows = db.all<{
-    budgetCategoryId: string;
+    budgetCategoryId: string | null;
     actualCost: number;
     actualCostPaid: number;
   }>(
     sql`SELECT
-      wib.budget_category_id                                                         AS budgetCategoryId,
-      COALESCE(SUM(inv.amount), 0)                                                   AS actualCost,
-      COALESCE(SUM(CASE WHEN inv.status = 'paid' THEN inv.amount ELSE 0 END), 0)    AS actualCostPaid
+      wib.budget_category_id                                                                    AS budgetCategoryId,
+      COALESCE(SUM(inv.amount), 0)                                                              AS actualCost,
+      COALESCE(SUM(CASE WHEN inv.status IN ('paid', 'claimed') THEN inv.amount ELSE 0 END), 0) AS actualCostPaid
     FROM invoices inv
     INNER JOIN work_item_budgets wib ON wib.id = inv.work_item_budget_id
-    WHERE wib.budget_category_id IS NOT NULL
     GROUP BY wib.budget_category_id`,
   );
 
@@ -279,6 +280,21 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
     };
   });
 
+  // Append virtual "Uncategorized" entry if any budget lines have no category
+  const uncategorizedAgg = categoryAgg.get(null);
+  if (uncategorizedAgg) {
+    categorySummaries.push({
+      categoryId: null,
+      categoryName: 'Uncategorized',
+      categoryColor: null,
+      minPlanned: uncategorizedAgg.minPlanned,
+      maxPlanned: uncategorizedAgg.maxPlanned,
+      actualCost: uncategorizedAgg.actualCost,
+      actualCostPaid: uncategorizedAgg.actualCostPaid,
+      budgetLineCount: uncategorizedAgg.budgetLineCount,
+    });
+  }
+
   // ── 10. Subsidy summary ───────────────────────────────────────────────────
   const subsidyCountRow = db.get<{ activeSubsidyCount: number }>(
     sql`SELECT COUNT(*) AS activeSubsidyCount
@@ -297,15 +313,18 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
 
   for (const line of budgetLines) {
     const linkedSubsidyIds = workItemSubsidyMap.get(line.workItemId);
-    if (!linkedSubsidyIds || line.budgetCategoryId === null) continue;
+    if (!linkedSubsidyIds) continue;
 
     for (const subsidyId of linkedSubsidyIds) {
       const meta = subsidyMeta.get(subsidyId);
       if (!meta) continue;
 
       const applicableCategories = subsidyCategoryMap.get(subsidyId);
-      if (!applicableCategories || applicableCategories.size === 0) continue;
-      if (!applicableCategories.has(line.budgetCategoryId)) continue;
+      const isUniversalSubsidy = !applicableCategories || applicableCategories.size === 0;
+      if (!isUniversalSubsidy) {
+        if (line.budgetCategoryId === null || !applicableCategories.has(line.budgetCategoryId))
+          continue;
+      }
 
       if (meta.reductionType === 'percentage') {
         totalReductions += line.plannedAmount * (meta.reductionValue / 100);
@@ -316,8 +335,8 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
           matchingLineCount = budgetLines.filter(
             (l) =>
               l.workItemId === line.workItemId &&
-              l.budgetCategoryId !== null &&
-              applicableCategories.has(l.budgetCategoryId),
+              (isUniversalSubsidy ||
+                (l.budgetCategoryId !== null && applicableCategories.has(l.budgetCategoryId))),
           ).length;
           if (matchingLineCount === 0) matchingLineCount = 1;
           fixedSubsidyLineCountCacheForTotal.set(cacheKey, matchingLineCount);
