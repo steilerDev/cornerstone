@@ -110,45 +110,57 @@ describe('Budget Source Routes', () => {
 
     // Work item
     const wiId = `wi-route-claims-${n}`;
-    app.db.insert(workItems).values({
-      id: wiId,
-      title: `Claims Work Item ${n}`,
-      status: 'not_started',
-      createdAt: now,
-      updatedAt: now,
-    }).run();
+    app.db
+      .insert(workItems)
+      .values({
+        id: wiId,
+        title: `Claims Work Item ${n}`,
+        status: 'not_started',
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
 
     // Budget line referencing the source
     const budgetId = `bud-route-claims-${n}`;
-    app.db.insert(workItemBudgets).values({
-      id: budgetId,
-      workItemId: wiId,
-      budgetSourceId: sourceId,
-      plannedAmount: invoiceAmount * 2, // planned doesn't matter for claimedAmount
-      confidence: 'own_estimate',
-      createdAt: now,
-      updatedAt: now,
-    }).run();
+    app.db
+      .insert(workItemBudgets)
+      .values({
+        id: budgetId,
+        workItemId: wiId,
+        budgetSourceId: sourceId,
+        plannedAmount: invoiceAmount * 2, // planned doesn't matter for claimedAmount
+        confidence: 'own_estimate',
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
 
     // Vendor + claimed invoice
     const vendorId = `vendor-route-claims-${n}`;
-    app.db.insert(vendors).values({
-      id: vendorId,
-      name: `Claim Vendor ${n}`,
-      createdAt: now,
-      updatedAt: now,
-    }).run();
+    app.db
+      .insert(vendors)
+      .values({
+        id: vendorId,
+        name: `Claim Vendor ${n}`,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
 
-    app.db.insert(invoices).values({
-      id: `inv-route-claims-${n}`,
-      vendorId,
-      workItemBudgetId: budgetId,
-      amount: invoiceAmount,
-      date: '2026-01-01',
-      status: 'claimed',
-      createdAt: now,
-      updatedAt: now,
-    }).run();
+    app.db
+      .insert(invoices)
+      .values({
+        id: `inv-route-claims-${n}`,
+        vendorId,
+        workItemBudgetId: budgetId,
+        amount: invoiceAmount,
+        date: '2026-01-01',
+        status: 'claimed',
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
 
     return budgetId;
   }
@@ -1112,7 +1124,11 @@ describe('Budget Source Routes', () => {
 
     it('GET list: claimedAmount reflects SUM of claimed invoices on linked budget lines', async () => {
       const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
-      const src = createTestSource({ name: 'Has Claims', sourceType: 'bank_loan', totalAmount: 100000 });
+      const src = createTestSource({
+        name: 'Has Claims',
+        sourceType: 'bank_loan',
+        totalAmount: 100000,
+      });
 
       insertBudgetLineWithClaimedInvoice(src.id, 8000);
       insertBudgetLineWithClaimedInvoice(src.id, 4000);
@@ -1132,7 +1148,11 @@ describe('Budget Source Routes', () => {
 
     it('GET by ID: claimedAmount=0 when no claimed invoices exist', async () => {
       const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
-      const src = createTestSource({ name: 'No Claims By ID', sourceType: 'other', totalAmount: 20000 });
+      const src = createTestSource({
+        name: 'No Claims By ID',
+        sourceType: 'other',
+        totalAmount: 20000,
+      });
 
       const response = await app.inject({
         method: 'GET',
@@ -1148,7 +1168,11 @@ describe('Budget Source Routes', () => {
 
     it('GET by ID: claimedAmount sums claimed invoices and actualAvailableAmount = totalAmount - claimedAmount', async () => {
       const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
-      const src = createTestSource({ name: 'Claims By ID', sourceType: 'credit_line', totalAmount: 50000 });
+      const src = createTestSource({
+        name: 'Claims By ID',
+        sourceType: 'credit_line',
+        totalAmount: 50000,
+      });
 
       insertBudgetLineWithClaimedInvoice(src.id, 15000);
 
@@ -1166,7 +1190,11 @@ describe('Budget Source Routes', () => {
 
     it('PATCH: updated source includes claimedAmount and actualAvailableAmount', async () => {
       const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
-      const src = createTestSource({ name: 'PATCH Claims', sourceType: 'savings', totalAmount: 80000 });
+      const src = createTestSource({
+        name: 'PATCH Claims',
+        sourceType: 'savings',
+        totalAmount: 80000,
+      });
 
       insertBudgetLineWithClaimedInvoice(src.id, 10000);
 
@@ -1185,8 +1213,16 @@ describe('Budget Source Routes', () => {
 
     it('claimed invoices from a different source do not affect this source claimedAmount', async () => {
       const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
-      const srcA = createTestSource({ name: 'Source A Claims', sourceType: 'bank_loan', totalAmount: 100000 });
-      const srcB = createTestSource({ name: 'Source B No Claims', sourceType: 'savings', totalAmount: 50000 });
+      const srcA = createTestSource({
+        name: 'Source A Claims',
+        sourceType: 'bank_loan',
+        totalAmount: 100000,
+      });
+      const srcB = createTestSource({
+        name: 'Source B No Claims',
+        sourceType: 'savings',
+        totalAmount: 50000,
+      });
 
       // Only source A gets claimed invoices
       insertBudgetLineWithClaimedInvoice(srcA.id, 20000);

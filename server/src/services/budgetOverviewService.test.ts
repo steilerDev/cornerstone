@@ -1151,7 +1151,12 @@ describe('getBudgetOverview', () => {
     it('projectedMin and projectedMax appear correctly in category summaries for blended lines', () => {
       const catId = insertBudgetCategory('Cat Blended');
       // Line A in catId: invoiced at 4000 (planned=5000, quote ±5% → min=4750/max=5250)
-      insertWorkItem({ plannedAmount: 5000, confidence: 'quote', budgetCategoryId: catId, actualCost: 4000 });
+      insertWorkItem({
+        plannedAmount: 5000,
+        confidence: 'quote',
+        budgetCategoryId: catId,
+        actualCost: 4000,
+      });
       // Line B in catId: no invoices (planned=3000, quote ±5% → min=2850/max=3150)
       insertWorkItem({ plannedAmount: 3000, confidence: 'quote', budgetCategoryId: catId });
 
@@ -1178,7 +1183,12 @@ describe('getBudgetOverview', () => {
       const now = new Date().toISOString();
       const vendorId2 = `vendor-multi-${idCounter++}`;
       db.insert(schema.vendors)
-        .values({ id: vendorId2, name: `Vendor Multi ${vendorId2}`, createdAt: now, updatedAt: now })
+        .values({
+          id: vendorId2,
+          name: `Vendor Multi ${vendorId2}`,
+          createdAt: now,
+          updatedAt: now,
+        })
         .run();
       db.insert(schema.invoices)
         .values({
