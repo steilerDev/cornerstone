@@ -104,12 +104,12 @@
 }
 
 /* ============================================================
- * Summary cards grid — 4 cards on desktop, 2 on tablet, 1 on mobile
+ * Summary cards grid — auto-fill (5 on wide desktop, 2-3 on tablet, 1 on mobile)
  * ============================================================ */
 
 .cardsGrid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: var(--spacing-4);
 }
 
@@ -232,7 +232,7 @@
 .table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 560px;
+  min-width: 900px;
 }
 
 /* ---- Table header ---- */
@@ -367,7 +367,7 @@
   }
 
   .cardsGrid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   }
 
   /* Touch-friendly button */

@@ -128,6 +128,14 @@ export function BudgetOverviewPage() {
 
   const remainingOptimisticVariant = overview.remainingVsMinPlanned >= 0 ? 'positive' : 'negative';
   const remainingPessimisticVariant = overview.remainingVsMaxPlanned >= 0 ? 'positive' : 'negative';
+  const remainingVsActualCostVariant =
+    overview.remainingVsActualCost >= 0 ? 'positive' : 'negative';
+  const remainingVsActualPaidVariant =
+    overview.remainingVsActualPaid >= 0 ? 'positive' : 'negative';
+  const remainingVsProjectedMinVariant =
+    overview.remainingVsProjectedMin >= 0 ? 'positive' : 'negative';
+  const remainingVsProjectedMaxVariant =
+    overview.remainingVsProjectedMax >= 0 ? 'positive' : 'negative';
   const hasData =
     overview.minPlanned > 0 ||
     overview.actualCost > 0 ||
@@ -164,6 +172,29 @@ export function BudgetOverviewPage() {
             <StatRow label="Max (pessimistic)" value={formatCurrency(overview.maxPlanned)} />
           </SummaryCard>
 
+          {/* Projected Budget card (blended: invoiced lines use actual cost) */}
+          <SummaryCard title="Projected Budget">
+            <StatRow
+              label="Projected Min (optimistic)"
+              value={formatCurrency(overview.projectedMin)}
+            />
+            <StatRow
+              label="Projected Max (pessimistic)"
+              value={formatCurrency(overview.projectedMax)}
+            />
+            <div className={styles.cardDivider} />
+            <StatRow
+              label="Remaining (proj. optimistic)"
+              value={formatCurrency(overview.remainingVsProjectedMin)}
+              variant={remainingVsProjectedMinVariant}
+            />
+            <StatRow
+              label="Remaining (proj. pessimistic)"
+              value={formatCurrency(overview.remainingVsProjectedMax)}
+              variant={remainingVsProjectedMaxVariant}
+            />
+          </SummaryCard>
+
           {/* Actual Cost card */}
           <SummaryCard title="Actual Cost">
             <StatRow label="Invoiced" value={formatCurrency(overview.actualCost)} />
@@ -175,14 +206,24 @@ export function BudgetOverviewPage() {
             <StatRow label="Available Funds" value={formatCurrency(overview.availableFunds)} />
             <div className={styles.cardDivider} />
             <StatRow
-              label="Remaining (optimistic)"
+              label="Remaining (vs min planned)"
               value={formatCurrency(overview.remainingVsMinPlanned)}
               variant={remainingOptimisticVariant}
             />
             <StatRow
-              label="Remaining (pessimistic)"
+              label="Remaining (vs max planned)"
               value={formatCurrency(overview.remainingVsMaxPlanned)}
               variant={remainingPessimisticVariant}
+            />
+            <StatRow
+              label="Remaining (vs actual cost)"
+              value={formatCurrency(overview.remainingVsActualCost)}
+              variant={remainingVsActualCostVariant}
+            />
+            <StatRow
+              label="Remaining (vs actual paid)"
+              value={formatCurrency(overview.remainingVsActualPaid)}
+              variant={remainingVsActualPaidVariant}
             />
             <p className={styles.cardNote}>
               {overview.sourceCount} {overview.sourceCount === 1 ? 'source' : 'sources'}
@@ -232,6 +273,15 @@ export function BudgetOverviewPage() {
                       Actual Cost
                     </th>
                     <th scope="col" className={styles.thNumber}>
+                      Actual Paid
+                    </th>
+                    <th scope="col" className={styles.thNumber}>
+                      Projected Min
+                    </th>
+                    <th scope="col" className={styles.thNumber}>
+                      Projected Max
+                    </th>
+                    <th scope="col" className={styles.thNumber}>
                       Budget Lines
                     </th>
                   </tr>
@@ -267,6 +317,21 @@ export function BudgetOverviewPage() {
                         </span>
                       </td>
                       <td className={styles.tdNumber}>
+                        <span className={styles.currencyValue}>
+                          {formatCurrency(cat.actualCostPaid)}
+                        </span>
+                      </td>
+                      <td className={styles.tdNumber}>
+                        <span className={styles.currencyValue}>
+                          {formatCurrency(cat.projectedMin)}
+                        </span>
+                      </td>
+                      <td className={styles.tdNumber}>
+                        <span className={styles.currencyValue}>
+                          {formatCurrency(cat.projectedMax)}
+                        </span>
+                      </td>
+                      <td className={styles.tdNumber}>
                         <span className={styles.workItemCount}>{cat.budgetLineCount}</span>
                       </td>
                     </tr>
@@ -290,6 +355,21 @@ export function BudgetOverviewPage() {
                     <td className={styles.tdNumber}>
                       <span className={styles.currencyValueBold}>
                         {formatCurrency(overview.actualCost)}
+                      </span>
+                    </td>
+                    <td className={styles.tdNumber}>
+                      <span className={styles.currencyValueBold}>
+                        {formatCurrency(overview.actualCostPaid)}
+                      </span>
+                    </td>
+                    <td className={styles.tdNumber}>
+                      <span className={styles.currencyValueBold}>
+                        {formatCurrency(overview.projectedMin)}
+                      </span>
+                    </td>
+                    <td className={styles.tdNumber}>
+                      <span className={styles.currencyValueBold}>
+                        {formatCurrency(overview.projectedMax)}
                       </span>
                     </td>
                     <td className={styles.tdNumber}>
