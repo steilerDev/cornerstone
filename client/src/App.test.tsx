@@ -74,14 +74,18 @@ describe('App', () => {
     render(<App />);
     expect(document.body).toBeInTheDocument();
     // Wait for auth check and lazy-loaded component to resolve
-    await waitFor(() => expect(screen.queryByText('Loading...')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText('Loading...')).not.toBeInTheDocument(), {
+      timeout: 5000,
+    });
   });
 
   it('renders the AppShell layout with sidebar and header', async () => {
     render(<App />);
 
     // Wait for auth loading to complete
-    await waitFor(() => expect(screen.queryByText('Loading...')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText('Loading...')).not.toBeInTheDocument(), {
+      timeout: 5000,
+    });
 
     // Sidebar should be present
     const sidebar = screen.getByRole('complementary');

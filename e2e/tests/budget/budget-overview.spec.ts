@@ -268,7 +268,9 @@ test.describe('Budget Health Hero', { tag: '@responsive' }, () => {
       await overviewPage.waitForLoaded();
 
       // Then: The BudgetBar stacked bar chart is visible (role="img")
-      await expect(page.getByRole('img')).toBeVisible({ timeout: 8000 });
+      await expect(page.getByRole('img', { name: /Budget breakdown/ })).toBeVisible({
+        timeout: 8000,
+      });
     } finally {
       await page.unroute(`${API.budgetOverview}`);
     }
