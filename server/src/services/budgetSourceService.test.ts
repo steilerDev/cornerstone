@@ -82,8 +82,12 @@ describe('Budget Source Service', () => {
    * Helper: Insert a work item budget line with a budget_source_id reference.
    * Used for testing computeUsedAmount and deleteBudgetSource blocking.
    * NOTE: Story 5.9 — budget data moved from work_items to work_item_budgets.
+   * Returns the budget line ID so callers can attach invoices to it.
    */
-  function insertRawWorkItemWithSource(sourceId: string, plannedAmount: number | null) {
+  function insertRawWorkItemWithSource(
+    sourceId: string,
+    plannedAmount: number | null,
+  ): { wiId: string; budgetId: string } {
     const wiId = `wi-src-test-${++workItemCounter}`;
     const budgetId = `bud-src-test-${workItemCounter}`;
     const ts = new Date(Date.now() + workItemCounter).toISOString();
@@ -109,7 +113,57 @@ describe('Budget Source Service', () => {
         updatedAt: ts,
       })
       .run();
-    return wiId;
+    return { wiId, budgetId };
+  }
+
+  /**
+   * Helper: Insert a vendor and a claimed invoice against a budget line.
+   * Used for testing computeClaimedAmount.
+   */
+  function insertClaimedInvoice(budgetLineId: string, amount: number): void {
+    const ts = new Date(Date.now() + workItemCounter).toISOString();
+    const vendorId = `vendor-claimed-${++workItemCounter}`;
+    db.insert(schema.vendors)
+      .values({ id: vendorId, name: `Claimed Vendor ${vendorId}`, createdAt: ts, updatedAt: ts })
+      .run();
+    const invoiceId = `inv-claimed-${workItemCounter}`;
+    db.insert(schema.invoices)
+      .values({
+        id: invoiceId,
+        vendorId,
+        workItemBudgetId: budgetLineId,
+        amount,
+        date: '2026-01-01',
+        status: 'claimed',
+        createdAt: ts,
+        updatedAt: ts,
+      })
+      .run();
+  }
+
+  /**
+   * Helper: Insert a vendor and a paid invoice against a budget line.
+   * Paid invoices do NOT count as claimed for claimedAmount.
+   */
+  function insertPaidInvoice(budgetLineId: string, amount: number): void {
+    const ts = new Date(Date.now() + workItemCounter).toISOString();
+    const vendorId = `vendor-paid-${++workItemCounter}`;
+    db.insert(schema.vendors)
+      .values({ id: vendorId, name: `Paid Vendor ${vendorId}`, createdAt: ts, updatedAt: ts })
+      .run();
+    const invoiceId = `inv-paid-${workItemCounter}`;
+    db.insert(schema.invoices)
+      .values({
+        id: invoiceId,
+        vendorId,
+        workItemBudgetId: budgetLineId,
+        amount,
+        date: '2026-01-01',
+        status: 'paid',
+        createdAt: ts,
+        updatedAt: ts,
+      })
+      .run();
   }
 
   beforeEach(() => {
@@ -174,6 +228,9 @@ describe('Budget Source Service', () => {
       expect(source.totalAmount).toBe(300000);
       expect(source.usedAmount).toBe(0);
       expect(source.availableAmount).toBe(300000);
+      // New Story 5.11 fields: no claimed invoices → claimedAmount=0, actualAvailable=totalAmount
+      expect(source.claimedAmount).toBe(0);
+      expect(source.actualAvailableAmount).toBe(300000);
       expect(source.interestRate).toBe(3.5);
       expect(source.terms).toBe('30-year fixed');
       expect(source.notes).toBe('Main financing');
@@ -209,6 +266,9 @@ describe('Budget Source Service', () => {
       const result = budgetSourceService.listBudgetSources(db);
       expect(result[0].usedAmount).toBe(0);
       expect(result[0].availableAmount).toBe(50000);
+      // No claimed invoices → claimedAmount=0, actualAvailableAmount=totalAmount
+      expect(result[0].claimedAmount).toBe(0);
+      expect(result[0].actualAvailableAmount).toBe(50000);
     });
 
     it('computes usedAmount as sum of work item actualCost values', () => {
@@ -226,6 +286,9 @@ describe('Budget Source Service', () => {
       const source = result.find((s) => s.id === raw.id)!;
       expect(source.usedAmount).toBe(17500.5);
       expect(source.availableAmount).toBe(82499.5);
+      // No claimed invoices attached
+      expect(source.claimedAmount).toBe(0);
+      expect(source.actualAvailableAmount).toBe(100000);
     });
 
     it('ignores work items with null actualCost in usedAmount calculation', () => {
@@ -311,6 +374,9 @@ describe('Budget Source Service', () => {
       expect(result.totalAmount).toBe(75000);
       expect(result.usedAmount).toBe(0);
       expect(result.availableAmount).toBe(75000);
+      // No claimed invoices
+      expect(result.claimedAmount).toBe(0);
+      expect(result.actualAvailableAmount).toBe(75000);
       expect(result.interestRate).toBe(5.25);
       expect(result.terms).toBe('5-year revolving');
       expect(result.notes).toBe('Secondary credit');
@@ -361,6 +427,9 @@ describe('Budget Source Service', () => {
       const result = budgetSourceService.getBudgetSourceById(db, raw.id);
       expect(result.usedAmount).toBe(25000);
       expect(result.availableAmount).toBe(75000);
+      // No claimed invoices attached to these budget lines
+      expect(result.claimedAmount).toBe(0);
+      expect(result.actualAvailableAmount).toBe(100000);
     });
   });
 
@@ -382,6 +451,9 @@ describe('Budget Source Service', () => {
       expect(result.totalAmount).toBe(200000);
       expect(result.usedAmount).toBe(0);
       expect(result.availableAmount).toBe(200000);
+      // Newly created source has no claimed invoices
+      expect(result.claimedAmount).toBe(0);
+      expect(result.actualAvailableAmount).toBe(200000);
       expect(result.interestRate).toBeNull();
       expect(result.terms).toBeNull();
       expect(result.notes).toBeNull();
@@ -1114,6 +1186,182 @@ describe('Budget Source Service', () => {
       expect(() => {
         budgetSourceService.deleteBudgetSource(db, raw.id);
       }).toThrow(BudgetSourceInUseError);
+    });
+  });
+
+  // ─── claimedAmount and actualAvailableAmount (Story 5.11) ─────────────────
+
+  describe('claimedAmount and actualAvailableAmount', () => {
+    it('returns claimedAmount=0 and actualAvailableAmount=totalAmount when no claimed invoices exist', () => {
+      const raw = insertRawSource({
+        name: 'No Claims Source',
+        sourceType: 'bank_loan',
+        totalAmount: 80000,
+      });
+
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+
+      expect(result.claimedAmount).toBe(0);
+      expect(result.actualAvailableAmount).toBe(80000);
+    });
+
+    it('sums claimed invoice amounts from budget lines referencing the source', () => {
+      const raw = insertRawSource({
+        name: 'Claims Source',
+        sourceType: 'savings',
+        totalAmount: 100000,
+      });
+
+      const { budgetId: budgetId1 } = insertRawWorkItemWithSource(raw.id, 20000);
+      const { budgetId: budgetId2 } = insertRawWorkItemWithSource(raw.id, 10000);
+
+      insertClaimedInvoice(budgetId1, 8000);
+      insertClaimedInvoice(budgetId2, 5000);
+
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+
+      expect(result.claimedAmount).toBe(13000); // 8000 + 5000
+      expect(result.actualAvailableAmount).toBe(87000); // 100000 - 13000
+    });
+
+    it('actualAvailableAmount = totalAmount - claimedAmount', () => {
+      const raw = insertRawSource({
+        name: 'Math Check Source',
+        sourceType: 'credit_line',
+        totalAmount: 50000,
+      });
+
+      const { budgetId } = insertRawWorkItemWithSource(raw.id, 30000);
+      insertClaimedInvoice(budgetId, 12500);
+
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+
+      expect(result.totalAmount).toBe(50000);
+      expect(result.claimedAmount).toBe(12500);
+      expect(result.actualAvailableAmount).toBe(37500); // 50000 - 12500
+    });
+
+    it('does NOT count paid invoices in claimedAmount (only status=claimed counts)', () => {
+      const raw = insertRawSource({
+        name: 'Paid Not Claimed Source',
+        sourceType: 'bank_loan',
+        totalAmount: 60000,
+      });
+
+      const { budgetId } = insertRawWorkItemWithSource(raw.id, 25000);
+      insertPaidInvoice(budgetId, 9000); // paid — should NOT be counted
+      insertClaimedInvoice(budgetId, 3000); // claimed — should be counted
+
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+
+      expect(result.claimedAmount).toBe(3000); // only the claimed invoice
+      expect(result.actualAvailableAmount).toBe(57000); // 60000 - 3000
+    });
+
+    it('does NOT count claimed invoices from budget lines referencing a different source', () => {
+      const rawA = insertRawSource({
+        name: 'Source A Claimed',
+        sourceType: 'bank_loan',
+        totalAmount: 100000,
+      });
+      const rawB = insertRawSource({
+        name: 'Source B Claimed',
+        sourceType: 'savings',
+        totalAmount: 50000,
+      });
+
+      const { budgetId: budgetIdA } = insertRawWorkItemWithSource(rawA.id, 20000);
+      insertClaimedInvoice(budgetIdA, 7000); // belongs to source A, not B
+
+      const resultA = budgetSourceService.getBudgetSourceById(db, rawA.id);
+      const resultB = budgetSourceService.getBudgetSourceById(db, rawB.id);
+
+      expect(resultA.claimedAmount).toBe(7000);
+      expect(resultA.actualAvailableAmount).toBe(93000); // 100000 - 7000
+      expect(resultB.claimedAmount).toBe(0);
+      expect(resultB.actualAvailableAmount).toBe(50000);
+    });
+
+    it('accumulates multiple claimed invoices on the same budget line', () => {
+      const raw = insertRawSource({
+        name: 'Multi-Claim Source',
+        sourceType: 'credit_line',
+        totalAmount: 200000,
+      });
+
+      const { budgetId } = insertRawWorkItemWithSource(raw.id, 50000);
+      insertClaimedInvoice(budgetId, 4000);
+      insertClaimedInvoice(budgetId, 6000);
+      insertClaimedInvoice(budgetId, 2500);
+
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+
+      expect(result.claimedAmount).toBe(12500); // 4000 + 6000 + 2500
+      expect(result.actualAvailableAmount).toBe(187500); // 200000 - 12500
+    });
+
+    it('listBudgetSources also returns claimedAmount and actualAvailableAmount', () => {
+      const raw = insertRawSource({
+        name: 'List Claims Test',
+        sourceType: 'savings',
+        totalAmount: 40000,
+      });
+
+      const { budgetId } = insertRawWorkItemWithSource(raw.id, 15000);
+      insertClaimedInvoice(budgetId, 6000);
+
+      const results = budgetSourceService.listBudgetSources(db);
+      const source = results.find((s) => s.id === raw.id)!;
+
+      expect(source.claimedAmount).toBe(6000);
+      expect(source.actualAvailableAmount).toBe(34000); // 40000 - 6000
+    });
+
+    it('createBudgetSource returns claimedAmount=0 and actualAvailableAmount=totalAmount', () => {
+      const data: CreateBudgetSourceRequest = {
+        name: 'New Source Claimed',
+        sourceType: 'other',
+        totalAmount: 25000,
+      };
+
+      const result = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+
+      expect(result.claimedAmount).toBe(0);
+      expect(result.actualAvailableAmount).toBe(25000);
+    });
+
+    it('updateBudgetSource reflects updated totalAmount in actualAvailableAmount', () => {
+      const raw = insertRawSource({
+        name: 'Update Amount Claimed',
+        sourceType: 'bank_loan',
+        totalAmount: 100000,
+      });
+
+      const { budgetId } = insertRawWorkItemWithSource(raw.id, 40000);
+      insertClaimedInvoice(budgetId, 15000);
+
+      // Update totalAmount
+      const updated = budgetSourceService.updateBudgetSource(db, raw.id, { totalAmount: 120000 });
+
+      expect(updated.claimedAmount).toBe(15000);
+      expect(updated.actualAvailableAmount).toBe(105000); // 120000 - 15000
+    });
+
+    it('actualAvailableAmount can go negative when claimedAmount exceeds totalAmount', () => {
+      // Edge case: claimed invoices may sum to more than the budget source total
+      const raw = insertRawSource({
+        name: 'Over-Claimed Source',
+        sourceType: 'savings',
+        totalAmount: 5000,
+      });
+
+      const { budgetId } = insertRawWorkItemWithSource(raw.id, 10000);
+      insertClaimedInvoice(budgetId, 7000); // more than totalAmount
+
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+
+      expect(result.claimedAmount).toBe(7000);
+      expect(result.actualAvailableAmount).toBe(-2000); // 5000 - 7000
     });
   });
 });

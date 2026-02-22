@@ -118,7 +118,25 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
     });
   }
 
-  // ── 5. For fixed subsidies: count matching budget lines per work_item+subsidy ─
+  // ── 5. Per-line invoice aggregates (for blended projected model) ──────────────
+  const lineInvoiceRows = db.all<{
+    workItemBudgetId: string;
+    actualCost: number;
+  }>(
+    sql`SELECT
+      work_item_budget_id AS workItemBudgetId,
+      COALESCE(SUM(amount), 0) AS actualCost
+    FROM invoices
+    WHERE work_item_budget_id IS NOT NULL
+    GROUP BY work_item_budget_id`,
+  );
+
+  const lineInvoiceMap = new Map<string, number>();
+  for (const row of lineInvoiceRows) {
+    lineInvoiceMap.set(row.workItemBudgetId, row.actualCost);
+  }
+
+  // ── 6. For fixed subsidies: count matching budget lines per work_item+subsidy ─
   // We need to divide a fixed subsidy equally across the budget lines that match
   // the subsidy's applicable categories for that work item.
   //
@@ -128,9 +146,11 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
   //
   // We'll compute this lazily per-line below.
 
-  // ── 6. Compute per-line planned amounts and per-category aggregates ─────────
+  // ── 7. Compute per-line planned amounts and per-category aggregates ─────────
   let totalMinPlanned = 0;
   let totalMaxPlanned = 0;
+  let totalProjectedMin = 0;
+  let totalProjectedMax = 0;
 
   // Category summaries: categoryId -> running totals
   const categoryAgg = new Map<
@@ -138,6 +158,8 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
     {
       minPlanned: number;
       maxPlanned: number;
+      projectedMin: number;
+      projectedMax: number;
       actualCost: number;
       actualCostPaid: number;
       budgetLineCount: number;
@@ -198,8 +220,16 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
     const minPlanned = Math.max(0, rawMin - subsidyReduction);
     const maxPlanned = Math.max(0, rawMax - subsidyReduction);
 
+    // Blended projected: if line has invoices, use actual invoice total; otherwise use planned range
+    const lineActualCost = lineInvoiceMap.get(line.id);
+    const hasInvoices = lineActualCost !== undefined;
+    const projectedMin = hasInvoices ? lineActualCost : minPlanned;
+    const projectedMax = hasInvoices ? lineActualCost : maxPlanned;
+
     totalMinPlanned += minPlanned;
     totalMaxPlanned += maxPlanned;
+    totalProjectedMin += projectedMin;
+    totalProjectedMax += projectedMax;
 
     // Aggregate per category (null key = uncategorized)
     let agg = categoryAgg.get(line.budgetCategoryId);
@@ -207,6 +237,8 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
       agg = {
         minPlanned: 0,
         maxPlanned: 0,
+        projectedMin: 0,
+        projectedMax: 0,
         actualCost: 0,
         actualCostPaid: 0,
         budgetLineCount: 0,
@@ -215,10 +247,12 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
     }
     agg.minPlanned += minPlanned;
     agg.maxPlanned += maxPlanned;
+    agg.projectedMin += projectedMin;
+    agg.projectedMax += projectedMax;
     agg.budgetLineCount += 1;
   }
 
-  // ── 7. Actual costs from invoices linked to budget lines ──────────────────
+  // ── 8. Actual costs from invoices linked to budget lines ──────────────────
   const invoiceTotalsRow = db.get<{ actualCost: number | null; actualCostPaid: number | null }>(
     sql`SELECT
       COALESCE(SUM(amount), 0)                                                       AS actualCost,
@@ -230,7 +264,7 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
   const actualCost = invoiceTotalsRow?.actualCost ?? 0;
   const actualCostPaid = invoiceTotalsRow?.actualCostPaid ?? 0;
 
-  // ── 8. Per-category actual costs from invoices ────────────────────────────
+  // ── 9. Per-category actual costs from invoices ────────────────────────────
   const categoryInvoiceRows = db.all<{
     budgetCategoryId: string | null;
     actualCost: number;
@@ -248,14 +282,22 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
   for (const row of categoryInvoiceRows) {
     let agg = categoryAgg.get(row.budgetCategoryId);
     if (!agg) {
-      agg = { minPlanned: 0, maxPlanned: 0, actualCost: 0, actualCostPaid: 0, budgetLineCount: 0 };
+      agg = {
+        minPlanned: 0,
+        maxPlanned: 0,
+        projectedMin: 0,
+        projectedMax: 0,
+        actualCost: 0,
+        actualCostPaid: 0,
+        budgetLineCount: 0,
+      };
       categoryAgg.set(row.budgetCategoryId, agg);
     }
     agg.actualCost = row.actualCost;
     agg.actualCostPaid = row.actualCostPaid;
   }
 
-  // ── 9. Budget category metadata (name, color) ─────────────────────────────
+  // ── 10. Budget category metadata (name, color) ────────────────────────────
   const categoryMetaRows = db.all<{
     id: string;
     name: string;
@@ -274,6 +316,8 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
       categoryColor: cat.color,
       minPlanned: agg?.minPlanned ?? 0,
       maxPlanned: agg?.maxPlanned ?? 0,
+      projectedMin: agg?.projectedMin ?? 0,
+      projectedMax: agg?.projectedMax ?? 0,
       actualCost: agg?.actualCost ?? 0,
       actualCostPaid: agg?.actualCostPaid ?? 0,
       budgetLineCount: agg?.budgetLineCount ?? 0,
@@ -289,13 +333,15 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
       categoryColor: null,
       minPlanned: uncategorizedAgg.minPlanned,
       maxPlanned: uncategorizedAgg.maxPlanned,
+      projectedMin: uncategorizedAgg.projectedMin,
+      projectedMax: uncategorizedAgg.projectedMax,
       actualCost: uncategorizedAgg.actualCost,
       actualCostPaid: uncategorizedAgg.actualCostPaid,
       budgetLineCount: uncategorizedAgg.budgetLineCount,
     });
   }
 
-  // ── 10. Subsidy summary ───────────────────────────────────────────────────
+  // ── 11. Subsidy summary ───────────────────────────────────────────────────
   const subsidyCountRow = db.get<{ activeSubsidyCount: number }>(
     sql`SELECT COUNT(*) AS activeSubsidyCount
     FROM subsidy_programs
@@ -351,9 +397,11 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
     activeSubsidyCount: subsidyCountRow?.activeSubsidyCount ?? 0,
   };
 
-  // ── 11. Four remaining-funds perspectives ─────────────────────────────────
+  // ── 12. Six remaining-funds perspectives ──────────────────────────────────
   const remainingVsMinPlanned = availableFunds - totalMinPlanned;
   const remainingVsMaxPlanned = availableFunds - totalMaxPlanned;
+  const remainingVsProjectedMin = availableFunds - totalProjectedMin;
+  const remainingVsProjectedMax = availableFunds - totalProjectedMax;
   const remainingVsActualCost = availableFunds - actualCost;
   const remainingVsActualPaid = availableFunds - actualCostPaid;
 
@@ -362,10 +410,14 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
     sourceCount,
     minPlanned: totalMinPlanned,
     maxPlanned: totalMaxPlanned,
+    projectedMin: totalProjectedMin,
+    projectedMax: totalProjectedMax,
     actualCost,
     actualCostPaid,
     remainingVsMinPlanned,
     remainingVsMaxPlanned,
+    remainingVsProjectedMin,
+    remainingVsProjectedMax,
     remainingVsActualCost,
     remainingVsActualPaid,
     categorySummaries,

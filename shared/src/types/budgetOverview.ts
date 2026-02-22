@@ -10,6 +10,8 @@ export interface CategoryBudgetSummary {
   categoryColor: string | null;
   minPlanned: number;
   maxPlanned: number;
+  projectedMin: number; // blended: invoiced lines use actualCost, non-invoiced use minPlanned
+  projectedMax: number; // blended: invoiced lines use actualCost, non-invoiced use maxPlanned
   actualCost: number;
   actualCostPaid: number;
   budgetLineCount: number;
@@ -22,11 +24,16 @@ export interface BudgetOverview {
   minPlanned: number; // with confidence margins and subsidy reductions
   maxPlanned: number;
 
+  projectedMin: number; // blended: invoiced lines use actualCost, non-invoiced use minPlanned
+  projectedMax: number; // blended: invoiced lines use actualCost, non-invoiced use maxPlanned
+
   actualCost: number; // all invoices linked to budget lines
   actualCostPaid: number; // paid invoices only
 
   remainingVsMinPlanned: number; // availableFunds - minPlanned
   remainingVsMaxPlanned: number; // availableFunds - maxPlanned
+  remainingVsProjectedMin: number; // availableFunds - projectedMin
+  remainingVsProjectedMax: number; // availableFunds - projectedMax
   remainingVsActualCost: number; // availableFunds - actualCost
   remainingVsActualPaid: number; // availableFunds - actualCostPaid
 
