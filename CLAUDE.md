@@ -229,8 +229,7 @@ All agents must clearly identify themselves in commits and GitHub interactions:
   2. **Branch**: Create a feature branch from `beta`: `git checkout -b <branch-name> beta`
   3. **Implement**: Launch the appropriate developer agent (`backend-developer` and/or `frontend-developer`) to write the production code
   4. **Test**: Launch `qa-integration-tester` to write unit tests (95%+ coverage target), integration tests, and Playwright E2E tests
-  5. **Quality gates**: Run `lint`, `typecheck`, `test`, `format:check`, `build`, `npm audit` — all must pass
-     5b. **E2E smoke check**: If the story touches frontend code, API routes, or API response shapes, the QA agent builds the Docker image (`docker build -t cornerstone:e2e .`) and runs `npm run test:e2e:smoke` (~2-3 min, desktop/Chromium only). If smoke tests fail, fix before creating the PR.
+  5. **Quality gates**: Run `lint`, `typecheck`, `test`, `format:check`, `build`, `npm audit` — all must pass. E2E smoke tests run automatically in CI (see `e2e-smoke` job in `.github/workflows/ci.yml`) — do not run them locally.
   6. **Commit & PR**: Commit, push the branch, create a PR targeting `beta`: `gh pr create --base beta --title "..." --body "..."`
   7. **CI**: Wait for CI: `gh pr checks <pr-number> --watch`
   8. **Review**: After CI passes, launch review agents **in parallel**:
