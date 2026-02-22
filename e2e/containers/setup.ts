@@ -33,17 +33,13 @@ export default async function globalSetup(): Promise<void> {
   const oidc = await startOidcContainer(network);
   console.log(`✅ OIDC server ready at ${oidc.issuerUrl}`);
 
-  // Start Cornerstone application with OIDC configuration
-  console.log('🏗️  Starting Cornerstone application...');
-  const app = await startCornerstoneContainer({
-    network,
-    oidcPort: oidc.port,
-  });
+  // Start Cornerstone app and Nginx proxy in parallel (both only need OIDC to be ready)
+  console.log('🏗️  Starting Cornerstone application and reverse proxy...');
+  const [app, proxy] = await Promise.all([
+    startCornerstoneContainer({ network, oidcPort: oidc.port }),
+    startProxyContainer(network, oidc.port),
+  ]);
   console.log(`✅ Cornerstone app ready at ${app.baseUrl}`);
-
-  // Start Nginx reverse proxy with OIDC proxy support
-  console.log('🔄 Starting reverse proxy...');
-  const proxy = await startProxyContainer(network, oidc.port);
   console.log(`✅ Reverse proxy ready at ${proxy.proxyUrl}`);
 
   // Prepare state object

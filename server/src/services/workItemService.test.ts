@@ -1033,4 +1033,9 @@ describe('Work Item Service', () => {
       expect(result.items[0].assignedUser?.displayName).toBe('Assignee User');
     });
   });
+
+  // ─── Budget fields: createWorkItem() / updateWorkItem() ───────────────────
+  // NOTE: Story #147 budget fields (plannedBudget, actualCost, confidencePercent,
+  // budgetCategoryId, budgetSourceId) were removed from work_items in Story 5.9.
+  // Budget data now lives in work_item_budgets (see workItemBudgetService.test.ts).
 });

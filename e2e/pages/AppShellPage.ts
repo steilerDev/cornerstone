@@ -27,24 +27,40 @@ export class AppShellPage {
   }
 
   async openSidebar(): Promise<void> {
+    // Wait for the sidebar element to be present in the DOM before reading its state.
+    // On mobile, the React app shell may not have finished rendering when openSidebar()
+    // is called immediately after page.goto(), causing isSidebarOpen() to read a
+    // null attribute and menuButton.click() to race against the mount cycle.
+    await this.sidebar.waitFor({ state: 'attached' });
     const isOpen = await this.isSidebarOpen();
     if (!isOpen) {
       await this.menuButton.click();
       // Wait for data-open attribute to become "true" (sidebar CSS uses transform, not display)
-      await this.page.locator('aside[data-open="true"]').waitFor({ timeout: 5000 });
+      await this.page.locator('aside[data-open="true"]').waitFor();
     }
   }
 
   async closeSidebar(): Promise<void> {
+    // Wait for the sidebar element to be present in the DOM before reading its state.
+    await this.sidebar.waitFor({ state: 'attached' });
     const isOpen = await this.isSidebarOpen();
     if (isOpen) {
       await this.sidebarCloseButton.click();
       // Wait for data-open attribute to become "false"
-      await this.page.locator('aside[data-open="false"]').waitFor({ timeout: 5000 });
+      await this.page.locator('aside[data-open="false"]').waitFor();
     }
   }
 
   async isSidebarOpen(): Promise<boolean> {
+    // Wait for the sidebar to appear in the DOM. On mobile WebKit, React
+    // hydration can be slow; if the sidebar never appears (e.g., page
+    // redirected to /login due to session invalidation), return false
+    // to let the test fail on the subsequent assertion with a clearer message.
+    try {
+      await this.sidebar.waitFor({ state: 'attached', timeout: 15000 });
+    } catch {
+      return false;
+    }
     const dataOpen = await this.sidebar.getAttribute('data-open');
     return dataOpen === 'true';
   }

@@ -7,6 +7,9 @@ import { ProfilePage } from '../../pages/ProfilePage.js';
 import { TEST_ADMIN } from '../../fixtures/testData.js';
 
 test.describe('Update Display Name', () => {
+  // Serialize tests within this describe block — they all modify the shared admin
+  // user's display name and must not run in parallel with each other.
+  test.describe.configure({ mode: 'serial' });
   test('Update display name successfully', async ({ page }) => {
     const profilePage = new ProfilePage(page);
 
@@ -39,7 +42,7 @@ test.describe('Update Display Name', () => {
     await profilePage.updateDisplayName('Test Name');
 
     // Then: Success banner should be visible
-    await expect(profilePage.displayNameSuccessBanner).toBeVisible({ timeout: 5000 });
+    await expect(profilePage.displayNameSuccessBanner).toBeVisible();
 
     // Restore original name
     await profilePage.updateDisplayName(TEST_ADMIN.displayName);
@@ -70,7 +73,7 @@ test.describe('Update Display Name', () => {
     await profilePage.goto();
     const testName = 'Persistent Test Name';
     await profilePage.updateDisplayName(testName);
-    await expect(profilePage.displayNameSuccessBanner).toBeVisible({ timeout: 5000 });
+    await expect(profilePage.displayNameSuccessBanner).toBeVisible();
 
     // When: User reloads the page
     await page.reload();

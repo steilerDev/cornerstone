@@ -6,7 +6,7 @@ import { test, expect } from '../../fixtures/auth.js';
 import { AppShellPage } from '../../pages/AppShellPage.js';
 import { ROUTES } from '../../fixtures/testData.js';
 
-test.describe('Keyboard Accessibility', () => {
+test.describe('Keyboard Accessibility', { tag: '@responsive' }, () => {
   test('Tab navigation through sidebar links (desktop)', async ({ page }) => {
     const viewport = page.viewportSize();
 

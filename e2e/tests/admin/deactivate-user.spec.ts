@@ -7,6 +7,9 @@ import { UserManagementPage } from '../../pages/UserManagementPage.js';
 import { TEST_ADMIN } from '../../fixtures/testData.js';
 
 test.describe('Deactivate User', () => {
+  // Serialize tests within this describe block — they all interact with the shared
+  // admin user's deactivation modal and must not run in parallel with each other.
+  test.describe.configure({ mode: 'serial' });
   test('Deactivate confirmation modal appears', async ({ page }) => {
     const userManagementPage = new UserManagementPage(page);
 
@@ -57,9 +60,7 @@ test.describe('Deactivate User', () => {
     await userManagementPage.deactivateCancelButton.click();
 
     // Then: Modal should close
-    await expect(userManagementPage.deactivateModal).not.toBeVisible({
-      timeout: 5000,
-    });
+    await expect(userManagementPage.deactivateModal).not.toBeVisible();
 
     // And: User should still be active
     const adminRow = await userManagementPage.getUserRow(TEST_ADMIN.email);
@@ -77,9 +78,7 @@ test.describe('Deactivate User', () => {
     await userManagementPage.closeDeactivateModal();
 
     // Then: Modal should close
-    await expect(userManagementPage.deactivateModal).not.toBeVisible({
-      timeout: 5000,
-    });
+    await expect(userManagementPage.deactivateModal).not.toBeVisible();
   });
 
   /**

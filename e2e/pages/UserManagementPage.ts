@@ -77,8 +77,9 @@ export class UserManagementPage {
 
   async searchUsers(query: string): Promise<void> {
     await this.searchInput.fill(query);
-    // Wait for debounce (300ms in the component)
-    await this.page.waitForTimeout(400);
+    await this.page.waitForResponse(
+      (resp) => resp.url().includes('/api/users') && resp.status() === 200,
+    );
   }
 
   async getUserRows(): Promise<Locator[]> {
@@ -87,7 +88,7 @@ export class UserManagementPage {
 
   async getUserRow(email: string): Promise<Locator | null> {
     // Wait for table data to load
-    await this.table.locator('tbody tr').first().waitFor({ state: 'visible', timeout: 10000 });
+    await this.table.locator('tbody tr').first().waitFor({ state: 'visible' });
     const rows = await this.getUserRows();
     for (const row of rows) {
       const rowEmail = await row.locator('td').nth(1).textContent();
@@ -104,6 +105,7 @@ export class UserManagementPage {
       throw new Error(`User with email ${email} not found`);
     }
     const editButton = row.getByRole('button', { name: 'Edit' });
+    await editButton.scrollIntoViewIfNeeded();
     await editButton.click();
     await this.editModalHeading.waitFor({ state: 'visible' });
   }
@@ -131,6 +133,7 @@ export class UserManagementPage {
       throw new Error(`User with email ${email} not found`);
     }
     const deactivateButton = row.getByRole('button', { name: 'Deactivate' });
+    await deactivateButton.scrollIntoViewIfNeeded();
     await deactivateButton.click();
     await this.deactivateModalHeading.waitFor({ state: 'visible' });
   }
@@ -150,7 +153,7 @@ export class UserManagementPage {
 
   async getEditModalError(): Promise<string | null> {
     try {
-      await this.editModalError.waitFor({ state: 'visible', timeout: 5000 });
+      await this.editModalError.waitFor({ state: 'visible' });
       return await this.editModalError.textContent();
     } catch {
       return null;
@@ -159,7 +162,7 @@ export class UserManagementPage {
 
   async getDeactivateModalError(): Promise<string | null> {
     try {
-      await this.deactivateModalError.waitFor({ state: 'visible', timeout: 5000 });
+      await this.deactivateModalError.waitFor({ state: 'visible' });
       return await this.deactivateModalError.textContent();
     } catch {
       return null;

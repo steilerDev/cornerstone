@@ -60,7 +60,7 @@ export default function WorkItemCreatePage() {
         setAvailableTags(tagsResponse.tags);
         setUsers(usersResponse.users.filter((u) => !u.deactivatedAt));
       } catch (err) {
-        setError('Failed to load tags and users. Please try again.');
+        setError('Failed to load form data. Please try again.');
         console.error('Failed to load data:', err);
       } finally {
         setIsLoadingData(false);
@@ -156,6 +156,8 @@ export default function WorkItemCreatePage() {
         startBefore: startBefore || null,
         assignedUserId: assignedUserId || null,
         tagIds: selectedTagIds,
+        // NOTE: Story 5.9 rework — budget fields removed from work items.
+        // Budget data is managed via the /api/work-items/:id/budgets endpoint.
       });
 
       // Create dependencies sequentially, replacing THIS_ITEM_ID with actual ID

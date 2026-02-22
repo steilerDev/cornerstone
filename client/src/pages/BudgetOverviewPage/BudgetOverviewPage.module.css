@@ -1,0 +1,408 @@
+/* ============================================================
+ * BudgetOverviewPage — CSS Module
+ * ============================================================ */
+
+.container {
+  padding: var(--spacing-8);
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-6);
+}
+
+/* ---- Page header ---- */
+
+.pageHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+}
+
+.pageTitle {
+  font-size: var(--font-size-4xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+/* ---- Loading / error states ---- */
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  font-size: var(--font-size-base);
+  color: var(--color-text-muted);
+}
+
+.errorCard {
+  background: var(--color-bg-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--spacing-8);
+  text-align: center;
+}
+
+.errorTitle {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-danger);
+  margin: 0 0 var(--spacing-4) 0;
+}
+
+.retryButton {
+  margin-top: var(--spacing-4);
+  padding: var(--spacing-2-5) var(--spacing-4);
+  background-color: var(--color-primary);
+  color: var(--color-primary-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition-button);
+}
+
+.retryButton:hover:not(:disabled) {
+  background-color: var(--color-primary-hover);
+}
+
+.retryButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+/* ---- Empty state ---- */
+
+.emptyState {
+  background: var(--color-bg-secondary);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-10);
+  text-align: center;
+}
+
+.emptyStateTitle {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  margin: 0 0 var(--spacing-2) 0;
+}
+
+.emptyStateDescription {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  margin: 0;
+  max-width: 480px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* ============================================================
+ * Summary cards grid — 4 cards on desktop, 2 on tablet, 1 on mobile
+ * ============================================================ */
+
+.cardsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--spacing-4);
+}
+
+/* ---- Individual card ---- */
+
+.summaryCard {
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--spacing-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.cardTitle {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0;
+}
+
+.cardBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.cardDivider {
+  height: 1px;
+  background-color: var(--color-border);
+  margin: var(--spacing-1) 0;
+}
+
+.cardNote {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin: var(--spacing-1) 0 0 0;
+}
+
+.cardNoteNegative {
+  color: var(--color-danger);
+}
+
+/* ---- Stat rows inside cards ---- */
+
+.statRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--spacing-2);
+}
+
+.statLabel {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.statValue {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  min-width: 0;
+}
+
+.statValuePositive {
+  color: var(--color-success-text-on-light);
+  font-weight: var(--font-weight-semibold);
+}
+
+.statValueNegative {
+  color: var(--color-danger-text-on-light);
+  font-weight: var(--font-weight-semibold);
+}
+
+.statValueMuted {
+  color: var(--color-text-muted);
+}
+
+/* ============================================================
+ * Category Breakdown table section
+ * ============================================================ */
+
+.tableSection {
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--spacing-5);
+}
+
+.sectionTitle {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0 0 var(--spacing-4) 0;
+}
+
+.tableEmptyState {
+  padding: var(--spacing-8);
+  text-align: center;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+/* Scrollable wrapper for mobile */
+.tableWrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 560px;
+}
+
+/* ---- Table header ---- */
+
+.table thead tr {
+  border-bottom: 1px solid var(--color-border-strong);
+}
+
+.thCategory,
+.thNumber {
+  padding: var(--spacing-2) var(--spacing-3);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.thCategory {
+  text-align: left;
+}
+
+.thNumber {
+  text-align: right;
+}
+
+/* ---- Table body rows ---- */
+
+.tableRow {
+  border-bottom: 1px solid var(--color-border);
+  transition: background-color var(--transition-normal);
+}
+
+.tableRow:hover {
+  background-color: var(--color-bg-secondary);
+}
+
+.tableRow:last-child {
+  border-bottom: none;
+}
+
+.tdCategory {
+  padding: var(--spacing-3) var(--spacing-3);
+}
+
+.tdNumber {
+  padding: var(--spacing-3) var(--spacing-3);
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* ---- Category name with color dot ---- */
+
+.categoryCell {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.categoryDot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-circle);
+  background-color: var(--color-text-placeholder);
+  flex-shrink: 0;
+}
+
+.categoryName {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+/* ---- Currency values ---- */
+
+.currencyValue {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.currencyValueBold {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+/* ---- Variance ---- */
+
+.variancePositive {
+  font-size: var(--font-size-sm);
+  color: var(--color-success-text-on-light);
+  font-variant-numeric: tabular-nums;
+}
+
+.varianceNegative {
+  font-size: var(--font-size-sm);
+  color: var(--color-danger-text-on-light);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Work item count ---- */
+
+.workItemCount {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Table footer (totals row) ---- */
+
+.tableFooter {
+  border-top: 2px solid var(--color-border-strong);
+  background-color: var(--color-bg-secondary);
+}
+
+.tfootLabel {
+  padding: var(--spacing-3) var(--spacing-3);
+  text-align: left;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+}
+
+/* ============================================================
+ * RESPONSIVE — Tablet (768px – 1024px): 2 cards per row
+ * ============================================================ */
+
+@media (min-width: 768px) and (max-width: 1024px) {
+  .container {
+    padding: var(--spacing-6);
+  }
+
+  .cardsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Touch-friendly button */
+  .retryButton {
+    min-height: 44px;
+  }
+}
+
+/* ============================================================
+ * RESPONSIVE — Mobile (max 767px): 1 card per row
+ * ============================================================ */
+
+@media (max-width: 767px) {
+  .container {
+    padding: var(--spacing-4);
+  }
+
+  .pageTitle {
+    font-size: var(--font-size-2xl);
+  }
+
+  .cardsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .retryButton {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .emptyState {
+    padding: var(--spacing-6);
+  }
+
+  .tableSection {
+    padding: var(--spacing-4);
+  }
+}

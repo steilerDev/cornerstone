@@ -10,6 +10,7 @@ import {
   sqliteTable,
   text,
   integer,
+  real,
   index,
   uniqueIndex,
   primaryKey,
@@ -66,6 +67,7 @@ export const sessions = sqliteTable(
 /**
  * Work items table - stores construction work items/tasks.
  * EPIC-03: Work Items Core CRUD & Properties
+ * EPIC-05 Story 5.9: budget fields removed (moved to work_item_budgets table).
  */
 export const workItems = sqliteTable(
   'work_items',
@@ -192,5 +194,199 @@ export const workItemDependencies = sqliteTable(
   (table) => ({
     pk: primaryKey({ columns: [table.predecessorId, table.successorId] }),
     successorIdIdx: index('idx_work_item_dependencies_successor_id').on(table.successorId),
+  }),
+);
+
+// ─── EPIC-05: Budget Management ───────────────────────────────────────────────
+
+/**
+ * Budget categories table - organizes construction costs into categories.
+ * Pre-seeded with 10 default categories; users can add more.
+ */
+export const budgetCategories = sqliteTable('budget_categories', {
+  id: text('id').primaryKey(),
+  name: text('name').unique().notNull(),
+  description: text('description'),
+  color: text('color'),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
+
+/**
+ * Vendors table - tracks contractors and vendors involved in the project.
+ */
+export const vendors = sqliteTable(
+  'vendors',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    specialty: text('specialty'),
+    phone: text('phone'),
+    email: text('email'),
+    address: text('address'),
+    notes: text('notes'),
+    createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => ({
+    nameIdx: index('idx_vendors_name').on(table.name),
+  }),
+);
+
+/**
+ * Budget sources table - financing sources (bank loans, credit lines, savings, etc.).
+ */
+export const budgetSources = sqliteTable('budget_sources', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  sourceType: text('source_type', {
+    enum: ['bank_loan', 'credit_line', 'savings', 'other'],
+  }).notNull(),
+  totalAmount: real('total_amount').notNull(),
+  interestRate: real('interest_rate'),
+  terms: text('terms'),
+  notes: text('notes'),
+  status: text('status', { enum: ['active', 'exhausted', 'closed'] })
+    .notNull()
+    .default('active'),
+  createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
+
+/**
+ * Work item budget lines table - tracks individual budget estimates/allocations for work items.
+ * EPIC-05 Story 5.9: replaces the flat budget fields that were on work_items.
+ * Each line can reference a vendor, budget category, and budget source.
+ */
+export const workItemBudgets = sqliteTable(
+  'work_item_budgets',
+  {
+    id: text('id').primaryKey(),
+    workItemId: text('work_item_id')
+      .notNull()
+      .references(() => workItems.id, { onDelete: 'cascade' }),
+    description: text('description'),
+    plannedAmount: real('planned_amount').notNull().default(0),
+    confidence: text('confidence', {
+      enum: ['own_estimate', 'professional_estimate', 'quote', 'invoice'],
+    })
+      .notNull()
+      .default('own_estimate'),
+    budgetCategoryId: text('budget_category_id').references(() => budgetCategories.id, {
+      onDelete: 'set null',
+    }),
+    budgetSourceId: text('budget_source_id').references(() => budgetSources.id, {
+      onDelete: 'set null',
+    }),
+    vendorId: text('vendor_id').references(() => vendors.id, { onDelete: 'set null' }),
+    createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => ({
+    workItemIdIdx: index('idx_work_item_budgets_work_item_id').on(table.workItemId),
+    vendorIdIdx: index('idx_work_item_budgets_vendor_id').on(table.vendorId),
+    budgetCategoryIdIdx: index('idx_work_item_budgets_budget_category_id').on(
+      table.budgetCategoryId,
+    ),
+    budgetSourceIdIdx: index('idx_work_item_budgets_budget_source_id').on(table.budgetSourceId),
+  }),
+);
+
+/**
+ * Invoices table - tracks vendor invoices for payment management.
+ * EPIC-05 Story 5.9: added workItemBudgetId FK; changed 'overdue' status to 'claimed'.
+ */
+export const invoices = sqliteTable(
+  'invoices',
+  {
+    id: text('id').primaryKey(),
+    vendorId: text('vendor_id')
+      .notNull()
+      .references(() => vendors.id, { onDelete: 'cascade' }),
+    invoiceNumber: text('invoice_number'),
+    amount: real('amount').notNull(),
+    date: text('date').notNull(),
+    dueDate: text('due_date'),
+    status: text('status', { enum: ['pending', 'paid', 'claimed'] })
+      .notNull()
+      .default('pending'),
+    notes: text('notes'),
+    workItemBudgetId: text('work_item_budget_id').references(() => workItemBudgets.id, {
+      onDelete: 'set null',
+    }),
+    createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => ({
+    vendorIdIdx: index('idx_invoices_vendor_id').on(table.vendorId),
+    statusIdx: index('idx_invoices_status').on(table.status),
+    dateIdx: index('idx_invoices_date').on(table.date),
+    workItemBudgetIdIdx: index('idx_invoices_work_item_budget_id').on(table.workItemBudgetId),
+  }),
+);
+
+/**
+ * Subsidy programs table - government/institutional programs reducing construction costs.
+ */
+export const subsidyPrograms = sqliteTable('subsidy_programs', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  description: text('description'),
+  eligibility: text('eligibility'),
+  reductionType: text('reduction_type', { enum: ['percentage', 'fixed'] }).notNull(),
+  reductionValue: real('reduction_value').notNull(),
+  applicationStatus: text('application_status', {
+    enum: ['eligible', 'applied', 'approved', 'received', 'rejected'],
+  })
+    .notNull()
+    .default('eligible'),
+  applicationDeadline: text('application_deadline'),
+  notes: text('notes'),
+  createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
+
+/**
+ * Subsidy program categories junction table - links subsidy programs to budget categories (M:N).
+ */
+export const subsidyProgramCategories = sqliteTable(
+  'subsidy_program_categories',
+  {
+    subsidyProgramId: text('subsidy_program_id')
+      .notNull()
+      .references(() => subsidyPrograms.id, { onDelete: 'cascade' }),
+    budgetCategoryId: text('budget_category_id')
+      .notNull()
+      .references(() => budgetCategories.id, { onDelete: 'cascade' }),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.subsidyProgramId, table.budgetCategoryId] }),
+  }),
+);
+
+/**
+ * Work item subsidies junction table - links work items to subsidy programs (M:N).
+ */
+export const workItemSubsidies = sqliteTable(
+  'work_item_subsidies',
+  {
+    workItemId: text('work_item_id')
+      .notNull()
+      .references(() => workItems.id, { onDelete: 'cascade' }),
+    subsidyProgramId: text('subsidy_program_id')
+      .notNull()
+      .references(() => subsidyPrograms.id, { onDelete: 'cascade' }),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.workItemId, table.subsidyProgramId] }),
+    subsidyProgramIdIdx: index('idx_work_item_subsidies_subsidy_program_id').on(
+      table.subsidyProgramId,
+    ),
   }),
 );

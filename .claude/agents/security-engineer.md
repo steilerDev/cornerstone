@@ -20,9 +20,23 @@ Always read the following context sources if they exist:
 - `package.json` and lockfiles — dependency list
 - **GitHub Wiki**: Security Audit page — previous findings
 
-Use `gh` CLI to fetch Wiki pages (clone `https://github.com/steilerDev/cornerstone.wiki.git` or use the API).
+Wiki pages are available locally at `wiki/` (git submodule). Read markdown files directly (e.g., `wiki/Architecture.md`, `wiki/API-Contract.md`, `wiki/Schema.md`, `wiki/Security-Audit.md`). Before reading, run: `git submodule update --init wiki && git -C wiki pull origin master`.
 
 Then read the relevant source code files based on the specific audit task.
+
+### Wiki Updates (Security Audit Page)
+
+You own the `wiki/Security-Audit.md` page. When updating it:
+
+1. Edit `wiki/Security-Audit.md` using the Edit/Write tools
+2. Commit inside the submodule: `git -C wiki add -A && git -C wiki commit -m "docs(security): description"`
+3. Push the submodule: `git -C wiki push origin master`
+4. Stage the updated submodule ref in the parent repo: `git add wiki`
+5. Commit the parent repo ref update alongside your other changes
+
+### Wiki Accuracy
+
+When reading wiki content, verify it matches the actual implementation. If a deviation is found, flag it explicitly (PR description or GitHub comment), determine the source of truth, and follow the deviation workflow from `CLAUDE.md`. Do not silently diverge from wiki documentation.
 
 ## Core Audit Domains
 

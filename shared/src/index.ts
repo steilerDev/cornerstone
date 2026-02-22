@@ -64,3 +64,75 @@ export type {
   CreateDependencyRequest,
   DependencyCreatedResponse,
 } from './types/dependency.js';
+
+// Budget Categories
+export type {
+  BudgetCategory,
+  CreateBudgetCategoryRequest,
+  UpdateBudgetCategoryRequest,
+  BudgetCategoryListResponse,
+  BudgetCategoryResponse,
+} from './types/budgetCategory.js';
+
+// Vendors
+export type {
+  Vendor,
+  VendorDetail,
+  CreateVendorRequest,
+  UpdateVendorRequest,
+  VendorListQuery,
+  VendorCreateResponse,
+  VendorDetailResponse,
+} from './types/vendor.js';
+
+// Invoices
+export type {
+  Invoice,
+  InvoiceStatus,
+  CreateInvoiceRequest,
+  UpdateInvoiceRequest,
+  InvoiceListResponse,
+  InvoiceResponse,
+} from './types/invoice.js';
+
+// Budget Sources
+export type {
+  BudgetSource,
+  BudgetSourceType,
+  BudgetSourceStatus,
+  CreateBudgetSourceRequest,
+  UpdateBudgetSourceRequest,
+  BudgetSourceListResponse,
+  BudgetSourceResponse,
+} from './types/budgetSource.js';
+
+// Subsidy Programs
+export type {
+  SubsidyProgram,
+  SubsidyReductionType,
+  SubsidyApplicationStatus,
+  CreateSubsidyProgramRequest,
+  UpdateSubsidyProgramRequest,
+  SubsidyProgramListResponse,
+  SubsidyProgramResponse,
+} from './types/subsidyProgram.js';
+
+// Budget Overview
+export type {
+  CategoryBudgetSummary,
+  BudgetOverview,
+  BudgetOverviewResponse,
+} from './types/budgetOverview.js';
+
+// Work Item Budgets
+export type {
+  ConfidenceLevel,
+  BudgetSourceSummary,
+  VendorSummary,
+  WorkItemBudgetLine,
+  CreateWorkItemBudgetRequest,
+  UpdateWorkItemBudgetRequest,
+  WorkItemBudgetListResponse,
+  WorkItemBudgetResponse,
+} from './types/workItemBudget.js';
+export { CONFIDENCE_MARGINS } from './types/workItemBudget.js';

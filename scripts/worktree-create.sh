@@ -110,6 +110,17 @@ if [ -d "$AGENT_MEMORY_SRC" ]; then
   fi
 fi
 
+# Symlink cagent memory from main worktree so learnings are shared
+CAGENT_MEMORY_SRC="${MAIN_WORKTREE}/.cagent/memory"
+CAGENT_MEMORY_DST="${WORKTREE_PATH}/.cagent/memory"
+if [ -d "$CAGENT_MEMORY_SRC" ]; then
+  mkdir -p "${WORKTREE_PATH}/.cagent"
+  if [ ! -L "$CAGENT_MEMORY_DST" ]; then
+    ln -s "$CAGENT_MEMORY_SRC" "$CAGENT_MEMORY_DST"
+    echo "Symlinked .cagent/memory/ from main worktree"
+  fi
+fi
+
 # Bootstrap: install dependencies and build shared
 echo "Bootstrapping worktree (npm install + build shared)..."
 cd "$WORKTREE_PATH"

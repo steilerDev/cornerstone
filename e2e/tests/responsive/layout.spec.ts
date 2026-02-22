@@ -6,7 +6,7 @@ import { test, expect } from '../../fixtures/auth.js';
 import { AppShellPage } from '../../pages/AppShellPage.js';
 import { ROUTES } from '../../fixtures/testData.js';
 
-test.describe('Responsive Layout', () => {
+test.describe('Responsive Layout', { tag: '@responsive' }, () => {
   test('Desktop: sidebar always visible, no hamburger button', async ({ page }) => {
     const viewport = page.viewportSize();
 
@@ -20,6 +20,8 @@ test.describe('Responsive Layout', () => {
 
     // Given: User is on dashboard (desktop viewport >= 1024px)
     await page.goto(ROUTES.home);
+    // Wait for React to render the app shell before checking sidebar state
+    await page.locator('#root').waitFor({ state: 'visible', timeout: 15000 });
 
     // Then: Sidebar should be visible
     await expect(appShell.sidebar).toBeVisible();
@@ -42,6 +44,8 @@ test.describe('Responsive Layout', () => {
 
     // Given: User is on dashboard (mobile/tablet viewport < 1024px)
     await page.goto(ROUTES.home);
+    // Wait for React to render the app shell before checking sidebar state
+    await page.locator('#root').waitFor({ state: 'visible', timeout: 15000 });
 
     // Then: Sidebar should be initially hidden
     const isOpen = await appShell.isSidebarOpen();
@@ -65,6 +69,8 @@ test.describe('Responsive Layout', () => {
 
     // Given: User is on dashboard (mobile/tablet viewport)
     await page.goto(ROUTES.home);
+    // Wait for React to render the app shell before checking sidebar state
+    await page.locator('#root').waitFor({ state: 'visible', timeout: 15000 });
 
     // And: Sidebar is initially closed
     let isOpen = await appShell.isSidebarOpen();
@@ -98,6 +104,8 @@ test.describe('Responsive Layout', () => {
 
     // Given: User is on dashboard (mobile/tablet viewport)
     await page.goto(ROUTES.home);
+    // Wait for React to render the app shell before checking sidebar state
+    await page.locator('#root').waitFor({ state: 'visible', timeout: 15000 });
 
     // And: Sidebar is initially closed
     let isOpen = await appShell.isSidebarOpen();

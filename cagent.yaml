@@ -1,0 +1,171 @@
+models:
+  opus:
+    provider: anthropic
+    model: claude-opus-4-6
+    max_tokens: 32000
+  sonnet:
+    provider: anthropic
+    model: claude-sonnet-4-5
+    max_tokens: 64000
+
+agents:
+  orchestrator:
+    model: opus
+    description: >-
+      Root orchestrator coordinating the 6-agent Cornerstone dev team.
+      Delegates all implementation work; never writes production code, tests,
+      or architectural artifacts directly. Manages the agile story cycle,
+      feature branches, PRs, and agent sequencing.
+    add_prompt_files:
+      - .cagent/prompts/project-instructions.md
+      - .cagent/prompts/orchestrator.md
+    add_date: true
+    add_environment_info: true
+    max_iterations: 100
+    sub_agents:
+      - product-owner
+      - product-architect
+      - backend-developer
+      - frontend-developer
+      - qa-integration-tester
+      - security-engineer
+    toolsets:
+      - type: think
+      - type: todo
+        shared: true
+      - type: memory
+        path: .cagent/memory/orchestrator.db
+      - type: shell
+      - type: filesystem
+      - type: fetch
+
+  product-owner:
+    model: opus
+    description: >-
+      Product Owner — epics, user stories, acceptance criteria, UAT scenarios,
+      backlog management on GitHub Projects board, README updates. Use for
+      requirements decomposition, sprint planning, backlog refinement,
+      validation of completed work, and scope management.
+    add_prompt_files:
+      - .cagent/prompts/project-instructions.md
+      - .cagent/prompts/product-owner.md
+    add_date: true
+    max_iterations: 50
+    toolsets:
+      - type: think
+      - type: todo
+        shared: true
+      - type: memory
+        path: .cagent/memory/product-owner.db
+      - type: shell
+      - type: filesystem
+      - type: fetch
+
+  product-architect:
+    model: opus
+    description: >-
+      Product Architect — database schema design, API contract definition,
+      ADRs, GitHub Wiki documentation, Dockerfile, project structure, coding
+      standards, shared TypeScript types, PR architecture reviews.
+    add_prompt_files:
+      - .cagent/prompts/project-instructions.md
+      - .cagent/prompts/product-architect.md
+    add_date: true
+    max_iterations: 50
+    toolsets:
+      - type: think
+      - type: todo
+        shared: true
+      - type: memory
+        path: .cagent/memory/product-architect.db
+      - type: shell
+      - type: filesystem
+      - type: fetch
+
+  backend-developer:
+    model: sonnet
+    description: >-
+      Backend Developer — Fastify API endpoints, business logic,
+      authentication/authorization, database operations, external integrations
+      (Paperless-ngx, OIDC). Implements server-side code from the API contract.
+      Does NOT write tests.
+    add_prompt_files:
+      - .cagent/prompts/project-instructions.md
+      - .cagent/prompts/backend-developer.md
+    add_date: true
+    max_iterations: 50
+    toolsets:
+      - type: think
+      - type: todo
+        shared: true
+      - type: memory
+        path: .cagent/memory/backend-developer.db
+      - type: shell
+      - type: filesystem
+      - type: fetch
+
+  frontend-developer:
+    model: sonnet
+    description: >-
+      Frontend Developer — React UI components, pages, CSS Modules styling,
+      responsive layouts, interactive Gantt chart, typed API client layer,
+      keyboard shortcuts. References tokens.css and Style Guide wiki.
+      Does NOT write tests.
+    add_prompt_files:
+      - .cagent/prompts/project-instructions.md
+      - .cagent/prompts/frontend-developer.md
+    add_date: true
+    max_iterations: 50
+    toolsets:
+      - type: think
+      - type: todo
+        shared: true
+      - type: memory
+        path: .cagent/memory/frontend-developer.db
+      - type: shell
+      - type: filesystem
+      - type: fetch
+
+  qa-integration-tester:
+    model: sonnet
+    description: >-
+      QA Engineer — owns ALL automated tests: Jest unit tests (95%+ coverage
+      target), Fastify integration tests (app.inject), Playwright E2E browser
+      tests (desktop/tablet/mobile), performance benchmarks, bundle size
+      monitoring, bug reports. Does NOT implement features.
+    add_prompt_files:
+      - .cagent/prompts/project-instructions.md
+      - .cagent/prompts/qa-integration-tester.md
+    add_date: true
+    max_iterations: 50
+    toolsets:
+      - type: think
+      - type: todo
+        shared: true
+      - type: memory
+        path: .cagent/memory/qa-integration-tester.db
+      - type: shell
+      - type: filesystem
+      - type: fetch
+
+  security-engineer:
+    model: sonnet
+    description: >-
+      Security Engineer — OWASP Top 10 audits, authentication/authorization
+      review, dependency CVE scanning, Dockerfile security, frontend XSS
+      review, PR security reviews. Documents findings on GitHub Wiki Security
+      Audit page. Does NOT implement fixes.
+    add_prompt_files:
+      - .cagent/prompts/project-instructions.md
+      - .cagent/prompts/security-engineer.md
+    add_date: true
+    max_iterations: 30
+    toolsets:
+      - type: think
+      - type: todo
+        shared: true
+      - type: memory
+        path: .cagent/memory/security-engineer.db
+      - type: shell
+      - type: filesystem
+      - type: fetch

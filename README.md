@@ -3,80 +3,60 @@
 > [!NOTE]
 > I'm using this project to test out 'vibe coding' - I use this as a playground to better understand how to use an agentic development workflow. My plan is to write as little code as possible, but rely on a set of agents to build this application. I currently have a time-limited need for this (relatievely) simple application - which is why I'm not necessarily concerned about long-term maintainability.
 
-A self-hosted home building project management tool for homeowners. Track work items, budgets, timelines, and household item purchases from a single Docker container backed by SQLite -- no external database required.
+[![GitHub Release](https://img.shields.io/github/v/release/steilerDev/cornerstone?label=release)](https://github.com/steilerDev/cornerstone/releases/latest)
+[![CI](https://img.shields.io/github/actions/workflow/status/steilerDev/cornerstone/ci.yml?branch=main&label=CI)](https://github.com/steilerDev/cornerstone/actions/workflows/ci.yml)
+[![Docker Image](https://img.shields.io/docker/v/steilerdev/cornerstone?label=Docker&sort=semver)](https://hub.docker.com/r/steilerdev/cornerstone)
+
+A self-hosted home building project management tool for homeowners. Track work items, manage dependencies, organize with tags, and collaborate with your household -- all from a single Docker container backed by SQLite. No external database or cloud service required.
 
 ## Features
 
-### Work Items Management
+### Work Items
 
-- **Full CRUD Operations** -- Create, view, edit, and delete work items with titles, descriptions, statuses, dates, durations, and scheduling constraints.
-- **Status Tracking** -- Track each item as Not Started, In Progress, Completed, or Blocked.
-- **Scheduling** -- Set start and end dates, durations, and "start after" / "start before" constraints for vendor or weather dependencies.
-- **User Assignment** -- Assign work items to any registered user on your instance.
-- **Filtering and Search** -- Filter by status, assigned user, or tag. Full-text search with debounced input for fast results.
-- **Sorting and Pagination** -- Sort by title, status, start date, end date, created date, or updated date. Paginated results for large projects.
-- **Responsive Views** -- Table layout on desktop, card layout on mobile and tablet. URL state sync keeps your filters bookmarkable.
+Create, view, edit, and delete work items to track every task in your build project. Each work item supports:
 
-### Tags
+- **Status tracking** -- Not Started, In Progress, Completed, or Blocked
+- **Scheduling** -- Start and end dates, durations, and "start after" / "start before" constraints for vendor or weather dependencies
+- **User assignment** -- Assign items to any registered user on your instance
+- **Tags** -- Color-coded tags (e.g., "Electrical", "Plumbing", "Exterior") for organizing and filtering work items. Manage tags from a dedicated page in the sidebar.
+- **Notes** -- Add timestamped notes to any work item to track progress or record decisions. Authors and admins can edit or delete notes.
+- **Subtasks** -- Break work items into checklist items. Toggle completion with a single click and reorder with up/down buttons.
+- **Dependencies** -- Define predecessor/successor relationships between work items using a sentence-builder interface. Supports Finish-to-Start, Start-to-Start, Finish-to-Finish, and Start-to-Finish types. Circular dependencies are automatically detected and prevented.
 
-- **Custom Tags** -- Create colored tags to categorize and organize your work items (e.g., "Electrical", "Plumbing", "Exterior").
-- **Tag Management Page** -- Dedicated page for creating, editing, and deleting tags, accessible from the sidebar.
-- **Color-Coded Pills** -- Tags appear as colored pills throughout the interface for quick visual identification.
+### List View
 
-### Notes
-
-- **Work Item Notes** -- Add notes to any work item to track progress, record decisions, or leave information for other users.
-- **Author Attribution** -- Each note shows who wrote it and when, with timestamps.
-- **Edit and Delete** -- Note authors and admins can edit or delete notes.
-
-### Subtasks
-
-- **Checklist Items** -- Break down work items into smaller subtasks with a checklist interface.
-- **Toggle Completion** -- Mark subtasks as complete or incomplete with a single click.
-- **Reorder** -- Rearrange subtasks using up/down buttons (no drag-and-drop -- designed for accessibility).
-
-### Dependencies
-
-- **Predecessor and Successor Links** -- Define relationships between work items to track what must happen before or after each task.
-- **Four Dependency Types** -- Finish-to-Start, Start-to-Start, Finish-to-Finish, and Start-to-Finish relationships.
-- **Circular Dependency Detection** -- The system automatically prevents circular dependencies using depth-first cycle detection.
+- **Filtering** -- Filter by status, assigned user, or tag. Full-text search with debounced input.
+- **Sorting and pagination** -- Sort by title, status, start date, end date, created date, or updated date. Paginated results for large projects.
+- **Responsive layout** -- Table layout on desktop, card layout on mobile and tablet. URL state sync keeps your filters bookmarkable.
 
 ### Keyboard Shortcuts
 
-- **List Page** -- Press `n` to create a new work item, `/` to focus search, arrow keys to navigate, `?` for help.
-- **Detail Page** -- Press `e` to edit, `Delete` to delete, `Escape` to cancel.
+- **List page** -- `n` to create a new work item, `/` to focus search, arrow keys to navigate, `?` for help
+- **Detail page** -- `e` to edit, `Delete` to delete, `Escape` to cancel
 
 ### Authentication and User Management
 
-- **First-Run Setup** -- On first launch, a setup wizard walks you through creating the initial admin account. No command-line setup needed.
-- **Local Authentication** -- Email and password login with bcrypt password hashing and secure session cookies.
-- **OIDC Single Sign-On** -- Connect to your existing identity provider (Authentik, Keycloak, and other OpenID Connect providers) for seamless login. New users are automatically provisioned on their first OIDC login.
-- **User Profiles** -- Users can view and edit their display name and change their password (local accounts).
-- **Admin User Management** -- Admins can list, search, edit roles, and deactivate user accounts.
-- **Role-Based Access Control** -- Admin and Member roles control access to management features.
+- **First-run setup** -- On first launch, a setup wizard walks you through creating the initial admin account. No command-line setup needed.
+- **Local authentication** -- Email and password login with bcrypt password hashing and secure session cookies.
+- **OIDC single sign-on** -- Connect to your existing identity provider (Authentik, Keycloak, and other OpenID Connect providers) for seamless login. New users are automatically provisioned on their first OIDC login.
+- **User profiles** -- Users can view and edit their display name and change their password (local accounts).
+- **Admin user management** -- Admins can list, search, edit roles, and deactivate user accounts.
+- **Role-based access control** -- Admin and Member roles control access to management features.
 
-### Application Shell
+### Appearance
 
-- **Responsive Layout** -- Full sidebar navigation on desktop, collapsible menu on mobile and tablet.
-- **Health Checks** -- Built-in `/api/health/ready` and `/api/health/live` endpoints for Docker and orchestrator health monitoring.
+- **Dark mode** -- Choose Light, Dark, or System (follows your OS preference). Your selection is remembered and applied immediately with no flash on page load.
+- **Responsive design** -- Full sidebar navigation on desktop, collapsible menu on mobile and tablet.
+- **Design token system** -- Consistent visual language built on CSS custom properties with semantic color tokens, ensuring a polished look across light and dark themes.
 
-### Design System
+### Infrastructure
 
-- **Design Token System** -- All visual values (colors, spacing, typography, shadows, radii, transitions) are defined as CSS custom properties in a 3-layer architecture: a raw color palette (Layer 1), purpose-driven semantic aliases (Layer 2), and dark mode overrides (Layer 3). No hardcoded color values exist in component CSS.
-- **Dark Mode** -- Choose Light, Dark, or System (follows your OS preference). Your selection is persisted to localStorage and applied immediately with no flash on page load.
-- **Brand Identity** -- Custom Cornerstone logo and favicon.
+- **Health checks** -- Built-in `/api/health/ready` and `/api/health/live` endpoints for Docker and orchestrator health monitoring.
+- **Automated releases** -- CI/CD pipeline with semantic versioning and multi-architecture Docker images (amd64/arm64).
 
-### Planned Features
+### Coming Soon
 
-The following features are on the roadmap but not yet available:
-
-- Gantt chart with dependency visualization and scheduling
-- Budget tracking with multiple financing sources
-- Household item and furniture tracking
-- Paperless-ngx document integration
-- Dashboard and reporting
-
-See the [Roadmap](#roadmap) section for details.
+Cornerstone is under active development. Planned features include Gantt chart visualization, budget tracking, household item management, Paperless-ngx integration, and a project dashboard. See the [Roadmap](#roadmap) for details.
 
 ## Quick Start
 

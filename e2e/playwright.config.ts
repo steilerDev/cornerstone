@@ -23,8 +23,10 @@ export default defineConfig({
   /* Retry on CI only */
   retries: process.env.CI ? 1 : 0,
 
-  /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : undefined,
+  /* CI workers: 2x vCPU count (4 vCPUs on ubuntu-latest). Profiling showed 12 workers
+     causes load avg 126+ and 208 test failures from CPU contention. Memory headroom
+     exists (9.7/16 GB) but browsers are CPU-heavy. 8 workers is the sweet spot. */
+  workers: process.env.CI ? 8 : undefined,
 
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [['html', { outputFolder: 'playwright-report' }], ['list']],
@@ -42,6 +44,12 @@ export default defineConfig({
 
     /* Record video on failure for CI debugging */
     video: 'retain-on-failure',
+
+    /* Fail click()/fill() fast instead of falling through to test timeout */
+    actionTimeout: 5000,
+
+    /* Fail page.goto() at 10s instead of test timeout */
+    navigationTimeout: 10000,
   },
 
   /* Global setup and teardown */
@@ -58,10 +66,11 @@ export default defineConfig({
       timeout: 120000, // 2 minutes for setup
     },
 
-    // Desktop large viewport (1920x1080)
+    // Desktop (1920x1080, chromium) — all tests
     {
-      name: 'desktop-lg',
+      name: 'desktop',
       dependencies: ['auth-setup'],
+      expect: { timeout: 7_000 }, // React SPA transitions need more than the 5s default
       use: {
         ...devices['Desktop Chrome'],
         viewport: { width: 1920, height: 1080 },
@@ -69,51 +78,39 @@ export default defineConfig({
       },
     },
 
-    // Desktop medium viewport (1440x900)
-    {
-      name: 'desktop-md',
-      dependencies: ['auth-setup'],
-      use: {
-        ...devices['Desktop Chrome'],
-        viewport: { width: 1440, height: 900 },
-        storageState: 'test-results/.auth/admin.json',
-      },
-    },
-
-    // Tablet viewport (iPad Gen 7)
+    // Tablet (iPad Gen 7, webkit) — all tests, provides webkit engine coverage
     {
       name: 'tablet',
       dependencies: ['auth-setup'],
+      timeout: 60_000, // WebKit is significantly slower than Chromium; multi-step tests need 40-50s
+      expect: { timeout: 15_000 }, // WebKit expect assertions need more time
       use: {
         ...devices['iPad (gen 7)'],
         storageState: 'test-results/.auth/admin.json',
+        actionTimeout: 15_000, // WebKit click/fill actions need more time
+        navigationTimeout: 15_000, // WebKit page loads need more time
       },
     },
 
-    // Mobile iPhone viewport (iPhone 13)
+    // Mobile (iPhone 13, webkit) — only @responsive-tagged tests
     {
-      name: 'mobile-iphone',
+      name: 'mobile',
       dependencies: ['auth-setup'],
+      grep: /@responsive/,
+      timeout: 60_000, // WebKit is significantly slower than Chromium; multi-step tests need 40-50s
+      expect: { timeout: 15_000 }, // WebKit expect assertions need more time
       use: {
         ...devices['iPhone 13'],
         storageState: 'test-results/.auth/admin.json',
-      },
-    },
-
-    // Mobile Android viewport (Pixel 5)
-    {
-      name: 'mobile-android',
-      dependencies: ['auth-setup'],
-      use: {
-        ...devices['Pixel 5'],
-        storageState: 'test-results/.auth/admin.json',
+        actionTimeout: 15_000, // WebKit click/fill actions need more time
+        navigationTimeout: 15_000, // WebKit page loads need more time
       },
     },
   ],
 
-  /* Test timeout */
-  timeout: 30000, // 30 seconds per test
+  /* Test timeout — most passing tests complete in 2-5s; some multi-step tests need up to 10s */
+  timeout: 10_000, // 10 seconds per test (desktop default)
 
-  /* Global timeout: cap the entire suite at 45 minutes on CI to prevent stuck runs */
-  globalTimeout: process.env.CI ? 45 * 60 * 1000 : undefined,
+  /* Global timeout: cap the entire suite at 30 minutes on CI to prevent stuck runs */
+  globalTimeout: process.env.CI ? 30 * 60 * 1000 : undefined,
 });

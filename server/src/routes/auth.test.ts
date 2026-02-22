@@ -773,7 +773,7 @@ describe('Authentication Routes', () => {
         expect(setCookieHeader).toContain('HttpOnly');
       });
 
-      it('sets SameSite=Strict cookie attribute', async () => {
+      it('sets SameSite=Lax cookie attribute', async () => {
         // When: Setting up
         const response = await app.inject({
           method: 'POST',
@@ -785,9 +785,9 @@ describe('Authentication Routes', () => {
           },
         });
 
-        // Then: Cookie has SameSite=Strict
+        // Then: Cookie has SameSite=Lax
         const setCookieHeader = response.headers['set-cookie'] as string;
-        expect(setCookieHeader).toContain('SameSite=Strict');
+        expect(setCookieHeader).toContain('SameSite=Lax');
       });
 
       it('sets cookie Path=/', async () => {
@@ -881,7 +881,7 @@ describe('Authentication Routes', () => {
         expect(setCookieHeader).toContain('HttpOnly');
       });
 
-      it('sets SameSite=Strict cookie attribute', async () => {
+      it('sets SameSite=Lax cookie attribute', async () => {
         // Given: User exists
         await userService.createLocalUser(app.db, 'user@example.com', 'User', 'SecurePassword123');
 
@@ -892,9 +892,9 @@ describe('Authentication Routes', () => {
           payload: { email: 'user@example.com', password: 'SecurePassword123' },
         });
 
-        // Then: Cookie has SameSite=Strict
+        // Then: Cookie has SameSite=Lax
         const setCookieHeader = response.headers['set-cookie'] as string;
-        expect(setCookieHeader).toContain('SameSite=Strict');
+        expect(setCookieHeader).toContain('SameSite=Lax');
       });
     });
 
