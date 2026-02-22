@@ -86,7 +86,7 @@ function populatedOverviewResponse() {
 // Page heading and navigation
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Page heading and navigation', { tag: '@responsive' }, () => {
-  test('Page loads with h1 "Budget" heading', async ({ page }) => {
+  test('Page loads with h1 "Budget" heading', { tag: '@smoke' }, async ({ page }) => {
     const overviewPage = new BudgetOverviewPage(page);
 
     await overviewPage.goto();

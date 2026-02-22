@@ -10,7 +10,7 @@ test.describe('Authentication Guard - Unauthenticated', () => {
   // Clear auth state for these tests
   test.use({ storageState: { cookies: [], origins: [] } });
 
-  test('Unauthenticated access to / redirects to /login', async ({ page }) => {
+  test('Unauthenticated access to / redirects to /login', { tag: '@smoke' }, async ({ page }) => {
     // Given: User is not authenticated
 
     // When: User tries to access dashboard

@@ -7,7 +7,7 @@ import { AppShellPage } from '../../pages/AppShellPage.js';
 import { ROUTES } from '../../fixtures/testData.js';
 
 test.describe('Sidebar Navigation', { tag: '@responsive' }, () => {
-  test('Navigate to each section via sidebar links', async ({ page }) => {
+  test('Navigate to each section via sidebar links', { tag: '@smoke' }, async ({ page }) => {
     const appShell = new AppShellPage(page);
     const viewport = page.viewportSize();
     const isMobile = viewport !== null && viewport.width < 1024;

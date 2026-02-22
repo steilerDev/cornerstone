@@ -72,7 +72,7 @@ async function deleteSourceViaApi(page: Page, id: string): Promise<void> {
 // Page heading and navigation
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Page heading and navigation', { tag: '@responsive' }, () => {
-  test('Page loads with h1 "Budget" and h2 "Sources"', async ({ page }) => {
+  test('Page loads with h1 "Budget" and h2 "Sources"', { tag: '@smoke' }, async ({ page }) => {
     const sourcesPage = new BudgetSourcesPage(page);
 
     await sourcesPage.goto();

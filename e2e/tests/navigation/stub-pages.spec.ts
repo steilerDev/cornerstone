@@ -18,7 +18,7 @@ import { HouseholdItemsPage } from '../../pages/HouseholdItemsPage.js';
 import { DocumentsPage } from '../../pages/DocumentsPage.js';
 
 test.describe('Stub pages — smoke tests', { tag: '@responsive' }, () => {
-  test('Dashboard page loads with heading', async ({ page }) => {
+  test('Dashboard page loads with heading', { tag: '@smoke' }, async ({ page }) => {
     const dashboard = new DashboardPage(page);
     await dashboard.goto();
     await expect(dashboard.heading).toBeVisible();

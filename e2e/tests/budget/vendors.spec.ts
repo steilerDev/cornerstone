@@ -1090,7 +1090,7 @@ test.describe('Navigation between list and detail pages', { tag: '@responsive' }
     expect(page.url()).toContain('/budget/vendors');
   });
 
-  test('Page heading is "Budget" (h1)', async ({ page }) => {
+  test('Page heading is "Budget" (h1)', { tag: '@smoke' }, async ({ page }) => {
     const vendorsPage = new VendorsPage(page);
 
     await vendorsPage.goto();

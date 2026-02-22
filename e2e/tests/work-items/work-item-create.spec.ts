@@ -72,42 +72,43 @@ test.describe('Back button navigation (Scenario 2)', { tag: '@responsive' }, () 
 // Scenario 3: Create work item with title only — success, redirects to detail
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Create with title only — happy path (Scenario 3)', { tag: '@responsive' }, () => {
-  test('Creating a work item with title only redirects to the detail page', async ({
-    page,
-    testPrefix,
-  }) => {
-    const createPage = new WorkItemCreatePage(page);
-    let createdId: string | null = null;
+  test(
+    'Creating a work item with title only redirects to the detail page',
+    { tag: '@smoke' },
+    async ({ page, testPrefix }) => {
+      const createPage = new WorkItemCreatePage(page);
+      let createdId: string | null = null;
 
-    try {
-      await createPage.goto();
+      try {
+        await createPage.goto();
 
-      // Fill only the title
-      const title = `${testPrefix} Title Only Work Item`;
-      await createPage.fillTitle(title);
+        // Fill only the title
+        const title = `${testPrefix} Title Only Work Item`;
+        await createPage.fillTitle(title);
 
-      // Capture the response to get the new work item ID
-      const responsePromise = page.waitForResponse(
-        (resp) => resp.url().includes('/api/work-items') && resp.request().method() === 'POST',
-      );
+        // Capture the response to get the new work item ID
+        const responsePromise = page.waitForResponse(
+          (resp) => resp.url().includes('/api/work-items') && resp.request().method() === 'POST',
+        );
 
-      await createPage.submit();
+        await createPage.submit();
 
-      const response = await responsePromise;
-      const body = (await response.json()) as { workItem?: { id: string }; id?: string };
-      createdId = body.workItem?.id ?? body.id ?? null;
+        const response = await responsePromise;
+        const body = (await response.json()) as { workItem?: { id: string }; id?: string };
+        createdId = body.workItem?.id ?? body.id ?? null;
 
-      // Should redirect to /work-items/:id
-      await page.waitForURL('**/work-items/**', { timeout: 7000 });
-      expect(page.url()).toMatch(/\/work-items\/[a-z0-9-]+$/);
-      expect(page.url()).not.toContain('/work-items/new');
+        // Should redirect to /work-items/:id
+        await page.waitForURL('**/work-items/**', { timeout: 7000 });
+        expect(page.url()).toMatch(/\/work-items\/[a-z0-9-]+$/);
+        expect(page.url()).not.toContain('/work-items/new');
 
-      // Detail page shows the correct title
-      await expect(page.getByRole('heading', { level: 1 })).toHaveText(title, { timeout: 7000 });
-    } finally {
-      if (createdId) await deleteWorkItemViaApi(page, createdId);
-    }
-  });
+        // Detail page shows the correct title
+        await expect(page.getByRole('heading', { level: 1 })).toHaveText(title, { timeout: 7000 });
+      } finally {
+        if (createdId) await deleteWorkItemViaApi(page, createdId);
+      }
+    },
+  );
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

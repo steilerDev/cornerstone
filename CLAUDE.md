@@ -230,6 +230,7 @@ All agents must clearly identify themselves in commits and GitHub interactions:
   3. **Implement**: Launch the appropriate developer agent (`backend-developer` and/or `frontend-developer`) to write the production code
   4. **Test**: Launch `qa-integration-tester` to write unit tests (95%+ coverage target), integration tests, and Playwright E2E tests
   5. **Quality gates**: Run `lint`, `typecheck`, `test`, `format:check`, `build`, `npm audit` — all must pass
+     5b. **E2E smoke check**: If the story touches frontend code, API routes, or API response shapes, the QA agent builds the Docker image (`docker build -t cornerstone:e2e .`) and runs `npm run test:e2e:smoke` (~2-3 min, desktop/Chromium only). If smoke tests fail, fix before creating the PR.
   6. **Commit & PR**: Commit, push the branch, create a PR targeting `beta`: `gh pr create --base beta --title "..." --body "..."`
   7. **CI**: Wait for CI: `gh pr checks <pr-number> --watch`
   8. **Review**: After CI passes, launch review agents **in parallel**:
@@ -243,6 +244,8 @@ All agents must clearly identify themselves in commits and GitHub interactions:
      d. Repeat until all reviewers approve
   10. **Merge**: Once all agents approve and CI is green, merge immediately: `gh pr merge --squash <pr-url>`
   11. After merge, clean up: `git checkout beta && git pull && git branch -d <branch-name>`
+
+- **Post-merge E2E**: After each story is merged to `beta`, a non-blocking E2E workflow (`.github/workflows/e2e.yml`) runs the full suite. If it fails, the next story cycle should include E2E fixes before new feature work. The orchestrator should check E2E status on `beta` before starting a new story: `gh run list --workflow=e2e.yml --branch=beta --limit=1`.
 
 - **Epic-level steps** (after all stories in an epic are merged to `beta`):
   1. **Documentation**: Launch `product-owner` to update `README.md` with newly shipped features if significant
@@ -467,17 +470,18 @@ In development, the Webpack dev server at `http://localhost:5173` proxies `/api/
 
 ### Common Commands
 
-| Command              | Description                                     |
-| -------------------- | ----------------------------------------------- |
-| `npm run dev`        | Start both server and client in watch mode      |
-| `npm run dev:server` | Start only the Fastify server (node --watch)    |
-| `npm run dev:client` | Start only the Webpack dev server               |
-| `npm run build`      | Build all packages (shared -> client -> server) |
-| `npm test`           | Run all tests                                   |
-| `npm run lint`       | Lint all code                                   |
-| `npm run format`     | Format all code                                 |
-| `npm run typecheck`  | Type-check all packages                         |
-| `npm run db:migrate` | Run pending SQL migrations                      |
+| Command                  | Description                                     |
+| ------------------------ | ----------------------------------------------- |
+| `npm run dev`            | Start both server and client in watch mode      |
+| `npm run dev:server`     | Start only the Fastify server (node --watch)    |
+| `npm run dev:client`     | Start only the Webpack dev server               |
+| `npm run build`          | Build all packages (shared -> client -> server) |
+| `npm test`               | Run all tests                                   |
+| `npm run lint`           | Lint all code                                   |
+| `npm run format`         | Format all code                                 |
+| `npm run typecheck`      | Type-check all packages                         |
+| `npm run test:e2e:smoke` | Run E2E smoke tests (desktop/Chromium only)     |
+| `npm run db:migrate`     | Run pending SQL migrations                      |
 
 ### Database Migrations
 

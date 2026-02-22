@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "npx playwright test",
+    "test:smoke": "npx playwright test --grep @smoke --project desktop",
     "test:report": "npx playwright show-report"
   },
   "devDependencies": {

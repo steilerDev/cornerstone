@@ -55,7 +55,7 @@ async function deleteTagViaApi(page: Page, id: string): Promise<void> {
 // Scenario 1: Page loads with heading
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
-  test('Tag Management page loads with h1 heading', async ({ page }) => {
+  test('Tag Management page loads with h1 heading', { tag: '@smoke' }, async ({ page }) => {
     const tagsPage = new TagManagementPage(page);
 
     // When: I navigate to the Tag Management page

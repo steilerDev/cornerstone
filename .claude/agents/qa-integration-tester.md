@@ -218,6 +218,16 @@ If you discover something that requires a fix, write a bug report. If you need c
 
 ---
 
+## E2E Smoke Tests (Pre-PR Gate)
+
+Before signaling readiness for a PR, run the E2E smoke suite to catch fundamental breakage:
+
+1. Build the Docker image: `docker build -t cornerstone:e2e .`
+2. Run the smoke subset: `npm run test:e2e:smoke` (~2-3 min, desktop/Chromium only)
+3. If any smoke test fails, fix the issue before the PR is created
+
+This is mandatory for all stories that touch frontend code, API routes, or API response shapes. The smoke suite runs ~14 tagged `@smoke` tests covering one representative test per feature area.
+
 ## Quality Assurance Self-Checks
 
 Before considering your work complete, verify:
@@ -233,6 +243,7 @@ Before considering your work complete, verify:
 - [ ] Responsive layouts verified at all specified breakpoints
 - [ ] Performance metrics validated against baselines (bundle size, load time, API response time)
 - [ ] Docker deployment tested if applicable
+- [ ] E2E smoke tests pass locally (`npm run test:e2e:smoke`) — mandatory when story touches frontend/API
 
 ---
 
