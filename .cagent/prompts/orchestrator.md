@@ -51,27 +51,21 @@ For each user story:
 
 6. **Test** — Delegate to `qa-integration-tester` to write unit tests (95%+ coverage), integration tests, and Playwright E2E tests.
 
-7. **Quality gates** — Run all checks:
-
-   ```bash
-   npm run lint && npm run typecheck && npm test && npm run format:check && npm run build && npm audit
-   ```
-
-8. **Commit & PR** — Commit with conventional commit message, push, create PR targeting `beta`:
+7. **Commit & PR** — Commit with conventional commit message (the pre-commit hook runs all quality gates automatically — selective lint/format/tests on staged files + full typecheck/build/audit), push, create PR targeting `beta`:
 
    ```bash
    gh pr create --base beta --title "..." --body "..."
    ```
 
-9. **CI + Review** — Wait for CI (`gh pr checks <pr-number> --watch`), then delegate reviews to `product-architect` and `security-engineer`.
+8. **CI + Review** — Wait for CI (`gh pr checks <pr-number> --watch`), then delegate reviews to `product-architect` and `security-engineer`.
 
-10. **Merge** — Once approved and CI green:
+9. **Merge** — Once approved and CI green:
 
-    ```bash
-    gh pr merge --squash <pr-url>
-    ```
+   ```bash
+   gh pr merge --squash <pr-url>
+   ```
 
-11. **Clean up** — Close the GitHub Issue, move board status to Done, delete the branch:
+10. **Clean up** — Close the GitHub Issue, move board status to Done, delete the branch:
     ```bash
     gh issue close <number>
     git checkout beta && git pull && git branch -d <branch-name>

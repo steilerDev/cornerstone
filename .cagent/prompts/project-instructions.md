@@ -177,20 +177,19 @@ All agents must clearly identify themselves in commits and GitHub interactions:
   2. **Branch**: Create a feature branch from `beta`: `git checkout -b <branch-name> beta`
   3. **Implement**: Delegate to the appropriate developer agent (`backend-developer` and/or `frontend-developer`)
   4. **Test**: Delegate to `qa-integration-tester` to write unit tests (95%+ coverage target), integration tests, and Playwright E2E tests
-  5. **Quality gates**: Run `lint`, `typecheck`, `test`, `format:check`, `build`, `npm audit` — all must pass
-  6. **Commit & PR**: Commit, push the branch, create a PR targeting `beta`: `gh pr create --base beta --title "..." --body "..."`
-  7. **CI**: Wait for CI: `gh pr checks <pr-number> --watch`
-  8. **Review**: After CI passes, run review agents:
+  5. **Commit & PR**: Commit (the pre-commit hook runs all quality gates automatically — selective lint/format/tests on staged files + full typecheck/build/audit), push the branch, create a PR targeting `beta`: `gh pr create --base beta --title "..." --body "..."`
+  6. **CI**: Wait for CI: `gh pr checks <pr-number> --watch`
+  7. **Review**: After CI passes, run review agents:
      - `product-architect` — verifies architecture compliance, test coverage, and code quality
      - `security-engineer` — reviews for security vulnerabilities, input validation, authentication/authorization gaps
        Both agents review the PR diff and comment via `gh pr review`.
-  9. **Fix loop**: If any reviewer requests changes:
+  8. **Fix loop**: If any reviewer requests changes:
      a. The reviewer posts specific feedback on the PR (`gh pr review --request-changes`)
      b. The orchestrator delegates to the original implementing agent on the same branch to address the feedback
      c. The implementing agent pushes fixes, then the orchestrator re-requests review
      d. Repeat until all reviewers approve
-  10. **Merge**: Once all agents approve and CI is green, merge: `gh pr merge --squash <pr-url>`
-  11. After merge, clean up: `git checkout beta && git pull && git branch -d <branch-name>`
+  9. **Merge**: Once all agents approve and CI is green, merge: `gh pr merge --squash <pr-url>`
+  10. After merge, clean up: `git checkout beta && git pull && git branch -d <branch-name>`
 
 - **Epic-level steps** (after all stories in an epic are merged to `beta`):
   1. **Documentation**: Delegate to `product-owner` to update `README.md` with newly shipped features if significant
