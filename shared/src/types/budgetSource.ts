@@ -25,8 +25,10 @@ export interface BudgetSource {
   name: string;
   sourceType: BudgetSourceType;
   totalAmount: number;
-  usedAmount: number;
-  availableAmount: number;
+  usedAmount: number; // planned allocation: SUM(planned_amount) of linked budget lines
+  availableAmount: number; // totalAmount - usedAmount (planned perspective)
+  claimedAmount: number; // actual drawdown: SUM(amount) of claimed invoices on linked budget lines
+  actualAvailableAmount: number; // totalAmount - claimedAmount (actual perspective)
   interestRate: number | null;
   terms: string | null;
   notes: string | null;

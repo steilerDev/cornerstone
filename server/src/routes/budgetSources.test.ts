@@ -13,7 +13,7 @@ import type {
   ApiErrorResponse,
   CreateBudgetSourceRequest,
 } from '@cornerstone/shared';
-import { budgetSources } from '../db/schema.js';
+import { budgetSources, workItems, workItemBudgets, vendors, invoices } from '../db/schema.js';
 
 describe('Budget Source Routes', () => {
   let app: FastifyInstance;
@@ -97,6 +97,62 @@ describe('Budget Source Routes', () => {
     return { id, ...options, createdAt: now, updatedAt: now };
   }
 
+  /**
+   * Helper: Insert a work item + budget line linked to a source, then attach a
+   * claimed invoice. Used to populate claimedAmount for the source.
+   * Returns the budget line ID.
+   */
+  let routeHelperCounter = 0;
+
+  function insertBudgetLineWithClaimedInvoice(sourceId: string, invoiceAmount: number): string {
+    const now = new Date().toISOString();
+    const n = ++routeHelperCounter;
+
+    // Work item
+    const wiId = `wi-route-claims-${n}`;
+    app.db.insert(workItems).values({
+      id: wiId,
+      title: `Claims Work Item ${n}`,
+      status: 'not_started',
+      createdAt: now,
+      updatedAt: now,
+    }).run();
+
+    // Budget line referencing the source
+    const budgetId = `bud-route-claims-${n}`;
+    app.db.insert(workItemBudgets).values({
+      id: budgetId,
+      workItemId: wiId,
+      budgetSourceId: sourceId,
+      plannedAmount: invoiceAmount * 2, // planned doesn't matter for claimedAmount
+      confidence: 'own_estimate',
+      createdAt: now,
+      updatedAt: now,
+    }).run();
+
+    // Vendor + claimed invoice
+    const vendorId = `vendor-route-claims-${n}`;
+    app.db.insert(vendors).values({
+      id: vendorId,
+      name: `Claim Vendor ${n}`,
+      createdAt: now,
+      updatedAt: now,
+    }).run();
+
+    app.db.insert(invoices).values({
+      id: `inv-route-claims-${n}`,
+      vendorId,
+      workItemBudgetId: budgetId,
+      amount: invoiceAmount,
+      date: '2026-01-01',
+      status: 'claimed',
+      createdAt: now,
+      updatedAt: now,
+    }).run();
+
+    return budgetId;
+  }
+
   // ─── GET /api/budget-sources ───────────────────────────────────────────────
 
   describe('GET /api/budget-sources', () => {
@@ -161,6 +217,9 @@ describe('Budget Source Routes', () => {
       expect(source.totalAmount).toBe(75000);
       expect(source.usedAmount).toBe(0);
       expect(source.availableAmount).toBe(75000);
+      // Story 5.11: no claimed invoices → claimedAmount=0, actualAvailableAmount=totalAmount
+      expect(source.claimedAmount).toBe(0);
+      expect(source.actualAvailableAmount).toBe(75000);
       expect(source.interestRate).toBe(4.5);
       expect(source.terms).toBe('5-year revolving');
       expect(source.notes).toBe('Secondary credit');
@@ -242,6 +301,9 @@ describe('Budget Source Routes', () => {
       expect(body.budgetSource.totalAmount).toBe(200000);
       expect(body.budgetSource.usedAmount).toBe(0);
       expect(body.budgetSource.availableAmount).toBe(200000);
+      // Story 5.11: newly created source has no claimed invoices
+      expect(body.budgetSource.claimedAmount).toBe(0);
+      expect(body.budgetSource.actualAvailableAmount).toBe(200000);
       expect(body.budgetSource.interestRate).toBeNull();
       expect(body.budgetSource.terms).toBeNull();
       expect(body.budgetSource.notes).toBeNull();
@@ -577,6 +639,9 @@ describe('Budget Source Routes', () => {
       expect(body.budgetSource.terms).toBe('Revolving');
       expect(body.budgetSource.notes).toBe('Some notes');
       expect(body.budgetSource.status).toBe('exhausted');
+      // Story 5.11: no claimed invoices
+      expect(body.budgetSource.claimedAmount).toBe(0);
+      expect(body.budgetSource.actualAvailableAmount).toBe(60000);
     });
 
     it('returns 404 NOT_FOUND for non-existent source', async () => {
@@ -1022,6 +1087,120 @@ describe('Budget Source Routes', () => {
       });
 
       expect(response.statusCode).toBe(204);
+    });
+  });
+
+  // ─── claimedAmount and actualAvailableAmount (Story 5.11) ─────────────────
+
+  describe('claimedAmount and actualAvailableAmount via GET endpoints', () => {
+    it('GET list: claimedAmount=0 and actualAvailableAmount=totalAmount when no claimed invoices', async () => {
+      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+      createTestSource({ name: 'Zero Claims', sourceType: 'savings', totalAmount: 30000 });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/budget-sources',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<BudgetSourceListResponse>();
+      const source = body.budgetSources[0];
+      expect(source.claimedAmount).toBe(0);
+      expect(source.actualAvailableAmount).toBe(30000);
+    });
+
+    it('GET list: claimedAmount reflects SUM of claimed invoices on linked budget lines', async () => {
+      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+      const src = createTestSource({ name: 'Has Claims', sourceType: 'bank_loan', totalAmount: 100000 });
+
+      insertBudgetLineWithClaimedInvoice(src.id, 8000);
+      insertBudgetLineWithClaimedInvoice(src.id, 4000);
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/budget-sources',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<BudgetSourceListResponse>();
+      const source = body.budgetSources.find((s: BudgetSource) => s.id === src.id)!;
+      expect(source.claimedAmount).toBe(12000); // 8000 + 4000
+      expect(source.actualAvailableAmount).toBe(88000); // 100000 - 12000
+    });
+
+    it('GET by ID: claimedAmount=0 when no claimed invoices exist', async () => {
+      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+      const src = createTestSource({ name: 'No Claims By ID', sourceType: 'other', totalAmount: 20000 });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/budget-sources/${src.id}`,
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<BudgetSourceResponse>();
+      expect(body.budgetSource.claimedAmount).toBe(0);
+      expect(body.budgetSource.actualAvailableAmount).toBe(20000);
+    });
+
+    it('GET by ID: claimedAmount sums claimed invoices and actualAvailableAmount = totalAmount - claimedAmount', async () => {
+      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+      const src = createTestSource({ name: 'Claims By ID', sourceType: 'credit_line', totalAmount: 50000 });
+
+      insertBudgetLineWithClaimedInvoice(src.id, 15000);
+
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/budget-sources/${src.id}`,
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<BudgetSourceResponse>();
+      expect(body.budgetSource.claimedAmount).toBe(15000);
+      expect(body.budgetSource.actualAvailableAmount).toBe(35000); // 50000 - 15000
+    });
+
+    it('PATCH: updated source includes claimedAmount and actualAvailableAmount', async () => {
+      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+      const src = createTestSource({ name: 'PATCH Claims', sourceType: 'savings', totalAmount: 80000 });
+
+      insertBudgetLineWithClaimedInvoice(src.id, 10000);
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/budget-sources/${src.id}`,
+        headers: { cookie },
+        payload: { name: 'PATCH Claims Updated' },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<BudgetSourceResponse>();
+      expect(body.budgetSource.claimedAmount).toBe(10000);
+      expect(body.budgetSource.actualAvailableAmount).toBe(70000); // 80000 - 10000
+    });
+
+    it('claimed invoices from a different source do not affect this source claimedAmount', async () => {
+      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+      const srcA = createTestSource({ name: 'Source A Claims', sourceType: 'bank_loan', totalAmount: 100000 });
+      const srcB = createTestSource({ name: 'Source B No Claims', sourceType: 'savings', totalAmount: 50000 });
+
+      // Only source A gets claimed invoices
+      insertBudgetLineWithClaimedInvoice(srcA.id, 20000);
+
+      const responseB = await app.inject({
+        method: 'GET',
+        url: `/api/budget-sources/${srcB.id}`,
+        headers: { cookie },
+      });
+
+      expect(responseB.statusCode).toBe(200);
+      const bodyB = responseB.json<BudgetSourceResponse>();
+      expect(bodyB.budgetSource.claimedAmount).toBe(0);
+      expect(bodyB.budgetSource.actualAvailableAmount).toBe(50000);
     });
   });
 });

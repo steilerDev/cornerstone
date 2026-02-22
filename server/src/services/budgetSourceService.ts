@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { eq, asc, sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { budgetSources, workItemBudgets, users } from '../db/schema.js';
+import { budgetSources, workItemBudgets, invoices, users } from '../db/schema.js';
 import type {
   BudgetSource,
   BudgetSourceType,
@@ -32,18 +32,20 @@ function toUserSummary(user: typeof users.$inferSelect | null | undefined): User
 
 /**
  * Convert database budget source row to BudgetSource API shape.
- * usedAmount is provided separately (computed from work_items once FK exists).
+ * usedAmount and claimedAmount are provided separately (computed from linked budget lines/invoices).
  */
 function toBudgetSource(
   db: DbType,
   row: typeof budgetSources.$inferSelect,
   usedAmount: number,
+  claimedAmount: number,
 ): BudgetSource {
   const createdByUser = row.createdBy
     ? db.select().from(users).where(eq(users.id, row.createdBy)).get()
     : null;
 
   const availableAmount = row.totalAmount - usedAmount;
+  const actualAvailableAmount = row.totalAmount - claimedAmount;
 
   return {
     id: row.id,
@@ -52,6 +54,8 @@ function toBudgetSource(
     totalAmount: row.totalAmount,
     usedAmount,
     availableAmount,
+    claimedAmount,
+    actualAvailableAmount,
     interestRate: row.interestRate,
     terms: row.terms,
     notes: row.notes,
@@ -77,6 +81,21 @@ function computeUsedAmount(db: DbType, sourceId: string): number {
 }
 
 /**
+ * Compute the claimed amount for a budget source.
+ * Sums invoice amounts where status = 'claimed' and the invoice's budget line
+ * references this source. Returns 0 if no claimed invoices exist.
+ */
+function computeClaimedAmount(db: DbType, sourceId: string): number {
+  const result = db
+    .select({ total: sql<number>`COALESCE(SUM(${invoices.amount}), 0)` })
+    .from(invoices)
+    .innerJoin(workItemBudgets, eq(workItemBudgets.id, invoices.workItemBudgetId))
+    .where(sql`${invoices.status} = 'claimed' AND ${workItemBudgets.budgetSourceId} = ${sourceId}`)
+    .get();
+  return result?.total ?? 0;
+}
+
+/**
  * Count budget lines referencing a budget source.
  */
 function countWorkItemReferences(db: DbType, sourceId: string): number {
@@ -93,7 +112,9 @@ function countWorkItemReferences(db: DbType, sourceId: string): number {
  */
 export function listBudgetSources(db: DbType): BudgetSource[] {
   const rows = db.select().from(budgetSources).orderBy(asc(budgetSources.name)).all();
-  return rows.map((row) => toBudgetSource(db, row, computeUsedAmount(db, row.id)));
+  return rows.map((row) =>
+    toBudgetSource(db, row, computeUsedAmount(db, row.id), computeClaimedAmount(db, row.id)),
+  );
 }
 
 /**
@@ -105,7 +126,7 @@ export function getBudgetSourceById(db: DbType, id: string): BudgetSource {
   if (!row) {
     throw new NotFoundError('Budget source not found');
   }
-  return toBudgetSource(db, row, computeUsedAmount(db, id));
+  return toBudgetSource(db, row, computeUsedAmount(db, id), computeClaimedAmount(db, id));
 }
 
 /**
