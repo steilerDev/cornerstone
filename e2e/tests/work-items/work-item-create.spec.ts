@@ -48,18 +48,6 @@ test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
     await expect(createPage.statusSelect).toBeVisible();
     await expect(createPage.submitButton).toBeVisible();
   });
-
-  test('Budget section h2 "Budget" is visible', async ({ page }) => {
-    const createPage = new WorkItemCreatePage(page);
-
-    await createPage.goto();
-
-    await expect(
-      page.getByRole('heading', { level: 2, name: 'Budget', exact: true }),
-    ).toBeVisible();
-    await expect(createPage.plannedBudgetInput).toBeVisible();
-    await expect(createPage.budgetCategorySelect).toBeVisible();
-  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -145,8 +133,6 @@ test.describe('Create with all fields (Scenario 4)', { tag: '@responsive' }, () 
         startDate: '2026-03-01',
         endDate: '2026-06-30',
         durationDays: '30',
-        plannedBudget: '5000',
-        confidencePercent: '80',
       });
 
       const responsePromise = page.waitForResponse(
@@ -314,9 +300,9 @@ test.describe('Responsive layout (Scenario 7)', { tag: '@responsive' }, () => {
     await expect(createPage.submitButton).toBeVisible();
     await expect(createPage.cancelButton).toBeVisible();
 
-    // Budget section accessible (scroll into view if needed)
-    await createPage.plannedBudgetInput.scrollIntoViewIfNeeded();
-    await expect(createPage.plannedBudgetInput).toBeVisible();
+    // Back button accessible
+    await createPage.backButton.scrollIntoViewIfNeeded();
+    await expect(createPage.backButton).toBeVisible();
   });
 
   test('Create Work Item form renders in dark mode without horizontal scroll', async ({ page }) => {

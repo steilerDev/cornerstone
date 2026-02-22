@@ -7,7 +7,7 @@
  * - Loading indicator while data is fetched
  * - Error card with a Retry button if the API fails
  * - Empty state when no budget data has been entered
- * - A 4-card summary grid: Total Budget, Financing, Vendors, Subsidies
+ * - A 4-card summary grid: Planned Budget, Actual Cost, Financing, Subsidies
  * - A Category Breakdown table (may be empty if no categories are assigned)
  */
 
@@ -101,7 +101,7 @@ export class BudgetOverviewPage {
   }
 
   /**
-   * Get a summary card section by its title (e.g., "Total Budget", "Financing").
+   * Get a summary card section by its title (e.g., "Planned Budget", "Financing").
    * Cards are `<section aria-labelledby="card-<slug>">`.
    */
   getSummaryCard(title: string): Locator {
@@ -114,7 +114,7 @@ export class BudgetOverviewPage {
    * Searches for the stat row with the matching label text and returns the
    * value span text.
    *
-   * @param cardTitle - e.g., "Total Budget"
+   * @param cardTitle - e.g., "Planned Budget"
    * @param label - e.g., "Planned", "Actual Cost", "Variance"
    */
   async getSummaryCardValue(cardTitle: string, label: string): Promise<string | null> {

@@ -238,92 +238,73 @@ test.describe('Add subtask (Scenario 4)', { tag: '@responsive' }, () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 5: Vendor linking regression test
-// Regression: fetchVendors was called with pageSize=500 (previously 500 — was an old bug
-// that caused a 400 response). This test ensures the vendor picker loads without error.
+// Scenario 5: Budget section loads with budget lines model
+// (Replaces the old vendor picker regression test — vendors are now assigned
+// per budget line, not via a separate picker.)
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe(
-  'Vendor picker loads without error (Scenario 5 — regression)',
-  { tag: '@responsive' },
-  () => {
-    test('Work item detail page loads without error banner (vendor API call succeeds)', async ({
-      page,
-      testPrefix,
-    }) => {
-      const detailPage = new WorkItemDetailPage(page);
-      let createdId: string | null = null;
+test.describe('Budget section loads without error (Scenario 5)', { tag: '@responsive' }, () => {
+  test('Work item detail page loads without error banner and shows budget section', async ({
+    page,
+    testPrefix,
+  }) => {
+    const detailPage = new WorkItemDetailPage(page);
+    let createdId: string | null = null;
 
-      try {
-        createdId = await createWorkItemViaApi(page, {
-          title: `${testPrefix} Vendor Picker Regression`,
-        });
+    try {
+      createdId = await createWorkItemViaApi(page, {
+        title: `${testPrefix} Budget Section Test`,
+      });
 
-        // Monitor for any failed vendor API requests
-        const vendorApiErrors: string[] = [];
-        page.on('response', (response) => {
-          if (response.url().includes('/api/vendors') && !response.ok()) {
-            vendorApiErrors.push(`${response.status()} ${response.url()}`);
-          }
-        });
+      await detailPage.goto(createdId);
 
-        await detailPage.goto(createdId);
+      // The page should load without an error banner
+      const errorText = await detailPage.getInlineErrorText();
+      expect(errorText).toBeNull();
 
-        // The page should load without an error banner
-        const errorText = await detailPage.getInlineErrorText();
-        expect(errorText).toBeNull();
+      // The Budget section should be visible
+      await expect(detailPage.budgetSection).toBeVisible();
 
-        // No vendor API errors (regression: was 400 for pageSize=500 before fix)
-        expect(vendorApiErrors).toHaveLength(0);
+      // The "Add Line" button should be visible (budget lines model)
+      await expect(detailPage.addBudgetLineButton).toBeVisible();
+    } finally {
+      if (createdId) await deleteWorkItemViaApi(page, createdId);
+    }
+  });
 
-        // The Budget section should be visible and not show an error state
-        await expect(detailPage.budgetSection).toBeVisible();
+  test('Budget section shows Add Line button and Subsidies subsection', async ({
+    page,
+    testPrefix,
+  }) => {
+    const detailPage = new WorkItemDetailPage(page);
+    let createdId: string | null = null;
 
-        // The Vendors subsection heading is visible
-        await expect(
-          detailPage.budgetSection.getByRole('heading', { level: 3, name: 'Vendors', exact: true }),
-        ).toBeVisible();
-      } finally {
-        if (createdId) await deleteWorkItemViaApi(page, createdId);
-      }
-    });
+    try {
+      createdId = await createWorkItemViaApi(page, {
+        title: `${testPrefix} Budget Lines Visible Test`,
+      });
 
-    test('Vendor picker dropdown renders under the Vendors section when vendors exist', async ({
-      page,
-      testPrefix,
-    }) => {
-      const detailPage = new WorkItemDetailPage(page);
-      let workItemId: string | null = null;
-      let vendorId: string | null = null;
+      await detailPage.goto(createdId);
 
-      try {
-        // Create a vendor to ensure the picker appears
-        const vendorResp = await page.request.post(API.vendors, {
-          data: { name: `${testPrefix} E2E Regression Vendor` },
-        });
-        expect(vendorResp.ok()).toBeTruthy();
-        const vendorBody = (await vendorResp.json()) as { vendor: { id: string } };
-        vendorId = vendorBody.vendor.id;
+      // No error banner
+      const errorText = await detailPage.getInlineErrorText();
+      expect(errorText).toBeNull();
 
-        workItemId = await createWorkItemViaApi(page, {
-          title: `${testPrefix} Vendor Picker Visible Test`,
-        });
+      // Add Line button is visible
+      await expect(detailPage.addBudgetLineButton).toBeVisible();
 
-        await detailPage.goto(workItemId);
-
-        // No error banner
-        const errorText = await detailPage.getInlineErrorText();
-        expect(errorText).toBeNull();
-
-        // Vendor picker select is visible (because availableVendors.length > 0)
-        // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
-        await expect(detailPage.vendorPicker).toBeVisible();
-      } finally {
-        if (workItemId) await deleteWorkItemViaApi(page, workItemId);
-        if (vendorId) await page.request.delete(`${API.vendors}/${vendorId}`);
-      }
-    });
-  },
-);
+      // Subsidies subsection heading is visible
+      await expect(
+        detailPage.budgetSection.getByRole('heading', {
+          level: 3,
+          name: 'Subsidies',
+          exact: true,
+        }),
+      ).toBeVisible();
+    } finally {
+      if (createdId) await deleteWorkItemViaApi(page, createdId);
+    }
+  });
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 6: Inline edit description
@@ -566,7 +547,7 @@ test.describe('Responsive layout (Scenario 9)', { tag: '@responsive' }, () => {
 
       // Scroll to budget section
       await detailPage.budgetSection.scrollIntoViewIfNeeded();
-      await expect(detailPage.editBudgetButton).toBeVisible();
+      await expect(detailPage.addBudgetLineButton).toBeVisible();
     } finally {
       if (createdId) await deleteWorkItemViaApi(page, createdId);
     }
