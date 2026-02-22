@@ -1,0 +1,38 @@
+.bar {
+  display: flex;
+  width: 100%;
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  background: var(--color-budget-track);
+}
+
+.bar:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.barSm {
+  height: 16px;
+}
+
+.barMd {
+  height: 24px;
+}
+
+.barLg {
+  height: 32px;
+}
+
+.segment {
+  transition: filter var(--transition-normal);
+  cursor: pointer;
+  min-width: 0;
+}
+
+.segment:hover {
+  filter: brightness(1.1);
+}
+
+.overflow {
+  background: var(--color-budget-overflow);
+}

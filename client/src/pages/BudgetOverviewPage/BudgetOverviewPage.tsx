@@ -1,54 +1,286 @@
-import { useState, useEffect } from 'react';
-import type { BudgetOverview } from '@cornerstone/shared';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import type { BudgetOverview, CategoryBudgetSummary } from '@cornerstone/shared';
 import { fetchBudgetOverview } from '../../lib/budgetOverviewApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { formatCurrency } from '../../lib/formatters.js';
 import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
+import { BudgetBar } from '../../components/BudgetBar/BudgetBar.js';
+import type { BudgetBarSegment } from '../../components/BudgetBar/BudgetBar.js';
+import { BudgetHealthIndicator } from '../../components/BudgetHealthIndicator/BudgetHealthIndicator.js';
+import { Tooltip } from '../../components/Tooltip/Tooltip.js';
 import styles from './BudgetOverviewPage.module.css';
 
-// ---- Sub-components ----
+// ---- Helpers ----
 
-interface SummaryCardProps {
-  title: string;
-  children: React.ReactNode;
+function formatShort(value: number): string {
+  const abs = Math.abs(value);
+  if (abs >= 1_000_000) {
+    return `€${(value / 1_000_000).toFixed(1)}M`;
+  }
+  if (abs >= 1_000) {
+    return `€${(value / 1_000).toFixed(0)}K`;
+  }
+  return formatCurrency(value);
 }
 
-function SummaryCard({ title, children }: SummaryCardProps) {
+function formatPct(value: number, total: number): string {
+  if (total <= 0) return '0.0%';
+  return `${((value / total) * 100).toFixed(1)}%`;
+}
+
+// ---- Category Filter Dropdown ----
+
+interface CategoryFilterProps {
+  categories: CategoryBudgetSummary[];
+  selectedIds: Set<string | null>;
+  onChange: (ids: Set<string | null>) => void;
+}
+
+function CategoryFilter({ categories, selectedIds, onChange }: CategoryFilterProps) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const allSelected = selectedIds.size === categories.length;
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [open]);
+
+  // Close on Escape
+  useEffect(() => {
+    if (!open) return;
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false);
+    }
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [open]);
+
+  function toggleCategory(id: string | null) {
+    const next = new Set(selectedIds);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    onChange(next);
+  }
+
+  function selectAll() {
+    onChange(new Set(categories.map((c) => c.categoryId)));
+  }
+
+  function clearAll() {
+    onChange(new Set());
+  }
+
+  // Button label
+  let label: string;
+  if (allSelected) {
+    label = 'All categories';
+  } else if (selectedIds.size === 0) {
+    label = 'No categories';
+  } else if (selectedIds.size <= 2) {
+    label = categories
+      .filter((c) => selectedIds.has(c.categoryId))
+      .map((c) => c.categoryName)
+      .join(', ');
+  } else {
+    label = `${selectedIds.size} of ${categories.length} categories`;
+  }
+
   return (
-    <section
-      className={styles.summaryCard}
-      aria-labelledby={`card-${title.replace(/\s+/g, '-').toLowerCase()}`}
-    >
-      <h2 id={`card-${title.replace(/\s+/g, '-').toLowerCase()}`} className={styles.cardTitle}>
-        {title}
-      </h2>
-      <div className={styles.cardBody}>{children}</div>
-    </section>
-  );
-}
+    <div className={styles.categoryFilter} ref={containerRef}>
+      <button
+        type="button"
+        className={styles.categoryFilterButton}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span>Categories: {label}</span>
+        <span className={styles.categoryFilterChevron} aria-hidden="true">
+          {open ? '▲' : '▼'}
+        </span>
+      </button>
 
-interface StatRowProps {
-  label: string;
-  value: string;
-  variant?: 'default' | 'positive' | 'negative' | 'muted';
-}
+      {open && (
+        <div className={styles.categoryDropdown} role="listbox" aria-multiselectable="true">
+          {/* Select All / Clear All */}
+          <div className={styles.categoryDropdownActions}>
+            <button type="button" className={styles.dropdownAction} onClick={selectAll}>
+              Select All
+            </button>
+            <button type="button" className={styles.dropdownAction} onClick={clearAll}>
+              Clear All
+            </button>
+          </div>
 
-function StatRow({ label, value, variant = 'default' }: StatRowProps) {
-  const valueClass = [
-    styles.statValue,
-    variant === 'positive' && styles.statValuePositive,
-    variant === 'negative' && styles.statValueNegative,
-    variant === 'muted' && styles.statValueMuted,
-  ]
-    .filter(Boolean)
-    .join(' ');
+          <div className={styles.categoryDropdownDivider} />
 
-  return (
-    <div className={styles.statRow}>
-      <span className={styles.statLabel}>{label}</span>
-      <span className={valueClass}>{value}</span>
+          {categories.map((cat) => {
+            const checked = selectedIds.has(cat.categoryId);
+            const id = `cat-filter-${cat.categoryId ?? '__uncategorized__'}`;
+            return (
+              <label key={cat.categoryId ?? '__uncategorized__'} className={styles.categoryOption}>
+                <input
+                  id={id}
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => toggleCategory(cat.categoryId)}
+                  className={styles.categoryOptionCheckbox}
+                />
+                {cat.categoryColor ? (
+                  <span
+                    className={styles.categoryDot}
+                    style={{ backgroundColor: cat.categoryColor }}
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <span className={styles.categoryDot} aria-hidden="true" />
+                )}
+                <span className={styles.categoryOptionName}>{cat.categoryName}</span>
+              </label>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
+}
+
+// ---- Remaining Detail Panel ----
+
+interface RemainingDetail {
+  label: string;
+  value: number;
+}
+
+interface RemainingDetailPanelProps {
+  items: RemainingDetail[];
+}
+
+function RemainingDetailPanel({ items }: RemainingDetailPanelProps) {
+  return (
+    <div className={styles.remainingPanel}>
+      {items.map((item) => {
+        const isPositive = item.value >= 0;
+        return (
+          <div key={item.label} className={styles.remainingPanelRow}>
+            <span className={styles.remainingPanelLabel}>{item.label}</span>
+            <span
+              className={`${styles.remainingPanelValue} ${isPositive ? styles.remainingPositive : styles.remainingNegative}`}
+            >
+              {formatCurrency(item.value)}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ---- Mobile bar detail panel ----
+
+interface MobileBarDetailProps {
+  segments: BudgetBarSegment[];
+  overflow: number;
+  availableFunds: number;
+}
+
+function MobileBarDetail({ segments, overflow, availableFunds }: MobileBarDetailProps) {
+  const rows = segments.filter((s) => s.value > 0);
+  return (
+    <div className={styles.mobileBarDetail}>
+      {rows.map((seg) => (
+        <div key={seg.key} className={styles.mobileBarDetailRow}>
+          <span
+            className={styles.mobileBarDetailDot}
+            style={{ backgroundColor: seg.color }}
+            aria-hidden="true"
+          />
+          <span className={styles.mobileBarDetailLabel}>{seg.label}</span>
+          <span className={styles.mobileBarDetailValue}>{formatCurrency(seg.value)}</span>
+          <span className={styles.mobileBarDetailPct}>
+            ({formatPct(seg.value, availableFunds)})
+          </span>
+        </div>
+      ))}
+      {overflow > 0 && (
+        <div className={styles.mobileBarDetailRow}>
+          <span
+            className={styles.mobileBarDetailDot}
+            style={{ backgroundColor: 'var(--color-budget-overflow)' }}
+            aria-hidden="true"
+          />
+          <span className={styles.mobileBarDetailLabel}>Overflow</span>
+          <span className={styles.mobileBarDetailValue}>{formatCurrency(overflow)}</span>
+          <span className={styles.mobileBarDetailPct}>({formatPct(overflow, availableFunds)})</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---- Hover tooltip content ----
+
+interface SegmentTooltipProps {
+  segment: BudgetBarSegment;
+  availableFunds: number;
+}
+
+function SegmentTooltipContent({ segment, availableFunds }: SegmentTooltipProps) {
+  return (
+    <div className={styles.segmentTooltip}>
+      <span className={styles.segmentTooltipLabel}>{segment.label}</span>
+      <span className={styles.segmentTooltipValue}>{formatCurrency(segment.value)}</span>
+      <span className={styles.segmentTooltipPct}>
+        {formatPct(segment.value, availableFunds)} of available funds
+      </span>
+    </div>
+  );
+}
+
+// ---- Computed filtered totals ----
+
+interface FilteredTotals {
+  actualCostClaimed: number;
+  actualCostPaid: number;
+  actualCost: number;
+  projectedMin: number;
+  projectedMax: number;
+}
+
+function computeFilteredTotals(
+  overview: BudgetOverview,
+  selectedIds: Set<string | null>,
+): FilteredTotals {
+  // If all selected — use the global totals (avoids floating point from summing categories)
+  if (selectedIds.size === overview.categorySummaries.length) {
+    return {
+      actualCostClaimed: overview.actualCostClaimed,
+      actualCostPaid: overview.actualCostPaid,
+      actualCost: overview.actualCost,
+      projectedMin: overview.projectedMin,
+      projectedMax: overview.projectedMax,
+    };
+  }
+
+  const selected = overview.categorySummaries.filter((c) => selectedIds.has(c.categoryId));
+  return {
+    actualCostClaimed: selected.reduce((s, c) => s + c.actualCostClaimed, 0),
+    actualCostPaid: selected.reduce((s, c) => s + c.actualCostPaid, 0),
+    actualCost: selected.reduce((s, c) => s + c.actualCost, 0),
+    projectedMin: selected.reduce((s, c) => s + c.projectedMin, 0),
+    projectedMax: selected.reduce((s, c) => s + c.projectedMax, 0),
+  };
 }
 
 // ---- Main component ----
@@ -57,6 +289,18 @@ export function BudgetOverviewPage() {
   const [overview, setOverview] = useState<BudgetOverview | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
+
+  // Category filter state — set once overview loads
+  const [selectedCategories, setSelectedCategories] = useState<Set<string | null>>(new Set());
+
+  // Hovered bar segment (desktop tooltip)
+  const [hoveredSegment, setHoveredSegment] = useState<BudgetBarSegment | null>(null);
+
+  // Mobile bar detail open
+  const [mobileBarOpen, setMobileBarOpen] = useState(false);
+
+  // Remaining detail open (hover or tap)
+  const [remainingDetailOpen, setRemainingDetailOpen] = useState(false);
 
   useEffect(() => {
     void loadOverview();
@@ -69,6 +313,8 @@ export function BudgetOverviewPage() {
     try {
       const data = await fetchBudgetOverview();
       setOverview(data);
+      // Initialise filter — all selected
+      setSelectedCategories(new Set(data.categorySummaries.map((c) => c.categoryId)));
     } catch (err) {
       if (err instanceof ApiClientError) {
         setError(err.error.message);
@@ -79,6 +325,14 @@ export function BudgetOverviewPage() {
       setIsLoading(false);
     }
   };
+
+  const handleSegmentHover = useCallback((segment: BudgetBarSegment | null) => {
+    setHoveredSegment(segment);
+  }, []);
+
+  const handleSegmentClick = useCallback((_segment: BudgetBarSegment | null) => {
+    setMobileBarOpen((v) => !v);
+  }, []);
 
   // ---- Loading state ----
   if (isLoading) {
@@ -126,21 +380,89 @@ export function BudgetOverviewPage() {
     return null;
   }
 
-  const remainingOptimisticVariant = overview.remainingVsMinPlanned >= 0 ? 'positive' : 'negative';
-  const remainingPessimisticVariant = overview.remainingVsMaxPlanned >= 0 ? 'positive' : 'negative';
-  const remainingVsActualCostVariant =
-    overview.remainingVsActualCost >= 0 ? 'positive' : 'negative';
-  const remainingVsActualPaidVariant =
-    overview.remainingVsActualPaid >= 0 ? 'positive' : 'negative';
-  const remainingVsProjectedMinVariant =
-    overview.remainingVsProjectedMin >= 0 ? 'positive' : 'negative';
-  const remainingVsProjectedMaxVariant =
-    overview.remainingVsProjectedMax >= 0 ? 'positive' : 'negative';
   const hasData =
     overview.minPlanned > 0 ||
     overview.actualCost > 0 ||
     overview.categorySummaries.length > 0 ||
     overview.sourceCount > 0;
+
+  // Compute filtered totals based on selected categories
+  const filtered = computeFilteredTotals(overview, selectedCategories);
+
+  // Segment values
+  const claimedVal = filtered.actualCostClaimed;
+  const paidVal = Math.max(0, filtered.actualCostPaid - filtered.actualCostClaimed);
+  const pendingVal = Math.max(0, filtered.actualCost - filtered.actualCostPaid);
+  const projMinVal = Math.max(0, filtered.projectedMin - filtered.actualCost);
+  const projMaxVal = Math.max(0, filtered.projectedMax - filtered.projectedMin);
+  const overflow = Math.max(0, filtered.projectedMax - overview.availableFunds);
+
+  // Remaining vs projected (using filtered totals)
+  const filteredRemainingVsProjectedMin = overview.availableFunds - filtered.projectedMin;
+  const filteredRemainingVsProjectedMax = overview.availableFunds - filtered.projectedMax;
+
+  // BudgetHealthIndicator uses filtered projected max
+  const healthRemainingVsProjectedMax = filteredRemainingVsProjectedMax;
+
+  // Bar segments
+  const segments: BudgetBarSegment[] = [
+    {
+      key: 'claimed',
+      value: claimedVal,
+      color: 'var(--color-budget-claimed)',
+      label: 'Claimed',
+    },
+    {
+      key: 'paid',
+      value: paidVal,
+      color: 'var(--color-budget-paid)',
+      label: 'Paid',
+    },
+    {
+      key: 'pending',
+      value: pendingVal,
+      color: 'var(--color-budget-pending)',
+      label: 'Pending',
+    },
+    {
+      key: 'proj-min',
+      value: projMinVal,
+      color: 'var(--color-budget-projected)',
+      label: 'Projected (optimistic)',
+    },
+    {
+      key: 'proj-max',
+      value: projMaxVal,
+      // Projected max layer is fainter — achieved via inline opacity on color
+      color: 'var(--color-budget-projected)',
+      label: 'Projected (pessimistic)',
+    },
+  ];
+
+  // Remaining perspectives detail items (uses filtered where sensible)
+  const remainingDetailItems: RemainingDetail[] = [
+    { label: 'Remaining vs Min Planned', value: overview.remainingVsMinPlanned },
+    { label: 'Remaining vs Max Planned', value: overview.remainingVsMaxPlanned },
+    { label: 'Remaining vs Projected Min', value: filteredRemainingVsProjectedMin },
+    { label: 'Remaining vs Projected Max', value: filteredRemainingVsProjectedMax },
+    { label: 'Remaining vs Actual Cost', value: overview.remainingVsActualCost },
+    { label: 'Remaining vs Actual Paid', value: overview.remainingVsActualPaid },
+  ];
+
+  // Format projected max segment with reduced opacity
+  const segmentsForBar = segments.map((seg) => {
+    if (seg.key === 'proj-max') {
+      return {
+        ...seg,
+        // Pass as a CSS color with opacity via a wrapper style; BudgetBar accepts inline style via color string
+        // We encode it via a known CSS pattern — opacity half of projected
+        color: `color-mix(in srgb, var(--color-budget-projected) 50%, transparent)`,
+      };
+    }
+    return seg;
+  });
+
+  const remainingTooltipContent = <RemainingDetailPanel items={remainingDetailItems} />;
 
   return (
     <div className={styles.container}>
@@ -164,222 +486,143 @@ export function BudgetOverviewPage() {
           </div>
         )}
 
-        {/* Summary cards grid */}
-        <div className={styles.cardsGrid}>
-          {/* Planned Budget card (confidence range) */}
-          <SummaryCard title="Planned Budget">
-            <StatRow label="Min (optimistic)" value={formatCurrency(overview.minPlanned)} />
-            <StatRow label="Max (pessimistic)" value={formatCurrency(overview.maxPlanned)} />
-          </SummaryCard>
+        {/* ========================================================
+         * Budget Health Hero Card
+         * ======================================================== */}
+        <section className={styles.heroCard} aria-labelledby="budget-health-heading">
+          {/* Header row */}
+          <div className={styles.heroHeader}>
+            <h2 id="budget-health-heading" className={styles.heroTitle}>
+              Budget Health
+            </h2>
+            <BudgetHealthIndicator
+              remainingVsProjectedMax={healthRemainingVsProjectedMax}
+              availableFunds={overview.availableFunds}
+            />
+          </div>
 
-          {/* Projected Budget card (blended: invoiced lines use actual cost) */}
-          <SummaryCard title="Projected Budget">
-            <StatRow
-              label="Projected Min (optimistic)"
-              value={formatCurrency(overview.projectedMin)}
-            />
-            <StatRow
-              label="Projected Max (pessimistic)"
-              value={formatCurrency(overview.projectedMax)}
-            />
-            <div className={styles.cardDivider} />
-            <StatRow
-              label="Remaining (proj. optimistic)"
-              value={formatCurrency(overview.remainingVsProjectedMin)}
-              variant={remainingVsProjectedMinVariant}
-            />
-            <StatRow
-              label="Remaining (proj. pessimistic)"
-              value={formatCurrency(overview.remainingVsProjectedMax)}
-              variant={remainingVsProjectedMaxVariant}
-            />
-          </SummaryCard>
+          {/* Key metrics row */}
+          <div className={styles.metricsRow}>
+            {/* Available Funds */}
+            <div className={styles.metricGroup}>
+              <span className={styles.metricLabel}>Available Funds</span>
+              <span className={styles.metricValue}>{formatCurrency(overview.availableFunds)}</span>
+            </div>
 
-          {/* Actual Cost card */}
-          <SummaryCard title="Actual Cost">
-            <StatRow label="Invoiced" value={formatCurrency(overview.actualCost)} />
-            <StatRow label="Paid" value={formatCurrency(overview.actualCostPaid)} />
-          </SummaryCard>
+            {/* Projected Cost Range */}
+            <div className={styles.metricGroup}>
+              <span className={styles.metricLabel}>Projected Cost Range</span>
+              <span className={styles.metricValue}>
+                <span className={styles.metricRange}>
+                  {formatShort(filtered.projectedMin)}
+                  <span className={styles.metricRangeSep}>&ndash;</span>
+                  {formatShort(filtered.projectedMax)}
+                </span>
+              </span>
+            </div>
 
-          {/* Financing card */}
-          <SummaryCard title="Financing">
-            <StatRow label="Available Funds" value={formatCurrency(overview.availableFunds)} />
-            <div className={styles.cardDivider} />
-            <StatRow
-              label="Remaining (vs min planned)"
-              value={formatCurrency(overview.remainingVsMinPlanned)}
-              variant={remainingOptimisticVariant}
-            />
-            <StatRow
-              label="Remaining (vs max planned)"
-              value={formatCurrency(overview.remainingVsMaxPlanned)}
-              variant={remainingPessimisticVariant}
-            />
-            <StatRow
-              label="Remaining (vs actual cost)"
-              value={formatCurrency(overview.remainingVsActualCost)}
-              variant={remainingVsActualCostVariant}
-            />
-            <StatRow
-              label="Remaining (vs actual paid)"
-              value={formatCurrency(overview.remainingVsActualPaid)}
-              variant={remainingVsActualPaidVariant}
-            />
-            <p className={styles.cardNote}>
-              {overview.sourceCount} {overview.sourceCount === 1 ? 'source' : 'sources'}
-            </p>
-          </SummaryCard>
+            {/* Remaining (best/worst) — with detail on hover/tap */}
+            <div className={styles.metricGroup}>
+              <span className={styles.metricLabel}>Remaining</span>
+              <Tooltip content={remainingTooltipContent}>
+                <button
+                  type="button"
+                  className={`${styles.metricValue} ${styles.metricValueInteractive}`}
+                  aria-label="Remaining budget — tap for details"
+                  onClick={() => setRemainingDetailOpen((v) => !v)}
+                >
+                  <span
+                    className={
+                      filteredRemainingVsProjectedMin >= 0
+                        ? styles.metricPositive
+                        : styles.metricNegative
+                    }
+                  >
+                    {formatShort(filteredRemainingVsProjectedMin)}
+                  </span>
+                  <span className={styles.metricRangeSep}>&ndash;</span>
+                  <span
+                    className={
+                      filteredRemainingVsProjectedMax >= 0
+                        ? styles.metricPositive
+                        : styles.metricNegative
+                    }
+                  >
+                    {formatShort(filteredRemainingVsProjectedMax)}
+                  </span>
+                  <span className={styles.metricHint} aria-hidden="true">
+                    &#9432;
+                  </span>
+                </button>
+              </Tooltip>
 
-          {/* Subsidies card */}
-          <SummaryCard title="Subsidies">
-            <StatRow
-              label="Total Reductions"
-              value={formatCurrency(overview.subsidySummary.totalReductions)}
-              variant={overview.subsidySummary.totalReductions > 0 ? 'positive' : 'default'}
+              {/* Mobile inline remaining detail — toggled by tap */}
+              <div
+                className={`${styles.remainingDetailPanel} ${remainingDetailOpen ? styles.remainingDetailPanelOpen : ''}`}
+                aria-hidden={!remainingDetailOpen}
+              >
+                <RemainingDetailPanel items={remainingDetailItems} />
+              </div>
+            </div>
+          </div>
+
+          {/* Stacked bar */}
+          <div className={styles.barWrapper}>
+            <BudgetBar
+              segments={segmentsForBar}
+              maxValue={Math.max(overview.availableFunds, filtered.projectedMax, 1)}
+              overflow={overflow}
+              height="lg"
+              onSegmentHover={handleSegmentHover}
+              onSegmentClick={handleSegmentClick}
+              formatValue={formatCurrency}
             />
-            <p className={styles.cardNote}>
-              {overview.subsidySummary.activeSubsidyCount} active{' '}
+
+            {/* Desktop floating tooltip anchored below bar */}
+            {hoveredSegment && (
+              <div className={styles.barTooltipAnchor} role="status" aria-live="polite">
+                <SegmentTooltipContent
+                  segment={hoveredSegment}
+                  availableFunds={overview.availableFunds}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Mobile bar detail panel */}
+          <div
+            className={`${styles.mobileDetail} ${mobileBarOpen ? styles.mobileDetailOpen : ''}`}
+            aria-hidden={!mobileBarOpen}
+          >
+            <MobileBarDetail
+              segments={segmentsForBar}
+              overflow={overflow}
+              availableFunds={overview.availableFunds}
+            />
+          </div>
+
+          {/* Footer row */}
+          <div className={styles.heroFooter}>
+            <span className={styles.footerItem}>
+              Subsidies: <strong>{formatCurrency(overview.subsidySummary.totalReductions)}</strong>
+              {' ('}
+              {overview.subsidySummary.activeSubsidyCount}{' '}
               {overview.subsidySummary.activeSubsidyCount === 1 ? 'program' : 'programs'}
-            </p>
-          </SummaryCard>
-        </div>
+              {')'}
+            </span>
+            <span className={styles.footerItem}>
+              Sources: <strong>{overview.sourceCount}</strong>
+            </span>
+          </div>
 
-        {/* Category Breakdown table */}
-        <section className={styles.tableSection} aria-labelledby="category-breakdown-heading">
-          <h2 id="category-breakdown-heading" className={styles.sectionTitle}>
-            Category Breakdown
-          </h2>
-
-          {overview.categorySummaries.length === 0 ? (
-            <p className={styles.tableEmptyState}>
-              No budget categories found. Add categories and assign them to work items to see a
-              breakdown here.
-            </p>
-          ) : (
-            <div className={styles.tableWrapper}>
-              <table className={styles.table}>
-                <thead>
-                  <tr>
-                    <th scope="col" className={styles.thCategory}>
-                      Category
-                    </th>
-                    <th scope="col" className={styles.thNumber}>
-                      Min Planned
-                    </th>
-                    <th scope="col" className={styles.thNumber}>
-                      Max Planned
-                    </th>
-                    <th scope="col" className={styles.thNumber}>
-                      Actual Cost
-                    </th>
-                    <th scope="col" className={styles.thNumber}>
-                      Actual Paid
-                    </th>
-                    <th scope="col" className={styles.thNumber}>
-                      Projected Min
-                    </th>
-                    <th scope="col" className={styles.thNumber}>
-                      Projected Max
-                    </th>
-                    <th scope="col" className={styles.thNumber}>
-                      Budget Lines
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {overview.categorySummaries.map((cat) => (
-                    <tr key={cat.categoryId ?? '__uncategorized__'} className={styles.tableRow}>
-                      <td className={styles.tdCategory}>
-                        <div className={styles.categoryCell}>
-                          <span
-                            className={styles.categoryDot}
-                            style={
-                              cat.categoryColor ? { backgroundColor: cat.categoryColor } : undefined
-                            }
-                            aria-hidden="true"
-                          />
-                          <span className={styles.categoryName}>{cat.categoryName}</span>
-                        </div>
-                      </td>
-                      <td className={styles.tdNumber}>
-                        <span className={styles.currencyValue}>
-                          {formatCurrency(cat.minPlanned)}
-                        </span>
-                      </td>
-                      <td className={styles.tdNumber}>
-                        <span className={styles.currencyValue}>
-                          {formatCurrency(cat.maxPlanned)}
-                        </span>
-                      </td>
-                      <td className={styles.tdNumber}>
-                        <span className={styles.currencyValue}>
-                          {formatCurrency(cat.actualCost)}
-                        </span>
-                      </td>
-                      <td className={styles.tdNumber}>
-                        <span className={styles.currencyValue}>
-                          {formatCurrency(cat.actualCostPaid)}
-                        </span>
-                      </td>
-                      <td className={styles.tdNumber}>
-                        <span className={styles.currencyValue}>
-                          {formatCurrency(cat.projectedMin)}
-                        </span>
-                      </td>
-                      <td className={styles.tdNumber}>
-                        <span className={styles.currencyValue}>
-                          {formatCurrency(cat.projectedMax)}
-                        </span>
-                      </td>
-                      <td className={styles.tdNumber}>
-                        <span className={styles.workItemCount}>{cat.budgetLineCount}</span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className={styles.tableFooter}>
-                    <th scope="row" className={styles.tfootLabel}>
-                      Total
-                    </th>
-                    <td className={styles.tdNumber}>
-                      <span className={styles.currencyValueBold}>
-                        {formatCurrency(overview.minPlanned)}
-                      </span>
-                    </td>
-                    <td className={styles.tdNumber}>
-                      <span className={styles.currencyValueBold}>
-                        {formatCurrency(overview.maxPlanned)}
-                      </span>
-                    </td>
-                    <td className={styles.tdNumber}>
-                      <span className={styles.currencyValueBold}>
-                        {formatCurrency(overview.actualCost)}
-                      </span>
-                    </td>
-                    <td className={styles.tdNumber}>
-                      <span className={styles.currencyValueBold}>
-                        {formatCurrency(overview.actualCostPaid)}
-                      </span>
-                    </td>
-                    <td className={styles.tdNumber}>
-                      <span className={styles.currencyValueBold}>
-                        {formatCurrency(overview.projectedMin)}
-                      </span>
-                    </td>
-                    <td className={styles.tdNumber}>
-                      <span className={styles.currencyValueBold}>
-                        {formatCurrency(overview.projectedMax)}
-                      </span>
-                    </td>
-                    <td className={styles.tdNumber}>
-                      <span className={styles.workItemCount}>
-                        {overview.categorySummaries.reduce((sum, c) => sum + c.budgetLineCount, 0)}
-                      </span>
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
+          {/* Category filter */}
+          {overview.categorySummaries.length > 0 && (
+            <div className={styles.categoryFilterRow}>
+              <CategoryFilter
+                categories={overview.categorySummaries}
+                selectedIds={selectedCategories}
+                onChange={setSelectedCategories}
+              />
             </div>
           )}
         </section>

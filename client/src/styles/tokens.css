@@ -296,6 +296,16 @@
   --z-overlay: 50;
   --z-sidebar: 100;
   --z-modal: 1000;
+
+  /* ============================================================
+   * LAYER 2 — BUDGET BAR TOKENS
+   * ============================================================ */
+  --color-budget-claimed: var(--color-success);
+  --color-budget-paid: var(--color-primary);
+  --color-budget-pending: var(--color-primary-bg);
+  --color-budget-projected: var(--color-primary-bg-hover);
+  --color-budget-track: var(--color-bg-tertiary);
+  --color-budget-overflow: var(--color-danger-bg-strong);
 }
 
 /* ============================================================
@@ -414,4 +424,12 @@
   --shadow-focus-subtle: 0 0 0 3px rgba(96, 165, 250, 0.15);
   --shadow-focus-primary-alt: 0 0 0 3px rgba(96, 165, 250, 0.15);
   --shadow-focus-danger: 0 0 0 3px rgba(239, 68, 68, 0.15);
+
+  /* --- Budget bar --- */
+  --color-budget-claimed: var(--color-emerald-400);
+  --color-budget-paid: var(--color-blue-400);
+  --color-budget-pending: rgba(59, 130, 246, 0.15);
+  --color-budget-projected: rgba(59, 130, 246, 0.25);
+  --color-budget-track: var(--color-slate-600);
+  --color-budget-overflow: rgba(239, 68, 68, 0.2);
 }

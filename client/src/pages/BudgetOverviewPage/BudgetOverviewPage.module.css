@@ -97,268 +97,436 @@
 .emptyStateDescription {
   font-size: var(--font-size-sm);
   color: var(--color-text-muted);
-  margin: 0;
+  margin: 0 auto;
   max-width: 480px;
-  margin-left: auto;
-  margin-right: auto;
 }
 
 /* ============================================================
- * Summary cards grid — auto-fill (5 on wide desktop, 2-3 on tablet, 1 on mobile)
+ * Budget Health Hero Card
  * ============================================================ */
 
-.cardsGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: var(--spacing-4);
-}
-
-/* ---- Individual card ---- */
-
-.summaryCard {
+.heroCard {
   background: var(--color-bg-primary);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
-  padding: var(--spacing-5);
+  padding: var(--spacing-6);
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-3);
+  gap: var(--spacing-5);
 }
 
-.cardTitle {
-  font-size: var(--font-size-sm);
+/* ---- Header row: title + health badge ---- */
+
+.heroHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  flex-wrap: wrap;
+}
+
+.heroTitle {
+  font-size: var(--font-size-xl);
   font-weight: var(--font-weight-semibold);
-  color: var(--color-text-muted);
+  color: var(--color-text-primary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin: 0;
 }
 
-.cardBody {
+/* ---- Key metrics row: 3-column grid (desktop) ---- */
+
+.metricsRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-4);
+}
+
+.metricGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
+.metricLabel {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.metricValue {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+/* Interactive metric value (button reset + hover cue) */
+.metricValueInteractive {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--spacing-1-5);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: inherit;
+  font-weight: inherit;
+  font-variant-numeric: tabular-nums;
+  color: inherit;
+  text-align: left;
+  line-height: inherit;
+  transition: opacity var(--transition-fast);
+}
+
+.metricValueInteractive:hover {
+  opacity: 0.8;
+}
+
+.metricValueInteractive:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
+}
+
+.metricRange {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--spacing-1-5);
+}
+
+.metricRangeSep {
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-normal);
+}
+
+.metricPositive {
+  color: var(--color-success-text-on-light);
+}
+
+.metricNegative {
+  color: var(--color-danger-text-on-light);
+}
+
+/* Info hint icon (circled i) */
+.metricHint {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  margin-left: var(--spacing-1);
+  vertical-align: middle;
+}
+
+/* ---- Remaining detail panel (mobile inline toggle) ---- */
+
+.remainingDetailPanel {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition:
+    max-height var(--transition-slow),
+    opacity var(--transition-normal);
+}
+
+.remainingDetailPanelOpen {
+  max-height: 400px;
+  opacity: 1;
+}
+
+/* ---- Remaining detail contents ---- */
+
+.remainingPanel {
+  padding-top: var(--spacing-3);
   display: flex;
   flex-direction: column;
   gap: var(--spacing-2);
 }
 
-.cardDivider {
-  height: 1px;
-  background-color: var(--color-border);
-  margin: var(--spacing-1) 0;
-}
-
-.cardNote {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
-  margin: var(--spacing-1) 0 0 0;
-}
-
-.cardNoteNegative {
-  color: var(--color-danger);
-}
-
-/* ---- Stat rows inside cards ---- */
-
-.statRow {
+.remainingPanelRow {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
   gap: var(--spacing-2);
+  font-size: var(--font-size-sm);
 }
 
-.statLabel {
-  font-size: var(--font-size-sm);
+.remainingPanelLabel {
   color: var(--color-text-muted);
   white-space: nowrap;
   flex-shrink: 0;
 }
 
-.statValue {
-  font-size: var(--font-size-sm);
+.remainingPanelValue {
   font-weight: var(--font-weight-medium);
-  color: var(--color-text-primary);
   font-variant-numeric: tabular-nums;
   text-align: right;
-  min-width: 0;
 }
 
-.statValuePositive {
+.remainingPositive {
   color: var(--color-success-text-on-light);
-  font-weight: var(--font-weight-semibold);
 }
 
-.statValueNegative {
+.remainingNegative {
   color: var(--color-danger-text-on-light);
+}
+
+/* ---- Bar wrapper + desktop hover tooltip ---- */
+
+.barWrapper {
+  position: relative;
+}
+
+.barTooltipAnchor {
+  position: absolute;
+  bottom: calc(100% + var(--spacing-2));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: var(--z-dropdown);
+  pointer-events: none;
+}
+
+/* ---- Segment tooltip content ---- */
+
+.segmentTooltip {
+  background: var(--color-bg-inverse);
+  color: var(--color-text-inverse);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-2) var(--spacing-3);
+  white-space: nowrap;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-0-5);
+  box-shadow: var(--shadow-md);
+  font-size: var(--font-size-sm);
+}
+
+.segmentTooltipLabel {
   font-weight: var(--font-weight-semibold);
 }
 
-.statValueMuted {
-  color: var(--color-text-muted);
+.segmentTooltipValue {
+  font-variant-numeric: tabular-nums;
 }
 
-/* ============================================================
- * Category Breakdown table section
- * ============================================================ */
-
-.tableSection {
-  background: var(--color-bg-primary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-  padding: var(--spacing-5);
+.segmentTooltipPct {
+  font-size: var(--font-size-xs);
+  opacity: 0.8;
 }
 
-.sectionTitle {
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-semibold);
+/* ---- Mobile bar detail panel ---- */
+
+.mobileDetail {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition:
+    max-height var(--transition-slow),
+    opacity var(--transition-normal);
+}
+
+.mobileDetailOpen {
+  max-height: 400px;
+  opacity: 1;
+}
+
+.mobileBarDetail {
+  padding: var(--spacing-3) 0 var(--spacing-1);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.mobileBarDetailRow {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: var(--spacing-2);
+  font-size: var(--font-size-sm);
+}
+
+.mobileBarDetailDot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-circle);
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+.mobileBarDetailLabel {
+  color: var(--color-text-secondary);
+}
+
+.mobileBarDetailValue {
+  font-variant-numeric: tabular-nums;
   color: var(--color-text-primary);
-  margin: 0 0 var(--spacing-4) 0;
+  font-weight: var(--font-weight-medium);
+  text-align: right;
 }
 
-.tableEmptyState {
-  padding: var(--spacing-8);
-  text-align: center;
+.mobileBarDetailPct {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  min-width: 4.5rem;
+  text-align: right;
+}
+
+/* ---- Footer row ---- */
+
+.heroFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+  flex-wrap: wrap;
   font-size: var(--font-size-sm);
   color: var(--color-text-muted);
-  margin: 0;
+  padding-top: var(--spacing-2);
+  border-top: 1px solid var(--color-border);
 }
 
-/* Scrollable wrapper for mobile */
-.tableWrapper {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  min-width: 900px;
-}
-
-/* ---- Table header ---- */
-
-.table thead tr {
-  border-bottom: 1px solid var(--color-border-strong);
-}
-
-.thCategory,
-.thNumber {
-  padding: var(--spacing-2) var(--spacing-3);
-  font-size: var(--font-size-xs);
+.footerItem strong {
+  color: var(--color-text-secondary);
   font-weight: var(--font-weight-semibold);
+}
+
+/* ---- Category filter row ---- */
+
+.categoryFilterRow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+
+/* ---- Category filter dropdown ---- */
+
+.categoryFilter {
+  position: relative;
+}
+
+.categoryFilterButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-2) var(--spacing-3);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: var(--transition-button-border);
+  min-height: 36px;
+}
+
+.categoryFilterButton:hover {
+  background: var(--color-bg-tertiary);
+  border-color: var(--color-border-strong);
+}
+
+.categoryFilterButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.categoryFilterChevron {
+  font-size: var(--font-size-xs);
   color: var(--color-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  white-space: nowrap;
 }
 
-.thCategory {
-  text-align: left;
+.categoryDropdown {
+  position: absolute;
+  top: calc(100% + var(--spacing-1));
+  left: 0;
+  z-index: var(--z-dropdown);
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  min-width: 220px;
+  max-width: 320px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: var(--spacing-2) 0;
 }
 
-.thNumber {
-  text-align: right;
+.categoryDropdownActions {
+  display: flex;
+  gap: var(--spacing-2);
+  padding: var(--spacing-1) var(--spacing-3) var(--spacing-2);
 }
 
-/* ---- Table body rows ---- */
-
-.tableRow {
-  border-bottom: 1px solid var(--color-border);
-  transition: background-color var(--transition-normal);
+.dropdownAction {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-primary);
+  cursor: pointer;
+  transition: opacity var(--transition-fast);
 }
 
-.tableRow:hover {
-  background-color: var(--color-bg-secondary);
+.dropdownAction:hover {
+  opacity: 0.75;
 }
 
-.tableRow:last-child {
-  border-bottom: none;
+.dropdownAction:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
 }
 
-.tdCategory {
-  padding: var(--spacing-3) var(--spacing-3);
+.categoryDropdownDivider {
+  height: 1px;
+  background: var(--color-border);
+  margin: 0 0 var(--spacing-1);
 }
 
-.tdNumber {
-  padding: var(--spacing-3) var(--spacing-3);
-  text-align: right;
-  white-space: nowrap;
-}
-
-/* ---- Category name with color dot ---- */
-
-.categoryCell {
+.categoryOption {
   display: flex;
   align-items: center;
   gap: var(--spacing-2);
+  padding: var(--spacing-2) var(--spacing-3);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+  min-height: 36px;
+}
+
+.categoryOption:hover {
+  background: var(--color-bg-secondary);
+}
+
+.categoryOptionCheckbox {
+  accent-color: var(--color-primary);
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  cursor: pointer;
 }
 
 .categoryDot {
   width: 10px;
   height: 10px;
   border-radius: var(--radius-circle);
-  background-color: var(--color-text-placeholder);
+  background: var(--color-text-placeholder);
   flex-shrink: 0;
+  display: inline-block;
 }
 
-.categoryName {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text-primary);
-}
-
-/* ---- Currency values ---- */
-
-.currencyValue {
+.categoryOptionName {
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
-  font-variant-numeric: tabular-nums;
-}
-
-.currencyValueBold {
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-primary);
-}
-
-/* ---- Variance ---- */
-
-.variancePositive {
-  font-size: var(--font-size-sm);
-  color: var(--color-success-text-on-light);
-  font-variant-numeric: tabular-nums;
-}
-
-.varianceNegative {
-  font-size: var(--font-size-sm);
-  color: var(--color-danger-text-on-light);
-  font-variant-numeric: tabular-nums;
-}
-
-/* ---- Work item count ---- */
-
-.workItemCount {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-/* ---- Table footer (totals row) ---- */
-
-.tableFooter {
-  border-top: 2px solid var(--color-border-strong);
-  background-color: var(--color-bg-secondary);
-}
-
-.tfootLabel {
-  padding: var(--spacing-3) var(--spacing-3);
-  text-align: left;
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-secondary);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ============================================================
- * RESPONSIVE — Tablet (768px – 1024px): 2 cards per row
+ * RESPONSIVE — Tablet (768px – 1024px)
  * ============================================================ */
 
 @media (min-width: 768px) and (max-width: 1024px) {
@@ -366,18 +534,21 @@
     padding: var(--spacing-6);
   }
 
-  .cardsGrid {
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  .retryButton {
+    min-height: 44px;
   }
 
-  /* Touch-friendly button */
-  .retryButton {
+  .categoryFilterButton {
+    min-height: 44px;
+  }
+
+  .categoryOption {
     min-height: 44px;
   }
 }
 
 /* ============================================================
- * RESPONSIVE — Mobile (max 767px): 1 card per row
+ * RESPONSIVE — Mobile (max 767px)
  * ============================================================ */
 
 @media (max-width: 767px) {
@@ -389,10 +560,6 @@
     font-size: var(--font-size-2xl);
   }
 
-  .cardsGrid {
-    grid-template-columns: 1fr;
-  }
-
   .retryButton {
     width: 100%;
     min-height: 44px;
@@ -402,7 +569,49 @@
     padding: var(--spacing-6);
   }
 
-  .tableSection {
+  .heroCard {
     padding: var(--spacing-4);
+    gap: var(--spacing-4);
+  }
+
+  /* Stack title + badge vertically on mobile */
+  .heroHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-2);
+  }
+
+  /* Metrics: single column on mobile */
+  .metricsRow {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-3);
+  }
+
+  .metricValue {
+    font-size: var(--font-size-lg);
+  }
+
+  /* Footer: stack on mobile */
+  .heroFooter {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-2);
+  }
+
+  /* Category filter: full width on mobile */
+  .categoryFilterButton {
+    width: 100%;
+    min-height: 44px;
+    justify-content: space-between;
+  }
+
+  /* Category option touch target */
+  .categoryOption {
+    min-height: 44px;
+  }
+
+  /* Desktop tooltip hidden on mobile — use inline panel instead */
+  .barTooltipAnchor {
+    display: none;
   }
 }

@@ -1314,4 +1314,195 @@ describe('getBudgetOverview', () => {
       expect(b!.budgetLineCount).toBe(1);
     });
   });
+
+  // ─── actualCostClaimed (Story hero-bar: claimed invoices only) ───────────
+
+  describe('actualCostClaimed', () => {
+    /**
+     * Helper: insert a claimed invoice directly against a budget line.
+     * The insertWorkItem helper only supports paid/pending.
+     */
+    function insertClaimedInvoice(budgetLineId: string, amount: number) {
+      const now = new Date().toISOString();
+      const vendorId = `wi-vendor-${idCounter++}`;
+      db.insert(schema.vendors)
+        .values({ id: vendorId, name: `Claimed Vendor ${vendorId}`, createdAt: now, updatedAt: now })
+        .run();
+      const invoiceId = `wi-inv-claimed-${idCounter++}`;
+      db.insert(schema.invoices)
+        .values({
+          id: invoiceId,
+          vendorId,
+          workItemBudgetId: budgetLineId,
+          amount,
+          date: '2026-01-01',
+          status: 'claimed',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      return invoiceId;
+    }
+
+    it('returns zero actualCostClaimed when no claimed invoices exist', () => {
+      insertWorkItem({ plannedAmount: 10000, actualCost: 5000 }); // paid invoice only
+
+      const result = getBudgetOverview(db);
+
+      expect(result.actualCostClaimed).toBe(0);
+    });
+
+    it('sums claimed invoice amounts as actualCostClaimed', () => {
+      insertWorkItem({ plannedAmount: 10000, actualCost: 5000 }); // paid → not claimed
+      const { budgetLineId: bl2 } = insertWorkItem({ plannedAmount: 8000 });
+      insertClaimedInvoice(bl2!, 3000);
+
+      const result = getBudgetOverview(db);
+
+      expect(result.actualCostClaimed).toBe(3000);
+    });
+
+    it('includes claimed invoices in actualCostPaid (claimed counts as paid)', () => {
+      const { budgetLineId } = insertWorkItem({ plannedAmount: 10000 });
+      insertClaimedInvoice(budgetLineId!, 4000);
+
+      const result = getBudgetOverview(db);
+
+      // claimed is part of actualCostPaid (status IN ('paid', 'claimed'))
+      expect(result.actualCostPaid).toBe(4000);
+      // and also part of actualCostClaimed (status = 'claimed')
+      expect(result.actualCostClaimed).toBe(4000);
+    });
+
+    it('sums multiple claimed invoices across different budget lines', () => {
+      const { budgetLineId: bl1 } = insertWorkItem({ plannedAmount: 10000 });
+      const { budgetLineId: bl2 } = insertWorkItem({ plannedAmount: 8000 });
+      insertClaimedInvoice(bl1!, 2500);
+      insertClaimedInvoice(bl2!, 1500);
+
+      const result = getBudgetOverview(db);
+
+      expect(result.actualCostClaimed).toBe(4000); // 2500 + 1500
+    });
+
+    it('only counts claimed invoices — not paid or pending — in actualCostClaimed', () => {
+      insertWorkItem({ plannedAmount: 10000, actualCost: 5000 }); // paid
+      insertWorkItem({ plannedAmount: 8000, actualCostPending: 2000 }); // pending
+      const { budgetLineId: bl3 } = insertWorkItem({ plannedAmount: 6000 });
+      insertClaimedInvoice(bl3!, 1200); // claimed
+
+      const result = getBudgetOverview(db);
+
+      // actualCost = 5000 (paid) + 2000 (pending) + 1200 (claimed) = 8200
+      expect(result.actualCost).toBe(8200);
+      // actualCostPaid = 5000 (paid) + 1200 (claimed) = 6200
+      expect(result.actualCostPaid).toBe(6200);
+      // actualCostClaimed = 1200 (claimed only)
+      expect(result.actualCostClaimed).toBe(1200);
+    });
+
+    it('computes remainingVsActualClaimed as availableFunds - actualCostClaimed', () => {
+      insertBudgetSource({ totalAmount: 100000, status: 'active' });
+      const { budgetLineId } = insertWorkItem({ plannedAmount: 10000 });
+      insertClaimedInvoice(budgetLineId!, 7000);
+
+      const result = getBudgetOverview(db);
+
+      expect(result.actualCostClaimed).toBe(7000);
+      expect(result.remainingVsActualClaimed).toBe(93000); // 100000 - 7000
+    });
+
+    it('remainingVsActualClaimed is 0 when no claimed invoices and no funds', () => {
+      const result = getBudgetOverview(db);
+
+      expect(result.actualCostClaimed).toBe(0);
+      expect(result.remainingVsActualClaimed).toBe(0);
+    });
+
+    it('excludes claimed invoices not linked to budget lines from actualCostClaimed', () => {
+      // Free-floating claimed invoice (no work_item_budget_id) must be excluded
+      const now = new Date().toISOString();
+      const vendorId = `vendor-free-claimed-${idCounter++}`;
+      db.insert(schema.vendors)
+        .values({ id: vendorId, name: `Free Claimed Vendor`, createdAt: now, updatedAt: now })
+        .run();
+      db.insert(schema.invoices)
+        .values({
+          id: `inv-free-claimed-${idCounter++}`,
+          vendorId,
+          amount: 9999,
+          date: '2026-01-01',
+          status: 'claimed',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+
+      const result = getBudgetOverview(db);
+
+      expect(result.actualCostClaimed).toBe(0);
+    });
+
+    it('aggregates per-category actualCostClaimed correctly', () => {
+      const catId = insertBudgetCategory('Cat Claimed Test');
+      const { budgetLineId: bl1 } = insertWorkItem({ plannedAmount: 10000, budgetCategoryId: catId });
+      const { budgetLineId: bl2 } = insertWorkItem({ plannedAmount: 8000, budgetCategoryId: catId });
+      insertClaimedInvoice(bl1!, 4000);
+      insertClaimedInvoice(bl2!, 2000);
+
+      const result = getBudgetOverview(db);
+      const cat = result.categorySummaries.find((c) => c.categoryId === catId);
+
+      expect(cat).toBeDefined();
+      expect(cat!.actualCostClaimed).toBe(6000); // 4000 + 2000
+    });
+
+    it('per-category actualCostClaimed is zero for categories with only paid invoices', () => {
+      const catId = insertBudgetCategory('Cat Paid Only');
+      insertWorkItem({ plannedAmount: 10000, budgetCategoryId: catId, actualCost: 5000 }); // paid
+
+      const result = getBudgetOverview(db);
+      const cat = result.categorySummaries.find((c) => c.categoryId === catId);
+
+      expect(cat).toBeDefined();
+      expect(cat!.actualCostClaimed).toBe(0);
+    });
+
+    it('per-category claimed sums are independent across different categories', () => {
+      const catA = insertBudgetCategory('Cat Claimed A');
+      const catB = insertBudgetCategory('Cat Claimed B');
+
+      const { budgetLineId: blA } = insertWorkItem({ plannedAmount: 10000, budgetCategoryId: catA });
+      const { budgetLineId: blB } = insertWorkItem({ plannedAmount: 8000, budgetCategoryId: catB });
+      insertClaimedInvoice(blA!, 3500);
+      insertClaimedInvoice(blB!, 1800);
+
+      const result = getBudgetOverview(db);
+      const a = result.categorySummaries.find((c) => c.categoryId === catA);
+      const b = result.categorySummaries.find((c) => c.categoryId === catB);
+
+      expect(a!.actualCostClaimed).toBe(3500);
+      expect(b!.actualCostClaimed).toBe(1800);
+      // Global total
+      expect(result.actualCostClaimed).toBe(5300);
+    });
+
+    it('mixed paid and claimed invoices in same category sum correctly', () => {
+      const catId = insertBudgetCategory('Cat Mixed Invoice Types');
+      insertWorkItem({
+        plannedAmount: 10000,
+        budgetCategoryId: catId,
+        actualCost: 5000, // paid
+      });
+      const { budgetLineId: bl2 } = insertWorkItem({ plannedAmount: 8000, budgetCategoryId: catId });
+      insertClaimedInvoice(bl2!, 3000); // claimed
+
+      const result = getBudgetOverview(db);
+      const cat = result.categorySummaries.find((c) => c.categoryId === catId);
+
+      expect(cat!.actualCost).toBe(8000); // 5000 paid + 3000 claimed
+      expect(cat!.actualCostPaid).toBe(8000); // both paid and claimed count as paid
+      expect(cat!.actualCostClaimed).toBe(3000); // only claimed
+    });
+  });
 });

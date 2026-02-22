@@ -162,6 +162,7 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
       projectedMax: number;
       actualCost: number;
       actualCostPaid: number;
+      actualCostClaimed: number;
       budgetLineCount: number;
     }
   >();
@@ -241,6 +242,7 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
         projectedMax: 0,
         actualCost: 0,
         actualCostPaid: 0,
+        actualCostClaimed: 0,
         budgetLineCount: 0,
       };
       categoryAgg.set(line.budgetCategoryId, agg);
@@ -253,27 +255,35 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
   }
 
   // ── 8. Actual costs from invoices linked to budget lines ──────────────────
-  const invoiceTotalsRow = db.get<{ actualCost: number | null; actualCostPaid: number | null }>(
+  const invoiceTotalsRow = db.get<{
+    actualCost: number | null;
+    actualCostPaid: number | null;
+    actualCostClaimed: number | null;
+  }>(
     sql`SELECT
-      COALESCE(SUM(amount), 0)                                                       AS actualCost,
-      COALESCE(SUM(CASE WHEN status IN ('paid', 'claimed') THEN amount ELSE 0 END), 0) AS actualCostPaid
+      COALESCE(SUM(amount), 0)                                                         AS actualCost,
+      COALESCE(SUM(CASE WHEN status IN ('paid', 'claimed') THEN amount ELSE 0 END), 0) AS actualCostPaid,
+      COALESCE(SUM(CASE WHEN status = 'claimed' THEN amount ELSE 0 END), 0)            AS actualCostClaimed
     FROM invoices
     WHERE work_item_budget_id IS NOT NULL`,
   );
 
   const actualCost = invoiceTotalsRow?.actualCost ?? 0;
   const actualCostPaid = invoiceTotalsRow?.actualCostPaid ?? 0;
+  const actualCostClaimed = invoiceTotalsRow?.actualCostClaimed ?? 0;
 
   // ── 9. Per-category actual costs from invoices ────────────────────────────
   const categoryInvoiceRows = db.all<{
     budgetCategoryId: string | null;
     actualCost: number;
     actualCostPaid: number;
+    actualCostClaimed: number;
   }>(
     sql`SELECT
-      wib.budget_category_id                                                                    AS budgetCategoryId,
-      COALESCE(SUM(inv.amount), 0)                                                              AS actualCost,
-      COALESCE(SUM(CASE WHEN inv.status IN ('paid', 'claimed') THEN inv.amount ELSE 0 END), 0) AS actualCostPaid
+      wib.budget_category_id                                                                      AS budgetCategoryId,
+      COALESCE(SUM(inv.amount), 0)                                                                AS actualCost,
+      COALESCE(SUM(CASE WHEN inv.status IN ('paid', 'claimed') THEN inv.amount ELSE 0 END), 0)   AS actualCostPaid,
+      COALESCE(SUM(CASE WHEN inv.status = 'claimed' THEN inv.amount ELSE 0 END), 0)              AS actualCostClaimed
     FROM invoices inv
     INNER JOIN work_item_budgets wib ON wib.id = inv.work_item_budget_id
     GROUP BY wib.budget_category_id`,
@@ -289,12 +299,14 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
         projectedMax: 0,
         actualCost: 0,
         actualCostPaid: 0,
+        actualCostClaimed: 0,
         budgetLineCount: 0,
       };
       categoryAgg.set(row.budgetCategoryId, agg);
     }
     agg.actualCost = row.actualCost;
     agg.actualCostPaid = row.actualCostPaid;
+    agg.actualCostClaimed = row.actualCostClaimed;
   }
 
   // ── 10. Budget category metadata (name, color) ────────────────────────────
@@ -320,6 +332,7 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
       projectedMax: agg?.projectedMax ?? 0,
       actualCost: agg?.actualCost ?? 0,
       actualCostPaid: agg?.actualCostPaid ?? 0,
+      actualCostClaimed: agg?.actualCostClaimed ?? 0,
       budgetLineCount: agg?.budgetLineCount ?? 0,
     };
   });
@@ -337,6 +350,7 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
       projectedMax: uncategorizedAgg.projectedMax,
       actualCost: uncategorizedAgg.actualCost,
       actualCostPaid: uncategorizedAgg.actualCostPaid,
+      actualCostClaimed: uncategorizedAgg.actualCostClaimed,
       budgetLineCount: uncategorizedAgg.budgetLineCount,
     });
   }
@@ -397,13 +411,14 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
     activeSubsidyCount: subsidyCountRow?.activeSubsidyCount ?? 0,
   };
 
-  // ── 12. Six remaining-funds perspectives ──────────────────────────────────
+  // ── 12. Seven remaining-funds perspectives ─────────────────────────────────
   const remainingVsMinPlanned = availableFunds - totalMinPlanned;
   const remainingVsMaxPlanned = availableFunds - totalMaxPlanned;
   const remainingVsProjectedMin = availableFunds - totalProjectedMin;
   const remainingVsProjectedMax = availableFunds - totalProjectedMax;
   const remainingVsActualCost = availableFunds - actualCost;
   const remainingVsActualPaid = availableFunds - actualCostPaid;
+  const remainingVsActualClaimed = availableFunds - actualCostClaimed;
 
   return {
     availableFunds,
@@ -414,12 +429,14 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
     projectedMax: totalProjectedMax,
     actualCost,
     actualCostPaid,
+    actualCostClaimed,
     remainingVsMinPlanned,
     remainingVsMaxPlanned,
     remainingVsProjectedMin,
     remainingVsProjectedMax,
     remainingVsActualCost,
     remainingVsActualPaid,
+    remainingVsActualClaimed,
     categorySummaries,
     subsidySummary,
   };
