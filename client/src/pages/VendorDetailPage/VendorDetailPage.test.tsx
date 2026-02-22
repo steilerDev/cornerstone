@@ -7,8 +7,15 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as InvoicesApiTypes from '../../lib/invoicesApi.js';
+import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
+import type * as WorkItemBudgetsApiTypes from '../../lib/workItemBudgetsApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
-import type { VendorDetail, Invoice } from '@cornerstone/shared';
+import type {
+  VendorDetail,
+  Invoice,
+  WorkItemSummary,
+  WorkItemBudgetLine,
+} from '@cornerstone/shared';
 
 // Mock the vendor API module BEFORE importing the component
 const mockFetchVendor = jest.fn<typeof VendorsApiTypes.fetchVendor>();
@@ -36,10 +43,65 @@ jest.unstable_mockModule('../../lib/invoicesApi.js', () => ({
   deleteInvoice: mockDeleteInvoice,
 }));
 
+// Mock the work items API module BEFORE importing the component
+const mockListWorkItems = jest.fn<typeof WorkItemsApiTypes.listWorkItems>();
+
+jest.unstable_mockModule('../../lib/workItemsApi.js', () => ({
+  listWorkItems: mockListWorkItems,
+  getWorkItem: jest.fn(),
+  createWorkItem: jest.fn(),
+  updateWorkItem: jest.fn(),
+  deleteWorkItem: jest.fn(),
+  fetchWorkItemSubsidies: jest.fn(),
+  linkWorkItemSubsidy: jest.fn(),
+  unlinkWorkItemSubsidy: jest.fn(),
+}));
+
+// Mock the work item budgets API module BEFORE importing the component
+const mockFetchWorkItemBudgets = jest.fn<typeof WorkItemBudgetsApiTypes.fetchWorkItemBudgets>();
+
+jest.unstable_mockModule('../../lib/workItemBudgetsApi.js', () => ({
+  fetchWorkItemBudgets: mockFetchWorkItemBudgets,
+  createWorkItemBudget: jest.fn(),
+  updateWorkItemBudget: jest.fn(),
+  deleteWorkItemBudget: jest.fn(),
+}));
+
 describe('VendorDetailPage', () => {
   let VendorDetailPage: React.ComponentType;
 
   // ─── Sample Data ─────────────────────────────────────────────────────────
+
+  const sampleWorkItem: WorkItemSummary = {
+    id: 'work-item-1',
+    title: 'Foundation Work',
+    status: 'in_progress',
+    startDate: '2026-01-01',
+    endDate: '2026-03-01',
+    durationDays: 59,
+    assignedUser: null,
+    tags: [],
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  };
+
+  const sampleBudgetLine: WorkItemBudgetLine = {
+    id: 'budget-line-1',
+    workItemId: 'work-item-1',
+    description: 'Concrete pour',
+    plannedAmount: 15000,
+    confidence: 'quote',
+    confidenceMargin: 0.05,
+    budgetCategory: null,
+    budgetSource: null,
+    vendor: null,
+    actualCost: 0,
+    actualCostPaid: 0,
+    invoiceCount: 0,
+    createdBy: null,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  };
 
   const sampleVendor: VendorDetail = {
     id: 'vendor-1',
@@ -130,9 +192,18 @@ describe('VendorDetailPage', () => {
     mockCreateInvoice.mockReset();
     mockUpdateInvoice.mockReset();
     mockDeleteInvoice.mockReset();
+    mockListWorkItems.mockReset();
+    mockFetchWorkItemBudgets.mockReset();
 
     // Default: invoices load successfully (empty list) unless overridden
     mockFetchInvoices.mockResolvedValue([]);
+    // Default: work items load as empty list (no work items to link) unless overridden
+    mockListWorkItems.mockResolvedValue({
+      items: [],
+      pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
+    });
+    // Default: no budget lines (fetchWorkItemBudgets only called when user selects a work item)
+    mockFetchWorkItemBudgets.mockResolvedValue([]);
   });
 
   /**
@@ -1328,6 +1399,165 @@ describe('VendorDetailPage', () => {
       // Modal should still be open
       expect(screen.getByRole('dialog')).toBeInTheDocument();
     });
+
+    it('renders "Link to Work Item" dropdown in create modal', async () => {
+      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
+      mockFetchInvoices.mockResolvedValueOnce([]);
+
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /add invoice/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /add invoice/i }));
+
+      const dialog = screen.getByRole('dialog');
+      expect(within(dialog).getByLabelText(/link to work item/i)).toBeInTheDocument();
+    });
+
+    it('loads work items into the "Link to Work Item" dropdown', async () => {
+      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
+      mockFetchInvoices.mockResolvedValueOnce([]);
+      mockListWorkItems.mockResolvedValue({
+        items: [sampleWorkItem],
+        pagination: { page: 1, pageSize: 100, totalItems: 1, totalPages: 1 },
+      });
+
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /add invoice/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /add invoice/i }));
+
+      const dialog = screen.getByRole('dialog');
+      const workItemSelect = within(dialog).getByLabelText(/link to work item/i);
+      // The work item title should be visible as an option
+      expect(workItemSelect).toHaveTextContent('Foundation Work');
+    });
+
+    it('shows budget line dropdown after selecting a work item in create modal', async () => {
+      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
+      mockFetchInvoices.mockResolvedValueOnce([]);
+      mockListWorkItems.mockResolvedValue({
+        items: [sampleWorkItem],
+        pagination: { page: 1, pageSize: 100, totalItems: 1, totalPages: 1 },
+      });
+      mockFetchWorkItemBudgets.mockResolvedValueOnce([sampleBudgetLine]);
+
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /add invoice/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /add invoice/i }));
+
+      const dialog = screen.getByRole('dialog');
+
+      // Budget line dropdown should not exist before a work item is selected
+      expect(within(dialog).queryByLabelText(/budget line/i)).not.toBeInTheDocument();
+
+      // Select the work item
+      const workItemSelect = within(dialog).getByLabelText(/link to work item/i);
+      await user.selectOptions(workItemSelect, 'work-item-1');
+
+      // Budget line dropdown should now appear
+      await waitFor(() => {
+        expect(within(dialog).getByLabelText(/budget line/i)).toBeInTheDocument();
+      });
+    });
+
+    it('populates budget line dropdown with lines fetched for the selected work item', async () => {
+      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
+      mockFetchInvoices.mockResolvedValueOnce([]);
+      mockListWorkItems.mockResolvedValue({
+        items: [sampleWorkItem],
+        pagination: { page: 1, pageSize: 100, totalItems: 1, totalPages: 1 },
+      });
+      mockFetchWorkItemBudgets.mockResolvedValueOnce([sampleBudgetLine]);
+
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /add invoice/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /add invoice/i }));
+
+      const dialog = screen.getByRole('dialog');
+      const workItemSelect = within(dialog).getByLabelText(/link to work item/i);
+      await user.selectOptions(workItemSelect, 'work-item-1');
+
+      await waitFor(() => {
+        expect(mockFetchWorkItemBudgets).toHaveBeenCalledWith('work-item-1');
+      });
+
+      await waitFor(() => {
+        const budgetLineSelect = within(dialog).getByLabelText(/budget line/i);
+        expect(budgetLineSelect).toHaveTextContent('Concrete pour');
+      });
+    });
+
+    it('submits workItemBudgetId when a budget line is selected in create modal', async () => {
+      const newInvoice: Invoice = {
+        ...sampleInvoice,
+        id: 'invoice-new',
+        workItemBudgetId: 'budget-line-1',
+      };
+
+      mockFetchVendor.mockResolvedValue(sampleVendor);
+      mockFetchInvoices.mockResolvedValueOnce([]);
+      mockListWorkItems.mockResolvedValue({
+        items: [sampleWorkItem],
+        pagination: { page: 1, pageSize: 100, totalItems: 1, totalPages: 1 },
+      });
+      mockFetchWorkItemBudgets.mockResolvedValueOnce([sampleBudgetLine]);
+      mockCreateInvoice.mockResolvedValueOnce(newInvoice);
+
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /add invoice/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /add invoice/i }));
+
+      const dialog = screen.getByRole('dialog');
+
+      // Fill required fields
+      fireEvent.change(within(dialog).getByLabelText(/amount/i), { target: { value: '1500' } });
+      fireEvent.change(within(dialog).getByLabelText(/invoice date/i), {
+        target: { value: '2026-02-01' },
+      });
+
+      // Select work item then budget line
+      const workItemSelect = within(dialog).getByLabelText(/link to work item/i);
+      await user.selectOptions(workItemSelect, 'work-item-1');
+
+      await waitFor(() => {
+        expect(within(dialog).getByLabelText(/budget line/i)).toBeInTheDocument();
+      });
+
+      const budgetLineSelect = within(dialog).getByLabelText(/budget line/i);
+      await user.selectOptions(budgetLineSelect, 'budget-line-1');
+
+      await user.click(within(dialog).getByRole('button', { name: /^add invoice$/i }));
+
+      await waitFor(() => {
+        expect(mockCreateInvoice).toHaveBeenCalledWith(
+          'vendor-1',
+          expect.objectContaining({ workItemBudgetId: 'budget-line-1' }),
+        );
+      });
+    });
   });
 
   // ─── Edit invoice modal ───────────────────────────────────────────────────
@@ -1504,6 +1734,136 @@ describe('VendorDetailPage', () => {
 
       await waitFor(() => {
         expect(within(dialog).getByText(/failed to update invoice/i)).toBeInTheDocument();
+      });
+    });
+
+    it('renders "Link to Work Item" dropdown in edit modal', async () => {
+      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
+      mockFetchInvoices.mockResolvedValueOnce([sampleInvoice]);
+
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /edit invoice INV-001/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /edit invoice INV-001/i }));
+
+      const dialog = screen.getByRole('dialog');
+      expect(within(dialog).getByLabelText(/link to work item/i)).toBeInTheDocument();
+    });
+
+    it('shows budget line dropdown after selecting a work item in edit modal', async () => {
+      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
+      mockFetchInvoices.mockResolvedValueOnce([sampleInvoice]);
+      mockListWorkItems.mockResolvedValue({
+        items: [sampleWorkItem],
+        pagination: { page: 1, pageSize: 100, totalItems: 1, totalPages: 1 },
+      });
+      mockFetchWorkItemBudgets.mockResolvedValueOnce([sampleBudgetLine]);
+
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /edit invoice INV-001/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /edit invoice INV-001/i }));
+
+      const dialog = screen.getByRole('dialog');
+
+      // Budget line dropdown should not be visible before a work item is chosen
+      expect(within(dialog).queryByLabelText(/budget line/i)).not.toBeInTheDocument();
+
+      // Select a work item
+      const workItemSelect = within(dialog).getByLabelText(/link to work item/i);
+      await user.selectOptions(workItemSelect, 'work-item-1');
+
+      // Budget line dropdown should now appear
+      await waitFor(() => {
+        expect(within(dialog).getByLabelText(/budget line/i)).toBeInTheDocument();
+      });
+    });
+
+    it('sends workItemBudgetId when budget link is touched in edit modal', async () => {
+      const updatedInvoice: Invoice = {
+        ...sampleInvoice,
+        workItemBudgetId: 'budget-line-1',
+      };
+
+      mockFetchVendor.mockResolvedValue(sampleVendor);
+      mockFetchInvoices.mockResolvedValueOnce([sampleInvoice]);
+      mockListWorkItems.mockResolvedValue({
+        items: [sampleWorkItem],
+        pagination: { page: 1, pageSize: 100, totalItems: 1, totalPages: 1 },
+      });
+      mockFetchWorkItemBudgets.mockResolvedValueOnce([sampleBudgetLine]);
+      mockUpdateInvoice.mockResolvedValueOnce(updatedInvoice);
+
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /edit invoice INV-001/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /edit invoice INV-001/i }));
+
+      const dialog = screen.getByRole('dialog');
+
+      // Select work item — this "touches" the budget link
+      const workItemSelect = within(dialog).getByLabelText(/link to work item/i);
+      await user.selectOptions(workItemSelect, 'work-item-1');
+
+      await waitFor(() => {
+        expect(within(dialog).getByLabelText(/budget line/i)).toBeInTheDocument();
+      });
+
+      const budgetLineSelect = within(dialog).getByLabelText(/budget line/i);
+      await user.selectOptions(budgetLineSelect, 'budget-line-1');
+
+      await user.click(within(dialog).getByRole('button', { name: /save changes/i }));
+
+      await waitFor(() => {
+        expect(mockUpdateInvoice).toHaveBeenCalledWith(
+          'vendor-1',
+          'invoice-1',
+          expect.objectContaining({ workItemBudgetId: 'budget-line-1' }),
+        );
+      });
+    });
+
+    it('does NOT send workItemBudgetId when budget link is not touched in edit modal', async () => {
+      const updatedInvoice: Invoice = { ...sampleInvoice, status: 'paid' };
+
+      mockFetchVendor.mockResolvedValue(sampleVendor);
+      mockFetchInvoices.mockResolvedValueOnce([sampleInvoice]);
+      mockUpdateInvoice.mockResolvedValueOnce(updatedInvoice);
+
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /edit invoice INV-001/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /edit invoice INV-001/i }));
+
+      const dialog = screen.getByRole('dialog');
+      const statusSelect = within(dialog).getByLabelText(/status/i);
+      await user.selectOptions(statusSelect, 'paid');
+
+      await user.click(within(dialog).getByRole('button', { name: /save changes/i }));
+
+      await waitFor(() => {
+        expect(mockUpdateInvoice).toHaveBeenCalledWith(
+          'vendor-1',
+          'invoice-1',
+          // workItemBudgetId should NOT be in the payload when link was not touched
+          expect.not.objectContaining({ workItemBudgetId: expect.anything() }),
+        );
       });
     });
   });

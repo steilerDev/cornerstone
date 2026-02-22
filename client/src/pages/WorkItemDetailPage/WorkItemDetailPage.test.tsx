@@ -25,9 +25,6 @@ const mockGetWorkItem = jest.fn<typeof WorkItemsApiTypes.getWorkItem>();
 const mockUpdateWorkItem = jest.fn<typeof WorkItemsApiTypes.updateWorkItem>();
 const mockDeleteWorkItem = jest.fn<typeof WorkItemsApiTypes.deleteWorkItem>();
 const mockListWorkItems = jest.fn<typeof WorkItemsApiTypes.listWorkItems>();
-const mockFetchWorkItemVendors = jest.fn<typeof WorkItemsApiTypes.fetchWorkItemVendors>();
-const mockLinkWorkItemVendor = jest.fn<typeof WorkItemsApiTypes.linkWorkItemVendor>();
-const mockUnlinkWorkItemVendor = jest.fn<typeof WorkItemsApiTypes.unlinkWorkItemVendor>();
 const mockFetchWorkItemSubsidies = jest.fn<typeof WorkItemsApiTypes.fetchWorkItemSubsidies>();
 const mockLinkWorkItemSubsidy = jest.fn<typeof WorkItemsApiTypes.linkWorkItemSubsidy>();
 const mockUnlinkWorkItemSubsidy = jest.fn<typeof WorkItemsApiTypes.unlinkWorkItemSubsidy>();
@@ -66,9 +63,6 @@ jest.unstable_mockModule('../../lib/workItemsApi.js', () => ({
   updateWorkItem: mockUpdateWorkItem,
   deleteWorkItem: mockDeleteWorkItem,
   listWorkItems: mockListWorkItems,
-  fetchWorkItemVendors: mockFetchWorkItemVendors,
-  linkWorkItemVendor: mockLinkWorkItemVendor,
-  unlinkWorkItemVendor: mockUnlinkWorkItemVendor,
   fetchWorkItemSubsidies: mockFetchWorkItemSubsidies,
   linkWorkItemSubsidy: mockLinkWorkItemSubsidy,
   unlinkWorkItemSubsidy: mockUnlinkWorkItemSubsidy,
@@ -177,9 +171,6 @@ describe('WorkItemDetailPage', () => {
     mockUpdateWorkItem.mockReset();
     mockDeleteWorkItem.mockReset();
     mockListWorkItems.mockReset();
-    mockFetchWorkItemVendors.mockReset();
-    mockLinkWorkItemVendor.mockReset();
-    mockUnlinkWorkItemVendor.mockReset();
     mockFetchWorkItemSubsidies.mockReset();
     mockLinkWorkItemSubsidy.mockReset();
     mockUnlinkWorkItemSubsidy.mockReset();

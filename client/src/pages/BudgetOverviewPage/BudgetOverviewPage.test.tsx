@@ -292,8 +292,40 @@ describe('BudgetOverviewPage', () => {
       });
 
       expect(screen.getByText('Available Funds')).toBeInTheDocument();
-      expect(screen.getByText('Remaining (optimistic)')).toBeInTheDocument();
-      expect(screen.getByText('Remaining (pessimistic)')).toBeInTheDocument();
+      expect(screen.getByText('Remaining (vs min planned)')).toBeInTheDocument();
+      expect(screen.getByText('Remaining (vs max planned)')).toBeInTheDocument();
+      expect(screen.getByText('Remaining (vs actual cost)')).toBeInTheDocument();
+      expect(screen.getByText('Remaining (vs actual paid)')).toBeInTheDocument();
+    });
+
+    it('renders Projected Budget card with projected min/max and remaining rows', async () => {
+      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('region', { name: /projected budget/i })).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('Projected Min (optimistic)')).toBeInTheDocument();
+      expect(screen.getByText('Projected Max (pessimistic)')).toBeInTheDocument();
+      expect(screen.getByText('Remaining (proj. optimistic)')).toBeInTheDocument();
+      expect(screen.getByText('Remaining (proj. pessimistic)')).toBeInTheDocument();
+    });
+
+    it('renders Projected Budget card values correctly', async () => {
+      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('region', { name: /projected budget/i })).toBeInTheDocument();
+      });
+
+      // richOverview: projectedMin=140000, projectedMax=160000
+      const projectedCard = screen.getByRole('region', { name: /projected budget/i });
+      expect(projectedCard).toHaveTextContent(/140,000/);
+      expect(projectedCard).toHaveTextContent(/160,000/);
     });
 
     it('renders Subsidies card with correct values', async () => {
@@ -432,6 +464,9 @@ describe('BudgetOverviewPage', () => {
         expect(screen.getByRole('columnheader', { name: /min planned/i })).toBeInTheDocument();
         expect(screen.getByRole('columnheader', { name: /max planned/i })).toBeInTheDocument();
         expect(screen.getByRole('columnheader', { name: /actual cost/i })).toBeInTheDocument();
+        expect(screen.getByRole('columnheader', { name: /actual paid/i })).toBeInTheDocument();
+        expect(screen.getByRole('columnheader', { name: /projected min/i })).toBeInTheDocument();
+        expect(screen.getByRole('columnheader', { name: /projected max/i })).toBeInTheDocument();
         expect(screen.getByRole('columnheader', { name: /budget lines/i })).toBeInTheDocument();
       });
     });
@@ -488,6 +523,58 @@ describe('BudgetOverviewPage', () => {
       await waitFor(() => {
         // Total row shows 8 (sum of 5 + 3)
         expect(screen.getByText('8')).toBeInTheDocument();
+      });
+    });
+
+    it('renders Projected Min and Projected Max values in category body rows', async () => {
+      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
+
+      renderPage();
+
+      await waitFor(() => {
+        // richOverview.categorySummaries[0]: projectedMin=72000, projectedMax=88000
+        const elements = screen.getAllByText(/72,000/);
+        expect(elements.length).toBeGreaterThan(0);
+        const maxElements = screen.getAllByText(/88,000/);
+        expect(maxElements.length).toBeGreaterThan(0);
+      });
+    });
+
+    it('renders Actual Paid values in category body rows', async () => {
+      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
+
+      renderPage();
+
+      await waitFor(() => {
+        // richOverview.categorySummaries[0]: actualCostPaid=65000
+        const elements = screen.getAllByText(/65,000/);
+        expect(elements.length).toBeGreaterThan(0);
+      });
+    });
+
+    it('renders overall projectedMin and projectedMax in table footer', async () => {
+      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
+
+      renderPage();
+
+      await waitFor(() => {
+        // richOverview: projectedMin=140000, projectedMax=160000 shown in footer
+        const minElements = screen.getAllByText(/140,000/);
+        expect(minElements.length).toBeGreaterThan(0);
+        const maxElements = screen.getAllByText(/160,000/);
+        expect(maxElements.length).toBeGreaterThan(0);
+      });
+    });
+
+    it('renders overall actualCostPaid in table footer', async () => {
+      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
+
+      renderPage();
+
+      await waitFor(() => {
+        // richOverview: actualCostPaid=100000 shown in footer
+        const elements = screen.getAllByText(/100,000/);
+        expect(elements.length).toBeGreaterThan(0);
       });
     });
   });

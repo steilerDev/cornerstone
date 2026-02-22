@@ -648,6 +648,13 @@
   cursor: not-allowed;
 }
 
+.budgetLinkNote {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin: 0 0 var(--spacing-2) 0;
+  font-style: italic;
+}
+
 .formActions {
   display: flex;
   gap: var(--spacing-3);
