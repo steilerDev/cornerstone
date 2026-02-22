@@ -200,7 +200,7 @@ describe('VendorDetailPage', () => {
     // Default: work items load as empty list (no work items to link) unless overridden
     mockListWorkItems.mockResolvedValue({
       items: [],
-      pagination: { page: 1, pageSize: 200, totalItems: 0, totalPages: 0 },
+      pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
     });
     // Default: no budget lines (fetchWorkItemBudgets only called when user selects a work item)
     mockFetchWorkItemBudgets.mockResolvedValue([]);
@@ -1422,7 +1422,7 @@ describe('VendorDetailPage', () => {
       mockFetchInvoices.mockResolvedValueOnce([]);
       mockListWorkItems.mockResolvedValue({
         items: [sampleWorkItem],
-        pagination: { page: 1, pageSize: 200, totalItems: 1, totalPages: 1 },
+        pagination: { page: 1, pageSize: 100, totalItems: 1, totalPages: 1 },
       });
 
       const user = userEvent.setup();
@@ -1445,7 +1445,7 @@ describe('VendorDetailPage', () => {
       mockFetchInvoices.mockResolvedValueOnce([]);
       mockListWorkItems.mockResolvedValue({
         items: [sampleWorkItem],
-        pagination: { page: 1, pageSize: 200, totalItems: 1, totalPages: 1 },
+        pagination: { page: 1, pageSize: 100, totalItems: 1, totalPages: 1 },
       });
       mockFetchWorkItemBudgets.mockResolvedValueOnce([sampleBudgetLine]);
 
@@ -1478,7 +1478,7 @@ describe('VendorDetailPage', () => {
       mockFetchInvoices.mockResolvedValueOnce([]);
       mockListWorkItems.mockResolvedValue({
         items: [sampleWorkItem],
-        pagination: { page: 1, pageSize: 200, totalItems: 1, totalPages: 1 },
+        pagination: { page: 1, pageSize: 100, totalItems: 1, totalPages: 1 },
       });
       mockFetchWorkItemBudgets.mockResolvedValueOnce([sampleBudgetLine]);
 
@@ -1516,7 +1516,7 @@ describe('VendorDetailPage', () => {
       mockFetchInvoices.mockResolvedValueOnce([]);
       mockListWorkItems.mockResolvedValue({
         items: [sampleWorkItem],
-        pagination: { page: 1, pageSize: 200, totalItems: 1, totalPages: 1 },
+        pagination: { page: 1, pageSize: 100, totalItems: 1, totalPages: 1 },
       });
       mockFetchWorkItemBudgets.mockResolvedValueOnce([sampleBudgetLine]);
       mockCreateInvoice.mockResolvedValueOnce(newInvoice);
@@ -1759,7 +1759,7 @@ describe('VendorDetailPage', () => {
       mockFetchInvoices.mockResolvedValueOnce([sampleInvoice]);
       mockListWorkItems.mockResolvedValue({
         items: [sampleWorkItem],
-        pagination: { page: 1, pageSize: 200, totalItems: 1, totalPages: 1 },
+        pagination: { page: 1, pageSize: 100, totalItems: 1, totalPages: 1 },
       });
       mockFetchWorkItemBudgets.mockResolvedValueOnce([sampleBudgetLine]);
 
@@ -1797,7 +1797,7 @@ describe('VendorDetailPage', () => {
       mockFetchInvoices.mockResolvedValueOnce([sampleInvoice]);
       mockListWorkItems.mockResolvedValue({
         items: [sampleWorkItem],
-        pagination: { page: 1, pageSize: 200, totalItems: 1, totalPages: 1 },
+        pagination: { page: 1, pageSize: 100, totalItems: 1, totalPages: 1 },
       });
       mockFetchWorkItemBudgets.mockResolvedValueOnce([sampleBudgetLine]);
       mockUpdateInvoice.mockResolvedValueOnce(updatedInvoice);

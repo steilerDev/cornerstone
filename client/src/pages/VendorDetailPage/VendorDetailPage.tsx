@@ -124,7 +124,7 @@ export function VendorDetailPage() {
   }, [id]);
 
   useEffect(() => {
-    void listWorkItems({ pageSize: 200 }).then((res) => setWorkItems(res.items));
+    void listWorkItems({ pageSize: 100 }).then((res) => setWorkItems(res.items));
   }, []);
 
   const loadVendor = async () => {
@@ -1034,10 +1034,16 @@ export function VendorDetailPage() {
                     });
                     if (workItemId) {
                       setBudgetLinesLoading(true);
-                      void fetchWorkItemBudgets(workItemId).then((lines) => {
-                        setBudgetLines(lines);
-                        setBudgetLinesLoading(false);
-                      });
+                      void fetchWorkItemBudgets(workItemId)
+                        .then((lines) => {
+                          setBudgetLines(lines);
+                        })
+                        .catch(() => {
+                          setBudgetLines([]);
+                        })
+                        .finally(() => {
+                          setBudgetLinesLoading(false);
+                        });
                     } else {
                       setBudgetLines([]);
                     }
@@ -1253,10 +1259,16 @@ export function VendorDetailPage() {
                     });
                     if (workItemId) {
                       setBudgetLinesLoading(true);
-                      void fetchWorkItemBudgets(workItemId).then((lines) => {
-                        setBudgetLines(lines);
-                        setBudgetLinesLoading(false);
-                      });
+                      void fetchWorkItemBudgets(workItemId)
+                        .then((lines) => {
+                          setBudgetLines(lines);
+                        })
+                        .catch(() => {
+                          setBudgetLines([]);
+                        })
+                        .finally(() => {
+                          setBudgetLinesLoading(false);
+                        });
                     } else {
                       setBudgetLines([]);
                     }
