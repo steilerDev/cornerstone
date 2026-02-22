@@ -144,8 +144,8 @@ Before considering any task complete:
 **Never commit directly to `main` or `beta`.** All changes go through feature branches and pull requests.
 
 1. Create a feature branch: `git checkout -b <type>/<issue-number>-<short-description> beta`
-2. Implement changes and run quality gates (`lint`, `typecheck`, `test`, `format:check`, `build`)
-3. Commit with conventional commit message and your Co-Authored-By trailer
+2. Implement changes
+3. Commit with conventional commit message and your Co-Authored-By trailer (the pre-commit hook runs all quality gates automatically — selective lint/format/tests on staged files + full typecheck/build/audit)
 4. Push: `git push -u origin <branch-name>`
 5. Create a PR targeting `beta`: `gh pr create --base beta --title "..." --body "..."`
 6. Wait for CI: `gh pr checks <pr-number> --watch`

@@ -193,7 +193,7 @@ All commits follow [Conventional Commits](https://www.conventionalcommits.org/):
 - **Breaking changes**: Use `!` suffix or `BREAKING CHANGE:` footer
 - Every completed task gets its own commit with a meaningful description
 - **Link commits to issues**: When a commit resolves work tracked in a GitHub Issue, include `Fixes #<issue-number>` in the commit message body (one per line for multiple issues). Note: `Fixes #N` only auto-closes issues when the commit reaches `main` (not `beta`).
-- **Always commit, push to a feature branch, and create a PR after verification passes.** When a work session completes and all quality gates (`lint`, `typecheck`, `test`, `format:check`, `build`, `npm audit`) pass, commit, push to the feature branch, and create a PR before ending the session. Do not leave verified work uncommitted or unpushed. Never push directly to `main` or `beta`.
+- **Always commit, push to a feature branch, and create a PR after work is complete.** The pre-commit hook automatically runs all quality gates (selective lint/format/tests on staged files + full typecheck/build/audit). Just commit — the hook validates. If the hook fails, fix the issues and commit again. Do not leave work uncommitted or unpushed. Never push directly to `main` or `beta`.
 
 ### Agent Attribution
 
@@ -229,20 +229,19 @@ All agents must clearly identify themselves in commits and GitHub interactions:
   2. **Branch**: Create a feature branch from `beta`: `git checkout -b <branch-name> beta`
   3. **Implement**: Launch the appropriate developer agent (`backend-developer` and/or `frontend-developer`) to write the production code
   4. **Test**: Launch `qa-integration-tester` to write unit tests (95%+ coverage target), integration tests, and Playwright E2E tests
-  5. **Quality gates**: Run `lint`, `typecheck`, `test`, `format:check`, `build`, `npm audit` — all must pass. E2E smoke tests run automatically in CI (see `e2e-smoke` job in `.github/workflows/ci.yml`) — do not run them locally.
-  6. **Commit & PR**: Commit, push the branch, create a PR targeting `beta`: `gh pr create --base beta --title "..." --body "..."`
-  7. **CI**: Wait for CI: `gh pr checks <pr-number> --watch`
-  8. **Review**: After CI passes, launch review agents **in parallel**:
+  5. **Commit & PR**: Commit (the pre-commit hook runs all quality gates automatically — selective lint/format/tests on staged files + full typecheck/build/audit), push the branch, create a PR targeting `beta`: `gh pr create --base beta --title "..." --body "..."`. E2E smoke tests run automatically in CI (see `e2e-smoke` job in `.github/workflows/ci.yml`) — do not run them locally.
+  6. **CI**: Wait for CI: `gh pr checks <pr-number> --watch`
+  7. **Review**: After CI passes, launch review agents **in parallel**:
      - `product-architect` — verifies architecture compliance, test coverage, and code quality
      - `security-engineer` — reviews for security vulnerabilities, input validation, authentication/authorization gaps
        Both agents review the PR diff and comment via `gh pr review`.
-  9. **Fix loop**: If any reviewer requests changes:
+  8. **Fix loop**: If any reviewer requests changes:
      a. The reviewer posts specific feedback on the PR (`gh pr review --request-changes`)
      b. The orchestrator launches the original implementing agent on the same branch to address the feedback
      c. The implementing agent pushes fixes, then the orchestrator re-requests review from the agent(s) that requested changes
      d. Repeat until all reviewers approve
-  10. **Merge**: Once all agents approve and CI is green, merge immediately: `gh pr merge --squash <pr-url>`
-  11. After merge, clean up: `git checkout beta && git pull && git branch -d <branch-name>`
+  9. **Merge**: Once all agents approve and CI is green, merge immediately: `gh pr merge --squash <pr-url>`
+  10. After merge, clean up: `git checkout beta && git pull && git branch -d <branch-name>`
 
 - **Post-merge E2E**: After each story is merged to `beta`, a non-blocking E2E workflow (`.github/workflows/e2e.yml`) runs the full suite. If it fails, the next story cycle should include E2E fixes before new feature work. The orchestrator should check E2E status on `beta` before starting a new story: `gh run list --workflow=e2e.yml --branch=beta --limit=1`.
 
