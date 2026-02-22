@@ -5,7 +5,7 @@
  */
 
 export interface CategoryBudgetSummary {
-  categoryId: string;
+  categoryId: string | null;
   categoryName: string;
   categoryColor: string | null;
   minPlanned: number;

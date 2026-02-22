@@ -673,28 +673,28 @@ describe('getBudgetOverview', () => {
   // ─── Subsidy reductions — category matching ───────────────────────────────
 
   describe('subsidy reductions — category matching', () => {
-    it('does NOT apply subsidy reduction when subsidy has no applicable categories', () => {
+    it('applies universal subsidy (no applicable categories) to all budget lines', () => {
       const catId = insertBudgetCategory('Cat No Subsidy Category Match');
       const { workItemId } = insertWorkItem({
         plannedAmount: 10000,
         confidence: 'invoice',
         budgetCategoryId: catId,
       });
-      // Subsidy with NO applicable categories linked
+      // Subsidy with NO applicable categories = universal subsidy
       const progId = insertSubsidyProgram({
         reductionType: 'percentage',
         reductionValue: 20,
         applicationStatus: 'approved',
-        categoryIds: [], // no categories
+        categoryIds: [], // no categories → universal
       });
       linkWorkItemSubsidy(workItemId, progId);
 
       const result = getBudgetOverview(db);
 
-      // No reduction applied; invoice confidence, so min=max=10000
-      expect(result.minPlanned).toBe(10000);
-      expect(result.maxPlanned).toBe(10000);
-      expect(result.subsidySummary.totalReductions).toBe(0);
+      // Universal subsidy applies: 10000 * 20% = 2000 reduction; invoice confidence min=max=8000
+      expect(result.minPlanned).toBe(8000);
+      expect(result.maxPlanned).toBe(8000);
+      expect(result.subsidySummary.totalReductions).toBe(2000);
     });
 
     it('does NOT apply subsidy when budget line category does not match subsidy categories', () => {
@@ -972,14 +972,14 @@ describe('getBudgetOverview', () => {
       expect(result.subsidySummary.totalReductions).toBeCloseTo(3000, 5);
     });
 
-    it('returns 0 totalReductions when subsidy has no category links even if work item linked', () => {
+    it('returns totalReductions for universal subsidy (no category links) when work item linked', () => {
       const catId = insertBudgetCategory('Cat With No Prog Category');
       const { workItemId } = insertWorkItem({
         plannedAmount: 10000,
         confidence: 'invoice',
         budgetCategoryId: catId,
       });
-      // Program with no applicable categories
+      // Program with no applicable categories = universal subsidy
       const progId = insertSubsidyProgram({
         reductionType: 'percentage',
         reductionValue: 25,
@@ -990,7 +990,8 @@ describe('getBudgetOverview', () => {
 
       const result = getBudgetOverview(db);
 
-      expect(result.subsidySummary.totalReductions).toBe(0);
+      // Universal subsidy applies: 10000 * 25% = 2500
+      expect(result.subsidySummary.totalReductions).toBe(2500);
     });
   });
 

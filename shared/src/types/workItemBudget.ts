@@ -60,7 +60,7 @@ export interface WorkItemBudgetLine {
   vendor: VendorSummary | null;
   /** Computed: sum of all linked invoices (any status) */
   actualCost: number;
-  /** Computed: sum of linked invoices with status = 'paid' */
+  /** Computed: sum of linked invoices with status 'paid' or 'claimed' */
   actualCostPaid: number;
   /** Computed: count of linked invoices */
   invoiceCount: number;
