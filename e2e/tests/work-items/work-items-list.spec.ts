@@ -23,7 +23,7 @@ import { createWorkItemViaApi, deleteWorkItemViaApi } from '../../fixtures/apiHe
 // Scenario 1: Page loads with h1 "Work Items"
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
-  test('Work Items list page loads with h1 "Work Items"', async ({ page }) => {
+  test('Work Items list page loads with h1 "Work Items"', { tag: '@smoke' }, async ({ page }) => {
     const workItemsPage = new WorkItemsPage(page);
 
     await workItemsPage.goto();

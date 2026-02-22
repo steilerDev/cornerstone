@@ -54,21 +54,25 @@ async function deleteCategoryViaApi(page: Page, id: string): Promise<void> {
 // Scenario 1 & 2: Default categories present and list view
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Default categories (Scenario 1 & 2)', { tag: '@responsive' }, () => {
-  test('All 10 default categories are present after fresh migration', async ({ page }) => {
-    // Given: EPIC-05 migration applied; default seeds loaded
-    const categoriesPage = new BudgetCategoriesPage(page);
+  test(
+    'All 10 default categories are present after fresh migration',
+    { tag: '@smoke' },
+    async ({ page }) => {
+      // Given: EPIC-05 migration applied; default seeds loaded
+      const categoriesPage = new BudgetCategoriesPage(page);
 
-    // When: I navigate to Budget > Categories
-    await categoriesPage.goto();
+      // When: I navigate to Budget > Categories
+      await categoriesPage.goto();
 
-    // Then: All 10 named default categories appear in the list
-    // (we check for presence rather than exact count=10 since parallel workers
-    //  may have created additional categories in the shared database)
-    const names = await categoriesPage.getCategoryNames();
-    for (const expectedName of DEFAULT_CATEGORIES) {
-      expect(names).toContain(expectedName);
-    }
-  });
+      // Then: All 10 named default categories appear in the list
+      // (we check for presence rather than exact count=10 since parallel workers
+      //  may have created additional categories in the shared database)
+      const names = await categoriesPage.getCategoryNames();
+      for (const expectedName of DEFAULT_CATEGORIES) {
+        expect(names).toContain(expectedName);
+      }
+    },
+  );
 
   test('List shows name, color swatch and sort order for each category', async ({ page }) => {
     // Given: Default categories are seeded

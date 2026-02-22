@@ -7,7 +7,7 @@ import { UserManagementPage } from '../../pages/UserManagementPage.js';
 import { TEST_ADMIN } from '../../fixtures/testData.js';
 
 test.describe('User List Display', () => {
-  test('Admin sees user list table', async ({ page }) => {
+  test('Admin sees user list table', { tag: '@smoke' }, async ({ page }) => {
     const userManagementPage = new UserManagementPage(page);
 
     // Given: User is an admin

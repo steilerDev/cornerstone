@@ -7,7 +7,7 @@ import { ProfilePage } from '../../pages/ProfilePage.js';
 import { TEST_ADMIN } from '../../fixtures/testData.js';
 
 test.describe('View Profile', () => {
-  test('All profile fields displayed', async ({ page }) => {
+  test('All profile fields displayed', { tag: '@smoke' }, async ({ page }) => {
     const profilePage = new ProfilePage(page);
 
     // Given: User is authenticated
