@@ -13,12 +13,10 @@
  *   - h2 "Assignment" (Assigned To select)
  *   - h2 "Tags" (TagPicker)
  *   - h2 "Budget":
- *     - "Edit" button (aria-label="Edit budget fields") in section header
- *     - Budget display (Planned Budget, Actual Cost, Confidence, Budget Category, Budget Source)
- *     - Budget edit form (#editPlannedBudget, #editActualCost, #editConfidence,
- *       #editBudgetCategory, #editBudgetSource)
- *     - h3 "Vendors" — linked vendor list, vendor picker select
- *       (aria-label="Select vendor to link"), "Add Vendor" button
+ *     - "+ Add Line" button (aria-label="Add budget line") in section header
+ *     - Budget lines list with per-line Edit/Delete buttons
+ *     - Inline form for adding/editing budget lines (planned amount, confidence,
+ *       description, category, source, vendor)
  *     - h3 "Subsidies" — linked subsidy list, subsidy picker select
  *       (aria-label="Select subsidy program to link"), "Add Subsidy" button
  * - Right column sections:
@@ -37,7 +35,7 @@
  * - Delete modal uses a plain div[class*="modal"] — no role="dialog", no aria-labelledby
  *   The h2 inside is "Delete Work Item?" (with question mark)
  * - Error state uses class `error` (div.error with a "Back to Work Items" button inside)
- * - Vendor picker only renders when availableVendors.length > 0 (vendors not yet linked)
+ * - Vendors are now assigned per budget line (no separate vendor picker)
  * - Subsidy picker only renders when availableSubsidies.length > 0
  */
 
@@ -59,14 +57,8 @@ export class WorkItemDetailPage {
   readonly tagsSection: Locator;
   readonly budgetSection: Locator;
 
-  // Budget editing
-  readonly editBudgetButton: Locator;
-  readonly saveBudgetButton: Locator;
-  readonly cancelBudgetEditButton: Locator;
-
-  // Vendor linking
-  readonly vendorPicker: Locator;
-  readonly addVendorButton: Locator;
+  // Budget lines
+  readonly addBudgetLineButton: Locator;
 
   // Subsidy linking
   readonly subsidyPicker: Locator;
@@ -126,18 +118,8 @@ export class WorkItemDetailPage {
       .locator('section')
       .filter({ has: page.getByRole('heading', { level: 2, name: 'Budget', exact: true }) });
 
-    // Budget editing
-    this.editBudgetButton = page.getByRole('button', { name: 'Edit budget fields' });
-    // Save/Cancel appear inside the budget edit form
-    this.saveBudgetButton = this.budgetSection.getByRole('button', { name: 'Save', exact: true });
-    this.cancelBudgetEditButton = this.budgetSection.getByRole('button', {
-      name: 'Cancel',
-      exact: true,
-    });
-
-    // Vendor picker (only present when unlinked vendors exist)
-    this.vendorPicker = page.getByLabel('Select vendor to link');
-    this.addVendorButton = page.getByRole('button', { name: /Add Vendor|Linking\.\.\./i });
+    // Budget lines
+    this.addBudgetLineButton = page.getByRole('button', { name: 'Add budget line' });
 
     // Subsidy picker (only present when unlinked subsidies exist)
     this.subsidyPicker = page.getByLabel('Select subsidy program to link');
@@ -228,22 +210,6 @@ export class WorkItemDetailPage {
     await this.subtasksSection
       .locator('[class*="subtaskTitle"]')
       .filter({ hasText: text })
-      .waitFor({ state: 'visible' });
-  }
-
-  /**
-   * Link a vendor to the work item by name.
-   * Selects the vendor in the picker dropdown and clicks "Add Vendor".
-   * Note: the picker only renders when there are unlinkable vendors.
-   */
-  async linkVendor(vendorName: string): Promise<void> {
-    await this.vendorPicker.selectOption({ label: vendorName });
-    await this.addVendorButton.click();
-    // Wait for the vendor to appear in the linked list.
-    // No explicit timeout — uses project-level actionTimeout (15s for WebKit).
-    await this.budgetSection
-      .locator('[class*="linkedItemName"]')
-      .filter({ hasText: vendorName })
       .waitFor({ state: 'visible' });
   }
 

@@ -13,9 +13,8 @@
  *   - #durationDays (number)
  *   - #startAfter, #startBefore (date inputs)
  *   - Tags: TagPicker component
- *   - Budget section (h2 "Budget"): #plannedBudget, #actualCost, #confidencePercent,
- *     #budgetCategoryId, #budgetSourceId
  *   - Dependencies: DependencySentenceBuilder
+ *   (Budget fields removed in Story 5.9 rework — managed via /api/work-items/:id/budgets)
  * - Submit button (class submitButton): text "Create Work Item" / "Creating..."
  * - Cancel button (class cancelButton): text "Cancel"
  * - Error banner (class errorBanner) for server-side errors
@@ -45,9 +44,6 @@ export interface WorkItemFormData {
   durationDays?: string;
   startAfter?: string;
   startBefore?: string;
-  plannedBudget?: string;
-  actualCost?: string;
-  confidencePercent?: string;
 }
 
 export class WorkItemCreatePage {
@@ -67,11 +63,6 @@ export class WorkItemCreatePage {
   readonly durationInput: Locator;
   readonly startAfterInput: Locator;
   readonly startBeforeInput: Locator;
-  readonly plannedBudgetInput: Locator;
-  readonly actualCostInput: Locator;
-  readonly confidencePercentInput: Locator;
-  readonly budgetCategorySelect: Locator;
-  readonly budgetSourceSelect: Locator;
 
   // Form actions
   readonly submitButton: Locator;
@@ -99,11 +90,6 @@ export class WorkItemCreatePage {
     this.durationInput = page.locator('#durationDays');
     this.startAfterInput = page.locator('#startAfter');
     this.startBeforeInput = page.locator('#startBefore');
-    this.plannedBudgetInput = page.locator('#plannedBudget');
-    this.actualCostInput = page.locator('#actualCost');
-    this.confidencePercentInput = page.locator('#confidencePercent');
-    this.budgetCategorySelect = page.locator('#budgetCategoryId');
-    this.budgetSourceSelect = page.locator('#budgetSourceId');
 
     // Form actions
     this.submitButton = page.getByRole('button', { name: /Create Work Item|Creating\.\.\./i });
@@ -161,15 +147,6 @@ export class WorkItemCreatePage {
     }
     if (data.startBefore !== undefined) {
       await this.startBeforeInput.fill(data.startBefore);
-    }
-    if (data.plannedBudget !== undefined) {
-      await this.plannedBudgetInput.fill(data.plannedBudget);
-    }
-    if (data.actualCost !== undefined) {
-      await this.actualCostInput.fill(data.actualCost);
-    }
-    if (data.confidencePercent !== undefined) {
-      await this.confidencePercentInput.fill(data.confidencePercent);
     }
   }
 

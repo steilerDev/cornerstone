@@ -22,21 +22,17 @@ import { API } from '../../fixtures/testData.js';
 /** Minimal BudgetOverview response representing an all-zero state (no data entered). */
 function emptyOverviewResponse() {
   return {
-    totalPlannedBudget: 0,
-    totalActualCost: 0,
-    totalVariance: 0,
+    availableFunds: 0,
+    sourceCount: 0,
+    minPlanned: 0,
+    maxPlanned: 0,
+    actualCost: 0,
+    actualCostPaid: 0,
+    remainingVsMinPlanned: 0,
+    remainingVsMaxPlanned: 0,
+    remainingVsActualCost: 0,
+    remainingVsActualPaid: 0,
     categorySummaries: [],
-    financingSummary: {
-      totalAvailable: 0,
-      totalUsed: 0,
-      totalRemaining: 0,
-      sourceCount: 0,
-    },
-    vendorSummary: {
-      totalPaid: 0,
-      totalOutstanding: 0,
-      vendorCount: 0,
-    },
     subsidySummary: {
       totalReductions: 0,
       activeSubsidyCount: 0,
@@ -47,40 +43,38 @@ function emptyOverviewResponse() {
 /** BudgetOverview response with data in all four summary cards and two category rows. */
 function populatedOverviewResponse() {
   return {
-    totalPlannedBudget: 250000,
-    totalActualCost: 185000,
-    totalVariance: 65000,
+    availableFunds: 300000,
+    sourceCount: 2,
+    minPlanned: 250000,
+    maxPlanned: 275000,
+    actualCost: 185000,
+    actualCostPaid: 150000,
+    remainingVsMinPlanned: 50000,
+    remainingVsMaxPlanned: 25000,
+    remainingVsActualCost: 115000,
+    remainingVsActualPaid: 150000,
     categorySummaries: [
       {
         categoryId: 'cat-001',
         categoryName: 'Materials',
         categoryColor: '#3b82f6',
-        plannedBudget: 120000,
+        minPlanned: 120000,
+        maxPlanned: 132000,
         actualCost: 95000,
-        variance: 25000,
-        workItemCount: 4,
+        actualCostPaid: 80000,
+        budgetLineCount: 4,
       },
       {
         categoryId: 'cat-002',
         categoryName: 'Labor',
         categoryColor: '#10b981',
-        plannedBudget: 130000,
+        minPlanned: 130000,
+        maxPlanned: 143000,
         actualCost: 90000,
-        variance: 40000,
-        workItemCount: 3,
+        actualCostPaid: 70000,
+        budgetLineCount: 3,
       },
     ],
-    financingSummary: {
-      totalAvailable: 300000,
-      totalUsed: 185000,
-      totalRemaining: 115000,
-      sourceCount: 2,
-    },
-    vendorSummary: {
-      totalPaid: 150000,
-      totalOutstanding: 35000,
-      vendorCount: 5,
-    },
     subsidySummary: {
       totalReductions: 12500,
       activeSubsidyCount: 2,
@@ -178,13 +172,12 @@ test.describe('Empty state', { tag: '@responsive' }, () => {
     // Return a response with real financial data but no category summaries
     const responseBody = {
       ...emptyOverviewResponse(),
-      totalPlannedBudget: 50000,
-      financingSummary: {
-        totalAvailable: 100000,
-        totalUsed: 50000,
-        totalRemaining: 50000,
-        sourceCount: 1,
-      },
+      minPlanned: 50000,
+      maxPlanned: 55000,
+      availableFunds: 100000,
+      sourceCount: 1,
+      remainingVsMinPlanned: 50000,
+      remainingVsMaxPlanned: 45000,
     };
 
     await page.route(`${API.budgetOverview}`, async (route) => {
@@ -242,7 +235,7 @@ test.describe('Summary cards', { tag: '@responsive' }, () => {
       await expect(overviewPage.cardsGrid).toBeVisible({ timeout: 8000 });
 
       // And: All four cards are present
-      const cardTitles = ['Total Budget', 'Financing', 'Vendors', 'Subsidies'];
+      const cardTitles = ['Planned Budget', 'Actual Cost', 'Financing', 'Subsidies'];
       for (const title of cardTitles) {
         const card = overviewPage.getSummaryCard(title);
         await expect(card).toBeVisible();
@@ -254,7 +247,9 @@ test.describe('Summary cards', { tag: '@responsive' }, () => {
     }
   });
 
-  test('Total Budget card shows Planned, Actual Cost, and Variance stats', async ({ page }) => {
+  test('Planned Budget card shows Min (optimistic) and Max (pessimistic) stats', async ({
+    page,
+  }) => {
     const overviewPage = new BudgetOverviewPage(page);
 
     await page.route(`${API.budgetOverview}`, async (route) => {
@@ -273,20 +268,17 @@ test.describe('Summary cards', { tag: '@responsive' }, () => {
       await overviewPage.goto();
       await overviewPage.waitForLoaded();
 
-      const planned = await overviewPage.getSummaryCardValue('Total Budget', 'Planned');
-      expect(planned).toMatch(/250,000/);
+      const min = await overviewPage.getSummaryCardValue('Planned Budget', 'Min (optimistic)');
+      expect(min).toMatch(/250,000/);
 
-      const actualCost = await overviewPage.getSummaryCardValue('Total Budget', 'Actual Cost');
-      expect(actualCost).toMatch(/185,000/);
-
-      const variance = await overviewPage.getSummaryCardValue('Total Budget', 'Variance');
-      expect(variance).toMatch(/65,000/);
+      const max = await overviewPage.getSummaryCardValue('Planned Budget', 'Max (pessimistic)');
+      expect(max).toMatch(/275,000/);
     } finally {
       await page.unroute(`${API.budgetOverview}`);
     }
   });
 
-  test('Financing card shows Total Available, Used, and Remaining stats', async ({ page }) => {
+  test('Financing card shows Available Funds and Remaining stats', async ({ page }) => {
     const overviewPage = new BudgetOverviewPage(page);
 
     await page.route(`${API.budgetOverview}`, async (route) => {
@@ -305,43 +297,20 @@ test.describe('Summary cards', { tag: '@responsive' }, () => {
       await overviewPage.goto();
       await overviewPage.waitForLoaded();
 
-      const totalAvailable = await overviewPage.getSummaryCardValue('Financing', 'Total Available');
-      expect(totalAvailable).toMatch(/300,000/);
+      const available = await overviewPage.getSummaryCardValue('Financing', 'Available Funds');
+      expect(available).toMatch(/300,000/);
 
-      const used = await overviewPage.getSummaryCardValue('Financing', 'Used');
-      expect(used).toMatch(/185,000/);
+      const optimistic = await overviewPage.getSummaryCardValue(
+        'Financing',
+        'Remaining (optimistic)',
+      );
+      expect(optimistic).toMatch(/50,000/);
 
-      const remaining = await overviewPage.getSummaryCardValue('Financing', 'Remaining');
-      expect(remaining).toMatch(/115,000/);
-    } finally {
-      await page.unroute(`${API.budgetOverview}`);
-    }
-  });
-
-  test('Vendors card shows Total Paid and Outstanding stats', async ({ page }) => {
-    const overviewPage = new BudgetOverviewPage(page);
-
-    await page.route(`${API.budgetOverview}`, async (route) => {
-      if (route.request().method() === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ overview: populatedOverviewResponse() }),
-        });
-      } else {
-        await route.continue();
-      }
-    });
-
-    try {
-      await overviewPage.goto();
-      await overviewPage.waitForLoaded();
-
-      const totalPaid = await overviewPage.getSummaryCardValue('Vendors', 'Total Paid');
-      expect(totalPaid).toMatch(/150,000/);
-
-      const outstanding = await overviewPage.getSummaryCardValue('Vendors', 'Outstanding');
-      expect(outstanding).toMatch(/35,000/);
+      const pessimistic = await overviewPage.getSummaryCardValue(
+        'Financing',
+        'Remaining (pessimistic)',
+      );
+      expect(pessimistic).toMatch(/25,000/);
     } finally {
       await page.unroute(`${API.budgetOverview}`);
     }
@@ -409,10 +378,10 @@ test.describe('Category breakdown table', { tag: '@responsive' }, () => {
       // Column headers present
       const table = overviewPage.categoryBreakdownTable;
       await expect(table.getByRole('columnheader', { name: 'Category' })).toBeVisible();
-      await expect(table.getByRole('columnheader', { name: 'Planned Budget' })).toBeVisible();
+      await expect(table.getByRole('columnheader', { name: 'Min Planned' })).toBeVisible();
+      await expect(table.getByRole('columnheader', { name: 'Max Planned' })).toBeVisible();
       await expect(table.getByRole('columnheader', { name: 'Actual Cost' })).toBeVisible();
-      await expect(table.getByRole('columnheader', { name: 'Variance' })).toBeVisible();
-      await expect(table.getByRole('columnheader', { name: 'Work Items' })).toBeVisible();
+      await expect(table.getByRole('columnheader', { name: 'Budget Lines' })).toBeVisible();
 
       // Two data rows (from the mocked response)
       const rowCount = await overviewPage.getTableRowCount();
@@ -550,8 +519,8 @@ test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
       // Cards grid visible in dark mode
       await expect(overviewPage.cardsGrid).toBeVisible({ timeout: 8000 });
 
-      const totalBudgetCard = overviewPage.getSummaryCard('Total Budget');
-      await expect(totalBudgetCard).toBeVisible();
+      const plannedBudgetCard = overviewPage.getSummaryCard('Planned Budget');
+      await expect(plannedBudgetCard).toBeVisible();
     } finally {
       await page.unroute(`${API.budgetOverview}`);
     }
