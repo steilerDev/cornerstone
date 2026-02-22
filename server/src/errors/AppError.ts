@@ -71,7 +71,7 @@ export class CategoryInUseError extends AppError {
 export class VendorInUseError extends AppError {
   constructor(
     message = 'Vendor is in use and cannot be deleted',
-    details?: { invoiceCount: number; workItemCount: number },
+    details?: { invoiceCount: number; budgetLineCount: number },
   ) {
     super('VENDOR_IN_USE', 409, message, details);
     this.name = 'VendorInUseError';
@@ -81,7 +81,7 @@ export class VendorInUseError extends AppError {
 export class BudgetSourceInUseError extends AppError {
   constructor(
     message = 'Budget source is in use and cannot be deleted',
-    details?: { workItemCount: number },
+    details?: { budgetLineCount: number },
   ) {
     super('BUDGET_SOURCE_IN_USE', 409, message, details);
     this.name = 'BudgetSourceInUseError';
@@ -95,5 +95,15 @@ export class SubsidyProgramInUseError extends AppError {
   ) {
     super('SUBSIDY_PROGRAM_IN_USE', 409, message, details);
     this.name = 'SubsidyProgramInUseError';
+  }
+}
+
+export class BudgetLineInUseError extends AppError {
+  constructor(
+    message = 'Budget line has linked invoices and cannot be deleted',
+    details?: { invoiceCount: number },
+  ) {
+    super('BUDGET_LINE_IN_USE', 409, message, details);
+    this.name = 'BudgetLineInUseError';
   }
 }

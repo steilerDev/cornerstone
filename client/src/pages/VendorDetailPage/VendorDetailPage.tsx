@@ -39,7 +39,7 @@ function formatDate(dateStr: string): string {
 const INVOICE_STATUS_LABELS: Record<InvoiceStatus, string> = {
   pending: 'Pending',
   paid: 'Paid',
-  overdue: 'Overdue',
+  claimed: 'Claimed',
 };
 
 /** Invoice form state used for both create and edit. */
@@ -253,9 +253,9 @@ export function VendorDetailPage() {
     void loadInvoices();
   }, [id, loadInvoices]);
 
-  /** Computes outstanding balance from client-side invoice list (pending + overdue). */
+  /** Computes outstanding balance from client-side invoice list (pending + claimed). */
   const computedOutstandingBalance = invoices
-    .filter((inv) => inv.status === 'pending' || inv.status === 'overdue')
+    .filter((inv) => inv.status === 'pending' || inv.status === 'claimed')
     .reduce((sum, inv) => sum + inv.amount, 0);
 
   const openCreateModal = () => {
@@ -986,7 +986,7 @@ export function VendorDetailPage() {
                 >
                   <option value="pending">Pending</option>
                   <option value="paid">Paid</option>
-                  <option value="overdue">Overdue</option>
+                  <option value="claimed">Claimed</option>
                 </select>
               </div>
 
@@ -1138,7 +1138,7 @@ export function VendorDetailPage() {
                 >
                   <option value="pending">Pending</option>
                   <option value="paid">Paid</option>
-                  <option value="overdue">Overdue</option>
+                  <option value="claimed">Claimed</option>
                 </select>
               </div>
 

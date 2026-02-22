@@ -126,13 +126,13 @@ export function BudgetOverviewPage() {
     return null;
   }
 
-  const varianceVariant = overview.totalVariance >= 0 ? 'positive' : 'negative';
-  const remainingVariant = overview.financingSummary.totalRemaining >= 0 ? 'positive' : 'negative';
+  const remainingOptimisticVariant = overview.remainingVsMinPlanned >= 0 ? 'positive' : 'negative';
+  const remainingPessimisticVariant = overview.remainingVsMaxPlanned >= 0 ? 'positive' : 'negative';
   const hasData =
-    overview.totalPlannedBudget > 0 ||
-    overview.totalActualCost > 0 ||
+    overview.minPlanned > 0 ||
+    overview.actualCost > 0 ||
     overview.categorySummaries.length > 0 ||
-    overview.financingSummary.sourceCount > 0;
+    overview.sourceCount > 0;
 
   return (
     <div className={styles.container}>
@@ -158,53 +158,34 @@ export function BudgetOverviewPage() {
 
         {/* Summary cards grid */}
         <div className={styles.cardsGrid}>
-          {/* Total Budget card */}
-          <SummaryCard title="Total Budget">
-            <StatRow label="Planned" value={formatCurrency(overview.totalPlannedBudget)} />
-            <StatRow label="Actual Cost" value={formatCurrency(overview.totalActualCost)} />
-            <div className={styles.cardDivider} />
-            <StatRow
-              label="Variance"
-              value={formatCurrency(overview.totalVariance)}
-              variant={varianceVariant}
-            />
-            {overview.totalVariance >= 0 ? (
-              <p className={styles.cardNote}>Under budget</p>
-            ) : (
-              <p className={`${styles.cardNote} ${styles.cardNoteNegative}`}>Over budget</p>
-            )}
+          {/* Planned Budget card (confidence range) */}
+          <SummaryCard title="Planned Budget">
+            <StatRow label="Min (optimistic)" value={formatCurrency(overview.minPlanned)} />
+            <StatRow label="Max (pessimistic)" value={formatCurrency(overview.maxPlanned)} />
+          </SummaryCard>
+
+          {/* Actual Cost card */}
+          <SummaryCard title="Actual Cost">
+            <StatRow label="Invoiced" value={formatCurrency(overview.actualCost)} />
+            <StatRow label="Paid" value={formatCurrency(overview.actualCostPaid)} />
           </SummaryCard>
 
           {/* Financing card */}
           <SummaryCard title="Financing">
-            <StatRow
-              label="Total Available"
-              value={formatCurrency(overview.financingSummary.totalAvailable)}
-            />
-            <StatRow label="Used" value={formatCurrency(overview.financingSummary.totalUsed)} />
+            <StatRow label="Available Funds" value={formatCurrency(overview.availableFunds)} />
             <div className={styles.cardDivider} />
             <StatRow
-              label="Remaining"
-              value={formatCurrency(overview.financingSummary.totalRemaining)}
-              variant={remainingVariant}
+              label="Remaining (optimistic)"
+              value={formatCurrency(overview.remainingVsMinPlanned)}
+              variant={remainingOptimisticVariant}
             />
-            <p className={styles.cardNote}>
-              {overview.financingSummary.sourceCount}{' '}
-              {overview.financingSummary.sourceCount === 1 ? 'source' : 'sources'}
-            </p>
-          </SummaryCard>
-
-          {/* Vendors card */}
-          <SummaryCard title="Vendors">
-            <StatRow label="Total Paid" value={formatCurrency(overview.vendorSummary.totalPaid)} />
             <StatRow
-              label="Outstanding"
-              value={formatCurrency(overview.vendorSummary.totalOutstanding)}
-              variant={overview.vendorSummary.totalOutstanding > 0 ? 'negative' : 'default'}
+              label="Remaining (pessimistic)"
+              value={formatCurrency(overview.remainingVsMaxPlanned)}
+              variant={remainingPessimisticVariant}
             />
             <p className={styles.cardNote}>
-              {overview.vendorSummary.vendorCount}{' '}
-              {overview.vendorSummary.vendorCount === 1 ? 'vendor' : 'vendors'}
+              {overview.sourceCount} {overview.sourceCount === 1 ? 'source' : 'sources'}
             </p>
           </SummaryCard>
 
@@ -242,16 +223,16 @@ export function BudgetOverviewPage() {
                       Category
                     </th>
                     <th scope="col" className={styles.thNumber}>
-                      Planned Budget
+                      Min Planned
+                    </th>
+                    <th scope="col" className={styles.thNumber}>
+                      Max Planned
                     </th>
                     <th scope="col" className={styles.thNumber}>
                       Actual Cost
                     </th>
                     <th scope="col" className={styles.thNumber}>
-                      Variance
-                    </th>
-                    <th scope="col" className={styles.thNumber}>
-                      Work Items
+                      Budget Lines
                     </th>
                   </tr>
                 </thead>
@@ -272,7 +253,12 @@ export function BudgetOverviewPage() {
                       </td>
                       <td className={styles.tdNumber}>
                         <span className={styles.currencyValue}>
-                          {formatCurrency(cat.plannedBudget)}
+                          {formatCurrency(cat.minPlanned)}
+                        </span>
+                      </td>
+                      <td className={styles.tdNumber}>
+                        <span className={styles.currencyValue}>
+                          {formatCurrency(cat.maxPlanned)}
                         </span>
                       </td>
                       <td className={styles.tdNumber}>
@@ -281,17 +267,7 @@ export function BudgetOverviewPage() {
                         </span>
                       </td>
                       <td className={styles.tdNumber}>
-                        <span
-                          className={
-                            cat.variance >= 0 ? styles.variancePositive : styles.varianceNegative
-                          }
-                        >
-                          {cat.variance >= 0 ? '+' : ''}
-                          {formatCurrency(cat.variance)}
-                        </span>
-                      </td>
-                      <td className={styles.tdNumber}>
-                        <span className={styles.workItemCount}>{cat.workItemCount}</span>
+                        <span className={styles.workItemCount}>{cat.budgetLineCount}</span>
                       </td>
                     </tr>
                   ))}
@@ -303,29 +279,22 @@ export function BudgetOverviewPage() {
                     </th>
                     <td className={styles.tdNumber}>
                       <span className={styles.currencyValueBold}>
-                        {formatCurrency(overview.totalPlannedBudget)}
+                        {formatCurrency(overview.minPlanned)}
                       </span>
                     </td>
                     <td className={styles.tdNumber}>
                       <span className={styles.currencyValueBold}>
-                        {formatCurrency(overview.totalActualCost)}
+                        {formatCurrency(overview.maxPlanned)}
                       </span>
                     </td>
                     <td className={styles.tdNumber}>
-                      <span
-                        className={
-                          overview.totalVariance >= 0
-                            ? `${styles.variancePositive} ${styles.currencyValueBold}`
-                            : `${styles.varianceNegative} ${styles.currencyValueBold}`
-                        }
-                      >
-                        {overview.totalVariance >= 0 ? '+' : ''}
-                        {formatCurrency(overview.totalVariance)}
+                      <span className={styles.currencyValueBold}>
+                        {formatCurrency(overview.actualCost)}
                       </span>
                     </td>
                     <td className={styles.tdNumber}>
                       <span className={styles.workItemCount}>
-                        {overview.categorySummaries.reduce((sum, c) => sum + c.workItemCount, 0)}
+                        {overview.categorySummaries.reduce((sum, c) => sum + c.budgetLineCount, 0)}
                       </span>
                     </td>
                   </tr>

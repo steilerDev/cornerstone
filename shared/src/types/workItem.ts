@@ -7,6 +7,7 @@ import type { TagResponse } from './tag.js';
 import type { SubtaskResponse } from './subtask.js';
 import type { DependencyType } from './dependency.js';
 import type { PaginatedResponse } from './pagination.js';
+import type { WorkItemBudgetLine } from './workItemBudget.js';
 
 /**
  * Work item status enum.
@@ -37,12 +38,6 @@ export interface WorkItem {
   startBefore: string | null;
   assignedUserId: string | null;
   createdBy: string | null;
-  // EPIC-05: budget fields
-  plannedBudget: number | null;
-  actualCost: number | null;
-  confidencePercent: number | null;
-  budgetCategoryId: string | null;
-  budgetSourceId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -92,12 +87,8 @@ export interface WorkItemDetail {
     predecessors: DependencyResponse[];
     successors: DependencyResponse[];
   };
-  // EPIC-05: budget fields
-  plannedBudget: number | null;
-  actualCost: number | null;
-  confidencePercent: number | null;
-  budgetCategoryId: string | null;
-  budgetSourceId: string | null;
+  // EPIC-05 Story 5.9: budget lines (replaces old flat budget fields)
+  budgets: WorkItemBudgetLine[];
   createdAt: string;
   updatedAt: string;
 }
@@ -116,12 +107,6 @@ export interface CreateWorkItemRequest {
   startBefore?: string | null;
   assignedUserId?: string | null;
   tagIds?: string[];
-  // EPIC-05: budget fields
-  plannedBudget?: number | null;
-  actualCost?: number | null;
-  confidencePercent?: number | null;
-  budgetCategoryId?: string | null;
-  budgetSourceId?: string | null;
 }
 
 /**
@@ -139,12 +124,6 @@ export interface UpdateWorkItemRequest {
   startBefore?: string | null;
   assignedUserId?: string | null;
   tagIds?: string[];
-  // EPIC-05: budget fields
-  plannedBudget?: number | null;
-  actualCost?: number | null;
-  confidencePercent?: number | null;
-  budgetCategoryId?: string | null;
-  budgetSourceId?: string | null;
 }
 
 /**

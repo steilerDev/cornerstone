@@ -2666,30 +2666,16 @@ describe('Budget Schema (EPIC-05)', () => {
   });
 
   // ─── work_item_vendors junction table ────────────────────────────────────
+  // NOTE: Story 5.9 — work_item_vendors was dropped in migration 0005_budget_rework.sql.
+  // Vendor-to-work-item relationships are now expressed via work_item_budgets.vendor_id.
 
-  describe('work_item_vendors table', () => {
-    it('creates work_item_vendors table with composite primary key', () => {
-      const columns = sqlite.prepare("PRAGMA table_info('work_item_vendors')").all() as Array<{
-        name: string;
-        type: string;
-        notnull: number;
-        pk: number;
-      }>;
+  describe('work_item_vendors table (dropped in Story 5.9)', () => {
+    it('work_item_vendors table does not exist after Story 5.9 migration', () => {
+      const table = sqlite
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='work_item_vendors'")
+        .get();
 
-      const columnNames = columns.map((col) => col.name);
-      expect(columnNames).toContain('work_item_id');
-      expect(columnNames).toContain('vendor_id');
-    });
-
-    it('creates idx_work_item_vendors_vendor_id index', () => {
-      const indexes = sqlite
-        .prepare(
-          "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='work_item_vendors'",
-        )
-        .all() as Array<{ name: string }>;
-
-      const indexNames = indexes.map((idx) => idx.name);
-      expect(indexNames).toContain('idx_work_item_vendors_vendor_id');
+      expect(table).toBeUndefined();
     });
   });
 

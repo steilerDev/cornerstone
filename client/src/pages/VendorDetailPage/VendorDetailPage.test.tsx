@@ -75,6 +75,7 @@ describe('VendorDetailPage', () => {
   const sampleInvoice: Invoice = {
     id: 'invoice-1',
     vendorId: 'vendor-1',
+    workItemBudgetId: null,
     invoiceNumber: 'INV-001',
     amount: 1500.0,
     date: '2026-02-01',
@@ -89,6 +90,7 @@ describe('VendorDetailPage', () => {
   const paidInvoice: Invoice = {
     id: 'invoice-2',
     vendorId: 'vendor-1',
+    workItemBudgetId: null,
     invoiceNumber: 'INV-002',
     amount: 2500.0,
     date: '2026-01-15',
@@ -100,14 +102,15 @@ describe('VendorDetailPage', () => {
     updatedAt: '2026-01-15T00:00:00.000Z',
   };
 
-  const overdueInvoice: Invoice = {
+  const claimedInvoice: Invoice = {
     id: 'invoice-3',
     vendorId: 'vendor-1',
+    workItemBudgetId: null,
     invoiceNumber: null,
     amount: 800.0,
     date: '2025-12-01',
     dueDate: '2026-01-01',
-    status: 'overdue',
+    status: 'claimed',
     notes: null,
     createdBy: null,
     createdAt: '2025-12-01T00:00:00.000Z',
@@ -903,7 +906,7 @@ describe('VendorDetailPage', () => {
 
     it('renders "—" when invoice has no invoice number (desktop table)', async () => {
       mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([overdueInvoice]); // null invoiceNumber
+      mockFetchInvoices.mockResolvedValueOnce([claimedInvoice]); // null invoiceNumber
 
       renderPage();
 
@@ -915,7 +918,7 @@ describe('VendorDetailPage', () => {
 
     it('renders "No Invoice #" for missing invoice number (mobile card list)', async () => {
       mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([overdueInvoice]);
+      mockFetchInvoices.mockResolvedValueOnce([claimedInvoice]);
 
       renderPage();
 
@@ -946,21 +949,21 @@ describe('VendorDetailPage', () => {
       });
     });
 
-    it('renders "Overdue" status badge for overdue invoice', async () => {
+    it('renders "Claimed" status badge for claimed invoice', async () => {
       mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([overdueInvoice]);
+      mockFetchInvoices.mockResolvedValueOnce([claimedInvoice]);
 
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByText('Overdue').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Claimed').length).toBeGreaterThan(0);
       });
     });
 
     it('renders the outstanding balance badge when invoices exist', async () => {
       mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      // pending ($1500) + overdue ($800) = $2300 outstanding
-      mockFetchInvoices.mockResolvedValueOnce([sampleInvoice, overdueInvoice]);
+      // pending ($1500) + claimed ($800) = $2300 outstanding
+      mockFetchInvoices.mockResolvedValueOnce([sampleInvoice, claimedInvoice]);
 
       renderPage();
 
@@ -1013,7 +1016,7 @@ describe('VendorDetailPage', () => {
 
     it('renders multiple invoices', async () => {
       mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([sampleInvoice, paidInvoice, overdueInvoice]);
+      mockFetchInvoices.mockResolvedValueOnce([sampleInvoice, paidInvoice, claimedInvoice]);
 
       renderPage();
 
@@ -1688,7 +1691,7 @@ describe('VendorDetailPage', () => {
 
     it('shows "this invoice" when invoice has no invoice number', async () => {
       mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([overdueInvoice]); // invoiceNumber: null
+      mockFetchInvoices.mockResolvedValueOnce([claimedInvoice]); // invoiceNumber: null
 
       const user = userEvent.setup();
       renderPage();
@@ -1696,14 +1699,14 @@ describe('VendorDetailPage', () => {
       await waitFor(() => {
         expect(
           screen.getByRole('button', {
-            name: new RegExp(`delete invoice ${overdueInvoice.id}`, 'i'),
+            name: new RegExp(`delete invoice ${claimedInvoice.id}`, 'i'),
           }),
         ).toBeInTheDocument();
       });
 
       await user.click(
         screen.getByRole('button', {
-          name: new RegExp(`delete invoice ${overdueInvoice.id}`, 'i'),
+          name: new RegExp(`delete invoice ${claimedInvoice.id}`, 'i'),
         }),
       );
 

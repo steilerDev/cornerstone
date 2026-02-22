@@ -74,6 +74,31 @@ describe('workItemVendorService', () => {
     return id;
   }
 
+  /**
+   * Helper: insert a work_item_budgets row linking a work item to a vendor.
+   * In Story 5.9 the former work_item_vendors junction table was removed;
+   * vendor links are now expressed via work_item_budgets.vendor_id.
+   */
+  function insertWorkItemVendorLink(workItemId: string, vendorId: string) {
+    const id = `bud-link-${++idCounter}`;
+    const now = new Date(Date.now() + idCounter).toISOString();
+    db.insert(schema.workItemBudgets)
+      .values({
+        id,
+        workItemId,
+        vendorId,
+        plannedAmount: 0,
+        confidence: 'own_estimate',
+        budgetCategoryId: null,
+        budgetSourceId: null,
+        description: null,
+        createdBy: null,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+  }
+
   beforeEach(() => {
     const testDb = createTestDb();
     sqlite = testDb.sqlite;
@@ -101,7 +126,7 @@ describe('workItemVendorService', () => {
       const workItemId = insertTestWorkItem('Foundation Work');
       const vendorId = insertTestVendor('Smith Concrete', 'user-001');
 
-      db.insert(schema.workItemVendors).values({ workItemId, vendorId }).run();
+      insertWorkItemVendorLink(workItemId, vendorId);
 
       const result = workItemVendorService.listWorkItemVendors(db, workItemId);
 
@@ -116,8 +141,8 @@ describe('workItemVendorService', () => {
       const vendorId1 = insertTestVendor('Vendor A');
       const vendorId2 = insertTestVendor('Vendor B');
 
-      db.insert(schema.workItemVendors).values({ workItemId, vendorId: vendorId1 }).run();
-      db.insert(schema.workItemVendors).values({ workItemId, vendorId: vendorId2 }).run();
+      insertWorkItemVendorLink(workItemId, vendorId1);
+      insertWorkItemVendorLink(workItemId, vendorId2);
 
       const result = workItemVendorService.listWorkItemVendors(db, workItemId);
 
@@ -132,7 +157,7 @@ describe('workItemVendorService', () => {
       const workItemId2 = insertTestWorkItem('Work Item 2');
       const vendorId = insertTestVendor('Exclusive Vendor');
 
-      db.insert(schema.workItemVendors).values({ workItemId: workItemId2, vendorId }).run();
+      insertWorkItemVendorLink(workItemId2, vendorId);
 
       const result = workItemVendorService.listWorkItemVendors(db, workItemId1);
 
@@ -143,7 +168,7 @@ describe('workItemVendorService', () => {
       const workItemId = insertTestWorkItem();
       const vendorId = insertTestVendor('Anonymous Vendor', null);
 
-      db.insert(schema.workItemVendors).values({ workItemId, vendorId }).run();
+      insertWorkItemVendorLink(workItemId, vendorId);
 
       const result = workItemVendorService.listWorkItemVendors(db, workItemId);
 

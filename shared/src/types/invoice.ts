@@ -8,8 +8,9 @@ import type { UserSummary } from './workItem.js';
 
 /**
  * Invoice payment status.
+ * EPIC-05 Story 5.9: replaced 'overdue' with 'claimed'.
  */
-export type InvoiceStatus = 'pending' | 'paid' | 'overdue';
+export type InvoiceStatus = 'pending' | 'paid' | 'claimed';
 
 /**
  * Invoice entity as returned by the API.
@@ -17,6 +18,8 @@ export type InvoiceStatus = 'pending' | 'paid' | 'overdue';
 export interface Invoice {
   id: string;
   vendorId: string;
+  /** Optional link to the work item budget line this invoice was issued against. */
+  workItemBudgetId: string | null;
   invoiceNumber: string | null;
   amount: number;
   date: string;
@@ -38,6 +41,7 @@ export interface CreateInvoiceRequest {
   dueDate?: string | null;
   status?: InvoiceStatus;
   notes?: string | null;
+  workItemBudgetId?: string | null;
 }
 
 /**
@@ -51,6 +55,7 @@ export interface UpdateInvoiceRequest {
   dueDate?: string | null;
   status?: InvoiceStatus;
   notes?: string | null;
+  workItemBudgetId?: string | null;
 }
 
 /**

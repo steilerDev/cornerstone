@@ -7,6 +7,7 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import type { WorkItemDetail, WorkItemSummary } from '@cornerstone/shared';
 import type * as AuthContextTypes from '../../contexts/AuthContext.js';
 import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
+import type * as WorkItemBudgetsApiTypes from '../../lib/workItemBudgetsApi.js';
 import type * as NotesApiTypes from '../../lib/notesApi.js';
 import type * as SubtasksApiTypes from '../../lib/subtasksApi.js';
 import type * as DependenciesApiTypes from '../../lib/dependenciesApi.js';
@@ -30,6 +31,10 @@ const mockUnlinkWorkItemVendor = jest.fn<typeof WorkItemsApiTypes.unlinkWorkItem
 const mockFetchWorkItemSubsidies = jest.fn<typeof WorkItemsApiTypes.fetchWorkItemSubsidies>();
 const mockLinkWorkItemSubsidy = jest.fn<typeof WorkItemsApiTypes.linkWorkItemSubsidy>();
 const mockUnlinkWorkItemSubsidy = jest.fn<typeof WorkItemsApiTypes.unlinkWorkItemSubsidy>();
+const mockFetchWorkItemBudgets = jest.fn<typeof WorkItemBudgetsApiTypes.fetchWorkItemBudgets>();
+const mockCreateWorkItemBudget = jest.fn<typeof WorkItemBudgetsApiTypes.createWorkItemBudget>();
+const mockUpdateWorkItemBudget = jest.fn<typeof WorkItemBudgetsApiTypes.updateWorkItemBudget>();
+const mockDeleteWorkItemBudget = jest.fn<typeof WorkItemBudgetsApiTypes.deleteWorkItemBudget>();
 const mockListNotes = jest.fn<typeof NotesApiTypes.listNotes>();
 const mockCreateNote = jest.fn<typeof NotesApiTypes.createNote>();
 const mockUpdateNote = jest.fn<typeof NotesApiTypes.updateNote>();
@@ -67,6 +72,13 @@ jest.unstable_mockModule('../../lib/workItemsApi.js', () => ({
   fetchWorkItemSubsidies: mockFetchWorkItemSubsidies,
   linkWorkItemSubsidy: mockLinkWorkItemSubsidy,
   unlinkWorkItemSubsidy: mockUnlinkWorkItemSubsidy,
+}));
+
+jest.unstable_mockModule('../../lib/workItemBudgetsApi.js', () => ({
+  fetchWorkItemBudgets: mockFetchWorkItemBudgets,
+  createWorkItemBudget: mockCreateWorkItemBudget,
+  updateWorkItemBudget: mockUpdateWorkItemBudget,
+  deleteWorkItemBudget: mockDeleteWorkItemBudget,
 }));
 
 jest.unstable_mockModule('../../lib/notesApi.js', () => ({
@@ -144,11 +156,7 @@ describe('WorkItemDetailPage', () => {
       predecessors: [],
       successors: [],
     },
-    plannedBudget: null,
-    actualCost: null,
-    confidencePercent: null,
-    budgetCategoryId: null,
-    budgetSourceId: null,
+    budgets: [],
     createdAt: '2024-01-01T00:00:00Z',
     updatedAt: '2024-01-15T00:00:00Z',
   };
@@ -175,6 +183,10 @@ describe('WorkItemDetailPage', () => {
     mockFetchWorkItemSubsidies.mockReset();
     mockLinkWorkItemSubsidy.mockReset();
     mockUnlinkWorkItemSubsidy.mockReset();
+    mockFetchWorkItemBudgets.mockReset();
+    mockCreateWorkItemBudget.mockReset();
+    mockUpdateWorkItemBudget.mockReset();
+    mockDeleteWorkItemBudget.mockReset();
     mockListNotes.mockReset();
     mockCreateNote.mockReset();
     mockUpdateNote.mockReset();
@@ -227,7 +239,7 @@ describe('WorkItemDetailPage', () => {
       vendors: [],
       pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
     });
-    mockFetchWorkItemVendors.mockResolvedValue([]);
+    mockFetchWorkItemBudgets.mockResolvedValue([]);
     mockFetchSubsidyPrograms.mockResolvedValue({ subsidyPrograms: [] });
     mockFetchWorkItemSubsidies.mockResolvedValue([]);
   });

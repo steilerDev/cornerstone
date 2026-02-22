@@ -6,40 +6,38 @@ describe('budgetOverviewApi', () => {
   let mockFetch: jest.MockedFunction<typeof globalThis.fetch>;
 
   const sampleOverview: BudgetOverview = {
-    totalPlannedBudget: 100000,
-    totalActualCost: 80000,
-    totalVariance: 20000,
+    availableFunds: 200000,
+    sourceCount: 2,
+    minPlanned: 90000,
+    maxPlanned: 110000,
+    actualCost: 80000,
+    actualCostPaid: 75000,
+    remainingVsMinPlanned: 110000,
+    remainingVsMaxPlanned: 90000,
+    remainingVsActualCost: 120000,
+    remainingVsActualPaid: 125000,
     categorySummaries: [
       {
         categoryId: 'cat-1',
         categoryName: 'Materials',
         categoryColor: '#FF5733',
-        plannedBudget: 50000,
+        minPlanned: 45000,
+        maxPlanned: 55000,
         actualCost: 45000,
-        variance: 5000,
-        workItemCount: 3,
+        actualCostPaid: 45000,
+        budgetLineCount: 3,
       },
       {
         categoryId: 'cat-2',
         categoryName: 'Labor',
         categoryColor: null,
-        plannedBudget: 50000,
+        minPlanned: 45000,
+        maxPlanned: 55000,
         actualCost: 35000,
-        variance: 15000,
-        workItemCount: 2,
+        actualCostPaid: 30000,
+        budgetLineCount: 2,
       },
     ],
-    financingSummary: {
-      totalAvailable: 200000,
-      totalUsed: 80000,
-      totalRemaining: 120000,
-      sourceCount: 2,
-    },
-    vendorSummary: {
-      totalPaid: 75000,
-      totalOutstanding: 5000,
-      vendorCount: 3,
-    },
     subsidySummary: {
       totalReductions: 10000,
       activeSubsidyCount: 2,
@@ -84,7 +82,7 @@ describe('budgetOverviewApi', () => {
       expect(result).toEqual(sampleOverview);
     });
 
-    it('returns overview with all top-level numeric fields', async () => {
+    it('returns overview with all top-level numeric fields (Story 5.11 shape)', async () => {
       const mockResponse: BudgetOverviewResponse = { overview: sampleOverview };
 
       mockFetch.mockResolvedValueOnce({
@@ -94,9 +92,28 @@ describe('budgetOverviewApi', () => {
 
       const result = await fetchBudgetOverview();
 
-      expect(result.totalPlannedBudget).toBe(100000);
-      expect(result.totalActualCost).toBe(80000);
-      expect(result.totalVariance).toBe(20000);
+      expect(result.availableFunds).toBe(200000);
+      expect(result.sourceCount).toBe(2);
+      expect(result.minPlanned).toBe(90000);
+      expect(result.maxPlanned).toBe(110000);
+      expect(result.actualCost).toBe(80000);
+      expect(result.actualCostPaid).toBe(75000);
+    });
+
+    it('returns overview with four remaining perspectives', async () => {
+      const mockResponse: BudgetOverviewResponse = { overview: sampleOverview };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      } as Response);
+
+      const result = await fetchBudgetOverview();
+
+      expect(result.remainingVsMinPlanned).toBe(110000);
+      expect(result.remainingVsMaxPlanned).toBe(90000);
+      expect(result.remainingVsActualCost).toBe(120000);
+      expect(result.remainingVsActualPaid).toBe(125000);
     });
 
     it('returns overview with categorySummaries array', async () => {
@@ -112,37 +129,6 @@ describe('budgetOverviewApi', () => {
       expect(result.categorySummaries).toHaveLength(2);
       expect(result.categorySummaries[0].categoryName).toBe('Materials');
       expect(result.categorySummaries[1].categoryName).toBe('Labor');
-    });
-
-    it('returns overview with financingSummary fields', async () => {
-      const mockResponse: BudgetOverviewResponse = { overview: sampleOverview };
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      } as Response);
-
-      const result = await fetchBudgetOverview();
-
-      expect(result.financingSummary.totalAvailable).toBe(200000);
-      expect(result.financingSummary.totalUsed).toBe(80000);
-      expect(result.financingSummary.totalRemaining).toBe(120000);
-      expect(result.financingSummary.sourceCount).toBe(2);
-    });
-
-    it('returns overview with vendorSummary fields', async () => {
-      const mockResponse: BudgetOverviewResponse = { overview: sampleOverview };
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      } as Response);
-
-      const result = await fetchBudgetOverview();
-
-      expect(result.vendorSummary.totalPaid).toBe(75000);
-      expect(result.vendorSummary.totalOutstanding).toBe(5000);
-      expect(result.vendorSummary.vendorCount).toBe(3);
     });
 
     it('returns overview with subsidySummary fields', async () => {
@@ -177,21 +163,17 @@ describe('budgetOverviewApi', () => {
 
     it('handles an all-zero overview (empty project)', async () => {
       const zeroOverview: BudgetOverview = {
-        totalPlannedBudget: 0,
-        totalActualCost: 0,
-        totalVariance: 0,
+        availableFunds: 0,
+        sourceCount: 0,
+        minPlanned: 0,
+        maxPlanned: 0,
+        actualCost: 0,
+        actualCostPaid: 0,
+        remainingVsMinPlanned: 0,
+        remainingVsMaxPlanned: 0,
+        remainingVsActualCost: 0,
+        remainingVsActualPaid: 0,
         categorySummaries: [],
-        financingSummary: {
-          totalAvailable: 0,
-          totalUsed: 0,
-          totalRemaining: 0,
-          sourceCount: 0,
-        },
-        vendorSummary: {
-          totalPaid: 0,
-          totalOutstanding: 0,
-          vendorCount: 0,
-        },
         subsidySummary: {
           totalReductions: 0,
           activeSubsidyCount: 0,
@@ -205,8 +187,8 @@ describe('budgetOverviewApi', () => {
 
       const result = await fetchBudgetOverview();
 
-      expect(result.totalPlannedBudget).toBe(0);
-      expect(result.financingSummary.sourceCount).toBe(0);
+      expect(result.minPlanned).toBe(0);
+      expect(result.sourceCount).toBe(0);
     });
 
     it('throws ApiClientError when server returns 401', async () => {

@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { eq, asc, desc, sql, or, and } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { vendors, invoices, workItemVendors, users } from '../db/schema.js';
+import { vendors, invoices, workItemBudgets, users } from '../db/schema.js';
 import type {
   Vendor,
   VendorDetail,
@@ -69,7 +69,7 @@ function getVendorStats(
   const balanceResult = db
     .select({ total: sql<number>`COALESCE(SUM(${invoices.amount}), 0)` })
     .from(invoices)
-    .where(and(eq(invoices.vendorId, vendorId), sql`${invoices.status} IN ('pending', 'overdue')`))
+    .where(and(eq(invoices.vendorId, vendorId), sql`${invoices.status} IN ('pending', 'claimed')`))
     .get();
 
   return {
@@ -291,18 +291,18 @@ export function deleteVendor(db: DbType, id: string): void {
     .get();
   const invoiceCount = invoiceCountResult?.count ?? 0;
 
-  // Count work item references
-  const workItemCountResult = db
+  // Count budget line references (vendor_id FK on work_item_budgets)
+  const budgetLineCountResult = db
     .select({ count: sql<number>`COUNT(*)` })
-    .from(workItemVendors)
-    .where(eq(workItemVendors.vendorId, id))
+    .from(workItemBudgets)
+    .where(eq(workItemBudgets.vendorId, id))
     .get();
-  const workItemCount = workItemCountResult?.count ?? 0;
+  const budgetLineCount = budgetLineCountResult?.count ?? 0;
 
-  if (invoiceCount > 0 || workItemCount > 0) {
+  if (invoiceCount > 0 || budgetLineCount > 0) {
     throw new VendorInUseError('Vendor is in use and cannot be deleted', {
       invoiceCount,
-      workItemCount,
+      budgetLineCount,
     });
   }
 

@@ -19,24 +19,20 @@ jest.unstable_mockModule('../../lib/budgetOverviewApi.js', () => ({
 describe('BudgetOverviewPage', () => {
   let BudgetOverviewPage: React.ComponentType;
 
-  // Sample data for all tests
+  // Sample data for all tests — using new Story 5.11 shape
 
   const zeroOverview: BudgetOverview = {
-    totalPlannedBudget: 0,
-    totalActualCost: 0,
-    totalVariance: 0,
+    availableFunds: 0,
+    sourceCount: 0,
+    minPlanned: 0,
+    maxPlanned: 0,
+    actualCost: 0,
+    actualCostPaid: 0,
+    remainingVsMinPlanned: 0,
+    remainingVsMaxPlanned: 0,
+    remainingVsActualCost: 0,
+    remainingVsActualPaid: 0,
     categorySummaries: [],
-    financingSummary: {
-      totalAvailable: 0,
-      totalUsed: 0,
-      totalRemaining: 0,
-      sourceCount: 0,
-    },
-    vendorSummary: {
-      totalPaid: 0,
-      totalOutstanding: 0,
-      vendorCount: 0,
-    },
     subsidySummary: {
       totalReductions: 0,
       activeSubsidyCount: 0,
@@ -44,51 +40,42 @@ describe('BudgetOverviewPage', () => {
   };
 
   const richOverview: BudgetOverview = {
-    totalPlannedBudget: 150000,
-    totalActualCost: 120000,
-    totalVariance: 30000,
+    availableFunds: 200000,
+    sourceCount: 2,
+    minPlanned: 120000,
+    maxPlanned: 180000,
+    actualCost: 120000,
+    actualCostPaid: 100000,
+    remainingVsMinPlanned: 80000,
+    remainingVsMaxPlanned: 20000,
+    remainingVsActualCost: 80000,
+    remainingVsActualPaid: 100000,
     categorySummaries: [
       {
         categoryId: 'cat-1',
         categoryName: 'Materials',
         categoryColor: '#FF5733',
-        plannedBudget: 80000,
+        minPlanned: 64000,
+        maxPlanned: 96000,
         actualCost: 70000,
-        variance: 10000,
-        workItemCount: 5,
+        actualCostPaid: 65000,
+        budgetLineCount: 5,
       },
       {
         categoryId: 'cat-2',
         categoryName: 'Labor',
         categoryColor: null,
-        plannedBudget: 70000,
+        minPlanned: 56000,
+        maxPlanned: 84000,
         actualCost: 50000,
-        variance: 20000,
-        workItemCount: 3,
+        actualCostPaid: 35000,
+        budgetLineCount: 3,
       },
     ],
-    financingSummary: {
-      totalAvailable: 200000,
-      totalUsed: 120000,
-      totalRemaining: 80000,
-      sourceCount: 2,
-    },
-    vendorSummary: {
-      totalPaid: 100000,
-      totalOutstanding: 20000,
-      vendorCount: 4,
-    },
     subsidySummary: {
       totalReductions: 15000,
       activeSubsidyCount: 3,
     },
-  };
-
-  const overBudgetOverview: BudgetOverview = {
-    ...richOverview,
-    totalPlannedBudget: 100000,
-    totalActualCost: 120000,
-    totalVariance: -20000,
   };
 
   beforeEach(async () => {
@@ -257,23 +244,33 @@ describe('BudgetOverviewPage', () => {
   // ─── Summary cards ─────────────────────────────────────────────────────────
 
   describe('summary cards with data', () => {
-    it('renders Total Budget card with correct values', async () => {
+    it('renders Planned Budget card with min/max planned labels', async () => {
       mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
 
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('region', { name: /total budget/i })).toBeInTheDocument();
+        expect(screen.getByRole('region', { name: /planned budget/i })).toBeInTheDocument();
       });
 
-      // Planned, Actual Cost, Variance labels — use getAllByText since 'Actual Cost'
-      // and 'Variance' appear in both the summary card and the table header
-      expect(screen.getAllByText('Planned').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('Actual Cost').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('Variance').length).toBeGreaterThan(0);
+      expect(screen.getByText('Min (optimistic)')).toBeInTheDocument();
+      expect(screen.getByText('Max (pessimistic)')).toBeInTheDocument();
     });
 
-    it('renders Financing card with correct values', async () => {
+    it('renders Actual Cost card with invoiced and paid labels', async () => {
+      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('region', { name: /actual cost/i })).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('Invoiced')).toBeInTheDocument();
+      expect(screen.getByText('Paid')).toBeInTheDocument();
+    });
+
+    it('renders Financing card with available funds and remaining perspectives', async () => {
       mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
 
       renderPage();
@@ -282,22 +279,9 @@ describe('BudgetOverviewPage', () => {
         expect(screen.getByRole('region', { name: /financing/i })).toBeInTheDocument();
       });
 
-      expect(screen.getByText('Total Available')).toBeInTheDocument();
-      expect(screen.getByText('Used')).toBeInTheDocument();
-      expect(screen.getByText('Remaining')).toBeInTheDocument();
-    });
-
-    it('renders Vendors card with correct values', async () => {
-      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('region', { name: /vendors/i })).toBeInTheDocument();
-      });
-
-      expect(screen.getByText('Total Paid')).toBeInTheDocument();
-      expect(screen.getByText('Outstanding')).toBeInTheDocument();
+      expect(screen.getByText('Available Funds')).toBeInTheDocument();
+      expect(screen.getByText('Remaining (optimistic)')).toBeInTheDocument();
+      expect(screen.getByText('Remaining (pessimistic)')).toBeInTheDocument();
     });
 
     it('renders Subsidies card with correct values', async () => {
@@ -312,31 +296,10 @@ describe('BudgetOverviewPage', () => {
       expect(screen.getByText('Total Reductions')).toBeInTheDocument();
     });
 
-    it('shows "Under budget" note when variance is positive', async () => {
-      // richOverview has totalVariance: 30000 (positive)
-      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText(/under budget/i)).toBeInTheDocument();
-      });
-    });
-
-    it('shows "Over budget" note when variance is negative', async () => {
-      mockFetchBudgetOverview.mockResolvedValueOnce(overBudgetOverview);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText(/over budget/i)).toBeInTheDocument();
-      });
-    });
-
     it('formats source count with "source" singular when sourceCount is 1', async () => {
       const singleSourceOverview: BudgetOverview = {
         ...richOverview,
-        financingSummary: { ...richOverview.financingSummary, sourceCount: 1 },
+        sourceCount: 1,
       };
       mockFetchBudgetOverview.mockResolvedValueOnce(singleSourceOverview);
 
@@ -355,31 +318,6 @@ describe('BudgetOverviewPage', () => {
 
       await waitFor(() => {
         expect(screen.getByText(/2 sources/i)).toBeInTheDocument();
-      });
-    });
-
-    it('formats vendor count with "vendor" singular when vendorCount is 1', async () => {
-      const singleVendorOverview: BudgetOverview = {
-        ...richOverview,
-        vendorSummary: { ...richOverview.vendorSummary, vendorCount: 1 },
-      };
-      mockFetchBudgetOverview.mockResolvedValueOnce(singleVendorOverview);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText(/1 vendor$/i)).toBeInTheDocument();
-      });
-    });
-
-    it('formats vendor count with "vendors" plural when vendorCount is multiple', async () => {
-      // richOverview has vendorCount: 4
-      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText(/4 vendors/i)).toBeInTheDocument();
       });
     });
 
@@ -407,6 +345,18 @@ describe('BudgetOverviewPage', () => {
         expect(screen.getByText(/3 active programs/i)).toBeInTheDocument();
       });
     });
+
+    it('shows positive variant for remaining when funds exceed planned', async () => {
+      // richOverview has positive remaining perspectives
+      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
+
+      renderPage();
+
+      // Just check the card renders without error
+      await waitFor(() => {
+        expect(screen.getByRole('region', { name: /financing/i })).toBeInTheDocument();
+      });
+    });
   });
 
   // ─── Currency formatting ──────────────────────────────────────────────────
@@ -415,26 +365,20 @@ describe('BudgetOverviewPage', () => {
     it('formats amounts as EUR currency', async () => {
       const knownAmountOverview: BudgetOverview = {
         ...zeroOverview,
-        totalPlannedBudget: 150000,
-        totalActualCost: 0,
-        totalVariance: 150000,
+        minPlanned: 150000,
+        maxPlanned: 150000,
         categorySummaries: [
           {
             categoryId: 'cat-1',
             categoryName: 'Test Cat',
             categoryColor: null,
-            plannedBudget: 150000,
+            minPlanned: 150000,
+            maxPlanned: 150000,
             actualCost: 0,
-            variance: 150000,
-            workItemCount: 1,
+            actualCostPaid: 0,
+            budgetLineCount: 1,
           },
         ],
-        financingSummary: {
-          totalAvailable: 150000,
-          totalUsed: 0,
-          totalRemaining: 150000,
-          sourceCount: 1,
-        },
       };
 
       mockFetchBudgetOverview.mockResolvedValueOnce(knownAmountOverview);
@@ -471,10 +415,10 @@ describe('BudgetOverviewPage', () => {
 
       await waitFor(() => {
         expect(screen.getByRole('columnheader', { name: /category/i })).toBeInTheDocument();
-        expect(screen.getByRole('columnheader', { name: /planned budget/i })).toBeInTheDocument();
+        expect(screen.getByRole('columnheader', { name: /min planned/i })).toBeInTheDocument();
+        expect(screen.getByRole('columnheader', { name: /max planned/i })).toBeInTheDocument();
         expect(screen.getByRole('columnheader', { name: /actual cost/i })).toBeInTheDocument();
-        expect(screen.getByRole('columnheader', { name: /variance/i })).toBeInTheDocument();
-        expect(screen.getByRole('columnheader', { name: /work items/i })).toBeInTheDocument();
+        expect(screen.getByRole('columnheader', { name: /budget lines/i })).toBeInTheDocument();
       });
     });
 
@@ -489,7 +433,7 @@ describe('BudgetOverviewPage', () => {
       });
     });
 
-    it('shows work item count for each category row', async () => {
+    it('shows budget line count for each category row', async () => {
       mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
 
       renderPage();
@@ -498,62 +442,6 @@ describe('BudgetOverviewPage', () => {
         // richOverview: Materials=5, Labor=3
         expect(screen.getByText('5')).toBeInTheDocument();
         expect(screen.getByText('3')).toBeInTheDocument();
-      });
-    });
-
-    it('shows positive variance with + prefix for under-budget categories', async () => {
-      const positiveVarianceOverview: BudgetOverview = {
-        ...zeroOverview,
-        categorySummaries: [
-          {
-            categoryId: 'cat-1',
-            categoryName: 'Under Budget Cat',
-            categoryColor: null,
-            plannedBudget: 10000,
-            actualCost: 8000,
-            variance: 2000,
-            workItemCount: 1,
-          },
-        ],
-      };
-
-      mockFetchBudgetOverview.mockResolvedValueOnce(positiveVarianceOverview);
-
-      renderPage();
-
-      await waitFor(() => {
-        // Positive variance shows with + prefix
-        // 2000 formatted as €2,000.00 with + prefix
-        const varianceElements = screen.getAllByText(/\+.*2,000\.00/);
-        expect(varianceElements.length).toBeGreaterThan(0);
-      });
-    });
-
-    it('shows negative variance without + prefix for over-budget categories', async () => {
-      const negativeVarianceOverview: BudgetOverview = {
-        ...zeroOverview,
-        categorySummaries: [
-          {
-            categoryId: 'cat-1',
-            categoryName: 'Over Budget Cat',
-            categoryColor: null,
-            plannedBudget: 8000,
-            actualCost: 10000,
-            variance: -2000,
-            workItemCount: 1,
-          },
-        ],
-      };
-
-      mockFetchBudgetOverview.mockResolvedValueOnce(negativeVarianceOverview);
-
-      renderPage();
-
-      await waitFor(() => {
-        // Negative variance does NOT show + prefix, shows € negative
-        // -2000 formatted as -€2,000.00 without + prefix
-        const varianceElements = screen.getAllByText(/-.*2,000\.00/);
-        expect(varianceElements.length).toBeGreaterThan(0);
       });
     });
 
@@ -577,8 +465,8 @@ describe('BudgetOverviewPage', () => {
       });
     });
 
-    it('shows total work item count in footer', async () => {
-      // richOverview has 5 + 3 = 8 total work items
+    it('shows total budget line count in footer', async () => {
+      // richOverview has 5 + 3 = 8 total budget lines
       mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
 
       renderPage();

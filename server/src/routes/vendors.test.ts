@@ -7,7 +7,7 @@ import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
 import type { FastifyInstance } from 'fastify';
 import type { Vendor, VendorDetail, ApiErrorResponse } from '@cornerstone/shared';
-import { vendors, invoices, workItems, workItemVendors } from '../db/schema.js';
+import { vendors, invoices, workItems, workItemBudgets } from '../db/schema.js';
 
 describe('Vendor Routes', () => {
   let app: FastifyInstance;
@@ -99,7 +99,7 @@ describe('Vendor Routes', () => {
    */
   function createTestInvoice(
     vendorId: string,
-    status: 'pending' | 'paid' | 'overdue' = 'pending',
+    status: 'pending' | 'paid' | 'claimed' = 'pending',
     amount = 1000,
   ) {
     const id = `invoice-${Date.now()}-${Math.random().toString(36).substring(7)}`;
@@ -120,10 +120,11 @@ describe('Vendor Routes', () => {
   }
 
   /**
-   * Helper: Create a minimal work item and link it to a vendor.
+   * Helper: Create a minimal work item and link it to a vendor via a budget line.
    */
   function createWorkItemVendorLink(vendorId: string) {
     const workItemId = `wi-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    const budgetId = `bud-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     const now = new Date().toISOString();
     app.db
       .insert(workItems)
@@ -135,7 +136,18 @@ describe('Vendor Routes', () => {
         updatedAt: now,
       })
       .run();
-    app.db.insert(workItemVendors).values({ workItemId, vendorId }).run();
+    app.db
+      .insert(workItemBudgets)
+      .values({
+        id: budgetId,
+        workItemId,
+        vendorId,
+        plannedAmount: 0,
+        confidence: 'own_estimate',
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
     return workItemId;
   }
 
@@ -561,7 +573,7 @@ describe('Vendor Routes', () => {
       const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
       const vendor = createTestVendor('Stats Vendor');
       createTestInvoice(vendor.id, 'pending', 500);
-      createTestInvoice(vendor.id, 'overdue', 300);
+      createTestInvoice(vendor.id, 'claimed', 300);
       createTestInvoice(vendor.id, 'paid', 1000);
 
       const response = await app.inject({
@@ -573,7 +585,7 @@ describe('Vendor Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<{ vendor: VendorDetail }>();
       expect(body.vendor.invoiceCount).toBe(3);
-      expect(body.vendor.outstandingBalance).toBe(800); // pending + overdue only
+      expect(body.vendor.outstandingBalance).toBe(800); // pending + claimed only
     });
 
     it('returns invoiceCount 0 and outstandingBalance 0 when no invoices', async () => {
@@ -870,7 +882,7 @@ describe('Vendor Routes', () => {
       expect(body.error.code).toBe('VENDOR_IN_USE');
     });
 
-    it('includes invoiceCount and workItemCount in 409 response details', async () => {
+    it('includes invoiceCount and budgetLineCount in 409 response details', async () => {
       const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
       const vendor = createTestVendor('Count Details Vendor');
       createTestInvoice(vendor.id, 'pending', 100);
@@ -887,7 +899,7 @@ describe('Vendor Routes', () => {
       const body = response.json<ApiErrorResponse>();
       expect(body.error.details).toBeDefined();
       expect(body.error.details?.invoiceCount).toBe(2);
-      expect(body.error.details?.workItemCount).toBe(1);
+      expect(body.error.details?.budgetLineCount).toBe(1);
     });
 
     it('returns 401 without authentication', async () => {

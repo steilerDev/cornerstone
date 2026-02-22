@@ -12,18 +12,26 @@ import type {
   BudgetSource,
   Vendor,
   SubsidyProgram,
+  WorkItemBudgetLine,
+  ConfidenceLevel,
+  CreateWorkItemBudgetRequest,
+  UpdateWorkItemBudgetRequest,
 } from '@cornerstone/shared';
+import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
 import {
   getWorkItem,
   updateWorkItem,
   deleteWorkItem,
-  fetchWorkItemVendors,
-  linkWorkItemVendor,
-  unlinkWorkItemVendor,
   fetchWorkItemSubsidies,
   linkWorkItemSubsidy,
   unlinkWorkItemSubsidy,
 } from '../../lib/workItemsApi.js';
+import {
+  fetchWorkItemBudgets,
+  createWorkItemBudget,
+  updateWorkItemBudget,
+  deleteWorkItemBudget,
+} from '../../lib/workItemBudgetsApi.js';
 import { listNotes, createNote, updateNote, deleteNote } from '../../lib/notesApi.js';
 import {
   listSubtasks,
@@ -56,6 +64,32 @@ interface DeletingDependency {
   title: string;
 }
 
+const CONFIDENCE_LABELS: Record<ConfidenceLevel, string> = {
+  own_estimate: 'Own Estimate',
+  professional_estimate: 'Professional Estimate',
+  quote: 'Quote',
+  invoice: 'Invoice',
+};
+
+/** Budget line form state used for both create and edit. */
+interface BudgetLineFormState {
+  description: string;
+  plannedAmount: string;
+  confidence: ConfidenceLevel;
+  budgetCategoryId: string;
+  budgetSourceId: string;
+  vendorId: string;
+}
+
+const EMPTY_BUDGET_FORM: BudgetLineFormState = {
+  description: '',
+  plannedAmount: '',
+  confidence: 'own_estimate',
+  budgetCategoryId: '',
+  budgetSourceId: '',
+  vendorId: '',
+};
+
 export default function WorkItemDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -72,26 +106,24 @@ export default function WorkItemDetailPage() {
   const [availableTags, setAvailableTags] = useState<TagResponse[]>([]);
   const [users, setUsers] = useState<UserResponse[]>([]);
 
-  // Budget-related state
+  // Budget lines state
+  const [budgetLines, setBudgetLines] = useState<WorkItemBudgetLine[]>([]);
   const [budgetCategories, setBudgetCategories] = useState<BudgetCategory[]>([]);
   const [budgetSources, setBudgetSources] = useState<BudgetSource[]>([]);
-  const [linkedVendors, setLinkedVendors] = useState<Vendor[]>([]);
-  const [linkedSubsidies, setLinkedSubsidies] = useState<SubsidyProgram[]>([]);
   const [allVendors, setAllVendors] = useState<Vendor[]>([]);
+
+  // Budget line form state
+  const [showBudgetForm, setShowBudgetForm] = useState(false);
+  const [budgetForm, setBudgetForm] = useState<BudgetLineFormState>(EMPTY_BUDGET_FORM);
+  const [editingBudgetId, setEditingBudgetId] = useState<string | null>(null);
+  const [isSavingBudget, setIsSavingBudget] = useState(false);
+  const [budgetFormError, setBudgetFormError] = useState<string | null>(null);
+  const [deletingBudgetId, setDeletingBudgetId] = useState<string | null>(null);
+
+  // Subsidy linking state
+  const [linkedSubsidies, setLinkedSubsidies] = useState<SubsidyProgram[]>([]);
   const [allSubsidyPrograms, setAllSubsidyPrograms] = useState<SubsidyProgram[]>([]);
-
-  // Budget edit state
-  const [isEditingBudget, setIsEditingBudget] = useState(false);
-  const [editedPlannedBudget, setEditedPlannedBudget] = useState('');
-  const [editedActualCost, setEditedActualCost] = useState('');
-  const [editedConfidencePercent, setEditedConfidencePercent] = useState('');
-  const [editedBudgetCategoryId, setEditedBudgetCategoryId] = useState('');
-  const [editedBudgetSourceId, setEditedBudgetSourceId] = useState('');
-
-  // Vendor/Subsidy picker state
-  const [selectedVendorId, setSelectedVendorId] = useState('');
   const [selectedSubsidyId, setSelectedSubsidyId] = useState('');
-  const [isLinkingVendor, setIsLinkingVendor] = useState(false);
   const [isLinkingSubsidy, setIsLinkingSubsidy] = useState(false);
 
   const [isLoading, setIsLoading] = useState(true);
@@ -144,7 +176,7 @@ export default function WorkItemDetailPage() {
           categoriesData,
           sourcesData,
           vendorsData,
-          linkedVendorsData,
+          budgetLinesData,
           subsidiesData,
           linkedSubsidiesData,
         ] = await Promise.all([
@@ -157,7 +189,7 @@ export default function WorkItemDetailPage() {
           fetchBudgetCategories(),
           fetchBudgetSources(),
           fetchVendors({ pageSize: 100 }),
-          fetchWorkItemVendors(id!),
+          fetchWorkItemBudgets(id!),
           fetchSubsidyPrograms(),
           fetchWorkItemSubsidies(id!),
         ]);
@@ -171,7 +203,7 @@ export default function WorkItemDetailPage() {
         setBudgetCategories(categoriesData.categories);
         setBudgetSources(sourcesData.budgetSources);
         setAllVendors(vendorsData.vendors);
-        setLinkedVendors(linkedVendorsData);
+        setBudgetLines(budgetLinesData);
         setAllSubsidyPrograms(subsidiesData.subsidyPrograms);
         setLinkedSubsidies(linkedSubsidiesData);
       } catch (err: unknown) {
@@ -230,13 +262,13 @@ export default function WorkItemDetailPage() {
     }
   };
 
-  const reloadLinkedVendors = async () => {
+  const reloadBudgetLines = async () => {
     if (!id) return;
     try {
-      const data = await fetchWorkItemVendors(id);
-      setLinkedVendors(data);
+      const data = await fetchWorkItemBudgets(id);
+      setBudgetLines(data);
     } catch (err) {
-      console.error('Failed to reload linked vendors:', err);
+      console.error('Failed to reload budget lines:', err);
     }
   };
 
@@ -250,98 +282,94 @@ export default function WorkItemDetailPage() {
     }
   };
 
-  // Budget field editing
-  const startEditingBudget = () => {
-    if (!workItem) return;
-    setEditedPlannedBudget(workItem.plannedBudget !== null ? String(workItem.plannedBudget) : '');
-    setEditedActualCost(workItem.actualCost !== null ? String(workItem.actualCost) : '');
-    setEditedConfidencePercent(
-      workItem.confidencePercent !== null ? String(workItem.confidencePercent) : '',
-    );
-    setEditedBudgetCategoryId(workItem.budgetCategoryId || '');
-    setEditedBudgetSourceId(workItem.budgetSourceId || '');
-    setIsEditingBudget(true);
+  // ─── Budget line handlers ──────────────────────────────────────────────────
+
+  const openAddBudgetForm = () => {
+    setEditingBudgetId(null);
+    setBudgetForm(EMPTY_BUDGET_FORM);
+    setBudgetFormError(null);
+    setShowBudgetForm(true);
   };
 
-  const saveBudget = async () => {
+  const openEditBudgetForm = (line: WorkItemBudgetLine) => {
+    setEditingBudgetId(line.id);
+    setBudgetForm({
+      description: line.description ?? '',
+      plannedAmount: String(line.plannedAmount),
+      confidence: line.confidence,
+      budgetCategoryId: line.budgetCategory?.id ?? '',
+      budgetSourceId: line.budgetSource?.id ?? '',
+      vendorId: line.vendor?.id ?? '',
+    });
+    setBudgetFormError(null);
+    setShowBudgetForm(true);
+  };
+
+  const closeBudgetForm = () => {
+    setShowBudgetForm(false);
+    setEditingBudgetId(null);
+    setBudgetForm(EMPTY_BUDGET_FORM);
+    setBudgetFormError(null);
+  };
+
+  const handleSaveBudgetLine = async (event: FormEvent) => {
+    event.preventDefault();
     if (!id) return;
-    setInlineError(null);
-    try {
-      const plannedBudget = editedPlannedBudget !== '' ? parseFloat(editedPlannedBudget) : null;
-      const actualCost = editedActualCost !== '' ? parseFloat(editedActualCost) : null;
-      const confidencePercent =
-        editedConfidencePercent !== '' ? parseInt(editedConfidencePercent, 10) : null;
 
-      if (plannedBudget !== null && isNaN(plannedBudget)) {
-        setInlineError('Planned budget must be a valid number');
-        return;
-      }
-      if (actualCost !== null && isNaN(actualCost)) {
-        setInlineError('Actual cost must be a valid number');
-        return;
-      }
-      if (
-        confidencePercent !== null &&
-        (isNaN(confidencePercent) || confidencePercent < 0 || confidencePercent > 100)
-      ) {
-        setInlineError('Confidence must be between 0 and 100');
-        return;
-      }
-
-      await updateWorkItem(id, {
-        plannedBudget,
-        actualCost,
-        confidencePercent,
-        budgetCategoryId: editedBudgetCategoryId || null,
-        budgetSourceId: editedBudgetSourceId || null,
-      });
-      setIsEditingBudget(false);
-      await reloadWorkItem();
-    } catch (err) {
-      setInlineError('Failed to update budget fields');
-      console.error('Failed to update budget fields:', err);
+    const plannedAmount = parseFloat(budgetForm.plannedAmount);
+    if (isNaN(plannedAmount) || plannedAmount < 0) {
+      setBudgetFormError('Planned amount must be a valid non-negative number.');
+      return;
     }
-  };
 
-  const cancelBudgetEdit = () => {
-    setIsEditingBudget(false);
-  };
+    setIsSavingBudget(true);
+    setBudgetFormError(null);
 
-  // Vendor linking
-  const handleLinkVendor = async () => {
-    if (!id || !selectedVendorId) return;
-    setIsLinkingVendor(true);
-    setInlineError(null);
+    const payload: CreateWorkItemBudgetRequest | UpdateWorkItemBudgetRequest = {
+      description: budgetForm.description.trim() || null,
+      plannedAmount,
+      confidence: budgetForm.confidence,
+      budgetCategoryId: budgetForm.budgetCategoryId || null,
+      budgetSourceId: budgetForm.budgetSourceId || null,
+      vendorId: budgetForm.vendorId || null,
+    };
+
     try {
-      await linkWorkItemVendor(id, selectedVendorId);
-      setSelectedVendorId('');
-      await reloadLinkedVendors();
+      if (editingBudgetId) {
+        await updateWorkItemBudget(id, editingBudgetId, payload as UpdateWorkItemBudgetRequest);
+      } else {
+        await createWorkItemBudget(id, payload as CreateWorkItemBudgetRequest);
+      }
+      closeBudgetForm();
+      await reloadBudgetLines();
     } catch (err) {
       const apiErr = err as { statusCode?: number; message?: string };
-      if (apiErr.statusCode === 409) {
-        setInlineError('This vendor is already linked');
-      } else {
-        setInlineError('Failed to link vendor');
-      }
-      console.error('Failed to link vendor:', err);
+      setBudgetFormError(apiErr.message ?? 'Failed to save budget line. Please try again.');
+      console.error('Failed to save budget line:', err);
     } finally {
-      setIsLinkingVendor(false);
+      setIsSavingBudget(false);
     }
   };
 
-  const handleUnlinkVendor = async (vendorId: string) => {
-    if (!id) return;
+  const handleDeleteBudgetLine = (budgetId: string) => {
+    setDeletingBudgetId(budgetId);
+  };
+
+  const confirmDeleteBudgetLine = async () => {
+    if (!id || !deletingBudgetId) return;
     setInlineError(null);
     try {
-      await unlinkWorkItemVendor(id, vendorId);
-      await reloadLinkedVendors();
+      await deleteWorkItemBudget(id, deletingBudgetId);
+      setDeletingBudgetId(null);
+      await reloadBudgetLines();
     } catch (err) {
-      setInlineError('Failed to unlink vendor');
-      console.error('Failed to unlink vendor:', err);
+      setInlineError('Failed to delete budget line');
+      console.error('Failed to delete budget line:', err);
     }
   };
 
-  // Subsidy linking
+  // ─── Subsidy linking handlers ──────────────────────────────────────────────
+
   const handleLinkSubsidy = async () => {
     if (!id || !selectedSubsidyId) return;
     setIsLinkingSubsidy(true);
@@ -857,34 +885,11 @@ export default function WorkItemDetailPage() {
 
   // Currency formatting helper
   const formatCurrency = (value: number): string =>
-    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
+    new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value);
 
-  // Confidence percent color class
-  const confidenceColorClass = (pct: number): string => {
-    if (pct > 75) return styles.confidenceHigh;
-    if (pct >= 25) return styles.confidenceMedium;
-    return styles.confidenceLow;
-  };
-
-  // Compute net cost: plannedBudget minus subsidy reductions
-  const computeNetCost = (): number | null => {
-    if (workItem.plannedBudget === null) return null;
-    let net = workItem.plannedBudget;
-    for (const subsidy of linkedSubsidies) {
-      if (subsidy.reductionType === 'percentage') {
-        net -= workItem.plannedBudget * (subsidy.reductionValue / 100);
-      } else {
-        net -= subsidy.reductionValue;
-      }
-    }
-    return net;
-  };
-
-  const netCost = computeNetCost();
-
-  // Vendors not yet linked
-  const unlinkableVendorIds = new Set(linkedVendors.map((v) => v.id));
-  const availableVendors = allVendors.filter((v) => !unlinkableVendorIds.has(v.id));
+  // Compute budget line totals
+  const totalPlanned = budgetLines.reduce((sum, b) => sum + b.plannedAmount, 0);
+  const totalActualCost = budgetLines.reduce((sum, b) => sum + b.actualCost, 0);
 
   // Subsidies not yet linked
   const linkedSubsidyIds = new Set(linkedSubsidies.map((s) => s.id));
@@ -1094,254 +1099,264 @@ export default function WorkItemDetailPage() {
             />
           </section>
 
-          {/* Budget */}
+          {/* Budget Lines */}
           <section className={styles.section}>
             <div className={styles.sectionHeader}>
               <h2 className={styles.sectionTitle}>Budget</h2>
-              {!isEditingBudget && (
-                <button
-                  type="button"
-                  className={styles.editButton}
-                  onClick={startEditingBudget}
-                  aria-label="Edit budget fields"
-                >
-                  Edit
-                </button>
-              )}
+              <button
+                type="button"
+                className={styles.addButton}
+                onClick={openAddBudgetForm}
+                aria-label="Add budget line"
+              >
+                + Add Line
+              </button>
             </div>
 
-            {isEditingBudget ? (
-              <div className={styles.budgetEditForm}>
+            {/* Budget totals summary */}
+            {budgetLines.length > 0 && (
+              <div className={styles.budgetSummary}>
                 <div className={styles.propertyGrid}>
                   <div className={styles.property}>
-                    <label className={styles.propertyLabel} htmlFor="editPlannedBudget">
-                      Planned Budget ($)
-                    </label>
-                    <input
-                      type="number"
-                      id="editPlannedBudget"
-                      className={styles.propertyInput}
-                      value={editedPlannedBudget}
-                      onChange={(e) => setEditedPlannedBudget(e.target.value)}
-                      min="0"
-                      step="0.01"
-                      placeholder="0.00"
-                    />
+                    <span className={styles.propertyLabel}>Total Planned</span>
+                    <span className={styles.budgetValue}>{formatCurrency(totalPlanned)}</span>
                   </div>
-
                   <div className={styles.property}>
-                    <label className={styles.propertyLabel} htmlFor="editActualCost">
-                      Actual Cost ($)
-                    </label>
-                    <input
-                      type="number"
-                      id="editActualCost"
-                      className={styles.propertyInput}
-                      value={editedActualCost}
-                      onChange={(e) => setEditedActualCost(e.target.value)}
-                      min="0"
-                      step="0.01"
-                      placeholder="0.00"
-                    />
+                    <span className={styles.propertyLabel}>Total Actual Cost</span>
+                    <span className={styles.budgetValue}>{formatCurrency(totalActualCost)}</span>
                   </div>
-
                   <div className={styles.property}>
-                    <label className={styles.propertyLabel} htmlFor="editConfidence">
-                      Confidence (0-100%)
-                    </label>
-                    <input
-                      type="number"
-                      id="editConfidence"
-                      className={styles.propertyInput}
-                      value={editedConfidencePercent}
-                      onChange={(e) => setEditedConfidencePercent(e.target.value)}
-                      min="0"
-                      max="100"
-                      placeholder="—"
-                    />
+                    <span className={styles.propertyLabel}>Lines</span>
+                    <span className={styles.budgetValue}>{budgetLines.length}</span>
                   </div>
                 </div>
-
-                <div className={styles.propertyGrid}>
-                  <div className={styles.property}>
-                    <label className={styles.propertyLabel} htmlFor="editBudgetCategory">
-                      Budget Category
-                    </label>
-                    <select
-                      id="editBudgetCategory"
-                      className={styles.propertySelect}
-                      value={editedBudgetCategoryId}
-                      onChange={(e) => setEditedBudgetCategoryId(e.target.value)}
-                    >
-                      <option value="">None</option>
-                      {budgetCategories.map((cat) => (
-                        <option key={cat.id} value={cat.id}>
-                          {cat.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className={styles.property}>
-                    <label className={styles.propertyLabel} htmlFor="editBudgetSource">
-                      Budget Source
-                    </label>
-                    <select
-                      id="editBudgetSource"
-                      className={styles.propertySelect}
-                      value={editedBudgetSourceId}
-                      onChange={(e) => setEditedBudgetSourceId(e.target.value)}
-                    >
-                      <option value="">None</option>
-                      {budgetSources.map((src) => (
-                        <option key={src.id} value={src.id}>
-                          {src.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className={styles.budgetEditActions}>
-                  <button type="button" onClick={saveBudget} className={styles.saveButton}>
-                    Save
-                  </button>
-                  <button type="button" onClick={cancelBudgetEdit} className={styles.cancelButton}>
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className={styles.budgetDisplay}>
-                <div className={styles.propertyGrid}>
-                  <div className={styles.property}>
-                    <span className={styles.propertyLabel}>Planned Budget</span>
-                    <span className={styles.budgetValue}>
-                      {workItem.plannedBudget !== null ? (
-                        formatCurrency(workItem.plannedBudget)
-                      ) : (
-                        <em className={styles.placeholder}>Not set</em>
-                      )}
-                    </span>
-                  </div>
-
-                  <div className={styles.property}>
-                    <span className={styles.propertyLabel}>Actual Cost</span>
-                    <span className={styles.budgetValue}>
-                      {workItem.actualCost !== null ? (
-                        formatCurrency(workItem.actualCost)
-                      ) : (
-                        <em className={styles.placeholder}>Not set</em>
-                      )}
-                    </span>
-                  </div>
-
-                  <div className={styles.property}>
-                    <span className={styles.propertyLabel}>Confidence</span>
-                    {workItem.confidencePercent !== null ? (
-                      <span
-                        className={`${styles.confidenceBadge} ${confidenceColorClass(workItem.confidencePercent)}`}
-                      >
-                        {workItem.confidencePercent}%
-                      </span>
-                    ) : (
-                      <em className={styles.placeholder}>Not set</em>
-                    )}
-                  </div>
-                </div>
-
-                <div className={styles.propertyGrid}>
-                  <div className={styles.property}>
-                    <span className={styles.propertyLabel}>Budget Category</span>
-                    <span className={styles.budgetValue}>
-                      {workItem.budgetCategoryId ? (
-                        (budgetCategories.find((c) => c.id === workItem.budgetCategoryId)?.name ?? (
-                          <em className={styles.placeholder}>Unknown</em>
-                        ))
-                      ) : (
-                        <em className={styles.placeholder}>None</em>
-                      )}
-                    </span>
-                  </div>
-
-                  <div className={styles.property}>
-                    <span className={styles.propertyLabel}>Budget Source</span>
-                    <span className={styles.budgetValue}>
-                      {workItem.budgetSourceId ? (
-                        (budgetSources.find((s) => s.id === workItem.budgetSourceId)?.name ?? (
-                          <em className={styles.placeholder}>Unknown</em>
-                        ))
-                      ) : (
-                        <em className={styles.placeholder}>None</em>
-                      )}
-                    </span>
-                  </div>
-                </div>
-
-                {netCost !== null && linkedSubsidies.length > 0 && (
-                  <div className={styles.netCostRow}>
-                    <span className={styles.netCostLabel}>Net Cost (after subsidies)</span>
-                    <span className={styles.netCostValue}>{formatCurrency(netCost)}</span>
-                  </div>
-                )}
               </div>
             )}
 
-            {/* Linked Vendors */}
-            <div className={styles.budgetSubsection}>
-              <h3 className={styles.subsectionTitle}>Vendors</h3>
-
-              <div className={styles.linkedList}>
-                {linkedVendors.length === 0 && (
-                  <div className={styles.emptyState}>No vendors linked</div>
-                )}
-                {linkedVendors.map((vendor) => (
-                  <div key={vendor.id} className={styles.linkedItem}>
-                    <div className={styles.linkedItemInfo}>
-                      <span className={styles.linkedItemName}>{vendor.name}</span>
-                      {vendor.specialty && (
-                        <span className={styles.linkedItemMeta}>{vendor.specialty}</span>
-                      )}
-                    </div>
-                    <button
-                      type="button"
-                      className={styles.unlinkButton}
-                      onClick={() => handleUnlinkVendor(vendor.id)}
-                      aria-label={`Unlink vendor ${vendor.name}`}
-                    >
-                      &times;
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              {availableVendors.length > 0 && (
-                <div className={styles.linkPickerRow}>
-                  <select
-                    className={styles.linkPickerSelect}
-                    value={selectedVendorId}
-                    onChange={(e) => setSelectedVendorId(e.target.value)}
-                    aria-label="Select vendor to link"
-                  >
-                    <option value="">Select vendor...</option>
-                    {availableVendors.map((v) => (
-                      <option key={v.id} value={v.id}>
-                        {v.name}
-                        {v.specialty ? ` — ${v.specialty}` : ''}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    className={styles.addButton}
-                    onClick={handleLinkVendor}
-                    disabled={!selectedVendorId || isLinkingVendor}
-                  >
-                    {isLinkingVendor ? 'Linking...' : 'Add Vendor'}
-                  </button>
+            {/* Budget lines list */}
+            <div className={styles.budgetLinesList}>
+              {budgetLines.length === 0 && !showBudgetForm && (
+                <div className={styles.emptyState}>
+                  No budget lines yet. Add the first line to start tracking costs.
                 </div>
               )}
+              {budgetLines.map((line) => (
+                <div key={line.id} className={styles.budgetLineItem}>
+                  <div className={styles.budgetLineMain}>
+                    <div className={styles.budgetLineTopRow}>
+                      <span className={styles.budgetLineAmount}>
+                        {formatCurrency(line.plannedAmount)}
+                      </span>
+                      <span className={styles.budgetLineConfidence}>
+                        {CONFIDENCE_LABELS[line.confidence]}
+                        {CONFIDENCE_MARGINS[line.confidence] > 0 && (
+                          <span className={styles.budgetLineMargin}>
+                            {' '}
+                            (+{Math.round(CONFIDENCE_MARGINS[line.confidence] * 100)}%)
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                    {line.description && (
+                      <div className={styles.budgetLineDescription}>{line.description}</div>
+                    )}
+                    <div className={styles.budgetLineMeta}>
+                      {line.budgetCategory && (
+                        <span className={styles.budgetLineMetaItem}>
+                          {line.budgetCategory.name}
+                        </span>
+                      )}
+                      {line.budgetSource && (
+                        <span className={styles.budgetLineMetaItem}>{line.budgetSource.name}</span>
+                      )}
+                      {line.vendor && (
+                        <span className={styles.budgetLineMetaItem}>{line.vendor.name}</span>
+                      )}
+                      {line.invoiceCount > 0 && (
+                        <span className={styles.budgetLineMetaItem}>
+                          {line.invoiceCount} invoice{line.invoiceCount !== 1 ? 's' : ''} ·{' '}
+                          {formatCurrency(line.actualCost)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className={styles.budgetLineActions}>
+                    <button
+                      type="button"
+                      className={styles.editButton}
+                      onClick={() => openEditBudgetForm(line)}
+                      aria-label={`Edit budget line${line.description ? ': ' + line.description : ''}`}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.deleteButton}
+                      onClick={() => handleDeleteBudgetLine(line.id)}
+                      aria-label={`Delete budget line${line.description ? ': ' + line.description : ''}`}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
+
+            {/* Budget line form (inline) */}
+            {showBudgetForm && (
+              <div className={styles.budgetLineForm}>
+                <h3 className={styles.subsectionTitle}>
+                  {editingBudgetId ? 'Edit Budget Line' : 'New Budget Line'}
+                </h3>
+                <form onSubmit={handleSaveBudgetLine}>
+                  {budgetFormError && (
+                    <div className={styles.budgetFormError} role="alert">
+                      {budgetFormError}
+                    </div>
+                  )}
+                  <div className={styles.propertyGrid}>
+                    <div className={styles.property}>
+                      <label className={styles.propertyLabel} htmlFor="budget-planned-amount">
+                        Planned Amount (€) *
+                      </label>
+                      <input
+                        type="number"
+                        id="budget-planned-amount"
+                        className={styles.propertyInput}
+                        value={budgetForm.plannedAmount}
+                        onChange={(e) =>
+                          setBudgetForm({ ...budgetForm, plannedAmount: e.target.value })
+                        }
+                        min="0"
+                        step="0.01"
+                        placeholder="0.00"
+                        required
+                        disabled={isSavingBudget}
+                      />
+                    </div>
+                    <div className={styles.property}>
+                      <label className={styles.propertyLabel} htmlFor="budget-confidence">
+                        Confidence
+                      </label>
+                      <select
+                        id="budget-confidence"
+                        className={styles.propertySelect}
+                        value={budgetForm.confidence}
+                        onChange={(e) =>
+                          setBudgetForm({
+                            ...budgetForm,
+                            confidence: e.target.value as ConfidenceLevel,
+                          })
+                        }
+                        disabled={isSavingBudget}
+                      >
+                        <option value="own_estimate">Own Estimate (+20%)</option>
+                        <option value="professional_estimate">Professional Estimate (+10%)</option>
+                        <option value="quote">Quote (+5%)</option>
+                        <option value="invoice">Invoice (±0%)</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className={styles.property}>
+                    <label className={styles.propertyLabel} htmlFor="budget-description">
+                      Description
+                    </label>
+                    <input
+                      type="text"
+                      id="budget-description"
+                      className={styles.propertyInput}
+                      value={budgetForm.description}
+                      onChange={(e) =>
+                        setBudgetForm({ ...budgetForm, description: e.target.value })
+                      }
+                      placeholder="Optional description"
+                      disabled={isSavingBudget}
+                    />
+                  </div>
+                  <div className={styles.propertyGrid}>
+                    <div className={styles.property}>
+                      <label className={styles.propertyLabel} htmlFor="budget-category">
+                        Category
+                      </label>
+                      <select
+                        id="budget-category"
+                        className={styles.propertySelect}
+                        value={budgetForm.budgetCategoryId}
+                        onChange={(e) =>
+                          setBudgetForm({ ...budgetForm, budgetCategoryId: e.target.value })
+                        }
+                        disabled={isSavingBudget}
+                      >
+                        <option value="">None</option>
+                        {budgetCategories.map((cat) => (
+                          <option key={cat.id} value={cat.id}>
+                            {cat.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className={styles.property}>
+                      <label className={styles.propertyLabel} htmlFor="budget-source">
+                        Funding Source
+                      </label>
+                      <select
+                        id="budget-source"
+                        className={styles.propertySelect}
+                        value={budgetForm.budgetSourceId}
+                        onChange={(e) =>
+                          setBudgetForm({ ...budgetForm, budgetSourceId: e.target.value })
+                        }
+                        disabled={isSavingBudget}
+                      >
+                        <option value="">None</option>
+                        {budgetSources.map((src) => (
+                          <option key={src.id} value={src.id}>
+                            {src.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className={styles.property}>
+                      <label className={styles.propertyLabel} htmlFor="budget-vendor">
+                        Vendor
+                      </label>
+                      <select
+                        id="budget-vendor"
+                        className={styles.propertySelect}
+                        value={budgetForm.vendorId}
+                        onChange={(e) => setBudgetForm({ ...budgetForm, vendorId: e.target.value })}
+                        disabled={isSavingBudget}
+                      >
+                        <option value="">None</option>
+                        {allVendors.map((v) => (
+                          <option key={v.id} value={v.id}>
+                            {v.name}
+                            {v.specialty ? ` — ${v.specialty}` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className={styles.budgetEditActions}>
+                    <button
+                      type="submit"
+                      className={styles.saveButton}
+                      disabled={isSavingBudget || !budgetForm.plannedAmount}
+                    >
+                      {isSavingBudget ? 'Saving...' : editingBudgetId ? 'Save Changes' : 'Add Line'}
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.cancelButton}
+                      onClick={closeBudgetForm}
+                      disabled={isSavingBudget}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
 
             {/* Linked Subsidies */}
             <div className={styles.budgetSubsection}>
@@ -1767,6 +1782,35 @@ export default function WorkItemDetailPage() {
                 onClick={confirmDeleteDependency}
               >
                 Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Budget line deletion confirmation modal */}
+      {deletingBudgetId && (
+        <div className={styles.modal}>
+          <div className={styles.modalBackdrop} onClick={() => setDeletingBudgetId(null)} />
+          <div className={styles.modalContent}>
+            <h2 className={styles.modalTitle}>Delete Budget Line?</h2>
+            <p className={styles.modalText}>
+              Are you sure you want to delete this budget line? This action cannot be undone.
+            </p>
+            <div className={styles.modalActions}>
+              <button
+                type="button"
+                className={styles.modalCancelButton}
+                onClick={() => setDeletingBudgetId(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={styles.modalDeleteButton}
+                onClick={confirmDeleteBudgetLine}
+              >
+                Delete
               </button>
             </div>
           </div>

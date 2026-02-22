@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { eq, desc, and } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { invoices, vendors, users } from '../db/schema.js';
+import { invoices, vendors, workItemBudgets, users } from '../db/schema.js';
 import type {
   Invoice,
   InvoiceStatus,
@@ -53,6 +53,7 @@ function toInvoice(db: DbType, row: typeof invoices.$inferSelect): Invoice {
   return {
     id: row.id,
     vendorId: row.vendorId,
+    workItemBudgetId: row.workItemBudgetId,
     invoiceNumber: row.invoiceNumber,
     amount: row.amount,
     date: row.date,
@@ -126,6 +127,18 @@ export function createInvoice(
     }
   }
 
+  // Validate workItemBudgetId if provided
+  if (data.workItemBudgetId) {
+    const budgetLine = db
+      .select()
+      .from(workItemBudgets)
+      .where(eq(workItemBudgets.id, data.workItemBudgetId))
+      .get();
+    if (!budgetLine) {
+      throw new ValidationError(`Work item budget line not found: ${data.workItemBudgetId}`);
+    }
+  }
+
   const id = randomUUID();
   const now = new Date().toISOString();
 
@@ -139,6 +152,7 @@ export function createInvoice(
       dueDate: data.dueDate ?? null,
       status: data.status ?? 'pending',
       notes: data.notes ?? null,
+      workItemBudgetId: data.workItemBudgetId ?? null,
       createdBy: userId,
       createdAt: now,
       updatedAt: now,
@@ -215,6 +229,21 @@ export function updateInvoice(
 
   if (data.notes !== undefined) {
     updates.notes = data.notes;
+  }
+
+  // workItemBudgetId (nullable — null unlinks)
+  if ('workItemBudgetId' in data) {
+    if (data.workItemBudgetId) {
+      const budgetLine = db
+        .select()
+        .from(workItemBudgets)
+        .where(eq(workItemBudgets.id, data.workItemBudgetId))
+        .get();
+      if (!budgetLine) {
+        throw new ValidationError(`Work item budget line not found: ${data.workItemBudgetId}`);
+      }
+    }
+    updates.workItemBudgetId = data.workItemBudgetId ?? null;
   }
 
   const now = new Date().toISOString();

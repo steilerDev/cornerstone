@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { eq, asc, sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { budgetCategories, subsidyProgramCategories, workItems } from '../db/schema.js';
+import { budgetCategories, subsidyProgramCategories, workItemBudgets } from '../db/schema.js';
 import type {
   BudgetCategory,
   CreateBudgetCategoryRequest,
@@ -241,18 +241,18 @@ export function deleteBudgetCategory(db: DbType, id: string): void {
     .where(eq(subsidyProgramCategories.budgetCategoryId, id))
     .all();
 
-  // Check for work item references (budget_category_id FK added via migration 0004)
-  const workItemRef = db
+  // Check for budget line references (budget_category_id FK on work_item_budgets)
+  const budgetLineRef = db
     .select({ count: sql<number>`COUNT(*)` })
-    .from(workItems)
-    .where(eq(workItems.budgetCategoryId, id))
+    .from(workItemBudgets)
+    .where(eq(workItemBudgets.budgetCategoryId, id))
     .get();
-  const workItemCount = workItemRef?.count ?? 0;
+  const budgetLineCount = budgetLineRef?.count ?? 0;
 
-  if (subsidyRefs.length > 0 || workItemCount > 0) {
+  if (subsidyRefs.length > 0 || budgetLineCount > 0) {
     throw new CategoryInUseError('Budget category is in use and cannot be deleted', {
       subsidyProgramCount: subsidyRefs.length,
-      workItemCount,
+      budgetLineCount,
     });
   }
 
