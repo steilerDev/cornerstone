@@ -145,11 +145,6 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ steps.playwright-version.outputs.version }}-${{ runner.os }}
 
-      - name: Configure apt and dpkg for CI
-        run: |
-          echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' | sudo tee /etc/apt/apt.conf.d/99keep-debs
-          echo 'force-unsafe-io' | sudo tee /etc/dpkg/dpkg.cfg.d/ci-unsafe-io
-
       - name: Restore apt cache
         id: apt-cache
         uses: actions/cache/restore@v4
@@ -157,7 +152,14 @@ jobs:
           path: /var/cache/apt/archives
           key: apt-playwright-${{ steps.playwright-version.outputs.version }}-${{ runner.os }}
 
+      - name: Configure apt and dpkg for CI
+        if: steps.apt-cache.outputs.cache-hit != 'true'
+        run: |
+          echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' | sudo tee /etc/apt/apt.conf.d/99keep-debs
+          echo 'force-unsafe-io' | sudo tee /etc/dpkg/dpkg.cfg.d/ci-unsafe-io
+
       - name: Install Playwright system dependencies
+        if: steps.apt-cache.outputs.cache-hit != 'true'
         run: sudo npx playwright install-deps chromium webkit
         working-directory: e2e
 
