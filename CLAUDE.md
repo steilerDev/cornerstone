@@ -195,6 +195,19 @@ All commits follow [Conventional Commits](https://www.conventionalcommits.org/):
 - **Link commits to issues**: When a commit resolves work tracked in a GitHub Issue, include `Fixes #<issue-number>` in the commit message body (one per line for multiple issues). Note: `Fixes #N` only auto-closes issues when the commit reaches `main` (not `beta`).
 - **Always commit, push to a feature branch, and create a PR after work is complete.** The pre-commit hook automatically runs all quality gates (selective lint/format/tests on staged files + full typecheck/build/audit). Just commit — the hook validates. If the hook fails, fix the issues and commit again. Do not leave work uncommitted or unpushed. Never push directly to `main` or `beta`.
 
+### Local Validation Policy
+
+**Do NOT run `npm test`, `npm run lint`, `npm run typecheck`, or `npm run build` manually.** The pre-commit hook runs all quality gates automatically:
+
+- Selective lint + format + related tests on staged files (via lint-staged)
+- Full typecheck across all workspaces
+- Full build (shared → client → server)
+- Dependency security audit
+
+To validate your work: **stage and commit**. If the hook fails, fix the issues and commit again. After pushing, **always wait for CI to go green** (`gh pr checks <pr-number> --watch`) before proceeding to the next step.
+
+The only exception is the QA agent running a specific test file it just wrote (e.g., `npx jest path/to/new.test.ts`) to verify correctness before committing — but never `npm test` (the full suite).
+
 ### Agent Attribution
 
 All agents must clearly identify themselves in commits and GitHub interactions:
@@ -224,13 +237,25 @@ All agents must clearly identify themselves in commits and GitHub interactions:
   - Use the conventional commit type as the prefix
   - Include the GitHub Issue number when one exists
 
+### Session Isolation (Worktrees)
+
+**Sessions run in git worktrees** to prevent parallel sessions from colliding. The user starts each session in a worktree manually — agents do not need to create worktrees themselves.
+
+If the current branch has a randomly generated name (i.e., the worktree auto-named it), **rename it** once the scope of work is clear:
+
+```bash
+git branch -m <type>/<issue-number>-<short-description>
+```
+
+If the branch already has a meaningful name, do not rename it.
+
 - **Workflow** (per-story cycle):
   1. **Plan** (first story of epic only): Launch `product-owner` (verify story + acceptance criteria + UAT scenarios) and `product-architect` (design schema/API/architecture) agents
-  2. **Branch**: Create a feature branch from `beta`: `git checkout -b <branch-name> beta`
+  2. **Branch**: The session runs in a worktree. If the branch has a random name, rename it once work scope is clear: `git branch -m <type>/<issue-number>-<short-description>`. If the branch already has a meaningful name, skip this step.
   3. **Implement**: Launch the appropriate developer agent (`backend-developer` and/or `frontend-developer`) to write the production code
   4. **Test**: Launch `qa-integration-tester` to write unit tests (95%+ coverage target), integration tests, and Playwright E2E tests
   5. **Commit & PR**: Commit (the pre-commit hook runs all quality gates automatically — selective lint/format/tests on staged files + full typecheck/build/audit), push the branch, create a PR targeting `beta`: `gh pr create --base beta --title "..." --body "..."`. E2E smoke tests run automatically in CI (see `e2e-smoke` job in `.github/workflows/ci.yml`) — do not run them locally.
-  6. **CI**: Wait for CI: `gh pr checks <pr-number> --watch`
+  6. **CI (mandatory)**: Wait for all CI checks to pass: `gh pr checks <pr-number> --watch`. **Do not proceed** to review or any next step until CI is fully green. If CI fails, fix the issues on the branch and push again.
   7. **Review**: After CI passes, launch review agents **in parallel**:
      - `product-architect` — verifies architecture compliance, test coverage, and code quality
      - `security-engineer` — reviews for security vulnerabilities, input validation, authentication/authorization gaps
@@ -461,6 +486,7 @@ All automated testing is owned by the `qa-integration-tester` agent. Developer a
 ```bash
 git submodule update --init   # Initialize wiki submodule
 npm install                   # Install all workspace dependencies
+chmod +x .husky/pre-commit    # Ensure pre-commit hook is executable (sandbox environments may reset this)
 npm run dev                   # Start server (port 3000) + client dev server (port 5173)
 ```
 
