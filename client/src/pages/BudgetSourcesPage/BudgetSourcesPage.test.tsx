@@ -37,6 +37,7 @@ describe('BudgetSourcesPage', () => {
     usedAmount: 0,
     availableAmount: 200000,
     claimedAmount: 0,
+    unclaimedAmount: 0,
     actualAvailableAmount: 200000,
     interestRate: 3.5,
     terms: '30-year fixed',
@@ -55,6 +56,7 @@ describe('BudgetSourcesPage', () => {
     usedAmount: 0,
     availableAmount: 50000,
     claimedAmount: 0,
+    unclaimedAmount: 0,
     actualAvailableAmount: 50000,
     interestRate: null,
     terms: null,
@@ -258,7 +260,7 @@ describe('BudgetSourcesPage', () => {
       });
     });
 
-    it('displays used and available amounts', async () => {
+    it('displays Claimed, Unclaimed, and Available (actualAvailableAmount) amounts', async () => {
       mockFetchBudgetSources.mockResolvedValueOnce({
         budgetSources: [sampleSource1],
       });
@@ -266,8 +268,60 @@ describe('BudgetSourcesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        // usedAmount = 0 → €0.00; availableAmount = 200000 → €200,000.00
-        expect(screen.getByText('€0.00')).toBeInTheDocument();
+        // claimedAmount = 0 → €0.00 and unclaimedAmount = 0 → €0.00
+        // actualAvailableAmount = 200000 → €200,000.00 (at least 2 matches: Total and Available)
+        expect(screen.getByText('Claimed')).toBeInTheDocument();
+        expect(screen.getByText('Unclaimed')).toBeInTheDocument();
+        expect(screen.getByText('Available')).toBeInTheDocument();
+      });
+    });
+
+    it('displays the Planned secondary line showing usedAmount', async () => {
+      const sourceWithPlanned: BudgetSource = {
+        ...sampleSource1,
+        usedAmount: 150000,
+        availableAmount: 50000,
+      };
+      mockFetchBudgetSources.mockResolvedValueOnce({
+        budgetSources: [sourceWithPlanned],
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText(/planned:/i)).toBeInTheDocument();
+        expect(screen.getByText(/€150,000\.00/)).toBeInTheDocument();
+      });
+    });
+
+    it('displays source with non-zero claimedAmount and unclaimedAmount', async () => {
+      const sourceWithAmounts: BudgetSource = {
+        ...sampleSource1,
+        totalAmount: 100000,
+        claimedAmount: 30000,
+        unclaimedAmount: 20000,
+        actualAvailableAmount: 70000, // 100000 - 30000
+        usedAmount: 80000,
+        availableAmount: 20000,
+      };
+      mockFetchBudgetSources.mockResolvedValueOnce({
+        budgetSources: [sourceWithAmounts],
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Claimed')).toBeInTheDocument();
+        expect(screen.getByText('Unclaimed')).toBeInTheDocument();
+        expect(screen.getByText('Available')).toBeInTheDocument();
+        // Claimed: €30,000.00
+        expect(screen.getByText('€30,000.00')).toBeInTheDocument();
+        // Unclaimed: €20,000.00
+        expect(screen.getByText('€20,000.00')).toBeInTheDocument();
+        // Available: €70,000.00
+        expect(screen.getByText('€70,000.00')).toBeInTheDocument();
+        // Planned secondary line: €80,000.00
+        expect(screen.getByText(/planned:/i)).toBeInTheDocument();
       });
     });
 

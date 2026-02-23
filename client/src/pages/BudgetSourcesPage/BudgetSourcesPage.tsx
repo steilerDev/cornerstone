@@ -749,17 +749,23 @@ export function BudgetSourcesPage() {
                             </span>
                           </div>
                           <div className={styles.amountGroup}>
-                            <span className={styles.amountLabel}>Used</span>
+                            <span className={styles.amountLabel}>Claimed</span>
                             <span className={styles.amountValue}>
-                              {formatCurrency(source.usedAmount)}
+                              {formatCurrency(source.claimedAmount)}
+                            </span>
+                          </div>
+                          <div className={styles.amountGroup}>
+                            <span className={styles.amountLabel}>Unclaimed</span>
+                            <span className={styles.amountValue}>
+                              {formatCurrency(source.unclaimedAmount)}
                             </span>
                           </div>
                           <div className={styles.amountGroup}>
                             <span className={styles.amountLabel}>Available</span>
                             <span
-                              className={`${styles.amountValue} ${source.availableAmount < 0 ? styles.amountNegative : ''}`}
+                              className={`${styles.amountValue} ${source.actualAvailableAmount < 0 ? styles.amountNegative : ''}`}
                             >
-                              {formatCurrency(source.availableAmount)}
+                              {formatCurrency(source.actualAvailableAmount)}
                             </span>
                           </div>
                           {source.interestRate != null && (
@@ -770,6 +776,9 @@ export function BudgetSourcesPage() {
                               </span>
                             </div>
                           )}
+                        </div>
+                        <div className={styles.plannedAllocation}>
+                          Planned: {formatCurrency(source.usedAmount)}
                         </div>
 
                         {source.terms && (

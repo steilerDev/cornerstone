@@ -165,6 +165,72 @@ describe('Budget Source Routes', () => {
     return budgetId;
   }
 
+  /**
+   * Helper: Insert a work item + budget line linked to a source, then attach a
+   * paid (unclaimed) invoice. Used to populate unclaimedAmount for the source.
+   * Returns the budget line ID.
+   */
+  function insertBudgetLineWithPaidInvoice(sourceId: string, invoiceAmount: number): string {
+    const now = new Date().toISOString();
+    const n = ++routeHelperCounter;
+
+    // Work item
+    const wiId = `wi-route-paid-${n}`;
+    app.db
+      .insert(workItems)
+      .values({
+        id: wiId,
+        title: `Paid Work Item ${n}`,
+        status: 'not_started',
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+
+    // Budget line referencing the source
+    const budgetId = `bud-route-paid-${n}`;
+    app.db
+      .insert(workItemBudgets)
+      .values({
+        id: budgetId,
+        workItemId: wiId,
+        budgetSourceId: sourceId,
+        plannedAmount: invoiceAmount * 2,
+        confidence: 'own_estimate',
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+
+    // Vendor + paid invoice (status='paid', not 'claimed')
+    const vendorId = `vendor-route-paid-${n}`;
+    app.db
+      .insert(vendors)
+      .values({
+        id: vendorId,
+        name: `Paid Vendor ${n}`,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+
+    app.db
+      .insert(invoices)
+      .values({
+        id: `inv-route-paid-${n}`,
+        vendorId,
+        workItemBudgetId: budgetId,
+        amount: invoiceAmount,
+        date: '2026-01-01',
+        status: 'paid',
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+
+    return budgetId;
+  }
+
   // ─── GET /api/budget-sources ───────────────────────────────────────────────
 
   describe('GET /api/budget-sources', () => {
@@ -229,8 +295,9 @@ describe('Budget Source Routes', () => {
       expect(source.totalAmount).toBe(75000);
       expect(source.usedAmount).toBe(0);
       expect(source.availableAmount).toBe(75000);
-      // Story 5.11: no claimed invoices → claimedAmount=0, actualAvailableAmount=totalAmount
+      // Story 5.11: no claimed or paid invoices → amounts are 0
       expect(source.claimedAmount).toBe(0);
+      expect(source.unclaimedAmount).toBe(0);
       expect(source.actualAvailableAmount).toBe(75000);
       expect(source.interestRate).toBe(4.5);
       expect(source.terms).toBe('5-year revolving');
@@ -313,8 +380,9 @@ describe('Budget Source Routes', () => {
       expect(body.budgetSource.totalAmount).toBe(200000);
       expect(body.budgetSource.usedAmount).toBe(0);
       expect(body.budgetSource.availableAmount).toBe(200000);
-      // Story 5.11: newly created source has no claimed invoices
+      // Story 5.11: newly created source has no claimed or paid invoices
       expect(body.budgetSource.claimedAmount).toBe(0);
+      expect(body.budgetSource.unclaimedAmount).toBe(0);
       expect(body.budgetSource.actualAvailableAmount).toBe(200000);
       expect(body.budgetSource.interestRate).toBeNull();
       expect(body.budgetSource.terms).toBeNull();
@@ -651,8 +719,9 @@ describe('Budget Source Routes', () => {
       expect(body.budgetSource.terms).toBe('Revolving');
       expect(body.budgetSource.notes).toBe('Some notes');
       expect(body.budgetSource.status).toBe('exhausted');
-      // Story 5.11: no claimed invoices
+      // Story 5.11: no claimed or paid invoices
       expect(body.budgetSource.claimedAmount).toBe(0);
+      expect(body.budgetSource.unclaimedAmount).toBe(0);
       expect(body.budgetSource.actualAvailableAmount).toBe(60000);
     });
 
@@ -1237,6 +1306,123 @@ describe('Budget Source Routes', () => {
       const bodyB = responseB.json<BudgetSourceResponse>();
       expect(bodyB.budgetSource.claimedAmount).toBe(0);
       expect(bodyB.budgetSource.actualAvailableAmount).toBe(50000);
+    });
+  });
+
+  // ─── unclaimedAmount (paid invoices) via GET endpoints ────────────────────
+
+  describe('unclaimedAmount via GET endpoints', () => {
+    it('GET list: unclaimedAmount=0 when no paid invoices exist', async () => {
+      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+      createTestSource({ name: 'Zero Paid', sourceType: 'savings', totalAmount: 30000 });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/budget-sources',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<BudgetSourceListResponse>();
+      const source = body.budgetSources[0];
+      expect(source.unclaimedAmount).toBe(0);
+    });
+
+    it('GET list: unclaimedAmount reflects SUM of paid invoices on linked budget lines', async () => {
+      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+      const src = createTestSource({
+        name: 'Has Paid Invoices',
+        sourceType: 'bank_loan',
+        totalAmount: 100000,
+      });
+
+      insertBudgetLineWithPaidInvoice(src.id, 6000);
+      insertBudgetLineWithPaidInvoice(src.id, 4000);
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/budget-sources',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<BudgetSourceListResponse>();
+      const source = body.budgetSources.find((s: BudgetSource) => s.id === src.id)!;
+      expect(source.unclaimedAmount).toBe(10000); // 6000 + 4000
+    });
+
+    it('GET by ID: unclaimedAmount sums paid invoices while claimedAmount stays independent', async () => {
+      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+      const src = createTestSource({
+        name: 'Mixed Invoices',
+        sourceType: 'credit_line',
+        totalAmount: 80000,
+      });
+
+      insertBudgetLineWithClaimedInvoice(src.id, 12000); // adds to claimedAmount
+      insertBudgetLineWithPaidInvoice(src.id, 7000); // adds to unclaimedAmount
+
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/budget-sources/${src.id}`,
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<BudgetSourceResponse>();
+      expect(body.budgetSource.claimedAmount).toBe(12000);
+      expect(body.budgetSource.unclaimedAmount).toBe(7000);
+      // actualAvailableAmount only deducts claimed, not paid
+      expect(body.budgetSource.actualAvailableAmount).toBe(68000); // 80000 - 12000
+    });
+
+    it('paid invoices from a different source do not affect this source unclaimedAmount', async () => {
+      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+      const srcA = createTestSource({
+        name: 'Source A With Paid',
+        sourceType: 'bank_loan',
+        totalAmount: 100000,
+      });
+      const srcB = createTestSource({
+        name: 'Source B No Paid',
+        sourceType: 'savings',
+        totalAmount: 50000,
+      });
+
+      // Only source A gets paid invoices
+      insertBudgetLineWithPaidInvoice(srcA.id, 15000);
+
+      const responseB = await app.inject({
+        method: 'GET',
+        url: `/api/budget-sources/${srcB.id}`,
+        headers: { cookie },
+      });
+
+      expect(responseB.statusCode).toBe(200);
+      const bodyB = responseB.json<BudgetSourceResponse>();
+      expect(bodyB.budgetSource.unclaimedAmount).toBe(0);
+    });
+
+    it('PATCH: updated source includes unclaimedAmount', async () => {
+      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+      const src = createTestSource({
+        name: 'PATCH Paid',
+        sourceType: 'savings',
+        totalAmount: 80000,
+      });
+
+      insertBudgetLineWithPaidInvoice(src.id, 9000);
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/budget-sources/${src.id}`,
+        headers: { cookie },
+        payload: { name: 'PATCH Paid Updated' },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<BudgetSourceResponse>();
+      expect(body.budgetSource.unclaimedAmount).toBe(9000);
     });
   });
 });
