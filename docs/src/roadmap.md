@@ -14,10 +14,7 @@ Cornerstone is under active development. Here is the current state of planned fe
 - [x] **EPIC-01: Authentication and User Management** ([#1](https://github.com/steilerDev/cornerstone/issues/1)) -- Local login, OIDC SSO, user profiles, admin panel, role-based access
 - [x] **EPIC-03: Work Items** ([#3](https://github.com/steilerDev/cornerstone/issues/3)) -- Work item CRUD, tags, notes, subtasks, dependencies, keyboard shortcuts, list and detail pages
 - [x] **EPIC-12: Design System Bootstrap** ([#115](https://github.com/steilerDev/cornerstone/issues/115)) -- Design token system, dark mode, brand identity, CSS module migration, style guide
-
-## In Progress
-
-- [ ] **EPIC-05: Budget Management** ([#5](https://github.com/steilerDev/cornerstone/issues/5)) -- Category-based budgeting, financing sources, cost tracking
+- [x] **EPIC-05: Budget Management** ([#5](https://github.com/steilerDev/cornerstone/issues/5)) -- Budget categories, financing sources, work item cost tracking, vendor invoices, subsidy programs, budget overview dashboard
 
 ## Planned
 
