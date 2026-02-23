@@ -2,7 +2,9 @@ name: Deploy Docs
 
 on:
   push:
-    branches: [main, chore/200-docs-site]
+    branches: [main]
+    paths:
+      - 'docs/**'
   workflow_dispatch:
 
 permissions:
@@ -47,7 +49,6 @@ jobs:
     name: Deploy
     needs: build
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
 
     environment:
       name: github-pages
