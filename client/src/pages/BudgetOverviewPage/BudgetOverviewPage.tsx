@@ -199,20 +199,23 @@ function MobileBarDetail({ segments, overflow, availableFunds }: MobileBarDetail
   const rows = segments.filter((s) => s.value > 0);
   return (
     <div className={styles.mobileBarDetail}>
-      {rows.map((seg) => (
-        <div key={seg.key} className={styles.mobileBarDetailRow}>
-          <span
-            className={styles.mobileBarDetailDot}
-            style={{ backgroundColor: seg.color }}
-            aria-hidden="true"
-          />
-          <span className={styles.mobileBarDetailLabel}>{seg.label}</span>
-          <span className={styles.mobileBarDetailValue}>{formatCurrency(seg.value)}</span>
-          <span className={styles.mobileBarDetailPct}>
-            ({formatPct(seg.value, availableFunds)})
-          </span>
-        </div>
-      ))}
+      {rows.map((seg) => {
+        const displayValue = seg.totalValue ?? seg.value;
+        return (
+          <div key={seg.key} className={styles.mobileBarDetailRow}>
+            <span
+              className={styles.mobileBarDetailDot}
+              style={{ backgroundColor: seg.color }}
+              aria-hidden="true"
+            />
+            <span className={styles.mobileBarDetailLabel}>{seg.label}</span>
+            <span className={styles.mobileBarDetailValue}>{formatCurrency(displayValue)}</span>
+            <span className={styles.mobileBarDetailPct}>
+              ({formatPct(displayValue, availableFunds)})
+            </span>
+          </div>
+        );
+      })}
       {overflow > 0 && (
         <div className={styles.mobileBarDetailRow}>
           <span
@@ -237,12 +240,13 @@ interface SegmentTooltipProps {
 }
 
 function SegmentTooltipContent({ segment, availableFunds }: SegmentTooltipProps) {
+  const displayValue = segment.totalValue ?? segment.value;
   return (
     <div className={styles.segmentTooltip}>
       <span className={styles.segmentTooltipLabel}>{segment.label}</span>
-      <span className={styles.segmentTooltipValue}>{formatCurrency(segment.value)}</span>
+      <span className={styles.segmentTooltipValue}>{formatCurrency(displayValue)}</span>
       <span className={styles.segmentTooltipPct}>
-        {formatPct(segment.value, availableFunds)} of available funds
+        {formatPct(displayValue, availableFunds)} of available funds
       </span>
     </div>
   );
@@ -410,25 +414,29 @@ export function BudgetOverviewPage() {
       key: 'claimed',
       value: claimedVal,
       color: 'var(--color-budget-claimed)',
-      label: 'Claimed',
+      label: 'Claimed Invoices',
+      totalValue: filtered.actualCostClaimed,
     },
     {
       key: 'paid',
       value: paidVal,
       color: 'var(--color-budget-paid)',
-      label: 'Paid',
+      label: 'Paid Invoices',
+      totalValue: filtered.actualCostPaid,
     },
     {
       key: 'pending',
       value: pendingVal,
       color: 'var(--color-budget-pending)',
-      label: 'Pending',
+      label: 'Pending Invoices',
+      totalValue: filtered.actualCost,
     },
     {
       key: 'proj-min',
       value: projMinVal,
       color: 'var(--color-budget-projected)',
       label: 'Projected (optimistic)',
+      totalValue: filtered.projectedMin,
     },
     {
       key: 'proj-max',
@@ -436,6 +444,7 @@ export function BudgetOverviewPage() {
       // Projected max layer is fainter — achieved via inline opacity on color
       color: 'var(--color-budget-projected)',
       label: 'Projected (pessimistic)',
+      totalValue: filtered.projectedMax,
     },
   ];
 

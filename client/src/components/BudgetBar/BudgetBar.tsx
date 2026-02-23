@@ -5,6 +5,7 @@ export interface BudgetBarSegment {
   value: number;
   color: string; // CSS custom property expression, e.g. 'var(--color-budget-claimed)'
   label: string; // Human-readable name for tooltip / aria-label
+  totalValue?: number; // Cumulative total for this segment (shown in tooltips instead of incremental value)
 }
 
 interface BudgetBarProps {
@@ -37,7 +38,8 @@ export function BudgetBar({
   // Build aria-label describing all non-zero segments
   const visibleSegments = segments.filter((s) => s.value > 0);
   const ariaLabelParts = visibleSegments.map((s) => {
-    const formatted = formatValue ? formatValue(s.value) : s.value.toString();
+    const displayValue = s.totalValue ?? s.value;
+    const formatted = formatValue ? formatValue(displayValue) : displayValue.toString();
     return `${s.label} ${formatted}`;
   });
   if (overflow > 0) {

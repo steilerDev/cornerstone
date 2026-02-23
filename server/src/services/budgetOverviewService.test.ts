@@ -458,38 +458,38 @@ describe('getBudgetOverview', () => {
   describe('remaining funds perspectives', () => {
     it('computes all six perspectives correctly', () => {
       insertBudgetSource({ totalAmount: 100000, status: 'active' });
-      // own_estimate (±20%): min=8000, max=12000; line has an invoice so projected=actualCost=6000
+      // own_estimate (±20%): but line has invoice → min/max/projected all = actualCost = 6000
       insertWorkItem({ plannedAmount: 10000, confidence: 'own_estimate', actualCost: 6000 });
 
       const result = getBudgetOverview(db);
 
       expect(result.availableFunds).toBe(100000);
-      expect(result.minPlanned).toBeCloseTo(8000, 5);
-      expect(result.maxPlanned).toBeCloseTo(12000, 5);
-      // Line has invoices → projectedMin = projectedMax = actualCost = 6000
-      expect(result.projectedMin).toBeCloseTo(6000, 5);
-      expect(result.projectedMax).toBeCloseTo(6000, 5);
+      // Line has invoices → min/max planned overridden by actualCost
+      expect(result.minPlanned).toBe(6000);
+      expect(result.maxPlanned).toBe(6000);
+      expect(result.projectedMin).toBe(6000);
+      expect(result.projectedMax).toBe(6000);
       expect(result.actualCost).toBe(6000);
       expect(result.actualCostPaid).toBe(6000);
 
-      expect(result.remainingVsMinPlanned).toBeCloseTo(92000, 5); // 100000 - 8000
-      expect(result.remainingVsMaxPlanned).toBeCloseTo(88000, 5); // 100000 - 12000
-      expect(result.remainingVsProjectedMin).toBeCloseTo(94000, 5); // 100000 - 6000
-      expect(result.remainingVsProjectedMax).toBeCloseTo(94000, 5); // 100000 - 6000
+      expect(result.remainingVsMinPlanned).toBe(94000); // 100000 - 6000
+      expect(result.remainingVsMaxPlanned).toBe(94000); // 100000 - 6000
+      expect(result.remainingVsProjectedMin).toBe(94000); // 100000 - 6000
+      expect(result.remainingVsProjectedMax).toBe(94000); // 100000 - 6000
       expect(result.remainingVsActualCost).toBe(94000); // 100000 - 6000
       expect(result.remainingVsActualPaid).toBe(94000); // 100000 - 6000
     });
 
     it('returns negative remaining when costs exceed available funds', () => {
       insertBudgetSource({ totalAmount: 5000, status: 'active' });
-      // invoice confidence = 0% margin; line has an invoice → projected = 8000
+      // invoice confidence = 0% margin; line has an invoice → all values = actualCost = 8000
       insertWorkItem({ plannedAmount: 10000, confidence: 'invoice', actualCost: 8000 });
 
       const result = getBudgetOverview(db);
 
-      expect(result.remainingVsMinPlanned).toBe(-5000); // 5000 - 10000
-      expect(result.remainingVsMaxPlanned).toBe(-5000); // 5000 - 10000
-      // projectedMin = projectedMax = actualCost = 8000 (has invoices)
+      // min/max planned now also overridden by actualCost = 8000
+      expect(result.remainingVsMinPlanned).toBe(-3000); // 5000 - 8000
+      expect(result.remainingVsMaxPlanned).toBe(-3000); // 5000 - 8000
       expect(result.remainingVsProjectedMin).toBe(-3000); // 5000 - 8000
       expect(result.remainingVsProjectedMax).toBe(-3000); // 5000 - 8000
       expect(result.remainingVsActualCost).toBe(-3000); // 5000 - 8000
@@ -629,7 +629,7 @@ describe('getBudgetOverview', () => {
     it('keeps categories from different budget lines independent', () => {
       const catA = insertBudgetCategory('Cat Alpha');
       const catB = insertBudgetCategory('Cat Beta');
-      // invoice confidence (±0%): min=max=plannedAmount; line has invoice → projected=actualCost
+      // invoice confidence (±0%): line has invoice → all values = actualCost
       insertWorkItem({
         plannedAmount: 1000,
         confidence: 'invoice',
@@ -647,15 +647,15 @@ describe('getBudgetOverview', () => {
       const a = result.categorySummaries.find((c) => c.categoryId === catA);
       const b = result.categorySummaries.find((c) => c.categoryId === catB);
 
-      expect(a!.minPlanned).toBe(1000);
-      expect(a!.maxPlanned).toBe(1000);
-      // catA line has invoice (800) → projected = 800
+      // catA line has invoice (800) → min/max planned overridden by actualCost
+      expect(a!.minPlanned).toBe(800);
+      expect(a!.maxPlanned).toBe(800);
       expect(a!.projectedMin).toBe(800);
       expect(a!.projectedMax).toBe(800);
       expect(a!.actualCost).toBe(800);
-      expect(b!.minPlanned).toBe(2000);
-      expect(b!.maxPlanned).toBe(2000);
-      // catB line has invoice (2500) → projected = 2500
+      // catB line has invoice (2500) → min/max planned overridden by actualCost
+      expect(b!.minPlanned).toBe(2500);
+      expect(b!.maxPlanned).toBe(2500);
       expect(b!.projectedMin).toBe(2500);
       expect(b!.projectedMax).toBe(2500);
       expect(b!.actualCost).toBe(2500);
@@ -1094,30 +1094,29 @@ describe('getBudgetOverview', () => {
 
       const result = getBudgetOverview(db);
 
-      // Line has invoice → projected collapses to actualCost=7500
+      // Line has invoice → all values collapse to actualCost=7500
       expect(result.projectedMin).toBe(7500);
       expect(result.projectedMax).toBe(7500);
-      // The original min/max planned are unchanged
-      expect(result.minPlanned).toBeCloseTo(8000, 5);
-      expect(result.maxPlanned).toBeCloseTo(12000, 5);
+      // min/max planned also overridden by actualCost when invoices exist
+      expect(result.minPlanned).toBe(7500);
+      expect(result.maxPlanned).toBe(7500);
     });
 
     it('correctly blends invoiced and non-invoiced lines in the same overview', () => {
-      // Line A: invoiced at 6000 (own_estimate, planned=10000, min=8000, max=12000)
+      // Line A: invoiced at 6000 (own_estimate, planned=10000) → min/max = actualCost = 6000
       // Line B: no invoices (quote, planned=5000, min=4750, max=5250)
       insertWorkItem({ plannedAmount: 10000, confidence: 'own_estimate', actualCost: 6000 });
       insertWorkItem({ plannedAmount: 5000, confidence: 'quote' });
 
       const result = getBudgetOverview(db);
 
-      // projectedMin = 6000 (A, has invoice) + 4750 (B, no invoice → minPlanned)
-      // projectedMax = 6000 (A, has invoice) + 5250 (B, no invoice → maxPlanned)
-      expect(result.projectedMin).toBeCloseTo(10750, 5); // 6000 + 4750
-      expect(result.projectedMax).toBeCloseTo(11250, 5); // 6000 + 5250
-
-      // Standard planned totals not affected by blending
-      expect(result.minPlanned).toBeCloseTo(12750, 5); // 8000 + 4750
-      expect(result.maxPlanned).toBeCloseTo(17250, 5); // 12000 + 5250
+      // minPlanned = 6000 (A, has invoice → actualCost) + 4750 (B, no invoice)
+      // maxPlanned = 6000 (A, has invoice → actualCost) + 5250 (B, no invoice)
+      expect(result.minPlanned).toBeCloseTo(10750, 5); // 6000 + 4750
+      expect(result.maxPlanned).toBeCloseTo(11250, 5); // 6000 + 5250
+      // projected now equals planned
+      expect(result.projectedMin).toBeCloseTo(10750, 5);
+      expect(result.projectedMax).toBeCloseTo(11250, 5);
     });
 
     it('pending invoice still counts as "has invoices" for blended projection', () => {
@@ -1150,7 +1149,7 @@ describe('getBudgetOverview', () => {
 
     it('projectedMin and projectedMax appear correctly in category summaries for blended lines', () => {
       const catId = insertBudgetCategory('Cat Blended');
-      // Line A in catId: invoiced at 4000 (planned=5000, quote ±5% → min=4750/max=5250)
+      // Line A in catId: invoiced at 4000 (planned=5000) → min/max = actualCost = 4000
       insertWorkItem({
         plannedAmount: 5000,
         confidence: 'quote',
@@ -1164,12 +1163,12 @@ describe('getBudgetOverview', () => {
       const cat = result.categorySummaries.find((c) => c.categoryId === catId);
 
       expect(cat).toBeDefined();
-      // Line A has invoice → projected=4000; Line B no invoice → projected=min=2850/max=3150
+      // Line A has invoice → min/max = 4000; Line B no invoice → min=2850/max=3150
+      expect(cat!.minPlanned).toBeCloseTo(6850, 5); // 4000 + 2850
+      expect(cat!.maxPlanned).toBeCloseTo(7150, 5); // 4000 + 3150
+      // projected now equals planned
       expect(cat!.projectedMin).toBeCloseTo(6850, 5); // 4000 + 2850
       expect(cat!.projectedMax).toBeCloseTo(7150, 5); // 4000 + 3150
-      // Standard min/max planned unaffected
-      expect(cat!.minPlanned).toBeCloseTo(7600, 5); // 4750 + 2850
-      expect(cat!.maxPlanned).toBeCloseTo(8400, 5); // 5250 + 3150
     });
 
     it('multiple invoices on the same budget line sum to a single projected cost', () => {
@@ -1258,21 +1257,16 @@ describe('getBudgetOverview', () => {
       expect(result.availableFunds).toBe(200000);
       expect(result.sourceCount).toBe(1);
 
-      // Min/max planned:
-      // wi1: raw_min=raw_max=50000 (invoice 0%), subsidy=5000 → min=max=45000
-      // wi2: raw_min=24000 (30000*0.8), raw_max=36000 (30000*1.2), no subsidy → min=24000, max=36000
-      // wi3: raw_min=19000 (20000*0.95), raw_max=21000 (20000*1.05), wi3 NOT linked to prog → no subsidy
-      //   Total min = 45000 + 24000 + 19000 = 88000
-      //   Total max = 45000 + 36000 + 21000 = 102000
-      expect(result.minPlanned).toBeCloseTo(88000, 5);
-      expect(result.maxPlanned).toBeCloseTo(102000, 5);
+      // Min/max planned (invoiced lines use actualCost):
+      // wi1: has invoice (45000) → min=max=45000 (actualCost after subsidy reduction = 45000)
+      // wi2: has invoice (32000 pending) → min=max=32000 (actualCost overrides planned)
+      // wi3: NO invoices → raw_min=19000 (20000*0.95), raw_max=21000 (20000*1.05), no subsidy
+      //   Total min = 45000 + 32000 + 19000 = 96000
+      //   Total max = 45000 + 32000 + 21000 = 98000
+      expect(result.minPlanned).toBeCloseTo(96000, 5);
+      expect(result.maxPlanned).toBeCloseTo(98000, 5);
 
-      // Blended projected model:
-      // wi1 has invoice (45000 paid) → projectedMin = projectedMax = 45000
-      // wi2 has invoice (32000 pending) → projectedMin = projectedMax = 32000
-      // wi3 has NO invoices → projectedMin = minPlanned = 19000, projectedMax = maxPlanned = 21000
-      // Total projectedMin = 45000 + 32000 + 19000 = 96000
-      // Total projectedMax = 45000 + 32000 + 21000 = 98000
+      // Projected now equals planned
       expect(result.projectedMin).toBeCloseTo(96000, 5);
       expect(result.projectedMax).toBeCloseTo(98000, 5);
 
@@ -1281,8 +1275,8 @@ describe('getBudgetOverview', () => {
       expect(result.actualCostPaid).toBe(45000);
 
       // Remaining perspectives
-      expect(result.remainingVsMinPlanned).toBeCloseTo(112000, 5); // 200000 - 88000
-      expect(result.remainingVsMaxPlanned).toBeCloseTo(98000, 5); // 200000 - 102000
+      expect(result.remainingVsMinPlanned).toBeCloseTo(104000, 5); // 200000 - 96000
+      expect(result.remainingVsMaxPlanned).toBeCloseTo(102000, 5); // 200000 - 98000
       expect(result.remainingVsProjectedMin).toBeCloseTo(104000, 5); // 200000 - 96000
       expect(result.remainingVsProjectedMax).toBeCloseTo(102000, 5); // 200000 - 98000
       expect(result.remainingVsActualCost).toBe(123000); // 200000 - 77000
@@ -1292,22 +1286,21 @@ describe('getBudgetOverview', () => {
       expect(result.subsidySummary.totalReductions).toBeCloseTo(5000, 5);
       expect(result.subsidySummary.activeSubsidyCount).toBe(1);
 
-      // Category A: wi1 (45000 min/max after subsidy, has invoice → projected=45000) + wi3 (19000/21000, no invoice)
+      // Category A: wi1 (has invoice 45000 → min/max=45000) + wi3 (no invoice → 19000/21000)
       const a = result.categorySummaries.find((c) => c.categoryId === catA);
       expect(a!.minPlanned).toBeCloseTo(64000, 5); // 45000 + 19000
       expect(a!.maxPlanned).toBeCloseTo(66000, 5); // 45000 + 21000
-      // wi1 has invoice → projected=45000; wi3 no invoice → projected=minPlanned/maxPlanned (19000/21000)
-      expect(a!.projectedMin).toBeCloseTo(64000, 5); // 45000 + 19000
-      expect(a!.projectedMax).toBeCloseTo(66000, 5); // 45000 + 21000
+      expect(a!.projectedMin).toBeCloseTo(64000, 5); // equals minPlanned
+      expect(a!.projectedMax).toBeCloseTo(66000, 5); // equals maxPlanned
       expect(a!.actualCost).toBe(45000);
       expect(a!.actualCostPaid).toBe(45000);
       expect(a!.budgetLineCount).toBe(2);
 
-      // Category B: wi2 (24000/36000 planned, has invoice (32000 pending) → projected=32000)
+      // Category B: wi2 (has invoice 32000 pending → min/max=32000)
       const b = result.categorySummaries.find((c) => c.categoryId === catB);
-      expect(b!.minPlanned).toBeCloseTo(24000, 5);
-      expect(b!.maxPlanned).toBeCloseTo(36000, 5);
-      expect(b!.projectedMin).toBeCloseTo(32000, 5); // wi2 has invoice → projected=32000
+      expect(b!.minPlanned).toBeCloseTo(32000, 5); // overridden by actualCost
+      expect(b!.maxPlanned).toBeCloseTo(32000, 5); // overridden by actualCost
+      expect(b!.projectedMin).toBeCloseTo(32000, 5); // equals minPlanned
       expect(b!.projectedMax).toBeCloseTo(32000, 5);
       expect(b!.actualCost).toBe(32000);
       expect(b!.actualCostPaid).toBe(0);

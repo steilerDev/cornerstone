@@ -372,10 +372,8 @@ describe('Budget Overview Routes', () => {
     it('projectedMin and projectedMax reflect blended invoice model at route level', async () => {
       const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
 
-      // Line A: invoiced at 7000 (own_estimate ±20%, planned=10000, min=8000/max=12000)
-      // → projected = 7000 (has invoice)
+      // Line A: invoiced at 7000 (own_estimate, planned=10000) → min/max = actualCost = 7000
       // Line B: no invoices (quote ±5%, planned=5000, min=4750/max=5250)
-      // → projected = minPlanned/maxPlanned = 4750/5250
       insertWorkItem({ plannedAmount: 10000, confidence: 'own_estimate', actualCost: 7000 });
       insertWorkItem({ plannedAmount: 5000, confidence: 'quote' });
 
@@ -388,14 +386,13 @@ describe('Budget Overview Routes', () => {
       expect(response.statusCode).toBe(200);
       const { overview } = response.json<BudgetOverviewResponse>();
 
-      // projectedMin = 7000 + 4750 = 11750
-      // projectedMax = 7000 + 5250 = 12250
+      // minPlanned = 7000 (A, invoice overrides) + 4750 (B) = 11750
+      // maxPlanned = 7000 (A, invoice overrides) + 5250 (B) = 12250
+      expect(overview.minPlanned).toBeCloseTo(11750, 5);
+      expect(overview.maxPlanned).toBeCloseTo(12250, 5);
+      // projected now equals planned
       expect(overview.projectedMin).toBeCloseTo(11750, 5);
       expect(overview.projectedMax).toBeCloseTo(12250, 5);
-
-      // minPlanned and maxPlanned should reflect the planned range without blending
-      expect(overview.minPlanned).toBeCloseTo(12750, 5); // 8000 + 4750
-      expect(overview.maxPlanned).toBeCloseTo(17250, 5); // 12000 + 5250
     });
 
     it('remainingVsProjectedMin and remainingVsProjectedMax are correct at route level', async () => {

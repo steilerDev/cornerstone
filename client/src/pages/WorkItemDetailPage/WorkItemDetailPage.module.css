@@ -681,6 +681,18 @@
   color: var(--color-text-primary);
 }
 
+.budgetValueHighlighted {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--color-success-text-on-light);
+}
+
+.budgetValueMuted {
+  color: var(--color-text-muted);
+  font-weight: 400;
+  text-decoration: line-through;
+}
+
 /* Confidence badge */
 .confidenceBadge {
   display: inline-block;
@@ -897,6 +909,22 @@
   font-weight: 400;
 }
 
+.budgetLineAmountInvoiced {
+  color: var(--color-success-text-on-light);
+}
+
+.budgetLineInvoicedLabel {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-success-text-on-light);
+}
+
+.budgetLinePlannedSecondary {
+  font-size: 0.8125rem;
+  color: var(--color-text-placeholder);
+  font-weight: 400;
+}
+
 .budgetLineDescription {
   font-size: 0.875rem;
   color: var(--color-text-secondary);
@@ -919,6 +947,24 @@
   border: 1px solid var(--color-border);
   border-radius: 9999px;
   padding: 0.125rem 0.5rem;
+}
+
+.budgetLineMetaLink {
+  font-size: 0.75rem;
+  color: var(--color-primary-badge-text);
+  background: var(--color-primary-bg);
+  border: 1px solid var(--color-primary-bg);
+  border-radius: 9999px;
+  padding: 0.125rem 0.5rem;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.budgetLineMetaLink:hover {
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+  border-color: var(--color-primary);
 }
 
 .budgetLineActions {
