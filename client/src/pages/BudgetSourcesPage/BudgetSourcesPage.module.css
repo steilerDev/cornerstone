@@ -556,6 +556,13 @@
   text-overflow: ellipsis;
 }
 
+/* Planned allocation reference line (below primary amounts) */
+.plannedAllocation {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
 /* ---- Source actions (right side) ---- */
 
 .sourceActions {

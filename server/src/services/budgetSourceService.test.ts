@@ -230,6 +230,8 @@ describe('Budget Source Service', () => {
       expect(source.availableAmount).toBe(300000);
       // New Story 5.11 fields: no claimed invoices → claimedAmount=0, actualAvailable=totalAmount
       expect(source.claimedAmount).toBe(0);
+      // unclaimedAmount: no paid invoices → 0
+      expect(source.unclaimedAmount).toBe(0);
       expect(source.actualAvailableAmount).toBe(300000);
       expect(source.interestRate).toBe(3.5);
       expect(source.terms).toBe('30-year fixed');
@@ -266,8 +268,9 @@ describe('Budget Source Service', () => {
       const result = budgetSourceService.listBudgetSources(db);
       expect(result[0].usedAmount).toBe(0);
       expect(result[0].availableAmount).toBe(50000);
-      // No claimed invoices → claimedAmount=0, actualAvailableAmount=totalAmount
+      // No claimed or paid invoices → both amounts are 0
       expect(result[0].claimedAmount).toBe(0);
+      expect(result[0].unclaimedAmount).toBe(0);
       expect(result[0].actualAvailableAmount).toBe(50000);
     });
 
@@ -374,8 +377,9 @@ describe('Budget Source Service', () => {
       expect(result.totalAmount).toBe(75000);
       expect(result.usedAmount).toBe(0);
       expect(result.availableAmount).toBe(75000);
-      // No claimed invoices
+      // No claimed or paid invoices
       expect(result.claimedAmount).toBe(0);
+      expect(result.unclaimedAmount).toBe(0);
       expect(result.actualAvailableAmount).toBe(75000);
       expect(result.interestRate).toBe(5.25);
       expect(result.terms).toBe('5-year revolving');
@@ -427,8 +431,9 @@ describe('Budget Source Service', () => {
       const result = budgetSourceService.getBudgetSourceById(db, raw.id);
       expect(result.usedAmount).toBe(25000);
       expect(result.availableAmount).toBe(75000);
-      // No claimed invoices attached to these budget lines
+      // No claimed or paid invoices attached to these budget lines
       expect(result.claimedAmount).toBe(0);
+      expect(result.unclaimedAmount).toBe(0);
       expect(result.actualAvailableAmount).toBe(100000);
     });
   });
@@ -451,8 +456,9 @@ describe('Budget Source Service', () => {
       expect(result.totalAmount).toBe(200000);
       expect(result.usedAmount).toBe(0);
       expect(result.availableAmount).toBe(200000);
-      // Newly created source has no claimed invoices
+      // Newly created source has no claimed or paid invoices
       expect(result.claimedAmount).toBe(0);
+      expect(result.unclaimedAmount).toBe(0);
       expect(result.actualAvailableAmount).toBe(200000);
       expect(result.interestRate).toBeNull();
       expect(result.terms).toBeNull();
@@ -1362,6 +1368,148 @@ describe('Budget Source Service', () => {
 
       expect(result.claimedAmount).toBe(7000);
       expect(result.actualAvailableAmount).toBe(-2000); // 5000 - 7000
+    });
+  });
+
+  // ─── unclaimedAmount (paid but not claimed invoices) ──────────────────────
+
+  describe('unclaimedAmount', () => {
+    it('returns unclaimedAmount=0 when no paid invoices exist', () => {
+      const raw = insertRawSource({
+        name: 'No Paid Source',
+        sourceType: 'bank_loan',
+        totalAmount: 80000,
+      });
+
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+
+      expect(result.unclaimedAmount).toBe(0);
+    });
+
+    it('sums paid invoice amounts from budget lines referencing the source', () => {
+      const raw = insertRawSource({
+        name: 'Paid Invoices Source',
+        sourceType: 'savings',
+        totalAmount: 100000,
+      });
+
+      const { budgetId: budgetId1 } = insertRawWorkItemWithSource(raw.id, 20000);
+      const { budgetId: budgetId2 } = insertRawWorkItemWithSource(raw.id, 10000);
+
+      insertPaidInvoice(budgetId1, 6000);
+      insertPaidInvoice(budgetId2, 4000);
+
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+
+      expect(result.unclaimedAmount).toBe(10000); // 6000 + 4000
+    });
+
+    it('does NOT count claimed invoices in unclaimedAmount (only status=paid counts)', () => {
+      const raw = insertRawSource({
+        name: 'Claimed Not Paid Source',
+        sourceType: 'bank_loan',
+        totalAmount: 60000,
+      });
+
+      const { budgetId } = insertRawWorkItemWithSource(raw.id, 25000);
+      insertClaimedInvoice(budgetId, 9000); // claimed — should NOT count toward unclaimedAmount
+      insertPaidInvoice(budgetId, 3000); // paid — SHOULD count toward unclaimedAmount
+
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+
+      expect(result.unclaimedAmount).toBe(3000); // only the paid invoice
+      expect(result.claimedAmount).toBe(9000); // only the claimed invoice
+    });
+
+    it('does NOT count paid invoices from budget lines referencing a different source', () => {
+      const rawA = insertRawSource({
+        name: 'Source A Paid',
+        sourceType: 'bank_loan',
+        totalAmount: 100000,
+      });
+      const rawB = insertRawSource({
+        name: 'Source B No Paid',
+        sourceType: 'savings',
+        totalAmount: 50000,
+      });
+
+      const { budgetId: budgetIdA } = insertRawWorkItemWithSource(rawA.id, 20000);
+      insertPaidInvoice(budgetIdA, 5000); // belongs to source A, not B
+
+      const resultA = budgetSourceService.getBudgetSourceById(db, rawA.id);
+      const resultB = budgetSourceService.getBudgetSourceById(db, rawB.id);
+
+      expect(resultA.unclaimedAmount).toBe(5000);
+      expect(resultB.unclaimedAmount).toBe(0);
+    });
+
+    it('accumulates multiple paid invoices on the same budget line', () => {
+      const raw = insertRawSource({
+        name: 'Multi-Paid Source',
+        sourceType: 'credit_line',
+        totalAmount: 200000,
+      });
+
+      const { budgetId } = insertRawWorkItemWithSource(raw.id, 50000);
+      insertPaidInvoice(budgetId, 3000);
+      insertPaidInvoice(budgetId, 7000);
+      insertPaidInvoice(budgetId, 1500);
+
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+
+      expect(result.unclaimedAmount).toBe(11500); // 3000 + 7000 + 1500
+    });
+
+    it('listBudgetSources also returns unclaimedAmount', () => {
+      const raw = insertRawSource({
+        name: 'List Paid Test',
+        sourceType: 'savings',
+        totalAmount: 40000,
+      });
+
+      const { budgetId } = insertRawWorkItemWithSource(raw.id, 15000);
+      insertPaidInvoice(budgetId, 8000);
+
+      const results = budgetSourceService.listBudgetSources(db);
+      const source = results.find((s) => s.id === raw.id)!;
+
+      expect(source.unclaimedAmount).toBe(8000);
+    });
+
+    it('createBudgetSource returns unclaimedAmount=0 for a new source', () => {
+      const data: CreateBudgetSourceRequest = {
+        name: 'New Source Unclaimed',
+        sourceType: 'other',
+        totalAmount: 25000,
+      };
+
+      const result = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+
+      expect(result.unclaimedAmount).toBe(0);
+    });
+
+    it('correctly tracks both claimedAmount and unclaimedAmount independently', () => {
+      // A source with a mix of claimed and paid invoices across multiple budget lines
+      const raw = insertRawSource({
+        name: 'Mixed Invoice Source',
+        sourceType: 'bank_loan',
+        totalAmount: 300000,
+      });
+
+      const { budgetId: b1 } = insertRawWorkItemWithSource(raw.id, 50000);
+      const { budgetId: b2 } = insertRawWorkItemWithSource(raw.id, 30000);
+
+      insertClaimedInvoice(b1, 12000); // claimed
+      insertPaidInvoice(b1, 5000); // paid (unclaimed)
+      insertClaimedInvoice(b2, 8000); // claimed
+      insertPaidInvoice(b2, 3000); // paid (unclaimed)
+
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+
+      expect(result.claimedAmount).toBe(20000); // 12000 + 8000
+      expect(result.unclaimedAmount).toBe(8000); // 5000 + 3000
+      // actualAvailableAmount is based on claimedAmount only
+      expect(result.actualAvailableAmount).toBe(280000); // 300000 - 20000
     });
   });
 });

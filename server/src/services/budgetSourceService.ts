@@ -32,13 +32,14 @@ function toUserSummary(user: typeof users.$inferSelect | null | undefined): User
 
 /**
  * Convert database budget source row to BudgetSource API shape.
- * usedAmount and claimedAmount are provided separately (computed from linked budget lines/invoices).
+ * usedAmount, claimedAmount, and unclaimedAmount are provided separately (computed from linked budget lines/invoices).
  */
 function toBudgetSource(
   db: DbType,
   row: typeof budgetSources.$inferSelect,
   usedAmount: number,
   claimedAmount: number,
+  unclaimedAmount: number,
 ): BudgetSource {
   const createdByUser = row.createdBy
     ? db.select().from(users).where(eq(users.id, row.createdBy)).get()
@@ -55,6 +56,7 @@ function toBudgetSource(
     usedAmount,
     availableAmount,
     claimedAmount,
+    unclaimedAmount,
     actualAvailableAmount,
     interestRate: row.interestRate,
     terms: row.terms,
@@ -96,6 +98,21 @@ function computeClaimedAmount(db: DbType, sourceId: string): number {
 }
 
 /**
+ * Compute the unclaimed (paid but not claimed) amount for a budget source.
+ * Sums invoice amounts where status = 'paid' and the invoice's budget line
+ * references this source. Returns 0 if no paid invoices exist.
+ */
+function computeUnclaimedAmount(db: DbType, sourceId: string): number {
+  const result = db
+    .select({ total: sql<number>`COALESCE(SUM(${invoices.amount}), 0)` })
+    .from(invoices)
+    .innerJoin(workItemBudgets, eq(workItemBudgets.id, invoices.workItemBudgetId))
+    .where(sql`${invoices.status} = 'paid' AND ${workItemBudgets.budgetSourceId} = ${sourceId}`)
+    .get();
+  return result?.total ?? 0;
+}
+
+/**
  * Count budget lines referencing a budget source.
  */
 function countWorkItemReferences(db: DbType, sourceId: string): number {
@@ -113,7 +130,13 @@ function countWorkItemReferences(db: DbType, sourceId: string): number {
 export function listBudgetSources(db: DbType): BudgetSource[] {
   const rows = db.select().from(budgetSources).orderBy(asc(budgetSources.name)).all();
   return rows.map((row) =>
-    toBudgetSource(db, row, computeUsedAmount(db, row.id), computeClaimedAmount(db, row.id)),
+    toBudgetSource(
+      db,
+      row,
+      computeUsedAmount(db, row.id),
+      computeClaimedAmount(db, row.id),
+      computeUnclaimedAmount(db, row.id),
+    ),
   );
 }
 
@@ -126,7 +149,13 @@ export function getBudgetSourceById(db: DbType, id: string): BudgetSource {
   if (!row) {
     throw new NotFoundError('Budget source not found');
   }
-  return toBudgetSource(db, row, computeUsedAmount(db, id), computeClaimedAmount(db, id));
+  return toBudgetSource(
+    db,
+    row,
+    computeUsedAmount(db, id),
+    computeClaimedAmount(db, id),
+    computeUnclaimedAmount(db, id),
+  );
 }
 
 /**
