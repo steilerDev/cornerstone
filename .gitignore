@@ -55,5 +55,4 @@ data/
 # Temporary files
 tmp/
 temp/
-.agent-manager
-.worktrees
+.claude/worktrees/

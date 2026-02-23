@@ -1,5 +1,0 @@
-[worktree]
-basedir = "~/worktrees"
-
-[naming]
-template = "{{.Host}}/{{.Owner}}/{{.Repository}}/{{.Branch}}"
