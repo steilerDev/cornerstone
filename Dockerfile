@@ -93,6 +93,7 @@ COPY package.json package-lock.json ./
 COPY shared/package.json shared/
 COPY server/package.json server/
 COPY client/package.json client/
+COPY docs/package.json docs/
 
 # Install all dependencies (including devDependencies for build).
 # Native addons (better-sqlite3) auto-detect musl libc and compile from
@@ -137,6 +138,7 @@ COPY package.json ./
 COPY shared/package.json shared/
 COPY server/package.json server/
 COPY client/package.json client/
+COPY docs/package.json docs/
 
 # Copy production node_modules from builder (npm hoists most deps to root,
 # but some may remain in workspace-specific node_modules due to version constraints)

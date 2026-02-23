@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" role="img" aria-label="Cornerstone">
+  <!--
+    Cornerstone favicon — keystone / arch motif.
+    Uses explicit fill colour (#3b82f6, blue-500) for the favicon context
+    where currentColor is not available (no CSS inheritance).
+
+    The even-odd fill rule punches the arch opening through as transparent,
+    giving the keystone silhouette on any browser tab background.
+  -->
+  <path
+    fill="#3b82f6"
+    fill-rule="evenodd"
+    clip-rule="evenodd"
+    d="M 2 29 L 30 29 L 30 20 L 22 20 L 22 14 L 20 14 L 16 5 L 12 14 L 10 14 L 10 20 L 2 20 Z M 10 27 L 10 22 L 22 22 L 22 27 Z"
+  />
+</svg>

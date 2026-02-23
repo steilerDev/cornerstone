@@ -6,7 +6,8 @@
   "scripts": {
     "test": "npx playwright test",
     "test:smoke": "npx playwright test --grep @smoke --project desktop",
-    "test:report": "npx playwright show-report"
+    "test:report": "npx playwright show-report",
+    "screenshots": "npx playwright test tests/screenshots/ --project=desktop-lg"
   },
   "devDependencies": {
     "@playwright/test": "1.58.2",
