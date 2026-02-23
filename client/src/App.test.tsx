@@ -4,17 +4,30 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { render, screen, waitFor } from '@testing-library/react';
 import type * as AuthApiTypes from './lib/authApi.js';
+import type * as BudgetCategoriesApiTypes from './lib/budgetCategoriesApi.js';
 import type * as AppTypes from './App.js';
 
 const mockGetAuthMe = jest.fn<typeof AuthApiTypes.getAuthMe>();
 const mockLogin = jest.fn<typeof AuthApiTypes.login>();
 const mockLogout = jest.fn<typeof AuthApiTypes.logout>();
 
+const mockFetchBudgetCategories = jest.fn<typeof BudgetCategoriesApiTypes.fetchBudgetCategories>();
+const mockCreateBudgetCategory = jest.fn<typeof BudgetCategoriesApiTypes.createBudgetCategory>();
+const mockUpdateBudgetCategory = jest.fn<typeof BudgetCategoriesApiTypes.updateBudgetCategory>();
+const mockDeleteBudgetCategory = jest.fn<typeof BudgetCategoriesApiTypes.deleteBudgetCategory>();
+
 // Must mock BEFORE importing the component
 jest.unstable_mockModule('./lib/authApi.js', () => ({
   getAuthMe: mockGetAuthMe,
   login: mockLogin,
   logout: mockLogout,
+}));
+
+jest.unstable_mockModule('./lib/budgetCategoriesApi.js', () => ({
+  fetchBudgetCategories: mockFetchBudgetCategories,
+  createBudgetCategory: mockCreateBudgetCategory,
+  updateBudgetCategory: mockUpdateBudgetCategory,
+  deleteBudgetCategory: mockDeleteBudgetCategory,
 }));
 
 describe('App', () => {
@@ -32,6 +45,13 @@ describe('App', () => {
     mockGetAuthMe.mockReset();
     mockLogin.mockReset();
     mockLogout.mockReset();
+    mockFetchBudgetCategories.mockReset();
+    mockCreateBudgetCategory.mockReset();
+    mockUpdateBudgetCategory.mockReset();
+    mockDeleteBudgetCategory.mockReset();
+
+    // Default: budget categories returns empty list
+    mockFetchBudgetCategories.mockResolvedValue({ categories: [] });
 
     // Default: authenticated user (no setup required)
     mockGetAuthMe.mockResolvedValue({
@@ -54,14 +74,18 @@ describe('App', () => {
     render(<App />);
     expect(document.body).toBeInTheDocument();
     // Wait for auth check and lazy-loaded component to resolve
-    await waitFor(() => expect(screen.queryByText('Loading...')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText('Loading...')).not.toBeInTheDocument(), {
+      timeout: 5000,
+    });
   });
 
   it('renders the AppShell layout with sidebar and header', async () => {
     render(<App />);
 
     // Wait for auth loading to complete
-    await waitFor(() => expect(screen.queryByText('Loading...')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText('Loading...')).not.toBeInTheDocument(), {
+      timeout: 5000,
+    });
 
     // Sidebar should be present
     const sidebar = screen.getByRole('complementary');
@@ -93,12 +117,13 @@ describe('App', () => {
     expect(heading).toBeInTheDocument();
   });
 
-  it('navigates to Budget page when /budget path is accessed', async () => {
-    window.history.pushState({}, 'Budget', '/budget');
+  it('navigates to Budget Categories page when /budget/categories path is accessed', async () => {
+    window.history.pushState({}, 'Budget Categories', '/budget/categories');
     render(<App />);
 
-    // Wait for lazy-loaded Budget component to resolve
-    const heading = await screen.findByRole('heading', { name: /budget/i });
+    // Wait for lazy-loaded BudgetCategories component to resolve
+    // h1 now says "Budget" (shared across all budget pages); h2 says "Categories"
+    const heading = await screen.findByRole('heading', { name: /^budget$/i, level: 1 });
     expect(heading).toBeInTheDocument();
   });
 

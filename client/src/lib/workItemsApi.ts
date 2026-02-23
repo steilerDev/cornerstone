@@ -5,6 +5,7 @@ import type {
   WorkItemDetail,
   CreateWorkItemRequest,
   UpdateWorkItemRequest,
+  SubsidyProgram,
 } from '@cornerstone/shared';
 
 /**
@@ -70,4 +71,29 @@ export function updateWorkItem(id: string, data: UpdateWorkItemRequest): Promise
  */
 export function deleteWorkItem(id: string): Promise<void> {
   return del<void>(`/work-items/${id}`);
+}
+
+// ─── Subsidy linking ──────────────────────────────────────────────────────────
+
+/**
+ * Fetches all subsidy programs linked to a work item.
+ */
+export function fetchWorkItemSubsidies(workItemId: string): Promise<SubsidyProgram[]> {
+  return get<{ subsidies: SubsidyProgram[] }>(`/work-items/${workItemId}/subsidies`).then(
+    (r) => r.subsidies,
+  );
+}
+
+/**
+ * Links a subsidy program to a work item.
+ */
+export function linkWorkItemSubsidy(workItemId: string, subsidyProgramId: string): Promise<void> {
+  return post<void>(`/work-items/${workItemId}/subsidies`, { subsidyProgramId });
+}
+
+/**
+ * Unlinks a subsidy program from a work item.
+ */
+export function unlinkWorkItemSubsidy(workItemId: string, subsidyProgramId: string): Promise<void> {
+  return del<void>(`/work-items/${workItemId}/subsidies/${subsidyProgramId}`);
 }

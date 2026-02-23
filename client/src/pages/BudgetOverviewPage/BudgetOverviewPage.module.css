@@ -1,0 +1,617 @@
+/* ============================================================
+ * BudgetOverviewPage — CSS Module
+ * ============================================================ */
+
+.container {
+  padding: var(--spacing-8);
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-6);
+}
+
+/* ---- Page header ---- */
+
+.pageHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+}
+
+.pageTitle {
+  font-size: var(--font-size-4xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+/* ---- Loading / error states ---- */
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  font-size: var(--font-size-base);
+  color: var(--color-text-muted);
+}
+
+.errorCard {
+  background: var(--color-bg-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--spacing-8);
+  text-align: center;
+}
+
+.errorTitle {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-danger);
+  margin: 0 0 var(--spacing-4) 0;
+}
+
+.retryButton {
+  margin-top: var(--spacing-4);
+  padding: var(--spacing-2-5) var(--spacing-4);
+  background-color: var(--color-primary);
+  color: var(--color-primary-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition-button);
+}
+
+.retryButton:hover:not(:disabled) {
+  background-color: var(--color-primary-hover);
+}
+
+.retryButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+/* ---- Empty state ---- */
+
+.emptyState {
+  background: var(--color-bg-secondary);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-10);
+  text-align: center;
+}
+
+.emptyStateTitle {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  margin: 0 0 var(--spacing-2) 0;
+}
+
+.emptyStateDescription {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  margin: 0 auto;
+  max-width: 480px;
+}
+
+/* ============================================================
+ * Budget Health Hero Card
+ * ============================================================ */
+
+.heroCard {
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--spacing-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-5);
+}
+
+/* ---- Header row: title + health badge ---- */
+
+.heroHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  flex-wrap: wrap;
+}
+
+.heroTitle {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0;
+}
+
+/* ---- Key metrics row: 3-column grid (desktop) ---- */
+
+.metricsRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-4);
+}
+
+.metricGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
+.metricLabel {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.metricValue {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+/* Interactive metric value (button reset + hover cue) */
+.metricValueInteractive {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--spacing-1-5);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: inherit;
+  font-weight: inherit;
+  font-variant-numeric: tabular-nums;
+  color: inherit;
+  text-align: left;
+  line-height: inherit;
+  transition: opacity var(--transition-fast);
+}
+
+.metricValueInteractive:hover {
+  opacity: 0.8;
+}
+
+.metricValueInteractive:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
+}
+
+.metricRange {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--spacing-1-5);
+}
+
+.metricRangeSep {
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-normal);
+}
+
+.metricPositive {
+  color: var(--color-success-text-on-light);
+}
+
+.metricNegative {
+  color: var(--color-danger-text-on-light);
+}
+
+/* Info hint icon (circled i) */
+.metricHint {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  margin-left: var(--spacing-1);
+  vertical-align: middle;
+}
+
+/* ---- Remaining detail panel (mobile inline toggle) ---- */
+
+.remainingDetailPanel {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition:
+    max-height var(--transition-slow),
+    opacity var(--transition-normal);
+}
+
+.remainingDetailPanelOpen {
+  max-height: 400px;
+  opacity: 1;
+}
+
+/* ---- Remaining detail contents ---- */
+
+.remainingPanel {
+  padding-top: var(--spacing-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.remainingPanelRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--spacing-2);
+  font-size: var(--font-size-sm);
+}
+
+.remainingPanelLabel {
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.remainingPanelValue {
+  font-weight: var(--font-weight-medium);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.remainingPositive {
+  color: var(--color-success-text-on-light);
+}
+
+.remainingNegative {
+  color: var(--color-danger-text-on-light);
+}
+
+/* ---- Bar wrapper + desktop hover tooltip ---- */
+
+.barWrapper {
+  position: relative;
+}
+
+.barTooltipAnchor {
+  position: absolute;
+  bottom: calc(100% + var(--spacing-2));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: var(--z-dropdown);
+  pointer-events: none;
+}
+
+/* ---- Segment tooltip content ---- */
+
+.segmentTooltip {
+  background: var(--color-bg-inverse);
+  color: var(--color-text-inverse);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-2) var(--spacing-3);
+  white-space: nowrap;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-0-5);
+  box-shadow: var(--shadow-md);
+  font-size: var(--font-size-sm);
+}
+
+.segmentTooltipLabel {
+  font-weight: var(--font-weight-semibold);
+}
+
+.segmentTooltipValue {
+  font-variant-numeric: tabular-nums;
+}
+
+.segmentTooltipPct {
+  font-size: var(--font-size-xs);
+  opacity: 0.8;
+}
+
+/* ---- Mobile bar detail panel ---- */
+
+.mobileDetail {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition:
+    max-height var(--transition-slow),
+    opacity var(--transition-normal);
+}
+
+.mobileDetailOpen {
+  max-height: 400px;
+  opacity: 1;
+}
+
+.mobileBarDetail {
+  padding: var(--spacing-3) 0 var(--spacing-1);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.mobileBarDetailRow {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: var(--spacing-2);
+  font-size: var(--font-size-sm);
+}
+
+.mobileBarDetailDot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-circle);
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+.mobileBarDetailLabel {
+  color: var(--color-text-secondary);
+}
+
+.mobileBarDetailValue {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
+  text-align: right;
+}
+
+.mobileBarDetailPct {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  min-width: 4.5rem;
+  text-align: right;
+}
+
+/* ---- Footer row ---- */
+
+.heroFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+  flex-wrap: wrap;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  padding-top: var(--spacing-2);
+  border-top: 1px solid var(--color-border);
+}
+
+.footerItem strong {
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* ---- Category filter row ---- */
+
+.categoryFilterRow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+
+/* ---- Category filter dropdown ---- */
+
+.categoryFilter {
+  position: relative;
+}
+
+.categoryFilterButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-2) var(--spacing-3);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: var(--transition-button-border);
+  min-height: 36px;
+}
+
+.categoryFilterButton:hover {
+  background: var(--color-bg-tertiary);
+  border-color: var(--color-border-strong);
+}
+
+.categoryFilterButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.categoryFilterChevron {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.categoryDropdown {
+  position: absolute;
+  top: calc(100% + var(--spacing-1));
+  left: 0;
+  z-index: var(--z-dropdown);
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  min-width: 220px;
+  max-width: 320px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: var(--spacing-2) 0;
+}
+
+.categoryDropdownActions {
+  display: flex;
+  gap: var(--spacing-2);
+  padding: var(--spacing-1) var(--spacing-3) var(--spacing-2);
+}
+
+.dropdownAction {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-primary);
+  cursor: pointer;
+  transition: opacity var(--transition-fast);
+}
+
+.dropdownAction:hover {
+  opacity: 0.75;
+}
+
+.dropdownAction:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
+}
+
+.categoryDropdownDivider {
+  height: 1px;
+  background: var(--color-border);
+  margin: 0 0 var(--spacing-1);
+}
+
+.categoryOption {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-2) var(--spacing-3);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+  min-height: 36px;
+}
+
+.categoryOption:hover {
+  background: var(--color-bg-secondary);
+}
+
+.categoryOptionCheckbox {
+  accent-color: var(--color-primary);
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.categoryDot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-circle);
+  background: var(--color-text-placeholder);
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+.categoryOptionName {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ============================================================
+ * RESPONSIVE — Tablet (768px – 1024px)
+ * ============================================================ */
+
+@media (min-width: 768px) and (max-width: 1024px) {
+  .container {
+    padding: var(--spacing-6);
+  }
+
+  .retryButton {
+    min-height: 44px;
+  }
+
+  .categoryFilterButton {
+    min-height: 44px;
+  }
+
+  .categoryOption {
+    min-height: 44px;
+  }
+}
+
+/* ============================================================
+ * RESPONSIVE — Mobile (max 767px)
+ * ============================================================ */
+
+@media (max-width: 767px) {
+  .container {
+    padding: var(--spacing-4);
+  }
+
+  .pageTitle {
+    font-size: var(--font-size-2xl);
+  }
+
+  .retryButton {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .emptyState {
+    padding: var(--spacing-6);
+  }
+
+  .heroCard {
+    padding: var(--spacing-4);
+    gap: var(--spacing-4);
+  }
+
+  /* Stack title + badge vertically on mobile */
+  .heroHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-2);
+  }
+
+  /* Metrics: single column on mobile */
+  .metricsRow {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-3);
+  }
+
+  .metricValue {
+    font-size: var(--font-size-lg);
+  }
+
+  /* Footer: stack on mobile */
+  .heroFooter {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-2);
+  }
+
+  /* Category filter: full width on mobile */
+  .categoryFilterButton {
+    width: 100%;
+    min-height: 44px;
+    justify-content: space-between;
+  }
+
+  /* Category option touch target */
+  .categoryOption {
+    min-height: 44px;
+  }
+
+  /* Desktop tooltip hidden on mobile — use inline panel instead */
+  .barTooltipAnchor {
+    display: none;
+  }
+}

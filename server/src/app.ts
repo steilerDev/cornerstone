@@ -20,6 +20,16 @@ import tagRoutes from './routes/tags.js';
 import noteRoutes from './routes/notes.js';
 import subtaskRoutes from './routes/subtasks.js';
 import dependencyRoutes from './routes/dependencies.js';
+import budgetCategoryRoutes from './routes/budgetCategories.js';
+import budgetSourceRoutes from './routes/budgetSources.js';
+import vendorRoutes from './routes/vendors.js';
+import invoiceRoutes from './routes/invoices.js';
+import standaloneInvoiceRoutes from './routes/standaloneInvoices.js';
+import subsidyProgramRoutes from './routes/subsidyPrograms.js';
+import workItemVendorRoutes from './routes/workItemVendors.js';
+import workItemSubsidyRoutes from './routes/workItemSubsidies.js';
+import workItemBudgetRoutes from './routes/workItemBudgets.js';
+import budgetOverviewRoutes from './routes/budgetOverview.js';
 import { hashPassword, verifyPassword } from './services/userService.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -73,6 +83,36 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Dependency routes (nested under work items)
   await app.register(dependencyRoutes, { prefix: '/api/work-items/:workItemId/dependencies' });
+
+  // Budget category routes
+  await app.register(budgetCategoryRoutes, { prefix: '/api/budget-categories' });
+
+  // Budget source routes
+  await app.register(budgetSourceRoutes, { prefix: '/api/budget-sources' });
+
+  // Vendor/contractor routes
+  await app.register(vendorRoutes, { prefix: '/api/vendors' });
+
+  // Invoice routes (nested under vendors)
+  await app.register(invoiceRoutes, { prefix: '/api/vendors/:vendorId/invoices' });
+
+  // Standalone invoice routes (cross-vendor)
+  await app.register(standaloneInvoiceRoutes, { prefix: '/api/invoices' });
+
+  // Subsidy program routes
+  await app.register(subsidyProgramRoutes, { prefix: '/api/subsidy-programs' });
+
+  // Work item vendor linking routes (nested under work items)
+  await app.register(workItemVendorRoutes, { prefix: '/api/work-items/:workItemId/vendors' });
+
+  // Work item subsidy linking routes (nested under work items)
+  await app.register(workItemSubsidyRoutes, { prefix: '/api/work-items/:workItemId/subsidies' });
+
+  // Work item budget line routes (nested under work items)
+  await app.register(workItemBudgetRoutes, { prefix: '/api/work-items/:workItemId/budgets' });
+
+  // Budget overview (aggregation dashboard endpoint)
+  await app.register(budgetOverviewRoutes, { prefix: '/api/budget' });
 
   // Health check endpoint (liveness)
   app.get('/api/health', async () => {

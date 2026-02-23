@@ -87,7 +87,7 @@ describe('Sidebar', () => {
       'href',
       '/work-items',
     );
-    expect(screen.getByRole('link', { name: /budget/i })).toHaveAttribute('href', '/budget');
+    expect(screen.getByRole('link', { name: /^budget$/i })).toHaveAttribute('href', '/budget');
     expect(screen.getByRole('link', { name: /timeline/i })).toHaveAttribute('href', '/timeline');
     expect(screen.getByRole('link', { name: /household items/i })).toHaveAttribute(
       'href',
@@ -132,7 +132,7 @@ describe('Sidebar', () => {
       initialEntries: ['/budget'],
     });
 
-    const budgetLink = screen.getByRole('link', { name: /budget/i });
+    const budgetLink = screen.getByRole('link', { name: /^budget$/i });
     expect(budgetLink).toHaveClass('active');
   });
 
@@ -172,7 +172,7 @@ describe('Sidebar', () => {
       .getAllByRole('link')
       .filter((link) => link.classList.contains('active'));
     expect(activeLinks).toHaveLength(1);
-    expect(activeLinks[0]).toHaveTextContent(/budget/i);
+    expect(activeLinks[0]).toHaveTextContent(/^budget$/i);
   });
 
   it('renders a close button with correct aria-label', () => {
@@ -230,7 +230,7 @@ describe('Sidebar', () => {
     const user = userEvent.setup();
     renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
 
-    const budgetLink = screen.getByRole('link', { name: /budget/i });
+    const budgetLink = screen.getByRole('link', { name: /^budget$/i });
     await user.click(budgetLink);
 
     expect(mockOnClose).toHaveBeenCalledTimes(1);

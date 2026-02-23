@@ -7,11 +7,16 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import type { WorkItemDetail, WorkItemSummary } from '@cornerstone/shared';
 import type * as AuthContextTypes from '../../contexts/AuthContext.js';
 import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
+import type * as WorkItemBudgetsApiTypes from '../../lib/workItemBudgetsApi.js';
 import type * as NotesApiTypes from '../../lib/notesApi.js';
 import type * as SubtasksApiTypes from '../../lib/subtasksApi.js';
 import type * as DependenciesApiTypes from '../../lib/dependenciesApi.js';
 import type * as TagsApiTypes from '../../lib/tagsApi.js';
 import type * as UsersApiTypes from '../../lib/usersApi.js';
+import type * as BudgetCategoriesApiTypes from '../../lib/budgetCategoriesApi.js';
+import type * as BudgetSourcesApiTypes from '../../lib/budgetSourcesApi.js';
+import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
+import type * as SubsidyProgramsApiTypes from '../../lib/subsidyProgramsApi.js';
 import type * as WorkItemDetailPageTypes from './WorkItemDetailPage.js';
 
 // Module-scope mocks
@@ -20,6 +25,13 @@ const mockGetWorkItem = jest.fn<typeof WorkItemsApiTypes.getWorkItem>();
 const mockUpdateWorkItem = jest.fn<typeof WorkItemsApiTypes.updateWorkItem>();
 const mockDeleteWorkItem = jest.fn<typeof WorkItemsApiTypes.deleteWorkItem>();
 const mockListWorkItems = jest.fn<typeof WorkItemsApiTypes.listWorkItems>();
+const mockFetchWorkItemSubsidies = jest.fn<typeof WorkItemsApiTypes.fetchWorkItemSubsidies>();
+const mockLinkWorkItemSubsidy = jest.fn<typeof WorkItemsApiTypes.linkWorkItemSubsidy>();
+const mockUnlinkWorkItemSubsidy = jest.fn<typeof WorkItemsApiTypes.unlinkWorkItemSubsidy>();
+const mockFetchWorkItemBudgets = jest.fn<typeof WorkItemBudgetsApiTypes.fetchWorkItemBudgets>();
+const mockCreateWorkItemBudget = jest.fn<typeof WorkItemBudgetsApiTypes.createWorkItemBudget>();
+const mockUpdateWorkItemBudget = jest.fn<typeof WorkItemBudgetsApiTypes.updateWorkItemBudget>();
+const mockDeleteWorkItemBudget = jest.fn<typeof WorkItemBudgetsApiTypes.deleteWorkItemBudget>();
 const mockListNotes = jest.fn<typeof NotesApiTypes.listNotes>();
 const mockCreateNote = jest.fn<typeof NotesApiTypes.createNote>();
 const mockUpdateNote = jest.fn<typeof NotesApiTypes.updateNote>();
@@ -35,6 +47,10 @@ const mockDeleteDependency = jest.fn<typeof DependenciesApiTypes.deleteDependenc
 const mockFetchTags = jest.fn<typeof TagsApiTypes.fetchTags>();
 const mockCreateTag = jest.fn<typeof TagsApiTypes.createTag>();
 const mockListUsers = jest.fn<typeof UsersApiTypes.listUsers>();
+const mockFetchBudgetCategories = jest.fn<typeof BudgetCategoriesApiTypes.fetchBudgetCategories>();
+const mockFetchBudgetSources = jest.fn<typeof BudgetSourcesApiTypes.fetchBudgetSources>();
+const mockFetchVendors = jest.fn<typeof VendorsApiTypes.fetchVendors>();
+const mockFetchSubsidyPrograms = jest.fn<typeof SubsidyProgramsApiTypes.fetchSubsidyPrograms>();
 
 // Mock AuthContext
 jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
@@ -47,6 +63,16 @@ jest.unstable_mockModule('../../lib/workItemsApi.js', () => ({
   updateWorkItem: mockUpdateWorkItem,
   deleteWorkItem: mockDeleteWorkItem,
   listWorkItems: mockListWorkItems,
+  fetchWorkItemSubsidies: mockFetchWorkItemSubsidies,
+  linkWorkItemSubsidy: mockLinkWorkItemSubsidy,
+  unlinkWorkItemSubsidy: mockUnlinkWorkItemSubsidy,
+}));
+
+jest.unstable_mockModule('../../lib/workItemBudgetsApi.js', () => ({
+  fetchWorkItemBudgets: mockFetchWorkItemBudgets,
+  createWorkItemBudget: mockCreateWorkItemBudget,
+  updateWorkItemBudget: mockUpdateWorkItemBudget,
+  deleteWorkItemBudget: mockDeleteWorkItemBudget,
 }));
 
 jest.unstable_mockModule('../../lib/notesApi.js', () => ({
@@ -79,6 +105,22 @@ jest.unstable_mockModule('../../lib/usersApi.js', () => ({
   listUsers: mockListUsers,
 }));
 
+jest.unstable_mockModule('../../lib/budgetCategoriesApi.js', () => ({
+  fetchBudgetCategories: mockFetchBudgetCategories,
+}));
+
+jest.unstable_mockModule('../../lib/budgetSourcesApi.js', () => ({
+  fetchBudgetSources: mockFetchBudgetSources,
+}));
+
+jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
+  fetchVendors: mockFetchVendors,
+}));
+
+jest.unstable_mockModule('../../lib/subsidyProgramsApi.js', () => ({
+  fetchSubsidyPrograms: mockFetchSubsidyPrograms,
+}));
+
 describe('WorkItemDetailPage', () => {
   let WorkItemDetailPageModule: typeof WorkItemDetailPageTypes;
 
@@ -108,6 +150,7 @@ describe('WorkItemDetailPage', () => {
       predecessors: [],
       successors: [],
     },
+    budgets: [],
     createdAt: '2024-01-01T00:00:00Z',
     updatedAt: '2024-01-15T00:00:00Z',
   };
@@ -128,6 +171,13 @@ describe('WorkItemDetailPage', () => {
     mockUpdateWorkItem.mockReset();
     mockDeleteWorkItem.mockReset();
     mockListWorkItems.mockReset();
+    mockFetchWorkItemSubsidies.mockReset();
+    mockLinkWorkItemSubsidy.mockReset();
+    mockUnlinkWorkItemSubsidy.mockReset();
+    mockFetchWorkItemBudgets.mockReset();
+    mockCreateWorkItemBudget.mockReset();
+    mockUpdateWorkItemBudget.mockReset();
+    mockDeleteWorkItemBudget.mockReset();
     mockListNotes.mockReset();
     mockCreateNote.mockReset();
     mockUpdateNote.mockReset();
@@ -143,6 +193,10 @@ describe('WorkItemDetailPage', () => {
     mockFetchTags.mockReset();
     mockCreateTag.mockReset();
     mockListUsers.mockReset();
+    mockFetchBudgetCategories.mockReset();
+    mockFetchBudgetSources.mockReset();
+    mockFetchVendors.mockReset();
+    mockFetchSubsidyPrograms.mockReset();
 
     if (!WorkItemDetailPageModule) {
       WorkItemDetailPageModule = await import('./WorkItemDetailPage.js');
@@ -169,6 +223,16 @@ describe('WorkItemDetailPage', () => {
       items: [],
       pagination: { page: 1, pageSize: 15, totalItems: 0, totalPages: 0 },
     });
+    // Budget-related defaults
+    mockFetchBudgetCategories.mockResolvedValue({ categories: [] });
+    mockFetchBudgetSources.mockResolvedValue({ budgetSources: [] });
+    mockFetchVendors.mockResolvedValue({
+      vendors: [],
+      pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
+    });
+    mockFetchWorkItemBudgets.mockResolvedValue([]);
+    mockFetchSubsidyPrograms.mockResolvedValue({ subsidyPrograms: [] });
+    mockFetchWorkItemSubsidies.mockResolvedValue([]);
   });
 
   function renderPage(id = 'work-1') {
@@ -221,6 +285,7 @@ describe('WorkItemDetailPage', () => {
       expect(screen.getByText('Constraints')).toBeInTheDocument();
       expect(screen.getByText('Assignment')).toBeInTheDocument();
       expect(screen.getByText('Tags')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Budget', level: 2 })).toBeInTheDocument();
       expect(screen.getByText('Notes')).toBeInTheDocument();
       expect(screen.getByText('Subtasks')).toBeInTheDocument();
       expect(screen.getByText('Dependencies')).toBeInTheDocument();

@@ -79,6 +79,7 @@ export class ProfilePage {
 
   async goto(): Promise<void> {
     await this.page.goto(ROUTES.profile);
+    await this.heading.waitFor({ state: 'visible', timeout: 15000 });
   }
 
   async getProfileInfo(): Promise<ProfileInfo> {
@@ -122,7 +123,7 @@ export class ProfilePage {
 
   async getDisplayNameSuccessBanner(): Promise<string | null> {
     try {
-      await this.displayNameSuccessBanner.waitFor({ state: 'visible', timeout: 5000 });
+      await this.displayNameSuccessBanner.waitFor({ state: 'visible' });
       return await this.displayNameSuccessBanner.textContent();
     } catch {
       return null;
@@ -131,7 +132,7 @@ export class ProfilePage {
 
   async getDisplayNameErrorBanner(): Promise<string | null> {
     try {
-      await this.displayNameErrorBanner.waitFor({ state: 'visible', timeout: 5000 });
+      await this.displayNameErrorBanner.waitFor({ state: 'visible' });
       return await this.displayNameErrorBanner.textContent();
     } catch {
       return null;
@@ -140,7 +141,7 @@ export class ProfilePage {
 
   async getPasswordSuccessBanner(): Promise<string | null> {
     try {
-      await this.passwordSuccessBanner.waitFor({ state: 'visible', timeout: 5000 });
+      await this.passwordSuccessBanner.waitFor({ state: 'visible' });
       return await this.passwordSuccessBanner.textContent();
     } catch {
       return null;
@@ -149,7 +150,7 @@ export class ProfilePage {
 
   async getPasswordErrorBanner(): Promise<string | null> {
     try {
-      await this.passwordErrorBanner.waitFor({ state: 'visible', timeout: 5000 });
+      await this.passwordErrorBanner.waitFor({ state: 'visible' });
       return await this.passwordErrorBanner.textContent();
     } catch {
       return null;

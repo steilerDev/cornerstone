@@ -5,6 +5,7 @@ node_modules/
 dist/
 build/
 *.tsbuildinfo
+docs/.docusaurus/
 
 # Environment variables
 .env
@@ -48,6 +49,10 @@ data/
 .claude/agent-memory/
 .claude/settings.local.json
 
+# cagent memory databases
+.cagent/memory/
+
 # Temporary files
 tmp/
 temp/
+.claude/worktrees/

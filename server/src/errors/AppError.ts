@@ -57,3 +57,53 @@ export class ConflictError extends AppError {
     this.name = 'ConflictError';
   }
 }
+
+export class CategoryInUseError extends AppError {
+  constructor(
+    message = 'Budget category is in use and cannot be deleted',
+    details?: Record<string, unknown>,
+  ) {
+    super('CATEGORY_IN_USE', 409, message, details);
+    this.name = 'CategoryInUseError';
+  }
+}
+
+export class VendorInUseError extends AppError {
+  constructor(
+    message = 'Vendor is in use and cannot be deleted',
+    details?: { invoiceCount: number; budgetLineCount: number },
+  ) {
+    super('VENDOR_IN_USE', 409, message, details);
+    this.name = 'VendorInUseError';
+  }
+}
+
+export class BudgetSourceInUseError extends AppError {
+  constructor(
+    message = 'Budget source is in use and cannot be deleted',
+    details?: { budgetLineCount: number },
+  ) {
+    super('BUDGET_SOURCE_IN_USE', 409, message, details);
+    this.name = 'BudgetSourceInUseError';
+  }
+}
+
+export class SubsidyProgramInUseError extends AppError {
+  constructor(
+    message = 'Subsidy program is in use and cannot be deleted',
+    details?: { workItemCount: number },
+  ) {
+    super('SUBSIDY_PROGRAM_IN_USE', 409, message, details);
+    this.name = 'SubsidyProgramInUseError';
+  }
+}
+
+export class BudgetLineInUseError extends AppError {
+  constructor(
+    message = 'Budget line has linked invoices and cannot be deleted',
+    details?: { invoiceCount: number },
+  ) {
+    super('BUDGET_LINE_IN_USE', 409, message, details);
+    this.name = 'BudgetLineInUseError';
+  }
+}

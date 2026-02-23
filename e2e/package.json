@@ -5,7 +5,11 @@
   "type": "module",
   "scripts": {
     "test": "npx playwright test",
-    "test:report": "npx playwright show-report"
+    "test:smoke": "npx playwright test --grep @smoke --project desktop",
+    "test:shard": "npx playwright test --shard=$SHARD_INDEX/$SHARD_TOTAL",
+    "test:report": "npx playwright show-report",
+    "merge-reports": "npx playwright merge-reports --reporter html,list ./all-blob-reports",
+    "screenshots": "npx playwright test tests/screenshots/ --project=desktop"
   },
   "devDependencies": {
     "@playwright/test": "1.58.2",
