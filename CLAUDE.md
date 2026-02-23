@@ -266,7 +266,6 @@ Both `main` and `beta` have branch protection rules enforced on GitHub:
 | Force pushes                      | Blocked                   | Blocked                   |
 | Deletions                         | Blocked                   | Blocked                   |
 
-
 ## Tech Stack
 
 | Layer                      | Technology              | Version | ADR     |
