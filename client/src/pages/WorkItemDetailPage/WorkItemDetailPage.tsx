@@ -1246,7 +1246,7 @@ export default function WorkItemDetailPage() {
                               {line.invoices.map((inv) => (
                                 <Link
                                   key={inv.id}
-                                  to={`/budget/vendors/${inv.vendorId}`}
+                                  to={`/budget/invoices/${inv.id}`}
                                   className={styles.invoicePopoverItem}
                                   onClick={() => setInvoicePopoverBudgetId(null)}
                                 >
