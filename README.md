@@ -14,6 +14,7 @@ A self-hosted home building project management tool for homeowners. Track work i
 ## Features
 
 - **Work Items** -- CRUD, statuses, dates, assignments, tags, notes, subtasks, dependencies, keyboard shortcuts
+- **Budget Management** -- Budget categories, financing sources, vendor invoices, subsidies, overview dashboard with projections
 - **Authentication** -- Local accounts with setup wizard, OIDC single sign-on
 - **User Management** -- Admin and Member roles, admin panel
 - **Dark Mode** -- Light, Dark, or System theme
@@ -38,7 +39,7 @@ Open `http://localhost:3000` -- the setup wizard will guide you through creating
 - [x] **EPIC-01**: Authentication and User Management
 - [x] **EPIC-03**: Work Items
 - [x] **EPIC-12**: Design System Bootstrap
-- [ ] **EPIC-05**: Budget Management
+- [x] **EPIC-05**: Budget Management
 - [ ] **EPIC-04**: Household Items
 - [ ] **EPIC-06**: Timeline and Gantt Chart
 - [ ] **EPIC-07**: Reporting and Export

@@ -74,6 +74,7 @@ const config = {
             items: [
               { label: 'Getting Started', to: '/getting-started' },
               { label: 'Work Items', to: '/guides/work-items' },
+              { label: 'Budget', to: '/guides/budget' },
               { label: 'Roadmap', to: '/roadmap' },
             ],
           },
