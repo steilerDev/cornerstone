@@ -312,11 +312,16 @@ export function InvoiceDetailPage() {
                 </span>
               </dd>
             </div>
-            {invoice.workItemBudgetId && (
+            {invoice.workItemBudget && (
               <div className={styles.infoRow}>
-                <dt className={styles.infoLabel}>Budget Line</dt>
+                <dt className={styles.infoLabel}>Work Item</dt>
                 <dd className={styles.infoValue}>
-                  <span className={styles.budgetLineId}>{invoice.workItemBudgetId}</span>
+                  <Link
+                    to={`/work-items/${invoice.workItemBudget.workItemId}`}
+                    className={styles.infoLink}
+                  >
+                    {invoice.workItemBudget.workItemTitle}
+                  </Link>
                 </dd>
               </div>
             )}
