@@ -195,7 +195,9 @@ All agents must clearly identify themselves:
 
 **Sessions run in git worktrees.** The user starts each session in a worktree manually. If the branch has a randomly generated name, rename it once scope is clear: `git branch -m <type>/<issue-number>-<short-description>`.
 
-**NEVER `cd` to the base project directory to modify files.** All file edits, git operations, and commands must be performed from within the git worktree assigned at session start. The base project directory may have other sessions' uncommitted changes.
+**Rebase onto `beta` at session start.** Worktrees are created from `main`. Before doing any work in a fresh session, rebase to `beta`: `git rebase origin/beta`. Skip only if the branch is already based on `beta`.
+
+**NEVER `cd` to the base project directory to modify files.** All file edits, git operations, and commands must be performed from within the git worktree assigned at session start. The base project directory may have other sessions' uncommitted changes. This applies to subagents too — all file reads, writes, and exploration must use the worktree path.
 
 - **Workflow** (full agent cycle for each user story):
   1. **Plan**: Launch `product-owner` (verify story + acceptance criteria) and `product-architect` (design schema/API/architecture) agents
