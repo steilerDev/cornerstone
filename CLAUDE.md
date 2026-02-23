@@ -222,8 +222,6 @@ All agents must clearly identify themselves:
   11. **Merge**: Once all agents approve and CI is green, merge immediately: `gh pr merge --squash <pr-url>`
   12. After merge, clean up: `git checkout beta && git pull && git branch -d <branch-name>`
 
-- **Post-merge E2E**: After each story is merged to `beta`, a non-blocking E2E workflow (`.github/workflows/e2e.yml`) runs the full suite. If it fails, the next story cycle should include E2E fixes before new feature work. The orchestrator should check E2E status on `beta` before starting a new story: `gh run list --workflow=e2e.yml --branch=beta --limit=1`.
-
 - **Epic-level steps** (after all stories in an epic are complete, merged to `beta`, and refinement is done):
   1. **Documentation**: Launch `docs-writer` to update the docs site (`docs/`) and `README.md` with newly shipped features. Commit to `beta`.
   2. **Epic promotion**: Create a PR from `beta` to `main` using a **merge commit** (not squash): `gh pr create --base main --head beta --title "..." --body "..."`
