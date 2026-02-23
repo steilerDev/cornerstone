@@ -5,7 +5,7 @@
  * and saves them to docs/static/img/screenshots/ for use in the docs site.
  *
  * Run with: npm run docs:screenshots
- * (configured to run only on the desktop-lg project at 1920x1080)
+ * (configured to run only on the desktop project at 1920x1080)
  *
  * Uses the existing testcontainer infrastructure and pre-authenticated
  * admin session for consistent, populated screenshots.
@@ -143,26 +143,20 @@ test.describe('Documentation screenshots', () => {
     await seedWorkItems(request, baseUrl);
   });
 
-  test('Login page', async ({ browser }) => {
-    // Use a fresh unauthenticated context for login page
-    const context = await browser.newContext();
-    const page = await context.newPage();
+  test.describe('Unauthenticated screenshots', () => {
+    test.use({ storageState: { cookies: [], origins: [] } });
 
-    await page.goto(`${baseUrl}${ROUTES.login}`);
-    // Wait for the JS bundle to fully load and React to render — fresh unauthenticated
-    // contexts must parse the full bundle before rendering, which can exceed 7s on slow CI runners
-    await page.waitForLoadState('networkidle');
-    await expect(page.getByRole('heading', { name: /sign in|log in/i })).toBeVisible({
-      timeout: 15000,
+    test('Login page', async ({ page }) => {
+      await page.goto(ROUTES.login);
+      await page.waitForLoadState('networkidle');
+      await expect(page.getByRole('heading', { name: /sign in|log in/i })).toBeVisible();
+
+      for (const theme of ['light', 'dark'] as const) {
+        await setTheme(page, theme);
+        await page.waitForTimeout(300);
+        await saveScreenshot(page, 'login', theme);
+      }
     });
-
-    for (const theme of ['light', 'dark'] as const) {
-      await setTheme(page, theme);
-      await page.waitForTimeout(300);
-      await saveScreenshot(page, 'login', theme);
-    }
-
-    await context.close();
   });
 
   test('Work items list', async ({ page }) => {
