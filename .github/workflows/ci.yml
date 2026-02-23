@@ -123,16 +123,28 @@ jobs:
 
       - name: Get Playwright version
         id: playwright-version
-        run: echo "version=$(npx playwright --version | tr -d '[:space:]')" >> $GITHUB_OUTPUT
+        run: echo "version=$(npx playwright --version | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
         working-directory: e2e
 
+      # --- Restore caches ---
       - name: Restore browser cache
         id: browser-cache
         uses: actions/cache/restore@v4
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ steps.playwright-version.outputs.version }}-${{ runner.os }}
+          key: playwright-v3-${{ steps.playwright-version.outputs.version }}-${{ runner.os }}
 
+      - name: Fix apt cache ownership for runner
+        run: sudo chown -R $(id -u):$(id -g) /var/cache/apt/archives
+
+      - name: Restore apt cache
+        id: apt-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: /var/cache/apt/archives
+          key: apt-v3-playwright-${{ steps.playwright-version.outputs.version }}-${{ runner.os }}
+
+      # --- Browser cache miss: install browsers and save ---
       - name: Install Playwright browsers
         if: steps.browser-cache.outputs.cache-hit != 'true'
         run: npx playwright install chromium webkit
@@ -143,30 +155,33 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ steps.playwright-version.outputs.version }}-${{ runner.os }}
+          key: playwright-v3-${{ steps.playwright-version.outputs.version }}-${{ runner.os }}
 
-      - name: Configure apt and dpkg for CI
+      # --- Apt cache miss: download debs (without installing) and save ---
+      - name: Configure apt for download-only
+        if: steps.apt-cache.outputs.cache-hit != 'true'
         run: |
+          echo 'APT::Get::Download-Only "true";' | sudo tee /etc/apt/apt.conf.d/99download-only
           echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' | sudo tee /etc/apt/apt.conf.d/99keep-debs
-          echo 'force-unsafe-io' | sudo tee /etc/dpkg/dpkg.cfg.d/ci-unsafe-io
 
-      - name: Restore apt cache
-        id: apt-cache
-        uses: actions/cache/restore@v4
-        with:
-          path: /var/cache/apt/archives
-          key: apt-playwright-${{ steps.playwright-version.outputs.version }}-${{ runner.os }}
-
-      - name: Install Playwright system dependencies
+      - name: Download Playwright system dependencies
+        if: steps.apt-cache.outputs.cache-hit != 'true'
         run: sudo npx playwright install-deps chromium webkit
         working-directory: e2e
+
+      - name: Prepare apt cache for save
+        if: steps.apt-cache.outputs.cache-hit != 'true'
+        run: |
+          sudo rm -f /var/cache/apt/archives/lock
+          sudo rm -rf /var/cache/apt/archives/partial
+          sudo chown -R $(id -u):$(id -g) /var/cache/apt/archives
 
       - name: Save apt cache
         if: steps.apt-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: /var/cache/apt/archives
-          key: apt-playwright-${{ steps.playwright-version.outputs.version }}-${{ runner.os }}
+          key: apt-v3-playwright-${{ steps.playwright-version.outputs.version }}-${{ runner.os }}
 
   docker-pr-release:
     name: Docker PR Release
@@ -226,18 +241,16 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ needs.e2e-warmup.outputs.playwright-version }}-${{ runner.os }}
+          key: playwright-v3-${{ needs.e2e-warmup.outputs.playwright-version }}-${{ runner.os }}
 
-      - name: Configure apt and dpkg for CI
-        run: |
-          echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' | sudo tee /etc/apt/apt.conf.d/99keep-debs
-          echo 'force-unsafe-io' | sudo tee /etc/dpkg/dpkg.cfg.d/ci-unsafe-io
+      - name: Fix apt cache ownership for runner
+        run: sudo chown -R $(id -u):$(id -g) /var/cache/apt/archives
 
       - name: Restore apt cache
         uses: actions/cache/restore@v4
         with:
           path: /var/cache/apt/archives
-          key: apt-playwright-${{ needs.e2e-warmup.outputs.playwright-version }}-${{ runner.os }}
+          key: apt-v3-playwright-${{ needs.e2e-warmup.outputs.playwright-version }}-${{ runner.os }}
 
       - name: Install Playwright system dependencies
         run: sudo npx playwright install-deps chromium webkit
@@ -297,18 +310,16 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ needs.e2e-warmup.outputs.playwright-version }}-${{ runner.os }}
+          key: playwright-v3-${{ needs.e2e-warmup.outputs.playwright-version }}-${{ runner.os }}
 
-      - name: Configure apt and dpkg for CI
-        run: |
-          echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' | sudo tee /etc/apt/apt.conf.d/99keep-debs
-          echo 'force-unsafe-io' | sudo tee /etc/dpkg/dpkg.cfg.d/ci-unsafe-io
+      - name: Fix apt cache ownership for runner
+        run: sudo chown -R $(id -u):$(id -g) /var/cache/apt/archives
 
       - name: Restore apt cache
         uses: actions/cache/restore@v4
         with:
           path: /var/cache/apt/archives
-          key: apt-playwright-${{ needs.e2e-warmup.outputs.playwright-version }}-${{ runner.os }}
+          key: apt-v3-playwright-${{ needs.e2e-warmup.outputs.playwright-version }}-${{ runner.os }}
 
       - name: Install Playwright system dependencies
         run: sudo npx playwright install-deps chromium webkit
