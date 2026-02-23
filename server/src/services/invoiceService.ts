@@ -47,9 +47,17 @@ function toUserSummary(user: typeof users.$inferSelect | null | undefined): User
 /**
  * Convert a database invoice row to Invoice API shape.
  * Resolves vendorName and createdBy via separate queries.
+ * If knownVendorName is provided, skips the vendor DB lookup.
  */
-function toInvoice(db: DbType, row: typeof invoices.$inferSelect): Invoice {
-  const vendor = db.select().from(vendors).where(eq(vendors.id, row.vendorId)).get();
+function toInvoice(
+  db: DbType,
+  row: typeof invoices.$inferSelect,
+  knownVendorName?: string,
+): Invoice {
+  const vendorName =
+    knownVendorName !== undefined
+      ? knownVendorName
+      : (db.select().from(vendors).where(eq(vendors.id, row.vendorId)).get()?.name ?? 'Unknown');
   const createdByUser = row.createdBy
     ? db.select().from(users).where(eq(users.id, row.createdBy)).get()
     : null;
@@ -57,7 +65,7 @@ function toInvoice(db: DbType, row: typeof invoices.$inferSelect): Invoice {
   return {
     id: row.id,
     vendorId: row.vendorId,
-    vendorName: vendor?.name ?? 'Unknown',
+    vendorName,
     workItemBudgetId: row.workItemBudgetId,
     invoiceNumber: row.invoiceNumber,
     amount: row.amount,
@@ -73,12 +81,14 @@ function toInvoice(db: DbType, row: typeof invoices.$inferSelect): Invoice {
 
 /**
  * Assert that a vendor exists, throwing NotFoundError if not.
+ * Returns the vendor name so callers can pass it to toInvoice() without an extra lookup.
  */
-function assertVendorExists(db: DbType, vendorId: string): void {
+function assertVendorExists(db: DbType, vendorId: string): string {
   const vendor = db.select().from(vendors).where(eq(vendors.id, vendorId)).get();
   if (!vendor) {
     throw new NotFoundError('Vendor not found');
   }
+  return vendor.name;
 }
 
 /**
@@ -86,7 +96,7 @@ function assertVendorExists(db: DbType, vendorId: string): void {
  * @throws NotFoundError if vendor does not exist
  */
 export function listInvoices(db: DbType, vendorId: string): Invoice[] {
-  assertVendorExists(db, vendorId);
+  const vendorName = assertVendorExists(db, vendorId);
 
   const rows = db
     .select()
@@ -95,7 +105,7 @@ export function listInvoices(db: DbType, vendorId: string): Invoice[] {
     .orderBy(desc(invoices.date))
     .all();
 
-  return rows.map((row) => toInvoice(db, row));
+  return rows.map((row) => toInvoice(db, row, vendorName));
 }
 
 /**
@@ -248,7 +258,7 @@ export function createInvoice(
   data: CreateInvoiceRequest,
   userId: string,
 ): Invoice {
-  assertVendorExists(db, vendorId);
+  const vendorName = assertVendorExists(db, vendorId);
 
   // Validate amount
   if (data.amount <= 0) {
@@ -303,7 +313,7 @@ export function createInvoice(
     .run();
 
   const row = db.select().from(invoices).where(eq(invoices.id, id)).get()!;
-  return toInvoice(db, row);
+  return toInvoice(db, row, vendorName);
 }
 
 /**
@@ -318,7 +328,7 @@ export function updateInvoice(
   invoiceId: string,
   data: UpdateInvoiceRequest,
 ): Invoice {
-  assertVendorExists(db, vendorId);
+  const vendorName = assertVendorExists(db, vendorId);
 
   const existing = db
     .select()
@@ -395,7 +405,7 @@ export function updateInvoice(
   db.update(invoices).set(updates).where(eq(invoices.id, invoiceId)).run();
 
   const updated = db.select().from(invoices).where(eq(invoices.id, invoiceId)).get()!;
-  return toInvoice(db, updated);
+  return toInvoice(db, updated, vendorName);
 }
 
 /**
