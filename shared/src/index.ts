@@ -95,7 +95,7 @@ export type {
   InvoiceListResponse,
   InvoiceResponse,
   InvoiceStatusSummary,
-  InvoiceSummary,
+  InvoiceStatusBreakdown,
   InvoiceListPaginatedResponse,
   InvoiceDetailResponse,
 } from './types/invoice.js';

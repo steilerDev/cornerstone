@@ -100,9 +100,9 @@ export interface InvoiceStatusSummary {
 }
 
 /**
- * Summary of all invoices grouped by status.
+ * Breakdown of all invoices grouped by status (counts + totals).
  */
-export interface InvoiceSummary {
+export interface InvoiceStatusBreakdown {
   pending: InvoiceStatusSummary;
   paid: InvoiceStatusSummary;
   claimed: InvoiceStatusSummary;
@@ -114,7 +114,7 @@ export interface InvoiceSummary {
 export interface InvoiceListPaginatedResponse {
   invoices: Invoice[];
   pagination: PaginationMeta;
-  summary: InvoiceSummary;
+  summary: InvoiceStatusBreakdown;
 }
 
 /**

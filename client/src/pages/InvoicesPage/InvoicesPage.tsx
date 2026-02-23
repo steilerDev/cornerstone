@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import type {
   Invoice,
-  InvoiceSummary,
+  InvoiceStatusBreakdown,
   InvoiceStatus,
   CreateInvoiceRequest,
 } from '@cornerstone/shared';
@@ -67,7 +67,7 @@ export function InvoicesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [summary, setSummary] = useState<InvoiceSummary>({
+  const [summary, setSummary] = useState<InvoiceStatusBreakdown>({
     pending: { count: 0, totalAmount: 0 },
     paid: { count: 0, totalAmount: 0 },
     claimed: { count: 0, totalAmount: 0 },

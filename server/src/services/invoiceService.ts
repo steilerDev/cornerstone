@@ -11,7 +11,7 @@ import type {
   UpdateInvoiceRequest,
   UserSummary,
   PaginationMeta,
-  InvoiceSummary,
+  InvoiceStatusBreakdown,
   InvoiceStatusSummary,
 } from '@cornerstone/shared';
 import { NotFoundError, ValidationError } from '../errors/AppError.js';
@@ -153,7 +153,7 @@ export function listAllInvoices(
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
   },
-): { invoices: Invoice[]; pagination: PaginationMeta; summary: InvoiceSummary } {
+): { invoices: Invoice[]; pagination: PaginationMeta; summary: InvoiceStatusBreakdown } {
   const page = Math.max(1, query.page ?? 1);
   const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 25));
   const sortOrder = query.sortOrder ?? 'desc';
@@ -224,7 +224,7 @@ export function listAllInvoices(
     .all();
 
   const defaultSummary: InvoiceStatusSummary = { count: 0, totalAmount: 0 };
-  const summary: InvoiceSummary = {
+  const summary: InvoiceStatusBreakdown = {
     pending: { ...defaultSummary },
     paid: { ...defaultSummary },
     claimed: { ...defaultSummary },
