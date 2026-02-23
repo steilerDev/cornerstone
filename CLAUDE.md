@@ -49,46 +49,13 @@ The GitHub Wiki is checked out as a git submodule at `wiki/` in the project root
 
 ### Wiki Submodule
 
-The GitHub Wiki is checked out as a git submodule at `wiki/`. This gives all agents instant local access to architecture documentation via the Read tool, without needing to clone or fetch via the `gh` API each session.
+Wiki pages are markdown files in `wiki/` (e.g., `wiki/Architecture.md`, `wiki/API-Contract.md`). Ensure up to date before reading: `git submodule update --init wiki && git -C wiki pull origin master`
 
-#### Reading Wiki Pages
+**Writing:** Edit `wiki/` → `git -C wiki add -A && git -C wiki commit -m "docs: ..."` → `git -C wiki push origin master` → `git add wiki` and commit the parent ref.
 
-Wiki pages are markdown files in `wiki/` (e.g., `wiki/Architecture.md`, `wiki/API-Contract.md`, `wiki/Schema.md`). Before reading, ensure the submodule is initialized and up to date:
+**Page naming:** `Architecture.md`, `API-Contract.md`, `Schema.md`, `Style-Guide.md`, `ADR-001-Server-Framework.md`, `ADR-Index.md`, `Security-Audit.md`
 
-```bash
-git submodule update --init wiki && git -C wiki pull origin master
-```
-
-Then read files directly using the Read tool.
-
-#### Writing Wiki Pages
-
-To update wiki content:
-
-1. Edit the markdown file in `wiki/` using the Edit/Write tools
-2. Commit inside the submodule: `git -C wiki add -A && git -C wiki commit -m "docs: description"`
-3. Push the submodule: `git -C wiki push origin master`
-4. Stage the updated submodule ref in the parent repo: `git add wiki`
-5. Commit the parent repo ref update alongside your other changes
-
-#### Wiki Page Naming
-
-Wiki files use hyphenated names matching GitHub Wiki conventions:
-
-- `Architecture.md`, `API-Contract.md`, `Schema.md`, `Style-Guide.md`
-- `ADR-001-Server-Framework.md`, `ADR-Index.md`
-- `Security-Audit.md`
-
-#### Implementation-Wiki Deviation Workflow
-
-When any agent discovers that wiki documentation does not match the actual implementation:
-
-1. **Flag the deviation explicitly** — mention it in the PR description or as a GitHub comment on the relevant issue
-2. **Determine the source of truth** — is the wiki outdated (implementation is correct) or is the code wrong (wiki is correct)?
-3. **Product-architect approval required** for wiki content changes (except `Security-Audit.md`, which is owned by the `security-engineer`)
-4. **Fix and wiki update should land together** — do not merge code that knowingly contradicts the wiki without also updating the wiki in the same PR
-5. **Log the deviation in the wiki page** — add a "Deviation Log" entry at the bottom of the affected wiki page documenting what deviated, when it was discovered, and how it was resolved
-6. **Log on the relevant GitHub Issue** as well, for traceability
+**Deviation workflow:** Flag in the PR; determine source of truth; get product-architect approval for wiki changes (`security-engineer` owns `Security-Audit.md`); fix and wiki update land together; add a Deviation Log entry to the wiki page and log on the relevant GitHub Issue.
 
 ### GitHub Repo
 
@@ -125,36 +92,26 @@ gh api graphql -f query='{ repository(owner: "steilerDev", name: "cornerstone") 
 
 ## Agile Workflow
 
-We follow an incremental, agile approach:
+**Important: Planning agents run first.** Always launch the `product-owner` and `product-architect` agents BEFORE implementing any code. Planning only needs to run for the first story of an epic — subsequent stories reuse the established plan.
 
-1. **Product Owner** defines epics and breaks them into user stories with acceptance criteria and UAT scenarios
-2. **Product Architect** designs schema additions and API endpoints for the epic incrementally
-3. **Backend Developer** implements API and business logic per-story
-4. **Frontend Developer** implements UI per-story (references `tokens.css` and Style Guide wiki)
-5. **QA Tester** writes and runs all automated tests (unit, integration, E2E); all must pass
-6. **Security Engineer** reviews every PR for security vulnerabilities
+**One user story per development cycle.** Each cycle completes a single story end-to-end (architecture → implementation → tests → PR → review → merge) before starting the next.
 
-Schema and API contract evolve incrementally as each epic is implemented, rather than being designed all at once upfront.
+**Compact context between stories.** After completing each story (merged and moved to Done), compact context before starting the next. Only agent memory persists between stories.
 
-**Important: Planning agents run first.** Always launch the `product-owner` and `product-architect` agents BEFORE implementing any code. These agents must coordinate with the user and validate or adjust the plan before development begins. This catches inconsistencies early and avoids rework. Planning only needs to run for the first story of an epic — subsequent stories reuse the established plan.
+**Mark stories in-progress before starting work.** When beginning a story, immediately move its GitHub Issue to "In Progress" on the Projects board.
 
-**One user story per development cycle.** Each cycle completes a single story end-to-end (architecture → implementation → tests → PR → review → merge) before starting the next. This keeps work focused and reduces context-switching.
-
-**Compact context between stories.** After completing each story (merged and moved to Done), the orchestrator must compact its context before starting the next story. Stories are independent units of work — prior conversation history is not needed, only agent memory persists. This prevents context window exhaustion during multi-story epics.
-
-**Mark stories in-progress before starting work.** When beginning work on a story, immediately move its GitHub Issue to "In Progress" on the Projects board. This prevents other agents from picking up the same story concurrently.
-
-**The orchestrator delegates, never implements.** The orchestrating Claude coordinates the agent team but must NEVER write production code, tests, or architectural artifacts itself. Every implementation task must be delegated to the appropriate specialized agent:
+**The orchestrator delegates, never implements.** Must NEVER write production code, tests, or architectural artifacts. Delegate all implementation:
 
 - **Backend code** → `backend-developer` agent
 - **Frontend code** → `frontend-developer` agent
+- **Visual specs, design tokens, brand assets, CSS files** → `ux-designer` agent
 - **Schema/API design, ADRs, wiki** → `product-architect` agent
-- **All automated tests** (unit, integration, E2E) → `qa-integration-tester` agent
-- **Story definitions, UAT scenarios, README updates** → `product-owner` agent
+- **Unit tests & test coverage** → `qa-integration-tester` agent
+- **E2E tests** → `e2e-test-engineer` agent
+- **UAT scenarios** → `uat-validator` agent
+- **Story definitions** → `product-owner` agent
 - **Security reviews** → `security-engineer` agent
 - **User-facing documentation** (docs site + README) → `docs-writer` agent
-
-The orchestrator's role is to: sequence agent launches, pass context between agents, manage the feature branch and PR lifecycle, and ensure the agile cycle is followed for every story.
 
 ## Acceptance & Validation
 
@@ -165,34 +122,26 @@ Every epic follows a two-phase validation lifecycle.
 During each story's development cycle:
 
 - The **product-owner** defines stories with acceptance criteria and UAT scenarios (Given/When/Then) posted on the story's GitHub Issue
-- Developers reference the acceptance criteria to understand expected behavior
-- The **qa-integration-tester** owns all automated tests: unit tests (95%+ coverage), integration tests, and Playwright E2E tests
-- The **security-engineer** reviews the PR for security vulnerabilities after implementation
+- The **qa-integration-tester** owns unit + integration tests (95%+ coverage); the **e2e-test-engineer** owns Playwright E2E tests; the **security-engineer** reviews the PR for vulnerabilities
 - All automated tests (unit + integration + E2E) must pass before merge
 
 ### Epic Validation Phase
 
 After all stories in an epic are merged to `beta`:
 
-1. The orchestrator collects all **non-blocking review comments** from PR reviews across the epic (observations, suggestions, and minor improvements that were noted but not required for merge)
-2. A refinement task is created on a dedicated branch (e.g., `chore/<epic-number>-refinement`) to address these items
-3. The appropriate developer agent(s) implement the refinements
-4. The **qa-integration-tester** updates tests if needed
-5. Standard quality gates must pass, then the refinement PR is merged before proceeding to UAT
-
-This ensures that quality feedback from reviews is not lost, while keeping individual story PRs focused on their acceptance criteria.
+1. The orchestrator collects all **non-blocking review comments** (observations noted but not required for merge) and creates a refinement task on `chore/<epic-number>-refinement`
+2. Developer agent(s) implement the refinements; **qa-integration-tester** updates tests if needed
+3. Standard quality gates must pass, then the refinement PR is merged before proceeding to UAT
 
 ### Validation Phase
 
 After the refinement task is complete and all automated tests pass:
 
 1. The **e2e-test-engineer** confirms all Playwright E2E tests pass and every approved UAT scenario has E2E coverage. This approval is required before proceeding to manual validation.
-2. The **uat-validator** runs all automated checks and produces a UAT Validation Report
-3. Step-by-step manual validation instructions are provided to the user
-4. The user walks through each scenario and marks it pass or fail
-5. If any scenario fails, developers fix the issue and the cycle repeats from the automated test step
-6. After user approval, the **docs-writer** updates the docs site (`docs/`) and `README.md` to reflect the newly shipped features
-7. The epic is complete only after explicit user approval and documentation is updated
+2. The **uat-validator** produces a UAT Validation Report and provides step-by-step manual validation instructions to the user
+3. The user walks through each scenario; if any fail, developers fix and the cycle repeats from step 1
+4. After user approval, the **docs-writer** updates the docs site (`docs/`) and `README.md`
+5. The epic is complete only after explicit user approval and documentation is updated
 
 ### Key Rules
 
@@ -201,7 +150,7 @@ After the refinement task is complete and all automated tests pass:
 - **Iterate until right** — failed validation triggers a fix-and-revalidate loop
 - **Acceptance criteria live on GitHub Issues** — stored on story issues, summarized on promotion PRs
 - **Security review required** — the `security-engineer` must review every story PR
-- **One test agent owns everything** — the `qa-integration-tester` agent owns unit tests, integration tests, and Playwright E2E browser tests. Developer agents do not write tests.
+- **Test agents own all tests** — `qa-integration-tester` owns unit + integration tests; `e2e-test-engineer` owns Playwright E2E tests. Developer agents do not write tests.
 
 ## Git & Commit Conventions
 
@@ -229,45 +178,24 @@ The only exception is the QA agent running a specific test file it just wrote (e
 
 ### Agent Attribution
 
-All agents must clearly identify themselves in commits and GitHub interactions:
+All agents must clearly identify themselves:
 
-- **Commits**: Include the agent name in the `Co-Authored-By` trailer:
-
-  ```
-  Co-Authored-By: Claude <agent-name> (<model>) <noreply@anthropic.com>
-  ```
-
-  Replace `<agent-name>` with one of: `backend-developer`, `frontend-developer`, `product-architect`, `product-owner`, `qa-integration-tester`, `security-engineer`, or `orchestrator` (when the orchestrating Claude commits directly). Replace `<model>` with the agent's actual model (e.g., `Opus 4.6`, `Sonnet 4.5`). Each agent's definition file specifies the exact trailer to use.
-
-- **GitHub comments** (on issues, PRs, or discussions): Prefix the first line with the agent name in bold brackets:
-
-  ```
-  **[backend-developer]** This endpoint has been implemented...
-  ```
-
-- When the orchestrator commits work produced by a specific agent, it must use that agent's name in the `Co-Authored-By` trailer, not its own.
+- **Commits**: `Co-Authored-By: Claude <agent-name> (<model>) <noreply@anthropic.com>` — see each agent's definition file for the exact trailer.
+- **GitHub comments**: prefix with `**[agent-name]**` (e.g., `**[backend-developer]** This endpoint...`)
+- **Orchestrator**: when committing work produced by an agent, use that agent's name in the trailer.
 
 ### Branching Strategy
 
 **Never commit directly to `main` or `beta`.** All changes go through feature branches and pull requests.
 
-- **Branch naming**: `<type>/<issue-number>-<short-description>`
-  - Examples: `feat/42-work-item-crud`, `fix/55-budget-calc`, `ci/18-dependabot-auto-merge`
-  - Use the conventional commit type as the prefix
-  - Include the GitHub Issue number when one exists
+- **Branch naming**: `<type>/<issue-number>-<short-description>` (e.g., `feat/42-work-item-crud`, `fix/55-budget-calc`)
 - **Never push a `worktree-<anything>` branch.** Worktree branches carry auto-generated names. Before pushing, always rename the branch to match the naming convention above: `git branch -m <type>/<issue-number>-<short-description>`. If the scope of work is not yet clear, determine it before pushing — do not publish placeholder branch names.
 
 ### Session Isolation (Worktrees)
 
-**Sessions run in git worktrees** to prevent parallel sessions from colliding. The user starts each session in a worktree manually — agents do not need to create worktrees themselves.
+**Sessions run in git worktrees.** The user starts each session in a worktree manually. If the branch has a randomly generated name, rename it once scope is clear: `git branch -m <type>/<issue-number>-<short-description>`.
 
-If the current branch has a randomly generated name (i.e., the worktree auto-named it), **rename it** once the scope of work is clear:
-
-```bash
-git branch -m <type>/<issue-number>-<short-description>
-```
-
-If the branch already has a meaningful name, do not rename it.
+**NEVER `cd` to the base project directory to modify files.** All file edits, git operations, and commands must be performed from within the git worktree assigned at session start. The base project directory may have other sessions' uncommitted changes.
 
 - **Workflow** (full agent cycle for each user story):
   1. **Plan**: Launch `product-owner` (verify story + acceptance criteria) and `product-architect` (design schema/API/architecture) agents
@@ -301,7 +229,7 @@ If the branch already has a meaningful name, do not rename it.
      b. Wait for all CI checks to pass on the PR. If any check fails, investigate and resolve before proceeding
      c. Once CI is green and the UAT criteria are posted, **wait for user approval** before merging. The user reviews the PR, validates the UAT scenarios, and approves
      d. After user approval, merge: `gh pr merge --merge <pr-url>`. Merge commits preserve individual commits for semantic-release analysis.
-  3. **Merge-back**: After the stable release is published on `main`, merge `main` back into `beta` so the release tag is reachable from beta's history. This is automated by the `merge-back` job in `release.yml`, which creates a PR from `main` into `beta`. If the automated PR fails (e.g., merge conflicts), manually resolve: create a branch from `beta`, merge `origin/main`, push, and PR to `beta`. **Without this step, semantic-release on beta cannot see the stable tag and keeps incrementing the old pre-release version.**
+  3. **Merge-back**: Automated by the `merge-back` job in `release.yml` (creates a PR from `main` into `beta`). If it fails, manually resolve: branch from `beta`, merge `origin/main`, push, PR to `beta`.
 
 Note: Dependabot auto-merge (`.github/workflows/dependabot-auto-merge.yml`) targets `beta` — it handles automated dependency updates, not agent work.
 
@@ -319,9 +247,8 @@ Cornerstone uses a two-tier release model:
 - **Feature PR -> `beta`**: Squash merge (clean history)
 - **`beta` -> `main`** (epic promotion): Merge commit (preserves individual commits so semantic-release can analyze them)
 
-**Merge-back after promotion:** After each epic promotion (`beta` -> `main`), `main` must be merged back into `beta`. This ensures the stable release tag (e.g., `v1.7.0`) is reachable from beta's git history. Without this, semantic-release on beta continues incrementing the old pre-release series. The `release.yml` workflow automates this via a `merge-back` job.
-
-**Hotfixes:** If a critical fix must go directly to `main`, immediately cherry-pick the fix back to `beta` to keep branches in sync.
+- **Merge-back after promotion:** `release.yml` automates a `main` → `beta` PR after each epic promotion. If it fails, manually resolve so the stable tag is reachable from beta's history.
+- **Hotfixes:** Cherry-pick any `main` hotfix back to `beta` immediately.
 
 ### Branch Protection
 
@@ -336,10 +263,6 @@ Both `main` and `beta` have branch protection rules enforced on GitHub:
 | Enforce admins                    | No                        | Yes                       |
 | Force pushes                      | Blocked                   | Blocked                   |
 | Deletions                         | Blocked                   | Blocked                   |
-
-**Why strict differs:** `main` requires branches to be up-to-date before merging, guaranteeing CI ran against the exact merge base for stable releases. `beta` does not require this — as a high-traffic integration branch receiving parallel feature PRs and Dependabot updates, strict mode would create merge queue bottlenecks.
-
-**Why enforce admins differs:** Admin bypass is allowed on `main` for emergency hotfixes. `beta` enforces rules for all users, including admins, to maintain integration branch integrity.
 
 ## Tech Stack
 
@@ -501,8 +424,6 @@ The `docs` workspace is NOT part of the application build (`npm run build`). Bui
 
 ## Testing Approach
 
-All automated testing is owned by the `qa-integration-tester` agent. Developer agents write production code; the QA agent writes and maintains all tests.
-
 - **Unit & integration tests**: Jest with ts-jest (co-located with source: `foo.test.ts` next to `foo.ts`)
 - **API integration tests**: Fastify's `app.inject()` method (no HTTP server needed)
 - **E2E tests**: Playwright (runs against built app)
@@ -532,8 +453,6 @@ chmod +x .husky/pre-commit    # Ensure pre-commit hook is executable (sandbox en
 npm run dev                   # Start server (port 3000) + client dev server (port 5173)
 ```
 
-In development, the Webpack dev server at `http://localhost:5173` proxies `/api/*` requests to the Fastify server at `http://localhost:3000`.
-
 ### Common Commands
 
 | Command                    | Description                                                 |
@@ -554,52 +473,27 @@ In development, the Webpack dev server at `http://localhost:5173` proxies `/api/
 
 ### Documentation Site
 
-The `docs/` workspace is a Docusaurus 3.x site deployed to GitHub Pages at `https://steilerDev.github.io/cornerstone/`.
-
-**Content hierarchy:**
-
-| Location                | Content                                                  | Audience              |
-| ----------------------- | -------------------------------------------------------- | --------------------- |
-| Docs site (`docs/src/`) | User guides, deployment, development process             | End users             |
-| GitHub Wiki (`wiki/`)   | Architecture, API contract, schema, ADRs, security audit | Agents + contributors |
-| `README.md`             | Lean pointer: tagline, quick start, roadmap, links       | GitHub visitors       |
-| `CLAUDE.md`             | Agent instructions, conventions, workflow rules          | AI agents             |
-
-**Deployment:** Automated via `.github/workflows/docs.yml` — triggers on push to `main` with changes in `docs/**`.
-
-**Screenshots:** Run `npm run docs:screenshots` to capture app screenshots into `docs/static/img/screenshots/`. This requires the app to be running via testcontainers (same as E2E tests). Screenshots are named `<feature>-<view>-<theme>.png` (e.g., `work-items-list-light.png`).
+Docusaurus 3.x site deployed to GitHub Pages at `https://steilerDev.github.io/cornerstone/`. Deployed via `.github/workflows/docs.yml` on push to `main` with changes in `docs/**`. Content: `docs/src/` (user guides, end users) · `wiki/` (architecture/ADRs, agents) · `README.md` (GitHub visitors) · `CLAUDE.md` (AI agents).
 
 ### Database Migrations
 
-Migrations are hand-written SQL files in `server/src/db/migrations/`, named with a numeric prefix for ordering (e.g., `0001_create_users.sql`). There is no auto-generation tool — developers write the SQL by hand. Run `npm run db:migrate` to apply pending migrations. The migration runner (`server/src/db/migrate.ts`) tracks applied migrations in a `_migrations` table and applies new ones inside a transaction.
+Hand-written SQL files in `server/src/db/migrations/` with a numeric prefix (e.g., `0001_create_users.sql`). Run `npm run db:migrate` to apply. The runner (`server/src/db/migrate.ts`) tracks applied migrations in `_migrations` and runs new ones in a transaction.
 
 ### Docker Build
 
-Production images use [Docker Hardened Images](https://hub.docker.com/r/dhi.io/node) (DHI) for minimal attack surface and near-zero CVEs. The builder stage uses `dhi.io/node:24-alpine3.23-dev` (includes npm + build tools) and the production stage uses `dhi.io/node:24-alpine3.23` (minimal runtime only).
+Production images use [Docker Hardened Images](https://hub.docker.com/r/dhi.io/node) (DHI). **Docker build does not work in the sandbox** (no Docker daemon available).
 
 ```bash
-# Standard build
 docker build -t cornerstone .
-
-# Behind a proxy with CA cert
-docker build \
-  --build-arg HTTP_PROXY=$HTTP_PROXY --build-arg HTTPS_PROXY=$HTTPS_PROXY \
-  --secret id=proxy-ca,src=$SSL_CERT_FILE -t cornerstone .
-
-# Run
 docker run -p 3000:3000 -v cornerstone-data:/app/data cornerstone
 ```
 
 ### Docker Compose (Recommended for Deployment)
 
-For end-user deployment, use the provided `docker-compose.yml` with the published image:
-
 ```bash
-cp .env.example .env       # Copy and customize environment variables
-docker compose up -d        # Start the application
+cp .env.example .env
+docker compose up -d
 ```
-
-The `docker-compose.yml` references the published `steilerdev/cornerstone:latest` image (not a local build). See `.env.example` for all available configuration options.
 
 ### Environment Variables
 
