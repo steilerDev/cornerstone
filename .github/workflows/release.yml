@@ -48,8 +48,8 @@ jobs:
         run: |
           OUTPUT=$(npx semantic-release 2>&1) || true
           echo "$OUTPUT"
-          if echo "$OUTPUT" | grep -q "Published release"; then
-            VERSION=$(echo "$OUTPUT" | grep -oP 'Published release \K[0-9]+\.[0-9]+\.[0-9]+(-beta\.[0-9]+)?' || echo "")
+          if echo "$OUTPUT" | grep -q "Created tag v"; then
+            VERSION=$(echo "$OUTPUT" | grep -oP 'Created tag v\K[0-9]+\.[0-9]+\.[0-9]+(-beta\.[0-9]+)?' || echo "")
             echo "new-release-published=true" >> "$GITHUB_OUTPUT"
             echo "new-release-version=$VERSION" >> "$GITHUB_OUTPUT"
             if echo "$VERSION" | grep -q "beta"; then
