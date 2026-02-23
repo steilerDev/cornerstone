@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, type FormEvent } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import type {
   WorkItemDetail,
   WorkItemStatus,
@@ -1117,14 +1117,27 @@ export default function WorkItemDetailPage() {
             {budgetLines.length > 0 && (
               <div className={styles.budgetSummary}>
                 <div className={styles.propertyGrid}>
-                  <div className={styles.property}>
-                    <span className={styles.propertyLabel}>Total Planned</span>
-                    <span className={styles.budgetValue}>{formatCurrency(totalPlanned)}</span>
-                  </div>
-                  <div className={styles.property}>
-                    <span className={styles.propertyLabel}>Total Actual Cost</span>
-                    <span className={styles.budgetValue}>{formatCurrency(totalActualCost)}</span>
-                  </div>
+                  {totalActualCost > 0 ? (
+                    <>
+                      <div className={styles.property}>
+                        <span className={styles.propertyLabel}>Total Actual Cost</span>
+                        <span className={styles.budgetValueHighlighted}>
+                          {formatCurrency(totalActualCost)}
+                        </span>
+                      </div>
+                      <div className={styles.property}>
+                        <span className={styles.propertyLabel}>Total Planned</span>
+                        <span className={styles.budgetValueMuted}>
+                          {formatCurrency(totalPlanned)}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className={styles.property}>
+                      <span className={styles.propertyLabel}>Total Planned</span>
+                      <span className={styles.budgetValue}>{formatCurrency(totalPlanned)}</span>
+                    </div>
+                  )}
                   <div className={styles.property}>
                     <span className={styles.propertyLabel}>Lines</span>
                     <span className={styles.budgetValue}>{budgetLines.length}</span>
@@ -1144,18 +1157,34 @@ export default function WorkItemDetailPage() {
                 <div key={line.id} className={styles.budgetLineItem}>
                   <div className={styles.budgetLineMain}>
                     <div className={styles.budgetLineTopRow}>
-                      <span className={styles.budgetLineAmount}>
-                        {formatCurrency(line.plannedAmount)}
-                      </span>
-                      <span className={styles.budgetLineConfidence}>
-                        {CONFIDENCE_LABELS[line.confidence]}
-                        {CONFIDENCE_MARGINS[line.confidence] > 0 && (
-                          <span className={styles.budgetLineMargin}>
-                            {' '}
-                            (+{Math.round(CONFIDENCE_MARGINS[line.confidence] * 100)}%)
+                      {line.invoiceCount > 0 ? (
+                        <>
+                          <span
+                            className={`${styles.budgetLineAmount} ${styles.budgetLineAmountInvoiced}`}
+                          >
+                            {formatCurrency(line.actualCost)}
                           </span>
-                        )}
-                      </span>
+                          <span className={styles.budgetLineInvoicedLabel}>Invoiced Amount</span>
+                          <span className={styles.budgetLinePlannedSecondary}>
+                            (planned: {formatCurrency(line.plannedAmount)})
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <span className={styles.budgetLineAmount}>
+                            {formatCurrency(line.plannedAmount)}
+                          </span>
+                          <span className={styles.budgetLineConfidence}>
+                            {CONFIDENCE_LABELS[line.confidence]}
+                            {CONFIDENCE_MARGINS[line.confidence] > 0 && (
+                              <span className={styles.budgetLineMargin}>
+                                {' '}
+                                (+{Math.round(CONFIDENCE_MARGINS[line.confidence] * 100)}%)
+                              </span>
+                            )}
+                          </span>
+                        </>
+                      )}
                     </div>
                     {line.description && (
                       <div className={styles.budgetLineDescription}>{line.description}</div>
@@ -1169,15 +1198,22 @@ export default function WorkItemDetailPage() {
                       {line.budgetSource && (
                         <span className={styles.budgetLineMetaItem}>{line.budgetSource.name}</span>
                       )}
-                      {line.vendor && (
+                      {line.vendor && line.invoiceCount > 0 ? (
+                        <Link
+                          to={`/budget/vendors/${line.vendor.id}`}
+                          className={styles.budgetLineMetaLink}
+                        >
+                          {line.invoiceCount} invoice{line.invoiceCount !== 1 ? 's' : ''} ·{' '}
+                          {formatCurrency(line.actualCost)}
+                        </Link>
+                      ) : line.vendor ? (
                         <span className={styles.budgetLineMetaItem}>{line.vendor.name}</span>
-                      )}
-                      {line.invoiceCount > 0 && (
+                      ) : line.invoiceCount > 0 ? (
                         <span className={styles.budgetLineMetaItem}>
                           {line.invoiceCount} invoice{line.invoiceCount !== 1 ? 's' : ''} ·{' '}
                           {formatCurrency(line.actualCost)}
                         </span>
-                      )}
+                      ) : null}
                     </div>
                   </div>
                   <div className={styles.budgetLineActions}>

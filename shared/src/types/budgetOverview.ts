@@ -8,10 +8,10 @@ export interface CategoryBudgetSummary {
   categoryId: string | null;
   categoryName: string;
   categoryColor: string | null;
-  minPlanned: number;
-  maxPlanned: number;
-  projectedMin: number; // blended: invoiced lines use actualCost, non-invoiced use minPlanned
-  projectedMax: number; // blended: invoiced lines use actualCost, non-invoiced use maxPlanned
+  minPlanned: number; // invoiced lines use actualCost; non-invoiced use confidence margins
+  maxPlanned: number; // invoiced lines use actualCost; non-invoiced use confidence margins
+  projectedMin: number; // equals minPlanned (kept for API compatibility)
+  projectedMax: number; // equals maxPlanned (kept for API compatibility)
   actualCost: number;
   actualCostPaid: number;
   actualCostClaimed: number;
@@ -22,11 +22,11 @@ export interface BudgetOverview {
   availableFunds: number; // SUM(active budget_sources.total_amount)
   sourceCount: number;
 
-  minPlanned: number; // with confidence margins and subsidy reductions
-  maxPlanned: number;
+  minPlanned: number; // invoiced lines use actualCost; non-invoiced use confidence margins + subsidy reductions
+  maxPlanned: number; // invoiced lines use actualCost; non-invoiced use confidence margins + subsidy reductions
 
-  projectedMin: number; // blended: invoiced lines use actualCost, non-invoiced use minPlanned
-  projectedMax: number; // blended: invoiced lines use actualCost, non-invoiced use maxPlanned
+  projectedMin: number; // equals minPlanned (kept for API compatibility)
+  projectedMax: number; // equals maxPlanned (kept for API compatibility)
 
   actualCost: number; // all invoices linked to budget lines
   actualCostPaid: number; // paid + claimed invoices

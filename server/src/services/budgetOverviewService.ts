@@ -218,14 +218,16 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
       }
     }
 
-    const minPlanned = Math.max(0, rawMin - subsidyReduction);
-    const maxPlanned = Math.max(0, rawMax - subsidyReduction);
+    const rawMinPlanned = Math.max(0, rawMin - subsidyReduction);
+    const rawMaxPlanned = Math.max(0, rawMax - subsidyReduction);
 
-    // Blended projected: if line has invoices, use actual invoice total; otherwise use planned range
+    // If line has invoices, actual cost overrides planned values (the real cost is known)
     const lineActualCost = lineInvoiceMap.get(line.id);
     const hasInvoices = lineActualCost !== undefined;
-    const projectedMin = hasInvoices ? lineActualCost : minPlanned;
-    const projectedMax = hasInvoices ? lineActualCost : maxPlanned;
+    const minPlanned = hasInvoices ? lineActualCost : rawMinPlanned;
+    const maxPlanned = hasInvoices ? lineActualCost : rawMaxPlanned;
+    const projectedMin = minPlanned;
+    const projectedMax = maxPlanned;
 
     totalMinPlanned += minPlanned;
     totalMaxPlanned += maxPlanned;
