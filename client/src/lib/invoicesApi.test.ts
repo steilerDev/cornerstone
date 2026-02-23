@@ -1,6 +1,13 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { fetchInvoices, createInvoice, updateInvoice, deleteInvoice } from './invoicesApi.js';
-import type { Invoice } from '@cornerstone/shared';
+import {
+  fetchInvoices,
+  createInvoice,
+  updateInvoice,
+  deleteInvoice,
+  fetchAllInvoices,
+  fetchInvoiceById,
+} from './invoicesApi.js';
+import type { Invoice, InvoiceListPaginatedResponse } from '@cornerstone/shared';
 
 describe('invoicesApi', () => {
   let mockFetch: jest.MockedFunction<typeof globalThis.fetch>;
@@ -449,6 +456,218 @@ describe('invoicesApi', () => {
 
       const call = mockFetch.mock.calls[0];
       expect(call[0]).toBe('/api/vendors/vendor-abc/invoices/inv-xyz');
+    });
+  });
+
+  // ─── fetchAllInvoices ──────────────────────────────────────────────────────
+
+  describe('fetchAllInvoices', () => {
+    const samplePaginatedResponse: InvoiceListPaginatedResponse = {
+      invoices: [sampleInvoice],
+      pagination: { page: 1, pageSize: 25, totalItems: 1, totalPages: 1 },
+      summary: {
+        pending: { count: 1, totalAmount: 2500.0 },
+        paid: { count: 0, totalAmount: 0 },
+        claimed: { count: 0, totalAmount: 0 },
+      },
+    };
+
+    it('sends GET request to /api/invoices with no params', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => samplePaginatedResponse,
+      } as Response);
+
+      await fetchAllInvoices();
+
+      expect(mockFetch).toHaveBeenCalledWith('/api/invoices', expect.any(Object));
+    });
+
+    it('sends correct query string when page and pageSize are provided', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => samplePaginatedResponse,
+      } as Response);
+
+      await fetchAllInvoices({ page: 2, pageSize: 10 });
+
+      const call = mockFetch.mock.calls[0];
+      expect(call[0]).toContain('page=2');
+      expect(call[0]).toContain('pageSize=10');
+    });
+
+    it('sends correct query string when q, status, and vendorId are provided', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => samplePaginatedResponse,
+      } as Response);
+
+      await fetchAllInvoices({ q: 'INV-001', status: 'pending', vendorId: 'vendor-1' });
+
+      const call = mockFetch.mock.calls[0];
+      const url = call[0] as string;
+      expect(url).toContain('q=INV-001');
+      expect(url).toContain('status=pending');
+      expect(url).toContain('vendorId=vendor-1');
+    });
+
+    it('sends correct query string when sortBy and sortOrder are provided', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => samplePaginatedResponse,
+      } as Response);
+
+      await fetchAllInvoices({ sortBy: 'amount', sortOrder: 'asc' });
+
+      const call = mockFetch.mock.calls[0];
+      const url = call[0] as string;
+      expect(url).toContain('sortBy=amount');
+      expect(url).toContain('sortOrder=asc');
+    });
+
+    it('returns the full InvoiceListPaginatedResponse (invoices + pagination + summary)', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => samplePaginatedResponse,
+      } as Response);
+
+      const result = await fetchAllInvoices();
+
+      expect(result.invoices).toHaveLength(1);
+      expect(result.invoices[0]).toEqual(sampleInvoice);
+      expect(result.pagination.page).toBe(1);
+      expect(result.pagination.totalItems).toBe(1);
+      expect(result.summary.pending.count).toBe(1);
+      expect(result.summary.pending.totalAmount).toBe(2500.0);
+      expect(result.summary.paid.count).toBe(0);
+    });
+
+    it('omits undefined params from query string (no stray keys sent)', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => samplePaginatedResponse,
+      } as Response);
+
+      await fetchAllInvoices({ page: 1 }); // only page, no other params
+
+      const call = mockFetch.mock.calls[0];
+      const url = call[0] as string;
+      expect(url).toContain('page=1');
+      expect(url).not.toContain('pageSize');
+      expect(url).not.toContain('status');
+      expect(url).not.toContain('vendorId');
+      expect(url).not.toContain('q=');
+    });
+
+    it('uses /api/invoices path without query string when no params are provided', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => samplePaginatedResponse,
+      } as Response);
+
+      await fetchAllInvoices();
+
+      const call = mockFetch.mock.calls[0];
+      expect(call[0]).toBe('/api/invoices');
+    });
+
+    it('throws on 401 UNAUTHORIZED', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: async () => ({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }),
+      } as Response);
+
+      await expect(fetchAllInvoices()).rejects.toThrow();
+    });
+
+    it('throws on 500 INTERNAL_ERROR', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: async () => ({ error: { code: 'INTERNAL_ERROR', message: 'Server error' } }),
+      } as Response);
+
+      await expect(fetchAllInvoices()).rejects.toThrow();
+    });
+  });
+
+  // ─── fetchInvoiceById ─────────────────────────────────────────────────────
+
+  describe('fetchInvoiceById', () => {
+    it('sends GET request to /api/invoices/:id', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ invoice: sampleInvoice }),
+      } as Response);
+
+      await fetchInvoiceById('invoice-1');
+
+      expect(mockFetch).toHaveBeenCalledWith('/api/invoices/invoice-1', expect.any(Object));
+    });
+
+    it('uses the correct invoiceId in the URL', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ invoice: sampleInvoice }),
+      } as Response);
+
+      await fetchInvoiceById('inv-abc-999');
+
+      const call = mockFetch.mock.calls[0];
+      expect(call[0]).toBe('/api/invoices/inv-abc-999');
+    });
+
+    it('returns the unwrapped Invoice from the { invoice } envelope', async () => {
+      const detailInvoice: Invoice = {
+        ...sampleInvoice,
+        id: 'invoice-detail',
+        amount: 9999,
+        status: 'claimed',
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ invoice: detailInvoice }),
+      } as Response);
+
+      const result = await fetchInvoiceById('invoice-detail');
+
+      expect(result).toEqual(detailInvoice);
+      expect(result.id).toBe('invoice-detail');
+      expect(result.amount).toBe(9999);
+      expect(result.status).toBe('claimed');
+    });
+
+    it('returns invoice with vendorName populated', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ invoice: sampleInvoice }),
+      } as Response);
+
+      const result = await fetchInvoiceById('invoice-1');
+
+      expect(result.vendorName).toBe('Test Vendor');
+    });
+
+    it('throws on 404 NOT_FOUND', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        json: async () => ({ error: { code: 'NOT_FOUND', message: 'Invoice not found' } }),
+      } as Response);
+
+      await expect(fetchInvoiceById('non-existent-id')).rejects.toThrow();
+    });
+
+    it('throws on 401 UNAUTHORIZED', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: async () => ({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }),
+      } as Response);
+
+      await expect(fetchInvoiceById('invoice-1')).rejects.toThrow();
     });
   });
 });
