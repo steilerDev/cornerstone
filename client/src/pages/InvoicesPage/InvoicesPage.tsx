@@ -269,7 +269,9 @@ export function InvoicesPage() {
           <div className={styles.summaryCard}>
             <span className={styles.summaryLabel}>Pending</span>
             <span className={styles.summaryCount}>{summary.pending.count}</span>
-            <span className={styles.summaryAmount}>{formatCurrency(summary.pending.totalAmount)}</span>
+            <span className={styles.summaryAmount}>
+              {formatCurrency(summary.pending.totalAmount)}
+            </span>
           </div>
           <div className={styles.summaryCard}>
             <span className={styles.summaryLabel}>Paid</span>
@@ -281,7 +283,9 @@ export function InvoicesPage() {
           <div className={styles.summaryCard}>
             <span className={styles.summaryLabel}>Claimed</span>
             <span className={styles.summaryCount}>{summary.claimed.count}</span>
-            <span className={styles.summaryAmount}>{formatCurrency(summary.claimed.totalAmount)}</span>
+            <span className={styles.summaryAmount}>
+              {formatCurrency(summary.claimed.totalAmount)}
+            </span>
           </div>
         </div>
 
@@ -534,10 +538,7 @@ export function InvoicesPage() {
                         </span>
                       </td>
                       <td className={styles.actionsCell}>
-                        <Link
-                          to={`/budget/invoices/${invoice.id}`}
-                          className={styles.viewButton}
-                        >
+                        <Link to={`/budget/invoices/${invoice.id}`} className={styles.viewButton}>
                           View
                         </Link>
                       </td>
@@ -566,9 +567,7 @@ export function InvoicesPage() {
                         {invoice.vendorName}
                       </Link>
                     </div>
-                    <span
-                      className={`${styles.statusBadge} ${styles[`status_${invoice.status}`]}`}
-                    >
+                    <span className={`${styles.statusBadge} ${styles[`status_${invoice.status}`]}`}>
                       {STATUS_LABELS[invoice.status]}
                     </span>
                   </div>
@@ -580,10 +579,7 @@ export function InvoicesPage() {
                     )}
                   </div>
                   <div className={styles.cardActions}>
-                    <Link
-                      to={`/budget/invoices/${invoice.id}`}
-                      className={styles.viewButton}
-                    >
+                    <Link to={`/budget/invoices/${invoice.id}`} className={styles.viewButton}>
                       View Details
                     </Link>
                   </div>
@@ -778,7 +774,11 @@ export function InvoicesPage() {
                   value={createForm.selectedWorkItemId}
                   onChange={(e) => {
                     const workItemId = e.target.value;
-                    setCreateForm({ ...createForm, selectedWorkItemId: workItemId, workItemBudgetId: '' });
+                    setCreateForm({
+                      ...createForm,
+                      selectedWorkItemId: workItemId,
+                      workItemBudgetId: '',
+                    });
                     if (workItemId) {
                       setBudgetLinesLoading(true);
                       void fetchWorkItemBudgets(workItemId)
@@ -858,7 +858,9 @@ export function InvoicesPage() {
                 <button
                   type="submit"
                   className={styles.button}
-                  disabled={isCreating || !createForm.vendorId || !createForm.amount || !createForm.date}
+                  disabled={
+                    isCreating || !createForm.vendorId || !createForm.amount || !createForm.date
+                  }
                 >
                   {isCreating ? 'Adding...' : 'Add Invoice'}
                 </button>

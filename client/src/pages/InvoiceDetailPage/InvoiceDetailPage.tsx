@@ -1,6 +1,11 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import type { Invoice, InvoiceStatus, WorkItemSummary, WorkItemBudgetLine } from '@cornerstone/shared';
+import type {
+  Invoice,
+  InvoiceStatus,
+  WorkItemSummary,
+  WorkItemBudgetLine,
+} from '@cornerstone/shared';
 import { fetchInvoiceById, updateInvoice, deleteInvoice } from '../../lib/invoicesApi.js';
 import { fetchWorkItemBudgets } from '../../lib/workItemBudgetsApi.js';
 import { listWorkItems } from '../../lib/workItemsApi.js';
@@ -242,9 +247,7 @@ export function InvoiceDetailPage() {
           <span className={styles.breadcrumbSeparator} aria-hidden="true">
             /
           </span>
-          <span className={styles.breadcrumbCurrent}>
-            {invoice.invoiceNumber ?? 'Invoice'}
-          </span>
+          <span className={styles.breadcrumbCurrent}>{invoice.invoiceNumber ?? 'Invoice'}</span>
         </div>
 
         {/* Page heading */}
@@ -280,10 +283,7 @@ export function InvoiceDetailPage() {
             <div className={styles.infoRow}>
               <dt className={styles.infoLabel}>Vendor</dt>
               <dd className={styles.infoValue}>
-                <Link
-                  to={`/budget/vendors/${invoice.vendorId}`}
-                  className={styles.infoLink}
-                >
+                <Link to={`/budget/vendors/${invoice.vendorId}`} className={styles.infoLink}>
                   {invoice.vendorName}
                 </Link>
               </dd>
@@ -307,9 +307,7 @@ export function InvoiceDetailPage() {
             <div className={styles.infoRow}>
               <dt className={styles.infoLabel}>Status</dt>
               <dd className={styles.infoValue}>
-                <span
-                  className={`${styles.statusBadge} ${styles[`status_${invoice.status}`]}`}
-                >
+                <span className={`${styles.statusBadge} ${styles[`status_${invoice.status}`]}`}>
                   {STATUS_LABELS[invoice.status]}
                 </span>
               </dd>
@@ -324,17 +322,13 @@ export function InvoiceDetailPage() {
             )}
             <div className={styles.infoRow}>
               <dt className={styles.infoLabel}>Notes</dt>
-              <dd
-                className={`${styles.infoValue} ${invoice.notes ? styles.infoValueNotes : ''}`}
-              >
+              <dd className={`${styles.infoValue} ${invoice.notes ? styles.infoValueNotes : ''}`}>
                 {invoice.notes ?? '\u2014'}
               </dd>
             </div>
             <div className={styles.infoRow}>
               <dt className={styles.infoLabel}>Created by</dt>
-              <dd className={styles.infoValue}>
-                {invoice.createdBy?.displayName ?? '\u2014'}
-              </dd>
+              <dd className={styles.infoValue}>{invoice.createdBy?.displayName ?? '\u2014'}</dd>
             </div>
           </dl>
         </section>
@@ -369,9 +363,7 @@ export function InvoiceDetailPage() {
                     type="text"
                     id="edit-invoice-number"
                     value={editForm.invoiceNumber}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, invoiceNumber: e.target.value })
-                    }
+                    onChange={(e) => setEditForm({ ...editForm, invoiceNumber: e.target.value })}
                     className={styles.input}
                     placeholder="e.g., INV-001"
                     maxLength={100}
@@ -502,9 +494,7 @@ export function InvoiceDetailPage() {
                   <select
                     id="edit-budget-line"
                     value={editForm.workItemBudgetId}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, workItemBudgetId: e.target.value })
-                    }
+                    onChange={(e) => setEditForm({ ...editForm, workItemBudgetId: e.target.value })}
                     className={styles.select}
                     disabled={isUpdating || budgetLinesLoading}
                   >
@@ -570,11 +560,7 @@ export function InvoiceDetailPage() {
             </h2>
             <p className={styles.modalText}>
               Are you sure you want to delete invoice{' '}
-              {invoice.invoiceNumber ? (
-                <strong>#{invoice.invoiceNumber}</strong>
-              ) : (
-                'this invoice'
-              )}{' '}
+              {invoice.invoiceNumber ? <strong>#{invoice.invoiceNumber}</strong> : 'this invoice'}{' '}
               for <strong>{formatCurrency(invoice.amount)}</strong>?
             </p>
             {deleteError ? (
