@@ -171,8 +171,17 @@ jobs:
         run: npx playwright install chromium webkit
         working-directory: e2e
 
+      - name: Cache apt packages
+        uses: actions/cache@v4
+        with:
+          path: /var/cache/apt/archives
+          key: apt-playwright-${{ steps.playwright-version.outputs.version }}-${{ runner.os }}
+
+      - name: Speed up dpkg
+        run: echo 'force-unsafe-io' | sudo tee /etc/dpkg/dpkg.cfg.d/ci-unsafe-io
+
       - name: Install Playwright system dependencies
-        run: npx playwright install-deps chromium webkit
+        run: sudo npx playwright install-deps chromium webkit
         working-directory: e2e
 
       - name: Run E2E smoke tests
@@ -242,8 +251,17 @@ jobs:
         run: npx playwright install chromium webkit
         working-directory: e2e
 
+      - name: Cache apt packages
+        uses: actions/cache@v4
+        with:
+          path: /var/cache/apt/archives
+          key: apt-playwright-${{ steps.playwright-version.outputs.version }}-${{ runner.os }}
+
+      - name: Speed up dpkg
+        run: echo 'force-unsafe-io' | sudo tee /etc/dpkg/dpkg.cfg.d/ci-unsafe-io
+
       - name: Install Playwright system dependencies
-        run: npx playwright install-deps chromium webkit
+        run: sudo npx playwright install-deps chromium webkit
         working-directory: e2e
 
       - name: Run E2E tests (shard ${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
