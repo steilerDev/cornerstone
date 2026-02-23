@@ -18,6 +18,7 @@ describe('invoicesApi', () => {
   const sampleInvoice: Invoice = {
     id: 'invoice-1',
     vendorId: 'vendor-1',
+    vendorName: 'Test Vendor',
     workItemBudgetId: null,
     invoiceNumber: 'INV-001',
     amount: 2500.0,
