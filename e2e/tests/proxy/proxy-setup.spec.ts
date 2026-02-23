@@ -54,7 +54,9 @@ async function loginThroughProxy(page: Page, baseUrl: string) {
   ]);
 
   if (!loginResponse.ok()) {
-    throw new Error(`Login through proxy failed: ${loginResponse.status()} ${loginResponse.statusText()}`);
+    throw new Error(
+      `Login through proxy failed: ${loginResponse.status()} ${loginResponse.statusText()}`,
+    );
   }
 
   // Wait for the React router to navigate away from /login after session is set.
