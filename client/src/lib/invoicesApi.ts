@@ -1,6 +1,7 @@
 import { get, post, patch, del } from './apiClient.js';
 import type {
   Invoice,
+  InvoiceDetailResponse,
   InvoiceListPaginatedResponse,
   CreateInvoiceRequest,
   UpdateInvoiceRequest,
@@ -69,5 +70,5 @@ export function fetchAllInvoices(params?: {
  * Fetches a single invoice by ID (cross-vendor).
  */
 export function fetchInvoiceById(invoiceId: string): Promise<Invoice> {
-  return get<{ invoice: Invoice }>(`/invoices/${invoiceId}`).then((r) => r.invoice);
+  return get<InvoiceDetailResponse>(`/invoices/${invoiceId}`).then((r) => r.invoice);
 }
