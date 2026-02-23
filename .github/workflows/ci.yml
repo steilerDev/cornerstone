@@ -104,7 +104,7 @@ jobs:
     name: Docker PR Release
     runs-on: ubuntu-latest
     needs: [detect-changes, quality-gates, docker, e2e-smoke]
-    if: "github.event.pull_request.head.repo.full_name == github.repository && (needs.detect-changes.outputs.app == 'true' || needs.detect-changes.outputs.e2e == 'true' || needs.detect-changes.outputs.ci == 'true')"
+    if: "github.base_ref != 'main' && github.event.pull_request.head.repo.full_name == github.repository && (needs.detect-changes.outputs.app == 'true' || needs.detect-changes.outputs.e2e == 'true' || needs.detect-changes.outputs.ci == 'true')"
 
     steps:
       - name: Download image artifact
@@ -154,8 +154,34 @@ jobs:
       - name: Install E2E dependencies
         run: npm ci -w e2e
 
+      - name: Get Playwright version
+        id: playwright-version
+        run: echo "version=$(npx playwright --version | tr -d '[:space:]')" >> $GITHUB_OUTPUT
+        working-directory: e2e
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ steps.playwright-version.outputs.version }}-${{ runner.os }}
+
       - name: Install Playwright browsers
-        run: npx playwright install chromium --with-deps
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium webkit
+        working-directory: e2e
+
+      - name: Cache apt packages
+        uses: actions/cache@v4
+        with:
+          path: /var/cache/apt/archives
+          key: apt-playwright-${{ steps.playwright-version.outputs.version }}-${{ runner.os }}
+
+      - name: Speed up dpkg
+        run: echo 'force-unsafe-io' | sudo tee /etc/dpkg/dpkg.cfg.d/ci-unsafe-io
+
+      - name: Install Playwright system dependencies
+        run: sudo npx playwright install-deps chromium webkit
         working-directory: e2e
 
       - name: Run E2E smoke tests
@@ -208,8 +234,34 @@ jobs:
       - name: Install E2E dependencies
         run: npm ci -w e2e
 
+      - name: Get Playwright version
+        id: playwright-version
+        run: echo "version=$(npx playwright --version | tr -d '[:space:]')" >> $GITHUB_OUTPUT
+        working-directory: e2e
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ steps.playwright-version.outputs.version }}-${{ runner.os }}
+
       - name: Install Playwright browsers
-        run: npx playwright install chromium webkit --with-deps
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium webkit
+        working-directory: e2e
+
+      - name: Cache apt packages
+        uses: actions/cache@v4
+        with:
+          path: /var/cache/apt/archives
+          key: apt-playwright-${{ steps.playwright-version.outputs.version }}-${{ runner.os }}
+
+      - name: Speed up dpkg
+        run: echo 'force-unsafe-io' | sudo tee /etc/dpkg/dpkg.cfg.d/ci-unsafe-io
+
+      - name: Install Playwright system dependencies
+        run: sudo npx playwright install-deps chromium webkit
         working-directory: e2e
 
       - name: Run E2E tests (shard ${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
