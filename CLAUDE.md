@@ -198,6 +198,7 @@ All commits follow [Conventional Commits](https://www.conventionalcommits.org/):
 ### Local Validation Policy
 
 **Do NOT run `npm test`, `npm run lint`, `npm run typecheck`, or `npm run build` manually.** The pre-commit hook runs all quality gates automatically:
+
 - Selective lint + format + related tests on staged files (via lint-staged)
 - Full typecheck across all workspaces
 - Full build (shared → client → server)
@@ -485,6 +486,7 @@ All automated testing is owned by the `qa-integration-tester` agent. Developer a
 ```bash
 git submodule update --init   # Initialize wiki submodule
 npm install                   # Install all workspace dependencies
+chmod +x .husky/pre-commit    # Ensure pre-commit hook is executable (sandbox environments may reset this)
 npm run dev                   # Start server (port 3000) + client dev server (port 5173)
 ```
 
