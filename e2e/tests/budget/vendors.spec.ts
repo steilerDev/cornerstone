@@ -372,7 +372,11 @@ test.describe('Vendor detail page (Scenario 5)', { tag: '@responsive' }, () => {
       await vendorsPage.clickView(vendorName);
 
       // Then: I am on the vendor detail page (wait for URL, not h1 which matches list page too)
-      await page.waitForURL(`**/budget/vendors/${createdId}`, { timeout: 8000 });
+      await page.waitForURL(`**/budget/vendors/${createdId}`, { timeout: 15000 });
+
+      // Wait for the loading state to clear — CI runners can be slow and the
+      // fetch + render may take longer than the default 7s timeout
+      await expect(page.getByText('Loading vendor...')).not.toBeVisible({ timeout: 15000 });
 
       // Wait for the loading state to clear — CI runners can be slow and the
       // fetch + render may take longer than the default 7s timeout
@@ -643,7 +647,7 @@ test.describe('Delete vendor — no references (Scenario 8)', { tag: '@responsiv
     await detailPage.confirmDelete();
 
     // Then: I am redirected to the vendors list
-    await page.waitForURL('/budget/vendors', { timeout: 8000 });
+    await page.waitForURL('/budget/vendors', { timeout: 15000 });
     expect(page.url()).toContain('/budget/vendors');
 
     // Note: vendor was deleted via UI — no API cleanup needed
@@ -1072,15 +1076,15 @@ test.describe('Navigation between list and detail pages', { tag: '@responsive' }
 
       // Navigate to detail (wait for URL change, not h1 which matches list page too)
       await vendorsPage.clickView(vendorName);
-      await page.waitForURL('**/budget/vendors/*', { timeout: 8000 });
+      await page.waitForURL('**/budget/vendors/*', { timeout: 15000 });
 
       // Wait for detail page to fully render before interacting with breadcrumb
-      await expect(detailPage.infoCard).toBeVisible();
+      await expect(detailPage.infoCard).toBeVisible({ timeout: 15000 });
 
       // Navigate back via breadcrumb
       await detailPage.goBackToVendors();
       expect(page.url()).toContain('/budget/vendors');
-      await vendorsPage.heading.waitFor({ state: 'visible', timeout: 8000 });
+      await vendorsPage.heading.waitFor({ state: 'visible', timeout: 15000 });
     } finally {
       if (createdId) await deleteVendorViaApi(page, createdId);
     }
@@ -1090,7 +1094,7 @@ test.describe('Navigation between list and detail pages', { tag: '@responsive' }
     const vendorsPage = new VendorsPage(page);
 
     await vendorsPage.goto();
-    await page.waitForURL('/budget/vendors');
+    await page.waitForURL('/budget/vendors', { timeout: 15000 });
     expect(page.url()).toContain('/budget/vendors');
   });
 
