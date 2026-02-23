@@ -152,23 +152,41 @@ export class WorkItemsPage {
   }
 
   /**
-   * Type a search query and wait for the debounced API response.
+   * Type a search query and wait for both the debounced API response and the
+   * DOM to re-render with the filtered results.
+   *
+   * The response listener must be registered BEFORE the fill action to avoid a
+   * race condition where the debounced request resolves before the listener is
+   * attached (especially common on WebKit/tablet where the 300ms debounce can
+   * fire and complete before the next line executes).
+   *
+   * After the network response is received we additionally call waitForLoaded()
+   * to ensure React has flushed the new data into the DOM before callers
+   * attempt to read titles or interact with list items.
    */
   async search(query: string): Promise<void> {
-    await this.searchInput.fill(query);
-    await this.page.waitForResponse(
+    const responsePromise = this.page.waitForResponse(
       (resp) => resp.url().includes('/api/work-items') && resp.status() === 200,
     );
+    await this.searchInput.fill(query);
+    await responsePromise;
+    await this.waitForLoaded();
   }
 
   /**
-   * Clear the search input and wait for the list to update.
+   * Clear the search input and wait for both the API response and the DOM to
+   * update.
+   *
+   * The response listener must be registered BEFORE the clear action for the
+   * same race-condition reason as search().
    */
   async clearSearch(): Promise<void> {
-    await this.searchInput.clear();
-    await this.page.waitForResponse(
+    const responsePromise = this.page.waitForResponse(
       (resp) => resp.url().includes('/api/work-items') && resp.status() === 200,
     );
+    await this.searchInput.clear();
+    await responsePromise;
+    await this.waitForLoaded();
   }
 
   /**
@@ -216,10 +234,21 @@ export class WorkItemsPage {
 
   /**
    * Confirm the deletion in the delete modal.
-   * No explicit timeout — uses project-level actionTimeout (15s for WebKit).
+   *
+   * Waits for both the DELETE API response and the modal to hide. Registering
+   * the response listener before the click prevents a race where the DELETE
+   * completes and the modal closes before the listener is attached (common on
+   * fast Chromium or heavily-loaded CI runners).
    */
   async confirmDelete(): Promise<void> {
+    const deleteResponsePromise = this.page.waitForResponse(
+      (resp) =>
+        resp.url().includes('/api/work-items') &&
+        resp.request().method() === 'DELETE' &&
+        resp.status() === 204,
+    );
     await this.deleteConfirmButton.click();
+    await deleteResponsePromise;
     await this.deleteModal.waitFor({ state: 'hidden' });
   }
 
