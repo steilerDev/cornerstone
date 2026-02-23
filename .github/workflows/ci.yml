@@ -161,6 +161,12 @@ jobs:
         run: sudo npx playwright install-deps chromium webkit
         working-directory: e2e
 
+      - name: Prepare apt cache for save
+        if: steps.apt-cache.outputs.cache-hit != 'true'
+        run: |
+          sudo rm -f /var/cache/apt/archives/lock
+          sudo rm -rf /var/cache/apt/archives/partial
+
       - name: Save apt cache
         if: steps.apt-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
