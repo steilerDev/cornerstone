@@ -374,10 +374,14 @@ test.describe('Vendor detail page (Scenario 5)', { tag: '@responsive' }, () => {
       // Then: I am on the vendor detail page (wait for URL, not h1 which matches list page too)
       await page.waitForURL(`**/budget/vendors/${createdId}`, { timeout: 8000 });
 
+      // Wait for the loading state to clear — CI runners can be slow and the
+      // fetch + render may take longer than the default 7s timeout
+      await expect(page.getByText('Loading vendor...')).not.toBeVisible({ timeout: 15000 });
+
       // And: The page heading is the vendor name
       // Wait for the detail page info card to render — the h1 transitions from
       // "Budget" (list page) to the vendor name after React fetches and renders
-      await expect(detailPage.infoCard).toBeVisible();
+      await expect(detailPage.infoCard).toBeVisible({ timeout: 15000 });
       await expect(detailPage.pageTitle).toHaveText(vendorName);
 
       // And: All vendor fields are shown in the info card
