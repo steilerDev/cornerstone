@@ -25,6 +25,42 @@ test.beforeAll(async () => {
   }
 });
 
+/**
+ * Log in through the proxy and wait until the session is established.
+ *
+ * Uses Promise.all to start the API response listener before clicking Submit,
+ * preventing a race where the login response arrives before the listener is
+ * attached (especially relevant through the extra nginx hop). After the API
+ * response confirms success, we wait for the URL to change away from /login
+ * using waitForURL — this is a condition-based wait that is more reliable than
+ * the previous `expect(page).not.toHaveURL` pattern which could time out if
+ * React's router update lagged slightly behind the session establishment.
+ *
+ * @param page - Playwright Page within an unauthenticated context
+ * @param baseUrl - The proxy base URL to use
+ */
+async function loginThroughProxy(page: import('@playwright/test').Page, baseUrl: string) {
+  await page.goto(`${baseUrl}/login`);
+  await page.getByLabel(/email/i).fill(TEST_ADMIN.email);
+  await page.getByLabel(/password/i).fill(TEST_ADMIN.password);
+
+  // Start the response listener BEFORE clicking so we don't miss the response.
+  const [loginResponse] = await Promise.all([
+    page.waitForResponse(
+      (resp) => resp.url().includes('/api/auth/login') && resp.request().method() === 'POST',
+    ),
+    page.getByRole('button', { name: /sign in/i }).click(),
+  ]);
+
+  if (!loginResponse.ok()) {
+    throw new Error(`Login through proxy failed: ${loginResponse.status()} ${loginResponse.statusText()}`);
+  }
+
+  // Wait for the React router to navigate away from /login after session is set.
+  // The proxy adds an extra nginx hop so allow enough time for the redirect chain.
+  await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 15000 });
+}
+
 test.describe('Reverse Proxy Setup', { tag: '@responsive' }, () => {
   test('should return healthy status through proxy', async ({ request }) => {
     // Given: A reverse proxy forwarding to the Cornerstone app
@@ -73,16 +109,12 @@ test.describe('Reverse Proxy Setup', { tag: '@responsive' }, () => {
       storageState: { cookies: [], origins: [] },
     });
     const page = await context.newPage();
-    await page.goto(`${proxyBaseUrl}/login`);
 
-    // When: Logging in with valid credentials
-    await page.getByLabel(/email/i).fill(TEST_ADMIN.email);
-    await page.getByLabel(/password/i).fill(TEST_ADMIN.password);
-    await page.getByRole('button', { name: /sign in/i }).click();
+    // When: Logging in with valid credentials through the proxy
+    await loginThroughProxy(page, proxyBaseUrl);
 
-    // Then: Should redirect away from login page (to dashboard or home)
-    // Proxy login goes through an extra nginx hop — give it more time than the default 5s
-    await expect(page).not.toHaveURL(/\/login/, { timeout: 15000 });
+    // Then: Should have redirected away from login page (to dashboard or home)
+    expect(page.url()).not.toMatch(/\/login/);
 
     await context.close();
   });
@@ -96,12 +128,8 @@ test.describe('Reverse Proxy Setup', { tag: '@responsive' }, () => {
     });
     const page = await context.newPage();
 
-    // When: Logging in through the proxy
-    await page.goto(`${proxyBaseUrl}/login`);
-    await page.getByLabel(/email/i).fill(TEST_ADMIN.email);
-    await page.getByLabel(/password/i).fill(TEST_ADMIN.password);
-    await page.getByRole('button', { name: /sign in/i }).click();
-    await expect(page).not.toHaveURL(/\/login/, { timeout: 15000 });
+    // When: Logging in through the proxy (helper waits for session to be established)
+    await loginThroughProxy(page, proxyBaseUrl);
 
     // And: Navigating to a protected route
     await page.goto(`${proxyBaseUrl}/profile`);
@@ -121,12 +149,8 @@ test.describe('Reverse Proxy Setup', { tag: '@responsive' }, () => {
     });
     const page = await context.newPage();
 
-    // Login first
-    await page.goto(`${proxyBaseUrl}/login`);
-    await page.getByLabel(/email/i).fill(TEST_ADMIN.email);
-    await page.getByLabel(/password/i).fill(TEST_ADMIN.password);
-    await page.getByRole('button', { name: /sign in/i }).click();
-    await expect(page).not.toHaveURL(/\/login/, { timeout: 15000 });
+    // Login first — helper waits for the API response and URL to change
+    await loginThroughProxy(page, proxyBaseUrl);
 
     // When: Logging out through the proxy
     await page.goto(`${proxyBaseUrl}/profile`);

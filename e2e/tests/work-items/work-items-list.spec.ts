@@ -292,11 +292,20 @@ test.describe('Delete modal — confirm (Scenario 6)', { tag: '@responsive' }, (
     const modalText = await workItemsPage.deleteModal.textContent();
     expect(modalText).toContain(title);
 
-    // Confirm deletion
+    // Register the list-refresh response listener before confirming deletion so
+    // we don't miss the GET that fires immediately after the DELETE completes.
+    const listRefreshPromise = page.waitForResponse(
+      (resp) => resp.url().includes('/api/work-items') && resp.status() === 200,
+    );
+
+    // Confirm deletion — confirmDelete() waits for the DELETE API response and
+    // the modal to close.
     await workItemsPage.confirmDelete();
 
-    // Work item no longer in list
-    await workItemsPage.waitForLoaded();
+    // Wait for the list to refresh with the post-delete GET response.
+    await listRefreshPromise;
+
+    // Work item no longer in list (assert on DOM, no need for another waitForLoaded)
     const titlesAfter = await workItemsPage.getWorkItemTitles();
     expect(titlesAfter).not.toContain(title);
 

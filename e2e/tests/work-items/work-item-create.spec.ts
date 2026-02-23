@@ -98,12 +98,14 @@ test.describe('Create with title only — happy path (Scenario 3)', { tag: '@res
         createdId = body.workItem?.id ?? body.id ?? null;
 
         // Should redirect to /work-items/:id
-        await page.waitForURL('**/work-items/**', { timeout: 7000 });
+        // Use project-level navigationTimeout (15s for WebKit) — do not hardcode
+        // a timeout that is too short for mobile/tablet WebKit.
+        await page.waitForURL('**/work-items/**');
         expect(page.url()).toMatch(/\/work-items\/[a-z0-9-]+$/);
         expect(page.url()).not.toContain('/work-items/new');
 
-        // Detail page shows the correct title
-        await expect(page.getByRole('heading', { level: 1 })).toHaveText(title, { timeout: 7000 });
+        // Detail page shows the correct title — use project-level expect timeout
+        await expect(page.getByRole('heading', { level: 1 })).toHaveText(title);
       } finally {
         if (createdId) await deleteWorkItemViaApi(page, createdId);
       }
