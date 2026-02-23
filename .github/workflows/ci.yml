@@ -9,9 +9,35 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      app: ${{ steps.filter.outputs.app }}
+      e2e: ${{ steps.filter.outputs.e2e }}
+      ci: ${{ steps.filter.outputs.ci }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Classify changed paths
+        id: filter
+        run: |
+          CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+          echo "Changed files:"
+          echo "$CHANGED"
+
+          check() { echo "$CHANGED" | grep -qE "$1" && echo 'true' || echo 'false'; }
+
+          echo "app=$(check '^(shared|server|client)/|^(package\.json|package-lock\.json|tsconfig\.base\.json|eslint\.config\.js|\.prettierrc|jest\.config\.ts|Dockerfile|\.nvmrc)$')" >> "$GITHUB_OUTPUT"
+          echo "e2e=$(check '^e2e/')" >> "$GITHUB_OUTPUT"
+          echo "ci=$(check '^\.github/workflows/')" >> "$GITHUB_OUTPUT"
+
   quality-gates:
     name: Quality Gates
     runs-on: ubuntu-latest
+    needs: [detect-changes]
+    if: needs.detect-changes.outputs.app == 'true' || needs.detect-changes.outputs.ci == 'true'
 
     steps:
       - name: Checkout
@@ -47,6 +73,8 @@ jobs:
   docker:
     name: Docker
     runs-on: ubuntu-latest
+    needs: [detect-changes]
+    if: needs.detect-changes.outputs.app == 'true' || needs.detect-changes.outputs.e2e == 'true' || needs.detect-changes.outputs.ci == 'true'
 
     steps:
       - name: Checkout
@@ -75,8 +103,8 @@ jobs:
   docker-pr-release:
     name: Docker PR Release
     runs-on: ubuntu-latest
-    needs: [quality-gates, docker, e2e-smoke]
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    needs: [detect-changes, quality-gates, docker, e2e-smoke]
+    if: "github.event.pull_request.head.repo.full_name == github.repository && (needs.detect-changes.outputs.app == 'true' || needs.detect-changes.outputs.e2e == 'true' || needs.detect-changes.outputs.ci == 'true')"
 
     steps:
       - name: Download image artifact
@@ -101,7 +129,8 @@ jobs:
   e2e-smoke:
     name: E2E Smoke Tests
     runs-on: ubuntu-latest
-    needs: docker
+    needs: [detect-changes, docker]
+    if: needs.detect-changes.outputs.app == 'true' || needs.detect-changes.outputs.e2e == 'true' || needs.detect-changes.outputs.ci == 'true'
     timeout-minutes: 15
 
     steps:
@@ -146,8 +175,8 @@ jobs:
   e2e:
     name: E2E Tests
     runs-on: ubuntu-latest
-    needs: docker
-    if: github.base_ref == 'main'
+    needs: [detect-changes, docker]
+    if: "github.base_ref == 'main' && (needs.detect-changes.outputs.app == 'true' || needs.detect-changes.outputs.e2e == 'true' || needs.detect-changes.outputs.ci == 'true')"
     timeout-minutes: 30
 
     steps:
