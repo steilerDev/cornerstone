@@ -23,10 +23,10 @@ export default defineConfig({
   /* Retry on CI only */
   retries: process.env.CI ? 1 : 0,
 
-  /* CI workers: 1 per vCPU (4 vCPUs on ubuntu-latest). With 8 shards splitting the
-     suite, each shard runs ~3-4 test files. 4 workers avoids CPU contention that
-     caused flakiness at higher counts (8 workers on a single runner). */
-  workers: process.env.CI ? 4 : undefined,
+  /* CI workers: 2 on ubuntu-latest (2 vCPUs). With 16 shards splitting the
+     suite, each shard runs ~1-2 test files. Halved from 4 to reduce CPU
+     contention that caused desktop tests to hit the 10s timeout. */
+  workers: process.env.CI ? 2 : undefined,
 
   /* Reporter to use. See https://playwright.dev/docs/test-reporters
      When sharding, use blob reporter so reports can be merged across shards. */
@@ -111,8 +111,8 @@ export default defineConfig({
     },
   ],
 
-  /* Test timeout — most passing tests complete in 2-5s; some multi-step tests need up to 10s */
-  timeout: 10_000, // 10 seconds per test (desktop default)
+  /* Test timeout — most passing tests complete in 2-5s; some multi-step tests need up to 15s */
+  timeout: 15_000, // 15 seconds per test (desktop default)
 
   /* Global timeout: cap the entire suite at 30 minutes on CI to prevent stuck runs */
   globalTimeout: process.env.CI ? 30 * 60 * 1000 : undefined,
