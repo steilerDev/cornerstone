@@ -25,6 +25,8 @@ const DocumentsPage = lazy(() => import('./pages/DocumentsPage/DocumentsPage'));
 const TagManagementPage = lazy(() => import('./pages/TagManagementPage/TagManagementPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage/ProfilePage'));
 const UserManagementPage = lazy(() => import('./pages/UserManagementPage/UserManagementPage'));
+const InvoicesPage = lazy(() => import('./pages/InvoicesPage/InvoicesPage'));
+const InvoiceDetailPage = lazy(() => import('./pages/InvoiceDetailPage/InvoiceDetailPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage/NotFoundPage'));
 
 export function App() {
@@ -64,6 +66,8 @@ export function App() {
                   <Route path="categories" element={<BudgetCategoriesPage />} />
                   <Route path="vendors" element={<VendorsPage />} />
                   <Route path="vendors/:id" element={<VendorDetailPage />} />
+                  <Route path="invoices" element={<InvoicesPage />} />
+                  <Route path="invoices/:id" element={<InvoiceDetailPage />} />
                   <Route path="sources" element={<BudgetSourcesPage />} />
                   <Route path="subsidies" element={<SubsidyProgramsPage />} />
                 </Route>
