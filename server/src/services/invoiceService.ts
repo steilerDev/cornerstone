@@ -236,7 +236,7 @@ export function listAllInvoices(
     }
   }
 
-  // Map rows — resolve createdBy for each (unavoidable per-row query for createdBy)
+  // Map rows — resolve createdBy and workItemBudget for each
   const invoiceList: Invoice[] = rows.map(({ invoice: row, vendorName }) => {
     const createdByUser = row.createdBy
       ? db.select().from(users).where(eq(users.id, row.createdBy)).get()
@@ -246,6 +246,9 @@ export function listAllInvoices(
       vendorId: row.vendorId,
       vendorName,
       workItemBudgetId: row.workItemBudgetId,
+      workItemBudget: row.workItemBudgetId
+        ? toWorkItemBudgetSummary(db, row.workItemBudgetId)
+        : null,
       invoiceNumber: row.invoiceNumber,
       amount: row.amount,
       date: row.date,
