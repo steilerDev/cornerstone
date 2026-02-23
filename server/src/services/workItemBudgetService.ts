@@ -15,6 +15,7 @@ import type {
   BudgetCategory,
   BudgetSourceSummary,
   VendorSummary,
+  InvoiceSummary,
   UserSummary,
   ConfidenceLevel,
   CreateWorkItemBudgetRequest,
@@ -122,6 +123,37 @@ function getInvoiceAggregates(
 }
 
 /**
+ * Fetch individual invoices linked to a budget line, ordered by date descending.
+ * Includes vendor name via a LEFT JOIN.
+ */
+function getLinkedInvoices(db: DbType, budgetId: string): InvoiceSummary[] {
+  const rows = db.all<{
+    id: string;
+    vendor_id: string;
+    vendor_name: string | null;
+    invoice_number: string | null;
+    amount: number;
+    date: string;
+    status: string;
+  }>(
+    sql`SELECT i.id, i.vendor_id, v.name AS vendor_name, i.invoice_number, i.amount, i.date, i.status
+    FROM invoices i LEFT JOIN vendors v ON v.id = i.vendor_id
+    WHERE i.work_item_budget_id = ${budgetId}
+    ORDER BY i.date DESC`,
+  );
+
+  return rows.map((r) => ({
+    id: r.id,
+    vendorId: r.vendor_id,
+    vendorName: r.vendor_name,
+    invoiceNumber: r.invoice_number,
+    amount: r.amount,
+    date: r.date,
+    status: r.status,
+  }));
+}
+
+/**
  * Convert a database work_item_budgets row to WorkItemBudgetLine API shape.
  * Joins all related entities (category, source, vendor, createdBy) and computes
  * aggregate invoice fields.
@@ -149,8 +181,9 @@ function toWorkItemBudgetLine(
     ? db.select().from(users).where(eq(users.id, row.createdBy)).get()
     : null;
 
-  // Compute invoice aggregates
+  // Compute invoice aggregates and fetch individual invoice summaries
   const { actualCost, actualCostPaid, invoiceCount } = getInvoiceAggregates(db, row.id);
+  const invoiceList = getLinkedInvoices(db, row.id);
 
   return {
     id: row.id,
@@ -165,6 +198,7 @@ function toWorkItemBudgetLine(
     actualCost,
     actualCostPaid,
     invoiceCount,
+    invoices: invoiceList,
     createdBy: toUserSummary(createdByUser),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,

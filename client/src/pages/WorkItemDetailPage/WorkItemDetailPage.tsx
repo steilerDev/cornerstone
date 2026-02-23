@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, type FormEvent } from 'react';
+import { useState, useEffect, useRef, useMemo, type FormEvent } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import type {
   WorkItemDetail,
@@ -119,6 +119,9 @@ export default function WorkItemDetailPage() {
   const [isSavingBudget, setIsSavingBudget] = useState(false);
   const [budgetFormError, setBudgetFormError] = useState<string | null>(null);
   const [deletingBudgetId, setDeletingBudgetId] = useState<string | null>(null);
+  // Invoice popover state: holds the budget line id whose popover is open
+  const [invoicePopoverBudgetId, setInvoicePopoverBudgetId] = useState<string | null>(null);
+  const invoicePopoverRef = useRef<HTMLDivElement>(null);
 
   // Subsidy linking state
   const [linkedSubsidies, setLinkedSubsidies] = useState<SubsidyProgram[]>([]);
@@ -220,6 +223,18 @@ export default function WorkItemDetailPage() {
 
     loadData();
   }, [id]);
+
+  // Close invoice popover on click-outside
+  useEffect(() => {
+    if (!invoicePopoverBudgetId) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (invoicePopoverRef.current && !invoicePopoverRef.current.contains(e.target as Node)) {
+        setInvoicePopoverBudgetId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [invoicePopoverBudgetId]);
 
   // Reload work item details after changes
   const reloadWorkItem = async () => {
@@ -363,7 +378,13 @@ export default function WorkItemDetailPage() {
       setDeletingBudgetId(null);
       await reloadBudgetLines();
     } catch (err) {
-      setInlineError('Failed to delete budget line');
+      setDeletingBudgetId(null);
+      const apiErr = err as { statusCode?: number; message?: string };
+      if (apiErr.statusCode === 409) {
+        setInlineError(apiErr.message || 'Budget line cannot be deleted because it is in use');
+      } else {
+        setInlineError('Failed to delete budget line');
+      }
       console.error('Failed to delete budget line:', err);
     }
   };
@@ -1198,21 +1219,61 @@ export default function WorkItemDetailPage() {
                       {line.budgetSource && (
                         <span className={styles.budgetLineMetaItem}>{line.budgetSource.name}</span>
                       )}
-                      {line.vendor && line.invoiceCount > 0 ? (
-                        <Link
-                          to={`/budget/vendors/${line.vendor.id}`}
-                          className={styles.budgetLineMetaLink}
-                        >
-                          {line.invoiceCount} invoice{line.invoiceCount !== 1 ? 's' : ''} ·{' '}
-                          {formatCurrency(line.actualCost)}
-                        </Link>
-                      ) : line.vendor ? (
+                      {line.vendor && line.invoiceCount === 0 ? (
                         <span className={styles.budgetLineMetaItem}>{line.vendor.name}</span>
                       ) : line.invoiceCount > 0 ? (
-                        <span className={styles.budgetLineMetaItem}>
-                          {line.invoiceCount} invoice{line.invoiceCount !== 1 ? 's' : ''} ·{' '}
-                          {formatCurrency(line.actualCost)}
-                        </span>
+                        <div
+                          className={styles.invoicePopoverWrapper}
+                          ref={invoicePopoverBudgetId === line.id ? invoicePopoverRef : null}
+                        >
+                          <button
+                            type="button"
+                            className={styles.budgetLineMetaLink}
+                            onClick={() =>
+                              setInvoicePopoverBudgetId((prev) =>
+                                prev === line.id ? null : line.id,
+                              )
+                            }
+                            aria-expanded={invoicePopoverBudgetId === line.id}
+                            aria-haspopup="true"
+                          >
+                            {line.invoiceCount} invoice{line.invoiceCount !== 1 ? 's' : ''} ·{' '}
+                            {formatCurrency(line.actualCost)}
+                          </button>
+                          {invoicePopoverBudgetId === line.id && (
+                            <div className={styles.invoicePopover} role="listbox">
+                              <div className={styles.invoicePopoverHeader}>Invoices</div>
+                              {line.invoices.map((inv) => (
+                                <Link
+                                  key={inv.id}
+                                  to={`/budget/vendors/${inv.vendorId}`}
+                                  className={styles.invoicePopoverItem}
+                                  onClick={() => setInvoicePopoverBudgetId(null)}
+                                >
+                                  <div className={styles.invoicePopoverItemRow}>
+                                    <span className={styles.invoicePopoverItemNumber}>
+                                      {inv.invoiceNumber ? `#${inv.invoiceNumber}` : 'No #'}
+                                    </span>
+                                    <span className={styles.invoicePopoverItemAmount}>
+                                      {formatCurrency(inv.amount)}
+                                    </span>
+                                  </div>
+                                  <div className={styles.invoicePopoverItemMeta}>
+                                    {inv.vendorName && <span>{inv.vendorName}</span>}
+                                    {inv.vendorName && <span>·</span>}
+                                    <span>{inv.date.slice(0, 10)}</span>
+                                    <span>·</span>
+                                    <span
+                                      className={`${styles.invoicePopoverStatusBadge} ${styles[`invoicePopoverStatus_${inv.status}`]}`}
+                                    >
+                                      {inv.status}
+                                    </span>
+                                  </div>
+                                </Link>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       ) : null}
                     </div>
                   </div>

@@ -2,10 +2,11 @@ import { randomUUID } from 'node:crypto';
 import { eq, desc, and, asc, sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { invoices, vendors, workItemBudgets, users } from '../db/schema.js';
+import { invoices, vendors, workItemBudgets, workItems, users } from '../db/schema.js';
 import type {
   Invoice,
   InvoiceStatus,
+  WorkItemBudgetSummary,
   CreateInvoiceRequest,
   UpdateInvoiceRequest,
   UserSummary,
@@ -45,8 +46,33 @@ function toUserSummary(user: typeof users.$inferSelect | null | undefined): User
 }
 
 /**
+ * Resolve the WorkItemBudgetSummary for an invoice, if linked.
+ * Joins work_item_budgets and work_items to build the summary shape.
+ */
+function toWorkItemBudgetSummary(db: DbType, budgetId: string): WorkItemBudgetSummary | null {
+  const budgetRow = db.select().from(workItemBudgets).where(eq(workItemBudgets.id, budgetId)).get();
+  if (!budgetRow) return null;
+
+  const workItemRow = db
+    .select()
+    .from(workItems)
+    .where(eq(workItems.id, budgetRow.workItemId))
+    .get();
+  if (!workItemRow) return null;
+
+  return {
+    id: budgetRow.id,
+    workItemId: budgetRow.workItemId,
+    workItemTitle: workItemRow.title,
+    description: budgetRow.description,
+    plannedAmount: budgetRow.plannedAmount,
+    confidence: budgetRow.confidence,
+  };
+}
+
+/**
  * Convert a database invoice row to Invoice API shape.
- * Resolves vendorName and createdBy via separate queries.
+ * Resolves vendorName, createdBy, and workItemBudget via separate queries.
  * If knownVendorName is provided, skips the vendor DB lookup.
  */
 function toInvoice(
@@ -62,11 +88,16 @@ function toInvoice(
     ? db.select().from(users).where(eq(users.id, row.createdBy)).get()
     : null;
 
+  const workItemBudget = row.workItemBudgetId
+    ? toWorkItemBudgetSummary(db, row.workItemBudgetId)
+    : null;
+
   return {
     id: row.id,
     vendorId: row.vendorId,
     vendorName,
     workItemBudgetId: row.workItemBudgetId,
+    workItemBudget,
     invoiceNumber: row.invoiceNumber,
     amount: row.amount,
     date: row.date,

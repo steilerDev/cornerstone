@@ -14,6 +14,20 @@ import type { UserSummary } from './workItem.js';
 export type InvoiceStatus = 'pending' | 'paid' | 'claimed';
 
 /**
+ * Summary of the work item budget line linked to an invoice.
+ * Returned as part of the Invoice response to allow the client to
+ * pre-populate the "Link to Work Item" dropdown in the edit modal.
+ */
+export interface WorkItemBudgetSummary {
+  id: string;
+  workItemId: string;
+  workItemTitle: string;
+  description: string | null;
+  plannedAmount: number;
+  confidence: string;
+}
+
+/**
  * Invoice entity as returned by the API.
  */
 export interface Invoice {
@@ -22,6 +36,8 @@ export interface Invoice {
   vendorName: string;
   /** Optional link to the work item budget line this invoice was issued against. */
   workItemBudgetId: string | null;
+  /** Enriched budget line + work item details when workItemBudgetId is set. */
+  workItemBudget: WorkItemBudgetSummary | null;
   invoiceNumber: string | null;
   amount: number;
   date: string;
