@@ -17,4 +17,4 @@ Budget management in Cornerstone will provide:
 - **Vendor invoices** -- track invoice status (pending, paid, claimed)
 - **Subsidy tracking** -- manage subsidies with percentage-based or fixed-amount reductions
 
-See the [Roadmap](../roadmap) for the latest status of this feature.
+See the [Roadmap](/roadmap) for the latest status of this feature.

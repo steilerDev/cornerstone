@@ -25,10 +25,10 @@ Enter the email and password you just created to log in. You'll land on the work
 
 ## Adding More Users
 
-Once logged in as an admin, you can add more users through the [admin panel](admin-panel). Users can be created with either:
+Once logged in as an admin, you can add more users through the [admin panel](/guides/users/admin-panel). Users can be created with either:
 
 - **Local accounts** -- email and password managed by Cornerstone
-- **OIDC accounts** -- users log in through your identity provider and are automatically provisioned on first login (see [OIDC Setup](oidc-setup))
+- **OIDC accounts** -- users log in through your identity provider and are automatically provisioned on first login (see [OIDC Setup](/guides/users/oidc-setup))
 
 ## Roles
 
