@@ -89,6 +89,7 @@ export type {
 export type {
   Invoice,
   InvoiceStatus,
+  WorkItemBudgetSummary,
   CreateInvoiceRequest,
   UpdateInvoiceRequest,
   InvoiceListResponse,
@@ -129,6 +130,7 @@ export type {
   ConfidenceLevel,
   BudgetSourceSummary,
   VendorSummary,
+  InvoiceSummary,
   WorkItemBudgetLine,
   CreateWorkItemBudgetRequest,
   UpdateWorkItemBudgetRequest,

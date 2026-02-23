@@ -44,6 +44,21 @@ export interface VendorSummary {
 }
 
 /**
+ * Summary of an invoice linked to a budget line.
+ * Returned as part of WorkItemBudgetLine so the WorkItemDetailPage
+ * can render an invoice popover without a separate API call.
+ */
+export interface InvoiceSummary {
+  id: string;
+  vendorId: string;
+  vendorName: string | null;
+  invoiceNumber: string | null;
+  amount: number;
+  date: string;
+  status: string;
+}
+
+/**
  * A single budget line for a work item, including computed aggregate fields
  * derived from linked invoices.
  */
@@ -64,6 +79,8 @@ export interface WorkItemBudgetLine {
   actualCostPaid: number;
   /** Computed: count of linked invoices */
   invoiceCount: number;
+  /** Individual invoices linked to this budget line, ordered by date descending. */
+  invoices: InvoiceSummary[];
   createdBy: UserSummary | null;
   createdAt: string;
   updatedAt: string;
