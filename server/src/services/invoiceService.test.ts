@@ -765,6 +765,284 @@ describe('Invoice Service', () => {
     });
   });
 
+  // ─── listAllInvoices() ──────────────────────────────────────────────────────
+
+  describe('listAllInvoices()', () => {
+    it('returns empty invoices array and zero pagination when no invoices exist', () => {
+      const result = invoiceService.listAllInvoices(db, {});
+
+      expect(result.invoices).toHaveLength(0);
+      expect(result.pagination.totalItems).toBe(0);
+      expect(result.pagination.totalPages).toBe(0);
+      expect(result.pagination.page).toBe(1);
+    });
+
+    it('returns zero summary counts when no invoices exist', () => {
+      const result = invoiceService.listAllInvoices(db, {});
+
+      expect(result.summary.pending.count).toBe(0);
+      expect(result.summary.pending.totalAmount).toBe(0);
+      expect(result.summary.paid.count).toBe(0);
+      expect(result.summary.paid.totalAmount).toBe(0);
+      expect(result.summary.claimed.count).toBe(0);
+      expect(result.summary.claimed.totalAmount).toBe(0);
+    });
+
+    it('returns all invoices across multiple vendors with vendorName resolved via JOIN', () => {
+      const vendorAId = createTestVendor('Vendor Alpha');
+      const vendorBId = createTestVendor('Vendor Beta');
+      insertRawInvoice(vendorAId, { amount: 100 });
+      insertRawInvoice(vendorBId, { amount: 200 });
+
+      const result = invoiceService.listAllInvoices(db, {});
+
+      expect(result.invoices).toHaveLength(2);
+      const vendorNames = result.invoices.map((inv) => inv.vendorName).sort();
+      expect(vendorNames).toEqual(['Vendor Alpha', 'Vendor Beta']);
+    });
+
+    it('returns correct vendorName on each invoice matching its vendor', () => {
+      const vendorAId = createTestVendor('Acme Corp');
+      const vendorBId = createTestVendor('BuildRight LLC');
+      const invAId = insertRawInvoice(vendorAId, { amount: 500 });
+      insertRawInvoice(vendorBId, { amount: 750 });
+
+      const result = invoiceService.listAllInvoices(db, {});
+
+      const invoiceA = result.invoices.find((inv) => inv.id === invAId);
+      expect(invoiceA?.vendorName).toBe('Acme Corp');
+    });
+
+    it('respects page and pageSize — returns correct slice and pagination metadata', () => {
+      const vendorId = createTestVendor('Pagination Vendor');
+      insertRawInvoice(vendorId, { date: '2026-01-01', amount: 100 });
+      insertRawInvoice(vendorId, { date: '2026-01-02', amount: 200 });
+      insertRawInvoice(vendorId, { date: '2026-01-03', amount: 300 });
+      insertRawInvoice(vendorId, { date: '2026-01-04', amount: 400 });
+      insertRawInvoice(vendorId, { date: '2026-01-05', amount: 500 });
+
+      const result = invoiceService.listAllInvoices(db, { page: 2, pageSize: 2 });
+
+      expect(result.invoices).toHaveLength(2);
+      expect(result.pagination.page).toBe(2);
+      expect(result.pagination.pageSize).toBe(2);
+      expect(result.pagination.totalItems).toBe(5);
+      expect(result.pagination.totalPages).toBe(3);
+    });
+
+    it('returns first page when page is not specified (defaults to page 1)', () => {
+      const vendorId = createTestVendor('Default Page Vendor');
+      insertRawInvoice(vendorId, { amount: 100 });
+      insertRawInvoice(vendorId, { amount: 200 });
+
+      const result = invoiceService.listAllInvoices(db, { pageSize: 1 });
+
+      expect(result.pagination.page).toBe(1);
+      expect(result.invoices).toHaveLength(1);
+    });
+
+    it('filters by status — returns only matching invoices', () => {
+      const vendorId = createTestVendor('Status Filter Vendor');
+      insertRawInvoice(vendorId, { status: 'pending', amount: 100 });
+      insertRawInvoice(vendorId, { status: 'paid', amount: 200 });
+      insertRawInvoice(vendorId, { status: 'claimed', amount: 300 });
+
+      const result = invoiceService.listAllInvoices(db, { status: 'paid' });
+
+      expect(result.invoices).toHaveLength(1);
+      expect(result.invoices[0].status).toBe('paid');
+    });
+
+    it('filters by vendorId — returns only that vendor invoices', () => {
+      const vendor1Id = createTestVendor('Filtered Vendor');
+      const vendor2Id = createTestVendor('Other Vendor');
+      const inv1Id = insertRawInvoice(vendor1Id, { amount: 111 });
+      insertRawInvoice(vendor2Id, { amount: 999 });
+
+      const result = invoiceService.listAllInvoices(db, { vendorId: vendor1Id });
+
+      expect(result.invoices).toHaveLength(1);
+      expect(result.invoices[0].id).toBe(inv1Id);
+    });
+
+    it('filters by q — matches partial invoice number case-insensitively', () => {
+      const vendorId = createTestVendor('Search Vendor');
+      insertRawInvoice(vendorId, { invoiceNumber: 'INV-2026-001', amount: 100 });
+      insertRawInvoice(vendorId, { invoiceNumber: 'INV-2026-002', amount: 200 });
+      insertRawInvoice(vendorId, { invoiceNumber: 'REC-100', amount: 300 });
+
+      const result = invoiceService.listAllInvoices(db, { q: 'inv-2026' });
+
+      expect(result.invoices).toHaveLength(2);
+    });
+
+    it('q search is case-insensitive (uppercase query matches lowercase data)', () => {
+      const vendorId = createTestVendor('Case Search Vendor');
+      insertRawInvoice(vendorId, { invoiceNumber: 'inv-lower-001', amount: 100 });
+      insertRawInvoice(vendorId, { invoiceNumber: 'OTHER-002', amount: 200 });
+
+      const result = invoiceService.listAllInvoices(db, { q: 'INV-LOWER' });
+
+      expect(result.invoices).toHaveLength(1);
+      expect(result.invoices[0].invoiceNumber).toBe('inv-lower-001');
+    });
+
+    it('sorts by amount descending', () => {
+      const vendorId = createTestVendor('Amount Sort Vendor');
+      insertRawInvoice(vendorId, { amount: 100 });
+      insertRawInvoice(vendorId, { amount: 500 });
+      insertRawInvoice(vendorId, { amount: 250 });
+
+      const result = invoiceService.listAllInvoices(db, { sortBy: 'amount', sortOrder: 'desc' });
+
+      expect(result.invoices[0].amount).toBe(500);
+      expect(result.invoices[1].amount).toBe(250);
+      expect(result.invoices[2].amount).toBe(100);
+    });
+
+    it('sorts by amount ascending', () => {
+      const vendorId = createTestVendor('Amount Asc Sort Vendor');
+      insertRawInvoice(vendorId, { amount: 500 });
+      insertRawInvoice(vendorId, { amount: 100 });
+      insertRawInvoice(vendorId, { amount: 250 });
+
+      const result = invoiceService.listAllInvoices(db, { sortBy: 'amount', sortOrder: 'asc' });
+
+      expect(result.invoices[0].amount).toBe(100);
+      expect(result.invoices[1].amount).toBe(250);
+      expect(result.invoices[2].amount).toBe(500);
+    });
+
+    it('sorts by vendor_name', () => {
+      const vendorAId = createTestVendor('Acme Corp');
+      const vendorBId = createTestVendor('Zeta Construction');
+      const vendorCId = createTestVendor('Midlands Builder');
+      insertRawInvoice(vendorAId, { amount: 100 });
+      insertRawInvoice(vendorBId, { amount: 200 });
+      insertRawInvoice(vendorCId, { amount: 300 });
+
+      const result = invoiceService.listAllInvoices(db, {
+        sortBy: 'vendor_name',
+        sortOrder: 'asc',
+      });
+
+      expect(result.invoices[0].vendorName).toBe('Acme Corp');
+      expect(result.invoices[1].vendorName).toBe('Midlands Builder');
+      expect(result.invoices[2].vendorName).toBe('Zeta Construction');
+    });
+
+    it('summary reflects global invoice counts and totals across ALL invoices (ignores page filter)', () => {
+      const vendorId = createTestVendor('Summary Vendor');
+      insertRawInvoice(vendorId, { status: 'pending', amount: 100 });
+      insertRawInvoice(vendorId, { status: 'pending', amount: 200 });
+      insertRawInvoice(vendorId, { status: 'paid', amount: 1000 });
+
+      // Filter to only paid invoices on page 1
+      const result = invoiceService.listAllInvoices(db, { status: 'paid', pageSize: 1 });
+
+      // Filtered result should only return the paid invoice
+      expect(result.invoices).toHaveLength(1);
+
+      // But summary should be global — counting all 3 invoices
+      expect(result.summary.pending.count).toBe(2);
+      expect(result.summary.pending.totalAmount).toBe(300);
+      expect(result.summary.paid.count).toBe(1);
+      expect(result.summary.paid.totalAmount).toBe(1000);
+      expect(result.summary.claimed.count).toBe(0);
+      expect(result.summary.claimed.totalAmount).toBe(0);
+    });
+
+    it('summary has correct zero values for statuses with no invoices', () => {
+      const vendorId = createTestVendor('Partial Summary Vendor');
+      insertRawInvoice(vendorId, { status: 'paid', amount: 500 });
+
+      const result = invoiceService.listAllInvoices(db, {});
+
+      expect(result.summary.pending.count).toBe(0);
+      expect(result.summary.pending.totalAmount).toBe(0);
+      expect(result.summary.claimed.count).toBe(0);
+      expect(result.summary.claimed.totalAmount).toBe(0);
+      expect(result.summary.paid.count).toBe(1);
+      expect(result.summary.paid.totalAmount).toBe(500);
+    });
+
+    it('combined status + vendorId filters narrow the invoice list correctly', () => {
+      const vendor1Id = createTestVendor('Multi Filter Vendor');
+      const vendor2Id = createTestVendor('Other Multi Filter Vendor');
+      insertRawInvoice(vendor1Id, { status: 'paid', amount: 100 });
+      insertRawInvoice(vendor1Id, { status: 'pending', amount: 200 });
+      insertRawInvoice(vendor2Id, { status: 'paid', amount: 300 });
+
+      const result = invoiceService.listAllInvoices(db, { status: 'paid', vendorId: vendor1Id });
+
+      expect(result.invoices).toHaveLength(1);
+      expect(result.invoices[0].amount).toBe(100);
+    });
+  });
+
+  // ─── getInvoiceById() ───────────────────────────────────────────────────────
+
+  describe('getInvoiceById()', () => {
+    it('returns the correct invoice with all fields including vendorName', () => {
+      const vendorId = createTestVendor('GetById Vendor');
+      const userId = createTestUser('getby@test.com', 'GetBy User');
+      const invoiceId = insertRawInvoice(vendorId, {
+        invoiceNumber: 'INV-GET-001',
+        amount: 4200,
+        date: '2026-03-10',
+        dueDate: '2026-04-10',
+        status: 'paid',
+        notes: 'Fetched by ID',
+        createdBy: userId,
+      });
+
+      const result = invoiceService.getInvoiceById(db, invoiceId);
+
+      expect(result.id).toBe(invoiceId);
+      expect(result.vendorId).toBe(vendorId);
+      expect(result.vendorName).toBe('GetById Vendor');
+      expect(result.invoiceNumber).toBe('INV-GET-001');
+      expect(result.amount).toBe(4200);
+      expect(result.date).toBe('2026-03-10');
+      expect(result.dueDate).toBe('2026-04-10');
+      expect(result.status).toBe('paid');
+      expect(result.notes).toBe('Fetched by ID');
+      expect(result.createdBy?.id).toBe(userId);
+      expect(result.createdAt).toBeDefined();
+      expect(result.updatedAt).toBeDefined();
+    });
+
+    it('throws NotFoundError when invoice ID does not exist', () => {
+      expect(() => {
+        invoiceService.getInvoiceById(db, 'non-existent-invoice-id');
+      }).toThrow(NotFoundError);
+      expect(() => {
+        invoiceService.getInvoiceById(db, 'non-existent-invoice-id');
+      }).toThrow('Invoice not found');
+    });
+
+    it('returns invoice regardless of which vendor it belongs to (cross-vendor lookup)', () => {
+      const vendor1Id = createTestVendor('Cross Vendor One');
+      const vendor2Id = createTestVendor('Cross Vendor Two');
+      insertRawInvoice(vendor1Id, { amount: 111 });
+      const inv2Id = insertRawInvoice(vendor2Id, { amount: 222 });
+
+      const result = invoiceService.getInvoiceById(db, inv2Id);
+
+      expect(result.vendorId).toBe(vendor2Id);
+      expect(result.amount).toBe(222);
+    });
+
+    it('resolves createdBy to null when not set', () => {
+      const vendorId = createTestVendor('No Creator GetById Vendor');
+      const invoiceId = insertRawInvoice(vendorId, { createdBy: null });
+
+      const result = invoiceService.getInvoiceById(db, invoiceId);
+
+      expect(result.createdBy).toBeNull();
+    });
+  });
+
   // ─── deleteInvoice() ────────────────────────────────────────────────────────
 
   describe('deleteInvoice()', () => {

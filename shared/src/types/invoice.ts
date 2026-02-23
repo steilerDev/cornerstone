@@ -4,6 +4,7 @@
  * Invoices are nested under vendors: /api/vendors/:vendorId/invoices
  */
 
+import type { PaginationMeta } from './pagination.js';
 import type { UserSummary } from './workItem.js';
 
 /**
@@ -32,6 +33,7 @@ export interface WorkItemBudgetSummary {
 export interface Invoice {
   id: string;
   vendorId: string;
+  vendorName: string;
   /** Optional link to the work item budget line this invoice was issued against. */
   workItemBudgetId: string | null;
   /** Enriched budget line + work item details when workItemBudgetId is set. */
@@ -86,5 +88,38 @@ export interface InvoiceListResponse {
  * Response wrapper for single-invoice endpoints (POST, PATCH).
  */
 export interface InvoiceResponse {
+  invoice: Invoice;
+}
+
+/**
+ * Summary stats for invoices of a given status.
+ */
+export interface InvoiceStatusSummary {
+  count: number;
+  totalAmount: number;
+}
+
+/**
+ * Breakdown of all invoices grouped by status (counts + totals).
+ */
+export interface InvoiceStatusBreakdown {
+  pending: InvoiceStatusSummary;
+  paid: InvoiceStatusSummary;
+  claimed: InvoiceStatusSummary;
+}
+
+/**
+ * Response for GET /api/invoices (paginated, cross-vendor listing).
+ */
+export interface InvoiceListPaginatedResponse {
+  invoices: Invoice[];
+  pagination: PaginationMeta;
+  summary: InvoiceStatusBreakdown;
+}
+
+/**
+ * Response for GET /api/invoices/:id (single invoice detail).
+ */
+export interface InvoiceDetailResponse {
   invoice: Invoice;
 }

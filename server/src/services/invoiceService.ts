@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { eq, desc, and } from 'drizzle-orm';
+import { eq, desc, and, asc, sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import { invoices, vendors, workItemBudgets, workItems, users } from '../db/schema.js';
@@ -10,6 +10,9 @@ import type {
   CreateInvoiceRequest,
   UpdateInvoiceRequest,
   UserSummary,
+  PaginationMeta,
+  InvoiceStatusBreakdown,
+  InvoiceStatusSummary,
 } from '@cornerstone/shared';
 import { NotFoundError, ValidationError } from '../errors/AppError.js';
 
@@ -69,10 +72,18 @@ function toWorkItemBudgetSummary(db: DbType, budgetId: string): WorkItemBudgetSu
 
 /**
  * Convert a database invoice row to Invoice API shape.
- * Resolves createdBy to a UserSummary and workItemBudget to a WorkItemBudgetSummary
- * via separate queries.
+ * Resolves vendorName, createdBy, and workItemBudget via separate queries.
+ * If knownVendorName is provided, skips the vendor DB lookup.
  */
-function toInvoice(db: DbType, row: typeof invoices.$inferSelect): Invoice {
+function toInvoice(
+  db: DbType,
+  row: typeof invoices.$inferSelect,
+  knownVendorName?: string,
+): Invoice {
+  const vendorName =
+    knownVendorName !== undefined
+      ? knownVendorName
+      : (db.select().from(vendors).where(eq(vendors.id, row.vendorId)).get()?.name ?? 'Unknown');
   const createdByUser = row.createdBy
     ? db.select().from(users).where(eq(users.id, row.createdBy)).get()
     : null;
@@ -84,6 +95,7 @@ function toInvoice(db: DbType, row: typeof invoices.$inferSelect): Invoice {
   return {
     id: row.id,
     vendorId: row.vendorId,
+    vendorName,
     workItemBudgetId: row.workItemBudgetId,
     workItemBudget,
     invoiceNumber: row.invoiceNumber,
@@ -100,12 +112,14 @@ function toInvoice(db: DbType, row: typeof invoices.$inferSelect): Invoice {
 
 /**
  * Assert that a vendor exists, throwing NotFoundError if not.
+ * Returns the vendor name so callers can pass it to toInvoice() without an extra lookup.
  */
-function assertVendorExists(db: DbType, vendorId: string): void {
+function assertVendorExists(db: DbType, vendorId: string): string {
   const vendor = db.select().from(vendors).where(eq(vendors.id, vendorId)).get();
   if (!vendor) {
     throw new NotFoundError('Vendor not found');
   }
+  return vendor.name;
 }
 
 /**
@@ -113,7 +127,7 @@ function assertVendorExists(db: DbType, vendorId: string): void {
  * @throws NotFoundError if vendor does not exist
  */
 export function listInvoices(db: DbType, vendorId: string): Invoice[] {
-  assertVendorExists(db, vendorId);
+  const vendorName = assertVendorExists(db, vendorId);
 
   const rows = db
     .select()
@@ -122,7 +136,148 @@ export function listInvoices(db: DbType, vendorId: string): Invoice[] {
     .orderBy(desc(invoices.date))
     .all();
 
-  return rows.map((row) => toInvoice(db, row));
+  return rows.map((row) => toInvoice(db, row, vendorName));
+}
+
+/**
+ * List all invoices across all vendors with pagination, filtering, sorting, and a status summary.
+ */
+export function listAllInvoices(
+  db: DbType,
+  query: {
+    page?: number;
+    pageSize?: number;
+    q?: string;
+    status?: InvoiceStatus;
+    vendorId?: string;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+  },
+): { invoices: Invoice[]; pagination: PaginationMeta; summary: InvoiceStatusBreakdown } {
+  const page = Math.max(1, query.page ?? 1);
+  const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 25));
+  const sortOrder = query.sortOrder ?? 'desc';
+
+  // Build WHERE conditions
+  const conditions = [];
+  if (query.status) {
+    conditions.push(eq(invoices.status, query.status));
+  }
+  if (query.vendorId) {
+    conditions.push(eq(invoices.vendorId, query.vendorId));
+  }
+  if (query.q) {
+    const escapedQ = query.q.replace(/%/g, '\\%').replace(/_/g, '\\_');
+    const pattern = `%${escapedQ}%`;
+    conditions.push(sql`LOWER(${invoices.invoiceNumber}) LIKE LOWER(${pattern}) ESCAPE '\\'`);
+  }
+
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+  // Count total
+  const countResult = db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(invoices)
+    .innerJoin(vendors, eq(invoices.vendorId, vendors.id))
+    .where(whereClause)
+    .get();
+  const totalItems = countResult?.count ?? 0;
+  const totalPages = Math.ceil(totalItems / pageSize);
+
+  // ORDER BY
+  const sortColumn =
+    query.sortBy === 'amount'
+      ? invoices.amount
+      : query.sortBy === 'status'
+        ? invoices.status
+        : query.sortBy === 'vendor_name'
+          ? vendors.name
+          : query.sortBy === 'due_date'
+            ? invoices.dueDate
+            : invoices.date; // default: date
+  const orderBy = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
+
+  // Fetch page with JOIN for vendorName
+  const offset = (page - 1) * pageSize;
+  const rows = db
+    .select({
+      invoice: invoices,
+      vendorName: vendors.name,
+    })
+    .from(invoices)
+    .innerJoin(vendors, eq(invoices.vendorId, vendors.id))
+    .where(whereClause)
+    .orderBy(orderBy)
+    .limit(pageSize)
+    .offset(offset)
+    .all();
+
+  // Compute global summary (unfiltered — across all invoices)
+  const summaryRows = db
+    .select({
+      status: invoices.status,
+      count: sql<number>`COUNT(*)`,
+      totalAmount: sql<number>`COALESCE(SUM(${invoices.amount}), 0)`,
+    })
+    .from(invoices)
+    .groupBy(invoices.status)
+    .all();
+
+  const defaultSummary: InvoiceStatusSummary = { count: 0, totalAmount: 0 };
+  const summary: InvoiceStatusBreakdown = {
+    pending: { ...defaultSummary },
+    paid: { ...defaultSummary },
+    claimed: { ...defaultSummary },
+  };
+  for (const row of summaryRows) {
+    const status = row.status as InvoiceStatus;
+    if (status === 'pending' || status === 'paid' || status === 'claimed') {
+      summary[status] = { count: row.count, totalAmount: row.totalAmount };
+    }
+  }
+
+  // Map rows — resolve createdBy and workItemBudget for each
+  const invoiceList: Invoice[] = rows.map(({ invoice: row, vendorName }) => {
+    const createdByUser = row.createdBy
+      ? db.select().from(users).where(eq(users.id, row.createdBy)).get()
+      : null;
+    return {
+      id: row.id,
+      vendorId: row.vendorId,
+      vendorName,
+      workItemBudgetId: row.workItemBudgetId,
+      workItemBudget: row.workItemBudgetId
+        ? toWorkItemBudgetSummary(db, row.workItemBudgetId)
+        : null,
+      invoiceNumber: row.invoiceNumber,
+      amount: row.amount,
+      date: row.date,
+      dueDate: row.dueDate,
+      status: row.status as InvoiceStatus,
+      notes: row.notes,
+      createdBy: toUserSummary(createdByUser),
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    };
+  });
+
+  return {
+    invoices: invoiceList,
+    pagination: { page, pageSize, totalItems, totalPages },
+    summary,
+  };
+}
+
+/**
+ * Get a single invoice by ID (cross-vendor lookup).
+ * @throws NotFoundError if invoice does not exist
+ */
+export function getInvoiceById(db: DbType, invoiceId: string): Invoice {
+  const row = db.select().from(invoices).where(eq(invoices.id, invoiceId)).get();
+  if (!row) {
+    throw new NotFoundError('Invoice not found');
+  }
+  return toInvoice(db, row);
 }
 
 /**
@@ -137,7 +292,7 @@ export function createInvoice(
   data: CreateInvoiceRequest,
   userId: string,
 ): Invoice {
-  assertVendorExists(db, vendorId);
+  const vendorName = assertVendorExists(db, vendorId);
 
   // Validate amount
   if (data.amount <= 0) {
@@ -192,7 +347,7 @@ export function createInvoice(
     .run();
 
   const row = db.select().from(invoices).where(eq(invoices.id, id)).get()!;
-  return toInvoice(db, row);
+  return toInvoice(db, row, vendorName);
 }
 
 /**
@@ -207,7 +362,7 @@ export function updateInvoice(
   invoiceId: string,
   data: UpdateInvoiceRequest,
 ): Invoice {
-  assertVendorExists(db, vendorId);
+  const vendorName = assertVendorExists(db, vendorId);
 
   const existing = db
     .select()
@@ -284,7 +439,7 @@ export function updateInvoice(
   db.update(invoices).set(updates).where(eq(invoices.id, invoiceId)).run();
 
   const updated = db.select().from(invoices).where(eq(invoices.id, invoiceId)).get()!;
-  return toInvoice(db, updated);
+  return toInvoice(db, updated, vendorName);
 }
 
 /**

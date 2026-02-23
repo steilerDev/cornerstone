@@ -138,6 +138,7 @@ describe('VendorDetailPage', () => {
   const sampleInvoice: Invoice = {
     id: 'invoice-1',
     vendorId: 'vendor-1',
+    vendorName: 'Test Vendor',
     workItemBudgetId: null,
     workItemBudget: null,
     invoiceNumber: 'INV-001',
@@ -154,6 +155,7 @@ describe('VendorDetailPage', () => {
   const paidInvoice: Invoice = {
     id: 'invoice-2',
     vendorId: 'vendor-1',
+    vendorName: 'Test Vendor',
     workItemBudgetId: null,
     workItemBudget: null,
     invoiceNumber: 'INV-002',
@@ -170,6 +172,7 @@ describe('VendorDetailPage', () => {
   const claimedInvoice: Invoice = {
     id: 'invoice-3',
     vendorId: 'vendor-1',
+    vendorName: 'Test Vendor',
     workItemBudgetId: null,
     workItemBudget: null,
     invoiceNumber: null,
