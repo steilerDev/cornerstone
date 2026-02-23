@@ -50,11 +50,11 @@ Track live progress on the [GitHub Projects board](https://github.com/users/stei
 
 ## Documentation
 
-| Resource | Description |
-|----------|-------------|
-| [Docs site](https://steilerDev.github.io/cornerstone/) | User guides, deployment, getting started |
-| [GitHub Wiki](https://github.com/steilerDev/cornerstone/wiki) | Architecture, API contract, schema, ADRs |
-| [CLAUDE.md](CLAUDE.md) | Agent instructions and project conventions |
+| Resource                                                      | Description                                |
+| ------------------------------------------------------------- | ------------------------------------------ |
+| [Docs site](https://steilerDev.github.io/cornerstone/)        | User guides, deployment, getting started   |
+| [GitHub Wiki](https://github.com/steilerDev/cornerstone/wiki) | Architecture, API contract, schema, ADRs   |
+| [CLAUDE.md](CLAUDE.md)                                        | Agent instructions and project conventions |
 
 ## Contributing
 

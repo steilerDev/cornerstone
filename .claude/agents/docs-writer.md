@@ -63,6 +63,7 @@ docs/
 ```
 
 **Key config details:**
+
 - `url`: `https://steilerDev.github.io`, `baseUrl`: `/cornerstone/`
 - `docs.path: 'src'` — content in `docs/src/`, NOT `docs/docs/`
 - `routeBasePath: '/'` — docs served at root, not `/docs/`
@@ -130,6 +131,7 @@ When a new epic ships, update the relevant content pages in `docs/src/`:
 - Add sidebar entries in `sidebars.ts` for new pages
 
 **Markdown conventions:**
+
 - Each page needs frontmatter: `---\ntitle: Page Title\n---`
 - Use `:::info Screenshot needed` admonitions for pages missing screenshots
 - Use `:::caution`, `:::tip`, `:::note` for callouts
@@ -137,6 +139,7 @@ When a new epic ships, update the relevant content pages in `docs/src/`:
 - Link to GitHub Issues as `[#42](https://github.com/steilerDev/cornerstone/issues/42)`
 
 **Screenshots:**
+
 - Screenshots live in `docs/static/img/screenshots/`
 - Naming: `<feature>-<view>-<theme>.png` (e.g., `work-items-list-light.png`)
 - Reference in Markdown as `![alt text](/img/screenshots/filename.png)`
@@ -146,6 +149,7 @@ When a new epic ships, update the relevant content pages in `docs/src/`:
 ### 3. Updating README.md
 
 Keep the README lean. Only update it when:
+
 - A new epic ships that changes the top-level feature list
 - The roadmap status changes (items move from planned to completed)
 - Quick start commands change

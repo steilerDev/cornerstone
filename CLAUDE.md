@@ -23,16 +23,16 @@ This project uses a team of 10 specialized Claude Code agents defined in `.claud
 | `e2e-test-engineer`     | Playwright E2E browser tests, test container infrastructure, UAT scenario coverage    |
 | `security-engineer`     | Security audits, vulnerability reports, remediation guidance                          |
 | `uat-validator`         | UAT scenarios, manual validation steps, user sign-off per epic                        |
-| `docs-writer`           | Documentation site (`docs/`), lean README.md, user-facing guides after UAT approval  |
+| `docs-writer`           | Documentation site (`docs/`), lean README.md, user-facing guides after UAT approval   |
 
 ## GitHub Tools Strategy
 
-| Concern                                                  | Tool                                          |
-| -------------------------------------------------------- | --------------------------------------------- |
-| Backlog, epics, stories, bugs                            | **GitHub Projects** board + **GitHub Issues** |
-| Architecture, API contract, schema, ADRs, security audit | **GitHub Wiki**                               |
-| Code review                                              | **GitHub Pull Requests**                      |
-| Source tree                                              | Code, configs, `Dockerfile`, `CLAUDE.md` only |
+| Concern                                                  | Tool                                             |
+| -------------------------------------------------------- | ------------------------------------------------ |
+| Backlog, epics, stories, bugs                            | **GitHub Projects** board + **GitHub Issues**    |
+| Architecture, API contract, schema, ADRs, security audit | **GitHub Wiki**                                  |
+| Code review                                              | **GitHub Pull Requests**                         |
+| Source tree                                              | Code, configs, `Dockerfile`, `CLAUDE.md` only    |
 | User-facing docs site                                    | **`docs/` workspace** (Docusaurus, GitHub Pages) |
 
 The GitHub Wiki is checked out as a git submodule at `wiki/` in the project root. All architecture documentation lives as markdown files in this submodule. The GitHub Projects board is the single source of truth for backlog management.
@@ -535,21 +535,21 @@ In development, the Webpack dev server at `http://localhost:5173` proxies `/api/
 
 ### Common Commands
 
-| Command                    | Description                                                              |
-| -------------------------- | ------------------------------------------------------------------------ |
-| `npm run dev`              | Start both server and client in watch mode                               |
-| `npm run dev:server`       | Start only the Fastify server (node --watch)                             |
-| `npm run dev:client`       | Start only the Webpack dev server                                        |
-| `npm run build`            | Build all packages (shared -> client -> server)                          |
-| `npm test`                 | Run all tests                                                            |
-| `npm run lint`             | Lint all code                                                            |
-| `npm run format`           | Format all code                                                          |
-| `npm run typecheck`        | Type-check all packages                                                  |
-| `npm run test:e2e:smoke`   | Run E2E smoke tests (desktop/Chromium only)                              |
-| `npm run db:migrate`       | Run pending SQL migrations                                               |
-| `npm run docs:dev`         | Start docs site dev server (port 3001)                                   |
-| `npm run docs:build`       | Build docs site to `docs/build/`                                         |
-| `npm run docs:screenshots` | Capture app screenshots into `docs/static/img/screenshots/`              |
+| Command                    | Description                                                 |
+| -------------------------- | ----------------------------------------------------------- |
+| `npm run dev`              | Start both server and client in watch mode                  |
+| `npm run dev:server`       | Start only the Fastify server (node --watch)                |
+| `npm run dev:client`       | Start only the Webpack dev server                           |
+| `npm run build`            | Build all packages (shared -> client -> server)             |
+| `npm test`                 | Run all tests                                               |
+| `npm run lint`             | Lint all code                                               |
+| `npm run format`           | Format all code                                             |
+| `npm run typecheck`        | Type-check all packages                                     |
+| `npm run test:e2e:smoke`   | Run E2E smoke tests (desktop/Chromium only)                 |
+| `npm run db:migrate`       | Run pending SQL migrations                                  |
+| `npm run docs:dev`         | Start docs site dev server (port 3001)                      |
+| `npm run docs:build`       | Build docs site to `docs/build/`                            |
+| `npm run docs:screenshots` | Capture app screenshots into `docs/static/img/screenshots/` |
 
 ### Documentation Site
 
@@ -557,12 +557,12 @@ The `docs/` workspace is a Docusaurus 3.x site deployed to GitHub Pages at `http
 
 **Content hierarchy:**
 
-| Location | Content | Audience |
-|----------|---------|----------|
-| Docs site (`docs/src/`) | User guides, deployment, development process | End users |
-| GitHub Wiki (`wiki/`) | Architecture, API contract, schema, ADRs, security audit | Agents + contributors |
-| `README.md` | Lean pointer: tagline, quick start, roadmap, links | GitHub visitors |
-| `CLAUDE.md` | Agent instructions, conventions, workflow rules | AI agents |
+| Location                | Content                                                  | Audience              |
+| ----------------------- | -------------------------------------------------------- | --------------------- |
+| Docs site (`docs/src/`) | User guides, deployment, development process             | End users             |
+| GitHub Wiki (`wiki/`)   | Architecture, API contract, schema, ADRs, security audit | Agents + contributors |
+| `README.md`             | Lean pointer: tagline, quick start, roadmap, links       | GitHub visitors       |
+| `CLAUDE.md`             | Agent instructions, conventions, workflow rules          | AI agents             |
 
 **Deployment:** Automated via `.github/workflows/docs.yml` — triggers on push to `main` with changes in `docs/**`.
 
