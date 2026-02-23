@@ -171,14 +171,16 @@ jobs:
         run: npx playwright install chromium webkit
         working-directory: e2e
 
+      - name: Configure apt and dpkg for CI
+        run: |
+          echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' | sudo tee /etc/apt/apt.conf.d/99keep-debs
+          echo 'force-unsafe-io' | sudo tee /etc/dpkg/dpkg.cfg.d/ci-unsafe-io
+
       - name: Cache apt packages
         uses: actions/cache@v4
         with:
           path: /var/cache/apt/archives
           key: apt-playwright-${{ steps.playwright-version.outputs.version }}-${{ runner.os }}
-
-      - name: Speed up dpkg
-        run: echo 'force-unsafe-io' | sudo tee /etc/dpkg/dpkg.cfg.d/ci-unsafe-io
 
       - name: Install Playwright system dependencies
         run: sudo npx playwright install-deps chromium webkit
@@ -251,14 +253,16 @@ jobs:
         run: npx playwright install chromium webkit
         working-directory: e2e
 
+      - name: Configure apt and dpkg for CI
+        run: |
+          echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' | sudo tee /etc/apt/apt.conf.d/99keep-debs
+          echo 'force-unsafe-io' | sudo tee /etc/dpkg/dpkg.cfg.d/ci-unsafe-io
+
       - name: Cache apt packages
         uses: actions/cache@v4
         with:
           path: /var/cache/apt/archives
           key: apt-playwright-${{ steps.playwright-version.outputs.version }}-${{ runner.os }}
-
-      - name: Speed up dpkg
-        run: echo 'force-unsafe-io' | sudo tee /etc/dpkg/dpkg.cfg.d/ci-unsafe-io
 
       - name: Install Playwright system dependencies
         run: sudo npx playwright install-deps chromium webkit
