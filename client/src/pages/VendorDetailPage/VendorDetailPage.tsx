@@ -335,6 +335,7 @@ export function VendorDetailPage() {
 
   const openEditInvoiceModal = (invoice: Invoice) => {
     setEditingInvoice(invoice);
+    const linkedWorkItemId = invoice.workItemBudget?.workItemId ?? '';
     setEditInvoiceForm({
       invoiceNumber: invoice.invoiceNumber ?? '',
       amount: invoice.amount.toString(),
@@ -342,12 +343,21 @@ export function VendorDetailPage() {
       dueDate: invoice.dueDate ? invoice.dueDate.slice(0, 10) : '',
       status: invoice.status,
       notes: invoice.notes ?? '',
-      selectedWorkItemId: '',
+      selectedWorkItemId: linkedWorkItemId,
       workItemBudgetId: invoice.workItemBudgetId ?? '',
     });
     setBudgetLines([]);
     setBudgetLinkTouched(false);
     setEditInvoiceError('');
+
+    // Pre-load budget lines for the linked work item so the dropdown is populated
+    if (linkedWorkItemId) {
+      setBudgetLinesLoading(true);
+      void fetchWorkItemBudgets(linkedWorkItemId)
+        .then((lines) => setBudgetLines(lines))
+        .catch(() => setBudgetLines([]))
+        .finally(() => setBudgetLinesLoading(false));
+    }
   };
 
   const closeEditInvoiceModal = () => {
@@ -1240,10 +1250,14 @@ export function VendorDetailPage() {
                 <label htmlFor="edit-work-item" className={styles.label}>
                   Link to Work Item
                 </label>
-                {editingInvoice?.workItemBudgetId && !budgetLinkTouched && (
+                {editingInvoice?.workItemBudget && !budgetLinkTouched && (
                   <p className={styles.budgetLinkNote}>
-                    Currently linked to a budget line. Selecting a work item below will update the
-                    link.
+                    Linked to &ldquo;{editingInvoice.workItemBudget.workItemTitle}&rdquo;
+                    {editingInvoice.workItemBudget.description
+                      ? ` — ${editingInvoice.workItemBudget.description}`
+                      : ''}
+                    . Change the selection below to update the link, or choose &ldquo;None&rdquo; to
+                    unlink.
                   </p>
                 )}
                 <select
