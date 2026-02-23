@@ -145,6 +145,9 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ steps.playwright-version.outputs.version }}-${{ runner.os }}
 
+      - name: Fix apt cache permissions for runner
+        run: sudo chmod -R a+rwX /var/cache/apt/archives
+
       - name: Restore apt cache
         id: apt-cache
         uses: actions/cache/restore@v4
@@ -168,6 +171,7 @@ jobs:
         run: |
           sudo rm -f /var/cache/apt/archives/lock
           sudo rm -rf /var/cache/apt/archives/partial
+          sudo chmod -R a+rwX /var/cache/apt/archives
 
       - name: Save apt cache
         if: steps.apt-cache.outputs.cache-hit != 'true'
@@ -236,10 +240,8 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ needs.e2e-warmup.outputs.playwright-version }}-${{ runner.os }}
 
-      - name: Configure apt and dpkg for CI
-        run: |
-          echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' | sudo tee /etc/apt/apt.conf.d/99keep-debs
-          echo 'force-unsafe-io' | sudo tee /etc/dpkg/dpkg.cfg.d/ci-unsafe-io
+      - name: Fix apt cache permissions for runner
+        run: sudo chmod -R a+rwX /var/cache/apt/archives
 
       - name: Restore apt cache
         uses: actions/cache/restore@v4
@@ -307,10 +309,8 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ needs.e2e-warmup.outputs.playwright-version }}-${{ runner.os }}
 
-      - name: Configure apt and dpkg for CI
-        run: |
-          echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' | sudo tee /etc/apt/apt.conf.d/99keep-debs
-          echo 'force-unsafe-io' | sudo tee /etc/dpkg/dpkg.cfg.d/ci-unsafe-io
+      - name: Fix apt cache permissions for runner
+        run: sudo chmod -R a+rwX /var/cache/apt/archives
 
       - name: Restore apt cache
         uses: actions/cache/restore@v4
