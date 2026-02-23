@@ -156,7 +156,7 @@ jobs:
 
       - name: Get Playwright version
         id: playwright-version
-        run: echo "version=$(npx playwright --version)" >> $GITHUB_OUTPUT
+        run: echo "version=$(npx playwright --version | tr -d '[:space:]')" >> $GITHUB_OUTPUT
         working-directory: e2e
 
       - name: Cache Playwright browsers
@@ -236,7 +236,7 @@ jobs:
 
       - name: Get Playwright version
         id: playwright-version
-        run: echo "version=$(npx playwright --version)" >> $GITHUB_OUTPUT
+        run: echo "version=$(npx playwright --version | tr -d '[:space:]')" >> $GITHUB_OUTPUT
         working-directory: e2e
 
       - name: Cache Playwright browsers
