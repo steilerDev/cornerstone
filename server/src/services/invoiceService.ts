@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { eq, desc, and } from 'drizzle-orm';
+import { eq, desc, and, asc, sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import { invoices, vendors, workItemBudgets, users } from '../db/schema.js';
@@ -9,6 +9,9 @@ import type {
   CreateInvoiceRequest,
   UpdateInvoiceRequest,
   UserSummary,
+  PaginationMeta,
+  InvoiceSummary,
+  InvoiceStatusSummary,
 } from '@cornerstone/shared';
 import { NotFoundError, ValidationError } from '../errors/AppError.js';
 
@@ -43,9 +46,10 @@ function toUserSummary(user: typeof users.$inferSelect | null | undefined): User
 
 /**
  * Convert a database invoice row to Invoice API shape.
- * Resolves createdBy to a UserSummary via a separate query.
+ * Resolves vendorName and createdBy via separate queries.
  */
 function toInvoice(db: DbType, row: typeof invoices.$inferSelect): Invoice {
+  const vendor = db.select().from(vendors).where(eq(vendors.id, row.vendorId)).get();
   const createdByUser = row.createdBy
     ? db.select().from(users).where(eq(users.id, row.createdBy)).get()
     : null;
@@ -53,6 +57,7 @@ function toInvoice(db: DbType, row: typeof invoices.$inferSelect): Invoice {
   return {
     id: row.id,
     vendorId: row.vendorId,
+    vendorName: vendor?.name ?? 'Unknown',
     workItemBudgetId: row.workItemBudgetId,
     invoiceNumber: row.invoiceNumber,
     amount: row.amount,
@@ -91,6 +96,144 @@ export function listInvoices(db: DbType, vendorId: string): Invoice[] {
     .all();
 
   return rows.map((row) => toInvoice(db, row));
+}
+
+/**
+ * List all invoices across all vendors with pagination, filtering, sorting, and a status summary.
+ */
+export function listAllInvoices(
+  db: DbType,
+  query: {
+    page?: number;
+    pageSize?: number;
+    q?: string;
+    status?: InvoiceStatus;
+    vendorId?: string;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+  },
+): { invoices: Invoice[]; pagination: PaginationMeta; summary: InvoiceSummary } {
+  const page = Math.max(1, query.page ?? 1);
+  const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 25));
+  const sortOrder = query.sortOrder ?? 'desc';
+
+  // Build WHERE conditions
+  const conditions = [];
+  if (query.status) {
+    conditions.push(eq(invoices.status, query.status));
+  }
+  if (query.vendorId) {
+    conditions.push(eq(invoices.vendorId, query.vendorId));
+  }
+  if (query.q) {
+    const escapedQ = query.q.replace(/%/g, '\\%').replace(/_/g, '\\_');
+    const pattern = `%${escapedQ}%`;
+    conditions.push(sql`LOWER(${invoices.invoiceNumber}) LIKE LOWER(${pattern}) ESCAPE '\\'`);
+  }
+
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+  // Count total
+  const countResult = db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(invoices)
+    .innerJoin(vendors, eq(invoices.vendorId, vendors.id))
+    .where(whereClause)
+    .get();
+  const totalItems = countResult?.count ?? 0;
+  const totalPages = Math.ceil(totalItems / pageSize);
+
+  // ORDER BY
+  const sortColumn =
+    query.sortBy === 'amount'
+      ? invoices.amount
+      : query.sortBy === 'status'
+        ? invoices.status
+        : query.sortBy === 'vendor_name'
+          ? vendors.name
+          : query.sortBy === 'due_date'
+            ? invoices.dueDate
+            : invoices.date; // default: date
+  const orderBy = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
+
+  // Fetch page with JOIN for vendorName
+  const offset = (page - 1) * pageSize;
+  const rows = db
+    .select({
+      invoice: invoices,
+      vendorName: vendors.name,
+    })
+    .from(invoices)
+    .innerJoin(vendors, eq(invoices.vendorId, vendors.id))
+    .where(whereClause)
+    .orderBy(orderBy)
+    .limit(pageSize)
+    .offset(offset)
+    .all();
+
+  // Compute global summary (unfiltered — across all invoices)
+  const summaryRows = db
+    .select({
+      status: invoices.status,
+      count: sql<number>`COUNT(*)`,
+      totalAmount: sql<number>`COALESCE(SUM(${invoices.amount}), 0)`,
+    })
+    .from(invoices)
+    .groupBy(invoices.status)
+    .all();
+
+  const defaultSummary: InvoiceStatusSummary = { count: 0, totalAmount: 0 };
+  const summary: InvoiceSummary = {
+    pending: { ...defaultSummary },
+    paid: { ...defaultSummary },
+    claimed: { ...defaultSummary },
+  };
+  for (const row of summaryRows) {
+    const status = row.status as InvoiceStatus;
+    if (status === 'pending' || status === 'paid' || status === 'claimed') {
+      summary[status] = { count: row.count, totalAmount: row.totalAmount };
+    }
+  }
+
+  // Map rows — resolve createdBy for each (unavoidable per-row query for createdBy)
+  const invoiceList: Invoice[] = rows.map(({ invoice: row, vendorName }) => {
+    const createdByUser = row.createdBy
+      ? db.select().from(users).where(eq(users.id, row.createdBy)).get()
+      : null;
+    return {
+      id: row.id,
+      vendorId: row.vendorId,
+      vendorName,
+      workItemBudgetId: row.workItemBudgetId,
+      invoiceNumber: row.invoiceNumber,
+      amount: row.amount,
+      date: row.date,
+      dueDate: row.dueDate,
+      status: row.status as InvoiceStatus,
+      notes: row.notes,
+      createdBy: toUserSummary(createdByUser),
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    };
+  });
+
+  return {
+    invoices: invoiceList,
+    pagination: { page, pageSize, totalItems, totalPages },
+    summary,
+  };
+}
+
+/**
+ * Get a single invoice by ID (cross-vendor lookup).
+ * @throws NotFoundError if invoice does not exist
+ */
+export function getInvoiceById(db: DbType, invoiceId: string): Invoice {
+  const row = db.select().from(invoices).where(eq(invoices.id, invoiceId)).get();
+  if (!row) {
+    throw new NotFoundError('Invoice not found');
+  }
+  return toInvoice(db, row);
 }
 
 /**

@@ -93,6 +93,10 @@ export type {
   UpdateInvoiceRequest,
   InvoiceListResponse,
   InvoiceResponse,
+  InvoiceStatusSummary,
+  InvoiceSummary,
+  InvoiceListPaginatedResponse,
+  InvoiceDetailResponse,
 } from './types/invoice.js';
 
 // Budget Sources
