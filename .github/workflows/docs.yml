@@ -3,8 +3,6 @@ name: Deploy Docs
 on:
   push:
     branches: [main, chore/200-docs-site]
-    paths:
-      - 'docs/**'
   workflow_dispatch:
 
 permissions:
