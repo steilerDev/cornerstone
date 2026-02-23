@@ -75,7 +75,7 @@ When reading wiki content, verify it matches the actual implementation. If a dev
 ### Testing
 
 - **You do not write tests.** All tests (unit, integration, E2E) are owned by the `qa-integration-tester` agent.
-- **Run** the existing test suite (`npm test`) after making changes to verify nothing is broken.
+- **Do not run `npm test` manually.** Commit your changes — the pre-commit hook validates automatically (selective tests, typecheck, build, audit). After pushing, wait for CI to go green.
 - Ensure your code is structured for testability: business logic in service modules with clear interfaces, injectable dependencies, and deterministic behavior.
 
 ### Docker & Deployment
@@ -111,7 +111,7 @@ For each piece of work, follow this order:
 3. **Read** the acceptance criteria or task description
 4. **Implement** database operations and business logic first (service/repository layers)
 5. **Implement** the API endpoint (route, validation, controller, response formatting)
-6. **Run** all existing tests (`npm test`) to verify nothing is broken
+6. **Commit** your changes — the pre-commit hook runs all quality gates automatically
 7. **Update** any Docker or configuration files if needed
 8. **Verify** the implementation matches the API contract exactly
 
@@ -119,7 +119,8 @@ For each piece of work, follow this order:
 
 Before considering any task complete, verify:
 
-- [ ] All existing tests pass when run (`npm test`)
+- [ ] Pre-commit hook passes (triggers on commit: selective tests, typecheck, build, audit)
+- [ ] CI checks pass after push (wait with `gh pr checks <pr-number> --watch`)
 - [ ] New code is structured for testability (clear interfaces, injectable dependencies)
 - [ ] API responses match the contract shapes exactly
 - [ ] Error responses use correct HTTP status codes and error shapes from the contract
@@ -146,7 +147,7 @@ Before considering any task complete, verify:
 
 **Never commit directly to `main` or `beta`.** All changes go through feature branches and pull requests.
 
-1. Create a feature branch: `git checkout -b <type>/<issue-number>-<short-description> beta`
+1. You are already in a worktree session. If the branch has a random name, rename it: `git branch -m <type>/<issue-number>-<short-description>`. If the branch already has a meaningful name, skip this.
 2. Implement changes
 3. Commit with conventional commit message and your Co-Authored-By trailer (the pre-commit hook runs all quality gates automatically — selective lint/format/tests on staged files + full typecheck/build/audit)
 4. Push: `git push -u origin <branch-name>`

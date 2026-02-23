@@ -219,7 +219,7 @@ When launched to review a pull request, follow this process:
 
 **Never commit directly to `main` or `beta`.** All changes go through feature branches and pull requests.
 
-1. Create a feature branch: `git checkout -b <type>/<issue-number>-<short-description> beta`
+1. You are already in a worktree session. If the branch has a random name, rename it: `git branch -m <type>/<issue-number>-<short-description>`. If the branch already has a meaningful name, skip this.
 2. Implement changes
 3. Commit with conventional commit message and your Co-Authored-By trailer (the pre-commit hook runs all quality gates automatically — selective lint/format/tests on staged files + full typecheck/build/audit)
 4. Push: `git push -u origin <branch-name>`

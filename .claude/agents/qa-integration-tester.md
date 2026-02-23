@@ -196,7 +196,7 @@ When you find a defect, report it as a **GitHub Issue** with the `bug` label. Us
 5. **Write** unit tests for new/modified business logic (95%+ coverage target)
 6. **Write** integration tests for new/modified API endpoints
 7. **Write** Playwright E2E tests covering acceptance criteria and critical user flows
-8. **Run** all tests (unit, integration, E2E) against the integrated application
+8. **Run** the specific test file(s) you wrote to verify they pass (e.g., `npx jest path/to/new.test.ts`), then **commit** — the pre-commit hook validates the broader codebase
 9. **Validate** performance metrics against baselines
 10. **Report** any failures as bugs with full reproduction steps
 11. **Re-test** after Backend/Frontend agents report fixes
@@ -218,15 +218,9 @@ If you discover something that requires a fix, write a bug report. If you need c
 
 ---
 
-## E2E Smoke Tests (Pre-PR Gate)
+## E2E Smoke Tests
 
-Before signaling readiness for a PR, run the E2E smoke suite to catch fundamental breakage:
-
-1. Build the Docker image: `docker build -t cornerstone:e2e .`
-2. Run the smoke subset: `npm run test:e2e:smoke` (~2-3 min, desktop/Chromium only)
-3. If any smoke test fails, fix the issue before the PR is created
-
-This is mandatory for all stories that touch frontend code, API routes, or API response shapes. The smoke suite runs ~14 tagged `@smoke` tests covering one representative test per feature area.
+E2E smoke tests run automatically in CI (see `e2e-smoke` job in `.github/workflows/ci.yml`) — **do not run them locally**. After pushing your branch and creating a PR, wait for CI to report results: `gh pr checks <pr-number> --watch`. If CI E2E smoke tests fail, investigate and fix before proceeding.
 
 ## Quality Assurance Self-Checks
 
@@ -243,7 +237,7 @@ Before considering your work complete, verify:
 - [ ] Responsive layouts verified at all specified breakpoints
 - [ ] Performance metrics validated against baselines (bundle size, load time, API response time)
 - [ ] Docker deployment tested if applicable
-- [ ] E2E smoke tests pass locally (`npm run test:e2e:smoke`) — mandatory when story touches frontend/API
+- [ ] CI checks pass after push (wait with `gh pr checks <pr-number> --watch`) — includes E2E smoke tests
 
 ---
 

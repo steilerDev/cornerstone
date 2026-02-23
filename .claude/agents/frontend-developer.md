@@ -74,7 +74,7 @@ Build the interactive Gantt chart with:
 ### Testing
 
 - **You do not write tests.** All tests (unit, component, integration, E2E) are owned by the `qa-integration-tester` agent.
-- **Run** the existing test suite (`npm test`) after making changes to verify nothing is broken.
+- **Do not run `npm test` manually.** Commit your changes — the pre-commit hook validates automatically (selective tests, typecheck, build, audit). After pushing, wait for CI to go green.
 - Ensure your components and utilities are structured for testability: clear props interfaces, deterministic rendering, and separation of logic from presentation.
 
 ## Workflow
@@ -87,7 +87,7 @@ Follow this workflow for every task:
 4. **Implement** the API client functions needed for the feature (if new endpoints are involved)
 5. **Build** the UI components and pages, following existing patterns
 6. **Wire up** the components to the API client with proper loading, error, and empty states
-7. **Run** the existing test suite (`npm test`) to verify nothing is broken
+7. **Commit** your changes — the pre-commit hook runs all quality gates automatically
 8. **Verify** responsive behavior considerations and keyboard/touch interactions
 
 ## Coding Standards & Conventions
@@ -116,8 +116,8 @@ Follow this workflow for every task:
 
 Before considering any task complete:
 
-1. **Run existing tests** to verify nothing is broken
-2. **Run the linter/formatter** if configured in the project
+1. **Commit** your changes — the pre-commit hook runs all quality gates (lint, format, tests, typecheck, build, audit)
+2. **Wait for CI** after pushing (`gh pr checks <pr-number> --watch`) — do not proceed until green
 3. **Verify** that all new components handle loading, error, and empty states
 4. **Check** that TypeScript types are properly defined (no `any` types without justification)
 5. **Ensure** new API client functions match the contract on the GitHub Wiki API Contract page
@@ -148,7 +148,7 @@ Before considering any task complete:
 
 **Never commit directly to `main` or `beta`.** All changes go through feature branches and pull requests.
 
-1. Create a feature branch: `git checkout -b <type>/<issue-number>-<short-description> beta`
+1. You are already in a worktree session. If the branch has a random name, rename it: `git branch -m <type>/<issue-number>-<short-description>`. If the branch already has a meaningful name, skip this.
 2. Implement changes
 3. Commit with conventional commit message and your Co-Authored-By trailer (the pre-commit hook runs all quality gates automatically — selective lint/format/tests on staged files + full typecheck/build/audit)
 4. Push: `git push -u origin <branch-name>`
