@@ -10,12 +10,7 @@
 #   shared/client from stage 1, builds server (tsc only — lightweight).
 # Stage 3 (production): Minimal runtime image, no npm/build tools/shell.
 # =============================================================================
-# Standard build:
-#   docker build -t cornerstone .
-# Behind a proxy with CA cert:
-#   docker build \
-#     --build-arg HTTP_PROXY=$HTTP_PROXY --build-arg HTTPS_PROXY=$HTTPS_PROXY \
-#     --secret id=proxy-ca,src=$SSL_CERT_FILE -t cornerstone .
+# Standard build: docker build -t cornerstone .
 # =============================================================================
 
 # ---------------------------------------------------------------------------
@@ -28,20 +23,6 @@
 FROM --platform=$BUILDPLATFORM dhi.io/node:24-alpine3.23-dev AS client-builder
 
 WORKDIR /app
-
-# Proxy build args — pass --build-arg HTTP_PROXY=... if behind a proxy
-ARG HTTP_PROXY
-ARG HTTPS_PROXY
-ARG http_proxy
-ARG https_proxy
-
-# Install proxy CA cert if provided. No build-base/python3 needed — all
-# client/shared deps are pure JavaScript (native addons skipped below).
-RUN --mount=type=secret,id=proxy-ca \
-    if [ -f /run/secrets/proxy-ca ]; then \
-      cat /run/secrets/proxy-ca >> /etc/ssl/certs/ca-certificates.crt && \
-      npm config set cafile /etc/ssl/certs/ca-certificates.crt; \
-    fi
 
 # Copy package files for dependency installation
 COPY package.json package-lock.json ./
@@ -74,19 +55,8 @@ FROM dhi.io/node:24-alpine3.23-dev AS builder
 
 WORKDIR /app
 
-# Proxy build args
-ARG HTTP_PROXY
-ARG HTTPS_PROXY
-ARG http_proxy
-ARG https_proxy
-
-# Install proxy CA cert if provided, and build tools for better-sqlite3
-RUN --mount=type=secret,id=proxy-ca \
-    if [ -f /run/secrets/proxy-ca ]; then \
-      cat /run/secrets/proxy-ca >> /etc/ssl/certs/ca-certificates.crt && \
-      npm config set cafile /etc/ssl/certs/ca-certificates.crt; \
-    fi && \
-    apk update && apk add --no-cache build-base python3
+# Install build tools for better-sqlite3 native addon compilation
+RUN apk update && apk add --no-cache build-base python3
 
 # Copy package files for dependency installation
 COPY package.json package-lock.json ./
