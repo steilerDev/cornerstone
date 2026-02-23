@@ -7,7 +7,8 @@
     "shared",
     "server",
     "client",
-    "e2e"
+    "e2e",
+    "docs"
   ],
   "scripts": {
     "dev": "concurrently -n server,client -c blue,green \"npm run dev -w server\" \"npm run dev -w client\"",
@@ -27,7 +28,10 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "typecheck": "npm run build -w shared && npm run typecheck -w server && npm run typecheck -w client",
-    "db:migrate": "npm run db:migrate -w server"
+    "db:migrate": "npm run db:migrate -w server",
+    "docs:dev": "npm run dev -w docs",
+    "docs:build": "npm run build -w docs",
+    "docs:screenshots": "npm run screenshots -w e2e"
   },
   "type": "module",
   "engines": {
@@ -51,7 +55,7 @@
     "prettier": "3.8.1",
     "semantic-release": "25.0.3",
     "ts-jest": "29.4.6",
-    "typescript": "5.9.3",
+    "typescript": "^5.9.3",
     "typescript-eslint": "8.55.0"
   }
 }

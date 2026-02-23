@@ -23,7 +23,7 @@ This project uses a team of 10 specialized Claude Code agents defined in `.claud
 | `e2e-test-engineer`     | Playwright E2E browser tests, test container infrastructure, UAT scenario coverage    |
 | `security-engineer`     | Security audits, vulnerability reports, remediation guidance                          |
 | `uat-validator`         | UAT scenarios, manual validation steps, user sign-off per epic                        |
-| `docs-writer`           | Updates user-facing README.md after UAT approval per epic                             |
+| `docs-writer`           | Documentation site (`docs/`), lean README.md, user-facing guides after UAT approval  |
 
 ## GitHub Tools Strategy
 
@@ -33,8 +33,9 @@ This project uses a team of 10 specialized Claude Code agents defined in `.claud
 | Architecture, API contract, schema, ADRs, security audit | **GitHub Wiki**                               |
 | Code review                                              | **GitHub Pull Requests**                      |
 | Source tree                                              | Code, configs, `Dockerfile`, `CLAUDE.md` only |
+| User-facing docs site                                    | **`docs/` workspace** (Docusaurus, GitHub Pages) |
 
-No `docs/` directory in the source tree. All documentation lives on the GitHub Wiki. The GitHub Projects board is the single source of truth for backlog management.
+The GitHub Projects board is the single source of truth for backlog management.
 
 ### GitHub Wiki Pages (managed by product-architect, security-engineer, and ux-designer)
 
@@ -122,7 +123,7 @@ Schema and API contract evolve incrementally as each epic is implemented, rather
 - **UAT scenarios** → `uat-validator` agent
 - **Story definitions** → `product-owner` agent
 - **Security reviews** → `security-engineer` agent
-- **User-facing documentation** → `docs-writer` agent
+- **User-facing documentation** (docs site + README) → `docs-writer` agent
 
 The orchestrator's role is to: sequence agent launches, pass context between agents, manage the feature branch and PR lifecycle, and ensure the full agile cycle is followed for every story.
 
@@ -174,7 +175,7 @@ After the refinement task is complete and all automated tests pass:
 3. Step-by-step manual validation instructions are provided to the user
 4. The user walks through each scenario and marks it pass or fail
 5. If any scenario fails, developers fix the issue and the cycle repeats from the automated test step
-6. After user approval, the **docs-writer** updates `README.md` to reflect the newly shipped features
+6. After user approval, the **docs-writer** updates the docs site (`docs/`) and `README.md` to reflect the newly shipped features
 7. The epic is complete only after explicit user approval and documentation is updated
 
 ### Key Rules
@@ -251,7 +252,7 @@ All agents must clearly identify themselves in commits and GitHub interactions:
       d. Repeat until all reviewers approve
   12. **Merge**: Once all agents approve and CI is green, merge immediately: `gh pr merge --squash <pr-url>`
   13. After merge, clean up: `git checkout beta && git pull && git branch -d <branch-name>`
-  14. **Documentation**: Launch `docs-writer` to update `README.md` with newly shipped features. Commit to `beta`.
+  14. **Documentation**: Launch `docs-writer` to update the docs site (`docs/`) and `README.md` with newly shipped features. Commit to `beta`.
   15. **Epic promotion**: After all stories in an epic are complete (merged to `beta`), refinement is done, and documentation is updated:
       a. Create a PR from `beta` to `main` using a **merge commit** (not squash): `gh pr create --base main --head beta --title "..." --body "..."`
       b. Post UAT validation criteria and manual testing steps as comments on the promotion PR — this gives the user a single place to review what was built and how to validate it
@@ -425,6 +426,21 @@ cornerstone/
     fixtures/               # Test fixtures and helpers
     pages/                  # Page Object Models
     tests/                  # Test files organized by feature/epic
+  docs/                     # @cornerstone/docs - Docusaurus documentation site
+    package.json
+    tsconfig.json
+    docusaurus.config.ts    # Site configuration
+    sidebars.ts             # Sidebar navigation
+    theme/
+      custom.css            # Brand colors
+    static/
+      img/                  # Favicon, logo, screenshots
+    src/                    # Documentation content (Markdown)
+      intro.md              # Landing page
+      roadmap.md            # Feature roadmap
+      getting-started/      # Deployment guides
+      guides/               # Feature user guides
+      development/          # Agentic development docs
 ```
 
 ### Package Dependency Graph
@@ -433,11 +449,14 @@ cornerstone/
 @cornerstone/shared  <--  @cornerstone/server
                      <--  @cornerstone/client
 @cornerstone/e2e     (standalone — runs against built app via testcontainers)
+@cornerstone/docs    (standalone — Docusaurus, deployed to GitHub Pages)
 ```
 
 ### Build Order
 
 `shared` (tsc) -> `client` (webpack build) -> `server` (tsc)
+
+The `docs` workspace is NOT part of the application build (`npm run build`). Build it separately with `npm run docs:build`.
 
 ## Dependency Policy
 
@@ -529,7 +548,27 @@ In development, the Webpack dev server at `http://localhost:5173` proxies `/api/
 | `npm run lint`       | Lint all code                                   |
 | `npm run format`     | Format all code                                 |
 | `npm run typecheck`  | Type-check all packages                         |
-| `npm run db:migrate` | Run pending SQL migrations                      |
+| `npm run db:migrate`   | Run pending SQL migrations                      |
+| `npm run docs:dev`     | Start docs site dev server (port 3001)          |
+| `npm run docs:build`   | Build docs site to `docs/build/`                |
+| `npm run docs:screenshots` | Capture app screenshots into `docs/static/img/screenshots/` |
+
+### Documentation Site
+
+The `docs/` workspace is a Docusaurus 3.x site deployed to GitHub Pages at `https://steilerDev.github.io/cornerstone/`.
+
+**Content hierarchy:**
+
+| Location | Content | Audience |
+|----------|---------|----------|
+| Docs site (`docs/src/`) | User guides, deployment, development process | End users |
+| GitHub Wiki (`wiki/`) | Architecture, API contract, schema, ADRs, security audit | Agents + contributors |
+| `README.md` | Lean pointer: tagline, quick start, roadmap, links | GitHub visitors |
+| `CLAUDE.md` | Agent instructions, conventions, workflow rules | AI agents |
+
+**Deployment:** Automated via `.github/workflows/docs.yml` — triggers on push to `main` with changes in `docs/**`.
+
+**Screenshots:** Run `npm run docs:screenshots` to capture app screenshots into `docs/static/img/screenshots/`. This requires the app to be running via testcontainers (same as E2E tests). Screenshots are named `<feature>-<view>-<theme>.png` (e.g., `work-items-list-light.png`).
 
 ### Database Migrations
 

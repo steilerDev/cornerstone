@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "jsx": "react",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": false,
+    "skipLibCheck": true
+  },
+  "include": ["**/*.js", "**/*.ts", "**/*.tsx", "**/*.jsx"]
+}

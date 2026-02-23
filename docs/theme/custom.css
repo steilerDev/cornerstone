@@ -1,0 +1,25 @@
+/**
+ * Brand colors derived from Cornerstone design tokens (tokens.css).
+ * Primary: blue-500 (#3b82f6)
+ */
+
+:root {
+  --ifm-color-primary: #3b82f6;
+  --ifm-color-primary-dark: #1d6ff3;
+  --ifm-color-primary-darker: #1064eb;
+  --ifm-color-primary-darkest: #0d52c1;
+  --ifm-color-primary-light: #5995f8;
+  --ifm-color-primary-lighter: #6ea3f9;
+  --ifm-color-primary-lightest: #9fc1fb;
+  --ifm-code-font-size: 95%;
+}
+
+[data-theme='dark'] {
+  --ifm-color-primary: #60a5fa;
+  --ifm-color-primary-dark: #3d91f9;
+  --ifm-color-primary-darker: #2b87f8;
+  --ifm-color-primary-darkest: #0a6df1;
+  --ifm-color-primary-light: #83b9fb;
+  --ifm-color-primary-lighter: #95c3fc;
+  --ifm-color-primary-lightest: #c8e1fd;
+}
