@@ -6,6 +6,7 @@
  */
 
 import { test, expect } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { readFile } from 'fs/promises';
 import { TEST_ADMIN, API } from '../../fixtures/testData.js';
 
@@ -39,7 +40,7 @@ test.beforeAll(async () => {
  * @param page - Playwright Page within an unauthenticated context
  * @param baseUrl - The proxy base URL to use
  */
-async function loginThroughProxy(page: import('@playwright/test').Page, baseUrl: string) {
+async function loginThroughProxy(page: Page, baseUrl: string) {
   await page.goto(`${baseUrl}/login`);
   await page.getByLabel(/email/i).fill(TEST_ADMIN.email);
   await page.getByLabel(/password/i).fill(TEST_ADMIN.password);
