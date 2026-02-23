@@ -149,7 +149,12 @@ test.describe('Documentation screenshots', () => {
     const page = await context.newPage();
 
     await page.goto(`${baseUrl}${ROUTES.login}`);
-    await expect(page.getByRole('heading', { name: /sign in|log in/i })).toBeVisible();
+    // Wait for the JS bundle to fully load and React to render — fresh unauthenticated
+    // contexts must parse the full bundle before rendering, which can exceed 7s on slow CI runners
+    await page.waitForLoadState('networkidle');
+    await expect(page.getByRole('heading', { name: /sign in|log in/i })).toBeVisible({
+      timeout: 15000,
+    });
 
     for (const theme of ['light', 'dark'] as const) {
       await setTheme(page, theme);
