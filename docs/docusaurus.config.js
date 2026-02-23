@@ -6,8 +6,8 @@ const config = {
   tagline: 'A self-hosted home building project management tool',
   favicon: 'img/favicon.svg',
 
-  url: 'https://steilerDev.github.io',
-  baseUrl: '/cornerstone/',
+  url: 'https://cornerstone.steiler.dev',
+  baseUrl: '/',
 
   organizationName: 'steilerDev',
   projectName: 'cornerstone',
