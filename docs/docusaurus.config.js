@@ -111,7 +111,7 @@ const config = {
         respectPrefersColorScheme: true,
       },
       prism: {
-        additionalLanguages: ['bash', 'json', 'yaml', 'dockerfile'],
+        additionalLanguages: ['bash', 'json', 'yaml', 'docker'],
       },
     }),
 };
