@@ -23,13 +23,16 @@ export default defineConfig({
   /* Retry on CI only */
   retries: process.env.CI ? 1 : 0,
 
-  /* CI workers: 2x vCPU count (4 vCPUs on ubuntu-latest). Profiling showed 12 workers
-     causes load avg 126+ and 208 test failures from CPU contention. Memory headroom
-     exists (9.7/16 GB) but browsers are CPU-heavy. 8 workers is the sweet spot. */
-  workers: process.env.CI ? 8 : undefined,
+  /* CI workers: 1 per vCPU (4 vCPUs on ubuntu-latest). With 8 shards splitting the
+     suite, each shard runs ~3-4 test files. 4 workers avoids CPU contention that
+     caused flakiness at higher counts (8 workers on a single runner). */
+  workers: process.env.CI ? 4 : undefined,
 
-  /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: [['html', { outputFolder: 'playwright-report' }], ['list']],
+  /* Reporter to use. See https://playwright.dev/docs/test-reporters
+     When sharding, use blob reporter so reports can be merged across shards. */
+  reporter: process.env.SHARD_INDEX
+    ? [['blob', { outputDir: 'blob-report' }], ['list']]
+    : [['html', { outputFolder: 'playwright-report' }], ['list']],
 
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
