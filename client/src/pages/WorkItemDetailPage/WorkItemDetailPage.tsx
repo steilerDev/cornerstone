@@ -363,7 +363,13 @@ export default function WorkItemDetailPage() {
       setDeletingBudgetId(null);
       await reloadBudgetLines();
     } catch (err) {
-      setInlineError('Failed to delete budget line');
+      setDeletingBudgetId(null);
+      const apiErr = err as { statusCode?: number; message?: string };
+      if (apiErr.statusCode === 409) {
+        setInlineError(apiErr.message || 'Budget line cannot be deleted because it is in use');
+      } else {
+        setInlineError('Failed to delete budget line');
+      }
       console.error('Failed to delete budget line:', err);
     }
   };
