@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppShell } from './components/AppShell/AppShell';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -11,7 +11,14 @@ const DashboardPage = lazy(() => import('./pages/DashboardPage/DashboardPage'));
 const WorkItemsPage = lazy(() => import('./pages/WorkItemsPage/WorkItemsPage'));
 const WorkItemCreatePage = lazy(() => import('./pages/WorkItemCreatePage/WorkItemCreatePage'));
 const WorkItemDetailPage = lazy(() => import('./pages/WorkItemDetailPage/WorkItemDetailPage'));
-const BudgetPage = lazy(() => import('./pages/BudgetPage/BudgetPage'));
+const BudgetOverviewPage = lazy(() => import('./pages/BudgetOverviewPage/BudgetOverviewPage'));
+const BudgetCategoriesPage = lazy(
+  () => import('./pages/BudgetCategoriesPage/BudgetCategoriesPage'),
+);
+const VendorsPage = lazy(() => import('./pages/VendorsPage/VendorsPage'));
+const VendorDetailPage = lazy(() => import('./pages/VendorDetailPage/VendorDetailPage'));
+const BudgetSourcesPage = lazy(() => import('./pages/BudgetSourcesPage/BudgetSourcesPage'));
+const SubsidyProgramsPage = lazy(() => import('./pages/SubsidyProgramsPage/SubsidyProgramsPage'));
 const TimelinePage = lazy(() => import('./pages/TimelinePage/TimelinePage'));
 const HouseholdItemsPage = lazy(() => import('./pages/HouseholdItemsPage/HouseholdItemsPage'));
 const DocumentsPage = lazy(() => import('./pages/DocumentsPage/DocumentsPage'));
@@ -51,7 +58,15 @@ export function App() {
                 <Route path="work-items" element={<WorkItemsPage />} />
                 <Route path="work-items/new" element={<WorkItemCreatePage />} />
                 <Route path="work-items/:id" element={<WorkItemDetailPage />} />
-                <Route path="budget" element={<BudgetPage />} />
+                <Route path="budget">
+                  <Route index element={<Navigate to="overview" replace />} />
+                  <Route path="overview" element={<BudgetOverviewPage />} />
+                  <Route path="categories" element={<BudgetCategoriesPage />} />
+                  <Route path="vendors" element={<VendorsPage />} />
+                  <Route path="vendors/:id" element={<VendorDetailPage />} />
+                  <Route path="sources" element={<BudgetSourcesPage />} />
+                  <Route path="subsidies" element={<SubsidyProgramsPage />} />
+                </Route>
                 <Route path="timeline" element={<TimelinePage />} />
                 <Route path="household-items" element={<HouseholdItemsPage />} />
                 <Route path="documents" element={<DocumentsPage />} />

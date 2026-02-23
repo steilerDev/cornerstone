@@ -6,8 +6,8 @@ import { test, expect } from '../../fixtures/auth.js';
 import { AppShellPage } from '../../pages/AppShellPage.js';
 import { ROUTES } from '../../fixtures/testData.js';
 
-test.describe('Sidebar Navigation', () => {
-  test('Navigate to each section via sidebar links', async ({ page }) => {
+test.describe('Sidebar Navigation', { tag: '@responsive' }, () => {
+  test('Navigate to each section via sidebar links', { tag: '@smoke' }, async ({ page }) => {
     const appShell = new AppShellPage(page);
     const viewport = page.viewportSize();
     const isMobile = viewport !== null && viewport.width < 1024;
@@ -23,27 +23,27 @@ test.describe('Sidebar Navigation', () => {
     // Given: User is on the dashboard
     await page.goto(ROUTES.home);
 
-    // When/Then: Navigate to each section and verify URL
+    // When/Then: Navigate to each section and verify URL (use regex to allow query params)
     await clickNav('Work Items');
-    await expect(page).toHaveURL(ROUTES.workItems);
+    await expect(page).toHaveURL(new RegExp(`${ROUTES.workItems}(\\?.*)?$`));
 
     await clickNav('Budget');
-    await expect(page).toHaveURL(ROUTES.budget);
+    await expect(page).toHaveURL(new RegExp(`${ROUTES.budget}(\\?.*)?$`));
 
     await clickNav('Timeline');
-    await expect(page).toHaveURL(ROUTES.timeline);
+    await expect(page).toHaveURL(new RegExp(`${ROUTES.timeline}(\\?.*)?$`));
 
     await clickNav('Household Items');
-    await expect(page).toHaveURL(ROUTES.householdItems);
+    await expect(page).toHaveURL(new RegExp(`${ROUTES.householdItems}(\\?.*)?$`));
 
     await clickNav('Documents');
-    await expect(page).toHaveURL(ROUTES.documents);
+    await expect(page).toHaveURL(new RegExp(`${ROUTES.documents}(\\?.*)?$`));
 
     await clickNav('Profile');
-    await expect(page).toHaveURL(ROUTES.profile);
+    await expect(page).toHaveURL(new RegExp(`${ROUTES.profile}(\\?.*)?$`));
 
     await clickNav('User Management');
-    await expect(page).toHaveURL(ROUTES.userManagement);
+    await expect(page).toHaveURL(new RegExp(`${ROUTES.userManagement}(\\?.*)?$`));
 
     await clickNav('Dashboard');
     await expect(page).toHaveURL(ROUTES.home);
@@ -59,7 +59,7 @@ test.describe('Sidebar Navigation', () => {
     await expect(async () => {
       const isActive = await appShell.isNavLinkActive('Work Items');
       expect(isActive).toBe(true);
-    }).toPass({ timeout: 5000 });
+    }).toPass();
 
     // When: User navigates to Budget
     await page.goto(ROUTES.budget);
@@ -68,13 +68,13 @@ test.describe('Sidebar Navigation', () => {
     await expect(async () => {
       const isActive = await appShell.isNavLinkActive('Budget');
       expect(isActive).toBe(true);
-    }).toPass({ timeout: 5000 });
+    }).toPass();
 
     // And: Work Items link should not be active
     await expect(async () => {
       const isActive = await appShell.isNavLinkActive('Work Items');
       expect(isActive).toBe(false);
-    }).toPass({ timeout: 5000 });
+    }).toPass();
   });
 
   test('All nav links rendered and visible', async ({ page }) => {

@@ -2124,3 +2124,586 @@ describe('Work Items Database Schema & Migration', () => {
     });
   });
 });
+
+// ─── EPIC-05: Budget Schema Tests ─────────────────────────────────────────────
+
+describe('Budget Schema (EPIC-05)', () => {
+  let sqlite: Database.Database;
+  let db: BetterSQLite3Database<typeof schema>;
+
+  function createTestDb() {
+    const sqliteDb = new Database(':memory:');
+    sqliteDb.pragma('journal_mode = WAL');
+    sqliteDb.pragma('foreign_keys = ON');
+    runMigrations(sqliteDb);
+    return { sqlite: sqliteDb, db: drizzle(sqliteDb, { schema }) };
+  }
+
+  beforeEach(() => {
+    const testDb = createTestDb();
+    sqlite = testDb.sqlite;
+    db = testDb.db;
+  });
+
+  afterEach(() => {
+    sqlite.close();
+  });
+
+  // ─── budget_categories table ──────────────────────────────────────────────
+
+  describe('budget_categories table', () => {
+    it('creates budget_categories table with correct columns', () => {
+      const columns = sqlite.prepare("PRAGMA table_info('budget_categories')").all() as Array<{
+        name: string;
+        type: string;
+        notnull: number;
+        pk: number;
+        dflt_value: string | null;
+      }>;
+
+      const columnNames = columns.map((col) => col.name);
+      expect(columnNames).toContain('id');
+      expect(columnNames).toContain('name');
+      expect(columnNames).toContain('description');
+      expect(columnNames).toContain('color');
+      expect(columnNames).toContain('sort_order');
+      expect(columnNames).toContain('created_at');
+      expect(columnNames).toContain('updated_at');
+
+      // Primary key
+      const idCol = columns.find((col) => col.name === 'id');
+      expect(idCol?.pk).toBe(1);
+
+      // NOT NULL constraints
+      const nameCol = columns.find((col) => col.name === 'name');
+      expect(nameCol?.notnull).toBe(1);
+
+      const createdAtCol = columns.find((col) => col.name === 'created_at');
+      expect(createdAtCol?.notnull).toBe(1);
+
+      const updatedAtCol = columns.find((col) => col.name === 'updated_at');
+      expect(updatedAtCol?.notnull).toBe(1);
+
+      // sort_order defaults to 0
+      const sortOrderCol = columns.find((col) => col.name === 'sort_order');
+      expect(sortOrderCol?.notnull).toBe(1);
+      expect(sortOrderCol?.dflt_value).toBe('0');
+    });
+
+    it('enforces UNIQUE constraint on name column', async () => {
+      // Use a name that does not conflict with the 10 seeded categories.
+      // better-sqlite3 is synchronous and throws (not rejects), so use try/catch.
+      const now = new Date().toISOString();
+
+      await db.insert(schema.budgetCategories).values({
+        id: 'cat-schema-1',
+        name: 'Test Schema Cat A',
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      let error: Error | undefined;
+      try {
+        await db.insert(schema.budgetCategories).values({
+          id: 'cat-schema-2',
+          name: 'Test Schema Cat A', // Duplicate name
+          createdAt: now,
+          updatedAt: now,
+        });
+      } catch (err) {
+        error = err as Error;
+      }
+
+      expect(error).toBeDefined();
+      expect(error?.message).toMatch(/UNIQUE constraint failed/);
+    });
+
+    it('enforces UNIQUE constraint on seeded name (Materials)', async () => {
+      // 'Materials' is already seeded by the migration; re-inserting must fail.
+      // better-sqlite3 throws synchronously, so use try/catch.
+      const now = new Date().toISOString();
+
+      let error: Error | undefined;
+      try {
+        await db.insert(schema.budgetCategories).values({
+          id: 'cat-schema-dup',
+          name: 'Materials',
+          createdAt: now,
+          updatedAt: now,
+        });
+      } catch (err) {
+        error = err as Error;
+      }
+
+      expect(error).toBeDefined();
+      expect(error?.message).toMatch(/UNIQUE constraint failed/);
+    });
+
+    it('can insert a category with all optional fields', async () => {
+      const now = new Date().toISOString();
+
+      await db.insert(schema.budgetCategories).values({
+        id: 'cat-full',
+        name: 'Test Schema Full Cat',
+        description: 'Construction labor costs',
+        color: '#3B82F6',
+        sortOrder: 5,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const rows = await db
+        .select()
+        .from(schema.budgetCategories)
+        .where(eq(schema.budgetCategories.id, 'cat-full'));
+
+      expect(rows).toHaveLength(1);
+      expect(rows[0].name).toBe('Test Schema Full Cat');
+      expect(rows[0].description).toBe('Construction labor costs');
+      expect(rows[0].color).toBe('#3B82F6');
+      expect(rows[0].sortOrder).toBe(5);
+    });
+
+    it('can insert a category with null optional fields', async () => {
+      const now = new Date().toISOString();
+
+      await db.insert(schema.budgetCategories).values({
+        id: 'cat-minimal',
+        name: 'Test Schema Minimal Cat',
+        description: null,
+        color: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const rows = await db
+        .select()
+        .from(schema.budgetCategories)
+        .where(eq(schema.budgetCategories.id, 'cat-minimal'));
+
+      expect(rows).toHaveLength(1);
+      expect(rows[0].description).toBeNull();
+      expect(rows[0].color).toBeNull();
+      expect(rows[0].sortOrder).toBe(0); // Default value
+    });
+  });
+
+  // ─── vendors table ────────────────────────────────────────────────────────
+
+  describe('vendors table', () => {
+    it('creates vendors table with correct columns', () => {
+      const columns = sqlite.prepare("PRAGMA table_info('vendors')").all() as Array<{
+        name: string;
+        type: string;
+        notnull: number;
+        pk: number;
+      }>;
+
+      const columnNames = columns.map((col) => col.name);
+      expect(columnNames).toContain('id');
+      expect(columnNames).toContain('name');
+      expect(columnNames).toContain('specialty');
+      expect(columnNames).toContain('phone');
+      expect(columnNames).toContain('email');
+      expect(columnNames).toContain('address');
+      expect(columnNames).toContain('notes');
+      expect(columnNames).toContain('created_by');
+      expect(columnNames).toContain('created_at');
+      expect(columnNames).toContain('updated_at');
+
+      const idCol = columns.find((col) => col.name === 'id');
+      expect(idCol?.pk).toBe(1);
+
+      const nameCol = columns.find((col) => col.name === 'name');
+      expect(nameCol?.notnull).toBe(1);
+    });
+
+    it('can insert a vendor with all fields', async () => {
+      const now = new Date().toISOString();
+
+      await db.insert(schema.vendors).values({
+        id: 'vendor-1',
+        name: 'ABC Construction',
+        specialty: 'Electrical',
+        phone: '555-1234',
+        email: 'abc@construction.com',
+        address: '123 Main St',
+        notes: 'Reliable contractor',
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const rows = await db.select().from(schema.vendors).where(eq(schema.vendors.id, 'vendor-1'));
+
+      expect(rows).toHaveLength(1);
+      expect(rows[0].name).toBe('ABC Construction');
+      expect(rows[0].specialty).toBe('Electrical');
+    });
+
+    it('creates idx_vendors_name index', () => {
+      const indexes = sqlite
+        .prepare("SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='vendors'")
+        .all() as Array<{ name: string }>;
+
+      const indexNames = indexes.map((idx) => idx.name);
+      expect(indexNames).toContain('idx_vendors_name');
+    });
+  });
+
+  // ─── invoices table ───────────────────────────────────────────────────────
+
+  describe('invoices table', () => {
+    it('creates invoices table with correct columns', () => {
+      const columns = sqlite.prepare("PRAGMA table_info('invoices')").all() as Array<{
+        name: string;
+        type: string;
+        notnull: number;
+        pk: number;
+      }>;
+
+      const columnNames = columns.map((col) => col.name);
+      expect(columnNames).toContain('id');
+      expect(columnNames).toContain('vendor_id');
+      expect(columnNames).toContain('invoice_number');
+      expect(columnNames).toContain('amount');
+      expect(columnNames).toContain('date');
+      expect(columnNames).toContain('due_date');
+      expect(columnNames).toContain('status');
+      expect(columnNames).toContain('notes');
+      expect(columnNames).toContain('created_by');
+      expect(columnNames).toContain('created_at');
+      expect(columnNames).toContain('updated_at');
+
+      const amountCol = columns.find((col) => col.name === 'amount');
+      expect(amountCol?.notnull).toBe(1);
+
+      const dateCol = columns.find((col) => col.name === 'date');
+      expect(dateCol?.notnull).toBe(1);
+    });
+
+    it('can insert an invoice and CASCADE deletes when vendor is deleted', async () => {
+      const now = new Date().toISOString();
+
+      // Insert vendor
+      await db.insert(schema.vendors).values({
+        id: 'vendor-for-invoice',
+        name: 'Test Vendor',
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      // Insert invoice
+      await db.insert(schema.invoices).values({
+        id: 'invoice-1',
+        vendorId: 'vendor-for-invoice',
+        amount: 5000.0,
+        date: '2026-01-15',
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      // Verify invoice exists
+      const invoicesBefore = await db
+        .select()
+        .from(schema.invoices)
+        .where(eq(schema.invoices.id, 'invoice-1'));
+      expect(invoicesBefore).toHaveLength(1);
+
+      // Delete vendor (should cascade)
+      await db.delete(schema.vendors).where(eq(schema.vendors.id, 'vendor-for-invoice'));
+
+      // Invoice should be gone
+      const invoicesAfter = await db
+        .select()
+        .from(schema.invoices)
+        .where(eq(schema.invoices.id, 'invoice-1'));
+      expect(invoicesAfter).toHaveLength(0);
+    });
+
+    it('creates idx_invoices_vendor_id, idx_invoices_status, and idx_invoices_date indexes', () => {
+      const indexes = sqlite
+        .prepare("SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='invoices'")
+        .all() as Array<{ name: string }>;
+
+      const indexNames = indexes.map((idx) => idx.name);
+      expect(indexNames).toContain('idx_invoices_vendor_id');
+      expect(indexNames).toContain('idx_invoices_status');
+      expect(indexNames).toContain('idx_invoices_date');
+    });
+  });
+
+  // ─── budget_sources table ─────────────────────────────────────────────────
+
+  describe('budget_sources table', () => {
+    it('creates budget_sources table with correct columns', () => {
+      const columns = sqlite.prepare("PRAGMA table_info('budget_sources')").all() as Array<{
+        name: string;
+        type: string;
+        notnull: number;
+        pk: number;
+      }>;
+
+      const columnNames = columns.map((col) => col.name);
+      expect(columnNames).toContain('id');
+      expect(columnNames).toContain('name');
+      expect(columnNames).toContain('source_type');
+      expect(columnNames).toContain('total_amount');
+      expect(columnNames).toContain('interest_rate');
+      expect(columnNames).toContain('terms');
+      expect(columnNames).toContain('notes');
+      expect(columnNames).toContain('status');
+      expect(columnNames).toContain('created_by');
+      expect(columnNames).toContain('created_at');
+      expect(columnNames).toContain('updated_at');
+
+      const nameCol = columns.find((col) => col.name === 'name');
+      expect(nameCol?.notnull).toBe(1);
+
+      const totalAmountCol = columns.find((col) => col.name === 'total_amount');
+      expect(totalAmountCol?.notnull).toBe(1);
+    });
+
+    it('can insert a budget source', async () => {
+      const now = new Date().toISOString();
+
+      await db.insert(schema.budgetSources).values({
+        id: 'source-1',
+        name: 'Bank Loan',
+        sourceType: 'bank_loan',
+        totalAmount: 200000.0,
+        interestRate: 3.5,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const rows = await db
+        .select()
+        .from(schema.budgetSources)
+        .where(eq(schema.budgetSources.id, 'source-1'));
+
+      expect(rows).toHaveLength(1);
+      expect(rows[0].name).toBe('Bank Loan');
+      expect(rows[0].sourceType).toBe('bank_loan');
+      expect(rows[0].totalAmount).toBe(200000.0);
+      expect(rows[0].status).toBe('active'); // Default value
+    });
+  });
+
+  // ─── subsidy_programs table ───────────────────────────────────────────────
+
+  describe('subsidy_programs table', () => {
+    it('creates subsidy_programs table with correct columns', () => {
+      const columns = sqlite.prepare("PRAGMA table_info('subsidy_programs')").all() as Array<{
+        name: string;
+        type: string;
+        notnull: number;
+        pk: number;
+      }>;
+
+      const columnNames = columns.map((col) => col.name);
+      expect(columnNames).toContain('id');
+      expect(columnNames).toContain('name');
+      expect(columnNames).toContain('description');
+      expect(columnNames).toContain('eligibility');
+      expect(columnNames).toContain('reduction_type');
+      expect(columnNames).toContain('reduction_value');
+      expect(columnNames).toContain('application_status');
+      expect(columnNames).toContain('application_deadline');
+      expect(columnNames).toContain('notes');
+      expect(columnNames).toContain('created_at');
+      expect(columnNames).toContain('updated_at');
+    });
+
+    it('can insert a subsidy program', async () => {
+      const now = new Date().toISOString();
+
+      await db.insert(schema.subsidyPrograms).values({
+        id: 'subsidy-1',
+        name: 'Green Energy Rebate',
+        description: 'Rebate for solar installation',
+        reductionType: 'percentage',
+        reductionValue: 15.0,
+        applicationStatus: 'eligible',
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const rows = await db
+        .select()
+        .from(schema.subsidyPrograms)
+        .where(eq(schema.subsidyPrograms.id, 'subsidy-1'));
+
+      expect(rows).toHaveLength(1);
+      expect(rows[0].name).toBe('Green Energy Rebate');
+      expect(rows[0].reductionType).toBe('percentage');
+      expect(rows[0].reductionValue).toBe(15.0);
+      expect(rows[0].applicationStatus).toBe('eligible'); // Default
+    });
+  });
+
+  // ─── subsidy_program_categories junction table ────────────────────────────
+
+  describe('subsidy_program_categories table', () => {
+    it('creates subsidy_program_categories table with composite primary key', () => {
+      const columns = sqlite
+        .prepare("PRAGMA table_info('subsidy_program_categories')")
+        .all() as Array<{
+        name: string;
+        type: string;
+        notnull: number;
+        pk: number;
+      }>;
+
+      const columnNames = columns.map((col) => col.name);
+      expect(columnNames).toContain('subsidy_program_id');
+      expect(columnNames).toContain('budget_category_id');
+
+      // Both are part of composite PK
+      const subsidyCol = columns.find((col) => col.name === 'subsidy_program_id');
+      expect(subsidyCol?.pk).toBeGreaterThan(0);
+
+      const categoryCol = columns.find((col) => col.name === 'budget_category_id');
+      expect(categoryCol?.pk).toBeGreaterThan(0);
+    });
+
+    it('links subsidy programs to budget categories', async () => {
+      const now = new Date().toISOString();
+
+      await db.insert(schema.budgetCategories).values({
+        id: 'cat-a',
+        name: 'Insulation',
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      await db.insert(schema.subsidyPrograms).values({
+        id: 'prog-a',
+        name: 'Energy Efficiency Subsidy',
+        reductionType: 'fixed',
+        reductionValue: 500,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      await db.insert(schema.subsidyProgramCategories).values({
+        subsidyProgramId: 'prog-a',
+        budgetCategoryId: 'cat-a',
+      });
+
+      const rows = await db.select().from(schema.subsidyProgramCategories);
+      expect(rows).toHaveLength(1);
+      expect(rows[0].subsidyProgramId).toBe('prog-a');
+      expect(rows[0].budgetCategoryId).toBe('cat-a');
+    });
+
+    it('CASCADE deletes junction rows when budget_category is deleted', async () => {
+      const now = new Date().toISOString();
+
+      await db.insert(schema.budgetCategories).values({
+        id: 'cat-cascade',
+        name: 'Cascade Category',
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      await db.insert(schema.subsidyPrograms).values({
+        id: 'prog-cascade',
+        name: 'Cascade Program',
+        reductionType: 'percentage',
+        reductionValue: 5,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      await db.insert(schema.subsidyProgramCategories).values({
+        subsidyProgramId: 'prog-cascade',
+        budgetCategoryId: 'cat-cascade',
+      });
+
+      // Verify it exists
+      const before = await db.select().from(schema.subsidyProgramCategories);
+      expect(before).toHaveLength(1);
+
+      // Delete the category
+      await db.delete(schema.budgetCategories).where(eq(schema.budgetCategories.id, 'cat-cascade'));
+
+      // Junction row should be gone
+      const after = await db.select().from(schema.subsidyProgramCategories);
+      expect(after).toHaveLength(0);
+    });
+
+    it('CASCADE deletes junction rows when subsidy_program is deleted', async () => {
+      const now = new Date().toISOString();
+
+      await db.insert(schema.budgetCategories).values({
+        id: 'cat-b',
+        name: 'Another Category',
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      await db.insert(schema.subsidyPrograms).values({
+        id: 'prog-b',
+        name: 'Another Program',
+        reductionType: 'percentage',
+        reductionValue: 5,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      await db.insert(schema.subsidyProgramCategories).values({
+        subsidyProgramId: 'prog-b',
+        budgetCategoryId: 'cat-b',
+      });
+
+      // Delete the subsidy program
+      await db.delete(schema.subsidyPrograms).where(eq(schema.subsidyPrograms.id, 'prog-b'));
+
+      // Junction row should be gone
+      const after = await db.select().from(schema.subsidyProgramCategories);
+      expect(after).toHaveLength(0);
+    });
+  });
+
+  // ─── work_item_vendors junction table ────────────────────────────────────
+  // NOTE: Story 5.9 — work_item_vendors was dropped in migration 0005_budget_rework.sql.
+  // Vendor-to-work-item relationships are now expressed via work_item_budgets.vendor_id.
+
+  describe('work_item_vendors table (dropped in Story 5.9)', () => {
+    it('work_item_vendors table does not exist after Story 5.9 migration', () => {
+      const table = sqlite
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='work_item_vendors'")
+        .get();
+
+      expect(table).toBeUndefined();
+    });
+  });
+
+  // ─── work_item_subsidies junction table ──────────────────────────────────
+
+  describe('work_item_subsidies table', () => {
+    it('creates work_item_subsidies table with composite primary key', () => {
+      const columns = sqlite.prepare("PRAGMA table_info('work_item_subsidies')").all() as Array<{
+        name: string;
+        type: string;
+        notnull: number;
+        pk: number;
+      }>;
+
+      const columnNames = columns.map((col) => col.name);
+      expect(columnNames).toContain('work_item_id');
+      expect(columnNames).toContain('subsidy_program_id');
+    });
+
+    it('creates idx_work_item_subsidies_subsidy_program_id index', () => {
+      const indexes = sqlite
+        .prepare(
+          "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='work_item_subsidies'",
+        )
+        .all() as Array<{ name: string }>;
+
+      const indexNames = indexes.map((idx) => idx.name);
+      expect(indexNames).toContain('idx_work_item_subsidies_subsidy_program_id');
+    });
+  });
+});

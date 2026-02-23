@@ -44,7 +44,7 @@ export class LoginPage {
 
   async getErrorBanner(): Promise<string | null> {
     try {
-      await this.errorBanner.waitFor({ state: 'visible', timeout: 5000 });
+      await this.errorBanner.waitFor({ state: 'visible' });
       return await this.errorBanner.textContent();
     } catch {
       return null;

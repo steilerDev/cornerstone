@@ -1,0 +1,56 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [beta]
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Login to DHI registry
+        uses: docker/login-action@v3
+        with:
+          registry: dhi.io
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build Docker image
+        run: docker build -t cornerstone:e2e .
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install E2E dependencies
+        run: npm ci -w e2e
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium webkit --with-deps
+        working-directory: e2e
+
+      - name: Run E2E tests
+        run: npm run test:e2e
+
+      - name: Upload test results
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: e2e-test-results
+          path: |
+            e2e/playwright-output/
+            e2e/playwright-report/
+            e2e/test-results/
+          retention-days: 7

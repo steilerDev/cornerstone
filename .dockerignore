@@ -16,7 +16,6 @@ data/
 .claude/
 .sandbox/
 .nvmrc
-scripts/
 plan/
 wiki/
 tmp/

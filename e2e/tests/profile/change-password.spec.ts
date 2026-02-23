@@ -8,7 +8,11 @@ import { LoginPage } from '../../pages/LoginPage.js';
 import { AppShellPage } from '../../pages/AppShellPage.js';
 import { TEST_ADMIN, ROUTES } from '../../fixtures/testData.js';
 
-test.describe('Change Password', () => {
+test.describe('Change Password', { tag: '@responsive' }, () => {
+  // Serialize tests within this describe block — they all modify the shared admin
+  // user's password and must not run in parallel with each other.
+  test.describe.configure({ mode: 'serial' });
+
   test('Local user sees password change form', async ({ page }) => {
     const profilePage = new ProfilePage(page);
 
@@ -27,43 +31,53 @@ test.describe('Change Password', () => {
     expect(isOidcUser).toBe(false);
   });
 
-  test('Local user changes password successfully', async ({ page }) => {
-    const profilePage = new ProfilePage(page);
+  test('Local user changes password successfully', async ({ browser }) => {
+    // Use an isolated browser context so the logout/re-login cycle does NOT
+    // destroy the shared storageState session used by parallel tests.
+    const context = await browser.newContext({
+      storageState: { cookies: [], origins: [] },
+    });
+    const page = await context.newPage();
 
-    // Given: User is on profile page
-    await profilePage.goto();
+    try {
+      // Log in with a fresh session (separate from the shared one)
+      const loginPage = new LoginPage(page);
+      await loginPage.goto();
+      await loginPage.login(TEST_ADMIN.email, TEST_ADMIN.password);
+      await expect(page).toHaveURL(ROUTES.home);
 
-    const newPassword = 'new-secure-password-123!';
+      const profilePage = new ProfilePage(page);
+      const newPassword = 'new-secure-password-123!';
 
-    // When: User changes password
-    await profilePage.changePassword(TEST_ADMIN.password, newPassword, newPassword);
+      // Given: User is on profile page
+      await profilePage.goto();
 
-    // Then: Success banner should appear
-    const successBanner = await profilePage.getPasswordSuccessBanner();
-    expect(successBanner).toBeTruthy();
-    expect(successBanner?.toLowerCase()).toContain('success');
+      // When: User changes password
+      await profilePage.changePassword(TEST_ADMIN.password, newPassword, newPassword);
 
-    // Verify new password works by logging out and back in
-    const appShell = new AppShellPage(page);
-    const viewport = page.viewportSize();
-    if (viewport && viewport.width < 1024) {
-      await appShell.openSidebar();
+      // Then: Success banner should appear
+      const successBanner = await profilePage.getPasswordSuccessBanner();
+      expect(successBanner).toBeTruthy();
+      expect(successBanner?.toLowerCase()).toContain('success');
+
+      // Verify new password works by logging out and back in
+      const appShell = new AppShellPage(page);
+      const viewport = page.viewportSize();
+      if (viewport && viewport.width < 1024) {
+        await appShell.openSidebar();
+      }
+      await appShell.logout();
+
+      await loginPage.login(TEST_ADMIN.email, newPassword);
+      await expect(page).toHaveURL(ROUTES.home);
+
+      // Restore original password for subsequent tests
+      await profilePage.goto();
+      await profilePage.changePassword(newPassword, TEST_ADMIN.password, TEST_ADMIN.password);
+      await expect(profilePage.passwordSuccessBanner).toBeVisible();
+    } finally {
+      await context.close();
     }
-    await appShell.logout();
-
-    const loginPage = new LoginPage(page);
-    await loginPage.login(TEST_ADMIN.email, newPassword);
-    await expect(page).toHaveURL(ROUTES.home);
-
-    // Restore original password for subsequent tests
-    await profilePage.goto();
-    await profilePage.changePassword(newPassword, TEST_ADMIN.password, TEST_ADMIN.password);
-    await expect(profilePage.passwordSuccessBanner).toBeVisible({ timeout: 5000 });
-
-    // Save updated session back to storageState — the logout above destroyed the
-    // original auth-setup session in the database, so subsequent tests need this
-    // new session cookie to remain authenticated.
-    await page.context().storageState({ path: 'test-results/.auth/admin.json' });
   });
 
   test('Wrong current password shows error', async ({ page }) => {

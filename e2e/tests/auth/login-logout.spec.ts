@@ -7,11 +7,11 @@ import { LoginPage } from '../../pages/LoginPage.js';
 import { AppShellPage } from '../../pages/AppShellPage.js';
 import { TEST_ADMIN, ROUTES } from '../../fixtures/testData.js';
 
-test.describe('Login and Logout', () => {
+test.describe('Login and Logout', { tag: '@responsive' }, () => {
   // Clear auth state for these tests
   test.use({ storageState: { cookies: [], origins: [] } });
 
-  test('Successful login redirects to dashboard', async ({ page }) => {
+  test('Successful login redirects to dashboard', { tag: '@smoke' }, async ({ page }) => {
     const loginPage = new LoginPage(page);
 
     // Given: User is on the login page

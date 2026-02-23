@@ -49,6 +49,11 @@ data/
 .claude/agent-memory/
 .claude/settings.local.json
 
+# cagent memory databases
+.cagent/memory/
+
 # Temporary files
 tmp/
 temp/
+.agent-manager
+.worktrees

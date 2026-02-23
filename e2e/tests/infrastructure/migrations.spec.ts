@@ -9,16 +9,20 @@ import { test, expect } from '@playwright/test';
 import { TEST_ADMIN, API } from '../../fixtures/testData.js';
 
 test.describe('Database Migrations', () => {
-  test('should have healthy application after migrations', async ({ request }) => {
-    // Given: A fresh container with migrations applied
-    // When: Checking the health endpoint
-    const response = await request.get(API.health);
+  test(
+    'should have healthy application after migrations',
+    { tag: '@smoke' },
+    async ({ request }) => {
+      // Given: A fresh container with migrations applied
+      // When: Checking the health endpoint
+      const response = await request.get(API.health);
 
-    // Then: The application should be healthy
-    expect(response.ok()).toBeTruthy();
-    const body = await response.json();
-    expect(body).toHaveProperty('status', 'ok');
-  });
+      // Then: The application should be healthy
+      expect(response.ok()).toBeTruthy();
+      const body = await response.json();
+      expect(body).toHaveProperty('status', 'ok');
+    },
+  );
 
   test('should support full user lifecycle after migrations', async ({ request }) => {
     // Given: A fresh container with migrations applied

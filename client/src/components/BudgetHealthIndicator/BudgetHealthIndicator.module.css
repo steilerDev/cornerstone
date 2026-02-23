@@ -1,0 +1,25 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--spacing-1) var(--spacing-3);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.onBudget {
+  background: var(--color-success-badge-bg);
+  color: var(--color-success-badge-text);
+}
+
+.atRisk {
+  background: var(--color-status-not-started-bg);
+  color: var(--color-status-not-started-text);
+}
+
+.overBudget {
+  background: var(--color-danger-bg-strong);
+  color: var(--color-danger-text-on-light);
+}

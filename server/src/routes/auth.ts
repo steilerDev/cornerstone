@@ -110,7 +110,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
       reply.setCookie(COOKIE_NAME, sessionId, {
         httpOnly: true,
         secure: fastify.config.secureCookies,
-        sameSite: 'strict',
+        sameSite: 'lax',
         path: '/',
         maxAge: fastify.config.sessionDuration,
       });
@@ -180,7 +180,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
     reply.setCookie(COOKIE_NAME, sessionId, {
       httpOnly: true,
       secure: fastify.config.secureCookies,
-      sameSite: 'strict',
+      sameSite: 'lax',
       path: '/',
       maxAge: fastify.config.sessionDuration,
     });
@@ -208,7 +208,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
     reply.setCookie(COOKIE_NAME, '', {
       httpOnly: true,
       secure: fastify.config.secureCookies,
-      sameSite: 'strict',
+      sameSite: 'lax',
       path: '/',
       maxAge: 0,
     });

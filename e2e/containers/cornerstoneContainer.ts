@@ -13,7 +13,7 @@ export interface StartedCornerstoneContainer {
 
 /**
  * Starts a Cornerstone application container for E2E testing.
- * The container must be pre-built using `bash scripts/docker-build.sh cornerstone:e2e`
+ * The container must be pre-built using `docker build -t cornerstone:e2e .`
  *
  * @param config - Configuration including Docker network and optional OIDC port
  * @returns Started container and its base URL

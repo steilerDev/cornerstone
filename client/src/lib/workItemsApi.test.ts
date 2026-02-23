@@ -5,8 +5,11 @@ import {
   createWorkItem,
   updateWorkItem,
   deleteWorkItem,
+  fetchWorkItemSubsidies,
+  linkWorkItemSubsidy,
+  unlinkWorkItemSubsidy,
 } from './workItemsApi.js';
-import type { WorkItemListResponse, WorkItemDetail } from '@cornerstone/shared';
+import type { WorkItemListResponse, WorkItemDetail, SubsidyProgram } from '@cornerstone/shared';
 
 describe('workItemsApi', () => {
   let mockFetch: jest.MockedFunction<typeof globalThis.fetch>;
@@ -259,6 +262,7 @@ describe('workItemsApi', () => {
         tags: [],
         subtasks: [],
         dependencies: { predecessors: [], successors: [] },
+        budgets: [],
         createdAt: '2026-01-01T00:00:00.000Z',
         updatedAt: '2026-01-01T00:00:00.000Z',
       };
@@ -289,6 +293,7 @@ describe('workItemsApi', () => {
         tags: [{ id: 'tag-1', name: 'Plumbing', color: '#0000FF' }],
         subtasks: [],
         dependencies: { predecessors: [], successors: [] },
+        budgets: [],
         createdAt: '2026-01-01T00:00:00.000Z',
         updatedAt: '2026-01-15T00:00:00.000Z',
       };
@@ -333,6 +338,7 @@ describe('workItemsApi', () => {
         tags: [],
         subtasks: [],
         dependencies: { predecessors: [], successors: [] },
+        budgets: [],
         createdAt: '2026-01-01T00:00:00.000Z',
         updatedAt: '2026-01-01T00:00:00.000Z',
       };
@@ -371,6 +377,7 @@ describe('workItemsApi', () => {
         tags: [],
         subtasks: [],
         dependencies: { predecessors: [], successors: [] },
+        budgets: [],
         createdAt: '2026-01-01T00:00:00.000Z',
         updatedAt: '2026-01-01T00:00:00.000Z',
       };
@@ -415,6 +422,7 @@ describe('workItemsApi', () => {
         tags: [],
         subtasks: [],
         dependencies: { predecessors: [], successors: [] },
+        budgets: [],
         createdAt: '2026-01-01T00:00:00.000Z',
         updatedAt: '2026-01-02T00:00:00.000Z',
       };
@@ -452,6 +460,7 @@ describe('workItemsApi', () => {
         tags: [],
         subtasks: [],
         dependencies: { predecessors: [], successors: [] },
+        budgets: [],
         createdAt: '2026-01-01T00:00:00.000Z',
         updatedAt: '2026-01-15T10:00:00.000Z',
       };
@@ -526,6 +535,184 @@ describe('workItemsApi', () => {
       } as Response);
 
       await expect(deleteWorkItem('work-123')).rejects.toThrow();
+    });
+  });
+
+  // ─── fetchWorkItemSubsidies ────────────────────────────────────────────────
+
+  describe('fetchWorkItemSubsidies', () => {
+    const mockSubsidy: SubsidyProgram = {
+      id: 'subsidy-1',
+      name: 'Green Energy Rebate',
+      description: null,
+      eligibility: null,
+      reductionType: 'percentage',
+      reductionValue: 15,
+      applicationStatus: 'eligible',
+      applicationDeadline: null,
+      notes: null,
+      applicableCategories: [],
+      createdBy: null,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+
+    it('sends GET request to /api/work-items/:workItemId/subsidies', async () => {
+      // NOTE: The client reads r.subsidyPrograms but the route sends { subsidies: [...] }.
+      // This test mocks what the client expects (subsidyPrograms key).
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ subsidyPrograms: [mockSubsidy] }),
+      } as Response);
+
+      await fetchWorkItemSubsidies('work-123');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/work-items/work-123/subsidies',
+        expect.any(Object),
+      );
+    });
+
+    it('returns the subsidies array from the response', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ subsidies: [mockSubsidy] }),
+      } as Response);
+
+      const result = await fetchWorkItemSubsidies('work-123');
+
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('subsidy-1');
+      expect(result[0].name).toBe('Green Energy Rebate');
+    });
+
+    it('returns empty array when no subsidies linked', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ subsidies: [] }),
+      } as Response);
+
+      const result = await fetchWorkItemSubsidies('work-123');
+
+      expect(result).toEqual([]);
+    });
+
+    it('throws error when work item not found', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        json: async () => ({ error: { code: 'NOT_FOUND', message: 'Work item not found' } }),
+      } as Response);
+
+      await expect(fetchWorkItemSubsidies('nonexistent')).rejects.toThrow();
+    });
+  });
+
+  // ─── linkWorkItemSubsidy ───────────────────────────────────────────────────
+
+  describe('linkWorkItemSubsidy', () => {
+    it('sends POST request to /api/work-items/:workItemId/subsidies with subsidyProgramId', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 201,
+        json: async () => ({ subsidy: { id: 'subsidy-1', name: 'Test Subsidy' } }),
+      } as Response);
+
+      await linkWorkItemSubsidy('work-123', 'subsidy-1');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/work-items/work-123/subsidies',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({ subsidyProgramId: 'subsidy-1' }),
+        }),
+      );
+    });
+
+    it('resolves on success (201 response)', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 201,
+        json: async () => ({ subsidy: { id: 'subsidy-1', name: 'Test Subsidy' } }),
+      } as Response);
+
+      // linkWorkItemSubsidy uses post<void> — the Promise resolves (does not reject)
+      await expect(linkWorkItemSubsidy('work-123', 'subsidy-1')).resolves.not.toThrow();
+    });
+
+    it('throws error when subsidy is already linked (409)', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 409,
+        json: async () => ({
+          error: {
+            code: 'CONFLICT',
+            message: 'Subsidy program is already linked to this work item',
+          },
+        }),
+      } as Response);
+
+      await expect(linkWorkItemSubsidy('work-123', 'subsidy-1')).rejects.toThrow();
+    });
+
+    it('throws error when subsidy program not found (404)', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        json: async () => ({
+          error: { code: 'NOT_FOUND', message: 'Subsidy program not found' },
+        }),
+      } as Response);
+
+      await expect(linkWorkItemSubsidy('work-123', 'nonexistent-subsidy')).rejects.toThrow();
+    });
+  });
+
+  // ─── unlinkWorkItemSubsidy ─────────────────────────────────────────────────
+
+  describe('unlinkWorkItemSubsidy', () => {
+    it('sends DELETE request to /api/work-items/:workItemId/subsidies/:subsidyProgramId', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 204,
+        text: async () => '',
+      } as Response);
+
+      await unlinkWorkItemSubsidy('work-123', 'subsidy-1');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/work-items/work-123/subsidies/subsidy-1',
+        expect.objectContaining({
+          method: 'DELETE',
+        }),
+      );
+    });
+
+    it('returns void on successful unlink', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 204,
+        text: async () => '',
+      } as Response);
+
+      const result = await unlinkWorkItemSubsidy('work-123', 'subsidy-1');
+
+      expect(result).toBeUndefined();
+    });
+
+    it('throws error when subsidy not linked (404)', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        json: async () => ({
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Subsidy program is not linked to this work item',
+          },
+        }),
+      } as Response);
+
+      await expect(unlinkWorkItemSubsidy('work-123', 'subsidy-1')).rejects.toThrow();
     });
   });
 });

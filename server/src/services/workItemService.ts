@@ -10,6 +10,7 @@ import {
   workItemSubtasks,
   workItemDependencies,
 } from '../db/schema.js';
+import { listWorkItemBudgets } from './workItemBudgetService.js';
 import type {
   WorkItemDetail,
   WorkItemSummary,
@@ -21,6 +22,7 @@ import type {
   UpdateWorkItemRequest,
   WorkItemListQuery,
   PaginationMeta,
+  WorkItemBudgetLine,
 } from '@cornerstone/shared';
 import { NotFoundError, ValidationError } from '../errors/AppError.js';
 
@@ -181,6 +183,8 @@ export function toWorkItemDetail(
   const subtasks = getWorkItemSubtasks(db, workItem.id);
   const dependencies = getWorkItemDependencies(db, workItem.id);
 
+  const budgets: WorkItemBudgetLine[] = listWorkItemBudgets(db, workItem.id);
+
   return {
     id: workItem.id,
     title: workItem.title,
@@ -196,6 +200,7 @@ export function toWorkItemDetail(
     tags: itemTags,
     subtasks,
     dependencies,
+    budgets,
     createdAt: workItem.createdAt,
     updatedAt: workItem.updatedAt,
   };
