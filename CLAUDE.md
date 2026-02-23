@@ -236,6 +236,7 @@ All agents must clearly identify themselves in commits and GitHub interactions:
   - Examples: `feat/42-work-item-crud`, `fix/55-budget-calc`, `ci/18-dependabot-auto-merge`
   - Use the conventional commit type as the prefix
   - Include the GitHub Issue number when one exists
+- **Never push a `worktree-<anything>` branch.** Worktree branches carry auto-generated names. Before pushing, always rename the branch to match the naming convention above: `git branch -m <type>/<issue-number>-<short-description>`. If the scope of work is not yet clear, determine it before pushing — do not publish placeholder branch names.
 
 ### Session Isolation (Worktrees)
 
