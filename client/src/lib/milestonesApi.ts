@@ -20,14 +20,14 @@ export function listMilestones(): Promise<MilestoneSummary[]> {
  * Fetches a single milestone by ID, including linked work items.
  */
 export function getMilestone(id: number): Promise<MilestoneDetail> {
-  return get<{ milestone: MilestoneDetail }>(`/milestones/${id}`).then((r) => r.milestone);
+  return get<MilestoneDetail>(`/milestones/${id}`);
 }
 
 /**
  * Creates a new milestone.
  */
 export function createMilestone(data: CreateMilestoneRequest): Promise<MilestoneSummary> {
-  return post<{ milestone: MilestoneSummary }>('/milestones', data).then((r) => r.milestone);
+  return post<MilestoneSummary>('/milestones', data);
 }
 
 /**
@@ -37,7 +37,7 @@ export function updateMilestone(
   id: number,
   data: UpdateMilestoneRequest,
 ): Promise<MilestoneSummary> {
-  return patch<{ milestone: MilestoneSummary }>(`/milestones/${id}`, data).then((r) => r.milestone);
+  return patch<MilestoneSummary>(`/milestones/${id}`, data);
 }
 
 /**

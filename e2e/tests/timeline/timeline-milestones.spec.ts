@@ -157,8 +157,8 @@ test.describe('Create milestone (Scenario 2)', () => {
       );
       await timelinePage.milestoneFormSubmit.click();
       const response = await createPromise;
-      const body = (await response.json()) as { milestone?: { id: number } };
-      createdMilestoneId = body.milestone?.id ?? null;
+      const body = (await response.json()) as { id?: number };
+      createdMilestoneId = body.id ?? null;
 
       // Form closes, back to list view
       await timelinePage.milestoneForm.waitFor({ state: 'hidden' });
@@ -194,8 +194,8 @@ test.describe('Edit milestone (Scenario 3)', () => {
         data: { title: milestoneTitle, targetDate: milestoneDate },
       });
       expect(createResponse.ok()).toBeTruthy();
-      const body = (await createResponse.json()) as { milestone: { id: number } };
-      createdMilestoneId = body.milestone.id;
+      const body = (await createResponse.json()) as { id: number };
+      createdMilestoneId = body.id;
 
       await timelinePage.goto();
       await timelinePage.openMilestonePanel();
@@ -233,8 +233,8 @@ test.describe('Edit milestone (Scenario 3)', () => {
         data: { title: originalTitle, targetDate: milestoneDate },
       });
       expect(createResponse.ok()).toBeTruthy();
-      const body = (await createResponse.json()) as { milestone: { id: number } };
-      createdMilestoneId = body.milestone.id;
+      const body = (await createResponse.json()) as { id: number };
+      createdMilestoneId = body.id;
 
       await timelinePage.goto();
       await timelinePage.openMilestonePanel();
@@ -290,8 +290,8 @@ test.describe('Delete milestone (Scenario 4)', () => {
         data: { title: milestoneTitle, targetDate: milestoneDate },
       });
       expect(createResponse.ok()).toBeTruthy();
-      const body = (await createResponse.json()) as { milestone: { id: number } };
-      createdMilestoneId = body.milestone.id;
+      const body = (await createResponse.json()) as { id: number };
+      createdMilestoneId = body.id;
 
       await timelinePage.goto();
       await timelinePage.openMilestonePanel();
@@ -340,8 +340,8 @@ test.describe('Delete milestone (Scenario 4)', () => {
         data: { title: milestoneTitle, targetDate: milestoneDate },
       });
       expect(createResponse.ok()).toBeTruthy();
-      const body = (await createResponse.json()) as { milestone: { id: number } };
-      createdMilestoneId = body.milestone.id;
+      const body = (await createResponse.json()) as { id: number };
+      createdMilestoneId = body.id;
 
       await timelinePage.goto();
       await timelinePage.openMilestonePanel();

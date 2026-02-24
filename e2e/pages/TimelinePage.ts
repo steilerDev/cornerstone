@@ -255,7 +255,11 @@ export class TimelinePage {
   /** Switch to Gantt view. */
   async switchToGantt(): Promise<void> {
     await this.ganttViewButton.click();
-    await this.ganttChart.waitFor({ state: 'visible' });
+    await Promise.race([
+      this.ganttChart.waitFor({ state: 'visible' }),
+      this.emptyState.waitFor({ state: 'visible' }),
+      this.noDatesState.waitFor({ state: 'visible' }),
+    ]);
   }
 
   // ── Arrows toggle ─────────────────────────────────────────────────────────
