@@ -5,6 +5,44 @@ import { GanttChart, GanttChartSkeleton } from '../../components/GanttChart/Gant
 import type { ZoomLevel } from '../../components/GanttChart/ganttUtils.js';
 import styles from './TimelinePage.module.css';
 
+// SVG icon for dependency arrows toggle (arrow connector symbol)
+function ArrowsIcon({ active }: { active: boolean }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 20 20"
+      width="16"
+      height="16"
+      fill="none"
+      aria-hidden="true"
+      style={{ display: 'block' }}
+    >
+      {/* Two nodes connected by an arrow */}
+      <circle cx="4" cy="10" r="2.5" stroke="currentColor" strokeWidth={active ? 2 : 1.5} />
+      <circle cx="16" cy="10" r="2.5" stroke="currentColor" strokeWidth={active ? 2 : 1.5} />
+      {/* Arrow shaft */}
+      <line
+        x1="6.5"
+        y1="10"
+        x2="11.5"
+        y2="10"
+        stroke="currentColor"
+        strokeWidth={active ? 2 : 1.5}
+        strokeLinecap="round"
+      />
+      {/* Arrowhead */}
+      <polyline
+        points="10,7.5 12.5,10 10,12.5"
+        stroke="currentColor"
+        strokeWidth={active ? 2 : 1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </svg>
+  );
+}
+
 const ZOOM_OPTIONS: { value: ZoomLevel; label: string }[] = [
   { value: 'day', label: 'Day' },
   { value: 'week', label: 'Week' },
@@ -13,6 +51,7 @@ const ZOOM_OPTIONS: { value: ZoomLevel; label: string }[] = [
 
 export function TimelinePage() {
   const [zoom, setZoom] = useState<ZoomLevel>('month');
+  const [showArrows, setShowArrows] = useState(true);
   const { data, isLoading, error, refetch } = useTimeline();
   const navigate = useNavigate();
 
@@ -31,22 +70,37 @@ export function TimelinePage() {
 
   return (
     <div className={styles.page} data-testid="timeline-page">
-      {/* Page header: title + zoom toggle */}
+      {/* Page header: title + toolbar (arrows toggle + zoom toggle) */}
       <div className={styles.pageHeader}>
         <h1 className={styles.pageTitle}>Timeline</h1>
 
-        <div className={styles.zoomToggle} role="toolbar" aria-label="Zoom level">
-          {ZOOM_OPTIONS.map(({ value, label }) => (
-            <button
-              key={value}
-              type="button"
-              className={`${styles.zoomButton} ${zoom === value ? styles.zoomButtonActive : ''}`}
-              aria-pressed={zoom === value}
-              onClick={() => setZoom(value)}
-            >
-              {label}
-            </button>
-          ))}
+        <div className={styles.toolbar}>
+          {/* Arrows toggle (icon-only) */}
+          <button
+            type="button"
+            className={`${styles.arrowsToggle} ${showArrows ? styles.arrowsToggleActive : ''}`}
+            aria-pressed={showArrows}
+            aria-label={showArrows ? 'Hide dependency arrows' : 'Show dependency arrows'}
+            onClick={() => setShowArrows((v) => !v)}
+            title={showArrows ? 'Hide dependency arrows' : 'Show dependency arrows'}
+          >
+            <ArrowsIcon active={showArrows} />
+          </button>
+
+          {/* Zoom level toggle */}
+          <div className={styles.zoomToggle} role="toolbar" aria-label="Zoom level">
+            {ZOOM_OPTIONS.map(({ value, label }) => (
+              <button
+                key={value}
+                type="button"
+                className={`${styles.zoomButton} ${zoom === value ? styles.zoomButtonActive : ''}`}
+                aria-pressed={zoom === value}
+                onClick={() => setZoom(value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -137,7 +191,12 @@ export function TimelinePage() {
 
         {/* Gantt chart (data loaded, has work items) */}
         {!isLoading && error === null && data !== null && data.workItems.length > 0 && (
-          <GanttChart data={data} zoom={zoom} onItemClick={handleItemClick} />
+          <GanttChart
+            data={data}
+            zoom={zoom}
+            onItemClick={handleItemClick}
+            showArrows={showArrows}
+          />
         )}
       </div>
     </div>

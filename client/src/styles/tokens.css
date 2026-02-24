@@ -327,6 +327,13 @@
   /* Row stripe backgrounds */
   --color-gantt-row-even: var(--color-bg-primary);
   --color-gantt-row-odd: var(--color-bg-secondary);
+
+  /* Dependency arrows */
+  --color-gantt-arrow-default: var(--color-gray-500);
+  --color-gantt-arrow-critical: var(--color-red-500);
+
+  /* Critical path bar border overlay */
+  --color-gantt-bar-critical-border: var(--color-red-600);
 }
 
 /* ============================================================
@@ -467,4 +474,11 @@
   --color-gantt-grid-major: var(--color-border-strong);
   --color-gantt-row-even: var(--color-bg-primary);
   --color-gantt-row-odd: var(--color-bg-secondary);
+
+  /* Dependency arrows (brighter in dark mode for contrast) */
+  --color-gantt-arrow-default: var(--color-slate-400);
+  --color-gantt-arrow-critical: var(--color-red-400);
+
+  /* Critical path bar border overlay (brighter in dark mode) */
+  --color-gantt-bar-critical-border: var(--color-red-400);
 }
