@@ -98,10 +98,9 @@ export default async function scheduleRoutes(fastify: FastifyInstance) {
 
       // Surface circular dependency as a 409 error
       if (result.cycleNodes && result.cycleNodes.length > 0) {
-        throw new CircularDependencyError(
-          'The dependency graph contains a circular dependency',
-          { cycle: result.cycleNodes },
-        );
+        throw new CircularDependencyError('The dependency graph contains a circular dependency', {
+          cycle: result.cycleNodes,
+        });
       }
 
       return reply.status(200).send({
