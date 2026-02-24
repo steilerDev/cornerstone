@@ -147,16 +147,16 @@ describe('GanttBar', () => {
 
   // ── Accessibility ──────────────────────────────────────────────────────────
 
-  it('has role="listitem" on the group element', () => {
+  it('has role="graphics-symbol" on the group element', () => {
     renderInSvg(DEFAULT_PROPS);
-    // The g element has role="listitem" and aria-label, so we can query by it
-    const group = screen.getByRole('listitem');
+    // The g element has role="graphics-symbol" and aria-label, so we can query by it
+    const group = screen.getByRole('graphics-symbol');
     expect(group).toBeInTheDocument();
   });
 
   it('has tabIndex=0 for keyboard navigation', () => {
     renderInSvg(DEFAULT_PROPS);
-    const group = screen.getByRole('listitem');
+    const group = screen.getByRole('graphics-symbol');
     // SVG elements use lowercase 'tabindex' attribute (per SVG spec),
     // unlike HTML elements which use 'tabIndex'.
     expect(group).toHaveAttribute('tabindex', '0');
@@ -164,25 +164,25 @@ describe('GanttBar', () => {
 
   it('builds aria-label from title and status', () => {
     renderInSvg({ ...DEFAULT_PROPS, title: 'Roof Installation', status: 'completed' });
-    const group = screen.getByRole('listitem');
+    const group = screen.getByRole('graphics-symbol');
     expect(group).toHaveAttribute('aria-label', 'Work item: Roof Installation, Completed');
   });
 
   it('aria-label maps not_started status correctly', () => {
     renderInSvg({ ...DEFAULT_PROPS, status: 'not_started' });
-    const group = screen.getByRole('listitem');
+    const group = screen.getByRole('graphics-symbol');
     expect(group).toHaveAttribute('aria-label', expect.stringContaining('Not started'));
   });
 
   it('aria-label maps in_progress status correctly', () => {
     renderInSvg({ ...DEFAULT_PROPS, status: 'in_progress' });
-    const group = screen.getByRole('listitem');
+    const group = screen.getByRole('graphics-symbol');
     expect(group).toHaveAttribute('aria-label', expect.stringContaining('In progress'));
   });
 
   it('aria-label maps blocked status correctly', () => {
     renderInSvg({ ...DEFAULT_PROPS, status: 'blocked' });
-    const group = screen.getByRole('listitem');
+    const group = screen.getByRole('graphics-symbol');
     expect(group).toHaveAttribute('aria-label', expect.stringContaining('Blocked'));
   });
 
@@ -196,7 +196,7 @@ describe('GanttBar', () => {
       startDate: '2024-06-01',
       endDate: '2024-07-31',
     });
-    const group = screen.getByRole('listitem');
+    const group = screen.getByRole('graphics-symbol');
     expect(group).toHaveAttribute(
       'aria-label',
       'Work item: Foundation Work, In progress, 2024-06-01 to 2024-07-31',
@@ -211,7 +211,7 @@ describe('GanttBar', () => {
       startDate: '2024-05-01',
       endDate: null,
     });
-    const group = screen.getByRole('listitem');
+    const group = screen.getByRole('graphics-symbol');
     expect(group).toHaveAttribute('aria-label', 'Work item: Framing, Not started, from 2024-05-01');
   });
 
@@ -223,14 +223,14 @@ describe('GanttBar', () => {
       startDate: null,
       endDate: null,
     });
-    const group = screen.getByRole('listitem');
+    const group = screen.getByRole('graphics-symbol');
     expect(group).toHaveAttribute('aria-label', 'Work item: Electrical, Not started');
   });
 
   it('aria-label has no date segment when startDate and endDate are both undefined', () => {
     // DEFAULT_PROPS has no startDate/endDate — omitting both props
     renderInSvg({ ...DEFAULT_PROPS, title: 'Plumbing', status: 'blocked' });
-    const group = screen.getByRole('listitem');
+    const group = screen.getByRole('graphics-symbol');
     expect(group).toHaveAttribute('aria-label', 'Work item: Plumbing, Blocked');
   });
 
@@ -243,7 +243,7 @@ describe('GanttBar', () => {
       endDate: '2024-08-15',
       isCritical: true,
     });
-    const group = screen.getByRole('listitem');
+    const group = screen.getByRole('graphics-symbol');
     expect(group).toHaveAttribute(
       'aria-label',
       'Work item: Roofing, In progress, 2024-08-01 to 2024-08-15, critical path',
@@ -259,7 +259,7 @@ describe('GanttBar', () => {
       endDate: null,
       isCritical: true,
     });
-    const group = screen.getByRole('listitem');
+    const group = screen.getByRole('graphics-symbol');
     expect(group).toHaveAttribute(
       'aria-label',
       'Work item: Insulation, Not started, critical path',
@@ -270,19 +270,19 @@ describe('GanttBar', () => {
 
   it('sets aria-describedby to tooltipId when tooltipId is provided', () => {
     renderInSvg({ ...DEFAULT_PROPS, tooltipId: 'gantt-chart-tooltip' });
-    const group = screen.getByRole('listitem');
+    const group = screen.getByRole('graphics-symbol');
     expect(group).toHaveAttribute('aria-describedby', 'gantt-chart-tooltip');
   });
 
   it('does not set aria-describedby when tooltipId is not provided', () => {
     renderInSvg({ ...DEFAULT_PROPS });
-    const group = screen.getByRole('listitem');
+    const group = screen.getByRole('graphics-symbol');
     expect(group).not.toHaveAttribute('aria-describedby');
   });
 
   it('does not set aria-describedby when tooltipId is undefined', () => {
     renderInSvg({ ...DEFAULT_PROPS, tooltipId: undefined });
-    const group = screen.getByRole('listitem');
+    const group = screen.getByRole('graphics-symbol');
     expect(group).not.toHaveAttribute('aria-describedby');
   });
 
@@ -337,7 +337,7 @@ describe('GanttBar', () => {
     const handleClick = jest.fn<(id: string) => void>();
     renderInSvg({ ...DEFAULT_PROPS, onClick: handleClick });
 
-    const group = screen.getByRole('listitem');
+    const group = screen.getByRole('graphics-symbol');
     fireEvent.keyDown(group, { key: 'Escape' });
     fireEvent.keyDown(group, { key: 'Tab' });
 

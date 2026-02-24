@@ -123,10 +123,10 @@ describe('GanttMilestones', () => {
       expect(layer.getAttribute('aria-label')).toContain('2');
     });
 
-    it('diamond has role="button"', () => {
+    it('diamond has role="graphics-symbol"', () => {
       renderMilestones();
       const diamond = screen.getByTestId('gantt-milestone-diamond');
-      expect(diamond.getAttribute('role')).toBe('button');
+      expect(diamond.getAttribute('role')).toBe('graphics-symbol');
     });
 
     it('diamond has aria-label including milestone title', () => {
