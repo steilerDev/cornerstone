@@ -40,6 +40,8 @@ export interface GanttTooltipPosition {
 interface GanttTooltipProps {
   data: GanttTooltipData;
   position: GanttTooltipPosition;
+  /** ID to apply to the tooltip element (for aria-describedby on the trigger). */
+  id?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -199,7 +201,7 @@ function MilestoneTooltipContent({ data }: { data: GanttTooltipMilestoneData }) 
  * The `data` prop is polymorphic — set `kind: 'work-item'` or `kind: 'milestone'`
  * to switch between tooltip layouts.
  */
-export function GanttTooltip({ data, position }: GanttTooltipProps) {
+export function GanttTooltip({ data, position, id }: GanttTooltipProps) {
   // Compute tooltip x/y, flipping to avoid viewport overflow
   const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1280;
   const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
@@ -219,6 +221,7 @@ export function GanttTooltip({ data, position }: GanttTooltipProps) {
 
   const content = (
     <div
+      id={id}
       className={styles.tooltip}
       role="tooltip"
       style={{ left: tooltipX, top: tooltipY, width: TOOLTIP_WIDTH }}

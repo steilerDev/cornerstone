@@ -130,3 +130,14 @@
     justify-content: center;
   }
 }
+
+@media (max-width: 767px) {
+  .sidebarSkeleton {
+    width: 44px;
+  }
+
+  .sidebarSkeletonRow {
+    padding: 0;
+    justify-content: center;
+  }
+}

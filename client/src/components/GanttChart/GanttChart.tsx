@@ -239,8 +239,13 @@ export function GanttChart({
 
   const [tooltipData, setTooltipData] = useState<GanttTooltipData | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState<GanttTooltipPosition>({ x: 0, y: 0 });
+  // Track which item (bar or milestone) is currently hovered for aria-describedby
+  const [tooltipTriggerId, setTooltipTriggerId] = useState<string | null>(null);
   const showTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Stable tooltip element ID for aria-describedby
+  const TOOLTIP_ID = 'gantt-chart-tooltip';
 
   function clearTooltipTimers() {
     if (showTimerRef.current !== null) {
@@ -477,6 +482,8 @@ export function GanttChart({
                   id={item.id}
                   title={item.title}
                   status={item.status}
+                  startDate={startDate}
+                  endDate={endDate}
                   x={position.x}
                   width={position.width}
                   rowIndex={idx}
@@ -523,6 +530,8 @@ export function GanttChart({
                       setHoveredZoneCursor(null);
                     }
                   }}
+                  // Tooltip accessibility
+                  tooltipId={tooltipTriggerId === item.id ? TOOLTIP_ID : undefined}
                   // Tooltip props
                   onMouseEnter={(e) => {
                     // Suppress tooltip during drag
@@ -532,6 +541,7 @@ export function GanttChart({
                     if (!tooltipItem) return;
                     const newPos: GanttTooltipPosition = { x: e.clientX, y: e.clientY };
                     showTimerRef.current = setTimeout(() => {
+                      setTooltipTriggerId(item.id);
                       setTooltipData({
                         kind: 'work-item',
                         title: tooltipItem.title,
@@ -548,11 +558,13 @@ export function GanttChart({
                     clearTooltipTimers();
                     hideTimerRef.current = setTimeout(() => {
                       setTooltipData(null);
+                      setTooltipTriggerId(null);
                     }, TOOLTIP_HIDE_DELAY);
                   }}
                   onMouseMove={(e) => {
                     if (dragState) {
                       setTooltipData(null);
+                      setTooltipTriggerId(null);
                       return;
                     }
                     setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -566,7 +578,7 @@ export function GanttChart({
 
       {/* Tooltip portal */}
       {tooltipData !== null && dragState === null && (
-        <GanttTooltip data={tooltipData} position={tooltipPosition} />
+        <GanttTooltip data={tooltipData} position={tooltipPosition} id={TOOLTIP_ID} />
       )}
     </div>
   );

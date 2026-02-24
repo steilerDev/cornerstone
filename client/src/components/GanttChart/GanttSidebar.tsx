@@ -1,4 +1,5 @@
-import { forwardRef } from 'react';
+import { forwardRef, useRef, useCallback } from 'react';
+import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 import type { TimelineWorkItem } from '@cornerstone/shared';
 import { ROW_HEIGHT, HEADER_HEIGHT } from './ganttUtils.js';
 import styles from './GanttSidebar.module.css';
@@ -14,23 +15,76 @@ export interface GanttSidebarProps {
  * It is an HTML element (not SVG) for better text rendering and a11y.
  *
  * The ref is forwarded to the inner scrollable container for external scroll sync.
+ *
+ * Keyboard navigation:
+ * - ArrowUp/ArrowDown: move focus between rows
+ * - Enter/Space: activate (navigate to work item detail)
  */
 export const GanttSidebar = forwardRef<HTMLDivElement, GanttSidebarProps>(function GanttSidebar(
   { items, onItemClick },
   ref,
 ) {
+  // Ref for the rows container to query row elements
+  const rowsRef = useRef<HTMLDivElement>(null);
+
+  const handleKeyDown = useCallback(
+    (e: ReactKeyboardEvent<HTMLDivElement>, idx: number, itemId: string) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        onItemClick?.(itemId);
+        return;
+      }
+
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        const container = rowsRef.current;
+        if (!container) return;
+
+        const rows = container.querySelectorAll<HTMLDivElement>('[data-gantt-sidebar-row]');
+        const nextIdx = e.key === 'ArrowDown' ? idx + 1 : idx - 1;
+
+        if (nextIdx >= 0 && nextIdx < rows.length) {
+          const nextRow = rows[nextIdx];
+          nextRow.focus();
+          // Scroll the row into view within the sidebar
+          nextRow.scrollIntoView({ block: 'nearest' });
+        }
+      }
+    },
+    [onItemClick],
+  );
+
   return (
     <div className={styles.sidebar} data-testid="gantt-sidebar">
       {/* Header cell matching the time header height */}
-      <div className={styles.sidebarHeader} style={{ height: HEADER_HEIGHT }} aria-hidden="true">
+      <div
+        className={styles.sidebarHeader}
+        style={{ height: HEADER_HEIGHT }}
+        aria-hidden="true"
+        id="gantt-sidebar-header"
+      >
         Work Item
       </div>
 
       {/* Scrollable rows container — ref is assigned here for scroll sync */}
-      <div ref={ref} className={styles.sidebarRows}>
+      <div
+        ref={(node) => {
+          // Assign both the forwarded ref and our local ref
+          rowsRef.current = node;
+          if (typeof ref === 'function') {
+            ref(node);
+          } else if (ref) {
+            ref.current = node;
+          }
+        }}
+        className={styles.sidebarRows}
+        role="list"
+        aria-label="Work items"
+      >
         {items.map((item, idx) => {
           const hasNoDates = !item.startDate && !item.endDate;
           const isEven = idx % 2 === 0;
+          const statusSuffix = hasNoDates ? ', no dates set' : '';
           return (
             <div
               key={item.id}
@@ -39,14 +93,10 @@ export const GanttSidebar = forwardRef<HTMLDivElement, GanttSidebarProps>(functi
               role="listitem"
               tabIndex={0}
               onClick={() => onItemClick?.(item.id)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  onItemClick?.(item.id);
-                }
-              }}
-              aria-label={`Work item: ${item.title}`}
+              onKeyDown={(e) => handleKeyDown(e, idx, item.id)}
+              aria-label={`Work item: ${item.title}${statusSuffix}`}
               data-testid={`gantt-sidebar-row-${item.id}`}
+              data-gantt-sidebar-row={idx}
             >
               <span
                 className={`${styles.sidebarRowLabel} ${hasNoDates ? styles.sidebarRowLabelMuted : ''}`}
