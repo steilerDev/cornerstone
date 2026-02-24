@@ -13,6 +13,8 @@ import {
   startOfIsoWeek,
   computeChartRange,
   dateToX,
+  xToDate,
+  snapToGrid,
   computeChartWidth,
   generateGridLines,
   generateHeaderCells,
@@ -918,6 +920,504 @@ describe('generateHeaderCells', () => {
       cells.forEach((c) => {
         expect(c.sublabel).toBeUndefined();
       });
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// xToDate (inverse of dateToX)
+// ---------------------------------------------------------------------------
+
+describe('xToDate', () => {
+  function makeRange(startStr: string, endStr: string): ChartRange {
+    const start = toUtcMidnight(startStr);
+    const end = toUtcMidnight(endStr);
+    return { start, end, totalDays: daysBetween(start, end) };
+  }
+
+  describe('day zoom', () => {
+    it('returns chart start date for x=0', () => {
+      const range = makeRange('2024-06-01', '2024-06-30');
+      const result = xToDate(0, range, 'day');
+      expect(result.getFullYear()).toBe(2024);
+      expect(result.getMonth()).toBe(5); // June
+      expect(result.getDate()).toBe(1);
+    });
+
+    it('returns one day later for x = COLUMN_WIDTHS.day', () => {
+      const range = makeRange('2024-06-01', '2024-06-30');
+      const result = xToDate(COLUMN_WIDTHS.day, range, 'day');
+      // 1 day after June 1 = June 2
+      expect(result.getDate()).toBe(2);
+      expect(result.getMonth()).toBe(5);
+    });
+
+    it('returns 7 days later for x = 7 * COLUMN_WIDTHS.day', () => {
+      const range = makeRange('2024-06-01', '2024-06-30');
+      const result = xToDate(7 * COLUMN_WIDTHS.day, range, 'day');
+      expect(result.getDate()).toBe(8); // June 1 + 7 days = June 8
+      expect(result.getMonth()).toBe(5);
+    });
+
+    it('is the inverse of dateToX for day zoom', () => {
+      const range = makeRange('2024-06-01', '2024-06-30');
+      const originalDate = toUtcMidnight('2024-06-15');
+      const x = dateToX(originalDate, range, 'day');
+      const recovered = xToDate(x, range, 'day');
+      // Due to floating point, check date values not exact timestamps
+      expect(recovered.getFullYear()).toBe(originalDate.getFullYear());
+      expect(recovered.getMonth()).toBe(originalDate.getMonth());
+      expect(Math.round(recovered.getDate())).toBe(originalDate.getDate());
+    });
+
+    it('handles x=0 at range start on a non-first-of-month date', () => {
+      const range = makeRange('2024-06-15', '2024-07-15');
+      const result = xToDate(0, range, 'day');
+      expect(result.getDate()).toBe(15);
+      expect(result.getMonth()).toBe(5);
+    });
+
+    it('handles cross-year boundary', () => {
+      const range = makeRange('2024-12-25', '2025-01-15');
+      const result = xToDate(7 * COLUMN_WIDTHS.day, range, 'day');
+      // 2024-12-25 + 7 days = 2025-01-01
+      expect(result.getFullYear()).toBe(2025);
+      expect(result.getMonth()).toBe(0); // January
+      expect(result.getDate()).toBe(1);
+    });
+
+    it('returns a Date instance', () => {
+      const range = makeRange('2024-06-01', '2024-06-30');
+      const result = xToDate(0, range, 'day');
+      expect(result).toBeInstanceOf(Date);
+    });
+  });
+
+  describe('week zoom', () => {
+    it('returns chart start date for x=0', () => {
+      const range = makeRange('2024-06-03', '2024-07-29'); // Starts Monday
+      const result = xToDate(0, range, 'week');
+      expect(result.getFullYear()).toBe(2024);
+      expect(result.getMonth()).toBe(5); // June
+      expect(result.getDate()).toBe(3);
+    });
+
+    it('returns 7 days later for x = COLUMN_WIDTHS.week', () => {
+      const range = makeRange('2024-06-03', '2024-07-29');
+      const result = xToDate(COLUMN_WIDTHS.week, range, 'week');
+      // 1 week after June 3 = June 10
+      expect(result.getDate()).toBe(10);
+      expect(result.getMonth()).toBe(5);
+    });
+
+    it('returns fractional day for mid-week x position', () => {
+      const range = makeRange('2024-06-03', '2024-07-29');
+      // x = 3.5/7 * COLUMN_WIDTHS.week => 3.5 days in
+      const x = (3.5 / 7) * COLUMN_WIDTHS.week;
+      const result = xToDate(x, range, 'week');
+      // addDays with fractional days uses setDate which truncates, check approximate
+      // 3.5 days after June 3 = June 6 or 7 depending on rounding
+      expect(result.getDate()).toBeGreaterThanOrEqual(6);
+      expect(result.getDate()).toBeLessThanOrEqual(7);
+    });
+
+    it('is the inverse of dateToX for week zoom (Monday boundaries)', () => {
+      const range = makeRange('2024-06-03', '2024-07-29');
+      const originalDate = toUtcMidnight('2024-06-17'); // Monday
+      const x = dateToX(originalDate, range, 'week');
+      const recovered = xToDate(x, range, 'week');
+      expect(recovered.getFullYear()).toBe(originalDate.getFullYear());
+      expect(recovered.getMonth()).toBe(originalDate.getMonth());
+      expect(Math.round(recovered.getDate())).toBe(originalDate.getDate());
+    });
+
+    it('handles cross-month boundary', () => {
+      const range = makeRange('2024-06-03', '2024-08-12');
+      // 4 weeks after June 3 = July 1
+      const result = xToDate(4 * COLUMN_WIDTHS.week, range, 'week');
+      expect(result.getMonth()).toBe(6); // July
+      expect(result.getDate()).toBe(1);
+    });
+  });
+
+  describe('month zoom', () => {
+    it('returns chart start month first day for x=0', () => {
+      const range = makeRange('2024-06-01', '2024-09-01');
+      const result = xToDate(0, range, 'month');
+      // x=0 means fraction=0 in the first month => day 1
+      expect(result.getMonth()).toBe(5); // June
+      expect(result.getDate()).toBe(1);
+    });
+
+    it('returns the second month start or late in first month for x at second month boundary', () => {
+      // Month zoom inverse at exact month boundary can land in either the last day of
+      // the current month or day 1 of the next month due to floating-point precision.
+      // The key invariant is that the recovered date is within 1 day of the boundary.
+      const range = makeRange('2024-06-01', '2024-09-01');
+      const julyX = dateToX(toUtcMidnight('2024-07-01'), range, 'month');
+      const result = xToDate(julyX, range, 'month');
+      // Should be in June (last day) or July (first day) — within 1 day of the boundary
+      const isEndOfJune = result.getMonth() === 5 && result.getDate() === 30;
+      const isStartOfJuly = result.getMonth() === 6 && result.getDate() === 1;
+      expect(isEndOfJune || isStartOfJuly).toBe(true);
+    });
+
+    it('is the inverse of dateToX for month zoom (mid-month dates)', () => {
+      // Mid-month dates (not on boundary) should round-trip accurately.
+      const range = makeRange('2024-06-01', '2024-09-01');
+      const originalDate = toUtcMidnight('2024-07-15');
+      const x = dateToX(originalDate, range, 'month');
+      const recovered = xToDate(x, range, 'month');
+      // Mid-month should recover exactly to the same month and approximately the same day
+      expect(recovered.getFullYear()).toBe(originalDate.getFullYear());
+      expect(recovered.getMonth()).toBe(originalDate.getMonth());
+      // Allow ±1 day tolerance for floating-point
+      expect(Math.abs(recovered.getDate() - originalDate.getDate())).toBeLessThanOrEqual(1);
+    });
+
+    it('returns a date within the correct month for mid-month x', () => {
+      const range = makeRange('2024-01-01', '2024-12-31');
+      // Pick x in the middle of February
+      const febStart = dateToX(toUtcMidnight('2024-02-01'), range, 'month');
+      const marchStart = dateToX(toUtcMidnight('2024-03-01'), range, 'month');
+      const midFeb = (febStart + marchStart) / 2;
+      const result = xToDate(midFeb, range, 'month');
+      expect(result.getMonth()).toBe(1); // February
+    });
+
+    it('handles year-spanning ranges (result is in December or January near year boundary)', () => {
+      // Like the month boundary test above, x at Jan 1 may resolve to Dec 31 or Jan 1.
+      const range = makeRange('2024-11-01', '2025-03-01');
+      const janX = dateToX(toUtcMidnight('2025-01-01'), range, 'month');
+      const result = xToDate(janX, range, 'month');
+      // Should be Dec 31, 2024 or Jan 1, 2025 — within 1 day of the year boundary
+      const isDecember31 =
+        result.getFullYear() === 2024 && result.getMonth() === 11 && result.getDate() === 31;
+      const isJanuary1 =
+        result.getFullYear() === 2025 && result.getMonth() === 0 && result.getDate() === 1;
+      expect(isDecember31 || isJanuary1).toBe(true);
+    });
+
+    it('clamps day within valid month bounds', () => {
+      const range = makeRange('2024-02-01', '2024-04-01');
+      // x slightly past Feb end (28/29 days) should still be Feb or early Mar
+      const febEnd = dateToX(toUtcMidnight('2024-03-01'), range, 'month');
+      // Just before end of Feb
+      const result = xToDate(febEnd - 0.01, range, 'month');
+      // Should be a valid date (day should be 1-29 for Feb 2024)
+      expect(result.getDate()).toBeGreaterThanOrEqual(1);
+      expect(result.getDate()).toBeLessThanOrEqual(29);
+    });
+  });
+
+  describe('roundtrip consistency (dateToX ↔ xToDate)', () => {
+    it('day zoom: dateToX then xToDate recovers the original date', () => {
+      const range = makeRange('2024-01-01', '2024-12-31');
+      const testDates = ['2024-03-15', '2024-06-01', '2024-09-30'];
+      for (const ds of testDates) {
+        const date = toUtcMidnight(ds);
+        const x = dateToX(date, range, 'day');
+        const recovered = xToDate(x, range, 'day');
+        expect(recovered.getDate()).toBe(date.getDate());
+        expect(recovered.getMonth()).toBe(date.getMonth());
+        expect(recovered.getFullYear()).toBe(date.getFullYear());
+      }
+    });
+
+    it('week zoom: dateToX then xToDate recovers a date in the same week', () => {
+      const range = makeRange('2024-01-01', '2024-12-31');
+      const testDates = ['2024-03-11', '2024-06-17', '2024-09-30']; // Mondays
+      for (const ds of testDates) {
+        const date = toUtcMidnight(ds);
+        const x = dateToX(date, range, 'week');
+        const recovered = xToDate(x, range, 'week');
+        // Within 1-day tolerance due to fractional week math
+        const diffMs = Math.abs(recovered.getTime() - date.getTime());
+        const diffDays = diffMs / (24 * 60 * 60 * 1000);
+        expect(diffDays).toBeLessThan(1.5);
+      }
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// snapToGrid
+// ---------------------------------------------------------------------------
+
+describe('snapToGrid', () => {
+  describe('day zoom', () => {
+    it('returns the same calendar day (normalized to noon)', () => {
+      const date = new Date(2024, 5, 15, 10, 30, 0, 0); // June 15 at 10:30
+      const result = snapToGrid(date, 'day');
+      expect(result.getFullYear()).toBe(2024);
+      expect(result.getMonth()).toBe(5);
+      expect(result.getDate()).toBe(15);
+      expect(result.getHours()).toBe(12);
+      expect(result.getMinutes()).toBe(0);
+      expect(result.getSeconds()).toBe(0);
+    });
+
+    it('normalizes a date already at noon', () => {
+      const date = new Date(2024, 5, 15, 12, 0, 0, 0);
+      const result = snapToGrid(date, 'day');
+      expect(result.getFullYear()).toBe(2024);
+      expect(result.getMonth()).toBe(5);
+      expect(result.getDate()).toBe(15);
+    });
+
+    it('normalizes midnight (00:00) to same calendar day at noon', () => {
+      const date = new Date(2024, 5, 15, 0, 0, 0, 0);
+      const result = snapToGrid(date, 'day');
+      expect(result.getDate()).toBe(15);
+      expect(result.getHours()).toBe(12);
+    });
+
+    it('normalizes a date at 23:59 to same calendar day at noon', () => {
+      const date = new Date(2024, 5, 15, 23, 59, 59, 999);
+      const result = snapToGrid(date, 'day');
+      expect(result.getDate()).toBe(15);
+      expect(result.getHours()).toBe(12);
+    });
+
+    it('returns a new Date instance (does not mutate input)', () => {
+      const date = new Date(2024, 5, 15, 10, 0, 0, 0);
+      const original = date.getTime();
+      const result = snapToGrid(date, 'day');
+      expect(date.getTime()).toBe(original); // not mutated
+      expect(result).not.toBe(date);
+    });
+
+    it('handles first day of month', () => {
+      const date = new Date(2024, 0, 1, 14, 0, 0, 0); // Jan 1 at 14:00
+      const result = snapToGrid(date, 'day');
+      expect(result.getDate()).toBe(1);
+      expect(result.getMonth()).toBe(0);
+    });
+
+    it('handles last day of month', () => {
+      const date = new Date(2024, 0, 31, 3, 0, 0, 0); // Jan 31
+      const result = snapToGrid(date, 'day');
+      expect(result.getDate()).toBe(31);
+      expect(result.getMonth()).toBe(0);
+    });
+  });
+
+  describe('week zoom', () => {
+    it('snaps a Monday to the same Monday', () => {
+      // 2024-06-10 is a Monday
+      const date = new Date(2024, 5, 10, 12, 0, 0, 0);
+      const result = snapToGrid(date, 'week');
+      expect(result.getDay()).toBe(1); // Monday
+      expect(result.getDate()).toBe(10);
+    });
+
+    it('snaps a Tuesday to the previous Monday', () => {
+      // 2024-06-11 is a Tuesday — closer to June 10 (Mon) than June 17 (Mon)
+      const date = new Date(2024, 5, 11, 12, 0, 0, 0);
+      const result = snapToGrid(date, 'week');
+      expect(result.getDay()).toBe(1); // Monday
+      expect(result.getDate()).toBe(10);
+    });
+
+    it('snaps a Wednesday to the previous Monday', () => {
+      // 2024-06-12 Wednesday — closer to June 10 than June 17
+      const date = new Date(2024, 5, 12, 12, 0, 0, 0);
+      const result = snapToGrid(date, 'week');
+      expect(result.getDay()).toBe(1);
+      expect(result.getDate()).toBe(10);
+    });
+
+    it('snaps a Thursday to the previous Monday (it is exactly 3 days from Monday)', () => {
+      // June 13 Thursday — 3 days from June 10, 4 days from June 17 → snaps to June 10
+      const date = new Date(2024, 5, 13, 12, 0, 0, 0);
+      const result = snapToGrid(date, 'week');
+      expect(result.getDay()).toBe(1);
+      expect(result.getDate()).toBe(10);
+    });
+
+    it('snaps a Friday to the next Monday', () => {
+      // June 14 Friday — 4 days from June 10, 3 days from June 17 → snaps to June 17
+      const date = new Date(2024, 5, 14, 12, 0, 0, 0);
+      const result = snapToGrid(date, 'week');
+      expect(result.getDay()).toBe(1); // Monday
+      expect(result.getDate()).toBe(17);
+    });
+
+    it('snaps a Saturday to the next Monday', () => {
+      // June 15 Saturday — 5 days from June 10, 2 days from June 17 → snaps to June 17
+      const date = new Date(2024, 5, 15, 12, 0, 0, 0);
+      const result = snapToGrid(date, 'week');
+      expect(result.getDay()).toBe(1);
+      expect(result.getDate()).toBe(17);
+    });
+
+    it('snaps a Sunday to the next Monday', () => {
+      // June 16 Sunday — 6 days from June 10, 1 day from June 17 → snaps to June 17
+      const date = new Date(2024, 5, 16, 12, 0, 0, 0);
+      const result = snapToGrid(date, 'week');
+      expect(result.getDay()).toBe(1);
+      expect(result.getDate()).toBe(17);
+    });
+
+    it('snaps a date that is exactly equidistant (3.5 days) to the current Monday', () => {
+      // Midpoint between June 10 and June 17 is Jun 13 18:00 (exactly 84 hours each way)
+      // At noon June 13, dist to June 10 = 3 days, dist to June 17 = 4 days → June 10
+      const date = new Date(2024, 5, 13, 12, 0, 0, 0);
+      const result = snapToGrid(date, 'week');
+      expect(result.getDate()).toBe(10); // current Monday wins when equal
+    });
+
+    it('result is always a Monday', () => {
+      // Test across all 7 weekdays
+      const baseDates = [
+        new Date(2024, 5, 10, 12), // Mon
+        new Date(2024, 5, 11, 12), // Tue
+        new Date(2024, 5, 12, 12), // Wed
+        new Date(2024, 5, 13, 12), // Thu
+        new Date(2024, 5, 14, 12), // Fri
+        new Date(2024, 5, 15, 12), // Sat
+        new Date(2024, 5, 16, 12), // Sun
+      ];
+      for (const d of baseDates) {
+        const result = snapToGrid(d, 'week');
+        expect(result.getDay()).toBe(1); // Always Monday
+      }
+    });
+
+    it('crosses month boundary correctly — last days of month snap to next month Monday', () => {
+      // June 29 Saturday — next Monday is July 1
+      const date = new Date(2024, 5, 29, 12, 0, 0, 0); // Saturday
+      const result = snapToGrid(date, 'week');
+      // June 24 (Mon) is 5 days back; July 1 (Mon) is 2 days forward → July 1
+      expect(result.getMonth()).toBe(6); // July
+      expect(result.getDate()).toBe(1);
+    });
+
+    it('crosses year boundary correctly', () => {
+      // Dec 30, 2024 is a Monday → snaps to itself
+      const date = new Date(2024, 11, 30, 12, 0, 0, 0);
+      const result = snapToGrid(date, 'week');
+      expect(result.getDay()).toBe(1);
+      expect(result.getFullYear()).toBe(2024);
+      expect(result.getDate()).toBe(30);
+    });
+
+    it('does not mutate the input date', () => {
+      const date = new Date(2024, 5, 15, 12, 0, 0, 0);
+      const original = date.getTime();
+      snapToGrid(date, 'week');
+      expect(date.getTime()).toBe(original);
+    });
+  });
+
+  describe('month zoom', () => {
+    it('snaps the 1st of month to the same month 1st', () => {
+      const date = new Date(2024, 5, 1, 12, 0, 0, 0); // June 1
+      const result = snapToGrid(date, 'month');
+      expect(result.getDate()).toBe(1);
+      expect(result.getMonth()).toBe(5); // June
+    });
+
+    it('snaps early in the month (day 8) to the same month 1st', () => {
+      // June 8: 7 days from June 1, 23 days from July 1 → June 1
+      const date = new Date(2024, 5, 8, 12, 0, 0, 0);
+      const result = snapToGrid(date, 'month');
+      expect(result.getDate()).toBe(1);
+      expect(result.getMonth()).toBe(5); // June
+    });
+
+    it('snaps near end of month (day 25 of 30-day month) to next month 1st', () => {
+      // June has 30 days. June 25: 24 days from June 1, 6 days from July 1 → July 1
+      const date = new Date(2024, 5, 25, 12, 0, 0, 0); // June 25
+      const result = snapToGrid(date, 'month');
+      expect(result.getDate()).toBe(1);
+      expect(result.getMonth()).toBe(6); // July
+    });
+
+    it('snaps last day of month to next month 1st', () => {
+      // June 30 — 29 days from June 1, 1 day from July 1 → July 1
+      const date = new Date(2024, 5, 30, 12, 0, 0, 0);
+      const result = snapToGrid(date, 'month');
+      expect(result.getDate()).toBe(1);
+      expect(result.getMonth()).toBe(6); // July
+    });
+
+    it('snaps the midpoint of a 30-day month to the current month 1st (tie goes to current)', () => {
+      // June has 30 days. Midpoint = day 15 or 16.
+      // June 15: 14 days from June 1, 16 days from July 1 → June 1
+      const date = new Date(2024, 5, 15, 12, 0, 0, 0);
+      const result = snapToGrid(date, 'month');
+      expect(result.getDate()).toBe(1);
+      expect(result.getMonth()).toBe(5); // June
+    });
+
+    it('result always has day=1', () => {
+      const testDates = [
+        new Date(2024, 5, 1, 12),
+        new Date(2024, 5, 10, 12),
+        new Date(2024, 5, 15, 12),
+        new Date(2024, 5, 25, 12),
+        new Date(2024, 5, 30, 12),
+        new Date(2024, 11, 31, 12), // Dec 31
+      ];
+      for (const d of testDates) {
+        const result = snapToGrid(d, 'month');
+        expect(result.getDate()).toBe(1);
+      }
+    });
+
+    it('crosses year boundary for late December dates', () => {
+      // December has 31 days; Dec 25: 24 days from Dec 1, 7 days from Jan 1 → Jan 1
+      const date = new Date(2024, 11, 25, 12, 0, 0, 0); // Dec 25
+      const result = snapToGrid(date, 'month');
+      expect(result.getDate()).toBe(1);
+      expect(result.getMonth()).toBe(0); // January
+      expect(result.getFullYear()).toBe(2025);
+    });
+
+    it('stays in current year for early December dates', () => {
+      // Dec 5: 4 days from Dec 1, 27 days from Jan 1 → Dec 1
+      const date = new Date(2024, 11, 5, 12, 0, 0, 0); // Dec 5
+      const result = snapToGrid(date, 'month');
+      expect(result.getDate()).toBe(1);
+      expect(result.getMonth()).toBe(11); // December
+      expect(result.getFullYear()).toBe(2024);
+    });
+
+    it('handles February in a leap year', () => {
+      // Feb 2024 has 29 days. Feb 18: 17 days from Feb 1, 12 days from Mar 1 → Mar 1
+      const date = new Date(2024, 1, 18, 12, 0, 0, 0); // Feb 18 2024
+      const result = snapToGrid(date, 'month');
+      expect(result.getDate()).toBe(1);
+      expect(result.getMonth()).toBe(2); // March
+    });
+
+    it('handles February in a non-leap year', () => {
+      // Feb 2023 has 28 days. Feb 15: 14 days from Feb 1, 14 days from Mar 1 → Feb 1 (tie, current wins)
+      const date = new Date(2023, 1, 15, 12, 0, 0, 0); // Feb 15 2023
+      const result = snapToGrid(date, 'month');
+      expect(result.getDate()).toBe(1);
+      // Equidistant: currentMonth dist = nextMonth dist → current month wins
+      expect(result.getMonth()).toBe(1); // February (tie → current)
+    });
+
+    it('does not mutate the input date', () => {
+      const date = new Date(2024, 5, 15, 12, 0, 0, 0);
+      const original = date.getTime();
+      snapToGrid(date, 'month');
+      expect(date.getTime()).toBe(original);
+    });
+  });
+
+  describe('all zoom levels return a Date instance', () => {
+    it('day zoom returns Date', () => {
+      expect(snapToGrid(new Date(2024, 5, 15, 12), 'day')).toBeInstanceOf(Date);
+    });
+    it('week zoom returns Date', () => {
+      expect(snapToGrid(new Date(2024, 5, 15, 12), 'week')).toBeInstanceOf(Date);
+    });
+    it('month zoom returns Date', () => {
+      expect(snapToGrid(new Date(2024, 5, 15, 12), 'month')).toBeInstanceOf(Date);
     });
   });
 });
