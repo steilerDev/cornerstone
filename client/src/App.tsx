@@ -4,6 +4,8 @@ import { AppShell } from './components/AppShell/AppShell';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthGuard } from './components/AuthGuard/AuthGuard';
+import { ToastProvider } from './components/Toast/ToastContext';
+import { ToastList } from './components/Toast/Toast';
 
 const SetupPage = lazy(() => import('./pages/SetupPage/SetupPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage/LoginPage'));
@@ -33,55 +35,59 @@ export function App() {
   return (
     <BrowserRouter>
       <ThemeProvider>
-        <AuthProvider>
-          <Routes>
-            {/* Auth routes (no AppShell wrapper) */}
-            <Route
-              path="setup"
-              element={
-                <Suspense fallback={<div>Loading...</div>}>
-                  <SetupPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="login"
-              element={
-                <Suspense fallback={<div>Loading...</div>}>
-                  <LoginPage />
-                </Suspense>
-              }
-            />
+        <ToastProvider>
+          <AuthProvider>
+            <Routes>
+              {/* Auth routes (no AppShell wrapper) */}
+              <Route
+                path="setup"
+                element={
+                  <Suspense fallback={<div>Loading...</div>}>
+                    <SetupPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="login"
+                element={
+                  <Suspense fallback={<div>Loading...</div>}>
+                    <LoginPage />
+                  </Suspense>
+                }
+              />
 
-            {/* Protected app routes (with AuthGuard and AppShell wrapper) */}
-            <Route element={<AuthGuard />}>
-              <Route element={<AppShell />}>
-                <Route index element={<DashboardPage />} />
-                <Route path="work-items" element={<WorkItemsPage />} />
-                <Route path="work-items/new" element={<WorkItemCreatePage />} />
-                <Route path="work-items/:id" element={<WorkItemDetailPage />} />
-                <Route path="budget">
-                  <Route index element={<Navigate to="overview" replace />} />
-                  <Route path="overview" element={<BudgetOverviewPage />} />
-                  <Route path="categories" element={<BudgetCategoriesPage />} />
-                  <Route path="vendors" element={<VendorsPage />} />
-                  <Route path="vendors/:id" element={<VendorDetailPage />} />
-                  <Route path="invoices" element={<InvoicesPage />} />
-                  <Route path="invoices/:id" element={<InvoiceDetailPage />} />
-                  <Route path="sources" element={<BudgetSourcesPage />} />
-                  <Route path="subsidies" element={<SubsidyProgramsPage />} />
+              {/* Protected app routes (with AuthGuard and AppShell wrapper) */}
+              <Route element={<AuthGuard />}>
+                <Route element={<AppShell />}>
+                  <Route index element={<DashboardPage />} />
+                  <Route path="work-items" element={<WorkItemsPage />} />
+                  <Route path="work-items/new" element={<WorkItemCreatePage />} />
+                  <Route path="work-items/:id" element={<WorkItemDetailPage />} />
+                  <Route path="budget">
+                    <Route index element={<Navigate to="overview" replace />} />
+                    <Route path="overview" element={<BudgetOverviewPage />} />
+                    <Route path="categories" element={<BudgetCategoriesPage />} />
+                    <Route path="vendors" element={<VendorsPage />} />
+                    <Route path="vendors/:id" element={<VendorDetailPage />} />
+                    <Route path="invoices" element={<InvoicesPage />} />
+                    <Route path="invoices/:id" element={<InvoiceDetailPage />} />
+                    <Route path="sources" element={<BudgetSourcesPage />} />
+                    <Route path="subsidies" element={<SubsidyProgramsPage />} />
+                  </Route>
+                  <Route path="timeline" element={<TimelinePage />} />
+                  <Route path="household-items" element={<HouseholdItemsPage />} />
+                  <Route path="documents" element={<DocumentsPage />} />
+                  <Route path="tags" element={<TagManagementPage />} />
+                  <Route path="profile" element={<ProfilePage />} />
+                  <Route path="admin/users" element={<UserManagementPage />} />
+                  <Route path="*" element={<NotFoundPage />} />
                 </Route>
-                <Route path="timeline" element={<TimelinePage />} />
-                <Route path="household-items" element={<HouseholdItemsPage />} />
-                <Route path="documents" element={<DocumentsPage />} />
-                <Route path="tags" element={<TagManagementPage />} />
-                <Route path="profile" element={<ProfilePage />} />
-                <Route path="admin/users" element={<UserManagementPage />} />
-                <Route path="*" element={<NotFoundPage />} />
               </Route>
-            </Route>
-          </Routes>
-        </AuthProvider>
+            </Routes>
+            {/* Toast notifications — rendered as a portal to document.body */}
+            <ToastList />
+          </AuthProvider>
+        </ToastProvider>
       </ThemeProvider>
     </BrowserRouter>
   );

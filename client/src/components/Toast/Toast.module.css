@@ -1,0 +1,123 @@
+/* ============================================================
+ * Toast notification system — portal-based, fixed bottom-right
+ * ============================================================ */
+
+/* ---- Portal container ---- */
+
+.container {
+  position: fixed;
+  bottom: var(--spacing-6);
+  right: var(--spacing-6);
+  z-index: var(--z-modal);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  pointer-events: none;
+  /* Constrain width for readability */
+  max-width: 380px;
+  width: calc(100vw - var(--spacing-6) * 2);
+}
+
+/* ---- Individual toast ---- */
+
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-3);
+  padding: var(--spacing-3) var(--spacing-4);
+  border-radius: var(--radius-lg);
+  border-left: 4px solid transparent;
+  box-shadow: var(--shadow-lg);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+  /* Slide in from right */
+  animation: slideIn 0.2s ease forwards;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* ---- Variants ---- */
+
+.toastSuccess {
+  background: var(--color-toast-success-bg);
+  border-color: var(--color-toast-success-border);
+  color: var(--color-success-text-on-light);
+}
+
+.toastInfo {
+  background: var(--color-toast-info-bg);
+  border-color: var(--color-toast-info-border);
+  color: var(--color-primary-badge-text);
+}
+
+.toastError {
+  background: var(--color-toast-error-bg);
+  border-color: var(--color-toast-error-border);
+  color: var(--color-danger-text-on-light);
+}
+
+/* ---- Icon ---- */
+
+.icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* ---- Message text ---- */
+
+.message {
+  flex: 1;
+  font-weight: var(--font-weight-medium);
+}
+
+/* ---- Dismiss button ---- */
+
+.dismiss {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  color: inherit;
+  opacity: 0.6;
+  transition: opacity var(--transition-fast);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-top: -1px;
+}
+
+.dismiss:hover {
+  opacity: 1;
+}
+
+.dismiss:focus-visible {
+  outline: 2px solid currentColor;
+  border-radius: var(--radius-sm);
+}
+
+/* ---- Responsive ---- */
+
+@media (max-width: 767px) {
+  .container {
+    bottom: var(--spacing-4);
+    right: var(--spacing-4);
+    left: var(--spacing-4);
+    width: auto;
+    max-width: none;
+  }
+}
