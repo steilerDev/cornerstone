@@ -378,7 +378,7 @@ describe('useMilestones', () => {
         listResponse: [],
         mutationPath: '/api/milestones',
         mutationMethod: 'POST',
-        mutationResponse: { milestone: MILESTONE_1 },
+        mutationResponse: MILESTONE_1,
         mutationStatus: 201,
       });
 
@@ -426,7 +426,7 @@ describe('useMilestones', () => {
         listResponse: [MILESTONE_1],
         mutationPath: '/api/milestones/1',
         mutationMethod: 'PATCH',
-        mutationResponse: { milestone: updated },
+        mutationResponse: updated,
       });
 
       const { result } = renderHook(() => useMilestones());
