@@ -158,8 +158,10 @@ function AutoScheduleDialog({
             {changedCount > 0 ? (
               <>
                 {' '}
-                <strong>{changedCount} work item{changedCount !== 1 ? 's' : ''}</strong> will have
-                their dates updated.
+                <strong>
+                  {changedCount} work item{changedCount !== 1 ? 's' : ''}
+                </strong>{' '}
+                will have their dates updated.
               </>
             ) : (
               ' No date changes are needed — your schedule is already optimal.'
@@ -221,7 +223,9 @@ function AutoScheduleDialog({
             disabled={isApplying || changedCount === 0}
             data-testid="auto-schedule-confirm"
           >
-            {isApplying ? 'Applying…' : `Apply ${changedCount} Change${changedCount !== 1 ? 's' : ''}`}
+            {isApplying
+              ? 'Applying…'
+              : `Apply ${changedCount} Change${changedCount !== 1 ? 's' : ''}`}
           </button>
         </div>
       </div>

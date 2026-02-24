@@ -259,14 +259,7 @@ export function GanttChart({
         endDate = dragState.previewEndDate;
       }
 
-      const position = computeBarPosition(
-        startDate,
-        endDate,
-        idx,
-        chartRange,
-        zoom,
-        today,
-      );
+      const position = computeBarPosition(startDate, endDate, idx, chartRange, zoom, today);
       return { item, position, startDate, endDate };
     });
   }, [data.workItems, chartRange, zoom, today, dragState]);
@@ -353,12 +346,7 @@ export function GanttChart({
   );
 
   // Set SVG cursor during active drag
-  const svgCursor =
-    dragState?.zone === 'move'
-      ? 'grabbing'
-      : dragState
-        ? 'col-resize'
-        : undefined;
+  const svgCursor = dragState?.zone === 'move' ? 'grabbing' : dragState ? 'col-resize' : undefined;
 
   // ---------------------------------------------------------------------------
   // Render

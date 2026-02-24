@@ -14,11 +14,7 @@ export interface UseTimelineResult {
    * Returns a promise resolving to true on success, false on failure.
    * On failure, the optimistic update is reverted.
    */
-  updateItemDates: (
-    itemId: string,
-    startDate: string,
-    endDate: string,
-  ) => Promise<boolean>;
+  updateItemDates: (itemId: string, startDate: string, endDate: string) => Promise<boolean>;
 }
 
 /**
@@ -99,9 +95,7 @@ export function useTimeline(): UseTimelineResult {
         return {
           ...prev,
           workItems: prev.workItems.map((item) =>
-            item.id === itemId
-              ? { ...item, startDate, endDate, durationDays }
-              : item,
+            item.id === itemId ? { ...item, startDate, endDate, durationDays } : item,
           ),
         };
       });
