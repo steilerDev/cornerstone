@@ -1,0 +1,27 @@
+.bar {
+  cursor: pointer;
+  transition:
+    filter var(--transition-normal),
+    opacity var(--transition-normal);
+}
+
+.bar:hover {
+  filter: brightness(1.12);
+}
+
+.bar:focus-visible {
+  outline: none;
+  filter: drop-shadow(0 0 0 3px var(--color-focus-ring));
+}
+
+.rect {
+  /* fill is set inline via JS; no CSS fill here */
+}
+
+.label {
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-medium);
+  fill: var(--color-text-inverse);
+  pointer-events: none;
+  user-select: none;
+}

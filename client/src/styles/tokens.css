@@ -306,6 +306,27 @@
   --color-budget-projected: var(--color-primary-bg-hover);
   --color-budget-track: var(--color-bg-tertiary);
   --color-budget-overflow: var(--color-danger-bg-strong);
+
+  /* ============================================================
+   * LAYER 2 — GANTT CHART TOKENS
+   * ============================================================ */
+
+  /* Bar fill colors by work item status */
+  --color-gantt-bar-not-started: var(--color-gray-400);
+  --color-gantt-bar-in-progress: var(--color-blue-500);
+  --color-gantt-bar-completed: var(--color-green-500);
+  --color-gantt-bar-blocked: var(--color-red-500);
+
+  /* Today marker line */
+  --color-gantt-today-marker: var(--color-danger);
+
+  /* Grid line colors */
+  --color-gantt-grid-minor: var(--color-border);
+  --color-gantt-grid-major: var(--color-border-strong);
+
+  /* Row stripe backgrounds */
+  --color-gantt-row-even: var(--color-bg-primary);
+  --color-gantt-row-odd: var(--color-bg-secondary);
 }
 
 /* ============================================================
@@ -432,4 +453,18 @@
   --color-budget-projected: rgba(59, 130, 246, 0.25);
   --color-budget-track: var(--color-slate-600);
   --color-budget-overflow: rgba(239, 68, 68, 0.2);
+
+  /* --- Gantt chart --- */
+  --color-gantt-bar-not-started: var(--color-slate-400);
+  --color-gantt-bar-in-progress: var(--color-blue-400);
+  --color-gantt-bar-completed: var(--color-emerald-400);
+  --color-gantt-bar-blocked: var(--color-red-400);
+  /* today marker, grid lines, and row colors inherit from semantic tokens
+     that already have dark mode overrides (--color-danger, --color-border,
+     --color-border-strong, --color-bg-primary, --color-bg-secondary) */
+  --color-gantt-today-marker: var(--color-danger);
+  --color-gantt-grid-minor: var(--color-border);
+  --color-gantt-grid-major: var(--color-border-strong);
+  --color-gantt-row-even: var(--color-bg-primary);
+  --color-gantt-row-odd: var(--color-bg-secondary);
 }
