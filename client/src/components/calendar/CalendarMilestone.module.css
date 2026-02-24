@@ -1,0 +1,60 @@
+/* ============================================================
+ * CalendarMilestone — diamond marker in a calendar day cell
+ * ============================================================ */
+
+.milestone {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  cursor: pointer;
+  padding: 1px var(--spacing-1);
+  border-radius: var(--radius-sm);
+  width: 100%;
+  min-width: 0;
+  transition: background var(--transition-fast);
+  margin-bottom: 2px;
+}
+
+.milestone:hover {
+  background: var(--color-bg-hover);
+}
+
+.milestone:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-border-focus);
+}
+
+/* ---- Diamond icons — use stroke/fill via CSS (HTML SVG supports var()) ---- */
+
+.diamondIncomplete {
+  fill: transparent;
+  stroke: var(--color-milestone-incomplete-stroke, var(--color-primary));
+}
+
+.diamondComplete {
+  fill: var(--color-milestone-complete-fill, var(--color-success));
+  stroke: var(--color-milestone-complete-stroke, var(--color-success-hover));
+}
+
+/* ---- Status tint ---- */
+
+.milestoneIncomplete {
+  background: transparent;
+}
+
+.milestoneComplete {
+  background: transparent;
+}
+
+/* ---- Title ---- */
+
+.title {
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}

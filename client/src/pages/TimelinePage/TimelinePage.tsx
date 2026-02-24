@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTimeline } from '../../hooks/useTimeline.js';
 import { useMilestones } from '../../hooks/useMilestones.js';
 import { runSchedule } from '../../lib/scheduleApi.js';
@@ -10,6 +10,7 @@ import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
 import { GanttChart, GanttChartSkeleton } from '../../components/GanttChart/GanttChart.js';
 import { MilestonePanel } from '../../components/milestones/MilestonePanel.js';
+import { CalendarView } from '../../components/calendar/CalendarView.js';
 import type { ZoomLevel } from '../../components/GanttChart/ganttUtils.js';
 import type { ScheduledItem, TimelineMilestone } from '@cornerstone/shared';
 import styles from './TimelinePage.module.css';
@@ -100,6 +101,64 @@ function AutoScheduleIcon({ spinning }: { spinning: boolean }) {
           />
         </>
       )}
+    </svg>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// View toggle icons
+// ---------------------------------------------------------------------------
+
+function GanttIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 20 20"
+      width="16"
+      height="16"
+      fill="none"
+      aria-hidden="true"
+      style={{ display: 'block' }}
+    >
+      {/* Gantt bar rows */}
+      <rect x="2" y="4" width="10" height="3" rx="1" fill="currentColor" />
+      <rect x="5" y="9" width="8" height="3" rx="1" fill="currentColor" />
+      <rect x="8" y="14" width="10" height="3" rx="1" fill="currentColor" />
+    </svg>
+  );
+}
+
+function CalendarIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 20 20"
+      width="16"
+      height="16"
+      fill="none"
+      aria-hidden="true"
+      style={{ display: 'block' }}
+    >
+      <rect x="3" y="4" width="14" height="13" rx="2" stroke="currentColor" strokeWidth="1.5" />
+      <line
+        x1="7"
+        y1="2"
+        x2="7"
+        y2="6"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+      <line
+        x1="13"
+        y1="2"
+        x2="13"
+        y2="6"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+      <line x1="3" y1="9" x2="17" y2="9" stroke="currentColor" strokeWidth="1.5" />
     </svg>
   );
 }
@@ -481,6 +540,28 @@ export function TimelinePage() {
   const { data, isLoading, error, refetch, updateItemDates } = useTimeline();
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // ---- View toggle: gantt (default) or calendar ----
+  const rawView = searchParams.get('view');
+  const activeView: 'gantt' | 'calendar' = rawView === 'calendar' ? 'calendar' : 'gantt';
+
+  function setActiveView(view: 'gantt' | 'calendar') {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (view === 'gantt') {
+          next.delete('view');
+          // Remove calendarMode when switching to gantt to keep URL clean
+          next.delete('calendarMode');
+        } else {
+          next.set('view', view);
+        }
+        return next;
+      },
+      { replace: true },
+    );
+  }
 
   // ---- Milestone state ----
   const [showMilestonePanel, setShowMilestonePanel] = useState(false);
@@ -610,39 +691,43 @@ export function TimelinePage() {
 
   return (
     <div className={styles.page} data-testid="timeline-page">
-      {/* Page header: title + toolbar (auto-schedule + arrows toggle + zoom toggle) */}
+      {/* Page header: title + toolbar */}
       <div className={styles.pageHeader}>
         <h1 className={styles.pageTitle}>Timeline</h1>
 
         <div className={styles.toolbar}>
-          {/* Auto-schedule button */}
-          <button
-            type="button"
-            className={styles.autoScheduleButton}
-            onClick={() => void handleAutoScheduleClick()}
-            disabled={isScheduleLoading || isLoading}
-            title="Auto-schedule work items using Critical Path Method"
-            aria-label="Auto-schedule work items"
-            data-testid="auto-schedule-button"
-          >
-            <AutoScheduleIcon spinning={isScheduleLoading} />
-            <span>Auto-schedule</span>
-          </button>
+          {/* Auto-schedule button (Gantt only) */}
+          {activeView === 'gantt' && (
+            <>
+              <button
+                type="button"
+                className={styles.autoScheduleButton}
+                onClick={() => void handleAutoScheduleClick()}
+                disabled={isScheduleLoading || isLoading}
+                title="Auto-schedule work items using Critical Path Method"
+                aria-label="Auto-schedule work items"
+                data-testid="auto-schedule-button"
+              >
+                <AutoScheduleIcon spinning={isScheduleLoading} />
+                <span>Auto-schedule</span>
+              </button>
 
-          {scheduleError !== null && (
-            <span className={styles.scheduleError} role="alert">
-              {scheduleError}
-            </span>
+              {scheduleError !== null && (
+                <span className={styles.scheduleError} role="alert">
+                  {scheduleError}
+                </span>
+              )}
+            </>
           )}
 
-          {/* Milestone filter dropdown */}
+          {/* Milestone filter dropdown — shown in both views */}
           <MilestoneFilterDropdown
             milestones={data?.milestones ?? []}
             selectedId={milestoneFilterId}
             onSelect={setMilestoneFilterId}
           />
 
-          {/* Milestones panel toggle */}
+          {/* Milestones panel toggle — shown in both views */}
           <button
             type="button"
             className={styles.autoScheduleButton}
@@ -655,36 +740,67 @@ export function TimelinePage() {
             <span>Milestones</span>
           </button>
 
-          {/* Arrows toggle (icon-only) */}
-          <button
-            type="button"
-            className={`${styles.arrowsToggle} ${showArrows ? styles.arrowsToggleActive : ''}`}
-            aria-pressed={showArrows}
-            aria-label={showArrows ? 'Hide dependency arrows' : 'Show dependency arrows'}
-            onClick={() => setShowArrows((v) => !v)}
-            title={showArrows ? 'Hide dependency arrows' : 'Show dependency arrows'}
-          >
-            <ArrowsIcon active={showArrows} />
-          </button>
-
-          {/* Zoom level toggle */}
-          <div className={styles.zoomToggle} role="toolbar" aria-label="Zoom level">
-            {ZOOM_OPTIONS.map(({ value, label }) => (
+          {/* Gantt-specific controls: arrows toggle + zoom level */}
+          {activeView === 'gantt' && (
+            <>
+              {/* Arrows toggle (icon-only) */}
               <button
-                key={value}
                 type="button"
-                className={`${styles.zoomButton} ${zoom === value ? styles.zoomButtonActive : ''}`}
-                aria-pressed={zoom === value}
-                onClick={() => setZoom(value)}
+                className={`${styles.arrowsToggle} ${showArrows ? styles.arrowsToggleActive : ''}`}
+                aria-pressed={showArrows}
+                aria-label={showArrows ? 'Hide dependency arrows' : 'Show dependency arrows'}
+                onClick={() => setShowArrows((v) => !v)}
+                title={showArrows ? 'Hide dependency arrows' : 'Show dependency arrows'}
               >
-                {label}
+                <ArrowsIcon active={showArrows} />
               </button>
-            ))}
+
+              {/* Zoom level toggle */}
+              <div className={styles.zoomToggle} role="toolbar" aria-label="Zoom level">
+                {ZOOM_OPTIONS.map(({ value, label }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={`${styles.zoomButton} ${zoom === value ? styles.zoomButtonActive : ''}`}
+                    aria-pressed={zoom === value}
+                    onClick={() => setZoom(value)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* View toggle: Gantt / Calendar */}
+          <div className={styles.viewToggle} role="toolbar" aria-label="View mode">
+            <button
+              type="button"
+              className={`${styles.viewButton} ${activeView === 'gantt' ? styles.viewButtonActive : ''}`}
+              aria-pressed={activeView === 'gantt'}
+              onClick={() => setActiveView('gantt')}
+              title="Gantt chart view"
+              aria-label="Gantt view"
+            >
+              <GanttIcon />
+              <span className={styles.viewButtonLabel}>Gantt</span>
+            </button>
+            <button
+              type="button"
+              className={`${styles.viewButton} ${activeView === 'calendar' ? styles.viewButtonActive : ''}`}
+              aria-pressed={activeView === 'calendar'}
+              onClick={() => setActiveView('calendar')}
+              title="Calendar view"
+              aria-label="Calendar view"
+            >
+              <CalendarIcon />
+              <span className={styles.viewButtonLabel}>Calendar</span>
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Chart area */}
+      {/* Chart / calendar area */}
       <div className={styles.chartArea}>
         {/* Loading state */}
         {isLoading && <GanttChartSkeleton />}
@@ -712,8 +828,8 @@ export function TimelinePage() {
           </div>
         )}
 
-        {/* Empty state */}
-        {!isLoading && error === null && isEmpty && (
+        {/* Empty state (Gantt view only — calendar always shows the grid) */}
+        {!isLoading && error === null && isEmpty && activeView === 'gantt' && (
           <div className={styles.emptyState} data-testid="timeline-empty">
             <svg
               className={styles.emptyStateIcon}
@@ -740,12 +856,13 @@ export function TimelinePage() {
           </div>
         )}
 
-        {/* No-dates warning — items exist but none have dates set */}
+        {/* No-dates warning — items exist but none have dates set (Gantt view only) */}
         {!isLoading &&
           error === null &&
           !isEmpty &&
           !hasWorkItemsWithDates &&
-          filteredData !== null && (
+          filteredData !== null &&
+          activeView === 'gantt' && (
             <div className={styles.emptyState} data-testid="timeline-no-dates">
               <svg
                 className={styles.emptyStateIcon}
@@ -773,11 +890,12 @@ export function TimelinePage() {
             </div>
           )}
 
-        {/* Gantt chart (data loaded, has work items) */}
+        {/* Gantt chart (data loaded, has work items, gantt view selected) */}
         {!isLoading &&
           error === null &&
           filteredData !== null &&
-          filteredData.workItems.length > 0 && (
+          filteredData.workItems.length > 0 &&
+          activeView === 'gantt' && (
             <GanttChart
               data={filteredData}
               zoom={zoom}
@@ -789,6 +907,15 @@ export function TimelinePage() {
               onMilestoneClick={() => setShowMilestonePanel(true)}
             />
           )}
+
+        {/* Calendar view (data loaded, calendar view selected) */}
+        {!isLoading && error === null && filteredData !== null && activeView === 'calendar' && (
+          <CalendarView
+            workItems={filteredData.workItems}
+            milestones={filteredData.milestones}
+            onMilestoneClick={() => setShowMilestonePanel(true)}
+          />
+        )}
       </div>
 
       {/* Auto-schedule confirmation dialog */}
