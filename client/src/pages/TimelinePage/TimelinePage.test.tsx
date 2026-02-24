@@ -10,14 +10,13 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type * as TimelineApiTypes from '../../lib/timelineApi.js';
 import type { TimelineResponse } from '@cornerstone/shared';
+import type React from 'react';
 
 const mockGetTimeline = jest.fn<typeof TimelineApiTypes.getTimeline>();
 
 jest.unstable_mockModule('../../lib/timelineApi.js', () => ({
   getTimeline: mockGetTimeline,
 }));
-
-const { TimelinePage } = await import('./TimelinePage.js');
 
 const EMPTY_TIMELINE: TimelineResponse = {
   workItems: [],
@@ -27,18 +26,25 @@ const EMPTY_TIMELINE: TimelineResponse = {
   dateRange: null,
 };
 
-function renderWithRouter() {
-  return render(
-    <MemoryRouter>
-      <TimelinePage />
-    </MemoryRouter>,
-  );
-}
-
 describe('TimelinePage', () => {
-  beforeEach(() => {
+  let TimelinePage: React.ComponentType;
+
+  beforeEach(async () => {
+    if (!TimelinePage) {
+      const module = await import('./TimelinePage.js');
+      TimelinePage = module.TimelinePage;
+    }
+
     mockGetTimeline.mockResolvedValue(EMPTY_TIMELINE);
   });
+
+  function renderWithRouter() {
+    return render(
+      <MemoryRouter>
+        <TimelinePage />
+      </MemoryRouter>,
+    );
+  }
 
   it('renders Timeline heading', () => {
     renderWithRouter();
@@ -54,7 +60,7 @@ describe('TimelinePage', () => {
   });
 
   it('shows loading skeleton while fetching', () => {
-    // Do not resolve the promise — leave in loading state
+    // Leave in loading state by never resolving the promise
     mockGetTimeline.mockReturnValue(new Promise(() => {}));
     renderWithRouter();
     expect(screen.getByTestId('gantt-chart-skeleton')).toBeInTheDocument();
