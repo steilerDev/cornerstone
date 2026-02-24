@@ -7,14 +7,15 @@
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { render, screen } from '@testing-library/react';
 import { GanttTooltip } from './GanttTooltip.js';
-import type { GanttTooltipData, GanttTooltipPosition } from './GanttTooltip.js';
+import type { GanttTooltipWorkItemData, GanttTooltipPosition } from './GanttTooltip.js';
 import type { WorkItemStatus } from '@cornerstone/shared';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-const DEFAULT_DATA: GanttTooltipData = {
+const DEFAULT_DATA: GanttTooltipWorkItemData = {
+  kind: 'work-item',
   title: 'Foundation Work',
   status: 'in_progress',
   startDate: '2024-06-01',
@@ -29,7 +30,7 @@ const DEFAULT_POSITION: GanttTooltipPosition = {
 };
 
 function renderTooltip(
-  data: Partial<GanttTooltipData> = {},
+  data: Partial<GanttTooltipWorkItemData> = {},
   position: Partial<GanttTooltipPosition> = {},
 ) {
   return render(

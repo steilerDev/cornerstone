@@ -1,0 +1,32 @@
+/* ============================================================
+ * GanttMilestones — diamond markers SVG layer
+ * ============================================================ */
+
+/* Diamond group — interactive hit target */
+.diamond {
+  cursor: pointer;
+  outline: none;
+  transition:
+    filter var(--transition-normal),
+    transform var(--transition-normal);
+  transform-origin: center;
+}
+
+.diamond:hover,
+.diamond:focus-visible {
+  /* filter uses the --milestone-hover-glow CSS var set inline per diamond */
+  filter: drop-shadow(0 0 5px var(--milestone-hover-glow, rgba(59, 130, 246, 0.25)));
+}
+
+.diamond:focus-visible {
+  filter: drop-shadow(0 0 0 3px var(--color-focus-ring));
+}
+
+.diamond:active {
+  transform: scale(0.9);
+}
+
+/* The polygon itself — no extra styles needed since fill/stroke set via props */
+.diamondPolygon {
+  pointer-events: none; /* Clicks handled by parent <g> hit area */
+}

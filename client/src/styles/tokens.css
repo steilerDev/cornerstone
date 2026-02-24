@@ -339,6 +339,22 @@
   --color-gantt-bar-ghost: var(--color-border-focus);
 
   /* ============================================================
+   * LAYER 2 — MILESTONE TOKENS
+   * ============================================================ */
+
+  /* Diamond marker — incomplete (outlined) */
+  --color-milestone-incomplete-fill: transparent;
+  --color-milestone-incomplete-stroke: var(--color-blue-500);
+
+  /* Diamond marker — completed (filled) */
+  --color-milestone-complete-fill: var(--color-green-500);
+  --color-milestone-complete-stroke: var(--color-green-600);
+
+  /* Diamond hover glow */
+  --color-milestone-hover-glow: rgba(59, 130, 246, 0.25);
+  --color-milestone-complete-hover-glow: rgba(16, 185, 129, 0.25);
+
+  /* ============================================================
    * LAYER 2 — TOAST NOTIFICATION TOKENS
    * ============================================================ */
 
@@ -503,6 +519,16 @@
 
   /* Ghost bar during drag */
   --color-gantt-bar-ghost: var(--color-border-focus);
+
+  /* --- Milestones --- */
+  --color-milestone-incomplete-fill: transparent;
+  --color-milestone-incomplete-stroke: var(--color-blue-400);
+
+  --color-milestone-complete-fill: var(--color-emerald-400);
+  --color-milestone-complete-stroke: var(--color-green-500);
+
+  --color-milestone-hover-glow: rgba(96, 165, 250, 0.3);
+  --color-milestone-complete-hover-glow: rgba(52, 211, 153, 0.3);
 
   /* Toast: Success */
   --color-toast-success-bg: rgba(16, 185, 129, 0.1);
