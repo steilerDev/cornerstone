@@ -31,6 +31,7 @@ import workItemSubsidyRoutes from './routes/workItemSubsidies.js';
 import workItemBudgetRoutes from './routes/workItemBudgets.js';
 import budgetOverviewRoutes from './routes/budgetOverview.js';
 import milestoneRoutes from './routes/milestones.js';
+import scheduleRoutes from './routes/schedule.js';
 import { hashPassword, verifyPassword } from './services/userService.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -117,6 +118,9 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Milestone routes (EPIC-06: Timeline, Gantt Chart & Dependency Management)
   await app.register(milestoneRoutes, { prefix: '/api/milestones' });
+
+  // Schedule routes (EPIC-06: Scheduling Engine — CPM, Auto-Schedule, Conflict Detection)
+  await app.register(scheduleRoutes, { prefix: '/api/schedule' });
 
   // Health check endpoint (liveness)
   app.get('/api/health', async () => {

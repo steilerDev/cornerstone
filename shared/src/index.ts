@@ -154,3 +154,12 @@ export type {
   LinkWorkItemRequest,
   MilestoneWorkItemLinkResponse,
 } from './types/milestone.js';
+
+// Scheduling
+export type {
+  ScheduleRequest,
+  ScheduleResponse,
+  ScheduledItem,
+  ScheduleWarningType,
+  ScheduleWarning,
+} from './types/schedule.js';
