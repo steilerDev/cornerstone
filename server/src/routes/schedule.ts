@@ -19,7 +19,7 @@ const scheduleBodySchema = {
     required: ['mode'],
     properties: {
       mode: { type: 'string', enum: ['full', 'cascade'] },
-      anchorWorkItemId: { type: ['string', 'null'] },
+      anchorWorkItemId: { type: ['string', 'null'], minLength: 1 },
     },
     additionalProperties: false,
   },
