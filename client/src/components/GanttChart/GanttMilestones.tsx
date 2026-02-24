@@ -91,7 +91,7 @@ const DiamondMarker = memo(function DiamondMarker({
 
   return (
     <g
-      role="button"
+      role="graphics-symbol"
       aria-label={label}
       tabIndex={0}
       className={`${styles.diamond} ${isCompleted ? styles.diamondComplete : ''}`}
