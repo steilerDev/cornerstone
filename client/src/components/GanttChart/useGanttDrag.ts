@@ -65,7 +65,13 @@ export interface UseGanttDragResult {
   /** Call on SVG pointerup — commits drag. */
   handleSvgPointerUp: (
     event: ReactPointerEvent<SVGSVGElement>,
-    onDragCommit: (itemId: string, startDate: string, endDate: string, originalStartDate: string, originalEndDate: string) => void,
+    onDragCommit: (
+      itemId: string,
+      startDate: string,
+      endDate: string,
+      originalStartDate: string,
+      originalEndDate: string,
+    ) => void,
   ) => void;
   /** Call on SVG pointercancel — reverts drag. */
   handleSvgPointerCancel: () => void;
@@ -113,9 +119,10 @@ function detectZone(pointerX: number, barX: number, barWidth: number, isTouch: b
 export function useGanttDrag(): UseGanttDragResult {
   const [dragState, setDragState] = useState<DragState | null>(null);
 
-  // Keep a ref in sync for use in event handlers without stale closure issues
+  // Keep a ref in sync for use in event handlers without stale closure issues.
+  // The ref is updated exclusively inside event handlers (never during render)
+  // to satisfy the react-hooks/refs rule in React 19.
   const dragStateRef = useRef<DragState | null>(null);
-  dragStateRef.current = dragState;
 
   // ---------------------------------------------------------------------------
   // Pointer → SVG x conversion
@@ -159,13 +166,19 @@ export function useGanttDrag(): UseGanttDragResult {
         parseInt(startDate.substring(0, 4), 10),
         parseInt(startDate.substring(5, 7), 10) - 1,
         parseInt(startDate.substring(8, 10), 10),
-        12, 0, 0, 0,
+        12,
+        0,
+        0,
+        0,
       );
       const endDateObj = new Date(
         parseInt(endDate.substring(0, 4), 10),
         parseInt(endDate.substring(5, 7), 10) - 1,
         parseInt(endDate.substring(8, 10), 10),
-        12, 0, 0, 0,
+        12,
+        0,
+        0,
+        0,
       );
       const durationDays = Math.max(1, daysBetween(startDateObj, endDateObj));
 
@@ -228,7 +241,10 @@ export function useGanttDrag(): UseGanttDragResult {
           parseInt(current.originalEndDate.substring(0, 4), 10),
           parseInt(current.originalEndDate.substring(5, 7), 10) - 1,
           parseInt(current.originalEndDate.substring(8, 10), 10),
-          12, 0, 0, 0,
+          12,
+          0,
+          0,
+          0,
         );
         const maxStart = new Date(endDateObj);
         maxStart.setDate(maxStart.getDate() - 1);
@@ -244,13 +260,26 @@ export function useGanttDrag(): UseGanttDragResult {
           parseInt(current.originalStartDate.substring(0, 4), 10),
           parseInt(current.originalStartDate.substring(5, 7), 10) - 1,
           parseInt(current.originalStartDate.substring(8, 10), 10),
-          12, 0, 0, 0,
+          12,
+          0,
+          0,
+          0,
         );
         const minEnd = new Date(startDateObj);
         minEnd.setDate(minEnd.getDate() + 1);
         const clampedSnapped = snapped.getTime() > minEnd.getTime() ? snapped : minEnd;
         newEndDate = formatDate(clampedSnapped);
         newStartDate = current.originalStartDate;
+      }
+
+      // Update ref with new preview dates so handleSvgPointerUp can read them
+      // without depending on the async React state update.
+      if (dragStateRef.current) {
+        dragStateRef.current = {
+          ...dragStateRef.current,
+          previewStartDate: newStartDate,
+          previewEndDate: newEndDate,
+        };
       }
 
       setDragState((prev) =>
@@ -267,14 +296,21 @@ export function useGanttDrag(): UseGanttDragResult {
   const handleSvgPointerUp = useCallback(
     (
       event: ReactPointerEvent<SVGSVGElement>,
-      onDragCommit: (itemId: string, startDate: string, endDate: string, originalStartDate: string, originalEndDate: string) => void,
+      onDragCommit: (
+        itemId: string,
+        startDate: string,
+        endDate: string,
+        originalStartDate: string,
+        originalEndDate: string,
+      ) => void,
     ) => {
       const current = dragStateRef.current;
       if (!current) return;
 
       event.preventDefault();
 
-      const { itemId, previewStartDate, previewEndDate, originalStartDate, originalEndDate } = current;
+      const { itemId, previewStartDate, previewEndDate, originalStartDate, originalEndDate } =
+        current;
 
       // Only commit if dates actually changed
       if (previewStartDate !== originalStartDate || previewEndDate !== originalEndDate) {
