@@ -62,6 +62,7 @@ export type {
   Dependency,
   DependencyType,
   CreateDependencyRequest,
+  UpdateDependencyRequest,
   DependencyCreatedResponse,
 } from './types/dependency.js';
 
@@ -142,3 +143,14 @@ export type {
   WorkItemBudgetResponse,
 } from './types/workItemBudget.js';
 export { CONFIDENCE_MARGINS } from './types/workItemBudget.js';
+
+// Milestones
+export type {
+  MilestoneSummary,
+  MilestoneDetail,
+  CreateMilestoneRequest,
+  UpdateMilestoneRequest,
+  MilestoneListResponse,
+  LinkWorkItemRequest,
+  MilestoneWorkItemLinkResponse,
+} from './types/milestone.js';

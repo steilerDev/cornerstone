@@ -60,10 +60,12 @@ export interface WorkItemSummary {
 
 /**
  * Dependency response shape (used in work item detail).
+ * EPIC-06: Added leadLagDays for scheduling offset support.
  */
 export interface DependencyResponse {
   workItem: WorkItemSummary;
   dependencyType: DependencyType;
+  leadLagDays: number;
 }
 
 /**

@@ -6,7 +6,7 @@ import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
 import * as dependencyService from './dependencyService.js';
 import { NotFoundError, ValidationError, ConflictError } from '../errors/AppError.js';
-import type { CreateDependencyRequest } from '@cornerstone/shared';
+import type { CreateDependencyRequest, UpdateDependencyRequest } from '@cornerstone/shared';
 
 describe('Dependency Service', () => {
   let sqlite: Database.Database;
@@ -90,6 +90,7 @@ describe('Dependency Service', () => {
         predecessorId: workItemA,
         successorId: workItemB,
         dependencyType: 'finish_to_start',
+        leadLagDays: 0,
       });
     });
 
@@ -433,6 +434,203 @@ describe('Dependency Service', () => {
       const dependencies = dependencyService.getDependencies(db, workItemB);
       expect(dependencies.predecessors).toHaveLength(1);
       expect(dependencies.predecessors[0].workItem.id).toBe(workItemC);
+    });
+  });
+
+  // ─── createDependency with leadLagDays (EPIC-06 addition) ───────────────────
+
+  describe('createDependency with leadLagDays', () => {
+    it('should create dependency with specified leadLagDays', () => {
+      const userId = createTestUser('user@example.com', 'Test User');
+      const workItemA = createTestWorkItem(userId, 'Work Item A');
+      const workItemB = createTestWorkItem(userId, 'Work Item B');
+
+      const request: CreateDependencyRequest = {
+        predecessorId: workItemA,
+        dependencyType: 'finish_to_start',
+        leadLagDays: 3,
+      };
+
+      const result = dependencyService.createDependency(db, workItemB, request);
+
+      expect(result.leadLagDays).toBe(3);
+    });
+
+    it('should create dependency with negative leadLagDays (lead)', () => {
+      const userId = createTestUser('user@example.com', 'Test User');
+      const workItemA = createTestWorkItem(userId, 'Work Item A');
+      const workItemB = createTestWorkItem(userId, 'Work Item B');
+
+      const result = dependencyService.createDependency(db, workItemB, {
+        predecessorId: workItemA,
+        leadLagDays: -2,
+      });
+
+      expect(result.leadLagDays).toBe(-2);
+    });
+
+    it('should default leadLagDays to 0 when not specified', () => {
+      const userId = createTestUser('user@example.com', 'Test User');
+      const workItemA = createTestWorkItem(userId, 'Work Item A');
+      const workItemB = createTestWorkItem(userId, 'Work Item B');
+
+      const result = dependencyService.createDependency(db, workItemB, {
+        predecessorId: workItemA,
+      });
+
+      expect(result.leadLagDays).toBe(0);
+    });
+
+    it('should include leadLagDays in getDependencies response', () => {
+      const userId = createTestUser('user@example.com', 'Test User');
+      const workItemA = createTestWorkItem(userId, 'Work Item A');
+      const workItemB = createTestWorkItem(userId, 'Work Item B');
+
+      dependencyService.createDependency(db, workItemB, {
+        predecessorId: workItemA,
+        leadLagDays: 5,
+      });
+
+      const deps = dependencyService.getDependencies(db, workItemB);
+      expect(deps.predecessors[0].leadLagDays).toBe(5);
+    });
+  });
+
+  // ─── updateDependency (EPIC-06 addition) ────────────────────────────────────
+
+  describe('updateDependency', () => {
+    it('should update dependencyType', () => {
+      const userId = createTestUser('user@example.com', 'Test User');
+      const workItemA = createTestWorkItem(userId, 'Work Item A');
+      const workItemB = createTestWorkItem(userId, 'Work Item B');
+
+      dependencyService.createDependency(db, workItemB, {
+        predecessorId: workItemA,
+        dependencyType: 'finish_to_start',
+      });
+
+      const request: UpdateDependencyRequest = { dependencyType: 'start_to_start' };
+      const result = dependencyService.updateDependency(db, workItemB, workItemA, request);
+
+      expect(result.dependencyType).toBe('start_to_start');
+      expect(result.predecessorId).toBe(workItemA);
+      expect(result.successorId).toBe(workItemB);
+    });
+
+    it('should update leadLagDays', () => {
+      const userId = createTestUser('user@example.com', 'Test User');
+      const workItemA = createTestWorkItem(userId, 'Work Item A');
+      const workItemB = createTestWorkItem(userId, 'Work Item B');
+
+      dependencyService.createDependency(db, workItemB, {
+        predecessorId: workItemA,
+        leadLagDays: 0,
+      });
+
+      const result = dependencyService.updateDependency(db, workItemB, workItemA, {
+        leadLagDays: 7,
+      });
+
+      expect(result.leadLagDays).toBe(7);
+    });
+
+    it('should update both dependencyType and leadLagDays at once', () => {
+      const userId = createTestUser('user@example.com', 'Test User');
+      const workItemA = createTestWorkItem(userId, 'Work Item A');
+      const workItemB = createTestWorkItem(userId, 'Work Item B');
+
+      dependencyService.createDependency(db, workItemB, {
+        predecessorId: workItemA,
+        dependencyType: 'finish_to_start',
+        leadLagDays: 0,
+      });
+
+      const result = dependencyService.updateDependency(db, workItemB, workItemA, {
+        dependencyType: 'finish_to_finish',
+        leadLagDays: 3,
+      });
+
+      expect(result.dependencyType).toBe('finish_to_finish');
+      expect(result.leadLagDays).toBe(3);
+    });
+
+    it('should preserve unmodified fields when updating only one field', () => {
+      const userId = createTestUser('user@example.com', 'Test User');
+      const workItemA = createTestWorkItem(userId, 'Work Item A');
+      const workItemB = createTestWorkItem(userId, 'Work Item B');
+
+      dependencyService.createDependency(db, workItemB, {
+        predecessorId: workItemA,
+        dependencyType: 'start_to_start',
+        leadLagDays: 5,
+      });
+
+      // Only update leadLagDays
+      const result = dependencyService.updateDependency(db, workItemB, workItemA, {
+        leadLagDays: 10,
+      });
+
+      expect(result.dependencyType).toBe('start_to_start'); // unchanged
+      expect(result.leadLagDays).toBe(10);
+    });
+
+    it('should throw ValidationError when no fields are provided', () => {
+      const userId = createTestUser('user@example.com', 'Test User');
+      const workItemA = createTestWorkItem(userId, 'Work Item A');
+      const workItemB = createTestWorkItem(userId, 'Work Item B');
+
+      dependencyService.createDependency(db, workItemB, { predecessorId: workItemA });
+
+      expect(() => dependencyService.updateDependency(db, workItemB, workItemA, {})).toThrow(
+        ValidationError,
+      );
+      expect(() => dependencyService.updateDependency(db, workItemB, workItemA, {})).toThrow(
+        'At least one field must be provided',
+      );
+    });
+
+    it('should throw NotFoundError when dependency does not exist', () => {
+      const userId = createTestUser('user@example.com', 'Test User');
+      const workItemA = createTestWorkItem(userId, 'Work Item A');
+      const workItemB = createTestWorkItem(userId, 'Work Item B');
+
+      // No dependency created — should throw NotFoundError
+      expect(() =>
+        dependencyService.updateDependency(db, workItemB, workItemA, {
+          leadLagDays: 5,
+        }),
+      ).toThrow(NotFoundError);
+      expect(() =>
+        dependencyService.updateDependency(db, workItemB, workItemA, {
+          leadLagDays: 5,
+        }),
+      ).toThrow('Dependency not found');
+    });
+
+    it('should throw NotFoundError when workItemId does not exist', () => {
+      const userId = createTestUser('user@example.com', 'Test User');
+      const workItemA = createTestWorkItem(userId, 'Work Item A');
+
+      expect(() =>
+        dependencyService.updateDependency(db, 'nonexistent-id', workItemA, {
+          leadLagDays: 5,
+        }),
+      ).toThrow(NotFoundError);
+    });
+
+    it('should reflect updated leadLagDays in getDependencies response', () => {
+      const userId = createTestUser('user@example.com', 'Test User');
+      const workItemA = createTestWorkItem(userId, 'Work Item A');
+      const workItemB = createTestWorkItem(userId, 'Work Item B');
+
+      dependencyService.createDependency(db, workItemB, {
+        predecessorId: workItemA,
+        leadLagDays: 0,
+      });
+      dependencyService.updateDependency(db, workItemB, workItemA, { leadLagDays: 5 });
+
+      const deps = dependencyService.getDependencies(db, workItemB);
+      expect(deps.predecessors[0].leadLagDays).toBe(5);
     });
   });
 });

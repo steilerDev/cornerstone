@@ -4,6 +4,7 @@ import type * as schemaTypes from '../db/schema.js';
 import { workItemDependencies, workItems } from '../db/schema.js';
 import type {
   CreateDependencyRequest,
+  UpdateDependencyRequest,
   DependencyCreatedResponse,
   WorkItemDependenciesResponse,
   DependencyResponse,
@@ -91,7 +92,7 @@ export function createDependency(
   workItemId: string,
   data: CreateDependencyRequest,
 ): DependencyCreatedResponse {
-  const { predecessorId, dependencyType = 'finish_to_start' } = data;
+  const { predecessorId, dependencyType = 'finish_to_start', leadLagDays = 0 } = data;
 
   // Reject self-reference (check before DB queries)
   if (workItemId === predecessorId) {
@@ -143,6 +144,7 @@ export function createDependency(
       predecessorId,
       successorId: workItemId,
       dependencyType,
+      leadLagDays,
     })
     .run();
 
@@ -150,6 +152,79 @@ export function createDependency(
     predecessorId,
     successorId: workItemId,
     dependencyType,
+    leadLagDays,
+  };
+}
+
+/**
+ * Update a dependency's dependencyType and/or leadLagDays.
+ * @throws ValidationError if no fields are provided
+ * @throws NotFoundError if the dependency does not exist
+ */
+export function updateDependency(
+  db: DbType,
+  workItemId: string,
+  predecessorId: string,
+  data: UpdateDependencyRequest,
+): DependencyCreatedResponse {
+  // Ensure at least one field is provided
+  if (Object.keys(data).length === 0) {
+    throw new ValidationError('At least one field must be provided');
+  }
+
+  // Find the existing dependency
+  const dependency = db
+    .select()
+    .from(workItemDependencies)
+    .where(
+      and(
+        eq(workItemDependencies.successorId, workItemId),
+        eq(workItemDependencies.predecessorId, predecessorId),
+      ),
+    )
+    .get();
+
+  if (!dependency) {
+    throw new NotFoundError('Dependency not found');
+  }
+
+  // Build update data
+  const updateData: Partial<typeof workItemDependencies.$inferInsert> = {};
+  if ('dependencyType' in data && data.dependencyType !== undefined) {
+    updateData.dependencyType = data.dependencyType;
+  }
+  if ('leadLagDays' in data && data.leadLagDays !== undefined) {
+    updateData.leadLagDays = data.leadLagDays;
+  }
+
+  // Apply update
+  db.update(workItemDependencies)
+    .set(updateData)
+    .where(
+      and(
+        eq(workItemDependencies.successorId, workItemId),
+        eq(workItemDependencies.predecessorId, predecessorId),
+      ),
+    )
+    .run();
+
+  // Fetch updated row
+  const updated = db
+    .select()
+    .from(workItemDependencies)
+    .where(
+      and(
+        eq(workItemDependencies.successorId, workItemId),
+        eq(workItemDependencies.predecessorId, predecessorId),
+      ),
+    )
+    .get()!;
+
+  return {
+    predecessorId: updated.predecessorId,
+    successorId: updated.successorId,
+    dependencyType: updated.dependencyType,
+    leadLagDays: updated.leadLagDays,
   };
 }
 
@@ -175,6 +250,7 @@ export function getDependencies(db: DbType, workItemId: string): WorkItemDepende
   const predecessors: DependencyResponse[] = predecessorRows.map((row) => ({
     workItem: toWorkItemSummary(db, row.workItem),
     dependencyType: row.dependency.dependencyType,
+    leadLagDays: row.dependency.leadLagDays,
   }));
 
   // Fetch successors: work items that depend on this item
@@ -191,6 +267,7 @@ export function getDependencies(db: DbType, workItemId: string): WorkItemDepende
   const successors: DependencyResponse[] = successorRows.map((row) => ({
     workItem: toWorkItemSummary(db, row.workItem),
     dependencyType: row.dependency.dependencyType,
+    leadLagDays: row.dependency.leadLagDays,
   }));
 
   return { predecessors, successors };

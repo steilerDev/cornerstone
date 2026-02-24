@@ -175,6 +175,7 @@ export const workItemSubtasks = sqliteTable(
 /**
  * Work item dependencies table - defines predecessor/successor relationships for scheduling.
  * Enforces acyclic graph constraint at application level.
+ * EPIC-06: Added lead_lag_days for scheduling offset support.
  */
 export const workItemDependencies = sqliteTable(
   'work_item_dependencies',
@@ -190,6 +191,7 @@ export const workItemDependencies = sqliteTable(
     })
       .notNull()
       .default('finish_to_start'),
+    leadLagDays: integer('lead_lag_days').notNull().default(0),
   },
   (table) => ({
     pk: primaryKey({ columns: [table.predecessorId, table.successorId] }),
@@ -388,5 +390,52 @@ export const workItemSubsidies = sqliteTable(
     subsidyProgramIdIdx: index('idx_work_item_subsidies_subsidy_program_id').on(
       table.subsidyProgramId,
     ),
+  }),
+);
+
+// ─── EPIC-06: Timeline, Gantt Chart & Dependency Management ───────────────────
+
+/**
+ * Milestones table - major project progress points with optional work item associations.
+ * Uses auto-incrementing integer PK (unlike other entities that use TEXT UUIDs).
+ * EPIC-06: Supports Gantt chart visualization and milestone tracking.
+ */
+export const milestones = sqliteTable(
+  'milestones',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    title: text('title').notNull(),
+    description: text('description'),
+    targetDate: text('target_date').notNull(),
+    isCompleted: integer('is_completed', { mode: 'boolean' }).notNull().default(false),
+    completedAt: text('completed_at'),
+    color: text('color'),
+    // created_by is nullable to support ON DELETE SET NULL (user deletion preserves milestone)
+    createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => ({
+    targetDateIdx: index('idx_milestones_target_date').on(table.targetDate),
+  }),
+);
+
+/**
+ * Milestone-work items junction table - M:N relationship between milestones and work items.
+ * EPIC-06: Cascades on delete for both sides.
+ */
+export const milestoneWorkItems = sqliteTable(
+  'milestone_work_items',
+  {
+    milestoneId: integer('milestone_id')
+      .notNull()
+      .references(() => milestones.id, { onDelete: 'cascade' }),
+    workItemId: text('work_item_id')
+      .notNull()
+      .references(() => workItems.id, { onDelete: 'cascade' }),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.milestoneId, table.workItemId] }),
+    workItemIdIdx: index('idx_milestone_work_items_work_item_id').on(table.workItemId),
   }),
 );
