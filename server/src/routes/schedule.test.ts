@@ -6,11 +6,7 @@ import { buildApp } from '../app.js';
 import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
 import type { FastifyInstance } from 'fastify';
-import type {
-  ScheduleResponse,
-  ApiErrorResponse,
-  ScheduleRequest,
-} from '@cornerstone/shared';
+import type { ScheduleResponse, ApiErrorResponse, ScheduleRequest } from '@cornerstone/shared';
 import { workItems, workItemDependencies } from '../db/schema.js';
 
 describe('Schedule Routes', () => {
@@ -86,7 +82,9 @@ describe('Schedule Routes', () => {
       .values({
         id: workItemId,
         title,
-        status: (overrides.status as 'not_started' | 'in_progress' | 'completed' | 'blocked') ?? 'not_started',
+        status:
+          (overrides.status as 'not_started' | 'in_progress' | 'completed' | 'blocked') ??
+          'not_started',
         durationDays: overrides.durationDays !== undefined ? overrides.durationDays : 5,
         startDate: overrides.startDate ?? null,
         endDate: overrides.endDate ?? null,
@@ -106,7 +104,11 @@ describe('Schedule Routes', () => {
   function createTestDependency(
     predecessorId: string,
     successorId: string,
-    dependencyType: 'finish_to_start' | 'start_to_start' | 'finish_to_finish' | 'start_to_finish' = 'finish_to_start',
+    dependencyType:
+      | 'finish_to_start'
+      | 'start_to_start'
+      | 'finish_to_finish'
+      | 'start_to_finish' = 'finish_to_start',
     leadLagDays = 0,
   ): void {
     app.db
@@ -146,7 +148,11 @@ describe('Schedule Routes', () => {
 
   describe('input validation', () => {
     it('should return 400 when mode field is missing', async () => {
-      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password123');
+      const { cookie } = await createUserWithSession(
+        'user@example.com',
+        'Test User',
+        'password123',
+      );
 
       const response = await app.inject({
         method: 'POST',
@@ -160,7 +166,11 @@ describe('Schedule Routes', () => {
     });
 
     it('should return 400 when mode is an invalid value', async () => {
-      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password123');
+      const { cookie } = await createUserWithSession(
+        'user@example.com',
+        'Test User',
+        'password123',
+      );
 
       const response = await app.inject({
         method: 'POST',
@@ -174,7 +184,11 @@ describe('Schedule Routes', () => {
     });
 
     it('should return 400 when mode is "cascade" but anchorWorkItemId is missing', async () => {
-      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password123');
+      const { cookie } = await createUserWithSession(
+        'user@example.com',
+        'Test User',
+        'password123',
+      );
 
       const response = await app.inject({
         method: 'POST',
@@ -189,7 +203,11 @@ describe('Schedule Routes', () => {
     });
 
     it('should return 400 when mode is "cascade" and anchorWorkItemId is null', async () => {
-      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password123');
+      const { cookie } = await createUserWithSession(
+        'user@example.com',
+        'Test User',
+        'password123',
+      );
 
       const response = await app.inject({
         method: 'POST',
@@ -204,7 +222,11 @@ describe('Schedule Routes', () => {
     });
 
     it('should reject unknown body properties', async () => {
-      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password123');
+      const { cookie } = await createUserWithSession(
+        'user@example.com',
+        'Test User',
+        'password123',
+      );
 
       const response = await app.inject({
         method: 'POST',
@@ -222,7 +244,11 @@ describe('Schedule Routes', () => {
 
   describe('full mode', () => {
     it('should return 200 with empty schedule when no work items exist', async () => {
-      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password123');
+      const { cookie } = await createUserWithSession(
+        'user@example.com',
+        'Test User',
+        'password123',
+      );
 
       const response = await app.inject({
         method: 'POST',
@@ -464,7 +490,7 @@ describe('Schedule Routes', () => {
   // ─── POST /api/schedule — Circular dependency ────────────────────────────────
 
   describe('circular dependency detection', () => {
-    it('should return 409 with CIRCULAR_DEPENDENCY code when cycle exists in full mode', async () => {
+    it('should return 409 with CIRCULAR_DEPENDENCY code when cycle exists', async () => {
       const { userId, cookie } = await createUserWithSession(
         'user@example.com',
         'Test User',
@@ -556,11 +582,11 @@ describe('Schedule Routes', () => {
       expect(dbItem!.startDate).toBe(existingStart);
       expect(dbItem!.endDate).toBe(existingEnd);
 
-      // But the scheduled dates in the response should reflect CPM computation
+      // The scheduled dates in the response reflect CPM computation
       const body = response.json<ScheduleResponse>();
       const si = body.scheduledItems.find((si) => si.workItemId === wiId);
       expect(si).toBeDefined();
-      // The scheduled dates may differ from the stored dates (read-only)
+      // previousStartDate should reflect the stored (original) value
       expect(si!.previousStartDate).toBe(existingStart);
       expect(si!.previousEndDate).toBe(existingEnd);
     });
@@ -695,7 +721,6 @@ describe('Schedule Routes', () => {
       const byId = Object.fromEntries(body.scheduledItems.map((si) => [si.workItemId, si]));
 
       // B should start 5 days after A's end (lag = 5)
-      // A.EF + 5 = wiB.scheduledStartDate
       const aEndDate = new Date(byId[wiA].scheduledEndDate + 'T00:00:00Z');
       aEndDate.setUTCDate(aEndDate.getUTCDate() + 5);
       const expectedStart = aEndDate.toISOString().slice(0, 10);
@@ -731,7 +756,7 @@ describe('Schedule Routes', () => {
     });
   });
 
-  // ─── POST /api/schedule — Start-after and start-before constraints ───────────
+  // ─── POST /api/schedule — Scheduling constraints ─────────────────────────────
 
   describe('scheduling constraints', () => {
     it('should apply startAfter hard constraint when scheduling', async () => {

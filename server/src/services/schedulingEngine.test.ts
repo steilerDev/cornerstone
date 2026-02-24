@@ -244,7 +244,11 @@ describe('Scheduling Engine', () => {
       // A: 5d, starts 2026-01-01, ends 2026-01-06
       // B: 3d (FS from A), starts 2026-01-06, ends 2026-01-09
       const result = schedule(
-        fullParams([makeItem('A', 5), makeItem('B', 3)], [makeDep('A', 'B', 'finish_to_start')], today),
+        fullParams(
+          [makeItem('A', 5), makeItem('B', 3)],
+          [makeDep('A', 'B', 'finish_to_start')],
+          today,
+        ),
       );
 
       const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
@@ -256,7 +260,11 @@ describe('Scheduling Engine', () => {
       // A: 5d, starts 2026-01-01
       // B: 3d (SS from A), starts 2026-01-01, ends 2026-01-04
       const result = schedule(
-        fullParams([makeItem('A', 5), makeItem('B', 3)], [makeDep('A', 'B', 'start_to_start')], today),
+        fullParams(
+          [makeItem('A', 5), makeItem('B', 3)],
+          [makeDep('A', 'B', 'start_to_start')],
+          today,
+        ),
       );
 
       const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
@@ -268,7 +276,11 @@ describe('Scheduling Engine', () => {
       // A: 5d, starts 2026-01-01, ends 2026-01-06
       // B: 3d (FF from A), EF >= A.EF => B.EF >= 2026-01-06 => B.ES = 2026-01-03
       const result = schedule(
-        fullParams([makeItem('A', 5), makeItem('B', 3)], [makeDep('A', 'B', 'finish_to_finish')], today),
+        fullParams(
+          [makeItem('A', 5), makeItem('B', 3)],
+          [makeDep('A', 'B', 'finish_to_finish')],
+          today,
+        ),
       );
 
       const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
@@ -284,7 +296,11 @@ describe('Scheduling Engine', () => {
       // But B starts no earlier than today (2026-01-01) from the forward pass
       // So B.ES = 2026-01-01 (today), B.EF = 2026-01-04
       const result = schedule(
-        fullParams([makeItem('A', 5), makeItem('B', 3)], [makeDep('A', 'B', 'start_to_finish')], today),
+        fullParams(
+          [makeItem('A', 5), makeItem('B', 3)],
+          [makeDep('A', 'B', 'start_to_finish')],
+          today,
+        ),
       );
 
       const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
@@ -448,7 +464,7 @@ describe('Scheduling Engine', () => {
   // ─── Start-after constraint ───────────────────────────────────────────────
 
   describe('start_after constraint (hard constraint)', () => {
-    it('should shift ES to startAfter when startAfter is later than dependency-derived date', () => {
+    it('should shift ES to startAfter when it is later than predecessor-derived date', () => {
       // A: 5d ends 2026-01-06. B has startAfter = 2026-01-10
       const items = [
         makeItem('A', 5),
@@ -654,7 +670,7 @@ describe('Scheduling Engine', () => {
       }
     });
 
-    it('should return empty criticalPath when all items are completed cycle-free (zero items)', () => {
+    it('should return empty criticalPath when there are no items', () => {
       const result = schedule(fullParams([], [], '2026-01-01'));
       expect(result.criticalPath).toEqual([]);
     });
