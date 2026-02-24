@@ -1,0 +1,99 @@
+/* ============================================================
+ * CalendarItem — work item block in a calendar cell
+ * ============================================================ */
+
+.item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  cursor: pointer;
+  overflow: hidden;
+  transition: filter var(--transition-fast);
+  /* Horizontal margins for spacing between adjacent cells */
+  min-width: 0;
+  border-top: none;
+  border-bottom: none;
+}
+
+.item:hover {
+  filter: brightness(1.08);
+}
+
+.item:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-border-focus);
+}
+
+/* ---- Compact (month view) ---- */
+
+.compact {
+  height: 18px;
+  padding: 0 var(--spacing-1);
+  font-size: var(--font-size-2xs);
+  margin-bottom: 2px;
+}
+
+/* ---- Full (week view) ---- */
+
+.full {
+  padding: var(--spacing-1) var(--spacing-2);
+  font-size: var(--font-size-xs);
+  margin-bottom: var(--spacing-1);
+  min-height: 22px;
+}
+
+/* ---- Shape — left/right rounding depending on span position ---- */
+
+.startRounded {
+  border-top-left-radius: var(--radius-sm);
+  border-bottom-left-radius: var(--radius-sm);
+}
+
+.endRounded {
+  border-top-right-radius: var(--radius-sm);
+  border-bottom-right-radius: var(--radius-sm);
+}
+
+/* Continuation bars have no rounding on the respective side */
+.noStartRound {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.noEndRound {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+/* ---- Title ---- */
+
+.title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+  font-weight: var(--font-weight-medium);
+}
+
+/* ---- Status colors ---- */
+
+.notStarted {
+  background: var(--color-status-not-started-bg);
+  color: var(--color-status-not-started-text);
+}
+
+.inProgress {
+  background: var(--color-status-in-progress-bg);
+  color: var(--color-status-in-progress-text);
+}
+
+.completed {
+  background: var(--color-status-completed-bg);
+  color: var(--color-status-completed-text);
+}
+
+.blocked {
+  background: var(--color-status-blocked-bg);
+  color: var(--color-status-blocked-text);
+}

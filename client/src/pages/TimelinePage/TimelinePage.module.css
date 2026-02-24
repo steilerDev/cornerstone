@@ -367,6 +367,56 @@
   flex-shrink: 0;
 }
 
+/* ---- View toggle button group (Gantt / Calendar) ---- */
+
+.viewToggle {
+  display: inline-flex;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.viewButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1-5);
+  padding: var(--spacing-1-5) var(--spacing-3);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  background: var(--color-bg-primary);
+  border: none;
+  border-right: 1px solid var(--color-border-strong);
+  cursor: pointer;
+  transition: var(--transition-button-border);
+  min-height: 36px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.viewButton:last-child {
+  border-right: none;
+}
+
+.viewButton:hover:not(.viewButtonActive) {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.viewButtonActive {
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+  font-weight: var(--font-weight-semibold);
+}
+
+.viewButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  position: relative;
+  z-index: 1;
+}
+
 /* ---- Chart area (fills remaining height) ---- */
 
 .chartArea {
@@ -478,6 +528,10 @@
     width: 44px;
     height: 44px;
   }
+
+  .viewButton {
+    min-height: 44px;
+  }
 }
 
 /* Mobile: toolbar becomes full-width row */
@@ -515,6 +569,16 @@
 
   /* Hide filter label text on mobile */
   .milestoneFilterLabel {
+    display: none;
+  }
+
+  .viewButton {
+    min-height: 44px;
+    padding: var(--spacing-2) var(--spacing-2);
+  }
+
+  /* Hide view button text labels on mobile — show icons only */
+  .viewButtonLabel {
     display: none;
   }
 }
