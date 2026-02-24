@@ -32,11 +32,13 @@ const DEFAULT_POSITION: GanttTooltipPosition = {
 function renderTooltip(
   data: Partial<GanttTooltipWorkItemData> = {},
   position: Partial<GanttTooltipPosition> = {},
+  id?: string,
 ) {
   return render(
     <GanttTooltip
       data={{ ...DEFAULT_DATA, ...data }}
       position={{ ...DEFAULT_POSITION, ...position }}
+      id={id}
     />,
   );
 }
@@ -274,6 +276,41 @@ describe('GanttTooltip', () => {
       expect(container.querySelector('[data-testid="gantt-tooltip"]')).not.toBeInTheDocument();
       // But it should be in the document overall
       expect(document.querySelector('[data-testid="gantt-tooltip"]')).toBeInTheDocument();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // id prop for aria-describedby (Story 6.9)
+  // ---------------------------------------------------------------------------
+
+  describe('id prop', () => {
+    it('applies the id attribute to the tooltip element when provided', () => {
+      renderTooltip({}, {}, 'gantt-chart-tooltip');
+      const tooltip = screen.getByRole('tooltip');
+      expect(tooltip).toHaveAttribute('id', 'gantt-chart-tooltip');
+    });
+
+    it('does not set an id attribute when id prop is omitted', () => {
+      renderTooltip();
+      const tooltip = screen.getByRole('tooltip');
+      expect(tooltip).not.toHaveAttribute('id');
+    });
+
+    it('does not set an id attribute when id prop is undefined', () => {
+      renderTooltip({}, {}, undefined);
+      const tooltip = screen.getByRole('tooltip');
+      expect(tooltip).not.toHaveAttribute('id');
+    });
+
+    it('id on tooltip element matches the triggering bar aria-describedby contract', () => {
+      // Verify that passing a specific id string creates an element with that id,
+      // so that a GanttBar using aria-describedby with the same id resolves correctly.
+      const tooltipId = 'gantt-chart-tooltip';
+      renderTooltip({}, {}, tooltipId);
+      // The element with this id should be the tooltip
+      const tooltipById = document.getElementById(tooltipId);
+      expect(tooltipById).not.toBeNull();
+      expect(tooltipById).toHaveAttribute('role', 'tooltip');
     });
   });
 

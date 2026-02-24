@@ -239,8 +239,16 @@ export function GanttChart({
 
   const [tooltipData, setTooltipData] = useState<GanttTooltipData | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState<GanttTooltipPosition>({ x: 0, y: 0 });
+  // Track which item (bar or milestone) is currently hovered for aria-describedby
+  const [tooltipTriggerId, setTooltipTriggerId] = useState<string | null>(null);
   const showTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Stable tooltip element ID for aria-describedby
+  const TOOLTIP_ID = 'gantt-chart-tooltip';
+
+  // Ref to the element that triggered the tooltip — used for focus-return on Escape
+  const tooltipTriggerElementRef = useRef<Element | null>(null);
 
   function clearTooltipTimers() {
     if (showTimerRef.current !== null) {
@@ -253,10 +261,41 @@ export function GanttChart({
     }
   }
 
+  // Close tooltip on Escape key and return focus to the triggering element
+  useEffect(() => {
+    if (tooltipData === null) return;
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        clearTooltipTimers();
+        setTooltipData(null);
+        setTooltipTriggerId(null);
+        // Return focus to the element that triggered the tooltip
+        if (tooltipTriggerElementRef.current instanceof HTMLElement) {
+          tooltipTriggerElementRef.current.focus();
+        } else if (tooltipTriggerElementRef.current instanceof SVGElement) {
+          (tooltipTriggerElementRef.current as SVGElement & { focus?: () => void }).focus?.();
+        }
+        tooltipTriggerElementRef.current = null;
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tooltipData]);
+
   // Build a lookup map from item ID to TimelineWorkItem for tooltip data
   const workItemMap = useMemo(() => {
     const map = new Map(data.workItems.map((item) => [item.id, item]));
     return map;
+  }, [data.workItems]);
+
+  // Build a title map for GanttArrows aria-labels
+  const workItemTitles = useMemo<ReadonlyMap<string, string>>(() => {
+    return new Map(data.workItems.map((item) => [item.id, item.title]));
   }, [data.workItems]);
 
   // ---------------------------------------------------------------------------
@@ -376,8 +415,8 @@ export function GanttChart({
   return (
     <div
       className={styles.chartBody}
-      role="region"
-      aria-label={`Project timeline Gantt chart showing ${data.workItems.length} work items`}
+      role="img"
+      aria-label={`Project timeline Gantt chart with ${data.workItems.length} work items`}
       data-testid="gantt-chart"
     >
       {/* Left sidebar — fixed during horizontal scroll, synced vertically */}
@@ -424,6 +463,7 @@ export function GanttChart({
               dependencies={data.dependencies}
               criticalPathSet={criticalPathSet}
               barRects={barRects}
+              workItemTitles={workItemTitles}
               colors={arrowColors}
               visible={showArrows}
             />
@@ -439,6 +479,8 @@ export function GanttChart({
                 onMilestoneMouseEnter={(milestone, e) => {
                   if (dragState) return;
                   clearTooltipTimers();
+                  // Capture trigger element for focus-return on Escape
+                  tooltipTriggerElementRef.current = e.currentTarget;
                   const newPos: GanttTooltipPosition = { x: e.clientX, y: e.clientY };
                   showTimerRef.current = setTimeout(() => {
                     setTooltipData({
@@ -477,6 +519,8 @@ export function GanttChart({
                   id={item.id}
                   title={item.title}
                   status={item.status}
+                  startDate={startDate}
+                  endDate={endDate}
                   x={position.x}
                   width={position.width}
                   rowIndex={idx}
@@ -523,6 +567,8 @@ export function GanttChart({
                       setHoveredZoneCursor(null);
                     }
                   }}
+                  // Tooltip accessibility
+                  tooltipId={tooltipTriggerId === item.id ? TOOLTIP_ID : undefined}
                   // Tooltip props
                   onMouseEnter={(e) => {
                     // Suppress tooltip during drag
@@ -530,8 +576,11 @@ export function GanttChart({
                     clearTooltipTimers();
                     const tooltipItem = workItemMap.get(item.id);
                     if (!tooltipItem) return;
+                    // Capture trigger element for focus-return on Escape
+                    tooltipTriggerElementRef.current = e.currentTarget;
                     const newPos: GanttTooltipPosition = { x: e.clientX, y: e.clientY };
                     showTimerRef.current = setTimeout(() => {
+                      setTooltipTriggerId(item.id);
                       setTooltipData({
                         kind: 'work-item',
                         title: tooltipItem.title,
@@ -548,11 +597,13 @@ export function GanttChart({
                     clearTooltipTimers();
                     hideTimerRef.current = setTimeout(() => {
                       setTooltipData(null);
+                      setTooltipTriggerId(null);
                     }, TOOLTIP_HIDE_DELAY);
                   }}
                   onMouseMove={(e) => {
                     if (dragState) {
                       setTooltipData(null);
+                      setTooltipTriggerId(null);
                       return;
                     }
                     setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -566,7 +617,7 @@ export function GanttChart({
 
       {/* Tooltip portal */}
       {tooltipData !== null && dragState === null && (
-        <GanttTooltip data={tooltipData} position={tooltipPosition} />
+        <GanttTooltip data={tooltipData} position={tooltipPosition} id={TOOLTIP_ID} />
       )}
     </div>
   );

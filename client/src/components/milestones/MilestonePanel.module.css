@@ -798,4 +798,21 @@
   .buttonDangerOutline {
     min-height: 44px;
   }
+
+  /* Increase close button touch target on mobile */
+  .closeButton {
+    width: 40px;
+    height: 40px;
+  }
+
+  /* Increase action button touch targets */
+  .milestoneActionButton {
+    width: 40px;
+    height: 40px;
+  }
+
+  /* Ensure milestone items have adequate touch targets */
+  .milestoneItem {
+    min-height: 56px;
+  }
 }

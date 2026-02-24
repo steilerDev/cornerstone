@@ -16,6 +16,10 @@ export interface GanttBarProps {
   id: string;
   title: string;
   status: WorkItemStatus;
+  /** Start date string (YYYY-MM-DD) — used in aria-label for screen readers. */
+  startDate?: string | null;
+  /** End date string (YYYY-MM-DD) — used in aria-label for screen readers. */
+  endDate?: string | null;
   x: number;
   width: number;
   rowIndex: number;
@@ -45,6 +49,8 @@ export interface GanttBarProps {
 
   // ---- Tooltip support (optional) ----
 
+  /** ID of the tooltip element for aria-describedby. */
+  tooltipId?: string;
   /** Callback on mouse enter — passes event for tooltip positioning. */
   onMouseEnter?: (event: ReactMouseEvent<SVGGElement>) => void;
   /** Callback on mouse leave. */
@@ -75,6 +81,8 @@ export const GanttBar = memo(function GanttBar({
   id,
   title,
   status,
+  startDate,
+  endDate,
   x,
   width,
   rowIndex,
@@ -88,6 +96,7 @@ export const GanttBar = memo(function GanttBar({
   hoverZoneCursor = null,
   onBarPointerMove,
   onBarPointerLeave,
+  tooltipId,
   onMouseEnter,
   onMouseLeave,
   onMouseMove,
@@ -97,9 +106,11 @@ export const GanttBar = memo(function GanttBar({
   const clipId = `bar-clip-${id}`;
   const statusLabel = STATUS_LABELS[status];
 
-  const ariaLabel = isCritical
-    ? `Work item: ${title}, ${statusLabel} (critical path)`
-    : `Work item: ${title}, ${statusLabel}`;
+  // Build a descriptive aria-label including dates when available
+  const dateRange =
+    startDate && endDate ? `, ${startDate} to ${endDate}` : startDate ? `, from ${startDate}` : '';
+  const criticalSuffix = isCritical ? ', critical path' : '';
+  const ariaLabel = `Work item: ${title}, ${statusLabel}${dateRange}${criticalSuffix}`;
 
   // Determine if this bar is being dragged
   const isBeingDragged = dragState?.itemId === id;
@@ -182,9 +193,10 @@ export const GanttBar = memo(function GanttBar({
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
         onMouseMove={onMouseMove}
-        role="listitem"
+        role="graphics-symbol"
         tabIndex={0}
         aria-label={ariaLabel}
+        aria-describedby={tooltipId}
         data-testid={`gantt-bar-${id}`}
         style={{ cursor, opacity: barOpacity }}
       >

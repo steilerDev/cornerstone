@@ -1,5 +1,5 @@
 import { memo, useMemo } from 'react';
-import type { TimelineDependency } from '@cornerstone/shared';
+import type { TimelineDependency, DependencyType } from '@cornerstone/shared';
 import { computeArrowPath, computeArrowhead } from './arrowUtils.js';
 import type { BarRect } from './arrowUtils.js';
 import styles from './GanttArrows.module.css';
@@ -25,6 +25,11 @@ export interface GanttArrowsProps {
    * Items not in this map are skipped (they may be off-screen or undated).
    */
   barRects: ReadonlyMap<string, BarRect>;
+  /**
+   * Map from work item ID to its title — used to build accessible aria-labels
+   * on each dependency arrow.
+   */
+  workItemTitles: ReadonlyMap<string, string>;
   /** Resolved colors (read from CSS custom props via getComputedStyle). */
   colors: ArrowColors;
   /** When false, all arrows are hidden (aria-hidden). */
@@ -38,6 +43,17 @@ export interface GanttArrowsProps {
 const ARROWHEAD_SIZE = 6;
 const ARROW_STROKE_DEFAULT = 1.5;
 const ARROW_STROKE_CRITICAL = 2;
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+const DEPENDENCY_TYPE_LABELS: Record<DependencyType, string> = {
+  finish_to_start: 'Finish-to-Start',
+  start_to_start: 'Start-to-Start',
+  finish_to_finish: 'Finish-to-Finish',
+  start_to_finish: 'Start-to-Finish',
+};
 
 // ---------------------------------------------------------------------------
 // GanttArrows component
@@ -55,6 +71,7 @@ export const GanttArrows = memo(function GanttArrows({
   dependencies,
   criticalPathSet,
   barRects,
+  workItemTitles,
   colors,
   visible,
 }: GanttArrowsProps) {
@@ -76,14 +93,20 @@ export const GanttArrows = memo(function GanttArrows({
 
         const arrowPath = computeArrowPath(predRect, succRect, dep.dependencyType);
 
+        const predTitle = workItemTitles.get(dep.predecessorId) ?? dep.predecessorId;
+        const succTitle = workItemTitles.get(dep.successorId) ?? dep.successorId;
+        const typeLabel = DEPENDENCY_TYPE_LABELS[dep.dependencyType];
+        const ariaLabel = `Dependency: ${predTitle} to ${succTitle}, ${typeLabel}`;
+
         return {
           key: `${dep.predecessorId}-${dep.successorId}-${dep.dependencyType}`,
           arrowPath,
           isCritical,
+          ariaLabel,
         };
       })
       .filter((a): a is NonNullable<typeof a> => a !== null);
-  }, [dependencies, barRects, criticalPathSet]);
+  }, [dependencies, barRects, criticalPathSet, workItemTitles]);
 
   if (arrows.length === 0) {
     return null;
@@ -91,8 +114,8 @@ export const GanttArrows = memo(function GanttArrows({
 
   return (
     <g aria-hidden={visible ? undefined : true} data-testid="gantt-arrows">
-      {/* SVG marker definitions for arrowheads */}
-      <defs>
+      {/* SVG marker definitions for arrowheads (decorative — aria-hidden) */}
+      <defs aria-hidden="true">
         {/* Default arrowhead */}
         <marker
           id={markerId}
@@ -128,7 +151,7 @@ export const GanttArrows = memo(function GanttArrows({
       {arrows
         .filter((a) => !a.isCritical)
         .map((a) => {
-          const { arrowPath, key } = a;
+          const { arrowPath, key, ariaLabel } = a;
           const arrowhead = computeArrowhead(
             arrowPath.tipX,
             arrowPath.tipY,
@@ -136,17 +159,19 @@ export const GanttArrows = memo(function GanttArrows({
             ARROWHEAD_SIZE,
           );
           return (
-            <g key={key} opacity={visible ? 0.5 : 0} aria-hidden="true">
+            <g key={key} opacity={visible ? 0.5 : 0} role="graphics-symbol" aria-label={ariaLabel}>
               <path
                 d={arrowPath.pathD}
                 stroke={colors.defaultArrow}
                 strokeWidth={ARROW_STROKE_DEFAULT}
                 className={styles.arrowDefault}
+                aria-hidden="true"
               />
               <polygon
                 points={arrowhead}
                 fill={colors.defaultArrow}
                 className={styles.arrowheadDefault}
+                aria-hidden="true"
               />
             </g>
           );
@@ -156,7 +181,7 @@ export const GanttArrows = memo(function GanttArrows({
       {arrows
         .filter((a) => a.isCritical)
         .map((a) => {
-          const { arrowPath, key } = a;
+          const { arrowPath, key, ariaLabel } = a;
           const arrowhead = computeArrowhead(
             arrowPath.tipX,
             arrowPath.tipY,
@@ -168,18 +193,21 @@ export const GanttArrows = memo(function GanttArrows({
               key={key}
               opacity={visible ? 1 : 0}
               filter="drop-shadow(0 0 2px rgba(220,38,38,0.4))"
-              aria-hidden="true"
+              role="graphics-symbol"
+              aria-label={ariaLabel}
             >
               <path
                 d={arrowPath.pathD}
                 stroke={colors.criticalArrow}
                 strokeWidth={ARROW_STROKE_CRITICAL}
                 className={styles.arrowCritical}
+                aria-hidden="true"
               />
               <polygon
                 points={arrowhead}
                 fill={colors.criticalArrow}
                 className={styles.arrowheadCritical}
+                aria-hidden="true"
               />
             </g>
           );

@@ -102,15 +102,25 @@
   }
 }
 
-/* Mobile: sidebar hidden by default as overlay */
+/* Mobile: sidebar collapses to compact strip (same as tablet) */
 @media (max-width: 767px) {
   .sidebar {
-    position: fixed;
-    top: 0;
-    left: -260px;
-    width: 260px;
-    height: 100%;
-    z-index: var(--z-sidebar);
-    transition: left var(--transition-slow);
+    width: 44px;
+  }
+
+  .sidebarHeader {
+    padding: 0;
+    justify-content: center;
+    font-size: var(--font-size-2xs);
+    overflow: hidden;
+  }
+
+  .sidebarRowLabel {
+    display: none;
+  }
+
+  .sidebarRow {
+    padding: 0;
+    justify-content: center;
   }
 }

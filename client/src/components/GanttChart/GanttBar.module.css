@@ -11,7 +11,7 @@
 
 .bar:focus-visible {
   outline: none;
-  filter: drop-shadow(0 0 0 3px var(--color-focus-ring));
+  filter: drop-shadow(0 0 3px var(--color-focus-ring)) drop-shadow(0 0 6px var(--color-focus-ring));
 }
 
 .rect {
