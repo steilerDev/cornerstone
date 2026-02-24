@@ -163,3 +163,12 @@ export type {
   ScheduleWarningType,
   ScheduleWarning,
 } from './types/schedule.js';
+
+// Timeline
+export type {
+  TimelineWorkItem,
+  TimelineDependency,
+  TimelineMilestone,
+  TimelineDateRange,
+  TimelineResponse,
+} from './types/timeline.js';
