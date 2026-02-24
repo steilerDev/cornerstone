@@ -6,6 +6,9 @@ import { render, screen, waitFor } from '@testing-library/react';
 import type * as AuthApiTypes from './lib/authApi.js';
 import type * as BudgetCategoriesApiTypes from './lib/budgetCategoriesApi.js';
 import type * as MilestonesApiTypes from './lib/milestonesApi.js';
+import type * as TimelineApiTypes from './lib/timelineApi.js';
+import type * as WorkItemsApiTypes from './lib/workItemsApi.js';
+import type * as ScheduleApiTypes from './lib/scheduleApi.js';
 import type * as AppTypes from './App.js';
 
 const mockGetAuthMe = jest.fn<typeof AuthApiTypes.getAuthMe>();
@@ -18,6 +21,7 @@ const mockUpdateBudgetCategory = jest.fn<typeof BudgetCategoriesApiTypes.updateB
 const mockDeleteBudgetCategory = jest.fn<typeof BudgetCategoriesApiTypes.deleteBudgetCategory>();
 
 const mockListMilestones = jest.fn<typeof MilestonesApiTypes.listMilestones>();
+const mockGetTimeline = jest.fn<typeof TimelineApiTypes.getTimeline>();
 
 // Must mock BEFORE importing the component
 jest.unstable_mockModule('./lib/authApi.js', () => ({
@@ -46,6 +50,33 @@ jest.unstable_mockModule('./lib/milestonesApi.js', () => ({
   unlinkWorkItem: jest.fn<typeof MilestonesApiTypes.unlinkWorkItem>(),
 }));
 
+// TimelinePage uses useTimeline which calls getTimeline on mount.
+// Mock this to prevent fetch calls in the jsdom test environment.
+jest.unstable_mockModule('./lib/timelineApi.js', () => ({
+  getTimeline: mockGetTimeline,
+}));
+
+// WorkItemsPage (and transitively MilestoneWorkItemLinker) imports workItemsApi.
+// Mock to prevent fetch calls in the jsdom test environment.
+// listWorkItems default value is set in beforeEach.
+const mockListWorkItems = jest.fn<typeof WorkItemsApiTypes.listWorkItems>();
+jest.unstable_mockModule('./lib/workItemsApi.js', () => ({
+  listWorkItems: mockListWorkItems,
+  getWorkItem: jest.fn<typeof WorkItemsApiTypes.getWorkItem>(),
+  createWorkItem: jest.fn<typeof WorkItemsApiTypes.createWorkItem>(),
+  updateWorkItem: jest.fn<typeof WorkItemsApiTypes.updateWorkItem>(),
+  deleteWorkItem: jest.fn<typeof WorkItemsApiTypes.deleteWorkItem>(),
+  fetchWorkItemSubsidies: jest.fn<typeof WorkItemsApiTypes.fetchWorkItemSubsidies>(),
+  linkWorkItemSubsidy: jest.fn<typeof WorkItemsApiTypes.linkWorkItemSubsidy>(),
+  unlinkWorkItemSubsidy: jest.fn<typeof WorkItemsApiTypes.unlinkWorkItemSubsidy>(),
+}));
+
+// TimelinePage imports scheduleApi for the auto-schedule feature.
+// Mock to prevent fetch calls in the jsdom test environment.
+jest.unstable_mockModule('./lib/scheduleApi.js', () => ({
+  runSchedule: jest.fn<typeof ScheduleApiTypes.runSchedule>(),
+}));
+
 describe('App', () => {
   // Dynamic imports
   let App: typeof AppTypes.App;
@@ -66,12 +97,30 @@ describe('App', () => {
     mockUpdateBudgetCategory.mockReset();
     mockDeleteBudgetCategory.mockReset();
     mockListMilestones.mockReset();
+    mockGetTimeline.mockReset();
+    mockListWorkItems.mockReset();
 
     // Default: budget categories returns empty list
     mockFetchBudgetCategories.mockResolvedValue({ categories: [] });
 
     // Default: milestones returns empty list (used by TimelinePage via useMilestones)
     mockListMilestones.mockResolvedValue([]);
+
+    // Default: timeline returns empty data (used by TimelinePage via useTimeline)
+    mockGetTimeline.mockResolvedValue({
+      workItems: [],
+      dependencies: [],
+      milestones: [],
+      criticalPath: [],
+      dateRange: null,
+    });
+
+    // Default: work items returns empty paginated list (used by WorkItemsPage and
+    // MilestoneWorkItemLinker via listWorkItems)
+    mockListWorkItems.mockResolvedValue({
+      items: [],
+      pagination: { page: 1, pageSize: 20, totalItems: 0, totalPages: 0 },
+    });
 
     // Default: authenticated user (no setup required)
     mockGetAuthMe.mockResolvedValue({
