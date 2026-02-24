@@ -151,8 +151,10 @@ describe('App', () => {
     window.history.pushState({}, 'Timeline', '/timeline');
     render(<App />);
 
-    // Wait for lazy-loaded Timeline component to resolve
-    const heading = await screen.findByRole('heading', { name: /timeline/i });
+    // Wait for lazy-loaded Timeline component to resolve.
+    // Use an extended timeout because TimelinePage has more static imports
+    // (useMilestones, MilestonePanel) which makes the lazy load slower in CI.
+    const heading = await screen.findByRole('heading', { name: /timeline/i }, { timeout: 5000 });
     expect(heading).toBeInTheDocument();
   });
 
