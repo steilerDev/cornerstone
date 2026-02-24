@@ -334,6 +334,25 @@
 
   /* Critical path bar border overlay */
   --color-gantt-bar-critical-border: var(--color-red-600);
+
+  /* Ghost/preview bar during drag — uses focus border color */
+  --color-gantt-bar-ghost: var(--color-border-focus);
+
+  /* ============================================================
+   * LAYER 2 — TOAST NOTIFICATION TOKENS
+   * ============================================================ */
+
+  /* Toast: Success */
+  --color-toast-success-bg: var(--color-green-50);
+  --color-toast-success-border: var(--color-green-200);
+
+  /* Toast: Info */
+  --color-toast-info-bg: var(--color-blue-100);
+  --color-toast-info-border: var(--color-blue-200);
+
+  /* Toast: Error */
+  --color-toast-error-bg: var(--color-red-50);
+  --color-toast-error-border: var(--color-red-200);
 }
 
 /* ============================================================
@@ -481,4 +500,19 @@
 
   /* Critical path bar border overlay (brighter in dark mode) */
   --color-gantt-bar-critical-border: var(--color-red-400);
+
+  /* Ghost bar during drag */
+  --color-gantt-bar-ghost: var(--color-border-focus);
+
+  /* Toast: Success */
+  --color-toast-success-bg: rgba(16, 185, 129, 0.1);
+  --color-toast-success-border: rgba(16, 185, 129, 0.3);
+
+  /* Toast: Info */
+  --color-toast-info-bg: rgba(59, 130, 246, 0.15);
+  --color-toast-info-border: rgba(59, 130, 246, 0.3);
+
+  /* Toast: Error */
+  --color-toast-error-bg: rgba(239, 68, 68, 0.1);
+  --color-toast-error-border: rgba(239, 68, 68, 0.3);
 }

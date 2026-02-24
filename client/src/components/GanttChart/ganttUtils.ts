@@ -360,6 +360,96 @@ export function generateHeaderCells(
 }
 
 // ---------------------------------------------------------------------------
+// Inverse coordinate mapping (pixel → date)
+// ---------------------------------------------------------------------------
+
+/**
+ * Converts an x pixel position to a Date, given the current chart range and zoom.
+ * This is the inverse of dateToX().
+ *
+ * @param x          Pixel offset from the left edge of the SVG canvas.
+ * @param chartRange The current chart date range.
+ * @param zoom       The current zoom level.
+ * @returns          The Date corresponding to pixel position x.
+ */
+export function xToDate(x: number, chartRange: ChartRange, zoom: ZoomLevel): Date {
+  const colWidth = COLUMN_WIDTHS[zoom];
+
+  if (zoom === 'day') {
+    const days = x / colWidth;
+    return addDays(chartRange.start, days);
+  } else if (zoom === 'week') {
+    // fractional weeks → days
+    const days = (x / colWidth) * 7;
+    return addDays(chartRange.start, days);
+  } else {
+    // month zoom: iterate through months to find the containing month
+    return xToDateMonth(x, chartRange.start);
+  }
+}
+
+/**
+ * For month zoom: convert x pixel to a Date by iterating through months.
+ */
+function xToDateMonth(x: number, rangeStart: Date): Date {
+  const colWidth = COLUMN_WIDTHS['month'];
+  let accumulated = 0;
+  let cur = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), 1, 12);
+
+  // Walk through months until we find which month x falls within
+  // Safety cap: at most 1200 months to prevent infinite loops
+  for (let i = 0; i < 1200; i++) {
+    const daysInMonth = new Date(cur.getFullYear(), cur.getMonth() + 1, 0).getDate();
+    const monthWidth = (daysInMonth / 30.44) * colWidth;
+
+    if (accumulated + monthWidth >= x || i === 1199) {
+      // x is within this month
+      const fraction = (x - accumulated) / monthWidth;
+      const dayOfMonth = Math.floor(fraction * daysInMonth) + 1;
+      const clampedDay = Math.max(1, Math.min(dayOfMonth, daysInMonth));
+      return new Date(cur.getFullYear(), cur.getMonth(), clampedDay, 12, 0, 0, 0);
+    }
+
+    accumulated += monthWidth;
+    cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1, 12);
+  }
+
+  return cur;
+}
+
+/**
+ * Snaps a Date to the nearest grid unit for the current zoom level.
+ *
+ * - day zoom:   snap to nearest calendar day
+ * - week zoom:  snap to nearest Monday (ISO week start)
+ * - month zoom: snap to the 1st of the nearest month
+ *
+ * @param date The raw date to snap.
+ * @param zoom The current zoom level.
+ * @returns    The snapped Date.
+ */
+export function snapToGrid(date: Date, zoom: ZoomLevel): Date {
+  if (zoom === 'day') {
+    // Round to nearest day (already at noon, just normalize)
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0, 0);
+  } else if (zoom === 'week') {
+    // Snap to nearest Monday
+    const monday = startOfIsoWeek(date);
+    const nextMonday = addDays(monday, 7);
+    const distToMonday = Math.abs(date.getTime() - monday.getTime());
+    const distToNext = Math.abs(date.getTime() - nextMonday.getTime());
+    return distToMonday <= distToNext ? monday : nextMonday;
+  } else {
+    // month zoom: snap to 1st of nearest month
+    const firstOfCurrent = new Date(date.getFullYear(), date.getMonth(), 1, 12);
+    const firstOfNext = new Date(date.getFullYear(), date.getMonth() + 1, 1, 12);
+    const distToCurrent = Math.abs(date.getTime() - firstOfCurrent.getTime());
+    const distToNext = Math.abs(date.getTime() - firstOfNext.getTime());
+    return distToCurrent <= distToNext ? firstOfCurrent : firstOfNext;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Bar positioning
 // ---------------------------------------------------------------------------
 

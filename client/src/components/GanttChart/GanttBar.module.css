@@ -31,3 +31,13 @@
 .criticalOverlay {
   pointer-events: none;
 }
+
+/* Ghost/preview bar during drag — no pointer events, just visual. */
+.ghost {
+  pointer-events: none;
+}
+
+/* Transparent edge hit zones for drag handle detection. */
+.edgeHandle {
+  pointer-events: none;
+}

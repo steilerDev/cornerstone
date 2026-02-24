@@ -1,0 +1,158 @@
+/* ============================================================
+ * GanttTooltip — portal-based SVG bar hover tooltip
+ * ============================================================ */
+
+.tooltip {
+  position: fixed;
+  z-index: var(--z-modal);
+  background: var(--color-bg-inverse);
+  color: var(--color-text-inverse);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--spacing-3) var(--spacing-4);
+  min-width: 180px;
+  max-width: 280px;
+  font-size: var(--font-size-sm);
+  pointer-events: none;
+  /* Fade-in animation */
+  animation: tooltipFadeIn 0.1s ease forwards;
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ---- Header row: title + status badge ---- */
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-2);
+  margin-bottom: var(--spacing-2);
+}
+
+.title {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-inverse);
+  line-height: 1.4;
+  word-break: break-word;
+  flex: 1;
+}
+
+/* ---- Separator ---- */
+
+.separator {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.15);
+  margin: var(--spacing-2) 0;
+}
+
+/* ---- Detail rows ---- */
+
+.detailRow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-2);
+  margin-bottom: var(--spacing-1);
+  font-size: var(--font-size-xs);
+  line-height: 1.5;
+}
+
+.detailRow:last-child {
+  margin-bottom: 0;
+}
+
+.detailLabel {
+  color: rgba(255, 255, 255, 0.55);
+  flex-shrink: 0;
+  min-width: 52px;
+}
+
+.detailValue {
+  color: var(--color-text-inverse);
+  font-weight: var(--font-weight-medium);
+}
+
+/* ---- Status badge inside tooltip ---- */
+
+.statusBadge {
+  display: inline-block;
+  padding: 1px var(--spacing-1-5);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.statusNotStarted {
+  background: rgba(156, 163, 175, 0.25);
+  color: var(--color-gray-200);
+}
+
+.statusInProgress {
+  background: rgba(59, 130, 246, 0.3);
+  color: var(--color-blue-200);
+}
+
+.statusCompleted {
+  background: rgba(16, 185, 129, 0.3);
+  color: var(--color-emerald-200);
+}
+
+.statusBlocked {
+  background: rgba(239, 68, 68, 0.3);
+  color: var(--color-red-200);
+}
+
+/* ---- Dark mode: tooltip uses --color-bg-inverse which already flips ---- */
+/* In dark mode, bg-inverse = gray-100 (light), so text and badge colors flip */
+
+[data-theme='dark'] .tooltip {
+  background: var(--color-bg-inverse);
+  color: var(--color-text-inverse);
+}
+
+[data-theme='dark'] .separator {
+  background: rgba(0, 0, 0, 0.15);
+}
+
+[data-theme='dark'] .title {
+  color: var(--color-text-inverse);
+}
+
+[data-theme='dark'] .detailLabel {
+  color: rgba(0, 0, 0, 0.5);
+}
+
+[data-theme='dark'] .detailValue {
+  color: var(--color-text-inverse);
+}
+
+[data-theme='dark'] .statusNotStarted {
+  background: rgba(107, 114, 128, 0.2);
+  color: var(--color-gray-700);
+}
+
+[data-theme='dark'] .statusInProgress {
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--color-blue-600);
+}
+
+[data-theme='dark'] .statusCompleted {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--color-green-600);
+}
+
+[data-theme='dark'] .statusBlocked {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--color-red-600);
+}
