@@ -1,5 +1,5 @@
 /**
- * Smoke tests for stub pages — Dashboard, Timeline, Household Items, Documents
+ * Smoke tests for stub pages — Dashboard, Household Items, Documents
  *
  * These pages are placeholder implementations that will be expanded in future
  * epics.  The tests here verify that:
@@ -9,11 +9,13 @@
  *
  * When a stub page graduates to a full feature page, move its assertions into
  * a dedicated spec file and remove the corresponding test from here.
+ *
+ * NOTE: Timeline has graduated to a full feature page (EPIC-06). Its smoke
+ * test now lives in e2e/tests/timeline/timeline-gantt.spec.ts.
  */
 
 import { test, expect } from '../../fixtures/auth.js';
 import { DashboardPage } from '../../pages/DashboardPage.js';
-import { TimelinePage } from '../../pages/TimelinePage.js';
 import { HouseholdItemsPage } from '../../pages/HouseholdItemsPage.js';
 import { DocumentsPage } from '../../pages/DocumentsPage.js';
 
@@ -24,14 +26,6 @@ test.describe('Stub pages — smoke tests', { tag: '@responsive' }, () => {
     await expect(dashboard.heading).toBeVisible();
     await expect(dashboard.heading).toHaveText('Dashboard');
     await expect(dashboard.description).toBeVisible();
-  });
-
-  test('Timeline page loads with heading', async ({ page }) => {
-    const timeline = new TimelinePage(page);
-    await timeline.goto();
-    await expect(timeline.heading).toBeVisible();
-    await expect(timeline.heading).toHaveText('Timeline');
-    await expect(timeline.description).toBeVisible();
   });
 
   test('Household Items page loads with heading', async ({ page }) => {
