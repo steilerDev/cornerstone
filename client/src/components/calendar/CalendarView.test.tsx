@@ -315,9 +315,9 @@ describe('CalendarView', () => {
     });
 
     it('returns to current week when Today button is clicked', () => {
-      const originalCells = screen.getAllByRole('gridcell').map(
-        (c) => c.getAttribute('aria-label')!,
-      );
+      const originalCells = screen
+        .getAllByRole('gridcell')
+        .map((c) => c.getAttribute('aria-label')!);
 
       // Navigate away two weeks
       fireEvent.click(screen.getByRole('button', { name: /next week/i }));
@@ -329,9 +329,9 @@ describe('CalendarView', () => {
       // Return
       fireEvent.click(screen.getByRole('button', { name: /go to today/i }));
 
-      const returnedCells = screen.getAllByRole('gridcell').map(
-        (c) => c.getAttribute('aria-label')!,
-      );
+      const returnedCells = screen
+        .getAllByRole('gridcell')
+        .map((c) => c.getAttribute('aria-label')!);
       expect(returnedCells).toEqual(originalCells);
     });
 

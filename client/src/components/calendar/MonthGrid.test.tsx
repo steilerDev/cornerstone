@@ -195,12 +195,10 @@ describe('MonthGrid', () => {
       // The item starts April 1 → it appears only in April cells in the grid
       // March 2024 ends on Sunday, so trailing days are April 1+ → item DOES appear
       // in those trailing cells. Test that it does NOT appear for March-only cells:
-      const marchCells = screen.getAllByRole('gridcell').filter(
-        (c) => {
-          const label = c.getAttribute('aria-label') ?? '';
-          return label.startsWith('2024-03-');
-        },
-      );
+      const marchCells = screen.getAllByRole('gridcell').filter((c) => {
+        const label = c.getAttribute('aria-label') ?? '';
+        return label.startsWith('2024-03-');
+      });
       // None of the March cells should contain a calendar-item for this April item
       for (const cell of marchCells) {
         expect(cell.querySelector('[data-testid="calendar-item"]')).toBeNull();

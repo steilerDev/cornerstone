@@ -199,9 +199,7 @@ describe('CalendarMilestone', () => {
       unmount();
       cleanup();
 
-      render(
-        <CalendarMilestone milestone={milestoneB} onMilestoneClick={onMilestoneClick} />,
-      );
+      render(<CalendarMilestone milestone={milestoneB} onMilestoneClick={onMilestoneClick} />);
       fireEvent.click(screen.getByTestId('calendar-milestone'));
       expect(onMilestoneClick).toHaveBeenLastCalledWith(20);
     });

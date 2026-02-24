@@ -16,9 +16,7 @@ import type * as CalendarItemTypes from './CalendarItem.js';
 // Fixtures
 // ---------------------------------------------------------------------------
 
-function makeItem(
-  overrides: Partial<TimelineWorkItem> = {},
-): TimelineWorkItem {
+function makeItem(overrides: Partial<TimelineWorkItem> = {}): TimelineWorkItem {
   return {
     id: 'item-1',
     title: 'Foundation Work',
