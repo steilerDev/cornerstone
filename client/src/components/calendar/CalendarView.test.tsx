@@ -11,6 +11,7 @@ import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { TimelineWorkItem, TimelineMilestone } from '@cornerstone/shared';
+import type * as CalendarViewTypes from './CalendarView.js';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -47,7 +48,7 @@ function makeMilestone(id: number, targetDate: string): TimelineMilestone {
 // Setup / teardown
 // ---------------------------------------------------------------------------
 
-let CalendarView: (typeof import('./CalendarView.js'))['CalendarView'];
+let CalendarView: typeof CalendarViewTypes.CalendarView;
 
 beforeEach(async () => {
   if (!CalendarView) {

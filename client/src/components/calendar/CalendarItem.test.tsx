@@ -6,10 +6,11 @@
  * title display, compact mode, click navigation, and keyboard accessibility.
  */
 
-import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { TimelineWorkItem } from '@cornerstone/shared';
+import type * as CalendarItemTypes from './CalendarItem.js';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -37,7 +38,7 @@ function makeItem(
 // Setup / teardown
 // ---------------------------------------------------------------------------
 
-let CalendarItem: (typeof import('./CalendarItem.js'))['CalendarItem'];
+let CalendarItem: typeof CalendarItemTypes.CalendarItem;
 
 beforeEach(async () => {
   if (!CalendarItem) {
@@ -226,8 +227,6 @@ describe('CalendarItem', () => {
 
   describe('click navigation', () => {
     it('navigates to work item detail page on click', () => {
-      let navigatedTo: string | null = null;
-
       // Use a wrapper that captures navigation via MemoryRouter's history
       const { container } = render(
         <MemoryRouter initialEntries={['/timeline']}>

@@ -7,7 +7,7 @@
  * so we can run them in a Node environment without jsdom overhead.
  */
 
-import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect } from '@jest/globals';
 import {
   parseIsoDate,
   formatIsoDate,

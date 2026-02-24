@@ -9,6 +9,7 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import type { TimelineMilestone } from '@cornerstone/shared';
+import type * as CalendarMilestoneTypes from './CalendarMilestone.js';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -31,7 +32,7 @@ function makeMilestone(overrides: Partial<TimelineMilestone> = {}): TimelineMile
 // Setup / teardown
 // ---------------------------------------------------------------------------
 
-let CalendarMilestone: (typeof import('./CalendarMilestone.js'))['CalendarMilestone'];
+let CalendarMilestone: typeof CalendarMilestoneTypes.CalendarMilestone;
 
 beforeEach(async () => {
   if (!CalendarMilestone) {

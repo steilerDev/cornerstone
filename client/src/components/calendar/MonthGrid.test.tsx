@@ -12,6 +12,7 @@ import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { TimelineWorkItem, TimelineMilestone } from '@cornerstone/shared';
 import { DAY_NAMES } from './calendarUtils.js';
+import type * as MonthGridTypes from './MonthGrid.js';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -53,7 +54,7 @@ function makeMilestone(id: number, targetDate: string, title = `M${id}`): Timeli
 // Setup / teardown
 // ---------------------------------------------------------------------------
 
-let MonthGrid: (typeof import('./MonthGrid.js'))['MonthGrid'];
+let MonthGrid: typeof MonthGridTypes.MonthGrid;
 
 beforeEach(async () => {
   if (!MonthGrid) {

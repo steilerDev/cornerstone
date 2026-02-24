@@ -11,7 +11,7 @@ import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { TimelineWorkItem, TimelineMilestone } from '@cornerstone/shared';
-import { DAY_NAMES } from './calendarUtils.js';
+import type * as WeekGridTypes from './WeekGrid.js';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -56,7 +56,7 @@ const WEEK_DATE = new Date(Date.UTC(2024, 2, 13)); // Wednesday March 13 2024
 // Setup / teardown
 // ---------------------------------------------------------------------------
 
-let WeekGrid: (typeof import('./WeekGrid.js'))['WeekGrid'];
+let WeekGrid: typeof WeekGridTypes.WeekGrid;
 
 beforeEach(async () => {
   if (!WeekGrid) {
