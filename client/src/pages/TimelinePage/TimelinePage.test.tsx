@@ -18,6 +18,17 @@ jest.unstable_mockModule('../../lib/timelineApi.js', () => ({
   getTimeline: mockGetTimeline,
 }));
 
+// Mock milestonesApi so useMilestones doesn't make real network calls.
+jest.unstable_mockModule('../../lib/milestonesApi.js', () => ({
+  listMilestones: jest.fn().mockResolvedValue([]),
+  getMilestone: jest.fn(),
+  createMilestone: jest.fn(),
+  updateMilestone: jest.fn(),
+  deleteMilestone: jest.fn(),
+  linkWorkItem: jest.fn(),
+  unlinkWorkItem: jest.fn(),
+}));
+
 // Mock useToast so TimelinePage can render without a ToastProvider wrapper.
 jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({
   ToastProvider: ({ children }: { children: React.ReactNode }) => children,

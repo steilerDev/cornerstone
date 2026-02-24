@@ -6,7 +6,8 @@ import styles from './GanttTooltip.module.css';
 // Types
 // ---------------------------------------------------------------------------
 
-export interface GanttTooltipData {
+export interface GanttTooltipWorkItemData {
+  kind: 'work-item';
   title: string;
   status: WorkItemStatus;
   startDate: string | null;
@@ -14,6 +15,20 @@ export interface GanttTooltipData {
   durationDays: number | null;
   assignedUserName: string | null;
 }
+
+export interface GanttTooltipMilestoneData {
+  kind: 'milestone';
+  title: string;
+  targetDate: string;
+  isCompleted: boolean;
+  completedAt: string | null;
+  linkedWorkItemCount: number;
+}
+
+/**
+ * Polymorphic tooltip data — discriminated by the `kind` field.
+ */
+export type GanttTooltipData = GanttTooltipWorkItemData | GanttTooltipMilestoneData;
 
 export interface GanttTooltipPosition {
   /** Mouse X in viewport coordinates. */
@@ -65,41 +80,12 @@ function formatDuration(days: number | null): string {
 }
 
 // ---------------------------------------------------------------------------
-// Component
+// Work item tooltip content
 // ---------------------------------------------------------------------------
 
-/**
- * GanttTooltip renders a positioned tooltip for a hovered Gantt bar.
- *
- * Rendered as a portal to document.body to avoid SVG clipping issues.
- * Position is derived from mouse viewport coordinates with flip logic
- * to avoid overflowing the viewport edges.
- */
-export function GanttTooltip({ data, position }: GanttTooltipProps) {
-  // Compute tooltip x/y, flipping to avoid viewport overflow
-  const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1280;
-  const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
-
-  let tooltipX = position.x + OFFSET_X;
-  let tooltipY = position.y + OFFSET_Y;
-
-  // Flip horizontally if it would overflow the right edge
-  if (tooltipX + TOOLTIP_WIDTH > viewportWidth - 8) {
-    tooltipX = position.x - TOOLTIP_WIDTH - OFFSET_X;
-  }
-
-  // Flip vertically if it would overflow the bottom edge
-  if (tooltipY + TOOLTIP_HEIGHT_ESTIMATE > viewportHeight - 8) {
-    tooltipY = position.y - TOOLTIP_HEIGHT_ESTIMATE - OFFSET_Y;
-  }
-
-  const content = (
-    <div
-      className={styles.tooltip}
-      role="tooltip"
-      style={{ left: tooltipX, top: tooltipY, width: TOOLTIP_WIDTH }}
-      data-testid="gantt-tooltip"
-    >
+function WorkItemTooltipContent({ data }: { data: GanttTooltipWorkItemData }) {
+  return (
+    <>
       {/* Header: title + status badge */}
       <div className={styles.header}>
         <span className={styles.title}>{data.title}</span>
@@ -132,6 +118,116 @@ export function GanttTooltip({ data, position }: GanttTooltipProps) {
           <span className={styles.detailLabel}>Owner</span>
           <span className={styles.detailValue}>{data.assignedUserName}</span>
         </div>
+      )}
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Milestone tooltip content
+// ---------------------------------------------------------------------------
+
+function MilestoneTooltipContent({ data }: { data: GanttTooltipMilestoneData }) {
+  const statusLabel = data.isCompleted ? 'Completed' : 'Incomplete';
+  const statusClass = data.isCompleted ? styles.statusCompleted : styles.statusInProgress;
+  const itemsLabel =
+    data.linkedWorkItemCount === 0
+      ? 'No linked work items'
+      : data.linkedWorkItemCount === 1
+        ? '1 linked work item'
+        : `${data.linkedWorkItemCount} linked work items`;
+
+  return (
+    <>
+      {/* Header: title + completion badge */}
+      <div className={styles.header}>
+        <span className={`${styles.milestoneIcon}`} aria-hidden="true">
+          {/* Small diamond SVG icon */}
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 10 10"
+            width="10"
+            height="10"
+            fill="currentColor"
+            aria-hidden="true"
+          >
+            <polygon points="5,0 10,5 5,10 0,5" />
+          </svg>
+        </span>
+        <span className={styles.title}>{data.title}</span>
+        <span className={`${styles.statusBadge} ${statusClass}`}>{statusLabel}</span>
+      </div>
+
+      <div className={styles.separator} aria-hidden="true" />
+
+      {/* Target date */}
+      <div className={styles.detailRow}>
+        <span className={styles.detailLabel}>Target</span>
+        <span className={styles.detailValue}>{formatDisplayDate(data.targetDate)}</span>
+      </div>
+
+      {/* Completion date */}
+      {data.isCompleted && data.completedAt !== null && (
+        <div className={styles.detailRow}>
+          <span className={styles.detailLabel}>Done</span>
+          <span className={styles.detailValue}>
+            {formatDisplayDate(data.completedAt.slice(0, 10))}
+          </span>
+        </div>
+      )}
+
+      {/* Linked work items */}
+      <div className={styles.detailRow}>
+        <span className={styles.detailLabel}>Items</span>
+        <span className={styles.detailValue}>{itemsLabel}</span>
+      </div>
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
+/**
+ * GanttTooltip renders a positioned tooltip for a hovered Gantt bar or milestone diamond.
+ *
+ * Rendered as a portal to document.body to avoid SVG clipping issues.
+ * Position is derived from mouse viewport coordinates with flip logic
+ * to avoid overflowing the viewport edges.
+ *
+ * The `data` prop is polymorphic — set `kind: 'work-item'` or `kind: 'milestone'`
+ * to switch between tooltip layouts.
+ */
+export function GanttTooltip({ data, position }: GanttTooltipProps) {
+  // Compute tooltip x/y, flipping to avoid viewport overflow
+  const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1280;
+  const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
+
+  let tooltipX = position.x + OFFSET_X;
+  let tooltipY = position.y + OFFSET_Y;
+
+  // Flip horizontally if it would overflow the right edge
+  if (tooltipX + TOOLTIP_WIDTH > viewportWidth - 8) {
+    tooltipX = position.x - TOOLTIP_WIDTH - OFFSET_X;
+  }
+
+  // Flip vertically if it would overflow the bottom edge
+  if (tooltipY + TOOLTIP_HEIGHT_ESTIMATE > viewportHeight - 8) {
+    tooltipY = position.y - TOOLTIP_HEIGHT_ESTIMATE - OFFSET_Y;
+  }
+
+  const content = (
+    <div
+      className={styles.tooltip}
+      role="tooltip"
+      style={{ left: tooltipX, top: tooltipY, width: TOOLTIP_WIDTH }}
+      data-testid="gantt-tooltip"
+    >
+      {data.kind === 'work-item' ? (
+        <WorkItemTooltipContent data={data} />
+      ) : (
+        <MilestoneTooltipContent data={data} />
       )}
     </div>
   );

@@ -22,6 +22,8 @@ import { GanttHeader } from './GanttHeader.js';
 import { GanttSidebar } from './GanttSidebar.js';
 import { GanttTooltip } from './GanttTooltip.js';
 import type { GanttTooltipData, GanttTooltipPosition } from './GanttTooltip.js';
+import { GanttMilestones } from './GanttMilestones.js';
+import type { MilestoneColors } from './GanttMilestones.js';
 import { useGanttDrag } from './useGanttDrag.js';
 import styles from './GanttChart.module.css';
 
@@ -48,6 +50,7 @@ interface ChartColors {
   arrowCritical: string;
   criticalBorder: string;
   ghostBar: string;
+  milestone: MilestoneColors;
 }
 
 function resolveColors(): ChartColors {
@@ -67,6 +70,14 @@ function resolveColors(): ChartColors {
     arrowCritical: readCssVar('--color-gantt-arrow-critical'),
     criticalBorder: readCssVar('--color-gantt-bar-critical-border'),
     ghostBar: readCssVar('--color-gantt-bar-ghost'),
+    milestone: {
+      incompleteFill: readCssVar('--color-milestone-incomplete-fill') || 'transparent',
+      incompleteStroke: readCssVar('--color-milestone-incomplete-stroke'),
+      completeFill: readCssVar('--color-milestone-complete-fill'),
+      completeStroke: readCssVar('--color-milestone-complete-stroke'),
+      hoverGlow: readCssVar('--color-milestone-hover-glow'),
+      completeHoverGlow: readCssVar('--color-milestone-complete-hover-glow'),
+    },
   };
 }
 
@@ -116,6 +127,10 @@ export interface GanttChartProps {
    * Async function to persist date changes. Returns true on success.
    */
   onUpdateItemDates?: (itemId: string, startDate: string, endDate: string) => Promise<boolean>;
+  /**
+   * Called when user clicks a milestone diamond — passes milestone ID.
+   */
+  onMilestoneClick?: (milestoneId: number) => void;
 }
 
 export function GanttChart({
@@ -126,6 +141,7 @@ export function GanttChart({
   onItemRescheduled,
   onItemRescheduleError,
   onUpdateItemDates,
+  onMilestoneClick,
 }: GanttChartProps) {
   // Refs for scroll synchronization
   const chartScrollRef = useRef<HTMLDivElement>(null);
@@ -282,7 +298,12 @@ export function GanttChart({
     [colors.arrowDefault, colors.arrowCritical],
   );
 
-  const svgHeight = data.workItems.length * ROW_HEIGHT;
+  // SVG height: work item rows + optional milestone row at bottom
+  const hasMilestones = data.milestones.length > 0;
+  const svgHeight = Math.max(
+    data.workItems.length * ROW_HEIGHT,
+    hasMilestones ? (data.workItems.length + 1) * ROW_HEIGHT : 0,
+  );
 
   // ---------------------------------------------------------------------------
   // Scroll synchronization
@@ -407,6 +428,47 @@ export function GanttChart({
               visible={showArrows}
             />
 
+            {/* Milestone diamond markers (below work item bars, above arrows) */}
+            {hasMilestones && (
+              <GanttMilestones
+                milestones={data.milestones}
+                chartRange={chartRange}
+                zoom={zoom}
+                rowCount={data.workItems.length}
+                colors={colors.milestone}
+                onMilestoneMouseEnter={(milestone, e) => {
+                  if (dragState) return;
+                  clearTooltipTimers();
+                  const newPos: GanttTooltipPosition = { x: e.clientX, y: e.clientY };
+                  showTimerRef.current = setTimeout(() => {
+                    setTooltipData({
+                      kind: 'milestone',
+                      title: milestone.title,
+                      targetDate: milestone.targetDate,
+                      isCompleted: milestone.isCompleted,
+                      completedAt: milestone.completedAt,
+                      linkedWorkItemCount: milestone.workItemIds.length,
+                    });
+                    setTooltipPosition(newPos);
+                  }, TOOLTIP_SHOW_DELAY);
+                }}
+                onMilestoneMouseLeave={() => {
+                  clearTooltipTimers();
+                  hideTimerRef.current = setTimeout(() => {
+                    setTooltipData(null);
+                  }, TOOLTIP_HIDE_DELAY);
+                }}
+                onMilestoneMouseMove={(e) => {
+                  if (dragState) {
+                    setTooltipData(null);
+                    return;
+                  }
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMilestoneClick={onMilestoneClick}
+              />
+            )}
+
             {/* Work item bars (foreground layer) */}
             <g role="list" aria-label="Work item bars">
               {barData.map(({ item, position, startDate, endDate }, idx) => (
@@ -471,6 +533,7 @@ export function GanttChart({
                     const newPos: GanttTooltipPosition = { x: e.clientX, y: e.clientY };
                     showTimerRef.current = setTimeout(() => {
                       setTooltipData({
+                        kind: 'work-item',
                         title: tooltipItem.title,
                         status: tooltipItem.status,
                         startDate: tooltipItem.startDate,

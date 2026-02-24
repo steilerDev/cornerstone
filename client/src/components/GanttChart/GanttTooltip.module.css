@@ -113,6 +113,17 @@
   color: var(--color-red-200);
 }
 
+/* ---- Milestone diamond icon in tooltip header ---- */
+
+.milestoneIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: var(--spacing-1);
+  color: var(--color-text-inverse);
+  flex-shrink: 0;
+}
+
 /* ---- Dark mode: tooltip uses --color-bg-inverse which already flips ---- */
 /* In dark mode, bg-inverse = gray-100 (light), so text and badge colors flip */
 

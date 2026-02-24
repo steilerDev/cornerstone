@@ -15,6 +15,7 @@ import type { WorkItemStatus } from '@cornerstone/shared';
 // ---------------------------------------------------------------------------
 
 const DEFAULT_DATA: GanttTooltipData = {
+  kind: 'work-item',
   title: 'Foundation Work',
   status: 'in_progress',
   startDate: '2024-06-01',
