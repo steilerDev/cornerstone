@@ -88,8 +88,21 @@ export interface UseGanttDragResult {
 }
 
 // ---------------------------------------------------------------------------
-// Date formatting helper (YYYY-MM-DD, local time)
+// Date helpers (YYYY-MM-DD, local time)
 // ---------------------------------------------------------------------------
+
+/** Parses a YYYY-MM-DD string into a Date at local noon (avoids DST edge cases). */
+function parseDateString(str: string): Date {
+  return new Date(
+    parseInt(str.substring(0, 4), 10),
+    parseInt(str.substring(5, 7), 10) - 1,
+    parseInt(str.substring(8, 10), 10),
+    12,
+    0,
+    0,
+    0,
+  );
+}
 
 function formatDate(date: Date): string {
   const y = date.getFullYear();
@@ -162,24 +175,8 @@ export function useGanttDrag(): UseGanttDragResult {
       const zone = detectZone(svgX, barX, barWidth, isTouch);
       const grabOffsetX = svgX - barX;
 
-      const startDateObj = new Date(
-        parseInt(startDate.substring(0, 4), 10),
-        parseInt(startDate.substring(5, 7), 10) - 1,
-        parseInt(startDate.substring(8, 10), 10),
-        12,
-        0,
-        0,
-        0,
-      );
-      const endDateObj = new Date(
-        parseInt(endDate.substring(0, 4), 10),
-        parseInt(endDate.substring(5, 7), 10) - 1,
-        parseInt(endDate.substring(8, 10), 10),
-        12,
-        0,
-        0,
-        0,
-      );
+      const startDateObj = parseDateString(startDate);
+      const endDateObj = parseDateString(endDate);
       const durationDays = Math.max(1, daysBetween(startDateObj, endDateObj));
 
       const newState: DragState = {
@@ -237,15 +234,7 @@ export function useGanttDrag(): UseGanttDragResult {
         const rawDate = xToDate(svgX, chartRange, zoom);
         const snapped = snapToGrid(rawDate, zoom);
         // Prevent start from going past end date (leave at least 1 day)
-        const endDateObj = new Date(
-          parseInt(current.originalEndDate.substring(0, 4), 10),
-          parseInt(current.originalEndDate.substring(5, 7), 10) - 1,
-          parseInt(current.originalEndDate.substring(8, 10), 10),
-          12,
-          0,
-          0,
-          0,
-        );
+        const endDateObj = parseDateString(current.originalEndDate);
         const maxStart = new Date(endDateObj);
         maxStart.setDate(maxStart.getDate() - 1);
         const clampedSnapped = snapped.getTime() < maxStart.getTime() ? snapped : maxStart;
@@ -256,15 +245,7 @@ export function useGanttDrag(): UseGanttDragResult {
         const rawDate = xToDate(svgX, chartRange, zoom);
         const snapped = snapToGrid(rawDate, zoom);
         // Prevent end from going before start date (leave at least 1 day)
-        const startDateObj = new Date(
-          parseInt(current.originalStartDate.substring(0, 4), 10),
-          parseInt(current.originalStartDate.substring(5, 7), 10) - 1,
-          parseInt(current.originalStartDate.substring(8, 10), 10),
-          12,
-          0,
-          0,
-          0,
-        );
+        const startDateObj = parseDateString(current.originalStartDate);
         const minEnd = new Date(startDateObj);
         minEnd.setDate(minEnd.getDate() + 1);
         const clampedSnapped = snapped.getTime() > minEnd.getTime() ? snapped : minEnd;

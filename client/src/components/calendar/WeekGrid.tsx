@@ -18,6 +18,7 @@ import {
   isItemEnd,
   DAY_NAMES,
   getMonthName,
+  formatDateForAria,
 } from './calendarUtils.js';
 import styles from './WeekGrid.module.css';
 
@@ -75,7 +76,7 @@ export function WeekGrid({ weekDate, workItems, milestones, onMilestoneClick }: 
               key={day.dateStr}
               className={[styles.dayCell, day.isToday ? styles.today : ''].join(' ')}
               role="gridcell"
-              aria-label={day.dateStr}
+              aria-label={formatDateForAria(day.dateStr)}
             >
               {/* Work item blocks */}
               {dayItems.map((item) => (

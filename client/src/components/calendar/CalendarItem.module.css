@@ -21,7 +21,7 @@
 
 .item:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px var(--color-border-focus);
+  box-shadow: var(--shadow-focus);
 }
 
 /* ---- Compact (month view) ---- */
@@ -30,7 +30,7 @@
   height: 18px;
   padding: 0 var(--spacing-1);
   font-size: var(--font-size-2xs);
-  margin-bottom: 2px;
+  margin-bottom: var(--spacing-0-5);
 }
 
 /* ---- Full (week view) ---- */

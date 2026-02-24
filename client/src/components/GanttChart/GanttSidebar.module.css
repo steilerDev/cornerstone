@@ -79,7 +79,7 @@
   color: var(--color-text-muted);
 }
 
-/* Tablet: collapse sidebar to icon strip */
+/* Tablet and mobile: collapse sidebar to icon strip */
 @media (max-width: 1279px) {
   .sidebar {
     width: 44px;
@@ -99,28 +99,6 @@
   .sidebarRow {
     padding: 0;
     justify-content: center;
-  }
-}
-
-/* Mobile: sidebar collapses to compact strip (same as tablet) */
-@media (max-width: 767px) {
-  .sidebar {
-    width: 44px;
-  }
-
-  .sidebarHeader {
-    padding: 0;
-    justify-content: center;
-    font-size: var(--font-size-2xs);
-    overflow: hidden;
-  }
-
-  .sidebarRowLabel {
-    display: none;
-  }
-
-  .sidebarRow {
-    padding: 0;
-    justify-content: center;
+    min-height: 44px;
   }
 }

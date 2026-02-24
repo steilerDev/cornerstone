@@ -801,14 +801,14 @@
 
   /* Increase close button touch target on mobile */
   .closeButton {
-    width: 40px;
-    height: 40px;
+    min-width: 44px;
+    min-height: 44px;
   }
 
   /* Increase action button touch targets */
   .milestoneActionButton {
-    width: 40px;
-    height: 40px;
+    min-width: 44px;
+    min-height: 44px;
   }
 
   /* Ensure milestone items have adequate touch targets */

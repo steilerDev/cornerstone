@@ -71,6 +71,7 @@
   grid-template-columns: repeat(7, 1fr);
   flex: 1;
   min-height: 0;
+  min-width: 480px;
   overflow-y: auto;
   align-items: start;
 }
