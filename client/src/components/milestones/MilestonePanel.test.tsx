@@ -15,8 +15,6 @@ import type {
   MilestoneSummary,
   MilestoneDetail,
   WorkItemSummary,
-  CreateMilestoneRequest,
-  UpdateMilestoneRequest,
   PaginationMeta,
 } from '@cornerstone/shared';
 
@@ -70,6 +68,21 @@ const MILESTONE_DETAIL: MilestoneDetail = {
 // Hook mock helpers
 // ---------------------------------------------------------------------------
 
+/** Helper: create a jest.Mock that resolves with the given value. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mockResolved(value: any): jest.Mock {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return jest.fn<() => Promise<any>>().mockResolvedValue(value) as unknown as jest.Mock;
+}
+
+/** Helper: create a jest.Mock that returns (but never resolves) a pending Promise. */
+function mockPending(): jest.Mock {
+   
+  return jest
+    .fn<() => Promise<any>>()
+    .mockReturnValue(new Promise(() => {})) as unknown as jest.Mock;
+}
+
 function makeHooks(
   overrides: Partial<{
     createMilestone: jest.Mock;
@@ -80,29 +93,11 @@ function makeHooks(
   }> = {},
 ) {
   return {
-    createMilestone:
-      overrides.createMilestone ??
-      jest
-        .fn<(data: CreateMilestoneRequest) => Promise<MilestoneSummary | null>>()
-        .mockResolvedValue(MILESTONE_1),
-    updateMilestone:
-      overrides.updateMilestone ??
-      jest
-        .fn<(id: number, data: UpdateMilestoneRequest) => Promise<MilestoneSummary | null>>()
-        .mockResolvedValue(MILESTONE_1),
-    deleteMilestone:
-      overrides.deleteMilestone ??
-      jest.fn<(id: number) => Promise<boolean>>().mockResolvedValue(true),
-    linkWorkItem:
-      overrides.linkWorkItem ??
-      jest
-        .fn<(milestoneId: number, workItemId: string) => Promise<boolean>>()
-        .mockResolvedValue(true),
-    unlinkWorkItem:
-      overrides.unlinkWorkItem ??
-      jest
-        .fn<(milestoneId: number, workItemId: string) => Promise<boolean>>()
-        .mockResolvedValue(true),
+    createMilestone: overrides.createMilestone ?? mockResolved(MILESTONE_1),
+    updateMilestone: overrides.updateMilestone ?? mockResolved(MILESTONE_1),
+    deleteMilestone: overrides.deleteMilestone ?? mockResolved(true),
+    linkWorkItem: overrides.linkWorkItem ?? mockResolved(true),
+    unlinkWorkItem: overrides.unlinkWorkItem ?? mockResolved(true),
   };
 }
 
@@ -331,9 +326,7 @@ describe('MilestonePanel', () => {
     });
 
     it('calls hooks.createMilestone and onMutated on valid form submit', async () => {
-      const createMilestone = jest
-        .fn<(data: CreateMilestoneRequest) => Promise<MilestoneSummary | null>>()
-        .mockResolvedValue(MILESTONE_1);
+      const createMilestone = mockResolved(MILESTONE_1);
       const onMutated = jest.fn();
       const hooks = makeHooks({ createMilestone });
 
@@ -356,9 +349,7 @@ describe('MilestonePanel', () => {
     });
 
     it('goes back to list view after successful create', async () => {
-      const createMilestone = jest
-        .fn<(data: CreateMilestoneRequest) => Promise<MilestoneSummary | null>>()
-        .mockResolvedValue(MILESTONE_1);
+      const createMilestone = mockResolved(MILESTONE_1);
       const hooks = makeHooks({ createMilestone });
 
       renderPanel({ hooks });
@@ -376,9 +367,7 @@ describe('MilestonePanel', () => {
     });
 
     it('shows error banner when createMilestone returns null', async () => {
-      const createMilestone = jest
-        .fn<(data: CreateMilestoneRequest) => Promise<null>>()
-        .mockResolvedValue(null);
+      const createMilestone = mockResolved(null);
       const hooks = makeHooks({ createMilestone });
 
       renderPanel({ hooks });
@@ -437,9 +426,7 @@ describe('MilestonePanel', () => {
     });
 
     it('calls hooks.updateMilestone on form submit in edit view', async () => {
-      const updateMilestone = jest
-        .fn<(id: number, data: UpdateMilestoneRequest) => Promise<MilestoneSummary | null>>()
-        .mockResolvedValue(MILESTONE_1);
+      const updateMilestone = mockResolved(MILESTONE_1);
       const hooks = makeHooks({ updateMilestone });
 
       renderPanel({ hooks });
@@ -476,7 +463,7 @@ describe('MilestonePanel', () => {
     });
 
     it('calls hooks.deleteMilestone and onMutated when delete is confirmed', async () => {
-      const deleteMilestone = jest.fn<(id: number) => Promise<boolean>>().mockResolvedValue(true);
+      const deleteMilestone = mockResolved(true);
       const onMutated = jest.fn();
       const hooks = makeHooks({ deleteMilestone });
 
@@ -504,9 +491,7 @@ describe('MilestonePanel', () => {
 
     it('shows "Deleting…" text when deleteMilestone is in progress', async () => {
       // Make deleteMilestone never resolve so we can see the mid-delete state
-      const deleteMilestone = jest
-        .fn<(id: number) => Promise<boolean>>()
-        .mockReturnValue(new Promise(() => {}));
+      const deleteMilestone = mockPending();
       const hooks = makeHooks({ deleteMilestone });
 
       renderPanel({ hooks });
