@@ -223,7 +223,7 @@ All agents must clearly identify themselves:
   12. After merge, clean up: `git checkout beta && git pull && git branch -d <branch-name>`
 
 - **Epic-level steps** (after all stories in an epic are complete, merged to `beta`, and refinement is done):
-  1. **Documentation**: Launch `docs-writer` to update the docs site (`docs/`) and `README.md` with newly shipped features. Commit to `beta`.
+  1. **Documentation**: Launch `docs-writer` to update the docs site (`docs/`), `README.md`, and `RELEASE_SUMMARY.md` with newly shipped features. Commit to `beta`.
   2. **Epic promotion**: Create a PR from `beta` to `main` using a **merge commit** (not squash): `gh pr create --base main --head beta --title "..." --body "..."`
      a. Post UAT validation criteria and manual testing steps as comments on the promotion PR — this gives the user a single place to review what was built and how to validate it
      b. Wait for all CI checks to pass on the PR. If any check fails, investigate and resolve before proceeding
@@ -248,6 +248,8 @@ Cornerstone uses a two-tier release model:
 - **`beta` -> `main`** (epic promotion): Merge commit (preserves individual commits so semantic-release can analyze them)
 
 - **Merge-back after promotion:** `release.yml` automates a `main` → `beta` PR after each epic promotion. If it fails, manually resolve so the stable tag is reachable from beta's history.
+- **Release summary enrichment:** On stable releases, `release.yml` prepends `RELEASE_SUMMARY.md` (if present) to the auto-generated changelog on the GitHub Release. The `docs-writer` agent writes this file during epic promotion. If the file is absent (e.g., hotfix releases), the auto-generated notes remain untouched.
+- **DockerHub README sync:** On stable releases, `release.yml` pushes `README.md` to the DockerHub repository description via `peter-evans/dockerhub-description@v4`.
 - **Hotfixes:** Cherry-pick any `main` hotfix back to `beta` immediately.
 
 ### Branch Protection

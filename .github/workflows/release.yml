@@ -63,6 +63,26 @@ jobs:
             echo "is-prerelease=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Enrich release notes with summary
+        if: >-
+          steps.semantic.outputs.new-release-published == 'true' &&
+          steps.semantic.outputs.is-prerelease == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.semantic.outputs.new-release-version }}"
+          if [ ! -f RELEASE_SUMMARY.md ]; then
+            echo "No RELEASE_SUMMARY.md found — keeping auto-generated notes"
+            exit 0
+          fi
+
+          echo "Prepending RELEASE_SUMMARY.md to release v${VERSION}"
+          SUMMARY=$(cat RELEASE_SUMMARY.md)
+          EXISTING=$(gh release view "v${VERSION}" --json body --jq '.body')
+
+          COMBINED=$(printf '%s\n\n---\n\n%s' "$SUMMARY" "$EXISTING")
+          echo "$COMBINED" | gh release edit "v${VERSION}" --notes-file -
+
   # ---------------------------------------------------------------------------
   # Job 2: Docker Build & Push
   # ---------------------------------------------------------------------------
@@ -215,3 +235,29 @@ jobs:
             --head main \
             --title "chore: merge main (v${VERSION}) back into beta" \
             --body "Syncs the v${VERSION} release tag from main into beta so semantic-release correctly bumps to the next version."
+
+  # ---------------------------------------------------------------------------
+  # Job 5: Push README.md to DockerHub
+  # ---------------------------------------------------------------------------
+  dockerhub-readme:
+    name: DockerHub README
+    runs-on: ubuntu-latest
+    needs: [release, docker]
+    if: >-
+      needs.release.outputs.new-release-published == 'true' &&
+      needs.release.outputs.is-prerelease == 'false'
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Push README to DockerHub
+        uses: peter-evans/dockerhub-description@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: steilerdev/cornerstone
+          readme-filepath: ./README.md
