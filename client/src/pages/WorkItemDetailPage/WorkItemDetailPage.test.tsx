@@ -423,6 +423,7 @@ describe('WorkItemDetailPage', () => {
           {
             workItem: predecessorWorkItem,
             dependencyType: 'finish_to_start',
+            leadLagDays: 0,
           },
         ],
         successors: [],
@@ -459,6 +460,7 @@ describe('WorkItemDetailPage', () => {
           {
             workItem: successorWorkItem,
             dependencyType: 'finish_to_start',
+            leadLagDays: 0,
           },
         ],
       });

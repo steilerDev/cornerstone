@@ -36,6 +36,7 @@ describe('dependenciesApi', () => {
               updatedAt: '2024-01-01T00:00:00Z',
             },
             dependencyType: 'finish_to_start',
+            leadLagDays: 0,
           },
         ],
         successors: [
@@ -53,6 +54,7 @@ describe('dependenciesApi', () => {
               updatedAt: '2024-01-01T00:00:00Z',
             },
             dependencyType: 'finish_to_start',
+            leadLagDays: 0,
           },
         ],
       };
@@ -117,6 +119,7 @@ describe('dependenciesApi', () => {
         successorId: 'work-1',
         predecessorId: 'work-0',
         dependencyType: 'finish_to_start',
+        leadLagDays: 0,
       };
 
       mockFetch.mockResolvedValueOnce({
@@ -149,6 +152,7 @@ describe('dependenciesApi', () => {
         successorId: 'work-1',
         predecessorId: 'work-0',
         dependencyType: 'start_to_start',
+        leadLagDays: 0,
       };
 
       mockFetch.mockResolvedValueOnce({
