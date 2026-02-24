@@ -18,6 +18,7 @@ import {
   isItemEnd,
   DAY_NAMES,
   DAY_NAMES_NARROW,
+  formatDateForAria,
 } from './calendarUtils.js';
 import styles from './MonthGrid.module.css';
 
@@ -79,7 +80,7 @@ export function MonthGrid({
                   day.isToday ? styles.today : '',
                 ].join(' ')}
                 role="gridcell"
-                aria-label={day.dateStr}
+                aria-label={formatDateForAria(day.dateStr)}
               >
                 {/* Date number */}
                 <div className={styles.dateNumber}>{day.dayOfMonth}</div>

@@ -112,7 +112,7 @@
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  gap: 1px;
+  gap: var(--spacing-px);
 }
 
 /* ---- Day name responsive labels ---- */

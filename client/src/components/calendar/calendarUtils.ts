@@ -287,3 +287,15 @@ export function getMonthName(month: number): string {
 export function getShortMonthName(month: number): string {
   return SHORT_MONTH_NAMES[month - 1] ?? '';
 }
+
+/**
+ * Formats a YYYY-MM-DD date string as a human-readable aria-label.
+ * Example: "2026-02-24" → "Tuesday, February 24, 2026"
+ */
+export function formatDateForAria(dateStr: string): string {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  const weekday = date.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
+  const monthName = date.toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' });
+  return `${weekday}, ${monthName} ${day}, ${year}`;
+}
