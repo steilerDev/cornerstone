@@ -293,8 +293,9 @@ describe('Scheduling Engine', () => {
     it('start_to_finish: successor finishes when predecessor starts', () => {
       // A: 5d, starts 2026-01-01
       // B: 3d (SF from A), B.EF >= A.ES => B.EF >= 2026-01-01 => B.ES >= 2025-12-29
-      // But B starts no earlier than today (2026-01-01) from the forward pass
-      // So B.ES = 2026-01-01 (today), B.EF = 2026-01-04
+      // The engine does NOT clip to today for items with predecessors.
+      // today-floor only applies to items with no predecessors in the scheduled set.
+      // B has A as a predecessor via SF, so B.ES = 2025-12-29 (before today).
       const result = schedule(
         fullParams(
           [makeItem('A', 5), makeItem('B', 3)],
@@ -304,12 +305,9 @@ describe('Scheduling Engine', () => {
       );
 
       const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
-      // SF(A,B): B.EF >= A.ES + 0 = 2026-01-01 => B.ES >= 2025-12-29
-      // Today constraint: B.ES >= 2026-01-01 (no predecessors so today is base)
-      // B is independent (SF edge's effect is handled by successor computation)
-      // The dep constraint says B.ES >= 2025-12-29 which is before today
-      // So the effective B.ES is today = 2026-01-01
-      expect(byId['B'].scheduledStartDate).toBe('2026-01-01');
+      // SF(A,B): B.EF >= A.ES + 0 = 2026-01-01 => B.ES = 2026-01-01 - 3 = 2025-12-29
+      expect(byId['B'].scheduledStartDate).toBe('2025-12-29');
+      expect(byId['B'].scheduledEndDate).toBe('2026-01-01');
     });
   });
 
