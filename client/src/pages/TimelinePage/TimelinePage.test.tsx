@@ -18,6 +18,16 @@ jest.unstable_mockModule('../../lib/timelineApi.js', () => ({
   getTimeline: mockGetTimeline,
 }));
 
+// Mock useToast so TimelinePage can render without a ToastProvider wrapper.
+jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({
+  ToastProvider: ({ children }: { children: React.ReactNode }) => children,
+  useToast: () => ({
+    toasts: [],
+    showToast: jest.fn(),
+    dismissToast: jest.fn(),
+  }),
+}));
+
 const EMPTY_TIMELINE: TimelineResponse = {
   workItems: [],
   dependencies: [],
