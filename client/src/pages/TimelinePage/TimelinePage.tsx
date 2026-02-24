@@ -74,8 +74,8 @@ export function TimelinePage() {
       <div className={styles.pageHeader}>
         <h1 className={styles.pageTitle}>Timeline</h1>
 
-        <div className={styles.toolbar} role="toolbar" aria-label="Timeline view controls">
-          {/* Arrows toggle */}
+        <div className={styles.toolbar}>
+          {/* Arrows toggle (icon-only) */}
           <button
             type="button"
             className={`${styles.arrowsToggle} ${showArrows ? styles.arrowsToggleActive : ''}`}
@@ -88,7 +88,7 @@ export function TimelinePage() {
           </button>
 
           {/* Zoom level toggle */}
-          <div className={styles.zoomToggle}>
+          <div className={styles.zoomToggle} role="toolbar" aria-label="Zoom level">
             {ZOOM_OPTIONS.map(({ value, label }) => (
               <button
                 key={value}
