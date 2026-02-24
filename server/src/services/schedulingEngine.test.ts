@@ -466,10 +466,7 @@ describe('Scheduling Engine', () => {
   describe('start_after constraint (hard constraint)', () => {
     it('should shift ES to startAfter when it is later than predecessor-derived date', () => {
       // A: 5d ends 2026-01-06. B has startAfter = 2026-01-10
-      const items = [
-        makeItem('A', 5),
-        makeItem('B', 3, { startAfter: '2026-01-10' }),
-      ];
+      const items = [makeItem('A', 5), makeItem('B', 3, { startAfter: '2026-01-10' })];
       const deps = [makeDep('A', 'B')];
       const result = schedule(fullParams(items, deps, '2026-01-01'));
 
@@ -480,10 +477,7 @@ describe('Scheduling Engine', () => {
 
     it('should not shift ES when startAfter is earlier than dependency-derived date', () => {
       // A: 5d ends 2026-01-06. B has startAfter = 2026-01-01 (no effect)
-      const items = [
-        makeItem('A', 5),
-        makeItem('B', 3, { startAfter: '2026-01-01' }),
-      ];
+      const items = [makeItem('A', 5), makeItem('B', 3, { startAfter: '2026-01-01' })];
       const deps = [makeDep('A', 'B')];
       const result = schedule(fullParams(items, deps, '2026-01-01'));
 
@@ -506,10 +500,7 @@ describe('Scheduling Engine', () => {
   describe('start_before constraint (soft constraint / warning)', () => {
     it('should emit start_before_violated warning when scheduled start exceeds startBefore', () => {
       // A: 10d ends 2026-01-11. B has startBefore = 2026-01-05
-      const items = [
-        makeItem('A', 10),
-        makeItem('B', 3, { startBefore: '2026-01-05' }),
-      ];
+      const items = [makeItem('A', 10), makeItem('B', 3, { startBefore: '2026-01-05' })];
       const deps = [makeDep('A', 'B')];
       const result = schedule(fullParams(items, deps, '2026-01-01'));
 
@@ -522,10 +513,7 @@ describe('Scheduling Engine', () => {
 
     it('should still schedule the item even when startBefore is violated', () => {
       // Soft constraint: scheduling continues, item gets its dependency-driven date
-      const items = [
-        makeItem('A', 10),
-        makeItem('B', 3, { startBefore: '2026-01-05' }),
-      ];
+      const items = [makeItem('A', 10), makeItem('B', 3, { startBefore: '2026-01-05' })];
       const deps = [makeDep('A', 'B')];
       const result = schedule(fullParams(items, deps, '2026-01-01'));
 
