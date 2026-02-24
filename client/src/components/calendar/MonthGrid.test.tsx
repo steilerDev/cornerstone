@@ -139,11 +139,13 @@ describe('MonthGrid', () => {
       expect(screen.getAllByRole('gridcell')).toHaveLength(42);
     });
 
-    it('each gridcell has aria-label matching its date string', () => {
+    it('each gridcell has aria-label matching its human-readable date', () => {
       renderGrid({ year: 2024, month: 3 });
-      // March 1, 2024 should be a cell
+      // March 1, 2024 is a Friday
       const cells = screen.getAllByRole('gridcell');
-      const march1Cell = cells.find((c) => c.getAttribute('aria-label') === '2024-03-01');
+      const march1Cell = cells.find(
+        (c) => c.getAttribute('aria-label') === 'Friday, March 1, 2024',
+      );
       expect(march1Cell).toBeDefined();
     });
 
@@ -169,8 +171,8 @@ describe('MonthGrid', () => {
       // Sept 2024 starts on Sunday — cell[0] is day 1
       renderGrid({ year: 2024, month: 9 });
       const cells = screen.getAllByRole('gridcell');
-      // First cell should have aria-label 2024-09-01
-      expect(cells[0]).toHaveAttribute('aria-label', '2024-09-01');
+      // First cell should be Sunday, September 1, 2024
+      expect(cells[0]).toHaveAttribute('aria-label', 'Sunday, September 1, 2024');
     });
   });
 
@@ -197,7 +199,7 @@ describe('MonthGrid', () => {
       // in those trailing cells. Test that it does NOT appear for March-only cells:
       const marchCells = screen.getAllByRole('gridcell').filter((c) => {
         const label = c.getAttribute('aria-label') ?? '';
-        return label.startsWith('2024-03-');
+        return label.includes('March') && label.includes('2024');
       });
       // None of the March cells should contain a calendar-item for this April item
       for (const cell of marchCells) {

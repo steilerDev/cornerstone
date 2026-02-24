@@ -23,7 +23,7 @@ import {
   prevWeek,
   nextWeek,
   getMonthName,
-  getShortMonthName,
+  formatDateForAria,
   DAY_NAMES,
   DAY_NAMES_NARROW,
 } from './calendarUtils.js';
@@ -721,7 +721,7 @@ describe('prevWeek and nextWeek are inverses', () => {
 });
 
 // ---------------------------------------------------------------------------
-// getMonthName / getShortMonthName
+// getMonthName
 // ---------------------------------------------------------------------------
 
 describe('getMonthName', () => {
@@ -746,17 +746,57 @@ describe('getMonthName', () => {
   });
 });
 
-describe('getShortMonthName', () => {
-  it('returns abbreviated month names for 1–12', () => {
-    expect(getShortMonthName(1)).toBe('Jan');
-    expect(getShortMonthName(2)).toBe('Feb');
-    expect(getShortMonthName(6)).toBe('Jun');
-    expect(getShortMonthName(12)).toBe('Dec');
+// ---------------------------------------------------------------------------
+// formatDateForAria
+// ---------------------------------------------------------------------------
+
+describe('formatDateForAria', () => {
+  it('formats a Monday date correctly', () => {
+    // 2024-03-11 is a Monday
+    expect(formatDateForAria('2024-03-11')).toBe('Monday, March 11, 2024');
   });
 
-  it('returns empty string for out-of-range months', () => {
-    expect(getShortMonthName(0)).toBe('');
-    expect(getShortMonthName(13)).toBe('');
+  it('formats a Sunday date correctly', () => {
+    // 2024-03-10 is a Sunday
+    expect(formatDateForAria('2024-03-10')).toBe('Sunday, March 10, 2024');
+  });
+
+  it('formats a Saturday date correctly', () => {
+    // 2024-03-16 is a Saturday
+    expect(formatDateForAria('2024-03-16')).toBe('Saturday, March 16, 2024');
+  });
+
+  it('formats January 1 correctly', () => {
+    // 2024-01-01 is a Monday
+    expect(formatDateForAria('2024-01-01')).toBe('Monday, January 1, 2024');
+  });
+
+  it('formats December 31 correctly', () => {
+    // 2024-12-31 is a Tuesday
+    expect(formatDateForAria('2024-12-31')).toBe('Tuesday, December 31, 2024');
+  });
+
+  it('formats a leap-year Feb 29 correctly', () => {
+    // 2024-02-29 is a Thursday
+    expect(formatDateForAria('2024-02-29')).toBe('Thursday, February 29, 2024');
+  });
+
+  it('formats a date from 2026 correctly', () => {
+    // 2026-02-24 is a Tuesday
+    expect(formatDateForAria('2026-02-24')).toBe('Tuesday, February 24, 2026');
+  });
+
+  it('output matches pattern "Weekday, Month D, YYYY"', () => {
+    const result = formatDateForAria('2024-06-15');
+    // Should match: word, word space digits, digits (day without padding), comma, year
+    expect(result).toMatch(/^[A-Z][a-z]+, [A-Z][a-z]+ \d{1,2}, \d{4}$/);
+  });
+
+  it('does not zero-pad the day number', () => {
+    // March 5 → "5", not "05"
+    const result = formatDateForAria('2024-03-05');
+    expect(result).toContain('March 5,');
+    expect(result).not.toContain('March 05,');
   });
 });
 

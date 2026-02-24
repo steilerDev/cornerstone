@@ -262,30 +262,11 @@ const MONTH_NAMES = [
   'December',
 ];
 
-const SHORT_MONTH_NAMES = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-];
-
 export const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 export const DAY_NAMES_NARROW = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 export function getMonthName(month: number): string {
   return MONTH_NAMES[month - 1] ?? '';
-}
-
-export function getShortMonthName(month: number): string {
-  return SHORT_MONTH_NAMES[month - 1] ?? '';
 }
 
 /**
