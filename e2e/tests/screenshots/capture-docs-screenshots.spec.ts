@@ -147,9 +147,13 @@ test.describe('Documentation screenshots', () => {
     test.use({ storageState: { cookies: [], origins: [] } });
 
     test('Login page', async ({ page }) => {
-      await page.goto(ROUTES.login);
-      await page.waitForLoadState('networkidle');
-      await expect(page.getByRole('heading', { name: /sign in|log in/i })).toBeVisible();
+      await page.goto(`${baseUrl}${ROUTES.login}`);
+      // Wait for the lazy-loaded LoginPage component to render — networkidle
+      // fires before React finishes parsing and hydrating on slow CI runners,
+      // so rely on the heading assertion with an explicit timeout instead.
+      await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible({
+        timeout: 15000,
+      });
 
       for (const theme of ['light', 'dark'] as const) {
         await setTheme(page, theme);
