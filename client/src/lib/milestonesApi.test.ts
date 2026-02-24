@@ -136,7 +136,7 @@ describe('milestonesApi', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({ milestone: MILESTONE_DETAIL }),
+        json: async () => MILESTONE_DETAIL,
       } as Response);
 
       await getMilestone(1);
@@ -147,13 +147,13 @@ describe('milestonesApi', () => {
       );
     });
 
-    it('returns the milestone detail extracted from response wrapper', async () => {
+    it('returns the milestone detail directly from response', async () => {
       const { getMilestone } = await import('./milestonesApi.js');
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({ milestone: MILESTONE_DETAIL }),
+        json: async () => MILESTONE_DETAIL,
       } as Response);
 
       const result = await getMilestone(1);
@@ -188,7 +188,7 @@ describe('milestonesApi', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 201,
-        json: async () => ({ milestone: MILESTONE_SUMMARY }),
+        json: async () => MILESTONE_SUMMARY,
       } as Response);
 
       await createMilestone(requestData);
@@ -210,7 +210,7 @@ describe('milestonesApi', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 201,
-        json: async () => ({ milestone: MILESTONE_SUMMARY }),
+        json: async () => MILESTONE_SUMMARY,
       } as Response);
 
       await createMilestone(requestData);
@@ -224,7 +224,7 @@ describe('milestonesApi', () => {
       );
     });
 
-    it('returns the created milestone extracted from response wrapper', async () => {
+    it('returns the created milestone directly from response', async () => {
       const { createMilestone } = await import('./milestonesApi.js');
 
       const requestData: CreateMilestoneRequest = {
@@ -234,7 +234,7 @@ describe('milestonesApi', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 201,
-        json: async () => ({ milestone: MILESTONE_SUMMARY }),
+        json: async () => MILESTONE_SUMMARY,
       } as Response);
 
       const result = await createMilestone(requestData);
@@ -270,7 +270,7 @@ describe('milestonesApi', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({ milestone: MILESTONE_SUMMARY }),
+        json: async () => MILESTONE_SUMMARY,
       } as Response);
 
       await updateMilestone(1, requestData);
@@ -288,7 +288,7 @@ describe('milestonesApi', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({ milestone: MILESTONE_SUMMARY }),
+        json: async () => MILESTONE_SUMMARY,
       } as Response);
 
       await updateMilestone(1, requestData);
@@ -299,14 +299,14 @@ describe('milestonesApi', () => {
       );
     });
 
-    it('returns updated milestone extracted from response wrapper', async () => {
+    it('returns updated milestone directly from response', async () => {
       const { updateMilestone } = await import('./milestonesApi.js');
 
       const updated: MilestoneSummary = { ...MILESTONE_SUMMARY, title: 'Updated' };
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({ milestone: updated }),
+        json: async () => updated,
       } as Response);
 
       const result = await updateMilestone(1, { title: 'Updated' });
