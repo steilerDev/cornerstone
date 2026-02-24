@@ -77,7 +77,6 @@ function mockResolved(value: any): jest.Mock {
 
 /** Helper: create a jest.Mock that returns (but never resolves) a pending Promise. */
 function mockPending(): jest.Mock {
-   
   return jest
     .fn<() => Promise<any>>()
     .mockReturnValue(new Promise(() => {})) as unknown as jest.Mock;
