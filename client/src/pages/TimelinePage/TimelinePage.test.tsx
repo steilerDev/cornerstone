@@ -9,6 +9,7 @@ import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type * as TimelineApiTypes from '../../lib/timelineApi.js';
+import type * as MilestonesApiTypes from '../../lib/milestonesApi.js';
 import type { TimelineResponse } from '@cornerstone/shared';
 import type React from 'react';
 
@@ -19,14 +20,15 @@ jest.unstable_mockModule('../../lib/timelineApi.js', () => ({
 }));
 
 // Mock milestonesApi so useMilestones doesn't make real network calls.
+const mockListMilestones = jest.fn<typeof MilestonesApiTypes.listMilestones>();
 jest.unstable_mockModule('../../lib/milestonesApi.js', () => ({
-  listMilestones: jest.fn().mockResolvedValue([]),
-  getMilestone: jest.fn(),
-  createMilestone: jest.fn(),
-  updateMilestone: jest.fn(),
-  deleteMilestone: jest.fn(),
-  linkWorkItem: jest.fn(),
-  unlinkWorkItem: jest.fn(),
+  listMilestones: mockListMilestones,
+  getMilestone: jest.fn<typeof MilestonesApiTypes.getMilestone>(),
+  createMilestone: jest.fn<typeof MilestonesApiTypes.createMilestone>(),
+  updateMilestone: jest.fn<typeof MilestonesApiTypes.updateMilestone>(),
+  deleteMilestone: jest.fn<typeof MilestonesApiTypes.deleteMilestone>(),
+  linkWorkItem: jest.fn<typeof MilestonesApiTypes.linkWorkItem>(),
+  unlinkWorkItem: jest.fn<typeof MilestonesApiTypes.unlinkWorkItem>(),
 }));
 
 // Mock useToast so TimelinePage can render without a ToastProvider wrapper.
@@ -57,6 +59,7 @@ describe('TimelinePage', () => {
     }
 
     mockGetTimeline.mockResolvedValue(EMPTY_TIMELINE);
+    mockListMilestones.mockResolvedValue([]);
   });
 
   function renderWithRouter() {
