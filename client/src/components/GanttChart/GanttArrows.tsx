@@ -159,12 +159,7 @@ export const GanttArrows = memo(function GanttArrows({
             ARROWHEAD_SIZE,
           );
           return (
-            <g
-              key={key}
-              opacity={visible ? 0.5 : 0}
-              role="graphics-symbol"
-              aria-label={ariaLabel}
-            >
+            <g key={key} opacity={visible ? 0.5 : 0} role="graphics-symbol" aria-label={ariaLabel}>
               <path
                 d={arrowPath.pathD}
                 stroke={colors.defaultArrow}
