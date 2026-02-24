@@ -5,7 +5,7 @@
  * Tests item rendering, muted state for undated items, click/keyboard interactions,
  * and accessibility attributes.
  */
-import { jest, describe, it, expect } from '@jest/globals';
+import { jest, describe, it, expect, beforeAll, afterAll } from '@jest/globals';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { GanttSidebar } from './GanttSidebar.js';
 import { ROW_HEIGHT, HEADER_HEIGHT } from './ganttUtils.js';
@@ -144,11 +144,49 @@ describe('GanttSidebar', () => {
     expect(rows).toHaveLength(2);
   });
 
+  // ── ARIA list container (Story 6.9) ────────────────────────────────────────
+
+  it('rows container has role="list"', () => {
+    render(<GanttSidebar items={[makeItem()]} />);
+    // The container wrapping the rows has role="list"
+    expect(screen.getByRole('list')).toBeInTheDocument();
+  });
+
+  it('rows container has aria-label="Work items"', () => {
+    render(<GanttSidebar items={[makeItem()]} />);
+    expect(screen.getByRole('list')).toHaveAttribute('aria-label', 'Work items');
+  });
+
   it('each row has aria-label describing the work item', () => {
+    // Item has dates — no suffix expected
     const item = makeItem({ id: 'wi-1', title: 'Electrical Work' });
     render(<GanttSidebar items={[item]} />);
     const row = screen.getByTestId('gantt-sidebar-row-wi-1');
     expect(row).toHaveAttribute('aria-label', 'Work item: Electrical Work');
+  });
+
+  it('row aria-label appends ", no dates set" when item has no startDate or endDate', () => {
+    const item = makeItem({
+      id: 'wi-nodates',
+      title: 'Undated Task',
+      startDate: null,
+      endDate: null,
+    });
+    render(<GanttSidebar items={[item]} />);
+    const row = screen.getByTestId('gantt-sidebar-row-wi-nodates');
+    expect(row).toHaveAttribute('aria-label', 'Work item: Undated Task, no dates set');
+  });
+
+  it('row aria-label has no suffix when item has startDate only', () => {
+    const item = makeItem({
+      id: 'wi-startonly',
+      title: 'Partial Task',
+      startDate: '2024-06-01',
+      endDate: null,
+    });
+    render(<GanttSidebar items={[item]} />);
+    const row = screen.getByTestId('gantt-sidebar-row-wi-startonly');
+    expect(row).toHaveAttribute('aria-label', 'Work item: Partial Task');
   });
 
   it('each row is keyboard-focusable (tabIndex=0)', () => {
@@ -222,6 +260,107 @@ describe('GanttSidebar', () => {
     fireEvent.keyDown(row, { key: 'ArrowDown' });
 
     expect(handleClick).not.toHaveBeenCalled();
+  });
+
+  // ── Arrow key keyboard navigation (Story 6.9) ─────────────────────────────
+  // jsdom does not implement scrollIntoView — mock it for the navigation tests.
+
+  beforeAll(() => {
+    window.HTMLElement.prototype.scrollIntoView = jest.fn<() => void>();
+  });
+
+  afterAll(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete (window.HTMLElement.prototype as any).scrollIntoView;
+  });
+
+  it('ArrowDown moves focus to the next row', () => {
+    const items = [
+      makeItem({ id: 'wi-0', title: 'Row 0' }),
+      makeItem({ id: 'wi-1', title: 'Row 1' }),
+      makeItem({ id: 'wi-2', title: 'Row 2' }),
+    ];
+    render(<GanttSidebar items={items} />);
+
+    const row0 = screen.getByTestId('gantt-sidebar-row-wi-0');
+    const row1 = screen.getByTestId('gantt-sidebar-row-wi-1');
+
+    row0.focus();
+    fireEvent.keyDown(row0, { key: 'ArrowDown' });
+
+    expect(document.activeElement).toBe(row1);
+  });
+
+  it('ArrowUp moves focus to the previous row', () => {
+    const items = [
+      makeItem({ id: 'wi-0', title: 'Row 0' }),
+      makeItem({ id: 'wi-1', title: 'Row 1' }),
+      makeItem({ id: 'wi-2', title: 'Row 2' }),
+    ];
+    render(<GanttSidebar items={items} />);
+
+    const row1 = screen.getByTestId('gantt-sidebar-row-wi-1');
+    const row0 = screen.getByTestId('gantt-sidebar-row-wi-0');
+
+    row1.focus();
+    fireEvent.keyDown(row1, { key: 'ArrowUp' });
+
+    expect(document.activeElement).toBe(row0);
+  });
+
+  it('ArrowDown from the first row reaches the second row', () => {
+    const items = [makeItem({ id: 'wi-a' }), makeItem({ id: 'wi-b' })];
+    render(<GanttSidebar items={items} />);
+
+    const rowA = screen.getByTestId('gantt-sidebar-row-wi-a');
+    const rowB = screen.getByTestId('gantt-sidebar-row-wi-b');
+
+    rowA.focus();
+    fireEvent.keyDown(rowA, { key: 'ArrowDown' });
+
+    expect(document.activeElement).toBe(rowB);
+  });
+
+  it('ArrowDown on the last row does not move focus out of bounds', () => {
+    const items = [makeItem({ id: 'wi-0' }), makeItem({ id: 'wi-1' })];
+    render(<GanttSidebar items={items} />);
+
+    const lastRow = screen.getByTestId('gantt-sidebar-row-wi-1');
+    lastRow.focus();
+    // Should not throw and focus stays on last row
+    fireEvent.keyDown(lastRow, { key: 'ArrowDown' });
+
+    expect(document.activeElement).toBe(lastRow);
+  });
+
+  it('ArrowUp on the first row does not move focus out of bounds', () => {
+    const items = [makeItem({ id: 'wi-0' }), makeItem({ id: 'wi-1' })];
+    render(<GanttSidebar items={items} />);
+
+    const firstRow = screen.getByTestId('gantt-sidebar-row-wi-0');
+    firstRow.focus();
+    // Should not throw and focus stays on first row
+    fireEvent.keyDown(firstRow, { key: 'ArrowUp' });
+
+    expect(document.activeElement).toBe(firstRow);
+  });
+
+  it('each row has data-gantt-sidebar-row attribute with its index', () => {
+    const items = [makeItem({ id: 'wi-0' }), makeItem({ id: 'wi-1' }), makeItem({ id: 'wi-2' })];
+    render(<GanttSidebar items={items} />);
+
+    expect(screen.getByTestId('gantt-sidebar-row-wi-0')).toHaveAttribute(
+      'data-gantt-sidebar-row',
+      '0',
+    );
+    expect(screen.getByTestId('gantt-sidebar-row-wi-1')).toHaveAttribute(
+      'data-gantt-sidebar-row',
+      '1',
+    );
+    expect(screen.getByTestId('gantt-sidebar-row-wi-2')).toHaveAttribute(
+      'data-gantt-sidebar-row',
+      '2',
+    );
   });
 
   // ── Large datasets ─────────────────────────────────────────────────────────

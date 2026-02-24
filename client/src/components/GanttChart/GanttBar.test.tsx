@@ -186,6 +186,106 @@ describe('GanttBar', () => {
     expect(group).toHaveAttribute('aria-label', expect.stringContaining('Blocked'));
   });
 
+  // ── Enriched aria-label with dates (Story 6.9) ────────────────────────────
+
+  it('aria-label includes date range when both startDate and endDate are provided', () => {
+    renderInSvg({
+      ...DEFAULT_PROPS,
+      title: 'Foundation Work',
+      status: 'in_progress',
+      startDate: '2024-06-01',
+      endDate: '2024-07-31',
+    });
+    const group = screen.getByRole('listitem');
+    expect(group).toHaveAttribute(
+      'aria-label',
+      'Work item: Foundation Work, In progress, 2024-06-01 to 2024-07-31',
+    );
+  });
+
+  it('aria-label includes "from startDate" when only startDate is provided', () => {
+    renderInSvg({
+      ...DEFAULT_PROPS,
+      title: 'Framing',
+      status: 'not_started',
+      startDate: '2024-05-01',
+      endDate: null,
+    });
+    const group = screen.getByRole('listitem');
+    expect(group).toHaveAttribute('aria-label', 'Work item: Framing, Not started, from 2024-05-01');
+  });
+
+  it('aria-label has no date segment when neither startDate nor endDate is provided', () => {
+    renderInSvg({
+      ...DEFAULT_PROPS,
+      title: 'Electrical',
+      status: 'not_started',
+      startDate: null,
+      endDate: null,
+    });
+    const group = screen.getByRole('listitem');
+    expect(group).toHaveAttribute('aria-label', 'Work item: Electrical, Not started');
+  });
+
+  it('aria-label has no date segment when startDate and endDate are both undefined', () => {
+    // DEFAULT_PROPS has no startDate/endDate — omitting both props
+    renderInSvg({ ...DEFAULT_PROPS, title: 'Plumbing', status: 'blocked' });
+    const group = screen.getByRole('listitem');
+    expect(group).toHaveAttribute('aria-label', 'Work item: Plumbing, Blocked');
+  });
+
+  it('aria-label includes critical path suffix after date range', () => {
+    renderInSvg({
+      ...DEFAULT_PROPS,
+      title: 'Roofing',
+      status: 'in_progress',
+      startDate: '2024-08-01',
+      endDate: '2024-08-15',
+      isCritical: true,
+    });
+    const group = screen.getByRole('listitem');
+    expect(group).toHaveAttribute(
+      'aria-label',
+      'Work item: Roofing, In progress, 2024-08-01 to 2024-08-15, critical path',
+    );
+  });
+
+  it('aria-label includes critical path suffix without dates when dates are absent', () => {
+    renderInSvg({
+      ...DEFAULT_PROPS,
+      title: 'Insulation',
+      status: 'not_started',
+      startDate: null,
+      endDate: null,
+      isCritical: true,
+    });
+    const group = screen.getByRole('listitem');
+    expect(group).toHaveAttribute(
+      'aria-label',
+      'Work item: Insulation, Not started, critical path',
+    );
+  });
+
+  // ── aria-describedby / tooltipId (Story 6.9) ──────────────────────────────
+
+  it('sets aria-describedby to tooltipId when tooltipId is provided', () => {
+    renderInSvg({ ...DEFAULT_PROPS, tooltipId: 'gantt-chart-tooltip' });
+    const group = screen.getByRole('listitem');
+    expect(group).toHaveAttribute('aria-describedby', 'gantt-chart-tooltip');
+  });
+
+  it('does not set aria-describedby when tooltipId is not provided', () => {
+    renderInSvg({ ...DEFAULT_PROPS });
+    const group = screen.getByRole('listitem');
+    expect(group).not.toHaveAttribute('aria-describedby');
+  });
+
+  it('does not set aria-describedby when tooltipId is undefined', () => {
+    renderInSvg({ ...DEFAULT_PROPS, tooltipId: undefined });
+    const group = screen.getByRole('listitem');
+    expect(group).not.toHaveAttribute('aria-describedby');
+  });
+
   it('has data-testid attribute matching "gantt-bar-{id}"', () => {
     renderInSvg({ ...DEFAULT_PROPS, id: 'wi-abc123' });
     expect(screen.getByTestId('gantt-bar-wi-abc123')).toBeInTheDocument();
