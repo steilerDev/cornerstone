@@ -1,5 +1,9 @@
 import { memo } from 'react';
-import type { PointerEvent as ReactPointerEvent, MouseEvent as ReactMouseEvent, KeyboardEvent as ReactKeyboardEvent } from 'react';
+import type {
+  PointerEvent as ReactPointerEvent,
+  MouseEvent as ReactMouseEvent,
+  KeyboardEvent as ReactKeyboardEvent,
+} from 'react';
 import type { WorkItemStatus } from '@cornerstone/shared';
 import { BAR_HEIGHT, BAR_OFFSET_Y, ROW_HEIGHT, TEXT_LABEL_MIN_WIDTH } from './ganttUtils.js';
 import type { DragState } from './useGanttDrag.js';
@@ -117,7 +121,7 @@ export const GanttBar = memo(function GanttBar({
   const barOpacity = isBeingDragged ? 0.35 : 1;
 
   // Whether to show the text label
-  const showLabel = ghostWidth >= TEXT_LABEL_MIN_WIDTH;
+  const showLabel = width >= TEXT_LABEL_MIN_WIDTH;
   const textY = rowY + ROW_HEIGHT / 2;
 
   const isDragging = dragState !== null;
@@ -256,4 +260,3 @@ export const GanttBar = memo(function GanttBar({
     </>
   );
 });
-
