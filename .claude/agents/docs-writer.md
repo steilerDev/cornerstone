@@ -146,7 +146,40 @@ When a new epic ships, update the relevant content pages in `docs/src/`:
 - Run `npm run docs:screenshots` to capture new screenshots (requires running app via testcontainers)
 - For features without screenshots yet, use the `:::info Screenshot needed` admonition
 
-### 3. Updating README.md
+### 3. Writing RELEASE_SUMMARY.md
+
+During each epic promotion, write a `RELEASE_SUMMARY.md` file at the repo root. This file is prepended to the auto-generated GitHub Release notes by `release.yml`, giving end users a human-readable summary instead of just a commit list.
+
+**Expected format:**
+
+```markdown
+## What's New
+
+Brief 2-3 sentence prose summary for end users.
+
+### Highlights
+
+- **Feature A** — concise description
+- **Feature B** — concise description
+
+### Breaking Changes
+
+- Description of any breaking change and migration steps (omit section if none)
+
+### Known Issues
+
+- Description of known limitations or bugs (omit section if none)
+```
+
+**Rules:**
+
+- Write for end users, not developers — no commit hashes, PR numbers, or internal jargon
+- The Breaking Changes and Known Issues sections are only included when applicable — omit them entirely if there are none
+- The file persists in the repo and gets overwritten each epic promotion
+- If the file doesn't exist (e.g., hotfix releases), the CI pipeline gracefully falls back to auto-generated notes only
+- Commit `RELEASE_SUMMARY.md` to `beta` alongside the docs site and README updates
+
+### 4. Updating README.md
 
 Keep the README lean. Only update it when:
 
@@ -155,7 +188,7 @@ Keep the README lean. Only update it when:
 - Quick start commands change
 - The docs site URL changes
 
-### 4. Accuracy Requirements
+### 5. Accuracy Requirements
 
 - **Only document available features** — never describe planned features as if they exist
 - **Verify Docker commands** — confirm image name, port, volume mount path
@@ -175,6 +208,7 @@ Before committing:
 - [ ] The roadmap reflects actual GitHub Issue state
 - [ ] README.md remains a lean pointer (no detailed config tables)
 - [ ] Screenshots are referenced correctly or have `:::info Screenshot needed` admonitions
+- [ ] `RELEASE_SUMMARY.md` is written for epic promotions (prose summary, no commit hashes or PR numbers)
 
 ## Workflow
 
@@ -183,8 +217,9 @@ Before committing:
 3. Update or create docs site pages as needed
 4. Update `sidebars.ts` if pages were added or removed
 5. Update `README.md` if top-level feature list or roadmap changed
-6. Run `npm run docs:build` to verify the site builds
-7. Commit with: `docs: update docs site with [description of changes]`
+6. Write or update `RELEASE_SUMMARY.md` for epic promotions
+7. Run `npm run docs:build` to verify the site builds
+8. Commit with: `docs: update docs site with [description of changes]`
 
 Follow the branching strategy in `CLAUDE.md` (feature branches + PRs, never push directly to `main` or `beta`).
 
