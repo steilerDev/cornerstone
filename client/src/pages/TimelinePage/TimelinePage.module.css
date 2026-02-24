@@ -36,6 +36,48 @@
   margin: 0;
 }
 
+/* ---- Toolbar: arrows toggle + zoom toggle ---- */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+/* Arrows toggle — icon-only button */
+.arrowsToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-primary);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: var(--transition-button-border);
+  flex-shrink: 0;
+}
+
+.arrowsToggle:hover:not(.arrowsToggleActive) {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.arrowsToggleActive {
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+  border-color: var(--color-primary);
+}
+
+.arrowsToggle:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  position: relative;
+  z-index: 1;
+}
+
 /* ---- Zoom toggle button group ---- */
 
 .zoomToggle {
@@ -187,15 +229,25 @@
   .zoomButton {
     min-height: 44px;
   }
+
+  .arrowsToggle {
+    width: 44px;
+    height: 44px;
+  }
 }
 
-/* Mobile: zoom toggle becomes full-width row */
+/* Mobile: toolbar becomes full-width row */
 @media (max-width: 767px) {
   .pageHeader {
     flex-direction: column;
     align-items: flex-start;
     gap: var(--spacing-3);
     padding: var(--spacing-3) var(--spacing-4);
+  }
+
+  .arrowsToggle {
+    width: 44px;
+    height: 44px;
   }
 
   .zoomButton {

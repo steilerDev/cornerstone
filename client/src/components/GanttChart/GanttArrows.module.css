@@ -1,0 +1,36 @@
+/* ============================================================
+ * GanttArrows — dependency arrow SVG styles
+ *
+ * Arrow colors are resolved from CSS custom properties via
+ * getComputedStyle in the component (SVG fill/stroke cannot
+ * reference CSS var() in all browsers at attribute level).
+ * These classes are used only for structural / transition
+ * properties that don't rely on color resolution.
+ * ============================================================ */
+
+/* Default (non-critical) connector path */
+.arrowDefault {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  /* Smooth in/out when arrows are toggled */
+  transition: opacity var(--transition-normal);
+}
+
+/* Critical path connector path */
+.arrowCritical {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: opacity var(--transition-normal);
+}
+
+/* Default arrowhead */
+.arrowheadDefault {
+  transition: opacity var(--transition-normal);
+}
+
+/* Critical arrowhead */
+.arrowheadCritical {
+  transition: opacity var(--transition-normal);
+}

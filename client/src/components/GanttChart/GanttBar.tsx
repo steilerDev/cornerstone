@@ -14,6 +14,10 @@ export interface GanttBarProps {
   fill: string;
   /** Callback when bar is clicked. */
   onClick?: (id: string) => void;
+  /** Whether this bar is on the critical path (renders border overlay). */
+  isCritical?: boolean;
+  /** Resolved critical border color (read via getComputedStyle). */
+  criticalBorderColor?: string;
 }
 
 const STATUS_LABELS: Record<WorkItemStatus, string> = {
@@ -37,6 +41,8 @@ export const GanttBar = memo(function GanttBar({
   rowIndex,
   fill,
   onClick,
+  isCritical = false,
+  criticalBorderColor,
 }: GanttBarProps) {
   const rowY = rowIndex * ROW_HEIGHT;
   const barY = rowY + BAR_OFFSET_Y;
@@ -45,7 +51,9 @@ export const GanttBar = memo(function GanttBar({
   const textY = rowY + ROW_HEIGHT / 2; // center of row
 
   const statusLabel = STATUS_LABELS[status];
-  const ariaLabel = `Work item: ${title}, ${statusLabel}`;
+  const ariaLabel = isCritical
+    ? `Work item: ${title}, ${statusLabel} (critical path)`
+    : `Work item: ${title}, ${statusLabel}`;
 
   function handleClick() {
     onClick?.(id);
@@ -83,6 +91,22 @@ export const GanttBar = memo(function GanttBar({
         fill={fill}
         className={styles.rect}
       />
+
+      {/* Critical path border overlay — additive rect inset 1px, no fill */}
+      {isCritical && criticalBorderColor && (
+        <rect
+          x={x + 1}
+          y={barY + 1}
+          width={Math.max(width - 2, 0)}
+          height={BAR_HEIGHT - 2}
+          rx={3}
+          fill="none"
+          stroke={criticalBorderColor}
+          strokeWidth={2}
+          className={styles.criticalOverlay}
+          aria-hidden="true"
+        />
+      )}
 
       {/* Text label inside bar (only when wide enough) */}
       {showLabel && (

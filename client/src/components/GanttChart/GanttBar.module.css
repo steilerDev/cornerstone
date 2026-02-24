@@ -25,3 +25,9 @@
   pointer-events: none;
   user-select: none;
 }
+
+/* Critical path border overlay (SVG rect drawn over the bar fill). */
+/* stroke color is set inline via JS; this class handles pointer behavior only. */
+.criticalOverlay {
+  pointer-events: none;
+}

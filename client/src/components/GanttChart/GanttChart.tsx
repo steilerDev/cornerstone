@@ -15,6 +15,8 @@ import {
 } from './ganttUtils.js';
 import { GanttGrid } from './GanttGrid.js';
 import { GanttBar } from './GanttBar.js';
+import { GanttArrows } from './GanttArrows.js';
+import type { BarRect } from './arrowUtils.js';
 import { GanttHeader } from './GanttHeader.js';
 import { GanttSidebar } from './GanttSidebar.js';
 import styles from './GanttChart.module.css';
@@ -38,6 +40,9 @@ interface ChartColors {
   borderMajor: string;
   todayMarker: string;
   barColors: Record<WorkItemStatus, string>;
+  arrowDefault: string;
+  arrowCritical: string;
+  criticalBorder: string;
 }
 
 function resolveColors(): ChartColors {
@@ -53,6 +58,9 @@ function resolveColors(): ChartColors {
       completed: readCssVar('--color-gantt-bar-completed'),
       blocked: readCssVar('--color-gantt-bar-blocked'),
     },
+    arrowDefault: readCssVar('--color-gantt-arrow-default'),
+    arrowCritical: readCssVar('--color-gantt-arrow-critical'),
+    criticalBorder: readCssVar('--color-gantt-bar-critical-border'),
   };
 }
 
@@ -74,9 +82,11 @@ export interface GanttChartProps {
   zoom: ZoomLevel;
   /** Called when user clicks on a work item bar or sidebar row. */
   onItemClick?: (id: string) => void;
+  /** Whether to show dependency arrows. Default: true. */
+  showArrows?: boolean;
 }
 
-export function GanttChart({ data, zoom, onItemClick }: GanttChartProps) {
+export function GanttChart({ data, zoom, onItemClick, showArrows = true }: GanttChartProps) {
   // Refs for scroll synchronization
   const chartScrollRef = useRef<HTMLDivElement>(null);
   const sidebarScrollRef = useRef<HTMLDivElement>(null);
@@ -143,6 +153,24 @@ export function GanttChart({ data, zoom, onItemClick }: GanttChartProps) {
       return { item, position };
     });
   }, [data.workItems, chartRange, zoom, today]);
+
+  // Set of critical path work item IDs for O(1) lookups
+  const criticalPathSet = useMemo(() => new Set(data.criticalPath), [data.criticalPath]);
+
+  // Map from work item ID to BarRect — used by GanttArrows for path computation
+  const barRects = useMemo<ReadonlyMap<string, BarRect>>(() => {
+    const map = new Map<string, BarRect>();
+    barData.forEach(({ item, position }, idx) => {
+      map.set(item.id, { x: position.x, width: position.width, rowIndex: idx });
+    });
+    return map;
+  }, [barData]);
+
+  // Arrow colors object — derived from resolved colors
+  const arrowColors = useMemo(
+    () => ({ defaultArrow: colors.arrowDefault, criticalArrow: colors.arrowCritical }),
+    [colors.arrowDefault, colors.arrowCritical],
+  );
 
   const svgHeight = data.workItems.length * ROW_HEIGHT;
 
@@ -229,7 +257,16 @@ export function GanttChart({ data, zoom, onItemClick }: GanttChartProps) {
               todayX={todayX}
             />
 
-            {/* Work item bars */}
+            {/* Dependency arrows (middle layer — above grid, below bars) */}
+            <GanttArrows
+              dependencies={data.dependencies}
+              criticalPathSet={criticalPathSet}
+              barRects={barRects}
+              colors={arrowColors}
+              visible={showArrows}
+            />
+
+            {/* Work item bars (foreground layer) */}
             <g role="list" aria-label="Work item bars">
               {barData.map(({ item, position }, idx) => (
                 <GanttBar
@@ -242,6 +279,8 @@ export function GanttChart({ data, zoom, onItemClick }: GanttChartProps) {
                   rowIndex={idx}
                   fill={colors.barColors[item.status]}
                   onClick={onItemClick}
+                  isCritical={criticalPathSet.has(item.id)}
+                  criticalBorderColor={colors.criticalBorder}
                 />
               ))}
             </g>
