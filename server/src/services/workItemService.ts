@@ -147,6 +147,7 @@ function getWorkItemDependencies(
   const predecessors: DependencyResponse[] = predecessorRows.map((row) => ({
     workItem: toWorkItemSummary(db, row.workItem),
     dependencyType: row.dependency.dependencyType,
+    leadLagDays: row.dependency.leadLagDays,
   }));
 
   // Successors: work items that depend on this item
@@ -163,6 +164,7 @@ function getWorkItemDependencies(
   const successors: DependencyResponse[] = successorRows.map((row) => ({
     workItem: toWorkItemSummary(db, row.workItem),
     dependencyType: row.dependency.dependencyType,
+    leadLagDays: row.dependency.leadLagDays,
   }));
 
   return { predecessors, successors };
