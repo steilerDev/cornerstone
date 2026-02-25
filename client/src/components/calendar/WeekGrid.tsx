@@ -8,6 +8,7 @@
 
 import { useMemo } from 'react';
 import type { TimelineWorkItem, TimelineMilestone } from '@cornerstone/shared';
+import type { CalendarColumnSize } from './CalendarView.js';
 import { CalendarItem } from './CalendarItem.js';
 import { CalendarMilestone } from './CalendarMilestone.js';
 import {
@@ -32,17 +33,29 @@ export interface WeekGridProps {
   workItems: TimelineWorkItem[];
   milestones: TimelineMilestone[];
   onMilestoneClick?: (milestoneId: number) => void;
+  columnSize?: CalendarColumnSize;
 }
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
-export function WeekGrid({ weekDate, workItems, milestones, onMilestoneClick }: WeekGridProps) {
+export function WeekGrid({
+  weekDate,
+  workItems,
+  milestones,
+  onMilestoneClick,
+  columnSize = 'default',
+}: WeekGridProps) {
   const days = useMemo(() => getWeekDates(weekDate), [weekDate]);
 
   return (
-    <div className={styles.grid} role="grid" aria-label="Weekly calendar">
+    <div
+      className={styles.grid}
+      role="grid"
+      aria-label="Weekly calendar"
+      data-column-size={columnSize}
+    >
       {/* Day column headers */}
       <div className={styles.headerRow} role="row">
         {days.map((day, i) => {

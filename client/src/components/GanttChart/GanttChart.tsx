@@ -1,5 +1,4 @@
 import { useState, useRef, useMemo, useEffect, useCallback } from 'react';
-import type { PointerEvent as ReactPointerEvent } from 'react';
 import type { TimelineResponse, WorkItemStatus } from '@cornerstone/shared';
 import {
   computeChartRange,
@@ -24,7 +23,6 @@ import { GanttTooltip } from './GanttTooltip.js';
 import type { GanttTooltipData, GanttTooltipPosition } from './GanttTooltip.js';
 import { GanttMilestones, computeMilestoneStatus } from './GanttMilestones.js';
 import type { MilestoneColors } from './GanttMilestones.js';
-import { useGanttDrag } from './useGanttDrag.js';
 import styles from './GanttChart.module.css';
 
 // ---------------------------------------------------------------------------
@@ -49,7 +47,6 @@ interface ChartColors {
   arrowDefault: string;
   arrowCritical: string;
   criticalBorder: string;
-  ghostBar: string;
   milestone: MilestoneColors;
 }
 
@@ -69,7 +66,6 @@ function resolveColors(): ChartColors {
     arrowDefault: readCssVar('--color-gantt-arrow-default'),
     arrowCritical: readCssVar('--color-gantt-arrow-critical'),
     criticalBorder: readCssVar('--color-gantt-bar-critical-border'),
-    ghostBar: readCssVar('--color-gantt-bar-ghost'),
     milestone: {
       incompleteFill: readCssVar('--color-milestone-incomplete-fill') || 'transparent',
       incompleteStroke: readCssVar('--color-milestone-incomplete-stroke'),
@@ -112,25 +108,6 @@ export interface GanttChartProps {
   /** Whether to show dependency arrows. Default: true. */
   showArrows?: boolean;
   /**
-   * Called after a successful drag-drop rescheduling.
-   * Receives the item ID and old/new dates for toast display.
-   */
-  onItemRescheduled?: (
-    itemId: string,
-    oldStartDate: string,
-    oldEndDate: string,
-    newStartDate: string,
-    newEndDate: string,
-  ) => void;
-  /**
-   * Called when a drag-drop rescheduling fails.
-   */
-  onItemRescheduleError?: () => void;
-  /**
-   * Async function to persist date changes. Returns true on success.
-   */
-  onUpdateItemDates?: (itemId: string, startDate: string, endDate: string) => Promise<boolean>;
-  /**
    * Called when user clicks a milestone diamond — passes milestone ID.
    */
   onMilestoneClick?: (milestoneId: number) => void;
@@ -141,9 +118,6 @@ export function GanttChart({
   zoom,
   onItemClick,
   showArrows = true,
-  onItemRescheduled,
-  onItemRescheduleError,
-  onUpdateItemDates,
   onMilestoneClick,
 }: GanttChartProps) {
   // Refs for scroll synchronization
@@ -200,43 +174,6 @@ export function GanttChart({
   }, [today, chartRange, zoom]);
 
   // ---------------------------------------------------------------------------
-  // Drag state
-  // ---------------------------------------------------------------------------
-
-  const {
-    dragState,
-    handleBarPointerDown,
-    handleSvgPointerMove,
-    handleSvgPointerUp,
-    handleSvgPointerCancel,
-    getCursorForPosition,
-  } = useGanttDrag();
-
-  // Per-bar hover cursor state (zone under pointer)
-  const [hoveredBarId, setHoveredBarId] = useState<string | null>(null);
-  const [hoveredZoneCursor, setHoveredZoneCursor] = useState<string | null>(null);
-
-  const handleDragCommit = useCallback(
-    async (
-      itemId: string,
-      startDate: string,
-      endDate: string,
-      originalStartDate: string,
-      originalEndDate: string,
-    ) => {
-      if (!onUpdateItemDates) return;
-
-      const success = await onUpdateItemDates(itemId, startDate, endDate);
-      if (success) {
-        onItemRescheduled?.(itemId, originalStartDate, originalEndDate, startDate, endDate);
-      } else {
-        onItemRescheduleError?.();
-      }
-    },
-    [onUpdateItemDates, onItemRescheduled, onItemRescheduleError],
-  );
-
-  // ---------------------------------------------------------------------------
   // Tooltip state
   // ---------------------------------------------------------------------------
 
@@ -287,7 +224,6 @@ export function GanttChart({
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tooltipData]);
 
   // Build a lookup map from item ID to TimelineWorkItem for tooltip data
@@ -303,24 +239,21 @@ export function GanttChart({
 
   // ---------------------------------------------------------------------------
   // Bar position data — computed once per render for all items
-  // Apply drag preview positions when dragging
   // ---------------------------------------------------------------------------
 
   const barData = useMemo(() => {
     return data.workItems.map((item, idx) => {
-      let startDate = item.startDate;
-      let endDate = item.endDate;
-
-      // Apply drag preview for the item being dragged
-      if (dragState && dragState.itemId === item.id) {
-        startDate = dragState.previewStartDate;
-        endDate = dragState.previewEndDate;
-      }
-
-      const position = computeBarPosition(startDate, endDate, idx, chartRange, zoom, today);
-      return { item, position, startDate, endDate };
+      const position = computeBarPosition(
+        item.startDate,
+        item.endDate,
+        idx,
+        chartRange,
+        zoom,
+        today,
+      );
+      return { item, position };
     });
-  }, [data.workItems, chartRange, zoom, today, dragState]);
+  }, [data.workItems, chartRange, zoom, today]);
 
   // Set of critical path work item IDs for O(1) lookups
   const criticalPathSet = useMemo(() => new Set(data.criticalPath), [data.criticalPath]);
@@ -391,27 +324,6 @@ export function GanttChart({
   }, [todayX, zoom]);
 
   // ---------------------------------------------------------------------------
-  // SVG-level pointer handlers for drag
-  // ---------------------------------------------------------------------------
-
-  const handleSvgPointerMoveCallback = useCallback(
-    (event: ReactPointerEvent<SVGSVGElement>) => {
-      handleSvgPointerMove(event, svgRef.current, chartRange, zoom);
-    },
-    [handleSvgPointerMove, chartRange, zoom],
-  );
-
-  const handleSvgPointerUpCallback = useCallback(
-    (event: ReactPointerEvent<SVGSVGElement>) => {
-      handleSvgPointerUp(event, handleDragCommit);
-    },
-    [handleSvgPointerUp, handleDragCommit],
-  );
-
-  // Set SVG cursor during active drag
-  const svgCursor = dragState?.zone === 'move' ? 'grabbing' : dragState ? 'col-resize' : undefined;
-
-  // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
 
@@ -446,10 +358,6 @@ export function GanttChart({
             height={svgHeight}
             aria-hidden="true"
             data-testid="gantt-svg"
-            style={svgCursor ? { cursor: svgCursor } : undefined}
-            onPointerMove={handleSvgPointerMoveCallback}
-            onPointerUp={handleSvgPointerUpCallback}
-            onPointerCancel={handleSvgPointerCancel}
           >
             {/* Background: row stripes + grid lines + today marker */}
             <GanttGrid
@@ -480,7 +388,6 @@ export function GanttChart({
                 rowCount={data.workItems.length}
                 colors={colors.milestone}
                 onMilestoneMouseEnter={(milestone, e) => {
-                  if (dragState) return;
                   clearTooltipTimers();
                   // Capture trigger element for focus-return on Escape
                   tooltipTriggerElementRef.current = e.currentTarget;
@@ -507,10 +414,6 @@ export function GanttChart({
                   }, TOOLTIP_HIDE_DELAY);
                 }}
                 onMilestoneMouseMove={(e) => {
-                  if (dragState) {
-                    setTooltipData(null);
-                    return;
-                  }
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
                 }}
                 onMilestoneClick={onMilestoneClick}
@@ -519,14 +422,14 @@ export function GanttChart({
 
             {/* Work item bars (foreground layer) */}
             <g role="list" aria-label="Work item bars">
-              {barData.map(({ item, position, startDate, endDate }, idx) => (
+              {barData.map(({ item, position }, idx) => (
                 <GanttBar
                   key={item.id}
                   id={item.id}
                   title={item.title}
                   status={item.status}
-                  startDate={startDate}
-                  endDate={endDate}
+                  startDate={item.startDate}
+                  endDate={item.endDate}
                   x={position.x}
                   width={position.width}
                   rowIndex={idx}
@@ -534,51 +437,10 @@ export function GanttChart({
                   onClick={onItemClick}
                   isCritical={criticalPathSet.has(item.id)}
                   criticalBorderColor={colors.criticalBorder}
-                  // Drag props
-                  dragState={dragState}
-                  ghostColor={colors.ghostBar}
-                  onPointerDown={(e) => {
-                    const resolvedStart = startDate ?? '';
-                    const resolvedEnd = endDate ?? '';
-                    if (!resolvedStart || !resolvedEnd) return;
-                    const isTouch = e.pointerType === 'touch';
-                    handleBarPointerDown(
-                      e,
-                      item.id,
-                      position.x,
-                      position.width,
-                      resolvedStart,
-                      resolvedEnd,
-                      svgRef.current,
-                      chartRange,
-                      zoom,
-                      isTouch,
-                    );
-                  }}
-                  hoverZoneCursor={hoveredBarId === item.id ? hoveredZoneCursor : null}
-                  onBarPointerMove={(e) => {
-                    if (dragState) return; // Don't update cursor during active drag
-                    const isTouch = e.pointerType === 'touch';
-                    if (!svgRef.current) return;
-                    const rect = svgRef.current.getBoundingClientRect();
-                    const scrollLeft = chartScrollRef.current?.scrollLeft ?? 0;
-                    const svgX = e.clientX - rect.left + scrollLeft;
-                    const cursor = getCursorForPosition(svgX, position.x, position.width, isTouch);
-                    setHoveredBarId(item.id);
-                    setHoveredZoneCursor(cursor);
-                  }}
-                  onBarPointerLeave={() => {
-                    if (hoveredBarId === item.id) {
-                      setHoveredBarId(null);
-                      setHoveredZoneCursor(null);
-                    }
-                  }}
                   // Tooltip accessibility
                   tooltipId={tooltipTriggerId === item.id ? TOOLTIP_ID : undefined}
                   // Tooltip props
                   onMouseEnter={(e) => {
-                    // Suppress tooltip during drag
-                    if (dragState) return;
                     clearTooltipTimers();
                     const tooltipItem = workItemMap.get(item.id);
                     if (!tooltipItem) return;
@@ -607,11 +469,6 @@ export function GanttChart({
                     }, TOOLTIP_HIDE_DELAY);
                   }}
                   onMouseMove={(e) => {
-                    if (dragState) {
-                      setTooltipData(null);
-                      setTooltipTriggerId(null);
-                      return;
-                    }
                     setTooltipPosition({ x: e.clientX, y: e.clientY });
                   }}
                 />
@@ -622,7 +479,7 @@ export function GanttChart({
       </div>
 
       {/* Tooltip portal */}
-      {tooltipData !== null && dragState === null && (
+      {tooltipData !== null && (
         <GanttTooltip data={tooltipData} position={tooltipPosition} id={TOOLTIP_ID} />
       )}
     </div>

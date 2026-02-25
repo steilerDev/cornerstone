@@ -32,6 +32,7 @@ import styles from './CalendarView.module.css';
 // ---------------------------------------------------------------------------
 
 export type CalendarMode = 'month' | 'week';
+export type CalendarColumnSize = 'compact' | 'default' | 'comfortable';
 
 export interface CalendarViewProps {
   workItems: TimelineWorkItem[];
@@ -107,12 +108,23 @@ function ChevronRightIcon() {
 // CalendarView component
 // ---------------------------------------------------------------------------
 
+const COLUMN_SIZE_OPTIONS: { value: CalendarColumnSize; label: string }[] = [
+  { value: 'compact', label: 'S' },
+  { value: 'default', label: 'M' },
+  { value: 'comfortable', label: 'L' },
+];
+
 export function CalendarView({ workItems, milestones, onMilestoneClick }: CalendarViewProps) {
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Read calendarMode from URL (default: month)
   const rawMode = searchParams.get('calendarMode');
   const calendarMode: CalendarMode = rawMode === 'week' ? 'week' : 'month';
+
+  // Read column size from URL (default: 'default')
+  const rawSize = searchParams.get('calendarSize');
+  const columnSize: CalendarColumnSize =
+    rawSize === 'compact' || rawSize === 'comfortable' ? rawSize : 'default';
 
   const { year: todayYear, month: todayMonth, todayDate } = getTodayInfo();
 
@@ -134,6 +146,24 @@ export function CalendarView({ workItems, milestones, onMilestoneClick }: Calend
         (prev) => {
           const next = new URLSearchParams(prev);
           next.set('calendarMode', mode);
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+
+  const setColumnSize = useCallback(
+    (size: CalendarColumnSize) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (size === 'default') {
+            next.delete('calendarSize');
+          } else {
+            next.set('calendarSize', size);
+          }
           return next;
         },
         { replace: true },
@@ -242,6 +272,22 @@ export function CalendarView({ workItems, milestones, onMilestoneClick }: Calend
           {navLabel}
         </h2>
 
+        {/* Column size toggle */}
+        <div className={styles.columnSizeToggle} role="toolbar" aria-label="Column size">
+          {COLUMN_SIZE_OPTIONS.map(({ value, label }) => (
+            <button
+              key={value}
+              type="button"
+              className={`${styles.modeButton} ${columnSize === value ? styles.modeButtonActive : ''}`}
+              aria-pressed={columnSize === value}
+              onClick={() => setColumnSize(value)}
+              title={`${value.charAt(0).toUpperCase() + value.slice(1)} columns`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
         {/* Month/Week toggle */}
         <div className={styles.modeToggle} role="toolbar" aria-label="Calendar display mode">
           <button
@@ -279,6 +325,7 @@ export function CalendarView({ workItems, milestones, onMilestoneClick }: Calend
             workItems={workItems}
             milestones={milestones}
             onMilestoneClick={onMilestoneClick}
+            columnSize={columnSize}
           />
         ) : (
           <WeekGrid
@@ -286,6 +333,7 @@ export function CalendarView({ workItems, milestones, onMilestoneClick }: Calend
             workItems={workItems}
             milestones={milestones}
             onMilestoneClick={onMilestoneClick}
+            columnSize={columnSize}
           />
         )}
       </div>

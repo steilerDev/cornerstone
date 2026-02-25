@@ -178,6 +178,7 @@ const ZOOM_OPTIONS: { value: ZoomLevel; label: string }[] = [
 
 interface AutoScheduleDialogProps {
   scheduledItems: ScheduledItem[];
+  titleMap: ReadonlyMap<string, string>;
   isApplying: boolean;
   applyError: string | null;
   onConfirm: () => void;
@@ -186,6 +187,7 @@ interface AutoScheduleDialogProps {
 
 function AutoScheduleDialog({
   scheduledItems,
+  titleMap,
   isApplying,
   applyError,
   onConfirm,
@@ -246,7 +248,7 @@ function AutoScheduleDialog({
                     className={`${styles.dialogItemRow} ${hasChanged ? styles.dialogItemRowChanged : ''}`}
                   >
                     <span className={styles.dialogItemId} title={item.workItemId}>
-                      {item.workItemId.substring(0, 8)}…
+                      {titleMap.get(item.workItemId) ?? item.workItemId.substring(0, 8) + '…'}
                     </span>
                     <span className={styles.dialogItemDate}>{item.scheduledStartDate}</span>
                     <span className={styles.dialogItemDate}>{item.scheduledEndDate}</span>
@@ -313,7 +315,7 @@ function formatDateShort(dateStr: string): string {
 export function TimelinePage() {
   const [zoom, setZoom] = useState<ZoomLevel>('month');
   const [showArrows, setShowArrows] = useState(true);
-  const { data, isLoading, error, refetch, updateItemDates } = useTimeline();
+  const { data, isLoading, error, refetch } = useTimeline();
   const navigate = useNavigate();
   const { showToast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -364,33 +366,17 @@ export function TimelinePage() {
     [navigate],
   );
 
+  // Build a title lookup from all work items for the auto-schedule dialog
+  const workItemTitleMap = useMemo<ReadonlyMap<string, string>>(() => {
+    if (!data) return new Map();
+    return new Map(data.workItems.map((item) => [item.id, item.title]));
+  }, [data]);
+
   const hasWorkItemsWithDates =
     data !== null &&
     data.workItems.some((item) => item.startDate !== null || item.endDate !== null);
 
   const isEmpty = data !== null && data.workItems.length === 0;
-
-  // ---- Drag-drop callbacks ----
-
-  const handleItemRescheduled = useCallback(
-    (
-      _itemId: string,
-      oldStartDate: string,
-      oldEndDate: string,
-      newStartDate: string,
-      newEndDate: string,
-    ) => {
-      showToast(
-        'success',
-        `Rescheduled: ${formatDateShort(oldStartDate)}–${formatDateShort(oldEndDate)} → ${formatDateShort(newStartDate)}–${formatDateShort(newEndDate)}`,
-      );
-    },
-    [showToast],
-  );
-
-  const handleItemRescheduleError = useCallback(() => {
-    showToast('error', 'Failed to save new dates. Please try again.');
-  }, [showToast]);
 
   // ---- Auto-schedule ----
 
@@ -465,28 +451,24 @@ export function TimelinePage() {
         <h1 className={styles.pageTitle}>Timeline</h1>
 
         <div className={styles.toolbar}>
-          {/* Auto-schedule button (Gantt only) */}
-          {activeView === 'gantt' && (
-            <>
-              <button
-                type="button"
-                className={styles.autoScheduleButton}
-                onClick={() => void handleAutoScheduleClick()}
-                disabled={isScheduleLoading || isLoading}
-                title="Auto-schedule work items using Critical Path Method"
-                aria-label="Auto-schedule work items"
-                data-testid="auto-schedule-button"
-              >
-                <AutoScheduleIcon spinning={isScheduleLoading} />
-                <span>Auto-schedule</span>
-              </button>
+          {/* Auto-schedule button (shown in both views) */}
+          <button
+            type="button"
+            className={styles.autoScheduleButtonPrimary}
+            onClick={() => void handleAutoScheduleClick()}
+            disabled={isScheduleLoading || isLoading}
+            title="Auto-schedule work items using Critical Path Method"
+            aria-label="Auto-schedule work items"
+            data-testid="auto-schedule-button"
+          >
+            <AutoScheduleIcon spinning={isScheduleLoading} />
+            <span>Auto-schedule</span>
+          </button>
 
-              {scheduleError !== null && (
-                <span className={styles.scheduleError} role="alert">
-                  {scheduleError}
-                </span>
-              )}
-            </>
+          {scheduleError !== null && (
+            <span className={styles.scheduleError} role="alert">
+              {scheduleError}
+            </span>
           )}
 
           {/* Milestones panel toggle — shown in both views */}
@@ -678,9 +660,6 @@ export function TimelinePage() {
               zoom={zoom}
               onItemClick={handleItemClick}
               showArrows={showArrows}
-              onItemRescheduled={handleItemRescheduled}
-              onItemRescheduleError={handleItemRescheduleError}
-              onUpdateItemDates={updateItemDates}
               onMilestoneClick={() => setShowMilestonePanel(true)}
             />
           )}
@@ -699,6 +678,7 @@ export function TimelinePage() {
       {scheduledItems !== null && (
         <AutoScheduleDialog
           scheduledItems={scheduledItems}
+          titleMap={workItemTitleMap}
           isApplying={isApplyingSchedule}
           applyError={applyError}
           onConfirm={() => void handleApplySchedule()}

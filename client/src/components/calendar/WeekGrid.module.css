@@ -83,7 +83,7 @@
   border-right: 1px solid var(--color-border);
   min-height: 200px;
   background: var(--color-bg-primary);
-  overflow: hidden;
+  overflow: visible;
 }
 
 .dayCell:last-child {
@@ -93,6 +93,37 @@
 /* Today highlight (subtle tint behind items — use the primary-bg token directly) */
 .today {
   background: var(--color-primary-bg);
+}
+
+/* ---- Column size variants ---- */
+
+.grid[data-column-size='compact'] .headerRow,
+.grid[data-column-size='compact'] .daysRow {
+  grid-template-columns: repeat(7, minmax(60px, 1fr));
+}
+
+.grid[data-column-size='compact'] .headerCell {
+  padding: var(--spacing-1) var(--spacing-1);
+}
+
+.grid[data-column-size='compact'] .dayCell {
+  padding: var(--spacing-1);
+  min-height: 120px;
+}
+
+.grid[data-column-size='compact'] .dayNumber {
+  font-size: var(--font-size-sm);
+  width: 28px;
+  height: 28px;
+}
+
+.grid[data-column-size='comfortable'] {
+  overflow-x: auto;
+}
+
+.grid[data-column-size='comfortable'] .headerRow,
+.grid[data-column-size='comfortable'] .daysRow {
+  grid-template-columns: repeat(7, minmax(160px, 1fr));
 }
 
 /* ---- Empty day placeholder ---- */
