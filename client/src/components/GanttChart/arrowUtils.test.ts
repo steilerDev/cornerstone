@@ -14,6 +14,7 @@ import {
   computeArrowhead,
   ARROW_STANDOFF,
   ARROW_MIN_H_SEG,
+  ARROWHEAD_SIZE,
   type BarRect,
 } from './arrowUtils.js';
 import { ROW_HEIGHT, BAR_HEIGHT, BAR_OFFSET_Y } from './ganttUtils.js';
@@ -50,6 +51,10 @@ describe('Constants', () => {
 
   it('ARROW_MIN_H_SEG is 8', () => {
     expect(ARROW_MIN_H_SEG).toBe(8);
+  });
+
+  it('ARROWHEAD_SIZE is 6', () => {
+    expect(ARROWHEAD_SIZE).toBe(6);
   });
 });
 
@@ -144,12 +149,12 @@ describe('computeArrowhead', () => {
 // ---------------------------------------------------------------------------
 
 describe('computeArrowPath — finish_to_start', () => {
-  describe('standard left-to-right path (successor starts after predecessor ends)', () => {
-    // predecessor: x=100, width=80, right edge at 180
+  describe('cross-row standard path (successor starts after predecessor ends)', () => {
+    // predecessor: x=100, width=80, right edge at 180, row 0
     //              exitX = 180 + 12 = 192
-    // successor: x=250, left edge at 250
+    // successor: x=250, left edge at 250, row 1
     //            entryX = 250 - 12 = 238
-    // entryX(238) >= exitX(192) → standard path
+    // entryX(238) >= exitX(192) → standard cross-row 5-segment path
     const pred = makeBar(100, 80, 0);
     const succ = makeBar(250, 100, 1);
 
@@ -174,29 +179,40 @@ describe('computeArrowPath — finish_to_start', () => {
       expect(result.pathD).toMatch(new RegExp(`^M ${exitX}`));
     });
 
-    it('pathD ends at the entry x (successor left - standoff)', () => {
+    it('pathD ends at arrowhead base (tipX - ARROWHEAD_SIZE)', () => {
       const result = computeArrowPath(pred, succ, 'finish_to_start');
-      const entryX = succ.x - ARROW_STANDOFF;
-      expect(result.pathD).toContain(`H ${entryX}`);
+      const arrowBaseX = succ.x - ARROWHEAD_SIZE;
+      expect(result.pathD).toMatch(new RegExp(`H ${arrowBaseX}$`));
     });
 
-    it('pathD is a valid orthogonal path (M ... H ... V ... H ...)', () => {
+    it('cross-row pathD is a valid 5-segment path (M ... V ... H ... V ... H ...)', () => {
       const result = computeArrowPath(pred, succ, 'finish_to_start');
-      expect(result.pathD).toMatch(/^M \d+ \d+ H \d+ V \d+ H \d+$/);
+      expect(result.pathD).toMatch(/^M \d+ \d+ V \d+ H \d+ V \d+ H \d+$/);
     });
 
-    it('same-row bars produce a path from source center to dest center', () => {
+    it('horizontal channel is at the row boundary between pred and succ', () => {
+      const result = computeArrowPath(pred, succ, 'finish_to_start');
+      // Going down: channelY = (pred.rowIndex + 1) * ROW_HEIGHT = 1 * 40 = 40
+      const chY = (pred.rowIndex + 1) * ROW_HEIGHT;
+      expect(result.pathD).toContain(`V ${chY}`);
+    });
+
+    it('same-row bars produce a 3-segment path ending at arrowhead base', () => {
       const pred2 = makeBar(50, 60, 2);
       const succ2 = makeBar(200, 80, 2);
       const result = computeArrowPath(pred2, succ2, 'finish_to_start');
       const centerY = expectedCenterY(2);
       expect(result.tipY).toBe(centerY);
-      // Since same row, V segment should stay at same Y
-      expect(result.pathD).toContain(`V ${centerY}`);
+      // Same row: 3-segment H-V-H path
+      expect(result.pathD).toMatch(/^M \d+ \d+ H \d+ V \d+ H \d+$/);
+      // Ends at arrowhead base
+      const arrowBaseX = succ2.x - ARROWHEAD_SIZE;
+      expect(result.pathD).toMatch(new RegExp(`H ${arrowBaseX}$`));
     });
   });
 
   describe('C-shape path (successor starts before/overlapping predecessor end)', () => {
+    // Cross-row C-shape: predecessor row 0, successor row 1
     // predecessor: x=200, width=150, right edge at 350
     //              exitX = 350 + 12 = 362
     // successor: x=100, left edge at 100
@@ -221,32 +237,29 @@ describe('computeArrowPath — finish_to_start', () => {
       expect(result.pathD).toMatch(new RegExp(`^M ${exitX}`));
     });
 
-    it('C-shape drops past successor bar then enters from the left', () => {
+    it('C-shape cross-row routes through row-boundary gap', () => {
       const result = computeArrowPath(pred, succ, 'finish_to_start');
       const entryX = succ.x - ARROW_STANDOFF;
-      const dstY = expectedCenterY(succ.rowIndex);
-      // C-shape has 5 segments: M exitX srcY H spineX V bypassY H entryX V dstY
-      expect(result.pathD).toMatch(/^M \d+ \d+ H \d+ V \d+ H \d+ V \d+$/);
+      // Cross-row C-shape: M exitX srcY V channelY H entryX V dstY H arrowBaseX
       expect(result.pathD).toContain(`H ${entryX}`);
-      expect(result.pathD).toContain(`V ${dstY}`);
+      // Channel at row boundary
+      const chY = (pred.rowIndex + 1) * ROW_HEIGHT;
+      expect(result.pathD).toContain(`V ${chY}`);
     });
 
-    it('C-shape bypass Y clears successor bar (BAR_HEIGHT/2 + ARROW_STANDOFF)', () => {
+    it('C-shape path ends at arrowhead base', () => {
       const result = computeArrowPath(pred, succ, 'finish_to_start');
-      const dstY = expectedCenterY(succ.rowIndex);
-      // Successor is below predecessor, so bypass goes below (direction = 1)
-      const bypassY = dstY + 1 * (BAR_HEIGHT / 2 + ARROW_STANDOFF);
-      expect(result.pathD).toContain(`V ${bypassY}`);
+      const arrowBaseX = succ.x - ARROWHEAD_SIZE;
+      expect(result.pathD).toMatch(new RegExp(`H ${arrowBaseX}$`));
     });
 
-    it('exactly touching bars (entryX === exitX) takes the standard path', () => {
+    it('exactly touching bars (entryX === exitX) takes the standard cross-row path', () => {
       // Make them exactly touch: succ.x - ARROW_STANDOFF = pred.x + pred.width + ARROW_STANDOFF
-      // pred right + 12 = succ.x - 12  →  succ.x = pred.x + pred.width + 24
       const pred2 = makeBar(100, 80, 0);
       const succ2 = makeBar(204, 60, 1); // 100 + 80 + 24 = 204
       const result = computeArrowPath(pred2, succ2, 'finish_to_start');
-      // entryX = 204 - 12 = 192, exitX = 100 + 80 + 12 = 192 → equal, takes standard path
-      expect(result.pathD).toMatch(/^M \d+ \d+ H \d+ V \d+ H \d+$/);
+      // Cross-row: 5-segment path
+      expect(result.pathD).toMatch(/^M \d+ \d+ V \d+ H \d+ V \d+ H \d+$/);
     });
   });
 
@@ -259,11 +272,20 @@ describe('computeArrowPath — finish_to_start', () => {
       expect(result.tipY).toBe(expectedCenterY(3));
     });
 
-    it('vertical segment in path matches destination row Y', () => {
+    it('path contains vertical segment to destination row Y', () => {
       const pred = makeBar(50, 100, 1);
       const succ = makeBar(300, 80, 4);
       const result = computeArrowPath(pred, succ, 'finish_to_start');
       expect(result.pathD).toContain(`V ${expectedCenterY(4)}`);
+    });
+
+    it('upward cross-row uses boundary above predecessor', () => {
+      const pred = makeBar(50, 100, 3);
+      const succ = makeBar(300, 80, 0);
+      const result = computeArrowPath(pred, succ, 'finish_to_start');
+      // Going up: channelY = pred.rowIndex * ROW_HEIGHT = 3 * 40 = 120
+      const chY = pred.rowIndex * ROW_HEIGHT;
+      expect(result.pathD).toContain(`V ${chY}`);
     });
   });
 });
@@ -273,12 +295,7 @@ describe('computeArrowPath — finish_to_start', () => {
 // ---------------------------------------------------------------------------
 
 describe('computeArrowPath — start_to_start', () => {
-  describe('normal case: predecessor starts before successor', () => {
-    // predecessor: x=100, width=80, left edge at 100
-    //              predExitX = 100 - 12 = 88
-    // successor: x=200, left edge at 200
-    //            succExitX = 200 - 12 = 188
-    // spineX = min(88, 188) = 88
+  describe('cross-row case: predecessor starts before successor', () => {
     const pred = makeBar(100, 80, 0);
     const succ = makeBar(200, 60, 1);
 
@@ -308,16 +325,24 @@ describe('computeArrowPath — start_to_start', () => {
       expect(result.pathD).toMatch(new RegExp(`^M ${pred.x}`));
     });
 
-    it('pathD ends at successor left edge', () => {
+    it('pathD ends at arrowhead base (tipX - ARROWHEAD_SIZE)', () => {
       const result = computeArrowPath(pred, succ, 'start_to_start');
-      expect(result.pathD).toMatch(new RegExp(`H ${succ.x}$`));
+      const arrowBaseX = succ.x - ARROWHEAD_SIZE;
+      expect(result.pathD).toMatch(new RegExp(`H ${arrowBaseX}$`));
+    });
+
+    it('same-row SS path ends at arrowhead base', () => {
+      const pred2 = makeBar(100, 80, 2);
+      const succ2 = makeBar(200, 60, 2);
+      const result = computeArrowPath(pred2, succ2, 'start_to_start');
+      const arrowBaseX = succ2.x - ARROWHEAD_SIZE;
+      expect(result.pathD).toMatch(new RegExp(`H ${arrowBaseX}$`));
+      // Same-row: 3-segment format
+      expect(result.pathD).toMatch(/^M \d+ \d+ H [-\d.]+ V \d+ H \d+$/);
     });
   });
 
   describe('inverted case: successor starts before predecessor', () => {
-    // predecessor: x=300, succExitX = 300-12=288
-    // successor: x=100, predExitX = 100-12=88
-    // spineX = min(288, 88) = 88
     const pred = makeBar(300, 80, 0);
     const succ = makeBar(100, 60, 1);
 
@@ -338,7 +363,6 @@ describe('computeArrowPath — start_to_start', () => {
       const pred = makeBar(150, 80, 0);
       const succ = makeBar(150, 60, 1);
       const result = computeArrowPath(pred, succ, 'start_to_start');
-      // Both exits are the same, spineX = 150 - 12 = 138
       const spineX = 150 - ARROW_STANDOFF;
       expect(result.pathD).toContain(`H ${spineX}`);
     });
@@ -350,12 +374,7 @@ describe('computeArrowPath — start_to_start', () => {
 // ---------------------------------------------------------------------------
 
 describe('computeArrowPath — finish_to_finish', () => {
-  describe('normal case: predecessor ends before successor', () => {
-    // predecessor: x=50, width=100, right edge at 150
-    //              predExitX = 150 + 12 = 162
-    // successor: x=200, width=150, right edge at 350
-    //            succExitX = 350 + 12 = 362
-    // spineX = max(162, 362) = 362
+  describe('cross-row case: predecessor ends before successor', () => {
     const pred = makeBar(50, 100, 0);
     const succ = makeBar(200, 150, 1);
 
@@ -385,16 +404,22 @@ describe('computeArrowPath — finish_to_finish', () => {
       expect(result.pathD).toMatch(new RegExp(`^M ${pred.x + pred.width}`));
     });
 
-    it('pathD ends at successor right edge', () => {
+    it('pathD ends at arrowhead base (tipX + ARROWHEAD_SIZE for left-pointing)', () => {
       const result = computeArrowPath(pred, succ, 'finish_to_finish');
-      expect(result.pathD).toMatch(new RegExp(`H ${succ.x + succ.width}$`));
+      const arrowBaseX = succ.x + succ.width + ARROWHEAD_SIZE;
+      expect(result.pathD).toMatch(new RegExp(`H ${arrowBaseX}$`));
+    });
+
+    it('same-row FF path ends at arrowhead base', () => {
+      const pred2 = makeBar(50, 100, 2);
+      const succ2 = makeBar(200, 150, 2);
+      const result = computeArrowPath(pred2, succ2, 'finish_to_finish');
+      const arrowBaseX = succ2.x + succ2.width + ARROWHEAD_SIZE;
+      expect(result.pathD).toMatch(new RegExp(`H ${arrowBaseX}$`));
     });
   });
 
   describe('inverted case: successor ends before predecessor', () => {
-    // predecessor: x=300, width=200, right at 500; predExitX=512
-    // successor: x=50, width=100, right at 150; succExitX=162
-    // spineX = max(512, 162) = 512
     const pred = makeBar(300, 200, 0);
     const succ = makeBar(50, 100, 1);
 
@@ -412,7 +437,6 @@ describe('computeArrowPath — finish_to_finish', () => {
 
   describe('equal right edges', () => {
     it('handles bars ending at the same x (spine = either exit)', () => {
-      // Both right edges at 200; predExitX = succExitX = 212
       const pred = makeBar(100, 100, 0);
       const succ = makeBar(50, 150, 1);
       const result = computeArrowPath(pred, succ, 'finish_to_finish');
@@ -430,12 +454,7 @@ describe('computeArrowPath — finish_to_finish', () => {
 // ---------------------------------------------------------------------------
 
 describe('computeArrowPath — start_to_finish', () => {
-  describe('standard right-to-left path (entryX <= exitX)', () => {
-    // predecessor: x=300, width=80
-    //              exitX = 300 - 12 = 288
-    // successor: x=50, width=100, right edge at 150
-    //            entryX = 150 + 12 = 162
-    // entryX(162) <= exitX(288) → standard path
+  describe('cross-row standard path (entryX <= exitX)', () => {
     const pred = makeBar(300, 80, 0);
     const succ = makeBar(50, 100, 1);
 
@@ -460,24 +479,29 @@ describe('computeArrowPath — start_to_finish', () => {
       expect(result.pathD).toMatch(new RegExp(`^M ${exitX}`));
     });
 
-    it('pathD ends at entry x (successor right + standoff)', () => {
+    it('pathD ends at arrowhead base (tipX + ARROWHEAD_SIZE for left-pointing)', () => {
       const result = computeArrowPath(pred, succ, 'start_to_finish');
-      const entryX = succ.x + succ.width + ARROW_STANDOFF;
-      expect(result.pathD).toContain(`H ${entryX}`);
+      const arrowBaseX = succ.x + succ.width + ARROWHEAD_SIZE;
+      expect(result.pathD).toMatch(new RegExp(`H ${arrowBaseX}$`));
     });
 
-    it('pathD is valid orthogonal format', () => {
+    it('cross-row SF path routes through row-boundary gap', () => {
       const result = computeArrowPath(pred, succ, 'start_to_finish');
-      expect(result.pathD).toMatch(/^M \d+ \d+ H \d+ V \d+ H \d+$/);
+      // Going down: channelY = (pred.rowIndex + 1) * ROW_HEIGHT = 40
+      const chY = (pred.rowIndex + 1) * ROW_HEIGHT;
+      expect(result.pathD).toContain(`V ${chY}`);
+    });
+
+    it('same-row SF standard path is 3-segment format', () => {
+      const pred2 = makeBar(300, 80, 2);
+      const succ2 = makeBar(50, 100, 2);
+      const result = computeArrowPath(pred2, succ2, 'start_to_finish');
+      const arrowBaseX = succ2.x + succ2.width + ARROWHEAD_SIZE;
+      expect(result.pathD).toMatch(new RegExp(`H ${arrowBaseX}$`));
     });
   });
 
   describe('U-turn path (entryX > exitX)', () => {
-    // predecessor: x=50, width=80
-    //              exitX = 50 - 12 = 38
-    // successor: x=200, width=100, right at 300
-    //            entryX = 300 + 12 = 312
-    // entryX(312) > exitX(38) → U-turn
     const pred = makeBar(50, 80, 0);
     const succ = makeBar(200, 100, 1);
 
@@ -503,25 +527,22 @@ describe('computeArrowPath — start_to_finish', () => {
       expect(result.pathD).toContain(`H ${loopX}`);
     });
 
-    it('U-turn ends at the entry x (successor right + standoff)', () => {
+    it('U-turn path ends at arrowhead base', () => {
       const result = computeArrowPath(pred, succ, 'start_to_finish');
-      const entryX = succ.x + succ.width + ARROW_STANDOFF;
-      expect(result.pathD).toContain(`H ${entryX}`);
+      const arrowBaseX = succ.x + succ.width + ARROWHEAD_SIZE;
+      expect(result.pathD).toMatch(new RegExp(`H ${arrowBaseX}$`));
     });
   });
 
   describe('boundary: entryX exactly equals exitX (standard path taken)', () => {
-    // exitX = pred.x - ARROW_STANDOFF
-    // entryX = succ.x + succ.width + ARROW_STANDOFF
-    // For equality: pred.x - 12 = succ.x + succ.width + 12
-    //   pred.x = succ.x + succ.width + 24
-    // pred: x=174, width=80; succ: x=50, width=100 → pred.x = 50+100+24 = 174 ✓
     const pred = makeBar(174, 80, 0);
     const succ = makeBar(50, 100, 1);
 
-    it('exactly equal takes standard (non-U-turn) path', () => {
+    it('exactly equal takes cross-row standard path', () => {
       const result = computeArrowPath(pred, succ, 'start_to_finish');
-      expect(result.pathD).toMatch(/^M \d+ \d+ H \d+ V \d+ H \d+$/);
+      // Cross-row: 5-segment path through row-boundary
+      const arrowBaseX = succ.x + succ.width + ARROWHEAD_SIZE;
+      expect(result.pathD).toMatch(new RegExp(`H ${arrowBaseX}$`));
     });
   });
 });
@@ -636,8 +657,9 @@ describe('Edge cases', () => {
     const succ = makeBar(300, 80, 0);
     const result = computeArrowPath(pred, succ, 'finish_to_start');
     expect(result.tipY).toBe(expectedCenterY(0));
-    // With same row, V segment should be to the same Y
-    expect(result.pathD).toContain(`V ${expectedCenterY(0)}`);
+    // Same row: 3-segment path ending at arrowhead base
+    const arrowBaseX = succ.x - ARROWHEAD_SIZE;
+    expect(result.pathD).toMatch(new RegExp(`H ${arrowBaseX}$`));
   });
 
   it('very large row indices do not cause overflow', () => {
