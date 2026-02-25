@@ -8,7 +8,11 @@ import type {
   WorkItemSummary,
   WorkItemDependentSummary,
 } from '@cornerstone/shared';
-import { getMilestone, addDependentWorkItem, removeDependentWorkItem } from '../../lib/milestonesApi.js';
+import {
+  getMilestone,
+  addDependentWorkItem,
+  removeDependentWorkItem,
+} from '../../lib/milestonesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import type { UseMilestonesResult } from '../../hooks/useMilestones.js';
 import { MilestoneForm } from './MilestoneForm.js';

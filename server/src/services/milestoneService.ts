@@ -520,11 +520,7 @@ export function addDependentWorkItem(
  *
  * @throws NotFoundError if milestone, work item, or the dependency does not exist
  */
-export function removeDependentWorkItem(
-  db: DbType,
-  milestoneId: number,
-  workItemId: string,
-): void {
+export function removeDependentWorkItem(db: DbType, milestoneId: number, workItemId: string): void {
   // Verify milestone exists
   const milestone = db.select().from(milestones).where(eq(milestones.id, milestoneId)).get();
   if (!milestone) {
