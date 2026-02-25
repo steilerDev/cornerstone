@@ -8,13 +8,37 @@
  * properties that don't rely on color resolution.
  * ============================================================ */
 
+/* Arrow group — captures hover events for the whole arrow */
+.arrowGroup {
+  pointer-events: stroke;
+  cursor: default;
+  transition: opacity var(--transition-normal);
+}
+
+.arrowGroup:hover {
+  opacity: 1 !important;
+}
+
+/* Invisible wider hit-area path for easier hover targeting */
+.arrowHitArea {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 12;
+  pointer-events: stroke;
+}
+
 /* Default (non-critical) connector path */
 .arrowDefault {
   fill: none;
   stroke-linecap: round;
   stroke-linejoin: round;
-  /* Smooth in/out when arrows are toggled */
-  transition: opacity var(--transition-normal);
+  transition:
+    opacity var(--transition-normal),
+    stroke-width var(--transition-fast);
+}
+
+.arrowGroup:hover .arrowDefault {
+  stroke-width: 2.5;
 }
 
 /* Critical path connector path */
@@ -22,7 +46,13 @@
   fill: none;
   stroke-linecap: round;
   stroke-linejoin: round;
-  transition: opacity var(--transition-normal);
+  transition:
+    opacity var(--transition-normal),
+    stroke-width var(--transition-fast);
+}
+
+.arrowGroup:hover .arrowCritical {
+  stroke-width: 3;
 }
 
 /* Default arrowhead */
@@ -40,10 +70,25 @@
   fill: none;
   stroke-linecap: round;
   stroke-linejoin: round;
-  transition: opacity var(--transition-normal);
+  transition:
+    opacity var(--transition-normal),
+    stroke-width var(--transition-fast);
+}
+
+.arrowGroup:hover .arrowMilestone {
+  stroke-width: 2.5;
 }
 
 /* Milestone linkage arrowhead */
 .arrowheadMilestone {
+  transition: opacity var(--transition-normal);
+}
+
+/* Dotted critical path connection (no explicit dependency) */
+.arrowDotted {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 4 4;
   transition: opacity var(--transition-normal);
 }

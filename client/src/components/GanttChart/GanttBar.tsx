@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import type { MouseEvent as ReactMouseEvent, KeyboardEvent as ReactKeyboardEvent } from 'react';
 import type { WorkItemStatus } from '@cornerstone/shared';
-import { BAR_HEIGHT, BAR_OFFSET_Y, ROW_HEIGHT, TEXT_LABEL_MIN_WIDTH } from './ganttUtils.js';
+import { BAR_HEIGHT, BAR_OFFSET_Y, ROW_HEIGHT } from './ganttUtils.js';
 import styles from './GanttBar.module.css';
 
 export interface GanttBarProps {
@@ -73,7 +73,6 @@ export const GanttBar = memo(function GanttBar({
 }: GanttBarProps) {
   const rowY = rowIndex * ROW_HEIGHT;
   const barY = rowY + BAR_OFFSET_Y;
-  const clipId = `bar-clip-${id}`;
   const statusLabel = STATUS_LABELS[status];
 
   // Build a descriptive aria-label including dates when available
@@ -81,10 +80,6 @@ export const GanttBar = memo(function GanttBar({
     startDate && endDate ? `, ${startDate} to ${endDate}` : startDate ? `, from ${startDate}` : '';
   const criticalSuffix = isCritical ? ', critical path' : '';
   const ariaLabel = `Work item: ${title}, ${statusLabel}${dateRange}${criticalSuffix}`;
-
-  // Whether to show the text label
-  const showLabel = width >= TEXT_LABEL_MIN_WIDTH;
-  const textY = rowY + ROW_HEIGHT / 2;
 
   function handleClick() {
     onClick?.(id);
@@ -112,11 +107,6 @@ export const GanttBar = memo(function GanttBar({
       data-testid={`gantt-bar-${id}`}
       style={{ cursor: 'pointer' }}
     >
-      {/* Clip path to constrain text within bar bounds */}
-      <clipPath id={clipId}>
-        <rect x={x} y={barY} width={width} height={BAR_HEIGHT} rx={4} />
-      </clipPath>
-
       {/* Bar rectangle */}
       <rect
         x={x}
@@ -125,35 +115,10 @@ export const GanttBar = memo(function GanttBar({
         height={BAR_HEIGHT}
         rx={4}
         fill={fill}
+        stroke={isCritical && criticalBorderColor ? criticalBorderColor : undefined}
+        strokeWidth={isCritical && criticalBorderColor ? 2 : undefined}
         className={styles.rect}
       />
-
-      {/* Critical path left accent stripe */}
-      {isCritical && criticalBorderColor && (
-        <rect
-          x={x}
-          y={barY}
-          width={3}
-          height={BAR_HEIGHT}
-          fill={criticalBorderColor}
-          clipPath={`url(#${clipId})`}
-          className={styles.criticalOverlay}
-          aria-hidden="true"
-        />
-      )}
-
-      {/* Text label inside bar (only when wide enough) */}
-      {showLabel && (
-        <text
-          x={x + 8}
-          y={textY}
-          dominantBaseline="central"
-          clipPath={`url(#${clipId})`}
-          className={styles.label}
-        >
-          {title}
-        </text>
-      )}
     </g>
   );
 });

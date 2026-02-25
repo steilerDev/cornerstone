@@ -497,6 +497,7 @@ export function GanttChart({
             <GanttArrows
               dependencies={data.dependencies}
               criticalPathSet={criticalPathSet}
+              criticalPathOrder={highlightCriticalPath ? data.criticalPath : []}
               barRects={barRects}
               workItemTitles={workItemTitles}
               colors={arrowColors}

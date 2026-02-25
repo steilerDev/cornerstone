@@ -173,10 +173,10 @@ describe('computeArrowPath — finish_to_start', () => {
       expect(result.tipY).toBe(expectedCenterY(succ.rowIndex));
     });
 
-    it('pathD starts at M with exit x (right edge + standoff)', () => {
+    it('pathD starts at M with bar right edge (not standoff)', () => {
       const result = computeArrowPath(pred, succ, 'finish_to_start');
-      const exitX = pred.x + pred.width + ARROW_STANDOFF;
-      expect(result.pathD).toMatch(new RegExp(`^M ${exitX}`));
+      const predRightEdge = pred.x + pred.width;
+      expect(result.pathD).toMatch(new RegExp(`^M ${predRightEdge}`));
     });
 
     it('pathD ends at arrowhead base (tipX - ARROWHEAD_SIZE)', () => {
@@ -185,9 +185,9 @@ describe('computeArrowPath — finish_to_start', () => {
       expect(result.pathD).toMatch(new RegExp(`H ${arrowBaseX}$`));
     });
 
-    it('cross-row pathD is a valid 5-segment path (M ... V ... H ... V ... H ...)', () => {
+    it('cross-row pathD is a valid 5-segment path (M ... H ... V ... H ... V ... H ...)', () => {
       const result = computeArrowPath(pred, succ, 'finish_to_start');
-      expect(result.pathD).toMatch(/^M \d+ \d+ V \d+ H \d+ V \d+ H \d+$/);
+      expect(result.pathD).toMatch(/^M \d+ \d+ H \d+ V \d+ H \d+ V \d+ H \d+$/);
     });
 
     it('horizontal channel is at the row boundary between pred and succ', () => {
@@ -231,10 +231,10 @@ describe('computeArrowPath — finish_to_start', () => {
       expect(result.tipX).toBe(succ.x);
     });
 
-    it('C-shape pathD starts at M with exit x (right edge + standoff)', () => {
+    it('C-shape pathD starts at M with bar right edge', () => {
       const result = computeArrowPath(pred, succ, 'finish_to_start');
-      const exitX = pred.x + pred.width + ARROW_STANDOFF;
-      expect(result.pathD).toMatch(new RegExp(`^M ${exitX}`));
+      const predRightEdge = pred.x + pred.width;
+      expect(result.pathD).toMatch(new RegExp(`^M ${predRightEdge}`));
     });
 
     it('C-shape cross-row routes through row-boundary gap', () => {
@@ -258,8 +258,8 @@ describe('computeArrowPath — finish_to_start', () => {
       const pred2 = makeBar(100, 80, 0);
       const succ2 = makeBar(204, 60, 1); // 100 + 80 + 24 = 204
       const result = computeArrowPath(pred2, succ2, 'finish_to_start');
-      // Cross-row: 5-segment path
-      expect(result.pathD).toMatch(/^M \d+ \d+ V \d+ H \d+ V \d+ H \d+$/);
+      // Cross-row: 5-segment path (H-V-H-V-H)
+      expect(result.pathD).toMatch(/^M \d+ \d+ H \d+ V \d+ H \d+ V \d+ H \d+$/);
     });
   });
 
@@ -473,10 +473,9 @@ describe('computeArrowPath — start_to_finish', () => {
       expect(result.tipY).toBe(expectedCenterY(succ.rowIndex));
     });
 
-    it('pathD starts at M with exit x (predecessor left - standoff)', () => {
+    it('pathD starts at M with predecessor left edge', () => {
       const result = computeArrowPath(pred, succ, 'start_to_finish');
-      const exitX = pred.x - ARROW_STANDOFF;
-      expect(result.pathD).toMatch(new RegExp(`^M ${exitX}`));
+      expect(result.pathD).toMatch(new RegExp(`^M ${pred.x}`));
     });
 
     it('pathD ends at arrowhead base (tipX + ARROWHEAD_SIZE for left-pointing)', () => {

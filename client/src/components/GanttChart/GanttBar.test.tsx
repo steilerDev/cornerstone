@@ -7,7 +7,7 @@
 import { jest, describe, it, expect } from '@jest/globals';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { GanttBar } from './GanttBar.js';
-import { BAR_HEIGHT, BAR_OFFSET_Y, ROW_HEIGHT, TEXT_LABEL_MIN_WIDTH } from './ganttUtils.js';
+import { BAR_HEIGHT, BAR_OFFSET_Y, ROW_HEIGHT } from './ganttUtils.js';
 import type { WorkItemStatus } from '@cornerstone/shared';
 
 // CSS modules mocked via identity-obj-proxy
@@ -48,9 +48,6 @@ describe('GanttBar', () => {
 
   it('sets bar rect x attribute correctly', () => {
     const { container } = renderInSvg({ ...DEFAULT_PROPS, x: 150 });
-    // There are two rects: one for clip path, one for the bar itself
-    const rects = container.querySelectorAll('rect');
-    // The visible bar rect has class 'rect' (via CSS module)
     const barRect = container.querySelector('rect.rect');
     expect(barRect).toHaveAttribute('x', '150');
   });
@@ -84,65 +81,6 @@ describe('GanttBar', () => {
     const { container } = renderInSvg(DEFAULT_PROPS);
     const barRect = container.querySelector('rect.rect');
     expect(barRect).toHaveAttribute('rx', '4');
-  });
-
-  // ── Text label ─────────────────────────────────────────────────────────────
-
-  it('shows text label when width >= TEXT_LABEL_MIN_WIDTH', () => {
-    const { container } = renderInSvg({
-      ...DEFAULT_PROPS,
-      width: TEXT_LABEL_MIN_WIDTH,
-      title: 'Foundation Work',
-    });
-    const text = container.querySelector('text');
-    expect(text).toBeInTheDocument();
-    expect(text!.textContent).toBe('Foundation Work');
-  });
-
-  it('hides text label when width < TEXT_LABEL_MIN_WIDTH', () => {
-    const { container } = renderInSvg({
-      ...DEFAULT_PROPS,
-      width: TEXT_LABEL_MIN_WIDTH - 1,
-      title: 'Foundation Work',
-    });
-    const text = container.querySelector('text');
-    expect(text).not.toBeInTheDocument();
-  });
-
-  it('text label x is bar x + 8 (padding)', () => {
-    const barX = 80;
-    const { container } = renderInSvg({ ...DEFAULT_PROPS, x: barX, width: 120 });
-    const text = container.querySelector('text');
-    expect(text).toHaveAttribute('x', String(barX + 8));
-  });
-
-  it('text label y is centered in the row', () => {
-    const rowIndex = 1;
-    const expectedTextY = rowIndex * ROW_HEIGHT + ROW_HEIGHT / 2;
-    const { container } = renderInSvg({ ...DEFAULT_PROPS, rowIndex, width: 120 });
-    const text = container.querySelector('text');
-    expect(text).toHaveAttribute('y', String(expectedTextY));
-  });
-
-  it('text label uses dominantBaseline="central" for vertical centering', () => {
-    const { container } = renderInSvg({ ...DEFAULT_PROPS, width: 120 });
-    const text = container.querySelector('text');
-    expect(text).toHaveAttribute('dominant-baseline', 'central');
-  });
-
-  // ── Clip path ──────────────────────────────────────────────────────────────
-
-  it('renders a clipPath element with correct id', () => {
-    const { container } = renderInSvg({ ...DEFAULT_PROPS, id: 'my-item' });
-    const clipPath = container.querySelector('clipPath');
-    expect(clipPath).toBeInTheDocument();
-    expect(clipPath).toHaveAttribute('id', 'bar-clip-my-item');
-  });
-
-  it('text element references the clip path', () => {
-    const { container } = renderInSvg({ ...DEFAULT_PROPS, id: 'clip-test', width: 120 });
-    const text = container.querySelector('text');
-    expect(text).toHaveAttribute('clip-path', 'url(#bar-clip-clip-test)');
   });
 
   // ── Accessibility ──────────────────────────────────────────────────────────

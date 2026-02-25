@@ -122,6 +122,8 @@ function computeFSArrow(predecessor: BarRect, successor: BarRect, arrowIndex: nu
 
   const sameRow = predecessor.rowIndex === successor.rowIndex;
 
+  const predRightEdge = predecessor.x + predecessor.width;
+
   if (entryX >= exitX) {
     if (sameRow) {
       // Same-row: simple 3-segment path
@@ -133,11 +135,10 @@ function computeFSArrow(predecessor: BarRect, successor: BarRect, arrowIndex: nu
         tipDirection: 'right',
       };
     }
-    // Cross-row standard: 5-segment path through row-boundary gap
+    // Cross-row standard: 5-segment path (H-V-H-V-H) through row-boundary gap
     const chY = channelY(predecessor.rowIndex, successor.rowIndex);
-    const spineX = entryX - stagger;
     return {
-      pathD: `M ${exitX} ${srcY} V ${chY} H ${spineX} V ${dstY} H ${arrowBaseX}`,
+      pathD: `M ${predRightEdge} ${srcY} H ${exitX + stagger} V ${chY} H ${entryX} V ${dstY} H ${arrowBaseX}`,
       tipX,
       tipY,
       tipDirection: 'right',
@@ -152,8 +153,9 @@ function computeFSArrow(predecessor: BarRect, successor: BarRect, arrowIndex: nu
     const pathD = `M ${exitX} ${srcY} H ${spineX} V ${bypassY} H ${entryX} V ${dstY} H ${arrowBaseX}`;
     return { pathD, tipX, tipY, tipDirection: 'right' };
   }
+  // Cross-row C-shape: 5-segment path (H-V-H-V-H) through row-boundary gap
   const chY = channelY(predecessor.rowIndex, successor.rowIndex);
-  const pathD = `M ${exitX} ${srcY} V ${chY} H ${entryX} V ${dstY} H ${arrowBaseX}`;
+  const pathD = `M ${predRightEdge} ${srcY} H ${spineX} V ${chY} H ${entryX} V ${dstY} H ${arrowBaseX}`;
   return { pathD, tipX, tipY, tipDirection: 'right' };
 }
 
@@ -259,10 +261,10 @@ function computeSFArrow(predecessor: BarRect, successor: BarRect): ArrowPath {
         tipDirection: 'left',
       };
     }
-    // Cross-row: 5-segment path through row-boundary gap
+    // Cross-row: 5-segment path (H-V-H-V-H) through row-boundary gap
     const chY = channelY(predecessor.rowIndex, successor.rowIndex);
     return {
-      pathD: `M ${exitX} ${srcY} V ${chY} H ${entryX} V ${dstY} H ${arrowBaseX}`,
+      pathD: `M ${predecessor.x} ${srcY} H ${exitX} V ${chY} H ${entryX} V ${dstY} H ${arrowBaseX}`,
       tipX,
       tipY,
       tipDirection: 'left',
