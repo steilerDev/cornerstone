@@ -415,9 +415,19 @@ export function schedule(params: ScheduleParams): ScheduleResult {
     const preds = predecessorDepsOf.get(id)!;
     let es: string;
 
+    // Whether this item is a root node (no predecessors) with a non-completed status.
+    // Used below to determine whether to preserve explicit user-set dates.
+    let isNonCompletedRoot = false;
+
     if (preds.length === 0) {
-      // No predecessors within the scheduled set: start from today
-      es = today;
+      // No predecessors within the scheduled set.
+      // For non-completed items: use the item's existing startDate as the base when
+      // explicitly set, so that auto-reschedule does not override user-set dates.
+      // For completed items: always compute from today so that already_completed
+      // warnings correctly detect when historical dates would differ from CPM dates.
+      // Fall back to today when no explicit startDate is set.
+      isNonCompletedRoot = item.status !== 'completed';
+      es = isNonCompletedRoot && item.startDate != null ? item.startDate : today;
     } else {
       // ES = max of all predecessor-derived ES constraints
       let maxEs = '0001-01-01'; // Sentinel: earliest possible date
@@ -434,7 +444,17 @@ export function schedule(params: ScheduleParams): ScheduleResult {
       es = maxDate(es, item.startAfter);
     }
 
-    const ef = addDays(es, duration);
+    // Compute EF from ES + duration.
+    // Exception: for non-completed root nodes with an explicit endDate, use that
+    // endDate as EF to preserve user-set dates when duration is unset or implicit.
+    // This prevents auto-reschedule from overwriting an explicit endDate with es+0
+    // when durationDays is null.
+    let ef: string;
+    if (isNonCompletedRoot && item.endDate != null && item.endDate >= es) {
+      ef = item.endDate;
+    } else {
+      ef = addDays(es, duration);
+    }
 
     nodes.set(id, {
       item,
