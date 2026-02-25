@@ -345,9 +345,6 @@ describe('WorkItemDetailPage', () => {
       });
 
       // startDate '2024-01-01' should appear as formatted text, not an input
-      // The date input with name/label 'Start Date' must not exist
-      const startDateInputs = document.querySelectorAll('input[type="date"]');
-      // None of the date inputs should be the schedule start date
       // (Constraints section has startAfter/startBefore date inputs, not startDate/endDate)
       const startDateLabel = screen.getByText('Start Date');
       // The sibling/nearby element should be a span, not an input

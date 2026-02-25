@@ -8,6 +8,8 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
+import type * as MilestoneFormTypes from './MilestoneForm.js';
+import type { MilestoneSummary } from '@cornerstone/shared';
 
 // Mock workItemsApi before dynamic import of MilestoneForm (which imports WorkItemSelector)
 const mockListWorkItems = jest.fn<typeof WorkItemsApiTypes.listWorkItems>();
@@ -23,10 +25,8 @@ jest.unstable_mockModule('../../lib/workItemsApi.js', () => ({
   unlinkWorkItemSubsidy: jest.fn(),
 }));
 
-// Dynamic import after mock
-let MilestoneForm: (typeof import('./MilestoneForm.js'))['MilestoneForm'];
-
-import type { MilestoneSummary } from '@cornerstone/shared';
+// MilestoneForm is dynamically imported after the mock is set up
+let MilestoneForm: (typeof MilestoneFormTypes)['MilestoneForm'];
 
 // ---------------------------------------------------------------------------
 // Fixtures

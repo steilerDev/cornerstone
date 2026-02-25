@@ -6,7 +6,7 @@ import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
 import * as milestoneService from './milestoneService.js';
 import { NotFoundError, ValidationError, ConflictError } from '../errors/AppError.js';
-import type { CreateMilestoneRequest, UpdateMilestoneRequest } from '@cornerstone/shared';
+import type { CreateMilestoneRequest } from '@cornerstone/shared';
 
 describe('Milestone Service', () => {
   let sqlite: Database.Database;
