@@ -12,7 +12,7 @@
  */
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-import type { WorkItemSummary, PaginationMeta } from '@cornerstone/shared';
+import type { WorkItemSummary, WorkItemDependentSummary, PaginationMeta } from '@cornerstone/shared';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -70,9 +70,12 @@ describe('MilestoneWorkItemLinker', () => {
   let MilestoneWorkItemLinker: React.ComponentType<{
     milestoneId: number;
     linkedWorkItems: WorkItemSummary[];
+    dependentWorkItems?: WorkItemDependentSummary[];
     isLinking: boolean;
     onLink: (id: string) => void;
     onUnlink: (id: string) => void;
+    onLinkDependent: (id: string) => void;
+    onUnlinkDependent: (id: string) => void;
     onBack: () => void;
   }>;
 
@@ -115,22 +118,30 @@ describe('MilestoneWorkItemLinker', () => {
     overrides: {
       milestoneId?: number;
       linkedWorkItems?: WorkItemSummary[];
+      dependentWorkItems?: WorkItemSummary[];
       isLinking?: boolean;
       onLink?: jest.Mock;
       onUnlink?: jest.Mock;
+      onLinkDependent?: jest.Mock;
+      onUnlinkDependent?: jest.Mock;
       onBack?: jest.Mock;
     } = {},
   ) {
     const onLink = overrides.onLink ?? jest.fn();
     const onUnlink = overrides.onUnlink ?? jest.fn();
+    const onLinkDependent = overrides.onLinkDependent ?? jest.fn();
+    const onUnlinkDependent = overrides.onUnlinkDependent ?? jest.fn();
     const onBack = overrides.onBack ?? jest.fn();
     return render(
       <MilestoneWorkItemLinker
         milestoneId={overrides.milestoneId ?? 1}
         linkedWorkItems={overrides.linkedWorkItems ?? []}
+        dependentWorkItems={overrides.dependentWorkItems ?? []}
         isLinking={overrides.isLinking ?? false}
         onLink={onLink}
         onUnlink={onUnlink}
+        onLinkDependent={onLinkDependent}
+        onUnlinkDependent={onUnlinkDependent}
         onBack={onBack}
       />,
     );
