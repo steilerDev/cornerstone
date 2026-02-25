@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import type { WorkItemSummary, WorkItemStatus } from '@cornerstone/shared';
 import { listWorkItems } from '../../lib/workItemsApi.js';
-import { StatusBadge } from '../StatusBadge/StatusBadge.js';
+
 import styles from './WorkItemPicker.module.css';
 
 /** Maps work item status values to their CSS custom property for the left-border color. */
@@ -276,7 +276,6 @@ export function WorkItemPicker({
                 onClick={() => handleSelect(item)}
               >
                 <span className={styles.resultTitle}>{item.title}</span>
-                <StatusBadge status={item.status} />
               </button>
             ))}
 
