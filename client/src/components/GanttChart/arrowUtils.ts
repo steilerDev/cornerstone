@@ -90,7 +90,13 @@ function buildOrthoPath(srcX: number, srcY: number, dstX: number, dstY: number):
  * Routing: right edge of predecessor → (standoff right) →
  *          vertical → (standoff left of successor) → left edge of successor
  *
- * When successor starts before predecessor ends, a U-turn is inserted.
+ * Standard case (entryX >= exitX): horizontal-first L-shape routing —
+ * the arrow exits the predecessor, travels right to a spine near the successor
+ * entry point, drops vertically, then enters the successor from the left.
+ *
+ * Adjacent/overlap case (entryX < exitX): C-shape routing — the arrow exits
+ * the predecessor right, drops past the successor bar, goes left to the entry
+ * point, then comes back up (or down) to the successor row center.
  *
  * @param arrowIndex Index of this arrow among all rendered arrows, used to
  *   apply a horizontal stagger offset to the vertical spine so parallel arrows
@@ -109,21 +115,21 @@ function computeFSArrow(predecessor: BarRect, successor: BarRect, arrowIndex: nu
   const tipY = dstY;
 
   if (entryX >= exitX) {
-    // Standard left-to-right path: apply stagger to the midpoint vertical spine
-    const baseMidX = exitX + Math.max((entryX - exitX) / 2, ARROW_MIN_H_SEG);
-    const midX = baseMidX + stagger;
+    // Standard case: horizontal-first L-shape — spine placed near the entry point
+    const spineX = entryX - stagger;
     return {
-      pathD: `M ${exitX} ${srcY} H ${midX} V ${dstY} H ${entryX}`,
+      pathD: `M ${exitX} ${srcY} H ${spineX} V ${dstY} H ${entryX}`,
       tipX,
       tipY,
       tipDirection: 'right',
     };
   }
 
-  // U-turn: loop out to the right, then come back in from the left
-  // Apply stagger to push the loop spine further right for each arrow
-  const loopX = exitX + ARROW_MIN_H_SEG + stagger;
-  const pathD = `M ${exitX} ${srcY} H ${loopX} V ${dstY} H ${entryX}`;
+  // C-shape: exit right, drop past successor bar, go left to entry, come up to row center
+  const spineX = exitX + stagger;
+  const direction = dstY >= srcY ? 1 : -1;
+  const bypassY = dstY + direction * (BAR_HEIGHT / 2 + ARROW_STANDOFF);
+  const pathD = `M ${exitX} ${srcY} H ${spineX} V ${bypassY} H ${entryX} V ${dstY}`;
   return { pathD, tipX, tipY, tipDirection: 'right' };
 }
 
