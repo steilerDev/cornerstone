@@ -63,10 +63,6 @@ export class TimelinePage {
   readonly calendarViewButton: Locator;
   /** Milestones panel open button. */
   readonly milestonePanelButton: Locator;
-  /** Milestone filter dropdown trigger button. */
-  readonly milestoneFilterButton: Locator;
-  /** Milestone filter dropdown list. */
-  readonly milestoneFilterDropdown: Locator;
 
   // ── Chart area states ──────────────────────────────────────────────────────
   /** Gantt chart container. */
@@ -139,8 +135,6 @@ export class TimelinePage {
     this.ganttViewButton = page.getByLabel('Gantt view');
     this.calendarViewButton = page.getByLabel('Calendar view');
     this.milestonePanelButton = page.getByTestId('milestones-panel-button');
-    this.milestoneFilterButton = page.getByTestId('milestone-filter-button');
-    this.milestoneFilterDropdown = page.getByTestId('milestone-filter-dropdown');
 
     // Chart area states
     this.ganttChart = page.getByTestId('gantt-chart');
