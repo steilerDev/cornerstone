@@ -217,7 +217,7 @@ export function MilestoneForm({
         {!isEditMode && (
           <div className={styles.fieldGroup}>
             <label className={styles.fieldLabel}>
-              Linked Work Items
+              Contributing Work Items
               {selectedWorkItems.length > 0 && (
                 <span className={styles.linkedCount}> ({selectedWorkItems.length})</span>
               )}
@@ -229,9 +229,9 @@ export function MilestoneForm({
               disabled={isSubmitting}
             />
             <p className={styles.fieldHint}>
-              Linked work items contribute to this milestone&rsquo;s projected date &mdash; computed
-              from the latest end date of linked items. If the projected date exceeds the target
-              date, the milestone shows as late.
+              Contributing work items feed into this milestone&rsquo;s projected date &mdash;
+              computed from the latest end date of contributing items. If the projected date exceeds
+              the target date, the milestone shows as late.
             </p>
           </div>
         )}

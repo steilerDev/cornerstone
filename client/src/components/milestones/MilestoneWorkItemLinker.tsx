@@ -1,4 +1,4 @@
-import type { WorkItemSummary } from '@cornerstone/shared';
+import type { WorkItemSummary, WorkItemDependentSummary } from '@cornerstone/shared';
 import { WorkItemSelector } from './WorkItemSelector.js';
 import styles from './MilestonePanel.module.css';
 
@@ -9,6 +9,8 @@ import styles from './MilestonePanel.module.css';
 interface MilestoneWorkItemLinkerProps {
   milestoneId: number;
   linkedWorkItems: WorkItemSummary[];
+  /** Work items that depend on this milestone completing before they can start. Read-only display. */
+  dependentWorkItems?: WorkItemDependentSummary[];
   isLinking: boolean;
   onLink: (workItemId: string) => void;
   onUnlink: (workItemId: string) => void;
@@ -21,12 +23,17 @@ interface MilestoneWorkItemLinkerProps {
 
 /**
  * Work item linker for milestones (edit mode).
+ * Shows two sections:
+ * - Contributing Work Items: work items that feed into this milestone (editable via WorkItemSelector)
+ * - Dependent Work Items: work items that require this milestone to complete first (read-only)
+ *
  * Delegates search/chip UI to WorkItemSelector and handles
  * the link/unlink API calls via the provided callbacks.
  */
 export function MilestoneWorkItemLinker({
   milestoneId: _milestoneId,
   linkedWorkItems,
+  dependentWorkItems = [],
   isLinking,
   onLink,
   onUnlink,
@@ -63,17 +70,19 @@ export function MilestoneWorkItemLinker({
           </svg>
           Back
         </button>
-        <h3 className={styles.linkerTitle}>Linked Work Items</h3>
+        <h3 className={styles.linkerTitle}>Contributing Work Items</h3>
       </div>
 
       <div className={styles.dialogBody}>
+        {/* Contributing Work Items — editable */}
         <div className={styles.fieldGroup}>
           <label className={styles.fieldLabel}>
-            Linked Work Items
+            Contributing Work Items
             <span className={styles.linkedCount}>
               {linkedWorkItems.length > 0 ? ` (${linkedWorkItems.length})` : ''}
             </span>
           </label>
+          <p className={styles.fieldHint}>Work items that feed into completing this milestone.</p>
 
           <WorkItemSelector
             selectedItems={selectedItems}
@@ -81,6 +90,33 @@ export function MilestoneWorkItemLinker({
             onRemove={(id) => onUnlink(id)}
             disabled={isLinking}
           />
+        </div>
+
+        {/* Dependent Work Items — read-only */}
+        <div className={styles.fieldGroup}>
+          <span className={styles.fieldLabel}>
+            Dependent Work Items
+            <span className={styles.linkedCount}>
+              {dependentWorkItems.length > 0 ? ` (${dependentWorkItems.length})` : ''}
+            </span>
+          </span>
+          <p className={styles.fieldHint}>
+            Work items that require this milestone to complete before they can start. Managed from
+            the work item side.
+          </p>
+          {dependentWorkItems.length === 0 ? (
+            <p className={styles.dependentEmpty}>No work items depend on this milestone.</p>
+          ) : (
+            <ul className={styles.dependentList} aria-label="Dependent work items">
+              {dependentWorkItems.map((wi) => (
+                <li key={wi.id} className={styles.dependentChip}>
+                  <span className={styles.dependentChipLabel} title={wi.title}>
+                    {wi.title.length > 40 ? `${wi.title.slice(0, 40)}\u2026` : wi.title}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
     </div>
