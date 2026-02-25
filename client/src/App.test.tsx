@@ -8,7 +8,6 @@ import type * as BudgetCategoriesApiTypes from './lib/budgetCategoriesApi.js';
 import type * as MilestonesApiTypes from './lib/milestonesApi.js';
 import type * as TimelineApiTypes from './lib/timelineApi.js';
 import type * as WorkItemsApiTypes from './lib/workItemsApi.js';
-import type * as ScheduleApiTypes from './lib/scheduleApi.js';
 import type * as AppTypes from './App.js';
 
 const mockGetAuthMe = jest.fn<typeof AuthApiTypes.getAuthMe>();
@@ -69,12 +68,6 @@ jest.unstable_mockModule('./lib/workItemsApi.js', () => ({
   fetchWorkItemSubsidies: jest.fn<typeof WorkItemsApiTypes.fetchWorkItemSubsidies>(),
   linkWorkItemSubsidy: jest.fn<typeof WorkItemsApiTypes.linkWorkItemSubsidy>(),
   unlinkWorkItemSubsidy: jest.fn<typeof WorkItemsApiTypes.unlinkWorkItemSubsidy>(),
-}));
-
-// TimelinePage imports scheduleApi for the auto-schedule feature.
-// Mock to prevent fetch calls in the jsdom test environment.
-jest.unstable_mockModule('./lib/scheduleApi.js', () => ({
-  runSchedule: jest.fn<typeof ScheduleApiTypes.runSchedule>(),
 }));
 
 describe('App', () => {

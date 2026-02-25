@@ -6,7 +6,6 @@
  *   - Gantt chart view (default): sidebar + scrollable SVG chart
  *   - Calendar view: month/week grids with navigation
  *   - Milestone panel (slide-in dialog via portal)
- *   - Auto-schedule confirmation dialog
  *
  * DOM observations (from TimelinePage.tsx, GanttChart.tsx, etc.):
  *   - Page root: data-testid="timeline-page"
@@ -21,9 +20,6 @@
  *   - Milestone diamond: data-testid="gantt-milestone-diamond"
  *   - Milestones layer: data-testid="gantt-milestones-layer"
  *   - Tooltip: data-testid="gantt-tooltip"
- *   - Auto-schedule button: data-testid="auto-schedule-button"
- *   - Auto-schedule dialog: data-testid="auto-schedule-dialog"
- *   - Auto-schedule confirm: data-testid="auto-schedule-confirm"
  *   - Milestone panel button: data-testid="milestones-panel-button"
  *   - Milestone filter button: data-testid="milestone-filter-button"
  *   - Milestone filter dropdown: data-testid="milestone-filter-dropdown"
@@ -51,8 +47,6 @@ export class TimelinePage {
   readonly heading: Locator;
 
   // ── Toolbar controls ───────────────────────────────────────────────────────
-  /** Auto-schedule button (Gantt view only). */
-  readonly autoScheduleButton: Locator;
   /** Arrows toggle button. */
   readonly arrowsToggleButton: Locator;
   /** Zoom toolbar (role=toolbar, aria-label="Zoom level"). */
@@ -94,11 +88,6 @@ export class TimelinePage {
   // ── Tooltip ────────────────────────────────────────────────────────────────
   readonly tooltip: Locator;
 
-  // ── Auto-schedule dialog ───────────────────────────────────────────────────
-  readonly autoScheduleDialog: Locator;
-  readonly autoScheduleConfirmButton: Locator;
-  readonly autoScheduleCancelButton: Locator;
-
   // ── Milestone panel (portal) ───────────────────────────────────────────────
   readonly milestonePanel: Locator;
   readonly milestonePanelCloseButton: Locator;
@@ -129,7 +118,6 @@ export class TimelinePage {
     this.heading = page.getByRole('heading', { level: 1, name: 'Timeline', exact: true });
 
     // Toolbar controls
-    this.autoScheduleButton = page.getByTestId('auto-schedule-button');
     this.arrowsToggleButton = page.getByLabel(/dependency arrows/i);
     this.zoomToolbar = page.getByRole('toolbar', { name: 'Zoom level' });
     this.ganttViewButton = page.getByLabel('Gantt view');
@@ -158,14 +146,6 @@ export class TimelinePage {
 
     // Tooltip
     this.tooltip = page.getByTestId('gantt-tooltip');
-
-    // Auto-schedule dialog
-    this.autoScheduleDialog = page.getByTestId('auto-schedule-dialog');
-    this.autoScheduleConfirmButton = page.getByTestId('auto-schedule-confirm');
-    this.autoScheduleCancelButton = this.autoScheduleDialog.getByRole('button', {
-      name: 'Cancel',
-      exact: true,
-    });
 
     // Milestone panel (portal — attached to body, not inside page root)
     this.milestonePanel = page.getByTestId('milestone-panel');
@@ -282,37 +262,6 @@ export class TimelinePage {
       if (label) labels.push(label);
     }
     return labels;
-  }
-
-  // ── Auto-schedule ─────────────────────────────────────────────────────────
-
-  /**
-   * Click the Auto-schedule button and wait for the preview dialog to appear.
-   * Registers a network response listener before clicking to avoid races.
-   */
-  async openAutoScheduleDialog(): Promise<void> {
-    const responsePromise = this.page.waitForResponse(
-      (resp) => resp.url().includes('/api/schedule') && resp.status() === 200,
-    );
-    await this.autoScheduleButton.click();
-    await responsePromise;
-    await this.autoScheduleDialog.waitFor({ state: 'visible' });
-  }
-
-  /** Confirm the auto-schedule dialog and wait for it to close. */
-  async confirmAutoSchedule(): Promise<void> {
-    const responsePromise = this.page.waitForResponse(
-      (resp) => resp.url().includes('/api/work-items/') && resp.request().method() === 'PATCH',
-    );
-    await this.autoScheduleConfirmButton.click();
-    await responsePromise;
-    await this.autoScheduleDialog.waitFor({ state: 'hidden' });
-  }
-
-  /** Cancel the auto-schedule dialog. */
-  async cancelAutoSchedule(): Promise<void> {
-    await this.autoScheduleCancelButton.click();
-    await this.autoScheduleDialog.waitFor({ state: 'hidden' });
   }
 
   // ── Milestone panel ────────────────────────────────────────────────────────
