@@ -442,7 +442,7 @@ test.describe('ARIA roles and labels (Scenario 7)', { tag: '@responsive' }, () =
 
       // Sidebar rows list has role=list and aria-label
       await expect(timelinePage.ganttSidebarRowsList).toHaveAttribute('role', 'list');
-      await expect(timelinePage.ganttSidebarRowsList).toHaveAttribute('aria-label', 'Work items');
+      await expect(timelinePage.ganttSidebarRowsList).toHaveAttribute('aria-label', 'Work items and milestones');
     } finally {
       await page.unroute('**/api/timeline');
     }

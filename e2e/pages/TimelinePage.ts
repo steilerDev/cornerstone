@@ -13,7 +13,7 @@
  *   - Gantt chart: data-testid="gantt-chart", role="img"
  *   - Gantt SVG: data-testid="gantt-svg"
  *   - Gantt sidebar: data-testid="gantt-sidebar"
- *   - Sidebar rows list: role="list", aria-label="Work items"
+ *   - Sidebar rows list: role="list", aria-label="Work items and milestones"
  *   - Sidebar row: data-testid="gantt-sidebar-row-{id}"
  *   - Gantt header: data-testid="gantt-header"
  *   - Gantt skeleton: data-testid="gantt-chart-skeleton"
@@ -146,7 +146,7 @@ export class TimelinePage {
 
     // Gantt sidebar
     this.ganttSidebar = page.getByTestId('gantt-sidebar');
-    this.ganttSidebarRowsList = page.getByRole('list', { name: 'Work items' });
+    this.ganttSidebarRowsList = page.getByRole('list', { name: 'Work items and milestones' });
     this.ganttHeader = page.getByTestId('gantt-header');
 
     // Gantt bars
