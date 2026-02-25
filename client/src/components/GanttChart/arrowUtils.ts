@@ -4,9 +4,10 @@
  * Pure utility functions for computing dependency arrow SVG paths between
  * Gantt chart bars. All functions are side-effect free and memoization-friendly.
  *
- * Arrow routing strategy: orthogonal (right-angle) connectors with a
- * horizontal-first approach. Arrows maintain a 12px standoff from bar edges
- * to avoid overlapping bar outlines.
+ * Arrow routing strategy: orthogonal (right-angle) connectors. Cross-row
+ * arrows route horizontal segments through the gap between row boundaries
+ * (between bar bottom and next bar top) to avoid colliding with other bars.
+ * Same-row arrows use a simple 3-segment horizontal-vertical-horizontal path.
  */
 
 import type { DependencyType } from '@cornerstone/shared';
@@ -21,6 +22,9 @@ export const ARROW_STANDOFF = 12;
 
 /** Minimum horizontal jog length on either side of a segment. */
 export const ARROW_MIN_H_SEG = 8;
+
+/** Size of the arrowhead triangle in pixels. Paths end at arrowhead base. */
+export const ARROWHEAD_SIZE = 6;
 
 /**
  * Number of stagger slots used to spread parallel vertical spines.
@@ -72,12 +76,20 @@ function barCenterY(rowIndex: number): number {
 }
 
 /**
- * Builds an orthogonal SVG path from (srcX, srcY) to (dstX, dstY) using
- * a horizontal → vertical → horizontal routing.
+ * Returns the y-coordinate of the row-boundary channel between two rows.
+ * The channel sits in the gap between bar bottom (row * ROW_HEIGHT + BAR_OFFSET_Y + BAR_HEIGHT)
+ * and the next bar top ((row+1) * ROW_HEIGHT + BAR_OFFSET_Y).
+ *
+ * For downward arrows (dst below src), use the boundary below the predecessor.
+ * For upward arrows (dst above src), use the boundary above the predecessor.
  */
-function buildOrthoPath(srcX: number, srcY: number, dstX: number, dstY: number): string {
-  const midX = srcX + Math.max((dstX - srcX) / 2, ARROW_MIN_H_SEG);
-  return `M ${srcX} ${srcY} H ${midX} V ${dstY} H ${dstX}`;
+function channelY(srcRowIndex: number, dstRowIndex: number): number {
+  if (dstRowIndex > srcRowIndex) {
+    // Going down: horizontal channel at the boundary below the predecessor row
+    return (srcRowIndex + 1) * ROW_HEIGHT;
+  }
+  // Going up: horizontal channel at the boundary above the predecessor row
+  return srcRowIndex * ROW_HEIGHT;
 }
 
 // ---------------------------------------------------------------------------
@@ -87,20 +99,13 @@ function buildOrthoPath(srcX: number, srcY: number, dstX: number, dstY: number):
 /**
  * Computes the SVG path and arrowhead tip for a Finish-to-Start dependency.
  *
- * Routing: right edge of predecessor → (standoff right) →
- *          vertical → (standoff left of successor) → left edge of successor
+ * Same-row: simple 3-segment H-V-H path.
+ * Cross-row (standard): 5-segment path routing the horizontal through the
+ *   row-boundary gap to avoid crossing other bars.
+ * Cross-row (overlap/C-shape): when the successor starts before the predecessor
+ *   ends, routes around via a bypass.
  *
- * Standard case (entryX >= exitX): horizontal-first L-shape routing —
- * the arrow exits the predecessor, travels right to a spine near the successor
- * entry point, drops vertically, then enters the successor from the left.
- *
- * Adjacent/overlap case (entryX < exitX): C-shape routing — the arrow exits
- * the predecessor right, drops past the successor bar, goes left to the entry
- * point, then comes back up (or down) to the successor row center.
- *
- * @param arrowIndex Index of this arrow among all rendered arrows, used to
- *   apply a horizontal stagger offset to the vertical spine so parallel arrows
- *   don't collapse into a single line.
+ * All paths end at the arrowhead base (tipX - ARROWHEAD_SIZE for right-pointing).
  */
 function computeFSArrow(predecessor: BarRect, successor: BarRect, arrowIndex: number): ArrowPath {
   const srcY = barCenterY(predecessor.rowIndex);
@@ -113,33 +118,51 @@ function computeFSArrow(predecessor: BarRect, successor: BarRect, arrowIndex: nu
 
   const tipX = successor.x;
   const tipY = dstY;
+  const arrowBaseX = tipX - ARROWHEAD_SIZE;
+
+  const sameRow = predecessor.rowIndex === successor.rowIndex;
 
   if (entryX >= exitX) {
-    // Standard case: horizontal-first L-shape — spine placed near the entry point
+    if (sameRow) {
+      // Same-row: simple 3-segment path
+      const spineX = entryX - stagger;
+      return {
+        pathD: `M ${exitX} ${srcY} H ${spineX} V ${dstY} H ${arrowBaseX}`,
+        tipX,
+        tipY,
+        tipDirection: 'right',
+      };
+    }
+    // Cross-row standard: 5-segment path through row-boundary gap
+    const chY = channelY(predecessor.rowIndex, successor.rowIndex);
     const spineX = entryX - stagger;
     return {
-      pathD: `M ${exitX} ${srcY} H ${spineX} V ${dstY} H ${entryX}`,
+      pathD: `M ${exitX} ${srcY} V ${chY} H ${spineX} V ${dstY} H ${arrowBaseX}`,
       tipX,
       tipY,
       tipDirection: 'right',
     };
   }
 
-  // C-shape: exit right, drop past successor bar, go left to entry, come up to row center
+  // C-shape: exit right, drop to channel, go left to entry spine, drop to row center
   const spineX = exitX + stagger;
-  const direction = dstY >= srcY ? 1 : -1;
-  const bypassY = dstY + direction * (BAR_HEIGHT / 2 + ARROW_STANDOFF);
-  const pathD = `M ${exitX} ${srcY} H ${spineX} V ${bypassY} H ${entryX} V ${dstY}`;
+  if (sameRow) {
+    const direction = 1;
+    const bypassY = dstY + direction * (BAR_HEIGHT / 2 + ARROW_STANDOFF);
+    const pathD = `M ${exitX} ${srcY} H ${spineX} V ${bypassY} H ${entryX} V ${dstY} H ${arrowBaseX}`;
+    return { pathD, tipX, tipY, tipDirection: 'right' };
+  }
+  const chY = channelY(predecessor.rowIndex, successor.rowIndex);
+  const pathD = `M ${exitX} ${srcY} V ${chY} H ${entryX} V ${dstY} H ${arrowBaseX}`;
   return { pathD, tipX, tipY, tipDirection: 'right' };
 }
 
 /**
  * Computes the SVG path for a Start-to-Start dependency.
  *
- * Routing: both bars' left edges, branching left from the further-left exit.
- *
- * @param arrowIndex Index of this arrow among all rendered arrows, used to
- *   apply a horizontal stagger offset to the vertical spine.
+ * Same-row: 3-segment path branching left.
+ * Cross-row: 5-segment path through row-boundary gap.
+ * Path ends at arrowhead base (tipX - ARROWHEAD_SIZE).
  */
 function computeSSArrow(predecessor: BarRect, successor: BarRect, arrowIndex: number): ArrowPath {
   const srcY = barCenterY(predecessor.rowIndex);
@@ -155,18 +178,27 @@ function computeSSArrow(predecessor: BarRect, successor: BarRect, arrowIndex: nu
 
   const tipX = successor.x;
   const tipY = dstY;
+  const arrowBaseX = tipX - ARROWHEAD_SIZE;
 
-  const pathD = `M ${predecessor.x} ${srcY} H ${spineX} V ${dstY} H ${tipX}`;
+  const sameRow = predecessor.rowIndex === successor.rowIndex;
+
+  if (sameRow) {
+    const pathD = `M ${predecessor.x} ${srcY} H ${spineX} V ${dstY} H ${arrowBaseX}`;
+    return { pathD, tipX, tipY, tipDirection: 'right' };
+  }
+
+  // Cross-row: 5-segment path through row-boundary gap
+  const chY = channelY(predecessor.rowIndex, successor.rowIndex);
+  const pathD = `M ${predecessor.x} ${srcY} H ${spineX} V ${chY} H ${successor.x - ARROW_STANDOFF} V ${dstY} H ${arrowBaseX}`;
   return { pathD, tipX, tipY, tipDirection: 'right' };
 }
 
 /**
  * Computes the SVG path for a Finish-to-Finish dependency.
  *
- * Routing: both bars' right edges; loop out to the rightmost exit.
- *
- * @param arrowIndex Index of this arrow among all rendered arrows, used to
- *   apply a horizontal stagger offset to the vertical spine.
+ * Same-row: 3-segment path looping right.
+ * Cross-row: 5-segment path through row-boundary gap.
+ * Path ends at arrowhead base (tipX + ARROWHEAD_SIZE for left-pointing).
  */
 function computeFFArrow(predecessor: BarRect, successor: BarRect, arrowIndex: number): ArrowPath {
   const srcY = barCenterY(predecessor.rowIndex);
@@ -182,16 +214,27 @@ function computeFFArrow(predecessor: BarRect, successor: BarRect, arrowIndex: nu
 
   const tipX = successor.x + successor.width;
   const tipY = dstY;
+  const arrowBaseX = tipX + ARROWHEAD_SIZE;
 
-  const pathD = `M ${predecessor.x + predecessor.width} ${srcY} H ${spineX} V ${dstY} H ${tipX}`;
+  const sameRow = predecessor.rowIndex === successor.rowIndex;
+
+  if (sameRow) {
+    const pathD = `M ${predecessor.x + predecessor.width} ${srcY} H ${spineX} V ${dstY} H ${arrowBaseX}`;
+    return { pathD, tipX, tipY, tipDirection: 'left' };
+  }
+
+  // Cross-row: 5-segment path through row-boundary gap
+  const chY = channelY(predecessor.rowIndex, successor.rowIndex);
+  const pathD = `M ${predecessor.x + predecessor.width} ${srcY} H ${spineX} V ${chY} H ${successor.x + successor.width + ARROW_STANDOFF} V ${dstY} H ${arrowBaseX}`;
   return { pathD, tipX, tipY, tipDirection: 'left' };
 }
 
 /**
  * Computes the SVG path for a Start-to-Finish dependency.
  *
- * Routing: left edge of predecessor → right edge of successor.
- * When successor right edge is left of predecessor left edge, a U-turn is needed.
+ * Same-row: 3-segment path.
+ * Cross-row: 5-segment path through row-boundary gap.
+ * Path ends at arrowhead base (tipX + ARROWHEAD_SIZE for left-pointing).
  */
 function computeSFArrow(predecessor: BarRect, successor: BarRect): ArrowPath {
   const srcY = barCenterY(predecessor.rowIndex);
@@ -202,11 +245,24 @@ function computeSFArrow(predecessor: BarRect, successor: BarRect): ArrowPath {
 
   const tipX = successor.x + successor.width;
   const tipY = dstY;
+  const arrowBaseX = tipX + ARROWHEAD_SIZE;
+
+  const sameRow = predecessor.rowIndex === successor.rowIndex;
 
   if (entryX <= exitX) {
-    // Standard path: exit left, come in from right
+    if (sameRow) {
+      const midX = exitX + Math.max((entryX - exitX) / 2, ARROW_MIN_H_SEG);
+      return {
+        pathD: `M ${exitX} ${srcY} H ${midX} V ${dstY} H ${arrowBaseX}`,
+        tipX,
+        tipY,
+        tipDirection: 'left',
+      };
+    }
+    // Cross-row: 5-segment path through row-boundary gap
+    const chY = channelY(predecessor.rowIndex, successor.rowIndex);
     return {
-      pathD: buildOrthoPath(exitX, srcY, entryX, dstY),
+      pathD: `M ${exitX} ${srcY} V ${chY} H ${entryX} V ${dstY} H ${arrowBaseX}`,
       tipX,
       tipY,
       tipDirection: 'left',
@@ -215,7 +271,13 @@ function computeSFArrow(predecessor: BarRect, successor: BarRect): ArrowPath {
 
   // U-turn: loop out to the left, then back right
   const loopX = exitX - ARROW_MIN_H_SEG;
-  const pathD = `M ${predecessor.x} ${srcY} H ${loopX} V ${dstY} H ${entryX}`;
+  if (sameRow) {
+    const pathD = `M ${predecessor.x} ${srcY} H ${loopX} V ${dstY} H ${arrowBaseX}`;
+    return { pathD, tipX, tipY, tipDirection: 'left' };
+  }
+  // Cross-row U-turn: through row-boundary gap
+  const chY = channelY(predecessor.rowIndex, successor.rowIndex);
+  const pathD = `M ${predecessor.x} ${srcY} H ${loopX} V ${chY} H ${entryX} V ${dstY} H ${arrowBaseX}`;
   return { pathD, tipX, tipY, tipDirection: 'left' };
 }
 

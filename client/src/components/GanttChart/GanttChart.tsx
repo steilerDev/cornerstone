@@ -113,6 +113,8 @@ export interface GanttChartProps {
   onItemClick?: (id: string) => void;
   /** Whether to show dependency arrows. Default: true. */
   showArrows?: boolean;
+  /** Whether to highlight the critical path with distinct styling. Default: true. */
+  highlightCriticalPath?: boolean;
   /**
    * Called when user clicks a milestone diamond — passes milestone ID.
    */
@@ -127,6 +129,7 @@ export function GanttChart({
   columnWidth,
   onItemClick,
   showArrows = true,
+  highlightCriticalPath = true,
   onMilestoneClick,
   onCtrlScroll,
 }: GanttChartProps) {
@@ -242,6 +245,16 @@ export function GanttChart({
     };
   }, [tooltipData]);
 
+  // Sort work items by start date ascending (nulls last) for waterfall ordering
+  const sortedWorkItems = useMemo(() => {
+    return [...data.workItems].sort((a, b) => {
+      if (a.startDate === null && b.startDate === null) return 0;
+      if (a.startDate === null) return 1;
+      if (b.startDate === null) return -1;
+      return a.startDate < b.startDate ? -1 : a.startDate > b.startDate ? 1 : 0;
+    });
+  }, [data.workItems]);
+
   // Build a lookup map from item ID to TimelineWorkItem for tooltip data
   const workItemMap = useMemo(() => {
     const map = new Map(data.workItems.map((item) => [item.id, item]));
@@ -258,7 +271,7 @@ export function GanttChart({
   // ---------------------------------------------------------------------------
 
   const barData = useMemo(() => {
-    return data.workItems.map((item, idx) => {
+    return sortedWorkItems.map((item, idx) => {
       const position = computeBarPosition(
         item.startDate,
         item.endDate,
@@ -270,10 +283,14 @@ export function GanttChart({
       );
       return { item, position };
     });
-  }, [data.workItems, chartRange, zoom, today, columnWidth]);
+  }, [sortedWorkItems, chartRange, zoom, today, columnWidth]);
 
-  // Set of critical path work item IDs for O(1) lookups
-  const criticalPathSet = useMemo(() => new Set(data.criticalPath), [data.criticalPath]);
+  // Set of critical path work item IDs for O(1) lookups.
+  // When highlighting is disabled, use an empty set so all arrows/bars render as default.
+  const criticalPathSet = useMemo(
+    () => (highlightCriticalPath ? new Set(data.criticalPath) : new Set<string>()),
+    [data.criticalPath, highlightCriticalPath],
+  );
 
   // Map from work item ID to BarRect — used by GanttArrows for path computation
   const barRects = useMemo<ReadonlyMap<string, BarRect>>(() => {
@@ -311,7 +328,7 @@ export function GanttChart({
     const map = new Map<number, MilestonePoint>();
     if (!hasMilestones) return map;
 
-    const workItemRowCount = data.workItems.length;
+    const workItemRowCount = sortedWorkItems.length;
 
     data.milestones.forEach((milestone, milestoneIndex) => {
       const milestoneRowIndex = workItemRowCount + milestoneIndex;
@@ -330,7 +347,7 @@ export function GanttChart({
     });
 
     return map;
-  }, [data.milestones, data.workItems.length, hasMilestones, chartRange, zoom, columnWidth]);
+  }, [data.milestones, sortedWorkItems.length, hasMilestones, chartRange, zoom, columnWidth]);
 
   /**
    * Map from milestone ID → array of contributing work item IDs.
@@ -352,13 +369,13 @@ export function GanttChart({
    */
   const workItemRequiredMilestones = useMemo<ReadonlyMap<string, readonly number[]>>(() => {
     const map = new Map<string, readonly number[]>();
-    for (const item of data.workItems) {
+    for (const item of sortedWorkItems) {
       if (item.requiredMilestoneIds && item.requiredMilestoneIds.length > 0) {
         map.set(item.id, item.requiredMilestoneIds);
       }
     }
     return map;
-  }, [data.workItems]);
+  }, [sortedWorkItems]);
 
   /**
    * Map from milestone ID → title for accessible aria-labels on milestone arrows.
@@ -368,7 +385,7 @@ export function GanttChart({
   }, [data.milestones]);
 
   // SVG height: work item rows + individual milestone rows (one per milestone)
-  const totalRowCount = data.workItems.length + (hasMilestones ? data.milestones.length : 0);
+  const totalRowCount = sortedWorkItems.length + (hasMilestones ? data.milestones.length : 0);
   const svgHeight = Math.max(totalRowCount * ROW_HEIGHT, ROW_HEIGHT);
 
   // ---------------------------------------------------------------------------
@@ -427,7 +444,7 @@ export function GanttChart({
     >
       {/* Left sidebar — fixed during horizontal scroll, synced vertically */}
       <GanttSidebar
-        items={data.workItems}
+        items={sortedWorkItems}
         milestones={data.milestones}
         onItemClick={onItemClick}
         ref={sidebarScrollRef}
@@ -496,7 +513,7 @@ export function GanttChart({
                 milestones={data.milestones}
                 chartRange={chartRange}
                 zoom={zoom}
-                rowCount={data.workItems.length}
+                rowCount={sortedWorkItems.length}
                 colors={colors.milestone}
                 columnWidth={columnWidth}
                 onMilestoneMouseEnter={(milestone, e) => {

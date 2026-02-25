@@ -150,6 +150,7 @@ const ZOOM_STEP_FACTOR = 0.2; // 20% per step
 export function TimelinePage() {
   const [zoom, setZoom] = useState<ZoomLevel>('month');
   const [showArrows, setShowArrows] = useState(true);
+  const [highlightCriticalPath, setHighlightCriticalPath] = useState(true);
   const { data, isLoading, error, refetch } = useTimeline();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -288,6 +289,45 @@ export function TimelinePage() {
                 title={showArrows ? 'Hide dependency arrows' : 'Show dependency arrows'}
               >
                 <ArrowsIcon active={showArrows} />
+              </button>
+
+              {/* Critical path highlight toggle (icon-only) */}
+              <button
+                type="button"
+                className={`${styles.arrowsToggle} ${highlightCriticalPath ? styles.arrowsToggleActive : ''}`}
+                aria-pressed={highlightCriticalPath}
+                aria-label={
+                  highlightCriticalPath
+                    ? 'Hide critical path highlighting'
+                    : 'Show critical path highlighting'
+                }
+                onClick={() => setHighlightCriticalPath((v) => !v)}
+                title={
+                  highlightCriticalPath
+                    ? 'Hide critical path highlighting'
+                    : 'Show critical path highlighting'
+                }
+                data-testid="critical-path-toggle"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  width="16"
+                  height="16"
+                  fill="none"
+                  aria-hidden="true"
+                  style={{ display: 'block' }}
+                >
+                  {/* Lightning bolt icon for critical path */}
+                  <path
+                    d="M11 2L5 11h4l-1 7 6-9h-4l1-7z"
+                    stroke="currentColor"
+                    strokeWidth={highlightCriticalPath ? 2 : 1.5}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    fill={highlightCriticalPath ? 'currentColor' : 'none'}
+                  />
+                </svg>
               </button>
 
               {/* Zoom level toggle */}
@@ -466,6 +506,7 @@ export function TimelinePage() {
               columnWidth={columnWidth}
               onItemClick={handleItemClick}
               showArrows={showArrows}
+              highlightCriticalPath={highlightCriticalPath}
               onMilestoneClick={() => setShowMilestonePanel(true)}
               onCtrlScroll={(delta) => adjustColumnWidth(delta > 0 ? 1 : -1)}
             />

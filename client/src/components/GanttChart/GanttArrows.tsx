@@ -1,6 +1,11 @@
 import { memo, useMemo } from 'react';
 import type { TimelineDependency, DependencyType } from '@cornerstone/shared';
-import { computeArrowPath, computeArrowhead, ARROW_STANDOFF } from './arrowUtils.js';
+import {
+  computeArrowPath,
+  computeArrowhead,
+  ARROW_STANDOFF,
+  ARROWHEAD_SIZE as ARROWHEAD_SIZE_IMPORT,
+} from './arrowUtils.js';
 import type { BarRect } from './arrowUtils.js';
 import { BAR_HEIGHT, BAR_OFFSET_Y, ROW_HEIGHT } from './ganttUtils.js';
 import styles from './GanttArrows.module.css';
@@ -70,13 +75,9 @@ export interface GanttArrowsProps {
 // Arrowhead size
 // ---------------------------------------------------------------------------
 
-const ARROWHEAD_SIZE = 6;
+const ARROWHEAD_SIZE = ARROWHEAD_SIZE_IMPORT;
 const ARROW_STROKE_DEFAULT = 1.5;
 const ARROW_STROKE_CRITICAL = 2;
-const ARROW_STROKE_MILESTONE = 1.5;
-
-/** Dash pattern for milestone linkage arrows. */
-const MILESTONE_ARROW_DASH = '5 3';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -401,28 +402,27 @@ export const GanttArrows = memo(function GanttArrows({
           );
         })}
 
-      {/* Milestone linkage arrows (dashed, rendered above work-item arrows) */}
+      {/* Milestone linkage arrows (same style as default work-item arrows) */}
       {milestoneArrows.map((a) => {
         const arrowhead = computeArrowhead(a.tipX, a.tipY, a.tipDirection, ARROWHEAD_SIZE);
         return (
           <g
             key={a.key}
-            opacity={visible ? 0.65 : 0}
+            opacity={visible ? 0.5 : 0}
             role="graphics-symbol"
             aria-label={a.ariaLabel}
           >
             <path
               d={a.pathD}
-              stroke={colors.milestoneArrow}
-              strokeWidth={ARROW_STROKE_MILESTONE}
-              strokeDasharray={MILESTONE_ARROW_DASH}
-              className={styles.arrowMilestone}
+              stroke={colors.defaultArrow}
+              strokeWidth={ARROW_STROKE_DEFAULT}
+              className={styles.arrowDefault}
               aria-hidden="true"
             />
             <polygon
               points={arrowhead}
-              fill={colors.milestoneArrow}
-              className={styles.arrowheadMilestone}
+              fill={colors.defaultArrow}
+              className={styles.arrowheadDefault}
               aria-hidden="true"
             />
           </g>
