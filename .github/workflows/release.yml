@@ -261,3 +261,117 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
           repository: steilerdev/cornerstone
           readme-filepath: ./README.md
+
+  # ---------------------------------------------------------------------------
+  # Job 6: Capture documentation screenshots from the released Docker image
+  # ---------------------------------------------------------------------------
+  docs-screenshots:
+    name: Docs Screenshots
+    runs-on: ubuntu-latest
+    needs: [release, docker]
+    if: >-
+      needs.release.outputs.new-release-published == 'true' &&
+      needs.release.outputs.is-prerelease == 'false'
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: v${{ needs.release.outputs.new-release-version }}
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Pull and retag released image
+        run: |
+          docker pull steilerdev/cornerstone:${{ needs.release.outputs.new-release-version }}
+          docker tag steilerdev/cornerstone:${{ needs.release.outputs.new-release-version }} cornerstone:e2e
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install E2E workspace dependencies
+        run: npm ci --workspace=e2e
+
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium --with-deps
+        working-directory: e2e
+
+      - name: Capture screenshots
+        run: npm run docs:screenshots
+
+      - name: Upload screenshots artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs-screenshots
+          path: docs/static/img/screenshots/
+          retention-days: 1
+
+  # ---------------------------------------------------------------------------
+  # Job 7: Build and deploy documentation site to GitHub Pages
+  # ---------------------------------------------------------------------------
+  docs-deploy:
+    name: Docs Deploy
+    runs-on: ubuntu-latest
+    needs: [release, docs-screenshots]
+    if: >-
+      needs.release.outputs.new-release-published == 'true' &&
+      needs.release.outputs.is-prerelease == 'false'
+
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: v${{ needs.release.outputs.new-release-version }}
+
+      - name: Download screenshots
+        uses: actions/download-artifact@v4
+        with:
+          name: docs-screenshots
+          path: docs/static/img/screenshots/
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install docs dependencies
+        run: npm ci --workspace=docs
+
+      - name: Build docs
+        run: npm run build --workspace=docs
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: docs/build
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

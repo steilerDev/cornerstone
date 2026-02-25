@@ -475,7 +475,7 @@ npm run dev                   # Start server (port 3000) + client dev server (po
 
 ### Documentation Site
 
-Docusaurus 3.x site deployed to GitHub Pages at `https://steilerDev.github.io/cornerstone/`. Deployed via `.github/workflows/docs.yml` on push to `main` with changes in `docs/**`. Content: `docs/src/` (user guides, end users) · `wiki/` (architecture/ADRs, agents) · `README.md` (GitHub visitors) · `CLAUDE.md` (AI agents).
+Docusaurus 3.x site deployed to GitHub Pages at `https://steilerDev.github.io/cornerstone/`. Deployed via the `docs-deploy` job in `.github/workflows/release.yml` on stable releases (screenshots are auto-captured from the released Docker image). Content: `docs/src/` (user guides, end users) · `wiki/` (architecture/ADRs, agents) · `README.md` (GitHub visitors) · `CLAUDE.md` (AI agents).
 
 ### Database Migrations
 

@@ -43,6 +43,3 @@ See [Vendors & Invoices](vendors-and-invoices) for details on managing invoices.
 
 A single work item can have multiple budget lines. For example, "Renovate bathroom" might have separate budget lines for plumbing, electrical, and tiling -- each in a different category and potentially funded by different financing sources.
 
-:::info Screenshot needed
-A screenshot of the work item budget tab will be added here.
-:::
