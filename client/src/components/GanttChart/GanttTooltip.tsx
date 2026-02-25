@@ -26,7 +26,8 @@ export interface GanttTooltipMilestoneData {
   /** True when not completed and projectedDate > targetDate. */
   isLate: boolean;
   completedAt: string | null;
-  linkedWorkItemCount: number;
+  /** Linked work items with their IDs and titles (replaces old linkedWorkItemCount). */
+  linkedWorkItems: { id: string; title: string }[];
 }
 
 /**
@@ -133,6 +134,8 @@ function WorkItemTooltipContent({ data }: { data: GanttTooltipWorkItemData }) {
 // Milestone tooltip content
 // ---------------------------------------------------------------------------
 
+const MAX_LINKED_ITEMS_SHOWN = 5;
+
 function MilestoneTooltipContent({ data }: { data: GanttTooltipMilestoneData }) {
   let statusLabel: string;
   let statusClass: string;
@@ -147,12 +150,9 @@ function MilestoneTooltipContent({ data }: { data: GanttTooltipMilestoneData }) 
     statusClass = styles.statusInProgress;
   }
 
-  const itemsLabel =
-    data.linkedWorkItemCount === 0
-      ? 'No linked work items'
-      : data.linkedWorkItemCount === 1
-        ? '1 linked work item'
-        : `${data.linkedWorkItemCount} linked work items`;
+  const { linkedWorkItems } = data;
+  const shownItems = linkedWorkItems.slice(0, MAX_LINKED_ITEMS_SHOWN);
+  const overflowCount = linkedWorkItems.length - shownItems.length;
 
   return (
     <>
@@ -203,11 +203,27 @@ function MilestoneTooltipContent({ data }: { data: GanttTooltipMilestoneData }) 
         </div>
       )}
 
-      {/* Linked work items */}
-      <div className={styles.detailRow}>
-        <span className={styles.detailLabel}>Items</span>
-        <span className={styles.detailValue}>{itemsLabel}</span>
-      </div>
+      {/* Linked work items list */}
+      {linkedWorkItems.length === 0 ? (
+        <div className={styles.detailRow}>
+          <span className={styles.detailLabel}>Items</span>
+          <span className={styles.detailValue}>None</span>
+        </div>
+      ) : (
+        <div className={styles.linkedItemsSection}>
+          <span className={styles.linkedItemsLabel}>Linked ({linkedWorkItems.length})</span>
+          <ul className={styles.linkedItemsList} aria-label="Linked work items">
+            {shownItems.map((item) => (
+              <li key={item.id} className={styles.linkedItem}>
+                {item.title}
+              </li>
+            ))}
+            {overflowCount > 0 && (
+              <li className={styles.linkedItemsOverflow}>+{overflowCount} more</li>
+            )}
+          </ul>
+        </div>
+      )}
     </>
   );
 }

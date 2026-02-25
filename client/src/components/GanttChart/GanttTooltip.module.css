@@ -118,6 +118,52 @@
   color: var(--color-red-200);
 }
 
+/* ---- Milestone linked items list ---- */
+
+.linkedItemsSection {
+  margin-top: var(--spacing-2);
+}
+
+.linkedItemsLabel {
+  display: block;
+  font-size: var(--font-size-xs);
+  color: rgba(255, 255, 255, 0.55);
+  margin-bottom: var(--spacing-1);
+}
+
+.linkedItemsList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.linkedItem {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-inverse);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-left: var(--spacing-2);
+  position: relative;
+}
+
+.linkedItem::before {
+  content: '•';
+  position: absolute;
+  left: 0;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.linkedItemsOverflow {
+  font-size: var(--font-size-xs);
+  color: rgba(255, 255, 255, 0.45);
+  font-style: italic;
+  padding-left: var(--spacing-2);
+  line-height: 1.5;
+}
+
 /* ---- Milestone diamond icon in tooltip header ---- */
 
 .milestoneIcon {
@@ -147,6 +193,22 @@
 
 [data-theme='dark'] .detailLabel {
   color: rgba(0, 0, 0, 0.5);
+}
+
+[data-theme='dark'] .linkedItemsLabel {
+  color: rgba(0, 0, 0, 0.5);
+}
+
+[data-theme='dark'] .linkedItem {
+  color: var(--color-text-inverse);
+}
+
+[data-theme='dark'] .linkedItem::before {
+  color: rgba(0, 0, 0, 0.3);
+}
+
+[data-theme='dark'] .linkedItemsOverflow {
+  color: rgba(0, 0, 0, 0.4);
 }
 
 [data-theme='dark'] .detailValue {

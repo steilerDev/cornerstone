@@ -25,17 +25,31 @@ export interface CalendarItemProps {
   isEnd: boolean;
   /** Compact mode for month view (shorter height, smaller text). */
   compact?: boolean;
+  /** True when this item is hovered elsewhere — highlight all its cells. */
+  isHighlighted?: boolean;
+  /** Called when mouse enters this item — pass item ID for cross-cell highlight. */
+  onHoverStart?: (itemId: string) => void;
+  /** Called when mouse leaves this item. */
+  onHoverEnd?: () => void;
 }
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
-export function CalendarItem({ item, isStart, isEnd, compact = false }: CalendarItemProps) {
+export function CalendarItem({
+  item,
+  isStart,
+  isEnd,
+  compact = false,
+  isHighlighted = false,
+  onHoverStart,
+  onHoverEnd,
+}: CalendarItemProps) {
   const navigate = useNavigate();
 
   function handleClick() {
-    void navigate(`/work-items/${item.id}`);
+    void navigate(`/work-items/${item.id}`, { state: { from: 'timeline' } });
   }
 
   function handleKeyDown(e: ReactKeyboardEvent<HTMLDivElement>) {
@@ -63,9 +77,11 @@ export function CalendarItem({ item, isStart, isEnd, compact = false }: Calendar
     <div
       role="button"
       tabIndex={0}
-      className={`${styles.item} ${statusClass} ${shapeClass} ${compact ? styles.compact : styles.full}`}
+      className={`${styles.item} ${statusClass} ${shapeClass} ${compact ? styles.compact : styles.full} ${isHighlighted ? styles.highlighted : ''}`}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
+      onMouseEnter={() => onHoverStart?.(item.id)}
+      onMouseLeave={() => onHoverEnd?.()}
       aria-label={`Work item: ${item.title}, status: ${item.status.replace('_', ' ')}`}
       title={item.title}
       data-testid="calendar-item"

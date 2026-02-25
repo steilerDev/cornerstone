@@ -14,6 +14,20 @@ export const COLUMN_WIDTHS: Record<ZoomLevel, number> = {
   month: 180,
 };
 
+/** Minimum column width per zoom level for zoom in/out control. */
+export const COLUMN_WIDTH_MIN: Record<ZoomLevel, number> = {
+  day: 20,
+  week: 50,
+  month: 80,
+};
+
+/** Maximum column width per zoom level for zoom in/out control. */
+export const COLUMN_WIDTH_MAX: Record<ZoomLevel, number> = {
+  day: 100,
+  week: 250,
+  month: 400,
+};
+
 /** Row height in pixels — must match sidebar row height exactly for alignment. */
 export const ROW_HEIGHT = 40;
 
@@ -131,10 +145,16 @@ export function computeChartRange(
 
 /**
  * Converts a date to an x-pixel position relative to the chart's left edge.
+ * @param columnWidth Optional override for the column width (used for zoom in/out). Defaults to COLUMN_WIDTHS[zoom].
  */
-export function dateToX(date: Date, chartRange: ChartRange, zoom: ZoomLevel): number {
+export function dateToX(
+  date: Date,
+  chartRange: ChartRange,
+  zoom: ZoomLevel,
+  columnWidth?: number,
+): number {
   const days = daysBetween(chartRange.start, date);
-  const colWidth = COLUMN_WIDTHS[zoom];
+  const colWidth = columnWidth ?? COLUMN_WIDTHS[zoom];
 
   if (zoom === 'day') {
     return days * colWidth;
@@ -143,16 +163,15 @@ export function dateToX(date: Date, chartRange: ChartRange, zoom: ZoomLevel): nu
     return (days / 7) * colWidth;
   } else {
     // month: fractional months based on days in the month
-    return daysToMonthX(date, chartRange.start);
+    return daysToMonthX(date, chartRange.start, colWidth);
   }
 }
 
 /**
  * For month zoom: compute x position accounting for variable month lengths.
  */
-function daysToMonthX(date: Date, rangeStart: Date): number {
+function daysToMonthX(date: Date, rangeStart: Date, colWidth: number): number {
   let x = 0;
-  const colWidth = COLUMN_WIDTHS['month'];
 
   // Count complete months from rangeStart to date's month
   let cur = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), 1, 12);
@@ -177,15 +196,21 @@ function daysToMonthX(date: Date, rangeStart: Date): number {
 
 /**
  * Computes the total SVG canvas width in pixels for the given range and zoom.
+ * @param columnWidth Optional override for the column width. Defaults to COLUMN_WIDTHS[zoom].
  */
-export function computeChartWidth(chartRange: ChartRange, zoom: ZoomLevel): number {
+export function computeChartWidth(
+  chartRange: ChartRange,
+  zoom: ZoomLevel,
+  columnWidth?: number,
+): number {
+  const colWidth = columnWidth ?? COLUMN_WIDTHS[zoom];
   if (zoom === 'day') {
-    return chartRange.totalDays * COLUMN_WIDTHS[zoom];
+    return chartRange.totalDays * colWidth;
   } else if (zoom === 'week') {
-    return (chartRange.totalDays / 7) * COLUMN_WIDTHS[zoom];
+    return (chartRange.totalDays / 7) * colWidth;
   } else {
     // Sum up month widths
-    return dateToX(chartRange.end, chartRange, 'month');
+    return dateToX(chartRange.end, chartRange, 'month', colWidth);
   }
 }
 
@@ -204,15 +229,20 @@ export interface GridLine {
 
 /**
  * Generates vertical grid line positions for the SVG canvas.
+ * @param columnWidth Optional override for the column width. Defaults to COLUMN_WIDTHS[zoom].
  */
-export function generateGridLines(chartRange: ChartRange, zoom: ZoomLevel): GridLine[] {
+export function generateGridLines(
+  chartRange: ChartRange,
+  zoom: ZoomLevel,
+  columnWidth?: number,
+): GridLine[] {
   const lines: GridLine[] = [];
 
   if (zoom === 'day') {
     // A line per day; major lines on Monday (start of week)
     let cur = new Date(chartRange.start);
     while (cur < chartRange.end) {
-      const x = dateToX(cur, chartRange, zoom);
+      const x = dateToX(cur, chartRange, zoom, columnWidth);
       const isMajor = cur.getDay() === 1; // Monday
       lines.push({ x, isMajor, date: new Date(cur) });
       cur = addDays(cur, 1);
@@ -221,7 +251,7 @@ export function generateGridLines(chartRange: ChartRange, zoom: ZoomLevel): Grid
     // A line per week (Monday); major lines on month boundaries
     let cur = startOfIsoWeek(chartRange.start);
     while (cur < chartRange.end) {
-      const x = dateToX(cur, chartRange, zoom);
+      const x = dateToX(cur, chartRange, zoom, columnWidth);
       const isMajor = cur.getDate() <= 7; // First week of the month (approx)
       lines.push({ x, isMajor, date: new Date(cur) });
       cur = addDays(cur, 7);
@@ -230,7 +260,7 @@ export function generateGridLines(chartRange: ChartRange, zoom: ZoomLevel): Grid
     // A line per month; all are major
     let cur = new Date(chartRange.start.getFullYear(), chartRange.start.getMonth(), 1, 12);
     while (cur < chartRange.end) {
-      const x = dateToX(cur, chartRange, zoom);
+      const x = dateToX(cur, chartRange, zoom, columnWidth);
       lines.push({ x, isMajor: true, date: new Date(cur) });
       cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1, 12);
     }
@@ -292,20 +322,22 @@ const WEEKDAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 /**
  * Generates header cell descriptors for the date header row.
+ * @param columnWidth Optional override for the column width. Defaults to COLUMN_WIDTHS[zoom].
  */
 export function generateHeaderCells(
   chartRange: ChartRange,
   zoom: ZoomLevel,
   today: Date,
+  columnWidth?: number,
 ): HeaderCell[] {
   const cells: HeaderCell[] = [];
-  const colWidth = COLUMN_WIDTHS[zoom];
+  const colWidth = columnWidth ?? COLUMN_WIDTHS[zoom];
   const todayNorm = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12);
 
   if (zoom === 'day') {
     let cur = new Date(chartRange.start);
     while (cur < chartRange.end) {
-      const x = dateToX(cur, chartRange, zoom);
+      const x = dateToX(cur, chartRange, zoom, columnWidth);
       const curNorm = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate(), 12);
       cells.push({
         x,
@@ -320,7 +352,7 @@ export function generateHeaderCells(
   } else if (zoom === 'week') {
     let cur = startOfIsoWeek(chartRange.start);
     while (cur < chartRange.end) {
-      const x = dateToX(cur, chartRange, zoom);
+      const x = dateToX(cur, chartRange, zoom, columnWidth);
       const weekEnd = addDays(cur, 6);
       const startLabel = `${MONTH_SHORT[cur.getMonth()]} ${cur.getDate()}`;
       const endLabel = `${cur.getMonth() !== weekEnd.getMonth() ? MONTH_SHORT[weekEnd.getMonth()] + ' ' : ''}${weekEnd.getDate()}`;
@@ -339,9 +371,9 @@ export function generateHeaderCells(
     // month zoom
     let cur = new Date(chartRange.start.getFullYear(), chartRange.start.getMonth(), 1, 12);
     while (cur < chartRange.end) {
-      const x = dateToX(cur, chartRange, zoom);
+      const x = dateToX(cur, chartRange, zoom, columnWidth);
       const nextMonth = new Date(cur.getFullYear(), cur.getMonth() + 1, 1, 12);
-      const xNext = dateToX(nextMonth, chartRange, zoom);
+      const xNext = dateToX(nextMonth, chartRange, zoom, columnWidth);
       const width = xNext - x;
       const isToday =
         cur.getFullYear() === todayNorm.getFullYear() && cur.getMonth() === todayNorm.getMonth();
@@ -367,13 +399,19 @@ export function generateHeaderCells(
  * Converts an x pixel position to a Date, given the current chart range and zoom.
  * This is the inverse of dateToX().
  *
- * @param x          Pixel offset from the left edge of the SVG canvas.
- * @param chartRange The current chart date range.
- * @param zoom       The current zoom level.
- * @returns          The Date corresponding to pixel position x.
+ * @param x           Pixel offset from the left edge of the SVG canvas.
+ * @param chartRange  The current chart date range.
+ * @param zoom        The current zoom level.
+ * @param columnWidth Optional override for the column width. Defaults to COLUMN_WIDTHS[zoom].
+ * @returns           The Date corresponding to pixel position x.
  */
-export function xToDate(x: number, chartRange: ChartRange, zoom: ZoomLevel): Date {
-  const colWidth = COLUMN_WIDTHS[zoom];
+export function xToDate(
+  x: number,
+  chartRange: ChartRange,
+  zoom: ZoomLevel,
+  columnWidth?: number,
+): Date {
+  const colWidth = columnWidth ?? COLUMN_WIDTHS[zoom];
 
   if (zoom === 'day') {
     const days = x / colWidth;
@@ -384,15 +422,14 @@ export function xToDate(x: number, chartRange: ChartRange, zoom: ZoomLevel): Dat
     return addDays(chartRange.start, days);
   } else {
     // month zoom: iterate through months to find the containing month
-    return xToDateMonth(x, chartRange.start);
+    return xToDateMonth(x, chartRange.start, colWidth);
   }
 }
 
 /**
  * For month zoom: convert x pixel to a Date by iterating through months.
  */
-function xToDateMonth(x: number, rangeStart: Date): Date {
-  const colWidth = COLUMN_WIDTHS['month'];
+function xToDateMonth(x: number, rangeStart: Date, colWidth: number): Date {
   let accumulated = 0;
   let cur = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), 1, 12);
 
@@ -473,6 +510,7 @@ export interface BarPosition {
  * @param chartRange    The current chart date range
  * @param zoom          Current zoom level
  * @param today         Today's date
+ * @param columnWidth   Optional override for the column width. Defaults to COLUMN_WIDTHS[zoom].
  */
 export function computeBarPosition(
   startDateStr: string | null,
@@ -481,13 +519,14 @@ export function computeBarPosition(
   chartRange: ChartRange,
   zoom: ZoomLevel,
   today: Date,
+  columnWidth?: number,
 ): BarPosition {
   const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12);
   const startDate = startDateStr ? toUtcMidnight(startDateStr) : todayDate;
   const endDate = endDateStr ? toUtcMidnight(endDateStr) : addDays(startDate, 1);
 
-  const x = dateToX(startDate, chartRange, zoom);
-  const xEnd = dateToX(endDate, chartRange, zoom);
+  const x = dateToX(startDate, chartRange, zoom, columnWidth);
+  const xEnd = dateToX(endDate, chartRange, zoom, columnWidth);
   const rawWidth = xEnd - x;
   const width = Math.max(rawWidth, MIN_BAR_WIDTH);
 

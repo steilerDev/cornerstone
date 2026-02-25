@@ -31,6 +31,12 @@
   /* No extra styles beyond diamond base — fill/stroke resolved from color tokens via props */
 }
 
+/* Ghost diamond — planned position for late milestones */
+.diamondGhost {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
 /* The polygon itself — no extra styles needed since fill/stroke set via props */
 .diamondPolygon {
   pointer-events: none; /* Clicks handled by parent <g> hit area */
