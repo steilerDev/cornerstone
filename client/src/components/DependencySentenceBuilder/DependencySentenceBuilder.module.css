@@ -24,7 +24,7 @@
 
 /* Inline verb select — styled to look like part of the sentence */
 .verbSelect {
-  padding: 0.25rem 1.5rem 0.25rem 0.375rem;
+  padding: 0.25rem 1rem 0.25rem 0.375rem;
   border: 1px solid var(--color-border-strong);
   border-radius: 0.25rem;
   font-size: var(--font-size-sm);
