@@ -33,20 +33,33 @@ interface MilestonePanelProps {
   onMutated: () => void;
   /** Called when a milestone diamond should be focused. Optional. */
   onMilestoneSelect?: (milestoneId: number) => void;
+  /**
+   * Map from milestone ID to its projected completion date (latest end date among linked work
+   * items). Sourced from the timeline API response. Optional — omit to hide projected dates.
+   */
+  projectedDates?: ReadonlyMap<number, string | null>;
 }
 
 // ---------------------------------------------------------------------------
 // Diamond icon for status indicator
 // ---------------------------------------------------------------------------
 
-function SmallDiamond({ completed }: { completed: boolean }) {
+function SmallDiamond({ completed, late }: { completed: boolean; late?: boolean }) {
+  let className: string;
+  if (completed) {
+    className = styles.diamondComplete;
+  } else if (late) {
+    className = styles.diamondLate;
+  } else {
+    className = styles.diamondIncomplete;
+  }
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 10 10"
       width="10"
       height="10"
-      className={completed ? styles.diamondComplete : styles.diamondIncomplete}
+      className={className}
       aria-hidden="true"
     >
       <polygon points="5,0 10,5 5,10 0,5" strokeWidth="1.5" />
@@ -138,6 +151,7 @@ export function MilestonePanel({
   hooks,
   onMutated,
   onMilestoneSelect,
+  projectedDates,
 }: MilestonePanelProps) {
   const [view, setView] = useState<PanelView>('list');
   const [editingMilestone, setEditingMilestone] = useState<MilestoneSummary | null>(null);
@@ -388,7 +402,18 @@ export function MilestonePanel({
                     .sort(
                       (a, b) => new Date(a.targetDate).getTime() - new Date(b.targetDate).getTime(),
                     )
-                    .map((m) => (
+                    .map((m) => {
+                      const projectedDate = projectedDates?.get(m.id) ?? null;
+                      const isLate =
+                        !m.isCompleted &&
+                        projectedDate !== null &&
+                        projectedDate > m.targetDate;
+                      const statusLabel = m.isCompleted
+                        ? 'completed'
+                        : isLate
+                          ? 'late'
+                          : 'incomplete';
+                      return (
                       <li
                         key={m.id}
                         role="listitem"
@@ -401,16 +426,24 @@ export function MilestonePanel({
                           onClick={() => {
                             if (onMilestoneSelect) onMilestoneSelect(m.id);
                           }}
-                          aria-label={`${m.title}, ${m.isCompleted ? 'completed' : 'incomplete'}, ${formatDate(m.targetDate)}`}
+                          aria-label={`${m.title}, ${statusLabel}, ${formatDate(m.targetDate)}`}
                         >
                           <span className={styles.milestoneItemLeft}>
-                            <SmallDiamond completed={m.isCompleted} />
+                            <SmallDiamond completed={m.isCompleted} late={isLate} />
                             <span className={styles.milestoneItemTitle}>{m.title}</span>
                           </span>
                           <span className={styles.milestoneItemMeta}>
                             <span className={styles.milestoneItemDate}>
-                              {formatDate(m.targetDate)}
+                              Target: {formatDate(m.targetDate)}
                             </span>
+                            {!m.isCompleted && projectedDates !== undefined && (
+                              <span
+                                className={`${styles.milestoneItemProjected} ${isLate ? styles.milestoneItemProjectedLate : ''}`}
+                              >
+                                Projected:{' '}
+                                {projectedDate !== null ? formatDate(projectedDate) : '—'}
+                              </span>
+                            )}
                             {m.workItemCount > 0 && (
                               <span className={styles.milestoneItemCount}>
                                 {m.workItemCount} item{m.workItemCount !== 1 ? 's' : ''}
@@ -486,7 +519,8 @@ export function MilestonePanel({
                           </button>
                         </div>
                       </li>
-                    ))}
+                    );
+                    })}
                 </ul>
               )}
             </div>

@@ -367,6 +367,99 @@ describe('Milestone Routes', () => {
       const body = response.json<ApiErrorResponse>();
       expect(body.error.code).toBe('UNAUTHORIZED');
     });
+
+    // ── workItemIds on creation ──────────────────────────────────────────────
+
+    it('should link work items via workItemIds on creation', async () => {
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'Test User',
+        'password123',
+      );
+      const workItemA = createTestWorkItem(userId, 'Foundation Work');
+      const workItemB = createTestWorkItem(userId, 'Framing Work');
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/milestones',
+        headers: { cookie },
+        payload: {
+          title: 'Phase 1 Complete',
+          targetDate: '2026-06-01',
+          workItemIds: [workItemA, workItemB],
+        },
+      });
+
+      expect(response.statusCode).toBe(201);
+      const body = response.json<MilestoneDetail>();
+      expect(body.workItems).toHaveLength(2);
+      const ids = body.workItems.map((w) => w.id);
+      expect(ids).toContain(workItemA);
+      expect(ids).toContain(workItemB);
+    });
+
+    it('should create milestone with empty workItemIds array', async () => {
+      const { cookie } = await createUserWithSession(
+        'user@example.com',
+        'Test User',
+        'password123',
+      );
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/milestones',
+        headers: { cookie },
+        payload: { title: 'Milestone', targetDate: '2026-04-15', workItemIds: [] },
+      });
+
+      expect(response.statusCode).toBe(201);
+      const body = response.json<MilestoneDetail>();
+      expect(body.workItems).toEqual([]);
+    });
+
+    it('should silently skip invalid work item IDs in workItemIds', async () => {
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'Test User',
+        'password123',
+      );
+      const validId = createTestWorkItem(userId, 'Real Work Item');
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/milestones',
+        headers: { cookie },
+        payload: {
+          title: 'Milestone',
+          targetDate: '2026-04-15',
+          workItemIds: [validId, 'nonexistent-id-xyz'],
+        },
+      });
+
+      expect(response.statusCode).toBe(201);
+      const body = response.json<MilestoneDetail>();
+      expect(body.workItems).toHaveLength(1);
+      expect(body.workItems[0].id).toBe(validId);
+    });
+
+    it('should create milestone without workItemIds field (backward compatible)', async () => {
+      const { cookie } = await createUserWithSession(
+        'user@example.com',
+        'Test User',
+        'password123',
+      );
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/milestones',
+        headers: { cookie },
+        payload: { title: 'Milestone', targetDate: '2026-04-15' },
+      });
+
+      expect(response.statusCode).toBe(201);
+      const body = response.json<MilestoneDetail>();
+      expect(body.workItems).toEqual([]);
+    });
   });
 
   // ─── GET /api/milestones/:id ─────────────────────────────────────────────────

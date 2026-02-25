@@ -26,6 +26,11 @@
   transform: scale(0.9);
 }
 
+/* Late milestone state — fill/stroke set via inline props; class used for CSS targeting */
+.diamondLate {
+  /* No extra styles beyond diamond base — fill/stroke resolved from color tokens via props */
+}
+
 /* The polygon itself — no extra styles needed since fill/stroke set via props */
 .diamondPolygon {
   pointer-events: none; /* Clicks handled by parent <g> hit area */

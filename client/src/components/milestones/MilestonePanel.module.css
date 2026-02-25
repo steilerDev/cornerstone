@@ -395,6 +395,25 @@
   flex-shrink: 0;
 }
 
+.diamondLate {
+  fill: var(--color-milestone-late-fill, var(--color-danger));
+  stroke: var(--color-milestone-late-stroke, var(--color-danger));
+  flex-shrink: 0;
+}
+
+/* ---- Milestone projected date ---- */
+
+.milestoneItemProjected {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.milestoneItemProjectedLate {
+  color: var(--color-danger-text-on-light);
+  font-weight: var(--font-weight-medium);
+}
+
 /* ---- Form fields ---- */
 
 .fieldGroup {
@@ -493,6 +512,13 @@
   font-size: var(--font-size-xs);
   color: var(--color-danger-text-on-light);
   margin-top: var(--spacing-1);
+}
+
+.fieldHint {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin: var(--spacing-1-5) 0 0;
+  line-height: 1.5;
 }
 
 /* ---- Checkbox ---- */

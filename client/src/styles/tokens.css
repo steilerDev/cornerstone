@@ -350,9 +350,14 @@
   --color-milestone-complete-fill: var(--color-green-500);
   --color-milestone-complete-stroke: var(--color-green-600);
 
+  /* Diamond marker — late (projected date exceeds target date) */
+  --color-milestone-late-fill: var(--color-danger);
+  --color-milestone-late-stroke: var(--color-danger-hover);
+
   /* Diamond hover glow */
   --color-milestone-hover-glow: rgba(59, 130, 246, 0.25);
   --color-milestone-complete-hover-glow: rgba(16, 185, 129, 0.25);
+  --color-milestone-late-hover-glow: rgba(220, 38, 38, 0.25);
 
   /* ============================================================
    * LAYER 2 — TOAST NOTIFICATION TOKENS
@@ -527,8 +532,12 @@
   --color-milestone-complete-fill: var(--color-emerald-400);
   --color-milestone-complete-stroke: var(--color-green-500);
 
+  --color-milestone-late-fill: var(--color-danger);
+  --color-milestone-late-stroke: var(--color-danger-hover);
+
   --color-milestone-hover-glow: rgba(96, 165, 250, 0.3);
   --color-milestone-complete-hover-glow: rgba(52, 211, 153, 0.3);
+  --color-milestone-late-hover-glow: rgba(239, 68, 68, 0.3);
 
   /* Toast: Success */
   --color-toast-success-bg: rgba(16, 185, 129, 0.1);

@@ -205,15 +205,37 @@ export function getTimeline(db: DbType): TimelineResponse {
     milestoneLinkMap.set(link.milestoneId, existing);
   }
 
-  const timelineMilestones: TimelineMilestone[] = allMilestones.map((m) => ({
-    id: m.id,
-    title: m.title,
-    targetDate: m.targetDate,
-    isCompleted: m.isCompleted,
-    completedAt: m.completedAt,
-    color: m.color,
-    workItemIds: milestoneLinkMap.get(m.id) ?? [],
-  }));
+  // Build workItemId → endDate map for projectedDate computation.
+  // Use all raw work items (not just the dated subset returned in timeline) so
+  // milestones linked to undated items still compute correctly for those that do have dates.
+  const workItemEndDateMap = new Map<string, string | null>();
+  for (const wi of allWorkItems) {
+    workItemEndDateMap.set(wi.id, wi.endDate);
+  }
+
+  const timelineMilestones: TimelineMilestone[] = allMilestones.map((m) => {
+    const linkedIds = milestoneLinkMap.get(m.id) ?? [];
+
+    // Compute projectedDate: latest endDate among linked work items.
+    let projectedDate: string | null = null;
+    for (const wiId of linkedIds) {
+      const endDate = workItemEndDateMap.get(wiId) ?? null;
+      if (endDate && (!projectedDate || endDate > projectedDate)) {
+        projectedDate = endDate;
+      }
+    }
+
+    return {
+      id: m.id,
+      title: m.title,
+      targetDate: m.targetDate,
+      isCompleted: m.isCompleted,
+      completedAt: m.completedAt,
+      color: m.color,
+      workItemIds: linkedIds,
+      projectedDate,
+    };
+  });
 
   // ── 7. Compute date range from returned work items ────────────────────────────
 

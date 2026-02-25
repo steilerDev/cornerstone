@@ -329,6 +329,142 @@ describe('WorkItemDetailPage', () => {
     });
   });
 
+  describe('Schedule section — read-only date fields', () => {
+    it('renders Schedule section heading', async () => {
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByText('Schedule')).toBeInTheDocument();
+      });
+    });
+
+    it('renders startDate as read-only text (not an input)', async () => {
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Start Date')).toBeInTheDocument();
+      });
+
+      // startDate '2024-01-01' should appear as formatted text, not an input
+      // The date input with name/label 'Start Date' must not exist
+      const startDateInputs = document.querySelectorAll('input[type="date"]');
+      // None of the date inputs should be the schedule start date
+      // (Constraints section has startAfter/startBefore date inputs, not startDate/endDate)
+      const startDateLabel = screen.getByText('Start Date');
+      // The sibling/nearby element should be a span, not an input
+      const propertyValue = startDateLabel.closest('[class]')?.querySelector('span:last-child');
+      expect(propertyValue?.tagName).not.toBe('INPUT');
+    });
+
+    it('renders endDate as read-only text (not an input)', async () => {
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('End Date')).toBeInTheDocument();
+      });
+
+      const endDateLabel = screen.getByText('End Date');
+      const propertyValue = endDateLabel.closest('[class]')?.querySelector('span:last-child');
+      expect(propertyValue?.tagName).not.toBe('INPUT');
+    });
+
+    it('renders "Not scheduled" for null startDate', async () => {
+      const workItemNoStart = { ...mockWorkItem, startDate: null };
+      mockGetWorkItem.mockResolvedValue(workItemNoStart);
+
+      renderPage();
+
+      await waitFor(() => {
+        // Should find "Not scheduled" text near the start date label
+        expect(screen.getAllByText('Not scheduled').length).toBeGreaterThanOrEqual(1);
+      });
+    });
+
+    it('renders "Not scheduled" for null endDate', async () => {
+      const workItemNoEnd = { ...mockWorkItem, endDate: null };
+      mockGetWorkItem.mockResolvedValue(workItemNoEnd);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getAllByText('Not scheduled').length).toBeGreaterThanOrEqual(1);
+      });
+    });
+
+    it('renders "Not scheduled" for both dates when both are null', async () => {
+      const workItemNoDates = { ...mockWorkItem, startDate: null, endDate: null };
+      mockGetWorkItem.mockResolvedValue(workItemNoDates);
+
+      renderPage();
+
+      await waitFor(() => {
+        // Both dates should show "Not scheduled"
+        expect(screen.getAllByText('Not scheduled')).toHaveLength(2);
+      });
+    });
+
+    it('renders description text explaining dates are computed by scheduling engine', async () => {
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText(/computed by the scheduling engine/i)).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Constraints section', () => {
+    it('renders Constraints section heading', async () => {
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByText('Constraints')).toBeInTheDocument();
+      });
+    });
+
+    it('renders duration input in Constraints section (editable number input)', async () => {
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Duration (days)')).toBeInTheDocument();
+      });
+
+      // Duration should be an editable number input — find inputs with type="number"
+      // that are siblings to the Duration label inside the constraints section
+      const durationLabel = screen.getByText('Duration (days)');
+      // The label and input are siblings inside a property div
+      const propertyDiv = durationLabel.parentElement;
+      const durationInput = propertyDiv?.querySelector('input[type="number"]');
+      expect(durationInput).toBeInTheDocument();
+      expect((durationInput as HTMLInputElement)?.disabled).toBe(false);
+    });
+
+    it('renders startAfter date input in Constraints section', async () => {
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Start After')).toBeInTheDocument();
+      });
+
+      const startAfterLabel = screen.getByText('Start After');
+      const propertyDiv = startAfterLabel.parentElement;
+      const dateInput = propertyDiv?.querySelector('input[type="date"]');
+      expect(dateInput).toBeInTheDocument();
+      expect((dateInput as HTMLInputElement)?.disabled).toBe(false);
+    });
+
+    it('renders startBefore date input in Constraints section', async () => {
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Start Before')).toBeInTheDocument();
+      });
+
+      const startBeforeLabel = screen.getByText('Start Before');
+      const propertyDiv = startBeforeLabel.parentElement;
+      const dateInput = propertyDiv?.querySelector('input[type="date"]');
+      expect(dateInput).toBeInTheDocument();
+      expect((dateInput as HTMLInputElement)?.disabled).toBe(false);
+    });
+  });
+
   describe('notes display', () => {
     it('shows empty state when no notes exist', async () => {
       renderPage();

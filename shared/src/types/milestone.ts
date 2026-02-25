@@ -50,6 +50,8 @@ export interface CreateMilestoneRequest {
   description?: string | null;
   targetDate: string; // ISO 8601 date (YYYY-MM-DD)
   color?: string | null; // Hex color code e.g. "#EF4444"
+  /** Optional list of work item UUIDs to link to the milestone on creation. */
+  workItemIds?: string[];
 }
 
 /**

@@ -198,6 +198,17 @@ export function createMilestone(
     .returning({ id: milestones.id })
     .get();
 
+  // Link work items if provided
+  if (data.workItemIds && data.workItemIds.length > 0) {
+    for (const workItemId of data.workItemIds) {
+      // Verify work item exists before linking (skip silently if not found)
+      const workItem = db.select().from(workItems).where(eq(workItems.id, workItemId)).get();
+      if (workItem) {
+        db.insert(milestoneWorkItems).values({ milestoneId: result.id, workItemId }).run();
+      }
+    }
+  }
+
   const milestone = db.select().from(milestones).where(eq(milestones.id, result.id)).get()!;
   return toMilestoneDetail(db, milestone);
 }

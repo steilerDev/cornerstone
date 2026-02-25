@@ -7,12 +7,32 @@
  */
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { MilestoneForm } from './MilestoneForm.js';
+import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
+
+// Mock workItemsApi before dynamic import of MilestoneForm (which imports WorkItemSelector)
+const mockListWorkItems = jest.fn<typeof WorkItemsApiTypes.listWorkItems>();
+
+jest.unstable_mockModule('../../lib/workItemsApi.js', () => ({
+  listWorkItems: mockListWorkItems,
+  getWorkItem: jest.fn(),
+  createWorkItem: jest.fn(),
+  updateWorkItem: jest.fn(),
+  deleteWorkItem: jest.fn(),
+  fetchWorkItemSubsidies: jest.fn(),
+  linkWorkItemSubsidy: jest.fn(),
+  unlinkWorkItemSubsidy: jest.fn(),
+}));
+
+// Dynamic import after mock
+let MilestoneForm: (typeof import('./MilestoneForm.js'))['MilestoneForm'];
+
 import type { MilestoneSummary } from '@cornerstone/shared';
 
 // ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------
+
+const defaultPagination = { page: 1, pageSize: 20, totalItems: 0, totalPages: 0 };
 
 const MILESTONE: MilestoneSummary = {
   id: 1,
@@ -40,6 +60,13 @@ const COMPLETED_MILESTONE: MilestoneSummary = {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+async function loadMilestoneForm() {
+  if (!MilestoneForm) {
+    const mod = await import('./MilestoneForm.js');
+    MilestoneForm = mod.MilestoneForm as typeof MilestoneForm;
+  }
+}
 
 function renderCreate(
   overrides: {
@@ -89,6 +116,13 @@ function renderEdit(
 // ---------------------------------------------------------------------------
 
 describe('MilestoneForm', () => {
+  beforeEach(async () => {
+    await loadMilestoneForm();
+    mockListWorkItems.mockReset();
+    // Default: return empty list so WorkItemSelector doesn't leave pending promises
+    mockListWorkItems.mockResolvedValue({ items: [], pagination: defaultPagination });
+  });
+
   // ── Create mode ────────────────────────────────────────────────────────────
 
   describe('create mode', () => {
@@ -133,6 +167,42 @@ describe('MilestoneForm', () => {
     it('renders Cancel button', () => {
       renderCreate();
       expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
+    });
+
+    it('shows WorkItemSelector in create mode', () => {
+      renderCreate();
+      expect(screen.getByTestId('work-item-selector')).toBeInTheDocument();
+    });
+
+    it('shows "Linked Work Items" label in create mode', () => {
+      renderCreate();
+      // Use exact text match to avoid matching the hint text "Linked work items contribute..."
+      const labels = screen.getAllByText(/linked work items/i);
+      // At least one element should be a label element
+      const labelEl = labels.find((el) => el.tagName.toLowerCase() === 'label');
+      expect(labelEl).toBeInTheDocument();
+    });
+
+    it('shows help text about projected date in create mode', () => {
+      renderCreate();
+      expect(screen.getByText(/projected date/i)).toBeInTheDocument();
+    });
+
+    it('submits with workItemIds=undefined when no work items are selected', () => {
+      // The MilestoneForm sends workItemIds as undefined when no items are selected
+      // (not as an empty array), to keep the create payload minimal.
+      const onSubmit = jest.fn();
+      renderCreate({ onSubmit });
+
+      fireEvent.change(screen.getByLabelText(/name/i), { target: { value: 'Test Milestone' } });
+      fireEvent.change(screen.getByLabelText(/target date/i), {
+        target: { value: '2024-09-01' },
+      });
+      fireEvent.click(screen.getByTestId('milestone-form-submit'));
+
+      const callArg = onSubmit.mock.calls[0]?.[0] as Record<string, unknown>;
+      // workItemIds is sent as undefined when no items selected (optimized payload)
+      expect(callArg.workItemIds).toBeUndefined();
     });
   });
 
@@ -202,6 +272,16 @@ describe('MilestoneForm', () => {
       renderEdit(milestoneWithPlainDate);
       const input = screen.getByLabelText(/target date/i) as HTMLInputElement;
       expect(input.value).toBe('2024-09-15');
+    });
+
+    it('does NOT show WorkItemSelector in edit mode', () => {
+      renderEdit();
+      expect(screen.queryByTestId('work-item-selector')).not.toBeInTheDocument();
+    });
+
+    it('does NOT show the projected date help text in edit mode', () => {
+      renderEdit();
+      expect(screen.queryByText(/projected date/i)).not.toBeInTheDocument();
     });
   });
 

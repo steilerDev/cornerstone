@@ -81,6 +81,11 @@
   font-weight: var(--font-weight-medium);
 }
 
+/* Late projected date value — shown in red */
+.detailValueLate {
+  color: var(--color-red-200);
+}
+
 /* ---- Status badge inside tooltip ---- */
 
 .statusBadge {
@@ -146,6 +151,10 @@
 
 [data-theme='dark'] .detailValue {
   color: var(--color-text-inverse);
+}
+
+[data-theme='dark'] .detailValueLate {
+  color: var(--color-red-400);
 }
 
 [data-theme='dark'] .statusNotStarted {

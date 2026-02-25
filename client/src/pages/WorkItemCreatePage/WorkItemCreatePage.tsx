@@ -32,8 +32,6 @@ export default function WorkItemCreatePage() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState<WorkItemStatus>('not_started');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
   const [durationDays, setDurationDays] = useState('');
   const [startAfter, setStartAfter] = useState('');
   const [startBefore, setStartBefore] = useState('');
@@ -81,11 +79,6 @@ export default function WorkItemCreatePage() {
 
     if (!title.trim()) {
       errors.title = 'Title is required';
-    }
-
-    // Validate dates
-    if (startDate && endDate && startDate > endDate) {
-      errors.dates = 'Start date must be before or equal to end date';
     }
 
     if (startAfter && startBefore && startAfter > startBefore) {
@@ -149,8 +142,6 @@ export default function WorkItemCreatePage() {
         title: title.trim(),
         description: description.trim() || null,
         status,
-        startDate: startDate || null,
-        endDate: endDate || null,
         durationDays: durationDays ? Number(durationDays) : null,
         startAfter: startAfter || null,
         startBefore: startBefore || null,
@@ -158,6 +149,7 @@ export default function WorkItemCreatePage() {
         tagIds: selectedTagIds,
         // NOTE: Story 5.9 rework — budget fields removed from work items.
         // Budget data is managed via the /api/work-items/:id/budgets endpoint.
+        // NOTE: startDate/endDate are not set at creation — computed by the scheduling engine.
       });
 
       // Create dependencies sequentially, replacing THIS_ITEM_ID with actual ID
@@ -292,34 +284,6 @@ export default function WorkItemCreatePage() {
 
         <div className={styles.formRow}>
           <div className={styles.formGroup}>
-            <label htmlFor="startDate" className={styles.label}>
-              Start Date
-            </label>
-            <input
-              type="date"
-              id="startDate"
-              className={styles.input}
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              disabled={isSubmitting}
-            />
-          </div>
-
-          <div className={styles.formGroup}>
-            <label htmlFor="endDate" className={styles.label}>
-              End Date
-            </label>
-            <input
-              type="date"
-              id="endDate"
-              className={styles.input}
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              disabled={isSubmitting}
-            />
-          </div>
-
-          <div className={styles.formGroup}>
             <label htmlFor="durationDays" className={styles.label}>
               Duration (days)
             </label>
@@ -337,11 +301,7 @@ export default function WorkItemCreatePage() {
               <div className={styles.errorText}>{validationErrors.durationDays}</div>
             )}
           </div>
-        </div>
 
-        {validationErrors.dates && <div className={styles.errorText}>{validationErrors.dates}</div>}
-
-        <div className={styles.formRow}>
           <div className={styles.formGroup}>
             <label htmlFor="startAfter" className={styles.label}>
               Start After

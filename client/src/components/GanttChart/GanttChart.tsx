@@ -22,7 +22,7 @@ import { GanttHeader } from './GanttHeader.js';
 import { GanttSidebar } from './GanttSidebar.js';
 import { GanttTooltip } from './GanttTooltip.js';
 import type { GanttTooltipData, GanttTooltipPosition } from './GanttTooltip.js';
-import { GanttMilestones } from './GanttMilestones.js';
+import { GanttMilestones, computeMilestoneStatus } from './GanttMilestones.js';
 import type { MilestoneColors } from './GanttMilestones.js';
 import { useGanttDrag } from './useGanttDrag.js';
 import styles from './GanttChart.module.css';
@@ -75,8 +75,12 @@ function resolveColors(): ChartColors {
       incompleteStroke: readCssVar('--color-milestone-incomplete-stroke'),
       completeFill: readCssVar('--color-milestone-complete-fill'),
       completeStroke: readCssVar('--color-milestone-complete-stroke'),
+      lateFill: readCssVar('--color-milestone-late-fill') || readCssVar('--color-danger'),
+      lateStroke: readCssVar('--color-milestone-late-stroke') || readCssVar('--color-danger'),
       hoverGlow: readCssVar('--color-milestone-hover-glow'),
       completeHoverGlow: readCssVar('--color-milestone-complete-hover-glow'),
+      lateHoverGlow:
+        readCssVar('--color-milestone-late-hover-glow') || 'rgba(220, 38, 38, 0.25)',
     },
   };
 }
@@ -483,11 +487,14 @@ export function GanttChart({
                   tooltipTriggerElementRef.current = e.currentTarget;
                   const newPos: GanttTooltipPosition = { x: e.clientX, y: e.clientY };
                   showTimerRef.current = setTimeout(() => {
+                    const milestoneStatus = computeMilestoneStatus(milestone);
                     setTooltipData({
                       kind: 'milestone',
                       title: milestone.title,
                       targetDate: milestone.targetDate,
+                      projectedDate: milestone.projectedDate,
                       isCompleted: milestone.isCompleted,
+                      isLate: milestoneStatus === 'late',
                       completedAt: milestone.completedAt,
                       linkedWorkItemCount: milestone.workItemIds.length,
                     });

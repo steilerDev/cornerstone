@@ -62,6 +62,7 @@ function makeMilestone(id: number, targetDate: string, isCompleted = false): Tim
     completedAt: null,
     color: null,
     workItemIds: [],
+    projectedDate: null,
   };
 }
 

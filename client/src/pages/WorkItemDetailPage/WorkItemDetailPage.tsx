@@ -506,19 +506,6 @@ export default function WorkItemDetailPage() {
     }
   };
 
-  // Date changes
-  const handleDateChange = async (field: 'startDate' | 'endDate', value: string) => {
-    if (!id) return;
-    setInlineError(null);
-    try {
-      await updateWorkItem(id, { [field]: value || null });
-      await reloadWorkItem();
-    } catch (err) {
-      setInlineError(`Failed to update ${field}`);
-      console.error(`Failed to update ${field}:`, err);
-    }
-  };
-
   // Duration change
   const handleDurationChange = async (value: string) => {
     if (!id) return;
@@ -1024,30 +1011,46 @@ export default function WorkItemDetailPage() {
             )}
           </section>
 
-          {/* Dates and Duration */}
+          {/* Dates (computed by scheduling engine) */}
           <section className={styles.section}>
             <h2 className={styles.sectionTitle}>Schedule</h2>
+            <p className={styles.sectionDescription}>
+              Start and end dates are computed by the scheduling engine based on constraints and
+              dependencies.
+            </p>
             <div className={styles.propertyGrid}>
               <div className={styles.property}>
-                <label className={styles.propertyLabel}>Start Date</label>
-                <input
-                  type="date"
-                  className={styles.propertyInput}
-                  value={workItem.startDate || ''}
-                  onChange={(e) => handleDateChange('startDate', e.target.value)}
-                />
+                <span className={styles.propertyLabel}>Start Date</span>
+                <span className={styles.propertyValue}>
+                  {workItem.startDate
+                    ? new Date(workItem.startDate).toLocaleDateString(undefined, {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                      })
+                    : 'Not scheduled'}
+                </span>
               </div>
 
               <div className={styles.property}>
-                <label className={styles.propertyLabel}>End Date</label>
-                <input
-                  type="date"
-                  className={styles.propertyInput}
-                  value={workItem.endDate || ''}
-                  onChange={(e) => handleDateChange('endDate', e.target.value)}
-                />
+                <span className={styles.propertyLabel}>End Date</span>
+                <span className={styles.propertyValue}>
+                  {workItem.endDate
+                    ? new Date(workItem.endDate).toLocaleDateString(undefined, {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                      })
+                    : 'Not scheduled'}
+                </span>
               </div>
+            </div>
+          </section>
 
+          {/* Constraints */}
+          <section className={styles.section}>
+            <h2 className={styles.sectionTitle}>Constraints</h2>
+            <div className={styles.propertyGrid}>
               <div className={styles.property}>
                 <label className={styles.propertyLabel}>Duration (days)</label>
                 <input
@@ -1059,13 +1062,7 @@ export default function WorkItemDetailPage() {
                   placeholder="0"
                 />
               </div>
-            </div>
-          </section>
 
-          {/* Constraints */}
-          <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>Constraints</h2>
-            <div className={styles.propertyGrid}>
               <div className={styles.property}>
                 <label className={styles.propertyLabel}>Start After</label>
                 <input

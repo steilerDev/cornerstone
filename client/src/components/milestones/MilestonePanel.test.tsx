@@ -113,6 +113,7 @@ describe('MilestonePanel', () => {
     hooks: ReturnType<typeof makeHooks>;
     onMutated: jest.Mock;
     onMilestoneSelect?: jest.Mock;
+    projectedDates?: ReadonlyMap<number, string | null>;
   }>;
 
   let mockFetch: jest.MockedFunction<typeof fetch>;
@@ -171,6 +172,7 @@ describe('MilestonePanel', () => {
       hooks?: ReturnType<typeof makeHooks>;
       onMutated?: jest.Mock;
       onMilestoneSelect?: jest.Mock;
+      projectedDates?: ReadonlyMap<number, string | null>;
     } = {},
   ) {
     const onClose = overrides.onClose ?? jest.fn();
@@ -186,6 +188,7 @@ describe('MilestonePanel', () => {
         hooks={hooks}
         onMutated={onMutated}
         onMilestoneSelect={overrides.onMilestoneSelect}
+        projectedDates={overrides.projectedDates}
       />,
     );
   }
@@ -267,6 +270,76 @@ describe('MilestonePanel', () => {
     it('renders error message when error is set', () => {
       renderPanel({ milestones: [], error: 'Failed to load' });
       expect(screen.getByRole('alert')).toHaveTextContent('Failed to load');
+    });
+
+    // ── projectedDates prop ──────────────────────────────────────────────────
+
+    it('shows Target and Projected date labels when projectedDates prop is provided', () => {
+      const projectedDates: ReadonlyMap<number, string | null> = new Map([
+        [MILESTONE_1.id, '2024-08-15'],
+      ]);
+      renderPanel({ projectedDates });
+      expect(screen.getByText(/target:/i)).toBeInTheDocument();
+      expect(screen.getByText(/projected:/i)).toBeInTheDocument();
+    });
+
+    it('does not show projected date row when projectedDates prop is undefined', () => {
+      renderPanel({ projectedDates: undefined });
+      // Only target date is shown; projected row absent
+      expect(screen.queryByText(/projected:/i)).not.toBeInTheDocument();
+    });
+
+    it('shows projected date value when projectedDate is set for a milestone', () => {
+      const projectedDates: ReadonlyMap<number, string | null> = new Map([
+        [MILESTONE_1.id, '2024-08-15'],
+      ]);
+      renderPanel({ projectedDates });
+      // formatDate('2024-08-15') → 'Aug 15, 2024'
+      expect(screen.getByText(/aug 15, 2024/i)).toBeInTheDocument();
+    });
+
+    it('shows "—" when projectedDate is null for a milestone', () => {
+      const projectedDates: ReadonlyMap<number, string | null> = new Map([
+        [MILESTONE_1.id, null],
+      ]);
+      renderPanel({ projectedDates });
+      expect(screen.getByText(/projected:.*—/i)).toBeInTheDocument();
+    });
+
+    it('does not show projected date row for completed milestones even when projectedDates is set', () => {
+      const projectedDates: ReadonlyMap<number, string | null> = new Map([
+        [MILESTONE_2.id, '2024-12-01'],
+      ]);
+      renderPanel({
+        milestones: [MILESTONE_2], // MILESTONE_2 is completed
+        projectedDates,
+      });
+      // Completed milestones do not show the projected date row
+      expect(screen.queryByText(/projected:/i)).not.toBeInTheDocument();
+    });
+
+    it('renders milestone as late when projectedDate > targetDate', () => {
+      // MILESTONE_1 targetDate = '2024-06-30'; projectedDate = '2024-09-01' (after target)
+      const projectedDates: ReadonlyMap<number, string | null> = new Map([
+        [MILESTONE_1.id, '2024-09-01'],
+      ]);
+      renderPanel({ projectedDates });
+      // The status label in the aria-label should be 'late'
+      const milestonebtn = screen.getByRole('button', { name: /foundation complete.*late/i });
+      expect(milestonebtn).toBeInTheDocument();
+    });
+
+    it('renders milestone as on-track when projectedDate <= targetDate', () => {
+      // MILESTONE_1 targetDate = '2024-06-30'; projectedDate = '2024-06-15' (before target)
+      const projectedDates: ReadonlyMap<number, string | null> = new Map([
+        [MILESTONE_1.id, '2024-06-15'],
+      ]);
+      renderPanel({ projectedDates });
+      // Status label should be 'incomplete' (on_track)
+      const milestonebtn = screen.getByRole('button', {
+        name: /foundation complete.*incomplete/i,
+      });
+      expect(milestonebtn).toBeInTheDocument();
     });
 
     it('calls onMilestoneSelect when milestone item is clicked', () => {

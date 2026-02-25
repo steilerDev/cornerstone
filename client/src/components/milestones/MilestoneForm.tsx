@@ -5,6 +5,8 @@ import type {
   CreateMilestoneRequest,
   UpdateMilestoneRequest,
 } from '@cornerstone/shared';
+import { WorkItemSelector } from './WorkItemSelector.js';
+import type { SelectedWorkItem } from './WorkItemSelector.js';
 import styles from './MilestonePanel.module.css';
 
 // ---------------------------------------------------------------------------
@@ -56,6 +58,9 @@ export function MilestoneForm({
   const [targetDate, setTargetDate] = useState(milestone?.targetDate ?? '');
   const [isCompleted, setIsCompleted] = useState(milestone?.isCompleted ?? false);
 
+  // Work items to link — only used in create mode
+  const [selectedWorkItems, setSelectedWorkItems] = useState<SelectedWorkItem[]>([]);
+
   // Validation errors
   const [titleError, setTitleError] = useState<string | null>(null);
   const [dateError, setDateError] = useState<string | null>(null);
@@ -97,9 +102,22 @@ export function MilestoneForm({
         title: title.trim(),
         description: description.trim() || null,
         targetDate,
+        workItemIds:
+          selectedWorkItems.length > 0 ? selectedWorkItems.map((item) => item.id) : undefined,
       };
       onSubmit(data);
     }
+  }
+
+  function handleAddWorkItem(item: SelectedWorkItem) {
+    setSelectedWorkItems((prev) => {
+      if (prev.some((wi) => wi.id === item.id)) return prev;
+      return [...prev, item];
+    });
+  }
+
+  function handleRemoveWorkItem(id: string) {
+    setSelectedWorkItems((prev) => prev.filter((wi) => wi.id !== id));
   }
 
   // Today's date for "completed on" display
@@ -195,6 +213,29 @@ export function MilestoneForm({
           )}
         </div>
 
+        {/* Work items selector — create mode only */}
+        {!isEditMode && (
+          <div className={styles.fieldGroup}>
+            <label className={styles.fieldLabel}>
+              Linked Work Items
+              {selectedWorkItems.length > 0 && (
+                <span className={styles.linkedCount}> ({selectedWorkItems.length})</span>
+              )}
+            </label>
+            <WorkItemSelector
+              selectedItems={selectedWorkItems}
+              onAdd={handleAddWorkItem}
+              onRemove={handleRemoveWorkItem}
+              disabled={isSubmitting}
+            />
+            <p className={styles.fieldHint}>
+              Linked work items contribute to this milestone&rsquo;s projected date &mdash;
+              computed from the latest end date of linked items. If the projected date exceeds the
+              target date, the milestone shows as late.
+            </p>
+          </div>
+        )}
+
         {/* Completed checkbox — edit mode only */}
         {isEditMode && (
           <div className={styles.fieldGroup}>
@@ -240,7 +281,7 @@ export function MilestoneForm({
           disabled={isSubmitting}
           data-testid="milestone-form-submit"
         >
-          {isSubmitting ? 'Saving…' : isEditMode ? 'Save Changes' : 'Create Milestone'}
+          {isSubmitting ? 'Saving\u2026' : isEditMode ? 'Save Changes' : 'Create Milestone'}
         </button>
       </div>
     </form>
