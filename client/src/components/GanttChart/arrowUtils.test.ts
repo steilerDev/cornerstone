@@ -4,8 +4,8 @@
  * Exhaustive unit tests for arrowUtils.ts — pure SVG path computation functions
  * for Gantt chart dependency arrows.
  *
- * Tests cover all 4 dependency types (FS, SS, FF, SF), normal and U-turn
- * (back-arrow) cases, arrowhead polygon computation, and the public
+ * Tests cover all 4 dependency types (FS, SS, FF, SF), normal and C-shape
+ * (overlap) cases, arrowhead polygon computation, and the public
  * computeArrowPath dispatcher.
  */
 import { describe, it, expect } from '@jest/globals';
@@ -196,12 +196,12 @@ describe('computeArrowPath — finish_to_start', () => {
     });
   });
 
-  describe('U-turn path (successor starts before/overlapping predecessor end)', () => {
+  describe('C-shape path (successor starts before/overlapping predecessor end)', () => {
     // predecessor: x=200, width=150, right edge at 350
     //              exitX = 350 + 12 = 362
     // successor: x=100, left edge at 100
     //            entryX = 100 - 12 = 88
-    // entryX(88) < exitX(362) → U-turn
+    // entryX(88) < exitX(362) → C-shape
     const pred = makeBar(200, 150, 0);
     const succ = makeBar(100, 80, 1);
 
@@ -215,26 +215,31 @@ describe('computeArrowPath — finish_to_start', () => {
       expect(result.tipX).toBe(succ.x);
     });
 
-    it('U-turn pathD starts at M with exit x (right edge + standoff)', () => {
+    it('C-shape pathD starts at M with exit x (right edge + standoff)', () => {
       const result = computeArrowPath(pred, succ, 'finish_to_start');
       const exitX = pred.x + pred.width + ARROW_STANDOFF;
       expect(result.pathD).toMatch(new RegExp(`^M ${exitX}`));
     });
 
-    it('U-turn loops right by ARROW_MIN_H_SEG before turning', () => {
-      const result = computeArrowPath(pred, succ, 'finish_to_start');
-      const exitX = pred.x + pred.width + ARROW_STANDOFF;
-      const loopX = exitX + ARROW_MIN_H_SEG;
-      expect(result.pathD).toContain(`H ${loopX}`);
-    });
-
-    it('U-turn pathD contains the entry x (successor left - standoff)', () => {
+    it('C-shape drops past successor bar then enters from the left', () => {
       const result = computeArrowPath(pred, succ, 'finish_to_start');
       const entryX = succ.x - ARROW_STANDOFF;
+      const dstY = expectedCenterY(succ.rowIndex);
+      // C-shape has 5 segments: M exitX srcY H spineX V bypassY H entryX V dstY
+      expect(result.pathD).toMatch(/^M \d+ \d+ H \d+ V \d+ H \d+ V \d+$/);
       expect(result.pathD).toContain(`H ${entryX}`);
+      expect(result.pathD).toContain(`V ${dstY}`);
     });
 
-    it('exactly touching bars (entryX === exitX) takes the U-turn path', () => {
+    it('C-shape bypass Y clears successor bar (BAR_HEIGHT/2 + ARROW_STANDOFF)', () => {
+      const result = computeArrowPath(pred, succ, 'finish_to_start');
+      const dstY = expectedCenterY(succ.rowIndex);
+      // Successor is below predecessor, so bypass goes below (direction = 1)
+      const bypassY = dstY + 1 * (BAR_HEIGHT / 2 + ARROW_STANDOFF);
+      expect(result.pathD).toContain(`V ${bypassY}`);
+    });
+
+    it('exactly touching bars (entryX === exitX) takes the standard path', () => {
       // Make them exactly touch: succ.x - ARROW_STANDOFF = pred.x + pred.width + ARROW_STANDOFF
       // pred right + 12 = succ.x - 12  →  succ.x = pred.x + pred.width + 24
       const pred2 = makeBar(100, 80, 0);
