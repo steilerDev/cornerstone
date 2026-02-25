@@ -31,17 +31,13 @@ The work items list page provides:
 
 All filter and sort settings are synced to the URL, so your view is bookmarkable and shareable.
 
-:::info Screenshot needed
-A screenshot of the work items list page will be added here.
-:::
+![Work Items List](/img/screenshots/work-items-list-light.png)
 
 ## Detail View
 
 Click any work item to see its full detail page with all fields, notes, subtasks, and dependencies.
 
-:::info Screenshot needed
-A screenshot of the work item detail page will be added here.
-:::
+![Work Item Detail](/img/screenshots/work-item-detail-light.png)
 
 ## Next Steps
 

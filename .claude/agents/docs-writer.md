@@ -76,7 +76,7 @@ npm run docs:dev    # Start at http://localhost:3000 (Docusaurus default port)
 npm run docs:build  # Build to docs/build/
 ```
 
-**Deployment:** Automated via `.github/workflows/docs.yml` — pushes to `main` with changes in `docs/**` trigger a GitHub Pages deployment.
+**Deployment:** Automated via the `docs-deploy` job in `.github/workflows/release.yml` — stable releases trigger screenshot capture from the released Docker image, followed by a docs build and GitHub Pages deployment.
 
 ### README.md (Lean Pointer)
 
@@ -133,7 +133,6 @@ When a new epic ships, update the relevant content pages in `docs/src/`:
 **Markdown conventions:**
 
 - Each page needs frontmatter: `---\ntitle: Page Title\n---`
-- Use `:::info Screenshot needed` admonitions for pages missing screenshots
 - Use `:::caution`, `:::tip`, `:::note` for callouts
 - Link to other doc pages relatively: `[OIDC Setup](../guides/users/oidc-setup)`
 - Link to GitHub Issues as `[#42](https://github.com/steilerDev/cornerstone/issues/42)`
@@ -143,8 +142,9 @@ When a new epic ships, update the relevant content pages in `docs/src/`:
 - Screenshots live in `docs/static/img/screenshots/`
 - Naming: `<feature>-<view>-<theme>.png` (e.g., `work-items-list-light.png`)
 - Reference in Markdown as `![alt text](/img/screenshots/filename.png)`
-- Run `npm run docs:screenshots` to capture new screenshots (requires running app via testcontainers)
-- For features without screenshots yet, use the `:::info Screenshot needed` admonition
+- Screenshots are auto-captured by the `docs-screenshots` job in `release.yml` on each stable release
+- To add new screenshots, add test cases to `e2e/tests/screenshots/capture-docs-screenshots.spec.ts`
+- For pages whose screenshots don't exist yet, reference the expected filename — it will resolve on the next stable release
 
 ### 3. Writing RELEASE_SUMMARY.md
 
