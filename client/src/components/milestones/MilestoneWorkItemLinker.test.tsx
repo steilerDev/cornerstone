@@ -164,9 +164,9 @@ describe('MilestoneWorkItemLinker', () => {
       expect(screen.getByRole('button', { name: /back/i })).toBeInTheDocument();
     });
 
-    it('renders the "Contributing Work Items" heading', () => {
+    it('renders the "Contributing Work Items" label', () => {
       renderLinker();
-      expect(screen.getByRole('heading', { name: /contributing work items/i })).toBeInTheDocument();
+      expect(screen.getByText(/contributing work items/i)).toBeInTheDocument();
     });
 
     it('renders search input', () => {
@@ -200,9 +200,13 @@ describe('MilestoneWorkItemLinker', () => {
       expect(screen.getByRole('button', { name: /remove pour foundation/i })).toBeInTheDocument();
     });
 
-    it('does not show "No work items selected" placeholder when items are linked', () => {
+    it('does not show "No work items selected" in the contributing section when items are linked', () => {
       renderLinker({ linkedWorkItems: [WI_1] });
-      expect(screen.queryByText('No work items selected')).not.toBeInTheDocument();
+      // The contributing WorkItemSelector should not show the empty placeholder,
+      // but the dependent section (with no items) will still show it.
+      const selectors = screen.getAllByTestId('work-item-selector');
+      // First selector is contributing — should NOT contain the placeholder
+      expect(selectors[0]).not.toHaveTextContent('No work items selected');
     });
 
     it('shows linked item count in the label', () => {
