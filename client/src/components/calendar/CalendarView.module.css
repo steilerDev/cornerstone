@@ -94,6 +94,16 @@
   text-overflow: ellipsis;
 }
 
+/* ---- Column size toggle (S / M / L) ---- */
+
+.columnSizeToggle {
+  display: inline-flex;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
 /* ---- Mode toggle (Month / Week) ---- */
 
 .modeToggle {
@@ -164,6 +174,10 @@
   .modeButton {
     min-height: 44px;
   }
+
+  .columnSizeToggle .modeButton {
+    min-height: 44px;
+  }
 }
 
 @media (max-width: 767px) {
@@ -186,5 +200,10 @@
   .modeToggle {
     order: 3;
     margin-left: auto;
+  }
+
+  /* Hide column size toggle on mobile */
+  .columnSizeToggle {
+    display: none;
   }
 }

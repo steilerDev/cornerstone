@@ -82,6 +82,42 @@
   z-index: 1;
 }
 
+/* Auto-schedule button — primary (filled) variant */
+.autoScheduleButtonPrimary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-1-5) var(--spacing-3);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-primary-text);
+  background: var(--color-primary);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition-button);
+  min-height: 36px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.autoScheduleButtonPrimary:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+}
+
+.autoScheduleButtonPrimary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.autoScheduleButtonPrimary:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  position: relative;
+  z-index: 1;
+}
+
 /* Spinning keyframe for auto-schedule icon */
 @keyframes spin {
   from {
@@ -347,6 +383,10 @@
   .viewButton {
     min-height: 44px;
   }
+
+  .autoScheduleButtonPrimary {
+    min-height: 44px;
+  }
 }
 
 /* Mobile: toolbar becomes full-width row */
@@ -380,6 +420,15 @@
 
   /* Hide "Auto-schedule" text label on mobile — show icon only */
   .autoScheduleButton span {
+    display: none;
+  }
+
+  .autoScheduleButtonPrimary {
+    min-height: 44px;
+  }
+
+  /* Hide "Auto-schedule" text label on mobile — show icon only */
+  .autoScheduleButtonPrimary span {
     display: none;
   }
 
@@ -490,7 +539,6 @@
 }
 
 .dialogItemId {
-  font-family: monospace;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

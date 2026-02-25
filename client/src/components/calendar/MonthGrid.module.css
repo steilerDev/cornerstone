@@ -58,7 +58,7 @@
   border-right: 1px solid var(--color-border);
   background: var(--color-bg-primary);
   min-height: 0;
-  overflow: hidden;
+  overflow: visible;
   transition: background var(--transition-fast);
 }
 
@@ -111,8 +111,37 @@
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  overflow: visible;
   gap: var(--spacing-px);
+  /* Extend items to full cell width so continuation bars can bridge cell gaps */
+  margin-left: calc(-1 * var(--spacing-1));
+  margin-right: calc(-1 * var(--spacing-1));
+}
+
+/* ---- Column size variants ---- */
+
+.grid[data-column-size='compact'] .headerRow,
+.grid[data-column-size='compact'] .weekRow {
+  grid-template-columns: repeat(7, minmax(60px, 1fr));
+}
+
+.grid[data-column-size='compact'] .dayCell {
+  padding: var(--spacing-0-5);
+}
+
+.grid[data-column-size='compact'] .dateNumber {
+  font-size: var(--font-size-2xs);
+  width: 20px;
+  height: 20px;
+}
+
+.grid[data-column-size='comfortable'] {
+  overflow-x: auto;
+}
+
+.grid[data-column-size='comfortable'] .headerRow,
+.grid[data-column-size='comfortable'] .weekRow {
+  grid-template-columns: repeat(7, minmax(160px, 1fr));
 }
 
 /* ---- Day name responsive labels ---- */

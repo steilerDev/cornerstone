@@ -76,6 +76,34 @@
   font-weight: var(--font-weight-medium);
 }
 
+/* ---- Multi-day spanning — bridge cell gaps ---- */
+
+/* Compact (month view): continuation bars extend into adjacent cell gap */
+.compact.noEndRound {
+  margin-right: -1px;
+}
+
+.compact.startRounded {
+  margin-left: var(--spacing-1);
+}
+
+.compact.endRounded {
+  margin-right: var(--spacing-1);
+}
+
+/* Full (week view): continuation bars extend into adjacent cell gap */
+.full.noEndRound {
+  margin-right: -1px;
+}
+
+.full.startRounded {
+  margin-left: var(--spacing-2);
+}
+
+.full.endRounded {
+  margin-right: var(--spacing-2);
+}
+
 /* ---- Status colors ---- */
 
 .notStarted {

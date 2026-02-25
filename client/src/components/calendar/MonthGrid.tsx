@@ -8,6 +8,7 @@
 
 import { useMemo } from 'react';
 import type { TimelineWorkItem, TimelineMilestone } from '@cornerstone/shared';
+import type { CalendarColumnSize } from './CalendarView.js';
 import { CalendarItem } from './CalendarItem.js';
 import { CalendarMilestone } from './CalendarMilestone.js';
 import {
@@ -32,6 +33,7 @@ export interface MonthGridProps {
   workItems: TimelineWorkItem[];
   milestones: TimelineMilestone[];
   onMilestoneClick?: (milestoneId: number) => void;
+  columnSize?: CalendarColumnSize;
 }
 
 // ---------------------------------------------------------------------------
@@ -44,6 +46,7 @@ export function MonthGrid({
   workItems,
   milestones,
   onMilestoneClick,
+  columnSize = 'default',
 }: MonthGridProps) {
   const weeks = useMemo(() => getMonthGrid(year, month), [year, month]);
 
@@ -52,6 +55,7 @@ export function MonthGrid({
       className={styles.grid}
       role="grid"
       aria-label={`Calendar for ${year}-${String(month).padStart(2, '0')}`}
+      data-column-size={columnSize}
     >
       {/* Day name header row */}
       <div className={styles.headerRow} role="row">

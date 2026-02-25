@@ -83,6 +83,10 @@
   /* Red scale additions — dark mode danger variants */
   --color-red-300: #fca5a5;
 
+  /* Orange scale — critical path accent */
+  --color-orange-300: #fdba74;
+  --color-orange-400: #fb923c;
+
   /* Emerald scale — dark mode success variants */
   --color-emerald-400: #34d399;
   --color-emerald-300: #6ee7b7;
@@ -333,10 +337,7 @@
   --color-gantt-arrow-critical: var(--color-red-500);
 
   /* Critical path bar border overlay */
-  --color-gantt-bar-critical-border: var(--color-red-600);
-
-  /* Ghost/preview bar during drag — uses focus border color */
-  --color-gantt-bar-ghost: var(--color-border-focus);
+  --color-gantt-bar-critical-border: var(--color-orange-400);
 
   /* ============================================================
    * LAYER 2 — MILESTONE TOKENS
@@ -519,11 +520,8 @@
   --color-gantt-arrow-default: var(--color-slate-400);
   --color-gantt-arrow-critical: var(--color-red-400);
 
-  /* Critical path bar border overlay (brighter in dark mode) */
-  --color-gantt-bar-critical-border: var(--color-red-400);
-
-  /* Ghost bar during drag */
-  --color-gantt-bar-ghost: var(--color-border-focus);
+  /* Critical path bar accent stripe (warmer orange in dark mode) */
+  --color-gantt-bar-critical-border: var(--color-orange-300);
 
   /* --- Milestones --- */
   --color-milestone-incomplete-fill: transparent;
