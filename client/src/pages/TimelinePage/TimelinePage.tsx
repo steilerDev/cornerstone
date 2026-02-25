@@ -330,11 +330,13 @@ function AutoScheduleDialog({
                     <span className={styles.dialogItemId} title={m.title}>
                       {m.title}
                     </span>
-                    <span className={styles.dialogItemDate}>{m.currentProjectedDate ?? '—'}</span>
+                    <span className={styles.dialogItemDate}>
+                      {m.currentProjectedDate !== null ? formatDateShort(m.currentProjectedDate) : '—'}
+                    </span>
                     <span
                       className={`${styles.dialogItemDate} ${styles.dialogMilestoneDateChanged}`}
                     >
-                      {m.newProjectedDate ?? '—'}
+                      {m.newProjectedDate !== null ? formatDateShort(m.newProjectedDate) : '—'}
                     </span>
                   </div>
                 ))}
