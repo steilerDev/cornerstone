@@ -105,14 +105,18 @@
 }
 
 /* ---- Items container ---- */
+/*
+ * position:relative is required for lane-based absolute positioning of items.
+ * Height grows with the number of lanes (set via JS inline style on the element).
+ * The negative margins extend items to full cell width so continuation bars
+ * can bridge cell gaps at zero left/right margins.
+ */
 
 .itemsContainer {
-  display: flex;
-  flex-direction: column;
+  position: relative;
   flex: 1;
   min-height: 0;
   overflow: visible;
-  gap: var(--spacing-px);
   /* Extend items to full cell width so continuation bars can bridge cell gaps */
   margin-left: calc(-1 * var(--spacing-1));
   margin-right: calc(-1 * var(--spacing-1));

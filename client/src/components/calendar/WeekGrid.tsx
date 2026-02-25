@@ -4,12 +4,16 @@
  * Shows more vertical space per day for stacked work items.
  * Work items appear as blocks with full titles visible.
  * Milestones appear as diamond markers.
+ *
+ * Lane allocation: runs allocateLanes() across the full week so that multi-day
+ * items occupy the same vertical lane in every day cell they span.
+ * Each day cell is position:relative; items are positioned absolutely by lane.
  */
 
 import { useMemo } from 'react';
 import type { TimelineWorkItem, TimelineMilestone } from '@cornerstone/shared';
 import type { CalendarColumnSize } from './CalendarView.js';
-import { CalendarItem } from './CalendarItem.js';
+import { CalendarItem, LANE_HEIGHT_FULL } from './CalendarItem.js';
 import { CalendarMilestone } from './CalendarMilestone.js';
 import {
   getWeekDates,
@@ -17,6 +21,8 @@ import {
   getMilestonesForDay,
   isItemStart,
   isItemEnd,
+  allocateLanes,
+  getItemColor,
   DAY_NAMES,
   getMonthName,
   formatDateForAria,
@@ -56,6 +62,29 @@ export function WeekGrid({
 }: WeekGridProps) {
   const days = useMemo(() => getWeekDates(weekDate), [weekDate]);
 
+  // Lane allocation for the entire week
+  const laneMap = useMemo(() => {
+    const weekStart = days[0].dateStr;
+    const weekEnd = days[6].dateStr;
+    return allocateLanes(weekStart, weekEnd, workItems);
+  }, [days, workItems]);
+
+  // Max lane across the whole week (to size each day cell consistently)
+  const maxLane = useMemo(
+    () => (laneMap.size > 0 ? Math.max(...Array.from(laneMap.values())) : -1),
+    [laneMap],
+  );
+
+  // Minimum cell height = all lanes + space for milestones (use max milestones across days)
+  const maxMilestonesInADay = useMemo(() => {
+    return Math.max(0, ...days.map((d) => getMilestonesForDay(d.dateStr, milestones).length));
+  }, [days, milestones]);
+
+  const minCellHeight =
+    maxLane >= 0
+      ? (maxLane + 1) * LANE_HEIGHT_FULL + maxMilestonesInADay * LANE_HEIGHT_FULL
+      : undefined;
+
   return (
     <div
       className={styles.grid}
@@ -91,10 +120,18 @@ export function WeekGrid({
           const dayItems = getItemsForDay(day.dateStr, workItems);
           const dayMilestones = getMilestonesForDay(day.dateStr, milestones);
 
+          // Milestone top offset comes after all item lanes
+          const milestoneTopOffset = maxLane >= 0 ? (maxLane + 1) * LANE_HEIGHT_FULL : 0;
+
           return (
             <div
               key={day.dateStr}
               className={[styles.dayCell, day.isToday ? styles.today : ''].join(' ')}
+              style={
+                minCellHeight !== undefined
+                  ? { position: 'relative', minHeight: minCellHeight }
+                  : { position: 'relative' }
+              }
               role="gridcell"
               aria-label={formatDateForAria(day.dateStr)}
             >
@@ -109,12 +146,25 @@ export function WeekGrid({
                   isHighlighted={hoveredItemId === item.id}
                   onHoverStart={onItemHoverStart}
                   onHoverEnd={onItemHoverEnd}
+                  laneIndex={laneMap.get(item.id)}
+                  colorIndex={getItemColor(item.id)}
                 />
               ))}
 
-              {/* Milestone markers */}
-              {dayMilestones.map((m) => (
-                <CalendarMilestone key={m.id} milestone={m} onMilestoneClick={onMilestoneClick} />
+              {/* Milestone markers — stacked below all item lanes */}
+              {dayMilestones.map((m, mIdx) => (
+                <div
+                  key={m.id}
+                  style={{
+                    position: 'absolute',
+                    top: milestoneTopOffset + mIdx * LANE_HEIGHT_FULL,
+                    left: 0,
+                    right: 0,
+                    padding: '0 var(--spacing-2)',
+                  }}
+                >
+                  <CalendarMilestone milestone={m} onMilestoneClick={onMilestoneClick} />
+                </div>
               ))}
 
               {/* Empty day placeholder */}
