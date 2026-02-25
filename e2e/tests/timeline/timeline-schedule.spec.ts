@@ -98,11 +98,11 @@ test.describe('Auto-schedule dialog opens (Scenario 1)', () => {
     await expect(timelinePage.autoScheduleButton).toContainText('Auto-schedule');
   });
 
-  test('Auto-schedule button is NOT visible in Calendar view', async ({ page }) => {
+  test('Auto-schedule button is visible in Calendar view', async ({ page }) => {
     const timelinePage = new TimelinePage(page);
     await timelinePage.gotoCalendar();
 
-    await expect(timelinePage.autoScheduleButton).not.toBeVisible();
+    await expect(timelinePage.autoScheduleButton).toBeVisible();
   });
 
   test('Clicking Auto-schedule calls POST /api/schedule and opens the dialog', async ({ page }) => {
