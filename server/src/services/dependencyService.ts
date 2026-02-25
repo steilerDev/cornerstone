@@ -11,6 +11,7 @@ import type {
 } from '@cornerstone/shared';
 import { NotFoundError, ValidationError, ConflictError } from '../errors/AppError.js';
 import { toWorkItemSummary } from './workItemService.js';
+import { autoReschedule } from './schedulingEngine.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -148,6 +149,8 @@ export function createDependency(
     })
     .run();
 
+  autoReschedule(db);
+
   return {
     predecessorId,
     successorId: workItemId,
@@ -219,6 +222,8 @@ export function updateDependency(
       ),
     )
     .get()!;
+
+  autoReschedule(db);
 
   return {
     predecessorId: updated.predecessorId,
@@ -303,4 +308,6 @@ export function deleteDependency(db: DbType, workItemId: string, predecessorId: 
       ),
     )
     .run();
+
+  autoReschedule(db);
 }

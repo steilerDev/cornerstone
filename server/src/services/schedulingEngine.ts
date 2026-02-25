@@ -7,8 +7,18 @@
  * See wiki/ADR-014-Scheduling-Engine-Architecture.md for algorithm details.
  *
  * EPIC-06: Story 6.2 — Scheduling Engine (CPM, Auto-Schedule, Conflict Detection)
+ * EPIC-06 UAT Fix 1: Added autoReschedule() for automatic rescheduling on constraint changes.
  */
 
+import { eq } from 'drizzle-orm';
+import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import type * as schemaTypes from '../db/schema.js';
+import {
+  workItems,
+  workItemDependencies,
+  workItemMilestoneDeps,
+  milestoneWorkItems,
+} from '../db/schema.js';
 import type { ScheduleResponse, ScheduleWarning } from '@cornerstone/shared';
 
 // ─── Input types for the pure scheduling engine ───────────────────────────────
@@ -512,4 +522,143 @@ export function schedule(params: ScheduleParams): ScheduleResult {
   }
 
   return { scheduledItems, criticalPath, warnings };
+}
+
+// ─── Auto-reschedule (database-aware) ─────────────────────────────────────────
+
+type DbType = BetterSQLite3Database<typeof schemaTypes>;
+
+/**
+ * Fetch all work items from the database, run the CPM scheduler, and apply any
+ * changed dates back to the database.
+ *
+ * Milestone dependency expansion:
+ *   For each required milestone dependency (WI depends on milestone M), we find all
+ *   work items that are linked/contributing to M via milestone_work_items. We then
+ *   create synthetic finish-to-start dependencies from each contributing WI to the
+ *   dependent WI and feed them into the CPM engine alongside the real dependencies.
+ *
+ * @param db - Drizzle database handle
+ * @returns The count of work items whose dates were updated
+ */
+export function autoReschedule(db: DbType): number {
+  // ── 1. Fetch all work items ──────────────────────────────────────────────────
+
+  const allWorkItems = db.select().from(workItems).all();
+
+  if (allWorkItems.length === 0) {
+    return 0;
+  }
+
+  // ── 2. Fetch real dependencies ───────────────────────────────────────────────
+
+  const allDependencies = db.select().from(workItemDependencies).all();
+
+  // ── 3. Milestone dependency expansion ───────────────────────────────────────
+  //
+  // For each row in work_item_milestone_deps (WI depends on milestone M),
+  // find all work items contributing to M (via milestone_work_items).
+  // Generate synthetic finish-to-start deps from each contributor to the dependent WI.
+
+  const allMilestoneDeps = db.select().from(workItemMilestoneDeps).all();
+  const allMilestoneLinks = db.select().from(milestoneWorkItems).all();
+
+  // Build milestoneId → contributing workItemIds map
+  const milestoneContributorsMap = new Map<number, string[]>();
+  for (const link of allMilestoneLinks) {
+    const existing = milestoneContributorsMap.get(link.milestoneId) ?? [];
+    existing.push(link.workItemId);
+    milestoneContributorsMap.set(link.milestoneId, existing);
+  }
+
+  const syntheticDeps: SchedulingDependency[] = [];
+
+  for (const milestoneDep of allMilestoneDeps) {
+    const contributingIds = milestoneContributorsMap.get(milestoneDep.milestoneId) ?? [];
+    for (const contributorId of contributingIds) {
+      // Avoid self-references (should not occur, but guard defensively)
+      if (contributorId !== milestoneDep.workItemId) {
+        syntheticDeps.push({
+          predecessorId: contributorId,
+          successorId: milestoneDep.workItemId,
+          dependencyType: 'finish_to_start',
+          leadLagDays: 0,
+        });
+      }
+    }
+  }
+
+  // ── 4. Build combined dependency list for the engine ────────────────────────
+
+  const engineWorkItems: SchedulingWorkItem[] = allWorkItems.map((wi) => ({
+    id: wi.id,
+    status: wi.status,
+    startDate: wi.startDate,
+    endDate: wi.endDate,
+    durationDays: wi.durationDays,
+    startAfter: wi.startAfter,
+    startBefore: wi.startBefore,
+  }));
+
+  const realDeps: SchedulingDependency[] = allDependencies.map((dep) => ({
+    predecessorId: dep.predecessorId,
+    successorId: dep.successorId,
+    dependencyType: dep.dependencyType,
+    leadLagDays: dep.leadLagDays,
+  }));
+
+  const engineDependencies: SchedulingDependency[] = [...realDeps, ...syntheticDeps];
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  // ── 5. Run the CPM scheduler ─────────────────────────────────────────────────
+
+  const result = schedule({
+    mode: 'full',
+    workItems: engineWorkItems,
+    dependencies: engineDependencies,
+    today,
+  });
+
+  // If a cycle is detected, skip rescheduling silently — the dependency creation
+  // endpoint surfaces cycle errors before reaching here, but guard defensively.
+  if (result.cycleNodes && result.cycleNodes.length > 0) {
+    return 0;
+  }
+
+  // ── 6. Apply changed dates back to the database ──────────────────────────────
+
+  // Build a map of current startDate/endDate by workItemId for comparison
+  const currentDatesMap = new Map<string, { startDate: string | null; endDate: string | null }>();
+  for (const wi of allWorkItems) {
+    currentDatesMap.set(wi.id, { startDate: wi.startDate, endDate: wi.endDate });
+  }
+
+  let updatedCount = 0;
+  const now = new Date().toISOString();
+
+  for (const scheduled of result.scheduledItems) {
+    const current = currentDatesMap.get(scheduled.workItemId);
+    if (!current) continue;
+
+    const newStart = scheduled.scheduledStartDate;
+    const newEnd = scheduled.scheduledEndDate;
+
+    const startChanged = newStart !== current.startDate;
+    const endChanged = newEnd !== current.endDate;
+
+    if (startChanged || endChanged) {
+      db.update(workItems)
+        .set({
+          startDate: newStart,
+          endDate: newEnd,
+          updatedAt: now,
+        })
+        .where(eq(workItems.id, scheduled.workItemId))
+        .run();
+      updatedCount++;
+    }
+  }
+
+  return updatedCount;
 }

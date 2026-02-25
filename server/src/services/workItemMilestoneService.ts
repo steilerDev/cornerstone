@@ -14,6 +14,7 @@ import type * as schemaTypes from '../db/schema.js';
 import { workItems, milestones, milestoneWorkItems, workItemMilestoneDeps } from '../db/schema.js';
 import type { WorkItemMilestones, MilestoneSummaryForWorkItem } from '@cornerstone/shared';
 import { NotFoundError, ConflictError } from '../errors/AppError.js';
+import { autoReschedule } from './schedulingEngine.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -107,7 +108,7 @@ export function addRequiredMilestone(
 
   db.insert(workItemMilestoneDeps).values({ workItemId, milestoneId }).run();
 
-  // TODO: call autoReschedule(db) here once available
+  autoReschedule(db);
 
   return getWorkItemMilestones(db, workItemId);
 }
@@ -155,7 +156,7 @@ export function removeRequiredMilestone(db: DbType, workItemId: string, mileston
     )
     .run();
 
-  // TODO: call autoReschedule(db) here once available
+  autoReschedule(db);
 }
 
 /**
@@ -201,7 +202,7 @@ export function addLinkedMilestone(
 
   db.insert(milestoneWorkItems).values({ milestoneId, workItemId }).run();
 
-  // TODO: call autoReschedule(db) here once available
+  autoReschedule(db);
 
   return getWorkItemMilestones(db, workItemId);
 }
@@ -249,5 +250,5 @@ export function removeLinkedMilestone(db: DbType, workItemId: string, milestoneI
     )
     .run();
 
-  // TODO: call autoReschedule(db) here once available
+  autoReschedule(db);
 }
