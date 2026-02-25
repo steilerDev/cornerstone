@@ -220,12 +220,7 @@ export const GanttArrows = memo(function GanttArrows({
         const dstX = milestonePoint.x;
         const dstY = milestonePoint.y;
 
-        const { pathD, tipX, tipY, tipDirection } = buildMilestoneOrthoPath(
-          srcX,
-          srcY,
-          dstX,
-          dstY,
-        );
+        const { pathD, tipX, tipY, tipDirection } = buildMilestoneOrthoPath(srcX, srcY, dstX, dstY);
 
         results.push({
           key: `milestone-contrib-${workItemId}-${milestoneId}`,
@@ -261,12 +256,7 @@ export const GanttArrows = memo(function GanttArrows({
         const dstX = barRect.x - ARROW_STANDOFF;
         const dstY = barRect.rowIndex * ROW_HEIGHT + BAR_OFFSET_Y + BAR_HEIGHT / 2;
 
-        const { pathD, tipX, tipY, tipDirection } = buildMilestoneOrthoPath(
-          srcX,
-          srcY,
-          dstX,
-          dstY,
-        );
+        const { pathD, tipX, tipY, tipDirection } = buildMilestoneOrthoPath(srcX, srcY, dstX, dstY);
 
         results.push({
           key: `milestone-req-${milestoneId}-${workItemId}`,
@@ -280,7 +270,14 @@ export const GanttArrows = memo(function GanttArrows({
     }
 
     return results;
-  }, [milestonePoints, milestoneContributors, workItemRequiredMilestones, barRects, workItemTitles, milestoneTitles]);
+  }, [
+    milestonePoints,
+    milestoneContributors,
+    workItemRequiredMilestones,
+    barRects,
+    workItemTitles,
+    milestoneTitles,
+  ]);
 
   const hasArrows = arrows.length > 0 || milestoneArrows.length > 0;
 

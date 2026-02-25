@@ -321,9 +321,8 @@ export function GanttChart({
       const isLate = status === 'late' && milestone.projectedDate !== null;
 
       // Use projected date for late milestones (matches GanttMilestones active diamond)
-      const activeDateStr = isLate && milestone.projectedDate !== null
-        ? milestone.projectedDate
-        : milestone.targetDate;
+      const activeDateStr =
+        isLate && milestone.projectedDate !== null ? milestone.projectedDate : milestone.targetDate;
 
       const x = dateToX(toUtcMidnight(activeDateStr), chartRange, zoom, columnWidth);
 
