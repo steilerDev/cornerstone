@@ -22,8 +22,23 @@ export interface MilestoneColors {
   incompleteStroke: string;
   completeFill: string;
   completeStroke: string;
+  lateFill: string;
+  lateStroke: string;
   hoverGlow: string;
   completeHoverGlow: string;
+  lateHoverGlow: string;
+}
+
+/** Derived status for a milestone based on completion and projected vs target date. */
+export type MilestoneStatus = 'completed' | 'late' | 'on_track';
+
+/** Compute the milestone status from its data fields. */
+export function computeMilestoneStatus(milestone: TimelineMilestone): MilestoneStatus {
+  if (milestone.isCompleted) return 'completed';
+  if (milestone.projectedDate !== null && milestone.projectedDate > milestone.targetDate) {
+    return 'late';
+  }
+  return 'on_track';
 }
 
 export interface MilestoneDiamond {
@@ -56,7 +71,7 @@ export interface GanttMilestonesProps {
 interface DiamondMarkerProps {
   x: number;
   y: number;
-  isCompleted: boolean;
+  status: MilestoneStatus;
   label: string;
   colors: MilestoneColors;
   onMouseEnter: (e: ReactMouseEvent<SVGGElement>) => void;
@@ -68,7 +83,7 @@ interface DiamondMarkerProps {
 const DiamondMarker = memo(function DiamondMarker({
   x,
   y,
-  isCompleted,
+  status,
   label,
   colors,
   onMouseEnter,
@@ -76,8 +91,27 @@ const DiamondMarker = memo(function DiamondMarker({
   onMouseMove,
   onClick,
 }: DiamondMarkerProps) {
-  const fill = isCompleted ? colors.completeFill : colors.incompleteFill;
-  const stroke = isCompleted ? colors.completeStroke : colors.incompleteStroke;
+  let fill: string;
+  let stroke: string;
+  let hoverGlow: string;
+  let statusClass: string;
+
+  if (status === 'completed') {
+    fill = colors.completeFill;
+    stroke = colors.completeStroke;
+    hoverGlow = colors.completeHoverGlow;
+    statusClass = styles.diamondComplete;
+  } else if (status === 'late') {
+    fill = colors.lateFill;
+    stroke = colors.lateStroke;
+    hoverGlow = colors.lateHoverGlow;
+    statusClass = styles.diamondLate;
+  } else {
+    fill = colors.incompleteFill;
+    stroke = colors.incompleteStroke;
+    hoverGlow = colors.hoverGlow;
+    statusClass = '';
+  }
 
   // Diamond polygon points: top, right, bottom, left
   const points = [
@@ -87,14 +121,12 @@ const DiamondMarker = memo(function DiamondMarker({
     `${x - DIAMOND_SIZE},${y}`,
   ].join(' ');
 
-  const hoverGlow = isCompleted ? colors.completeHoverGlow : colors.hoverGlow;
-
   return (
     <g
       role="graphics-symbol"
       aria-label={label}
       tabIndex={0}
-      className={`${styles.diamond} ${isCompleted ? styles.diamondComplete : ''}`}
+      className={`${styles.diamond} ${statusClass}`}
       style={{ '--milestone-hover-glow': hoverGlow } as CSSProperties}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
@@ -171,15 +203,17 @@ export const GanttMilestones = memo(function GanttMilestones({
   return (
     <g aria-label={`Milestone markers (${milestones.length})`} data-testid="gantt-milestones-layer">
       {diamonds.map(({ milestone, x, y }) => {
-        const completedLabel = milestone.isCompleted ? 'completed' : 'incomplete';
-        const ariaLabel = `Milestone: ${milestone.title}, ${completedLabel}, target date ${milestone.targetDate}`;
+        const status = computeMilestoneStatus(milestone);
+        const statusLabel =
+          status === 'completed' ? 'completed' : status === 'late' ? 'late' : 'incomplete';
+        const ariaLabel = `Milestone: ${milestone.title}, ${statusLabel}, target date ${milestone.targetDate}`;
 
         return (
           <DiamondMarker
             key={milestone.id}
             x={x}
             y={y}
-            isCompleted={milestone.isCompleted}
+            status={status}
             label={ariaLabel}
             colors={colors}
             onMouseEnter={(e) => onMilestoneMouseEnter?.(milestone, e)}

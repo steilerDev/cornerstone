@@ -17,6 +17,10 @@ const createMilestoneSchema = {
       description: { type: ['string', 'null'], maxLength: 2000 },
       targetDate: { type: 'string', format: 'date' },
       color: { type: ['string', 'null'] },
+      workItemIds: {
+        type: 'array',
+        items: { type: 'string' },
+      },
     },
     additionalProperties: false,
   },

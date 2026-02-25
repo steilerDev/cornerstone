@@ -1,5 +1,4 @@
-import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTimeline } from '../../hooks/useTimeline.js';
@@ -12,7 +11,7 @@ import { GanttChart, GanttChartSkeleton } from '../../components/GanttChart/Gant
 import { MilestonePanel } from '../../components/milestones/MilestonePanel.js';
 import { CalendarView } from '../../components/calendar/CalendarView.js';
 import type { ZoomLevel } from '../../components/GanttChart/ganttUtils.js';
-import type { ScheduledItem, TimelineMilestone } from '@cornerstone/shared';
+import type { ScheduledItem } from '@cornerstone/shared';
 import styles from './TimelinePage.module.css';
 
 // ---------------------------------------------------------------------------
@@ -160,229 +159,6 @@ function CalendarIcon() {
       />
       <line x1="3" y1="9" x2="17" y2="9" stroke="currentColor" strokeWidth="1.5" />
     </svg>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Milestone filter dropdown icon (diamond shape)
-// ---------------------------------------------------------------------------
-
-function DiamondIcon({ size = 12 }: { size?: number }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 12 12"
-      width={size}
-      height={size}
-      fill="none"
-      aria-hidden="true"
-      style={{ display: 'block' }}
-    >
-      <polygon points="6,0 12,6 6,12 0,6" stroke="currentColor" strokeWidth="1.5" fill="none" />
-    </svg>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Milestone filter dropdown
-// ---------------------------------------------------------------------------
-
-interface MilestoneFilterDropdownProps {
-  milestones: TimelineMilestone[];
-  selectedId: number | null;
-  onSelect: (id: number | null) => void;
-}
-
-function MilestoneFilterDropdown({
-  milestones,
-  selectedId,
-  onSelect,
-}: MilestoneFilterDropdownProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const selectedMilestone = milestones.find((m) => m.id === selectedId) ?? null;
-
-  // Close on outside click
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
-    }
-    if (isOpen) document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isOpen]);
-
-  function handleSelect(id: number | null) {
-    onSelect(id);
-    setIsOpen(false);
-  }
-
-  function handleKeyDown(e: ReactKeyboardEvent) {
-    if (e.key === 'Escape') setIsOpen(false);
-  }
-
-  return (
-    <div ref={containerRef} style={{ position: 'relative' }}>
-      <button
-        type="button"
-        className={`${styles.milestoneFilterButton} ${selectedId !== null ? styles.milestoneFilterButtonActive : ''}`}
-        aria-haspopup="listbox"
-        aria-expanded={isOpen}
-        aria-controls="milestone-filter-listbox"
-        onClick={() => setIsOpen((v) => !v)}
-        title="Filter by milestone"
-        data-testid="milestone-filter-button"
-      >
-        <DiamondIcon size={12} />
-        <span className={styles.milestoneFilterLabel}>
-          {selectedMilestone ? selectedMilestone.title : 'Milestones'}
-        </span>
-        {selectedId !== null && (
-          <button
-            type="button"
-            className={styles.milestoneFilterClear}
-            onClick={(e) => {
-              e.stopPropagation();
-              onSelect(null);
-            }}
-            aria-label="Clear milestone filter"
-            title="Clear filter"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 12 12"
-              width="12"
-              height="12"
-              fill="none"
-              aria-hidden="true"
-            >
-              <path
-                d="M3 3l6 6M9 3l-6 6"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-            </svg>
-          </button>
-        )}
-      </button>
-
-      {isOpen && (
-        <ul
-          id="milestone-filter-listbox"
-          role="listbox"
-          aria-label="Filter by milestone"
-          className={styles.milestoneFilterDropdown}
-          onKeyDown={handleKeyDown}
-          data-testid="milestone-filter-dropdown"
-        >
-          {/* "All milestones" option */}
-          <li
-            role="option"
-            aria-selected={selectedId === null}
-            className={`${styles.milestoneFilterOption} ${selectedId === null ? styles.milestoneFilterOptionSelected : ''}`}
-            onClick={() => handleSelect(null)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                handleSelect(null);
-              }
-            }}
-            tabIndex={0}
-          >
-            <span className={styles.milestoneFilterOptionAll}>All Milestones</span>
-            {selectedId === null && (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 16 16"
-                width="14"
-                height="14"
-                fill="none"
-                aria-hidden="true"
-              >
-                <path
-                  d="M3 8l4 4 6-7"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            )}
-          </li>
-
-          {milestones.length > 0 && (
-            <li className={styles.milestoneFilterSeparator} role="separator" />
-          )}
-
-          {milestones.length === 0 && (
-            <li role="option" aria-selected={false} className={styles.milestoneFilterEmpty}>
-              No milestones created
-            </li>
-          )}
-
-          {milestones.map((m) => (
-            <li
-              key={m.id}
-              role="option"
-              aria-selected={selectedId === m.id}
-              className={`${styles.milestoneFilterOption} ${selectedId === m.id ? styles.milestoneFilterOptionSelected : ''}`}
-              onClick={() => handleSelect(m.id)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  handleSelect(m.id);
-                }
-              }}
-              tabIndex={0}
-            >
-              <span className={styles.milestoneFilterOptionContent}>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 8 8"
-                  width="8"
-                  height="8"
-                  aria-hidden="true"
-                  className={
-                    m.isCompleted
-                      ? styles.milestoneFilterDiamondComplete
-                      : styles.milestoneFilterDiamondIncomplete
-                  }
-                >
-                  <polygon points="4,0 8,4 4,8 0,4" strokeWidth="1" />
-                </svg>
-                <span>
-                  <span className={styles.milestoneFilterOptionName}>{m.title}</span>
-                  <span className={styles.milestoneFilterOptionDate}>
-                    {formatDateShort(m.targetDate)}
-                  </span>
-                </span>
-              </span>
-              {selectedId === m.id && (
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 16 16"
-                  width="14"
-                  height="14"
-                  fill="none"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M3 8l4 4 6-7"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
   );
 }
 
@@ -565,8 +341,14 @@ export function TimelinePage() {
 
   // ---- Milestone state ----
   const [showMilestonePanel, setShowMilestonePanel] = useState(false);
-  const [milestoneFilterId, setMilestoneFilterId] = useState<number | null>(null);
   const milestones = useMilestones();
+
+  // Build a map from milestone ID → projected date for the MilestonePanel.
+  // Sourced from the timeline response so the panel can show late indicators.
+  const projectedDates = useMemo<ReadonlyMap<number, string | null>>(() => {
+    if (data === null) return new Map();
+    return new Map(data.milestones.map((m) => [m.id, m.projectedDate]));
+  }, [data]);
 
   // ---- Auto-schedule state ----
   const [isScheduleLoading, setIsScheduleLoading] = useState(false);
@@ -582,24 +364,11 @@ export function TimelinePage() {
     [navigate],
   );
 
-  // ---- Milestone filtering — client-side ----
-  // Filter work items based on selected milestone's workItemIds
-  const filteredData = useMemo(() => {
-    if (!data || milestoneFilterId === null) return data;
-    const selectedMilestone = data.milestones.find((m) => m.id === milestoneFilterId);
-    if (!selectedMilestone) return data;
-    const idSet = new Set(selectedMilestone.workItemIds);
-    return {
-      ...data,
-      workItems: data.workItems.filter((item) => idSet.has(item.id)),
-    };
-  }, [data, milestoneFilterId]);
-
   const hasWorkItemsWithDates =
-    filteredData !== null &&
-    filteredData.workItems.some((item) => item.startDate !== null || item.endDate !== null);
+    data !== null &&
+    data.workItems.some((item) => item.startDate !== null || item.endDate !== null);
 
-  const isEmpty = filteredData !== null && filteredData.workItems.length === 0;
+  const isEmpty = data !== null && data.workItems.length === 0;
 
   // ---- Drag-drop callbacks ----
 
@@ -720,13 +489,6 @@ export function TimelinePage() {
             </>
           )}
 
-          {/* Milestone filter dropdown — shown in both views */}
-          <MilestoneFilterDropdown
-            milestones={data?.milestones ?? []}
-            selectedId={milestoneFilterId}
-            onSelect={setMilestoneFilterId}
-          />
-
           {/* Milestones panel toggle — shown in both views */}
           <button
             type="button"
@@ -736,7 +498,22 @@ export function TimelinePage() {
             aria-label="Open milestones panel"
             data-testid="milestones-panel-button"
           >
-            <DiamondIcon size={16} />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 12 12"
+              width="16"
+              height="16"
+              fill="none"
+              aria-hidden="true"
+              style={{ display: 'block' }}
+            >
+              <polygon
+                points="6,0 12,6 6,12 0,6"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                fill="none"
+              />
+            </svg>
             <span>Milestones</span>
           </button>
 
@@ -861,7 +638,7 @@ export function TimelinePage() {
           error === null &&
           !isEmpty &&
           !hasWorkItemsWithDates &&
-          filteredData !== null &&
+          data !== null &&
           activeView === 'gantt' && (
             <div className={styles.emptyState} data-testid="timeline-no-dates">
               <svg
@@ -893,11 +670,11 @@ export function TimelinePage() {
         {/* Gantt chart (data loaded, has work items, gantt view selected) */}
         {!isLoading &&
           error === null &&
-          filteredData !== null &&
-          filteredData.workItems.length > 0 &&
+          data !== null &&
+          data.workItems.length > 0 &&
           activeView === 'gantt' && (
             <GanttChart
-              data={filteredData}
+              data={data}
               zoom={zoom}
               onItemClick={handleItemClick}
               showArrows={showArrows}
@@ -909,10 +686,10 @@ export function TimelinePage() {
           )}
 
         {/* Calendar view (data loaded, calendar view selected) */}
-        {!isLoading && error === null && filteredData !== null && activeView === 'calendar' && (
+        {!isLoading && error === null && data !== null && activeView === 'calendar' && (
           <CalendarView
-            workItems={filteredData.workItems}
-            milestones={filteredData.milestones}
+            workItems={data.workItems}
+            milestones={data.milestones}
             onMilestoneClick={() => setShowMilestonePanel(true)}
           />
         )}
@@ -944,6 +721,7 @@ export function TimelinePage() {
             unlinkWorkItem: milestones.unlinkWorkItem,
           }}
           onMutated={refetch}
+          projectedDates={projectedDates}
         />
       )}
     </div>

@@ -370,6 +370,102 @@ describe('Timeline Routes', () => {
       expect(ms.color).toBe('#3B82F6');
       expect(ms.workItemIds).toEqual([]);
     });
+
+    it('returns projectedDate field on TimelineMilestone objects', async () => {
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'Test User',
+        'password123',
+      );
+      const msId = createTestMilestone(userId, 'Foundation Complete', '2026-06-01');
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/timeline',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<TimelineResponse>();
+      const ms = body.milestones.find((m) => m.id === msId);
+      expect(ms).toBeDefined();
+      // projectedDate must be present (even if null)
+      expect(ms).toHaveProperty('projectedDate');
+    });
+
+    it('returns projectedDate: null when milestone has no linked work items', async () => {
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'Test User',
+        'password123',
+      );
+      const msId = createTestMilestone(userId, 'Standalone Milestone', '2026-06-01');
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/timeline',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<TimelineResponse>();
+      const ms = body.milestones.find((m) => m.id === msId);
+      expect(ms!.projectedDate).toBeNull();
+    });
+
+    it('returns projectedDate equal to the max endDate of linked work items', async () => {
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'Test User',
+        'password123',
+      );
+      const wiA = createTestWorkItem(userId, 'Task A', {
+        startDate: '2026-03-01',
+        endDate: '2026-04-15',
+      });
+      const wiB = createTestWorkItem(userId, 'Task B', {
+        startDate: '2026-05-01',
+        endDate: '2026-07-30',
+      });
+      const msId = createTestMilestone(userId, 'Phase 1 Done', '2026-08-01');
+      linkMilestoneToWorkItem(msId, wiA);
+      linkMilestoneToWorkItem(msId, wiB);
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/timeline',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<TimelineResponse>();
+      const ms = body.milestones.find((m) => m.id === msId);
+      expect(ms).toBeDefined();
+      // projectedDate = max endDate = 2026-07-30
+      expect(ms!.projectedDate).toBe('2026-07-30');
+    });
+
+    it('returns projectedDate: null when all linked work items have null endDate', async () => {
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'Test User',
+        'password123',
+      );
+      const wiA = createTestWorkItem(userId, 'Task A', { startDate: '2026-03-01' }); // no endDate
+      const msId = createTestMilestone(userId, 'Phase 1 Done', '2026-06-01');
+      linkMilestoneToWorkItem(msId, wiA);
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/timeline',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<TimelineResponse>();
+      const ms = body.milestones.find((m) => m.id === msId);
+      expect(ms!.projectedDate).toBeNull();
+    });
   });
 
   // ─── GET /api/timeline — Work item filtering ─────────────────────────────────

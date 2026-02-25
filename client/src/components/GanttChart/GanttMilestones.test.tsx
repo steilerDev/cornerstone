@@ -6,7 +6,7 @@
  */
 import { describe, it, expect, jest } from '@jest/globals';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { GanttMilestones } from './GanttMilestones.js';
+import { GanttMilestones, computeMilestoneStatus } from './GanttMilestones.js';
 import type { GanttMilestonesProps, MilestoneColors } from './GanttMilestones.js';
 import type { TimelineMilestone } from '@cornerstone/shared';
 import { COLUMN_WIDTHS, ROW_HEIGHT } from './ganttUtils.js';
@@ -21,8 +21,11 @@ const COLORS: MilestoneColors = {
   incompleteStroke: '#1D4ED8',
   completeFill: '#22C55E',
   completeStroke: '#15803D',
+  lateFill: '#DC2626',
+  lateStroke: '#B91C1C',
   hoverGlow: 'rgba(59,130,246,0.3)',
   completeHoverGlow: 'rgba(34,197,94,0.3)',
+  lateHoverGlow: 'rgba(220,38,38,0.25)',
 };
 
 // Chart range: 2024-06-01 to 2024-12-31 (day zoom)
@@ -40,6 +43,7 @@ const MILESTONE_INCOMPLETE: TimelineMilestone = {
   completedAt: null,
   color: null,
   workItemIds: ['wi-1', 'wi-2'],
+  projectedDate: null,
 };
 
 const MILESTONE_COMPLETE: TimelineMilestone = {
@@ -50,6 +54,19 @@ const MILESTONE_COMPLETE: TimelineMilestone = {
   completedAt: '2024-09-14T10:00:00Z',
   color: '#EF4444',
   workItemIds: [],
+  projectedDate: null,
+};
+
+// projectedDate after targetDate → late
+const MILESTONE_LATE: TimelineMilestone = {
+  id: 3,
+  title: 'Late Milestone',
+  targetDate: '2024-08-01',
+  isCompleted: false,
+  completedAt: null,
+  color: null,
+  workItemIds: ['wi-3'],
+  projectedDate: '2024-09-01', // projected > target → late
 };
 
 // ---------------------------------------------------------------------------
@@ -79,6 +96,56 @@ function renderMilestones(overrides: Partial<GanttMilestonesProps> = {}) {
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// computeMilestoneStatus unit tests
+// ---------------------------------------------------------------------------
+
+describe('computeMilestoneStatus', () => {
+  it('returns "completed" when isCompleted is true regardless of projectedDate', () => {
+    expect(computeMilestoneStatus({ ...MILESTONE_COMPLETE, projectedDate: '2024-12-01' })).toBe(
+      'completed',
+    );
+  });
+
+  it('returns "completed" when isCompleted is true and projectedDate is null', () => {
+    expect(computeMilestoneStatus(MILESTONE_COMPLETE)).toBe('completed');
+  });
+
+  it('returns "late" when projectedDate > targetDate and not completed', () => {
+    expect(computeMilestoneStatus(MILESTONE_LATE)).toBe('late');
+  });
+
+  it('returns "on_track" when projectedDate equals targetDate', () => {
+    const ms: TimelineMilestone = {
+      ...MILESTONE_INCOMPLETE,
+      projectedDate: '2024-07-01', // same as targetDate
+    };
+    expect(computeMilestoneStatus(ms)).toBe('on_track');
+  });
+
+  it('returns "on_track" when projectedDate < targetDate', () => {
+    const ms: TimelineMilestone = {
+      ...MILESTONE_INCOMPLETE,
+      targetDate: '2024-08-01',
+      projectedDate: '2024-07-15', // before target
+    };
+    expect(computeMilestoneStatus(ms)).toBe('on_track');
+  });
+
+  it('returns "on_track" when projectedDate is null and not completed', () => {
+    expect(computeMilestoneStatus(MILESTONE_INCOMPLETE)).toBe('on_track');
+  });
+
+  it('does not return "late" for a completed milestone even when projectedDate > targetDate', () => {
+    const ms: TimelineMilestone = {
+      ...MILESTONE_COMPLETE,
+      projectedDate: '2024-12-31', // well past target
+    };
+    // Completed takes priority
+    expect(computeMilestoneStatus(ms)).toBe('completed');
+  });
+});
 
 describe('GanttMilestones', () => {
   // ── Empty state ────────────────────────────────────────────────────────────
@@ -344,6 +411,53 @@ describe('GanttMilestones', () => {
       const layer = screen.getByTestId('gantt-milestones-layer');
       const polygon = layer.querySelector('polygon');
       expect(polygon?.getAttribute('stroke-width')).toBe('2');
+    });
+
+    it('late milestone polygon uses late fill color', () => {
+      renderMilestones({ milestones: [MILESTONE_LATE] });
+      const layer = screen.getByTestId('gantt-milestones-layer');
+      const polygon = layer.querySelector('polygon');
+      expect(polygon?.getAttribute('fill')).toBe(COLORS.lateFill);
+    });
+
+    it('late milestone polygon uses late stroke color', () => {
+      renderMilestones({ milestones: [MILESTONE_LATE] });
+      const layer = screen.getByTestId('gantt-milestones-layer');
+      const polygon = layer.querySelector('polygon');
+      expect(polygon?.getAttribute('stroke')).toBe(COLORS.lateStroke);
+    });
+  });
+
+  // ── Late milestone status ──────────────────────────────────────────────────
+
+  describe('late milestone rendering', () => {
+    it('late diamond aria-label includes "late"', () => {
+      renderMilestones({ milestones: [MILESTONE_LATE] });
+      const diamond = screen.getByTestId('gantt-milestone-diamond');
+      const label = diamond.getAttribute('aria-label') ?? '';
+      expect(label.toLowerCase()).toContain('late');
+    });
+
+    it('on_track milestone with null projectedDate renders with incomplete fill', () => {
+      renderMilestones({ milestones: [MILESTONE_INCOMPLETE] });
+      const layer = screen.getByTestId('gantt-milestones-layer');
+      const polygon = layer.querySelector('polygon');
+      expect(polygon?.getAttribute('fill')).toBe(COLORS.incompleteFill);
+    });
+
+    it('renders correct status for all three statuses in one chart', () => {
+      renderMilestones({ milestones: [MILESTONE_INCOMPLETE, MILESTONE_COMPLETE, MILESTONE_LATE] });
+      const diamonds = screen.getAllByTestId('gantt-milestone-diamond');
+      expect(diamonds).toHaveLength(3);
+
+      // Verify layer renders all three
+      const layer = screen.getByTestId('gantt-milestones-layer');
+      const polygons = layer.querySelectorAll('polygon');
+      const fills = Array.from(polygons).map((p) => p.getAttribute('fill'));
+
+      expect(fills).toContain(COLORS.incompleteFill);
+      expect(fills).toContain(COLORS.completeFill);
+      expect(fills).toContain(COLORS.lateFill);
     });
   });
 });

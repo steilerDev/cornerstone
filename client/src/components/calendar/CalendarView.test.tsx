@@ -41,6 +41,7 @@ function makeMilestone(id: number, targetDate: string): TimelineMilestone {
     completedAt: null,
     color: null,
     workItemIds: [],
+    projectedDate: null,
   };
 }
 

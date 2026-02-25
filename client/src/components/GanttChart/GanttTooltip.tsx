@@ -20,7 +20,11 @@ export interface GanttTooltipMilestoneData {
   kind: 'milestone';
   title: string;
   targetDate: string;
+  /** Latest end date among linked work items, or null if unavailable. */
+  projectedDate: string | null;
   isCompleted: boolean;
+  /** True when not completed and projectedDate > targetDate. */
+  isLate: boolean;
   completedAt: string | null;
   linkedWorkItemCount: number;
 }
@@ -130,8 +134,19 @@ function WorkItemTooltipContent({ data }: { data: GanttTooltipWorkItemData }) {
 // ---------------------------------------------------------------------------
 
 function MilestoneTooltipContent({ data }: { data: GanttTooltipMilestoneData }) {
-  const statusLabel = data.isCompleted ? 'Completed' : 'Incomplete';
-  const statusClass = data.isCompleted ? styles.statusCompleted : styles.statusInProgress;
+  let statusLabel: string;
+  let statusClass: string;
+  if (data.isCompleted) {
+    statusLabel = 'Completed';
+    statusClass = styles.statusCompleted;
+  } else if (data.isLate) {
+    statusLabel = 'Late';
+    statusClass = styles.statusBlocked;
+  } else {
+    statusLabel = 'On track';
+    statusClass = styles.statusInProgress;
+  }
+
   const itemsLabel =
     data.linkedWorkItemCount === 0
       ? 'No linked work items'
@@ -167,6 +182,16 @@ function MilestoneTooltipContent({ data }: { data: GanttTooltipMilestoneData }) 
         <span className={styles.detailLabel}>Target</span>
         <span className={styles.detailValue}>{formatDisplayDate(data.targetDate)}</span>
       </div>
+
+      {/* Projected date — show when available and milestone is not yet completed */}
+      {!data.isCompleted && (
+        <div className={styles.detailRow}>
+          <span className={styles.detailLabel}>Projected</span>
+          <span className={`${styles.detailValue} ${data.isLate ? styles.detailValueLate : ''}`}>
+            {data.projectedDate !== null ? formatDisplayDate(data.projectedDate) : '—'}
+          </span>
+        </div>
+      )}
 
       {/* Completion date */}
       {data.isCompleted && data.completedAt !== null && (

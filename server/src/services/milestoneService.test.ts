@@ -6,7 +6,7 @@ import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
 import * as milestoneService from './milestoneService.js';
 import { NotFoundError, ValidationError, ConflictError } from '../errors/AppError.js';
-import type { CreateMilestoneRequest, UpdateMilestoneRequest } from '@cornerstone/shared';
+import type { CreateMilestoneRequest } from '@cornerstone/shared';
 
 describe('Milestone Service', () => {
   let sqlite: Database.Database;
@@ -433,6 +433,89 @@ describe('Milestone Service', () => {
         userId,
       );
       expect(result.color).toBe('#ef4444');
+    });
+
+    // ── workItemIds on creation ──────────────────────────────────────────────
+
+    it('should link work items when workItemIds is provided', () => {
+      const userId = createTestUser('user@example.com', 'Test User');
+      const workItemA = createTestWorkItem(userId, 'Foundation Work');
+      const workItemB = createTestWorkItem(userId, 'Framing Work');
+
+      const result = milestoneService.createMilestone(
+        db,
+        {
+          title: 'Phase 1 Complete',
+          targetDate: '2026-06-01',
+          workItemIds: [workItemA, workItemB],
+        },
+        userId,
+      );
+
+      expect(result.workItems).toHaveLength(2);
+      const ids = result.workItems.map((w) => w.id);
+      expect(ids).toContain(workItemA);
+      expect(ids).toContain(workItemB);
+    });
+
+    it('should create milestone with empty workItemIds array (no junction rows)', () => {
+      const userId = createTestUser('user@example.com', 'Test User');
+
+      const result = milestoneService.createMilestone(
+        db,
+        { title: 'Milestone', targetDate: '2026-04-15', workItemIds: [] },
+        userId,
+      );
+
+      expect(result.workItems).toEqual([]);
+    });
+
+    it('should silently skip invalid (non-existent) work item IDs in workItemIds', () => {
+      const userId = createTestUser('user@example.com', 'Test User');
+      const validWorkItem = createTestWorkItem(userId, 'Real Work Item');
+
+      const result = milestoneService.createMilestone(
+        db,
+        {
+          title: 'Milestone',
+          targetDate: '2026-04-15',
+          workItemIds: [validWorkItem, 'nonexistent-work-item-id'],
+        },
+        userId,
+      );
+
+      // Only the valid work item is linked; invalid IDs are silently skipped
+      expect(result.workItems).toHaveLength(1);
+      expect(result.workItems[0].id).toBe(validWorkItem);
+    });
+
+    it('should create milestone without workItemIds field (backward compatible)', () => {
+      const userId = createTestUser('user@example.com', 'Test User');
+
+      const result = milestoneService.createMilestone(
+        db,
+        { title: 'Milestone', targetDate: '2026-04-15' },
+        userId,
+      );
+
+      // workItemIds field absent — workItems array should be empty
+      expect(result.workItems).toEqual([]);
+    });
+
+    it('should skip all IDs when workItemIds contains only invalid IDs', () => {
+      const userId = createTestUser('user@example.com', 'Test User');
+
+      const result = milestoneService.createMilestone(
+        db,
+        {
+          title: 'Milestone',
+          targetDate: '2026-04-15',
+          workItemIds: ['invalid-1', 'invalid-2'],
+        },
+        userId,
+      );
+
+      expect(result.workItems).toEqual([]);
     });
   });
 

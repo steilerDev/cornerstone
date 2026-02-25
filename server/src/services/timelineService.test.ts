@@ -520,6 +520,95 @@ describe('getTimeline service', () => {
       expect(result.milestones).toEqual([]);
     });
 
+    // ── projectedDate computation ──────────────────────────────────────────
+
+    it('computes projectedDate as the max endDate of linked work items', () => {
+      const userId = insertUser(db);
+      const wiA = insertWorkItem(db, userId, {
+        startDate: '2026-03-01',
+        endDate: '2026-04-15',
+        title: 'WI A',
+      });
+      const wiB = insertWorkItem(db, userId, {
+        startDate: '2026-05-01',
+        endDate: '2026-07-30',
+        title: 'WI B',
+      });
+      const msId = insertMilestone(db, userId, { title: 'MS with Items' });
+      linkMilestoneWorkItem(db, msId, wiA);
+      linkMilestoneWorkItem(db, msId, wiB);
+
+      const result = getTimeline(db);
+      const ms = result.milestones.find((m) => m.id === msId);
+      expect(ms).toBeDefined();
+      // projectedDate = max endDate = '2026-07-30'
+      expect(ms!.projectedDate).toBe('2026-07-30');
+    });
+
+    it('returns projectedDate: null when milestone has no linked work items', () => {
+      const userId = insertUser(db);
+      const msId = insertMilestone(db, userId, { title: 'Standalone MS' });
+
+      const result = getTimeline(db);
+      const ms = result.milestones.find((m) => m.id === msId);
+      expect(ms).toBeDefined();
+      expect(ms!.projectedDate).toBeNull();
+    });
+
+    it('returns projectedDate: null when all linked work items have null endDate', () => {
+      const userId = insertUser(db);
+      // Work items with startDate but no endDate
+      const wiA = insertWorkItem(db, userId, { startDate: '2026-03-01', title: 'No End A' });
+      const wiB = insertWorkItem(db, userId, { startDate: '2026-04-01', title: 'No End B' });
+      const msId = insertMilestone(db, userId, { title: 'MS linked to no-endDate items' });
+      linkMilestoneWorkItem(db, msId, wiA);
+      linkMilestoneWorkItem(db, msId, wiB);
+
+      const result = getTimeline(db);
+      const ms = result.milestones.find((m) => m.id === msId);
+      expect(ms).toBeDefined();
+      expect(ms!.projectedDate).toBeNull();
+    });
+
+    it('projectedDate uses the single endDate when only one linked work item has an endDate', () => {
+      const userId = insertUser(db);
+      const wiA = insertWorkItem(db, userId, { startDate: '2026-03-01', title: 'No End' });
+      const wiB = insertWorkItem(db, userId, { endDate: '2026-06-01', title: 'Has End' });
+      const msId = insertMilestone(db, userId, { title: 'MS mixed end dates' });
+      linkMilestoneWorkItem(db, msId, wiA);
+      linkMilestoneWorkItem(db, msId, wiB);
+
+      const result = getTimeline(db);
+      const ms = result.milestones.find((m) => m.id === msId);
+      expect(ms).toBeDefined();
+      expect(ms!.projectedDate).toBe('2026-06-01');
+    });
+
+    it('projectedDate field appears on every milestone in the response', () => {
+      const userId = insertUser(db);
+      insertMilestone(db, userId, { title: 'MS 1' });
+      insertMilestone(db, userId, { title: 'MS 2' });
+
+      const result = getTimeline(db);
+      for (const ms of result.milestones) {
+        expect(ms).toHaveProperty('projectedDate');
+      }
+    });
+
+    it('projectedDate uses endDate of undated work items (no startDate) when they have an endDate', () => {
+      const userId = insertUser(db);
+      // Work item without startDate but with endDate — not in timeline.workItems but
+      // the milestone link still exists and projectedDate computation should use it.
+      const wiUndated = insertWorkItem(db, userId, { endDate: '2026-09-01', title: 'Undated+End' });
+      const msId = insertMilestone(db, userId, { title: 'MS undated WI with endDate' });
+      linkMilestoneWorkItem(db, msId, wiUndated);
+
+      const result = getTimeline(db);
+      const ms = result.milestones.find((m) => m.id === msId);
+      expect(ms).toBeDefined();
+      expect(ms!.projectedDate).toBe('2026-09-01');
+    });
+
     it('returns milestones linked to work items that have no dates (workItemIds still present)', () => {
       const userId = insertUser(db);
       // Work item has no dates → not in timeline.workItems, but milestone link still appears
