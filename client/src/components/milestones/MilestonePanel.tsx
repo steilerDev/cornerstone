@@ -8,7 +8,7 @@ import type {
   WorkItemSummary,
   WorkItemDependentSummary,
 } from '@cornerstone/shared';
-import { getMilestone } from '../../lib/milestonesApi.js';
+import { getMilestone, addDependentWorkItem, removeDependentWorkItem } from '../../lib/milestonesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import type { UseMilestonesResult } from '../../hooks/useMilestones.js';
 import { MilestoneForm } from './MilestoneForm.js';
@@ -315,6 +315,30 @@ export function MilestonePanel({
     }
   }
 
+  async function handleLinkDependent(workItemId: string) {
+    if (!editingMilestone) return;
+    setIsLinking(true);
+    try {
+      await addDependentWorkItem(editingMilestone.id, workItemId);
+      onMutated();
+      await loadDetail(editingMilestone.id);
+    } finally {
+      setIsLinking(false);
+    }
+  }
+
+  async function handleUnlinkDependent(workItemId: string) {
+    if (!editingMilestone) return;
+    setIsLinking(true);
+    try {
+      await removeDependentWorkItem(editingMilestone.id, workItemId);
+      onMutated();
+      await loadDetail(editingMilestone.id);
+    } finally {
+      setIsLinking(false);
+    }
+  }
+
   // Determine dialog title
   const dialogTitle =
     view === 'create'
@@ -322,7 +346,7 @@ export function MilestonePanel({
       : view === 'edit'
         ? 'Edit Milestone'
         : view === 'linker'
-          ? 'Contributing Work Items'
+          ? 'Manage Work Items'
           : 'Milestones';
 
   const content = (
@@ -443,9 +467,13 @@ export function MilestonePanel({
                                   {projectedDate !== null ? formatDate(projectedDate) : '—'}
                                 </span>
                               )}
-                              {m.workItemCount > 0 && (
+                              {(m.workItemCount > 0 || m.dependentWorkItemCount > 0) && (
                                 <span className={styles.milestoneItemCount}>
-                                  {m.workItemCount} item{m.workItemCount !== 1 ? 's' : ''}
+                                  {m.workItemCount > 0 && m.dependentWorkItemCount > 0
+                                    ? `${m.workItemCount} contributing, ${m.dependentWorkItemCount} dependent`
+                                    : m.workItemCount > 0
+                                      ? `${m.workItemCount} contributing`
+                                      : `${m.dependentWorkItemCount} dependent`}
                                 </span>
                               )}
                             </span>
@@ -591,6 +619,8 @@ export function MilestonePanel({
             isLinking={isLinking}
             onLink={(id) => void handleLink(id)}
             onUnlink={(id) => void handleUnlink(id)}
+            onLinkDependent={(id) => void handleLinkDependent(id)}
+            onUnlinkDependent={(id) => void handleUnlinkDependent(id)}
             onBack={handleBackToList}
           />
         )}

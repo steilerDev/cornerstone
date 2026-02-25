@@ -1,5 +1,6 @@
 import type { WorkItemSummary, WorkItemDependentSummary } from '@cornerstone/shared';
 import { WorkItemSelector } from './WorkItemSelector.js';
+import type { SelectedWorkItem } from './WorkItemSelector.js';
 import styles from './MilestonePanel.module.css';
 
 // ---------------------------------------------------------------------------
@@ -9,11 +10,15 @@ import styles from './MilestonePanel.module.css';
 interface MilestoneWorkItemLinkerProps {
   milestoneId: number;
   linkedWorkItems: WorkItemSummary[];
-  /** Work items that depend on this milestone completing before they can start. Read-only display. */
+  /** Work items that depend on this milestone completing before they can start. */
   dependentWorkItems?: WorkItemDependentSummary[];
   isLinking: boolean;
   onLink: (workItemId: string) => void;
   onUnlink: (workItemId: string) => void;
+  /** Called when a dependent work item is added. */
+  onLinkDependent: (workItemId: string) => void;
+  /** Called when a dependent work item is removed. */
+  onUnlinkDependent: (workItemId: string) => void;
   onBack: () => void;
 }
 
@@ -25,7 +30,7 @@ interface MilestoneWorkItemLinkerProps {
  * Work item linker for milestones (edit mode).
  * Shows two sections:
  * - Contributing Work Items: work items that feed into this milestone (editable via WorkItemSelector)
- * - Dependent Work Items: work items that require this milestone to complete first (read-only)
+ * - Dependent Work Items: work items that require this milestone to complete first (editable via WorkItemSelector)
  *
  * Delegates search/chip UI to WorkItemSelector and handles
  * the link/unlink API calls via the provided callbacks.
@@ -37,10 +42,18 @@ export function MilestoneWorkItemLinker({
   isLinking,
   onLink,
   onUnlink,
+  onLinkDependent,
+  onUnlinkDependent,
   onBack,
 }: MilestoneWorkItemLinkerProps) {
   // Adapt WorkItemSummary[] to SelectedWorkItem[]
   const selectedItems = linkedWorkItems.map((wi) => ({ id: wi.id, name: wi.title }));
+
+  // Adapt WorkItemDependentSummary[] to SelectedWorkItem[]
+  const selectedDependentItems: SelectedWorkItem[] = dependentWorkItems.map((wi) => ({
+    id: wi.id,
+    name: wi.title,
+  }));
 
   return (
     <div className={styles.linkerContainer} data-testid="milestone-work-item-linker">
@@ -70,7 +83,7 @@ export function MilestoneWorkItemLinker({
           </svg>
           Back
         </button>
-        <h3 className={styles.linkerTitle}>Contributing Work Items</h3>
+        <h3 className={styles.linkerTitle}>Manage Work Items</h3>
       </div>
 
       <div className={styles.dialogBody}>
@@ -92,31 +105,24 @@ export function MilestoneWorkItemLinker({
           />
         </div>
 
-        {/* Dependent Work Items — read-only */}
+        {/* Dependent Work Items — now editable */}
         <div className={styles.fieldGroup}>
-          <span className={styles.fieldLabel}>
+          <label className={styles.fieldLabel}>
             Dependent Work Items
             <span className={styles.linkedCount}>
               {dependentWorkItems.length > 0 ? ` (${dependentWorkItems.length})` : ''}
             </span>
-          </span>
+          </label>
           <p className={styles.fieldHint}>
-            Work items that require this milestone to complete before they can start. Managed from
-            the work item side.
+            Work items that require this milestone to complete before they can start.
           </p>
-          {dependentWorkItems.length === 0 ? (
-            <p className={styles.dependentEmpty}>No work items depend on this milestone.</p>
-          ) : (
-            <ul className={styles.dependentList} aria-label="Dependent work items">
-              {dependentWorkItems.map((wi) => (
-                <li key={wi.id} className={styles.dependentChip}>
-                  <span className={styles.dependentChipLabel} title={wi.title}>
-                    {wi.title.length > 40 ? `${wi.title.slice(0, 40)}\u2026` : wi.title}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
+
+          <WorkItemSelector
+            selectedItems={selectedDependentItems}
+            onAdd={(item) => onLinkDependent(item.id)}
+            onRemove={(id) => onUnlinkDependent(id)}
+            disabled={isLinking}
+          />
         </div>
       </div>
     </div>

@@ -91,6 +91,30 @@ const unlinkWorkItemSchema = {
   },
 };
 
+// JSON schema for POST /api/milestones/:id/dependents/:workItemId (add dependent work item)
+const addDependentWorkItemSchema = {
+  params: {
+    type: 'object',
+    required: ['id', 'workItemId'],
+    properties: {
+      id: { type: 'integer' },
+      workItemId: { type: 'string' },
+    },
+  },
+};
+
+// JSON schema for DELETE /api/milestones/:id/dependents/:workItemId (remove dependent work item)
+const removeDependentWorkItemSchema = {
+  params: {
+    type: 'object',
+    required: ['id', 'workItemId'],
+    properties: {
+      id: { type: 'integer' },
+      workItemId: { type: 'string' },
+    },
+  },
+};
+
 export default async function milestoneRoutes(fastify: FastifyInstance) {
   /**
    * GET /api/milestones
@@ -211,6 +235,49 @@ export default async function milestoneRoutes(fastify: FastifyInstance) {
         throw new UnauthorizedError();
       }
       milestoneService.unlinkWorkItem(fastify.db, request.params.id, request.params.workItemId);
+      return reply.status(204).send();
+    },
+  );
+
+  /**
+   * POST /api/milestones/:id/dependents/:workItemId
+   * Adds a work item as a dependent of this milestone (work item requires milestone to complete first).
+   * Cross-validates that the work item does not already contribute to this milestone.
+   * Auth required: Yes (both admin and member)
+   */
+  fastify.post<{ Params: { id: number; workItemId: string } }>(
+    '/:id/dependents/:workItemId',
+    { schema: addDependentWorkItemSchema },
+    async (request, reply) => {
+      if (!request.user) {
+        throw new UnauthorizedError();
+      }
+      const dependents = milestoneService.addDependentWorkItem(
+        fastify.db,
+        request.params.id,
+        request.params.workItemId,
+      );
+      return reply.status(201).send({ dependentWorkItems: dependents });
+    },
+  );
+
+  /**
+   * DELETE /api/milestones/:id/dependents/:workItemId
+   * Removes a work item from the dependents of this milestone.
+   * Auth required: Yes (both admin and member)
+   */
+  fastify.delete<{ Params: { id: number; workItemId: string } }>(
+    '/:id/dependents/:workItemId',
+    { schema: removeDependentWorkItemSchema },
+    async (request, reply) => {
+      if (!request.user) {
+        throw new UnauthorizedError();
+      }
+      milestoneService.removeDependentWorkItem(
+        fastify.db,
+        request.params.id,
+        request.params.workItemId,
+      );
       return reply.status(204).send();
     },
   );

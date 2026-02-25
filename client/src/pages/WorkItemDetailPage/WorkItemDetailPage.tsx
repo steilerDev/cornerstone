@@ -1188,22 +1188,6 @@ export default function WorkItemDetailPage() {
             </div>
           </section>
 
-          {/* Duration */}
-          <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>Duration</h2>
-            <div className={styles.property}>
-              <label className={styles.propertyLabel}>Duration (days)</label>
-              <input
-                type="number"
-                className={styles.propertyInput}
-                value={workItem.durationDays ?? ''}
-                onChange={(e) => handleDurationChange(e.target.value)}
-                min="0"
-                placeholder="0"
-              />
-            </div>
-          </section>
-
           {/* Assigned User */}
           <section className={styles.section}>
             <h2 className={styles.sectionTitle}>Assignment</h2>
@@ -1833,8 +1817,24 @@ export default function WorkItemDetailPage() {
           <section className={styles.section}>
             <h2 className={styles.sectionTitle}>Constraints</h2>
 
-            {/* Date Constraints subsection */}
+            {/* Duration subsection — first, no top border */}
             <div className={`${styles.constraintSubsection} ${styles.constraintSubsectionFirst}`}>
+              <h3 className={styles.subsectionTitle}>Duration</h3>
+              <div className={styles.property}>
+                <label className={styles.propertyLabel}>Duration (days)</label>
+                <input
+                  type="number"
+                  className={styles.propertyInput}
+                  value={workItem.durationDays ?? ''}
+                  onChange={(e) => handleDurationChange(e.target.value)}
+                  min="0"
+                  placeholder="0"
+                />
+              </div>
+            </div>
+
+            {/* Date Constraints subsection */}
+            <div className={styles.constraintSubsection}>
               <h3 className={styles.subsectionTitle}>Date Constraints</h3>
               <div className={styles.propertyGrid}>
                 <div className={styles.property}>

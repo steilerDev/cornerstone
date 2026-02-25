@@ -18,7 +18,8 @@ export interface MilestoneSummary {
   isCompleted: boolean;
   completedAt: string | null; // ISO 8601 timestamp
   color: string | null;
-  workItemCount: number; // Computed: count of linked work items
+  workItemCount: number; // Computed: count of linked (contributing) work items
+  dependentWorkItemCount: number; // Computed: count of work items that depend on this milestone
   createdBy: UserSummary | null;
   createdAt: string; // ISO 8601 timestamp
   updatedAt: string; // ISO 8601 timestamp

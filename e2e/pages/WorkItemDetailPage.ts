@@ -9,7 +9,6 @@
  * - Left column sections:
  *   - h2 "Description" (click body to inline-edit)
  *   - h2 "Schedule" (Start Date, End Date inputs)
- *   - h2 "Duration" (Duration (days) input)
  *   - h2 "Assignment" (Assigned To select)
  *   - h2 "Tags" (TagPicker)
  *   - h2 "Budget":
@@ -23,6 +22,7 @@
  *   - h2 "Notes" — textarea (placeholder "Add a note..."), "Add Note" submit button, notes list
  *   - h2 "Subtasks" — text input (placeholder "Add a subtask..."), "Add" submit button
  *   - h2 "Constraints" — combined section with subsections:
+ *     - h3 "Duration" (Duration (days) input)
  *     - h3 "Date Constraints" (Start After, Start Before inputs)
  *     - h3 "Dependencies" — DependencySentenceDisplay + DependencySentenceBuilder
  *     - h3 "Required Milestones" — milestone dependency picker
@@ -56,7 +56,6 @@ export class WorkItemDetailPage {
   // Sections (left column)
   readonly descriptionSection: Locator;
   readonly scheduleSection: Locator;
-  readonly durationSection: Locator;
   readonly assignmentSection: Locator;
   readonly tagsSection: Locator;
   readonly budgetSection: Locator;
@@ -72,6 +71,9 @@ export class WorkItemDetailPage {
   readonly notesSection: Locator;
   readonly subtasksSection: Locator;
   readonly constraintsSection: Locator; // right-column combined section (h2 "Constraints")
+
+  // Duration input (inside Constraints section, h3 "Duration")
+  readonly durationInput: Locator;
 
   // Notes
   readonly noteTextarea: Locator;
@@ -109,9 +111,6 @@ export class WorkItemDetailPage {
     this.scheduleSection = page
       .locator('section')
       .filter({ has: page.getByRole('heading', { level: 2, name: 'Schedule', exact: true }) });
-    this.durationSection = page
-      .locator('section')
-      .filter({ has: page.getByRole('heading', { level: 2, name: 'Duration', exact: true }) });
     this.assignmentSection = page
       .locator('section')
       .filter({ has: page.getByRole('heading', { level: 2, name: 'Assignment', exact: true }) });
@@ -141,6 +140,9 @@ export class WorkItemDetailPage {
     this.constraintsSection = page
       .locator('section')
       .filter({ has: page.getByRole('heading', { level: 2, name: 'Constraints', exact: true }) });
+
+    // Duration input lives inside Constraints section (h3 "Duration")
+    this.durationInput = this.constraintsSection.locator('input[type="number"]').first();
 
     // Notes form
     this.noteTextarea = this.notesSection.locator('textarea[placeholder="Add a note..."]');

@@ -21,6 +21,7 @@ import type {
 } from '@cornerstone/shared';
 import { NotFoundError, ValidationError, ConflictError } from '../errors/AppError.js';
 import { toWorkItemSummary } from './workItemService.js';
+import { autoReschedule } from './schedulingEngine.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -102,6 +103,18 @@ function countLinkedWorkItems(db: DbType, milestoneId: number): number {
 }
 
 /**
+ * Count dependent work items for a milestone (work items that require the milestone).
+ */
+function countDependentWorkItems(db: DbType, milestoneId: number): number {
+  const result = db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(workItemMilestoneDeps)
+    .where(eq(workItemMilestoneDeps.milestoneId, milestoneId))
+    .get();
+  return result?.count ?? 0;
+}
+
+/**
  * Fetch the createdBy user for a milestone.
  */
 function getCreatedByUser(db: DbType, createdBy: string | null): UserSummary | null {
@@ -126,6 +139,7 @@ function toMilestoneSummary(
     completedAt: milestone.completedAt,
     color: milestone.color,
     workItemCount: countLinkedWorkItems(db, milestone.id),
+    dependentWorkItemCount: countDependentWorkItems(db, milestone.id),
     createdBy: getCreatedByUser(db, milestone.createdBy),
     createdAt: milestone.createdAt,
     updatedAt: milestone.updatedAt,
@@ -373,6 +387,22 @@ export function linkWorkItem(
     throw new ConflictError('Work item is already linked to this milestone');
   }
 
+  // Cross-validate: cannot contribute to a milestone that the work item already depends on
+  const crossDep = db
+    .select()
+    .from(workItemMilestoneDeps)
+    .where(
+      and(
+        eq(workItemMilestoneDeps.workItemId, workItemId),
+        eq(workItemMilestoneDeps.milestoneId, milestoneId),
+      ),
+    )
+    .get();
+
+  if (crossDep) {
+    throw new ConflictError('Cannot contribute to milestone that this work item depends on');
+  }
+
   db.insert(milestoneWorkItems).values({ milestoneId, workItemId }).run();
 
   return { milestoneId, workItemId };
@@ -419,4 +449,118 @@ export function unlinkWorkItem(db: DbType, milestoneId: number, workItemId: stri
       ),
     )
     .run();
+}
+
+/**
+ * Add a dependent work item to a milestone (from the milestone side).
+ * The work item will depend on this milestone completing before it can start.
+ * Cross-validates that the work item is not already a contributor to this milestone.
+ *
+ * @throws NotFoundError if milestone or work item does not exist
+ * @throws ConflictError if already a dependent, or if already a contributor
+ */
+export function addDependentWorkItem(
+  db: DbType,
+  milestoneId: number,
+  workItemId: string,
+): WorkItemDependentSummary[] {
+  // Verify milestone exists
+  const milestone = db.select().from(milestones).where(eq(milestones.id, milestoneId)).get();
+  if (!milestone) {
+    throw new NotFoundError('Milestone not found');
+  }
+
+  // Verify work item exists
+  const workItem = db.select().from(workItems).where(eq(workItems.id, workItemId)).get();
+  if (!workItem) {
+    throw new NotFoundError('Work item not found');
+  }
+
+  // Check for duplicate dependency
+  const existing = db
+    .select()
+    .from(workItemMilestoneDeps)
+    .where(
+      and(
+        eq(workItemMilestoneDeps.workItemId, workItemId),
+        eq(workItemMilestoneDeps.milestoneId, milestoneId),
+      ),
+    )
+    .get();
+
+  if (existing) {
+    throw new ConflictError('Work item already depends on this milestone');
+  }
+
+  // Cross-validate: cannot require a milestone that the work item already contributes to
+  const crossLink = db
+    .select()
+    .from(milestoneWorkItems)
+    .where(
+      and(
+        eq(milestoneWorkItems.milestoneId, milestoneId),
+        eq(milestoneWorkItems.workItemId, workItemId),
+      ),
+    )
+    .get();
+
+  if (crossLink) {
+    throw new ConflictError('Cannot require milestone that this work item contributes to');
+  }
+
+  db.insert(workItemMilestoneDeps).values({ workItemId, milestoneId }).run();
+
+  autoReschedule(db);
+
+  return getWorkItemsWithDep(db, milestoneId);
+}
+
+/**
+ * Remove a dependent work item from a milestone (from the milestone side).
+ *
+ * @throws NotFoundError if milestone, work item, or the dependency does not exist
+ */
+export function removeDependentWorkItem(
+  db: DbType,
+  milestoneId: number,
+  workItemId: string,
+): void {
+  // Verify milestone exists
+  const milestone = db.select().from(milestones).where(eq(milestones.id, milestoneId)).get();
+  if (!milestone) {
+    throw new NotFoundError('Milestone not found');
+  }
+
+  // Verify work item exists
+  const workItem = db.select().from(workItems).where(eq(workItems.id, workItemId)).get();
+  if (!workItem) {
+    throw new NotFoundError('Work item not found');
+  }
+
+  // Verify the dependency exists
+  const dep = db
+    .select()
+    .from(workItemMilestoneDeps)
+    .where(
+      and(
+        eq(workItemMilestoneDeps.workItemId, workItemId),
+        eq(workItemMilestoneDeps.milestoneId, milestoneId),
+      ),
+    )
+    .get();
+
+  if (!dep) {
+    throw new NotFoundError('Work item does not depend on this milestone');
+  }
+
+  db.delete(workItemMilestoneDeps)
+    .where(
+      and(
+        eq(workItemMilestoneDeps.workItemId, workItemId),
+        eq(workItemMilestoneDeps.milestoneId, milestoneId),
+      ),
+    )
+    .run();
+
+  autoReschedule(db);
 }
