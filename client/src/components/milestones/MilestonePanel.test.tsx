@@ -59,6 +59,7 @@ const MILESTONE_DETAIL: MilestoneDetail = {
   completedAt: null,
   color: null,
   workItems: [] as WorkItemSummary[],
+  dependentWorkItems: [],
   createdBy: null,
   createdAt: '2024-01-01T00:00:00Z',
   updatedAt: '2024-01-01T00:00:00Z',
@@ -77,7 +78,7 @@ function mockResolved(value: any): jest.Mock {
 
 /** Helper: create a jest.Mock that returns (but never resolves) a pending Promise. */
 function mockPending(): jest.Mock {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   return jest
     .fn<() => Promise<any>>()
     .mockReturnValue(new Promise(() => {})) as unknown as jest.Mock;

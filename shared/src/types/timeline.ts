@@ -25,6 +25,11 @@ export interface TimelineWorkItem {
   startBefore: string | null;
   assignedUser: UserSummary | null;
   tags: TagResponse[];
+  /**
+   * IDs of milestones this work item depends on (must complete before WI can start).
+   * EPIC-06 UAT Fix 4: Bidirectional milestone-work item dependency tracking.
+   */
+  requiredMilestoneIds?: number[];
 }
 
 /**

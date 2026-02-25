@@ -48,6 +48,7 @@ const MILESTONE_DETAIL: MilestoneDetail = {
   completedAt: null,
   color: null,
   workItems: [],
+  dependentWorkItems: [],
   createdBy: null,
   createdAt: '2024-01-01T00:00:00Z',
   updatedAt: '2024-01-01T00:00:00Z',

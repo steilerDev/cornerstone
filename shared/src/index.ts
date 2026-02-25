@@ -35,6 +35,8 @@ export type {
   WorkItemListResponse,
   WorkItemDependenciesResponse,
   DependencyResponse,
+  MilestoneSummaryForWorkItem,
+  WorkItemMilestones,
 } from './types/workItem.js';
 
 // Subtasks
@@ -148,6 +150,7 @@ export { CONFIDENCE_MARGINS } from './types/workItemBudget.js';
 export type {
   MilestoneSummary,
   MilestoneDetail,
+  WorkItemDependentSummary,
   CreateMilestoneRequest,
   UpdateMilestoneRequest,
   MilestoneListResponse,

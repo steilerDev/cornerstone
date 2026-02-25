@@ -422,6 +422,7 @@ export const milestones = sqliteTable(
 
 /**
  * Milestone-work items junction table - M:N relationship between milestones and work items.
+ * Represents "Linked" work items: work items that contribute to a milestone's completion.
  * EPIC-06: Cascades on delete for both sides.
  */
 export const milestoneWorkItems = sqliteTable(
@@ -437,5 +438,26 @@ export const milestoneWorkItems = sqliteTable(
   (table) => ({
     pk: primaryKey({ columns: [table.milestoneId, table.workItemId] }),
     workItemIdIdx: index('idx_milestone_work_items_work_item_id').on(table.workItemId),
+  }),
+);
+
+/**
+ * Work item milestone dependencies table - work items that depend on a milestone completing
+ * before they can start. Represents "Required Milestones" (inverse of "Linked").
+ * EPIC-06 UAT Fix 4: Added for bidirectional milestone-work item dependency tracking.
+ */
+export const workItemMilestoneDeps = sqliteTable(
+  'work_item_milestone_deps',
+  {
+    workItemId: text('work_item_id')
+      .notNull()
+      .references(() => workItems.id, { onDelete: 'cascade' }),
+    milestoneId: integer('milestone_id')
+      .notNull()
+      .references(() => milestones.id, { onDelete: 'cascade' }),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.workItemId, table.milestoneId] }),
+    milestoneIdIdx: index('idx_wi_milestone_deps_milestone').on(table.milestoneId),
   }),
 );
