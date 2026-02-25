@@ -29,6 +29,8 @@ jest.unstable_mockModule('../../lib/milestonesApi.js', () => ({
   deleteMilestone: jest.fn<typeof MilestonesApiTypes.deleteMilestone>(),
   linkWorkItem: jest.fn<typeof MilestonesApiTypes.linkWorkItem>(),
   unlinkWorkItem: jest.fn<typeof MilestonesApiTypes.unlinkWorkItem>(),
+  addDependentWorkItem: jest.fn<typeof MilestonesApiTypes.addDependentWorkItem>(),
+  removeDependentWorkItem: jest.fn<typeof MilestonesApiTypes.removeDependentWorkItem>(),
 }));
 
 // Mock useToast so TimelinePage can render without a ToastProvider wrapper.

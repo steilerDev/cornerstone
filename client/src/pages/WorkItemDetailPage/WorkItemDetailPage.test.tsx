@@ -140,6 +140,8 @@ jest.unstable_mockModule('../../lib/milestonesApi.js', () => ({
   deleteMilestone: jest.fn(),
   linkWorkItem: jest.fn(),
   unlinkWorkItem: jest.fn(),
+  addDependentWorkItem: jest.fn(),
+  removeDependentWorkItem: jest.fn(),
 }));
 
 jest.unstable_mockModule('../../lib/workItemMilestonesApi.js', () => ({

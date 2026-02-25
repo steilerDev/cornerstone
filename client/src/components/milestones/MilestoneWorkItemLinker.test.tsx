@@ -506,14 +506,14 @@ describe('MilestoneWorkItemLinker', () => {
 
     it('uses appropriate placeholder when no items linked', () => {
       renderLinker({ linkedWorkItems: [] });
-      const input = screen.getByLabelText(/search work items to add/i);
-      expect(input.getAttribute('placeholder')).toBe('Search work items…');
+      const inputs = screen.getAllByLabelText(/search work items to add/i);
+      expect(inputs[0].getAttribute('placeholder')).toBe('Search work items…');
     });
 
     it('uses "Add more…" placeholder when items are already linked', () => {
       renderLinker({ linkedWorkItems: [WI_1] });
-      const input = screen.getByLabelText(/search work items to add/i);
-      expect(input.getAttribute('placeholder')).toBe('Add more…');
+      const inputs = screen.getAllByLabelText(/search work items to add/i);
+      expect(inputs[0].getAttribute('placeholder')).toBe('Add more…');
     });
   });
 });
