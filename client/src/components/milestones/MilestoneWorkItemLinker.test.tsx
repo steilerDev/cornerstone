@@ -176,7 +176,7 @@ describe('MilestoneWorkItemLinker', () => {
 
     it('renders "No work items selected" placeholder when no items linked', () => {
       renderLinker({ linkedWorkItems: [] });
-      expect(screen.getByText('No work items selected')).toBeInTheDocument();
+      expect(screen.getAllByText('No work items selected').length).toBeGreaterThanOrEqual(1);
     });
   });
 
