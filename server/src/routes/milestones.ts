@@ -19,7 +19,7 @@ const createMilestoneSchema = {
       color: { type: ['string', 'null'] },
       workItemIds: {
         type: 'array',
-        items: { type: 'string', format: 'uuid' },
+        items: { type: 'string' },
       },
     },
     additionalProperties: false,
