@@ -34,6 +34,10 @@ export interface MonthGridProps {
   milestones: TimelineMilestone[];
   onMilestoneClick?: (milestoneId: number) => void;
   columnSize?: CalendarColumnSize;
+  /** The item ID currently being hovered (for cross-cell highlight). */
+  hoveredItemId?: string | null;
+  onItemHoverStart?: (itemId: string) => void;
+  onItemHoverEnd?: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -47,6 +51,9 @@ export function MonthGrid({
   milestones,
   onMilestoneClick,
   columnSize = 'default',
+  hoveredItemId = null,
+  onItemHoverStart,
+  onItemHoverEnd,
 }: MonthGridProps) {
   const weeks = useMemo(() => getMonthGrid(year, month), [year, month]);
 
@@ -98,6 +105,9 @@ export function MonthGrid({
                       isStart={isItemStart(day.dateStr, item)}
                       isEnd={isItemEnd(day.dateStr, item)}
                       compact
+                      isHighlighted={hoveredItemId === item.id}
+                      onHoverStart={onItemHoverStart}
+                      onHoverEnd={onItemHoverEnd}
                     />
                   ))}
 

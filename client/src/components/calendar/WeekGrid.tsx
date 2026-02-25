@@ -34,6 +34,10 @@ export interface WeekGridProps {
   milestones: TimelineMilestone[];
   onMilestoneClick?: (milestoneId: number) => void;
   columnSize?: CalendarColumnSize;
+  /** The item ID currently being hovered (for cross-cell highlight). */
+  hoveredItemId?: string | null;
+  onItemHoverStart?: (itemId: string) => void;
+  onItemHoverEnd?: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -46,6 +50,9 @@ export function WeekGrid({
   milestones,
   onMilestoneClick,
   columnSize = 'default',
+  hoveredItemId = null,
+  onItemHoverStart,
+  onItemHoverEnd,
 }: WeekGridProps) {
   const days = useMemo(() => getWeekDates(weekDate), [weekDate]);
 
@@ -99,6 +106,9 @@ export function WeekGrid({
                   isStart={isItemStart(day.dateStr, item)}
                   isEnd={isItemEnd(day.dateStr, item)}
                   compact={false}
+                  isHighlighted={hoveredItemId === item.id}
+                  onHoverStart={onItemHoverStart}
+                  onHoverEnd={onItemHoverEnd}
                 />
               ))}
 

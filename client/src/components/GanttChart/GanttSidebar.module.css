@@ -79,6 +79,28 @@
   color: var(--color-text-muted);
 }
 
+/* Milestone rows — appear after work item rows, visually distinct */
+.sidebarMilestoneRow {
+  cursor: default;
+  gap: var(--spacing-2);
+}
+
+.milestoneDiamondIcon {
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.sidebarMilestoneLabel {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-normal);
+  font-style: italic;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
 /* Tablet and mobile: collapse sidebar to icon strip */
 @media (max-width: 1279px) {
   .sidebar {
@@ -93,6 +115,10 @@
   }
 
   .sidebarRowLabel {
+    display: none;
+  }
+
+  .sidebarMilestoneLabel {
     display: none;
   }
 

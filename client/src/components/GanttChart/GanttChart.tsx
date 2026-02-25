@@ -103,6 +103,8 @@ const TOOLTIP_HIDE_DELAY = 80;
 export interface GanttChartProps {
   data: TimelineResponse;
   zoom: ZoomLevel;
+  /** Custom column width (overrides the default for the zoom level). Used for zoom in/out. */
+  columnWidth?: number;
   /** Called when user clicks on a work item bar or sidebar row. */
   onItemClick?: (id: string) => void;
   /** Whether to show dependency arrows. Default: true. */
@@ -111,14 +113,18 @@ export interface GanttChartProps {
    * Called when user clicks a milestone diamond — passes milestone ID.
    */
   onMilestoneClick?: (milestoneId: number) => void;
+  /** Called when user scrolls with Ctrl held — for zoom via scroll. Positive = zoom in. */
+  onCtrlScroll?: (delta: number) => void;
 }
 
 export function GanttChart({
   data,
   zoom,
+  columnWidth,
   onItemClick,
   showArrows = true,
   onMilestoneClick,
+  onCtrlScroll,
 }: GanttChartProps) {
   // Refs for scroll synchronization
   const chartScrollRef = useRef<HTMLDivElement>(null);
@@ -157,21 +163,27 @@ export function GanttChart({
     return computeChartRange(todayStr, padDate(threeMonthsLater), zoom);
   }, [data.dateRange, zoom, today]);
 
-  const chartWidth = useMemo(() => computeChartWidth(chartRange, zoom), [chartRange, zoom]);
+  const chartWidth = useMemo(
+    () => computeChartWidth(chartRange, zoom, columnWidth),
+    [chartRange, zoom, columnWidth],
+  );
 
-  const gridLines = useMemo(() => generateGridLines(chartRange, zoom), [chartRange, zoom]);
+  const gridLines = useMemo(
+    () => generateGridLines(chartRange, zoom, columnWidth),
+    [chartRange, zoom, columnWidth],
+  );
 
   const headerCells = useMemo(
-    () => generateHeaderCells(chartRange, zoom, today),
-    [chartRange, zoom, today],
+    () => generateHeaderCells(chartRange, zoom, today, columnWidth),
+    [chartRange, zoom, today, columnWidth],
   );
 
   // Today's x position (null if today is outside the visible range)
   const todayX = useMemo(() => {
     const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12);
     if (todayDate < chartRange.start || todayDate > chartRange.end) return null;
-    return dateToX(todayDate, chartRange, zoom);
-  }, [today, chartRange, zoom]);
+    return dateToX(todayDate, chartRange, zoom, columnWidth);
+  }, [today, chartRange, zoom, columnWidth]);
 
   // ---------------------------------------------------------------------------
   // Tooltip state
@@ -250,10 +262,11 @@ export function GanttChart({
         chartRange,
         zoom,
         today,
+        columnWidth,
       );
       return { item, position };
     });
-  }, [data.workItems, chartRange, zoom, today]);
+  }, [data.workItems, chartRange, zoom, today, columnWidth]);
 
   // Set of critical path work item IDs for O(1) lookups
   const criticalPathSet = useMemo(() => new Set(data.criticalPath), [data.criticalPath]);
@@ -273,12 +286,10 @@ export function GanttChart({
     [colors.arrowDefault, colors.arrowCritical],
   );
 
-  // SVG height: work item rows + optional milestone row at bottom
+  // SVG height: work item rows + individual milestone rows (one per milestone)
   const hasMilestones = data.milestones.length > 0;
-  const svgHeight = Math.max(
-    data.workItems.length * ROW_HEIGHT,
-    hasMilestones ? (data.workItems.length + 1) * ROW_HEIGHT : 0,
-  );
+  const totalRowCount = data.workItems.length + (hasMilestones ? data.milestones.length : 0);
+  const svgHeight = Math.max(totalRowCount * ROW_HEIGHT, ROW_HEIGHT);
 
   // ---------------------------------------------------------------------------
   // Scroll synchronization
@@ -331,11 +342,16 @@ export function GanttChart({
     <div
       className={styles.chartBody}
       role="img"
-      aria-label={`Project timeline Gantt chart with ${data.workItems.length} work items`}
+      aria-label={`Project timeline Gantt chart with ${data.workItems.length} work items and ${data.milestones.length} milestones`}
       data-testid="gantt-chart"
     >
       {/* Left sidebar — fixed during horizontal scroll, synced vertically */}
-      <GanttSidebar items={data.workItems} onItemClick={onItemClick} ref={sidebarScrollRef} />
+      <GanttSidebar
+        items={data.workItems}
+        milestones={data.milestones}
+        onItemClick={onItemClick}
+        ref={sidebarScrollRef}
+      />
 
       {/* Right area: time header + scrollable canvas */}
       <div className={styles.chartRight}>
@@ -351,7 +367,18 @@ export function GanttChart({
         </div>
 
         {/* Scrollable canvas container (both axes) */}
-        <div ref={chartScrollRef} className={styles.canvasScroll} onScroll={handleChartScroll}>
+        <div
+          ref={chartScrollRef}
+          className={styles.canvasScroll}
+          onScroll={handleChartScroll}
+          onWheel={(e) => {
+            if (e.ctrlKey && onCtrlScroll) {
+              e.preventDefault();
+              // Negative deltaY = scroll up = zoom in
+              onCtrlScroll(-e.deltaY);
+            }
+          }}
+        >
           <svg
             ref={svgRef}
             width={chartWidth}
@@ -363,7 +390,7 @@ export function GanttChart({
             <GanttGrid
               width={chartWidth}
               height={svgHeight}
-              rowCount={data.workItems.length}
+              rowCount={totalRowCount}
               gridLines={gridLines}
               colors={colors}
               todayX={todayX}
@@ -387,6 +414,7 @@ export function GanttChart({
                 zoom={zoom}
                 rowCount={data.workItems.length}
                 colors={colors.milestone}
+                columnWidth={columnWidth}
                 onMilestoneMouseEnter={(milestone, e) => {
                   clearTooltipTimers();
                   // Capture trigger element for focus-return on Escape
@@ -394,6 +422,13 @@ export function GanttChart({
                   const newPos: GanttTooltipPosition = { x: e.clientX, y: e.clientY };
                   showTimerRef.current = setTimeout(() => {
                     const milestoneStatus = computeMilestoneStatus(milestone);
+                    // Resolve linked work item titles from the data already available client-side
+                    const linkedWorkItems = milestone.workItemIds
+                      .map((wid) => {
+                        const wi = workItemMap.get(wid);
+                        return wi ? { id: wid, title: wi.title } : null;
+                      })
+                      .filter((x): x is { id: string; title: string } => x !== null);
                     setTooltipData({
                       kind: 'milestone',
                       title: milestone.title,
@@ -402,7 +437,7 @@ export function GanttChart({
                       isCompleted: milestone.isCompleted,
                       isLate: milestoneStatus === 'late',
                       completedAt: milestone.completedAt,
-                      linkedWorkItemCount: milestone.workItemIds.length,
+                      linkedWorkItems,
                     });
                     setTooltipPosition(newPos);
                   }, TOOLTIP_SHOW_DELAY);

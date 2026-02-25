@@ -416,15 +416,20 @@ describe('GanttMilestones', () => {
     it('late milestone polygon uses late fill color', () => {
       renderMilestones({ milestones: [MILESTONE_LATE] });
       const layer = screen.getByTestId('gantt-milestones-layer');
-      const polygon = layer.querySelector('polygon');
-      expect(polygon?.getAttribute('fill')).toBe(COLORS.lateFill);
+      // For late milestones, the first polygon is the ghost (transparent) at the target date,
+      // and the second polygon is the active diamond at the projected date with the late fill.
+      const polygons = layer.querySelectorAll('polygon');
+      const activeDiamond = polygons[polygons.length - 1];
+      expect(activeDiamond?.getAttribute('fill')).toBe(COLORS.lateFill);
     });
 
     it('late milestone polygon uses late stroke color', () => {
       renderMilestones({ milestones: [MILESTONE_LATE] });
       const layer = screen.getByTestId('gantt-milestones-layer');
-      const polygon = layer.querySelector('polygon');
-      expect(polygon?.getAttribute('stroke')).toBe(COLORS.lateStroke);
+      // The active diamond (last polygon) uses the late stroke color.
+      const polygons = layer.querySelectorAll('polygon');
+      const activeDiamond = polygons[polygons.length - 1];
+      expect(activeDiamond?.getAttribute('stroke')).toBe(COLORS.lateStroke);
     });
   });
 

@@ -152,9 +152,9 @@ describe('GanttSidebar', () => {
     expect(screen.getByRole('list')).toBeInTheDocument();
   });
 
-  it('rows container has aria-label="Work items"', () => {
+  it('rows container has aria-label describing work items and milestones', () => {
     render(<GanttSidebar items={[makeItem()]} />);
-    expect(screen.getByRole('list')).toHaveAttribute('aria-label', 'Work items');
+    expect(screen.getByRole('list')).toHaveAttribute('aria-label', 'Work items and milestones');
   });
 
   it('each row has aria-label describing the work item', () => {

@@ -218,6 +218,65 @@
   z-index: 1;
 }
 
+/* ---- Column zoom: +/- buttons ---- */
+
+.columnZoomGroup {
+  display: inline-flex;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.columnZoomButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 36px;
+  border: none;
+  border-right: 1px solid var(--color-border-strong);
+  background: var(--color-bg-primary);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  line-height: 1;
+  cursor: pointer;
+  transition: var(--transition-button-border);
+  flex-shrink: 0;
+  /* Prevent text selection on rapid click */
+  user-select: none;
+}
+
+.columnZoomButton:last-child {
+  border-right: none;
+}
+
+.columnZoomButton:hover:not(:disabled) {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.columnZoomButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.columnZoomButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  position: relative;
+  z-index: 1;
+}
+
+/* Tablet */
+@media (max-width: 1279px) {
+  .columnZoomButton {
+    height: 44px;
+    width: 36px;
+  }
+}
+
 /* ---- View toggle button group (Gantt / Calendar) ---- */
 
 .viewToggle {
@@ -561,6 +620,64 @@
   text-align: center;
   background: var(--color-bg-secondary);
   border-top: 1px solid var(--color-border);
+}
+
+/* Affected milestones section in auto-schedule dialog */
+.dialogMilestonesSection {
+  margin-top: var(--spacing-4);
+  padding-top: var(--spacing-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.dialogSectionTitle {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0 0 var(--spacing-2);
+}
+
+.dialogMilestonesNote {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-style: italic;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.dialogMilestonesList {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  font-size: var(--font-size-xs);
+}
+
+.dialogMilestoneListHeader {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: var(--spacing-4);
+  padding: var(--spacing-2) var(--spacing-3);
+  background: var(--color-bg-secondary);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.dialogMilestoneRow {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: var(--spacing-4);
+  padding: var(--spacing-2) var(--spacing-3);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+}
+
+.dialogMilestoneRow:last-child {
+  border-bottom: none;
+}
+
+.dialogMilestoneDateChanged {
+  color: var(--color-warning, var(--color-text-primary));
+  font-weight: var(--font-weight-medium);
 }
 
 .dialogError {

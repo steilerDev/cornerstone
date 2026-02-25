@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTimeline } from '../../hooks/useTimeline.js';
@@ -10,8 +10,13 @@ import { useToast } from '../../components/Toast/ToastContext.js';
 import { GanttChart, GanttChartSkeleton } from '../../components/GanttChart/GanttChart.js';
 import { MilestonePanel } from '../../components/milestones/MilestonePanel.js';
 import { CalendarView } from '../../components/calendar/CalendarView.js';
-import type { ZoomLevel } from '../../components/GanttChart/ganttUtils.js';
-import type { ScheduledItem } from '@cornerstone/shared';
+import {
+  type ZoomLevel,
+  COLUMN_WIDTHS,
+  COLUMN_WIDTH_MIN,
+  COLUMN_WIDTH_MAX,
+} from '../../components/GanttChart/ganttUtils.js';
+import type { ScheduledItem, TimelineMilestone } from '@cornerstone/shared';
 import styles from './TimelinePage.module.css';
 
 // ---------------------------------------------------------------------------
@@ -176,9 +181,18 @@ const ZOOM_OPTIONS: { value: ZoomLevel; label: string }[] = [
 // Auto-schedule confirmation dialog
 // ---------------------------------------------------------------------------
 
+/** A milestone with its current and projected-after-scheduling dates. */
+interface AffectedMilestone {
+  id: number;
+  title: string;
+  currentProjectedDate: string | null;
+  newProjectedDate: string | null;
+}
+
 interface AutoScheduleDialogProps {
   scheduledItems: ScheduledItem[];
   titleMap: ReadonlyMap<string, string>;
+  currentMilestones: TimelineMilestone[];
   isApplying: boolean;
   applyError: string | null;
   onConfirm: () => void;
@@ -188,6 +202,7 @@ interface AutoScheduleDialogProps {
 function AutoScheduleDialog({
   scheduledItems,
   titleMap,
+  currentMilestones,
   isApplying,
   applyError,
   onConfirm,
@@ -199,6 +214,39 @@ function AutoScheduleDialog({
       item.scheduledStartDate !== item.previousStartDate ||
       item.scheduledEndDate !== item.previousEndDate,
   ).length;
+
+  // Compute new projected date for each milestone based on the new scheduled end dates
+  const affectedMilestones = useMemo<AffectedMilestone[]>(() => {
+    // Build map from work item ID → new scheduled end date
+    const newEndDateMap = new Map<string, string>(
+      scheduledItems.map((item) => [item.workItemId, item.scheduledEndDate]),
+    );
+
+    return currentMilestones
+      .map((milestone): AffectedMilestone | null => {
+        if (milestone.workItemIds.length === 0) return null;
+
+        // New projected date = max end date of linked work items using scheduled dates
+        let newProjectedDate: string | null = null;
+        for (const wid of milestone.workItemIds) {
+          const newEnd = newEndDateMap.get(wid) ?? null;
+          if (newEnd !== null && (newProjectedDate === null || newEnd > newProjectedDate)) {
+            newProjectedDate = newEnd;
+          }
+        }
+
+        // Only include if date actually changes
+        if (newProjectedDate === milestone.projectedDate) return null;
+
+        return {
+          id: milestone.id,
+          title: milestone.title,
+          currentProjectedDate: milestone.projectedDate,
+          newProjectedDate,
+        };
+      })
+      .filter((m): m is AffectedMilestone => m !== null);
+  }, [currentMilestones, scheduledItems]);
 
   const content = (
     <div
@@ -263,6 +311,41 @@ function AutoScheduleDialog({
             </div>
           )}
 
+          {/* Affected milestones section */}
+          <div className={styles.dialogMilestonesSection}>
+            <h3 className={styles.dialogSectionTitle}>Affected Milestones</h3>
+            {affectedMilestones.length === 0 ? (
+              <p className={styles.dialogMilestonesNote}>
+                Milestone projected dates update automatically based on linked work items.
+              </p>
+            ) : (
+              <div className={styles.dialogMilestonesList} aria-label="Affected milestones preview">
+                <div className={styles.dialogMilestoneListHeader}>
+                  <span>Milestone</span>
+                  <span>Current Projected</span>
+                  <span>New Projected</span>
+                </div>
+                {affectedMilestones.map((m) => (
+                  <div key={m.id} className={styles.dialogMilestoneRow}>
+                    <span className={styles.dialogItemId} title={m.title}>
+                      {m.title}
+                    </span>
+                    <span className={styles.dialogItemDate}>
+                      {m.currentProjectedDate !== null
+                        ? formatDateShort(m.currentProjectedDate)
+                        : '—'}
+                    </span>
+                    <span
+                      className={`${styles.dialogItemDate} ${styles.dialogMilestoneDateChanged}`}
+                    >
+                      {m.newProjectedDate !== null ? formatDateShort(m.newProjectedDate) : '—'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {applyError !== null && (
             <div className={styles.dialogError} role="alert">
               {applyError}
@@ -312,6 +395,25 @@ function formatDateShort(dateStr: string): string {
 // TimelinePage
 // ---------------------------------------------------------------------------
 
+/** Compute the default responsive column width for the current viewport and zoom level. */
+function computeDefaultColumnWidth(zoom: ZoomLevel, chartAreaWidth: number): number {
+  let columnsVisible: number;
+  if (zoom === 'day') {
+    columnsVisible = 30; // approximately 1 month of days
+  } else if (zoom === 'week') {
+    columnsVisible = 13; // approximately 3 months of weeks
+  } else {
+    columnsVisible = 6; // approximately 6 months
+  }
+
+  const rawWidth = chartAreaWidth > 0 ? chartAreaWidth / columnsVisible : COLUMN_WIDTHS[zoom];
+  const min = COLUMN_WIDTH_MIN[zoom];
+  const max = COLUMN_WIDTH_MAX[zoom];
+  return Math.max(min, Math.min(max, rawWidth));
+}
+
+const ZOOM_STEP_FACTOR = 0.2; // 20% per step
+
 export function TimelinePage() {
   const [zoom, setZoom] = useState<ZoomLevel>('month');
   const [showArrows, setShowArrows] = useState(true);
@@ -319,6 +421,47 @@ export function TimelinePage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
+
+  // ---- Column width state for zoom in/out ----
+  const chartAreaRef = useRef<HTMLDivElement>(null);
+  const [columnWidth, setColumnWidth] = useState<number>(() => COLUMN_WIDTHS['month']);
+
+  // On mount and when zoom changes, compute the responsive default column width
+  useEffect(() => {
+    const el = chartAreaRef.current;
+    const areaWidth = el ? el.clientWidth - 260 /* sidebar */ : 0; // rough sidebar width
+    setColumnWidth(computeDefaultColumnWidth(zoom, areaWidth));
+  }, [zoom]);
+
+  // Keyboard Ctrl+= / Ctrl+- for zoom in/out
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (!e.ctrlKey) return;
+      if (e.key === '=' || e.key === '+') {
+        e.preventDefault();
+        adjustColumnWidth(1);
+      } else if (e.key === '-') {
+        e.preventDefault();
+        adjustColumnWidth(-1);
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [zoom]);
+
+  function adjustColumnWidth(direction: number) {
+    setColumnWidth((current) => {
+      const min = COLUMN_WIDTH_MIN[zoom];
+      const max = COLUMN_WIDTH_MAX[zoom];
+      const step = Math.max(1, Math.round(current * ZOOM_STEP_FACTOR));
+      const next = current + direction * step;
+      return Math.max(min, Math.min(max, next));
+    });
+  }
+
+  const isAtMinZoom = columnWidth <= COLUMN_WIDTH_MIN[zoom];
+  const isAtMaxZoom = columnWidth >= COLUMN_WIDTH_MAX[zoom];
 
   // ---- View toggle: gantt (default) or calendar ----
   const rawView = searchParams.get('view');
@@ -361,7 +504,7 @@ export function TimelinePage() {
 
   const handleItemClick = useCallback(
     (id: string) => {
-      void navigate(`/work-items/${id}`);
+      void navigate(`/work-items/${id}`, { state: { from: 'timeline' } });
     },
     [navigate],
   );
@@ -499,7 +642,7 @@ export function TimelinePage() {
             <span>Milestones</span>
           </button>
 
-          {/* Gantt-specific controls: arrows toggle + zoom level */}
+          {/* Gantt-specific controls: arrows toggle + zoom level + column zoom */}
           {activeView === 'gantt' && (
             <>
               {/* Arrows toggle (icon-only) */}
@@ -527,6 +670,35 @@ export function TimelinePage() {
                     {label}
                   </button>
                 ))}
+              </div>
+
+              {/* Column zoom: - and + buttons */}
+              <div
+                className={styles.columnZoomGroup}
+                role="group"
+                aria-label="Column zoom"
+                title="Adjust column width (Ctrl+scroll or Ctrl+=/−)"
+              >
+                <button
+                  type="button"
+                  className={styles.columnZoomButton}
+                  onClick={() => adjustColumnWidth(-1)}
+                  disabled={isAtMinZoom}
+                  aria-label="Zoom out columns"
+                  title="Zoom out (Ctrl+−)"
+                >
+                  −
+                </button>
+                <button
+                  type="button"
+                  className={styles.columnZoomButton}
+                  onClick={() => adjustColumnWidth(1)}
+                  disabled={isAtMaxZoom}
+                  aria-label="Zoom in columns"
+                  title="Zoom in (Ctrl+=)"
+                >
+                  +
+                </button>
               </div>
             </>
           )}
@@ -560,7 +732,7 @@ export function TimelinePage() {
       </div>
 
       {/* Chart / calendar area */}
-      <div className={styles.chartArea}>
+      <div className={styles.chartArea} ref={chartAreaRef}>
         {/* Loading state */}
         {isLoading && <GanttChartSkeleton />}
 
@@ -658,9 +830,11 @@ export function TimelinePage() {
             <GanttChart
               data={data}
               zoom={zoom}
+              columnWidth={columnWidth}
               onItemClick={handleItemClick}
               showArrows={showArrows}
               onMilestoneClick={() => setShowMilestonePanel(true)}
+              onCtrlScroll={(delta) => adjustColumnWidth(delta > 0 ? 1 : -1)}
             />
           )}
 
@@ -679,6 +853,7 @@ export function TimelinePage() {
         <AutoScheduleDialog
           scheduledItems={scheduledItems}
           titleMap={workItemTitleMap}
+          currentMilestones={data?.milestones ?? []}
           isApplying={isApplyingSchedule}
           applyError={applyError}
           onConfirm={() => void handleApplySchedule()}

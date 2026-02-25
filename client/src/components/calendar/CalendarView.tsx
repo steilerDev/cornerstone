@@ -9,7 +9,7 @@
  *   calendarMode=month|week   (defaults to "month")
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { TimelineWorkItem, TimelineMilestone } from '@cornerstone/shared';
 import { MonthGrid } from './MonthGrid.js';
@@ -116,6 +116,25 @@ const COLUMN_SIZE_OPTIONS: { value: CalendarColumnSize; label: string }[] = [
 
 export function CalendarView({ workItems, milestones, onMilestoneClick }: CalendarViewProps) {
   const [searchParams, setSearchParams] = useSearchParams();
+
+  // Track which item is hovered for cross-cell highlighting
+  const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
+  const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleItemHoverStart = useCallback((itemId: string) => {
+    if (hoverTimeoutRef.current !== null) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    setHoveredItemId(itemId);
+  }, []);
+
+  const handleItemHoverEnd = useCallback(() => {
+    // Small delay to prevent flicker when moving between cells of the same item
+    hoverTimeoutRef.current = setTimeout(() => {
+      setHoveredItemId(null);
+    }, 50);
+  }, []);
 
   // Read calendarMode from URL (default: month)
   const rawMode = searchParams.get('calendarMode');
@@ -326,6 +345,9 @@ export function CalendarView({ workItems, milestones, onMilestoneClick }: Calend
             milestones={milestones}
             onMilestoneClick={onMilestoneClick}
             columnSize={columnSize}
+            hoveredItemId={hoveredItemId}
+            onItemHoverStart={handleItemHoverStart}
+            onItemHoverEnd={handleItemHoverEnd}
           />
         ) : (
           <WeekGrid
@@ -334,6 +356,9 @@ export function CalendarView({ workItems, milestones, onMilestoneClick }: Calend
             milestones={milestones}
             onMilestoneClick={onMilestoneClick}
             columnSize={columnSize}
+            hoveredItemId={hoveredItemId}
+            onItemHoverStart={handleItemHoverStart}
+            onItemHoverEnd={handleItemHoverEnd}
           />
         )}
       </div>

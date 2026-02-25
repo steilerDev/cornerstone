@@ -1,4 +1,4 @@
-import { memo, useMemo } from 'react';
+import { memo } from 'react';
 import type { CSSProperties, MouseEvent as ReactMouseEvent } from 'react';
 import type { TimelineMilestone } from '@cornerstone/shared';
 import { dateToX, toUtcMidnight, ROW_HEIGHT } from './ganttUtils.js';
@@ -51,8 +51,11 @@ export interface GanttMilestonesProps {
   milestones: TimelineMilestone[];
   chartRange: ChartRange;
   zoom: ZoomLevel;
+  /** Total number of work item rows (milestones start at this row index). */
   rowCount: number;
   colors: MilestoneColors;
+  /** Optional column width override for zoom in/out. */
+  columnWidth?: number;
   /** Called when a diamond is hovered (for tooltip). Passes milestone and mouse coords. */
   onMilestoneMouseEnter?: (
     milestone: TimelineMilestone,
@@ -78,6 +81,8 @@ interface DiamondMarkerProps {
   onMouseLeave: () => void;
   onMouseMove: (e: ReactMouseEvent<SVGGElement>) => void;
   onClick: () => void;
+  /** When true, renders as a ghost (outlined, dimmed) for the planned position. */
+  isGhost?: boolean;
 }
 
 const DiamondMarker = memo(function DiamondMarker({
@@ -90,13 +95,20 @@ const DiamondMarker = memo(function DiamondMarker({
   onMouseLeave,
   onMouseMove,
   onClick,
+  isGhost = false,
 }: DiamondMarkerProps) {
   let fill: string;
   let stroke: string;
   let hoverGlow: string;
   let statusClass: string;
 
-  if (status === 'completed') {
+  if (isGhost) {
+    // Ghost diamond: always shows the "planned" state with reduced opacity
+    fill = 'transparent';
+    stroke = colors.lateStroke;
+    hoverGlow = 'transparent';
+    statusClass = styles.diamondGhost;
+  } else if (status === 'completed') {
     fill = colors.completeFill;
     stroke = colors.completeStroke;
     hoverGlow = colors.completeHoverGlow;
@@ -120,6 +132,21 @@ const DiamondMarker = memo(function DiamondMarker({
     `${x},${y + DIAMOND_SIZE}`,
     `${x - DIAMOND_SIZE},${y}`,
   ].join(' ');
+
+  if (isGhost) {
+    // Ghost diamond: no interaction, just visual indicator
+    return (
+      <polygon
+        points={points}
+        fill={fill}
+        stroke={stroke}
+        strokeWidth={1.5}
+        strokeDasharray="3 2"
+        className={`${styles.diamondPolygon} ${statusClass}`}
+        aria-hidden="true"
+      />
+    );
+  }
 
   return (
     <g
@@ -165,8 +192,13 @@ const DiamondMarker = memo(function DiamondMarker({
 /**
  * GanttMilestones renders diamond markers for all milestones on the Gantt chart.
  *
- * Milestones are shown as a dedicated row above the work item bars, OR
- * overlaid at the top of the chart. Each diamond sits at the target date x-position.
+ * Each milestone occupies its own dedicated row after the work item rows.
+ * This allows the sidebar to show milestone names aligned with the diamonds.
+ *
+ * For late milestones, renders:
+ * - A ghost diamond at the targetDate (planned position)
+ * - A filled red diamond at the projectedDate (current projected position)
+ * - A dashed line connecting the two
  *
  * Colors must be pre-resolved via getComputedStyle (SVG cannot use CSS var()).
  */
@@ -176,51 +208,86 @@ export const GanttMilestones = memo(function GanttMilestones({
   zoom,
   rowCount,
   colors,
+  columnWidth,
   onMilestoneMouseEnter,
   onMilestoneMouseLeave,
   onMilestoneMouseMove,
   onMilestoneClick,
 }: GanttMilestonesProps) {
-  // Compute diamond positions for all milestones
-  const diamonds = useMemo<MilestoneDiamond[]>(() => {
-    return milestones.map((milestone) => {
-      const targetDate = toUtcMidnight(milestone.targetDate);
-      const x = dateToX(targetDate, chartRange, zoom);
-      // Position milestones in the row that corresponds to their visual slot.
-      // We place them in a dedicated "milestone row" just below the last work item row.
-      // If there are no work items, use a single centered row.
-      const rowY = rowCount > 0 ? rowCount * 40 : 0; // below all work item rows
-      const y = rowY + ROW_HEIGHT / 2;
-
-      return { milestone, x, y };
-    });
-  }, [milestones, chartRange, zoom, rowCount]);
-
   if (milestones.length === 0) {
     return null;
   }
 
   return (
     <g aria-label={`Milestone markers (${milestones.length})`} data-testid="gantt-milestones-layer">
-      {diamonds.map(({ milestone, x, y }) => {
+      {milestones.map((milestone, milestoneIndex) => {
         const status = computeMilestoneStatus(milestone);
         const statusLabel =
           status === 'completed' ? 'completed' : status === 'late' ? 'late' : 'incomplete';
         const ariaLabel = `Milestone: ${milestone.title}, ${statusLabel}, target date ${milestone.targetDate}`;
 
+        // Each milestone has its own row after all work item rows
+        const milestoneRowIndex = rowCount + milestoneIndex;
+        const rowY = milestoneRowIndex * ROW_HEIGHT;
+        const y = rowY + ROW_HEIGHT / 2;
+
+        // Target date position (planned)
+        const targetDate = toUtcMidnight(milestone.targetDate);
+        const targetX = dateToX(targetDate, chartRange, zoom, columnWidth);
+
+        // For late milestones, also compute projected date position
+        const isLate = status === 'late' && milestone.projectedDate !== null;
+        const projectedX =
+          isLate && milestone.projectedDate !== null
+            ? dateToX(toUtcMidnight(milestone.projectedDate), chartRange, zoom, columnWidth)
+            : null;
+
         return (
-          <DiamondMarker
-            key={milestone.id}
-            x={x}
-            y={y}
-            status={status}
-            label={ariaLabel}
-            colors={colors}
-            onMouseEnter={(e) => onMilestoneMouseEnter?.(milestone, e)}
-            onMouseLeave={() => onMilestoneMouseLeave?.(milestone)}
-            onMouseMove={(e) => onMilestoneMouseMove?.(e)}
-            onClick={() => onMilestoneClick?.(milestone.id)}
-          />
+          <g key={milestone.id}>
+            {/* For late milestones: dashed connector line between ghost and projected */}
+            {isLate && projectedX !== null && (
+              <line
+                x1={targetX}
+                y1={y}
+                x2={projectedX}
+                y2={y}
+                stroke={colors.lateStroke}
+                strokeWidth={1.5}
+                strokeDasharray="4 3"
+                strokeOpacity={0.6}
+                aria-hidden="true"
+              />
+            )}
+
+            {/* For late milestones: ghost diamond at target date */}
+            {isLate && (
+              <DiamondMarker
+                x={targetX}
+                y={y}
+                status={status}
+                label={`${milestone.title} planned date`}
+                colors={colors}
+                isGhost
+                onMouseEnter={() => {}}
+                onMouseLeave={() => {}}
+                onMouseMove={() => {}}
+                onClick={() => {}}
+              />
+            )}
+
+            {/* Active diamond: at projected date for late, or target date for all others */}
+            <DiamondMarker
+              x={isLate && projectedX !== null ? projectedX : targetX}
+              y={y}
+              status={status}
+              label={ariaLabel}
+              colors={colors}
+              onMouseEnter={(e) => onMilestoneMouseEnter?.(milestone, e)}
+              onMouseLeave={() => onMilestoneMouseLeave?.(milestone)}
+              onMouseMove={(e) => onMilestoneMouseMove?.(e)}
+              onClick={() => onMilestoneClick?.(milestone.id)}
+            />
+          </g>
         );
       })}
     </g>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, type FormEvent } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import type {
   WorkItemDetail,
   WorkItemStatus,
@@ -93,6 +93,8 @@ const EMPTY_BUDGET_FORM: BudgetLineFormState = {
 export default function WorkItemDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const fromTimeline = (location.state as { from?: string } | null)?.from === 'timeline';
   const { user } = useAuth();
 
   const [workItem, setWorkItem] = useState<WorkItemDetail | null>(null);
@@ -922,9 +924,43 @@ export default function WorkItemDetailPage() {
 
       {/* Header */}
       <div className={styles.header}>
-        <button type="button" className={styles.backButton} onClick={() => navigate('/work-items')}>
-          ← Back to Work Items
-        </button>
+        <div className={styles.navButtons}>
+          {fromTimeline ? (
+            <>
+              <button
+                type="button"
+                className={styles.backButton}
+                onClick={() => navigate('/timeline')}
+              >
+                ← Back to Timeline
+              </button>
+              <button
+                type="button"
+                className={styles.secondaryNavButton}
+                onClick={() => navigate('/work-items')}
+              >
+                To Work Items
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                className={styles.backButton}
+                onClick={() => navigate('/work-items')}
+              >
+                ← Back to Work Items
+              </button>
+              <button
+                type="button"
+                className={styles.secondaryNavButton}
+                onClick={() => navigate('/timeline')}
+              >
+                To Timeline
+              </button>
+            </>
+          )}
+        </div>
 
         <div className={styles.headerRow}>
           <div className={styles.titleSection}>
@@ -1052,18 +1088,6 @@ export default function WorkItemDetailPage() {
             <h2 className={styles.sectionTitle}>Constraints</h2>
             <div className={styles.propertyGrid}>
               <div className={styles.property}>
-                <label className={styles.propertyLabel}>Duration (days)</label>
-                <input
-                  type="number"
-                  className={styles.propertyInput}
-                  value={workItem.durationDays ?? ''}
-                  onChange={(e) => handleDurationChange(e.target.value)}
-                  min="0"
-                  placeholder="0"
-                />
-              </div>
-
-              <div className={styles.property}>
                 <label className={styles.propertyLabel}>Start After</label>
                 <input
                   type="date"
@@ -1080,6 +1104,18 @@ export default function WorkItemDetailPage() {
                   className={styles.propertyInput}
                   value={workItem.startBefore || ''}
                   onChange={(e) => handleConstraintChange('startBefore', e.target.value)}
+                />
+              </div>
+
+              <div className={styles.property}>
+                <label className={styles.propertyLabel}>Duration (days)</label>
+                <input
+                  type="number"
+                  className={styles.propertyInput}
+                  value={workItem.durationDays ?? ''}
+                  onChange={(e) => handleDurationChange(e.target.value)}
+                  min="0"
+                  placeholder="0"
                 />
               </div>
             </div>
