@@ -6,7 +6,7 @@ import {
   ARROW_STANDOFF,
   ARROWHEAD_SIZE as ARROWHEAD_SIZE_IMPORT,
 } from './arrowUtils.js';
-import type { BarRect } from './arrowUtils.js';
+import type { ArrowPath, BarRect } from './arrowUtils.js';
 import { BAR_HEIGHT, BAR_OFFSET_Y, ROW_HEIGHT } from './ganttUtils.js';
 import styles from './GanttArrows.module.css';
 
@@ -36,6 +36,8 @@ export interface GanttArrowsProps {
   dependencies: TimelineDependency[];
   /** Set of work item IDs on the critical path. */
   criticalPathSet: ReadonlySet<string>;
+  /** Ordered array of work item IDs on the critical path (for implicit connections). */
+  criticalPathOrder: readonly string[];
   /**
    * Map from work item ID to its rendered bar rectangle.
    * Items not in this map are skipped (they may be off-screen or undated).
@@ -139,6 +141,7 @@ function buildMilestoneOrthoPath(
 export const GanttArrows = memo(function GanttArrows({
   dependencies,
   criticalPathSet,
+  criticalPathOrder,
   barRects,
   workItemTitles,
   colors,
@@ -280,7 +283,53 @@ export const GanttArrows = memo(function GanttArrows({
     milestoneTitles,
   ]);
 
-  const hasArrows = arrows.length > 0 || milestoneArrows.length > 0;
+  // Pre-compute dotted connections between consecutive critical path items
+  // that have no explicit dependency between them
+  const implicitCriticalConnections = useMemo(() => {
+    if (criticalPathOrder.length < 2 || criticalPathSet.size === 0) return [];
+
+    // Build a set of existing dependency pairs for quick lookup
+    const depPairs = new Set<string>();
+    for (const dep of dependencies) {
+      depPairs.add(`${dep.predecessorId}:${dep.successorId}`);
+      depPairs.add(`${dep.successorId}:${dep.predecessorId}`);
+    }
+
+    const results: Array<{
+      key: string;
+      arrowPath: ArrowPath;
+      ariaLabel: string;
+    }> = [];
+
+    for (let i = 0; i < criticalPathOrder.length - 1; i++) {
+      const fromId = criticalPathOrder[i];
+      const toId = criticalPathOrder[i + 1];
+
+      // Skip if there's already an explicit dependency between them
+      if (depPairs.has(`${fromId}:${toId}`)) continue;
+
+      const fromRect = barRects.get(fromId);
+      const toRect = barRects.get(toId);
+      if (!fromRect || !toRect) continue;
+
+      // Use FS arrow routing for the implicit connection
+      const arrowPath = computeArrowPath(fromRect, toRect, 'finish_to_start', i);
+
+      const fromTitle = workItemTitles.get(fromId) ?? fromId;
+      const toTitle = workItemTitles.get(toId) ?? toId;
+
+      results.push({
+        key: `implicit-critical-${fromId}-${toId}`,
+        arrowPath,
+        ariaLabel: `Implicit critical path connection: ${fromTitle} to ${toTitle}`,
+      });
+    }
+
+    return results;
+  }, [criticalPathOrder, criticalPathSet, dependencies, barRects, workItemTitles]);
+
+  const hasArrows =
+    arrows.length > 0 || milestoneArrows.length > 0 || implicitCriticalConnections.length > 0;
 
   if (!hasArrows) {
     return null;
@@ -348,7 +397,14 @@ export const GanttArrows = memo(function GanttArrows({
             ARROWHEAD_SIZE,
           );
           return (
-            <g key={key} opacity={visible ? 0.5 : 0} role="graphics-symbol" aria-label={ariaLabel}>
+            <g
+              key={key}
+              className={styles.arrowGroup}
+              opacity={visible ? 0.5 : 0}
+              role="graphics-symbol"
+              aria-label={ariaLabel}
+            >
+              <path d={arrowPath.pathD} className={styles.arrowHitArea} aria-hidden="true" />
               <path
                 d={arrowPath.pathD}
                 stroke={colors.defaultArrow}
@@ -380,11 +436,13 @@ export const GanttArrows = memo(function GanttArrows({
           return (
             <g
               key={key}
+              className={styles.arrowGroup}
               opacity={visible ? 1 : 0}
               filter="drop-shadow(0 0 2px rgba(220,38,38,0.4))"
               role="graphics-symbol"
               aria-label={ariaLabel}
             >
+              <path d={arrowPath.pathD} className={styles.arrowHitArea} aria-hidden="true" />
               <path
                 d={arrowPath.pathD}
                 stroke={colors.criticalArrow}
@@ -408,10 +466,12 @@ export const GanttArrows = memo(function GanttArrows({
         return (
           <g
             key={a.key}
+            className={styles.arrowGroup}
             opacity={visible ? 0.5 : 0}
             role="graphics-symbol"
             aria-label={a.ariaLabel}
           >
+            <path d={a.pathD} className={styles.arrowHitArea} aria-hidden="true" />
             <path
               d={a.pathD}
               stroke={colors.defaultArrow}
@@ -423,6 +483,40 @@ export const GanttArrows = memo(function GanttArrows({
               points={arrowhead}
               fill={colors.defaultArrow}
               className={styles.arrowheadDefault}
+              aria-hidden="true"
+            />
+          </g>
+        );
+      })}
+
+      {/* Dotted connections between consecutive critical path items without explicit dependencies */}
+      {implicitCriticalConnections.map((a) => {
+        const arrowhead = computeArrowhead(
+          a.arrowPath.tipX,
+          a.arrowPath.tipY,
+          a.arrowPath.tipDirection,
+          ARROWHEAD_SIZE,
+        );
+        return (
+          <g
+            key={a.key}
+            className={styles.arrowGroup}
+            opacity={visible ? 0.7 : 0}
+            role="graphics-symbol"
+            aria-label={a.ariaLabel}
+          >
+            <path d={a.arrowPath.pathD} className={styles.arrowHitArea} aria-hidden="true" />
+            <path
+              d={a.arrowPath.pathD}
+              stroke={colors.criticalArrow}
+              strokeWidth={ARROW_STROKE_DEFAULT}
+              className={styles.arrowDotted}
+              aria-hidden="true"
+            />
+            <polygon
+              points={arrowhead}
+              fill={colors.criticalArrow}
+              className={styles.arrowheadCritical}
               aria-hidden="true"
             />
           </g>
