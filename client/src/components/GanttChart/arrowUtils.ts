@@ -22,6 +22,18 @@ export const ARROW_STANDOFF = 12;
 /** Minimum horizontal jog length on either side of a segment. */
 export const ARROW_MIN_H_SEG = 8;
 
+/**
+ * Number of stagger slots used to spread parallel vertical spines.
+ * Arrows are distributed across this many horizontal offset slots.
+ */
+const ARROW_STAGGER_SLOTS = 5;
+
+/**
+ * Horizontal pixel spacing between adjacent stagger slots.
+ * Each slot is offset by this many pixels from the baseline spine position.
+ */
+const ARROW_STAGGER_STEP = 4;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -79,10 +91,16 @@ function buildOrthoPath(srcX: number, srcY: number, dstX: number, dstY: number):
  *          vertical → (standoff left of successor) → left edge of successor
  *
  * When successor starts before predecessor ends, a U-turn is inserted.
+ *
+ * @param arrowIndex Index of this arrow among all rendered arrows, used to
+ *   apply a horizontal stagger offset to the vertical spine so parallel arrows
+ *   don't collapse into a single line.
  */
-function computeFSArrow(predecessor: BarRect, successor: BarRect): ArrowPath {
+function computeFSArrow(predecessor: BarRect, successor: BarRect, arrowIndex: number): ArrowPath {
   const srcY = barCenterY(predecessor.rowIndex);
   const dstY = barCenterY(successor.rowIndex);
+
+  const stagger = (arrowIndex % ARROW_STAGGER_SLOTS) * ARROW_STAGGER_STEP;
 
   const exitX = predecessor.x + predecessor.width + ARROW_STANDOFF;
   const entryX = successor.x - ARROW_STANDOFF;
@@ -91,9 +109,11 @@ function computeFSArrow(predecessor: BarRect, successor: BarRect): ArrowPath {
   const tipY = dstY;
 
   if (entryX >= exitX) {
-    // Standard left-to-right path
+    // Standard left-to-right path: apply stagger to the midpoint vertical spine
+    const baseMidX = exitX + Math.max((entryX - exitX) / 2, ARROW_MIN_H_SEG);
+    const midX = baseMidX + stagger;
     return {
-      pathD: buildOrthoPath(exitX, srcY, entryX, dstY),
+      pathD: `M ${exitX} ${srcY} H ${midX} V ${dstY} H ${entryX}`,
       tipX,
       tipY,
       tipDirection: 'right',
@@ -101,7 +121,8 @@ function computeFSArrow(predecessor: BarRect, successor: BarRect): ArrowPath {
   }
 
   // U-turn: loop out to the right, then come back in from the left
-  const loopX = exitX + ARROW_MIN_H_SEG;
+  // Apply stagger to push the loop spine further right for each arrow
+  const loopX = exitX + ARROW_MIN_H_SEG + stagger;
   const pathD = `M ${exitX} ${srcY} H ${loopX} V ${dstY} H ${entryX}`;
   return { pathD, tipX, tipY, tipDirection: 'right' };
 }
@@ -110,16 +131,21 @@ function computeFSArrow(predecessor: BarRect, successor: BarRect): ArrowPath {
  * Computes the SVG path for a Start-to-Start dependency.
  *
  * Routing: both bars' left edges, branching left from the further-left exit.
+ *
+ * @param arrowIndex Index of this arrow among all rendered arrows, used to
+ *   apply a horizontal stagger offset to the vertical spine.
  */
-function computeSSArrow(predecessor: BarRect, successor: BarRect): ArrowPath {
+function computeSSArrow(predecessor: BarRect, successor: BarRect, arrowIndex: number): ArrowPath {
   const srcY = barCenterY(predecessor.rowIndex);
   const dstY = barCenterY(successor.rowIndex);
+
+  const stagger = (arrowIndex % ARROW_STAGGER_SLOTS) * ARROW_STAGGER_STEP;
 
   const predExitX = predecessor.x - ARROW_STANDOFF;
   const succExitX = successor.x - ARROW_STANDOFF;
 
-  // Use the leftmost exit as the common vertical spine
-  const spineX = Math.min(predExitX, succExitX);
+  // Use the leftmost exit as the common vertical spine, shifted further left by stagger
+  const spineX = Math.min(predExitX, succExitX) - stagger;
 
   const tipX = successor.x;
   const tipY = dstY;
@@ -132,16 +158,21 @@ function computeSSArrow(predecessor: BarRect, successor: BarRect): ArrowPath {
  * Computes the SVG path for a Finish-to-Finish dependency.
  *
  * Routing: both bars' right edges; loop out to the rightmost exit.
+ *
+ * @param arrowIndex Index of this arrow among all rendered arrows, used to
+ *   apply a horizontal stagger offset to the vertical spine.
  */
-function computeFFArrow(predecessor: BarRect, successor: BarRect): ArrowPath {
+function computeFFArrow(predecessor: BarRect, successor: BarRect, arrowIndex: number): ArrowPath {
   const srcY = barCenterY(predecessor.rowIndex);
   const dstY = barCenterY(successor.rowIndex);
+
+  const stagger = (arrowIndex % ARROW_STAGGER_SLOTS) * ARROW_STAGGER_STEP;
 
   const predExitX = predecessor.x + predecessor.width + ARROW_STANDOFF;
   const succExitX = successor.x + successor.width + ARROW_STANDOFF;
 
-  // Use the rightmost exit as the common vertical spine
-  const spineX = Math.max(predExitX, succExitX);
+  // Use the rightmost exit as the common vertical spine, shifted further right by stagger
+  const spineX = Math.max(predExitX, succExitX) + stagger;
 
   const tipX = successor.x + successor.width;
   const tipY = dstY;
@@ -194,19 +225,25 @@ function computeSFArrow(predecessor: BarRect, successor: BarRect): ArrowPath {
  *   - SS (Start→Start):  left edge of predecessor → left edge of successor
  *   - FF (Finish→Finish): right edge of predecessor → right edge of successor
  *   - SF (Start→Finish):  left edge of predecessor → right edge of successor
+ *
+ * @param arrowIndex Index of this arrow among all rendered arrows. Used to
+ *   apply a small horizontal stagger to the vertical spine of FS, SS, and FF
+ *   arrows so parallel arrows at similar x-positions don't overlap visually.
+ *   Defaults to 0 (no stagger) for backwards compatibility.
  */
 export function computeArrowPath(
   predecessor: BarRect,
   successor: BarRect,
   depType: DependencyType,
+  arrowIndex: number = 0,
 ): ArrowPath {
   switch (depType) {
     case 'finish_to_start':
-      return computeFSArrow(predecessor, successor);
+      return computeFSArrow(predecessor, successor, arrowIndex);
     case 'start_to_start':
-      return computeSSArrow(predecessor, successor);
+      return computeSSArrow(predecessor, successor, arrowIndex);
     case 'finish_to_finish':
-      return computeFFArrow(predecessor, successor);
+      return computeFFArrow(predecessor, successor, arrowIndex);
     case 'start_to_finish':
       return computeSFArrow(predecessor, successor);
   }

@@ -106,6 +106,22 @@ export function addRequiredMilestone(
     throw new ConflictError('Work item already depends on this milestone');
   }
 
+  // Cross-validate: cannot require a milestone that the work item already contributes to
+  const crossLink = db
+    .select()
+    .from(milestoneWorkItems)
+    .where(
+      and(
+        eq(milestoneWorkItems.milestoneId, milestoneId),
+        eq(milestoneWorkItems.workItemId, workItemId),
+      ),
+    )
+    .get();
+
+  if (crossLink) {
+    throw new ConflictError('Cannot require milestone that this work item contributes to');
+  }
+
   db.insert(workItemMilestoneDeps).values({ workItemId, milestoneId }).run();
 
   autoReschedule(db);
@@ -198,6 +214,22 @@ export function addLinkedMilestone(
 
   if (existing) {
     throw new ConflictError('Work item is already linked to this milestone');
+  }
+
+  // Cross-validate: cannot contribute to a milestone that the work item already depends on
+  const crossDep = db
+    .select()
+    .from(workItemMilestoneDeps)
+    .where(
+      and(
+        eq(workItemMilestoneDeps.workItemId, workItemId),
+        eq(workItemMilestoneDeps.milestoneId, milestoneId),
+      ),
+    )
+    .get();
+
+  if (crossDep) {
+    throw new ConflictError('Cannot contribute to milestone that this work item depends on');
   }
 
   db.insert(milestoneWorkItems).values({ milestoneId, workItemId }).run();

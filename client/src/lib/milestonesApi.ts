@@ -64,3 +64,24 @@ export function linkWorkItem(
 export function unlinkWorkItem(milestoneId: number, workItemId: string): Promise<void> {
   return del<void>(`/milestones/${milestoneId}/work-items/${workItemId}`);
 }
+
+/**
+ * Adds a work item as a dependent of a milestone.
+ * The work item will require this milestone to complete before it can start.
+ */
+export function addDependentWorkItem(
+  milestoneId: number,
+  workItemId: string,
+): Promise<{ dependentWorkItems: { id: string; title: string }[] }> {
+  return post<{ dependentWorkItems: { id: string; title: string }[] }>(
+    `/milestones/${milestoneId}/dependents/${workItemId}`,
+    {},
+  );
+}
+
+/**
+ * Removes a work item from the dependents of a milestone.
+ */
+export function removeDependentWorkItem(milestoneId: number, workItemId: string): Promise<void> {
+  return del<void>(`/milestones/${milestoneId}/dependents/${workItemId}`);
+}

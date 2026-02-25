@@ -31,6 +31,7 @@ const MILESTONE_1: MilestoneSummary = {
   completedAt: null,
   color: null,
   workItemCount: 2,
+  dependentWorkItemCount: 0,
   createdBy: null,
   createdAt: '2024-01-01T00:00:00Z',
   updatedAt: '2024-01-01T00:00:00Z',
@@ -45,6 +46,7 @@ const MILESTONE_2: MilestoneSummary = {
   completedAt: '2024-09-14T12:00:00Z',
   color: '#EF4444',
   workItemCount: 0,
+  dependentWorkItemCount: 0,
   createdBy: { id: 'user-1', displayName: 'Alice', email: 'alice@example.com' },
   createdAt: '2024-02-01T00:00:00Z',
   updatedAt: '2024-09-14T12:00:00Z',
@@ -250,12 +252,12 @@ describe('MilestonePanel', () => {
 
     it('renders work item count for milestone with linked items', () => {
       renderPanel({ milestones: [MILESTONE_1] }); // workItemCount = 2
-      expect(screen.getByText(/2 items/)).toBeInTheDocument();
+      expect(screen.getByText(/2 contributing/)).toBeInTheDocument();
     });
 
     it('does not render item count for milestone with 0 linked items', () => {
       renderPanel({ milestones: [MILESTONE_2] }); // workItemCount = 0
-      expect(screen.queryByText(/0 item/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/contributing/)).not.toBeInTheDocument();
     });
 
     it('renders the "+ New Milestone" button', () => {

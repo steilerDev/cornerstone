@@ -34,6 +34,7 @@ const MILESTONE_SUMMARY: MilestoneSummary = {
   completedAt: null,
   color: null,
   workItemCount: 3,
+  dependentWorkItemCount: 0,
   createdBy: { id: 'user-1', displayName: 'Alice', email: 'alice@example.com' },
   createdAt: '2024-01-01T00:00:00Z',
   updatedAt: '2024-01-01T00:00:00Z',

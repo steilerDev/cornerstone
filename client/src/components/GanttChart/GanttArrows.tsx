@@ -156,7 +156,7 @@ export const GanttArrows = memo(function GanttArrows({
   // Pre-compute all work-item-to-work-item arrow paths
   const arrows = useMemo(() => {
     return dependencies
-      .map((dep) => {
+      .map((dep, arrowIndex) => {
         const predRect = barRects.get(dep.predecessorId);
         const succRect = barRects.get(dep.successorId);
         if (!predRect || !succRect) return null;
@@ -165,7 +165,7 @@ export const GanttArrows = memo(function GanttArrows({
         const isCritical =
           criticalPathSet.has(dep.predecessorId) && criticalPathSet.has(dep.successorId);
 
-        const arrowPath = computeArrowPath(predRect, succRect, dep.dependencyType);
+        const arrowPath = computeArrowPath(predRect, succRect, dep.dependencyType, arrowIndex);
 
         const predTitle = workItemTitles.get(dep.predecessorId) ?? dep.predecessorId;
         const succTitle = workItemTitles.get(dep.successorId) ?? dep.successorId;
