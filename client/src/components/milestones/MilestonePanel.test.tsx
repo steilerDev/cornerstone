@@ -78,7 +78,9 @@ function mockResolved(value: any): jest.Mock {
 /** Helper: create a jest.Mock that returns (but never resolves) a pending Promise. */
 function mockPending(): jest.Mock {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return jest.fn<() => Promise<any>>().mockReturnValue(new Promise(() => {})) as unknown as jest.Mock;
+  return jest
+    .fn<() => Promise<any>>()
+    .mockReturnValue(new Promise(() => {})) as unknown as jest.Mock;
 }
 
 function makeHooks(
@@ -298,9 +300,7 @@ describe('MilestonePanel', () => {
     });
 
     it('shows "—" when projectedDate is null for a milestone', () => {
-      const projectedDates: ReadonlyMap<number, string | null> = new Map([
-        [MILESTONE_1.id, null],
-      ]);
+      const projectedDates: ReadonlyMap<number, string | null> = new Map([[MILESTONE_1.id, null]]);
       renderPanel({ projectedDates });
       expect(screen.getByText(/projected:.*—/i)).toBeInTheDocument();
     });

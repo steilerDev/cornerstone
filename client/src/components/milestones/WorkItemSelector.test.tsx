@@ -383,7 +383,9 @@ describe('WorkItemSelector', () => {
 
     it('calls onAdd with the selected item when dropdown item is clicked', async () => {
       const onAdd = jest.fn();
-      mockFetch.mockResolvedValue(makeWorkItemListResponse([makeWorkItemSummary('wi-2', 'Framing Work')]));
+      mockFetch.mockResolvedValue(
+        makeWorkItemListResponse([makeWorkItemSummary('wi-2', 'Framing Work')]),
+      );
 
       renderSelector({ onAdd });
       const input = screen.getByRole('textbox', { name: /search work items/i });
@@ -411,7 +413,9 @@ describe('WorkItemSelector', () => {
     });
 
     it('closes dropdown when Escape is pressed in input', async () => {
-      mockFetch.mockResolvedValue(makeWorkItemListResponse([makeWorkItemSummary('wi-1', 'Foundation Work')]));
+      mockFetch.mockResolvedValue(
+        makeWorkItemListResponse([makeWorkItemSummary('wi-1', 'Foundation Work')]),
+      );
 
       renderSelector();
       const input = screen.getByRole('textbox', { name: /search work items/i });

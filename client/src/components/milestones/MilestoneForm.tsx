@@ -229,9 +229,9 @@ export function MilestoneForm({
               disabled={isSubmitting}
             />
             <p className={styles.fieldHint}>
-              Linked work items contribute to this milestone&rsquo;s projected date &mdash;
-              computed from the latest end date of linked items. If the projected date exceeds the
-              target date, the milestone shows as late.
+              Linked work items contribute to this milestone&rsquo;s projected date &mdash; computed
+              from the latest end date of linked items. If the projected date exceeds the target
+              date, the milestone shows as late.
             </p>
           </div>
         )}

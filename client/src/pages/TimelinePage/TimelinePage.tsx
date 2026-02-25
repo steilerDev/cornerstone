@@ -365,7 +365,8 @@ export function TimelinePage() {
   );
 
   const hasWorkItemsWithDates =
-    data !== null && data.workItems.some((item) => item.startDate !== null || item.endDate !== null);
+    data !== null &&
+    data.workItems.some((item) => item.startDate !== null || item.endDate !== null);
 
   const isEmpty = data !== null && data.workItems.length === 0;
 
@@ -506,7 +507,12 @@ export function TimelinePage() {
               aria-hidden="true"
               style={{ display: 'block' }}
             >
-              <polygon points="6,0 12,6 6,12 0,6" stroke="currentColor" strokeWidth="1.5" fill="none" />
+              <polygon
+                points="6,0 12,6 6,12 0,6"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                fill="none"
+              />
             </svg>
             <span>Milestones</span>
           </button>

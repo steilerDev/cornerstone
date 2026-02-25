@@ -103,9 +103,9 @@ function renderMilestones(overrides: Partial<GanttMilestonesProps> = {}) {
 
 describe('computeMilestoneStatus', () => {
   it('returns "completed" when isCompleted is true regardless of projectedDate', () => {
-    expect(
-      computeMilestoneStatus({ ...MILESTONE_COMPLETE, projectedDate: '2024-12-01' }),
-    ).toBe('completed');
+    expect(computeMilestoneStatus({ ...MILESTONE_COMPLETE, projectedDate: '2024-12-01' })).toBe(
+      'completed',
+    );
   });
 
   it('returns "completed" when isCompleted is true and projectedDate is null', () => {

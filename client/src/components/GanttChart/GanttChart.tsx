@@ -79,8 +79,7 @@ function resolveColors(): ChartColors {
       lateStroke: readCssVar('--color-milestone-late-stroke') || readCssVar('--color-danger'),
       hoverGlow: readCssVar('--color-milestone-hover-glow'),
       completeHoverGlow: readCssVar('--color-milestone-complete-hover-glow'),
-      lateHoverGlow:
-        readCssVar('--color-milestone-late-hover-glow') || 'rgba(220, 38, 38, 0.25)',
+      lateHoverGlow: readCssVar('--color-milestone-late-hover-glow') || 'rgba(220, 38, 38, 0.25)',
     },
   };
 }
