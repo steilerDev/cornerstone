@@ -12,7 +12,11 @@
  */
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-import type { WorkItemSummary, WorkItemDependentSummary, PaginationMeta } from '@cornerstone/shared';
+import type {
+  WorkItemSummary,
+  WorkItemDependentSummary,
+  PaginationMeta,
+} from '@cornerstone/shared';
 
 // ---------------------------------------------------------------------------
 // Fixtures
