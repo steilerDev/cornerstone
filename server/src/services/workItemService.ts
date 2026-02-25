@@ -11,6 +11,7 @@ import {
   workItemDependencies,
 } from '../db/schema.js';
 import { listWorkItemBudgets } from './workItemBudgetService.js';
+import { autoReschedule } from './schedulingEngine.js';
 import type {
   WorkItemDetail,
   WorkItemSummary,
@@ -455,6 +456,19 @@ export function updateWorkItem(
       validateTagIds(db, tagIds);
     }
     replaceWorkItemTags(db, id, tagIds);
+  }
+
+  // Trigger auto-reschedule when any scheduling-relevant field changed
+  const schedulingFieldChanged =
+    'startDate' in data ||
+    'endDate' in data ||
+    'durationDays' in data ||
+    'startAfter' in data ||
+    'startBefore' in data ||
+    'status' in data;
+
+  if (schedulingFieldChanged) {
+    autoReschedule(db);
   }
 
   // Fetch and return the updated work item

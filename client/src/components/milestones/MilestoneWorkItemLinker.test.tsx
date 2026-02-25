@@ -149,9 +149,9 @@ describe('MilestoneWorkItemLinker', () => {
       expect(screen.getByRole('button', { name: /back/i })).toBeInTheDocument();
     });
 
-    it('renders the "Linked Work Items" heading', () => {
+    it('renders the "Contributing Work Items" heading', () => {
       renderLinker();
-      expect(screen.getByRole('heading', { name: /linked work items/i })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /contributing work items/i })).toBeInTheDocument();
     });
 
     it('renders search input', () => {

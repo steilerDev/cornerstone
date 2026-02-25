@@ -31,6 +31,7 @@ import workItemSubsidyRoutes from './routes/workItemSubsidies.js';
 import workItemBudgetRoutes from './routes/workItemBudgets.js';
 import budgetOverviewRoutes from './routes/budgetOverview.js';
 import milestoneRoutes from './routes/milestones.js';
+import workItemMilestoneRoutes from './routes/workItemMilestones.js';
 import scheduleRoutes from './routes/schedule.js';
 import timelineRoutes from './routes/timeline.js';
 import { hashPassword, verifyPassword } from './services/userService.js';
@@ -119,6 +120,11 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Milestone routes (EPIC-06: Timeline, Gantt Chart & Dependency Management)
   await app.register(milestoneRoutes, { prefix: '/api/milestones' });
+
+  // Work item milestone relationship routes (EPIC-06 UAT Fix 4: bidirectional milestone deps)
+  await app.register(workItemMilestoneRoutes, {
+    prefix: '/api/work-items/:workItemId/milestones',
+  });
 
   // Schedule routes (EPIC-06: Scheduling Engine — CPM, Auto-Schedule, Conflict Detection)
   await app.register(scheduleRoutes, { prefix: '/api/schedule' });

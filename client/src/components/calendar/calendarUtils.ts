@@ -244,6 +244,116 @@ export function nextWeek(date: Date): Date {
 }
 
 // ---------------------------------------------------------------------------
+// Lane allocation for multi-day item visual continuity
+// ---------------------------------------------------------------------------
+
+/**
+ * Allocates a consistent vertical lane index to each work item that appears
+ * within the given week (weekStart..weekEnd inclusive).
+ *
+ * Algorithm:
+ *  1. Collect all items that overlap the week.
+ *  2. Sort: multi-day items first (longest duration first), then single-day.
+ *  3. Greedily assign lanes: for each item find the lowest lane that is free
+ *     on all days the item spans within this week.
+ *
+ * Returns a Map<itemId, laneIndex> (0-based).
+ */
+export function allocateLanes(
+  weekStart: string,
+  weekEnd: string,
+  items: TimelineWorkItem[],
+): Map<string, number> {
+  // Only items with both dates that overlap this week
+  const weekItems = items.filter((item) => {
+    if (!item.startDate || !item.endDate) return false;
+    // Item overlaps if its range intersects [weekStart, weekEnd]
+    return item.startDate <= weekEnd && item.endDate >= weekStart;
+  });
+
+  // Calculate how many days each item spans *within* this week
+  function spanInWeek(item: TimelineWorkItem): number {
+    const start = item.startDate! > weekStart ? item.startDate! : weekStart;
+    const end = item.endDate! < weekEnd ? item.endDate! : weekEnd;
+    // Count days between start and end inclusive
+    const startDate = parseIsoDate(start);
+    const endDate = parseIsoDate(end);
+    return Math.round((endDate.getTime() - startDate.getTime()) / 86400000) + 1;
+  }
+
+  // Sort: multi-day (span > 1) first by descending span, then single-day
+  const sorted = [...weekItems].sort((a, b) => {
+    const spanA = spanInWeek(a);
+    const spanB = spanInWeek(b);
+    // Multi-day first
+    if (spanA > 1 && spanB === 1) return -1;
+    if (spanA === 1 && spanB > 1) return 1;
+    // Both multi-day: longer span first
+    return spanB - spanA;
+  });
+
+  // Build a list of ISO day strings for the week
+  const weekDays: string[] = [];
+  {
+    const startDate = parseIsoDate(weekStart);
+    const endDate = parseIsoDate(weekEnd);
+    let d = startDate;
+    while (d <= endDate) {
+      weekDays.push(formatIsoDate(d));
+      d = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1));
+    }
+  }
+
+  // laneBusy[day][lane] = itemId occupying that lane on that day
+  const laneBusy: Map<string, Set<number>> = new Map();
+  for (const day of weekDays) {
+    laneBusy.set(day, new Set());
+  }
+
+  const result = new Map<string, number>();
+
+  for (const item of sorted) {
+    // Days this item occupies within the week
+    const itemStart = item.startDate! > weekStart ? item.startDate! : weekStart;
+    const itemEnd = item.endDate! < weekEnd ? item.endDate! : weekEnd;
+    const occupiedDays = weekDays.filter((d) => d >= itemStart && d <= itemEnd);
+
+    // Find the lowest lane free on all occupied days
+    let lane = 0;
+    let laneFree = false;
+    while (!laneFree) {
+      laneFree = occupiedDays.every((d) => !laneBusy.get(d)!.has(lane));
+      if (!laneFree) lane++;
+    }
+
+    // Mark lane as occupied on all days
+    for (const d of occupiedDays) {
+      laneBusy.get(d)!.add(lane);
+    }
+
+    result.set(item.id, lane);
+  }
+
+  return result;
+}
+
+// ---------------------------------------------------------------------------
+// Item color palette
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns a deterministic color index (1–8) for a work item based on its ID.
+ * The same ID always maps to the same color slot.
+ */
+export function getItemColor(itemId: string): number {
+  let hash = 0;
+  for (let i = 0; i < itemId.length; i++) {
+    hash = (hash * 31 + itemId.charCodeAt(i)) >>> 0; // keep as unsigned 32-bit
+  }
+  return (hash % 8) + 1; // 1-indexed, 1..8
+}
+
+// ---------------------------------------------------------------------------
 // Display helpers
 // ---------------------------------------------------------------------------
 

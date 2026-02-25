@@ -338,6 +338,8 @@
   /* Dependency arrows */
   --color-gantt-arrow-default: var(--color-gray-500);
   --color-gantt-arrow-critical: var(--color-red-500);
+  /* Milestone linkage arrows (dashed, uses milestone accent color) */
+  --color-gantt-arrow-milestone: var(--color-blue-500);
 
   /* Critical path bar border overlay */
   --color-gantt-bar-critical-border: var(--color-orange-400);
@@ -378,6 +380,44 @@
   /* Toast: Error */
   --color-toast-error-bg: var(--color-red-50);
   --color-toast-error-border: var(--color-red-200);
+
+  /* ============================================================
+   * LAYER 2 — CALENDAR ITEM PALETTE TOKENS
+   * 8 visually distinct, brand-compatible colors for item differentiation.
+   * Used as background fill for CalendarItem bars; text must remain readable.
+   * ============================================================ */
+
+  /* 1. Blue */
+  --calendar-item-1-bg: #dbeafe;
+  --calendar-item-1-text: #1e40af;
+
+  /* 2. Green */
+  --calendar-item-2-bg: #d1fae5;
+  --calendar-item-2-text: #065f46;
+
+  /* 3. Orange */
+  --calendar-item-3-bg: #ffedd5;
+  --calendar-item-3-text: #9a3412;
+
+  /* 4. Purple */
+  --calendar-item-4-bg: #ede9fe;
+  --calendar-item-4-text: #4c1d95;
+
+  /* 5. Teal */
+  --calendar-item-5-bg: #ccfbf1;
+  --calendar-item-5-text: #134e4a;
+
+  /* 6. Rose */
+  --calendar-item-6-bg: #ffe4e6;
+  --calendar-item-6-text: #881337;
+
+  /* 7. Amber */
+  --calendar-item-7-bg: #fef3c7;
+  --calendar-item-7-text: #78350f;
+
+  /* 8. Indigo */
+  --calendar-item-8-bg: #e0e7ff;
+  --calendar-item-8-text: #312e81;
 }
 
 /* ============================================================
@@ -525,6 +565,7 @@
   /* Dependency arrows (brighter in dark mode for contrast) */
   --color-gantt-arrow-default: var(--color-slate-400);
   --color-gantt-arrow-critical: var(--color-red-400);
+  --color-gantt-arrow-milestone: var(--color-blue-400);
 
   /* Critical path bar accent stripe (warmer orange in dark mode) */
   --color-gantt-bar-critical-border: var(--color-orange-300);
@@ -554,4 +595,38 @@
   /* Toast: Error */
   --color-toast-error-bg: rgba(239, 68, 68, 0.1);
   --color-toast-error-border: rgba(239, 68, 68, 0.3);
+
+  /* --- Calendar item palette (dark mode — muted semi-transparent fills) --- */
+
+  /* 1. Blue */
+  --calendar-item-1-bg: rgba(59, 130, 246, 0.25);
+  --calendar-item-1-text: #93c5fd;
+
+  /* 2. Green */
+  --calendar-item-2-bg: rgba(16, 185, 129, 0.2);
+  --calendar-item-2-text: #6ee7b7;
+
+  /* 3. Orange */
+  --calendar-item-3-bg: rgba(249, 115, 22, 0.2);
+  --calendar-item-3-text: #fdba74;
+
+  /* 4. Purple */
+  --calendar-item-4-bg: rgba(139, 92, 246, 0.2);
+  --calendar-item-4-text: #c4b5fd;
+
+  /* 5. Teal */
+  --calendar-item-5-bg: rgba(20, 184, 166, 0.2);
+  --calendar-item-5-text: #5eead4;
+
+  /* 6. Rose */
+  --calendar-item-6-bg: rgba(244, 63, 94, 0.2);
+  --calendar-item-6-text: #fda4af;
+
+  /* 7. Amber */
+  --calendar-item-7-bg: rgba(245, 158, 11, 0.2);
+  --calendar-item-7-text: #fcd34d;
+
+  /* 8. Indigo */
+  --calendar-item-8-bg: rgba(99, 102, 241, 0.2);
+  --calendar-item-8-text: #a5b4fc;
 }

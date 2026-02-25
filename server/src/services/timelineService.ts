@@ -16,6 +16,7 @@ import {
   workItemDependencies,
   milestones,
   milestoneWorkItems,
+  workItemMilestoneDeps,
 } from '../db/schema.js';
 import type {
   TimelineResponse,
@@ -123,12 +124,26 @@ export function getTimeline(db: DbType): TimelineResponse {
     }
   }
 
-  // ── 3. Map to TimelineWorkItem shape ─────────────────────────────────────────
+  // ── 3. Batch-fetch required milestone dependencies for all work items ─────────
+
+  const allMilestoneDeps = db.select().from(workItemMilestoneDeps).all();
+
+  // Build workItemId → required milestoneIds map.
+  const workItemRequiredMilestoneMap = new Map<string, number[]>();
+  for (const dep of allMilestoneDeps) {
+    const existing = workItemRequiredMilestoneMap.get(dep.workItemId) ?? [];
+    existing.push(dep.milestoneId);
+    workItemRequiredMilestoneMap.set(dep.workItemId, existing);
+  }
+
+  // ── 4. Map to TimelineWorkItem shape ─────────────────────────────────────────
 
   const timelineWorkItems: TimelineWorkItem[] = rawWorkItems.map((wi) => {
     const assignedUser = wi.assignedUserId
       ? toUserSummary(userMap.get(wi.assignedUserId) ?? null)
       : null;
+
+    const requiredMilestoneIds = workItemRequiredMilestoneMap.get(wi.id);
 
     return {
       id: wi.id,
@@ -141,6 +156,7 @@ export function getTimeline(db: DbType): TimelineResponse {
       startBefore: wi.startBefore,
       assignedUser,
       tags: getWorkItemTags(db, wi.id),
+      ...(requiredMilestoneIds && requiredMilestoneIds.length > 0 ? { requiredMilestoneIds } : {}),
     };
   });
 

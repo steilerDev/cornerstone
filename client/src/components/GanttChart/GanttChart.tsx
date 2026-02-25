@@ -7,6 +7,7 @@ import {
   generateGridLines,
   generateHeaderCells,
   dateToX,
+  toUtcMidnight,
   type ZoomLevel,
   ROW_HEIGHT,
   HEADER_HEIGHT,
@@ -23,6 +24,7 @@ import { GanttTooltip } from './GanttTooltip.js';
 import type { GanttTooltipData, GanttTooltipPosition } from './GanttTooltip.js';
 import { GanttMilestones, computeMilestoneStatus } from './GanttMilestones.js';
 import type { MilestoneColors } from './GanttMilestones.js';
+import type { MilestonePoint } from './GanttArrows.js';
 import styles from './GanttChart.module.css';
 
 // ---------------------------------------------------------------------------
@@ -46,6 +48,7 @@ interface ChartColors {
   barColors: Record<WorkItemStatus, string>;
   arrowDefault: string;
   arrowCritical: string;
+  arrowMilestone: string;
   criticalBorder: string;
   milestone: MilestoneColors;
 }
@@ -65,6 +68,7 @@ function resolveColors(): ChartColors {
     },
     arrowDefault: readCssVar('--color-gantt-arrow-default'),
     arrowCritical: readCssVar('--color-gantt-arrow-critical'),
+    arrowMilestone: readCssVar('--color-gantt-arrow-milestone'),
     criticalBorder: readCssVar('--color-gantt-bar-critical-border'),
     milestone: {
       incompleteFill: readCssVar('--color-milestone-incomplete-fill') || 'transparent',
@@ -282,12 +286,88 @@ export function GanttChart({
 
   // Arrow colors object — derived from resolved colors
   const arrowColors = useMemo(
-    () => ({ defaultArrow: colors.arrowDefault, criticalArrow: colors.arrowCritical }),
-    [colors.arrowDefault, colors.arrowCritical],
+    () => ({
+      defaultArrow: colors.arrowDefault,
+      criticalArrow: colors.arrowCritical,
+      milestoneArrow: colors.arrowMilestone,
+    }),
+    [colors.arrowDefault, colors.arrowCritical, colors.arrowMilestone],
   );
 
   // SVG height: work item rows + individual milestone rows (one per milestone)
   const hasMilestones = data.milestones.length > 0;
+
+  // ---------------------------------------------------------------------------
+  // Milestone arrow data — positions and linkage maps for GanttArrows
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Map from milestone ID to its diamond center position in SVG coordinates.
+   * Mirrors the positioning logic in GanttMilestones: each milestone occupies
+   * its own row after all work item rows. The x position uses the active date
+   * (projected for late milestones, target otherwise).
+   */
+  const milestonePoints = useMemo<ReadonlyMap<number, MilestonePoint>>(() => {
+    const map = new Map<number, MilestonePoint>();
+    if (!hasMilestones) return map;
+
+    const workItemRowCount = data.workItems.length;
+
+    data.milestones.forEach((milestone, milestoneIndex) => {
+      const milestoneRowIndex = workItemRowCount + milestoneIndex;
+      const y = milestoneRowIndex * ROW_HEIGHT + ROW_HEIGHT / 2;
+
+      const status = computeMilestoneStatus(milestone);
+      const isLate = status === 'late' && milestone.projectedDate !== null;
+
+      // Use projected date for late milestones (matches GanttMilestones active diamond)
+      const activeDateStr =
+        isLate && milestone.projectedDate !== null ? milestone.projectedDate : milestone.targetDate;
+
+      const x = dateToX(toUtcMidnight(activeDateStr), chartRange, zoom, columnWidth);
+
+      map.set(milestone.id, { x, y });
+    });
+
+    return map;
+  }, [data.milestones, data.workItems.length, hasMilestones, chartRange, zoom, columnWidth]);
+
+  /**
+   * Map from milestone ID → array of contributing work item IDs.
+   * Derived from milestone.workItemIds (work items linked to the milestone).
+   */
+  const milestoneContributors = useMemo<ReadonlyMap<number, readonly string[]>>(() => {
+    const map = new Map<number, readonly string[]>();
+    for (const milestone of data.milestones) {
+      if (milestone.workItemIds.length > 0) {
+        map.set(milestone.id, milestone.workItemIds);
+      }
+    }
+    return map;
+  }, [data.milestones]);
+
+  /**
+   * Map from work item ID → array of required milestone IDs.
+   * Derived from workItem.requiredMilestoneIds.
+   */
+  const workItemRequiredMilestones = useMemo<ReadonlyMap<string, readonly number[]>>(() => {
+    const map = new Map<string, readonly number[]>();
+    for (const item of data.workItems) {
+      if (item.requiredMilestoneIds && item.requiredMilestoneIds.length > 0) {
+        map.set(item.id, item.requiredMilestoneIds);
+      }
+    }
+    return map;
+  }, [data.workItems]);
+
+  /**
+   * Map from milestone ID → title for accessible aria-labels on milestone arrows.
+   */
+  const milestoneTitles = useMemo<ReadonlyMap<number, string>>(() => {
+    return new Map(data.milestones.map((m) => [m.id, m.title]));
+  }, [data.milestones]);
+
+  // SVG height: work item rows + individual milestone rows (one per milestone)
   const totalRowCount = data.workItems.length + (hasMilestones ? data.milestones.length : 0);
   const svgHeight = Math.max(totalRowCount * ROW_HEIGHT, ROW_HEIGHT);
 
@@ -404,6 +484,10 @@ export function GanttChart({
               workItemTitles={workItemTitles}
               colors={arrowColors}
               visible={showArrows}
+              milestonePoints={milestonePoints}
+              milestoneContributors={milestoneContributors}
+              workItemRequiredMilestones={workItemRequiredMilestones}
+              milestoneTitles={milestoneTitles}
             />
 
             {/* Milestone diamond markers (below work item bars, above arrows) */}

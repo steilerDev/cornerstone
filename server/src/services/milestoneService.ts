@@ -1,10 +1,17 @@
 import { eq, asc, and, sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { milestones, milestoneWorkItems, users, workItems } from '../db/schema.js';
+import {
+  milestones,
+  milestoneWorkItems,
+  workItemMilestoneDeps,
+  users,
+  workItems,
+} from '../db/schema.js';
 import type {
   MilestoneSummary,
   MilestoneDetail,
+  WorkItemDependentSummary,
   CreateMilestoneRequest,
   UpdateMilestoneRequest,
   MilestoneListResponse,
@@ -47,6 +54,39 @@ function getLinkedWorkItems(db: DbType, milestoneId: number): WorkItemSummary[] 
     .all();
 
   return rows.map((row) => toWorkItemSummary(db, row.workItem));
+}
+
+/**
+ * Fetch work items that depend on this milestone (required milestone deps).
+ * EPIC-06 UAT Fix 4: Bidirectional milestone-work item dependency tracking.
+ */
+function getWorkItemsWithDep(db: DbType, milestoneId: number): WorkItemDependentSummary[] {
+  const rows = db
+    .select({ workItem: workItems })
+    .from(workItemMilestoneDeps)
+    .innerJoin(workItems, eq(workItems.id, workItemMilestoneDeps.workItemId))
+    .where(eq(workItemMilestoneDeps.milestoneId, milestoneId))
+    .all();
+
+  return rows.map((row) => ({
+    id: row.workItem.id,
+    title: row.workItem.title,
+  }));
+}
+
+/**
+ * Fetch dependent work items for a milestone (public service function).
+ * Returns work items that depend on this milestone completing before they can start.
+ * EPIC-06 UAT Fix 4.
+ *
+ * @throws NotFoundError if milestone does not exist
+ */
+export function getDependentWorkItems(db: DbType, milestoneId: number): WorkItemDependentSummary[] {
+  const milestone = db.select().from(milestones).where(eq(milestones.id, milestoneId)).get();
+  if (!milestone) {
+    throw new NotFoundError('Milestone not found');
+  }
+  return getWorkItemsWithDep(db, milestoneId);
 }
 
 /**
@@ -105,6 +145,7 @@ function toMilestoneDetail(db: DbType, milestone: typeof milestones.$inferSelect
     completedAt: milestone.completedAt,
     color: milestone.color,
     workItems: getLinkedWorkItems(db, milestone.id),
+    dependentWorkItems: getWorkItemsWithDep(db, milestone.id),
     createdBy: getCreatedByUser(db, milestone.createdBy),
     createdAt: milestone.createdAt,
     updatedAt: milestone.updatedAt,

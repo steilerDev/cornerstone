@@ -6,6 +6,7 @@ import type {
   CreateMilestoneRequest,
   UpdateMilestoneRequest,
   WorkItemSummary,
+  WorkItemDependentSummary,
 } from '@cornerstone/shared';
 import { getMilestone } from '../../lib/milestonesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
@@ -321,7 +322,7 @@ export function MilestonePanel({
       : view === 'edit'
         ? 'Edit Milestone'
         : view === 'linker'
-          ? 'Linked Work Items'
+          ? 'Contributing Work Items'
           : 'Milestones';
 
   const content = (
@@ -454,8 +455,8 @@ export function MilestonePanel({
                               type="button"
                               className={styles.milestoneActionButton}
                               onClick={() => handleLinkerClick(m)}
-                              aria-label={`Manage linked work items for ${m.title}`}
-                              title="Manage linked work items"
+                              aria-label={`Manage contributing work items for ${m.title}`}
+                              title="Manage contributing work items"
                             >
                               <svg
                                 xmlns="http://www.w3.org/2000/svg"
@@ -581,6 +582,11 @@ export function MilestonePanel({
               isLoadingDetail
                 ? []
                 : ((detailData?.workItems as WorkItemSummary[] | undefined) ?? [])
+            }
+            dependentWorkItems={
+              isLoadingDetail
+                ? []
+                : ((detailData?.dependentWorkItems as WorkItemDependentSummary[] | undefined) ?? [])
             }
             isLinking={isLinking}
             onLink={(id) => void handleLink(id)}

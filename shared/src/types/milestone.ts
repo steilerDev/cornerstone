@@ -25,6 +25,15 @@ export interface MilestoneSummary {
 }
 
 /**
+ * Compact work item shape used in milestone detail responses for dependent work items.
+ * EPIC-06 UAT Fix 4: Bidirectional milestone-work item dependency tracking.
+ */
+export interface WorkItemDependentSummary {
+  id: string;
+  title: string;
+}
+
+/**
  * Milestone detail shape — used in single-item responses.
  * Includes the full WorkItemSummary list for linked work items.
  */
@@ -37,6 +46,8 @@ export interface MilestoneDetail {
   completedAt: string | null; // ISO 8601 timestamp
   color: string | null;
   workItems: WorkItemSummary[]; // Linked work items (full summary)
+  /** Work items that depend on this milestone completing before they can start. */
+  dependentWorkItems: WorkItemDependentSummary[]; // EPIC-06 UAT Fix 4
   createdBy: UserSummary | null;
   createdAt: string; // ISO 8601 timestamp
   updatedAt: string; // ISO 8601 timestamp

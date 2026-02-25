@@ -1,5 +1,10 @@
 /* ============================================================
  * CalendarItem — work item block in a calendar cell
+ *
+ * Items use absolute positioning within a position:relative container
+ * (the .itemsContainer in MonthGrid / the .dayCell in WeekGrid).
+ * Vertical position is controlled by a laneIndex via inline style top offset.
+ * Color is applied via inline CSS custom properties (--calendar-item-N-*).
  * ============================================================ */
 
 .item {
@@ -9,7 +14,6 @@
   cursor: pointer;
   overflow: hidden;
   transition: filter var(--transition-fast);
-  /* Horizontal margins for spacing between adjacent cells */
   min-width: 0;
   border-top: none;
   border-bottom: none;
@@ -30,20 +34,20 @@
 }
 
 /* ---- Compact (month view) ---- */
+/* Lane height: 18px item + 2px gap = 20px (matches LANE_HEIGHT_COMPACT in CalendarItem.tsx) */
 
 .compact {
   height: 18px;
   padding: 0 var(--spacing-1);
   font-size: var(--font-size-2xs);
-  margin-bottom: var(--spacing-0-5);
 }
 
 /* ---- Full (week view) ---- */
+/* Lane height: 22px item + 4px gap = 26px (matches LANE_HEIGHT_FULL in CalendarItem.tsx) */
 
 .full {
   padding: var(--spacing-1) var(--spacing-2);
   font-size: var(--font-size-xs);
-  margin-bottom: var(--spacing-1);
   min-height: 22px;
 }
 
@@ -109,7 +113,12 @@
   margin-right: var(--spacing-2);
 }
 
-/* ---- Status colors ---- */
+/* ---- Status colors (fallback / semantic — overridden by inline palette color) ---- */
+/*
+ * These classes are kept for semantic markup and test compatibility.
+ * When a colorIndex is provided from getItemColor(), the palette color is applied
+ * via inline style and takes visual precedence over these CSS class colors.
+ */
 
 .notStarted {
   background: var(--color-status-not-started-bg);

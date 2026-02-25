@@ -1,12 +1,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTimeline } from '../../hooks/useTimeline.js';
 import { useMilestones } from '../../hooks/useMilestones.js';
-import { runSchedule } from '../../lib/scheduleApi.js';
-import { updateWorkItem } from '../../lib/workItemsApi.js';
-import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
-import { useToast } from '../../components/Toast/ToastContext.js';
 import { GanttChart, GanttChartSkeleton } from '../../components/GanttChart/GanttChart.js';
 import { MilestonePanel } from '../../components/milestones/MilestonePanel.js';
 import { CalendarView } from '../../components/calendar/CalendarView.js';
@@ -17,7 +12,6 @@ import {
   COLUMN_WIDTH_MAX,
   SIDEBAR_WIDTH,
 } from '../../components/GanttChart/ganttUtils.js';
-import type { ScheduledItem, TimelineMilestone } from '@cornerstone/shared';
 import styles from './TimelinePage.module.css';
 
 // ---------------------------------------------------------------------------
@@ -58,54 +52,6 @@ function ArrowsIcon({ active }: { active: boolean }) {
         strokeLinejoin="round"
         fill="none"
       />
-    </svg>
-  );
-}
-
-function AutoScheduleIcon({ spinning }: { spinning: boolean }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 20 20"
-      width="16"
-      height="16"
-      fill="none"
-      aria-hidden="true"
-      style={{
-        display: 'block',
-        animation: spinning ? 'spin 0.8s linear infinite' : undefined,
-      }}
-    >
-      <path
-        d="M10 3a7 7 0 100 14A7 7 0 0010 3z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeDasharray={spinning ? '22 10' : '44 0'}
-      />
-      {!spinning && (
-        <>
-          {/* Clock hands */}
-          <line
-            x1="10"
-            y1="6"
-            x2="10"
-            y2="10"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-          />
-          <line
-            x1="10"
-            y1="10"
-            x2="13"
-            y2="12"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-          />
-        </>
-      )}
     </svg>
   );
 }
@@ -179,220 +125,6 @@ const ZOOM_OPTIONS: { value: ZoomLevel; label: string }[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// Auto-schedule confirmation dialog
-// ---------------------------------------------------------------------------
-
-/** A milestone with its current and projected-after-scheduling dates. */
-interface AffectedMilestone {
-  id: number;
-  title: string;
-  currentProjectedDate: string | null;
-  newProjectedDate: string | null;
-}
-
-interface AutoScheduleDialogProps {
-  scheduledItems: ScheduledItem[];
-  titleMap: ReadonlyMap<string, string>;
-  currentMilestones: TimelineMilestone[];
-  isApplying: boolean;
-  applyError: string | null;
-  onConfirm: () => void;
-  onCancel: () => void;
-}
-
-function AutoScheduleDialog({
-  scheduledItems,
-  titleMap,
-  currentMilestones,
-  isApplying,
-  applyError,
-  onConfirm,
-  onCancel,
-}: AutoScheduleDialogProps) {
-  // Count items with changed dates
-  const changedCount = scheduledItems.filter(
-    (item) =>
-      item.scheduledStartDate !== item.previousStartDate ||
-      item.scheduledEndDate !== item.previousEndDate,
-  ).length;
-
-  // Compute new projected date for each milestone based on the new scheduled end dates
-  const affectedMilestones = useMemo<AffectedMilestone[]>(() => {
-    // Build map from work item ID → new scheduled end date
-    const newEndDateMap = new Map<string, string>(
-      scheduledItems.map((item) => [item.workItemId, item.scheduledEndDate]),
-    );
-
-    return currentMilestones
-      .map((milestone): AffectedMilestone | null => {
-        if (milestone.workItemIds.length === 0) return null;
-
-        // New projected date = max end date of linked work items using scheduled dates
-        let newProjectedDate: string | null = null;
-        for (const wid of milestone.workItemIds) {
-          const newEnd = newEndDateMap.get(wid) ?? null;
-          if (newEnd !== null && (newProjectedDate === null || newEnd > newProjectedDate)) {
-            newProjectedDate = newEnd;
-          }
-        }
-
-        // Only include if date actually changes
-        if (newProjectedDate === milestone.projectedDate) return null;
-
-        return {
-          id: milestone.id,
-          title: milestone.title,
-          currentProjectedDate: milestone.projectedDate,
-          newProjectedDate,
-        };
-      })
-      .filter((m): m is AffectedMilestone => m !== null);
-  }, [currentMilestones, scheduledItems]);
-
-  const content = (
-    <div
-      className={styles.dialogOverlay}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="auto-schedule-dialog-title"
-      data-testid="auto-schedule-dialog"
-    >
-      <div className={styles.dialog}>
-        <div className={styles.dialogHeader}>
-          <h2 id="auto-schedule-dialog-title" className={styles.dialogTitle}>
-            Auto-Schedule Preview
-          </h2>
-        </div>
-
-        <div className={styles.dialogBody}>
-          <p className={styles.dialogDescription}>
-            The scheduling engine has calculated optimal dates using the Critical Path Method.
-            {changedCount > 0 ? (
-              <>
-                {' '}
-                <strong>
-                  {changedCount} work item{changedCount !== 1 ? 's' : ''}
-                </strong>{' '}
-                will have their dates updated.
-              </>
-            ) : (
-              ' No date changes are needed — your schedule is already optimal.'
-            )}
-          </p>
-
-          {scheduledItems.length > 0 && (
-            <div className={styles.dialogItemList} aria-label="Scheduled items preview">
-              <div className={styles.dialogItemListHeader}>
-                <span>Work Item</span>
-                <span>New Start</span>
-                <span>New End</span>
-              </div>
-              {scheduledItems.slice(0, 10).map((item) => {
-                const hasChanged =
-                  item.scheduledStartDate !== item.previousStartDate ||
-                  item.scheduledEndDate !== item.previousEndDate;
-                return (
-                  <div
-                    key={item.workItemId}
-                    className={`${styles.dialogItemRow} ${hasChanged ? styles.dialogItemRowChanged : ''}`}
-                  >
-                    <span className={styles.dialogItemId} title={item.workItemId}>
-                      {titleMap.get(item.workItemId) ?? item.workItemId.substring(0, 8) + '…'}
-                    </span>
-                    <span className={styles.dialogItemDate}>{item.scheduledStartDate}</span>
-                    <span className={styles.dialogItemDate}>{item.scheduledEndDate}</span>
-                  </div>
-                );
-              })}
-              {scheduledItems.length > 10 && (
-                <div className={styles.dialogItemMore}>
-                  +{scheduledItems.length - 10} more items
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Affected milestones section */}
-          <div className={styles.dialogMilestonesSection}>
-            <h3 className={styles.dialogSectionTitle}>Affected Milestones</h3>
-            {affectedMilestones.length === 0 ? (
-              <p className={styles.dialogMilestonesNote}>
-                Milestone projected dates update automatically based on linked work items.
-              </p>
-            ) : (
-              <div className={styles.dialogMilestonesList} aria-label="Affected milestones preview">
-                <div className={styles.dialogMilestoneListHeader}>
-                  <span>Milestone</span>
-                  <span>Current Projected</span>
-                  <span>New Projected</span>
-                </div>
-                {affectedMilestones.map((m) => (
-                  <div key={m.id} className={styles.dialogMilestoneRow}>
-                    <span className={styles.dialogItemId} title={m.title}>
-                      {m.title}
-                    </span>
-                    <span className={styles.dialogItemDate}>
-                      {m.currentProjectedDate !== null
-                        ? formatDateShort(m.currentProjectedDate)
-                        : '—'}
-                    </span>
-                    <span
-                      className={`${styles.dialogItemDate} ${styles.dialogMilestoneDateChanged}`}
-                    >
-                      {m.newProjectedDate !== null ? formatDateShort(m.newProjectedDate) : '—'}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {applyError !== null && (
-            <div className={styles.dialogError} role="alert">
-              {applyError}
-            </div>
-          )}
-        </div>
-
-        <div className={styles.dialogFooter}>
-          <button
-            type="button"
-            className={styles.dialogButtonCancel}
-            onClick={onCancel}
-            disabled={isApplying}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            className={styles.dialogButtonConfirm}
-            onClick={onConfirm}
-            disabled={isApplying || changedCount === 0}
-            data-testid="auto-schedule-confirm"
-          >
-            {isApplying
-              ? 'Applying…'
-              : `Apply ${changedCount} Change${changedCount !== 1 ? 's' : ''}`}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
-  return createPortal(content, document.body);
-}
-
-// ---------------------------------------------------------------------------
-// Format date for toast display
-// ---------------------------------------------------------------------------
-
-function formatDateShort(dateStr: string): string {
-  const [year, month, day] = dateStr.split('-').map(Number);
-  const d = new Date(year, month - 1, day);
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
-
-// ---------------------------------------------------------------------------
 // TimelinePage
 // ---------------------------------------------------------------------------
 
@@ -420,7 +152,6 @@ export function TimelinePage() {
   const [showArrows, setShowArrows] = useState(true);
   const { data, isLoading, error, refetch } = useTimeline();
   const navigate = useNavigate();
-  const { showToast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // ---- Column width state for zoom in/out ----
@@ -496,13 +227,6 @@ export function TimelinePage() {
     return new Map(data.milestones.map((m) => [m.id, m.projectedDate]));
   }, [data]);
 
-  // ---- Auto-schedule state ----
-  const [isScheduleLoading, setIsScheduleLoading] = useState(false);
-  const [scheduleError, setScheduleError] = useState<string | null>(null);
-  const [scheduledItems, setScheduledItems] = useState<ScheduledItem[] | null>(null);
-  const [isApplyingSchedule, setIsApplyingSchedule] = useState(false);
-  const [applyError, setApplyError] = useState<string | null>(null);
-
   const handleItemClick = useCallback(
     (id: string) => {
       void navigate(`/work-items/${id}`, { state: { from: 'timeline' } });
@@ -510,83 +234,11 @@ export function TimelinePage() {
     [navigate],
   );
 
-  // Build a title lookup from all work items for the auto-schedule dialog
-  const workItemTitleMap = useMemo<ReadonlyMap<string, string>>(() => {
-    if (!data) return new Map();
-    return new Map(data.workItems.map((item) => [item.id, item.title]));
-  }, [data]);
-
   const hasWorkItemsWithDates =
     data !== null &&
     data.workItems.some((item) => item.startDate !== null || item.endDate !== null);
 
   const isEmpty = data !== null && data.workItems.length === 0;
-
-  // ---- Auto-schedule ----
-
-  async function handleAutoScheduleClick() {
-    setIsScheduleLoading(true);
-    setScheduleError(null);
-
-    try {
-      const result = await runSchedule({ mode: 'full' });
-      setScheduledItems(result.scheduledItems);
-    } catch (err) {
-      if (err instanceof ApiClientError) {
-        setScheduleError(err.error.message ?? 'Failed to run scheduling engine.');
-      } else if (err instanceof NetworkError) {
-        setScheduleError('Network error. Please check your connection.');
-      } else {
-        setScheduleError('An unexpected error occurred.');
-      }
-    } finally {
-      setIsScheduleLoading(false);
-    }
-  }
-
-  async function handleApplySchedule() {
-    if (!scheduledItems) return;
-    setIsApplyingSchedule(true);
-    setApplyError(null);
-
-    const itemsToUpdate = scheduledItems.filter(
-      (item) =>
-        item.scheduledStartDate !== item.previousStartDate ||
-        item.scheduledEndDate !== item.previousEndDate,
-    );
-
-    try {
-      // Apply all PATCH requests in parallel
-      await Promise.all(
-        itemsToUpdate.map((item) =>
-          updateWorkItem(item.workItemId, {
-            startDate: item.scheduledStartDate,
-            endDate: item.scheduledEndDate,
-          }),
-        ),
-      );
-
-      setScheduledItems(null);
-      refetch();
-      showToast(
-        'success',
-        `Auto-schedule applied: ${itemsToUpdate.length} item${itemsToUpdate.length !== 1 ? 's' : ''} updated.`,
-      );
-    } catch (err) {
-      if (err instanceof ApiClientError) {
-        setApplyError(err.error.message ?? 'Failed to apply schedule.');
-      } else {
-        setApplyError('Failed to apply schedule. Please try again.');
-      }
-    } finally {
-      setIsApplyingSchedule(false);
-    }
-  }
-
-  function handleCancelSchedule() {
-    setScheduledItems(null);
-    setApplyError(null);
-  }
 
   return (
     <div className={styles.page} data-testid="timeline-page">
@@ -595,30 +247,10 @@ export function TimelinePage() {
         <h1 className={styles.pageTitle}>Timeline</h1>
 
         <div className={styles.toolbar}>
-          {/* Auto-schedule button (shown in both views) */}
-          <button
-            type="button"
-            className={styles.autoScheduleButtonPrimary}
-            onClick={() => void handleAutoScheduleClick()}
-            disabled={isScheduleLoading || isLoading}
-            title="Auto-schedule work items using Critical Path Method"
-            aria-label="Auto-schedule work items"
-            data-testid="auto-schedule-button"
-          >
-            <AutoScheduleIcon spinning={isScheduleLoading} />
-            <span>Auto-schedule</span>
-          </button>
-
-          {scheduleError !== null && (
-            <span className={styles.scheduleError} role="alert">
-              {scheduleError}
-            </span>
-          )}
-
           {/* Milestones panel toggle — shown in both views */}
           <button
             type="button"
-            className={styles.autoScheduleButton}
+            className={styles.toolbarButton}
             onClick={() => setShowMilestonePanel(true)}
             title="Manage milestones"
             aria-label="Open milestones panel"
@@ -848,19 +480,6 @@ export function TimelinePage() {
           />
         )}
       </div>
-
-      {/* Auto-schedule confirmation dialog */}
-      {scheduledItems !== null && (
-        <AutoScheduleDialog
-          scheduledItems={scheduledItems}
-          titleMap={workItemTitleMap}
-          currentMilestones={data?.milestones ?? []}
-          isApplying={isApplyingSchedule}
-          applyError={applyError}
-          onConfirm={() => void handleApplySchedule()}
-          onCancel={handleCancelSchedule}
-        />
-      )}
 
       {/* Milestone CRUD panel */}
       {showMilestonePanel && (
