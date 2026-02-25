@@ -583,7 +583,9 @@ describe('MilestonePanel', () => {
       renderPanel();
 
       fireEvent.click(
-        screen.getByRole('button', { name: /manage linked work items for foundation complete/i }),
+        screen.getByRole('button', {
+          name: /manage contributing work items for foundation complete/i,
+        }),
       );
 
       await waitFor(() => {
@@ -596,7 +598,9 @@ describe('MilestonePanel', () => {
       renderPanel();
 
       fireEvent.click(
-        screen.getByRole('button', { name: /manage linked work items for foundation complete/i }),
+        screen.getByRole('button', {
+          name: /manage contributing work items for foundation complete/i,
+        }),
       );
 
       await waitFor(() => {
@@ -609,7 +613,9 @@ describe('MilestonePanel', () => {
       renderPanel();
 
       fireEvent.click(
-        screen.getByRole('button', { name: /manage linked work items for foundation complete/i }),
+        screen.getByRole('button', {
+          name: /manage contributing work items for foundation complete/i,
+        }),
       );
 
       await waitFor(() => {

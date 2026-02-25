@@ -174,10 +174,10 @@ describe('MilestoneForm', () => {
       expect(screen.getByTestId('work-item-selector')).toBeInTheDocument();
     });
 
-    it('shows "Linked Work Items" label in create mode', () => {
+    it('shows "Contributing Work Items" label in create mode', () => {
       renderCreate();
-      // Use exact text match to avoid matching the hint text "Linked work items contribute..."
-      const labels = screen.getAllByText(/linked work items/i);
+      // Use exact text match to avoid matching the hint text "Contributing work items..."
+      const labels = screen.getAllByText(/contributing work items/i);
       // At least one element should be a label element
       const labelEl = labels.find((el) => el.tagName.toLowerCase() === 'label');
       expect(labelEl).toBeInTheDocument();

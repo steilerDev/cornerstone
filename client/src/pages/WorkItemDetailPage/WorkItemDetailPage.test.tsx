@@ -17,6 +17,8 @@ import type * as BudgetCategoriesApiTypes from '../../lib/budgetCategoriesApi.js
 import type * as BudgetSourcesApiTypes from '../../lib/budgetSourcesApi.js';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as SubsidyProgramsApiTypes from '../../lib/subsidyProgramsApi.js';
+import type * as MilestonesApiTypes from '../../lib/milestonesApi.js';
+import type * as WorkItemMilestonesApiTypes from '../../lib/workItemMilestonesApi.js';
 import type * as WorkItemDetailPageTypes from './WorkItemDetailPage.js';
 
 // Module-scope mocks
@@ -51,6 +53,15 @@ const mockFetchBudgetCategories = jest.fn<typeof BudgetCategoriesApiTypes.fetchB
 const mockFetchBudgetSources = jest.fn<typeof BudgetSourcesApiTypes.fetchBudgetSources>();
 const mockFetchVendors = jest.fn<typeof VendorsApiTypes.fetchVendors>();
 const mockFetchSubsidyPrograms = jest.fn<typeof SubsidyProgramsApiTypes.fetchSubsidyPrograms>();
+const mockListMilestones = jest.fn<typeof MilestonesApiTypes.listMilestones>();
+const mockGetWorkItemMilestones =
+  jest.fn<typeof WorkItemMilestonesApiTypes.getWorkItemMilestones>();
+const mockAddRequiredMilestone = jest.fn<typeof WorkItemMilestonesApiTypes.addRequiredMilestone>();
+const mockRemoveRequiredMilestone =
+  jest.fn<typeof WorkItemMilestonesApiTypes.removeRequiredMilestone>();
+const mockAddLinkedMilestone = jest.fn<typeof WorkItemMilestonesApiTypes.addLinkedMilestone>();
+const mockRemoveLinkedMilestone =
+  jest.fn<typeof WorkItemMilestonesApiTypes.removeLinkedMilestone>();
 
 // Mock AuthContext
 jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
@@ -119,6 +130,24 @@ jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
 
 jest.unstable_mockModule('../../lib/subsidyProgramsApi.js', () => ({
   fetchSubsidyPrograms: mockFetchSubsidyPrograms,
+}));
+
+jest.unstable_mockModule('../../lib/milestonesApi.js', () => ({
+  listMilestones: mockListMilestones,
+  getMilestone: jest.fn(),
+  createMilestone: jest.fn(),
+  updateMilestone: jest.fn(),
+  deleteMilestone: jest.fn(),
+  linkWorkItem: jest.fn(),
+  unlinkWorkItem: jest.fn(),
+}));
+
+jest.unstable_mockModule('../../lib/workItemMilestonesApi.js', () => ({
+  getWorkItemMilestones: mockGetWorkItemMilestones,
+  addRequiredMilestone: mockAddRequiredMilestone,
+  removeRequiredMilestone: mockRemoveRequiredMilestone,
+  addLinkedMilestone: mockAddLinkedMilestone,
+  removeLinkedMilestone: mockRemoveLinkedMilestone,
 }));
 
 describe('WorkItemDetailPage', () => {
@@ -197,6 +226,12 @@ describe('WorkItemDetailPage', () => {
     mockFetchBudgetSources.mockReset();
     mockFetchVendors.mockReset();
     mockFetchSubsidyPrograms.mockReset();
+    mockListMilestones.mockReset();
+    mockGetWorkItemMilestones.mockReset();
+    mockAddRequiredMilestone.mockReset();
+    mockRemoveRequiredMilestone.mockReset();
+    mockAddLinkedMilestone.mockReset();
+    mockRemoveLinkedMilestone.mockReset();
 
     if (!WorkItemDetailPageModule) {
       WorkItemDetailPageModule = await import('./WorkItemDetailPage.js');
@@ -233,6 +268,9 @@ describe('WorkItemDetailPage', () => {
     mockFetchWorkItemBudgets.mockResolvedValue([]);
     mockFetchSubsidyPrograms.mockResolvedValue({ subsidyPrograms: [] });
     mockFetchWorkItemSubsidies.mockResolvedValue([]);
+    // Milestone-related defaults
+    mockListMilestones.mockResolvedValue([]);
+    mockGetWorkItemMilestones.mockResolvedValue({ required: [], linked: [] });
   });
 
   function renderPage(id = 'work-1') {
