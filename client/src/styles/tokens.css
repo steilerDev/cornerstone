@@ -138,6 +138,9 @@
   --color-danger-text-on-light: var(--color-red-700);
   --color-danger-input-border: var(--color-red-400);
 
+  /* --- Warning (orange/amber) --- */
+  --color-warning: var(--color-orange-400);
+
   /* --- Success (green) --- */
   --color-success: var(--color-green-500);
   --color-success-hover: var(--color-green-600);
@@ -414,6 +417,9 @@
   --color-primary-bg: rgba(59, 130, 246, 0.15);
   --color-primary-bg-hover: rgba(59, 130, 246, 0.25);
   --color-primary-badge-text: var(--color-blue-300);
+
+  /* --- Warning --- */
+  --color-warning: var(--color-orange-300);
 
   /* --- Danger / Error --- */
   --color-danger: var(--color-red-400);

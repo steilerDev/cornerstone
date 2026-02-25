@@ -15,6 +15,7 @@ import {
   COLUMN_WIDTHS,
   COLUMN_WIDTH_MIN,
   COLUMN_WIDTH_MAX,
+  SIDEBAR_WIDTH,
 } from '../../components/GanttChart/ganttUtils.js';
 import type { ScheduledItem, TimelineMilestone } from '@cornerstone/shared';
 import styles from './TimelinePage.module.css';
@@ -429,7 +430,7 @@ export function TimelinePage() {
   // On mount and when zoom changes, compute the responsive default column width
   useEffect(() => {
     const el = chartAreaRef.current;
-    const areaWidth = el ? el.clientWidth - 260 /* sidebar */ : 0; // rough sidebar width
+    const areaWidth = el ? el.clientWidth - SIDEBAR_WIDTH : 0; // sidebar width from ganttUtils
     setColumnWidth(computeDefaultColumnWidth(zoom, areaWidth));
   }, [zoom]);
 

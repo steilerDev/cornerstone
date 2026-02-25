@@ -3,6 +3,10 @@
  * ============================================================ */
 
 .tooltip {
+  /* Local custom properties for tooltip surface — override in dark mode below */
+  --color-tooltip-subdued: rgba(255, 255, 255, 0.55);
+  --color-tooltip-bullet: rgba(255, 255, 255, 0.4);
+
   position: fixed;
   z-index: var(--z-modal);
   background: var(--color-bg-inverse);
@@ -127,7 +131,7 @@
 .linkedItemsLabel {
   display: block;
   font-size: var(--font-size-xs);
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--color-tooltip-subdued);
   margin-bottom: var(--spacing-1);
 }
 
@@ -153,12 +157,12 @@
   content: '•';
   position: absolute;
   left: 0;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--color-tooltip-bullet);
 }
 
 .linkedItemsOverflow {
   font-size: var(--font-size-xs);
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--color-tooltip-subdued);
   font-style: italic;
   padding-left: var(--spacing-2);
   line-height: 1.5;
@@ -179,6 +183,9 @@
 /* In dark mode, bg-inverse = gray-100 (light), so text and badge colors flip */
 
 [data-theme='dark'] .tooltip {
+  --color-tooltip-subdued: rgba(0, 0, 0, 0.5);
+  --color-tooltip-bullet: rgba(0, 0, 0, 0.3);
+
   background: var(--color-bg-inverse);
   color: var(--color-text-inverse);
 }
@@ -195,20 +202,8 @@
   color: rgba(0, 0, 0, 0.5);
 }
 
-[data-theme='dark'] .linkedItemsLabel {
-  color: rgba(0, 0, 0, 0.5);
-}
-
 [data-theme='dark'] .linkedItem {
   color: var(--color-text-inverse);
-}
-
-[data-theme='dark'] .linkedItem::before {
-  color: rgba(0, 0, 0, 0.3);
-}
-
-[data-theme='dark'] .linkedItemsOverflow {
-  color: rgba(0, 0, 0, 0.4);
 }
 
 [data-theme='dark'] .detailValue {

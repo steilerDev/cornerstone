@@ -676,7 +676,7 @@
 }
 
 .dialogMilestoneDateChanged {
-  color: var(--color-warning, var(--color-text-primary));
+  color: var(--color-warning);
   font-weight: var(--font-weight-medium);
 }
 
