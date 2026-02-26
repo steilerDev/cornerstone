@@ -85,6 +85,14 @@ export interface GanttArrowsProps {
   onArrowMouseMove?: (mouseEvent: { clientX: number; clientY: number }) => void;
   /** Called when the user leaves or blurs an arrow. */
   onArrowLeave?: () => void;
+  /**
+   * Set of arrow keys that should be highlighted because the user is hovering/focusing
+   * a work item bar or milestone (item-hover-driven highlighting, distinct from
+   * arrow-self-hover which is tracked internally via `hoveredArrowKey`).
+   * When provided and non-empty, arrows NOT in this set receive `arrowGroupDimmed`;
+   * arrows IN this set receive `arrowGroupHovered`.
+   */
+  highlightedArrowKeys?: ReadonlySet<string>;
 }
 
 // ---------------------------------------------------------------------------
@@ -164,6 +172,7 @@ export const GanttArrows = memo(function GanttArrows({
   onArrowHover,
   onArrowMouseMove,
   onArrowLeave,
+  highlightedArrowKeys,
 }: GanttArrowsProps) {
   // Marker IDs are kept for potential future use with SVG marker-end attributes.
   // Currently arrowheads are rendered as separate polygon elements for full color control.
@@ -357,14 +366,30 @@ export const GanttArrows = memo(function GanttArrows({
   // Determine if any arrow is being hovered — used to compute per-arrow dimming class
   const isAnyArrowHovered = hoveredArrowKey !== null;
 
+  // Item-hover-driven highlighting: a bar or milestone is hovered
+  const isItemHovered = highlightedArrowKeys !== undefined && highlightedArrowKeys.size > 0;
+
   /**
    * Returns the CSS class for an arrow group based on whether it is hovered,
    * dimmed, or in the default state.
+   *
+   * Priority order:
+   *   1. Arrow self-hover (hoveredArrowKey) takes precedence over item hover
+   *   2. Item hover (highlightedArrowKeys) applies when no arrow is self-hovered
+   *   3. Default (no interaction active)
    */
   function arrowGroupClass(key: string): string {
-    if (!isAnyArrowHovered) return styles.arrowGroup;
-    if (key === hoveredArrowKey) return `${styles.arrowGroup} ${styles.arrowGroupHovered}`;
-    return `${styles.arrowGroup} ${styles.arrowGroupDimmed}`;
+    if (isAnyArrowHovered) {
+      // Arrow self-hover is active — use existing arrow-driven dimming logic
+      if (key === hoveredArrowKey) return `${styles.arrowGroup} ${styles.arrowGroupHovered}`;
+      return `${styles.arrowGroup} ${styles.arrowGroupDimmed}`;
+    }
+    if (isItemHovered) {
+      // Item hover is active — highlight connected arrows, dim others
+      if (highlightedArrowKeys!.has(key)) return `${styles.arrowGroup} ${styles.arrowGroupHovered}`;
+      return `${styles.arrowGroup} ${styles.arrowGroupDimmed}`;
+    }
+    return styles.arrowGroup;
   }
 
   /**

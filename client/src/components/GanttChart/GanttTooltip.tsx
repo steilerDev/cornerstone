@@ -1,10 +1,20 @@
 import { createPortal } from 'react-dom';
-import type { WorkItemStatus } from '@cornerstone/shared';
+import type { WorkItemStatus, DependencyType } from '@cornerstone/shared';
 import styles from './GanttTooltip.module.css';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
+
+/** A single entry in the work-item tooltip's Dependencies list. */
+export interface GanttTooltipDependencyEntry {
+  /** Title of the related (predecessor or successor) work item. */
+  relatedTitle: string;
+  /** The dependency relationship type. */
+  dependencyType: DependencyType;
+  /** Whether this item is a predecessor of, or successor to, the hovered work item. */
+  role: 'predecessor' | 'successor';
+}
 
 export interface GanttTooltipWorkItemData {
   kind: 'work-item';
@@ -14,6 +24,11 @@ export interface GanttTooltipWorkItemData {
   endDate: string | null;
   durationDays: number | null;
   assignedUserName: string | null;
+  /**
+   * Dependency relationships for this work item (predecessors and successors).
+   * When absent or empty, no "Dependencies" section is rendered in the tooltip.
+   */
+  dependencies?: GanttTooltipDependencyEntry[];
 }
 
 export interface GanttTooltipMilestoneData {
@@ -77,9 +92,17 @@ const STATUS_BADGE_CLASSES: Record<WorkItemStatus, string> = {
 };
 
 const TOOLTIP_WIDTH = 240;
-const TOOLTIP_HEIGHT_ESTIMATE = 130;
+/**
+ * Base height estimate for tooltip flip-logic. When the work-item tooltip has
+ * visible dependencies, the actual rendered height will be larger — we add
+ * 18px per dependency row on top of this base when computing the flip point.
+ */
+const TOOLTIP_HEIGHT_BASE = 130;
+const TOOLTIP_HEIGHT_ESTIMATE = 200; // safe upper bound used for arrow/milestone tooltips
 const OFFSET_X = 12;
 const OFFSET_Y = 8;
+
+const MAX_DEPS_SHOWN = 5;
 
 function formatDisplayDate(dateStr: string | null): string {
   if (!dateStr) return '—';
@@ -99,7 +122,19 @@ function formatDuration(days: number | null): string {
 // Work item tooltip content
 // ---------------------------------------------------------------------------
 
+/** Human-readable labels for each dependency type. */
+const DEPENDENCY_TYPE_LABELS: Record<DependencyType, string> = {
+  finish_to_start: 'Finish-to-Start',
+  start_to_start: 'Start-to-Start',
+  finish_to_finish: 'Finish-to-Finish',
+  start_to_finish: 'Start-to-Finish',
+};
+
 function WorkItemTooltipContent({ data }: { data: GanttTooltipWorkItemData }) {
+  const dependencies = data.dependencies ?? [];
+  const shownDeps = dependencies.slice(0, MAX_DEPS_SHOWN);
+  const depsOverflowCount = dependencies.length - shownDeps.length;
+
   return (
     <>
       {/* Header: title + status badge */}
@@ -134,6 +169,29 @@ function WorkItemTooltipContent({ data }: { data: GanttTooltipWorkItemData }) {
           <span className={styles.detailLabel}>Owner</span>
           <span className={styles.detailValue}>{data.assignedUserName}</span>
         </div>
+      )}
+
+      {/* Dependencies section — rendered when item has at least one dependency */}
+      {dependencies.length > 0 && (
+        <>
+          <div className={styles.separator} aria-hidden="true" />
+          <div className={styles.linkedItemsSection}>
+            <span className={styles.linkedItemsLabel}>Dependencies ({dependencies.length})</span>
+            <ul className={styles.linkedItemsList} aria-label="Dependencies">
+              {shownDeps.map((dep, idx) => (
+                <li key={`${dep.relatedTitle}-${idx}`} className={styles.linkedItem}>
+                  <span className={styles.depTypeLabel}>
+                    {DEPENDENCY_TYPE_LABELS[dep.dependencyType]}
+                  </span>{' '}
+                  {dep.relatedTitle}
+                </li>
+              ))}
+              {depsOverflowCount > 0 && (
+                <li className={styles.linkedItemsOverflow}>+{depsOverflowCount} more</li>
+              )}
+            </ul>
+          </div>
+        </>
       )}
     </>
   );
@@ -269,6 +327,14 @@ export function GanttTooltip({ data, position, id }: GanttTooltipProps) {
   const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1280;
   const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
 
+  // For work-item tooltips with dependencies, estimate height dynamically
+  // so the flip-point avoids clipping the dependencies list at the viewport bottom.
+  const depsCount = data.kind === 'work-item' ? (data.dependencies?.length ?? 0) : 0;
+  const heightEstimate =
+    data.kind === 'work-item' && depsCount > 0
+      ? TOOLTIP_HEIGHT_BASE + Math.min(depsCount, MAX_DEPS_SHOWN) * 18
+      : TOOLTIP_HEIGHT_ESTIMATE;
+
   let tooltipX = position.x + OFFSET_X;
   let tooltipY = position.y + OFFSET_Y;
 
@@ -278,8 +344,8 @@ export function GanttTooltip({ data, position, id }: GanttTooltipProps) {
   }
 
   // Flip vertically if it would overflow the bottom edge
-  if (tooltipY + TOOLTIP_HEIGHT_ESTIMATE > viewportHeight - 8) {
-    tooltipY = position.y - TOOLTIP_HEIGHT_ESTIMATE - OFFSET_Y;
+  if (tooltipY + heightEstimate > viewportHeight - 8) {
+    tooltipY = position.y - heightEstimate - OFFSET_Y;
   }
 
   const content = (

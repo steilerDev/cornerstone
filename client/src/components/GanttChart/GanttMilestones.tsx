@@ -1,5 +1,9 @@
 import { memo } from 'react';
-import type { CSSProperties, MouseEvent as ReactMouseEvent } from 'react';
+import type {
+  CSSProperties,
+  MouseEvent as ReactMouseEvent,
+  FocusEvent as ReactFocusEvent,
+} from 'react';
 import type { TimelineMilestone } from '@cornerstone/shared';
 import { dateToX, toUtcMidnight, ROW_HEIGHT } from './ganttUtils.js';
 import type { ChartRange, ZoomLevel } from './ganttUtils.js';
@@ -71,6 +75,13 @@ export interface GanttMilestonesProps {
   ) => void;
   onMilestoneMouseLeave?: (milestone: TimelineMilestone) => void;
   onMilestoneMouseMove?: (event: ReactMouseEvent<SVGGElement>) => void;
+  /**
+   * Called when a diamond receives keyboard focus — triggers highlight/dim and tooltip.
+   * Passes the milestone and focus event for positioning.
+   */
+  onMilestoneFocus?: (milestone: TimelineMilestone, event: ReactFocusEvent<SVGGElement>) => void;
+  /** Called when a diamond loses keyboard focus — removes highlight/dim and tooltip. */
+  onMilestoneBlur?: (milestone: TimelineMilestone) => void;
   /** Called when a diamond is clicked — opens milestone detail. */
   onMilestoneClick?: (milestoneId: number) => void;
 }
@@ -93,6 +104,13 @@ interface DiamondMarkerProps {
   isGhost?: boolean;
   /** Visual interaction state when an arrow is hovered. */
   interactionState?: MilestoneInteractionState;
+  /**
+   * Callback on keyboard focus — triggers the same highlight/dim and tooltip
+   * behavior as mouse enter. Passes the focus event for positioning.
+   */
+  onFocus?: (e: ReactFocusEvent<SVGGElement>) => void;
+  /** Callback on keyboard blur — removes highlight/dim and tooltip. */
+  onBlur?: () => void;
 }
 
 const DiamondMarker = memo(function DiamondMarker({
@@ -107,6 +125,8 @@ const DiamondMarker = memo(function DiamondMarker({
   onClick,
   isGhost = false,
   interactionState = 'default',
+  onFocus,
+  onBlur,
 }: DiamondMarkerProps) {
   let fill: string;
   let stroke: string;
@@ -176,6 +196,8 @@ const DiamondMarker = memo(function DiamondMarker({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       onMouseMove={onMouseMove}
+      onFocus={onFocus}
+      onBlur={onBlur}
       onClick={onClick}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -231,6 +253,8 @@ export const GanttMilestones = memo(function GanttMilestones({
   onMilestoneMouseEnter,
   onMilestoneMouseLeave,
   onMilestoneMouseMove,
+  onMilestoneFocus,
+  onMilestoneBlur,
   onMilestoneClick,
 }: GanttMilestonesProps) {
   if (milestones.length === 0) {
@@ -318,6 +342,8 @@ export const GanttMilestones = memo(function GanttMilestones({
               onMouseEnter={(e) => onMilestoneMouseEnter?.(milestone, e)}
               onMouseLeave={() => onMilestoneMouseLeave?.(milestone)}
               onMouseMove={(e) => onMilestoneMouseMove?.(e)}
+              onFocus={(e) => onMilestoneFocus?.(milestone, e)}
+              onBlur={() => onMilestoneBlur?.(milestone)}
               onClick={() => onMilestoneClick?.(milestone.id)}
             />
           </g>

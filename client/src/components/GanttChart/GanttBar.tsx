@@ -1,5 +1,9 @@
 import { memo } from 'react';
-import type { MouseEvent as ReactMouseEvent, KeyboardEvent as ReactKeyboardEvent } from 'react';
+import type {
+  MouseEvent as ReactMouseEvent,
+  KeyboardEvent as ReactKeyboardEvent,
+  FocusEvent as ReactFocusEvent,
+} from 'react';
 import type { WorkItemStatus } from '@cornerstone/shared';
 import { BAR_HEIGHT, BAR_OFFSET_Y, ROW_HEIGHT } from './ganttUtils.js';
 import styles from './GanttBar.module.css';
@@ -44,6 +48,13 @@ export interface GanttBarProps {
   onMouseLeave?: () => void;
   /** Callback on mouse move — updates tooltip position. */
   onMouseMove?: (event: ReactMouseEvent<SVGGElement>) => void;
+  /**
+   * Callback on keyboard focus — triggers the same highlight/dim and tooltip
+   * behavior as mouse enter. Passes the focus event for positioning.
+   */
+  onFocus?: (event: ReactFocusEvent<SVGGElement>) => void;
+  /** Callback on keyboard blur — removes highlight/dim and tooltip. */
+  onBlur?: () => void;
 }
 
 const STATUS_LABELS: Record<WorkItemStatus, string> = {
@@ -87,6 +98,8 @@ export const GanttBar = memo(function GanttBar({
   onMouseEnter,
   onMouseLeave,
   onMouseMove,
+  onFocus,
+  onBlur,
 }: GanttBarProps) {
   const rowY = rowIndex * ROW_HEIGHT;
   const barY = rowY + BAR_OFFSET_Y;
@@ -119,6 +132,8 @@ export const GanttBar = memo(function GanttBar({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       onMouseMove={onMouseMove}
+      onFocus={onFocus}
+      onBlur={onBlur}
       role="graphics-symbol"
       tabIndex={0}
       aria-label={ariaLabel}

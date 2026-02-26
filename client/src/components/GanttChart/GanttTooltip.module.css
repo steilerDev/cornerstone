@@ -168,6 +168,13 @@
   line-height: 1.5;
 }
 
+/* Dependency type label shown inline before the related item title */
+.depTypeLabel {
+  color: var(--color-tooltip-subdued);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-normal);
+}
+
 /* ---- Milestone diamond icon in tooltip header ---- */
 
 .milestoneIcon {

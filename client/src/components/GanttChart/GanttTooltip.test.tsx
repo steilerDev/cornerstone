@@ -11,6 +11,7 @@ import { GanttTooltip } from './GanttTooltip.js';
 import type {
   GanttTooltipWorkItemData,
   GanttTooltipArrowData,
+  GanttTooltipMilestoneData,
   GanttTooltipPosition,
 } from './GanttTooltip.js';
 import type { WorkItemStatus } from '@cornerstone/shared';
@@ -248,12 +249,12 @@ describe('GanttTooltip', () => {
     });
 
     it('flips vertically when tooltip would overflow bottom viewport edge', () => {
-      // Viewport height = 800. If y + 130 + 8 > 800 - 8, flip.
-      // y=700: 700 + 8 = 708, 708 + 130 = 838 > 792 → flip
+      // Viewport height = 800. TOOLTIP_HEIGHT_ESTIMATE = 200, OFFSET_Y = 8.
+      // y=700: tooltipY = 700 + 8 = 708, 708 + 200 = 908 > 792 → flip
       renderTooltip({}, { x: 100, y: 700 });
       const tooltip = screen.getByTestId('gantt-tooltip');
-      // When flipped: top = 700 - 130 - 8 = 562
-      expect(tooltip).toHaveStyle({ top: '562px' });
+      // When flipped: top = 700 - 200 - 8 = 492
+      expect(tooltip).toHaveStyle({ top: '492px' });
     });
 
     it('does not flip vertically when tooltip fits within viewport height', () => {
@@ -352,9 +353,11 @@ describe('GanttTooltip', () => {
     it('handles x position requiring both horizontal and vertical flip simultaneously', () => {
       renderTooltip({}, { x: 1200, y: 700 });
       const tooltip = screen.getByTestId('gantt-tooltip');
-      // Both should be flipped
+      // Both should be flipped:
+      // - horizontal: 1200 - 240 - 12 = 948
+      // - vertical:   700 - 200 - 8 = 492 (TOOLTIP_HEIGHT_ESTIMATE = 200)
       expect(tooltip).toHaveStyle({ left: '948px' });
-      expect(tooltip).toHaveStyle({ top: '562px' });
+      expect(tooltip).toHaveStyle({ top: '492px' });
     });
   });
 });
@@ -492,5 +495,289 @@ describe('GanttTooltip — arrow kind', () => {
       description: 'test',
     };
     expect(data.kind).toBe('arrow');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GanttTooltip — work item kind with dependencies (Issue #295: AC-4, AC-5, AC-6)
+//
+// AC-4: When a work item bar is hovered and the tooltip appears, when the work
+//       item has at least one predecessor or successor dependency, then the tooltip
+//       displays a "Dependencies" section listing each dependency with the connected
+//       item's title and the dependency type (e.g., "Finish-to-Start").
+//
+// AC-5: When the work item has more than 5 total dependencies (predecessors +
+//       successors), only the first 5 are shown followed by a "+N more" overflow
+//       indicator.
+//
+// AC-6: When the work item has zero dependencies, no "Dependencies" section
+//       appears in the tooltip.
+// ---------------------------------------------------------------------------
+
+type WorkItemDependency = NonNullable<GanttTooltipWorkItemData['dependencies']>[0];
+
+const BASE_WORK_ITEM_DATA: GanttTooltipWorkItemData = {
+  kind: 'work-item',
+  title: 'Foundation Work',
+  status: 'in_progress',
+  startDate: '2024-06-01',
+  endDate: '2024-06-15',
+  durationDays: 14,
+  assignedUserName: null,
+};
+
+const DEFAULT_DEP_POSITION: GanttTooltipPosition = { x: 100, y: 200 };
+
+function renderWorkItemWithDeps(
+  dependencies: WorkItemDependency[] | undefined,
+  position: Partial<GanttTooltipPosition> = {},
+) {
+  return render(
+    <GanttTooltip
+      data={{ ...BASE_WORK_ITEM_DATA, dependencies }}
+      position={{ ...DEFAULT_DEP_POSITION, ...position }}
+    />,
+  );
+}
+
+describe('GanttTooltip — work item dependencies section (Issue #295)', () => {
+  beforeEach(() => {
+    Object.defineProperty(window, 'innerWidth', { writable: true, value: 1280 });
+    Object.defineProperty(window, 'innerHeight', { writable: true, value: 800 });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(window, 'innerWidth', { writable: true, value: 1280 });
+    Object.defineProperty(window, 'innerHeight', { writable: true, value: 800 });
+  });
+
+  // ── AC-6: no dependencies → no section ──────────────────────────────────
+
+  it('AC-6: does not render Dependencies section when dependencies is undefined', () => {
+    renderWorkItemWithDeps(undefined);
+    expect(screen.queryByText(/Dependencies/i)).not.toBeInTheDocument();
+  });
+
+  it('AC-6: does not render Dependencies section when dependencies is an empty array', () => {
+    renderWorkItemWithDeps([]);
+    expect(screen.queryByText(/Dependencies/i)).not.toBeInTheDocument();
+  });
+
+  // ── AC-4: with dependencies → shows section ──────────────────────────────
+
+  it('AC-4: renders a Dependencies section heading when work item has one dependency', () => {
+    renderWorkItemWithDeps([
+      { relatedTitle: 'Framing', dependencyType: 'finish_to_start', role: 'successor' },
+    ]);
+    expect(screen.getByText(/Dependencies/i)).toBeInTheDocument();
+  });
+
+  it('AC-4: renders the connected item title for a predecessor dependency', () => {
+    renderWorkItemWithDeps([
+      { relatedTitle: 'Site Prep', dependencyType: 'finish_to_start', role: 'predecessor' },
+    ]);
+    expect(screen.getByText('Site Prep')).toBeInTheDocument();
+  });
+
+  it('AC-4: renders the connected item title for a successor dependency', () => {
+    renderWorkItemWithDeps([
+      { relatedTitle: 'Framing', dependencyType: 'finish_to_start', role: 'successor' },
+    ]);
+    expect(screen.getByText('Framing')).toBeInTheDocument();
+  });
+
+  it('AC-4: renders a dependency type label "Finish-to-Start" for finish_to_start', () => {
+    renderWorkItemWithDeps([
+      { relatedTitle: 'Framing', dependencyType: 'finish_to_start', role: 'successor' },
+    ]);
+    expect(screen.getByText(/Finish.to.Start/i)).toBeInTheDocument();
+  });
+
+  it('AC-4: renders a dependency type label "Start-to-Start" for start_to_start', () => {
+    renderWorkItemWithDeps([
+      { relatedTitle: 'Electrical', dependencyType: 'start_to_start', role: 'successor' },
+    ]);
+    expect(screen.getByText(/Start.to.Start/i)).toBeInTheDocument();
+  });
+
+  it('AC-4: renders a dependency type label "Finish-to-Finish" for finish_to_finish', () => {
+    renderWorkItemWithDeps([
+      { relatedTitle: 'HVAC', dependencyType: 'finish_to_finish', role: 'successor' },
+    ]);
+    expect(screen.getByText(/Finish.to.Finish/i)).toBeInTheDocument();
+  });
+
+  it('AC-4: renders a dependency type label "Start-to-Finish" for start_to_finish', () => {
+    renderWorkItemWithDeps([
+      { relatedTitle: 'Inspection', dependencyType: 'start_to_finish', role: 'successor' },
+    ]);
+    expect(screen.getByText(/Start.to.Finish/i)).toBeInTheDocument();
+  });
+
+  it('AC-4: renders a role label distinguishing predecessor from successor', () => {
+    renderWorkItemWithDeps([
+      { relatedTitle: 'Site Prep', dependencyType: 'finish_to_start', role: 'predecessor' },
+      { relatedTitle: 'Framing', dependencyType: 'finish_to_start', role: 'successor' },
+    ]);
+    // Both should be visible
+    expect(screen.getByText('Site Prep')).toBeInTheDocument();
+    expect(screen.getByText('Framing')).toBeInTheDocument();
+  });
+
+  it('AC-4: renders multiple dependencies when count <= 5', () => {
+    renderWorkItemWithDeps([
+      { relatedTitle: 'Item A', dependencyType: 'finish_to_start', role: 'predecessor' },
+      { relatedTitle: 'Item B', dependencyType: 'finish_to_start', role: 'successor' },
+      { relatedTitle: 'Item C', dependencyType: 'start_to_start', role: 'successor' },
+    ]);
+    expect(screen.getByText('Item A')).toBeInTheDocument();
+    expect(screen.getByText('Item B')).toBeInTheDocument();
+    expect(screen.getByText('Item C')).toBeInTheDocument();
+    // No overflow indicator with only 3
+    expect(screen.queryByText(/\+\d+ more/)).not.toBeInTheDocument();
+  });
+
+  it('AC-4: renders all 5 dependencies when exactly 5 are provided (no overflow)', () => {
+    const fiveDeps: WorkItemDependency[] = [
+      { relatedTitle: 'Item A', dependencyType: 'finish_to_start', role: 'predecessor' },
+      { relatedTitle: 'Item B', dependencyType: 'finish_to_start', role: 'successor' },
+      { relatedTitle: 'Item C', dependencyType: 'finish_to_start', role: 'successor' },
+      { relatedTitle: 'Item D', dependencyType: 'finish_to_start', role: 'successor' },
+      { relatedTitle: 'Item E', dependencyType: 'finish_to_start', role: 'successor' },
+    ];
+    renderWorkItemWithDeps(fiveDeps);
+    for (const dep of fiveDeps) {
+      expect(screen.getByText(dep.relatedTitle)).toBeInTheDocument();
+    }
+    // No overflow for exactly 5
+    expect(screen.queryByText(/\+\d+ more/)).not.toBeInTheDocument();
+  });
+
+  // ── AC-5: overflow indicator ──────────────────────────────────────────────
+
+  it('AC-5: shows "+1 more" overflow when 6 dependencies provided (shows first 5)', () => {
+    const sixDeps: WorkItemDependency[] = [
+      { relatedTitle: 'Item A', dependencyType: 'finish_to_start', role: 'predecessor' },
+      { relatedTitle: 'Item B', dependencyType: 'finish_to_start', role: 'successor' },
+      { relatedTitle: 'Item C', dependencyType: 'finish_to_start', role: 'successor' },
+      { relatedTitle: 'Item D', dependencyType: 'finish_to_start', role: 'successor' },
+      { relatedTitle: 'Item E', dependencyType: 'finish_to_start', role: 'successor' },
+      { relatedTitle: 'Item F', dependencyType: 'finish_to_start', role: 'successor' },
+    ];
+    renderWorkItemWithDeps(sixDeps);
+    // First 5 should be shown
+    expect(screen.getByText('Item A')).toBeInTheDocument();
+    expect(screen.getByText('Item E')).toBeInTheDocument();
+    // Item F (6th) should NOT be shown as a list item
+    expect(screen.queryByText('Item F')).not.toBeInTheDocument();
+    // Overflow indicator shows +1
+    expect(screen.getByText('+1 more')).toBeInTheDocument();
+  });
+
+  it('AC-5: shows "+N more" with correct count for 10 dependencies (shows first 5)', () => {
+    const tenDeps: WorkItemDependency[] = Array.from({ length: 10 }, (_, i) => ({
+      relatedTitle: `Item ${i + 1}`,
+      dependencyType: 'finish_to_start' as const,
+      role: (i < 5 ? 'predecessor' : 'successor') as 'predecessor' | 'successor',
+    }));
+    renderWorkItemWithDeps(tenDeps);
+    // First 5 visible
+    expect(screen.getByText('Item 1')).toBeInTheDocument();
+    expect(screen.getByText('Item 5')).toBeInTheDocument();
+    // Items 6-10 not shown individually
+    expect(screen.queryByText('Item 6')).not.toBeInTheDocument();
+    // Overflow indicator shows +5
+    expect(screen.getByText('+5 more')).toBeInTheDocument();
+  });
+
+  it('AC-5: shows "+2 more" when exactly 7 dependencies are provided', () => {
+    const sevenDeps: WorkItemDependency[] = Array.from({ length: 7 }, (_, i) => ({
+      relatedTitle: `Dep ${i + 1}`,
+      dependencyType: 'finish_to_start' as const,
+      role: 'successor' as const,
+    }));
+    renderWorkItemWithDeps(sevenDeps);
+    expect(screen.getByText('+2 more')).toBeInTheDocument();
+  });
+
+  // ── Overall tooltip still renders non-dependency fields ───────────────────
+
+  it('dependencies section coexists with other work item fields (Start, End, Duration)', () => {
+    renderWorkItemWithDeps([
+      { relatedTitle: 'Framing', dependencyType: 'finish_to_start', role: 'successor' },
+    ]);
+    expect(screen.getByText('Start')).toBeInTheDocument();
+    expect(screen.getByText('End')).toBeInTheDocument();
+    expect(screen.getByText('Duration')).toBeInTheDocument();
+    expect(screen.getByText('Framing')).toBeInTheDocument();
+  });
+
+  it('tooltip with dependencies still renders the work item title', () => {
+    renderWorkItemWithDeps([
+      { relatedTitle: 'Framing', dependencyType: 'finish_to_start', role: 'successor' },
+    ]);
+    expect(screen.getByText('Foundation Work')).toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GanttTooltip — milestone kind with linked work items (existing coverage
+// extended to verify dependencies section does NOT appear on milestone tooltips)
+// ---------------------------------------------------------------------------
+
+describe('GanttTooltip — milestone kind (no dependencies section)', () => {
+  beforeEach(() => {
+    Object.defineProperty(window, 'innerWidth', { writable: true, value: 1280 });
+    Object.defineProperty(window, 'innerHeight', { writable: true, value: 800 });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(window, 'innerWidth', { writable: true, value: 1280 });
+    Object.defineProperty(window, 'innerHeight', { writable: true, value: 800 });
+  });
+
+  const MILESTONE_DATA: GanttTooltipMilestoneData = {
+    kind: 'milestone',
+    title: 'Foundation Complete',
+    targetDate: '2024-07-01',
+    projectedDate: null,
+    isCompleted: false,
+    isLate: false,
+    completedAt: null,
+    linkedWorkItems: [],
+  };
+
+  it('does not render a "Dependencies" section label for milestone tooltips', () => {
+    render(<GanttTooltip data={MILESTONE_DATA} position={{ x: 100, y: 200 }} />);
+    expect(screen.queryByText(/^Dependencies$/i)).not.toBeInTheDocument();
+  });
+
+  it('milestone tooltip renders target date label', () => {
+    render(<GanttTooltip data={MILESTONE_DATA} position={{ x: 100, y: 200 }} />);
+    expect(screen.getByText('Target')).toBeInTheDocument();
+  });
+
+  it('milestone tooltip with linkedWorkItems shows linked count', () => {
+    const msWithItems: GanttTooltipMilestoneData = {
+      ...MILESTONE_DATA,
+      linkedWorkItems: [
+        { id: 'wi-1', title: 'Site Prep' },
+        { id: 'wi-2', title: 'Foundation Dig' },
+      ],
+    };
+    render(<GanttTooltip data={msWithItems} position={{ x: 100, y: 200 }} />);
+    expect(screen.getByText(/Linked \(2\)/)).toBeInTheDocument();
+  });
+
+  it('milestone tooltip linked items overflow indicator shows "+N more" when > 5 linked items', () => {
+    const msWithSixItems: GanttTooltipMilestoneData = {
+      ...MILESTONE_DATA,
+      linkedWorkItems: Array.from({ length: 6 }, (_, i) => ({
+        id: `wi-${i}`,
+        title: `Work Item ${i + 1}`,
+      })),
+    };
+    render(<GanttTooltip data={msWithSixItems} position={{ x: 100, y: 200 }} />);
+    expect(screen.getByText('+1 more')).toBeInTheDocument();
   });
 });

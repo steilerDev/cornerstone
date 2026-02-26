@@ -104,3 +104,12 @@
   opacity: 1 !important;
   transition: opacity var(--transition-normal);
 }
+
+/* Respect user preference for reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .arrowGroup,
+  .arrowGroupHovered,
+  .arrowGroupDimmed {
+    transition: none;
+  }
+}

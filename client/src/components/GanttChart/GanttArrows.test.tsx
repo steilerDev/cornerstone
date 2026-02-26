@@ -721,3 +721,208 @@ describe('Implicit critical path skips missing barRects', () => {
     }).not.toThrow();
   });
 });
+
+// ---------------------------------------------------------------------------
+// highlightedArrowKeys prop — item-hover-driven arrow highlighting (Issue #295)
+//
+// AC-1: When the user hovers over a work item bar, all dependency arrows where
+//       this work item is either predecessor or successor become visually
+//       highlighted with full opacity and thicker stroke.
+//
+// AC-2: When the user hovers over a work item bar, all arrows NOT connected to
+//       the hovered item dim.
+//
+// AC-3: Connected bars and milestones receive the 'highlighted' visual state.
+//
+// The GanttChart computes which arrow keys are connected to the hovered item
+// and passes them as `highlightedArrowKeys: ReadonlySet<string>` to GanttArrows.
+// GanttArrows uses this set to apply `arrowGroupHovered` / `arrowGroupDimmed`
+// classes via the same mechanism as internal arrow hover.
+// ---------------------------------------------------------------------------
+
+describe('highlightedArrowKeys prop — item-hover-driven highlighting (Issue #295 AC-1, AC-2)', () => {
+  it('applies arrowGroupHovered class to arrows whose key is in highlightedArrowKeys', () => {
+    // Two dependencies: wi-a->wi-b and wi-b->wi-c.
+    // If user hovers wi-a, only the first arrow (wi-a->wi-b) should be highlighted.
+    const highlightedKey = 'wi-a-wi-b-finish_to_start';
+    renderArrows({
+      dependencies: [
+        makeDep('wi-a', 'wi-b', 'finish_to_start'),
+        makeDep('wi-b', 'wi-c', 'finish_to_start'),
+      ],
+      criticalPathSet: new Set<string>(),
+      criticalPathOrder: [],
+      highlightedArrowKeys: new Set([highlightedKey]),
+    });
+
+    const arrows = screen.getAllByRole('graphics-symbol');
+    expect(arrows).toHaveLength(2);
+
+    // Find the arrow with the matching aria-label (Foundation must finish before Framing)
+    const firstArrow = arrows.find((el) => el.getAttribute('aria-label')?.includes('Foundation'));
+    expect(firstArrow).toBeDefined();
+    expect(firstArrow!.getAttribute('class')).toContain('arrowGroupHovered');
+  });
+
+  it('applies arrowGroupDimmed class to arrows NOT in highlightedArrowKeys', () => {
+    const highlightedKey = 'wi-a-wi-b-finish_to_start';
+    renderArrows({
+      dependencies: [
+        makeDep('wi-a', 'wi-b', 'finish_to_start'),
+        makeDep('wi-b', 'wi-c', 'finish_to_start'),
+      ],
+      criticalPathSet: new Set<string>(),
+      criticalPathOrder: [],
+      highlightedArrowKeys: new Set([highlightedKey]),
+    });
+
+    const arrows = screen.getAllByRole('graphics-symbol');
+    // Second arrow (wi-b->wi-c) should be dimmed since wi-a hover only highlights wi-a->wi-b
+    const secondArrow = arrows.find(
+      (el) =>
+        el.getAttribute('aria-label')?.includes('Framing') &&
+        el.getAttribute('aria-label')?.includes('Roofing'),
+    );
+    expect(secondArrow).toBeDefined();
+    expect(secondArrow!.getAttribute('class')).toContain('arrowGroupDimmed');
+  });
+
+  it('renders all arrows in default (arrowGroup) class when highlightedArrowKeys is undefined', () => {
+    renderArrows({
+      dependencies: [makeDep('wi-a', 'wi-b', 'finish_to_start')],
+      criticalPathSet: new Set<string>(),
+      criticalPathOrder: [],
+      highlightedArrowKeys: undefined,
+    });
+
+    const arrows = screen.getAllByRole('graphics-symbol');
+    expect(arrows[0].getAttribute('class')).toContain('arrowGroup');
+    expect(arrows[0].getAttribute('class')).not.toContain('arrowGroupHovered');
+    expect(arrows[0].getAttribute('class')).not.toContain('arrowGroupDimmed');
+  });
+
+  it('renders all arrows in default class when highlightedArrowKeys is an empty set', () => {
+    renderArrows({
+      dependencies: [makeDep('wi-a', 'wi-b', 'finish_to_start')],
+      criticalPathSet: new Set<string>(),
+      criticalPathOrder: [],
+      highlightedArrowKeys: new Set<string>(),
+    });
+
+    const arrows = screen.getAllByRole('graphics-symbol');
+    expect(arrows[0].getAttribute('class')).not.toContain('arrowGroupHovered');
+    expect(arrows[0].getAttribute('class')).not.toContain('arrowGroupDimmed');
+  });
+
+  it('highlights multiple arrows when highlightedArrowKeys contains multiple keys', () => {
+    // wi-b is connected to both wi-a and wi-c — hovering wi-b highlights both arrows
+    renderArrows({
+      dependencies: [
+        makeDep('wi-a', 'wi-b', 'finish_to_start'),
+        makeDep('wi-b', 'wi-c', 'finish_to_start'),
+      ],
+      criticalPathSet: new Set<string>(),
+      criticalPathOrder: [],
+      highlightedArrowKeys: new Set(['wi-a-wi-b-finish_to_start', 'wi-b-wi-c-finish_to_start']),
+    });
+
+    const arrows = screen.getAllByRole('graphics-symbol');
+    // Both arrows should be highlighted (wi-b is endpoint of both)
+    for (const arrow of arrows) {
+      expect(arrow.getAttribute('class')).toContain('arrowGroupHovered');
+      expect(arrow.getAttribute('class')).not.toContain('arrowGroupDimmed');
+    }
+  });
+
+  it('item-hover highlighting takes precedence over no-hover default state', () => {
+    // When highlightedArrowKeys is a non-empty set, no arrow should be in the default (plain arrowGroup) state
+    renderArrows({
+      dependencies: [
+        makeDep('wi-a', 'wi-b', 'finish_to_start'),
+        makeDep('wi-b', 'wi-c', 'finish_to_start'),
+      ],
+      criticalPathSet: new Set<string>(),
+      criticalPathOrder: [],
+      highlightedArrowKeys: new Set(['wi-a-wi-b-finish_to_start']),
+    });
+
+    const arrows = screen.getAllByRole('graphics-symbol');
+    // Every arrow should have either hovered or dimmed (not neutral arrowGroup only)
+    for (const arrow of arrows) {
+      const cls = arrow.getAttribute('class') ?? '';
+      const hasHovered = cls.includes('arrowGroupHovered');
+      const hasDimmed = cls.includes('arrowGroupDimmed');
+      // At least one of the two states should apply
+      expect(hasHovered || hasDimmed).toBe(true);
+    }
+  });
+
+  it('internal arrow hover (onMouseEnter) still works when highlightedArrowKeys is undefined', () => {
+    // Ensure external prop does not break the existing internal mouseenter state
+    const onArrowHover = jest.fn<NonNullable<GanttArrowsProps['onArrowHover']>>();
+    renderArrows({
+      dependencies: [makeDep('wi-a', 'wi-b', 'finish_to_start')],
+      criticalPathSet: new Set<string>(),
+      criticalPathOrder: [],
+      highlightedArrowKeys: undefined,
+      onArrowHover,
+    });
+
+    const [arrowGroup] = screen.getAllByRole('graphics-symbol');
+    fireEvent.mouseEnter(arrowGroup, { clientX: 200, clientY: 100 });
+
+    expect(onArrowHover).toHaveBeenCalledTimes(1);
+    expect(arrowGroup.getAttribute('class')).toContain('arrowGroupHovered');
+  });
+
+  it('milestone contributing arrow is highlighted when its key is in highlightedArrowKeys', () => {
+    const milestonePoints = new Map([[1, { x: 600, y: 60 }]]);
+    const milestoneContributors = new Map([[1, ['wi-pred'] as readonly string[]]]);
+    const expectedKey = 'milestone-contrib-wi-pred-1';
+    renderArrows({
+      dependencies: [],
+      milestonePoints,
+      milestoneContributors,
+      workItemRequiredMilestones: new Map(),
+      milestoneTitles: new Map([[1, 'Foundation Complete']]),
+      highlightedArrowKeys: new Set([expectedKey]),
+    });
+
+    const arrows = screen.getAllByRole('graphics-symbol');
+    const contribArrow = arrows.find((el) =>
+      el.getAttribute('aria-label')?.includes('contributes to milestone'),
+    );
+    expect(contribArrow).toBeDefined();
+    expect(contribArrow!.getAttribute('class')).toContain('arrowGroupHovered');
+  });
+
+  it('milestone required arrow is highlighted when its key is in highlightedArrowKeys', () => {
+    const milestonePoints = new Map([[7, { x: 200, y: 60 }]]);
+    const workItemRequiredMilestones = new Map([['wi-succ', [7] as readonly number[]]]);
+    const expectedKey = 'milestone-req-7-wi-succ';
+    renderArrows({
+      dependencies: [],
+      milestonePoints,
+      milestoneContributors: new Map(),
+      workItemRequiredMilestones,
+      milestoneTitles: new Map([[7, 'Gate Review']]),
+      highlightedArrowKeys: new Set([expectedKey]),
+    });
+
+    const arrows = screen.getAllByRole('graphics-symbol');
+    const reqArrow = arrows.find((el) =>
+      el.getAttribute('aria-label')?.includes('is a required milestone for'),
+    );
+    expect(reqArrow).toBeDefined();
+    expect(reqArrow!.getAttribute('class')).toContain('arrowGroupHovered');
+  });
+
+  it('does not throw when highlightedArrowKeys contains keys not matching any rendered arrow', () => {
+    expect(() => {
+      renderArrows({
+        dependencies: [makeDep('wi-a', 'wi-b', 'finish_to_start')],
+        highlightedArrowKeys: new Set(['nonexistent-key-xyz']),
+      });
+    }).not.toThrow();
+  });
+});

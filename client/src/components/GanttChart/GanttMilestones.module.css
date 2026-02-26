@@ -60,3 +60,18 @@
   filter: none;
   opacity: 0.3;
 }
+
+/* When a milestone is both highlighted and keyboard-focused, combine both visual states. */
+.milestoneHighlighted:focus-visible {
+  filter: brightness(1.25) drop-shadow(0 0 5px var(--color-primary))
+    drop-shadow(0 0 0 3px var(--color-focus-ring));
+}
+
+/* Respect user preference for reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .diamond,
+  .milestoneHighlighted,
+  .milestoneDimmed {
+    transition: none;
+  }
+}
