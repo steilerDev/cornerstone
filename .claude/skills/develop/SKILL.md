@@ -87,8 +87,8 @@ gh api graphql -f query='mutation { updateProjectV2ItemFieldValue(input: { proje
 
 Launch agents in parallel:
 
-- **Developer(s)**: Launch `backend-developer` and/or `frontend-developer` — in parallel if the work spans both layers, single agent if isolated to one. Frontend developers reference the ux-designer's visual spec (if posted in step 3).
-- **QA**: Launch `qa-integration-tester` to write unit tests (95%+ coverage target) and integration tests covering the acceptance criteria.
+- **Developer(s)**: Launch `backend-developer` and/or `frontend-developer` — in parallel if the work spans both layers, single agent if isolated to one. Frontend developers reference the ux-designer's visual spec (if posted in step 3). Both use the specification from the Github issue created for this task.
+- **QA**: Launch `qa-integration-tester` to write unit tests (95%+ coverage target) and integration tests covering the acceptance criteria in the Github issue.
 
 ### 7. Commit & PR
 
@@ -118,13 +118,13 @@ Include `Fixes #<issue-number>` in the PR body. Use `feat(scope):` for stories, 
 Launch CI watch and agent reviews **at the same time**:
 
 - **CI**: `gh pr checks <pr-number> --watch` (run in background)
-- **Reviews** (launch in parallel):
+- **Reviews** (launch in parallel - make sure to keep the review short if the changes are minimal):
   - `product-architect` — architecture compliance, test coverage, code quality
   - `security-engineer` — OWASP Top 10 review, input validation, auth gaps
   - `product-owner` — requirements coverage, acceptance criteria (stories only, skip for bugs)
   - `ux-designer` — token adherence, visual consistency, accessibility (only for PRs touching `client/src/`, skip otherwise)
 
-Review results are posted as **comments on the GitHub Issue** (not the PR) via `gh issue comment <issue-number>`. All review agents must prefix their comments with their agent name (e.g., `**[product-architect]**`).
+Review results are posted as **comments on the PR**. All review agents must prefix their comments with their agent name (e.g., `**[product-architect]**`).
 
 If CI fails, fix the issues on the branch and push again.
 
