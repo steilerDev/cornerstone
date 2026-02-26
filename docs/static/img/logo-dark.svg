@@ -26,33 +26,33 @@
     <g id="Bricks" transform="matrix(1,0,0,1,0,237.5)">
         <g id="Other-Bricks" serif:id="Other Bricks">
             <g transform="matrix(1,0,0,1,-4.525631,-528)">
-                <path d="M984.123,1208.5L569.891,1504.6L569.891,1987.9L984.123,1790.5L984.123,1208.5Z" style="fill:rgb(209,213,219);stroke:black;stroke-width:66.67px;"/>
+                <path d="M984.123,1208.5L569.891,1504.6L569.891,1987.9L984.123,1790.5L984.123,1208.5Z" style="fill:rgb(209,213,219);stroke:white;stroke-width:66.67px;"/>
             </g>
             <g transform="matrix(1,0,0,1,-4.525631,-528)">
-                <path d="M569.891,2469.117L100.051,2583.15L100.051,2954.5L569.891,2954.5L569.891,2469.117Z" style="fill:rgb(209,213,219);stroke:black;stroke-width:66.67px;"/>
+                <path d="M569.891,2469.117L100.051,2583.15L100.051,2954.5L569.891,2954.5L569.891,2469.117Z" style="fill:rgb(209,213,219);stroke:white;stroke-width:66.67px;"/>
             </g>
             <g transform="matrix(1,0,0,1,-4.525631,-528)">
-                <path d="M2050.206,2954.5L2868.684,2954.5L2868.684,2578.738L2050.206,2489.167L2050.206,2954.5Z" style="fill:rgb(209,213,219);stroke:black;stroke-width:66.67px;"/>
+                <path d="M2050.206,2954.5L2868.684,2954.5L2868.684,2578.738L2050.206,2489.167L2050.206,2954.5Z" style="fill:rgb(209,213,219);stroke:white;stroke-width:66.67px;"/>
             </g>
             <g transform="matrix(1,0,0,1,-4.525631,-528)">
-                <path d="M984.123,1208.5L984.123,1790.5L2118.807,2038.85L2118.807,1581.024L984.123,1208.5Z" style="fill:rgb(209,213,219);stroke:black;stroke-width:66.67px;"/>
+                <path d="M984.123,1208.5L984.123,1790.5L2118.807,2038.85L2118.807,1581.024L984.123,1208.5Z" style="fill:rgb(209,213,219);stroke:white;stroke-width:66.67px;"/>
             </g>
             <g transform="matrix(1,0,0,1,-4.525631,-528)">
-                <path d="M1455.176,1893.6L1455.176,2424.05L2431.435,2530.887L2431.435,2107.275L1455.176,1893.6Z" style="fill:rgb(209,213,219);stroke:black;stroke-width:66.67px;"/>
+                <path d="M1455.176,1893.6L1455.176,2424.05L2431.435,2530.887L2431.435,2107.275L1455.176,1893.6Z" style="fill:rgb(209,213,219);stroke:white;stroke-width:66.67px;"/>
             </g>
             <g transform="matrix(1,0,0,1,-4.525631,-528)">
-                <path d="M984.123,1790.5L1455.176,1893.6L1455.176,2424.05L984.123,2372.5L984.123,1790.5Z" style="fill:rgb(209,213,219);stroke:black;stroke-width:66.67px;"/>
+                <path d="M984.123,1790.5L1455.176,1893.6L1455.176,2424.05L984.123,2372.5L984.123,1790.5Z" style="fill:rgb(209,213,219);stroke:white;stroke-width:66.67px;"/>
             </g>
             <g transform="matrix(1,0,0,1,-4.525631,-528)">
-                <path d="M201.242,2162.238L984.123,1790.5L984.123,2372.5C809.984,2410.32 584.504,2462.545 201.242,2559.039L201.242,2162.238Z" style="fill:rgb(209,213,219);stroke:black;stroke-width:66.67px;"/>
+                <path d="M201.242,2162.238L984.123,1790.5L984.123,2372.5C809.984,2410.32 584.504,2462.545 201.242,2559.039L201.242,2162.238Z" style="fill:rgb(209,213,219);stroke:white;stroke-width:66.67px;"/>
             </g>
         </g>
         <g id="Cornerstone" transform="matrix(1.052061,0,0,0.970971,-15.72937,94.99049)">
             <g transform="matrix(1,0,0,1,-4.301682,-543.785567)">
-                <path d="M950.375,2345.6L1963.704,2465.755L1963.704,2945L950.375,2945L950.375,2345.6Z" style="fill:rgb(59,130,246);stroke:black;stroke-width:65.85px;stroke-miterlimit:1.5;"/>
+                <path d="M950.375,2345.6L1963.704,2465.755L1963.704,2945L950.375,2945L950.375,2345.6Z" style="fill:rgb(59,130,246);stroke:white;stroke-width:65.85px;stroke-miterlimit:1.5;"/>
             </g>
             <g transform="matrix(0.853678,0,0,1,134.758934,-543.785567)">
-                <path d="M950.375,2345.6L489.648,2447.142L489.155,2945L950.375,2945L950.375,2345.6Z" style="fill:rgb(59,130,246);stroke:black;stroke-width:71.28px;stroke-miterlimit:1.5;"/>
+                <path d="M950.375,2345.6L489.648,2447.142L489.155,2945L950.375,2945L950.375,2345.6Z" style="fill:rgb(59,130,246);stroke:white;stroke-width:71.28px;stroke-miterlimit:1.5;"/>
             </g>
         </g>
     </g>
