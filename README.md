@@ -1,9 +1,9 @@
 # cornerstone
 
 > [!NOTE]
-> This project is completely written using an Agentic Developmen Workflow using Claude Code.
+> This project is completely written using an Agentic Developmen Workflow with Claude Code and [Docker Sandbox VMs](https://docs.docker.com/ai/sandboxes/get-started/).
 > 
-> This project is a playground to better understand how to fully utilize the coding capabilities of modern LLMs, while applying Software Engineering best practices to create quality and maintainable code. My plan is to write as little code as possible by hand, but rely on a set of agents to build this application. 
+> It is a playground to better understand how to fully utilize the coding capabilities of modern LLMs, while applying Software Engineering best practices to create quality and maintainable code. My plan is to write as little code as possible by hand, but rely on a set of agents to build this application. 
 > 
 > The project scope is time-limited (I'm currently in need for this tool and probably won't be after) and feature limited - which is why I'm not necessarily concerned about long-term maintainability and/or overall code quality.
 > 
