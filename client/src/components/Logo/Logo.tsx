@@ -4,12 +4,15 @@ interface LogoProps {
 }
 
 /**
- * Cornerstone logo — an inline SVG keystone / arch motif.
+ * Cornerstone logo — a 3D isometric brick wall corner viewed from above.
  *
- * The design shows a classic architectural keystone with a semicircular arch
- * opening, flanked by two column blocks on a shared base. A horizontal
- * capstone band (with visible shoulders) separates the keystone wedge from
- * the columns. The apex is gently rounded and the base corners are softened.
+ * The design shows two wall faces meeting at an outside corner, rendered as a
+ * hexagonal silhouette with chevron-shaped mortar-line cutouts (even-odd fill).
+ * The cornerstone at the base is the largest solid block (5 units), separated
+ * from the smaller brick courses above (3 units each) by a thick mortar gap.
+ *
+ * Isometric projection uses a 3:2 slope (~34° viewing angle) for a "half top"
+ * viewpoint. All coordinates are integers for crisp rendering at small sizes.
  *
  * Reads clearly at both 16 px (favicon) and 200 px (splash).
  *
@@ -32,64 +35,52 @@ export function Logo({ size = 32, className }: LogoProps) {
     >
       {/*
        * The shape is drawn as a single compound path using the even-odd fill
-       * rule so the arch opening punches through as transparent — giving the
-       * keystone silhouette without needing a background colour.
+       * rule so the mortar lines punch through as transparent gaps — giving
+       * the brick coursing pattern without needing a background colour.
        *
-       * Outer shape: pediment base, columns, capstone shoulders, keystone wedge
-       * with a rounded apex and softened base corners.
-       * Inner cutout: semicircular arch opening (SVG arc command).
+       * Outer shape: hexagonal silhouette of two wall faces meeting at a corner.
+       * Inner cutouts: three chevron-shaped mortar lines (one thick for the
+       * cornerstone separator, two thin for brick course separators).
        */}
       <path
         fillRule="evenodd"
         clipRule="evenodd"
         fill="currentColor"
         d={[
-          // --- Outer boundary (clockwise) ---
-          // Start bottom-left, inset for rounded corner
-          'M 4 29',
-          // Rounded bottom-left corner
-          'Q 2 29 2 27',
-          // Left base edge up to shelf / step
-          'L 2 20',
-          // Shelf — step in to column inner edge
-          'L 10 20',
-          // Left column inner edge up to capstone
-          'L 10 13',
-          // Capstone left shoulder (2-unit ledge)
-          'L 12 13',
-          // Capstone band (1-unit vertical step to keystone base)
-          'L 12 12',
-          // Keystone left slope
-          'L 15 6',
-          // Rounded keystone apex
-          'Q 16 4 17 6',
-          // Keystone right slope
-          'L 20 12',
-          // Capstone band right
-          'L 20 13',
-          // Capstone right shoulder
-          'L 22 13',
-          // Right column inner edge down to shelf
-          'L 22 20',
-          // Shelf — step out to base
-          'L 30 20',
-          // Right base edge down
-          'L 30 27',
-          // Rounded bottom-right corner
-          'Q 30 29 28 29',
-          // Close outer
+          // --- Outer silhouette (hexagonal, clockwise) ---
+          'M 16 28',
+          'L 7 22',
+          'L 7 4',
+          'L 16 10',
+          'L 25 4',
+          'L 25 22',
           'Z',
 
-          // --- Inner arch cutout (semicircular) ---
-          // Start bottom-left of arch opening
-          'M 10 29',
-          // Up left side to arch spring line
-          'L 10 20',
-          // Semicircular arch (radius 6, clockwise sweep = upward)
-          'A 6 6 0 0 1 22 20',
-          // Down right side
-          'L 22 29',
-          // Close inner
+          // --- Thick mortar — cornerstone separator (2-unit gap) ---
+          'M 7 17',
+          'L 16 23',
+          'L 25 17',
+          'L 25 15',
+          'L 16 21',
+          'L 7 15',
+          'Z',
+
+          // --- Thin mortar 1 — brick course separator (1-unit gap) ---
+          'M 7 12',
+          'L 16 18',
+          'L 25 12',
+          'L 25 11',
+          'L 16 17',
+          'L 7 11',
+          'Z',
+
+          // --- Thin mortar 2 — brick course separator (1-unit gap) ---
+          'M 7 8',
+          'L 16 14',
+          'L 25 8',
+          'L 25 7',
+          'L 16 13',
+          'L 7 7',
           'Z',
         ].join(' ')}
       />
