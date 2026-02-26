@@ -1,5 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Logo } from '../../components/Logo/Logo.js';
 import { setup, getAuthMe } from '../../lib/authApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import sharedStyles from '../shared/AuthPage.module.css';
@@ -106,6 +107,7 @@ export function SetupPage() {
   return (
     <div className={sharedStyles.container}>
       <div className={sharedStyles.card}>
+        <Logo size={48} className={sharedStyles.logo} />
         <h1 className={sharedStyles.title}>Initial Setup</h1>
         <p className={sharedStyles.description}>
           Create the admin account to get started with Cornerstone.

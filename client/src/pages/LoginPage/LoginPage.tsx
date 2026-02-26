@@ -1,5 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Logo } from '../../components/Logo/Logo.js';
 import { login, getAuthMe } from '../../lib/authApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import sharedStyles from '../shared/AuthPage.module.css';
@@ -103,6 +104,7 @@ export function LoginPage() {
   return (
     <div className={sharedStyles.container}>
       <div className={sharedStyles.card}>
+        <Logo size={48} className={sharedStyles.logo} />
         <h1 className={sharedStyles.title}>Sign In</h1>
         <p className={sharedStyles.description}>Sign in to your Cornerstone account.</p>
 
