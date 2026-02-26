@@ -2,12 +2,17 @@
  * @jest-environment jsdom
  *
  * Unit tests for GanttTooltip — tooltip rendering, positioning, and portal output.
- * Tests all status variants, date formatting, duration display, and overflow-flip logic.
+ * Tests all status variants, date formatting, duration display, overflow-flip logic,
+ * and ArrowTooltipContent (Issue #287: arrow hover highlighting).
  */
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { render, screen } from '@testing-library/react';
 import { GanttTooltip } from './GanttTooltip.js';
-import type { GanttTooltipWorkItemData, GanttTooltipPosition } from './GanttTooltip.js';
+import type {
+  GanttTooltipWorkItemData,
+  GanttTooltipArrowData,
+  GanttTooltipPosition,
+} from './GanttTooltip.js';
 import type { WorkItemStatus } from '@cornerstone/shared';
 
 // ---------------------------------------------------------------------------
@@ -351,5 +356,141 @@ describe('GanttTooltip', () => {
       expect(tooltip).toHaveStyle({ left: '948px' });
       expect(tooltip).toHaveStyle({ top: '562px' });
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GanttTooltipArrowData / ArrowTooltipContent (Issue #287: arrow hover highlighting)
+// ---------------------------------------------------------------------------
+
+const DEFAULT_ARROW_DATA: GanttTooltipArrowData = {
+  kind: 'arrow',
+  description: 'Install Plumbing must finish before Paint Walls can start',
+};
+
+const ARROW_DEFAULT_POSITION: GanttTooltipPosition = { x: 100, y: 200 };
+
+function renderArrowTooltip(
+  data: Partial<GanttTooltipArrowData> = {},
+  position: Partial<GanttTooltipPosition> = {},
+  id?: string,
+) {
+  return render(
+    <GanttTooltip
+      data={{ ...DEFAULT_ARROW_DATA, ...data }}
+      position={{ ...ARROW_DEFAULT_POSITION, ...position }}
+      id={id}
+    />,
+  );
+}
+
+describe('GanttTooltip — arrow kind', () => {
+  beforeEach(() => {
+    Object.defineProperty(window, 'innerWidth', { writable: true, value: 1280 });
+    Object.defineProperty(window, 'innerHeight', { writable: true, value: 800 });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(window, 'innerWidth', { writable: true, value: 1280 });
+    Object.defineProperty(window, 'innerHeight', { writable: true, value: 800 });
+  });
+
+  it('renders into the document (via portal)', () => {
+    renderArrowTooltip();
+    expect(screen.getByTestId('gantt-tooltip')).toBeInTheDocument();
+  });
+
+  it('has role="tooltip" on the container', () => {
+    renderArrowTooltip();
+    expect(screen.getByRole('tooltip')).toBeInTheDocument();
+  });
+
+  it('renders the arrow description text', () => {
+    renderArrowTooltip();
+    expect(
+      screen.getByText('Install Plumbing must finish before Paint Walls can start'),
+    ).toBeInTheDocument();
+  });
+
+  it('renders the description in a role="status" element', () => {
+    renderArrowTooltip();
+    expect(screen.getByRole('status')).toBeInTheDocument();
+    expect(screen.getByRole('status').textContent).toBe(
+      'Install Plumbing must finish before Paint Walls can start',
+    );
+  });
+
+  it('renders a custom description string correctly', () => {
+    renderArrowTooltip({
+      description: 'Foundation and Framing are consecutive on the critical path',
+    });
+    expect(
+      screen.getByText('Foundation and Framing are consecutive on the critical path'),
+    ).toBeInTheDocument();
+  });
+
+  it('renders a milestone contributing description', () => {
+    renderArrowTooltip({ description: 'Framing contributes to milestone Foundation Complete' });
+    expect(
+      screen.getByText('Framing contributes to milestone Foundation Complete'),
+    ).toBeInTheDocument();
+  });
+
+  it('renders a milestone required description', () => {
+    renderArrowTooltip({ description: 'Gate Review is a required milestone for Electrical' });
+    expect(
+      screen.getByText('Gate Review is a required milestone for Electrical'),
+    ).toBeInTheDocument();
+  });
+
+  it('does not render work-item-specific labels (Start, End, Duration) for arrow kind', () => {
+    renderArrowTooltip();
+    expect(screen.queryByText('Start')).not.toBeInTheDocument();
+    expect(screen.queryByText('End')).not.toBeInTheDocument();
+    expect(screen.queryByText('Duration')).not.toBeInTheDocument();
+  });
+
+  it('does not render milestone-specific labels (Target, Linked) for arrow kind', () => {
+    renderArrowTooltip();
+    expect(screen.queryByText('Target')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Linked/)).not.toBeInTheDocument();
+  });
+
+  it('applies the id attribute to the tooltip element when provided', () => {
+    renderArrowTooltip({}, {}, 'gantt-chart-tooltip');
+    const tooltip = screen.getByRole('tooltip');
+    expect(tooltip).toHaveAttribute('id', 'gantt-chart-tooltip');
+  });
+
+  it('positions the arrow tooltip to the right of the cursor by default', () => {
+    renderArrowTooltip({}, { x: 100, y: 200 });
+    const tooltip = screen.getByTestId('gantt-tooltip');
+    expect(tooltip).toHaveStyle({ left: '112px' }); // 100 + 12 = 112
+  });
+
+  it('flips the arrow tooltip horizontally when near the right edge', () => {
+    renderArrowTooltip({}, { x: 1200, y: 100 });
+    const tooltip = screen.getByTestId('gantt-tooltip');
+    expect(tooltip).toHaveStyle({ left: '948px' }); // flipped
+  });
+
+  it('renders an empty description without crashing', () => {
+    renderArrowTooltip({ description: '' });
+    expect(screen.getByRole('status').textContent).toBe('');
+  });
+
+  it('renders a very long description without crashing', () => {
+    const longDescription = 'A'.repeat(300);
+    renderArrowTooltip({ description: longDescription });
+    expect(screen.getByText(longDescription)).toBeInTheDocument();
+  });
+
+  it('GanttTooltipArrowData has kind="arrow" discriminator', () => {
+    // Type-level check: ensure the data union has the arrow variant
+    const data: GanttTooltipArrowData = {
+      kind: 'arrow',
+      description: 'test',
+    };
+    expect(data.kind).toBe('arrow');
   });
 });
