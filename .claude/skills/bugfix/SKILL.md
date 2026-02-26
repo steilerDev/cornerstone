@@ -69,43 +69,63 @@ gh pr create --base beta --title "fix(<scope>): <description>" --body "..."
 
 Include `Fixes #<issue-number>` in the PR body.
 
-### 6. CI
+### 6. CI + Review (parallel)
 
-Wait for all CI checks to pass:
+Launch CI watch and agent reviews **at the same time**:
 
-```
-gh pr checks <pr-number> --watch
-```
+- **CI**: `gh pr checks <pr-number> --watch` (run in background)
+- **Reviews** (launch in parallel): `product-architect` and `security-engineer` review the PR diff. Lightweight review focused on:
+  - No architectural violations
+  - No security regressions
+  - Test coverage present for the fix
 
-If CI fails, fix the issues on the branch and push again. Do not proceed until CI is green.
+  Review results are posted as **comments on the GitHub Issue** (not the PR) via `gh issue comment <issue-number>`. All review agents must prefix their comments with their agent name (e.g., `**[product-architect]**`).
 
-### 7. Review (parallel)
+If CI fails, fix the issues on the branch and push again.
 
-Launch **product-architect** and **security-engineer** in parallel to review the PR diff. Lightweight review focused on:
+### 7. Fix Loop & Merge
 
-- No architectural violations
-- No security regressions
-- Test coverage present for the fix
-
-### 8. Fix Loop & Merge
-
-If any reviewer requests changes:
+If any reviewer identifies blocking issues:
 
 1. Re-launch the implementing agent(s) to address feedback
 2. Push fixes
 3. Re-request review from the agent(s) that requested changes
 4. Repeat until all reviewers approve
 
-Once approved and CI is green, merge:
+Once reviews are clean and CI is green, merge:
 
 ```
 gh pr merge --squash <pr-url>
 ```
 
-Clean up:
+### 8. User Verification
 
-```
-git checkout beta && git pull && git branch -d <branch-name>
-```
+After the PR is merged, present the user with:
 
-Move the issue to "Done" on the Projects board.
+1. **PR link**: The merged PR URL
+2. **DockerHub PR image**: `docker pull steilerdev/cornerstone:pr-<pr-number>` — the PR-specific image published by the `docker-pr-release` CI job
+3. **Implementation summary**: A concise summary of what was changed, which files were modified, and how the bug was fixed
+
+Ask the user to verify the fix (e.g., pull the new beta image and test). Wait for explicit confirmation:
+
+- **User confirms the fix is good** → proceed to step 9
+- **User reports the fix is incomplete or introduces a new issue** → take the user's feedback as new input and loop back to **step 4** (Implement + Test) on the same branch to address it
+
+### 9. Close Issue & Clean Up
+
+After user confirmation:
+
+1. Close the issue: `gh issue close <issue-number>`
+2. Move the issue to **Done** on the Projects board:
+   ```bash
+   ITEM_ID=$(gh api graphql -f query='{ repository(owner: "steilerDev", name: "cornerstone") { issue(number: <issue-number>) { projectItems(first: 1) { nodes { id } } } } }' --jq '.data.repository.issue.projectItems.nodes[0].id')
+   gh api graphql -f query='mutation { updateProjectV2ItemFieldValue(input: { projectId: "PVT_kwHOAGtLQM4BOlve", itemId: "'"$ITEM_ID"'", fieldId: "PVTSSF_lAHOAGtLQM4BOlvezg9P0yo", value: { singleSelectOptionId: "c558f50d" } }) { clientMutationId } }'
+   ```
+3. Clean up the branch:
+   ```
+   git checkout beta && git pull && git branch -d <branch-name>
+   ```
+4. Exit the session and remove the worktree:
+   ```
+   /exit
+   ```
