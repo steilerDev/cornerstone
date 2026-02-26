@@ -16,7 +16,6 @@ const STATUS_OPTIONS: { value: WorkItemStatus; label: string }[] = [
   { value: 'not_started', label: 'Not Started' },
   { value: 'in_progress', label: 'In Progress' },
   { value: 'completed', label: 'Completed' },
-  { value: 'blocked', label: 'Blocked' },
 ];
 
 const SORT_OPTIONS: { value: string; label: string }[] = [

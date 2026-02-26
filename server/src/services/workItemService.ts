@@ -105,6 +105,8 @@ export function toWorkItemSummary(
     status: workItem.status,
     startDate: workItem.startDate,
     endDate: workItem.endDate,
+    actualStartDate: workItem.actualStartDate,
+    actualEndDate: workItem.actualEndDate,
     durationDays: workItem.durationDays,
     assignedUser,
     tags: itemTags,
@@ -195,6 +197,8 @@ export function toWorkItemDetail(
     status: workItem.status,
     startDate: workItem.startDate,
     endDate: workItem.endDate,
+    actualStartDate: workItem.actualStartDate,
+    actualEndDate: workItem.actualEndDate,
     durationDays: workItem.durationDays,
     startAfter: workItem.startAfter,
     startBefore: workItem.startBefore,
@@ -319,6 +323,8 @@ export function createWorkItem(
       status: data.status ?? 'not_started',
       startDate: data.startDate ?? null,
       endDate: data.endDate ?? null,
+      actualStartDate: data.actualStartDate ?? null,
+      actualEndDate: data.actualEndDate ?? null,
       durationDays: data.durationDays ?? null,
       startAfter: data.startAfter ?? null,
       startBefore: data.startBefore ?? null,
@@ -436,6 +442,14 @@ export function updateWorkItem(
     updateData.assignedUserId = data.assignedUserId ?? null;
   }
 
+  if ('actualStartDate' in data) {
+    updateData.actualStartDate = data.actualStartDate ?? null;
+  }
+
+  if ('actualEndDate' in data) {
+    updateData.actualEndDate = data.actualEndDate ?? null;
+  }
+
   // Validate date constraints with merged data
   const mergedData = {
     startDate: 'startDate' in updateData ? updateData.startDate : workItem.startDate,
@@ -444,6 +458,45 @@ export function updateWorkItem(
     startBefore: 'startBefore' in updateData ? updateData.startBefore : workItem.startBefore,
   };
   validateDateConstraints(mergedData);
+
+  // Auto-populate actual dates on status transitions.
+  // Only auto-populate if the actual date is currently null AND not being explicitly set
+  // in this same request.
+  if ('status' in data && data.status !== workItem.status) {
+    const today = new Date().toISOString().slice(0, 10);
+    const newStatus = data.status;
+    const previousStatus = workItem.status;
+
+    const isExplicitActualStart = 'actualStartDate' in data;
+    const isExplicitActualEnd = 'actualEndDate' in data;
+
+    const currentActualStart = isExplicitActualStart
+      ? (updateData.actualStartDate ?? null)
+      : workItem.actualStartDate;
+    const currentActualEnd = isExplicitActualEnd
+      ? (updateData.actualEndDate ?? null)
+      : workItem.actualEndDate;
+
+    if (newStatus === 'in_progress' && previousStatus === 'not_started') {
+      // not_started → in_progress: set actualStartDate to today if not already set
+      if (!isExplicitActualStart && currentActualStart === null) {
+        updateData.actualStartDate = today;
+      }
+    } else if (newStatus === 'completed' && previousStatus === 'in_progress') {
+      // in_progress → completed: set actualEndDate to today if not already set
+      if (!isExplicitActualEnd && currentActualEnd === null) {
+        updateData.actualEndDate = today;
+      }
+    } else if (newStatus === 'completed' && previousStatus === 'not_started') {
+      // not_started → completed (direct skip): set both actual dates to today if not set
+      if (!isExplicitActualStart && currentActualStart === null) {
+        updateData.actualStartDate = today;
+      }
+      if (!isExplicitActualEnd && currentActualEnd === null) {
+        updateData.actualEndDate = today;
+      }
+    }
+  }
 
   // Update work item
   updateData.updatedAt = new Date().toISOString();
@@ -458,10 +511,14 @@ export function updateWorkItem(
     replaceWorkItemTags(db, id, tagIds);
   }
 
-  // Trigger auto-reschedule when any scheduling-relevant field changed
+  // Trigger auto-reschedule when any scheduling-relevant field changed.
+  // actualStartDate and actualEndDate are included because the engine uses them
+  // as absolute overrides for ES/EF in the CPM forward pass.
   const schedulingFieldChanged =
     'startDate' in data ||
     'endDate' in data ||
+    'actualStartDate' in data ||
+    'actualEndDate' in data ||
     'durationDays' in data ||
     'startAfter' in data ||
     'startBefore' in data ||

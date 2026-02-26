@@ -82,9 +82,7 @@ describe('Schedule Routes', () => {
       .values({
         id: workItemId,
         title,
-        status:
-          (overrides.status as 'not_started' | 'in_progress' | 'completed' | 'blocked') ??
-          'not_started',
+        status: (overrides.status as 'not_started' | 'in_progress' | 'completed') ?? 'not_started',
         durationDays: overrides.durationDays !== undefined ? overrides.durationDays : 5,
         startDate: overrides.startDate ?? null,
         endDate: overrides.endDate ?? null,

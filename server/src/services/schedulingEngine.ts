@@ -31,6 +31,10 @@ export interface SchedulingWorkItem {
   status: string;
   startDate: string | null;
   endDate: string | null;
+  /** Actual start date recorded when work began. When set, overrides CPM-computed ES. */
+  actualStartDate: string | null;
+  /** Actual end date recorded when work completed. When set, overrides CPM-computed EF. */
+  actualEndDate: string | null;
   durationDays: number | null;
   startAfter: string | null;
   startBefore: string | null;
@@ -411,6 +415,36 @@ export function schedule(params: ScheduleParams): ScheduleResult {
       });
     }
 
+    // If the item has an actualStartDate, it takes absolute precedence as ES.
+    // If it also has an actualEndDate, that takes absolute precedence as EF.
+    if (item.actualStartDate) {
+      const es = item.actualStartDate;
+      const ef = item.actualEndDate ?? addDays(es, duration);
+
+      nodes.set(id, {
+        item,
+        duration,
+        es,
+        ef,
+        ls: es, // Placeholder until backward pass
+        lf: ef, // Placeholder until backward pass
+      });
+
+      // Emit already_completed warning if dates would change
+      if (item.status === 'completed') {
+        const startWouldChange = item.startDate && es !== item.startDate;
+        const endWouldChange = item.endDate && ef !== item.endDate;
+        if (startWouldChange || endWouldChange) {
+          warnings.push({
+            workItemId: id,
+            type: 'already_completed',
+            message: 'Work item is already completed; dates cannot be changed by the scheduler',
+          });
+        }
+      }
+      continue;
+    }
+
     // Compute ES: start from the latest date implied by all predecessors
     const preds = predecessorDepsOf.get(id)!;
     let es: string;
@@ -442,6 +476,13 @@ export function schedule(params: ScheduleParams): ScheduleResult {
     // Apply start_after hard constraint (must start on or after this date)
     if (item.startAfter) {
       es = maxDate(es, item.startAfter);
+    }
+
+    // Apply implicit "today floor" for not_started items:
+    // A not_started work item cannot start in the past — floor ES to today.
+    // This applies to all not_started items, not just root nodes.
+    if (item.status === 'not_started') {
+      es = maxDate(es, today);
     }
 
     // Compute EF from ES + duration.
@@ -615,6 +656,8 @@ export function autoReschedule(db: DbType): number {
     status: wi.status,
     startDate: wi.startDate,
     endDate: wi.endDate,
+    actualStartDate: wi.actualStartDate,
+    actualEndDate: wi.actualEndDate,
     durationDays: wi.durationDays,
     startAfter: wi.startAfter,
     startBefore: wi.startBefore,

@@ -90,6 +90,12 @@
   color: var(--color-red-200);
 }
 
+/* Delay value — shown in red to indicate the item is behind schedule */
+.detailValueDelay {
+  color: var(--color-red-200);
+  font-weight: var(--font-weight-semibold);
+}
+
 /* ---- Status badge inside tooltip ---- */
 
 .statusBadge {
@@ -117,7 +123,7 @@
   color: var(--color-emerald-200);
 }
 
-.statusBlocked {
+.statusLate {
   background: rgba(239, 68, 68, 0.3);
   color: var(--color-red-200);
 }
@@ -231,6 +237,10 @@
   color: var(--color-red-400);
 }
 
+[data-theme='dark'] .detailValueDelay {
+  color: var(--color-red-400);
+}
+
 [data-theme='dark'] .statusNotStarted {
   background: rgba(107, 114, 128, 0.2);
   color: var(--color-gray-700);
@@ -246,7 +256,7 @@
   color: var(--color-green-600);
 }
 
-[data-theme='dark'] .statusBlocked {
+[data-theme='dark'] .statusLate {
   background: rgba(239, 68, 68, 0.15);
   color: var(--color-red-600);
 }

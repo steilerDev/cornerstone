@@ -24,6 +24,8 @@ function makeItem(overrides: Partial<TimelineWorkItem> = {}): TimelineWorkItem {
     startDate: '2024-03-10',
     endDate: '2024-03-20',
     durationDays: 10,
+    actualStartDate: null,
+    actualEndDate: null,
     startAfter: null,
     startBefore: null,
     assignedUser: null,
@@ -154,13 +156,6 @@ describe('CalendarItem', () => {
       renderItem({ item });
       const el = screen.getByTestId('calendar-item');
       expect(el.className).toContain('inProgress');
-    });
-
-    it('applies "blocked" class for blocked status', () => {
-      const item = makeItem({ status: 'blocked' });
-      renderItem({ item });
-      const el = screen.getByTestId('calendar-item');
-      expect(el.className).toContain('blocked');
     });
 
     it('applies "notStarted" class for not_started status', () => {

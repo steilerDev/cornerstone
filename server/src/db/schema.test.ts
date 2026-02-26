@@ -1439,7 +1439,7 @@ describe('Work Items Database Schema & Migration', () => {
     it('UAT-3.1-18: status CHECK constraint accepts valid values', async () => {
       const now = new Date().toISOString();
 
-      // Insert work items with all valid status values
+      // Insert work items with all valid status values (blocked removed in Issue #296)
       await db.insert(schema.workItems).values([
         {
           id: 'work-item-not-started',
@@ -1486,26 +1486,11 @@ describe('Work Items Database Schema & Migration', () => {
           createdAt: now,
           updatedAt: now,
         },
-        {
-          id: 'work-item-blocked',
-          title: 'Blocked',
-          description: null,
-          status: 'blocked',
-          startDate: null,
-          endDate: null,
-          durationDays: null,
-          startAfter: null,
-          startBefore: null,
-          assignedUserId: null,
-          createdBy: testUserId,
-          createdAt: now,
-          updatedAt: now,
-        },
       ]);
 
       // Verify all inserts succeeded
       const workItems = await db.select().from(schema.workItems);
-      expect(workItems.length).toBeGreaterThanOrEqual(4);
+      expect(workItems.length).toBeGreaterThanOrEqual(3);
     });
 
     it('UAT-3.1-19: dependency type CHECK constraint rejects invalid values', async () => {

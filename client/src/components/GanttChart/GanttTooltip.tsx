@@ -29,6 +29,8 @@ export interface GanttTooltipWorkItemData {
    * When absent or empty, no "Dependencies" section is rendered in the tooltip.
    */
   dependencies?: GanttTooltipDependencyEntry[];
+  /** Number of days delayed (only present for not_started items whose start date is past). */
+  delayDays?: number | null;
 }
 
 export interface GanttTooltipMilestoneData {
@@ -81,14 +83,12 @@ const STATUS_LABELS: Record<WorkItemStatus, string> = {
   not_started: 'Not started',
   in_progress: 'In progress',
   completed: 'Completed',
-  blocked: 'Blocked',
 };
 
 const STATUS_BADGE_CLASSES: Record<WorkItemStatus, string> = {
   not_started: styles.statusNotStarted,
   in_progress: styles.statusInProgress,
   completed: styles.statusCompleted,
-  blocked: styles.statusBlocked,
 };
 
 const TOOLTIP_WIDTH = 240;
@@ -163,6 +163,16 @@ function WorkItemTooltipContent({ data }: { data: GanttTooltipWorkItemData }) {
         <span className={styles.detailValue}>{formatDuration(data.durationDays)}</span>
       </div>
 
+      {/* Delay indicator */}
+      {data.delayDays != null && data.delayDays > 0 && (
+        <div className={styles.detailRow}>
+          <span className={styles.detailLabel}>Delay</span>
+          <span className={`${styles.detailValue} ${styles.detailValueDelay}`}>
+            {data.delayDays} {data.delayDays === 1 ? 'day' : 'days'}
+          </span>
+        </div>
+      )}
+
       {/* Assigned user */}
       {data.assignedUserName !== null && (
         <div className={styles.detailRow}>
@@ -211,7 +221,7 @@ function MilestoneTooltipContent({ data }: { data: GanttTooltipMilestoneData }) 
     statusClass = styles.statusCompleted;
   } else if (data.isLate) {
     statusLabel = 'Late';
-    statusClass = styles.statusBlocked;
+    statusClass = styles.statusLate;
   } else {
     statusLabel = 'On track';
     statusClass = styles.statusInProgress;

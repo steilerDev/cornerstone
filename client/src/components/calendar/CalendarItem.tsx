@@ -111,9 +111,7 @@ export function CalendarItem({
       ? styles.completed
       : item.status === 'in_progress'
         ? styles.inProgress
-        : item.status === 'blocked'
-          ? styles.blocked
-          : styles.notStarted;
+        : styles.notStarted;
 
   const shapeClass = [
     isStart ? styles.startRounded : styles.noStartRound,

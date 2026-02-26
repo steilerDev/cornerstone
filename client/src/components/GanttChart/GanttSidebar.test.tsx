@@ -22,6 +22,8 @@ function makeItem(overrides: Partial<TimelineWorkItem> = {}): TimelineWorkItem {
     startDate: '2024-06-01',
     endDate: '2024-07-31',
     durationDays: 60,
+    actualStartDate: null,
+    actualEndDate: null,
     startAfter: null,
     startBefore: null,
     assignedUser: null,

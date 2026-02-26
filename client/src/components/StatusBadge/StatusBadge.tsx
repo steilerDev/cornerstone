@@ -9,7 +9,6 @@ const STATUS_LABELS: Record<WorkItemStatus, string> = {
   not_started: 'Not Started',
   in_progress: 'In Progress',
   completed: 'Completed',
-  blocked: 'Blocked',
 };
 
 export function StatusBadge({ status }: StatusBadgeProps) {

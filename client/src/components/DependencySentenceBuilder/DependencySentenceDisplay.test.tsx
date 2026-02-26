@@ -18,6 +18,8 @@ function mockDependencyResponse(overrides: Partial<DependencyResponse> = {}): De
       startDate: null,
       endDate: null,
       durationDays: null,
+      actualStartDate: null,
+      actualEndDate: null,
       assignedUser: null,
       tags: [],
       createdAt: '2024-01-01T00:00:00Z',

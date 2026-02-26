@@ -34,6 +34,8 @@ function makeWorkItem(id: string, startDate: string, endDate: string): TimelineW
     startDate,
     endDate,
     durationDays: null,
+    actualStartDate: null,
+    actualEndDate: null,
     startAfter: null,
     startBefore: null,
     assignedUser: null,

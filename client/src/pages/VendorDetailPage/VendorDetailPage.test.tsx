@@ -79,6 +79,8 @@ describe('VendorDetailPage', () => {
     startDate: '2026-01-01',
     endDate: '2026-03-01',
     durationDays: 59,
+    actualStartDate: null,
+    actualEndDate: null,
     assignedUser: null,
     tags: [],
     createdAt: '2026-01-01T00:00:00.000Z',

@@ -290,6 +290,21 @@
   line-height: 1.5;
 }
 
+/* Delay indicator — shown when a not-started work item's scheduled start is in the past */
+.delayIndicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.375rem;
+  border: 1px solid var(--color-danger-border);
+  background: var(--color-danger-bg);
+  color: var(--color-danger-text-on-light);
+  font-size: 0.8125rem;
+  font-weight: var(--font-weight-medium);
+}
+
 .propertyInput,
 .propertySelect {
   padding: 0.625rem;

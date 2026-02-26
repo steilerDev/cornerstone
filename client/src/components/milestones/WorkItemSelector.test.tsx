@@ -39,6 +39,8 @@ function makeWorkItemSummary(id: string, title: string): WorkItemSummary {
     durationDays: null,
     startDate: null,
     endDate: null,
+    actualStartDate: null,
+    actualEndDate: null,
     assignedUser: null,
     tags: [],
     createdAt: '2024-01-01T00:00:00Z',

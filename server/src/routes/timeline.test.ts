@@ -60,7 +60,7 @@ describe('Timeline Routes', () => {
     userId: string,
     title: string,
     overrides: Partial<{
-      status: 'not_started' | 'in_progress' | 'completed' | 'blocked';
+      status: 'not_started' | 'in_progress' | 'completed';
       durationDays: number | null;
       startDate: string | null;
       endDate: string | null;
