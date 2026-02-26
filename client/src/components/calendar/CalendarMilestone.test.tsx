@@ -298,15 +298,16 @@ describe('CalendarMilestone', () => {
     it('does not throw when onMouseEnter is undefined', () => {
       renderMilestone({ onMouseEnter: undefined });
       expect(() =>
-        fireEvent.mouseEnter(screen.getByTestId('calendar-milestone'), { clientX: 10, clientY: 20 }),
+        fireEvent.mouseEnter(screen.getByTestId('calendar-milestone'), {
+          clientX: 10,
+          clientY: 20,
+        }),
       ).not.toThrow();
     });
 
     it('does not throw when onMouseLeave is undefined', () => {
       renderMilestone({ onMouseLeave: undefined });
-      expect(() =>
-        fireEvent.mouseLeave(screen.getByTestId('calendar-milestone')),
-      ).not.toThrow();
+      expect(() => fireEvent.mouseLeave(screen.getByTestId('calendar-milestone'))).not.toThrow();
     });
 
     it('does not throw when onMouseMove is undefined', () => {
