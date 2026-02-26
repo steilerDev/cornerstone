@@ -22,7 +22,11 @@ import type { BarRect } from './arrowUtils.js';
 import { GanttHeader } from './GanttHeader.js';
 import { GanttSidebar } from './GanttSidebar.js';
 import { GanttTooltip } from './GanttTooltip.js';
-import type { GanttTooltipData, GanttTooltipPosition } from './GanttTooltip.js';
+import type {
+  GanttTooltipData,
+  GanttTooltipPosition,
+  GanttTooltipDependencyEntry,
+} from './GanttTooltip.js';
 import { GanttMilestones, computeMilestoneStatus } from './GanttMilestones.js';
 import type { MilestoneColors, MilestoneInteractionState } from './GanttMilestones.js';
 import type { MilestonePoint } from './GanttArrows.js';
@@ -247,6 +251,17 @@ export function GanttChart({
   }, [tooltipData]);
 
   // ---------------------------------------------------------------------------
+  // Item hover state — tracks which bar/milestone is hovered for dependency highlighting
+  // ---------------------------------------------------------------------------
+
+  /**
+   * ID of the work item bar or milestone currently being hovered or focused.
+   * Work item IDs are plain strings; milestone IDs are encoded as "milestone:<id>".
+   * When null, no item hover is active.
+   */
+  const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
+
+  // ---------------------------------------------------------------------------
   // Arrow hover state — tracks which arrow is hovered for dimming/highlighting
   // ---------------------------------------------------------------------------
 
@@ -264,6 +279,8 @@ export function GanttChart({
       description: string,
       mousePos: { clientX: number; clientY: number },
     ) => {
+      // Arrow hover takes precedence — clear any active item hover
+      setHoveredItemId(null);
       setHoveredArrowConnectedIds(connectedIds);
       // Show the arrow tooltip immediately (no debounce — arrows are smaller targets)
       if (showTimerRef.current !== null) {
@@ -286,6 +303,7 @@ export function GanttChart({
 
   const handleArrowLeave = useCallback(() => {
     setHoveredArrowConnectedIds(null);
+    setHoveredItemId(null);
     if (showTimerRef.current !== null) {
       clearTimeout(showTimerRef.current);
       showTimerRef.current = null;
@@ -501,39 +519,199 @@ export function GanttChart({
   }, [data.milestones]);
 
   // ---------------------------------------------------------------------------
+  // Item hover dependency lookup — pre-computed for performance
+  // ---------------------------------------------------------------------------
+
+  /**
+   * For each item (work item or milestone), pre-computes the set of connected
+   * entity IDs (work item string IDs + "milestone:<id>" encoded strings) and
+   * the set of arrow keys for connected dependency arrows.
+   *
+   * This allows O(1) lookup when a bar/milestone is hovered without iterating
+   * over all dependencies on every render.
+   *
+   * Entity IDs encoding:
+   *   - Work items:  plain string ID
+   *   - Milestones:  "milestone:<id>"
+   */
+  const itemDependencyLookup = useMemo<
+    ReadonlyMap<
+      string,
+      {
+        connectedEntityIds: ReadonlySet<string>;
+        arrowKeys: ReadonlySet<string>;
+        tooltipDeps: ReadonlyArray<GanttTooltipDependencyEntry>;
+      }
+    >
+  >(() => {
+    const lookup = new Map<
+      string,
+      {
+        connectedEntityIds: Set<string>;
+        arrowKeys: Set<string>;
+        tooltipDeps: GanttTooltipDependencyEntry[];
+      }
+    >();
+
+    function getOrCreate(id: string) {
+      let entry = lookup.get(id);
+      if (!entry) {
+        entry = { connectedEntityIds: new Set(), arrowKeys: new Set(), tooltipDeps: [] };
+        // Always include the item itself as connected (so it gets highlighted, not dimmed)
+        entry.connectedEntityIds.add(id);
+        lookup.set(id, entry);
+      }
+      return entry;
+    }
+
+    // Work-item-to-work-item dependencies
+    for (const dep of data.dependencies) {
+      const predId = dep.predecessorId;
+      const succId = dep.successorId;
+      const arrowKey = `${predId}-${succId}-${dep.dependencyType}`;
+
+      const predTitle = workItemMap.get(predId)?.title ?? predId;
+      const succTitle = workItemMap.get(succId)?.title ?? succId;
+
+      // For the predecessor: successor is connected; arrow is connected; successor is a dependency
+      const predEntry = getOrCreate(predId);
+      predEntry.connectedEntityIds.add(succId);
+      predEntry.arrowKeys.add(arrowKey);
+      predEntry.tooltipDeps.push({
+        relatedTitle: succTitle,
+        dependencyType: dep.dependencyType,
+        role: 'successor',
+      });
+
+      // For the successor: predecessor is connected; arrow is connected; predecessor is a dependency
+      const succEntry = getOrCreate(succId);
+      succEntry.connectedEntityIds.add(predId);
+      succEntry.arrowKeys.add(arrowKey);
+      succEntry.tooltipDeps.push({
+        relatedTitle: predTitle,
+        dependencyType: dep.dependencyType,
+        role: 'predecessor',
+      });
+    }
+
+    // Milestone contributing arrows: work item end → milestone diamond (FS)
+    for (const milestone of data.milestones) {
+      const milestoneKey = `milestone:${milestone.id}`;
+      for (const workItemId of milestone.workItemIds) {
+        const arrowKey = `milestone-contrib-${workItemId}-${milestone.id}`;
+
+        // For the work item: milestone is connected; arrow is connected
+        const wiEntry = getOrCreate(workItemId);
+        wiEntry.connectedEntityIds.add(milestoneKey);
+        wiEntry.arrowKeys.add(arrowKey);
+
+        // For the milestone: work item is connected; arrow is connected
+        const msEntry = getOrCreate(milestoneKey);
+        msEntry.connectedEntityIds.add(workItemId);
+        msEntry.arrowKeys.add(arrowKey);
+      }
+    }
+
+    // Milestone required arrows: milestone diamond → work item start (FS)
+    for (const item of data.workItems) {
+      if (!item.requiredMilestoneIds?.length) continue;
+      for (const milestoneId of item.requiredMilestoneIds) {
+        const milestoneKey = `milestone:${milestoneId}`;
+        const arrowKey = `milestone-req-${milestoneId}-${item.id}`;
+
+        // For the work item: milestone is connected; arrow is connected
+        const wiEntry = getOrCreate(item.id);
+        wiEntry.connectedEntityIds.add(milestoneKey);
+        wiEntry.arrowKeys.add(arrowKey);
+
+        // For the milestone: work item is connected; arrow is connected
+        const msEntry = getOrCreate(milestoneKey);
+        msEntry.connectedEntityIds.add(item.id);
+        msEntry.arrowKeys.add(arrowKey);
+      }
+    }
+
+    return lookup as ReadonlyMap<
+      string,
+      {
+        connectedEntityIds: ReadonlySet<string>;
+        arrowKeys: ReadonlySet<string>;
+        tooltipDeps: ReadonlyArray<GanttTooltipDependencyEntry>;
+      }
+    >;
+  }, [data.dependencies, data.milestones, data.workItems, workItemMap]);
+
+  // ---------------------------------------------------------------------------
   // Arrow hover interaction state — per-bar and per-milestone visual states
   // ---------------------------------------------------------------------------
 
   /**
    * Computes the interaction state for a work item bar given the current
-   * hovered arrow's connected IDs set.
+   * hovered arrow's connected IDs set or hovered item's connected IDs.
    * - 'highlighted' when the bar is a connected endpoint
-   * - 'dimmed' when an arrow is hovered but this bar is not connected
-   * - 'default' when no arrow is hovered
+   * - 'dimmed' when an arrow/item is hovered but this bar is not connected
+   * - 'default' when no arrow/item is hovered
+   *
+   * Arrow hover takes precedence over item hover.
    */
   const barInteractionStates = useMemo<ReadonlyMap<string, BarInteractionState>>(() => {
-    if (hoveredArrowConnectedIds === null) return new Map();
-    const map = new Map<string, BarInteractionState>();
-    for (const { item } of barData) {
-      map.set(item.id, hoveredArrowConnectedIds.has(item.id) ? 'highlighted' : 'dimmed');
+    if (hoveredArrowConnectedIds !== null) {
+      const map = new Map<string, BarInteractionState>();
+      for (const { item } of barData) {
+        map.set(item.id, hoveredArrowConnectedIds.has(item.id) ? 'highlighted' : 'dimmed');
+      }
+      return map;
     }
-    return map;
-  }, [hoveredArrowConnectedIds, barData]);
+    if (hoveredItemId !== null) {
+      const connectedIds = itemDependencyLookup.get(hoveredItemId)?.connectedEntityIds;
+      if (!connectedIds) return new Map();
+      const map = new Map<string, BarInteractionState>();
+      for (const { item } of barData) {
+        map.set(item.id, connectedIds.has(item.id) ? 'highlighted' : 'dimmed');
+      }
+      return map;
+    }
+    return new Map();
+  }, [hoveredArrowConnectedIds, hoveredItemId, barData, itemDependencyLookup]);
 
   /**
    * Computes the interaction state for each milestone given the current
-   * hovered arrow's connected IDs set.
+   * hovered arrow's connected IDs set or hovered item's connected IDs.
    * Milestone IDs in the connected set are encoded as "milestone:<id>".
+   *
+   * Arrow hover takes precedence over item hover.
    */
   const milestoneInteractionStates = useMemo<ReadonlyMap<number, MilestoneInteractionState>>(() => {
-    if (hoveredArrowConnectedIds === null) return new Map();
-    const map = new Map<number, MilestoneInteractionState>();
-    for (const milestone of data.milestones) {
-      const key = `milestone:${milestone.id}`;
-      map.set(milestone.id, hoveredArrowConnectedIds.has(key) ? 'highlighted' : 'dimmed');
+    if (hoveredArrowConnectedIds !== null) {
+      const map = new Map<number, MilestoneInteractionState>();
+      for (const milestone of data.milestones) {
+        const key = `milestone:${milestone.id}`;
+        map.set(milestone.id, hoveredArrowConnectedIds.has(key) ? 'highlighted' : 'dimmed');
+      }
+      return map;
     }
-    return map;
-  }, [hoveredArrowConnectedIds, data.milestones]);
+    if (hoveredItemId !== null) {
+      const connectedIds = itemDependencyLookup.get(hoveredItemId)?.connectedEntityIds;
+      if (!connectedIds) return new Map();
+      const map = new Map<number, MilestoneInteractionState>();
+      for (const milestone of data.milestones) {
+        const key = `milestone:${milestone.id}`;
+        map.set(milestone.id, connectedIds.has(key) ? 'highlighted' : 'dimmed');
+      }
+      return map;
+    }
+    return new Map();
+  }, [hoveredArrowConnectedIds, hoveredItemId, data.milestones, itemDependencyLookup]);
+
+  /**
+   * The set of arrow keys that should be highlighted due to item hover.
+   * Passed to GanttArrows for item-hover-driven arrow highlighting.
+   * When no item is hovered, this is undefined (no prop passed).
+   */
+  const highlightedArrowKeys = useMemo<ReadonlySet<string> | undefined>(() => {
+    if (hoveredItemId === null) return undefined;
+    return itemDependencyLookup.get(hoveredItemId)?.arrowKeys;
+  }, [hoveredItemId, itemDependencyLookup]);
 
   // SVG height: unified rows (interleaved work items + milestones)
   const totalRowCount = unifiedRows.length;
@@ -661,6 +839,7 @@ export function GanttChart({
               onArrowHover={handleArrowHover}
               onArrowMouseMove={handleArrowMouseMove}
               onArrowLeave={handleArrowLeave}
+              highlightedArrowKeys={highlightedArrowKeys}
             />
 
             {/* Milestone diamond markers (below work item bars, above arrows) */}
@@ -677,6 +856,8 @@ export function GanttChart({
                 }
                 onMilestoneMouseEnter={(milestone, e) => {
                   clearTooltipTimers();
+                  // Set item hover state for arrow/item highlighting
+                  setHoveredItemId(`milestone:${milestone.id}`);
                   // Capture trigger element for focus-return on Escape
                   tooltipTriggerElementRef.current = e.currentTarget;
                   const newPos: GanttTooltipPosition = { x: e.clientX, y: e.clientY };
@@ -704,12 +885,51 @@ export function GanttChart({
                 }}
                 onMilestoneMouseLeave={() => {
                   clearTooltipTimers();
+                  setHoveredItemId(null);
                   hideTimerRef.current = setTimeout(() => {
                     setTooltipData(null);
                   }, TOOLTIP_HIDE_DELAY);
                 }}
                 onMilestoneMouseMove={(e) => {
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMilestoneFocus={(milestone, e) => {
+                  clearTooltipTimers();
+                  setHoveredItemId(`milestone:${milestone.id}`);
+                  tooltipTriggerElementRef.current = e.currentTarget;
+                  // Compute position from element bounding rect center for keyboard focus
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const newPos: GanttTooltipPosition = {
+                    x: rect.left + rect.width / 2,
+                    y: rect.top + rect.height / 2,
+                  };
+                  showTimerRef.current = setTimeout(() => {
+                    const milestoneStatus = computeMilestoneStatus(milestone);
+                    const linkedWorkItems = milestone.workItemIds
+                      .map((wid) => {
+                        const wi = workItemMap.get(wid);
+                        return wi ? { id: wid, title: wi.title } : null;
+                      })
+                      .filter((x): x is { id: string; title: string } => x !== null);
+                    setTooltipData({
+                      kind: 'milestone',
+                      title: milestone.title,
+                      targetDate: milestone.targetDate,
+                      projectedDate: milestone.projectedDate,
+                      isCompleted: milestone.isCompleted,
+                      isLate: milestoneStatus === 'late',
+                      completedAt: milestone.completedAt,
+                      linkedWorkItems,
+                    });
+                    setTooltipPosition(newPos);
+                  }, TOOLTIP_SHOW_DELAY);
+                }}
+                onMilestoneBlur={() => {
+                  clearTooltipTimers();
+                  setHoveredItemId(null);
+                  hideTimerRef.current = setTimeout(() => {
+                    setTooltipData(null);
+                  }, TOOLTIP_HIDE_DELAY);
                 }}
                 onMilestoneClick={onMilestoneClick}
               />
@@ -735,16 +955,20 @@ export function GanttChart({
                   interactionState={barInteractionStates.get(item.id) ?? 'default'}
                   // Tooltip accessibility
                   tooltipId={tooltipTriggerId === item.id ? TOOLTIP_ID : undefined}
-                  // Tooltip props
+                  // Tooltip props (mouse hover)
                   onMouseEnter={(e) => {
                     clearTooltipTimers();
                     const tooltipItem = workItemMap.get(item.id);
                     if (!tooltipItem) return;
+                    // Set item hover state for dependency highlighting
+                    setHoveredItemId(item.id);
                     // Capture trigger element for focus-return on Escape
                     tooltipTriggerElementRef.current = e.currentTarget;
                     const newPos: GanttTooltipPosition = { x: e.clientX, y: e.clientY };
                     showTimerRef.current = setTimeout(() => {
                       setTooltipTriggerId(item.id);
+                      const tooltipDeps =
+                        itemDependencyLookup.get(item.id)?.tooltipDeps ?? [];
                       setTooltipData({
                         kind: 'work-item',
                         title: tooltipItem.title,
@@ -753,12 +977,14 @@ export function GanttChart({
                         endDate: tooltipItem.endDate,
                         durationDays: tooltipItem.durationDays,
                         assignedUserName: tooltipItem.assignedUser?.displayName ?? null,
+                        dependencies: tooltipDeps.length > 0 ? [...tooltipDeps] : undefined,
                       });
                       setTooltipPosition(newPos);
                     }, TOOLTIP_SHOW_DELAY);
                   }}
                   onMouseLeave={() => {
                     clearTooltipTimers();
+                    setHoveredItemId(null);
                     hideTimerRef.current = setTimeout(() => {
                       setTooltipData(null);
                       setTooltipTriggerId(null);
@@ -766,6 +992,44 @@ export function GanttChart({
                   }}
                   onMouseMove={(e) => {
                     setTooltipPosition({ x: e.clientX, y: e.clientY });
+                  }}
+                  // Keyboard focus — same highlight/dim/tooltip behaviour as mouse hover
+                  onFocus={(e) => {
+                    clearTooltipTimers();
+                    const tooltipItem = workItemMap.get(item.id);
+                    if (!tooltipItem) return;
+                    setHoveredItemId(item.id);
+                    tooltipTriggerElementRef.current = e.currentTarget;
+                    // Compute position from element bounding rect center for keyboard focus
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const newPos: GanttTooltipPosition = {
+                      x: rect.left + rect.width / 2,
+                      y: rect.top + rect.height / 2,
+                    };
+                    showTimerRef.current = setTimeout(() => {
+                      setTooltipTriggerId(item.id);
+                      const tooltipDeps =
+                        itemDependencyLookup.get(item.id)?.tooltipDeps ?? [];
+                      setTooltipData({
+                        kind: 'work-item',
+                        title: tooltipItem.title,
+                        status: tooltipItem.status,
+                        startDate: tooltipItem.startDate,
+                        endDate: tooltipItem.endDate,
+                        durationDays: tooltipItem.durationDays,
+                        assignedUserName: tooltipItem.assignedUser?.displayName ?? null,
+                        dependencies: tooltipDeps.length > 0 ? [...tooltipDeps] : undefined,
+                      });
+                      setTooltipPosition(newPos);
+                    }, TOOLTIP_SHOW_DELAY);
+                  }}
+                  onBlur={() => {
+                    clearTooltipTimers();
+                    setHoveredItemId(null);
+                    hideTimerRef.current = setTimeout(() => {
+                      setTooltipData(null);
+                      setTooltipTriggerId(null);
+                    }, TOOLTIP_HIDE_DELAY);
                   }}
                 />
               ))}

@@ -36,6 +36,22 @@
   opacity: 0.3;
 }
 
+/* When a bar is both highlighted and keyboard-focused, combine both visual states:
+   the highlight glow persists and the focus ring is layered on top. */
+.highlighted:focus-visible {
+  filter: brightness(1.2) drop-shadow(0 0 4px var(--color-primary))
+    drop-shadow(0 0 3px var(--color-focus-ring)) drop-shadow(0 0 6px var(--color-focus-ring));
+}
+
+/* Respect user preference for reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .bar,
+  .highlighted,
+  .dimmed {
+    transition: none;
+  }
+}
+
 .rect {
   /* fill is set inline via JS; no CSS fill here */
 }
