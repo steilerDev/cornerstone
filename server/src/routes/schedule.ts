@@ -72,6 +72,8 @@ export default async function scheduleRoutes(fastify: FastifyInstance) {
         status: wi.status,
         startDate: wi.startDate,
         endDate: wi.endDate,
+        actualStartDate: wi.actualStartDate,
+        actualEndDate: wi.actualEndDate,
         durationDays: wi.durationDays,
         startAfter: wi.startAfter,
         startBefore: wi.startBefore,
