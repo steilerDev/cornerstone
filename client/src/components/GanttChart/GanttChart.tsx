@@ -69,7 +69,6 @@ function resolveColors(): ChartColors {
       not_started: readCssVar('--color-gantt-bar-not-started'),
       in_progress: readCssVar('--color-gantt-bar-in-progress'),
       completed: readCssVar('--color-gantt-bar-completed'),
-      blocked: readCssVar('--color-gantt-bar-blocked'),
     },
     arrowDefault: readCssVar('--color-gantt-arrow-default'),
     arrowCritical: readCssVar('--color-gantt-arrow-critical'),
@@ -402,16 +401,19 @@ export function GanttChart({
   const barData = useMemo(() => {
     return sortedWorkItems.map((item) => {
       const rowIdx = workItemRowIndices.get(item.id) ?? 0;
+      // Use actual dates when available (AC12: actual dates override CPM-scheduled dates)
+      const effectiveStartDate = item.actualStartDate ?? item.startDate;
+      const effectiveEndDate = item.actualEndDate ?? item.endDate;
       const position = computeBarPosition(
-        item.startDate,
-        item.endDate,
+        effectiveStartDate,
+        effectiveEndDate,
         rowIdx,
         chartRange,
         zoom,
         today,
         columnWidth,
       );
-      return { item, position, rowIndex: rowIdx };
+      return { item, position, rowIndex: rowIdx, effectiveStartDate, effectiveEndDate };
     });
   }, [sortedWorkItems, workItemRowIndices, chartRange, zoom, today, columnWidth]);
 
@@ -967,6 +969,16 @@ export function GanttChart({
                     const newPos: GanttTooltipPosition = { x: e.clientX, y: e.clientY };
                     showTimerRef.current = setTimeout(() => {
                       setTooltipTriggerId(item.id);
+                      // Compute delay days: only for not_started items whose start date is in the past
+                      let delayDays: number | null = null;
+                      if (tooltipItem.status === 'not_started' && tooltipItem.startDate !== null) {
+                        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+                        if (tooltipItem.startDate < todayStr) {
+                          const startMs = new Date(tooltipItem.startDate).getTime();
+                          const todayMs = new Date(todayStr).getTime();
+                          delayDays = Math.floor((todayMs - startMs) / (1000 * 60 * 60 * 24));
+                        }
+                      }
                       const tooltipDeps = itemDependencyLookup.get(item.id)?.tooltipDeps ?? [];
                       setTooltipData({
                         kind: 'work-item',
@@ -977,6 +989,7 @@ export function GanttChart({
                         durationDays: tooltipItem.durationDays,
                         assignedUserName: tooltipItem.assignedUser?.displayName ?? null,
                         dependencies: tooltipDeps.length > 0 ? [...tooltipDeps] : undefined,
+                        delayDays,
                       });
                       setTooltipPosition(newPos);
                     }, TOOLTIP_SHOW_DELAY);
@@ -1007,6 +1020,16 @@ export function GanttChart({
                     };
                     showTimerRef.current = setTimeout(() => {
                       setTooltipTriggerId(item.id);
+                      // Compute delay days: only for not_started items whose start date is in the past
+                      let delayDays: number | null = null;
+                      if (tooltipItem.status === 'not_started' && tooltipItem.startDate !== null) {
+                        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+                        if (tooltipItem.startDate < todayStr) {
+                          const startMs = new Date(tooltipItem.startDate).getTime();
+                          const todayMs = new Date(todayStr).getTime();
+                          delayDays = Math.floor((todayMs - startMs) / (1000 * 60 * 60 * 24));
+                        }
+                      }
                       const tooltipDeps = itemDependencyLookup.get(item.id)?.tooltipDeps ?? [];
                       setTooltipData({
                         kind: 'work-item',
@@ -1017,6 +1040,7 @@ export function GanttChart({
                         durationDays: tooltipItem.durationDays,
                         assignedUserName: tooltipItem.assignedUser?.displayName ?? null,
                         dependencies: tooltipDeps.length > 0 ? [...tooltipDeps] : undefined,
+                        delayDays,
                       });
                       setTooltipPosition(newPos);
                     }, TOOLTIP_SHOW_DELAY);

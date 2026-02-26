@@ -18,6 +18,10 @@ export interface TimelineWorkItem {
   status: WorkItemStatus;
   startDate: string | null;
   endDate: string | null;
+  /** Actual start date (YYYY-MM-DD) for delay tracking visualization. */
+  actualStartDate: string | null;
+  /** Actual end date (YYYY-MM-DD) for delay tracking visualization. */
+  actualEndDate: string | null;
   durationDays: number | null;
   /** Earliest start constraint (scheduling). */
   startAfter: string | null;

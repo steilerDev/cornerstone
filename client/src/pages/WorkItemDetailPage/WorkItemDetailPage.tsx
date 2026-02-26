@@ -186,6 +186,8 @@ export default function WorkItemDetailPage() {
   const [localDuration, setLocalDuration] = useState<string>('');
   const [localStartAfter, setLocalStartAfter] = useState<string>('');
   const [localStartBefore, setLocalStartBefore] = useState<string>('');
+  const [localActualStartDate, setLocalActualStartDate] = useState<string>('');
+  const [localActualEndDate, setLocalActualEndDate] = useState<string>('');
   const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
   const [deletingSubtaskId, setDeletingSubtaskId] = useState<string | null>(null);
   const [deletingDependency, setDeletingDependency] = useState<DeletingDependency | null>(null);
@@ -237,6 +239,8 @@ export default function WorkItemDetailPage() {
         );
         setLocalStartAfter(workItemData.startAfter || '');
         setLocalStartBefore(workItemData.startBefore || '');
+        setLocalActualStartDate(workItemData.actualStartDate || '');
+        setLocalActualEndDate(workItemData.actualEndDate || '');
         setNotes(notesData.notes);
         setSubtasks(subtasksData.subtasks);
         setDependencies(depsData);
@@ -286,6 +290,8 @@ export default function WorkItemDetailPage() {
       setLocalDuration(updated.durationDays != null ? String(updated.durationDays) : '');
       setLocalStartAfter(updated.startAfter || '');
       setLocalStartBefore(updated.startBefore || '');
+      setLocalActualStartDate(updated.actualStartDate || '');
+      setLocalActualEndDate(updated.actualEndDate || '');
     } catch (err) {
       console.error('Failed to reload work item:', err);
     }
@@ -663,6 +669,27 @@ export default function WorkItemDetailPage() {
       await reloadWorkItem();
     } catch (err) {
       setInlineError(`Failed to update ${field}`);
+      console.error(`Failed to update ${field}:`, err);
+    }
+  };
+
+  // Actual date changes — saves onBlur, allows manual override or clearing
+  const handleActualDateBlur = async (field: 'actualStartDate' | 'actualEndDate') => {
+    if (!id || !workItem) return;
+    const localValue = field === 'actualStartDate' ? localActualStartDate : localActualEndDate;
+    const currentValue = workItem[field] || '';
+
+    // Only save if the value actually changed
+    if (localValue === currentValue) return;
+
+    setInlineError(null);
+    try {
+      await updateWorkItem(id, { [field]: localValue || null });
+      await reloadWorkItem();
+    } catch (err) {
+      setInlineError(
+        `Failed to update ${field === 'actualStartDate' ? 'actual start date' : 'actual end date'}`,
+      );
       console.error(`Failed to update ${field}:`, err);
     }
   };
@@ -1132,7 +1159,6 @@ export default function WorkItemDetailPage() {
               <option value="not_started">Not Started</option>
               <option value="in_progress">In Progress</option>
               <option value="completed">Completed</option>
-              <option value="blocked">Blocked</option>
             </select>
           </div>
         </div>
@@ -1211,6 +1237,22 @@ export default function WorkItemDetailPage() {
                 </span>
               </div>
             </div>
+            {/* Delay indicator: shown when not_started and scheduled start is in the past */}
+            {(() => {
+              if (workItem.status !== 'not_started' || !workItem.startDate) return null;
+              const today = new Date();
+              const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+              if (workItem.startDate >= todayStr) return null;
+              const startMs = new Date(workItem.startDate).getTime();
+              const todayMs = new Date(todayStr).getTime();
+              const delayDays = Math.floor((todayMs - startMs) / (1000 * 60 * 60 * 24));
+              return (
+                <div className={styles.delayIndicator} role="status" aria-live="polite">
+                  <span aria-hidden="true">⚠</span>
+                  Delayed by {delayDays} {delayDays === 1 ? 'day' : 'days'}
+                </div>
+              );
+            })()}
           </section>
 
           {/* Assigned User */}
@@ -1882,6 +1924,28 @@ export default function WorkItemDetailPage() {
                     value={localStartBefore}
                     onChange={(e) => setLocalStartBefore(e.target.value)}
                     onBlur={() => void handleConstraintBlur('startBefore')}
+                  />
+                </div>
+
+                <div className={styles.property}>
+                  <label className={styles.propertyLabel}>Actual Start</label>
+                  <input
+                    type="date"
+                    className={styles.propertyInput}
+                    value={localActualStartDate}
+                    onChange={(e) => setLocalActualStartDate(e.target.value)}
+                    onBlur={() => void handleActualDateBlur('actualStartDate')}
+                  />
+                </div>
+
+                <div className={styles.property}>
+                  <label className={styles.propertyLabel}>Actual End</label>
+                  <input
+                    type="date"
+                    className={styles.propertyInput}
+                    value={localActualEndDate}
+                    onChange={(e) => setLocalActualEndDate(e.target.value)}
+                    onBlur={() => void handleActualDateBlur('actualEndDate')}
                   />
                 </div>
               </div>

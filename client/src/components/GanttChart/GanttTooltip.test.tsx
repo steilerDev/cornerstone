@@ -118,7 +118,6 @@ describe('GanttTooltip', () => {
       { status: 'not_started', expectedLabel: 'Not started' },
       { status: 'in_progress', expectedLabel: 'In progress' },
       { status: 'completed', expectedLabel: 'Completed' },
-      { status: 'blocked', expectedLabel: 'Blocked' },
     ];
 
     statuses.forEach(({ status, expectedLabel }) => {

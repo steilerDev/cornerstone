@@ -257,7 +257,6 @@ export default function WorkItemCreatePage() {
               <option value="not_started">Not Started</option>
               <option value="in_progress">In Progress</option>
               <option value="completed">Completed</option>
-              <option value="blocked">Blocked</option>
             </select>
           </div>
 

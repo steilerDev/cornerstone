@@ -46,6 +46,8 @@ function makeWorkItem(
     startDate,
     endDate,
     durationDays: null,
+    actualStartDate: null,
+    actualEndDate: null,
     startAfter: null,
     startBefore: null,
     assignedUser: null,

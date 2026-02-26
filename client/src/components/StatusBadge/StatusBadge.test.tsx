@@ -24,12 +24,6 @@ describe('StatusBadge', () => {
     expect(screen.getByText('Completed')).toBeInTheDocument();
   });
 
-  it('renders "Blocked" text for blocked status', () => {
-    render(<StatusBadge status="blocked" />);
-
-    expect(screen.getByText('Blocked')).toBeInTheDocument();
-  });
-
   it('applies badge CSS class', () => {
     const { container } = render(<StatusBadge status="not_started" />);
 
@@ -56,13 +50,6 @@ describe('StatusBadge', () => {
 
     const badge = container.querySelector('span');
     expect(badge).toHaveClass('completed');
-  });
-
-  it('applies blocked CSS class for blocked status', () => {
-    const { container } = render(<StatusBadge status="blocked" />);
-
-    const badge = container.querySelector('span');
-    expect(badge).toHaveClass('blocked');
   });
 
   it('renders as a span element', () => {

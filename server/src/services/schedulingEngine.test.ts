@@ -21,6 +21,8 @@ function makeItem(
     status: 'not_started',
     startDate: null,
     endDate: null,
+    actualStartDate: null,
+    actualEndDate: null,
     durationDays,
     startAfter: null,
     startBefore: null,
@@ -860,6 +862,193 @@ describe('Scheduling Engine', () => {
       // A has no predecessors within the cascade set, starts today
       expect(byId['A'].scheduledStartDate).toBe('2026-01-10');
       expect(byId['B'].scheduledStartDate).toBe('2026-01-13');
+    });
+  });
+
+  // ─── Actual dates (Issue #296) ─────────────────────────────────────────────
+
+  describe('actualStartDate and actualEndDate overrides', () => {
+    it('uses actualStartDate as ES instead of CPM-computed value', () => {
+      // A is not_started but has an explicit actualStartDate far in the past.
+      // The actualStartDate must take absolute precedence over CPM/today floor.
+      const item = makeItem('A', 5, {
+        status: 'in_progress',
+        actualStartDate: '2026-01-03',
+        actualEndDate: null,
+      });
+      const result = schedule(fullParams([item], [], '2026-01-10'));
+
+      const si = result.scheduledItems[0];
+      // actualStartDate overrides the engine's computation (today=2026-01-10)
+      expect(si.scheduledStartDate).toBe('2026-01-03');
+      // Without actualEndDate, EF = actualStartDate + duration
+      expect(si.scheduledEndDate).toBe('2026-01-08');
+    });
+
+    it('uses actualEndDate as EF instead of actualStartDate + duration', () => {
+      // Item started 2026-01-01 but took longer — finished 2026-01-10 instead of 2026-01-06
+      const item = makeItem('A', 5, {
+        status: 'completed',
+        actualStartDate: '2026-01-01',
+        actualEndDate: '2026-01-10',
+      });
+      const result = schedule(fullParams([item], [], '2026-01-10'));
+
+      const si = result.scheduledItems[0];
+      expect(si.scheduledStartDate).toBe('2026-01-01');
+      // actualEndDate overrides the ES+duration calculation
+      expect(si.scheduledEndDate).toBe('2026-01-10');
+    });
+
+    it('propagates actual dates to downstream dependencies', () => {
+      // A (in_progress, actualStartDate=2026-01-03, actualEndDate=2026-01-15) -> B (5d)
+      // B.ES must come from A.actualEndDate, not A.CPM-computed-EF
+      const a = makeItem('A', 5, {
+        status: 'in_progress',
+        actualStartDate: '2026-01-03',
+        actualEndDate: '2026-01-15', // Late — extends 10 days past the 5d duration
+      });
+      const b = makeItem('B', 5, { status: 'not_started' });
+      const deps = [makeDep('A', 'B', 'finish_to_start')];
+      const result = schedule(fullParams([a, b], deps, '2026-01-10'));
+
+      const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
+      // A's EF = actualEndDate = 2026-01-15; B starts from A.EF
+      expect(byId['A'].scheduledStartDate).toBe('2026-01-03');
+      expect(byId['A'].scheduledEndDate).toBe('2026-01-15');
+      expect(byId['B'].scheduledStartDate).toBe('2026-01-15');
+      expect(byId['B'].scheduledEndDate).toBe('2026-01-20');
+    });
+
+    it('propagates actualStartDate-only to downstream dependencies (no actualEndDate)', () => {
+      // A (in_progress, actualStartDate=2026-01-05, no actualEndDate, duration=3) -> B (4d)
+      // A.EF = 2026-01-05 + 3 = 2026-01-08; B starts from there
+      const a = makeItem('A', 3, {
+        status: 'in_progress',
+        actualStartDate: '2026-01-05',
+        actualEndDate: null,
+      });
+      const b = makeItem('B', 4, { status: 'not_started' });
+      const deps = [makeDep('A', 'B', 'finish_to_start')];
+      const result = schedule(fullParams([a, b], deps, '2026-01-10'));
+
+      const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
+      expect(byId['A'].scheduledStartDate).toBe('2026-01-05');
+      expect(byId['A'].scheduledEndDate).toBe('2026-01-08');
+      expect(byId['B'].scheduledStartDate).toBe('2026-01-08');
+      expect(byId['B'].scheduledEndDate).toBe('2026-01-12');
+    });
+
+    it('item with only actualEndDate but no actualStartDate uses CPM-computed ES', () => {
+      // If actualStartDate is null but actualEndDate is set, the engine falls
+      // through to the normal CPM path and does not use actualEndDate as EF override.
+      // (actualEndDate override only applies when actualStartDate is also set)
+      const item = makeItem('A', 5, {
+        status: 'completed',
+        actualStartDate: null,
+        actualEndDate: '2025-12-20',
+      });
+      // today=2026-01-01 => completed item with no actualStartDate gets ES=today via CPM
+      const result = schedule(fullParams([item], [], '2026-01-01'));
+
+      const si = result.scheduledItems[0];
+      // Completed root node with null startDate → ES = today
+      expect(si.scheduledStartDate).toBe('2026-01-01');
+      // Without actualStartDate path, actualEndDate is NOT used as override
+      expect(si.scheduledEndDate).toBe('2026-01-06'); // today + 5d
+    });
+  });
+
+  // ─── Today floor for not_started items (Issue #296) ────────────────────────
+
+  describe('today floor for not_started items', () => {
+    it('floors ES to today for not_started root items with no startDate', () => {
+      const item = makeItem('A', 5, { status: 'not_started', startDate: null });
+      const result = schedule(fullParams([item], [], '2026-05-01'));
+
+      expect(result.scheduledItems[0].scheduledStartDate).toBe('2026-05-01');
+    });
+
+    it('floors ES to today even when CPM would produce an earlier date', () => {
+      // not_started item with startDate in the past — today floor should win
+      const item = makeItem('A', 5, {
+        status: 'not_started',
+        startDate: '2026-01-01', // Past date
+      });
+      const result = schedule(fullParams([item], [], '2026-05-01'));
+
+      // The root item uses item.startDate as base for non-completed roots.
+      // Then today floor is applied: max('2026-01-01', '2026-05-01') = '2026-05-01'
+      expect(result.scheduledItems[0].scheduledStartDate).toBe('2026-05-01');
+    });
+
+    it('does not apply today floor to in_progress items', () => {
+      // An in_progress item may legitimately have a past start date.
+      // The today floor only applies to not_started items.
+      const item = makeItem('A', 5, {
+        status: 'in_progress',
+        startDate: '2026-01-01', // Past start date, this is normal for in_progress
+      });
+      const result = schedule(fullParams([item], [], '2026-05-01'));
+
+      // Root non-completed item uses its startDate; today floor NOT applied
+      expect(result.scheduledItems[0].scheduledStartDate).toBe('2026-01-01');
+    });
+
+    it('does not apply today floor to completed items', () => {
+      // Completed items always compute from today (for already_completed warning detection),
+      // but that path is distinct from the not_started floor.
+      const item = makeItem('A', 5, {
+        status: 'completed',
+        startDate: '2026-01-01',
+        endDate: '2026-01-06',
+      });
+      const result = schedule(fullParams([item], [], '2026-05-01'));
+
+      // Completed root: ES = today (not item.startDate), but NOT because of not_started floor
+      expect(result.scheduledItems[0].scheduledStartDate).toBe('2026-05-01');
+    });
+
+    it('takes max of startAfter and today floor for not_started items', () => {
+      // not_started item with startAfter far in the future — startAfter should win
+      const item = makeItem('A', 5, {
+        status: 'not_started',
+        startAfter: '2026-08-01',
+      });
+      const result = schedule(fullParams([item], [], '2026-05-01'));
+
+      // today=2026-05-01, startAfter=2026-08-01 => max = 2026-08-01
+      expect(result.scheduledItems[0].scheduledStartDate).toBe('2026-08-01');
+    });
+
+    it('takes max of today floor and startAfter when today is later than startAfter', () => {
+      // today is later than startAfter → today floor wins
+      const item = makeItem('A', 5, {
+        status: 'not_started',
+        startAfter: '2026-01-01',
+      });
+      const result = schedule(fullParams([item], [], '2026-05-01'));
+
+      expect(result.scheduledItems[0].scheduledStartDate).toBe('2026-05-01');
+    });
+
+    it('applies today floor to not_started successor with dependencies', () => {
+      // A (completed) -> B (not_started, 3d)
+      // A.EF = 2026-04-10 (in the past), today = 2026-05-01
+      // B.ES would be 2026-04-10 from dependency, but today floor pushes it to 2026-05-01
+      const a = makeItem('A', 5, {
+        status: 'completed',
+        actualStartDate: '2026-04-05',
+        actualEndDate: '2026-04-10',
+      });
+      const b = makeItem('B', 3, { status: 'not_started' });
+      const deps = [makeDep('A', 'B', 'finish_to_start')];
+      const result = schedule(fullParams([a, b], deps, '2026-05-01'));
+
+      const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
+      // B.ES from dep = A.EF = 2026-04-10, but today floor = 2026-05-01 => today wins
+      expect(byId['B'].scheduledStartDate).toBe('2026-05-01');
+      expect(byId['B'].scheduledEndDate).toBe('2026-05-04');
     });
   });
 });

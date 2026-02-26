@@ -9,7 +9,6 @@ const STATUS_BORDER_COLORS: Record<WorkItemStatus, string> = {
   not_started: 'var(--color-status-not-started-text)',
   in_progress: 'var(--color-status-in-progress-text)',
   completed: 'var(--color-status-completed-text)',
-  blocked: 'var(--color-status-blocked-text)',
 };
 
 export interface SpecialOption {

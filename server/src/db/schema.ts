@@ -76,12 +76,14 @@ export const workItems = sqliteTable(
     title: text('title').notNull(),
     description: text('description'),
     status: text('status', {
-      enum: ['not_started', 'in_progress', 'completed', 'blocked'],
+      enum: ['not_started', 'in_progress', 'completed'],
     })
       .notNull()
       .default('not_started'),
     startDate: text('start_date'),
     endDate: text('end_date'),
+    actualStartDate: text('actual_start_date'),
+    actualEndDate: text('actual_end_date'),
     durationDays: integer('duration_days'),
     startAfter: text('start_after'),
     startBefore: text('start_before'),

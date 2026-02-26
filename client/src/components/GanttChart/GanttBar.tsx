@@ -61,7 +61,6 @@ const STATUS_LABELS: Record<WorkItemStatus, string> = {
   not_started: 'Not started',
   in_progress: 'In progress',
   completed: 'Completed',
-  blocked: 'Blocked',
 };
 
 /**

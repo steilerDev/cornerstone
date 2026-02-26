@@ -134,8 +134,3 @@
   background: var(--color-status-completed-bg);
   color: var(--color-status-completed-text);
 }
-
-.blocked {
-  background: var(--color-status-blocked-bg);
-  color: var(--color-status-blocked-text);
-}

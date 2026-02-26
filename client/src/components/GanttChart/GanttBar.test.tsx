@@ -120,12 +120,6 @@ describe('GanttBar', () => {
     expect(group).toHaveAttribute('aria-label', expect.stringContaining('In progress'));
   });
 
-  it('aria-label maps blocked status correctly', () => {
-    renderInSvg({ ...DEFAULT_PROPS, status: 'blocked' });
-    const group = screen.getByRole('graphics-symbol');
-    expect(group).toHaveAttribute('aria-label', expect.stringContaining('Blocked'));
-  });
-
   // ── Enriched aria-label with dates (Story 6.9) ────────────────────────────
 
   it('aria-label includes date range when both startDate and endDate are provided', () => {
@@ -169,9 +163,9 @@ describe('GanttBar', () => {
 
   it('aria-label has no date segment when startDate and endDate are both undefined', () => {
     // DEFAULT_PROPS has no startDate/endDate — omitting both props
-    renderInSvg({ ...DEFAULT_PROPS, title: 'Plumbing', status: 'blocked' });
+    renderInSvg({ ...DEFAULT_PROPS, title: 'Plumbing', status: 'not_started' });
     const group = screen.getByRole('graphics-symbol');
-    expect(group).toHaveAttribute('aria-label', 'Work item: Plumbing, Blocked');
+    expect(group).toHaveAttribute('aria-label', 'Work item: Plumbing, Not started');
   });
 
   it('aria-label includes critical path suffix after date range', () => {
