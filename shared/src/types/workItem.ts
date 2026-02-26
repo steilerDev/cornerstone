@@ -60,12 +60,10 @@ export interface WorkItemSummary {
 
 /**
  * Dependency response shape (used in work item detail).
- * EPIC-06: Added leadLagDays for scheduling offset support.
  */
 export interface DependencyResponse {
   workItem: WorkItemSummary;
   dependencyType: DependencyType;
-  leadLagDays: number;
 }
 
 /**
@@ -153,25 +151,4 @@ export type WorkItemListResponse = PaginatedResponse<WorkItemSummary>;
 export interface WorkItemDependenciesResponse {
   predecessors: DependencyResponse[];
   successors: DependencyResponse[];
-}
-
-/**
- * Compact milestone shape used in work item milestone responses.
- * EPIC-06 UAT Fix 4: Bidirectional milestone-work item dependency tracking.
- */
-export interface MilestoneSummaryForWorkItem {
-  id: number;
-  name: string;
-  targetDate: string | null;
-}
-
-/**
- * Response for GET /api/work-items/:id/milestones.
- * EPIC-06 UAT Fix 4: Bidirectional milestone-work item dependency tracking.
- */
-export interface WorkItemMilestones {
-  /** Milestones this work item depends on (must complete before work item can start). */
-  required: MilestoneSummaryForWorkItem[];
-  /** Milestones this work item contributes to (linked milestones). */
-  linked: MilestoneSummaryForWorkItem[];
 }

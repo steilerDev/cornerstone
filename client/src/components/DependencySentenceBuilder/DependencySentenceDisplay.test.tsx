@@ -24,7 +24,6 @@ function mockDependencyResponse(overrides: Partial<DependencyResponse> = {}): De
       updatedAt: '2024-01-01T00:00:00Z',
     },
     dependencyType: 'finish_to_start',
-    leadLagDays: 0,
     ...overrides,
   };
 }

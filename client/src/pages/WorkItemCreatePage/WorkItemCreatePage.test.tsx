@@ -130,48 +130,12 @@ describe('WorkItemCreatePage', () => {
       expect(screen.getByLabelText(/description/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/status/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/assigned to/i)).toBeInTheDocument();
-      // startDate and endDate are NOT shown at creation — they are computed by the scheduling engine
-      expect(screen.queryByLabelText(/start date/i)).not.toBeInTheDocument();
-      expect(screen.queryByLabelText(/end date/i)).not.toBeInTheDocument();
+      expect(screen.getByLabelText(/start date/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/end date/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/duration/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/start after/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/start before/i)).toBeInTheDocument();
       expect(screen.getByText('Tags')).toBeInTheDocument();
-    });
-
-    it('does not render start date or end date inputs (computed by scheduling engine)', async () => {
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByLabelText(/title/i)).toBeInTheDocument();
-      });
-
-      // These are read-only computed fields shown on WorkItemDetailPage, not editable at creation
-      expect(screen.queryByLabelText(/^start date$/i)).not.toBeInTheDocument();
-      expect(screen.queryByLabelText(/^end date$/i)).not.toBeInTheDocument();
-    });
-
-    it('renders duration and constraint inputs as editable fields', async () => {
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByLabelText(/title/i)).toBeInTheDocument();
-      });
-
-      const durationInput = screen.getByLabelText(/duration/i) as HTMLInputElement;
-      expect(durationInput).toBeInTheDocument();
-      expect(durationInput.type).toBe('number');
-      expect(durationInput).not.toBeDisabled();
-
-      const startAfterInput = screen.getByLabelText(/start after/i) as HTMLInputElement;
-      expect(startAfterInput).toBeInTheDocument();
-      expect(startAfterInput.type).toBe('date');
-      expect(startAfterInput).not.toBeDisabled();
-
-      const startBeforeInput = screen.getByLabelText(/start before/i) as HTMLInputElement;
-      expect(startBeforeInput).toBeInTheDocument();
-      expect(startBeforeInput.type).toBe('date');
-      expect(startBeforeInput).not.toBeDisabled();
     });
 
     it('renders submit and cancel buttons', async () => {
@@ -221,6 +185,30 @@ describe('WorkItemCreatePage', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Title is required')).toBeInTheDocument();
+      });
+
+      expect(mockCreateWorkItem).not.toHaveBeenCalled();
+    });
+
+    it('shows validation error when start date is after end date', async () => {
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/title/i)).toBeInTheDocument();
+      });
+
+      await user.type(screen.getByLabelText(/title/i), 'Test Work Item');
+      await user.type(screen.getByLabelText(/start date/i), '2024-12-31');
+      await user.type(screen.getByLabelText(/end date/i), '2024-01-01');
+
+      const submitButton = screen.getByRole('button', { name: /create work item/i });
+      await user.click(submitButton);
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(/start date must be before or equal to end date/i),
+        ).toBeInTheDocument();
       });
 
       expect(mockCreateWorkItem).not.toHaveBeenCalled();

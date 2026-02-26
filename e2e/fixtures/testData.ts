@@ -48,7 +48,4 @@ export const API = {
   budgetSources: '/api/budget-sources',
   subsidyPrograms: '/api/subsidy-programs',
   budgetOverview: '/api/budget/overview',
-  milestones: '/api/milestones',
-  timeline: '/api/timeline',
-  schedule: '/api/schedule',
 };
