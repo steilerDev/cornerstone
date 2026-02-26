@@ -335,12 +335,15 @@ export function GanttTooltip({ data, position, id }: GanttTooltipProps) {
       ? TOOLTIP_HEIGHT_BASE + Math.min(depsCount, MAX_DEPS_SHOWN) * 18
       : TOOLTIP_HEIGHT_ESTIMATE;
 
-  let tooltipX = position.x + OFFSET_X;
+  // Default: place tooltip to the left of the cursor so it doesn't cover upcoming work items
+  // (Gantt chart flows left-to-right, so future items are to the right of the hovered bar).
+  // Fall back to right-of-cursor if there isn't enough space on the left.
+  let tooltipX = position.x - TOOLTIP_WIDTH - OFFSET_X;
   let tooltipY = position.y + OFFSET_Y;
 
-  // Flip horizontally if it would overflow the right edge
-  if (tooltipX + TOOLTIP_WIDTH > viewportWidth - 8) {
-    tooltipX = position.x - TOOLTIP_WIDTH - OFFSET_X;
+  // Flip to the right if it would overflow the left edge
+  if (tooltipX < 8) {
+    tooltipX = position.x + OFFSET_X;
   }
 
   // Flip vertically if it would overflow the bottom edge
