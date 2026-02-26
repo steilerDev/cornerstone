@@ -119,16 +119,17 @@ For isolated defects, UAT failures, or single-issue fixes, use the `/bugfix` ski
 
 **Do NOT use for**: new features, multi-story changes, or architectural work — use the full epic workflow.
 
-**8-step flow:**
+**9-step flow:**
 
 1. **Rebase** to `origin/beta`
 2. **Spec & Approve** — PO drafts spec → user reviews and approves → GitHub Issue created
 3. **Branch** — `fix/<issue-number>-<short-description>`
 4. **Implement + Test** — dev(s) + QA in parallel (backend + frontend in parallel if both needed)
 5. **Commit & PR** — targeting `beta`, with `Fixes #<issue-number>`
-6. **CI** — wait for green
-7. **Review** — architect + security in parallel
-8. **Fix loop & Merge** — squash merge to `beta`
+6. **CI + Review** — CI runs in background while architect + security review in parallel (results posted to the issue)
+7. **Fix loop & Merge** — squash merge to `beta`
+8. **User Verification** — present PR link, DockerHub beta tag, and implementation summary; wait for user confirmation (or loop back to step 4 with feedback)
+9. **Close & Clean up** — close the issue, move to Done on the board, delete the branch, exit session and remove worktree
 
 ## Acceptance & Validation
 
