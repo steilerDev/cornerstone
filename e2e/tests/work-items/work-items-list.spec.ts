@@ -185,8 +185,13 @@ test.describe('Search filters (Scenario 4)', { tag: '@responsive' }, () => {
       expect(titles).toContain(alphaTitle);
       expect(titles).not.toContain(betaTitle);
 
-      // Clear search — both should reappear
+      // Clear search — both should reappear.
+      // Wait 400ms after clearing to let the 300ms search debounce settle
+      // completely before issuing a new search. On slow WebKit runners the
+      // debounce from clear() can overlap with the next search(), causing
+      // waitForResponse() inside search() to capture the stale clear response.
       await workItemsPage.clearSearch();
+      await page.waitForTimeout(400);
       await workItemsPage.search(testPrefix);
       titles = await workItemsPage.getWorkItemTitles();
       expect(titles).toContain(alphaTitle);

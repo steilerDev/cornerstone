@@ -50,12 +50,18 @@
   margin-bottom: 2rem;
 }
 
+.navButtons {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
 .backButton {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
-  margin-bottom: 1rem;
   background: transparent;
   border: 1px solid var(--color-border-strong);
   border-radius: 0.375rem;
@@ -73,6 +79,35 @@
 .backButton:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.secondaryNavButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  opacity: 0.7;
+}
+
+.secondaryNavButton:hover {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  opacity: 1;
+}
+
+.secondaryNavButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  opacity: 1;
+  position: relative;
+  z-index: 1;
 }
 
 .headerRow {
@@ -240,6 +275,19 @@
   font-size: 0.875rem;
   font-weight: 500;
   color: var(--color-text-muted);
+}
+
+.propertyValue {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  padding: 0.625rem 0;
+}
+
+.sectionDescription {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  margin: -0.5rem 0 1rem 0;
+  line-height: 1.5;
 }
 
 .propertyInput,
@@ -437,10 +485,95 @@
   cursor: not-allowed;
 }
 
+/* Constraints section subsections */
+.constraintSubsection {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.constraintSubsectionFirst {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.constraintSubsectionDesc {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  margin: -0.25rem 0 0.75rem 0;
+  line-height: 1.5;
+}
+
+/* Milestone chips */
+.milestoneChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.milestoneChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.3125rem 0.5rem 0.3125rem 0.75rem;
+  background: var(--color-primary-bg);
+  border: 1px solid var(--color-primary-bg-hover);
+  border-radius: var(--radius-full, 9999px);
+  font-size: 0.8125rem;
+  color: var(--color-primary-badge-text);
+  max-width: 100%;
+}
+
+.milestoneChipLinked {
+  background: var(--color-success-badge-bg);
+  border-color: var(--color-success-badge-bg-alt);
+  color: var(--color-success-badge-text);
+}
+
+.milestoneChipName {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.milestoneChipDate {
+  font-size: 0.75rem;
+  opacity: 0.8;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.milestoneChipRemove {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.125rem 0.25rem;
+  border-radius: var(--radius-sm, 0.25rem);
+  color: inherit;
+  opacity: 0.6;
+  transition:
+    opacity 0.15s,
+    background 0.15s;
+}
+
+.milestoneChipRemove:hover {
+  opacity: 1;
+  background: var(--color-overlay-danger);
+  color: var(--color-danger);
+}
+
 /* Dependencies */
 .addDependencySection {
-  margin-top: 1.25rem;
-  padding-top: 1rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
   border-top: 1px solid var(--color-border);
 }
 

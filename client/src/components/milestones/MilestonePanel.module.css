@@ -1,0 +1,884 @@
+/* ============================================================
+ * MilestonePanel — modal dialog for milestone CRUD
+ * Follows the AutoScheduleDialog pattern in TimelinePage.
+ * ============================================================ */
+
+/* ---- Overlay / backdrop ---- */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--color-overlay);
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-4);
+  /* Fade-in animation */
+  animation: overlayFadeIn 0.2s ease forwards;
+}
+
+@keyframes overlayFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ---- Dialog container ---- */
+
+.dialog {
+  background: var(--color-bg-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-2xl);
+  width: 100%;
+  max-width: 560px;
+  max-height: calc(100vh - var(--spacing-8));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  /* Scale-in animation */
+  animation: dialogScaleIn 0.2s ease forwards;
+}
+
+@keyframes dialogScaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ---- Dialog header ---- */
+
+.dialogHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-6) var(--spacing-6) var(--spacing-4);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.dialogTitle {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.closeButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: none;
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: var(--transition-button-border);
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.closeButton:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-hover);
+}
+
+.closeButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+/* ---- Dialog body ---- */
+
+.dialogBody {
+  padding: var(--spacing-4) var(--spacing-6);
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* ---- Dialog footer ---- */
+
+.dialogFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-3);
+  padding: var(--spacing-4) var(--spacing-6) var(--spacing-6);
+  border-top: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+/* ---- Buttons ---- */
+
+.buttonCancel {
+  padding: var(--spacing-2) var(--spacing-4);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition-button-border);
+  min-height: 36px;
+}
+
+.buttonCancel:hover:not(:disabled) {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.buttonCancel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.buttonCancel:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.buttonConfirm {
+  padding: var(--spacing-2) var(--spacing-4);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-primary-text);
+  background: var(--color-primary);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition-button);
+  min-height: 36px;
+  white-space: nowrap;
+}
+
+.buttonConfirm:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+}
+
+.buttonConfirm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.buttonConfirm:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.buttonDanger {
+  padding: var(--spacing-2) var(--spacing-4);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-danger-text);
+  background: var(--color-danger);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition-button);
+  min-height: 36px;
+  white-space: nowrap;
+}
+
+.buttonDanger:hover:not(:disabled) {
+  background: var(--color-danger-hover);
+  border-color: var(--color-danger-hover);
+}
+
+.buttonDanger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.buttonDanger:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus-danger);
+}
+
+.buttonDangerOutline {
+  padding: var(--spacing-2) var(--spacing-4);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-danger-text-on-light);
+  background: transparent;
+  border: 1px solid var(--color-danger-input-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition-button-border);
+  min-height: 36px;
+}
+
+.buttonDangerOutline:hover:not(:disabled) {
+  background: var(--color-danger-bg);
+}
+
+.buttonDangerOutline:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.buttonDangerOutline:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus-danger);
+}
+
+/* ---- List view ---- */
+
+.listLoading {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  text-align: center;
+  padding: var(--spacing-8) var(--spacing-4);
+}
+
+.listError {
+  font-size: var(--font-size-sm);
+  color: var(--color-danger-text-on-light);
+  background: var(--color-danger-bg);
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-3);
+}
+
+.listEmpty {
+  text-align: center;
+  padding: var(--spacing-8) var(--spacing-4);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.listEmptyHint {
+  font-size: var(--font-size-xs);
+  margin: var(--spacing-1) 0 0;
+  color: var(--color-text-placeholder);
+}
+
+.milestoneList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.milestoneItem {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  border-bottom: 1px solid var(--color-border);
+  min-height: 52px;
+}
+
+.milestoneItem:last-child {
+  border-bottom: none;
+}
+
+.milestoneItemButton {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-2);
+  padding: var(--spacing-3) var(--spacing-2);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  border-radius: var(--radius-md);
+  transition: background var(--transition-normal);
+  min-width: 0;
+}
+
+.milestoneItemButton:hover {
+  background: var(--color-bg-hover);
+}
+
+.milestoneItemButton:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--color-border-focus);
+}
+
+.milestoneItemLeft {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-width: 0;
+  flex: 1;
+}
+
+.milestoneItemTitle {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.milestoneItemMeta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--spacing-0-5);
+  flex-shrink: 0;
+}
+
+.milestoneItemDate {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.milestoneItemCount {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-placeholder);
+  white-space: nowrap;
+}
+
+.milestoneItemActions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  flex-shrink: 0;
+  padding-right: var(--spacing-1);
+}
+
+.milestoneActionButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: none;
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: var(--transition-button-border);
+  padding: 0;
+}
+
+.milestoneActionButton:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-hover);
+}
+
+.milestoneActionButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.milestoneActionDanger:hover {
+  color: var(--color-danger-text-on-light);
+  background: var(--color-danger-bg);
+}
+
+/* ---- Diamond icons in list ---- */
+
+.diamondIncomplete {
+  fill: transparent;
+  stroke: var(--color-milestone-incomplete-stroke, var(--color-primary));
+  flex-shrink: 0;
+}
+
+.diamondComplete {
+  fill: var(--color-milestone-complete-fill, var(--color-success));
+  stroke: var(--color-milestone-complete-stroke, var(--color-success-hover));
+  flex-shrink: 0;
+}
+
+.diamondLate {
+  fill: var(--color-milestone-late-fill, var(--color-danger));
+  stroke: var(--color-milestone-late-stroke, var(--color-danger));
+  flex-shrink: 0;
+}
+
+/* ---- Milestone projected date ---- */
+
+.milestoneItemProjected {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.milestoneItemProjectedLate {
+  color: var(--color-danger-text-on-light);
+  font-weight: var(--font-weight-medium);
+}
+
+/* ---- Form fields ---- */
+
+.fieldGroup {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: var(--spacing-5);
+}
+
+.fieldGroup:last-child {
+  margin-bottom: 0;
+}
+
+.fieldLabel {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-1-5);
+}
+
+.requiredStar {
+  color: var(--color-danger);
+  margin-left: var(--spacing-0-5);
+}
+
+.linkedCount {
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-normal);
+}
+
+.fieldInput {
+  padding: var(--spacing-2) var(--spacing-3);
+  font-size: var(--font-size-base);
+  color: var(--color-text-primary);
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  transition: var(--transition-input);
+  outline: none;
+  width: 100%;
+}
+
+.fieldInput:focus {
+  border-color: var(--color-border-focus);
+  box-shadow: var(--shadow-focus);
+}
+
+.fieldInput::placeholder {
+  color: var(--color-text-placeholder);
+}
+
+.fieldInput:disabled {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
+.fieldInputError {
+  border-color: var(--color-danger-input-border);
+}
+
+.fieldInputError:focus {
+  box-shadow: var(--shadow-focus-danger);
+}
+
+.fieldTextarea {
+  padding: var(--spacing-2) var(--spacing-3);
+  font-size: var(--font-size-base);
+  color: var(--color-text-primary);
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  transition: var(--transition-input);
+  outline: none;
+  width: 100%;
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.5;
+}
+
+.fieldTextarea:focus {
+  border-color: var(--color-border-focus);
+  box-shadow: var(--shadow-focus);
+}
+
+.fieldTextarea::placeholder {
+  color: var(--color-text-placeholder);
+}
+
+.fieldTextarea:disabled {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
+.fieldError {
+  font-size: var(--font-size-xs);
+  color: var(--color-danger-text-on-light);
+  margin-top: var(--spacing-1);
+}
+
+.fieldHint {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin: var(--spacing-1-5) 0 0;
+  line-height: 1.5;
+}
+
+/* ---- Checkbox ---- */
+
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  cursor: pointer;
+}
+
+.checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--color-success);
+  flex-shrink: 0;
+}
+
+.checkboxText {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-body);
+}
+
+.completedDate {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin: var(--spacing-1) 0 0 calc(18px + var(--spacing-2));
+}
+
+.completedDateField {
+  margin: var(--spacing-2) 0 0 calc(18px + var(--spacing-2));
+}
+
+/* ---- Error banner in form ---- */
+
+.errorBanner {
+  margin-top: var(--spacing-3);
+  padding: var(--spacing-3);
+  background: var(--color-danger-bg);
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-danger-text-on-light);
+}
+
+/* ---- Edit view extra footer (delete button) ---- */
+
+.editFooterExtra {
+  display: flex;
+  justify-content: flex-start;
+  padding: 0 var(--spacing-6) var(--spacing-4);
+  flex-shrink: 0;
+}
+
+/* ---- Delete confirmation dialog ---- */
+
+.deleteOverlay {
+  position: fixed;
+  inset: 0;
+  background: var(--color-overlay);
+  z-index: calc(var(--z-modal) + 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-4);
+}
+
+.deleteDialog {
+  background: var(--color-bg-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-2xl);
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.deleteDescription {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-body);
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* ---- Work Item Linker ---- */
+
+.linkerContainer {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.linkerHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-4) var(--spacing-6);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.linkerTitle {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.backButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  padding: var(--spacing-1) var(--spacing-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-muted);
+  background: none;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition-button-border);
+}
+
+.backButton:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-hover);
+}
+
+.backButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+/* ---- Chip container (work item linker) ---- */
+
+.chipContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+  padding: var(--spacing-2);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  min-height: 40px;
+  background: var(--color-bg-primary);
+  cursor: text;
+  transition: var(--transition-input);
+}
+
+.chipContainerFocused {
+  border-color: var(--color-border-focus);
+  box-shadow: var(--shadow-focus);
+}
+
+.chipsEmpty {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-placeholder);
+  padding: var(--spacing-0-5) var(--spacing-1);
+  align-self: center;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  padding: 2px var(--spacing-2) 2px var(--spacing-2-5);
+  background: var(--color-primary-bg);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  color: var(--color-primary-badge-text);
+  max-width: 200px;
+}
+
+.chipLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chipRemove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  background: none;
+  border: none;
+  border-radius: var(--radius-circle);
+  color: var(--color-primary-badge-text);
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition: background var(--transition-fast);
+}
+
+.chipRemove:hover {
+  background: var(--color-primary-bg-hover);
+}
+
+.chipRemove:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus-subtle);
+}
+
+.chipInput {
+  background: none;
+  border: none;
+  outline: none;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  min-width: 120px;
+  flex: 1;
+  padding: var(--spacing-0-5) var(--spacing-1);
+}
+
+.chipInput::placeholder {
+  color: var(--color-text-placeholder);
+}
+
+/* ---- Chip dropdown ---- */
+
+.chipDropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: var(--z-dropdown);
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  max-height: 300px;
+  overflow-y: auto;
+  list-style: none;
+  padding: var(--spacing-1) 0;
+  margin: 0;
+}
+
+.chipDropdownItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-2);
+  padding: var(--spacing-2-5) var(--spacing-3);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.chipDropdownItem:hover {
+  background: var(--color-bg-tertiary);
+}
+
+.chipDropdownItem:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--color-primary);
+}
+
+.chipDropdownItemTitle {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chipDropdownItemStatus {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-placeholder);
+  flex-shrink: 0;
+  text-transform: capitalize;
+}
+
+.chipDropdownLoading,
+.chipDropdownEmpty {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  padding: var(--spacing-2) var(--spacing-3);
+  display: block;
+  text-align: center;
+}
+
+/* ---- Dependent work items (read-only list) ---- */
+
+.dependentEmpty {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-placeholder);
+  margin: 0;
+  padding: var(--spacing-2) 0;
+}
+
+.dependentList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+}
+
+.dependentChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--spacing-2-5);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  max-width: 240px;
+}
+
+.dependentChipLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- Responsive ---- */
+
+@media (max-width: 767px) {
+  .dialog {
+    max-width: calc(100vw - var(--spacing-8));
+    max-height: calc(100vh - var(--spacing-8));
+  }
+
+  .dialogHeader {
+    padding: var(--spacing-4) var(--spacing-4) var(--spacing-3);
+  }
+
+  .dialogBody {
+    padding: var(--spacing-3) var(--spacing-4);
+  }
+
+  .dialogFooter {
+    padding: var(--spacing-3) var(--spacing-4) var(--spacing-4);
+  }
+
+  .buttonCancel,
+  .buttonConfirm,
+  .buttonDanger,
+  .buttonDangerOutline {
+    min-height: 44px;
+  }
+
+  /* Increase close button touch target on mobile */
+  .closeButton {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Increase action button touch targets */
+  .milestoneActionButton {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Ensure milestone items have adequate touch targets */
+  .milestoneItem {
+    min-height: 56px;
+  }
+}

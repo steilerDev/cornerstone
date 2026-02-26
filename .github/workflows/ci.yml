@@ -166,7 +166,18 @@ jobs:
 
       - name: Download Playwright system dependencies
         if: steps.apt-cache.outputs.cache-hit != 'true'
-        run: sudo npx playwright install-deps chromium webkit
+        timeout-minutes: 10
+        run: |
+          for i in 1 2; do
+            echo "Attempt $i: installing Playwright system dependencies..."
+            if timeout 240 sudo npx playwright install-deps chromium webkit; then
+              echo "Success on attempt $i"
+              exit 0
+            fi
+            echo "Attempt $i failed or timed out, retrying..."
+          done
+          echo "All attempts failed"
+          exit 1
         working-directory: e2e
 
       - name: Prepare apt cache for save
@@ -253,7 +264,18 @@ jobs:
           key: apt-v3-playwright-${{ needs.e2e-warmup.outputs.playwright-version }}-${{ runner.os }}
 
       - name: Install Playwright system dependencies
-        run: sudo npx playwright install-deps chromium webkit
+        timeout-minutes: 10
+        run: |
+          for i in 1 2; do
+            echo "Attempt $i: installing Playwright system dependencies..."
+            if timeout 240 sudo npx playwright install-deps chromium webkit; then
+              echo "Success on attempt $i"
+              exit 0
+            fi
+            echo "Attempt $i failed or timed out, retrying..."
+          done
+          echo "All attempts failed"
+          exit 1
         working-directory: e2e
 
       - name: Run E2E smoke tests
@@ -322,7 +344,18 @@ jobs:
           key: apt-v3-playwright-${{ needs.e2e-warmup.outputs.playwright-version }}-${{ runner.os }}
 
       - name: Install Playwright system dependencies
-        run: sudo npx playwright install-deps chromium webkit
+        timeout-minutes: 10
+        run: |
+          for i in 1 2; do
+            echo "Attempt $i: installing Playwright system dependencies..."
+            if timeout 240 sudo npx playwright install-deps chromium webkit; then
+              echo "Success on attempt $i"
+              exit 0
+            fi
+            echo "Attempt $i failed or timed out, retrying..."
+          done
+          echo "All attempts failed"
+          exit 1
         working-directory: e2e
 
       - name: Run E2E tests (shard ${{ matrix.shardIndex }}/${{ matrix.shardTotal }})

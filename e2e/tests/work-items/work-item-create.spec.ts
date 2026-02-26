@@ -133,9 +133,9 @@ test.describe('Create with all fields (Scenario 4)', { tag: '@responsive' }, () 
         title,
         description: 'This is a full-featured work item created by E2E tests.',
         status: 'in_progress',
-        startDate: '2026-03-01',
-        endDate: '2026-06-30',
         durationDays: '30',
+        startAfter: '2026-03-01',
+        startBefore: '2026-06-30',
       });
 
       const responsePromise = page.waitForResponse(

@@ -1,0 +1,130 @@
+.sidebar {
+  width: 260px;
+  flex-shrink: 0;
+  background: var(--color-bg-primary);
+  border-right: 1px solid var(--color-border-strong);
+  box-shadow: var(--shadow-md);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sidebarHeader {
+  display: flex;
+  align-items: center;
+  padding: 0 var(--spacing-4);
+  background: var(--color-bg-secondary);
+  border-bottom: 2px solid var(--color-border-strong);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+}
+
+.sidebarRows {
+  /* Allow vertical scrolling (controlled externally via scroll sync) but hide scrollbar */
+  overflow-y: scroll;
+  overflow-x: hidden;
+  flex: 1;
+  /* Hide scrollbar cross-browser */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+
+.sidebarRows::-webkit-scrollbar {
+  display: none; /* Chrome/Safari/Opera */
+}
+
+.sidebarRow {
+  display: flex;
+  align-items: center;
+  padding: 0 var(--spacing-4);
+  border-bottom: 1px solid var(--color-border);
+  cursor: pointer;
+  transition: background-color var(--transition-medium);
+  box-sizing: border-box;
+}
+
+.sidebarRow:hover {
+  background: var(--color-bg-hover) !important;
+}
+
+.sidebarRow:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--color-border-focus);
+}
+
+.sidebarRowEven {
+  background: var(--color-gantt-row-even);
+}
+
+.sidebarRowOdd {
+  background: var(--color-gantt-row-odd);
+}
+
+.sidebarRowLabel {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.sidebarRowLabelMuted {
+  color: var(--color-text-muted);
+}
+
+/* Milestone rows — appear after work item rows, visually distinct */
+.sidebarMilestoneRow {
+  cursor: default;
+  gap: var(--spacing-2);
+}
+
+.milestoneDiamondIcon {
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.sidebarMilestoneLabel {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-normal);
+  font-style: italic;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* Tablet and mobile: collapse sidebar to icon strip */
+@media (max-width: 1279px) {
+  .sidebar {
+    width: 44px;
+  }
+
+  .sidebarHeader {
+    padding: 0;
+    justify-content: center;
+    font-size: var(--font-size-2xs);
+    overflow: hidden;
+  }
+
+  .sidebarRowLabel {
+    display: none;
+  }
+
+  .sidebarMilestoneLabel {
+    display: none;
+  }
+
+  .sidebarRow {
+    padding: 0;
+    justify-content: center;
+    min-height: 44px;
+  }
+}

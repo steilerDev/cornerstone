@@ -17,6 +17,8 @@ import type * as BudgetCategoriesApiTypes from '../../lib/budgetCategoriesApi.js
 import type * as BudgetSourcesApiTypes from '../../lib/budgetSourcesApi.js';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as SubsidyProgramsApiTypes from '../../lib/subsidyProgramsApi.js';
+import type * as MilestonesApiTypes from '../../lib/milestonesApi.js';
+import type * as WorkItemMilestonesApiTypes from '../../lib/workItemMilestonesApi.js';
 import type * as WorkItemDetailPageTypes from './WorkItemDetailPage.js';
 
 // Module-scope mocks
@@ -51,6 +53,15 @@ const mockFetchBudgetCategories = jest.fn<typeof BudgetCategoriesApiTypes.fetchB
 const mockFetchBudgetSources = jest.fn<typeof BudgetSourcesApiTypes.fetchBudgetSources>();
 const mockFetchVendors = jest.fn<typeof VendorsApiTypes.fetchVendors>();
 const mockFetchSubsidyPrograms = jest.fn<typeof SubsidyProgramsApiTypes.fetchSubsidyPrograms>();
+const mockListMilestones = jest.fn<typeof MilestonesApiTypes.listMilestones>();
+const mockGetWorkItemMilestones =
+  jest.fn<typeof WorkItemMilestonesApiTypes.getWorkItemMilestones>();
+const mockAddRequiredMilestone = jest.fn<typeof WorkItemMilestonesApiTypes.addRequiredMilestone>();
+const mockRemoveRequiredMilestone =
+  jest.fn<typeof WorkItemMilestonesApiTypes.removeRequiredMilestone>();
+const mockAddLinkedMilestone = jest.fn<typeof WorkItemMilestonesApiTypes.addLinkedMilestone>();
+const mockRemoveLinkedMilestone =
+  jest.fn<typeof WorkItemMilestonesApiTypes.removeLinkedMilestone>();
 
 // Mock AuthContext
 jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
@@ -119,6 +130,26 @@ jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
 
 jest.unstable_mockModule('../../lib/subsidyProgramsApi.js', () => ({
   fetchSubsidyPrograms: mockFetchSubsidyPrograms,
+}));
+
+jest.unstable_mockModule('../../lib/milestonesApi.js', () => ({
+  listMilestones: mockListMilestones,
+  getMilestone: jest.fn(),
+  createMilestone: jest.fn(),
+  updateMilestone: jest.fn(),
+  deleteMilestone: jest.fn(),
+  linkWorkItem: jest.fn(),
+  unlinkWorkItem: jest.fn(),
+  addDependentWorkItem: jest.fn(),
+  removeDependentWorkItem: jest.fn(),
+}));
+
+jest.unstable_mockModule('../../lib/workItemMilestonesApi.js', () => ({
+  getWorkItemMilestones: mockGetWorkItemMilestones,
+  addRequiredMilestone: mockAddRequiredMilestone,
+  removeRequiredMilestone: mockRemoveRequiredMilestone,
+  addLinkedMilestone: mockAddLinkedMilestone,
+  removeLinkedMilestone: mockRemoveLinkedMilestone,
 }));
 
 describe('WorkItemDetailPage', () => {
@@ -197,6 +228,12 @@ describe('WorkItemDetailPage', () => {
     mockFetchBudgetSources.mockReset();
     mockFetchVendors.mockReset();
     mockFetchSubsidyPrograms.mockReset();
+    mockListMilestones.mockReset();
+    mockGetWorkItemMilestones.mockReset();
+    mockAddRequiredMilestone.mockReset();
+    mockRemoveRequiredMilestone.mockReset();
+    mockAddLinkedMilestone.mockReset();
+    mockRemoveLinkedMilestone.mockReset();
 
     if (!WorkItemDetailPageModule) {
       WorkItemDetailPageModule = await import('./WorkItemDetailPage.js');
@@ -233,6 +270,9 @@ describe('WorkItemDetailPage', () => {
     mockFetchWorkItemBudgets.mockResolvedValue([]);
     mockFetchSubsidyPrograms.mockResolvedValue({ subsidyPrograms: [] });
     mockFetchWorkItemSubsidies.mockResolvedValue([]);
+    // Milestone-related defaults
+    mockListMilestones.mockResolvedValue([]);
+    mockGetWorkItemMilestones.mockResolvedValue({ required: [], linked: [] });
   });
 
   function renderPage(id = 'work-1') {
@@ -326,6 +366,139 @@ describe('WorkItemDetailPage', () => {
       await waitFor(() => {
         expect(screen.getByText('No description')).toBeInTheDocument();
       });
+    });
+  });
+
+  describe('Schedule section — read-only date fields', () => {
+    it('renders Schedule section heading', async () => {
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByText('Schedule')).toBeInTheDocument();
+      });
+    });
+
+    it('renders startDate as read-only text (not an input)', async () => {
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Start Date')).toBeInTheDocument();
+      });
+
+      // startDate '2024-01-01' should appear as formatted text, not an input
+      // (Constraints section has startAfter/startBefore date inputs, not startDate/endDate)
+      const startDateLabel = screen.getByText('Start Date');
+      // The sibling/nearby element should be a span, not an input
+      const propertyValue = startDateLabel.closest('[class]')?.querySelector('span:last-child');
+      expect(propertyValue?.tagName).not.toBe('INPUT');
+    });
+
+    it('renders endDate as read-only text (not an input)', async () => {
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('End Date')).toBeInTheDocument();
+      });
+
+      const endDateLabel = screen.getByText('End Date');
+      const propertyValue = endDateLabel.closest('[class]')?.querySelector('span:last-child');
+      expect(propertyValue?.tagName).not.toBe('INPUT');
+    });
+
+    it('renders "Not scheduled" for null startDate', async () => {
+      const workItemNoStart = { ...mockWorkItem, startDate: null };
+      mockGetWorkItem.mockResolvedValue(workItemNoStart);
+
+      renderPage();
+
+      await waitFor(() => {
+        // Should find "Not scheduled" text near the start date label
+        expect(screen.getAllByText('Not scheduled').length).toBeGreaterThanOrEqual(1);
+      });
+    });
+
+    it('renders "Not scheduled" for null endDate', async () => {
+      const workItemNoEnd = { ...mockWorkItem, endDate: null };
+      mockGetWorkItem.mockResolvedValue(workItemNoEnd);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getAllByText('Not scheduled').length).toBeGreaterThanOrEqual(1);
+      });
+    });
+
+    it('renders "Not scheduled" for both dates when both are null', async () => {
+      const workItemNoDates = { ...mockWorkItem, startDate: null, endDate: null };
+      mockGetWorkItem.mockResolvedValue(workItemNoDates);
+
+      renderPage();
+
+      await waitFor(() => {
+        // Both dates should show "Not scheduled"
+        expect(screen.getAllByText('Not scheduled')).toHaveLength(2);
+      });
+    });
+
+    it('renders description text explaining dates are computed by scheduling engine', async () => {
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText(/computed by the scheduling engine/i)).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Constraints section', () => {
+    it('renders Constraints section heading', async () => {
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByText('Constraints')).toBeInTheDocument();
+      });
+    });
+
+    it('renders duration input in Constraints section (editable number input)', async () => {
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Duration (days)')).toBeInTheDocument();
+      });
+
+      // Duration should be an editable number input — find inputs with type="number"
+      // that are siblings to the Duration label inside the constraints section
+      const durationLabel = screen.getByText('Duration (days)');
+      // The label and input are siblings inside a property div
+      const propertyDiv = durationLabel.parentElement;
+      const durationInput = propertyDiv?.querySelector('input[type="number"]');
+      expect(durationInput).toBeInTheDocument();
+      expect((durationInput as HTMLInputElement)?.disabled).toBe(false);
+    });
+
+    it('renders startAfter date input in Constraints section', async () => {
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Start After')).toBeInTheDocument();
+      });
+
+      const startAfterLabel = screen.getByText('Start After');
+      const propertyDiv = startAfterLabel.parentElement;
+      const dateInput = propertyDiv?.querySelector('input[type="date"]');
+      expect(dateInput).toBeInTheDocument();
+      expect((dateInput as HTMLInputElement)?.disabled).toBe(false);
+    });
+
+    it('renders startBefore date input in Constraints section', async () => {
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Start Before')).toBeInTheDocument();
+      });
+
+      const startBeforeLabel = screen.getByText('Start Before');
+      const propertyDiv = startBeforeLabel.parentElement;
+      const dateInput = propertyDiv?.querySelector('input[type="date"]');
+      expect(dateInput).toBeInTheDocument();
+      expect((dateInput as HTMLInputElement)?.disabled).toBe(false);
     });
   });
 
@@ -423,6 +596,7 @@ describe('WorkItemDetailPage', () => {
           {
             workItem: predecessorWorkItem,
             dependencyType: 'finish_to_start',
+            leadLagDays: 0,
           },
         ],
         successors: [],
@@ -459,6 +633,7 @@ describe('WorkItemDetailPage', () => {
           {
             workItem: successorWorkItem,
             dependencyType: 'finish_to_start',
+            leadLagDays: 0,
           },
         ],
       });

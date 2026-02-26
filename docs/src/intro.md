@@ -4,6 +4,19 @@ sidebar_position: 1
 title: Introduction
 ---
 
+import ThemedImage from '@theme/ThemedImage';
+
+<div style={{textAlign: 'center', marginBottom: '2rem'}}>
+  <ThemedImage
+    alt="Cornerstone"
+    sources={{
+      light: '/img/logo-full.svg',
+      dark: '/img/logo-full-dark.svg',
+    }}
+    style={{maxWidth: '400px', width: '100%'}}
+  />
+</div>
+
 # Cornerstone
 
 A self-hosted home building project management tool for homeowners. Track work items, budgets, timelines, and household item purchases from a single Docker container backed by SQLite -- no external database required.

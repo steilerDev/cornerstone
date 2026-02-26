@@ -1,0 +1,209 @@
+/* ============================================================
+ * CalendarView — main calendar wrapper
+ * ============================================================ */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--color-bg-primary);
+}
+
+/* ---- Calendar toolbar (navigation + mode toggle) ---- */
+
+.calendarToolbar {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-3) var(--spacing-6);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-primary);
+  flex-shrink: 0;
+  gap: var(--spacing-4);
+}
+
+/* ---- Nav group: prev / today / next ---- */
+
+.navGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  flex-shrink: 0;
+}
+
+.navButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-primary);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: var(--transition-button-border);
+}
+
+.navButton:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.navButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.todayButton {
+  padding: var(--spacing-1-5) var(--spacing-3);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition-button-border);
+  height: 32px;
+  white-space: nowrap;
+}
+
+.todayButton:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.todayButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+/* ---- Period label (month name / week range) ---- */
+
+.periodLabel {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---- Column size toggle (S / M / L) ---- */
+
+.columnSizeToggle {
+  display: inline-flex;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+/* ---- Mode toggle (Month / Week) ---- */
+
+.modeToggle {
+  display: inline-flex;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.modeButton {
+  padding: var(--spacing-1-5) var(--spacing-3);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  background: var(--color-bg-primary);
+  border: none;
+  border-right: 1px solid var(--color-border-strong);
+  cursor: pointer;
+  transition: var(--transition-button-border);
+  min-height: 32px;
+  line-height: 1;
+}
+
+.modeButton:last-child {
+  border-right: none;
+}
+
+.modeButton:hover:not(.modeButtonActive) {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.modeButtonActive {
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+  font-weight: var(--font-weight-semibold);
+}
+
+.modeButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  position: relative;
+  z-index: 1;
+}
+
+/* ---- Grid area (fills remaining height) ---- */
+
+.gridArea {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* ---- Responsive ---- */
+
+@media (max-width: 1279px) {
+  .navButton {
+    width: 44px;
+    height: 44px;
+  }
+
+  .todayButton {
+    height: 44px;
+    min-height: 44px;
+  }
+
+  .modeButton {
+    min-height: 44px;
+  }
+
+  .columnSizeToggle .modeButton {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 767px) {
+  .calendarToolbar {
+    padding: var(--spacing-2) var(--spacing-3);
+    gap: var(--spacing-2);
+    flex-wrap: wrap;
+  }
+
+  .periodLabel {
+    font-size: var(--font-size-base);
+    order: -1;
+    flex-basis: 100%;
+  }
+
+  .navGroup {
+    order: 2;
+  }
+
+  .modeToggle {
+    order: 3;
+    margin-left: auto;
+  }
+
+  /* Hide column size toggle on mobile */
+  .columnSizeToggle {
+    display: none;
+  }
+}

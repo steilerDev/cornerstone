@@ -1,8 +1,16 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import type { WorkItemSummary } from '@cornerstone/shared';
+import type { WorkItemSummary, WorkItemStatus } from '@cornerstone/shared';
 import { listWorkItems } from '../../lib/workItemsApi.js';
-import { StatusBadge } from '../StatusBadge/StatusBadge.js';
+
 import styles from './WorkItemPicker.module.css';
+
+/** Maps work item status values to their CSS custom property for the left-border color. */
+const STATUS_BORDER_COLORS: Record<WorkItemStatus, string> = {
+  not_started: 'var(--color-status-not-started-text)',
+  in_progress: 'var(--color-status-in-progress-text)',
+  completed: 'var(--color-status-completed-text)',
+  blocked: 'var(--color-status-blocked-text)',
+};
 
 export interface SpecialOption {
   id: string;
@@ -193,9 +201,11 @@ export function WorkItemPicker({
   if (selectedItem) {
     return (
       <div className={styles.container} ref={containerRef}>
-        <div className={styles.selectedDisplay}>
+        <div
+          className={styles.selectedDisplay}
+          style={{ borderLeftColor: STATUS_BORDER_COLORS[selectedItem.status] }}
+        >
           <span className={styles.selectedTitle}>{selectedItem.title}</span>
-          <StatusBadge status={selectedItem.status} />
           <button
             type="button"
             className={styles.clearButton}
@@ -266,7 +276,6 @@ export function WorkItemPicker({
                 onClick={() => handleSelect(item)}
               >
                 <span className={styles.resultTitle}>{item.title}</span>
-                <StatusBadge status={item.status} />
               </button>
             ))}
 

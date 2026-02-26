@@ -1,0 +1,143 @@
+/* ============================================================
+ * GanttChart — chart body layout styles
+ * ============================================================ */
+
+/* ---- Chart body (sidebar + right area) ---- */
+
+.chartBody {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--color-bg-secondary);
+}
+
+/* ---- Right chart area ---- */
+
+.chartRight {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* Header scroll container (horizontal scroll mirrors canvas, scrollbar hidden) */
+.headerScroll {
+  overflow-x: scroll;
+  overflow-y: hidden;
+  flex-shrink: 0;
+  /* Hide scrollbar cross-browser */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.headerScroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* Canvas scroll container (both axes) */
+.canvasScroll {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+}
+
+/* ---- Skeleton states ---- */
+
+.skeleton {
+  animation: skeletonPulse 1.5s ease-in-out infinite;
+  background: linear-gradient(
+    90deg,
+    var(--color-bg-tertiary) 25%,
+    var(--color-bg-secondary) 50%,
+    var(--color-bg-tertiary) 75%
+  );
+  background-size: 200% 100%;
+  border-radius: var(--radius-sm);
+}
+
+@keyframes skeletonPulse {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.skeletonSidebarRow {
+  height: 20px;
+}
+
+.skeletonBar {
+  border-radius: var(--radius-sm);
+}
+
+/* Skeleton sidebar */
+.sidebarSkeleton {
+  width: 260px;
+  flex-shrink: 0;
+  background: var(--color-bg-primary);
+  border-right: 1px solid var(--color-border-strong);
+  box-shadow: var(--shadow-md);
+}
+
+.sidebarSkeletonHeader {
+  background: var(--color-bg-secondary);
+  border-bottom: 2px solid var(--color-border-strong);
+}
+
+.sidebarSkeletonRow {
+  display: flex;
+  align-items: center;
+  padding: 0 var(--spacing-4);
+  border-bottom: 1px solid var(--color-border);
+  box-sizing: border-box;
+}
+
+/* Skeleton header + canvas */
+.skeletonHeader {
+  background: var(--color-bg-secondary);
+  border-bottom: 2px solid var(--color-border-strong);
+  flex-shrink: 0;
+}
+
+.skeletonCanvas {
+  flex: 1;
+  overflow: hidden;
+}
+
+.skeletonRowEven {
+  background: var(--color-gantt-row-even);
+  box-sizing: border-box;
+}
+
+.skeletonRowOdd {
+  background: var(--color-gantt-row-odd);
+  box-sizing: border-box;
+}
+
+/* ---- Responsive ---- */
+
+@media (max-width: 1279px) {
+  .sidebarSkeleton {
+    width: 44px;
+  }
+
+  .sidebarSkeletonRow {
+    padding: 0;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 767px) {
+  .sidebarSkeleton {
+    width: 44px;
+  }
+
+  .sidebarSkeletonRow {
+    padding: 0;
+    justify-content: center;
+  }
+}
