@@ -19,7 +19,9 @@ interface MilestoneWorkItemLinkerProps {
   onLinkDependent: (workItemId: string) => void;
   /** Called when a dependent work item is removed. */
   onUnlinkDependent: (workItemId: string) => void;
-  onBack: () => void;
+  onBack?: () => void;
+  /** When true, renders without header/container for embedding inline within another view. */
+  inline?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -45,6 +47,7 @@ export function MilestoneWorkItemLinker({
   onLinkDependent,
   onUnlinkDependent,
   onBack,
+  inline = false,
 }: MilestoneWorkItemLinkerProps) {
   // Adapt WorkItemSummary[] to SelectedWorkItem[]
   const selectedItems = linkedWorkItems.map((wi) => ({ id: wi.id, name: wi.title }));
@@ -54,6 +57,56 @@ export function MilestoneWorkItemLinker({
     id: wi.id,
     name: wi.title,
   }));
+
+  const linkerContent = (
+    <>
+      {/* Contributing Work Items — editable */}
+      <div className={styles.fieldGroup}>
+        <label className={styles.fieldLabel}>
+          Contributing Work Items
+          <span className={styles.linkedCount}>
+            {linkedWorkItems.length > 0 ? ` (${linkedWorkItems.length})` : ''}
+          </span>
+        </label>
+        <p className={styles.fieldHint}>Work items that feed into completing this milestone.</p>
+
+        <WorkItemSelector
+          selectedItems={selectedItems}
+          onAdd={(item) => onLink(item.id)}
+          onRemove={(id) => onUnlink(id)}
+          disabled={isLinking}
+        />
+      </div>
+
+      {/* Dependent Work Items — now editable */}
+      <div className={styles.fieldGroup}>
+        <label className={styles.fieldLabel}>
+          Dependent Work Items
+          <span className={styles.linkedCount}>
+            {dependentWorkItems.length > 0 ? ` (${dependentWorkItems.length})` : ''}
+          </span>
+        </label>
+        <p className={styles.fieldHint}>
+          Work items that require this milestone to complete before they can start.
+        </p>
+
+        <WorkItemSelector
+          selectedItems={selectedDependentItems}
+          onAdd={(item) => onLinkDependent(item.id)}
+          onRemove={(id) => onUnlinkDependent(id)}
+          disabled={isLinking}
+        />
+      </div>
+    </>
+  );
+
+  if (inline) {
+    return (
+      <div className={styles.dialogBody} data-testid="milestone-work-item-linker">
+        {linkerContent}
+      </div>
+    );
+  }
 
   return (
     <div className={styles.linkerContainer} data-testid="milestone-work-item-linker">
@@ -86,45 +139,7 @@ export function MilestoneWorkItemLinker({
         <h3 className={styles.linkerTitle}>Manage Work Items</h3>
       </div>
 
-      <div className={styles.dialogBody}>
-        {/* Contributing Work Items — editable */}
-        <div className={styles.fieldGroup}>
-          <label className={styles.fieldLabel}>
-            Contributing Work Items
-            <span className={styles.linkedCount}>
-              {linkedWorkItems.length > 0 ? ` (${linkedWorkItems.length})` : ''}
-            </span>
-          </label>
-          <p className={styles.fieldHint}>Work items that feed into completing this milestone.</p>
-
-          <WorkItemSelector
-            selectedItems={selectedItems}
-            onAdd={(item) => onLink(item.id)}
-            onRemove={(id) => onUnlink(id)}
-            disabled={isLinking}
-          />
-        </div>
-
-        {/* Dependent Work Items — now editable */}
-        <div className={styles.fieldGroup}>
-          <label className={styles.fieldLabel}>
-            Dependent Work Items
-            <span className={styles.linkedCount}>
-              {dependentWorkItems.length > 0 ? ` (${dependentWorkItems.length})` : ''}
-            </span>
-          </label>
-          <p className={styles.fieldHint}>
-            Work items that require this milestone to complete before they can start.
-          </p>
-
-          <WorkItemSelector
-            selectedItems={selectedDependentItems}
-            onAdd={(item) => onLinkDependent(item.id)}
-            onRemove={(id) => onUnlinkDependent(id)}
-            disabled={isLinking}
-          />
-        </div>
-      </div>
+      <div className={styles.dialogBody}>{linkerContent}</div>
     </div>
   );
 }

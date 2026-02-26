@@ -337,7 +337,7 @@
 
   /* Dependency arrows */
   --color-gantt-arrow-default: var(--color-gray-500);
-  --color-gantt-arrow-critical: var(--color-red-500);
+  --color-gantt-arrow-critical: var(--color-orange-400);
   /* Milestone linkage arrows (dashed, uses milestone accent color) */
   --color-gantt-arrow-milestone: var(--color-blue-500);
 
@@ -564,7 +564,7 @@
 
   /* Dependency arrows (brighter in dark mode for contrast) */
   --color-gantt-arrow-default: var(--color-slate-400);
-  --color-gantt-arrow-critical: var(--color-red-400);
+  --color-gantt-arrow-critical: var(--color-orange-300);
   --color-gantt-arrow-milestone: var(--color-blue-400);
 
   /* Critical path bar accent stripe (warmer orange in dark mode) */

@@ -23,7 +23,7 @@ import styles from './MilestonePanel.module.css';
 // Types
 // ---------------------------------------------------------------------------
 
-type PanelView = 'list' | 'create' | 'edit' | 'linker';
+type PanelView = 'list' | 'create' | 'edit';
 
 interface MilestonePanelProps {
   milestones: MilestoneSummary[];
@@ -43,6 +43,11 @@ interface MilestonePanelProps {
    * items). Sourced from the timeline API response. Optional — omit to hide projected dates.
    */
   projectedDates?: ReadonlyMap<number, string | null>;
+  /**
+   * When set, the panel opens directly to the edit view for this milestone
+   * (instead of the list view). Used when clicking a milestone diamond on the chart.
+   */
+  initialMilestoneId?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -157,11 +162,29 @@ export function MilestonePanel({
   onMutated,
   onMilestoneSelect,
   projectedDates,
+  initialMilestoneId,
 }: MilestonePanelProps) {
   const [view, setView] = useState<PanelView>('list');
   const [editingMilestone, setEditingMilestone] = useState<MilestoneSummary | null>(null);
   const [detailData, setDetailData] = useState<MilestoneDetail | null>(null);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
+
+  // Open directly to the edit view for a specific milestone if initialMilestoneId is set
+  useEffect(() => {
+    if (
+      initialMilestoneId !== undefined &&
+      milestones.length > 0 &&
+      view === 'list' &&
+      !editingMilestone
+    ) {
+      const milestone = milestones.find((m) => m.id === initialMilestoneId);
+      if (milestone) {
+        handleEditClick(milestone);
+      }
+    }
+    // Only run on mount or when milestones finish loading
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialMilestoneId, milestones]);
 
   // Form submit state
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -212,12 +235,6 @@ export function MilestonePanel({
     setEditingMilestone(milestone);
     setSubmitError(null);
     setView('edit');
-    void loadDetail(milestone.id);
-  }
-
-  function handleLinkerClick(milestone: MilestoneSummary) {
-    setEditingMilestone(milestone);
-    setView('linker');
     void loadDetail(milestone.id);
   }
 
@@ -345,13 +362,7 @@ export function MilestonePanel({
 
   // Determine dialog title
   const dialogTitle =
-    view === 'create'
-      ? 'New Milestone'
-      : view === 'edit'
-        ? 'Edit Milestone'
-        : view === 'linker'
-          ? 'Manage Work Items'
-          : 'Milestones';
+    view === 'create' ? 'New Milestone' : view === 'edit' ? 'Edit Milestone' : 'Milestones';
 
   const content = (
     <div
@@ -486,27 +497,6 @@ export function MilestonePanel({
                             <button
                               type="button"
                               className={styles.milestoneActionButton}
-                              onClick={() => handleLinkerClick(m)}
-                              aria-label={`Manage contributing work items for ${m.title}`}
-                              title="Manage contributing work items"
-                            >
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                viewBox="0 0 20 20"
-                                width="14"
-                                height="14"
-                                fill="none"
-                                aria-hidden="true"
-                              >
-                                <path
-                                  d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z"
-                                  fill="currentColor"
-                                />
-                              </svg>
-                            </button>
-                            <button
-                              type="button"
-                              className={styles.milestoneActionButton}
                               onClick={() => handleEditClick(m)}
                               aria-label={`Edit ${m.title}`}
                               title="Edit milestone"
@@ -583,7 +573,7 @@ export function MilestonePanel({
           />
         )}
 
-        {/* ---- EDIT VIEW ---- */}
+        {/* ---- EDIT VIEW (includes inline work item linker) ---- */}
         {view === 'edit' && editingMilestone !== null && (
           <>
             <MilestoneForm
@@ -592,6 +582,26 @@ export function MilestonePanel({
               submitError={submitError}
               onSubmit={(data) => void handleUpdate(data)}
               onCancel={handleBackToList}
+            />
+            <MilestoneWorkItemLinker
+              milestoneId={editingMilestone.id}
+              linkedWorkItems={
+                isLoadingDetail
+                  ? []
+                  : ((detailData?.workItems as WorkItemSummary[] | undefined) ?? [])
+              }
+              dependentWorkItems={
+                isLoadingDetail
+                  ? []
+                  : ((detailData?.dependentWorkItems as WorkItemDependentSummary[] | undefined) ??
+                    [])
+              }
+              isLinking={isLinking}
+              onLink={(id) => void handleLink(id)}
+              onUnlink={(id) => void handleUnlink(id)}
+              onLinkDependent={(id) => void handleLinkDependent(id)}
+              onUnlinkDependent={(id) => void handleUnlinkDependent(id)}
+              inline
             />
             <div className={styles.editFooterExtra}>
               <button
@@ -604,29 +614,6 @@ export function MilestonePanel({
               </button>
             </div>
           </>
-        )}
-
-        {/* ---- LINKER VIEW ---- */}
-        {view === 'linker' && editingMilestone !== null && (
-          <MilestoneWorkItemLinker
-            milestoneId={editingMilestone.id}
-            linkedWorkItems={
-              isLoadingDetail
-                ? []
-                : ((detailData?.workItems as WorkItemSummary[] | undefined) ?? [])
-            }
-            dependentWorkItems={
-              isLoadingDetail
-                ? []
-                : ((detailData?.dependentWorkItems as WorkItemDependentSummary[] | undefined) ?? [])
-            }
-            isLinking={isLinking}
-            onLink={(id) => void handleLink(id)}
-            onUnlink={(id) => void handleUnlink(id)}
-            onLinkDependent={(id) => void handleLinkDependent(id)}
-            onUnlinkDependent={(id) => void handleUnlinkDependent(id)}
-            onBack={handleBackToList}
-          />
         )}
       </div>
 

@@ -76,7 +76,7 @@ export function CalendarItem({
   const navigate = useNavigate();
 
   function handleClick() {
-    void navigate(`/work-items/${item.id}`, { state: { from: 'timeline' } });
+    void navigate(`/work-items/${item.id}`, { state: { from: 'timeline', view: 'calendar' } });
   }
 
   function handleKeyDown(e: ReactKeyboardEvent<HTMLDivElement>) {

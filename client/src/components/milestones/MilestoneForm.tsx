@@ -33,13 +33,6 @@ function toDateInputValue(isoTimestamp: string | null): string {
   return isoTimestamp.slice(0, 10);
 }
 
-/** Format a date for display. */
-function formatDate(dateStr: string): string {
-  const [year, month, day] = dateStr.split('-').map(Number);
-  const d = new Date(year, month - 1, day);
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -57,6 +50,9 @@ export function MilestoneForm({
   const [description, setDescription] = useState(milestone?.description ?? '');
   const [targetDate, setTargetDate] = useState(milestone?.targetDate ?? '');
   const [isCompleted, setIsCompleted] = useState(milestone?.isCompleted ?? false);
+  const [completedAt, setCompletedAt] = useState<string>(
+    milestone?.completedAt ? toDateInputValue(milestone.completedAt) : '',
+  );
 
   // Work items to link — only used in create mode
   const [selectedWorkItems, setSelectedWorkItems] = useState<SelectedWorkItem[]>([]);
@@ -95,6 +91,7 @@ export function MilestoneForm({
         description: description.trim() || null,
         targetDate,
         isCompleted,
+        ...(isCompleted && completedAt ? { completedAt } : {}),
       };
       onSubmit(data);
     } else {
@@ -119,15 +116,6 @@ export function MilestoneForm({
   function handleRemoveWorkItem(id: string) {
     setSelectedWorkItems((prev) => prev.filter((wi) => wi.id !== id));
   }
-
-  // Today's date for "completed on" display
-  const todayDisplay = isCompleted
-    ? formatDate(
-        milestone?.completedAt
-          ? toDateInputValue(milestone.completedAt)
-          : new Date().toISOString().slice(0, 10),
-      )
-    : null;
 
   return (
     <form
@@ -244,16 +232,34 @@ export function MilestoneForm({
                 type="checkbox"
                 className={styles.checkbox}
                 checked={isCompleted}
-                onChange={(e) => setIsCompleted(e.target.checked)}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setIsCompleted(checked);
+                  if (checked && !completedAt) {
+                    // Default to today when newly completing
+                    setCompletedAt(new Date().toISOString().slice(0, 10));
+                  }
+                }}
                 disabled={isSubmitting}
                 aria-label="Mark as completed"
               />
               <span className={styles.checkboxText}>Mark as completed</span>
             </label>
-            {isCompleted && todayDisplay !== null && (
-              <p className={styles.completedDate} aria-live="polite">
-                Completed on {todayDisplay}
-              </p>
+            {isCompleted && (
+              <div className={styles.completedDateField}>
+                <label htmlFor="milestone-completed-at" className={styles.fieldLabel}>
+                  Completion Date
+                </label>
+                <input
+                  id="milestone-completed-at"
+                  type="date"
+                  className={styles.fieldInput}
+                  value={completedAt}
+                  onChange={(e) => setCompletedAt(e.target.value)}
+                  disabled={isSubmitting}
+                  aria-label="Completion date"
+                />
+              </div>
             )}
           </div>
         )}

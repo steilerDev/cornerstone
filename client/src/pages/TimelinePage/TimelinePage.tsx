@@ -219,6 +219,7 @@ export function TimelinePage() {
 
   // ---- Milestone state ----
   const [showMilestonePanel, setShowMilestonePanel] = useState(false);
+  const [selectedMilestoneId, setSelectedMilestoneId] = useState<number | undefined>(undefined);
   const milestones = useMilestones();
 
   // Build a map from milestone ID → projected date for the MilestonePanel.
@@ -507,7 +508,10 @@ export function TimelinePage() {
               onItemClick={handleItemClick}
               showArrows={showArrows}
               highlightCriticalPath={highlightCriticalPath}
-              onMilestoneClick={() => setShowMilestonePanel(true)}
+              onMilestoneClick={(milestoneId) => {
+                setSelectedMilestoneId(milestoneId);
+                setShowMilestonePanel(true);
+              }}
               onCtrlScroll={(delta) => adjustColumnWidth(delta > 0 ? 1 : -1)}
             />
           )}
@@ -517,7 +521,10 @@ export function TimelinePage() {
           <CalendarView
             workItems={data.workItems}
             milestones={data.milestones}
-            onMilestoneClick={() => setShowMilestonePanel(true)}
+            onMilestoneClick={(milestoneId) => {
+              setSelectedMilestoneId(milestoneId);
+              setShowMilestonePanel(true);
+            }}
           />
         )}
       </div>
@@ -528,7 +535,11 @@ export function TimelinePage() {
           milestones={milestones.milestones}
           isLoading={milestones.isLoading}
           error={milestones.error}
-          onClose={() => setShowMilestonePanel(false)}
+          onClose={() => {
+            setShowMilestonePanel(false);
+            setSelectedMilestoneId(undefined);
+          }}
+          initialMilestoneId={selectedMilestoneId}
           hooks={{
             createMilestone: milestones.createMilestone,
             updateMilestone: milestones.updateMilestone,

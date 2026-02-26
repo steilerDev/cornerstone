@@ -51,8 +51,8 @@ export interface GanttMilestonesProps {
   milestones: TimelineMilestone[];
   chartRange: ChartRange;
   zoom: ZoomLevel;
-  /** Total number of work item rows (milestones start at this row index). */
-  rowCount: number;
+  /** Map from milestone ID to its row index in the unified sorted list. */
+  milestoneRowIndices: ReadonlyMap<number, number>;
   colors: MilestoneColors;
   /** Optional column width override for zoom in/out. */
   columnWidth?: number;
@@ -206,7 +206,7 @@ export const GanttMilestones = memo(function GanttMilestones({
   milestones,
   chartRange,
   zoom,
-  rowCount,
+  milestoneRowIndices,
   colors,
   columnWidth,
   onMilestoneMouseEnter,
@@ -220,20 +220,31 @@ export const GanttMilestones = memo(function GanttMilestones({
 
   return (
     <g aria-label={`Milestone markers (${milestones.length})`} data-testid="gantt-milestones-layer">
-      {milestones.map((milestone, milestoneIndex) => {
+      {milestones.map((milestone) => {
         const status = computeMilestoneStatus(milestone);
         const statusLabel =
           status === 'completed' ? 'completed' : status === 'late' ? 'late' : 'incomplete';
         const ariaLabel = `Milestone: ${milestone.title}, ${statusLabel}, target date ${milestone.targetDate}`;
 
-        // Each milestone has its own row after all work item rows
-        const milestoneRowIndex = rowCount + milestoneIndex;
+        // Row index from the unified sorted list
+        const milestoneRowIndex = milestoneRowIndices.get(milestone.id) ?? 0;
         const rowY = milestoneRowIndex * ROW_HEIGHT;
         const y = rowY + ROW_HEIGHT / 2;
 
         // Target date position (planned)
         const targetDate = toUtcMidnight(milestone.targetDate);
         const targetX = dateToX(targetDate, chartRange, zoom, columnWidth);
+
+        // For completed milestones with a completedAt date, position at that date
+        const completedX =
+          status === 'completed' && milestone.completedAt
+            ? dateToX(
+                toUtcMidnight(milestone.completedAt.slice(0, 10)),
+                chartRange,
+                zoom,
+                columnWidth,
+              )
+            : null;
 
         // For late milestones, also compute projected date position
         const isLate = status === 'late' && milestone.projectedDate !== null;
@@ -275,9 +286,9 @@ export const GanttMilestones = memo(function GanttMilestones({
               />
             )}
 
-            {/* Active diamond: at projected date for late, or target date for all others */}
+            {/* Active diamond: at completedAt for completed, projected for late, target for others */}
             <DiamondMarker
-              x={isLate && projectedX !== null ? projectedX : targetX}
+              x={completedX ?? (isLate && projectedX !== null ? projectedX : targetX)}
               y={y}
               status={status}
               label={ariaLabel}

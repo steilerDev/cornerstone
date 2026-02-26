@@ -255,6 +255,64 @@ export function GanttChart({
     });
   }, [data.workItems]);
 
+  // Build a unified sorted row list interleaving work items and milestones by date.
+  // Each row gets a globally unique rowIndex for sidebar and SVG positioning.
+  type UnifiedRow =
+    | { kind: 'workItem'; item: (typeof data.workItems)[0] }
+    | { kind: 'milestone'; milestone: (typeof data.milestones)[0] };
+
+  const unifiedRows = useMemo<UnifiedRow[]>(() => {
+    // Helper: get effective sort date for a milestone
+    function milestoneSortDate(m: (typeof data.milestones)[0]): string | null {
+      if (m.isCompleted && m.completedAt) return m.completedAt.slice(0, 10);
+      if (m.projectedDate) return m.projectedDate;
+      return m.targetDate;
+    }
+
+    const workItemRows: UnifiedRow[] = sortedWorkItems.map((item) => ({ kind: 'workItem', item }));
+    const milestoneRows: UnifiedRow[] = data.milestones.map((milestone) => ({
+      kind: 'milestone',
+      milestone,
+    }));
+
+    const all = [...workItemRows, ...milestoneRows];
+
+    // Sort: by effective date ascending, nulls last; milestones after work items on the same date
+    all.sort((a, b) => {
+      const dateA = a.kind === 'workItem' ? a.item.startDate : milestoneSortDate(a.milestone);
+      const dateB = b.kind === 'workItem' ? b.item.startDate : milestoneSortDate(b.milestone);
+
+      if (dateA === null && dateB === null) return 0;
+      if (dateA === null) return 1;
+      if (dateB === null) return -1;
+      if (dateA < dateB) return -1;
+      if (dateA > dateB) return 1;
+      // Same date: work items before milestones
+      if (a.kind === 'workItem' && b.kind === 'milestone') return -1;
+      if (a.kind === 'milestone' && b.kind === 'workItem') return 1;
+      return 0;
+    });
+
+    return all;
+  }, [sortedWorkItems, data.milestones]);
+
+  // Derive work item row indices and milestone row indices from the unified row list
+  const workItemRowIndices = useMemo(() => {
+    const map = new Map<string, number>();
+    unifiedRows.forEach((row, idx) => {
+      if (row.kind === 'workItem') map.set(row.item.id, idx);
+    });
+    return map;
+  }, [unifiedRows]);
+
+  const milestoneRowIndices = useMemo(() => {
+    const map = new Map<number, number>();
+    unifiedRows.forEach((row, idx) => {
+      if (row.kind === 'milestone') map.set(row.milestone.id, idx);
+    });
+    return map;
+  }, [unifiedRows]);
+
   // Build a lookup map from item ID to TimelineWorkItem for tooltip data
   const workItemMap = useMemo(() => {
     const map = new Map(data.workItems.map((item) => [item.id, item]));
@@ -271,19 +329,20 @@ export function GanttChart({
   // ---------------------------------------------------------------------------
 
   const barData = useMemo(() => {
-    return sortedWorkItems.map((item, idx) => {
+    return sortedWorkItems.map((item) => {
+      const rowIdx = workItemRowIndices.get(item.id) ?? 0;
       const position = computeBarPosition(
         item.startDate,
         item.endDate,
-        idx,
+        rowIdx,
         chartRange,
         zoom,
         today,
         columnWidth,
       );
-      return { item, position };
+      return { item, position, rowIndex: rowIdx };
     });
-  }, [sortedWorkItems, chartRange, zoom, today, columnWidth]);
+  }, [sortedWorkItems, workItemRowIndices, chartRange, zoom, today, columnWidth]);
 
   // Set of critical path work item IDs for O(1) lookups.
   // When highlighting is disabled, use an empty set so all arrows/bars render as default.
@@ -295,8 +354,8 @@ export function GanttChart({
   // Map from work item ID to BarRect — used by GanttArrows for path computation
   const barRects = useMemo<ReadonlyMap<string, BarRect>>(() => {
     const map = new Map<string, BarRect>();
-    barData.forEach(({ item, position }, idx) => {
-      map.set(item.id, { x: position.x, width: position.width, rowIndex: idx });
+    barData.forEach(({ item, position, rowIndex }) => {
+      map.set(item.id, { x: position.x, width: position.width, rowIndex });
     });
     return map;
   }, [barData]);
@@ -311,7 +370,6 @@ export function GanttChart({
     [colors.arrowDefault, colors.arrowCritical, colors.arrowMilestone],
   );
 
-  // SVG height: work item rows + individual milestone rows (one per milestone)
   const hasMilestones = data.milestones.length > 0;
 
   // ---------------------------------------------------------------------------
@@ -328,18 +386,23 @@ export function GanttChart({
     const map = new Map<number, MilestonePoint>();
     if (!hasMilestones) return map;
 
-    const workItemRowCount = sortedWorkItems.length;
-
-    data.milestones.forEach((milestone, milestoneIndex) => {
-      const milestoneRowIndex = workItemRowCount + milestoneIndex;
-      const y = milestoneRowIndex * ROW_HEIGHT + ROW_HEIGHT / 2;
+    data.milestones.forEach((milestone) => {
+      const rowIndex = milestoneRowIndices.get(milestone.id) ?? 0;
+      const y = rowIndex * ROW_HEIGHT + ROW_HEIGHT / 2;
 
       const status = computeMilestoneStatus(milestone);
       const isLate = status === 'late' && milestone.projectedDate !== null;
 
-      // Use projected date for late milestones (matches GanttMilestones active diamond)
-      const activeDateStr =
-        isLate && milestone.projectedDate !== null ? milestone.projectedDate : milestone.targetDate;
+      // Use completedAt for completed, projected for late, target for others
+      // (matches GanttMilestones active diamond position)
+      let activeDateStr: string;
+      if (status === 'completed' && milestone.completedAt) {
+        activeDateStr = milestone.completedAt.slice(0, 10);
+      } else if (isLate && milestone.projectedDate !== null) {
+        activeDateStr = milestone.projectedDate;
+      } else {
+        activeDateStr = milestone.targetDate;
+      }
 
       const x = dateToX(toUtcMidnight(activeDateStr), chartRange, zoom, columnWidth);
 
@@ -347,7 +410,7 @@ export function GanttChart({
     });
 
     return map;
-  }, [data.milestones, sortedWorkItems.length, hasMilestones, chartRange, zoom, columnWidth]);
+  }, [data.milestones, milestoneRowIndices, hasMilestones, chartRange, zoom, columnWidth]);
 
   /**
    * Map from milestone ID → array of contributing work item IDs.
@@ -384,8 +447,8 @@ export function GanttChart({
     return new Map(data.milestones.map((m) => [m.id, m.title]));
   }, [data.milestones]);
 
-  // SVG height: work item rows + individual milestone rows (one per milestone)
-  const totalRowCount = sortedWorkItems.length + (hasMilestones ? data.milestones.length : 0);
+  // SVG height: unified rows (interleaved work items + milestones)
+  const totalRowCount = unifiedRows.length;
   const svgHeight = Math.max(totalRowCount * ROW_HEIGHT, ROW_HEIGHT);
 
   // ---------------------------------------------------------------------------
@@ -446,6 +509,7 @@ export function GanttChart({
       <GanttSidebar
         items={sortedWorkItems}
         milestones={data.milestones}
+        unifiedRows={unifiedRows}
         onItemClick={onItemClick}
         ref={sidebarScrollRef}
       />
@@ -514,7 +578,7 @@ export function GanttChart({
                 milestones={data.milestones}
                 chartRange={chartRange}
                 zoom={zoom}
-                rowCount={sortedWorkItems.length}
+                milestoneRowIndices={milestoneRowIndices}
                 colors={colors.milestone}
                 columnWidth={columnWidth}
                 onMilestoneMouseEnter={(milestone, e) => {
@@ -559,7 +623,7 @@ export function GanttChart({
 
             {/* Work item bars (foreground layer) */}
             <g role="list" aria-label="Work item bars">
-              {barData.map(({ item, position }, idx) => (
+              {barData.map(({ item, position, rowIndex }) => (
                 <GanttBar
                   key={item.id}
                   id={item.id}
@@ -569,7 +633,7 @@ export function GanttChart({
                   endDate={item.endDate}
                   x={position.x}
                   width={position.width}
-                  rowIndex={idx}
+                  rowIndex={rowIndex}
                   fill={colors.barColors[item.status]}
                   onClick={onItemClick}
                   isCritical={criticalPathSet.has(item.id)}

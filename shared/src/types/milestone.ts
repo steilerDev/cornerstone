@@ -75,6 +75,7 @@ export interface UpdateMilestoneRequest {
   description?: string | null;
   targetDate?: string; // ISO 8601 date (YYYY-MM-DD)
   isCompleted?: boolean;
+  completedAt?: string | null; // ISO 8601 date (YYYY-MM-DD) — overrides auto-set when isCompleted is true
   color?: string | null;
 }
 
