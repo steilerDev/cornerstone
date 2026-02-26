@@ -37,15 +37,15 @@ import {
 
 describe('Constants', () => {
   it('COLUMN_WIDTHS has correct day column width', () => {
-    expect(COLUMN_WIDTHS.day).toBe(40);
+    expect(COLUMN_WIDTHS.day).toBe(58);
   });
 
   it('COLUMN_WIDTHS has correct week column width', () => {
-    expect(COLUMN_WIDTHS.week).toBe(110);
+    expect(COLUMN_WIDTHS.week).toBe(158);
   });
 
   it('COLUMN_WIDTHS has correct month column width', () => {
-    expect(COLUMN_WIDTHS.month).toBe(180);
+    expect(COLUMN_WIDTHS.month).toBe(260);
   });
 
   it('ROW_HEIGHT is 40', () => {
@@ -466,13 +466,13 @@ describe('dateToX', () => {
     it('returns COLUMN_WIDTHS.day for one day after start', () => {
       const range = makeRange('2024-06-01', '2024-06-30');
       const x = dateToX(toUtcMidnight('2024-06-02'), range, 'day');
-      expect(x).toBe(COLUMN_WIDTHS.day); // 40
+      expect(x).toBe(COLUMN_WIDTHS.day); // 58
     });
 
     it('returns 7 * COLUMN_WIDTHS.day for one week after start', () => {
       const range = makeRange('2024-06-01', '2024-06-30');
       const x = dateToX(toUtcMidnight('2024-06-08'), range, 'day');
-      expect(x).toBe(7 * COLUMN_WIDTHS.day); // 280
+      expect(x).toBe(7 * COLUMN_WIDTHS.day); // 406
     });
 
     it('returns negative x for dates before chart start', () => {
@@ -492,11 +492,11 @@ describe('dateToX', () => {
     it('returns COLUMN_WIDTHS.week for exactly 7 days after start', () => {
       const range = makeRange('2024-06-03', '2024-07-29');
       const x = dateToX(toUtcMidnight('2024-06-10'), range, 'week');
-      expect(x).toBeCloseTo(COLUMN_WIDTHS.week, 5); // 110
+      expect(x).toBeCloseTo(COLUMN_WIDTHS.week, 5); // 158
     });
 
     it('returns fractional weeks for mid-week dates', () => {
-      // 3.5 days into first week = 0.5 weeks = 55px
+      // 3.5 days into first week = 0.5 weeks = 79px
       const range = makeRange('2024-06-03', '2024-07-29');
       const x = dateToX(toUtcMidnight('2024-06-06'), range, 'week'); // 3 days in
       expect(x).toBeCloseTo((3 / 7) * COLUMN_WIDTHS.week, 5);
@@ -1465,7 +1465,7 @@ describe('computeBarPosition', () => {
     });
 
     it('does not reduce width below MIN_BAR_WIDTH for very short bars', () => {
-      // In day zoom, consecutive dates give exactly COLUMN_WIDTHS.day (40px) which is > MIN_BAR_WIDTH
+      // In day zoom, consecutive dates give exactly COLUMN_WIDTHS.day (58px) which is > MIN_BAR_WIDTH
       const range = makeRange('2024-06-01', '2024-06-30');
       const pos = computeBarPosition('2024-06-10', '2024-06-11', 0, range, 'day', TODAY);
       expect(pos.width).toBe(Math.max(COLUMN_WIDTHS.day, MIN_BAR_WIDTH));

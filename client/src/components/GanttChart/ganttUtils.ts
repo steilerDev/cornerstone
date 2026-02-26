@@ -9,23 +9,23 @@ export type ZoomLevel = 'day' | 'week' | 'month';
 
 /** Column widths in pixels per zoom level. */
 export const COLUMN_WIDTHS: Record<ZoomLevel, number> = {
-  day: 40,
-  week: 110,
-  month: 180,
+  day: 58,
+  week: 158,
+  month: 260,
 };
 
 /** Minimum column width per zoom level for zoom in/out control. */
 export const COLUMN_WIDTH_MIN: Record<ZoomLevel, number> = {
-  day: 20,
-  week: 50,
+  day: 15,
+  week: 35,
   month: 80,
 };
 
 /** Maximum column width per zoom level for zoom in/out control. */
 export const COLUMN_WIDTH_MAX: Record<ZoomLevel, number> = {
-  day: 100,
-  week: 250,
-  month: 400,
+  day: 170,
+  week: 400,
+  month: 900,
 };
 
 /** Row height in pixels — must match sidebar row height exactly for alignment. */
