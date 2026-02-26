@@ -1,8 +1,15 @@
 # cornerstone
 
 > [!NOTE]
-> I'm using this project to test out 'vibe coding' - I use this as a playground to better understand how to use an agentic development workflow. My plan is to write as little code as possible, but rely on a set of agents to build this application. I currently have a time-limited need for this (relatievely) simple application - which is why I'm not necessarily concerned about long-term maintainability.
-> After having spend a couple of weeks on this project, I'm both blown away by its capabilities, while still feeling that things don't move as fast as I would like it to be. Key learnings:
+> This project is completely written using an Agentic Developmen Workflow with Claude Code and [Docker Sandbox VMs](https://docs.docker.com/ai/sandboxes/get-started/).
+> 
+> It is a playground to better understand how to fully utilize the coding capabilities of modern LLMs, while applying Software Engineering best practices to create quality and maintainable code. My plan is to write as little code as possible by hand, but rely on a set of agents to build this application. 
+> 
+> The project scope is time-limited (I'm currently in need for this tool and probably won't be after) and feature limited - which is why I'm not necessarily concerned about long-term maintainability and/or overall code quality.
+> 
+> After having spend a couple of weeks on this project, I'm both blown away by the LLM capabilities, while still feeling that things don't move as fast and reliable as I would like them to be. 
+> 
+> Key learnings so far:
 > - In order to coding agents to produce good work, verification is very important.
 > - Good work will cost a lot of tokens!
 > - Clearly defining the process through skills and agents simplifies the UX for the developer and ensures coding happens along a happy path.
