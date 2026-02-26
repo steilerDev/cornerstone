@@ -92,3 +92,15 @@
   stroke-dasharray: 4 4;
   transition: opacity var(--transition-normal);
 }
+
+/* Arrow hover dimming — applied to non-hovered arrow groups */
+.arrowGroupDimmed {
+  opacity: 0.15 !important;
+  transition: opacity var(--transition-normal);
+}
+
+/* Hovered arrow — full opacity regardless of base opacity */
+.arrowGroupHovered {
+  opacity: 1 !important;
+  transition: opacity var(--transition-normal);
+}

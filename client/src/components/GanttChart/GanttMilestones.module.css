@@ -37,3 +37,26 @@
 .diamondPolygon {
   pointer-events: none; /* Clicks handled by parent <g> hit area */
 }
+
+/* Arrow hover interaction states */
+
+.milestoneHighlighted {
+  /* Connected endpoint: brightness boost + glow */
+  filter: brightness(1.25) drop-shadow(0 0 5px var(--color-primary));
+  opacity: 1;
+  transition:
+    filter var(--transition-normal),
+    opacity var(--transition-normal);
+}
+
+.milestoneDimmed {
+  opacity: 0.3;
+  transition: opacity var(--transition-normal);
+}
+
+/* Dimmed diamonds must not respond to hover brightness */
+.milestoneDimmed:hover,
+.milestoneDimmed:focus-visible {
+  filter: none;
+  opacity: 0.3;
+}

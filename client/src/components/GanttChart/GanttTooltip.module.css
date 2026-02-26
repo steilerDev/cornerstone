@@ -179,6 +179,16 @@
   flex-shrink: 0;
 }
 
+/* ---- Arrow relationship description ---- */
+
+.arrowDescription {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-inverse);
+  line-height: 1.5;
+  padding: var(--spacing-1) 0;
+}
+
 /* ---- Dark mode: tooltip uses --color-bg-inverse which already flips ---- */
 /* In dark mode, bg-inverse = gray-100 (light), so text and badge colors flip */
 

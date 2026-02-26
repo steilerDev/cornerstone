@@ -2,12 +2,17 @@
  * @jest-environment jsdom
  *
  * Unit tests for GanttMilestones — diamond marker rendering, positioning,
- * and keyboard/click accessibility.
+ * keyboard/click accessibility, and MilestoneInteractionState CSS class application
+ * (Issue #287: arrow hover highlighting).
  */
 import { describe, it, expect, jest } from '@jest/globals';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { GanttMilestones, computeMilestoneStatus } from './GanttMilestones.js';
-import type { GanttMilestonesProps, MilestoneColors } from './GanttMilestones.js';
+import type {
+  GanttMilestonesProps,
+  MilestoneColors,
+  MilestoneInteractionState,
+} from './GanttMilestones.js';
 import type { TimelineMilestone } from '@cornerstone/shared';
 import { COLUMN_WIDTHS, ROW_HEIGHT } from './ganttUtils.js';
 import type { ChartRange } from './ganttUtils.js';
@@ -464,5 +469,130 @@ describe('GanttMilestones', () => {
       expect(fills).toContain(COLORS.completeFill);
       expect(fills).toContain(COLORS.lateFill);
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// MilestoneInteractionState CSS classes (Issue #287: arrow hover highlighting)
+// ---------------------------------------------------------------------------
+
+describe('MilestoneInteractionState CSS classes', () => {
+  it('applies no interaction class when milestoneInteractionStates is undefined', () => {
+    // SVG elements expose className as SVGAnimatedString; use getAttribute('class').
+    renderMilestones({ milestoneInteractionStates: undefined });
+    const diamond = screen.getByTestId('gantt-milestone-diamond');
+    expect(diamond.getAttribute('class')).not.toContain('milestoneHighlighted');
+    expect(diamond.getAttribute('class')).not.toContain('milestoneDimmed');
+  });
+
+  it('applies milestoneHighlighted class when state is "highlighted"', () => {
+    const interactionStates: ReadonlyMap<number, MilestoneInteractionState> = new Map([
+      [MILESTONE_INCOMPLETE.id, 'highlighted'],
+    ]);
+    renderMilestones({ milestoneInteractionStates: interactionStates });
+    const diamond = screen.getByTestId('gantt-milestone-diamond');
+    expect(diamond.getAttribute('class')).toContain('milestoneHighlighted');
+  });
+
+  it('applies milestoneDimmed class when state is "dimmed"', () => {
+    const interactionStates: ReadonlyMap<number, MilestoneInteractionState> = new Map([
+      [MILESTONE_INCOMPLETE.id, 'dimmed'],
+    ]);
+    renderMilestones({ milestoneInteractionStates: interactionStates });
+    const diamond = screen.getByTestId('gantt-milestone-diamond');
+    expect(diamond.getAttribute('class')).toContain('milestoneDimmed');
+  });
+
+  it('applies no extra class when state is "default" (empty string class)', () => {
+    const interactionStates: ReadonlyMap<number, MilestoneInteractionState> = new Map([
+      [MILESTONE_INCOMPLETE.id, 'default'],
+    ]);
+    renderMilestones({ milestoneInteractionStates: interactionStates });
+    const diamond = screen.getByTestId('gantt-milestone-diamond');
+    expect(diamond.getAttribute('class')).not.toContain('milestoneHighlighted');
+    expect(diamond.getAttribute('class')).not.toContain('milestoneDimmed');
+  });
+
+  it('uses "default" state when milestoneInteractionStates map does not contain the milestone id', () => {
+    // Map exists but does not have an entry for MILESTONE_INCOMPLETE.id
+    const interactionStates: ReadonlyMap<number, MilestoneInteractionState> = new Map([
+      [999, 'highlighted'], // different milestone id
+    ]);
+    renderMilestones({ milestoneInteractionStates: interactionStates });
+    const diamond = screen.getByTestId('gantt-milestone-diamond');
+    expect(diamond.getAttribute('class')).not.toContain('milestoneHighlighted');
+    expect(diamond.getAttribute('class')).not.toContain('milestoneDimmed');
+  });
+
+  it('independently applies interaction state to each milestone in a multi-milestone render', () => {
+    const interactionStates: ReadonlyMap<number, MilestoneInteractionState> = new Map([
+      [MILESTONE_INCOMPLETE.id, 'highlighted'], // milestone 1
+      [MILESTONE_COMPLETE.id, 'dimmed'], // milestone 2
+    ]);
+    renderMilestones({
+      milestones: [MILESTONE_INCOMPLETE, MILESTONE_COMPLETE],
+      milestoneRowIndices: new Map([
+        [MILESTONE_INCOMPLETE.id, 0],
+        [MILESTONE_COMPLETE.id, 1],
+      ]),
+      milestoneInteractionStates: interactionStates,
+    });
+    const diamonds = screen.getAllByTestId('gantt-milestone-diamond');
+    expect(diamonds).toHaveLength(2);
+
+    // First diamond (MILESTONE_INCOMPLETE) should be highlighted
+    expect(diamonds[0].getAttribute('class')).toContain('milestoneHighlighted');
+    // Second diamond (MILESTONE_COMPLETE) should be dimmed
+    expect(diamonds[1].getAttribute('class')).toContain('milestoneDimmed');
+  });
+
+  it('MilestoneInteractionState type includes exactly highlighted, dimmed, default', () => {
+    const states: MilestoneInteractionState[] = ['highlighted', 'dimmed', 'default'];
+    for (const state of states) {
+      const interactionStates: ReadonlyMap<number, MilestoneInteractionState> = new Map([
+        [MILESTONE_INCOMPLETE.id, state],
+      ]);
+      expect(() => {
+        renderMilestones({ milestoneInteractionStates: interactionStates });
+      }).not.toThrow();
+    }
+  });
+
+  it('late milestone active diamond respects highlighted state', () => {
+    const interactionStates: ReadonlyMap<number, MilestoneInteractionState> = new Map([
+      [MILESTONE_LATE.id, 'highlighted'],
+    ]);
+    renderMilestones({
+      milestones: [MILESTONE_LATE],
+      milestoneRowIndices: new Map([[MILESTONE_LATE.id, 0]]),
+      milestoneInteractionStates: interactionStates,
+    });
+    const diamond = screen.getByTestId('gantt-milestone-diamond');
+    expect(diamond.getAttribute('class')).toContain('milestoneHighlighted');
+  });
+
+  it('late milestone connector line reduces strokeOpacity when state is "dimmed"', () => {
+    const interactionStates: ReadonlyMap<number, MilestoneInteractionState> = new Map([
+      [MILESTONE_LATE.id, 'dimmed'],
+    ]);
+    renderMilestones({
+      milestones: [MILESTONE_LATE],
+      milestoneRowIndices: new Map([[MILESTONE_LATE.id, 0]]),
+      milestoneInteractionStates: interactionStates,
+    });
+    const layer = screen.getByTestId('gantt-milestones-layer');
+    const line = layer.querySelector('line');
+    // Dimmed state sets strokeOpacity to 0.2
+    expect(line?.getAttribute('stroke-opacity')).toBe('0.2');
+  });
+
+  it('late milestone connector line has strokeOpacity 0.6 in default state', () => {
+    renderMilestones({
+      milestones: [MILESTONE_LATE],
+      milestoneRowIndices: new Map([[MILESTONE_LATE.id, 0]]),
+    });
+    const layer = screen.getByTestId('gantt-milestones-layer');
+    const line = layer.querySelector('line');
+    expect(line?.getAttribute('stroke-opacity')).toBe('0.6');
   });
 });

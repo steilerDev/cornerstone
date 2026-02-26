@@ -30,10 +30,19 @@ export interface GanttTooltipMilestoneData {
   linkedWorkItems: { id: string; title: string }[];
 }
 
+export interface GanttTooltipArrowData {
+  kind: 'arrow';
+  /** Human-readable description of the dependency relationship. */
+  description: string;
+}
+
 /**
  * Polymorphic tooltip data — discriminated by the `kind` field.
  */
-export type GanttTooltipData = GanttTooltipWorkItemData | GanttTooltipMilestoneData;
+export type GanttTooltipData =
+  | GanttTooltipWorkItemData
+  | GanttTooltipMilestoneData
+  | GanttTooltipArrowData;
 
 export interface GanttTooltipPosition {
   /** Mouse X in viewport coordinates. */
@@ -229,18 +238,31 @@ function MilestoneTooltipContent({ data }: { data: GanttTooltipMilestoneData }) 
 }
 
 // ---------------------------------------------------------------------------
+// Arrow tooltip content
+// ---------------------------------------------------------------------------
+
+function ArrowTooltipContent({ data }: { data: GanttTooltipArrowData }) {
+  return (
+    <div className={styles.arrowDescription} role="status">
+      {data.description}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
 /**
- * GanttTooltip renders a positioned tooltip for a hovered Gantt bar or milestone diamond.
+ * GanttTooltip renders a positioned tooltip for a hovered Gantt bar, milestone diamond,
+ * or dependency arrow.
  *
  * Rendered as a portal to document.body to avoid SVG clipping issues.
  * Position is derived from mouse viewport coordinates with flip logic
  * to avoid overflowing the viewport edges.
  *
- * The `data` prop is polymorphic — set `kind: 'work-item'` or `kind: 'milestone'`
- * to switch between tooltip layouts.
+ * The `data` prop is polymorphic — set `kind: 'work-item'`, `kind: 'milestone'`,
+ * or `kind: 'arrow'` to switch between tooltip layouts.
  */
 export function GanttTooltip({ data, position, id }: GanttTooltipProps) {
   // Compute tooltip x/y, flipping to avoid viewport overflow
@@ -270,8 +292,10 @@ export function GanttTooltip({ data, position, id }: GanttTooltipProps) {
     >
       {data.kind === 'work-item' ? (
         <WorkItemTooltipContent data={data} />
-      ) : (
+      ) : data.kind === 'milestone' ? (
         <MilestoneTooltipContent data={data} />
+      ) : (
+        <ArrowTooltipContent data={data} />
       )}
     </div>
   );

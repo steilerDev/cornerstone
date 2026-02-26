@@ -4,6 +4,9 @@ import type { WorkItemStatus } from '@cornerstone/shared';
 import { BAR_HEIGHT, BAR_OFFSET_Y, ROW_HEIGHT } from './ganttUtils.js';
 import styles from './GanttBar.module.css';
 
+/** Visual interaction state applied when an arrow is hovered. */
+export type BarInteractionState = 'highlighted' | 'dimmed' | 'default';
+
 export interface GanttBarProps {
   id: string;
   title: string;
@@ -23,6 +26,13 @@ export interface GanttBarProps {
   isCritical?: boolean;
   /** Resolved critical border color (read via getComputedStyle). */
   criticalBorderColor?: string;
+  /**
+   * Visual state applied when an arrow is hovered:
+   * - 'highlighted': this bar is a connected endpoint — visually emphasised
+   * - 'dimmed': this bar is unrelated to the hovered arrow — reduced opacity
+   * - 'default': no arrow hover active
+   */
+  interactionState?: BarInteractionState;
 
   // ---- Tooltip support (optional) ----
 
@@ -53,6 +63,12 @@ const STATUS_LABELS: Record<WorkItemStatus, string> = {
  *
  * Uses React.memo to avoid unnecessary re-renders when scrolling.
  */
+const INTERACTION_STATE_CLASSES: Record<BarInteractionState, string> = {
+  highlighted: styles.highlighted,
+  dimmed: styles.dimmed,
+  default: '',
+};
+
 export const GanttBar = memo(function GanttBar({
   id,
   title,
@@ -66,6 +82,7 @@ export const GanttBar = memo(function GanttBar({
   onClick,
   isCritical = false,
   criticalBorderColor,
+  interactionState = 'default',
   tooltipId,
   onMouseEnter,
   onMouseLeave,
@@ -81,6 +98,8 @@ export const GanttBar = memo(function GanttBar({
   const criticalSuffix = isCritical ? ', critical path' : '';
   const ariaLabel = `Work item: ${title}, ${statusLabel}${dateRange}${criticalSuffix}`;
 
+  const interactionClass = INTERACTION_STATE_CLASSES[interactionState];
+
   function handleClick() {
     onClick?.(id);
   }
@@ -94,7 +113,7 @@ export const GanttBar = memo(function GanttBar({
 
   return (
     <g
-      className={styles.bar}
+      className={`${styles.bar} ${interactionClass}`}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       onMouseEnter={onMouseEnter}

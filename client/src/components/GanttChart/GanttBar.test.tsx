@@ -3,10 +3,12 @@
  *
  * Unit tests for GanttBar — SVG bar component for work items.
  * Tests bar positioning, status coloring, text label rendering, and accessibility.
+ * Also covers BarInteractionState CSS class application (Issue #287: arrow hover highlighting).
  */
 import { jest, describe, it, expect } from '@jest/globals';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { GanttBar } from './GanttBar.js';
+import type { BarInteractionState } from './GanttBar.js';
 import { BAR_HEIGHT, BAR_OFFSET_Y, ROW_HEIGHT } from './ganttUtils.js';
 import type { WorkItemStatus } from '@cornerstone/shared';
 
@@ -294,5 +296,93 @@ describe('GanttBar', () => {
     const { container } = renderInSvg({ ...DEFAULT_PROPS, rowIndex: 3 });
     const barRect = container.querySelector('rect.rect');
     expect(barRect).toHaveAttribute('y', String(3 * ROW_HEIGHT + BAR_OFFSET_Y));
+  });
+
+  // ── BarInteractionState CSS classes (Issue #287: arrow hover highlighting) ─
+
+  describe('interactionState CSS classes', () => {
+    it('applies no extra class when interactionState is "default"', () => {
+      // SVG elements expose className as SVGAnimatedString; use getAttribute('class') instead.
+      const { container } = renderInSvg({
+        ...DEFAULT_PROPS,
+        interactionState: 'default' as BarInteractionState,
+      });
+      const group = container.querySelector('g');
+      // identity-obj-proxy returns the class name itself, so "highlighted" should not appear
+      expect(group?.getAttribute('class')).not.toContain('highlighted');
+      expect(group?.getAttribute('class')).not.toContain('dimmed');
+    });
+
+    it('applies highlighted class when interactionState is "highlighted"', () => {
+      const { container } = renderInSvg({
+        ...DEFAULT_PROPS,
+        interactionState: 'highlighted' as BarInteractionState,
+      });
+      const group = container.querySelector('g');
+      expect(group?.getAttribute('class')).toContain('highlighted');
+    });
+
+    it('applies dimmed class when interactionState is "dimmed"', () => {
+      const { container } = renderInSvg({
+        ...DEFAULT_PROPS,
+        interactionState: 'dimmed' as BarInteractionState,
+      });
+      const group = container.querySelector('g');
+      expect(group?.getAttribute('class')).toContain('dimmed');
+    });
+
+    it('defaults to "default" interactionState when prop is omitted', () => {
+      // Omit interactionState — should behave identically to "default"
+      const { container } = renderInSvg({ ...DEFAULT_PROPS });
+      const group = container.querySelector('g');
+      expect(group?.getAttribute('class')).not.toContain('highlighted');
+      expect(group?.getAttribute('class')).not.toContain('dimmed');
+    });
+
+    it('does not apply highlighted class when interactionState changes to "dimmed"', () => {
+      const { container, rerender } = renderInSvg({
+        ...DEFAULT_PROPS,
+        interactionState: 'highlighted' as BarInteractionState,
+      });
+      const group = container.querySelector('g');
+      expect(group?.getAttribute('class')).toContain('highlighted');
+
+      // Re-render with dimmed state
+      rerender(
+        <svg>
+          <GanttBar {...DEFAULT_PROPS} interactionState={'dimmed' as BarInteractionState} />
+        </svg>,
+      );
+      expect(group?.getAttribute('class')).toContain('dimmed');
+      expect(group?.getAttribute('class')).not.toContain('highlighted');
+    });
+
+    it('does not apply dimmed class when interactionState changes back to "default"', () => {
+      const { container, rerender } = renderInSvg({
+        ...DEFAULT_PROPS,
+        interactionState: 'dimmed' as BarInteractionState,
+      });
+      const group = container.querySelector('g');
+      expect(group?.getAttribute('class')).toContain('dimmed');
+
+      // Re-render with default state
+      rerender(
+        <svg>
+          <GanttBar {...DEFAULT_PROPS} interactionState={'default' as BarInteractionState} />
+        </svg>,
+      );
+      expect(group?.getAttribute('class')).not.toContain('dimmed');
+      expect(group?.getAttribute('class')).not.toContain('highlighted');
+    });
+
+    it('BarInteractionState type includes exactly highlighted, dimmed, default', () => {
+      // Compile-time type check exercised at runtime: all 3 states render without error
+      const states: BarInteractionState[] = ['highlighted', 'dimmed', 'default'];
+      for (const state of states) {
+        expect(() => {
+          renderInSvg({ ...DEFAULT_PROPS, interactionState: state });
+        }).not.toThrow();
+      }
+    });
   });
 });
