@@ -2,6 +2,13 @@
 
 > [!NOTE]
 > I'm using this project to test out 'vibe coding' - I use this as a playground to better understand how to use an agentic development workflow. My plan is to write as little code as possible, but rely on a set of agents to build this application. I currently have a time-limited need for this (relatievely) simple application - which is why I'm not necessarily concerned about long-term maintainability.
+> After having spend a couple of weeks on this project, I'm both blown away by its capabilities, while still feeling that things don't move as fast as I would like it to be. Key learnings:
+> - In order to coding agents to produce good work, verification is very important.
+> - Good work will cost a lot of tokens!
+> - Clearly defining the process through skills and agents simplifies the UX for the developer and ensures coding happens along a happy path.
+> - Parallel work is important - using git worktrees for this should be natively supported by coding agents.
+> - Running coding agents on your host is dangerous! They can (and will) go wild and perform tasks that you would have never thought of and they are clever in bypassing restrictions. An [isolated environment](https://docs.docker.com/ai/sandboxes/) is crucial to provide agents with clear restrictions and reduce the blast radius in case something goes wrong - Coding Agent Governance will be a critical capability moving forward!
+> - In order to follow a policy, it needs correct enforcement - nicely asking an agent to follow it will not always work: Make sure your CI, Repository and Deployment process have enforced quality gates with no way for the agent to bypass them .
 
 [![GitHub Release](https://img.shields.io/github/v/release/steilerDev/cornerstone?label=release)](https://github.com/steilerDev/cornerstone/releases/latest)
 [![CI](https://img.shields.io/github/actions/workflow/status/steilerDev/cornerstone/ci.yml?branch=main&label=CI)](https://github.com/steilerDev/cornerstone/actions/workflows/ci.yml)
