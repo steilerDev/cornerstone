@@ -4,8 +4,17 @@ sidebar_position: 1
 title: Introduction
 ---
 
+import ThemedImage from '@theme/ThemedImage';
+
 <div style={{textAlign: 'center', marginBottom: '2rem'}}>
-  <img src="/img/logo-full.svg" alt="Cornerstone" style={{maxWidth: '400px', width: '100%'}} />
+  <ThemedImage
+    alt="Cornerstone"
+    sources={{
+      light: '/img/logo-full.svg',
+      dark: '/img/logo-full-dark.svg',
+    }}
+    style={{maxWidth: '400px', width: '100%'}}
+  />
 </div>
 
 # Cornerstone

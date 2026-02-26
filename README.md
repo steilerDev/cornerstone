@@ -19,7 +19,11 @@
 > - In order to follow a policy, it needs correct enforcement - nicely asking an agent to follow it will not always work: Make sure your CI, Repository and Deployment process have enforced quality gates with no way for the agent to bypass them .
 
 <p align="center">
-  <img src="logo/Logo.svg" alt="Cornerstone" width="400" />
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="logo/logo_dark.svg" />
+    <source media="(prefers-color-scheme: light)" srcset="logo/logo_light.svg" />
+    <img src="logo/logo_light.svg" alt="Cornerstone" width="400" />
+  </picture>
 </p>
 
 [![GitHub Release](https://img.shields.io/github/v/release/steilerDev/cornerstone?label=release)](https://github.com/steilerDev/cornerstone/releases/latest)
