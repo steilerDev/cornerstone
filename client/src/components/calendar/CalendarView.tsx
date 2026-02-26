@@ -9,11 +9,14 @@
  *   calendarMode=month|week   (defaults to "month")
  */
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { TimelineWorkItem, TimelineMilestone } from '@cornerstone/shared';
 import { MonthGrid } from './MonthGrid.js';
 import { WeekGrid } from './WeekGrid.js';
+import { GanttTooltip } from '../GanttChart/GanttTooltip.js';
+import type { GanttTooltipData, GanttTooltipPosition } from '../GanttChart/GanttTooltip.js';
+import { computeMilestoneStatus } from '../GanttChart/GanttMilestones.js';
 import {
   parseIsoDate,
   formatIsoDate,
@@ -32,7 +35,6 @@ import styles from './CalendarView.module.css';
 // ---------------------------------------------------------------------------
 
 export type CalendarMode = 'month' | 'week';
-export type CalendarColumnSize = 'compact' | 'default' | 'comfortable';
 
 export interface CalendarViewProps {
   workItems: TimelineWorkItem[];
@@ -105,14 +107,16 @@ function ChevronRightIcon() {
 }
 
 // ---------------------------------------------------------------------------
-// CalendarView component
+// Tooltip debounce timings (matches GanttChart)
 // ---------------------------------------------------------------------------
 
-const COLUMN_SIZE_OPTIONS: { value: CalendarColumnSize; label: string }[] = [
-  { value: 'compact', label: 'S' },
-  { value: 'default', label: 'M' },
-  { value: 'comfortable', label: 'L' },
-];
+const TOOLTIP_SHOW_DELAY = 120;
+const TOOLTIP_HIDE_DELAY = 80;
+const TOOLTIP_ID = 'calendar-view-tooltip';
+
+// ---------------------------------------------------------------------------
+// CalendarView component
+// ---------------------------------------------------------------------------
 
 export function CalendarView({ workItems, milestones, onMilestoneClick }: CalendarViewProps) {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -136,14 +140,108 @@ export function CalendarView({ workItems, milestones, onMilestoneClick }: Calend
     }, 50);
   }, []);
 
+  // ---------------------------------------------------------------------------
+  // Tooltip state
+  // ---------------------------------------------------------------------------
+
+  const [tooltipData, setTooltipData] = useState<GanttTooltipData | null>(null);
+  const [tooltipPosition, setTooltipPosition] = useState<GanttTooltipPosition>({ x: 0, y: 0 });
+  const tooltipShowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tooltipHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function clearTooltipTimers() {
+    if (tooltipShowTimerRef.current !== null) {
+      clearTimeout(tooltipShowTimerRef.current);
+      tooltipShowTimerRef.current = null;
+    }
+    if (tooltipHideTimerRef.current !== null) {
+      clearTimeout(tooltipHideTimerRef.current);
+      tooltipHideTimerRef.current = null;
+    }
+  }
+
+  // Stable ID-keyed lookup maps for tooltip data construction
+  const workItemById = useMemo(() => new Map(workItems.map((wi) => [wi.id, wi])), [workItems]);
+
+  const milestoneById = useMemo(() => new Map(milestones.map((m) => [m.id, m])), [milestones]);
+
+  const handleWorkItemMouseEnter = useCallback(
+    (itemId: string, mouseX: number, mouseY: number) => {
+      clearTooltipTimers();
+      handleItemHoverStart(itemId);
+      const item = workItemById.get(itemId);
+      if (!item) return;
+      tooltipShowTimerRef.current = setTimeout(() => {
+        setTooltipData({
+          kind: 'work-item',
+          title: item.title,
+          status: item.status,
+          startDate: item.startDate,
+          endDate: item.endDate,
+          durationDays: item.durationDays,
+          assignedUserName: item.assignedUser?.displayName ?? null,
+        });
+        setTooltipPosition({ x: mouseX, y: mouseY });
+      }, TOOLTIP_SHOW_DELAY);
+    },
+    [workItemById, handleItemHoverStart],
+  );
+
+  const handleWorkItemMouseLeave = useCallback(() => {
+    clearTooltipTimers();
+    handleItemHoverEnd();
+    tooltipHideTimerRef.current = setTimeout(() => {
+      setTooltipData(null);
+    }, TOOLTIP_HIDE_DELAY);
+  }, [handleItemHoverEnd]);
+
+  const handleWorkItemMouseMove = useCallback((mouseX: number, mouseY: number) => {
+    setTooltipPosition({ x: mouseX, y: mouseY });
+  }, []);
+
+  const handleMilestoneMouseEnter = useCallback(
+    (milestoneId: number, mouseX: number, mouseY: number) => {
+      clearTooltipTimers();
+      const milestone = milestoneById.get(milestoneId);
+      if (!milestone) return;
+      tooltipShowTimerRef.current = setTimeout(() => {
+        const milestoneStatus = computeMilestoneStatus(milestone);
+        const linkedWorkItems = milestone.workItemIds
+          .map((wid) => {
+            const wi = workItemById.get(wid);
+            return wi ? { id: wid, title: wi.title } : null;
+          })
+          .filter((x): x is { id: string; title: string } => x !== null);
+        setTooltipData({
+          kind: 'milestone',
+          title: milestone.title,
+          targetDate: milestone.targetDate,
+          projectedDate: milestone.projectedDate,
+          isCompleted: milestone.isCompleted,
+          isLate: milestoneStatus === 'late',
+          completedAt: milestone.completedAt,
+          linkedWorkItems,
+        });
+        setTooltipPosition({ x: mouseX, y: mouseY });
+      }, TOOLTIP_SHOW_DELAY);
+    },
+    [milestoneById, workItemById],
+  );
+
+  const handleMilestoneMouseLeave = useCallback(() => {
+    clearTooltipTimers();
+    tooltipHideTimerRef.current = setTimeout(() => {
+      setTooltipData(null);
+    }, TOOLTIP_HIDE_DELAY);
+  }, []);
+
+  const handleMilestoneMouseMove = useCallback((mouseX: number, mouseY: number) => {
+    setTooltipPosition({ x: mouseX, y: mouseY });
+  }, []);
+
   // Read calendarMode from URL (default: month)
   const rawMode = searchParams.get('calendarMode');
   const calendarMode: CalendarMode = rawMode === 'week' ? 'week' : 'month';
-
-  // Read column size from URL (default: 'default')
-  const rawSize = searchParams.get('calendarSize');
-  const columnSize: CalendarColumnSize =
-    rawSize === 'compact' || rawSize === 'comfortable' ? rawSize : 'default';
 
   const { year: todayYear, month: todayMonth, todayDate } = getTodayInfo();
 
@@ -165,24 +263,6 @@ export function CalendarView({ workItems, milestones, onMilestoneClick }: Calend
         (prev) => {
           const next = new URLSearchParams(prev);
           next.set('calendarMode', mode);
-          return next;
-        },
-        { replace: true },
-      );
-    },
-    [setSearchParams],
-  );
-
-  const setColumnSize = useCallback(
-    (size: CalendarColumnSize) => {
-      setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
-          if (size === 'default') {
-            next.delete('calendarSize');
-          } else {
-            next.set('calendarSize', size);
-          }
           return next;
         },
         { replace: true },
@@ -291,22 +371,6 @@ export function CalendarView({ workItems, milestones, onMilestoneClick }: Calend
           {navLabel}
         </h2>
 
-        {/* Column size toggle */}
-        <div className={styles.columnSizeToggle} role="toolbar" aria-label="Column size">
-          {COLUMN_SIZE_OPTIONS.map(({ value, label }) => (
-            <button
-              key={value}
-              type="button"
-              className={`${styles.modeButton} ${columnSize === value ? styles.modeButtonActive : ''}`}
-              aria-pressed={columnSize === value}
-              onClick={() => setColumnSize(value)}
-              title={`${value.charAt(0).toUpperCase() + value.slice(1)} columns`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
         {/* Month/Week toggle */}
         <div className={styles.modeToggle} role="toolbar" aria-label="Calendar display mode">
           <button
@@ -344,10 +408,13 @@ export function CalendarView({ workItems, milestones, onMilestoneClick }: Calend
             workItems={workItems}
             milestones={milestones}
             onMilestoneClick={onMilestoneClick}
-            columnSize={columnSize}
             hoveredItemId={hoveredItemId}
-            onItemHoverStart={handleItemHoverStart}
-            onItemHoverEnd={handleItemHoverEnd}
+            onItemMouseEnter={handleWorkItemMouseEnter}
+            onItemMouseLeave={handleWorkItemMouseLeave}
+            onItemMouseMove={handleWorkItemMouseMove}
+            onMilestoneMouseEnter={handleMilestoneMouseEnter}
+            onMilestoneMouseLeave={handleMilestoneMouseLeave}
+            onMilestoneMouseMove={handleMilestoneMouseMove}
           />
         ) : (
           <WeekGrid
@@ -355,13 +422,21 @@ export function CalendarView({ workItems, milestones, onMilestoneClick }: Calend
             workItems={workItems}
             milestones={milestones}
             onMilestoneClick={onMilestoneClick}
-            columnSize={columnSize}
             hoveredItemId={hoveredItemId}
-            onItemHoverStart={handleItemHoverStart}
-            onItemHoverEnd={handleItemHoverEnd}
+            onItemMouseEnter={handleWorkItemMouseEnter}
+            onItemMouseLeave={handleWorkItemMouseLeave}
+            onItemMouseMove={handleWorkItemMouseMove}
+            onMilestoneMouseEnter={handleMilestoneMouseEnter}
+            onMilestoneMouseLeave={handleMilestoneMouseLeave}
+            onMilestoneMouseMove={handleMilestoneMouseMove}
           />
         )}
       </div>
+
+      {/* Tooltip portal — renders to document.body to avoid overflow clipping */}
+      {tooltipData !== null && (
+        <GanttTooltip data={tooltipData} position={tooltipPosition} id={TOOLTIP_ID} />
+      )}
     </div>
   );
 }

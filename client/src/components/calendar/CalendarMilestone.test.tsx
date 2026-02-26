@@ -54,11 +54,20 @@ function renderMilestone(
   props: Partial<{
     milestone: TimelineMilestone;
     onMilestoneClick: jest.Mock;
+    onMouseEnter: jest.Mock;
+    onMouseLeave: jest.Mock;
+    onMouseMove: jest.Mock;
   }> = {},
 ) {
   const milestone = props.milestone ?? makeMilestone();
   return render(
-    <CalendarMilestone milestone={milestone} onMilestoneClick={props.onMilestoneClick} />,
+    <CalendarMilestone
+      milestone={milestone}
+      onMilestoneClick={props.onMilestoneClick}
+      onMouseEnter={props.onMouseEnter}
+      onMouseLeave={props.onMouseLeave}
+      onMouseMove={props.onMouseMove}
+    />,
   );
 }
 
@@ -91,10 +100,10 @@ describe('CalendarMilestone', () => {
       expect(screen.getByText('Framing Complete')).toBeInTheDocument();
     });
 
-    it('renders with title attribute matching milestone title', () => {
+    it('does not render a native title attribute (rich tooltip replaces it)', () => {
       const milestone = makeMilestone({ title: 'Roof Installed' });
       renderMilestone({ milestone });
-      expect(screen.getByRole('button')).toHaveAttribute('title', 'Roof Installed');
+      expect(screen.getByRole('button')).not.toHaveAttribute('title');
     });
 
     it('renders a diamond SVG icon', () => {
@@ -249,6 +258,85 @@ describe('CalendarMilestone', () => {
       const { container } = renderMilestone();
       const svg = container.querySelector('svg');
       expect(svg).toHaveAttribute('aria-hidden', 'true');
+    });
+  });
+
+  // ── Mouse event callbacks ─────────────────────────────────────────────────
+
+  describe('mouse event callbacks', () => {
+    it('calls onMouseEnter with milestoneId and mouse coordinates on mouse enter', () => {
+      const onMouseEnter = jest.fn();
+      const milestone = makeMilestone({ id: 55 });
+      renderMilestone({ milestone, onMouseEnter });
+
+      const el = screen.getByTestId('calendar-milestone');
+      fireEvent.mouseEnter(el, { clientX: 100, clientY: 200 });
+
+      expect(onMouseEnter).toHaveBeenCalledTimes(1);
+      expect(onMouseEnter).toHaveBeenCalledWith(55, 100, 200);
+    });
+
+    it('calls onMouseLeave when mouse leaves the milestone', () => {
+      const onMouseLeave = jest.fn();
+      renderMilestone({ onMouseLeave });
+
+      fireEvent.mouseLeave(screen.getByTestId('calendar-milestone'));
+
+      expect(onMouseLeave).toHaveBeenCalledTimes(1);
+    });
+
+    it('calls onMouseMove with updated coordinates when mouse moves', () => {
+      const onMouseMove = jest.fn();
+      renderMilestone({ onMouseMove });
+
+      fireEvent.mouseMove(screen.getByTestId('calendar-milestone'), { clientX: 300, clientY: 450 });
+
+      expect(onMouseMove).toHaveBeenCalledTimes(1);
+      expect(onMouseMove).toHaveBeenCalledWith(300, 450);
+    });
+
+    it('does not throw when onMouseEnter is undefined', () => {
+      renderMilestone({ onMouseEnter: undefined });
+      expect(() =>
+        fireEvent.mouseEnter(screen.getByTestId('calendar-milestone'), {
+          clientX: 10,
+          clientY: 20,
+        }),
+      ).not.toThrow();
+    });
+
+    it('does not throw when onMouseLeave is undefined', () => {
+      renderMilestone({ onMouseLeave: undefined });
+      expect(() => fireEvent.mouseLeave(screen.getByTestId('calendar-milestone'))).not.toThrow();
+    });
+
+    it('does not throw when onMouseMove is undefined', () => {
+      renderMilestone({ onMouseMove: undefined });
+      expect(() =>
+        fireEvent.mouseMove(screen.getByTestId('calendar-milestone'), { clientX: 10, clientY: 20 }),
+      ).not.toThrow();
+    });
+
+    it('passes correct milestoneId for different milestone IDs', () => {
+      const onMouseEnter = jest.fn();
+      const milestone = makeMilestone({ id: 999 });
+      renderMilestone({ milestone, onMouseEnter });
+
+      fireEvent.mouseEnter(screen.getByTestId('calendar-milestone'), { clientX: 5, clientY: 10 });
+
+      expect(onMouseEnter).toHaveBeenCalledWith(999, 5, 10);
+    });
+  });
+
+  // ── aria-describedby for tooltip ──────────────────────────────────────────
+
+  describe('aria-describedby for tooltip', () => {
+    it('has aria-describedby="calendar-view-tooltip"', () => {
+      renderMilestone();
+      expect(screen.getByRole('button')).toHaveAttribute(
+        'aria-describedby',
+        'calendar-view-tooltip',
+      );
     });
   });
 });

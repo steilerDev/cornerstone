@@ -12,7 +12,6 @@
 
 import { useMemo } from 'react';
 import type { TimelineWorkItem, TimelineMilestone } from '@cornerstone/shared';
-import type { CalendarColumnSize } from './CalendarView.js';
 import { CalendarItem, LANE_HEIGHT_FULL } from './CalendarItem.js';
 import { CalendarMilestone } from './CalendarMilestone.js';
 import {
@@ -39,11 +38,14 @@ export interface WeekGridProps {
   workItems: TimelineWorkItem[];
   milestones: TimelineMilestone[];
   onMilestoneClick?: (milestoneId: number) => void;
-  columnSize?: CalendarColumnSize;
   /** The item ID currently being hovered (for cross-cell highlight). */
   hoveredItemId?: string | null;
-  onItemHoverStart?: (itemId: string) => void;
-  onItemHoverEnd?: () => void;
+  onItemMouseEnter?: (itemId: string, mouseX: number, mouseY: number) => void;
+  onItemMouseLeave?: () => void;
+  onItemMouseMove?: (mouseX: number, mouseY: number) => void;
+  onMilestoneMouseEnter?: (milestoneId: number, mouseX: number, mouseY: number) => void;
+  onMilestoneMouseLeave?: () => void;
+  onMilestoneMouseMove?: (mouseX: number, mouseY: number) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -55,10 +57,13 @@ export function WeekGrid({
   workItems,
   milestones,
   onMilestoneClick,
-  columnSize = 'default',
   hoveredItemId = null,
-  onItemHoverStart,
-  onItemHoverEnd,
+  onItemMouseEnter,
+  onItemMouseLeave,
+  onItemMouseMove,
+  onMilestoneMouseEnter,
+  onMilestoneMouseLeave,
+  onMilestoneMouseMove,
 }: WeekGridProps) {
   const days = useMemo(() => getWeekDates(weekDate), [weekDate]);
 
@@ -86,12 +91,7 @@ export function WeekGrid({
       : undefined;
 
   return (
-    <div
-      className={styles.grid}
-      role="grid"
-      aria-label="Weekly calendar"
-      data-column-size={columnSize}
-    >
+    <div className={styles.grid} role="grid" aria-label="Weekly calendar">
       {/* Day column headers */}
       <div className={styles.headerRow} role="row">
         {days.map((day, i) => {
@@ -144,8 +144,9 @@ export function WeekGrid({
                   isEnd={isItemEnd(day.dateStr, item)}
                   compact={false}
                   isHighlighted={hoveredItemId === item.id}
-                  onHoverStart={onItemHoverStart}
-                  onHoverEnd={onItemHoverEnd}
+                  onMouseEnter={onItemMouseEnter}
+                  onMouseLeave={onItemMouseLeave}
+                  onMouseMove={onItemMouseMove}
                   laneIndex={laneMap.get(item.id)}
                   colorIndex={getItemColor(item.id)}
                 />
@@ -163,7 +164,13 @@ export function WeekGrid({
                     padding: '0 var(--spacing-2)',
                   }}
                 >
-                  <CalendarMilestone milestone={m} onMilestoneClick={onMilestoneClick} />
+                  <CalendarMilestone
+                    milestone={m}
+                    onMilestoneClick={onMilestoneClick}
+                    onMouseEnter={onMilestoneMouseEnter}
+                    onMouseLeave={onMilestoneMouseLeave}
+                    onMouseMove={onMilestoneMouseMove}
+                  />
                 </div>
               ))}
 

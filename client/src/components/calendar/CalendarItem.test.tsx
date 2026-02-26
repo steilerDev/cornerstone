@@ -6,7 +6,7 @@
  * title display, compact mode, click navigation, and keyboard accessibility.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { TimelineWorkItem } from '@cornerstone/shared';
@@ -59,6 +59,10 @@ function renderItem(
     isStart: boolean;
     isEnd: boolean;
     compact: boolean;
+    isHighlighted: boolean;
+    onMouseEnter: jest.Mock;
+    onMouseLeave: jest.Mock;
+    onMouseMove: jest.Mock;
   }> = {},
 ) {
   const item = props.item ?? makeItem();
@@ -69,6 +73,10 @@ function renderItem(
         isStart={props.isStart ?? true}
         isEnd={props.isEnd ?? true}
         compact={props.compact ?? false}
+        isHighlighted={props.isHighlighted}
+        onMouseEnter={props.onMouseEnter}
+        onMouseLeave={props.onMouseLeave}
+        onMouseMove={props.onMouseMove}
       />
     </MemoryRouter>,
   );
@@ -106,10 +114,10 @@ describe('CalendarItem', () => {
       );
     });
 
-    it('renders with title attribute matching item title', () => {
+    it('does not render a native title attribute (rich tooltip replaces it)', () => {
       const item = makeItem({ title: 'Plumbing Rough-in' });
       renderItem({ item });
-      expect(screen.getByRole('button')).toHaveAttribute('title', 'Plumbing Rough-in');
+      expect(screen.getByRole('button')).not.toHaveAttribute('title');
     });
   });
 
@@ -297,6 +305,106 @@ describe('CalendarItem', () => {
         'aria-label',
         expect.stringContaining('completed'),
       );
+    });
+  });
+
+  // ── Mouse event callbacks ─────────────────────────────────────────────────
+
+  describe('mouse event callbacks', () => {
+    it('calls onMouseEnter with itemId and mouse coordinates on mouse enter', () => {
+      const onMouseEnter = jest.fn();
+      const item = makeItem({ id: 'item-42' });
+      renderItem({ item, onMouseEnter });
+
+      const button = screen.getByTestId('calendar-item');
+      fireEvent.mouseEnter(button, { clientX: 150, clientY: 300 });
+
+      expect(onMouseEnter).toHaveBeenCalledTimes(1);
+      expect(onMouseEnter).toHaveBeenCalledWith('item-42', 150, 300);
+    });
+
+    it('calls onMouseLeave when mouse leaves the item', () => {
+      const onMouseLeave = jest.fn();
+      renderItem({ onMouseLeave });
+
+      const button = screen.getByTestId('calendar-item');
+      fireEvent.mouseLeave(button);
+
+      expect(onMouseLeave).toHaveBeenCalledTimes(1);
+    });
+
+    it('calls onMouseMove with updated coordinates when mouse moves', () => {
+      const onMouseMove = jest.fn();
+      renderItem({ onMouseMove });
+
+      const button = screen.getByTestId('calendar-item');
+      fireEvent.mouseMove(button, { clientX: 200, clientY: 400 });
+
+      expect(onMouseMove).toHaveBeenCalledTimes(1);
+      expect(onMouseMove).toHaveBeenCalledWith(200, 400);
+    });
+
+    it('does not throw when onMouseEnter is undefined', () => {
+      renderItem({ onMouseEnter: undefined });
+      const button = screen.getByTestId('calendar-item');
+      expect(() => fireEvent.mouseEnter(button, { clientX: 10, clientY: 20 })).not.toThrow();
+    });
+
+    it('does not throw when onMouseLeave is undefined', () => {
+      renderItem({ onMouseLeave: undefined });
+      const button = screen.getByTestId('calendar-item');
+      expect(() => fireEvent.mouseLeave(button)).not.toThrow();
+    });
+
+    it('does not throw when onMouseMove is undefined', () => {
+      renderItem({ onMouseMove: undefined });
+      const button = screen.getByTestId('calendar-item');
+      expect(() => fireEvent.mouseMove(button, { clientX: 10, clientY: 20 })).not.toThrow();
+    });
+
+    it('passes correct itemId even when item id contains non-numeric characters', () => {
+      const onMouseEnter = jest.fn();
+      const item = makeItem({ id: 'work-item-uuid-abc-123' });
+      renderItem({ item, onMouseEnter });
+
+      fireEvent.mouseEnter(screen.getByTestId('calendar-item'), { clientX: 50, clientY: 75 });
+
+      expect(onMouseEnter).toHaveBeenCalledWith('work-item-uuid-abc-123', 50, 75);
+    });
+  });
+
+  // ── aria-describedby for tooltip ──────────────────────────────────────────
+
+  describe('aria-describedby for tooltip', () => {
+    it('has aria-describedby="calendar-view-tooltip"', () => {
+      renderItem();
+      expect(screen.getByRole('button')).toHaveAttribute(
+        'aria-describedby',
+        'calendar-view-tooltip',
+      );
+    });
+  });
+
+  // ── isHighlighted prop ────────────────────────────────────────────────────
+
+  describe('isHighlighted prop', () => {
+    it('applies "highlighted" class when isHighlighted=true', () => {
+      renderItem({ isHighlighted: true });
+      const el = screen.getByTestId('calendar-item');
+      expect(el.className).toContain('highlighted');
+    });
+
+    it('does not apply "highlighted" class when isHighlighted=false', () => {
+      renderItem({ isHighlighted: false });
+      const el = screen.getByTestId('calendar-item');
+      expect(el.className).not.toContain('highlighted');
+    });
+
+    it('does not apply "highlighted" class by default (isHighlighted omitted)', () => {
+      // renderItem without explicit isHighlighted — defaults to false
+      renderItem();
+      const el = screen.getByTestId('calendar-item');
+      expect(el.className).not.toContain('highlighted');
     });
   });
 });

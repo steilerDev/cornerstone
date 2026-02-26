@@ -7,8 +7,17 @@
  * and milestone click callback propagation.
  */
 
-import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import {
+  describe,
+  it,
+  expect,
+  jest,
+  beforeEach,
+  afterEach,
+  beforeAll,
+  afterAll,
+} from '@jest/globals';
+import { render, screen, fireEvent, cleanup, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { TimelineWorkItem, TimelineMilestone } from '@cornerstone/shared';
 import type * as CalendarViewTypes from './CalendarView.js';
@@ -483,6 +492,202 @@ describe('CalendarView', () => {
       // The gridArea aria-label in week mode is "Week of Sun 10, Mon 11, ..."
       const gridArea = screen.getByRole('grid').parentElement;
       expect(gridArea?.getAttribute('aria-label')).toMatch(/Week of/);
+    });
+  });
+
+  // ── S/M/L column size toggle removal ──────────────────────────────────────
+
+  describe('S/M/L column size toggle removed', () => {
+    it('does not render any button with text "S"', () => {
+      renderCalendar({});
+      // The old compact column size toggle had a button labelled "S"
+      const buttons = screen.queryAllByRole('button');
+      const sButtons = buttons.filter((b) => b.textContent === 'S');
+      expect(sButtons).toHaveLength(0);
+    });
+
+    it('does not render any button with text "M"', () => {
+      renderCalendar({});
+      // The old default column size toggle had a button labelled "M"
+      const buttons = screen.queryAllByRole('button');
+      const mButtons = buttons.filter((b) => b.textContent === 'M');
+      expect(mButtons).toHaveLength(0);
+    });
+
+    it('does not render any button with text "L"', () => {
+      renderCalendar({});
+      // The old comfortable column size toggle had a button labelled "L"
+      const buttons = screen.queryAllByRole('button');
+      const lButtons = buttons.filter((b) => b.textContent === 'L');
+      expect(lButtons).toHaveLength(0);
+    });
+
+    it('does not render a toolbar with "Column size" aria-label', () => {
+      renderCalendar({});
+      expect(screen.queryByRole('toolbar', { name: /column size/i })).not.toBeInTheDocument();
+    });
+
+    it('ignores calendarSize URL param — still renders the grid normally', () => {
+      // Even if the old URL param calendarSize=compact is present, the grid should render
+      renderCalendar({ initialSearchParams: 'calendarSize=compact' });
+      // MonthGrid still renders (mode unchanged)
+      const grid = screen.getByRole('grid');
+      expect(grid.getAttribute('aria-label')).toMatch(/^Calendar for/);
+    });
+
+    it('ignores calendarSize=comfortable URL param — still renders the grid normally', () => {
+      renderCalendar({ initialSearchParams: 'calendarSize=comfortable' });
+      const grid = screen.getByRole('grid');
+      expect(grid.getAttribute('aria-label')).toMatch(/^Calendar for/);
+    });
+
+    it('renders only the Month and Week buttons in the mode toggle toolbar', () => {
+      renderCalendar({});
+      const modeToolbar = screen.getByRole('toolbar', { name: /calendar display mode/i });
+      const buttonsInToolbar = modeToolbar.querySelectorAll('button');
+      // Only 2 buttons: Month and Week (no S/M/L)
+      expect(buttonsInToolbar).toHaveLength(2);
+      const labels = Array.from(buttonsInToolbar).map((b) => b.textContent);
+      expect(labels).toContain('Month');
+      expect(labels).toContain('Week');
+    });
+  });
+
+  // ── Tooltip state management ───────────────────────────────────────────────
+
+  describe('tooltip state management', () => {
+    beforeAll(() => {
+      jest.useFakeTimers();
+    });
+
+    afterAll(() => {
+      jest.useRealTimers();
+    });
+
+    it('does not render a tooltip before any hover', () => {
+      renderCalendar({});
+      expect(screen.queryByTestId('gantt-tooltip')).not.toBeInTheDocument();
+    });
+
+    it('shows tooltip for a work item after mouse enter and show delay elapses', () => {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const item = makeWorkItem('wi-1', `${year}-${month}-05`, `${year}-${month}-05`);
+      renderCalendar({ workItems: [item] });
+
+      const calendarItem = screen.getByTestId('calendar-item');
+      fireEvent.mouseEnter(calendarItem, { clientX: 300, clientY: 200 });
+
+      // Tooltip should not appear yet (TOOLTIP_SHOW_DELAY = 120ms)
+      expect(screen.queryByTestId('gantt-tooltip')).not.toBeInTheDocument();
+
+      // Advance timers past the show delay
+      act(() => {
+        jest.advanceTimersByTime(150);
+      });
+
+      expect(screen.getByTestId('gantt-tooltip')).toBeInTheDocument();
+    });
+
+    it('tooltip shows work item title after show delay', () => {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const item = makeWorkItem('wi-2', `${year}-${month}-08`, `${year}-${month}-08`);
+      item.title = 'Foundation Excavation';
+      renderCalendar({ workItems: [item] });
+
+      const calendarItem = screen.getByTestId('calendar-item');
+      fireEvent.mouseEnter(calendarItem, { clientX: 300, clientY: 200 });
+
+      act(() => {
+        jest.advanceTimersByTime(150);
+      });
+
+      const tooltip = screen.getByTestId('gantt-tooltip');
+      expect(tooltip).toBeInTheDocument();
+      // The title appears inside the tooltip element
+      expect(tooltip).toHaveTextContent('Foundation Excavation');
+    });
+
+    it('hides tooltip after mouse leave and hide delay elapses', () => {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const item = makeWorkItem('wi-3', `${year}-${month}-10`, `${year}-${month}-10`);
+      renderCalendar({ workItems: [item] });
+
+      const calendarItem = screen.getByTestId('calendar-item');
+
+      // Show the tooltip
+      fireEvent.mouseEnter(calendarItem, { clientX: 300, clientY: 200 });
+      act(() => {
+        jest.advanceTimersByTime(150);
+      });
+      expect(screen.getByTestId('gantt-tooltip')).toBeInTheDocument();
+
+      // Mouse leave
+      fireEvent.mouseLeave(calendarItem);
+
+      // Tooltip should still be visible immediately after leave (TOOLTIP_HIDE_DELAY = 80ms)
+      // It remains visible until the hide delay passes
+      act(() => {
+        jest.advanceTimersByTime(100);
+      });
+
+      expect(screen.queryByTestId('gantt-tooltip')).not.toBeInTheDocument();
+    });
+
+    it('shows tooltip for a milestone after mouse enter and show delay elapses', () => {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const milestone = makeMilestone(10, `${year}-${month}-12`);
+      milestone.title = 'Roof Complete';
+      renderCalendar({ milestones: [milestone] });
+
+      const calendarMilestone = screen.getByTestId('calendar-milestone');
+      fireEvent.mouseEnter(calendarMilestone, { clientX: 200, clientY: 150 });
+
+      // Tooltip not shown yet
+      expect(screen.queryByTestId('gantt-tooltip')).not.toBeInTheDocument();
+
+      act(() => {
+        jest.advanceTimersByTime(150);
+      });
+
+      const tooltip = screen.getByTestId('gantt-tooltip');
+      expect(tooltip).toBeInTheDocument();
+      // The milestone title appears inside the tooltip element
+      expect(tooltip).toHaveTextContent('Roof Complete');
+    });
+
+    it('cancels pending show timer when mouse leaves before delay elapses', () => {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const item = makeWorkItem('wi-4', `${year}-${month}-15`, `${year}-${month}-15`);
+      renderCalendar({ workItems: [item] });
+
+      const calendarItem = screen.getByTestId('calendar-item');
+
+      // Enter then immediately leave before show delay
+      fireEvent.mouseEnter(calendarItem, { clientX: 300, clientY: 200 });
+
+      act(() => {
+        jest.advanceTimersByTime(50); // only 50ms of 120ms elapsed
+      });
+
+      fireEvent.mouseLeave(calendarItem);
+
+      // Advance well past original show delay
+      act(() => {
+        jest.advanceTimersByTime(200);
+      });
+
+      // Tooltip should never have appeared
+      expect(screen.queryByTestId('gantt-tooltip')).not.toBeInTheDocument();
     });
   });
 });
