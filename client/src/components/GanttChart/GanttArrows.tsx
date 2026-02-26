@@ -1,4 +1,4 @@
-import { memo, useMemo } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 import type { TimelineDependency, DependencyType } from '@cornerstone/shared';
 import {
   computeArrowPath,
@@ -128,6 +128,15 @@ export const GanttArrows = memo(function GanttArrows({
   const markerId = 'gantt-arrow-default';
   const markerIdCritical = 'gantt-arrow-critical';
   const markerIdMilestone = 'gantt-arrow-milestone';
+
+  // Move hovered arrow group to end of parent so it paints on top (SVG z-order)
+  const bringToFront = useCallback((e: React.MouseEvent<SVGGElement>) => {
+    const target = e.currentTarget;
+    const parent = target.parentElement;
+    if (parent && parent.lastElementChild !== target) {
+      parent.appendChild(target);
+    }
+  }, []);
 
   // Pre-compute all work-item-to-work-item arrow paths
   const arrows = useMemo(() => {
@@ -353,6 +362,7 @@ export const GanttArrows = memo(function GanttArrows({
               opacity={visible ? 0.5 : 0}
               role="graphics-symbol"
               aria-label={ariaLabel}
+              onMouseEnter={bringToFront}
             >
               <path d={arrowPath.pathD} className={styles.arrowHitArea} aria-hidden="true" />
               <path
@@ -391,6 +401,7 @@ export const GanttArrows = memo(function GanttArrows({
               filter="drop-shadow(0 0 2px rgba(251,146,60,0.4))"
               role="graphics-symbol"
               aria-label={ariaLabel}
+              onMouseEnter={bringToFront}
             >
               <path d={arrowPath.pathD} className={styles.arrowHitArea} aria-hidden="true" />
               <path
@@ -425,6 +436,7 @@ export const GanttArrows = memo(function GanttArrows({
             opacity={visible ? 0.5 : 0}
             role="graphics-symbol"
             aria-label={a.ariaLabel}
+            onMouseEnter={bringToFront}
           >
             <path d={a.arrowPath.pathD} className={styles.arrowHitArea} aria-hidden="true" />
             <path
@@ -459,6 +471,7 @@ export const GanttArrows = memo(function GanttArrows({
             opacity={visible ? 0.7 : 0}
             role="graphics-symbol"
             aria-label={a.ariaLabel}
+            onMouseEnter={bringToFront}
           >
             <path d={a.arrowPath.pathD} className={styles.arrowHitArea} aria-hidden="true" />
             <path
