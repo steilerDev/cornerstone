@@ -69,8 +69,18 @@ function makeTimeline(overrides: Partial<TimelineResponse> = {}): TimelineRespon
       },
     ],
     dependencies: [
-      { predecessorId: 'wi-1', successorId: 'wi-2', dependencyType: 'finish_to_start', leadLagDays: 0 },
-      { predecessorId: 'wi-2', successorId: 'wi-3', dependencyType: 'finish_to_start', leadLagDays: 0 },
+      {
+        predecessorId: 'wi-1',
+        successorId: 'wi-2',
+        dependencyType: 'finish_to_start',
+        leadLagDays: 0,
+      },
+      {
+        predecessorId: 'wi-2',
+        successorId: 'wi-3',
+        dependencyType: 'finish_to_start',
+        leadLagDays: 0,
+      },
     ],
     milestones: [],
     criticalPath: [],
@@ -589,14 +599,26 @@ describe('GanttChart — no dependencies', () => {
 describe('GanttChart — empty data', () => {
   it('renders without crashing when workItems is empty', () => {
     renderGanttChart({
-      data: makeTimeline({ workItems: [], dependencies: [], milestones: [], criticalPath: [], dateRange: null }),
+      data: makeTimeline({
+        workItems: [],
+        dependencies: [],
+        milestones: [],
+        criticalPath: [],
+        dateRange: null,
+      }),
     });
     expect(screen.getByTestId('gantt-chart')).toBeInTheDocument();
   });
 
   it('renders no bars when workItems is empty', () => {
     renderGanttChart({
-      data: makeTimeline({ workItems: [], dependencies: [], milestones: [], criticalPath: [], dateRange: null }),
+      data: makeTimeline({
+        workItems: [],
+        dependencies: [],
+        milestones: [],
+        criticalPath: [],
+        dateRange: null,
+      }),
     });
     expect(screen.queryAllByTestId(/^gantt-bar-/)).toHaveLength(0);
   });

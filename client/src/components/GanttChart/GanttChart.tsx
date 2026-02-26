@@ -967,8 +967,7 @@ export function GanttChart({
                     const newPos: GanttTooltipPosition = { x: e.clientX, y: e.clientY };
                     showTimerRef.current = setTimeout(() => {
                       setTooltipTriggerId(item.id);
-                      const tooltipDeps =
-                        itemDependencyLookup.get(item.id)?.tooltipDeps ?? [];
+                      const tooltipDeps = itemDependencyLookup.get(item.id)?.tooltipDeps ?? [];
                       setTooltipData({
                         kind: 'work-item',
                         title: tooltipItem.title,
@@ -1008,8 +1007,7 @@ export function GanttChart({
                     };
                     showTimerRef.current = setTimeout(() => {
                       setTooltipTriggerId(item.id);
-                      const tooltipDeps =
-                        itemDependencyLookup.get(item.id)?.tooltipDeps ?? [];
+                      const tooltipDeps = itemDependencyLookup.get(item.id)?.tooltipDeps ?? [];
                       setTooltipData({
                         kind: 'work-item',
                         title: tooltipItem.title,

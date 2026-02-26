@@ -759,9 +759,7 @@ describe('highlightedArrowKeys prop — item-hover-driven highlighting (Issue #2
     expect(arrows).toHaveLength(2);
 
     // Find the arrow with the matching aria-label (Foundation must finish before Framing)
-    const firstArrow = arrows.find((el) =>
-      el.getAttribute('aria-label')?.includes('Foundation'),
-    );
+    const firstArrow = arrows.find((el) => el.getAttribute('aria-label')?.includes('Foundation'));
     expect(firstArrow).toBeDefined();
     expect(firstArrow!.getAttribute('class')).toContain('arrowGroupHovered');
   });
@@ -780,9 +778,10 @@ describe('highlightedArrowKeys prop — item-hover-driven highlighting (Issue #2
 
     const arrows = screen.getAllByRole('graphics-symbol');
     // Second arrow (wi-b->wi-c) should be dimmed since wi-a hover only highlights wi-a->wi-b
-    const secondArrow = arrows.find((el) =>
-      el.getAttribute('aria-label')?.includes('Framing') &&
-      el.getAttribute('aria-label')?.includes('Roofing'),
+    const secondArrow = arrows.find(
+      (el) =>
+        el.getAttribute('aria-label')?.includes('Framing') &&
+        el.getAttribute('aria-label')?.includes('Roofing'),
     );
     expect(secondArrow).toBeDefined();
     expect(secondArrow!.getAttribute('class')).toContain('arrowGroupDimmed');
@@ -824,10 +823,7 @@ describe('highlightedArrowKeys prop — item-hover-driven highlighting (Issue #2
       ],
       criticalPathSet: new Set<string>(),
       criticalPathOrder: [],
-      highlightedArrowKeys: new Set([
-        'wi-a-wi-b-finish_to_start',
-        'wi-b-wi-c-finish_to_start',
-      ]),
+      highlightedArrowKeys: new Set(['wi-a-wi-b-finish_to_start', 'wi-b-wi-c-finish_to_start']),
     });
 
     const arrows = screen.getAllByRole('graphics-symbol');

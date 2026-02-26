@@ -176,9 +176,7 @@ function WorkItemTooltipContent({ data }: { data: GanttTooltipWorkItemData }) {
         <>
           <div className={styles.separator} aria-hidden="true" />
           <div className={styles.linkedItemsSection}>
-            <span className={styles.linkedItemsLabel}>
-              Dependencies ({dependencies.length})
-            </span>
+            <span className={styles.linkedItemsLabel}>Dependencies ({dependencies.length})</span>
             <ul className={styles.linkedItemsList} aria-label="Dependencies">
               {shownDeps.map((dep, idx) => (
                 <li key={`${dep.relatedTitle}-${idx}`} className={styles.linkedItem}>

@@ -748,22 +748,12 @@ describe('GanttTooltip — milestone kind (no dependencies section)', () => {
   };
 
   it('does not render a "Dependencies" section label for milestone tooltips', () => {
-    render(
-      <GanttTooltip
-        data={MILESTONE_DATA}
-        position={{ x: 100, y: 200 }}
-      />,
-    );
+    render(<GanttTooltip data={MILESTONE_DATA} position={{ x: 100, y: 200 }} />);
     expect(screen.queryByText(/^Dependencies$/i)).not.toBeInTheDocument();
   });
 
   it('milestone tooltip renders target date label', () => {
-    render(
-      <GanttTooltip
-        data={MILESTONE_DATA}
-        position={{ x: 100, y: 200 }}
-      />,
-    );
+    render(<GanttTooltip data={MILESTONE_DATA} position={{ x: 100, y: 200 }} />);
     expect(screen.getByText('Target')).toBeInTheDocument();
   });
 
@@ -775,12 +765,7 @@ describe('GanttTooltip — milestone kind (no dependencies section)', () => {
         { id: 'wi-2', title: 'Foundation Dig' },
       ],
     };
-    render(
-      <GanttTooltip
-        data={msWithItems}
-        position={{ x: 100, y: 200 }}
-      />,
-    );
+    render(<GanttTooltip data={msWithItems} position={{ x: 100, y: 200 }} />);
     expect(screen.getByText(/Linked \(2\)/)).toBeInTheDocument();
   });
 
@@ -792,12 +777,7 @@ describe('GanttTooltip — milestone kind (no dependencies section)', () => {
         title: `Work Item ${i + 1}`,
       })),
     };
-    render(
-      <GanttTooltip
-        data={msWithSixItems}
-        position={{ x: 100, y: 200 }}
-      />,
-    );
+    render(<GanttTooltip data={msWithSixItems} position={{ x: 100, y: 200 }} />);
     expect(screen.getByText('+1 more')).toBeInTheDocument();
   });
 });
