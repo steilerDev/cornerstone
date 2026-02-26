@@ -113,6 +113,23 @@ gh api graphql -f query='{ repository(owner: "steilerDev", name: "cornerstone") 
 - **Security reviews** → `security-engineer` agent
 - **User-facing documentation** (docs site + README) → `docs-writer` agent
 
+### Bug Fix Workflow (`/bugfix`)
+
+For isolated defects, UAT failures, or single-issue fixes, use the `/bugfix` skill instead of the full epic workflow. This is the standard flow for bugs found during UAT validation.
+
+**Do NOT use for**: new features, multi-story changes, or architectural work — use the full epic workflow.
+
+**8-step flow:**
+
+1. **Rebase** to `origin/beta`
+2. **Spec & Approve** — PO drafts spec → user reviews and approves → GitHub Issue created
+3. **Branch** — `fix/<issue-number>-<short-description>`
+4. **Implement + Test** — dev(s) + QA in parallel (backend + frontend in parallel if both needed)
+5. **Commit & PR** — targeting `beta`, with `Fixes #<issue-number>`
+6. **CI** — wait for green
+7. **Review** — architect + security in parallel
+8. **Fix loop & Merge** — squash merge to `beta`
+
 ## Acceptance & Validation
 
 Every epic follows a two-phase validation lifecycle.
