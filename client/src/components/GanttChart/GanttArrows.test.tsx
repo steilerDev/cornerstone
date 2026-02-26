@@ -298,7 +298,7 @@ describe('Implicit critical path connection descriptions — via aria-label', ()
 
 describe('Arrow hover callbacks', () => {
   it('calls onArrowHover when mouse enters a non-critical arrow', () => {
-    const onArrowHover = jest.fn<GanttArrowsProps['onArrowHover']>();
+    const onArrowHover = jest.fn<NonNullable<GanttArrowsProps['onArrowHover']>>();
     renderArrows({ onArrowHover });
 
     const [arrowGroup] = screen.getAllByRole('graphics-symbol');
@@ -333,7 +333,7 @@ describe('Arrow hover callbacks', () => {
   });
 
   it('calls onArrowMouseMove when mouse moves over an arrow', () => {
-    const onArrowMouseMove = jest.fn<GanttArrowsProps['onArrowMouseMove']>();
+    const onArrowMouseMove = jest.fn<NonNullable<GanttArrowsProps['onArrowMouseMove']>>();
     renderArrows({ onArrowMouseMove });
 
     const [arrowGroup] = screen.getAllByRole('graphics-symbol');
@@ -361,7 +361,7 @@ describe('Arrow hover callbacks', () => {
   });
 
   it('calls onArrowHover for a critical path arrow with its connected IDs', () => {
-    const onArrowHover = jest.fn<GanttArrowsProps['onArrowHover']>();
+    const onArrowHover = jest.fn<NonNullable<GanttArrowsProps['onArrowHover']>>();
     renderArrows({
       dependencies: [makeDep('wi-pred', 'wi-succ', 'finish_to_start')],
       criticalPathSet: new Set(['wi-pred', 'wi-succ']),
@@ -386,7 +386,7 @@ describe('Arrow hover callbacks', () => {
 
 describe('Keyboard accessibility — focus/blur', () => {
   it('calls onArrowHover when an arrow group receives focus', () => {
-    const onArrowHover = jest.fn<GanttArrowsProps['onArrowHover']>();
+    const onArrowHover = jest.fn<NonNullable<GanttArrowsProps['onArrowHover']>>();
     renderArrows({ onArrowHover });
 
     const [arrowGroup] = screen.getAllByRole('graphics-symbol');
@@ -416,7 +416,7 @@ describe('Keyboard accessibility — focus/blur', () => {
   });
 
   it('calls onArrowHover with coords derived from the element bounding rect on focus', () => {
-    const onArrowHover = jest.fn<GanttArrowsProps['onArrowHover']>();
+    const onArrowHover = jest.fn<NonNullable<GanttArrowsProps['onArrowHover']>>();
     renderArrows({ onArrowHover });
 
     const [arrowGroup] = screen.getAllByRole('graphics-symbol');
@@ -585,7 +585,7 @@ describe('renders null when no arrows are computable', () => {
 
 describe('Milestone arrow connectedIds encoding', () => {
   it('contributing arrow connectedIds includes "milestone:<id>" encoded key', () => {
-    const onArrowHover = jest.fn<GanttArrowsProps['onArrowHover']>();
+    const onArrowHover = jest.fn<NonNullable<GanttArrowsProps['onArrowHover']>>();
     const milestonePoints = new Map([[42, { x: 600, y: 60 }]]);
     const milestoneContributors = new Map([[42, ['wi-pred'] as readonly string[]]]);
     renderArrows({
@@ -608,7 +608,7 @@ describe('Milestone arrow connectedIds encoding', () => {
   });
 
   it('required arrow connectedIds includes "milestone:<id>" encoded key', () => {
-    const onArrowHover = jest.fn<GanttArrowsProps['onArrowHover']>();
+    const onArrowHover = jest.fn<NonNullable<GanttArrowsProps['onArrowHover']>>();
     const milestonePoints = new Map([[7, { x: 200, y: 60 }]]);
     const workItemRequiredMilestones = new Map([['wi-succ', [7] as readonly number[]]]);
     renderArrows({
