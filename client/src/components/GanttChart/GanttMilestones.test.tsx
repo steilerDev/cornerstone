@@ -82,7 +82,7 @@ function renderMilestones(overrides: Partial<GanttMilestonesProps> = {}) {
     milestones: [MILESTONE_INCOMPLETE],
     chartRange: CHART_RANGE,
     zoom: 'day',
-    rowCount: 3,
+    milestoneRowIndices: new Map([[1, 3]]),
     colors: COLORS,
     ...overrides,
   };
@@ -246,23 +246,23 @@ describe('GanttMilestones', () => {
       expect(points).toContain(`${expectedX},`);
     });
 
-    it('positions diamond y below last work item row', () => {
-      // rowCount=3 => y = 3 * 40 + ROW_HEIGHT/2 = 120 + 20 = 140
-      renderMilestones({ rowCount: 3 });
+    it('positions diamond y at its assigned row index', () => {
+      // milestoneRowIndices maps milestone 1 to row 3 => y = 3 * 40 + ROW_HEIGHT/2 = 140
+      renderMilestones({ milestoneRowIndices: new Map([[1, 3]]) });
       const layer = screen.getByTestId('gantt-milestones-layer');
       const polygon = layer.querySelector('polygon');
       const points = polygon?.getAttribute('points') ?? '';
-      const expectedY = 3 * 40 + ROW_HEIGHT / 2;
+      const expectedY = 3 * ROW_HEIGHT + ROW_HEIGHT / 2;
       // The polygon's topmost point is y - 8; check that y value appears
       expect(points).toContain(`,${expectedY - 8}`); // top point
     });
 
-    it('uses y=ROW_HEIGHT/2 when rowCount is 0', () => {
-      renderMilestones({ rowCount: 0 });
+    it('uses y=ROW_HEIGHT/2 when row index is 0', () => {
+      renderMilestones({ milestoneRowIndices: new Map([[1, 0]]) });
       const layer = screen.getByTestId('gantt-milestones-layer');
       const polygon = layer.querySelector('polygon');
       const points = polygon?.getAttribute('points') ?? '';
-      // rowCount=0 => rowY=0, y=0+ROW_HEIGHT/2=20
+      // row 0 => rowY=0, y=0+ROW_HEIGHT/2=20
       const expectedY = ROW_HEIGHT / 2;
       expect(points).toContain(`,${expectedY - 8}`); // top point
     });
