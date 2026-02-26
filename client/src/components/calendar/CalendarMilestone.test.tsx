@@ -91,10 +91,10 @@ describe('CalendarMilestone', () => {
       expect(screen.getByText('Framing Complete')).toBeInTheDocument();
     });
 
-    it('renders with title attribute matching milestone title', () => {
+    it('does not render a native title attribute (rich tooltip replaces it)', () => {
       const milestone = makeMilestone({ title: 'Roof Installed' });
       renderMilestone({ milestone });
-      expect(screen.getByRole('button')).toHaveAttribute('title', 'Roof Installed');
+      expect(screen.getByRole('button')).not.toHaveAttribute('title');
     });
 
     it('renders a diamond SVG icon', () => {

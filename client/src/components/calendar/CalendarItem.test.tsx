@@ -106,10 +106,10 @@ describe('CalendarItem', () => {
       );
     });
 
-    it('renders with title attribute matching item title', () => {
+    it('does not render a native title attribute (rich tooltip replaces it)', () => {
       const item = makeItem({ title: 'Plumbing Rough-in' });
       renderItem({ item });
-      expect(screen.getByRole('button')).toHaveAttribute('title', 'Plumbing Rough-in');
+      expect(screen.getByRole('button')).not.toHaveAttribute('title');
     });
   });
 
