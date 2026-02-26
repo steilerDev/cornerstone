@@ -580,30 +580,21 @@ describe('MilestonePanel', () => {
 
   // ── Linker view ────────────────────────────────────────────────────────────
 
-  describe('linker view', () => {
-    it('switches to linker view when link button is clicked', async () => {
+  describe('linker in edit view', () => {
+    it('shows MilestoneWorkItemLinker inline when in edit view', async () => {
       renderPanel();
 
-      fireEvent.click(
-        screen.getByRole('button', {
-          name: /manage contributing work items for foundation complete/i,
-        }),
-      );
+      fireEvent.click(screen.getByRole('button', { name: /edit foundation complete/i }));
 
       await waitFor(() => {
-        // The linker view shows the MilestoneWorkItemLinker component
         expect(screen.getByTestId('milestone-work-item-linker')).toBeInTheDocument();
       });
     });
 
-    it('loads milestone detail via fetch when entering linker view', async () => {
+    it('loads milestone detail via fetch when entering edit view', async () => {
       renderPanel();
 
-      fireEvent.click(
-        screen.getByRole('button', {
-          name: /manage contributing work items for foundation complete/i,
-        }),
-      );
+      fireEvent.click(screen.getByRole('button', { name: /edit foundation complete/i }));
 
       await waitFor(() => {
         const fetchedUrls = mockFetch.mock.calls.map((call) => String(call[0]));
@@ -611,17 +602,14 @@ describe('MilestonePanel', () => {
       });
     });
 
-    it('shows the MilestoneWorkItemLinker component', async () => {
+    it('shows the MilestoneWorkItemLinker component alongside the form', async () => {
       renderPanel();
 
-      fireEvent.click(
-        screen.getByRole('button', {
-          name: /manage contributing work items for foundation complete/i,
-        }),
-      );
+      fireEvent.click(screen.getByRole('button', { name: /edit foundation complete/i }));
 
       await waitFor(() => {
         expect(screen.getByTestId('milestone-work-item-linker')).toBeInTheDocument();
+        expect(screen.getByTestId('milestone-form')).toBeInTheDocument();
       });
     });
   });
