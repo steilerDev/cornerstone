@@ -7,7 +7,9 @@
 > 
 > The project scope is time-limited (I'm currently in need for this tool and probably won't be after) and feature limited - which is why I'm not necessarily concerned about long-term maintainability and/or overall code quality.
 > 
-> After having spend a couple of weeks on this project, I'm both blown away by its capabilities, while still feeling that things don't move as fast as I would like it to be. Key learnings:
+> After having spend a couple of weeks on this project, I'm both blown away by the LLM capabilities, while still feeling that things don't move as fast and reliable as I would like them to be. 
+> 
+> Key learnings so far:
 > - In order to coding agents to produce good work, verification is very important.
 > - Good work will cost a lot of tokens!
 > - Clearly defining the process through skills and agents simplifies the UX for the developer and ensures coding happens along a happy path.
