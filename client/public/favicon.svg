@@ -1,17 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" role="img" aria-label="Cornerstone">
   <!--
-    Cornerstone favicon — keystone / arch motif with semicircular arch,
-    rounded apex, capstone shoulders, and softened base corners.
+    Cornerstone favicon — 3D isometric brick wall corner viewed from above.
+    Two wall faces meet at an outside corner with chevron mortar-line cutouts.
+    The cornerstone at the base is the largest solid block, separated by a
+    thick mortar gap from the smaller brick courses above.
     Uses explicit fill colour (#3b82f6, blue-500) for the favicon context
     where currentColor is not available (no CSS inheritance).
-
-    The even-odd fill rule punches the arch opening through as transparent,
-    giving the keystone silhouette on any browser tab background.
   -->
   <path
     fill="#3b82f6"
     fill-rule="evenodd"
     clip-rule="evenodd"
-    d="M 4 29 Q 2 29 2 27 L 2 20 L 10 20 L 10 13 L 12 13 L 12 12 L 15 6 Q 16 4 17 6 L 20 12 L 20 13 L 22 13 L 22 20 L 30 20 L 30 27 Q 30 29 28 29 Z M 10 29 L 10 20 A 6 6 0 0 1 22 20 L 22 29 Z"
+    d="M 16 28 L 7 22 L 7 4 L 16 10 L 25 4 L 25 22 Z M 7 17 L 16 23 L 25 17 L 25 15 L 16 21 L 7 15 Z M 7 12 L 16 18 L 25 12 L 25 11 L 16 17 L 7 11 Z M 7 8 L 16 14 L 25 8 L 25 7 L 16 13 L 7 7 Z"
   />
 </svg>
