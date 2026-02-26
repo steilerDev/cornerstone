@@ -132,11 +132,11 @@ const ZOOM_OPTIONS: { value: ZoomLevel; label: string }[] = [
 function computeDefaultColumnWidth(zoom: ZoomLevel, chartAreaWidth: number): number {
   let columnsVisible: number;
   if (zoom === 'day') {
-    columnsVisible = 30; // approximately 1 month of days
+    columnsVisible = 21; // approximately 3 weeks of days
   } else if (zoom === 'week') {
-    columnsVisible = 13; // approximately 3 months of weeks
+    columnsVisible = 9; // approximately 2 months of weeks
   } else {
-    columnsVisible = 6; // approximately 6 months
+    columnsVisible = 4; // approximately 4 months
   }
 
   const rawWidth = chartAreaWidth > 0 ? chartAreaWidth / columnsVisible : COLUMN_WIDTHS[zoom];
