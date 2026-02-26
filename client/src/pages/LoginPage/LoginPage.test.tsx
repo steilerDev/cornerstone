@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import type * as AuthApiTypes from '../../lib/authApi.js';
 import type * as AuthContextTypes from '../../contexts/AuthContext.js';
+import type * as ThemeContextTypes from '../../contexts/ThemeContext.js';
 import type * as LoginPageTypes from './LoginPage.js';
 
 const mockGetAuthMe = jest.fn<typeof AuthApiTypes.getAuthMe>();
@@ -21,12 +22,14 @@ jest.unstable_mockModule('../../lib/authApi.js', () => ({
 describe('LoginPage', () => {
   // Dynamic imports inside describe block to avoid top-level await
   let AuthContext: typeof AuthContextTypes;
+  let ThemeContext: typeof ThemeContextTypes;
   let LoginPage: typeof LoginPageTypes.LoginPage;
 
   beforeEach(async () => {
     // Dynamic import modules (only once)
     if (!LoginPage) {
       AuthContext = await import('../../contexts/AuthContext.js');
+      ThemeContext = await import('../../contexts/ThemeContext.js');
       const loginPageModule = await import('./LoginPage.js');
       LoginPage = loginPageModule.LoginPage;
     }
@@ -51,12 +54,15 @@ describe('LoginPage', () => {
     cleanup();
   });
 
-  // Helper to wrap component in AuthProvider and MemoryRouter
+  // Helper to wrap component in ThemeProvider, AuthProvider and MemoryRouter
   function renderWithAuth(ui: ReactNode) {
     const { AuthProvider } = AuthContext;
+    const { ThemeProvider } = ThemeContext;
     return render(
       <MemoryRouter>
-        <AuthProvider>{ui}</AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>{ui}</AuthProvider>
+        </ThemeProvider>
       </MemoryRouter>,
     );
   }
