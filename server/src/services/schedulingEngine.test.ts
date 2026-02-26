@@ -295,9 +295,8 @@ describe('Scheduling Engine', () => {
     it('start_to_finish: successor finishes when predecessor starts', () => {
       // A: 5d, starts 2026-01-01
       // B: 3d (SF from A), B.EF >= A.ES => B.EF >= 2026-01-01 => B.ES >= 2025-12-29
-      // The engine does NOT clip to today for items with predecessors.
-      // today-floor only applies to items with no predecessors in the scheduled set.
-      // B has A as a predecessor via SF, so B.ES = 2025-12-29 (before today).
+      // However, the today floor applies to all not_started items (including those
+      // with predecessors), so B.ES is floored to today (2026-01-01).
       const result = schedule(
         fullParams(
           [makeItem('A', 5), makeItem('B', 3)],
@@ -307,9 +306,10 @@ describe('Scheduling Engine', () => {
       );
 
       const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
-      // SF(A,B): B.EF >= A.ES + 0 = 2026-01-01 => B.ES = 2026-01-01 - 3 = 2025-12-29
-      expect(byId['B'].scheduledStartDate).toBe('2025-12-29');
-      expect(byId['B'].scheduledEndDate).toBe('2026-01-01');
+      // SF(A,B): B.EF >= A.ES + 0 = 2026-01-01 => CPM gives B.ES = 2025-12-29
+      // Today floor pushes B.ES to 2026-01-01; B.EF = 2026-01-01 + 3 = 2026-01-04
+      expect(byId['B'].scheduledStartDate).toBe('2026-01-01');
+      expect(byId['B'].scheduledEndDate).toBe('2026-01-04');
     });
   });
 
@@ -922,7 +922,8 @@ describe('Scheduling Engine', () => {
 
     it('propagates actualStartDate-only to downstream dependencies (no actualEndDate)', () => {
       // A (in_progress, actualStartDate=2026-01-05, no actualEndDate, duration=3) -> B (4d)
-      // A.EF = 2026-01-05 + 3 = 2026-01-08; B starts from there
+      // A.EF = 2026-01-05 + 3 = 2026-01-08; B starts from A.EF via FS dependency
+      // But B is not_started and today=2026-01-10, so today floor pushes B.ES to 2026-01-10
       const a = makeItem('A', 3, {
         status: 'in_progress',
         actualStartDate: '2026-01-05',
@@ -935,8 +936,9 @@ describe('Scheduling Engine', () => {
       const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
       expect(byId['A'].scheduledStartDate).toBe('2026-01-05');
       expect(byId['A'].scheduledEndDate).toBe('2026-01-08');
-      expect(byId['B'].scheduledStartDate).toBe('2026-01-08');
-      expect(byId['B'].scheduledEndDate).toBe('2026-01-12');
+      // B.ES = max(A.EF=2026-01-08, today=2026-01-10) = 2026-01-10
+      expect(byId['B'].scheduledStartDate).toBe('2026-01-10');
+      expect(byId['B'].scheduledEndDate).toBe('2026-01-14');
     });
 
     it('item with only actualEndDate but no actualStartDate uses CPM-computed ES', () => {

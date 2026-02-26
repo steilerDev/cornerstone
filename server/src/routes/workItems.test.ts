@@ -787,7 +787,7 @@ describe('Work Item Routes', () => {
       // When: Filtering by non-matching status
       const response = await app.inject({
         method: 'GET',
-        url: '/api/work-items?status=blocked',
+        url: '/api/work-items?status=completed',
         headers: { cookie },
       });
 
