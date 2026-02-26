@@ -12,7 +12,6 @@
 
 import { useMemo } from 'react';
 import type { TimelineWorkItem, TimelineMilestone } from '@cornerstone/shared';
-import type { CalendarColumnSize } from './CalendarView.js';
 import { CalendarItem, LANE_HEIGHT_COMPACT } from './CalendarItem.js';
 import { CalendarMilestone } from './CalendarMilestone.js';
 import {
@@ -39,11 +38,14 @@ export interface MonthGridProps {
   workItems: TimelineWorkItem[];
   milestones: TimelineMilestone[];
   onMilestoneClick?: (milestoneId: number) => void;
-  columnSize?: CalendarColumnSize;
   /** The item ID currently being hovered (for cross-cell highlight). */
   hoveredItemId?: string | null;
-  onItemHoverStart?: (itemId: string) => void;
-  onItemHoverEnd?: () => void;
+  onItemMouseEnter?: (itemId: string, mouseX: number, mouseY: number) => void;
+  onItemMouseLeave?: () => void;
+  onItemMouseMove?: (mouseX: number, mouseY: number) => void;
+  onMilestoneMouseEnter?: (milestoneId: number, mouseX: number, mouseY: number) => void;
+  onMilestoneMouseLeave?: () => void;
+  onMilestoneMouseMove?: (mouseX: number, mouseY: number) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -56,10 +58,13 @@ export function MonthGrid({
   workItems,
   milestones,
   onMilestoneClick,
-  columnSize = 'default',
   hoveredItemId = null,
-  onItemHoverStart,
-  onItemHoverEnd,
+  onItemMouseEnter,
+  onItemMouseLeave,
+  onItemMouseMove,
+  onMilestoneMouseEnter,
+  onMilestoneMouseLeave,
+  onMilestoneMouseMove,
 }: MonthGridProps) {
   const weeks = useMemo(() => getMonthGrid(year, month), [year, month]);
 
@@ -80,7 +85,6 @@ export function MonthGrid({
       className={styles.grid}
       role="grid"
       aria-label={`Calendar for ${year}-${String(month).padStart(2, '0')}`}
-      data-column-size={columnSize}
     >
       {/* Day name header row */}
       <div className={styles.headerRow} role="row">
@@ -144,8 +148,9 @@ export function MonthGrid({
                         isEnd={isItemEnd(day.dateStr, item)}
                         compact
                         isHighlighted={hoveredItemId === item.id}
-                        onHoverStart={onItemHoverStart}
-                        onHoverEnd={onItemHoverEnd}
+                        onMouseEnter={onItemMouseEnter}
+                        onMouseLeave={onItemMouseLeave}
+                        onMouseMove={onItemMouseMove}
                         laneIndex={laneMap.get(item.id)}
                         colorIndex={getItemColor(item.id)}
                       />
@@ -162,7 +167,13 @@ export function MonthGrid({
                           right: 0,
                         }}
                       >
-                        <CalendarMilestone milestone={m} onMilestoneClick={onMilestoneClick} />
+                        <CalendarMilestone
+                          milestone={m}
+                          onMilestoneClick={onMilestoneClick}
+                          onMouseEnter={onMilestoneMouseEnter}
+                          onMouseLeave={onMilestoneMouseLeave}
+                          onMouseMove={onMilestoneMouseMove}
+                        />
                       </div>
                     ))}
                   </div>

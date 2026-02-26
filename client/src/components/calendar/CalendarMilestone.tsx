@@ -5,7 +5,7 @@
  * Clicking opens the Milestones panel (via callback).
  */
 
-import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
+import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
 import type { TimelineMilestone } from '@cornerstone/shared';
 import styles from './CalendarMilestone.module.css';
 
@@ -17,6 +17,15 @@ export interface CalendarMilestoneProps {
   milestone: TimelineMilestone;
   /** Called when user clicks or activates the milestone marker. */
   onMilestoneClick?: (milestoneId: number) => void;
+  /**
+   * Called when mouse enters the milestone marker — passes milestone ID and
+   * mouse viewport coordinates for tooltip positioning.
+   */
+  onMouseEnter?: (milestoneId: number, mouseX: number, mouseY: number) => void;
+  /** Called when mouse leaves the milestone marker. */
+  onMouseLeave?: () => void;
+  /** Called when mouse moves over the milestone marker — for updating tooltip position. */
+  onMouseMove?: (mouseX: number, mouseY: number) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -43,7 +52,13 @@ function DiamondIcon({ completed }: { completed: boolean }) {
 // Component
 // ---------------------------------------------------------------------------
 
-export function CalendarMilestone({ milestone, onMilestoneClick }: CalendarMilestoneProps) {
+export function CalendarMilestone({
+  milestone,
+  onMilestoneClick,
+  onMouseEnter,
+  onMouseLeave,
+  onMouseMove,
+}: CalendarMilestoneProps) {
   function handleClick() {
     onMilestoneClick?.(milestone.id);
   }
@@ -55,6 +70,14 @@ export function CalendarMilestone({ milestone, onMilestoneClick }: CalendarMiles
     }
   }
 
+  function handleMouseEnter(e: ReactMouseEvent<HTMLDivElement>) {
+    onMouseEnter?.(milestone.id, e.clientX, e.clientY);
+  }
+
+  function handleMouseMove(e: ReactMouseEvent<HTMLDivElement>) {
+    onMouseMove?.(e.clientX, e.clientY);
+  }
+
   const statusLabel = milestone.isCompleted ? 'completed' : 'incomplete';
 
   return (
@@ -64,8 +87,11 @@ export function CalendarMilestone({ milestone, onMilestoneClick }: CalendarMiles
       className={`${styles.milestone} ${milestone.isCompleted ? styles.milestoneComplete : styles.milestoneIncomplete}`}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={() => onMouseLeave?.()}
+      onMouseMove={handleMouseMove}
       aria-label={`Milestone: ${milestone.title}, ${statusLabel}`}
-      title={milestone.title}
+      aria-describedby="calendar-view-tooltip"
       data-testid="calendar-milestone"
     >
       <DiamondIcon completed={milestone.isCompleted} />

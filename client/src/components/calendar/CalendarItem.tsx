@@ -13,7 +13,11 @@
  * at the same vertical position across all cells they span in a week row.
  */
 
-import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent } from 'react';
+import type {
+  CSSProperties,
+  KeyboardEvent as ReactKeyboardEvent,
+  MouseEvent as ReactMouseEvent,
+} from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { TimelineWorkItem } from '@cornerstone/shared';
 import styles from './CalendarItem.module.css';
@@ -32,10 +36,15 @@ export interface CalendarItemProps {
   compact?: boolean;
   /** True when this item is hovered elsewhere — highlight all its cells. */
   isHighlighted?: boolean;
-  /** Called when mouse enters this item — pass item ID for cross-cell highlight. */
-  onHoverStart?: (itemId: string) => void;
+  /**
+   * Called when mouse enters this item — passes item ID and mouse viewport coordinates
+   * for cross-cell highlight and tooltip positioning.
+   */
+  onMouseEnter?: (itemId: string, mouseX: number, mouseY: number) => void;
   /** Called when mouse leaves this item. */
-  onHoverEnd?: () => void;
+  onMouseLeave?: () => void;
+  /** Called when mouse moves over this item — for updating tooltip position. */
+  onMouseMove?: (mouseX: number, mouseY: number) => void;
   /**
    * Lane index (0-based) assigned by the lane allocator.
    * Controls absolute vertical position within the items container.
@@ -68,8 +77,9 @@ export function CalendarItem({
   isEnd,
   compact = false,
   isHighlighted = false,
-  onHoverStart,
-  onHoverEnd,
+  onMouseEnter,
+  onMouseLeave,
+  onMouseMove,
   laneIndex,
   colorIndex,
 }: CalendarItemProps) {
@@ -84,6 +94,14 @@ export function CalendarItem({
       e.preventDefault();
       handleClick();
     }
+  }
+
+  function handleMouseEnter(e: ReactMouseEvent<HTMLDivElement>) {
+    onMouseEnter?.(item.id, e.clientX, e.clientY);
+  }
+
+  function handleMouseMove(e: ReactMouseEvent<HTMLDivElement>) {
+    onMouseMove?.(e.clientX, e.clientY);
   }
 
   // Status class retained for semantic / test compatibility.
@@ -130,10 +148,11 @@ export function CalendarItem({
       style={{ ...laneStyle, ...colorStyle }}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
-      onMouseEnter={() => onHoverStart?.(item.id)}
-      onMouseLeave={() => onHoverEnd?.()}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={() => onMouseLeave?.()}
+      onMouseMove={handleMouseMove}
       aria-label={`Work item: ${item.title}, status: ${item.status.replace('_', ' ')}`}
-      title={item.title}
+      aria-describedby="calendar-view-tooltip"
       data-testid="calendar-item"
     >
       {isStart && (

@@ -182,8 +182,8 @@
 /* ---- Arrow relationship description ---- */
 
 .arrowDescription {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-normal);
   color: var(--color-text-inverse);
   line-height: 1.5;
   padding: var(--spacing-1) 0;
