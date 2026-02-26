@@ -16,6 +16,7 @@ import {
 } from './ganttUtils.js';
 import { GanttGrid } from './GanttGrid.js';
 import { GanttBar } from './GanttBar.js';
+import type { BarInteractionState } from './GanttBar.js';
 import { GanttArrows } from './GanttArrows.js';
 import type { BarRect } from './arrowUtils.js';
 import { GanttHeader } from './GanttHeader.js';
@@ -23,7 +24,7 @@ import { GanttSidebar } from './GanttSidebar.js';
 import { GanttTooltip } from './GanttTooltip.js';
 import type { GanttTooltipData, GanttTooltipPosition } from './GanttTooltip.js';
 import { GanttMilestones, computeMilestoneStatus } from './GanttMilestones.js';
-import type { MilestoneColors } from './GanttMilestones.js';
+import type { MilestoneColors, MilestoneInteractionState } from './GanttMilestones.js';
 import type { MilestonePoint } from './GanttArrows.js';
 import styles from './GanttChart.module.css';
 
@@ -245,6 +246,58 @@ export function GanttChart({
     };
   }, [tooltipData]);
 
+  // ---------------------------------------------------------------------------
+  // Arrow hover state — tracks which arrow is hovered for dimming/highlighting
+  // ---------------------------------------------------------------------------
+
+  /**
+   * When an arrow is hovered, holds the set of connected entity IDs.
+   * Work item IDs are plain strings; milestone IDs are encoded as "milestone:<id>".
+   * When null, no arrow hover is active.
+   */
+  const [hoveredArrowConnectedIds, setHoveredArrowConnectedIds] =
+    useState<ReadonlySet<string> | null>(null);
+
+  const handleArrowHover = useCallback(
+    (
+      connectedIds: ReadonlySet<string>,
+      description: string,
+      mousePos: { clientX: number; clientY: number },
+    ) => {
+      setHoveredArrowConnectedIds(connectedIds);
+      // Show the arrow tooltip immediately (no debounce — arrows are smaller targets)
+      if (showTimerRef.current !== null) {
+        clearTimeout(showTimerRef.current);
+        showTimerRef.current = null;
+      }
+      if (hideTimerRef.current !== null) {
+        clearTimeout(hideTimerRef.current);
+        hideTimerRef.current = null;
+      }
+      setTooltipData({ kind: 'arrow', description });
+      setTooltipPosition({ x: mousePos.clientX, y: mousePos.clientY });
+    },
+    [showTimerRef, hideTimerRef],
+  );
+
+  const handleArrowMouseMove = useCallback((mousePos: { clientX: number; clientY: number }) => {
+    setTooltipPosition({ x: mousePos.clientX, y: mousePos.clientY });
+  }, []);
+
+  const handleArrowLeave = useCallback(() => {
+    setHoveredArrowConnectedIds(null);
+    if (showTimerRef.current !== null) {
+      clearTimeout(showTimerRef.current);
+      showTimerRef.current = null;
+    }
+    if (hideTimerRef.current !== null) {
+      clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+    setTooltipData(null);
+    setTooltipTriggerId(null);
+  }, [showTimerRef, hideTimerRef]);
+
   // Sort work items by start date ascending (nulls last) for waterfall ordering
   const sortedWorkItems = useMemo(() => {
     return [...data.workItems].sort((a, b) => {
@@ -447,6 +500,41 @@ export function GanttChart({
     return new Map(data.milestones.map((m) => [m.id, m.title]));
   }, [data.milestones]);
 
+  // ---------------------------------------------------------------------------
+  // Arrow hover interaction state — per-bar and per-milestone visual states
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Computes the interaction state for a work item bar given the current
+   * hovered arrow's connected IDs set.
+   * - 'highlighted' when the bar is a connected endpoint
+   * - 'dimmed' when an arrow is hovered but this bar is not connected
+   * - 'default' when no arrow is hovered
+   */
+  const barInteractionStates = useMemo<ReadonlyMap<string, BarInteractionState>>(() => {
+    if (hoveredArrowConnectedIds === null) return new Map();
+    const map = new Map<string, BarInteractionState>();
+    for (const { item } of barData) {
+      map.set(item.id, hoveredArrowConnectedIds.has(item.id) ? 'highlighted' : 'dimmed');
+    }
+    return map;
+  }, [hoveredArrowConnectedIds, barData]);
+
+  /**
+   * Computes the interaction state for each milestone given the current
+   * hovered arrow's connected IDs set.
+   * Milestone IDs in the connected set are encoded as "milestone:<id>".
+   */
+  const milestoneInteractionStates = useMemo<ReadonlyMap<number, MilestoneInteractionState>>(() => {
+    if (hoveredArrowConnectedIds === null) return new Map();
+    const map = new Map<number, MilestoneInteractionState>();
+    for (const milestone of data.milestones) {
+      const key = `milestone:${milestone.id}`;
+      map.set(milestone.id, hoveredArrowConnectedIds.has(key) ? 'highlighted' : 'dimmed');
+    }
+    return map;
+  }, [hoveredArrowConnectedIds, data.milestones]);
+
   // SVG height: unified rows (interleaved work items + milestones)
   const totalRowCount = unifiedRows.length;
   const svgHeight = Math.max(totalRowCount * ROW_HEIGHT, ROW_HEIGHT);
@@ -570,6 +658,9 @@ export function GanttChart({
               milestoneContributors={milestoneContributors}
               workItemRequiredMilestones={workItemRequiredMilestones}
               milestoneTitles={milestoneTitles}
+              onArrowHover={handleArrowHover}
+              onArrowMouseMove={handleArrowMouseMove}
+              onArrowLeave={handleArrowLeave}
             />
 
             {/* Milestone diamond markers (below work item bars, above arrows) */}
@@ -581,6 +672,9 @@ export function GanttChart({
                 milestoneRowIndices={milestoneRowIndices}
                 colors={colors.milestone}
                 columnWidth={columnWidth}
+                milestoneInteractionStates={
+                  milestoneInteractionStates.size > 0 ? milestoneInteractionStates : undefined
+                }
                 onMilestoneMouseEnter={(milestone, e) => {
                   clearTooltipTimers();
                   // Capture trigger element for focus-return on Escape
@@ -638,6 +732,7 @@ export function GanttChart({
                   onClick={onItemClick}
                   isCritical={criticalPathSet.has(item.id)}
                   criticalBorderColor={colors.criticalBorder}
+                  interactionState={barInteractionStates.get(item.id) ?? 'default'}
                   // Tooltip accessibility
                   tooltipId={tooltipTriggerId === item.id ? TOOLTIP_ID : undefined}
                   // Tooltip props

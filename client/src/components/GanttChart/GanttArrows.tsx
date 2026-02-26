@@ -1,13 +1,12 @@
-import { memo, useCallback, useMemo } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import type { TimelineDependency, DependencyType } from '@cornerstone/shared';
 import {
   computeArrowPath,
   computeArrowhead,
-  ARROW_STANDOFF,
   ARROWHEAD_SIZE as ARROWHEAD_SIZE_IMPORT,
 } from './arrowUtils.js';
 import type { ArrowPath, BarRect } from './arrowUtils.js';
-import { BAR_HEIGHT, BAR_OFFSET_Y, ROW_HEIGHT } from './ganttUtils.js';
+import { ROW_HEIGHT } from './ganttUtils.js';
 import styles from './GanttArrows.module.css';
 
 // ---------------------------------------------------------------------------
@@ -71,6 +70,21 @@ export interface GanttArrowsProps {
    * Map from milestone ID to its title — used for accessible aria-labels.
    */
   milestoneTitles?: ReadonlyMap<number, string>;
+  /**
+   * Called when the user hovers or focuses an arrow.
+   * Receives the set of connected entity IDs (work item string IDs and
+   * milestone IDs encoded as `"milestone:<id>"`) and the human-readable
+   * tooltip description.
+   */
+  onArrowHover?: (
+    connectedIds: ReadonlySet<string>,
+    description: string,
+    mouseEvent: { clientX: number; clientY: number },
+  ) => void;
+  /** Called when the user moves the mouse while an arrow is hovered. */
+  onArrowMouseMove?: (mouseEvent: { clientX: number; clientY: number }) => void;
+  /** Called when the user leaves or blurs an arrow. */
+  onArrowLeave?: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -82,15 +96,34 @@ const ARROW_STROKE_DEFAULT = 1.5;
 const ARROW_STROKE_CRITICAL = 2;
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Human-readable dependency descriptions
 // ---------------------------------------------------------------------------
 
-const DEPENDENCY_TYPE_LABELS: Record<DependencyType, string> = {
-  finish_to_start: 'Finish-to-Start',
-  start_to_start: 'Start-to-Start',
-  finish_to_finish: 'Finish-to-Finish',
-  start_to_finish: 'Start-to-Finish',
-};
+/**
+ * Builds a human-readable sentence describing a work-item-to-work-item dependency.
+ *
+ * Examples:
+ *   FS: "Install Plumbing must finish before Paint Walls can start"
+ *   SS: "Install Plumbing and Paint Walls must start together"
+ *   FF: "Install Plumbing and Paint Walls must finish together"
+ *   SF: "Paint Walls cannot finish until Install Plumbing starts"
+ */
+function buildDependencyDescription(
+  predecessorTitle: string,
+  successorTitle: string,
+  type: DependencyType,
+): string {
+  switch (type) {
+    case 'finish_to_start':
+      return `${predecessorTitle} must finish before ${successorTitle} can start`;
+    case 'start_to_start':
+      return `${predecessorTitle} and ${successorTitle} must start together`;
+    case 'finish_to_finish':
+      return `${predecessorTitle} and ${successorTitle} must finish together`;
+    case 'start_to_finish':
+      return `${successorTitle} cannot finish until ${predecessorTitle} starts`;
+  }
+}
 
 // ---------------------------------------------------------------------------
 // GanttArrows component
@@ -109,6 +142,12 @@ const DEPENDENCY_TYPE_LABELS: Record<DependencyType, string> = {
  *
  *   - Contributing arrows: work item end → milestone diamond (dashed)
  *   - Required arrows:     milestone diamond → work item start (dashed)
+ *
+ * Arrow hover behaviour:
+ *   - Hovered arrow becomes fully opaque and the stroke thickens (via CSS)
+ *   - All other arrows dim to low opacity
+ *   - Callbacks propagate the connected endpoint IDs and tooltip description
+ *     up to GanttChart which dims/highlights bars and milestones accordingly
  */
 export const GanttArrows = memo(function GanttArrows({
   dependencies,
@@ -122,12 +161,18 @@ export const GanttArrows = memo(function GanttArrows({
   milestoneContributors,
   workItemRequiredMilestones,
   milestoneTitles,
+  onArrowHover,
+  onArrowMouseMove,
+  onArrowLeave,
 }: GanttArrowsProps) {
   // Marker IDs are kept for potential future use with SVG marker-end attributes.
   // Currently arrowheads are rendered as separate polygon elements for full color control.
   const markerId = 'gantt-arrow-default';
   const markerIdCritical = 'gantt-arrow-critical';
   const markerIdMilestone = 'gantt-arrow-milestone';
+
+  // Track which arrow key is currently hovered so we can dim all others locally
+  const [hoveredArrowKey, setHoveredArrowKey] = useState<string | null>(null);
 
   // Move hovered arrow group to end of parent so it paints on top (SVG z-order)
   const bringToFront = useCallback((e: React.MouseEvent<SVGGElement>) => {
@@ -154,14 +199,18 @@ export const GanttArrows = memo(function GanttArrows({
 
         const predTitle = workItemTitles.get(dep.predecessorId) ?? dep.predecessorId;
         const succTitle = workItemTitles.get(dep.successorId) ?? dep.successorId;
-        const typeLabel = DEPENDENCY_TYPE_LABELS[dep.dependencyType];
-        const ariaLabel = `Dependency: ${predTitle} to ${succTitle}, ${typeLabel}`;
+        const description = buildDependencyDescription(predTitle, succTitle, dep.dependencyType);
+
+        // Connected entity IDs (work item string IDs)
+        const connectedIds = new Set([dep.predecessorId, dep.successorId]);
 
         return {
           key: `${dep.predecessorId}-${dep.successorId}-${dep.dependencyType}`,
           arrowPath,
           isCritical,
-          ariaLabel,
+          // Human-readable description used as both the aria-label and the tooltip text
+          description,
+          connectedIds,
         };
       })
       .filter((a): a is NonNullable<typeof a> => a !== null);
@@ -172,7 +221,8 @@ export const GanttArrows = memo(function GanttArrows({
     const results: Array<{
       key: string;
       arrowPath: ArrowPath;
-      ariaLabel: string;
+      description: string;
+      connectedIds: Set<string>;
     }> = [];
 
     if (!milestonePoints || !milestoneContributors || !workItemRequiredMilestones) {
@@ -194,6 +244,8 @@ export const GanttArrows = memo(function GanttArrows({
       if (!msRect) continue;
 
       const milestoneTitle = milestoneTitles?.get(milestoneId) ?? `Milestone ${milestoneId}`;
+      // Encode milestone as a prefixed string so it can be stored in the same Set as work item IDs
+      const milestoneKey = `milestone:${milestoneId}`;
 
       for (const workItemId of workItemIds) {
         const barRect = barRects.get(workItemId);
@@ -201,11 +253,13 @@ export const GanttArrows = memo(function GanttArrows({
 
         const workItemTitle = workItemTitles.get(workItemId) ?? workItemId;
         const arrowPath = computeArrowPath(barRect, msRect, 'finish_to_start', 0);
+        const description = `${workItemTitle} contributes to milestone ${milestoneTitle}`;
 
         results.push({
           key: `milestone-contrib-${workItemId}-${milestoneId}`,
           arrowPath,
-          ariaLabel: `${workItemTitle} contributes to milestone: ${milestoneTitle}`,
+          description,
+          connectedIds: new Set([workItemId, milestoneKey]),
         });
       }
     }
@@ -222,12 +276,15 @@ export const GanttArrows = memo(function GanttArrows({
         if (!msRect) continue;
 
         const milestoneTitle = milestoneTitles?.get(milestoneId) ?? `Milestone ${milestoneId}`;
+        const milestoneKey = `milestone:${milestoneId}`;
         const arrowPath = computeArrowPath(msRect, barRect, 'finish_to_start', 0);
+        const description = `${milestoneTitle} is a required milestone for ${workItemTitle}`;
 
         results.push({
           key: `milestone-req-${milestoneId}-${workItemId}`,
           arrowPath,
-          ariaLabel: `Milestone: ${milestoneTitle} is required by ${workItemTitle}`,
+          description,
+          connectedIds: new Set([workItemId, milestoneKey]),
         });
       }
     }
@@ -257,7 +314,8 @@ export const GanttArrows = memo(function GanttArrows({
     const results: Array<{
       key: string;
       arrowPath: ArrowPath;
-      ariaLabel: string;
+      description: string;
+      connectedIds: Set<string>;
     }> = [];
 
     for (let i = 0; i < criticalPathOrder.length - 1; i++) {
@@ -276,11 +334,13 @@ export const GanttArrows = memo(function GanttArrows({
 
       const fromTitle = workItemTitles.get(fromId) ?? fromId;
       const toTitle = workItemTitles.get(toId) ?? toId;
+      const description = `${fromTitle} and ${toTitle} are consecutive on the critical path`;
 
       results.push({
         key: `implicit-critical-${fromId}-${toId}`,
         arrowPath,
-        ariaLabel: `Implicit critical path connection: ${fromTitle} to ${toTitle}`,
+        description,
+        connectedIds: new Set([fromId, toId]),
       });
     }
 
@@ -292,6 +352,66 @@ export const GanttArrows = memo(function GanttArrows({
 
   if (!hasArrows) {
     return null;
+  }
+
+  // Determine if any arrow is being hovered — used to compute per-arrow dimming class
+  const isAnyArrowHovered = hoveredArrowKey !== null;
+
+  /**
+   * Returns the CSS class for an arrow group based on whether it is hovered,
+   * dimmed, or in the default state.
+   */
+  function arrowGroupClass(key: string): string {
+    if (!isAnyArrowHovered) return styles.arrowGroup;
+    if (key === hoveredArrowKey) return `${styles.arrowGroup} ${styles.arrowGroupHovered}`;
+    return `${styles.arrowGroup} ${styles.arrowGroupDimmed}`;
+  }
+
+  /**
+   * Returns the base opacity for an arrow group. Overridden by CSS classes
+   * when an arrow is hovered.
+   */
+  function arrowBaseOpacity(isCritical: boolean, isImplicit = false): number | undefined {
+    if (!visible) return 0;
+    if (isCritical) return 1;
+    if (isImplicit) return 0.7;
+    return 0.5;
+  }
+
+  /**
+   * Creates mouse and keyboard event handlers for a single arrow group.
+   */
+  function makeArrowHandlers(key: string, connectedIds: ReadonlySet<string>, description: string) {
+    function handleEnter(e: React.MouseEvent<SVGGElement>) {
+      bringToFront(e);
+      setHoveredArrowKey(key);
+      onArrowHover?.(connectedIds, description, { clientX: e.clientX, clientY: e.clientY });
+    }
+
+    function handleLeave() {
+      setHoveredArrowKey(null);
+      onArrowLeave?.();
+    }
+
+    function handleMove(e: React.MouseEvent<SVGGElement>) {
+      onArrowMouseMove?.({ clientX: e.clientX, clientY: e.clientY });
+    }
+
+    function handleFocus(e: React.FocusEvent<SVGGElement>) {
+      // For keyboard focus, use the element's bounding rect center for tooltip placement
+      const rect = e.currentTarget.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      setHoveredArrowKey(key);
+      onArrowHover?.(connectedIds, description, { clientX: cx, clientY: cy });
+    }
+
+    function handleBlur() {
+      setHoveredArrowKey(null);
+      onArrowLeave?.();
+    }
+
+    return { handleEnter, handleLeave, handleMove, handleFocus, handleBlur };
   }
 
   return (
@@ -348,21 +468,28 @@ export const GanttArrows = memo(function GanttArrows({
       {arrows
         .filter((a) => !a.isCritical)
         .map((a) => {
-          const { arrowPath, key, ariaLabel } = a;
+          const { arrowPath, key, description, connectedIds } = a;
           const arrowhead = computeArrowhead(
             arrowPath.tipX,
             arrowPath.tipY,
             arrowPath.tipDirection,
             ARROWHEAD_SIZE,
           );
+          const { handleEnter, handleLeave, handleMove, handleFocus, handleBlur } =
+            makeArrowHandlers(key, connectedIds, description);
           return (
             <g
               key={key}
-              className={styles.arrowGroup}
-              opacity={visible ? 0.5 : 0}
+              className={arrowGroupClass(key)}
+              opacity={arrowBaseOpacity(false)}
               role="graphics-symbol"
-              aria-label={ariaLabel}
-              onMouseEnter={bringToFront}
+              tabIndex={visible ? 0 : -1}
+              aria-label={description}
+              onMouseEnter={handleEnter}
+              onMouseLeave={handleLeave}
+              onMouseMove={handleMove}
+              onFocus={handleFocus}
+              onBlur={handleBlur}
             >
               <path d={arrowPath.pathD} className={styles.arrowHitArea} aria-hidden="true" />
               <path
@@ -386,22 +513,29 @@ export const GanttArrows = memo(function GanttArrows({
       {arrows
         .filter((a) => a.isCritical)
         .map((a) => {
-          const { arrowPath, key, ariaLabel } = a;
+          const { arrowPath, key, description, connectedIds } = a;
           const arrowhead = computeArrowhead(
             arrowPath.tipX,
             arrowPath.tipY,
             arrowPath.tipDirection,
             ARROWHEAD_SIZE,
           );
+          const { handleEnter, handleLeave, handleMove, handleFocus, handleBlur } =
+            makeArrowHandlers(key, connectedIds, description);
           return (
             <g
               key={key}
-              className={styles.arrowGroup}
-              opacity={visible ? 1 : 0}
+              className={arrowGroupClass(key)}
+              opacity={arrowBaseOpacity(true)}
               filter="drop-shadow(0 0 2px rgba(251,146,60,0.4))"
               role="graphics-symbol"
-              aria-label={ariaLabel}
-              onMouseEnter={bringToFront}
+              tabIndex={visible ? 0 : -1}
+              aria-label={description}
+              onMouseEnter={handleEnter}
+              onMouseLeave={handleLeave}
+              onMouseMove={handleMove}
+              onFocus={handleFocus}
+              onBlur={handleBlur}
             >
               <path d={arrowPath.pathD} className={styles.arrowHitArea} aria-hidden="true" />
               <path
@@ -429,14 +563,24 @@ export const GanttArrows = memo(function GanttArrows({
           a.arrowPath.tipDirection,
           ARROWHEAD_SIZE,
         );
+        const { handleEnter, handleLeave, handleMove, handleFocus, handleBlur } = makeArrowHandlers(
+          a.key,
+          a.connectedIds,
+          a.description,
+        );
         return (
           <g
             key={a.key}
-            className={styles.arrowGroup}
-            opacity={visible ? 0.5 : 0}
+            className={arrowGroupClass(a.key)}
+            opacity={arrowBaseOpacity(false)}
             role="graphics-symbol"
-            aria-label={a.ariaLabel}
-            onMouseEnter={bringToFront}
+            tabIndex={visible ? 0 : -1}
+            aria-label={a.description}
+            onMouseEnter={handleEnter}
+            onMouseLeave={handleLeave}
+            onMouseMove={handleMove}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
           >
             <path d={a.arrowPath.pathD} className={styles.arrowHitArea} aria-hidden="true" />
             <path
@@ -464,14 +608,24 @@ export const GanttArrows = memo(function GanttArrows({
           a.arrowPath.tipDirection,
           ARROWHEAD_SIZE,
         );
+        const { handleEnter, handleLeave, handleMove, handleFocus, handleBlur } = makeArrowHandlers(
+          a.key,
+          a.connectedIds,
+          a.description,
+        );
         return (
           <g
             key={a.key}
-            className={styles.arrowGroup}
-            opacity={visible ? 0.7 : 0}
+            className={arrowGroupClass(a.key)}
+            opacity={arrowBaseOpacity(false, true)}
             role="graphics-symbol"
-            aria-label={a.ariaLabel}
-            onMouseEnter={bringToFront}
+            tabIndex={visible ? 0 : -1}
+            aria-label={a.description}
+            onMouseEnter={handleEnter}
+            onMouseLeave={handleLeave}
+            onMouseMove={handleMove}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
           >
             <path d={a.arrowPath.pathD} className={styles.arrowHitArea} aria-hidden="true" />
             <path

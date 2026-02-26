@@ -47,6 +47,9 @@ export interface MilestoneDiamond {
   y: number; // center y
 }
 
+/** Visual interaction state applied when an arrow is hovered. */
+export type MilestoneInteractionState = 'highlighted' | 'dimmed' | 'default';
+
 export interface GanttMilestonesProps {
   milestones: TimelineMilestone[];
   chartRange: ChartRange;
@@ -56,6 +59,11 @@ export interface GanttMilestonesProps {
   colors: MilestoneColors;
   /** Optional column width override for zoom in/out. */
   columnWidth?: number;
+  /**
+   * Map from milestone ID to its interaction state when an arrow is hovered.
+   * When null/undefined, no arrow hover is active and all milestones render normally.
+   */
+  milestoneInteractionStates?: ReadonlyMap<number, MilestoneInteractionState>;
   /** Called when a diamond is hovered (for tooltip). Passes milestone and mouse coords. */
   onMilestoneMouseEnter?: (
     milestone: TimelineMilestone,
@@ -83,6 +91,8 @@ interface DiamondMarkerProps {
   onClick: () => void;
   /** When true, renders as a ghost (outlined, dimmed) for the planned position. */
   isGhost?: boolean;
+  /** Visual interaction state when an arrow is hovered. */
+  interactionState?: MilestoneInteractionState;
 }
 
 const DiamondMarker = memo(function DiamondMarker({
@@ -96,6 +106,7 @@ const DiamondMarker = memo(function DiamondMarker({
   onMouseMove,
   onClick,
   isGhost = false,
+  interactionState = 'default',
 }: DiamondMarkerProps) {
   let fill: string;
   let stroke: string;
@@ -148,12 +159,19 @@ const DiamondMarker = memo(function DiamondMarker({
     );
   }
 
+  const interactionClass =
+    interactionState === 'highlighted'
+      ? styles.milestoneHighlighted
+      : interactionState === 'dimmed'
+        ? styles.milestoneDimmed
+        : '';
+
   return (
     <g
       role="graphics-symbol"
       aria-label={label}
       tabIndex={0}
-      className={`${styles.diamond} ${statusClass}`}
+      className={`${styles.diamond} ${statusClass} ${interactionClass}`}
       style={{ '--milestone-hover-glow': hoverGlow } as CSSProperties}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
@@ -209,6 +227,7 @@ export const GanttMilestones = memo(function GanttMilestones({
   milestoneRowIndices,
   colors,
   columnWidth,
+  milestoneInteractionStates,
   onMilestoneMouseEnter,
   onMilestoneMouseLeave,
   onMilestoneMouseMove,
@@ -253,6 +272,8 @@ export const GanttMilestones = memo(function GanttMilestones({
             ? dateToX(toUtcMidnight(milestone.projectedDate), chartRange, zoom, columnWidth)
             : null;
 
+        const interactionState = milestoneInteractionStates?.get(milestone.id) ?? 'default';
+
         return (
           <g key={milestone.id}>
             {/* For late milestones: dashed connector line between ghost and projected */}
@@ -265,7 +286,7 @@ export const GanttMilestones = memo(function GanttMilestones({
                 stroke={colors.lateStroke}
                 strokeWidth={1.5}
                 strokeDasharray="4 3"
-                strokeOpacity={0.6}
+                strokeOpacity={interactionState === 'dimmed' ? 0.2 : 0.6}
                 aria-hidden="true"
               />
             )}
@@ -293,6 +314,7 @@ export const GanttMilestones = memo(function GanttMilestones({
               status={status}
               label={ariaLabel}
               colors={colors}
+              interactionState={interactionState}
               onMouseEnter={(e) => onMilestoneMouseEnter?.(milestone, e)}
               onMouseLeave={() => onMilestoneMouseLeave?.(milestone)}
               onMouseMove={(e) => onMilestoneMouseMove?.(e)}
