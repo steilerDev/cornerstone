@@ -35,6 +35,7 @@ const updateMilestoneSchema = {
       description: { type: ['string', 'null'], maxLength: 2000 },
       targetDate: { type: 'string', format: 'date' },
       isCompleted: { type: 'boolean' },
+      completedAt: { type: ['string', 'null'] },
       color: { type: ['string', 'null'] },
     },
     additionalProperties: false,

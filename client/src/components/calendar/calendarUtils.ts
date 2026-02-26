@@ -181,13 +181,27 @@ export function getItemsForDay(dateStr: string, items: TimelineWorkItem[]): Time
 }
 
 /**
- * Returns milestones whose targetDate matches the given day.
+ * Returns milestones that should appear on the given day.
+ *
+ * Date resolution order:
+ *   1. Completed milestones: match on completedAt date (YYYY-MM-DD portion)
+ *   2. Incomplete with projectedDate: match on projectedDate
+ *   3. Incomplete without projectedDate: match on targetDate (fallback)
  */
 export function getMilestonesForDay(
   dateStr: string,
   milestones: TimelineMilestone[],
 ): TimelineMilestone[] {
-  return milestones.filter((m) => m.targetDate === dateStr);
+  return milestones.filter((m) => {
+    if (m.isCompleted && m.completedAt) {
+      // Use the YYYY-MM-DD portion of the ISO timestamp
+      return m.completedAt.slice(0, 10) === dateStr;
+    }
+    if (m.projectedDate) {
+      return m.projectedDate === dateStr;
+    }
+    return m.targetDate === dateStr;
+  });
 }
 
 // ---------------------------------------------------------------------------

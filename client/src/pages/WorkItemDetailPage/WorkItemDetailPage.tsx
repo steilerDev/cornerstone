@@ -104,7 +104,9 @@ export default function WorkItemDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const fromTimeline = (location.state as { from?: string } | null)?.from === 'timeline';
+  const locationState = location.state as { from?: string; view?: string } | null;
+  const fromTimeline = locationState?.from === 'timeline';
+  const fromView = locationState?.view;
   const { user } = useAuth();
 
   const [workItem, setWorkItem] = useState<WorkItemDetail | null>(null);
@@ -179,6 +181,11 @@ export default function WorkItemDetailPage() {
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
 
   const [inlineError, setInlineError] = useState<string | null>(null);
+
+  // Local state for duration/constraint inputs (onBlur save pattern to avoid race conditions)
+  const [localDuration, setLocalDuration] = useState<string>('');
+  const [localStartAfter, setLocalStartAfter] = useState<string>('');
+  const [localStartBefore, setLocalStartBefore] = useState<string>('');
   const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
   const [deletingSubtaskId, setDeletingSubtaskId] = useState<string | null>(null);
   const [deletingDependency, setDeletingDependency] = useState<DeletingDependency | null>(null);
@@ -225,6 +232,11 @@ export default function WorkItemDetailPage() {
         ]);
 
         setWorkItem(workItemData);
+        setLocalDuration(
+          workItemData.durationDays != null ? String(workItemData.durationDays) : '',
+        );
+        setLocalStartAfter(workItemData.startAfter || '');
+        setLocalStartBefore(workItemData.startBefore || '');
         setNotes(notesData.notes);
         setSubtasks(subtasksData.subtasks);
         setDependencies(depsData);
@@ -271,6 +283,9 @@ export default function WorkItemDetailPage() {
     try {
       const updated = await getWorkItem(id);
       setWorkItem(updated);
+      setLocalDuration(updated.durationDays != null ? String(updated.durationDays) : '');
+      setLocalStartAfter(updated.startAfter || '');
+      setLocalStartBefore(updated.startBefore || '');
     } catch (err) {
       console.error('Failed to reload work item:', err);
     }
@@ -613,11 +628,15 @@ export default function WorkItemDetailPage() {
     }
   };
 
-  // Duration change
-  const handleDurationChange = async (value: string) => {
-    if (!id) return;
-    const duration = value ? Number(value) : null;
+  // Duration change — saves onBlur to avoid race conditions from rapid keystroke API calls
+  const handleDurationBlur = async () => {
+    if (!id || !workItem) return;
+    const duration = localDuration ? Number(localDuration) : null;
     if (duration !== null && (isNaN(duration) || duration < 0)) return;
+
+    // Only save if the value actually changed
+    const currentDuration = workItem.durationDays;
+    if (duration === currentDuration) return;
 
     setInlineError(null);
     try {
@@ -629,12 +648,18 @@ export default function WorkItemDetailPage() {
     }
   };
 
-  // Constraint changes
-  const handleConstraintChange = async (field: 'startAfter' | 'startBefore', value: string) => {
-    if (!id) return;
+  // Constraint changes — saves onBlur to avoid race conditions
+  const handleConstraintBlur = async (field: 'startAfter' | 'startBefore') => {
+    if (!id || !workItem) return;
+    const localValue = field === 'startAfter' ? localStartAfter : localStartBefore;
+    const currentValue = workItem[field] || '';
+
+    // Only save if the value actually changed
+    if (localValue === currentValue) return;
+
     setInlineError(null);
     try {
-      await updateWorkItem(id, { [field]: value || null });
+      await updateWorkItem(id, { [field]: localValue || null });
       await reloadWorkItem();
     } catch (err) {
       setInlineError(`Failed to update ${field}`);
@@ -1035,7 +1060,7 @@ export default function WorkItemDetailPage() {
               <button
                 type="button"
                 className={styles.backButton}
-                onClick={() => navigate('/timeline')}
+                onClick={() => navigate(fromView ? `/timeline?view=${fromView}` : '/timeline')}
               >
                 ← Back to Timeline
               </button>
@@ -1825,8 +1850,9 @@ export default function WorkItemDetailPage() {
                 <input
                   type="number"
                   className={styles.propertyInput}
-                  value={workItem.durationDays ?? ''}
-                  onChange={(e) => handleDurationChange(e.target.value)}
+                  value={localDuration}
+                  onChange={(e) => setLocalDuration(e.target.value)}
+                  onBlur={() => void handleDurationBlur()}
                   min="0"
                   placeholder="0"
                 />
@@ -1842,8 +1868,9 @@ export default function WorkItemDetailPage() {
                   <input
                     type="date"
                     className={styles.propertyInput}
-                    value={workItem.startAfter || ''}
-                    onChange={(e) => handleConstraintChange('startAfter', e.target.value)}
+                    value={localStartAfter}
+                    onChange={(e) => setLocalStartAfter(e.target.value)}
+                    onBlur={() => void handleConstraintBlur('startAfter')}
                   />
                 </div>
 
@@ -1852,8 +1879,9 @@ export default function WorkItemDetailPage() {
                   <input
                     type="date"
                     className={styles.propertyInput}
-                    value={workItem.startBefore || ''}
-                    onChange={(e) => handleConstraintChange('startBefore', e.target.value)}
+                    value={localStartBefore}
+                    onChange={(e) => setLocalStartBefore(e.target.value)}
+                    onBlur={() => void handleConstraintBlur('startBefore')}
                   />
                 </div>
               </div>

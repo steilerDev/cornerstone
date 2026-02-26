@@ -318,10 +318,18 @@ export function updateMilestone(
   if ('isCompleted' in data) {
     updateData.isCompleted = data.isCompleted ?? false;
     if (data.isCompleted === true) {
-      updateData.completedAt = new Date().toISOString();
+      // Use user-provided completedAt if present, otherwise auto-set to now
+      if ('completedAt' in data && data.completedAt) {
+        updateData.completedAt = data.completedAt;
+      } else {
+        updateData.completedAt = new Date().toISOString();
+      }
     } else if (data.isCompleted === false) {
       updateData.completedAt = null;
     }
+  } else if ('completedAt' in data) {
+    // Allow updating completedAt independently (only if already completed)
+    updateData.completedAt = data.completedAt ?? null;
   }
 
   if ('color' in data) {

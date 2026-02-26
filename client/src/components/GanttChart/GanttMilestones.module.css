@@ -22,10 +22,6 @@
   filter: drop-shadow(0 0 0 3px var(--color-focus-ring));
 }
 
-.diamond:active {
-  transform: scale(0.9);
-}
-
 /* Late milestone state — fill/stroke set via inline props; class used for CSS targeting */
 .diamondLate {
   /* No extra styles beyond diamond base — fill/stroke resolved from color tokens via props */

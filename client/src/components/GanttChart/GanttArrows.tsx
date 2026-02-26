@@ -92,34 +92,6 @@ const DEPENDENCY_TYPE_LABELS: Record<DependencyType, string> = {
   start_to_finish: 'Start-to-Finish',
 };
 
-/**
- * Builds an orthogonal SVG path from (srcX, srcY) to (dstX, dstY) using
- * a horizontal → vertical → horizontal routing.
- */
-function buildMilestoneOrthoPath(
-  srcX: number,
-  srcY: number,
-  dstX: number,
-  dstY: number,
-): { pathD: string; tipX: number; tipY: number; tipDirection: 'right' | 'left' } {
-  const STANDOFF = 10;
-
-  if (srcX <= dstX) {
-    // Standard left-to-right: exit right from src, enter left at dst
-    const exitX = srcX + STANDOFF;
-    const entryX = dstX - STANDOFF;
-    const midX = exitX + Math.max((entryX - exitX) / 2, 4);
-    const pathD = `M ${srcX} ${srcY} H ${midX} V ${dstY} H ${dstX}`;
-    return { pathD, tipX: dstX, tipY: dstY, tipDirection: 'right' };
-  } else {
-    // Reverse: src is to the right of dst — loop around
-    const loopX = srcX + STANDOFF;
-    const entryX = dstX - STANDOFF;
-    const pathD = `M ${srcX} ${srcY} H ${loopX} V ${dstY} H ${entryX}`;
-    return { pathD, tipX: dstX, tipY: dstY, tipDirection: 'right' };
-  }
-}
-
 // ---------------------------------------------------------------------------
 // GanttArrows component
 // ---------------------------------------------------------------------------
@@ -186,14 +158,11 @@ export const GanttArrows = memo(function GanttArrows({
       .filter((a): a is NonNullable<typeof a> => a !== null);
   }, [dependencies, barRects, criticalPathSet, workItemTitles]);
 
-  // Pre-compute milestone linkage arrows
+  // Pre-compute milestone linkage arrows using the same 5-segment routing as dependency arrows
   const milestoneArrows = useMemo(() => {
     const results: Array<{
       key: string;
-      pathD: string;
-      tipX: number;
-      tipY: number;
-      tipDirection: 'right' | 'left';
+      arrowPath: ArrowPath;
       ariaLabel: string;
     }> = [];
 
@@ -201,12 +170,19 @@ export const GanttArrows = memo(function GanttArrows({
       return results;
     }
 
-    // --- Contributing arrows: work item end → milestone diamond ---
-    // For each milestone, for each contributing work item, draw an arrow
-    // from the right edge of the work item bar to the milestone diamond.
+    // Helper: create a BarRect for a milestone diamond (zero width, positioned at center)
+    function milestoneBarRect(milestoneId: number): BarRect | null {
+      const point = milestonePoints!.get(milestoneId);
+      if (!point) return null;
+      // Compute row index from y position
+      const rowIndex = Math.round((point.y - ROW_HEIGHT / 2) / ROW_HEIGHT);
+      return { x: point.x, width: 0, rowIndex };
+    }
+
+    // --- Contributing arrows: work item end → milestone diamond (FS) ---
     for (const [milestoneId, workItemIds] of milestoneContributors) {
-      const milestonePoint = milestonePoints.get(milestoneId);
-      if (!milestonePoint) continue;
+      const msRect = milestoneBarRect(milestoneId);
+      if (!msRect) continue;
 
       const milestoneTitle = milestoneTitles?.get(milestoneId) ?? `Milestone ${milestoneId}`;
 
@@ -215,31 +191,17 @@ export const GanttArrows = memo(function GanttArrows({
         if (!barRect) continue;
 
         const workItemTitle = workItemTitles.get(workItemId) ?? workItemId;
-
-        // Source: right edge of work item bar, vertically centered
-        const srcX = barRect.x + barRect.width + ARROW_STANDOFF;
-        const srcY = barRect.rowIndex * ROW_HEIGHT + BAR_OFFSET_Y + BAR_HEIGHT / 2;
-
-        // Destination: left side of diamond (diamond center is the target)
-        const dstX = milestonePoint.x;
-        const dstY = milestonePoint.y;
-
-        const { pathD, tipX, tipY, tipDirection } = buildMilestoneOrthoPath(srcX, srcY, dstX, dstY);
+        const arrowPath = computeArrowPath(barRect, msRect, 'finish_to_start', 0);
 
         results.push({
           key: `milestone-contrib-${workItemId}-${milestoneId}`,
-          pathD,
-          tipX,
-          tipY,
-          tipDirection,
+          arrowPath,
           ariaLabel: `${workItemTitle} contributes to milestone: ${milestoneTitle}`,
         });
       }
     }
 
-    // --- Required arrows: milestone diamond → work item start ---
-    // For each work item that requires a milestone, draw an arrow from
-    // the milestone diamond to the left edge of the work item bar.
+    // --- Required arrows: milestone diamond → work item start (FS) ---
     for (const [workItemId, milestoneIds] of workItemRequiredMilestones) {
       const barRect = barRects.get(workItemId);
       if (!barRect) continue;
@@ -247,27 +209,15 @@ export const GanttArrows = memo(function GanttArrows({
       const workItemTitle = workItemTitles.get(workItemId) ?? workItemId;
 
       for (const milestoneId of milestoneIds) {
-        const milestonePoint = milestonePoints.get(milestoneId);
-        if (!milestonePoint) continue;
+        const msRect = milestoneBarRect(milestoneId);
+        if (!msRect) continue;
 
         const milestoneTitle = milestoneTitles?.get(milestoneId) ?? `Milestone ${milestoneId}`;
-
-        // Source: right side of diamond (diamond center)
-        const srcX = milestonePoint.x;
-        const srcY = milestonePoint.y;
-
-        // Destination: left edge of work item bar, vertically centered
-        const dstX = barRect.x - ARROW_STANDOFF;
-        const dstY = barRect.rowIndex * ROW_HEIGHT + BAR_OFFSET_Y + BAR_HEIGHT / 2;
-
-        const { pathD, tipX, tipY, tipDirection } = buildMilestoneOrthoPath(srcX, srcY, dstX, dstY);
+        const arrowPath = computeArrowPath(msRect, barRect, 'finish_to_start', 0);
 
         results.push({
           key: `milestone-req-${milestoneId}-${workItemId}`,
-          pathD,
-          tipX,
-          tipY,
-          tipDirection,
+          arrowPath,
           ariaLabel: `Milestone: ${milestoneTitle} is required by ${workItemTitle}`,
         });
       }
@@ -438,7 +388,7 @@ export const GanttArrows = memo(function GanttArrows({
               key={key}
               className={styles.arrowGroup}
               opacity={visible ? 1 : 0}
-              filter="drop-shadow(0 0 2px rgba(220,38,38,0.4))"
+              filter="drop-shadow(0 0 2px rgba(251,146,60,0.4))"
               role="graphics-symbol"
               aria-label={ariaLabel}
             >
@@ -462,7 +412,12 @@ export const GanttArrows = memo(function GanttArrows({
 
       {/* Milestone linkage arrows (same style as default work-item arrows) */}
       {milestoneArrows.map((a) => {
-        const arrowhead = computeArrowhead(a.tipX, a.tipY, a.tipDirection, ARROWHEAD_SIZE);
+        const arrowhead = computeArrowhead(
+          a.arrowPath.tipX,
+          a.arrowPath.tipY,
+          a.arrowPath.tipDirection,
+          ARROWHEAD_SIZE,
+        );
         return (
           <g
             key={a.key}
@@ -471,9 +426,9 @@ export const GanttArrows = memo(function GanttArrows({
             role="graphics-symbol"
             aria-label={a.ariaLabel}
           >
-            <path d={a.pathD} className={styles.arrowHitArea} aria-hidden="true" />
+            <path d={a.arrowPath.pathD} className={styles.arrowHitArea} aria-hidden="true" />
             <path
-              d={a.pathD}
+              d={a.arrowPath.pathD}
               stroke={colors.defaultArrow}
               strokeWidth={ARROW_STROKE_DEFAULT}
               className={styles.arrowDefault}

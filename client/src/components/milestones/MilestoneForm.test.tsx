@@ -255,14 +255,14 @@ describe('MilestoneForm', () => {
       expect(screen.getByTestId('milestone-form-submit')).toHaveTextContent('Save Changes');
     });
 
-    it('shows completed date when milestone is completed', () => {
+    it('shows completion date field when milestone is completed', () => {
       renderEdit(COMPLETED_MILESTONE);
-      expect(screen.getByText(/completed on/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/completion date/i)).toBeInTheDocument();
     });
 
-    it('does not show completed date for incomplete milestone', () => {
+    it('does not show completion date field for incomplete milestone', () => {
       renderEdit();
-      expect(screen.queryByText(/completed on/i)).not.toBeInTheDocument();
+      expect(screen.queryByLabelText(/completion date/i)).not.toBeInTheDocument();
     });
 
     it('pre-fills target date from milestone with plain date string', () => {

@@ -549,6 +549,10 @@
   margin: var(--spacing-1) 0 0 calc(18px + var(--spacing-2));
 }
 
+.completedDateField {
+  margin: var(--spacing-2) 0 0 calc(18px + var(--spacing-2));
+}
+
 /* ---- Error banner in form ---- */
 
 .errorBanner {
