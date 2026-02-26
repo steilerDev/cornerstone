@@ -35,8 +35,6 @@ export type {
   WorkItemListResponse,
   WorkItemDependenciesResponse,
   DependencyResponse,
-  MilestoneSummaryForWorkItem,
-  WorkItemMilestones,
 } from './types/workItem.js';
 
 // Subtasks
@@ -64,7 +62,6 @@ export type {
   Dependency,
   DependencyType,
   CreateDependencyRequest,
-  UpdateDependencyRequest,
   DependencyCreatedResponse,
 } from './types/dependency.js';
 
@@ -145,33 +142,3 @@ export type {
   WorkItemBudgetResponse,
 } from './types/workItemBudget.js';
 export { CONFIDENCE_MARGINS } from './types/workItemBudget.js';
-
-// Milestones
-export type {
-  MilestoneSummary,
-  MilestoneDetail,
-  WorkItemDependentSummary,
-  CreateMilestoneRequest,
-  UpdateMilestoneRequest,
-  MilestoneListResponse,
-  LinkWorkItemRequest,
-  MilestoneWorkItemLinkResponse,
-} from './types/milestone.js';
-
-// Scheduling
-export type {
-  ScheduleRequest,
-  ScheduleResponse,
-  ScheduledItem,
-  ScheduleWarningType,
-  ScheduleWarning,
-} from './types/schedule.js';
-
-// Timeline
-export type {
-  TimelineWorkItem,
-  TimelineDependency,
-  TimelineMilestone,
-  TimelineDateRange,
-  TimelineResponse,
-} from './types/timeline.js';

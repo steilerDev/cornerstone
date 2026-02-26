@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, type FormEvent } from 'react';
-import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import type {
   WorkItemDetail,
   WorkItemStatus,
@@ -16,8 +16,6 @@ import type {
   ConfidenceLevel,
   CreateWorkItemBudgetRequest,
   UpdateWorkItemBudgetRequest,
-  WorkItemMilestones,
-  MilestoneSummary,
 } from '@cornerstone/shared';
 import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
 import {
@@ -49,14 +47,6 @@ import { fetchBudgetCategories } from '../../lib/budgetCategoriesApi.js';
 import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
 import { fetchSubsidyPrograms } from '../../lib/subsidyProgramsApi.js';
-import { listMilestones } from '../../lib/milestonesApi.js';
-import {
-  getWorkItemMilestones,
-  addRequiredMilestone,
-  removeRequiredMilestone,
-  addLinkedMilestone,
-  removeLinkedMilestone,
-} from '../../lib/workItemMilestonesApi.js';
 import { TagPicker } from '../../components/TagPicker/TagPicker.js';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
@@ -103,10 +93,6 @@ const EMPTY_BUDGET_FORM: BudgetLineFormState = {
 export default function WorkItemDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const location = useLocation();
-  const locationState = location.state as { from?: string; view?: string } | null;
-  const fromTimeline = locationState?.from === 'timeline';
-  const fromView = locationState?.view;
   const { user } = useAuth();
 
   const [workItem, setWorkItem] = useState<WorkItemDetail | null>(null);
@@ -164,28 +150,12 @@ export default function WorkItemDetailPage() {
 
   const [isAddingDependency, setIsAddingDependency] = useState(false);
 
-  // Milestone relationships state
-  const [workItemMilestones, setWorkItemMilestones] = useState<WorkItemMilestones>({
-    required: [],
-    linked: [],
-  });
-  const [allMilestones, setAllMilestones] = useState<MilestoneSummary[]>([]);
-  const [selectedRequiredMilestoneId, setSelectedRequiredMilestoneId] = useState('');
-  const [selectedLinkedMilestoneId, setSelectedLinkedMilestoneId] = useState('');
-  const [isAddingRequiredMilestone, setIsAddingRequiredMilestone] = useState(false);
-  const [isAddingLinkedMilestone, setIsAddingLinkedMilestone] = useState(false);
-
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
 
   const [inlineError, setInlineError] = useState<string | null>(null);
-
-  // Local state for duration/constraint inputs (onBlur save pattern to avoid race conditions)
-  const [localDuration, setLocalDuration] = useState<string>('');
-  const [localStartAfter, setLocalStartAfter] = useState<string>('');
-  const [localStartBefore, setLocalStartBefore] = useState<string>('');
   const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
   const [deletingSubtaskId, setDeletingSubtaskId] = useState<string | null>(null);
   const [deletingDependency, setDeletingDependency] = useState<DeletingDependency | null>(null);
@@ -212,8 +182,6 @@ export default function WorkItemDetailPage() {
           budgetLinesData,
           subsidiesData,
           linkedSubsidiesData,
-          workItemMilestonesData,
-          allMilestonesData,
         ] = await Promise.all([
           getWorkItem(id!),
           listNotes(id!),
@@ -227,16 +195,9 @@ export default function WorkItemDetailPage() {
           fetchWorkItemBudgets(id!),
           fetchSubsidyPrograms(),
           fetchWorkItemSubsidies(id!),
-          getWorkItemMilestones(id!),
-          listMilestones(),
         ]);
 
         setWorkItem(workItemData);
-        setLocalDuration(
-          workItemData.durationDays != null ? String(workItemData.durationDays) : '',
-        );
-        setLocalStartAfter(workItemData.startAfter || '');
-        setLocalStartBefore(workItemData.startBefore || '');
         setNotes(notesData.notes);
         setSubtasks(subtasksData.subtasks);
         setDependencies(depsData);
@@ -248,8 +209,6 @@ export default function WorkItemDetailPage() {
         setBudgetLines(budgetLinesData);
         setAllSubsidyPrograms(subsidiesData.subsidyPrograms);
         setLinkedSubsidies(linkedSubsidiesData);
-        setWorkItemMilestones(workItemMilestonesData);
-        setAllMilestones(allMilestonesData);
       } catch (err: unknown) {
         if ((err as { statusCode?: number })?.statusCode === 404) {
           setError('Work item not found');
@@ -283,9 +242,6 @@ export default function WorkItemDetailPage() {
     try {
       const updated = await getWorkItem(id);
       setWorkItem(updated);
-      setLocalDuration(updated.durationDays != null ? String(updated.durationDays) : '');
-      setLocalStartAfter(updated.startAfter || '');
-      setLocalStartBefore(updated.startBefore || '');
     } catch (err) {
       console.error('Failed to reload work item:', err);
     }
@@ -338,16 +294,6 @@ export default function WorkItemDetailPage() {
       setLinkedSubsidies(data);
     } catch (err) {
       console.error('Failed to reload linked subsidies:', err);
-    }
-  };
-
-  const reloadWorkItemMilestones = async () => {
-    if (!id) return;
-    try {
-      const data = await getWorkItemMilestones(id);
-      setWorkItemMilestones(data);
-    } catch (err) {
-      console.error('Failed to reload work item milestones:', err);
     }
   };
 
@@ -478,74 +424,6 @@ export default function WorkItemDetailPage() {
     }
   };
 
-  // ─── Milestone relationship handlers ──────────────────────────────────────
-
-  const handleAddRequiredMilestone = async () => {
-    if (!id || !selectedRequiredMilestoneId) return;
-    setIsAddingRequiredMilestone(true);
-    setInlineError(null);
-    try {
-      await addRequiredMilestone(id, Number(selectedRequiredMilestoneId));
-      setSelectedRequiredMilestoneId('');
-      await reloadWorkItemMilestones();
-    } catch (err) {
-      const apiErr = err as { statusCode?: number; message?: string };
-      if (apiErr.statusCode === 409) {
-        setInlineError('This milestone is already a required dependency');
-      } else {
-        setInlineError('Failed to add required milestone');
-      }
-      console.error('Failed to add required milestone:', err);
-    } finally {
-      setIsAddingRequiredMilestone(false);
-    }
-  };
-
-  const handleRemoveRequiredMilestone = async (milestoneId: number) => {
-    if (!id) return;
-    setInlineError(null);
-    try {
-      await removeRequiredMilestone(id, milestoneId);
-      await reloadWorkItemMilestones();
-    } catch (err) {
-      setInlineError('Failed to remove required milestone');
-      console.error('Failed to remove required milestone:', err);
-    }
-  };
-
-  const handleAddLinkedMilestone = async () => {
-    if (!id || !selectedLinkedMilestoneId) return;
-    setIsAddingLinkedMilestone(true);
-    setInlineError(null);
-    try {
-      await addLinkedMilestone(id, Number(selectedLinkedMilestoneId));
-      setSelectedLinkedMilestoneId('');
-      await reloadWorkItemMilestones();
-    } catch (err) {
-      const apiErr = err as { statusCode?: number; message?: string };
-      if (apiErr.statusCode === 409) {
-        setInlineError('This milestone is already linked');
-      } else {
-        setInlineError('Failed to add linked milestone');
-      }
-      console.error('Failed to add linked milestone:', err);
-    } finally {
-      setIsAddingLinkedMilestone(false);
-    }
-  };
-
-  const handleRemoveLinkedMilestone = async (milestoneId: number) => {
-    if (!id) return;
-    setInlineError(null);
-    try {
-      await removeLinkedMilestone(id, milestoneId);
-      await reloadWorkItemMilestones();
-    } catch (err) {
-      setInlineError('Failed to remove linked milestone');
-      console.error('Failed to remove linked milestone:', err);
-    }
-  };
-
   const handleCreateTag = async (name: string, color: string | null): Promise<TagResponse> => {
     const newTag = await createTag({ name, color });
     setAvailableTags((prev) => [...prev, newTag]);
@@ -628,15 +506,24 @@ export default function WorkItemDetailPage() {
     }
   };
 
-  // Duration change — saves onBlur to avoid race conditions from rapid keystroke API calls
-  const handleDurationBlur = async () => {
-    if (!id || !workItem) return;
-    const duration = localDuration ? Number(localDuration) : null;
-    if (duration !== null && (isNaN(duration) || duration < 0)) return;
+  // Date changes
+  const handleDateChange = async (field: 'startDate' | 'endDate', value: string) => {
+    if (!id) return;
+    setInlineError(null);
+    try {
+      await updateWorkItem(id, { [field]: value || null });
+      await reloadWorkItem();
+    } catch (err) {
+      setInlineError(`Failed to update ${field}`);
+      console.error(`Failed to update ${field}:`, err);
+    }
+  };
 
-    // Only save if the value actually changed
-    const currentDuration = workItem.durationDays;
-    if (duration === currentDuration) return;
+  // Duration change
+  const handleDurationChange = async (value: string) => {
+    if (!id) return;
+    const duration = value ? Number(value) : null;
+    if (duration !== null && (isNaN(duration) || duration < 0)) return;
 
     setInlineError(null);
     try {
@@ -648,18 +535,12 @@ export default function WorkItemDetailPage() {
     }
   };
 
-  // Constraint changes — saves onBlur to avoid race conditions
-  const handleConstraintBlur = async (field: 'startAfter' | 'startBefore') => {
-    if (!id || !workItem) return;
-    const localValue = field === 'startAfter' ? localStartAfter : localStartBefore;
-    const currentValue = workItem[field] || '';
-
-    // Only save if the value actually changed
-    if (localValue === currentValue) return;
-
+  // Constraint changes
+  const handleConstraintChange = async (field: 'startAfter' | 'startBefore', value: string) => {
+    if (!id) return;
     setInlineError(null);
     try {
-      await updateWorkItem(id, { [field]: localValue || null });
+      await updateWorkItem(id, { [field]: value || null });
       await reloadWorkItem();
     } catch (err) {
       setInlineError(`Failed to update ${field}`);
@@ -1054,43 +935,9 @@ export default function WorkItemDetailPage() {
 
       {/* Header */}
       <div className={styles.header}>
-        <div className={styles.navButtons}>
-          {fromTimeline ? (
-            <>
-              <button
-                type="button"
-                className={styles.backButton}
-                onClick={() => navigate(fromView ? `/timeline?view=${fromView}` : '/timeline')}
-              >
-                ← Back to Timeline
-              </button>
-              <button
-                type="button"
-                className={styles.secondaryNavButton}
-                onClick={() => navigate('/work-items')}
-              >
-                To Work Items
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                className={styles.backButton}
-                onClick={() => navigate('/work-items')}
-              >
-                ← Back to Work Items
-              </button>
-              <button
-                type="button"
-                className={styles.secondaryNavButton}
-                onClick={() => navigate('/timeline')}
-              >
-                To Timeline
-              </button>
-            </>
-          )}
-        </div>
+        <button type="button" className={styles.backButton} onClick={() => navigate('/work-items')}>
+          ← Back to Work Items
+        </button>
 
         <div className={styles.headerRow}>
           <div className={styles.titleSection}>
@@ -1177,38 +1024,66 @@ export default function WorkItemDetailPage() {
             )}
           </section>
 
-          {/* Dates (computed by scheduling engine) */}
+          {/* Dates and Duration */}
           <section className={styles.section}>
             <h2 className={styles.sectionTitle}>Schedule</h2>
-            <p className={styles.sectionDescription}>
-              Start and end dates are computed by the scheduling engine based on constraints and
-              dependencies.
-            </p>
             <div className={styles.propertyGrid}>
               <div className={styles.property}>
-                <span className={styles.propertyLabel}>Start Date</span>
-                <span className={styles.propertyValue}>
-                  {workItem.startDate
-                    ? new Date(workItem.startDate).toLocaleDateString(undefined, {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                      })
-                    : 'Not scheduled'}
-                </span>
+                <label className={styles.propertyLabel}>Start Date</label>
+                <input
+                  type="date"
+                  className={styles.propertyInput}
+                  value={workItem.startDate || ''}
+                  onChange={(e) => handleDateChange('startDate', e.target.value)}
+                />
               </div>
 
               <div className={styles.property}>
-                <span className={styles.propertyLabel}>End Date</span>
-                <span className={styles.propertyValue}>
-                  {workItem.endDate
-                    ? new Date(workItem.endDate).toLocaleDateString(undefined, {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                      })
-                    : 'Not scheduled'}
-                </span>
+                <label className={styles.propertyLabel}>End Date</label>
+                <input
+                  type="date"
+                  className={styles.propertyInput}
+                  value={workItem.endDate || ''}
+                  onChange={(e) => handleDateChange('endDate', e.target.value)}
+                />
+              </div>
+
+              <div className={styles.property}>
+                <label className={styles.propertyLabel}>Duration (days)</label>
+                <input
+                  type="number"
+                  className={styles.propertyInput}
+                  value={workItem.durationDays ?? ''}
+                  onChange={(e) => handleDurationChange(e.target.value)}
+                  min="0"
+                  placeholder="0"
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* Constraints */}
+          <section className={styles.section}>
+            <h2 className={styles.sectionTitle}>Constraints</h2>
+            <div className={styles.propertyGrid}>
+              <div className={styles.property}>
+                <label className={styles.propertyLabel}>Start After</label>
+                <input
+                  type="date"
+                  className={styles.propertyInput}
+                  value={workItem.startAfter || ''}
+                  onChange={(e) => handleConstraintChange('startAfter', e.target.value)}
+                />
+              </div>
+
+              <div className={styles.property}>
+                <label className={styles.propertyLabel}>Start Before</label>
+                <input
+                  type="date"
+                  className={styles.propertyInput}
+                  value={workItem.startBefore || ''}
+                  onChange={(e) => handleConstraintChange('startBefore', e.target.value)}
+                />
               </div>
             </div>
           </section>
@@ -1642,7 +1517,7 @@ export default function WorkItemDetailPage() {
           </section>
         </div>
 
-        {/* Right column: Notes, Subtasks, Constraints */}
+        {/* Right column: Notes, Subtasks, Dependencies */}
         <div className={styles.rightColumn}>
           {/* Notes */}
           <section className={styles.section}>
@@ -1838,219 +1713,24 @@ export default function WorkItemDetailPage() {
             </div>
           </section>
 
-          {/* Constraints */}
+          {/* Dependencies */}
           <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>Constraints</h2>
+            <h2 className={styles.sectionTitle}>Dependencies</h2>
 
-            {/* Duration subsection — first, no top border */}
-            <div className={`${styles.constraintSubsection} ${styles.constraintSubsectionFirst}`}>
-              <h3 className={styles.subsectionTitle}>Duration</h3>
-              <div className={styles.property}>
-                <label className={styles.propertyLabel}>Duration (days)</label>
-                <input
-                  type="number"
-                  className={styles.propertyInput}
-                  value={localDuration}
-                  onChange={(e) => setLocalDuration(e.target.value)}
-                  onBlur={() => void handleDurationBlur()}
-                  min="0"
-                  placeholder="0"
-                />
-              </div>
-            </div>
+            <DependencySentenceDisplay
+              predecessors={dependencies.predecessors}
+              successors={dependencies.successors}
+              onDelete={handleDeleteDependency}
+            />
 
-            {/* Date Constraints subsection */}
-            <div className={styles.constraintSubsection}>
-              <h3 className={styles.subsectionTitle}>Date Constraints</h3>
-              <div className={styles.propertyGrid}>
-                <div className={styles.property}>
-                  <label className={styles.propertyLabel}>Start After</label>
-                  <input
-                    type="date"
-                    className={styles.propertyInput}
-                    value={localStartAfter}
-                    onChange={(e) => setLocalStartAfter(e.target.value)}
-                    onBlur={() => void handleConstraintBlur('startAfter')}
-                  />
-                </div>
-
-                <div className={styles.property}>
-                  <label className={styles.propertyLabel}>Start Before</label>
-                  <input
-                    type="date"
-                    className={styles.propertyInput}
-                    value={localStartBefore}
-                    onChange={(e) => setLocalStartBefore(e.target.value)}
-                    onBlur={() => void handleConstraintBlur('startBefore')}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Dependencies subsection */}
-            <div className={styles.constraintSubsection}>
-              <h3 className={styles.subsectionTitle}>Dependencies</h3>
-
-              <DependencySentenceDisplay
-                predecessors={dependencies.predecessors}
-                successors={dependencies.successors}
-                onDelete={handleDeleteDependency}
+            <div className={styles.addDependencySection}>
+              <DependencySentenceBuilder
+                thisItemId={id!}
+                thisItemLabel={workItem.title}
+                excludeIds={excludedWorkItemIds}
+                disabled={isAddingDependency}
+                onAdd={handleAddDependency}
               />
-
-              <div className={styles.addDependencySection}>
-                <DependencySentenceBuilder
-                  thisItemId={id!}
-                  thisItemLabel={workItem.title}
-                  excludeIds={excludedWorkItemIds}
-                  disabled={isAddingDependency}
-                  onAdd={handleAddDependency}
-                />
-              </div>
-            </div>
-
-            {/* Required Milestones subsection */}
-            <div className={styles.constraintSubsection}>
-              <h3 className={styles.subsectionTitle}>Required Milestones</h3>
-              <p className={styles.constraintSubsectionDesc}>
-                Milestones that must be completed before this work item can start.
-              </p>
-
-              <div className={styles.milestoneChips}>
-                {workItemMilestones.required.length === 0 && (
-                  <div className={styles.emptyState}>No required milestones</div>
-                )}
-                {workItemMilestones.required.map((ms) => (
-                  <div key={ms.id} className={styles.milestoneChip}>
-                    <span className={styles.milestoneChipName}>{ms.name}</span>
-                    {ms.targetDate && (
-                      <span className={styles.milestoneChipDate}>
-                        {new Date(ms.targetDate).toLocaleDateString(undefined, {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                        })}
-                      </span>
-                    )}
-                    <button
-                      type="button"
-                      className={styles.milestoneChipRemove}
-                      onClick={() => handleRemoveRequiredMilestone(ms.id)}
-                      aria-label={`Remove required milestone: ${ms.name}`}
-                    >
-                      &times;
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              {(() => {
-                const requiredIds = new Set(workItemMilestones.required.map((m) => m.id));
-                const available = allMilestones.filter((m) => !requiredIds.has(m.id));
-                return available.length > 0 ? (
-                  <div className={styles.linkPickerRow}>
-                    <select
-                      className={styles.linkPickerSelect}
-                      value={selectedRequiredMilestoneId}
-                      onChange={(e) => setSelectedRequiredMilestoneId(e.target.value)}
-                      aria-label="Select required milestone to add"
-                    >
-                      <option value="">Select milestone...</option>
-                      {available.map((m) => (
-                        <option key={m.id} value={String(m.id)}>
-                          {m.title} —{' '}
-                          {new Date(m.targetDate).toLocaleDateString(undefined, {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric',
-                          })}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      type="button"
-                      className={styles.addButton}
-                      onClick={handleAddRequiredMilestone}
-                      disabled={!selectedRequiredMilestoneId || isAddingRequiredMilestone}
-                    >
-                      {isAddingRequiredMilestone ? 'Adding...' : 'Add'}
-                    </button>
-                  </div>
-                ) : null;
-              })()}
-            </div>
-
-            {/* Linked Milestones subsection */}
-            <div className={styles.constraintSubsection}>
-              <h3 className={styles.subsectionTitle}>Linked Milestones</h3>
-              <p className={styles.constraintSubsectionDesc}>
-                Milestones this work item contributes to.
-              </p>
-
-              <div className={styles.milestoneChips}>
-                {workItemMilestones.linked.length === 0 && (
-                  <div className={styles.emptyState}>No linked milestones</div>
-                )}
-                {workItemMilestones.linked.map((ms) => (
-                  <div
-                    key={ms.id}
-                    className={`${styles.milestoneChip} ${styles.milestoneChipLinked}`}
-                  >
-                    <span className={styles.milestoneChipName}>{ms.name}</span>
-                    {ms.targetDate && (
-                      <span className={styles.milestoneChipDate}>
-                        {new Date(ms.targetDate).toLocaleDateString(undefined, {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                        })}
-                      </span>
-                    )}
-                    <button
-                      type="button"
-                      className={styles.milestoneChipRemove}
-                      onClick={() => handleRemoveLinkedMilestone(ms.id)}
-                      aria-label={`Remove linked milestone: ${ms.name}`}
-                    >
-                      &times;
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              {(() => {
-                const linkedIds = new Set(workItemMilestones.linked.map((m) => m.id));
-                const available = allMilestones.filter((m) => !linkedIds.has(m.id));
-                return available.length > 0 ? (
-                  <div className={styles.linkPickerRow}>
-                    <select
-                      className={styles.linkPickerSelect}
-                      value={selectedLinkedMilestoneId}
-                      onChange={(e) => setSelectedLinkedMilestoneId(e.target.value)}
-                      aria-label="Select milestone to link"
-                    >
-                      <option value="">Select milestone...</option>
-                      {available.map((m) => (
-                        <option key={m.id} value={String(m.id)}>
-                          {m.title} —{' '}
-                          {new Date(m.targetDate).toLocaleDateString(undefined, {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric',
-                          })}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      type="button"
-                      className={styles.addButton}
-                      onClick={handleAddLinkedMilestone}
-                      disabled={!selectedLinkedMilestoneId || isAddingLinkedMilestone}
-                    >
-                      {isAddingLinkedMilestone ? 'Adding...' : 'Link'}
-                    </button>
-                  </div>
-                ) : null;
-              })()}
             </div>
           </section>
         </div>
