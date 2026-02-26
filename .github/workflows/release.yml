@@ -83,6 +83,36 @@ jobs:
           COMBINED=$(printf '%s\n\n---\n\n%s' "$SUMMARY" "$EXISTING")
           echo "$COMBINED" | gh release edit "v${VERSION}" --notes-file -
 
+      - name: Job summary
+        if: always()
+        run: |
+          VERSION="${{ steps.semantic.outputs.new-release-version }}"
+          PUBLISHED="${{ steps.semantic.outputs.new-release-published }}"
+          PRERELEASE="${{ steps.semantic.outputs.is-prerelease }}"
+
+          if [ "$PUBLISHED" = "true" ]; then
+            if [ "$PRERELEASE" = "true" ]; then
+              RELEASE_TYPE="Beta"
+            else
+              RELEASE_TYPE="Stable"
+            fi
+            {
+              echo "### Release v${VERSION} (${RELEASE_TYPE})"
+              echo ""
+              echo "| Detail | Value |"
+              echo "|--------|-------|"
+              echo "| **Version** | \`${VERSION}\` |"
+              echo "| **Type** | ${RELEASE_TYPE} |"
+              echo "| **GitHub Release** | [v${VERSION}](https://github.com/steilerDev/cornerstone/releases/tag/v${VERSION}) |"
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo "### No Release"
+              echo ""
+              echo "No new release — commits since last tag did not trigger a version bump."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
   # ---------------------------------------------------------------------------
   # Job 2: Docker Build & Push
   # ---------------------------------------------------------------------------
@@ -156,6 +186,29 @@ jobs:
           tags: ${{ steps.meta-beta.outputs.tags || steps.meta-stable.outputs.tags || 'cornerstone:ci-test' }}
           labels: ${{ steps.meta-beta.outputs.labels || steps.meta-stable.outputs.labels }}
 
+      - name: Job summary
+        run: |
+          VERSION="${{ needs.release.outputs.new-release-version }}"
+          TAGS="${{ steps.meta-beta.outputs.tags || steps.meta-stable.outputs.tags }}"
+
+          {
+            echo "### Docker Image Published"
+            echo ""
+            echo "**Version:** \`${VERSION}\`"
+            echo ""
+            echo "**Tags pushed:**"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "$TAGS" | tr ',' '\n' | while read -r TAG; do
+            TAG=$(echo "$TAG" | xargs)
+            [ -n "$TAG" ] && echo "- \`${TAG}\`" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+          {
+            echo ""
+            echo "**Docker Hub:** [steilerdev/cornerstone](https://hub.docker.com/r/steilerdev/cornerstone)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   # ---------------------------------------------------------------------------
   # Job 3: Docker Scout Security Scan
   # ---------------------------------------------------------------------------
@@ -189,6 +242,18 @@ jobs:
         if: always()
         with:
           sarif_file: scout-results.sarif
+
+      - name: Job summary
+        if: always()
+        run: |
+          VERSION="${{ needs.release.outputs.new-release-version }}"
+          {
+            echo "### Docker Scout CVE Scan"
+            echo ""
+            echo "Scanned \`steilerdev/cornerstone:${VERSION}\` for vulnerabilities."
+            echo ""
+            echo "**Results:** [GitHub Security tab](https://github.com/steilerDev/cornerstone/security/code-scanning)"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   # ---------------------------------------------------------------------------
   # Job 4: Merge main back into beta after stable release
