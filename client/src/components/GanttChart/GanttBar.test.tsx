@@ -385,4 +385,151 @@ describe('GanttBar', () => {
       }
     });
   });
+
+  // ── Mouse enter/leave callbacks (Issue #295: item-hover dependency highlighting) ──
+
+  describe('onMouseEnter / onMouseLeave callbacks', () => {
+    it('calls onMouseEnter with the mouse event when the bar group receives mouseenter', () => {
+      const onMouseEnter = jest.fn<(event: React.MouseEvent<SVGGElement>) => void>();
+      renderInSvg({ ...DEFAULT_PROPS, onMouseEnter });
+
+      const group = screen.getByTestId('gantt-bar-test-item-1');
+      fireEvent.mouseEnter(group, { clientX: 150, clientY: 80 });
+
+      expect(onMouseEnter).toHaveBeenCalledTimes(1);
+    });
+
+    it('calls onMouseLeave when the bar group receives mouseleave', () => {
+      const onMouseLeave = jest.fn<() => void>();
+      renderInSvg({ ...DEFAULT_PROPS, onMouseLeave });
+
+      const group = screen.getByTestId('gantt-bar-test-item-1');
+      fireEvent.mouseEnter(group);
+      fireEvent.mouseLeave(group);
+
+      expect(onMouseLeave).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not throw when onMouseEnter is not provided', () => {
+      renderInSvg({ ...DEFAULT_PROPS, onMouseEnter: undefined });
+
+      const group = screen.getByTestId('gantt-bar-test-item-1');
+      expect(() => {
+        fireEvent.mouseEnter(group);
+      }).not.toThrow();
+    });
+
+    it('does not throw when onMouseLeave is not provided', () => {
+      renderInSvg({ ...DEFAULT_PROPS, onMouseLeave: undefined });
+
+      const group = screen.getByTestId('gantt-bar-test-item-1');
+      expect(() => {
+        fireEvent.mouseLeave(group);
+      }).not.toThrow();
+    });
+
+    it('calls onMouseMove with the mouse event when the mouse moves over the bar', () => {
+      const onMouseMove = jest.fn<(event: React.MouseEvent<SVGGElement>) => void>();
+      renderInSvg({ ...DEFAULT_PROPS, onMouseMove });
+
+      const group = screen.getByTestId('gantt-bar-test-item-1');
+      fireEvent.mouseMove(group, { clientX: 175, clientY: 90 });
+
+      expect(onMouseMove).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not throw when onMouseMove is not provided', () => {
+      renderInSvg({ ...DEFAULT_PROPS, onMouseMove: undefined });
+
+      const group = screen.getByTestId('gantt-bar-test-item-1');
+      expect(() => {
+        fireEvent.mouseMove(group);
+      }).not.toThrow();
+    });
+  });
+
+  // ── onFocus / onBlur keyboard hover callbacks (Issue #295: AC-8) ─────────
+  //
+  // AC-8: Given a work item bar or milestone diamond is focused via keyboard (Tab),
+  // when focus lands on the element, then the same highlighting/dimming behavior
+  // as hover is applied, and the tooltip (including the dependencies list) is shown.
+  //
+  // The GanttBar component must expose onFocus and onBlur props so that GanttChart
+  // can wire up the same hover state update logic used for mouseenter/mouseleave.
+
+  describe('onFocus / onBlur keyboard callbacks (Issue #295 AC-8)', () => {
+    it('calls onFocus with the focus event when the bar group receives focus', () => {
+      const onFocus = jest.fn<(event: React.FocusEvent<SVGGElement>) => void>();
+      renderInSvg({ ...DEFAULT_PROPS, onFocus });
+
+      const group = screen.getByTestId('gantt-bar-test-item-1');
+      fireEvent.focus(group);
+
+      expect(onFocus).toHaveBeenCalledTimes(1);
+    });
+
+    it('calls onBlur when the bar group loses focus', () => {
+      // onBlur on GanttBar is typed as () => void (no event parameter)
+      const onBlur = jest.fn<() => void>();
+      renderInSvg({ ...DEFAULT_PROPS, onBlur });
+
+      const group = screen.getByTestId('gantt-bar-test-item-1');
+      fireEvent.focus(group);
+      fireEvent.blur(group);
+
+      expect(onBlur).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not throw when onFocus is not provided', () => {
+      renderInSvg({ ...DEFAULT_PROPS, onFocus: undefined });
+
+      const group = screen.getByTestId('gantt-bar-test-item-1');
+      expect(() => {
+        fireEvent.focus(group);
+      }).not.toThrow();
+    });
+
+    it('does not throw when onBlur is not provided', () => {
+      renderInSvg({ ...DEFAULT_PROPS, onBlur: undefined });
+
+      const group = screen.getByTestId('gantt-bar-test-item-1');
+      expect(() => {
+        fireEvent.focus(group);
+        fireEvent.blur(group);
+      }).not.toThrow();
+    });
+
+    it('bar group still fires onClick on Enter when onFocus/onBlur are also wired', () => {
+      const onClick = jest.fn<(id: string) => void>();
+      const onFocus = jest.fn<(event: React.FocusEvent<SVGGElement>) => void>();
+      const onBlur = jest.fn<() => void>();
+      renderInSvg({ ...DEFAULT_PROPS, onClick, onFocus, onBlur });
+
+      const group = screen.getByTestId('gantt-bar-test-item-1');
+      fireEvent.focus(group);
+      fireEvent.keyDown(group, { key: 'Enter' });
+      fireEvent.blur(group);
+
+      expect(onClick).toHaveBeenCalledWith(DEFAULT_PROPS.id);
+      expect(onFocus).toHaveBeenCalledTimes(1);
+      expect(onBlur).toHaveBeenCalledTimes(1);
+    });
+
+    it('onFocus is called before onBlur in a focus-then-blur sequence', () => {
+      const callOrder: string[] = [];
+      const onFocus = jest.fn<(event: React.FocusEvent<SVGGElement>) => void>(() => {
+        callOrder.push('focus');
+      });
+      const onBlur = jest.fn<() => void>(() => {
+        callOrder.push('blur');
+      });
+      renderInSvg({ ...DEFAULT_PROPS, onFocus, onBlur });
+
+      const group = screen.getByTestId('gantt-bar-test-item-1');
+      fireEvent.focus(group);
+      fireEvent.blur(group);
+
+      expect(callOrder).toEqual(['focus', 'blur']);
+    });
+  });
 });
