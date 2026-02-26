@@ -78,6 +78,12 @@ function renderGrid(props: {
   workItems?: TimelineWorkItem[];
   milestones?: TimelineMilestone[];
   onMilestoneClick?: jest.Mock;
+  onItemMouseEnter?: jest.Mock;
+  onItemMouseLeave?: jest.Mock;
+  onItemMouseMove?: jest.Mock;
+  onMilestoneMouseEnter?: jest.Mock;
+  onMilestoneMouseLeave?: jest.Mock;
+  onMilestoneMouseMove?: jest.Mock;
 }) {
   return render(
     <MemoryRouter>
@@ -87,6 +93,12 @@ function renderGrid(props: {
         workItems={props.workItems ?? []}
         milestones={props.milestones ?? []}
         onMilestoneClick={props.onMilestoneClick}
+        onItemMouseEnter={props.onItemMouseEnter}
+        onItemMouseLeave={props.onItemMouseLeave}
+        onItemMouseMove={props.onItemMouseMove}
+        onMilestoneMouseEnter={props.onMilestoneMouseEnter}
+        onMilestoneMouseLeave={props.onMilestoneMouseLeave}
+        onMilestoneMouseMove={props.onMilestoneMouseMove}
       />
     </MemoryRouter>,
   );
@@ -304,6 +316,82 @@ describe('MonthGrid', () => {
       renderGrid({});
       // Narrow names: S M T W T F S — look for 'M' which is unique
       expect(screen.getAllByText('M').length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  // ── Mouse event callback propagation ──────────────────────────────────────
+
+  describe('mouse event callback propagation', () => {
+    it('propagates onItemMouseEnter to CalendarItem components', () => {
+      const onItemMouseEnter = jest.fn();
+      const item = makeWorkItem('a', '2024-03-15', '2024-03-15', 'Task A');
+      renderGrid({ year: 2024, month: 3, workItems: [item], onItemMouseEnter });
+
+      const calendarItem = screen.getByTestId('calendar-item');
+      fireEvent.mouseEnter(calendarItem, { clientX: 100, clientY: 200 });
+
+      expect(onItemMouseEnter).toHaveBeenCalledWith('a', 100, 200);
+    });
+
+    it('propagates onItemMouseLeave to CalendarItem components', () => {
+      const onItemMouseLeave = jest.fn();
+      const item = makeWorkItem('b', '2024-03-15', '2024-03-15', 'Task B');
+      renderGrid({ year: 2024, month: 3, workItems: [item], onItemMouseLeave });
+
+      fireEvent.mouseLeave(screen.getByTestId('calendar-item'));
+
+      expect(onItemMouseLeave).toHaveBeenCalledTimes(1);
+    });
+
+    it('propagates onItemMouseMove to CalendarItem components', () => {
+      const onItemMouseMove = jest.fn();
+      const item = makeWorkItem('c', '2024-03-15', '2024-03-15', 'Task C');
+      renderGrid({ year: 2024, month: 3, workItems: [item], onItemMouseMove });
+
+      fireEvent.mouseMove(screen.getByTestId('calendar-item'), { clientX: 300, clientY: 400 });
+
+      expect(onItemMouseMove).toHaveBeenCalledWith(300, 400);
+    });
+
+    it('propagates onMilestoneMouseEnter to CalendarMilestone components', () => {
+      const onMilestoneMouseEnter = jest.fn();
+      const m = makeMilestone(77, '2024-03-10', 'Test Milestone');
+      renderGrid({ year: 2024, month: 3, milestones: [m], onMilestoneMouseEnter });
+
+      const calendarMilestone = screen.getByTestId('calendar-milestone');
+      fireEvent.mouseEnter(calendarMilestone, { clientX: 50, clientY: 75 });
+
+      expect(onMilestoneMouseEnter).toHaveBeenCalledWith(77, 50, 75);
+    });
+
+    it('propagates onMilestoneMouseLeave to CalendarMilestone components', () => {
+      const onMilestoneMouseLeave = jest.fn();
+      const m = makeMilestone(88, '2024-03-10', 'Milestone Leave');
+      renderGrid({ year: 2024, month: 3, milestones: [m], onMilestoneMouseLeave });
+
+      fireEvent.mouseLeave(screen.getByTestId('calendar-milestone'));
+
+      expect(onMilestoneMouseLeave).toHaveBeenCalledTimes(1);
+    });
+
+    it('propagates onMilestoneMouseMove to CalendarMilestone components', () => {
+      const onMilestoneMouseMove = jest.fn();
+      const m = makeMilestone(99, '2024-03-10', 'Milestone Move');
+      renderGrid({ year: 2024, month: 3, milestones: [m], onMilestoneMouseMove });
+
+      fireEvent.mouseMove(screen.getByTestId('calendar-milestone'), { clientX: 200, clientY: 300 });
+
+      expect(onMilestoneMouseMove).toHaveBeenCalledWith(200, 300);
+    });
+  });
+
+  // ── No data-column-size attribute ─────────────────────────────────────────
+
+  describe('no data-column-size attribute (toggle removed)', () => {
+    it('does not set data-column-size on the grid element', () => {
+      renderGrid({ year: 2024, month: 3 });
+      const grid = screen.getByRole('grid');
+      expect(grid).not.toHaveAttribute('data-column-size');
     });
   });
 });
