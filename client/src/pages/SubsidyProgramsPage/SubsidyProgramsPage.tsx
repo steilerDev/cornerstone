@@ -39,7 +39,6 @@ function formatReduction(reductionType: SubsidyReductionType, reductionValue: nu
   return formatCurrency(reductionValue);
 }
 
-
 function getStatusClassName(
   cssStyles: Record<string, string>,
   status: SubsidyApplicationStatus,
