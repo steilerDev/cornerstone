@@ -37,6 +37,20 @@ gh issue view <epic-number>
 
 If any story is still open, stop and inform the user. All stories must be complete before proceeding.
 
+### 2a. Generate Epic Metrics Report
+
+Read `.claude/metrics/review-metrics.jsonl` and filter for records matching this epic. Generate a summary table:
+
+| Agent | PRs Reviewed | Approved | Req. Changes | Findings (C/H/M/L/I) | Fix Loops Caused |
+| ----- | ------------ | -------- | ------------ | -------------------- | ---------------- |
+
+Include:
+
+- Total PRs, average fix loops per PR, % of PRs requiring fix loops
+- Total findings breakdown by severity
+
+Post this report as a comment on the epic GitHub Issue. Include it in the promotion PR body (Step 8).
+
 ### 3. Collect Refinement Items
 
 Review all story PRs for non-blocking review comments — observations that were noted during review but not required for merge. Collect these into a list of refinement items.
