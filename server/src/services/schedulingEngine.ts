@@ -504,12 +504,19 @@ export function schedule(params: ScheduleParams): ScheduleResult {
     }
 
     // Compute EF from ES + duration.
-    // Exception: for non-completed root nodes with an explicit endDate, use that
-    // endDate as EF to preserve user-set dates when duration is unset or implicit.
-    // This prevents auto-reschedule from overwriting an explicit endDate with es+0
-    // when durationDays is null.
+    // Exception: for non-completed root nodes with an explicit endDate AND no explicit
+    // durationDays, use that endDate as EF to preserve user-set dates when duration is
+    // unset or implicit. This prevents auto-reschedule from overwriting an explicit
+    // endDate with es+0 when durationDays is null.
+    // When durationDays IS set, always compute EF = addDays(es, duration) so that
+    // changing durationDays is reflected in the scheduled end date.
     let ef: string;
-    if (isNonCompletedRoot && item.endDate != null && item.endDate >= es) {
+    if (
+      isNonCompletedRoot &&
+      item.endDate != null &&
+      item.endDate >= es &&
+      (item.durationDays === null || item.durationDays === undefined)
+    ) {
       ef = item.endDate;
     } else {
       ef = addDays(es, duration);
