@@ -21,7 +21,7 @@
 .logo {
   display: block;
   margin: 0 auto 1rem;
-  color: var(--color-primary);
+  max-width: 100%;
 }
 
 .title {

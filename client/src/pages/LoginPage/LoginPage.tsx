@@ -104,7 +104,7 @@ export function LoginPage() {
   return (
     <div className={sharedStyles.container}>
       <div className={sharedStyles.card}>
-        <Logo size={48} className={sharedStyles.logo} />
+        <Logo size={72} variant="full" className={sharedStyles.logo} />
         <h1 className={sharedStyles.title}>Sign In</h1>
         <p className={sharedStyles.description}>Sign in to your Cornerstone account.</p>
 
