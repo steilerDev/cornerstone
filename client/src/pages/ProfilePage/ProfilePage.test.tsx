@@ -113,7 +113,7 @@ describe('ProfilePage', () => {
       expect(screen.getByText('local@example.com')).toBeInTheDocument();
       expect(screen.getByText('Member')).toBeInTheDocument();
       expect(screen.getByText('Local Account')).toBeInTheDocument();
-      expect(screen.getByText('1/1/2024')).toBeInTheDocument();
+      expect(screen.getByText('Jan 1, 2024')).toBeInTheDocument();
     });
 
     it('displays email correctly', () => {
