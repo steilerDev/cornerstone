@@ -1309,4 +1309,64 @@ describe('Scheduling Engine', () => {
       expect(si.isLate).toBe(false);
     });
   });
+
+  // ─── Root node EF computation: explicit endDate vs durationDays ───────────
+
+  describe('root node EF: explicit endDate vs durationDays', () => {
+    it('should compute EF from duration when durationDays is set, ignoring existing endDate', () => {
+      // Bug fix (#319): root node with both durationDays and an explicit endDate — duration wins.
+      // endDate = '2026-01-20' but durationDays = 5 with startDate = '2026-01-01'
+      // Expected EF: 2026-01-01 + 5 = 2026-01-06 (NOT the stale endDate '2026-01-20')
+      const item = makeItem('A', 5, {
+        status: 'not_started',
+        startDate: '2026-01-01',
+        endDate: '2026-01-20', // stale endDate that should NOT be preserved
+      });
+      const result = schedule(fullParams([item], [], '2026-01-01'));
+
+      const si = result.scheduledItems[0];
+      expect(si.scheduledStartDate).toBe('2026-01-01');
+      expect(si.scheduledEndDate).toBe('2026-01-06'); // ES + duration, not the old endDate
+    });
+
+    it('should preserve explicit endDate when durationDays is null (regression test)', () => {
+      // Original intent: when no duration is set, keep the user-set endDate as EF
+      // to prevent auto-reschedule from overwriting it with es+0.
+      const item = makeItem('A', null, {
+        status: 'not_started',
+        startDate: '2026-01-01',
+        endDate: '2026-01-15', // explicit user-set endDate with no duration
+      });
+      const result = schedule(fullParams([item], [], '2026-01-01'));
+
+      const si = result.scheduledItems[0];
+      expect(si.scheduledStartDate).toBe('2026-01-01');
+      expect(si.scheduledEndDate).toBe('2026-01-15'); // preserved since durationDays is null
+    });
+
+    it('should reflect changed durationDays in scheduledEndDate for root nodes', () => {
+      // Verifies that updating durationDays from 5 → 10 changes the scheduled end date.
+      const today = '2026-01-01';
+      const startDate = '2026-01-01';
+      const endDateBeforeChange = '2026-01-06'; // what EF would be with duration=5
+
+      const itemWithOldDuration = makeItem('A', 5, {
+        status: 'not_started',
+        startDate,
+        endDate: endDateBeforeChange,
+      });
+      const resultBefore = schedule(fullParams([itemWithOldDuration], [], today));
+      expect(resultBefore.scheduledItems[0].scheduledEndDate).toBe('2026-01-06');
+
+      // Simulate user changing durationDays to 10 (endDate in DB is stale)
+      const itemWithNewDuration = makeItem('A', 10, {
+        status: 'not_started',
+        startDate,
+        endDate: endDateBeforeChange, // DB still has old endDate
+      });
+      const resultAfter = schedule(fullParams([itemWithNewDuration], [], today));
+      // EF must be recomputed from new duration, not the stale endDate
+      expect(resultAfter.scheduledItems[0].scheduledEndDate).toBe('2026-01-11');
+    });
+  });
 });
