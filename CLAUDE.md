@@ -10,20 +10,21 @@ Cornerstone is a web-based home building project management application designed
 
 ## Agent Team
 
-This project uses a team of 10 specialized Claude Code agents defined in `.claude/agents/`:
+This project uses a team of 11 specialized Claude Code agents defined in `.claude/agents/`:
 
-| Agent                   | Role                                                                                  |
-| ----------------------- | ------------------------------------------------------------------------------------- |
-| `product-owner`         | Defines epics, user stories, and acceptance criteria; manages the backlog             |
-| `product-architect`     | Tech stack, schema, API contract, project structure, ADRs, Dockerfile                 |
-| `ux-designer`           | Design tokens, brand identity, component styling specs, dark mode, accessibility      |
-| `backend-developer`     | API endpoints, business logic, auth, database operations, backend tests               |
-| `frontend-developer`    | UI components, pages, interactions, API client, frontend tests                        |
-| `qa-integration-tester` | Unit test coverage (95%+ target), integration tests, performance testing, bug reports |
-| `e2e-test-engineer`     | Playwright E2E browser tests, test container infrastructure, UAT scenario coverage    |
-| `security-engineer`     | Security audits, vulnerability reports, remediation guidance                          |
-| `uat-validator`         | UAT scenarios, manual validation steps, user sign-off per epic                        |
-| `docs-writer`           | Documentation site (`docs/`), lean README.md, user-facing guides after UAT approval   |
+| Agent                   | Role                                                                                                                  |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `product-owner`         | Defines epics, user stories, and acceptance criteria; manages the backlog                                             |
+| `product-architect`     | Tech stack, schema, API contract, project structure, ADRs, Dockerfile                                                 |
+| `ux-designer`           | Design tokens, brand identity, component styling specs, dark mode, accessibility                                      |
+| `dev-team-lead`         | Delivery lead (Sonnet): decomposes work, writes specs, delegates to developers/QA, reviews code, commits, monitors CI |
+| `backend-developer`     | API endpoints, business logic, auth, database operations (Haiku, managed by dev-team-lead)                            |
+| `frontend-developer`    | UI components, pages, interactions, API client (Haiku, managed by dev-team-lead)                                      |
+| `qa-integration-tester` | Unit test coverage (95%+ target), integration tests, performance testing, bug reports                                 |
+| `e2e-test-engineer`     | Playwright E2E browser tests, test container infrastructure, UAT scenario coverage                                    |
+| `security-engineer`     | Security audits, vulnerability reports, remediation guidance                                                          |
+| `uat-validator`         | UAT scenarios, manual validation steps, user sign-off per epic                                                        |
+| `docs-writer`           | Documentation site (`docs/`), lean README.md, user-facing guides after UAT approval                                   |
 
 ## GitHub Tools Strategy
 
@@ -73,11 +74,9 @@ The GitHub Projects board uses 4 statuses: Backlog, Todo, In Progress, Done. All
 
 **The orchestrator delegates, never implements.** Must NEVER write production code, tests, or architectural artifacts. Delegate all implementation:
 
-- **Backend code** → `backend-developer` agent
-- **Frontend code** → `frontend-developer` agent
+- **Backend code + Frontend code + Unit/integration tests** → `dev-team-lead` agent (who internally coordinates `backend-developer`, `frontend-developer`, and `qa-integration-tester`)
 - **Visual specs, design tokens, brand assets, CSS files** → `ux-designer` agent
 - **Schema/API design, ADRs, wiki** → `product-architect` agent
-- **Unit tests & test coverage** → `qa-integration-tester` agent
 - **E2E tests** → `e2e-test-engineer` agent
 - **UAT scenarios** → `uat-validator` agent
 - **Story definitions** → `product-owner` agent
@@ -106,6 +105,7 @@ Every epic follows a two-phase validation lifecycle. **Development phase** (`/de
 - **Acceptance criteria live on GitHub Issues** — stored on story issues, summarized on promotion PRs
 - **Security review required** — the `security-engineer` must review every story PR
 - **Test agents own all tests** — `qa-integration-tester` owns unit + integration tests; `e2e-test-engineer` owns Playwright E2E tests. Developer agents do not write tests.
+- **Dev-team-lead owns delivery** — the `dev-team-lead` coordinates implementation (Haiku developers), testing (QA), commits, and CI. The orchestrator launches `dev-team-lead` instead of individual developers.
 
 ## Git & Commit Conventions
 
