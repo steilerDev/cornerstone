@@ -451,7 +451,12 @@ describe('Timeline Routes', () => {
         'Test User',
         'password123',
       );
-      const wiA = createTestWorkItem(userId, 'Task A', { startDate: '2026-03-01' }); // no endDate
+      // Use in_progress so the engine does not override endDate via CPM scheduling.
+      // (not_started items get CPM-computed endDate applied.)
+      const wiA = createTestWorkItem(userId, 'Task A', {
+        status: 'in_progress',
+        startDate: '2026-03-01',
+      }); // no endDate
       const msId = createTestMilestone(userId, 'Phase 1 Done', '2026-06-01');
       linkMilestoneToWorkItem(msId, wiA);
 
@@ -808,8 +813,18 @@ describe('Timeline Routes', () => {
         'Test User',
         'password123',
       );
-      createTestWorkItem(userId, 'WI 1', { startDate: '2026-03-01', endDate: '2026-05-15' });
-      createTestWorkItem(userId, 'WI 2', { startDate: '2026-01-01', endDate: '2026-08-31' });
+      // Use in_progress items so dates are preserved verbatim (not_started items
+      // have the implicit today floor applied by the CPM engine).
+      createTestWorkItem(userId, 'WI 1', {
+        status: 'in_progress',
+        startDate: '2026-03-01',
+        endDate: '2026-05-15',
+      });
+      createTestWorkItem(userId, 'WI 2', {
+        status: 'in_progress',
+        startDate: '2026-01-01',
+        endDate: '2026-08-31',
+      });
 
       const response = await app.inject({
         method: 'GET',
@@ -850,8 +865,10 @@ describe('Timeline Routes', () => {
         'Test User',
         'password123',
       );
-      createTestWorkItem(userId, 'WI A', { startDate: '2026-06-01' });
-      createTestWorkItem(userId, 'WI B', { startDate: '2026-02-15' });
+      // Use in_progress items so dates are preserved verbatim (not_started items
+      // have the implicit today floor applied by the CPM engine).
+      createTestWorkItem(userId, 'WI A', { status: 'in_progress', startDate: '2026-06-01' });
+      createTestWorkItem(userId, 'WI B', { status: 'in_progress', startDate: '2026-02-15' });
 
       const response = await app.inject({
         method: 'GET',
