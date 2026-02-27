@@ -88,15 +88,15 @@ The GitHub Projects board uses 4 statuses: Backlog, Todo, In Progress, Done. All
 
 The orchestrator uses three skills to drive work. Each skill contains the full operational checklist with exact commands and agent coordination. The orchestrator delegates all work — never writes production code, tests, or architectural artifacts directly.
 
-| Skill         | Purpose                                                                              | Input                            |
-| ------------- | ------------------------------------------------------------------------------------ | -------------------------------- |
-| `/epic-start` | Planning: PO creates stories, architect designs schema/API/ADRs                      | Epic description or issue number |
-| `/develop`    | Full dev cycle for one story or bug fix (implement, test, PR, review, merge, verify) | Issue number or bug description  |
-| `/epic-close` | Refinement, E2E validation, UAT, docs, promotion to `main`                           | Epic issue number                |
+| Skill         | Purpose                                                                    | Input                                                           |
+| ------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `/epic-start` | Planning: PO creates stories, architect designs schema/API/ADRs            | Epic description or issue number                                |
+| `/develop`    | Full dev cycle for one or more stories/bug fixes, bundled into a single PR | Issue number, description, semicolon-separated list, or `@file` |
+| `/epic-close` | Refinement, E2E validation, UAT, docs, promotion to `main`                 | Epic issue number                                               |
 
 ## Acceptance & Validation
 
-Every epic follows a two-phase validation lifecycle. **Development phase** (`/develop`): PO defines acceptance criteria, QA + E2E + security review each story PR. **Epic validation phase** (`/epic-close`): refinement, E2E coverage confirmation, UAT with user, docs update, promotion.
+Every epic follows a two-phase validation lifecycle. **Development phase** (`/develop`): PO defines acceptance criteria, QA + E2E + security review each story/bug PR (single items or batched). **Epic validation phase** (`/epic-close`): refinement, E2E coverage confirmation, UAT with user, docs update, promotion.
 
 ### Key Rules
 
@@ -154,7 +154,7 @@ All agents must clearly identify themselves:
 
 **NEVER `cd` to the base project directory to modify files.** All file edits, git operations, and commands must be performed from within the git worktree assigned at session start. The base project directory may have other sessions' uncommitted changes. This applies to subagents too — all file reads, writes, and exploration must use the worktree path.
 
-See the skill files (`.claude/skills/`) for the full operational checklists. The typical lifecycle is: `/epic-start` (once per epic) → `/develop` (once per story) → `/epic-close` (once per epic after all stories merged).
+See the skill files (`.claude/skills/`) for the full operational checklists. The typical lifecycle is: `/epic-start` (once per epic) → `/develop` (once per story, or batched for multiple small items) → `/epic-close` (once per epic after all stories merged).
 
 Note: Dependabot auto-merge (`.github/workflows/dependabot-auto-merge.yml`) targets `beta` — it handles automated dependency updates, not agent work.
 
