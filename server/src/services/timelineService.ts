@@ -208,7 +208,36 @@ export function getTimeline(db: DbType): TimelineResponse {
 
   // If a cycle is detected, return an empty critical path rather than erroring —
   // the timeline view should still render; the schedule endpoint surfaces the error.
-  const criticalPath = scheduleResult.cycleNodes?.length ? [] : scheduleResult.criticalPath;
+  const hasCycle = !!scheduleResult.cycleNodes?.length;
+  const criticalPath = hasCycle ? [] : scheduleResult.criticalPath;
+
+  // ── 5b. Apply CPM-scheduled dates for not_started items ──────────────────────
+  //
+  // The schedule engine applies the implicit "today floor" for not_started items:
+  // their start date cannot be in the past. Apply the engine's output to the
+  // timeline response so the Gantt chart always reflects the current schedule.
+  // Only not_started items are updated — in_progress and completed items keep
+  // their stored dates (which represent user-accepted/actual values).
+
+  if (!hasCycle) {
+    const scheduledDatesMap = new Map<string, { start: string; end: string }>();
+    for (const si of scheduleResult.scheduledItems) {
+      scheduledDatesMap.set(si.workItemId, {
+        start: si.scheduledStartDate,
+        end: si.scheduledEndDate,
+      });
+    }
+
+    for (const wi of timelineWorkItems) {
+      if (wi.status === 'not_started') {
+        const scheduled = scheduledDatesMap.get(wi.id);
+        if (scheduled) {
+          wi.startDate = scheduled.start;
+          wi.endDate = scheduled.end;
+        }
+      }
+    }
+  }
 
   // ── 6. Fetch milestones with linked work item IDs ─────────────────────────────
 
@@ -226,11 +255,20 @@ export function getTimeline(db: DbType): TimelineResponse {
   }
 
   // Build workItemId → endDate map for projectedDate computation.
-  // Use all raw work items (not just the dated subset returned in timeline) so
-  // milestones linked to undated items still compute correctly for those that do have dates.
+  // For not_started items, use CPM-scheduled end dates so milestone projections
+  // reflect the current schedule (including the today floor).
+  const workItemStatusMap = new Map<string, string>();
   const workItemEndDateMap = new Map<string, string | null>();
   for (const wi of allWorkItems) {
+    workItemStatusMap.set(wi.id, wi.status);
     workItemEndDateMap.set(wi.id, wi.endDate);
+  }
+  if (!hasCycle) {
+    for (const si of scheduleResult.scheduledItems) {
+      if (workItemStatusMap.get(si.workItemId) === 'not_started') {
+        workItemEndDateMap.set(si.workItemId, si.scheduledEndDate);
+      }
+    }
   }
 
   const timelineMilestones: TimelineMilestone[] = allMilestones.map((m) => {
