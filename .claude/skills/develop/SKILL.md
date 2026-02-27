@@ -145,23 +145,39 @@ gh api graphql -f query='mutation { updateProjectV2ItemFieldValue(input: { proje
 
 Run the same GraphQL mutation for **each issue** in the items list.
 
-### 6. Implement + Test (parallel)
+### 6. Implement + Test
 
-Launch agents in parallel:
+Launch the **dev-team-lead** agent to coordinate all implementation, testing, commits, and CI monitoring.
 
 #### Single-item mode
 
-- **Developer(s)**: Launch `backend-developer` and/or `frontend-developer` — in parallel if the work spans both layers, single agent if isolated to one. Frontend developers reference the ux-designer's visual spec (if posted in step 3). Both use the specification from the Github issue created for this task.
-- **QA**: Launch `qa-integration-tester` to write unit tests (95%+ coverage target) and integration tests covering the acceptance criteria in the Github issue.
+Provide the dev-team-lead with:
+
+- Issue number and acceptance criteria
+- Layers affected: backend-only, frontend-only, or full-stack
+- UX visual spec reference (if posted in step 3)
+- Branch name
+
+The dev-team-lead internally:
+
+1. Decomposes work into backend/frontend tasks
+2. Writes detailed implementation specs for Haiku developer agents
+3. Launches `backend-developer` (Haiku) and/or `frontend-developer` (Haiku)
+4. Reviews all code produced by developer agents
+5. Launches `qa-integration-tester` (Sonnet) for unit/integration tests (95%+ coverage)
+6. Iterates on any issues found during review
+7. Commits with conventional commit message and all contributing agent trailers
+8. Pushes to the branch
+9. Creates the PR targeting `beta`
+10. Watches CI and fixes any failures
 
 #### Multi-item mode
 
-- **Developer(s)**: Launch `backend-developer` and/or `frontend-developer` with the **full items list** — all issue numbers, titles, and acceptance criteria. Instruct them to address all items in a single implementation pass.
-- **QA**: Launch `qa-integration-tester` with the full items list. Tests must cover acceptance criteria from **all** issues in the batch.
+Provide the dev-team-lead with the **full items list** — all issue numbers, titles, acceptance criteria, and UX specs. The dev-team-lead addresses all items in a single coordinated pass.
 
-### 7. Commit & PR
+### 7. Verify PR
 
-Stage and commit all changes (the pre-commit hook runs all quality gates automatically). Push the branch and create a PR targeting `beta`.
+Verify the dev-team-lead has committed, pushed, and created the PR. If the PR doesn't exist yet, create it:
 
 #### Single-item mode
 
@@ -217,16 +233,14 @@ EOF
 )"
 ```
 
-### 8. CI + Review (parallel)
+### 8. Review
 
-Launch CI watch and agent reviews **at the same time**:
+The dev-team-lead has already ensured CI is green. Launch agent reviews (in parallel - make sure to keep the review short if the changes are minimal):
 
-- **CI**: `gh pr checks <pr-number> --watch` (run in background)
-- **Reviews** (launch in parallel - make sure to keep the review short if the changes are minimal):
-  - `product-architect` — architecture compliance, test coverage, code quality
-  - `security-engineer` — OWASP Top 10 review, input validation, auth gaps
-  - `product-owner` — requirements coverage, acceptance criteria (**stories only**; skip if all items are bugs)
-  - `ux-designer` — token adherence, visual consistency, accessibility (only for PRs touching `client/src/`, skip otherwise)
+- `product-architect` — architecture compliance, test coverage, code quality
+- `security-engineer` — OWASP Top 10 review, input validation, auth gaps
+- `product-owner` — requirements coverage, acceptance criteria (**stories only**; skip if all items are bugs)
+- `ux-designer` — token adherence, visual consistency, accessibility (only for PRs touching `client/src/`, skip otherwise)
 
 Review results are posted as **comments on the PR**. All review agents must prefix their comments with their agent name (e.g., `**[product-architect]**`).
 
@@ -234,19 +248,16 @@ After all reviews are posted, note each reviewer's verdict and finding counts fr
 
 In multi-item mode, reviewers must validate that **all items** in the batch are addressed.
 
-If CI fails, fix the issues on the branch and push again.
-
 ### 9. Fix Loop & Merge
 
 Track `fixLoopCount` (starts at 0). Each fix-and-re-review iteration increments this counter. Record which agent(s) triggered each round.
 
 If any reviewer identifies blocking issues:
 
-1. Re-launch the implementing agent(s) to address feedback
-2. Push fixes
-3. Re-request review from the agent(s) that flagged issues
-4. Increment `fixLoopCount` and record the new round's `REVIEW_METRICS`
-5. Repeat until all reviewers approve
+1. Re-launch the **dev-team-lead** with the reviewer feedback — the dev-team-lead delegates targeted fixes to the appropriate Haiku agent(s) and/or QA, commits, pushes, and watches CI until green
+2. Re-request review from the agent(s) that flagged issues
+3. Increment `fixLoopCount` and record the new round's `REVIEW_METRICS`
+4. Repeat until all reviewers approve
 
 Once reviews are clean and CI is green, merge:
 
