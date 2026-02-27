@@ -1,6 +1,7 @@
 export default {
   '*.{ts,tsx,js,jsx,cjs}': ['eslint --fix'],
   '*.{ts,tsx,js,jsx,cjs,json,css,md}': ['prettier --write'],
+  '**/package.json': ['bash scripts/check-dep-pinning.sh'],
   '*.{ts,tsx}': (stagedFiles) => {
     const sourceFiles = stagedFiles.filter(
       (f) =>
