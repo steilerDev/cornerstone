@@ -428,7 +428,22 @@ export function schedule(params: ScheduleParams): ScheduleResult {
       // We handle the "actualEndDate only" case here to ensure EF override regardless.
       if (item.actualStartDate) {
         const es = item.actualStartDate;
-        const ef = item.actualEndDate ?? addDays(es, duration);
+        let ef = item.actualEndDate ?? addDays(es, duration);
+        let isLate = false;
+
+        // ── Rule 3 inside Rule 1: in_progress end-date floor ─────────────────
+        // When actualStartDate is set but actualEndDate is NOT, Rule 1 computes
+        // EF = actualStartDate + duration. If that date is in the past (e.g. the
+        // item started weeks ago and the duration estimate was short), we must
+        // still clamp EF to today — the work is still ongoing.
+        // When actualEndDate IS set it is authoritative and no clamping applies.
+        if (item.status === 'in_progress' && !item.actualEndDate) {
+          const efBeforeClamp = ef;
+          ef = maxDate(ef, today);
+          if (ef !== efBeforeClamp) {
+            isLate = true;
+          }
+        }
 
         nodes.set(id, {
           item,
@@ -437,7 +452,7 @@ export function schedule(params: ScheduleParams): ScheduleResult {
           ef,
           ls: es, // Placeholder until backward pass
           lf: ef, // Placeholder until backward pass
-          isLate: false, // Actual dates are authoritative — not considered late
+          isLate,
         });
 
         // Emit already_completed warning if dates would change

@@ -870,8 +870,10 @@ describe('Scheduling Engine', () => {
 
   describe('actualStartDate and actualEndDate overrides', () => {
     it('uses actualStartDate as ES instead of CPM-computed value', () => {
-      // A is not_started but has an explicit actualStartDate far in the past.
-      // The actualStartDate must take absolute precedence over CPM/today floor.
+      // A is in_progress and has an explicit actualStartDate in the past.
+      // The actualStartDate must take absolute precedence over CPM/today floor for ES.
+      // Since actualEndDate is not set, Rule 3 still applies: EF is clamped to today
+      // because actualStartDate+duration='2026-01-08' is in the past on today='2026-01-10'.
       const item = makeItem('A', 5, {
         status: 'in_progress',
         actualStartDate: '2026-01-03',
@@ -882,8 +884,9 @@ describe('Scheduling Engine', () => {
       const si = result.scheduledItems[0];
       // actualStartDate overrides the engine's computation (today=2026-01-10)
       expect(si.scheduledStartDate).toBe('2026-01-03');
-      // Without actualEndDate, EF = actualStartDate + duration
-      expect(si.scheduledEndDate).toBe('2026-01-08');
+      // EF = max(actualStartDate + duration, today) = max('2026-01-08', '2026-01-10') = '2026-01-10'
+      expect(si.scheduledEndDate).toBe('2026-01-10');
+      expect(si.isLate).toBe(true);
     });
 
     it('uses actualEndDate as EF instead of actualStartDate + duration', () => {
@@ -923,8 +926,9 @@ describe('Scheduling Engine', () => {
 
     it('propagates actualStartDate-only to downstream dependencies (no actualEndDate)', () => {
       // A (in_progress, actualStartDate=2026-01-05, no actualEndDate, duration=3) -> B (4d)
-      // A.EF = 2026-01-05 + 3 = 2026-01-08; B starts from A.EF via FS dependency
-      // But B is not_started and today=2026-01-10, so today floor pushes B.ES to 2026-01-10
+      // A.EF (raw) = 2026-01-05 + 3 = 2026-01-08; but Rule 3 clamps A.EF to today=2026-01-10.
+      // B.ES comes from A.EF=2026-01-10; B is not_started so today floor also applies,
+      // but max(2026-01-10, 2026-01-10) = 2026-01-10, no additional push needed.
       const a = makeItem('A', 3, {
         status: 'in_progress',
         actualStartDate: '2026-01-05',
@@ -936,8 +940,10 @@ describe('Scheduling Engine', () => {
 
       const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
       expect(byId['A'].scheduledStartDate).toBe('2026-01-05');
-      expect(byId['A'].scheduledEndDate).toBe('2026-01-08');
-      // B.ES = max(A.EF=2026-01-08, today=2026-01-10) = 2026-01-10
+      // A.EF clamped to today (2026-01-08 is in the past on 2026-01-10)
+      expect(byId['A'].scheduledEndDate).toBe('2026-01-10');
+      expect(byId['A'].isLate).toBe(true);
+      // B.ES = max(A.EF=2026-01-10, today=2026-01-10) = 2026-01-10
       expect(byId['B'].scheduledStartDate).toBe('2026-01-10');
       expect(byId['B'].scheduledEndDate).toBe('2026-01-14');
     });
@@ -1296,8 +1302,11 @@ describe('Scheduling Engine', () => {
       expect(si.isLate).toBe(false);
     });
 
-    it('isLate = false for items with actualStartDate (Rule 1 applies)', () => {
-      // Rule 1 sets isLate = false unconditionally
+    it('isLate = true for in_progress item with actualStartDate when duration puts EF in the past', () => {
+      // Bug fix (#319): Rule 3 (today floor) must apply inside Rule 1 branch when
+      // actualStartDate is set but actualEndDate is NOT set. The item started on
+      // 2025-12-01, duration=5 → raw EF=2025-12-06 (in the past on 2026-01-10).
+      // EF should be clamped to today and isLate should be true.
       const item = makeItem('A', 5, {
         status: 'in_progress',
         actualStartDate: '2025-12-01',
@@ -1306,6 +1315,40 @@ describe('Scheduling Engine', () => {
       const result = schedule(fullParams([item], [], '2026-01-10'));
 
       const si = result.scheduledItems[0];
+      expect(si.scheduledStartDate).toBe('2025-12-01'); // actualStartDate preserved
+      expect(si.scheduledEndDate).toBe('2026-01-10'); // clamped to today
+      expect(si.isLate).toBe(true);
+    });
+
+    it('isLate = false for in_progress item with actualStartDate when duration puts EF in the future', () => {
+      // When actualStartDate is set, no actualEndDate, and EF is in the future,
+      // no clamping is needed — isLate stays false.
+      const item = makeItem('A', 30, {
+        status: 'in_progress',
+        actualStartDate: '2026-01-01',
+        actualEndDate: null,
+      });
+      const result = schedule(fullParams([item], [], '2026-01-10'));
+
+      const si = result.scheduledItems[0];
+      expect(si.scheduledStartDate).toBe('2026-01-01');
+      expect(si.scheduledEndDate).toBe('2026-01-31'); // ES + 30 days, in future
+      expect(si.isLate).toBe(false);
+    });
+
+    it('isLate = false when both actualStartDate and actualEndDate are set (even if actualEndDate is in the past)', () => {
+      // Regression test: when actualEndDate is explicitly set, Rule 1 takes full
+      // precedence — EF = actualEndDate unconditionally, no today-floor is applied.
+      const item = makeItem('A', 5, {
+        status: 'in_progress',
+        actualStartDate: '2025-12-01',
+        actualEndDate: '2025-12-06', // in the past, but it's an actual date
+      });
+      const result = schedule(fullParams([item], [], '2026-01-10'));
+
+      const si = result.scheduledItems[0];
+      expect(si.scheduledStartDate).toBe('2025-12-01');
+      expect(si.scheduledEndDate).toBe('2025-12-06'); // unchanged — actual end date preserved
       expect(si.isLate).toBe(false);
     });
   });
