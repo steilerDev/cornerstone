@@ -248,7 +248,7 @@ After all reviews are posted, note each reviewer's verdict and finding counts fr
 
 In multi-item mode, reviewers must validate that **all items** in the batch are addressed.
 
-### 9. Fix Loop & Merge
+### 9. Fix Loop
 
 Track `fixLoopCount` (starts at 0). Each fix-and-re-review iteration increments this counter. Record which agent(s) triggered each round.
 
@@ -259,20 +259,45 @@ If any reviewer identifies blocking issues:
 3. Increment `fixLoopCount` and record the new round's `REVIEW_METRICS`
 4. Repeat until all reviewers approve
 
-Once reviews are clean and CI is green, merge:
+### 10. User Approval & Merge
+
+Once all reviews are clean, wait for CI to go green before presenting the PR to the user:
 
 ```
-gh pr merge --squash <pr-url>
+gh pr checks <pr-number> --watch
 ```
 
-### 9a. Persist Metrics
+After CI is green, present the user with:
 
-After merge, collect PR metadata and append a record to `.claude/metrics/review-metrics.jsonl`:
+1. **PR link**: The PR URL
+2. **DockerHub PR image**: `docker pull steilerdev/cornerstone:pr-<pr-number>` — the PR-specific image published by the `docker-pr-release` CI job
+3. **CI status**: Confirm all checks are passing
+4. **Implementation summary**: A concise summary of what was changed, which files were modified, and how the issue(s) were resolved
+5. **Review summary**: N agents reviewed, N blocking findings, N total findings, N fix loops
+
+In multi-item mode, present a **per-item summary table**:
+
+```
+| Issue | Title                          | Status   |
+| ----- | ------------------------------ | -------- |
+| #42   | Tooltip positioning is wrong   | Resolved |
+| #55   | Budget rounding error          | Resolved |
+| #61   | Add export button to Gantt     | Resolved |
+```
+
+Ask the user to approve the PR for merge. **Do NOT merge until the user explicitly approves.** Wait for explicit confirmation:
+
+- **User approves** → proceed to step 10a (persist metrics), then merge
+- **User reports issues** → take the user's feedback as new input and loop back to **step 6** (Implement + Test) on a new branch to address it
+
+### 10a. Persist Metrics
+
+After user approval and **before merging**, collect PR metadata and append a record to `.claude/metrics/review-metrics.jsonl`:
 
 1. Fetch PR data:
 
    ```bash
-   gh pr view <pr-number> --json number,additions,deletions,changedFiles,mergedAt
+   gh pr view <pr-number> --json number,additions,deletions,changedFiles
    ```
 
 2. Append a single JSON line (do not overwrite the file):
@@ -294,39 +319,19 @@ After merge, collect PR metadata and append a record to `.claude/metrics/review-
    }
    ```
 
-3. Commit the updated metrics file with: `chore: update review metrics for PR #<N>`
+3. Commit and push the updated metrics file: `chore: update review metrics for PR #<N>`
 
-### 10. User Verification
+### 10b. Merge
 
-After the PR is merged, present the user with:
-
-1. **PR link**: The merged PR URL
-2. **DockerHub PR image**: `docker pull steilerdev/cornerstone:pr-<pr-number>` — the PR-specific image published by the `docker-pr-release` CI job
-3. **CI links**: Links to the latest GitHub Actions runs (quality gates, beta pre-release):
-   ```
-   gh run list --limit 5
-   ```
-4. **Implementation summary**: A concise summary of what was changed, which files were modified, and how the issue(s) were resolved
-5. **Review summary**: N agents reviewed, N blocking findings, N total findings, N fix loops
-
-In multi-item mode, present a **per-item summary table**:
+After metrics are persisted, merge to beta:
 
 ```
-| Issue | Title                          | Status   |
-| ----- | ------------------------------ | -------- |
-| #42   | Tooltip positioning is wrong   | Resolved |
-| #55   | Budget rounding error          | Resolved |
-| #61   | Add export button to Gantt     | Resolved |
+gh pr merge --squash <pr-url>
 ```
-
-Ask the user to verify the changes. Wait for explicit confirmation:
-
-- **User confirms** → proceed to step 11
-- **User reports issues** → take the user's feedback as new input and loop back to **step 6** (Implement + Test) on a new branch to address it
 
 ### 11. Close Issues & Clean Up
 
-After user confirmation:
+After merge:
 
 #### Single-item mode
 
