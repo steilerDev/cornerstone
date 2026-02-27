@@ -71,7 +71,7 @@ Launch the **e2e-test-engineer** agent to:
 - Confirm all existing Playwright E2E tests pass
 - Verify every approved UAT scenario (from story issues) has E2E coverage
 - Write new E2E tests on a branch if coverage gaps exist
-- Open a PR targeting `beta` to trigger the full sharded E2E suite in CI
+- Open a PR targeting `beta` to trigger the full sharded E2E suite in CI (if it does not yet exist)
 - Wait for the full E2E suite to pass (not just smoke tests)
 
 This approval is **required** before proceeding to manual UAT validation.
