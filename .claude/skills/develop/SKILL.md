@@ -31,7 +31,9 @@ After parsing `$ARGUMENTS`:
    - **1 entry** → **single-item mode** (existing flow)
    - **2+ entries** → **multi-item mode** (batched flow)
 
-In multi-item mode, maintain an ordered **items list** throughout the workflow. Each item tracks: issue number, title, label (`user-story` or `bug`), and source (existing issue or newly created).
+In multi-item mode, maintain an ordered **items list** throughout the workflow. Each item tracks: issue number, title, label (`user-story` or `bug`), source (existing issue or newly created), and **original line text** (the raw line from the file or inline input that produced this item).
+
+If the input was a `@`-prefixed file path, also store the **source file path** (without the `@` prefix) for use during cleanup in step 11.
 
 ## Steps
 
@@ -344,11 +346,14 @@ After merge:
    ITEM_ID=$(gh api graphql -f query='{ repository(owner: "steilerDev", name: "cornerstone") { issue(number: <issue-number>) { projectItems(first: 1) { nodes { id } } } } }' --jq '.data.repository.issue.projectItems.nodes[0].id')
    gh api graphql -f query='mutation { updateProjectV2ItemFieldValue(input: { projectId: "PVT_kwHOAGtLQM4BOlve", itemId: "'"$ITEM_ID"'", fieldId: "PVTSSF_lAHOAGtLQM4BOlvezg9P0yo", value: { singleSelectOptionId: "c558f50d" } }) { clientMutationId } }'
    ```
-3. Clean up the branch:
+3. **Remove resolved line from source file** (only when input was a `@`-prefixed file path):
+   - Remove the line from the source file that produced the resolved item (matched by original text).
+   - Preserve comments (`#`-prefixed lines) and empty lines.
+4. Clean up the branch:
    ```
    git checkout beta && git pull && git branch -d <branch-name>
    ```
-4. Exit the session and remove the worktree:
+5. Exit the session and remove the worktree:
    ```
    /exit
    ```
@@ -360,11 +365,15 @@ After merge:
    gh issue close <issue-number>
    ```
 2. Move **each issue** to **Done** on the Projects board (run the GraphQL mutation for each).
-3. Clean up the branch:
+3. **Remove resolved lines from source file** (only when input was a `@`-prefixed file path):
+   - For each closed issue, remove the line from the source file that produced it (matched by original text — the issue number or description as it appeared in the file).
+   - Preserve comments (`#`-prefixed lines) and empty lines that were not part of the resolved items.
+   - If all non-comment, non-empty lines have been removed, leave the file with only its comments (or empty).
+4. Clean up the branch:
    ```
    git checkout beta && git pull && git branch -d <branch-name>
    ```
-4. Exit the session and remove the worktree:
+5. Exit the session and remove the worktree:
    ```
    /exit
    ```
