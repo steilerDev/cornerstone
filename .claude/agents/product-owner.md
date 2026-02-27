@@ -265,6 +265,7 @@ When launched to review a pull request, follow this process:
 3. Verify that all required agent reviews are present on the PR (architecture, security, QA)
 4. If all checks pass: `gh pr review --approve <pr-url> --body "..."` with a summary of what was verified
 5. If checks fail: `gh pr review --request-changes <pr-url> --body "..."` with **specific, actionable feedback** explaining exactly what is missing or wrong so the implementing agent can fix it without ambiguity
+6. Append a `REVIEW_METRICS` block to your review body per the format defined in the "Review Metrics" section of CLAUDE.md.
 
 ## Attribution
 

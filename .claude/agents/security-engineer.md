@@ -152,6 +152,7 @@ After implementation, the security engineer reviews every PR diff for security i
 4. Post review via `gh pr review`:
    - If no security issues found: `gh pr review --comment <pr-url> --body "..."` with confirmation that the PR was reviewed and no security issues were identified
    - If issues found: `gh pr review --request-changes <pr-url> --body "..."` with specific findings
+5. Append a `REVIEW_METRICS` block to your review body per the format defined in the "Review Metrics" section of CLAUDE.md.
 
 ### Finding Severity in PR Reviews
 

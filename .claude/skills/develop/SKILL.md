@@ -230,24 +230,60 @@ Launch CI watch and agent reviews **at the same time**:
 
 Review results are posted as **comments on the PR**. All review agents must prefix their comments with their agent name (e.g., `**[product-architect]**`).
 
+After all reviews are posted, note each reviewer's verdict and finding counts from their `REVIEW_METRICS` block. Track this as review round 1.
+
 In multi-item mode, reviewers must validate that **all items** in the batch are addressed.
 
 If CI fails, fix the issues on the branch and push again.
 
 ### 9. Fix Loop & Merge
 
+Track `fixLoopCount` (starts at 0). Each fix-and-re-review iteration increments this counter. Record which agent(s) triggered each round.
+
 If any reviewer identifies blocking issues:
 
 1. Re-launch the implementing agent(s) to address feedback
 2. Push fixes
 3. Re-request review from the agent(s) that flagged issues
-4. Repeat until all reviewers approve
+4. Increment `fixLoopCount` and record the new round's `REVIEW_METRICS`
+5. Repeat until all reviewers approve
 
 Once reviews are clean and CI is green, merge:
 
 ```
 gh pr merge --squash <pr-url>
 ```
+
+### 9a. Persist Metrics
+
+After merge, collect PR metadata and append a record to `.claude/metrics/review-metrics.jsonl`:
+
+1. Fetch PR data:
+
+   ```bash
+   gh pr view <pr-number> --json number,additions,deletions,changedFiles,mergedAt
+   ```
+
+2. Append a single JSON line (do not overwrite the file):
+
+   ```json
+   {
+     "pr": <number>,
+     "issues": [<issue-numbers>],
+     "epic": <epic-number-or-null>,
+     "type": "<feat|fix|chore>",
+     "mergedAt": "<ISO-8601>",
+     "filesChanged": <N>,
+     "linesChanged": <additions+deletions>,
+     "fixLoopCount": <N>,
+     "reviews": [
+       { "agent": "<name>", "verdict": "<verdict>", "findings": { "critical": 0, "high": 0, "medium": 0, "low": 0, "informational": 0 }, "round": <N> }
+     ],
+     "totalFindings": { "critical": 0, "high": 0, "medium": 0, "low": 0, "informational": 0 }
+   }
+   ```
+
+3. Commit the updated metrics file with: `chore: update review metrics for PR #<N>`
 
 ### 10. User Verification
 
@@ -260,6 +296,7 @@ After the PR is merged, present the user with:
    gh run list --limit 5
    ```
 4. **Implementation summary**: A concise summary of what was changed, which files were modified, and how the issue(s) were resolved
+5. **Review summary**: N agents reviewed, N blocking findings, N total findings, N fix loops
 
 In multi-item mode, present a **per-item summary table**:
 
