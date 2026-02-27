@@ -783,6 +783,7 @@ describe('Scheduling Engine', () => {
       expect(si).toHaveProperty('latestFinishDate');
       expect(si).toHaveProperty('totalFloat');
       expect(si).toHaveProperty('isCritical');
+      expect(si).toHaveProperty('isLate');
     });
 
     it('should include all required fields in each warning', () => {
@@ -941,23 +942,26 @@ describe('Scheduling Engine', () => {
       expect(byId['B'].scheduledEndDate).toBe('2026-01-14');
     });
 
-    it('item with only actualEndDate but no actualStartDate uses CPM-computed ES', () => {
-      // If actualStartDate is null but actualEndDate is set, the engine falls
-      // through to the normal CPM path and does not use actualEndDate as EF override.
-      // (actualEndDate override only applies when actualStartDate is also set)
+    it('item with only actualEndDate but no actualStartDate overrides EF (AC-2)', () => {
+      // Fix for Bug #319 AC-2: actualEndDate alone DOES override EF.
+      // ES still comes from CPM (today floor for not_started, or root logic for others).
+      // The actual end date is authoritative — no clamping, isLate = false.
       const item = makeItem('A', 5, {
-        status: 'completed',
+        status: 'in_progress',
         actualStartDate: null,
-        actualEndDate: '2025-12-20',
+        actualEndDate: '2025-12-20', // past end date — actual dates are authoritative
+        startDate: '2025-12-15',
       });
-      // today=2026-01-01 => completed item with no actualStartDate gets ES=today via CPM
+      // today=2026-01-01 => in_progress root item uses item.startDate as ES
       const result = schedule(fullParams([item], [], '2026-01-01'));
 
       const si = result.scheduledItems[0];
-      // Completed root node with null startDate → ES = today
-      expect(si.scheduledStartDate).toBe('2026-01-01');
-      // Without actualStartDate path, actualEndDate is NOT used as override
-      expect(si.scheduledEndDate).toBe('2026-01-06'); // today + 5d
+      // ES = item.startDate (non-completed root node)
+      expect(si.scheduledStartDate).toBe('2025-12-15');
+      // EF = actualEndDate (overrides ES + duration)
+      expect(si.scheduledEndDate).toBe('2025-12-20');
+      // Actual dates are authoritative — not considered late
+      expect(si.isLate).toBe(false);
     });
   });
 
@@ -1051,6 +1055,258 @@ describe('Scheduling Engine', () => {
       // B.ES from dep = A.EF = 2026-04-10, but today floor = 2026-05-01 => today wins
       expect(byId['B'].scheduledStartDate).toBe('2026-05-01');
       expect(byId['B'].scheduledEndDate).toBe('2026-05-04');
+    });
+  });
+
+  // ─── Bug #319: Scheduling engine rule violations ───────────────────────────
+  //
+  // Tests for the 4-rule priority system:
+  // Rule 1: Actual dates always override (actualStartDate → ES, actualEndDate → EF)
+  // Rule 2: not_started items: scheduledStartDate >= today
+  // Rule 3: in_progress items: scheduledEndDate >= today
+  // Rule 4: isLate detection — true when Rules 2/3 clamped dates
+
+  describe('Bug #319: scheduling rule priority system', () => {
+    // ── Rule 1: actualStartDate always overrides ─────────────────────────────
+
+    it('AC-1: actualStartDate overrides CPM-computed ES regardless of dependencies', () => {
+      // Predecessor A ends 2026-01-15, but B has actualStartDate = 2026-01-05 (before A ends)
+      // actualStartDate must take precedence over everything
+      const a = makeItem('A', 10, {
+        status: 'completed',
+        actualStartDate: '2026-01-05',
+        actualEndDate: '2026-01-15',
+      });
+      const b = makeItem('B', 5, {
+        status: 'in_progress',
+        actualStartDate: '2026-01-05',
+        actualEndDate: null,
+      });
+      const deps = [makeDep('A', 'B')];
+      const result = schedule(fullParams([a, b], deps, '2026-01-10'));
+
+      const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
+      // B.actualStartDate must override A.EF dependency constraint
+      expect(byId['B'].scheduledStartDate).toBe('2026-01-05');
+    });
+
+    it('AC-2: actualEndDate alone overrides EF even without actualStartDate', () => {
+      // in_progress item: actualStartDate not set, actualEndDate is past
+      // Rule 1 should override EF even without actualStartDate
+      const item = makeItem('A', 5, {
+        status: 'in_progress',
+        actualStartDate: null,
+        actualEndDate: '2025-12-31', // past end date
+        startDate: '2025-12-26',
+      });
+      const result = schedule(fullParams([item], [], '2026-01-10'));
+
+      const si = result.scheduledItems[0];
+      // EF must be the actualEndDate, not the today-floored computation
+      expect(si.scheduledEndDate).toBe('2025-12-31');
+    });
+
+    it('AC-3: both actual dates set → both override, even if duration differs', () => {
+      // Item has 5d duration but actual dates span 20 days
+      const item = makeItem('A', 5, {
+        status: 'completed',
+        actualStartDate: '2026-01-01',
+        actualEndDate: '2026-01-21', // 20 days, not 5
+      });
+      const result = schedule(fullParams([item], [], '2026-01-15'));
+
+      const si = result.scheduledItems[0];
+      expect(si.scheduledStartDate).toBe('2026-01-01');
+      expect(si.scheduledEndDate).toBe('2026-01-21');
+    });
+
+    // ── Rule 2: not_started today floor ──────────────────────────────────────
+
+    it('AC-4: not_started items: scheduledStartDate >= today', () => {
+      // not_started item with CPM-derived date in the past
+      const a = makeItem('A', 3, {
+        status: 'completed',
+        actualStartDate: '2025-12-01',
+        actualEndDate: '2025-12-04',
+      });
+      const b = makeItem('B', 5, { status: 'not_started' });
+      const deps = [makeDep('A', 'B')];
+      // today is 2026-01-10, A.EF = 2025-12-04, so B.ES from dep < today
+      const result = schedule(fullParams([a, b], deps, '2026-01-10'));
+
+      const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
+      expect(byId['B'].scheduledStartDate).toBe('2026-01-10');
+    });
+
+    // ── Rule 3: in_progress today floor ──────────────────────────────────────
+
+    it('AC-5: in_progress items: scheduledEndDate >= today when end would be in past', () => {
+      // in_progress item started in the past, short duration, would end in the past
+      const item = makeItem('A', 3, {
+        status: 'in_progress',
+        startDate: '2025-12-01', // Start in the past
+      });
+      // today = 2026-01-10; CPM EF would be 2025-12-04 (in the past)
+      const result = schedule(fullParams([item], [], '2026-01-10'));
+
+      const si = result.scheduledItems[0];
+      expect(si.scheduledEndDate).toBe('2026-01-10');
+    });
+
+    it('AC-6: in_progress item with future end date is NOT clamped', () => {
+      // in_progress item that naturally ends in the future — no clamping needed
+      const item = makeItem('A', 30, {
+        status: 'in_progress',
+        startDate: '2026-01-01',
+      });
+      // today = 2026-01-10; CPM EF = 2026-01-31 (already in future)
+      const result = schedule(fullParams([item], [], '2026-01-10'));
+
+      const si = result.scheduledItems[0];
+      expect(si.scheduledEndDate).toBe('2026-01-31'); // No clamping
+      expect(si.isLate).toBe(false);
+    });
+
+    // ── Rule 4: isLate detection ──────────────────────────────────────────────
+
+    it('AC-7: isLate = true when Rule 2 clamps a not_started item start to today', () => {
+      // not_started item would start in the past without the today floor
+      const item = makeItem('A', 5, {
+        status: 'not_started',
+        startDate: '2025-12-01', // Past date
+      });
+      const result = schedule(fullParams([item], [], '2026-01-10'));
+
+      const si = result.scheduledItems[0];
+      expect(si.isLate).toBe(true);
+    });
+
+    it('AC-8: isLate = true when Rule 3 clamps an in_progress item end to today', () => {
+      // in_progress item with past end date — Rule 3 clamps it to today
+      const item = makeItem('A', 3, {
+        status: 'in_progress',
+        startDate: '2025-12-01',
+      });
+      const result = schedule(fullParams([item], [], '2026-01-10'));
+
+      const si = result.scheduledItems[0];
+      expect(si.isLate).toBe(true);
+    });
+
+    it('AC-9: isLate = false when no clamping occurs (dates naturally in future)', () => {
+      // not_started item with future start date — no clamping needed
+      const item = makeItem('A', 5, {
+        status: 'not_started',
+        startDate: '2026-06-01', // Future date
+      });
+      const result = schedule(fullParams([item], [], '2026-01-10'));
+
+      const si = result.scheduledItems[0];
+      expect(si.isLate).toBe(false);
+    });
+
+    it('AC-10: Rule 1 > Rule 3 — actualEndDate in past stays, isLate = false', () => {
+      // in_progress item with actualEndDate in the past.
+      // Rule 1 (actualEndDate) takes precedence — end date stays as actual, isLate = false.
+      const item = makeItem('A', 5, {
+        status: 'in_progress',
+        actualStartDate: null,
+        actualEndDate: '2025-12-15', // Past end date — but it's an actual date
+        startDate: '2025-12-10',
+      });
+      const result = schedule(fullParams([item], [], '2026-01-10'));
+
+      const si = result.scheduledItems[0];
+      // Actual end date stays — not clamped to today
+      expect(si.scheduledEndDate).toBe('2025-12-15');
+      // Not considered late — actual dates are authoritative
+      expect(si.isLate).toBe(false);
+    });
+
+    it('AC-11: downstream successors use clamped dates from Rule 2', () => {
+      // A (not_started) with past start is clamped to today=2026-01-10
+      // B depends on A via FS — B.ES must come from A's clamped EF
+      const a = makeItem('A', 5, {
+        status: 'not_started',
+        startDate: '2025-12-01', // Past — will be clamped to today
+      });
+      const b = makeItem('B', 3, { status: 'not_started' });
+      const deps = [makeDep('A', 'B')];
+      const result = schedule(fullParams([a, b], deps, '2026-01-10'));
+
+      const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
+      // A.ES clamped to today=2026-01-10, A.EF = 2026-01-15
+      expect(byId['A'].scheduledStartDate).toBe('2026-01-10');
+      expect(byId['A'].scheduledEndDate).toBe('2026-01-15');
+      // B starts from A's clamped EF
+      expect(byId['B'].scheduledStartDate).toBe('2026-01-15');
+      expect(byId['B'].scheduledEndDate).toBe('2026-01-18');
+    });
+
+    it('AC-12: ScheduledItem has isLate field as boolean', () => {
+      const item = makeItem('A', 5, { status: 'not_started' });
+      const result = schedule(fullParams([item], [], '2026-01-10'));
+
+      const si = result.scheduledItems[0];
+      expect(typeof si.isLate).toBe('boolean');
+    });
+
+    it('AC-13: isCritical (CPM float) remains unchanged by Rule 2/3/4', () => {
+      // Two parallel chains; the longer one should be critical regardless of today floor
+      // A (10d, not_started past) -> C (1d)
+      // B (1d, not_started past) -> C
+      // A is critical (longest path), B has float
+      const a = makeItem('A', 10, { status: 'not_started', startDate: '2025-12-01' });
+      const b = makeItem('B', 1, { status: 'not_started', startDate: '2025-12-01' });
+      const c = makeItem('C', 1, { status: 'not_started' });
+      const deps = [makeDep('A', 'C'), makeDep('B', 'C')];
+      const result = schedule(fullParams([a, b, c], deps, '2026-01-10'));
+
+      const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
+      // A has been clamped (isLate=true) but isCritical is still about CPM float
+      expect(byId['A'].isCritical).toBe(true);
+      expect(byId['B'].isCritical).toBe(false);
+      // B and A both got clamped by today floor
+      expect(byId['A'].isLate).toBe(true);
+      expect(byId['B'].isLate).toBe(true);
+    });
+
+    // ── isLate = false for not_started when no clamping needed ───────────────
+
+    it('isLate = false for not_started item when start is exactly today', () => {
+      const item = makeItem('A', 5, { status: 'not_started' });
+      // No startDate → root uses today directly (no clamping needed)
+      const result = schedule(fullParams([item], [], '2026-01-10'));
+
+      const si = result.scheduledItems[0];
+      expect(si.scheduledStartDate).toBe('2026-01-10');
+      expect(si.isLate).toBe(false); // No clamping occurred
+    });
+
+    it('isLate = false for completed items (no floor applies to completed status)', () => {
+      const item = makeItem('A', 5, {
+        status: 'completed',
+        startDate: '2025-01-01',
+        endDate: '2025-01-06',
+      });
+      const result = schedule(fullParams([item], [], '2026-01-10'));
+
+      const si = result.scheduledItems[0];
+      // Completed items don't get today floor applied
+      expect(si.isLate).toBe(false);
+    });
+
+    it('isLate = false for items with actualStartDate (Rule 1 applies)', () => {
+      // Rule 1 sets isLate = false unconditionally
+      const item = makeItem('A', 5, {
+        status: 'in_progress',
+        actualStartDate: '2025-12-01',
+        actualEndDate: null,
+      });
+      const result = schedule(fullParams([item], [], '2026-01-10'));
+
+      const si = result.scheduledItems[0];
+      expect(si.isLate).toBe(false);
     });
   });
 });

@@ -80,6 +80,8 @@ interface NodeData {
   ef: string; // Earliest finish (ISO date)
   ls: string; // Latest start (ISO date)
   lf: string; // Latest finish (ISO date)
+  /** true when Rule 2 or Rule 3 clamped dates to today; false otherwise. */
+  isLate: boolean;
 }
 
 // ─── Date arithmetic helpers ───────────────────────────────────────────────────
@@ -415,34 +417,45 @@ export function schedule(params: ScheduleParams): ScheduleResult {
       });
     }
 
-    // If the item has an actualStartDate, it takes absolute precedence as ES.
-    // If it also has an actualEndDate, that takes absolute precedence as EF.
-    if (item.actualStartDate) {
-      const es = item.actualStartDate;
-      const ef = item.actualEndDate ?? addDays(es, duration);
+    // ── Rule 1: Actual dates take absolute precedence ─────────────────────────
+    //
+    // When actualStartDate is set, it overrides CPM-computed ES unconditionally.
+    // When actualEndDate is set (with or without actualStartDate), it overrides EF.
+    // Items with actual dates are never considered "late" — actual dates are authoritative.
 
-      nodes.set(id, {
-        item,
-        duration,
-        es,
-        ef,
-        ls: es, // Placeholder until backward pass
-        lf: ef, // Placeholder until backward pass
-      });
+    if (item.actualStartDate || item.actualEndDate) {
+      // Determine ES: actualStartDate overrides if set; otherwise fall through to CPM below.
+      // We handle the "actualEndDate only" case here to ensure EF override regardless.
+      if (item.actualStartDate) {
+        const es = item.actualStartDate;
+        const ef = item.actualEndDate ?? addDays(es, duration);
 
-      // Emit already_completed warning if dates would change
-      if (item.status === 'completed') {
-        const startWouldChange = item.startDate && es !== item.startDate;
-        const endWouldChange = item.endDate && ef !== item.endDate;
-        if (startWouldChange || endWouldChange) {
-          warnings.push({
-            workItemId: id,
-            type: 'already_completed',
-            message: 'Work item is already completed; dates cannot be changed by the scheduler',
-          });
+        nodes.set(id, {
+          item,
+          duration,
+          es,
+          ef,
+          ls: es, // Placeholder until backward pass
+          lf: ef, // Placeholder until backward pass
+          isLate: false, // Actual dates are authoritative — not considered late
+        });
+
+        // Emit already_completed warning if dates would change
+        if (item.status === 'completed') {
+          const startWouldChange = item.startDate && es !== item.startDate;
+          const endWouldChange = item.endDate && ef !== item.endDate;
+          if (startWouldChange || endWouldChange) {
+            warnings.push({
+              workItemId: id,
+              type: 'already_completed',
+              message: 'Work item is already completed; dates cannot be changed by the scheduler',
+            });
+          }
         }
+        continue;
       }
-      continue;
+      // actualEndDate is set but actualStartDate is not — fall through to CPM for ES,
+      // then override EF with actualEndDate after computing ES.
     }
 
     // Compute ES: start from the latest date implied by all predecessors
@@ -478,11 +491,16 @@ export function schedule(params: ScheduleParams): ScheduleResult {
       es = maxDate(es, item.startAfter);
     }
 
-    // Apply implicit "today floor" for not_started items:
+    // ── Rule 2: Today floor for not_started items ─────────────────────────────
     // A not_started work item cannot start in the past — floor ES to today.
-    // This applies to all not_started items, not just root nodes.
+    // Track whether clamping occurred to set isLate.
+    let isLate = false;
     if (item.status === 'not_started') {
+      const esBeforeClamp = es;
       es = maxDate(es, today);
+      if (es !== esBeforeClamp) {
+        isLate = true;
+      }
     }
 
     // Compute EF from ES + duration.
@@ -497,6 +515,25 @@ export function schedule(params: ScheduleParams): ScheduleResult {
       ef = addDays(es, duration);
     }
 
+    // ── Rule 1 (actualEndDate only): Override EF with actual end date ─────────
+    // When actualEndDate is set without actualStartDate, ES comes from CPM (above)
+    // but EF is overridden by the actual end date. Not considered late.
+    if (item.actualEndDate) {
+      ef = item.actualEndDate;
+      isLate = false; // Actual dates are authoritative
+    }
+
+    // ── Rule 3: Today floor for in_progress items ─────────────────────────────
+    // An in_progress work item's end date must not be in the past.
+    // Only applies when actualEndDate is not set (Rule 1 takes precedence).
+    if (item.status === 'in_progress' && !item.actualEndDate) {
+      const efBeforeClamp = ef;
+      ef = maxDate(ef, today);
+      if (ef !== efBeforeClamp) {
+        isLate = true;
+      }
+    }
+
     nodes.set(id, {
       item,
       duration,
@@ -504,6 +541,7 @@ export function schedule(params: ScheduleParams): ScheduleResult {
       ef,
       ls: es, // Placeholder until backward pass
       lf: ef, // Placeholder until backward pass
+      isLate,
     });
 
     // Emit start_before_violated soft warning
@@ -579,6 +617,7 @@ export function schedule(params: ScheduleParams): ScheduleResult {
       // Clamp to 0: negative float means infeasible (constraints cannot be simultaneously met)
       totalFloat: Math.max(0, totalFloat),
       isCritical,
+      isLate: node.isLate,
     });
   }
 

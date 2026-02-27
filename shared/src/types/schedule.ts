@@ -46,6 +46,13 @@ export interface ScheduledItem {
   totalFloat: number;
   /** true if this item is on the critical path (totalFloat === 0). */
   isCritical: boolean;
+  /**
+   * true when the item's CPM-computed dates were clamped to today by Rules 2/3.
+   * Rule 2: not_started item's start was floored to today (start was in the past).
+   * Rule 3: in_progress item's end was floored to today (end was in the past).
+   * false when no clamping occurred or when actual dates are set (Rule 1 overrides).
+   */
+  isLate: boolean;
 }
 
 /**

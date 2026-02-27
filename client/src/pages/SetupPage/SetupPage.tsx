@@ -107,7 +107,7 @@ export function SetupPage() {
   return (
     <div className={sharedStyles.container}>
       <div className={sharedStyles.card}>
-        <Logo size={48} className={sharedStyles.logo} />
+        <Logo size={72} variant="full" className={sharedStyles.logo} />
         <h1 className={sharedStyles.title}>Initial Setup</h1>
         <p className={sharedStyles.description}>
           Create the admin account to get started with Cornerstone.
