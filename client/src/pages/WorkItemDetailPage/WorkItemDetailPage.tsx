@@ -66,6 +66,7 @@ import {
   DependencySentenceDisplay,
 } from '../../components/DependencySentenceBuilder/index.js';
 import type { DependencyType } from '@cornerstone/shared';
+import { formatDate } from '../../lib/formatters.js';
 import styles from './WorkItemDetailPage.module.css';
 
 interface DeletingDependency {
@@ -1214,26 +1215,14 @@ export default function WorkItemDetailPage() {
               <div className={styles.property}>
                 <span className={styles.propertyLabel}>Start Date</span>
                 <span className={styles.propertyValue}>
-                  {workItem.startDate
-                    ? new Date(workItem.startDate).toLocaleDateString(undefined, {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                      })
-                    : 'Not scheduled'}
+                  {workItem.startDate ? formatDate(workItem.startDate) : 'Not scheduled'}
                 </span>
               </div>
 
               <div className={styles.property}>
                 <span className={styles.propertyLabel}>End Date</span>
                 <span className={styles.propertyValue}>
-                  {workItem.endDate
-                    ? new Date(workItem.endDate).toLocaleDateString(undefined, {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                      })
-                    : 'Not scheduled'}
+                  {workItem.endDate ? formatDate(workItem.endDate) : 'Not scheduled'}
                 </span>
               </div>
             </div>
@@ -1716,9 +1705,7 @@ export default function WorkItemDetailPage() {
                     <span className={styles.noteAuthor}>
                       {note.createdBy?.displayName || 'Unknown'}
                     </span>
-                    <span className={styles.noteDate}>
-                      {new Date(note.createdAt).toLocaleDateString()}
-                    </span>
+                    <span className={styles.noteDate}>{formatDate(note.createdAt)}</span>
                   </div>
 
                   {editingNoteId === note.id ? (
@@ -1987,13 +1974,7 @@ export default function WorkItemDetailPage() {
                   <div key={ms.id} className={styles.milestoneChip}>
                     <span className={styles.milestoneChipName}>{ms.name}</span>
                     {ms.targetDate && (
-                      <span className={styles.milestoneChipDate}>
-                        {new Date(ms.targetDate).toLocaleDateString(undefined, {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                        })}
-                      </span>
+                      <span className={styles.milestoneChipDate}>{formatDate(ms.targetDate)}</span>
                     )}
                     <button
                       type="button"
@@ -2021,12 +2002,7 @@ export default function WorkItemDetailPage() {
                       <option value="">Select milestone...</option>
                       {available.map((m) => (
                         <option key={m.id} value={String(m.id)}>
-                          {m.title} —{' '}
-                          {new Date(m.targetDate).toLocaleDateString(undefined, {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric',
-                          })}
+                          {m.title} — {formatDate(m.targetDate)}
                         </option>
                       ))}
                     </select>
@@ -2061,13 +2037,7 @@ export default function WorkItemDetailPage() {
                   >
                     <span className={styles.milestoneChipName}>{ms.name}</span>
                     {ms.targetDate && (
-                      <span className={styles.milestoneChipDate}>
-                        {new Date(ms.targetDate).toLocaleDateString(undefined, {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                        })}
-                      </span>
+                      <span className={styles.milestoneChipDate}>{formatDate(ms.targetDate)}</span>
                     )}
                     <button
                       type="button"
@@ -2095,12 +2065,7 @@ export default function WorkItemDetailPage() {
                       <option value="">Select milestone...</option>
                       {available.map((m) => (
                         <option key={m.id} value={String(m.id)}>
-                          {m.title} —{' '}
-                          {new Date(m.targetDate).toLocaleDateString(undefined, {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric',
-                          })}
+                          {m.title} — {formatDate(m.targetDate)}
                         </option>
                       ))}
                     </select>
@@ -2125,9 +2090,9 @@ export default function WorkItemDetailPage() {
         <div className={styles.timestamps}>
           <div>
             Created by {workItem.createdBy?.displayName || 'Unknown'} on{' '}
-            {new Date(workItem.createdAt).toLocaleDateString()}
+            {formatDate(workItem.createdAt)}
           </div>
-          <div>Last updated {new Date(workItem.updatedAt).toLocaleDateString()}</div>
+          <div>Last updated {formatDate(workItem.updatedAt)}</div>
         </div>
 
         <button

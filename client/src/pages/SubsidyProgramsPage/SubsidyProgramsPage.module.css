@@ -45,33 +45,18 @@
 /* ---- Banners ---- */
 
 .successBanner {
-  background-color: var(--color-success-bg);
-  border: 1px solid var(--color-success-border);
-  border-radius: var(--radius-md);
-  color: var(--color-success-text-on-light);
-  padding: var(--spacing-3);
-  font-size: var(--font-size-sm);
+  composes: bannerSuccess from '../../styles/shared.module.css';
 }
 
 .errorBanner {
-  background-color: var(--color-danger-bg);
-  border: 1px solid var(--color-danger-border);
-  border-radius: var(--radius-md);
-  color: var(--color-danger-active);
-  padding: var(--spacing-3);
-  font-size: var(--font-size-sm);
+  composes: bannerError from '../../styles/shared.module.css';
   margin-bottom: var(--spacing-4);
 }
 
 /* ---- Loading / full-page error ---- */
 
 .loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 400px;
-  font-size: var(--font-size-base);
-  color: var(--color-text-muted);
+  composes: loading from '../../styles/shared.module.css';
 }
 
 .errorCard {
@@ -92,10 +77,7 @@
 /* ---- Card ---- */
 
 .card {
-  background: var(--color-bg-primary);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-  padding: var(--spacing-6);
+  composes: card from '../../styles/shared.module.css';
 }
 
 .cardTitle {
@@ -177,80 +159,15 @@
 }
 
 .input {
-  padding: var(--spacing-2) var(--spacing-3);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-sm);
-  color: var(--color-text-primary);
-  background-color: var(--color-bg-primary);
-  transition: var(--transition-input);
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.input:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: var(--shadow-focus-subtle);
-}
-
-.input:disabled {
-  background-color: var(--color-bg-secondary);
-  color: var(--color-text-disabled);
-  cursor: not-allowed;
+  composes: input from '../../styles/shared.module.css';
 }
 
 .select {
-  padding: var(--spacing-2) var(--spacing-3);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-sm);
-  color: var(--color-text-primary);
-  background-color: var(--color-bg-primary);
-  transition: var(--transition-input);
-  width: 100%;
-  box-sizing: border-box;
-  cursor: pointer;
-  appearance: auto;
-}
-
-.select:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: var(--shadow-focus-subtle);
-}
-
-.select:disabled {
-  background-color: var(--color-bg-secondary);
-  color: var(--color-text-disabled);
-  cursor: not-allowed;
+  composes: select from '../../styles/shared.module.css';
 }
 
 .textarea {
-  padding: var(--spacing-2) var(--spacing-3);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-sm);
-  color: var(--color-text-primary);
-  background-color: var(--color-bg-primary);
-  transition: var(--transition-input);
-  width: 100%;
-  box-sizing: border-box;
-  resize: vertical;
-  font-family: inherit;
-  line-height: var(--line-height-normal);
-}
-
-.textarea:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: var(--shadow-focus-subtle);
-}
-
-.textarea:disabled {
-  background-color: var(--color-bg-secondary);
-  color: var(--color-text-disabled);
-  cursor: not-allowed;
+  composes: textarea from '../../styles/shared.module.css';
 }
 
 /* ---- Category checkbox list ---- */
@@ -313,135 +230,23 @@
 /* ---- Buttons ---- */
 
 .button {
-  padding: var(--spacing-2-5) var(--spacing-4);
-  background-color: var(--color-primary);
-  color: var(--color-primary-text);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  border: none;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: var(--transition-button);
-  white-space: nowrap;
-}
-
-.button:hover:not(:disabled) {
-  background-color: var(--color-primary-hover);
-}
-
-.button:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus);
-}
-
-.button:disabled {
-  background-color: var(--color-text-placeholder);
-  cursor: not-allowed;
+  composes: btnPrimary from '../../styles/shared.module.css';
 }
 
 .saveButton {
-  padding: var(--spacing-1-5) var(--spacing-3);
-  background-color: var(--color-primary);
-  color: var(--color-primary-text);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  border: none;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: var(--transition-button);
-}
-
-.saveButton:hover:not(:disabled) {
-  background-color: var(--color-primary-hover);
-}
-
-.saveButton:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus);
-}
-
-.saveButton:disabled {
-  background-color: var(--color-text-placeholder);
-  cursor: not-allowed;
+  composes: btnPrimaryCompact from '../../styles/shared.module.css';
 }
 
 .cancelButton {
-  padding: var(--spacing-1-5) var(--spacing-3);
-  background-color: var(--color-bg-tertiary);
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: var(--transition-button-border);
-}
-
-.cancelButton:hover:not(:disabled) {
-  background-color: var(--color-bg-tertiary);
-  border-color: var(--color-border-strong);
-}
-
-.cancelButton:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus);
-}
-
-.cancelButton:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  composes: btnSecondaryCompact from '../../styles/shared.module.css';
 }
 
 .editButton {
-  padding: var(--spacing-1-5) var(--spacing-3);
-  background-color: var(--color-bg-tertiary);
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: var(--transition-button-border);
-}
-
-.editButton:hover:not(:disabled) {
-  background-color: var(--color-bg-tertiary);
-}
-
-.editButton:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus);
-}
-
-.editButton:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  composes: btnSecondaryCompact from '../../styles/shared.module.css';
 }
 
 .deleteButton {
-  padding: var(--spacing-1-5) var(--spacing-3);
-  background-color: var(--color-danger-bg);
-  color: var(--color-danger);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  border: 1px solid var(--color-danger-border);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: background-color var(--transition-normal);
-}
-
-.deleteButton:hover:not(:disabled) {
-  background-color: var(--color-danger-bg-strong);
-}
-
-.deleteButton:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus-danger);
-}
-
-.deleteButton:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  composes: btnDanger from '../../styles/shared.module.css';
 }
 
 /* ---- Programs list ---- */
@@ -640,44 +445,21 @@
 /* ---- Empty state ---- */
 
 .emptyState {
-  padding: var(--spacing-8);
-  text-align: center;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
+  composes: emptyState from '../../styles/shared.module.css';
 }
 
 /* ---- Modal ---- */
 
 .modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: var(--z-modal);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  composes: modal from '../../styles/shared.module.css';
 }
 
 .modalBackdrop {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: var(--color-overlay);
+  composes: modalBackdrop from '../../styles/shared.module.css';
 }
 
 .modalContent {
-  position: relative;
-  background: var(--color-bg-primary);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-2xl);
-  padding: var(--spacing-6);
-  max-width: 28rem;
-  width: calc(100% - var(--spacing-8));
-  margin: var(--spacing-4);
+  composes: modalContent from '../../styles/shared.module.css';
 }
 
 .modalTitle {
@@ -700,35 +482,11 @@
 }
 
 .modalActions {
-  display: flex;
-  gap: var(--spacing-3);
-  justify-content: flex-end;
+  composes: modalActions from '../../styles/shared.module.css';
 }
 
 .confirmDeleteButton {
-  padding: var(--spacing-2-5) var(--spacing-4);
-  background-color: var(--color-danger);
-  color: var(--color-danger-text);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  border: none;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: background-color var(--transition-normal);
-}
-
-.confirmDeleteButton:hover:not(:disabled) {
-  background-color: var(--color-danger-hover);
-}
-
-.confirmDeleteButton:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus-danger);
-}
-
-.confirmDeleteButton:disabled {
-  background-color: var(--color-text-placeholder);
-  cursor: not-allowed;
+  composes: btnConfirmDelete from '../../styles/shared.module.css';
 }
 
 /* ============================================================

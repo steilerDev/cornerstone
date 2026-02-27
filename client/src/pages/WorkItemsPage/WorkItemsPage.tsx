@@ -10,6 +10,7 @@ import { StatusBadge } from '../../components/StatusBadge/StatusBadge.js';
 import { TagPill } from '../../components/TagPill/TagPill.js';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import { KeyboardShortcutsHelp } from '../../components/KeyboardShortcutsHelp/KeyboardShortcutsHelp.js';
+import { formatDate } from '../../lib/formatters.js';
 import styles from './WorkItemsPage.module.css';
 
 const STATUS_OPTIONS: { value: WorkItemStatus; label: string }[] = [
@@ -268,12 +269,6 @@ export function WorkItemsPage() {
     } finally {
       setIsDeleting(false);
     }
-  };
-
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return '—';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
   };
 
   const renderSortIcon = (field: string) => {

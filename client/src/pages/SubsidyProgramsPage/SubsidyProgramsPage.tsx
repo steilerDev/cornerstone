@@ -13,7 +13,7 @@ import {
 } from '../../lib/subsidyProgramsApi.js';
 import { fetchBudgetCategories } from '../../lib/budgetCategoriesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
-import { formatCurrency } from '../../lib/formatters.js';
+import { formatCurrency, formatDate } from '../../lib/formatters.js';
 import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
 import styles from './SubsidyProgramsPage.module.css';
 
@@ -37,12 +37,6 @@ function formatReduction(reductionType: SubsidyReductionType, reductionValue: nu
     return `${reductionValue}%`;
   }
   return formatCurrency(reductionValue);
-}
-
-function formatDeadline(deadline: string | null): string {
-  if (!deadline) return '';
-  const date = new Date(deadline);
-  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
 function getStatusClassName(
@@ -897,7 +891,7 @@ export function SubsidyProgramsPage() {
                           <div className={styles.programDeadline}>
                             <span className={styles.deadlineLabel}>Deadline:</span>{' '}
                             <span className={styles.deadlineValue}>
-                              {formatDeadline(program.applicationDeadline)}
+                              {formatDate(program.applicationDeadline, '')}
                             </span>
                           </div>
                         )}

@@ -13,6 +13,7 @@ import { listWorkItems } from '../../lib/workItemsApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
 import type { WorkItemSummary, WorkItemBudgetLine } from '@cornerstone/shared';
+import { formatDate } from '../../lib/formatters.js';
 import styles from './InvoicesPage.module.css';
 
 function formatCurrency(amount: number): string {
@@ -22,15 +23,6 @@ function formatCurrency(amount: number): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(amount);
-}
-
-function formatDate(dateStr: string): string {
-  const [year, month, day] = dateStr.slice(0, 10).split('-').map(Number);
-  return new Date(year, month - 1, day).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
 }
 
 const STATUS_LABELS: Record<InvoiceStatus, string> = {
