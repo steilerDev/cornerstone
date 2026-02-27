@@ -236,30 +236,10 @@ export function listAllInvoices(
     }
   }
 
-  // Map rows — resolve createdBy and workItemBudget for each
-  const invoiceList: Invoice[] = rows.map(({ invoice: row, vendorName }) => {
-    const createdByUser = row.createdBy
-      ? db.select().from(users).where(eq(users.id, row.createdBy)).get()
-      : null;
-    return {
-      id: row.id,
-      vendorId: row.vendorId,
-      vendorName,
-      workItemBudgetId: row.workItemBudgetId,
-      workItemBudget: row.workItemBudgetId
-        ? toWorkItemBudgetSummary(db, row.workItemBudgetId)
-        : null,
-      invoiceNumber: row.invoiceNumber,
-      amount: row.amount,
-      date: row.date,
-      dueDate: row.dueDate,
-      status: row.status as InvoiceStatus,
-      notes: row.notes,
-      createdBy: toUserSummary(createdByUser),
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-    };
-  });
+  // Map rows using toInvoice(), passing the joined vendorName to avoid an extra DB lookup
+  const invoiceList: Invoice[] = rows.map(({ invoice: row, vendorName }) =>
+    toInvoice(db, row, vendorName),
+  );
 
   return {
     invoices: invoiceList,

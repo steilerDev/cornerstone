@@ -1,7 +1,7 @@
 /**
  * Shared formatting utilities for the Cornerstone frontend.
  *
- * All budget-related pages use these helpers to ensure consistent presentation
+ * All pages use these helpers to ensure consistent presentation
  * of currency, percentages, and dates throughout the application.
  */
 
@@ -34,4 +34,27 @@ export function formatCurrency(amount: number): string {
  */
 export function formatPercent(rate: number): string {
   return `${rate.toFixed(2)}%`;
+}
+
+/**
+ * Format an ISO date string (YYYY-MM-DD or ISO timestamp) as a human-readable
+ * localized date.
+ *
+ * Parses the date components directly from the string to avoid UTC midnight
+ * timezone shift issues that can occur when passing an ISO string to
+ * `new Date()` directly.
+ *
+ * @param dateStr - An ISO date string or null/undefined.
+ * @param fallback - Value returned when dateStr is null/undefined/invalid. Defaults to '—'.
+ * @returns A localized date string, e.g. "Feb 27, 2026", or the fallback value.
+ */
+export function formatDate(dateStr: string | null | undefined, fallback = '—'): string {
+  if (!dateStr) return fallback;
+  const [year, month, day] = dateStr.slice(0, 10).split('-').map(Number);
+  if (!year || !month || !day) return fallback;
+  return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
 }
