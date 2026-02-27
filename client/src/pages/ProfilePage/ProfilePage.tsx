@@ -2,6 +2,7 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { updateProfile, changePassword } from '../../lib/usersApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useAuth } from '../../contexts/AuthContext.js';
+import { formatDate } from '../../lib/formatters.js';
 import styles from './ProfilePage.module.css';
 
 interface PasswordFormErrors {
@@ -177,9 +178,7 @@ export function ProfilePage() {
             </div>
             <div className={styles.infoRow}>
               <span className={styles.infoLabel}>Member Since</span>
-              <span className={styles.infoValue}>
-                {new Date(user.createdAt).toLocaleDateString()}
-              </span>
+              <span className={styles.infoValue}>{formatDate(user.createdAt)}</span>
             </div>
           </div>
         </section>

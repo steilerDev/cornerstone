@@ -17,6 +17,7 @@ import { ApiClientError } from '../../lib/apiClient.js';
 import type { UseMilestonesResult } from '../../hooks/useMilestones.js';
 import { MilestoneForm } from './MilestoneForm.js';
 import { MilestoneWorkItemLinker } from './MilestoneWorkItemLinker.js';
+import { formatDate } from '../../lib/formatters.js';
 import styles from './MilestonePanel.module.css';
 
 // ---------------------------------------------------------------------------
@@ -75,16 +76,6 @@ function SmallDiamond({ completed, late }: { completed: boolean; late?: boolean 
       <polygon points="5,0 10,5 5,10 0,5" strokeWidth="1.5" />
     </svg>
   );
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function formatDate(dateStr: string): string {
-  const [year, month, day] = dateStr.split('-').map(Number);
-  const d = new Date(year, month - 1, day);
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 // ---------------------------------------------------------------------------
