@@ -90,7 +90,7 @@ describe('Sidebar', () => {
   it('links have correct href attributes', () => {
     renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
 
-    expect(screen.getByRole('link', { name: /dashboard/i })).toHaveAttribute('href', '/');
+    expect(screen.getByRole('link', { name: /^dashboard$/i })).toHaveAttribute('href', '/');
     expect(screen.getByRole('link', { name: /work items/i })).toHaveAttribute(
       'href',
       '/work-items',
@@ -107,7 +107,7 @@ describe('Sidebar', () => {
   it('dashboard link is active at exact / path only (end prop)', () => {
     renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />, { initialEntries: ['/'] });
 
-    const dashboardLink = screen.getByRole('link', { name: /dashboard/i });
+    const dashboardLink = screen.getByRole('link', { name: /^dashboard$/i });
     expect(dashboardLink).toHaveClass('active');
 
     // Other links should not be active
@@ -119,7 +119,7 @@ describe('Sidebar', () => {
       initialEntries: ['/work-items'],
     });
 
-    const dashboardLink = screen.getByRole('link', { name: /dashboard/i });
+    const dashboardLink = screen.getByRole('link', { name: /^dashboard$/i });
     expect(dashboardLink).not.toHaveClass('active');
   });
 
@@ -132,7 +132,7 @@ describe('Sidebar', () => {
     expect(workItemsLink).toHaveClass('active');
 
     // Dashboard should not be active
-    expect(screen.getByRole('link', { name: /dashboard/i })).not.toHaveClass('active');
+    expect(screen.getByRole('link', { name: /^dashboard$/i })).not.toHaveClass('active');
   });
 
   it('budget link is active at /budget', () => {
@@ -218,7 +218,7 @@ describe('Sidebar', () => {
     const user = userEvent.setup();
     renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
 
-    const dashboardLink = screen.getByRole('link', { name: /dashboard/i });
+    const dashboardLink = screen.getByRole('link', { name: /^dashboard$/i });
     await user.click(dashboardLink);
 
     expect(mockOnClose).toHaveBeenCalledTimes(1);

@@ -127,7 +127,7 @@ describe('AppShell', () => {
     );
 
     // All navigation links should be present
-    expect(screen.getByRole('link', { name: /dashboard/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /^dashboard$/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /work items/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /^budget$/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /timeline/i })).toBeInTheDocument();
