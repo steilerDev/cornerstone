@@ -6,6 +6,7 @@ import type {
   CreateWorkItemRequest,
   UpdateWorkItemRequest,
   SubsidyProgram,
+  WorkItemSubsidyPaybackResponse,
 } from '@cornerstone/shared';
 
 /**
@@ -96,4 +97,14 @@ export function linkWorkItemSubsidy(workItemId: string, subsidyProgramId: string
  */
 export function unlinkWorkItemSubsidy(workItemId: string, subsidyProgramId: string): Promise<void> {
   return del<void>(`/work-items/${workItemId}/subsidies/${subsidyProgramId}`);
+}
+
+/**
+ * Fetches the expected subsidy payback for a work item.
+ * Returns total payback and a per-subsidy breakdown.
+ */
+export function fetchWorkItemSubsidyPayback(
+  workItemId: string,
+): Promise<WorkItemSubsidyPaybackResponse> {
+  return get<WorkItemSubsidyPaybackResponse>(`/work-items/${workItemId}/subsidy-payback`);
 }

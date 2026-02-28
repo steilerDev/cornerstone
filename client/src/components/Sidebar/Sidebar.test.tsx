@@ -64,12 +64,20 @@ describe('Sidebar', () => {
     onClose: mockOnClose,
   });
 
-  it('renders all 9 navigation links plus 1 GitHub footer link', () => {
+  it('renders all 9 navigation links plus 1 logo link plus 1 GitHub footer link', () => {
     renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
 
     const links = screen.getAllByRole('link');
-    // 9 nav links + 1 GitHub link in the footer
-    expect(links).toHaveLength(10);
+    // 9 nav links + 1 logo link (Go to dashboard) + 1 GitHub link in the footer
+    expect(links).toHaveLength(11);
+  });
+
+  it('logo link navigates to dashboard (/) and has aria-label', () => {
+    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
+
+    const logoLink = screen.getByRole('link', { name: /go to dashboard/i });
+    expect(logoLink).toBeInTheDocument();
+    expect(logoLink).toHaveAttribute('href', '/');
   });
 
   it('renders navigation with correct aria-label', () => {
@@ -356,8 +364,8 @@ describe('Sidebar', () => {
     const links = screen.getAllByRole('link');
     const buttons = screen.getAllByRole('button');
 
-    // 9 nav links + 1 GitHub link in the footer
-    expect(links).toHaveLength(10);
+    // 9 nav links + 1 logo link (Go to dashboard) + 1 GitHub link in the footer
+    expect(links).toHaveLength(11);
     // 3 buttons: close button + theme toggle + logout button
     expect(buttons).toHaveLength(3);
     expect(buttons[0]).toHaveAttribute('aria-label', 'Close menu');

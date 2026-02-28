@@ -18,6 +18,7 @@ import type {
   UpdateWorkItemBudgetRequest,
   WorkItemMilestones,
   MilestoneSummary,
+  WorkItemSubsidyPaybackResponse,
 } from '@cornerstone/shared';
 import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
 import {
@@ -27,6 +28,7 @@ import {
   fetchWorkItemSubsidies,
   linkWorkItemSubsidy,
   unlinkWorkItemSubsidy,
+  fetchWorkItemSubsidyPayback,
 } from '../../lib/workItemsApi.js';
 import {
   fetchWorkItemBudgets,
@@ -144,6 +146,9 @@ export default function WorkItemDetailPage() {
   const [selectedSubsidyId, setSelectedSubsidyId] = useState('');
   const [isLinkingSubsidy, setIsLinkingSubsidy] = useState(false);
 
+  // Subsidy payback state
+  const [subsidyPayback, setSubsidyPayback] = useState<WorkItemSubsidyPaybackResponse | null>(null);
+
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -237,6 +242,7 @@ export default function WorkItemDetailPage() {
           linkedSubsidiesData,
           workItemMilestonesData,
           allMilestonesData,
+          subsidyPaybackData,
         ] = await Promise.all([
           getWorkItem(id!),
           listNotes(id!),
@@ -252,6 +258,7 @@ export default function WorkItemDetailPage() {
           fetchWorkItemSubsidies(id!),
           getWorkItemMilestones(id!),
           listMilestones(),
+          fetchWorkItemSubsidyPayback(id!),
         ]);
 
         setWorkItem(workItemData);
@@ -275,6 +282,7 @@ export default function WorkItemDetailPage() {
         setLinkedSubsidies(linkedSubsidiesData);
         setWorkItemMilestones(workItemMilestonesData);
         setAllMilestones(allMilestonesData);
+        setSubsidyPayback(subsidyPaybackData);
       } catch (err: unknown) {
         if ((err as { statusCode?: number })?.statusCode === 404) {
           setError('Work item not found');
@@ -368,6 +376,16 @@ export default function WorkItemDetailPage() {
     }
   };
 
+  const reloadSubsidyPayback = async () => {
+    if (!id) return;
+    try {
+      const data = await fetchWorkItemSubsidyPayback(id);
+      setSubsidyPayback(data);
+    } catch (err) {
+      console.error('Failed to reload subsidy payback:', err);
+    }
+  };
+
   const reloadWorkItemMilestones = async () => {
     if (!id) return;
     try {
@@ -437,7 +455,7 @@ export default function WorkItemDetailPage() {
         await createWorkItemBudget(id, payload as CreateWorkItemBudgetRequest);
       }
       closeBudgetForm();
-      await reloadBudgetLines();
+      await Promise.all([reloadBudgetLines(), reloadSubsidyPayback()]);
     } catch (err) {
       const apiErr = err as { statusCode?: number; message?: string };
       setBudgetFormError(apiErr.message ?? 'Failed to save budget line. Please try again.');
@@ -457,7 +475,7 @@ export default function WorkItemDetailPage() {
     try {
       await deleteWorkItemBudget(id, deletingBudgetId);
       setDeletingBudgetId(null);
-      await reloadBudgetLines();
+      await Promise.all([reloadBudgetLines(), reloadSubsidyPayback()]);
     } catch (err) {
       setDeletingBudgetId(null);
       const apiErr = err as { statusCode?: number; message?: string };
@@ -479,7 +497,7 @@ export default function WorkItemDetailPage() {
     try {
       await linkWorkItemSubsidy(id, selectedSubsidyId);
       setSelectedSubsidyId('');
-      await reloadLinkedSubsidies();
+      await Promise.all([reloadLinkedSubsidies(), reloadSubsidyPayback()]);
     } catch (err) {
       const apiErr = err as { statusCode?: number; message?: string };
       if (apiErr.statusCode === 409) {
@@ -498,7 +516,7 @@ export default function WorkItemDetailPage() {
     setInlineError(null);
     try {
       await unlinkWorkItemSubsidy(id, subsidyProgramId);
-      await reloadLinkedSubsidies();
+      await Promise.all([reloadLinkedSubsidies(), reloadSubsidyPayback()]);
     } catch (err) {
       setInlineError('Failed to unlink subsidy program');
       console.error('Failed to unlink subsidy:', err);
@@ -1374,6 +1392,27 @@ export default function WorkItemDetailPage() {
                     <span className={styles.budgetValue}>{budgetLines.length}</span>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Expected Subsidy Payback — shown when non-rejected subsidies are linked */}
+            {subsidyPayback !== null && subsidyPayback.subsidies.length > 0 && (
+              <div
+                className={`${styles.subsidyPaybackRow} ${subsidyPayback.totalPayback > 0 ? styles.subsidyPaybackRowActive : styles.subsidyPaybackRowZero}`}
+              >
+                <span className={styles.subsidyPaybackLabel}>Expected Subsidy Payback</span>
+                <span className={styles.subsidyPaybackAmount} aria-live="polite" aria-atomic="true">
+                  {formatCurrency(subsidyPayback.totalPayback)}
+                </span>
+                {subsidyPayback.subsidies.length > 1 && (
+                  <div className={styles.subsidyPaybackChips} aria-label="Per-subsidy breakdown">
+                    {subsidyPayback.subsidies.map((entry) => (
+                      <span key={entry.subsidyProgramId} className={styles.subsidyPaybackChip}>
+                        {entry.name}: {formatCurrency(entry.paybackAmount)}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 

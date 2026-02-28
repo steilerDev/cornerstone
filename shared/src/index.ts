@@ -123,6 +123,8 @@ export type {
   UpdateSubsidyProgramRequest,
   SubsidyProgramListResponse,
   SubsidyProgramResponse,
+  WorkItemSubsidyPaybackEntry,
+  WorkItemSubsidyPaybackResponse,
 } from './types/subsidyProgram.js';
 
 // Budget Overview

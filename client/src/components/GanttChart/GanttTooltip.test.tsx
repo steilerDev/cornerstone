@@ -5,8 +5,10 @@
  * Tests all status variants, date formatting, duration display, overflow-flip logic,
  * and ArrowTooltipContent (Issue #287: arrow hover highlighting).
  */
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import { GanttTooltip } from './GanttTooltip.js';
 import type {
   GanttTooltipWorkItemData,
@@ -41,11 +43,13 @@ function renderTooltip(
   id?: string,
 ) {
   return render(
-    <GanttTooltip
-      data={{ ...DEFAULT_DATA, ...data }}
-      position={{ ...DEFAULT_POSITION, ...position }}
-      id={id}
-    />,
+    <MemoryRouter>
+      <GanttTooltip
+        data={{ ...DEFAULT_DATA, ...data }}
+        position={{ ...DEFAULT_POSITION, ...position }}
+        id={id}
+      />
+    </MemoryRouter>,
   );
 }
 
@@ -378,11 +382,13 @@ function renderArrowTooltip(
   id?: string,
 ) {
   return render(
-    <GanttTooltip
-      data={{ ...DEFAULT_ARROW_DATA, ...data }}
-      position={{ ...ARROW_DEFAULT_POSITION, ...position }}
-      id={id}
-    />,
+    <MemoryRouter>
+      <GanttTooltip
+        data={{ ...DEFAULT_ARROW_DATA, ...data }}
+        position={{ ...ARROW_DEFAULT_POSITION, ...position }}
+        id={id}
+      />
+    </MemoryRouter>,
   );
 }
 
@@ -532,10 +538,12 @@ function renderWorkItemWithDeps(
   position: Partial<GanttTooltipPosition> = {},
 ) {
   return render(
-    <GanttTooltip
-      data={{ ...BASE_WORK_ITEM_DATA, dependencies }}
-      position={{ ...DEFAULT_DEP_POSITION, ...position }}
-    />,
+    <MemoryRouter>
+      <GanttTooltip
+        data={{ ...BASE_WORK_ITEM_DATA, dependencies }}
+        position={{ ...DEFAULT_DEP_POSITION, ...position }}
+      />
+    </MemoryRouter>,
   );
 }
 
@@ -921,5 +929,295 @@ describe('GanttTooltip — planned/actual duration and variance (#333)', () => {
     });
     expect(screen.queryByText(/Delay/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Late/i)).not.toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GanttTooltip — double separator fix (#342)
+//
+// The bug: when hasBothDurations=true AND assignedUserName=null AND
+// dependencies.length > 0, two consecutive separators appeared (one from
+// the variance block, one from the deps block).
+// Fix: separator between variance section and owner only emitted when
+// hasBothDurations && hasOwner. The deps block always emits its own leading
+// separator.
+// ---------------------------------------------------------------------------
+
+describe('GanttTooltip — double separator fix (#342)', () => {
+  beforeEach(() => {
+    Object.defineProperty(window, 'innerWidth', { writable: true, value: 1280 });
+    Object.defineProperty(window, 'innerHeight', { writable: true, value: 800 });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(window, 'innerWidth', { writable: true, value: 1280 });
+    Object.defineProperty(window, 'innerHeight', { writable: true, value: 800 });
+  });
+
+  function renderSeparatorTest(data: Partial<GanttTooltipWorkItemData>) {
+    const base: GanttTooltipWorkItemData = {
+      kind: 'work-item',
+      title: 'Test Item',
+      status: 'in_progress',
+      startDate: '2024-06-01',
+      endDate: '2024-06-15',
+      durationDays: 14,
+      assignedUserName: null,
+    };
+    render(
+      <MemoryRouter>
+        <GanttTooltip data={{ ...base, ...data }} position={{ x: 100, y: 200 }} />
+      </MemoryRouter>,
+    );
+  }
+
+  // The original bug scenario: hasBothDurations + !hasOwner + deps → double separator
+  it('renders exactly one separator between variance section and dependencies (no owner)', () => {
+    renderSeparatorTest({
+      plannedDurationDays: 10,
+      actualDurationDays: 14,
+      assignedUserName: null,
+      dependencies: [
+        { relatedTitle: 'Site Prep', dependencyType: 'finish_to_start', role: 'predecessor' },
+      ],
+    });
+    // aria-hidden separators count — verify only expected separators exist
+    const separators = document.querySelectorAll('[aria-hidden="true"]');
+    // Expected separators:
+    //   1. After header (always present)
+    //   2. Before planned/actual section (always present when hasBothDurations)
+    //   3. Before dependencies (always present when deps.length > 0)
+    // No extra separator should appear between variance and deps when no owner
+    expect(separators.length).toBe(3);
+  });
+
+  it('renders correct separator structure when hasBothDurations AND hasOwner AND deps present', () => {
+    renderSeparatorTest({
+      plannedDurationDays: 10,
+      actualDurationDays: 14,
+      assignedUserName: 'Jane Doe',
+      dependencies: [
+        { relatedTitle: 'Site Prep', dependencyType: 'finish_to_start', role: 'predecessor' },
+      ],
+    });
+    // Expected separators:
+    //   1. After header
+    //   2. Before planned/actual section
+    //   3. Between variance and owner (hasBothDurations && hasOwner)
+    //   4. Before dependencies
+    const separators = document.querySelectorAll('[aria-hidden="true"]');
+    expect(separators.length).toBe(4);
+  });
+
+  it('renders correct separator count when hasBothDurations AND !hasOwner AND no deps', () => {
+    renderSeparatorTest({
+      plannedDurationDays: 10,
+      actualDurationDays: 14,
+      assignedUserName: null,
+      dependencies: [],
+    });
+    // Expected separators:
+    //   1. After header
+    //   2. Before planned/actual section
+    // No separator between variance and (absent) owner, no deps separator
+    const separators = document.querySelectorAll('[aria-hidden="true"]');
+    expect(separators.length).toBe(2);
+  });
+
+  it('renders correct separator count when !hasBothDurations AND hasOwner AND deps present', () => {
+    renderSeparatorTest({
+      plannedDurationDays: undefined,
+      actualDurationDays: undefined,
+      durationDays: 14,
+      assignedUserName: 'John Smith',
+      dependencies: [
+        { relatedTitle: 'Foundation', dependencyType: 'finish_to_start', role: 'predecessor' },
+      ],
+    });
+    // Expected separators:
+    //   1. After header
+    //   2. Before dependencies
+    const separators = document.querySelectorAll('[aria-hidden="true"]');
+    expect(separators.length).toBe(2);
+  });
+
+  it('renders correctly when no owner, no deps, no variance (minimal data)', () => {
+    renderSeparatorTest({
+      plannedDurationDays: undefined,
+      actualDurationDays: undefined,
+      durationDays: 7,
+      assignedUserName: null,
+      dependencies: [],
+    });
+    // Only 1 separator: after header
+    const separators = document.querySelectorAll('[aria-hidden="true"]');
+    expect(separators.length).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GanttTooltip — touch device navigation affordance (#342)
+//
+// On pointer: coarse (touch) devices, when isTouchDevice=true and
+// workItemId/milestoneId is provided, a "View item" link/button is shown.
+// ---------------------------------------------------------------------------
+
+describe('GanttTooltip — touch device navigation affordance (#342)', () => {
+  beforeEach(() => {
+    Object.defineProperty(window, 'innerWidth', { writable: true, value: 1280 });
+    Object.defineProperty(window, 'innerHeight', { writable: true, value: 800 });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(window, 'innerWidth', { writable: true, value: 1280 });
+    Object.defineProperty(window, 'innerHeight', { writable: true, value: 800 });
+  });
+
+  const WORK_ITEM_DATA: GanttTooltipWorkItemData = {
+    kind: 'work-item',
+    title: 'Foundation Work',
+    status: 'in_progress',
+    startDate: '2024-06-01',
+    endDate: '2024-06-15',
+    durationDays: 14,
+    assignedUserName: null,
+    workItemId: 'wi-abc-123',
+  };
+
+  const MILESTONE_DATA: GanttTooltipMilestoneData = {
+    kind: 'milestone',
+    title: 'Foundation Complete',
+    targetDate: '2024-07-01',
+    projectedDate: null,
+    isCompleted: false,
+    isLate: false,
+    completedAt: null,
+    linkedWorkItems: [],
+    dependentWorkItems: [],
+    milestoneId: 42,
+  };
+
+  it('does not render "View item" link when isTouchDevice is false (default desktop)', () => {
+    render(
+      <MemoryRouter>
+        <GanttTooltip data={WORK_ITEM_DATA} position={{ x: 100, y: 200 }} isTouchDevice={false} />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByText('View item')).not.toBeInTheDocument();
+  });
+
+  it('does not render "View item" link when isTouchDevice is undefined', () => {
+    render(
+      <MemoryRouter>
+        <GanttTooltip data={WORK_ITEM_DATA} position={{ x: 100, y: 200 }} />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByText('View item')).not.toBeInTheDocument();
+  });
+
+  it('renders "View item" link on work item tooltip when isTouchDevice is true and workItemId provided', () => {
+    render(
+      <MemoryRouter>
+        <GanttTooltip data={WORK_ITEM_DATA} position={{ x: 100, y: 200 }} isTouchDevice={true} />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText('View item')).toBeInTheDocument();
+  });
+
+  it('"View item" link points to /work-items/:workItemId', () => {
+    render(
+      <MemoryRouter>
+        <GanttTooltip data={WORK_ITEM_DATA} position={{ x: 100, y: 200 }} isTouchDevice={true} />
+      </MemoryRouter>,
+    );
+    const link = screen.getByText('View item');
+    expect(link).toHaveAttribute('href', '/work-items/wi-abc-123');
+  });
+
+  it('"View item" link has aria-label describing the work item title', () => {
+    render(
+      <MemoryRouter>
+        <GanttTooltip data={WORK_ITEM_DATA} position={{ x: 100, y: 200 }} isTouchDevice={true} />
+      </MemoryRouter>,
+    );
+    const link = screen.getByText('View item');
+    expect(link).toHaveAttribute('aria-label', `View details for ${WORK_ITEM_DATA.title}`);
+  });
+
+  it('does not render "View item" when isTouchDevice is true but workItemId is absent', () => {
+    const dataWithoutId: GanttTooltipWorkItemData = { ...WORK_ITEM_DATA, workItemId: undefined };
+    render(
+      <MemoryRouter>
+        <GanttTooltip data={dataWithoutId} position={{ x: 100, y: 200 }} isTouchDevice={true} />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByText('View item')).not.toBeInTheDocument();
+  });
+
+  it('renders "View item" button on milestone tooltip when isTouchDevice is true and milestoneId provided', () => {
+    const mockNavigate = jest.fn<(id: number) => void>();
+    render(
+      <MemoryRouter>
+        <GanttTooltip
+          data={MILESTONE_DATA}
+          position={{ x: 100, y: 200 }}
+          isTouchDevice={true}
+          onMilestoneNavigate={mockNavigate}
+        />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText('View item')).toBeInTheDocument();
+  });
+
+  it('"View item" button calls onMilestoneNavigate with milestoneId on click', async () => {
+    const user = userEvent.setup();
+    const mockNavigate = jest.fn<(id: number) => void>();
+    render(
+      <MemoryRouter>
+        <GanttTooltip
+          data={MILESTONE_DATA}
+          position={{ x: 100, y: 200 }}
+          isTouchDevice={true}
+          onMilestoneNavigate={mockNavigate}
+        />
+      </MemoryRouter>,
+    );
+    const btn = screen.getByText('View item');
+    await user.click(btn);
+    expect(mockNavigate).toHaveBeenCalledWith(42);
+  });
+
+  it('does not render "View item" button when isTouchDevice is false on milestone', () => {
+    render(
+      <MemoryRouter>
+        <GanttTooltip data={MILESTONE_DATA} position={{ x: 100, y: 200 }} isTouchDevice={false} />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByText('View item')).not.toBeInTheDocument();
+  });
+
+  it('does not render "View item" button when milestoneId is absent', () => {
+    const dataWithoutId: GanttTooltipMilestoneData = { ...MILESTONE_DATA, milestoneId: undefined };
+    const mockNavigate = jest.fn<(id: number) => void>();
+    render(
+      <MemoryRouter>
+        <GanttTooltip
+          data={dataWithoutId}
+          position={{ x: 100, y: 200 }}
+          isTouchDevice={true}
+          onMilestoneNavigate={mockNavigate}
+        />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByText('View item')).not.toBeInTheDocument();
+  });
+
+  it('does not render "View item" button when onMilestoneNavigate is absent', () => {
+    render(
+      <MemoryRouter>
+        <GanttTooltip data={MILESTONE_DATA} position={{ x: 100, y: 200 }} isTouchDevice={true} />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByText('View item')).not.toBeInTheDocument();
   });
 });

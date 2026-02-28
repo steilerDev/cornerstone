@@ -86,3 +86,26 @@ export interface SubsidyProgramListResponse {
 export interface SubsidyProgramResponse {
   subsidyProgram: SubsidyProgram;
 }
+
+/**
+ * Per-subsidy payback entry returned in the work item subsidy payback response.
+ */
+export interface WorkItemSubsidyPaybackEntry {
+  subsidyProgramId: string;
+  name: string;
+  reductionType: SubsidyReductionType;
+  reductionValue: number;
+  /** Calculated payback amount in EUR for this subsidy on this work item. */
+  paybackAmount: number;
+}
+
+/**
+ * Response for GET /api/work-items/:workItemId/subsidy-payback
+ */
+export interface WorkItemSubsidyPaybackResponse {
+  workItemId: string;
+  /** Total expected payback across all non-rejected linked subsidies. */
+  totalPayback: number;
+  /** Per-subsidy breakdown. Empty array when no subsidies are linked. */
+  subsidies: WorkItemSubsidyPaybackEntry[];
+}

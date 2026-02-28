@@ -30,6 +30,8 @@ const mockListWorkItems = jest.fn<typeof WorkItemsApiTypes.listWorkItems>();
 const mockFetchWorkItemSubsidies = jest.fn<typeof WorkItemsApiTypes.fetchWorkItemSubsidies>();
 const mockLinkWorkItemSubsidy = jest.fn<typeof WorkItemsApiTypes.linkWorkItemSubsidy>();
 const mockUnlinkWorkItemSubsidy = jest.fn<typeof WorkItemsApiTypes.unlinkWorkItemSubsidy>();
+const mockFetchWorkItemSubsidyPayback =
+  jest.fn<typeof WorkItemsApiTypes.fetchWorkItemSubsidyPayback>();
 const mockFetchWorkItemBudgets = jest.fn<typeof WorkItemBudgetsApiTypes.fetchWorkItemBudgets>();
 const mockCreateWorkItemBudget = jest.fn<typeof WorkItemBudgetsApiTypes.createWorkItemBudget>();
 const mockUpdateWorkItemBudget = jest.fn<typeof WorkItemBudgetsApiTypes.updateWorkItemBudget>();
@@ -77,6 +79,7 @@ jest.unstable_mockModule('../../lib/workItemsApi.js', () => ({
   fetchWorkItemSubsidies: mockFetchWorkItemSubsidies,
   linkWorkItemSubsidy: mockLinkWorkItemSubsidy,
   unlinkWorkItemSubsidy: mockUnlinkWorkItemSubsidy,
+  fetchWorkItemSubsidyPayback: mockFetchWorkItemSubsidyPayback,
 }));
 
 jest.unstable_mockModule('../../lib/workItemBudgetsApi.js', () => ({
@@ -207,6 +210,7 @@ describe('WorkItemDetailPage', () => {
     mockFetchWorkItemSubsidies.mockReset();
     mockLinkWorkItemSubsidy.mockReset();
     mockUnlinkWorkItemSubsidy.mockReset();
+    mockFetchWorkItemSubsidyPayback.mockReset();
     mockFetchWorkItemBudgets.mockReset();
     mockCreateWorkItemBudget.mockReset();
     mockUpdateWorkItemBudget.mockReset();
@@ -272,6 +276,11 @@ describe('WorkItemDetailPage', () => {
     mockFetchWorkItemBudgets.mockResolvedValue([]);
     mockFetchSubsidyPrograms.mockResolvedValue({ subsidyPrograms: [] });
     mockFetchWorkItemSubsidies.mockResolvedValue([]);
+    mockFetchWorkItemSubsidyPayback.mockResolvedValue({
+      workItemId: 'work-1',
+      totalPayback: 0,
+      subsidies: [],
+    });
     // Milestone-related defaults
     mockListMilestones.mockResolvedValue([]);
     mockGetWorkItemMilestones.mockResolvedValue({ required: [], linked: [] });

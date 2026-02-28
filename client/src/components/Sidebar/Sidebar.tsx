@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { Logo } from '../Logo/Logo.js';
 import { ThemeToggle } from '../ThemeToggle/ThemeToggle.js';
@@ -15,10 +15,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   return (
     <aside className={sidebarClassName} data-open={isOpen}>
-      <div className={styles.logoArea}>
+      <Link to="/" className={styles.logoArea} aria-label="Go to dashboard">
         <Logo size={32} className={styles.logo} />
         <span className={styles.logoText}>Cornerstone</span>
-      </div>
+      </Link>
       <div className={styles.sidebarHeader}>
         <button
           type="button"
