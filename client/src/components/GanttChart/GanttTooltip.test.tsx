@@ -744,6 +744,7 @@ describe('GanttTooltip — milestone kind (no dependencies section)', () => {
     isLate: false,
     completedAt: null,
     linkedWorkItems: [],
+    dependentWorkItems: [],
   };
 
   it('does not render a "Dependencies" section label for milestone tooltips', () => {
@@ -756,34 +757,94 @@ describe('GanttTooltip — milestone kind (no dependencies section)', () => {
     expect(screen.getByText('Target')).toBeInTheDocument();
   });
 
-  it('milestone tooltip with linkedWorkItems shows "Blocked by this (N)" label', () => {
-    const msWithItems: GanttTooltipMilestoneData = {
+  it('milestone tooltip with dependentWorkItems shows "Blocked by this (N)" label', () => {
+    const msWithDependents: GanttTooltipMilestoneData = {
+      ...MILESTONE_DATA,
+      dependentWorkItems: [
+        { id: 'wi-1', title: 'Framing' },
+        { id: 'wi-2', title: 'Electrical Rough-in' },
+      ],
+    };
+    render(<GanttTooltip data={msWithDependents} position={{ x: 100, y: 200 }} />);
+    expect(screen.getByText(/Blocked by this \(2\)/)).toBeInTheDocument();
+  });
+
+  it('milestone tooltip with linkedWorkItems shows "Contributing (N)" label', () => {
+    const msWithLinked: GanttTooltipMilestoneData = {
       ...MILESTONE_DATA,
       linkedWorkItems: [
         { id: 'wi-1', title: 'Site Prep' },
         { id: 'wi-2', title: 'Foundation Dig' },
       ],
     };
-    render(<GanttTooltip data={msWithItems} position={{ x: 100, y: 200 }} />);
-    expect(screen.getByText(/Blocked by this \(2\)/)).toBeInTheDocument();
+    render(<GanttTooltip data={msWithLinked} position={{ x: 100, y: 200 }} />);
+    expect(screen.getByText(/Contributing \(2\)/)).toBeInTheDocument();
   });
 
-  it('milestone tooltip linked items overflow indicator shows "+N more" when > 5 linked items', () => {
-    const msWithSixItems: GanttTooltipMilestoneData = {
+  it('milestone tooltip shows both Contributing and Blocked sections when both lists are populated', () => {
+    const msWithBoth: GanttTooltipMilestoneData = {
+      ...MILESTONE_DATA,
+      linkedWorkItems: [{ id: 'wi-1', title: 'Site Prep' }],
+      dependentWorkItems: [{ id: 'wi-2', title: 'Framing' }],
+    };
+    render(<GanttTooltip data={msWithBoth} position={{ x: 100, y: 200 }} />);
+    expect(screen.getByText(/Contributing \(1\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Blocked by this \(1\)/)).toBeInTheDocument();
+    expect(screen.getByText('Site Prep')).toBeInTheDocument();
+    expect(screen.getByText('Framing')).toBeInTheDocument();
+  });
+
+  it('milestone tooltip dependent items overflow indicator shows "+N more" when > 5 dependent items', () => {
+    const msWithSixDependents: GanttTooltipMilestoneData = {
+      ...MILESTONE_DATA,
+      dependentWorkItems: Array.from({ length: 6 }, (_, i) => ({
+        id: `wi-${i}`,
+        title: `Work Item ${i + 1}`,
+      })),
+    };
+    render(<GanttTooltip data={msWithSixDependents} position={{ x: 100, y: 200 }} />);
+    expect(screen.getByText('+1 more')).toBeInTheDocument();
+  });
+
+  it('milestone tooltip linked items overflow indicator shows "+N more" when > 5 contributing items', () => {
+    const msWithSixLinked: GanttTooltipMilestoneData = {
       ...MILESTONE_DATA,
       linkedWorkItems: Array.from({ length: 6 }, (_, i) => ({
         id: `wi-${i}`,
         title: `Work Item ${i + 1}`,
       })),
     };
-    render(<GanttTooltip data={msWithSixItems} position={{ x: 100, y: 200 }} />);
+    render(<GanttTooltip data={msWithSixLinked} position={{ x: 100, y: 200 }} />);
     expect(screen.getByText('+1 more')).toBeInTheDocument();
   });
 
-  it('milestone tooltip with no linked items shows "Blocked / None" row', () => {
+  it('milestone tooltip with both lists empty shows a single "No linked items" row (None label)', () => {
     render(<GanttTooltip data={MILESTONE_DATA} position={{ x: 100, y: 200 }} />);
-    expect(screen.getByText('Blocked')).toBeInTheDocument();
+    // When both lists are empty, hasBothEmpty = true — shows single "Linked / None" row
+    expect(screen.getByText('Linked')).toBeInTheDocument();
     expect(screen.getByText('None')).toBeInTheDocument();
+  });
+
+  it('milestone tooltip with only contributing items shows "None" for Blocked by this section', () => {
+    const msWithLinkedOnly: GanttTooltipMilestoneData = {
+      ...MILESTONE_DATA,
+      linkedWorkItems: [{ id: 'wi-1', title: 'Site Prep' }],
+    };
+    render(<GanttTooltip data={msWithLinkedOnly} position={{ x: 100, y: 200 }} />);
+    expect(screen.getByText(/Contributing \(1\)/)).toBeInTheDocument();
+    expect(screen.getByText('Blocked by this')).toBeInTheDocument();
+    expect(screen.getByText('None')).toBeInTheDocument();
+  });
+
+  it('milestone tooltip with only dependent items shows "None" for Contributing section', () => {
+    const msWithDependentsOnly: GanttTooltipMilestoneData = {
+      ...MILESTONE_DATA,
+      dependentWorkItems: [{ id: 'wi-1', title: 'Framing' }],
+    };
+    render(<GanttTooltip data={msWithDependentsOnly} position={{ x: 100, y: 200 }} />);
+    expect(screen.getByText('Contributing')).toBeInTheDocument();
+    expect(screen.getByText('None')).toBeInTheDocument();
+    expect(screen.getByText(/Blocked by this \(1\)/)).toBeInTheDocument();
   });
 });
 

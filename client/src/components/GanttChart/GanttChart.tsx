@@ -999,9 +999,17 @@ export function GanttChart({
                   const newPos: GanttTooltipPosition = { x: e.clientX, y: e.clientY };
                   showTimerRef.current = setTimeout(() => {
                     const milestoneStatus = computeMilestoneStatus(milestone);
-                    // Resolve work items that depend on this milestone (have it in requiredMilestoneIds)
+                    // Contributing items — work items linked to this milestone via workItemIds
+                    const contributingIds = milestoneContributors.get(milestone.id) ?? [];
+                    const linkedWorkItems = contributingIds
+                      .map((wid) => {
+                        const wi = workItemMap.get(wid);
+                        return wi ? { id: wid, title: wi.title } : null;
+                      })
+                      .filter((x): x is { id: string; title: string } => x !== null);
+                    // Dependent items — work items that depend on this milestone via requiredMilestoneIds
                     const dependentIds = milestoneRequiredBy.get(milestone.id) ?? [];
-                    const linkedWorkItems = dependentIds
+                    const dependentWorkItems = dependentIds
                       .map((wid) => {
                         const wi = workItemMap.get(wid);
                         return wi ? { id: wid, title: wi.title } : null;
@@ -1016,6 +1024,7 @@ export function GanttChart({
                       isLate: milestoneStatus === 'late',
                       completedAt: milestone.completedAt,
                       linkedWorkItems,
+                      dependentWorkItems,
                     });
                     setTooltipPosition(newPos);
                   }, TOOLTIP_SHOW_DELAY);
@@ -1042,9 +1051,17 @@ export function GanttChart({
                   };
                   showTimerRef.current = setTimeout(() => {
                     const milestoneStatus = computeMilestoneStatus(milestone);
-                    // Resolve work items that depend on this milestone (have it in requiredMilestoneIds)
+                    // Contributing items — work items linked to this milestone via workItemIds
+                    const contributingIds = milestoneContributors.get(milestone.id) ?? [];
+                    const linkedWorkItems = contributingIds
+                      .map((wid) => {
+                        const wi = workItemMap.get(wid);
+                        return wi ? { id: wid, title: wi.title } : null;
+                      })
+                      .filter((x): x is { id: string; title: string } => x !== null);
+                    // Dependent items — work items that depend on this milestone via requiredMilestoneIds
                     const dependentIds = milestoneRequiredBy.get(milestone.id) ?? [];
-                    const linkedWorkItems = dependentIds
+                    const dependentWorkItems = dependentIds
                       .map((wid) => {
                         const wi = workItemMap.get(wid);
                         return wi ? { id: wid, title: wi.title } : null;
@@ -1059,6 +1076,7 @@ export function GanttChart({
                       isLate: milestoneStatus === 'late',
                       completedAt: milestone.completedAt,
                       linkedWorkItems,
+                      dependentWorkItems,
                     });
                     setTooltipPosition(newPos);
                   }, TOOLTIP_SHOW_DELAY);

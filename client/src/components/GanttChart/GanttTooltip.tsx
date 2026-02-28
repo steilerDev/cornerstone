@@ -50,8 +50,10 @@ export interface GanttTooltipMilestoneData {
   /** True when not completed and projectedDate > targetDate. */
   isLate: boolean;
   completedAt: string | null;
-  /** Work items that depend on this milestone (have this milestone in their requiredMilestoneIds). */
+  /** Work items directly linked to this milestone via milestone.workItemIds (contributing items). */
   linkedWorkItems: { id: string; title: string }[];
+  /** Work items that depend on this milestone (have this milestone in their requiredMilestoneIds). */
+  dependentWorkItems: { id: string; title: string }[];
 }
 
 export interface GanttTooltipArrowData {
@@ -274,9 +276,13 @@ function MilestoneTooltipContent({ data }: { data: GanttTooltipMilestoneData }) 
     statusClass = styles.statusInProgress;
   }
 
-  const { linkedWorkItems } = data;
-  const shownItems = linkedWorkItems.slice(0, MAX_LINKED_ITEMS_SHOWN);
-  const overflowCount = linkedWorkItems.length - shownItems.length;
+  const { linkedWorkItems, dependentWorkItems } = data;
+  const shownLinked = linkedWorkItems.slice(0, MAX_LINKED_ITEMS_SHOWN);
+  const linkedOverflowCount = linkedWorkItems.length - shownLinked.length;
+  const shownDependent = dependentWorkItems.slice(0, MAX_LINKED_ITEMS_SHOWN);
+  const dependentOverflowCount = dependentWorkItems.length - shownDependent.length;
+
+  const hasBothEmpty = linkedWorkItems.length === 0 && dependentWorkItems.length === 0;
 
   return (
     <>
@@ -327,28 +333,69 @@ function MilestoneTooltipContent({ data }: { data: GanttTooltipMilestoneData }) 
         </div>
       )}
 
-      {/* Dependent work items list — work items that depend on this milestone */}
-      {linkedWorkItems.length === 0 ? (
+      {/* When both lists are empty, show a single "No linked items" row */}
+      {hasBothEmpty ? (
         <div className={styles.detailRow}>
-          <span className={styles.detailLabel}>Blocked</span>
+          <span className={styles.detailLabel}>Linked</span>
           <span className={styles.detailValue}>None</span>
         </div>
       ) : (
-        <div className={styles.linkedItemsSection}>
-          <span className={styles.linkedItemsLabel}>
-            Blocked by this ({linkedWorkItems.length})
-          </span>
-          <ul className={styles.linkedItemsList} aria-label="Work items blocked by this milestone">
-            {shownItems.map((item) => (
-              <li key={item.id} className={styles.linkedItem}>
-                {item.title}
-              </li>
-            ))}
-            {overflowCount > 0 && (
-              <li className={styles.linkedItemsOverflow}>+{overflowCount} more</li>
-            )}
-          </ul>
-        </div>
+        <>
+          {/* Contributing items — work items linked to this milestone via workItemIds */}
+          <div className={styles.separator} aria-hidden="true" />
+          {linkedWorkItems.length === 0 ? (
+            <div className={styles.detailRow}>
+              <span className={styles.detailLabel}>Contributing</span>
+              <span className={styles.detailValue}>None</span>
+            </div>
+          ) : (
+            <div className={styles.linkedItemsSection}>
+              <span className={styles.linkedItemsLabel}>
+                Contributing ({linkedWorkItems.length})
+              </span>
+              <ul
+                className={styles.linkedItemsList}
+                aria-label="Work items contributing to this milestone"
+              >
+                {shownLinked.map((item) => (
+                  <li key={item.id} className={styles.linkedItem}>
+                    {item.title}
+                  </li>
+                ))}
+                {linkedOverflowCount > 0 && (
+                  <li className={styles.linkedItemsOverflow}>+{linkedOverflowCount} more</li>
+                )}
+              </ul>
+            </div>
+          )}
+
+          {/* Dependent items — work items that depend on this milestone via requiredMilestoneIds */}
+          {dependentWorkItems.length === 0 ? (
+            <div className={styles.detailRow}>
+              <span className={styles.detailLabel}>Blocked by this</span>
+              <span className={styles.detailValue}>None</span>
+            </div>
+          ) : (
+            <div className={styles.linkedItemsSection}>
+              <span className={styles.linkedItemsLabel}>
+                Blocked by this ({dependentWorkItems.length})
+              </span>
+              <ul
+                className={styles.linkedItemsList}
+                aria-label="Work items blocked by this milestone"
+              >
+                {shownDependent.map((item) => (
+                  <li key={item.id} className={styles.linkedItem}>
+                    {item.title}
+                  </li>
+                ))}
+                {dependentOverflowCount > 0 && (
+                  <li className={styles.linkedItemsOverflow}>+{dependentOverflowCount} more</li>
+                )}
+              </ul>
+            </div>
+          )}
+        </>
       )}
     </>
   );

@@ -333,9 +333,16 @@ export function CalendarView({
       if (!milestone) return;
       tooltipShowTimerRef.current = setTimeout(() => {
         const milestoneStatus = computeMilestoneStatus(milestone);
-        // Show work items that depend on this milestone (have it in requiredMilestoneIds)
+        // Contributing items — work items directly linked to this milestone via workItemIds
+        const linkedWorkItems = (milestone.workItemIds ?? [])
+          .map((wid) => {
+            const wi = workItemById.get(wid);
+            return wi ? { id: wid, title: wi.title } : null;
+          })
+          .filter((x): x is { id: string; title: string } => x !== null);
+        // Dependent items — work items that depend on this milestone (via requiredMilestoneIds)
         const dependentIds = milestoneRequiredBy.get(milestoneId) ?? [];
-        const linkedWorkItems = dependentIds
+        const dependentWorkItems = dependentIds
           .map((wid) => {
             const wi = workItemById.get(wid);
             return wi ? { id: wid, title: wi.title } : null;
@@ -350,6 +357,7 @@ export function CalendarView({
           isLate: milestoneStatus === 'late',
           completedAt: milestone.completedAt,
           linkedWorkItems,
+          dependentWorkItems,
         });
         setTooltipPosition({ x: mouseX, y: mouseY });
       }, TOOLTIP_SHOW_DELAY);
