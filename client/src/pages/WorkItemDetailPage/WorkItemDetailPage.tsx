@@ -1404,7 +1404,7 @@ export default function WorkItemDetailPage() {
                 <span className={styles.subsidyPaybackAmount} aria-live="polite" aria-atomic="true">
                   {formatCurrency(subsidyPayback.totalPayback)}
                 </span>
-                {subsidyPayback.subsidies.length > 1 && (
+                {subsidyPayback.subsidies.length > 0 && (
                   <div className={styles.subsidyPaybackChips} aria-label="Per-subsidy breakdown">
                     {subsidyPayback.subsidies.map((entry) => (
                       <span key={entry.subsidyProgramId} className={styles.subsidyPaybackChip}>

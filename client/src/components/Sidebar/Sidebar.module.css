@@ -15,7 +15,7 @@
   flex-shrink: 0;
   text-decoration: none;
   cursor: pointer;
-  transition: opacity 0.15s ease;
+  transition: opacity var(--transition-normal);
 }
 
 .logoArea:hover {

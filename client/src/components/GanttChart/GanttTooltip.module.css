@@ -303,7 +303,7 @@
 
 [data-theme='dark'] .statusInProgress {
   background: rgba(59, 130, 246, 0.15);
-  color: var(--color-blue-600);
+  color: var(--color-primary);
 }
 
 [data-theme='dark'] .statusCompleted {

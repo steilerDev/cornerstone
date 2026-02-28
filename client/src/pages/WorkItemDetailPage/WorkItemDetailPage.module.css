@@ -1380,10 +1380,10 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
-  border-radius: 0.375rem;
-  margin-bottom: 0.75rem;
+  gap: var(--spacing-2);
+  padding: var(--spacing-3) var(--spacing-4);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-3);
 }
 
 /* Green accent when payback > 0 */
@@ -1394,18 +1394,19 @@
 
 /* Muted when payback = 0 */
 .subsidyPaybackRowZero {
-  background: var(--color-bg-tertiary);
+  background: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
 }
 
 .subsidyPaybackLabel {
-  font-size: 0.875rem;
-  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-muted);
   flex-shrink: 0;
 }
 
 .subsidyPaybackAmount {
-  font-size: 0.875rem;
+  font-size: var(--font-size-base);
   font-weight: 700;
   margin-left: auto;
 }
@@ -1421,16 +1422,16 @@
 .subsidyPaybackChips {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.375rem;
+  gap: var(--spacing-1-5);
   width: 100%;
-  margin-top: 0.25rem;
+  margin-top: var(--spacing-1);
 }
 
 .subsidyPaybackChip {
   display: inline-block;
-  padding: 0.125rem 0.5rem;
+  padding: var(--spacing-0-5) var(--spacing-2);
   border-radius: var(--radius-full, 9999px);
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
   background: var(--color-success-badge-bg);
   color: var(--color-success-badge-text);
   border: 1px solid var(--color-success-border);
