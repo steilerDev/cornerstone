@@ -214,11 +214,15 @@ function WorkItemTooltipContent({
           <div className={styles.separator} aria-hidden="true" />
           <div className={styles.detailRow}>
             <span className={styles.detailLabel}>Planned</span>
-            <span className={styles.detailValue}>{formatDuration(data.plannedDurationDays)}</span>
+            <span className={styles.detailValue}>
+              {formatDuration(data.plannedDurationDays ?? null)}
+            </span>
           </div>
           <div className={styles.detailRow}>
             <span className={styles.detailLabel}>Actual</span>
-            <span className={styles.detailValue}>{formatDuration(data.actualDurationDays)}</span>
+            <span className={styles.detailValue}>
+              {formatDuration(data.actualDurationDays ?? null)}
+            </span>
           </div>
           {(() => {
             const variance = data.actualDurationDays! - data.plannedDurationDays!;
