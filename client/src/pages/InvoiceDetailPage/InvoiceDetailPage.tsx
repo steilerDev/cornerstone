@@ -1,16 +1,11 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import type {
-  Invoice,
-  InvoiceStatus,
-  WorkItemSummary,
-  WorkItemBudgetLine,
-} from '@cornerstone/shared';
+import type { Invoice, InvoiceStatus, WorkItemBudgetLine } from '@cornerstone/shared';
 import { fetchInvoiceById, updateInvoice, deleteInvoice } from '../../lib/invoicesApi.js';
 import { fetchWorkItemBudgets } from '../../lib/workItemBudgetsApi.js';
-import { listWorkItems } from '../../lib/workItemsApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { formatDate } from '../../lib/formatters.js';
+import { WorkItemPicker } from '../../components/WorkItemPicker/WorkItemPicker.js';
 import styles from './InvoiceDetailPage.module.css';
 
 function formatCurrency(amount: number): string {
@@ -68,8 +63,7 @@ export function InvoiceDetailPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
 
-  // Work items + budget lines for link dropdowns
-  const [workItems, setWorkItems] = useState<WorkItemSummary[]>([]);
+  // Budget lines for the selected work item
   const [budgetLines, setBudgetLines] = useState<WorkItemBudgetLine[]>([]);
   const [budgetLinesLoading, setBudgetLinesLoading] = useState(false);
 
@@ -78,10 +72,6 @@ export function InvoiceDetailPage() {
     void loadInvoice();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
-
-  useEffect(() => {
-    void listWorkItems({ pageSize: 100 }).then((res) => setWorkItems(res.items));
-  }, []);
 
   const loadInvoice = async () => {
     if (!id) return;
@@ -107,6 +97,7 @@ export function InvoiceDetailPage() {
 
   const openEditModal = () => {
     if (!invoice) return;
+    const preSelectedWorkItemId = invoice.workItemBudget?.workItemId ?? '';
     setEditForm({
       invoiceNumber: invoice.invoiceNumber ?? '',
       amount: invoice.amount.toString(),
@@ -114,10 +105,19 @@ export function InvoiceDetailPage() {
       dueDate: invoice.dueDate ? invoice.dueDate.slice(0, 10) : '',
       status: invoice.status,
       notes: invoice.notes ?? '',
-      selectedWorkItemId: '',
+      selectedWorkItemId: preSelectedWorkItemId,
       workItemBudgetId: invoice.workItemBudgetId ?? '',
     });
-    setBudgetLines([]);
+    // Pre-fetch budget lines for the already-linked work item so the user can see them
+    if (preSelectedWorkItemId) {
+      setBudgetLinesLoading(true);
+      void fetchWorkItemBudgets(preSelectedWorkItemId)
+        .then((lines) => setBudgetLines(lines))
+        .catch(() => setBudgetLines([]))
+        .finally(() => setBudgetLinesLoading(false));
+    } else {
+      setBudgetLines([]);
+    }
     setBudgetLinkTouched(false);
     setEditError('');
     setShowEditModal(true);
@@ -436,19 +436,10 @@ export function InvoiceDetailPage() {
               </div>
 
               <div className={styles.field}>
-                <label htmlFor="edit-work-item" className={styles.label}>
-                  Link to Work Item
-                </label>
-                {invoice.workItemBudgetId && !budgetLinkTouched && (
-                  <p className={styles.budgetLinkNote}>
-                    Currently linked to a budget line. Select a work item to update the link.
-                  </p>
-                )}
-                <select
-                  id="edit-work-item"
+                <span className={styles.label}>Link to Work Item</span>
+                <WorkItemPicker
                   value={editForm.selectedWorkItemId}
-                  onChange={(e) => {
-                    const workItemId = e.target.value;
+                  onChange={(workItemId) => {
                     setBudgetLinkTouched(true);
                     setEditForm({
                       ...editForm,
@@ -458,29 +449,19 @@ export function InvoiceDetailPage() {
                     if (workItemId) {
                       setBudgetLinesLoading(true);
                       void fetchWorkItemBudgets(workItemId)
-                        .then((lines) => {
-                          setBudgetLines(lines);
-                        })
-                        .catch(() => {
-                          setBudgetLines([]);
-                        })
-                        .finally(() => {
-                          setBudgetLinesLoading(false);
-                        });
+                        .then((lines) => setBudgetLines(lines))
+                        .catch(() => setBudgetLines([]))
+                        .finally(() => setBudgetLinesLoading(false));
                     } else {
                       setBudgetLines([]);
                     }
                   }}
-                  className={styles.select}
+                  excludeIds={[]}
                   disabled={isUpdating}
-                >
-                  <option value="">None</option>
-                  {workItems.map((wi) => (
-                    <option key={wi.id} value={wi.id}>
-                      {wi.title}
-                    </option>
-                  ))}
-                </select>
+                  placeholder="Search work items..."
+                  showItemsOnFocus
+                  initialTitle={invoice.workItemBudget?.workItemTitle ?? undefined}
+                />
               </div>
 
               {editForm.selectedWorkItemId && (

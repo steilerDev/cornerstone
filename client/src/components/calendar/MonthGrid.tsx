@@ -22,6 +22,7 @@ import {
   isItemEnd,
   allocateLanes,
   getItemColor,
+  getContrastTextColor,
   DAY_NAMES,
   DAY_NAMES_NARROW,
   formatDateForAria,
@@ -46,6 +47,12 @@ export interface MonthGridProps {
   onMilestoneMouseEnter?: (milestoneId: number, mouseX: number, mouseY: number) => void;
   onMilestoneMouseLeave?: () => void;
   onMilestoneMouseMove?: (mouseX: number, mouseY: number) => void;
+  /** True when the device is touch-primary (for two-tap interaction). */
+  isTouchDevice?: boolean;
+  /** ID of the item currently in "first-tap" state on touch. */
+  activeTouchId?: string | null;
+  /** Two-tap handler: first tap shows tooltip, second tap navigates. */
+  onTouchTap?: (itemId: string, onNavigate: () => void) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -65,6 +72,9 @@ export function MonthGrid({
   onMilestoneMouseEnter,
   onMilestoneMouseLeave,
   onMilestoneMouseMove,
+  isTouchDevice = false,
+  activeTouchId = null,
+  onTouchTap,
 }: MonthGridProps) {
   const weeks = useMemo(() => getMonthGrid(year, month), [year, month]);
 
@@ -140,21 +150,31 @@ export function MonthGrid({
                         : undefined
                     }
                   >
-                    {dayItems.map((item) => (
-                      <CalendarItem
-                        key={item.id}
-                        item={item}
-                        isStart={isItemStart(day.dateStr, item)}
-                        isEnd={isItemEnd(day.dateStr, item)}
-                        compact
-                        isHighlighted={hoveredItemId === item.id}
-                        onMouseEnter={onItemMouseEnter}
-                        onMouseLeave={onItemMouseLeave}
-                        onMouseMove={onItemMouseMove}
-                        laneIndex={laneMap.get(item.id)}
-                        colorIndex={getItemColor(item.id)}
-                      />
-                    ))}
+                    {dayItems.map((item) => {
+                      const firstTagColor = item.tags?.[0]?.color ?? null;
+                      const tagTextColor =
+                        firstTagColor != null ? getContrastTextColor(firstTagColor) : undefined;
+                      return (
+                        <CalendarItem
+                          key={item.id}
+                          item={item}
+                          isStart={isItemStart(day.dateStr, item)}
+                          isEnd={isItemEnd(day.dateStr, item)}
+                          compact
+                          isHighlighted={hoveredItemId === item.id}
+                          onMouseEnter={onItemMouseEnter}
+                          onMouseLeave={onItemMouseLeave}
+                          onMouseMove={onItemMouseMove}
+                          laneIndex={laneMap.get(item.id)}
+                          colorIndex={firstTagColor != null ? undefined : getItemColor(item.id)}
+                          tagColor={firstTagColor}
+                          tagTextColor={tagTextColor}
+                          isTouchDevice={isTouchDevice}
+                          activeTouchId={activeTouchId}
+                          onTouchTap={onTouchTap}
+                        />
+                      );
+                    })}
 
                     {/* Milestone diamonds — stacked after all item lanes */}
                     {dayMilestones.map((m, mIdx) => (

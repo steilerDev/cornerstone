@@ -154,7 +154,8 @@ export function SubsidyProgramsPage() {
     setNewApplicationStatus('eligible');
     setNewApplicationDeadline('');
     setNewNotes('');
-    setNewCategoryIds([]);
+    // Default to all categories selected
+    setNewCategoryIds(allCategories.map((c) => c.id));
     setCreateError('');
   };
 
@@ -162,6 +163,23 @@ export function SubsidyProgramsPage() {
     setNewCategoryIds((prev) =>
       prev.includes(categoryId) ? prev.filter((id) => id !== categoryId) : [...prev, categoryId],
     );
+  };
+
+  const handleToggleAllNew = () => {
+    if (newCategoryIds.length === allCategories.length) {
+      setNewCategoryIds([]);
+    } else {
+      setNewCategoryIds(allCategories.map((c) => c.id));
+    }
+  };
+
+  const handleToggleAllEdit = () => {
+    if (!editingProgram) return;
+    if (editingProgram.categoryIds.length === allCategories.length) {
+      setEditingProgram({ ...editingProgram, categoryIds: [] });
+    } else {
+      setEditingProgram({ ...editingProgram, categoryIds: allCategories.map((c) => c.id) });
+    }
   };
 
   const toggleEditCategory = (categoryId: string) => {
@@ -382,6 +400,7 @@ export function SubsidyProgramsPage() {
             onClick={() => {
               setShowCreateForm(true);
               setCreateError('');
+              setNewCategoryIds(allCategories.map((c) => c.id));
             }}
             disabled={showCreateForm}
           >
@@ -565,7 +584,19 @@ export function SubsidyProgramsPage() {
               {/* Row 6: Category picker */}
               {allCategories.length > 0 && (
                 <div className={styles.field}>
-                  <span className={styles.label}>Applicable Budget Categories</span>
+                  <div className={styles.categoryFieldHeader}>
+                    <span className={styles.label}>Applicable Budget Categories</span>
+                    <button
+                      type="button"
+                      className={styles.selectAllToggle}
+                      onClick={handleToggleAllNew}
+                      disabled={isCreating}
+                    >
+                      {newCategoryIds.length === allCategories.length
+                        ? 'Deselect All'
+                        : 'Select All'}
+                    </button>
+                  </div>
                   <div className={styles.categoryCheckboxList}>
                     {allCategories.map((category) => (
                       <label
@@ -820,7 +851,19 @@ export function SubsidyProgramsPage() {
                       {/* Edit Row 6: Category picker */}
                       {allCategories.length > 0 && (
                         <div className={styles.field}>
-                          <span className={styles.label}>Applicable Budget Categories</span>
+                          <div className={styles.categoryFieldHeader}>
+                            <span className={styles.label}>Applicable Budget Categories</span>
+                            <button
+                              type="button"
+                              className={styles.selectAllToggle}
+                              onClick={handleToggleAllEdit}
+                              disabled={isUpdating}
+                            >
+                              {editingProgram.categoryIds.length === allCategories.length
+                                ? 'Deselect All'
+                                : 'Select All'}
+                            </button>
+                          </div>
                           <div className={styles.categoryCheckboxList}>
                             {allCategories.map((category) => (
                               <label

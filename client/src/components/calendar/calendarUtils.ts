@@ -367,6 +367,28 @@ export function getItemColor(itemId: string): number {
   return (hash % 8) + 1; // 1-indexed, 1..8
 }
 
+/**
+ * Returns '#ffffff' or '#000000' — whichever achieves WCAG AA contrast
+ * against the given hex background color.
+ *
+ * @param bgHex - A 6-digit hex color string, with or without '#' prefix (e.g. '#3b82f6' or '3b82f6').
+ */
+export function getContrastTextColor(bgHex: string): string {
+  const hex = bgHex.replace(/^#/, '');
+  if (hex.length !== 6) return '#000000';
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  // sRGB linearisation per WCAG 2.x
+  function linearise(c: number): number {
+    const s = c / 255;
+    return s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  }
+  const L = 0.2126 * linearise(r) + 0.7152 * linearise(g) + 0.0722 * linearise(b);
+  // WCAG AA: use white text when luminance < 0.179 (approx 4.5:1 contrast against white)
+  return L < 0.179 ? '#ffffff' : '#000000';
+}
+
 // ---------------------------------------------------------------------------
 // Display helpers
 // ---------------------------------------------------------------------------

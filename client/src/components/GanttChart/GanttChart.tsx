@@ -1,5 +1,6 @@
 import { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import type { TimelineResponse, WorkItemStatus } from '@cornerstone/shared';
+import { useTouchTooltip } from '../../hooks/useTouchTooltip.js';
 import {
   computeChartRange,
   computeChartWidth,
@@ -103,6 +104,27 @@ const SKELETON_BAR_OFFSETS = [10, 25, 5, 35, 50, 15, 30, 20, 8, 45];
 
 const TOOLTIP_SHOW_DELAY = 120;
 const TOOLTIP_HIDE_DELAY = 80;
+
+// ---------------------------------------------------------------------------
+// Duration helpers for tooltip (#333)
+// ---------------------------------------------------------------------------
+
+/**
+ * Computes the actual/effective duration in calendar days from start and end date strings.
+ * For items in-progress with only a start date, computes elapsed days from start to today.
+ * Returns null if dates are not available.
+ */
+function computeActualDuration(
+  startDate: string | null,
+  endDate: string | null,
+  today: Date,
+): number | null {
+  if (!startDate) return null;
+  const startMs = new Date(startDate).getTime();
+  const endMs = endDate ? new Date(endDate).getTime() : today.getTime();
+  const diffDays = Math.round((endMs - startMs) / (1000 * 60 * 60 * 24));
+  return diffDays >= 0 ? diffDays : null;
+}
 
 // ---------------------------------------------------------------------------
 // Main GanttChart component
@@ -514,6 +536,28 @@ export function GanttChart({
   }, [sortedWorkItems]);
 
   /**
+   * Map from milestone ID → array of work item IDs that depend on the milestone.
+   * Derived from workItem.requiredMilestoneIds (reverse mapping).
+   * Used for milestone tooltip to show "Blocked by this milestone" work items.
+   */
+  const milestoneRequiredBy = useMemo<ReadonlyMap<number, string[]>>(() => {
+    const map = new Map<number, string[]>();
+    for (const item of sortedWorkItems) {
+      if (item.requiredMilestoneIds && item.requiredMilestoneIds.length > 0) {
+        for (const milestoneId of item.requiredMilestoneIds) {
+          const existing = map.get(milestoneId);
+          if (existing) {
+            existing.push(item.id);
+          } else {
+            map.set(milestoneId, [item.id]);
+          }
+        }
+      }
+    }
+    return map;
+  }, [sortedWorkItems]);
+
+  /**
    * Map from milestone ID → title for accessible aria-labels on milestone arrows.
    */
   const milestoneTitles = useMemo<ReadonlyMap<number, string>>(() => {
@@ -720,6 +764,96 @@ export function GanttChart({
   const svgHeight = Math.max(totalRowCount * ROW_HEIGHT, ROW_HEIGHT);
 
   // ---------------------------------------------------------------------------
+  // Touch two-tap interaction (#331)
+  // ---------------------------------------------------------------------------
+
+  const { isTouchDevice, activeTouchId, handleTouchTap } = useTouchTooltip();
+
+  /**
+   * Handles a tap on a GanttBar or sidebar row on touch devices.
+   * First tap: shows the work item tooltip at the center of the viewport.
+   * Second tap on the same item: clears tooltip and navigates.
+   * Tap on a different item: shows that item's tooltip instead.
+   */
+  const handleGanttTouchTap = useCallback(
+    (itemId: string) => {
+      const tooltipItem = workItemMap.get(itemId);
+      handleTouchTap(itemId, () => {
+        // Second tap — clear tooltip and navigate
+        if (showTimerRef.current !== null) {
+          clearTimeout(showTimerRef.current);
+          showTimerRef.current = null;
+        }
+        if (hideTimerRef.current !== null) {
+          clearTimeout(hideTimerRef.current);
+          hideTimerRef.current = null;
+        }
+        setTooltipData(null);
+        setTooltipTriggerId(null);
+        onItemClick?.(itemId);
+      });
+      if (tooltipItem && activeTouchId !== itemId) {
+        // First tap — show tooltip at approximate center of viewport
+        if (showTimerRef.current !== null) {
+          clearTimeout(showTimerRef.current);
+          showTimerRef.current = null;
+        }
+        if (hideTimerRef.current !== null) {
+          clearTimeout(hideTimerRef.current);
+          hideTimerRef.current = null;
+        }
+        const effectiveStart = tooltipItem.actualStartDate ?? tooltipItem.startDate;
+        const effectiveEnd = tooltipItem.actualEndDate ?? tooltipItem.endDate;
+        const actualDurationDays = computeActualDuration(effectiveStart, effectiveEnd, today);
+        const tooltipDeps = itemDependencyLookup.get(itemId)?.tooltipDeps ?? [];
+        setTooltipTriggerId(itemId);
+        setTooltipData({
+          kind: 'work-item',
+          title: tooltipItem.title,
+          status: tooltipItem.status,
+          startDate: tooltipItem.startDate,
+          endDate: tooltipItem.endDate,
+          durationDays: tooltipItem.durationDays,
+          plannedDurationDays: tooltipItem.durationDays,
+          actualDurationDays,
+          assignedUserName: tooltipItem.assignedUser?.displayName ?? null,
+          dependencies: tooltipDeps.length > 0 ? [...tooltipDeps] : undefined,
+        });
+        setTooltipPosition({
+          x: window.innerWidth / 2,
+          y: window.innerHeight / 3,
+        });
+      }
+    },
+    [
+      workItemMap,
+      activeTouchId,
+      itemDependencyLookup,
+      handleTouchTap,
+      onItemClick,
+      today,
+      showTimerRef,
+      hideTimerRef,
+    ],
+  );
+
+  /**
+   * Click handler for GanttBar and GanttSidebar rows.
+   * On touch devices: routes through two-tap pattern.
+   * On pointer devices: calls onItemClick directly.
+   */
+  const handleBarOrSidebarClick = useCallback(
+    (itemId: string) => {
+      if (isTouchDevice) {
+        handleGanttTouchTap(itemId);
+      } else {
+        onItemClick?.(itemId);
+      }
+    },
+    [isTouchDevice, handleGanttTouchTap, onItemClick],
+  );
+
+  // ---------------------------------------------------------------------------
   // Scroll synchronization
   // ---------------------------------------------------------------------------
 
@@ -778,7 +912,7 @@ export function GanttChart({
         items={sortedWorkItems}
         milestones={data.milestones}
         unifiedRows={unifiedRows}
-        onItemClick={onItemClick}
+        onItemClick={handleBarOrSidebarClick}
         ref={sidebarScrollRef}
       />
 
@@ -865,8 +999,9 @@ export function GanttChart({
                   const newPos: GanttTooltipPosition = { x: e.clientX, y: e.clientY };
                   showTimerRef.current = setTimeout(() => {
                     const milestoneStatus = computeMilestoneStatus(milestone);
-                    // Resolve linked work item titles from the data already available client-side
-                    const linkedWorkItems = milestone.workItemIds
+                    // Resolve work items that depend on this milestone (have it in requiredMilestoneIds)
+                    const dependentIds = milestoneRequiredBy.get(milestone.id) ?? [];
+                    const linkedWorkItems = dependentIds
                       .map((wid) => {
                         const wi = workItemMap.get(wid);
                         return wi ? { id: wid, title: wi.title } : null;
@@ -907,7 +1042,9 @@ export function GanttChart({
                   };
                   showTimerRef.current = setTimeout(() => {
                     const milestoneStatus = computeMilestoneStatus(milestone);
-                    const linkedWorkItems = milestone.workItemIds
+                    // Resolve work items that depend on this milestone (have it in requiredMilestoneIds)
+                    const dependentIds = milestoneRequiredBy.get(milestone.id) ?? [];
+                    const linkedWorkItems = dependentIds
                       .map((wid) => {
                         const wi = workItemMap.get(wid);
                         return wi ? { id: wid, title: wi.title } : null;
@@ -951,7 +1088,7 @@ export function GanttChart({
                   width={position.width}
                   rowIndex={rowIndex}
                   fill={colors.barColors[item.status]}
-                  onClick={onItemClick}
+                  onClick={handleBarOrSidebarClick}
                   isCritical={criticalPathSet.has(item.id)}
                   criticalBorderColor={colors.criticalBorder}
                   interactionState={barInteractionStates.get(item.id) ?? 'default'}
@@ -969,16 +1106,14 @@ export function GanttChart({
                     const newPos: GanttTooltipPosition = { x: e.clientX, y: e.clientY };
                     showTimerRef.current = setTimeout(() => {
                       setTooltipTriggerId(item.id);
-                      // Compute delay days: only for not_started items whose start date is in the past
-                      let delayDays: number | null = null;
-                      if (tooltipItem.status === 'not_started' && tooltipItem.startDate !== null) {
-                        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-                        if (tooltipItem.startDate < todayStr) {
-                          const startMs = new Date(tooltipItem.startDate).getTime();
-                          const todayMs = new Date(todayStr).getTime();
-                          delayDays = Math.floor((todayMs - startMs) / (1000 * 60 * 60 * 24));
-                        }
-                      }
+                      // Compute planned vs actual duration for tooltip (#333)
+                      const effectiveStart = tooltipItem.actualStartDate ?? tooltipItem.startDate;
+                      const effectiveEnd = tooltipItem.actualEndDate ?? tooltipItem.endDate;
+                      const actualDurationDays = computeActualDuration(
+                        effectiveStart,
+                        effectiveEnd,
+                        today,
+                      );
                       const tooltipDeps = itemDependencyLookup.get(item.id)?.tooltipDeps ?? [];
                       setTooltipData({
                         kind: 'work-item',
@@ -987,9 +1122,10 @@ export function GanttChart({
                         startDate: tooltipItem.startDate,
                         endDate: tooltipItem.endDate,
                         durationDays: tooltipItem.durationDays,
+                        plannedDurationDays: tooltipItem.durationDays,
+                        actualDurationDays,
                         assignedUserName: tooltipItem.assignedUser?.displayName ?? null,
                         dependencies: tooltipDeps.length > 0 ? [...tooltipDeps] : undefined,
-                        delayDays,
                       });
                       setTooltipPosition(newPos);
                     }, TOOLTIP_SHOW_DELAY);
@@ -1020,16 +1156,14 @@ export function GanttChart({
                     };
                     showTimerRef.current = setTimeout(() => {
                       setTooltipTriggerId(item.id);
-                      // Compute delay days: only for not_started items whose start date is in the past
-                      let delayDays: number | null = null;
-                      if (tooltipItem.status === 'not_started' && tooltipItem.startDate !== null) {
-                        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-                        if (tooltipItem.startDate < todayStr) {
-                          const startMs = new Date(tooltipItem.startDate).getTime();
-                          const todayMs = new Date(todayStr).getTime();
-                          delayDays = Math.floor((todayMs - startMs) / (1000 * 60 * 60 * 24));
-                        }
-                      }
+                      // Compute planned vs actual duration for tooltip (#333)
+                      const effectiveStart = tooltipItem.actualStartDate ?? tooltipItem.startDate;
+                      const effectiveEnd = tooltipItem.actualEndDate ?? tooltipItem.endDate;
+                      const actualDurationDays = computeActualDuration(
+                        effectiveStart,
+                        effectiveEnd,
+                        today,
+                      );
                       const tooltipDeps = itemDependencyLookup.get(item.id)?.tooltipDeps ?? [];
                       setTooltipData({
                         kind: 'work-item',
@@ -1038,9 +1172,10 @@ export function GanttChart({
                         startDate: tooltipItem.startDate,
                         endDate: tooltipItem.endDate,
                         durationDays: tooltipItem.durationDays,
+                        plannedDurationDays: tooltipItem.durationDays,
+                        actualDurationDays,
                         assignedUserName: tooltipItem.assignedUser?.displayName ?? null,
                         dependencies: tooltipDeps.length > 0 ? [...tooltipDeps] : undefined,
-                        delayDays,
                       });
                       setTooltipPosition(newPos);
                     }, TOOLTIP_SHOW_DELAY);

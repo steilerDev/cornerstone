@@ -29,8 +29,15 @@ export interface GanttTooltipWorkItemData {
    * When absent or empty, no "Dependencies" section is rendered in the tooltip.
    */
   dependencies?: GanttTooltipDependencyEntry[];
-  /** Number of days delayed (only present for not_started items whose start date is past). */
+  /**
+   * @deprecated Delay indicator has been removed from work item tooltips.
+   * Only milestones track late/delay status. Field retained for type compatibility.
+   */
   delayDays?: number | null;
+  /** User-set planned duration in days. Null if not explicitly set. */
+  plannedDurationDays?: number | null;
+  /** Computed actual/effective duration in days (from start/end dates). Null if not computable. */
+  actualDurationDays?: number | null;
 }
 
 export interface GanttTooltipMilestoneData {
@@ -43,7 +50,7 @@ export interface GanttTooltipMilestoneData {
   /** True when not completed and projectedDate > targetDate. */
   isLate: boolean;
   completedAt: string | null;
-  /** Linked work items with their IDs and titles (replaces old linkedWorkItemCount). */
+  /** Work items that depend on this milestone (have this milestone in their requiredMilestoneIds). */
   linkedWorkItems: { id: string; title: string }[];
 }
 
@@ -96,8 +103,9 @@ const TOOLTIP_WIDTH = 240;
  * Base height estimate for tooltip flip-logic. When the work-item tooltip has
  * visible dependencies, the actual rendered height will be larger — we add
  * 18px per dependency row on top of this base when computing the flip point.
+ * Increased from 130 to 165 to account for planned/actual/variance duration rows.
  */
-const TOOLTIP_HEIGHT_BASE = 130;
+const TOOLTIP_HEIGHT_BASE = 165;
 const TOOLTIP_HEIGHT_ESTIMATE = 200; // safe upper bound used for arrow/milestone tooltips
 const OFFSET_X = 12;
 const OFFSET_Y = 8;
@@ -157,19 +165,58 @@ function WorkItemTooltipContent({ data }: { data: GanttTooltipWorkItemData }) {
         <span className={styles.detailValue}>{formatDisplayDate(data.endDate)}</span>
       </div>
 
-      {/* Duration */}
-      <div className={styles.detailRow}>
-        <span className={styles.detailLabel}>Duration</span>
-        <span className={styles.detailValue}>{formatDuration(data.durationDays)}</span>
-      </div>
-
-      {/* Delay indicator */}
-      {data.delayDays != null && data.delayDays > 0 && (
+      {/* Duration section — planned/actual/variance when both available, single row fallback */}
+      {data.plannedDurationDays != null && data.actualDurationDays != null ? (
+        <>
+          <div className={styles.separator} aria-hidden="true" />
+          <div className={styles.detailRow}>
+            <span className={styles.detailLabel}>Planned</span>
+            <span className={styles.detailValue}>{formatDuration(data.plannedDurationDays)}</span>
+          </div>
+          <div className={styles.detailRow}>
+            <span className={styles.detailLabel}>Actual</span>
+            <span className={styles.detailValue}>{formatDuration(data.actualDurationDays)}</span>
+          </div>
+          {(() => {
+            const variance = data.actualDurationDays - data.plannedDurationDays;
+            if (variance === 0) {
+              return (
+                <div className={styles.detailRow}>
+                  <span className={styles.detailLabel}>Variance</span>
+                  <span className={styles.detailValue}>On plan</span>
+                </div>
+              );
+            }
+            const absVariance = Math.abs(variance);
+            const label = variance > 0 ? `+${absVariance}` : `-${absVariance}`;
+            const dayWord = absVariance === 1 ? 'day' : 'days';
+            const varianceClass =
+              variance > 0 ? styles.detailValueOverPlan : styles.detailValueUnderPlan;
+            return (
+              <div className={styles.detailRow}>
+                <span className={styles.detailLabel}>Variance</span>
+                <span className={`${styles.detailValue} ${varianceClass}`}>
+                  {label} {dayWord}
+                </span>
+              </div>
+            );
+          })()}
+          <div className={styles.separator} aria-hidden="true" />
+        </>
+      ) : data.plannedDurationDays != null ? (
         <div className={styles.detailRow}>
-          <span className={styles.detailLabel}>Delay</span>
-          <span className={`${styles.detailValue} ${styles.detailValueDelay}`}>
-            {data.delayDays} {data.delayDays === 1 ? 'day' : 'days'}
-          </span>
+          <span className={styles.detailLabel}>Planned</span>
+          <span className={styles.detailValue}>{formatDuration(data.plannedDurationDays)}</span>
+        </div>
+      ) : data.actualDurationDays != null ? (
+        <div className={styles.detailRow}>
+          <span className={styles.detailLabel}>Duration</span>
+          <span className={styles.detailValue}>{formatDuration(data.actualDurationDays)}</span>
+        </div>
+      ) : (
+        <div className={styles.detailRow}>
+          <span className={styles.detailLabel}>Duration</span>
+          <span className={styles.detailValue}>{formatDuration(data.durationDays)}</span>
         </div>
       )}
 
@@ -280,16 +327,18 @@ function MilestoneTooltipContent({ data }: { data: GanttTooltipMilestoneData }) 
         </div>
       )}
 
-      {/* Linked work items list */}
+      {/* Dependent work items list — work items that depend on this milestone */}
       {linkedWorkItems.length === 0 ? (
         <div className={styles.detailRow}>
-          <span className={styles.detailLabel}>Items</span>
+          <span className={styles.detailLabel}>Blocked</span>
           <span className={styles.detailValue}>None</span>
         </div>
       ) : (
         <div className={styles.linkedItemsSection}>
-          <span className={styles.linkedItemsLabel}>Linked ({linkedWorkItems.length})</span>
-          <ul className={styles.linkedItemsList} aria-label="Linked work items">
+          <span className={styles.linkedItemsLabel}>
+            Blocked by this ({linkedWorkItems.length})
+          </span>
+          <ul className={styles.linkedItemsList} aria-label="Work items blocked by this milestone">
             {shownItems.map((item) => (
               <li key={item.id} className={styles.linkedItem}>
                 {item.title}

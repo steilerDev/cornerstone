@@ -756,7 +756,7 @@ describe('GanttTooltip — milestone kind (no dependencies section)', () => {
     expect(screen.getByText('Target')).toBeInTheDocument();
   });
 
-  it('milestone tooltip with linkedWorkItems shows linked count', () => {
+  it('milestone tooltip with linkedWorkItems shows "Blocked by this (N)" label', () => {
     const msWithItems: GanttTooltipMilestoneData = {
       ...MILESTONE_DATA,
       linkedWorkItems: [
@@ -765,7 +765,7 @@ describe('GanttTooltip — milestone kind (no dependencies section)', () => {
       ],
     };
     render(<GanttTooltip data={msWithItems} position={{ x: 100, y: 200 }} />);
-    expect(screen.getByText(/Linked \(2\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Blocked by this \(2\)/)).toBeInTheDocument();
   });
 
   it('milestone tooltip linked items overflow indicator shows "+N more" when > 5 linked items', () => {
@@ -778,5 +778,87 @@ describe('GanttTooltip — milestone kind (no dependencies section)', () => {
     };
     render(<GanttTooltip data={msWithSixItems} position={{ x: 100, y: 200 }} />);
     expect(screen.getByText('+1 more')).toBeInTheDocument();
+  });
+
+  it('milestone tooltip with no linked items shows "Blocked / None" row', () => {
+    render(<GanttTooltip data={MILESTONE_DATA} position={{ x: 100, y: 200 }} />);
+    expect(screen.getByText('Blocked')).toBeInTheDocument();
+    expect(screen.getByText('None')).toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GanttTooltip — planned/actual duration and variance display (#333)
+// ---------------------------------------------------------------------------
+
+describe('GanttTooltip — planned/actual duration and variance (#333)', () => {
+  beforeEach(() => {
+    Object.defineProperty(window, 'innerWidth', { writable: true, value: 1280 });
+    Object.defineProperty(window, 'innerHeight', { writable: true, value: 800 });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(window, 'innerWidth', { writable: true, value: 1280 });
+    Object.defineProperty(window, 'innerHeight', { writable: true, value: 800 });
+  });
+
+  it('shows "Planned" and "Actual" rows when both plannedDurationDays and actualDurationDays are provided', () => {
+    renderTooltip({ plannedDurationDays: 14, actualDurationDays: 14, durationDays: 14 });
+    expect(screen.getByText('Planned')).toBeInTheDocument();
+    expect(screen.getByText('Actual')).toBeInTheDocument();
+  });
+
+  it('shows "Variance" row when both plannedDurationDays and actualDurationDays are provided', () => {
+    renderTooltip({ plannedDurationDays: 14, actualDurationDays: 16, durationDays: 14 });
+    expect(screen.getByText('Variance')).toBeInTheDocument();
+  });
+
+  it('shows "On plan" variance when actual equals planned', () => {
+    renderTooltip({ plannedDurationDays: 14, actualDurationDays: 14, durationDays: 14 });
+    expect(screen.getByText('On plan')).toBeInTheDocument();
+  });
+
+  it('shows "+N days" variance when actual exceeds planned (over plan)', () => {
+    renderTooltip({ plannedDurationDays: 10, actualDurationDays: 13, durationDays: 10 });
+    expect(screen.getByText('+3 days')).toBeInTheDocument();
+  });
+
+  it('shows "-N days" variance when actual is less than planned (under plan)', () => {
+    renderTooltip({ plannedDurationDays: 10, actualDurationDays: 7, durationDays: 10 });
+    expect(screen.getByText('-3 days')).toBeInTheDocument();
+  });
+
+  it('uses singular "day" when variance is exactly 1', () => {
+    renderTooltip({ plannedDurationDays: 10, actualDurationDays: 11, durationDays: 10 });
+    expect(screen.getByText('+1 day')).toBeInTheDocument();
+  });
+
+  it('falls back to "Planned" row only when only plannedDurationDays is set', () => {
+    renderTooltip({ plannedDurationDays: 10, actualDurationDays: undefined, durationDays: 10 });
+    expect(screen.getByText('Planned')).toBeInTheDocument();
+    expect(screen.queryByText('Actual')).not.toBeInTheDocument();
+    expect(screen.queryByText('Variance')).not.toBeInTheDocument();
+  });
+
+  it('falls back to "Duration" row when neither plannedDurationDays nor actualDurationDays is set', () => {
+    renderTooltip({
+      plannedDurationDays: undefined,
+      actualDurationDays: undefined,
+      durationDays: 14,
+    });
+    expect(screen.getByText('Duration')).toBeInTheDocument();
+    expect(screen.queryByText('Planned')).not.toBeInTheDocument();
+    expect(screen.queryByText('Actual')).not.toBeInTheDocument();
+  });
+
+  it('does NOT show delay info for work items (delay removed in #330)', () => {
+    // The delayDays field exists for type compatibility only — no UI shows it
+    renderTooltip({
+      durationDays: 14,
+      plannedDurationDays: undefined,
+      actualDurationDays: undefined,
+    });
+    expect(screen.queryByText(/Delay/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Late/i)).not.toBeInTheDocument();
   });
 });

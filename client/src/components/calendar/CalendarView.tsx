@@ -11,11 +11,16 @@
 
 import { useState, useCallback, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import type { TimelineWorkItem, TimelineMilestone } from '@cornerstone/shared';
+import type { TimelineWorkItem, TimelineMilestone, TimelineDependency } from '@cornerstone/shared';
+import { useTouchTooltip } from '../../hooks/useTouchTooltip.js';
 import { MonthGrid } from './MonthGrid.js';
 import { WeekGrid } from './WeekGrid.js';
 import { GanttTooltip } from '../GanttChart/GanttTooltip.js';
-import type { GanttTooltipData, GanttTooltipPosition } from '../GanttChart/GanttTooltip.js';
+import type {
+  GanttTooltipData,
+  GanttTooltipPosition,
+  GanttTooltipDependencyEntry,
+} from '../GanttChart/GanttTooltip.js';
 import { computeMilestoneStatus } from '../GanttChart/GanttMilestones.js';
 import {
   parseIsoDate,
@@ -39,6 +44,8 @@ export type CalendarMode = 'month' | 'week';
 export interface CalendarViewProps {
   workItems: TimelineWorkItem[];
   milestones: TimelineMilestone[];
+  /** Dependency edges — used to populate the tooltip Dependencies section. */
+  dependencies?: TimelineDependency[];
   /** Called when user clicks a milestone diamond — opens the milestone panel. */
   onMilestoneClick?: (milestoneId: number) => void;
 }
@@ -118,7 +125,12 @@ const TOOLTIP_ID = 'calendar-view-tooltip';
 // CalendarView component
 // ---------------------------------------------------------------------------
 
-export function CalendarView({ workItems, milestones, onMilestoneClick }: CalendarViewProps) {
+export function CalendarView({
+  workItems,
+  milestones,
+  dependencies = [],
+  onMilestoneClick,
+}: CalendarViewProps) {
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Track which item is hovered for cross-cell highlighting
@@ -144,6 +156,9 @@ export function CalendarView({ workItems, milestones, onMilestoneClick }: Calend
   // Tooltip state
   // ---------------------------------------------------------------------------
 
+  // Two-tap touch interaction state
+  const { isTouchDevice, activeTouchId, handleTouchTap } = useTouchTooltip();
+
   const [tooltipData, setTooltipData] = useState<GanttTooltipData | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState<GanttTooltipPosition>({ x: 0, y: 0 });
   const tooltipShowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -165,13 +180,75 @@ export function CalendarView({ workItems, milestones, onMilestoneClick }: Calend
 
   const milestoneById = useMemo(() => new Map(milestones.map((m) => [m.id, m])), [milestones]);
 
-  const handleWorkItemMouseEnter = useCallback(
-    (itemId: string, mouseX: number, mouseY: number) => {
-      clearTooltipTimers();
-      handleItemHoverStart(itemId);
+  // Build per-item dependency tooltip entries (predecessors + successors)
+  const itemTooltipDepsMap = useMemo(() => {
+    const map = new Map<string, GanttTooltipDependencyEntry[]>();
+    const idToTitle = new Map(workItems.map((wi) => [wi.id, wi.title]));
+    for (const dep of dependencies) {
+      const predTitle = idToTitle.get(dep.predecessorId);
+      const succTitle = idToTitle.get(dep.successorId);
+      if (predTitle !== undefined) {
+        // For the predecessor: this dep makes it a predecessor of the successor
+        const existing = map.get(dep.predecessorId) ?? [];
+        if (succTitle !== undefined) {
+          existing.push({
+            relatedTitle: succTitle,
+            dependencyType: dep.dependencyType,
+            role: 'successor',
+          });
+        }
+        map.set(dep.predecessorId, existing);
+      }
+      if (succTitle !== undefined) {
+        // For the successor: this dep makes it a successor of the predecessor
+        const existing = map.get(dep.successorId) ?? [];
+        if (predTitle !== undefined) {
+          existing.push({
+            relatedTitle: predTitle,
+            dependencyType: dep.dependencyType,
+            role: 'predecessor',
+          });
+        }
+        map.set(dep.successorId, existing);
+      }
+    }
+    return map;
+  }, [dependencies, workItems]);
+
+  // Build reverse map: milestone ID → work item IDs that depend on it (via requiredMilestoneIds)
+  const milestoneRequiredBy = useMemo(() => {
+    const map = new Map<number, string[]>();
+    for (const item of workItems) {
+      if (item.requiredMilestoneIds && item.requiredMilestoneIds.length > 0) {
+        for (const milestoneId of item.requiredMilestoneIds) {
+          const existing = map.get(milestoneId);
+          if (existing) {
+            existing.push(item.id);
+          } else {
+            map.set(milestoneId, [item.id]);
+          }
+        }
+      }
+    }
+    return map;
+  }, [workItems]);
+
+  // When a first touch-tap occurs on a work item, show its tooltip and register for two-tap
+  const handleCalendarItemTouchTap = useCallback(
+    (itemId: string, onNavigate: () => void) => {
       const item = workItemById.get(itemId);
-      if (!item) return;
-      tooltipShowTimerRef.current = setTimeout(() => {
+      if (item && activeTouchId !== itemId) {
+        // First tap: build tooltip data and show it
+        const today = new Date();
+        const effectiveStart = item.actualStartDate ?? item.startDate;
+        const effectiveEnd = item.actualEndDate ?? item.endDate;
+        let actualDurationDays: number | null = null;
+        if (effectiveStart) {
+          const startMs = new Date(effectiveStart).getTime();
+          const endMs = effectiveEnd ? new Date(effectiveEnd).getTime() : today.getTime();
+          const diffDays = Math.round((endMs - startMs) / (1000 * 60 * 60 * 24));
+          actualDurationDays = diffDays >= 0 ? diffDays : null;
+        }
         setTooltipData({
           kind: 'work-item',
           title: item.title,
@@ -180,11 +257,61 @@ export function CalendarView({ workItems, milestones, onMilestoneClick }: Calend
           endDate: item.endDate,
           durationDays: item.durationDays,
           assignedUserName: item.assignedUser?.displayName ?? null,
+          plannedDurationDays: item.durationDays,
+          actualDurationDays,
+          dependencies: itemTooltipDepsMap.get(itemId),
+        });
+        // Position tooltip at viewport center as a safe default for touch
+        setTooltipPosition({
+          x: typeof window !== 'undefined' ? window.innerWidth / 2 : 300,
+          y: typeof window !== 'undefined' ? window.innerHeight / 3 : 200,
+        });
+      } else {
+        // Same item second tap — hide tooltip (navigation will follow)
+        setTooltipData(null);
+      }
+      handleTouchTap(itemId, () => {
+        setTooltipData(null);
+        onNavigate();
+      });
+    },
+    [workItemById, activeTouchId, itemTooltipDepsMap, handleTouchTap],
+  );
+
+  const handleWorkItemMouseEnter = useCallback(
+    (itemId: string, mouseX: number, mouseY: number) => {
+      clearTooltipTimers();
+      handleItemHoverStart(itemId);
+      const item = workItemById.get(itemId);
+      if (!item) return;
+      tooltipShowTimerRef.current = setTimeout(() => {
+        // Compute actual duration from actual/scheduled dates
+        const today = new Date();
+        const effectiveStart = item.actualStartDate ?? item.startDate;
+        const effectiveEnd = item.actualEndDate ?? item.endDate;
+        let actualDurationDays: number | null = null;
+        if (effectiveStart) {
+          const startMs = new Date(effectiveStart).getTime();
+          const endMs = effectiveEnd ? new Date(effectiveEnd).getTime() : today.getTime();
+          const diffDays = Math.round((endMs - startMs) / (1000 * 60 * 60 * 24));
+          actualDurationDays = diffDays >= 0 ? diffDays : null;
+        }
+        setTooltipData({
+          kind: 'work-item',
+          title: item.title,
+          status: item.status,
+          startDate: item.startDate,
+          endDate: item.endDate,
+          durationDays: item.durationDays,
+          assignedUserName: item.assignedUser?.displayName ?? null,
+          plannedDurationDays: item.durationDays,
+          actualDurationDays,
+          dependencies: itemTooltipDepsMap.get(itemId),
         });
         setTooltipPosition({ x: mouseX, y: mouseY });
       }, TOOLTIP_SHOW_DELAY);
     },
-    [workItemById, handleItemHoverStart],
+    [workItemById, handleItemHoverStart, itemTooltipDepsMap],
   );
 
   const handleWorkItemMouseLeave = useCallback(() => {
@@ -206,7 +333,9 @@ export function CalendarView({ workItems, milestones, onMilestoneClick }: Calend
       if (!milestone) return;
       tooltipShowTimerRef.current = setTimeout(() => {
         const milestoneStatus = computeMilestoneStatus(milestone);
-        const linkedWorkItems = milestone.workItemIds
+        // Show work items that depend on this milestone (have it in requiredMilestoneIds)
+        const dependentIds = milestoneRequiredBy.get(milestoneId) ?? [];
+        const linkedWorkItems = dependentIds
           .map((wid) => {
             const wi = workItemById.get(wid);
             return wi ? { id: wid, title: wi.title } : null;
@@ -225,7 +354,7 @@ export function CalendarView({ workItems, milestones, onMilestoneClick }: Calend
         setTooltipPosition({ x: mouseX, y: mouseY });
       }, TOOLTIP_SHOW_DELAY);
     },
-    [milestoneById, workItemById],
+    [milestoneById, workItemById, milestoneRequiredBy],
   );
 
   const handleMilestoneMouseLeave = useCallback(() => {
@@ -415,6 +544,9 @@ export function CalendarView({ workItems, milestones, onMilestoneClick }: Calend
             onMilestoneMouseEnter={handleMilestoneMouseEnter}
             onMilestoneMouseLeave={handleMilestoneMouseLeave}
             onMilestoneMouseMove={handleMilestoneMouseMove}
+            isTouchDevice={isTouchDevice}
+            activeTouchId={activeTouchId}
+            onTouchTap={handleCalendarItemTouchTap}
           />
         ) : (
           <WeekGrid
@@ -429,6 +561,9 @@ export function CalendarView({ workItems, milestones, onMilestoneClick }: Calend
             onMilestoneMouseEnter={handleMilestoneMouseEnter}
             onMilestoneMouseLeave={handleMilestoneMouseLeave}
             onMilestoneMouseMove={handleMilestoneMouseMove}
+            isTouchDevice={isTouchDevice}
+            activeTouchId={activeTouchId}
+            onTouchTap={handleCalendarItemTouchTap}
           />
         )}
       </div>

@@ -54,8 +54,34 @@ export interface CalendarItemProps {
   /**
    * Color index (1-8) derived from getItemColor(item.id).
    * Maps to --calendar-item-N-bg / --calendar-item-N-text tokens.
+   * Ignored when tagColor is provided.
    */
   colorIndex?: number;
+  /**
+   * Tag color hex string (e.g. '#3b82f6') from the item's first tag.
+   * When provided, overrides the palette colorIndex with the actual tag color.
+   */
+  tagColor?: string | null;
+  /**
+   * Contrast-safe text color ('#ffffff' or '#000000') computed from tagColor.
+   * Required when tagColor is provided.
+   */
+  tagTextColor?: string;
+  /**
+   * When true (touch device), clicking this item triggers a two-tap pattern:
+   * first tap shows tooltip, second tap navigates. Managed by the parent.
+   */
+  isTouchDevice?: boolean;
+  /**
+   * ID of the item currently "touch-activated" (showing tooltip on touch).
+   * When this equals item.id, navigate on next tap.
+   */
+  activeTouchId?: string | null;
+  /**
+   * Callback invoked on touch tap. Parent handles the two-tap state.
+   * Called with item.id and a navigate callback.
+   */
+  onTouchTap?: (itemId: string, onNavigate: () => void) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -82,11 +108,24 @@ export function CalendarItem({
   onMouseMove,
   laneIndex,
   colorIndex,
+  tagColor,
+  tagTextColor,
+  isTouchDevice = false,
+  activeTouchId: _activeTouchId = null,
+  onTouchTap,
 }: CalendarItemProps) {
   const navigate = useNavigate();
 
-  function handleClick() {
+  function doNavigate() {
     void navigate(`/work-items/${item.id}`, { state: { from: 'timeline', view: 'calendar' } });
+  }
+
+  function handleClick() {
+    if (isTouchDevice && onTouchTap) {
+      onTouchTap(item.id, doNavigate);
+    } else {
+      doNavigate();
+    }
   }
 
   function handleKeyDown(e: ReactKeyboardEvent<HTMLDivElement>) {
@@ -129,14 +168,16 @@ export function CalendarItem({
         }
       : {};
 
-  // Palette color overrides the CSS status class color via inline style specificity.
+  // Tag color takes precedence over palette index; palette index overrides default status color.
   const colorStyle: CSSProperties =
-    colorIndex !== undefined
-      ? {
-          background: `var(--calendar-item-${colorIndex}-bg)`,
-          color: `var(--calendar-item-${colorIndex}-text)`,
-        }
-      : {};
+    tagColor != null && tagTextColor != null
+      ? { background: tagColor, color: tagTextColor }
+      : colorIndex !== undefined
+        ? {
+            background: `var(--calendar-item-${colorIndex}-bg)`,
+            color: `var(--calendar-item-${colorIndex}-text)`,
+          }
+        : {};
 
   return (
     <div

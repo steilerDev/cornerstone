@@ -402,4 +402,98 @@ describe('CalendarItem', () => {
       expect(el.className).not.toContain('highlighted');
     });
   });
+
+  // ── tagColor / tagTextColor — #335 color-coding by tag ────────────────────
+
+  describe('tagColor and tagTextColor props', () => {
+    it('applies inline background style when tagColor is provided', () => {
+      render(
+        <MemoryRouter>
+          <CalendarItem item={makeItem()} isStart isEnd tagColor="#3b82f6" tagTextColor="#ffffff" />
+        </MemoryRouter>,
+      );
+      const el = screen.getByTestId('calendar-item');
+      expect(el.style.background).toBe('rgb(59, 130, 246)'); // #3b82f6
+    });
+
+    it('applies inline color style when tagTextColor is provided', () => {
+      render(
+        <MemoryRouter>
+          <CalendarItem item={makeItem()} isStart isEnd tagColor="#3b82f6" tagTextColor="#ffffff" />
+        </MemoryRouter>,
+      );
+      const el = screen.getByTestId('calendar-item');
+      expect(el.style.color).toBe('rgb(255, 255, 255)'); // #ffffff
+    });
+
+    it('uses CSS variable when colorIndex is provided and tagColor is null', () => {
+      render(
+        <MemoryRouter>
+          <CalendarItem item={makeItem()} isStart isEnd colorIndex={3} tagColor={null} />
+        </MemoryRouter>,
+      );
+      const el = screen.getByTestId('calendar-item');
+      // colorIndex uses CSS variable reference — inline style contains var()
+      expect(el.style.background).toContain('var(--calendar-item-3-bg)');
+    });
+
+    it('renders with no inline color when neither tagColor nor colorIndex is provided', () => {
+      render(
+        <MemoryRouter>
+          <CalendarItem item={makeItem()} isStart isEnd />
+        </MemoryRouter>,
+      );
+      const el = screen.getByTestId('calendar-item');
+      // No explicit background set — empty string or inherits
+      expect(el.style.background).toBeFalsy();
+    });
+  });
+
+  // ── touch two-tap (#331) ──────────────────────────────────────────────────
+
+  describe('touch two-tap interaction', () => {
+    it('calls onTouchTap instead of navigating on first tap when isTouchDevice=true', () => {
+      const onTouchTap = jest.fn<(itemId: string, onNavigate: () => void) => void>();
+      render(
+        <MemoryRouter>
+          <CalendarItem
+            item={makeItem()}
+            isStart
+            isEnd
+            isTouchDevice
+            onTouchTap={onTouchTap as ReturnType<typeof jest.fn>}
+          />
+        </MemoryRouter>,
+      );
+      fireEvent.click(screen.getByTestId('calendar-item'));
+      expect(onTouchTap).toHaveBeenCalledWith('item-1', expect.any(Function));
+    });
+
+    it('does NOT call onTouchTap when isTouchDevice=false', () => {
+      const onTouchTap = jest.fn<(itemId: string, onNavigate: () => void) => void>();
+      render(
+        <MemoryRouter>
+          <CalendarItem
+            item={makeItem()}
+            isStart
+            isEnd
+            isTouchDevice={false}
+            onTouchTap={onTouchTap as ReturnType<typeof jest.fn>}
+          />
+        </MemoryRouter>,
+      );
+      // On non-touch: click navigates directly, onTouchTap is NOT called
+      fireEvent.click(screen.getByTestId('calendar-item'));
+      expect(onTouchTap).not.toHaveBeenCalled();
+    });
+
+    it('does not throw when isTouchDevice=true but onTouchTap is not provided', () => {
+      render(
+        <MemoryRouter>
+          <CalendarItem item={makeItem()} isStart isEnd isTouchDevice />
+        </MemoryRouter>,
+      );
+      expect(() => fireEvent.click(screen.getByTestId('calendar-item'))).not.toThrow();
+    });
+  });
 });

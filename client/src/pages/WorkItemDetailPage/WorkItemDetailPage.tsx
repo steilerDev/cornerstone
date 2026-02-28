@@ -189,6 +189,26 @@ export default function WorkItemDetailPage() {
   const [localStartBefore, setLocalStartBefore] = useState<string>('');
   const [localActualStartDate, setLocalActualStartDate] = useState<string>('');
   const [localActualEndDate, setLocalActualEndDate] = useState<string>('');
+
+  // Autosave indicator state per inline-edited field
+  type AutosaveState = 'idle' | 'saving' | 'success' | 'error';
+  const [autosaveDuration, setAutosaveDuration] = useState<AutosaveState>('idle');
+  const [autosaveStartAfter, setAutosaveStartAfter] = useState<AutosaveState>('idle');
+  const [autosaveStartBefore, setAutosaveStartBefore] = useState<AutosaveState>('idle');
+  const [autosaveActualStart, setAutosaveActualStart] = useState<AutosaveState>('idle');
+  const [autosaveActualEnd, setAutosaveActualEnd] = useState<AutosaveState>('idle');
+  // Timeouts to auto-reset indicator back to idle after success/error
+  const autosaveResetRefs = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  function triggerAutosaveReset(setter: (v: AutosaveState) => void, key: string) {
+    if (autosaveResetRefs.current[key]) {
+      clearTimeout(autosaveResetRefs.current[key]);
+    }
+    autosaveResetRefs.current[key] = setTimeout(() => {
+      setter('idle');
+    }, 2000);
+  }
+
   const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
   const [deletingSubtaskId, setDeletingSubtaskId] = useState<string | null>(null);
   const [deletingDependency, setDeletingDependency] = useState<DeletingDependency | null>(null);
@@ -646,10 +666,15 @@ export default function WorkItemDetailPage() {
     if (duration === currentDuration) return;
 
     setInlineError(null);
+    setAutosaveDuration('saving');
     try {
       await updateWorkItem(id, { durationDays: duration });
       await reloadWorkItem();
+      setAutosaveDuration('success');
+      triggerAutosaveReset(setAutosaveDuration, 'duration');
     } catch (err) {
+      setAutosaveDuration('error');
+      triggerAutosaveReset(setAutosaveDuration, 'duration');
       setInlineError('Failed to update duration');
       console.error('Failed to update duration:', err);
     }
@@ -665,10 +690,16 @@ export default function WorkItemDetailPage() {
     if (localValue === currentValue) return;
 
     setInlineError(null);
+    const setter = field === 'startAfter' ? setAutosaveStartAfter : setAutosaveStartBefore;
+    setter('saving');
     try {
       await updateWorkItem(id, { [field]: localValue || null });
       await reloadWorkItem();
+      setter('success');
+      triggerAutosaveReset(setter, field);
     } catch (err) {
+      setter('error');
+      triggerAutosaveReset(setter, field);
       setInlineError(`Failed to update ${field}`);
       console.error(`Failed to update ${field}:`, err);
     }
@@ -684,10 +715,16 @@ export default function WorkItemDetailPage() {
     if (localValue === currentValue) return;
 
     setInlineError(null);
+    const setter = field === 'actualStartDate' ? setAutosaveActualStart : setAutosaveActualEnd;
+    setter('saving');
     try {
       await updateWorkItem(id, { [field]: localValue || null });
       await reloadWorkItem();
+      setter('success');
+      triggerAutosaveReset(setter, field);
     } catch (err) {
+      setter('error');
+      triggerAutosaveReset(setter, field);
       setInlineError(
         `Failed to update ${field === 'actualStartDate' ? 'actual start date' : 'actual end date'}`,
       );
@@ -1058,6 +1095,17 @@ export default function WorkItemDetailPage() {
   // Compute budget line totals
   const totalPlanned = budgetLines.reduce((sum, b) => sum + b.plannedAmount, 0);
   const totalActualCost = budgetLines.reduce((sum, b) => sum + b.actualCost, 0);
+  // Confidence-based min/max planned range: each line contributes amount ± margin
+  const totalMinPlanned = budgetLines.reduce((sum, b) => {
+    const margin = CONFIDENCE_MARGINS[b.confidence] ?? 0;
+    return sum + b.plannedAmount * (1 - margin);
+  }, 0);
+  const totalMaxPlanned = budgetLines.reduce((sum, b) => {
+    const margin = CONFIDENCE_MARGINS[b.confidence] ?? 0;
+    return sum + b.plannedAmount * (1 + margin);
+  }, 0);
+  // Show range only when there's meaningful variance (min !== max)
+  const hasPlannedRange = Math.abs(totalMaxPlanned - totalMinPlanned) > 0.01;
 
   // Subsidies not yet linked
   const linkedSubsidyIds = new Set(linkedSubsidies.map((s) => s.id));
@@ -1303,16 +1351,22 @@ export default function WorkItemDetailPage() {
                         </span>
                       </div>
                       <div className={styles.property}>
-                        <span className={styles.propertyLabel}>Total Planned</span>
+                        <span className={styles.propertyLabel}>Planned Range</span>
                         <span className={styles.budgetValueMuted}>
-                          {formatCurrency(totalPlanned)}
+                          {hasPlannedRange
+                            ? `${formatCurrency(totalMinPlanned)} – ${formatCurrency(totalMaxPlanned)}`
+                            : formatCurrency(totalPlanned)}
                         </span>
                       </div>
                     </>
                   ) : (
                     <div className={styles.property}>
-                      <span className={styles.propertyLabel}>Total Planned</span>
-                      <span className={styles.budgetValue}>{formatCurrency(totalPlanned)}</span>
+                      <span className={styles.propertyLabel}>Planned Range</span>
+                      <span className={styles.budgetValue}>
+                        {hasPlannedRange
+                          ? `${formatCurrency(totalMinPlanned)} – ${formatCurrency(totalMaxPlanned)}`
+                          : formatCurrency(totalPlanned)}
+                      </span>
                     </div>
                   )}
                   <div className={styles.property}>
@@ -1876,15 +1930,29 @@ export default function WorkItemDetailPage() {
               <h3 className={styles.subsectionTitle}>Duration</h3>
               <div className={styles.property}>
                 <label className={styles.propertyLabel}>Duration (days)</label>
-                <input
-                  type="number"
-                  className={styles.propertyInput}
-                  value={localDuration}
-                  onChange={(e) => setLocalDuration(e.target.value)}
-                  onBlur={() => void handleDurationBlur()}
-                  min="0"
-                  placeholder="0"
-                />
+                <div className={styles.inlineFieldWrapper}>
+                  <input
+                    type="number"
+                    className={styles.propertyInput}
+                    value={localDuration}
+                    onChange={(e) => setLocalDuration(e.target.value)}
+                    onBlur={() => void handleDurationBlur()}
+                    min="0"
+                    placeholder="0"
+                  />
+                  {autosaveDuration !== 'idle' && (
+                    <span
+                      className={`${styles.autosaveIndicator} ${autosaveDuration === 'saving' ? styles.autosaveSaving : autosaveDuration === 'success' ? styles.autosaveSuccess : styles.autosaveError}`}
+                      aria-live="polite"
+                    >
+                      {autosaveDuration === 'saving'
+                        ? '…'
+                        : autosaveDuration === 'success'
+                          ? '✓'
+                          : '✗'}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -1894,46 +1962,202 @@ export default function WorkItemDetailPage() {
               <div className={styles.propertyGrid}>
                 <div className={styles.property}>
                   <label className={styles.propertyLabel}>Start After</label>
-                  <input
-                    type="date"
-                    className={styles.propertyInput}
-                    value={localStartAfter}
-                    onChange={(e) => setLocalStartAfter(e.target.value)}
-                    onBlur={() => void handleConstraintBlur('startAfter')}
-                  />
+                  <div className={styles.inlineFieldWrapper}>
+                    <input
+                      type="date"
+                      className={styles.propertyInput}
+                      value={localStartAfter}
+                      onChange={(e) => setLocalStartAfter(e.target.value)}
+                      onBlur={() => void handleConstraintBlur('startAfter')}
+                    />
+                    {localStartAfter && (
+                      <button
+                        type="button"
+                        className={styles.clearDateButton}
+                        aria-label="Clear start after date"
+                        onClick={() => {
+                          setLocalStartAfter('');
+                          if (id && workItem && workItem.startAfter) {
+                            setAutosaveStartAfter('saving');
+                            void updateWorkItem(id, { startAfter: null })
+                              .then(() => reloadWorkItem())
+                              .then(() => {
+                                setAutosaveStartAfter('success');
+                                triggerAutosaveReset(setAutosaveStartAfter, 'startAfter');
+                              })
+                              .catch(() => {
+                                setAutosaveStartAfter('error');
+                                triggerAutosaveReset(setAutosaveStartAfter, 'startAfter');
+                              });
+                          }
+                        }}
+                      >
+                        ×
+                      </button>
+                    )}
+                    {autosaveStartAfter !== 'idle' && (
+                      <span
+                        className={`${styles.autosaveIndicator} ${autosaveStartAfter === 'saving' ? styles.autosaveSaving : autosaveStartAfter === 'success' ? styles.autosaveSuccess : styles.autosaveError}`}
+                        aria-live="polite"
+                      >
+                        {autosaveStartAfter === 'saving'
+                          ? '…'
+                          : autosaveStartAfter === 'success'
+                            ? '✓'
+                            : '✗'}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <div className={styles.property}>
                   <label className={styles.propertyLabel}>Start Before</label>
-                  <input
-                    type="date"
-                    className={styles.propertyInput}
-                    value={localStartBefore}
-                    onChange={(e) => setLocalStartBefore(e.target.value)}
-                    onBlur={() => void handleConstraintBlur('startBefore')}
-                  />
+                  <div className={styles.inlineFieldWrapper}>
+                    <input
+                      type="date"
+                      className={styles.propertyInput}
+                      value={localStartBefore}
+                      onChange={(e) => setLocalStartBefore(e.target.value)}
+                      onBlur={() => void handleConstraintBlur('startBefore')}
+                    />
+                    {localStartBefore && (
+                      <button
+                        type="button"
+                        className={styles.clearDateButton}
+                        aria-label="Clear start before date"
+                        onClick={() => {
+                          setLocalStartBefore('');
+                          if (id && workItem && workItem.startBefore) {
+                            setAutosaveStartBefore('saving');
+                            void updateWorkItem(id, { startBefore: null })
+                              .then(() => reloadWorkItem())
+                              .then(() => {
+                                setAutosaveStartBefore('success');
+                                triggerAutosaveReset(setAutosaveStartBefore, 'startBefore');
+                              })
+                              .catch(() => {
+                                setAutosaveStartBefore('error');
+                                triggerAutosaveReset(setAutosaveStartBefore, 'startBefore');
+                              });
+                          }
+                        }}
+                      >
+                        ×
+                      </button>
+                    )}
+                    {autosaveStartBefore !== 'idle' && (
+                      <span
+                        className={`${styles.autosaveIndicator} ${autosaveStartBefore === 'saving' ? styles.autosaveSaving : autosaveStartBefore === 'success' ? styles.autosaveSuccess : styles.autosaveError}`}
+                        aria-live="polite"
+                      >
+                        {autosaveStartBefore === 'saving'
+                          ? '…'
+                          : autosaveStartBefore === 'success'
+                            ? '✓'
+                            : '✗'}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <div className={styles.property}>
                   <label className={styles.propertyLabel}>Actual Start</label>
-                  <input
-                    type="date"
-                    className={styles.propertyInput}
-                    value={localActualStartDate}
-                    onChange={(e) => setLocalActualStartDate(e.target.value)}
-                    onBlur={() => void handleActualDateBlur('actualStartDate')}
-                  />
+                  <div className={styles.inlineFieldWrapper}>
+                    <input
+                      type="date"
+                      className={styles.propertyInput}
+                      value={localActualStartDate}
+                      onChange={(e) => setLocalActualStartDate(e.target.value)}
+                      onBlur={() => void handleActualDateBlur('actualStartDate')}
+                    />
+                    {localActualStartDate && (
+                      <button
+                        type="button"
+                        className={styles.clearDateButton}
+                        aria-label="Clear actual start date"
+                        onClick={() => {
+                          setLocalActualStartDate('');
+                          if (id && workItem && workItem.actualStartDate) {
+                            setAutosaveActualStart('saving');
+                            void updateWorkItem(id, { actualStartDate: null })
+                              .then(() => reloadWorkItem())
+                              .then(() => {
+                                setAutosaveActualStart('success');
+                                triggerAutosaveReset(setAutosaveActualStart, 'actualStartDate');
+                              })
+                              .catch(() => {
+                                setAutosaveActualStart('error');
+                                triggerAutosaveReset(setAutosaveActualStart, 'actualStartDate');
+                              });
+                          }
+                        }}
+                      >
+                        ×
+                      </button>
+                    )}
+                    {autosaveActualStart !== 'idle' && (
+                      <span
+                        className={`${styles.autosaveIndicator} ${autosaveActualStart === 'saving' ? styles.autosaveSaving : autosaveActualStart === 'success' ? styles.autosaveSuccess : styles.autosaveError}`}
+                        aria-live="polite"
+                      >
+                        {autosaveActualStart === 'saving'
+                          ? '…'
+                          : autosaveActualStart === 'success'
+                            ? '✓'
+                            : '✗'}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <div className={styles.property}>
                   <label className={styles.propertyLabel}>Actual End</label>
-                  <input
-                    type="date"
-                    className={styles.propertyInput}
-                    value={localActualEndDate}
-                    onChange={(e) => setLocalActualEndDate(e.target.value)}
-                    onBlur={() => void handleActualDateBlur('actualEndDate')}
-                  />
+                  <div className={styles.inlineFieldWrapper}>
+                    <input
+                      type="date"
+                      className={styles.propertyInput}
+                      value={localActualEndDate}
+                      onChange={(e) => setLocalActualEndDate(e.target.value)}
+                      onBlur={() => void handleActualDateBlur('actualEndDate')}
+                    />
+                    {localActualEndDate && (
+                      <button
+                        type="button"
+                        className={styles.clearDateButton}
+                        aria-label="Clear actual end date"
+                        onClick={() => {
+                          setLocalActualEndDate('');
+                          if (id && workItem && workItem.actualEndDate) {
+                            setAutosaveActualEnd('saving');
+                            void updateWorkItem(id, { actualEndDate: null })
+                              .then(() => reloadWorkItem())
+                              .then(() => {
+                                setAutosaveActualEnd('success');
+                                triggerAutosaveReset(setAutosaveActualEnd, 'actualEndDate');
+                              })
+                              .catch(() => {
+                                setAutosaveActualEnd('error');
+                                triggerAutosaveReset(setAutosaveActualEnd, 'actualEndDate');
+                              });
+                          }
+                        }}
+                      >
+                        ×
+                      </button>
+                    )}
+                    {autosaveActualEnd !== 'idle' && (
+                      <span
+                        className={`${styles.autosaveIndicator} ${autosaveActualEnd === 'saving' ? styles.autosaveSaving : autosaveActualEnd === 'success' ? styles.autosaveSuccess : styles.autosaveError}`}
+                        aria-live="polite"
+                      >
+                        {autosaveActualEnd === 'saving'
+                          ? '…'
+                          : autosaveActualEnd === 'success'
+                            ? '✓'
+                            : '✗'}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
