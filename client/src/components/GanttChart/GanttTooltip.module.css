@@ -96,6 +96,26 @@
   font-weight: var(--font-weight-semibold);
 }
 
+/* Variance: over plan (took longer than planned) — red */
+.detailValueOverPlan {
+  color: var(--color-red-200);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Variance: under plan (finished faster than planned) — green */
+.detailValueUnderPlan {
+  color: var(--color-emerald-200);
+  font-weight: var(--font-weight-semibold);
+}
+
+[data-theme='dark'] .detailValueOverPlan {
+  color: var(--color-red-400);
+}
+
+[data-theme='dark'] .detailValueUnderPlan {
+  color: var(--color-emerald-300);
+}
+
 /* ---- Status badge inside tooltip ---- */
 
 .statusBadge {

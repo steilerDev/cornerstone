@@ -26,6 +26,8 @@ import {
   formatDateForAria,
   DAY_NAMES,
   DAY_NAMES_NARROW,
+  getItemColor,
+  getContrastTextColor,
 } from './calendarUtils.js';
 import type { TimelineWorkItem, TimelineMilestone } from '@cornerstone/shared';
 
@@ -820,5 +822,101 @@ describe('DAY_NAMES_NARROW', () => {
     expect(DAY_NAMES_NARROW).toHaveLength(7);
     expect(DAY_NAMES_NARROW[0]).toBe('S');
     expect(DAY_NAMES_NARROW[6]).toBe('S');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getItemColor (#335)
+// ---------------------------------------------------------------------------
+
+describe('getItemColor', () => {
+  it('returns a number between 1 and 8 inclusive', () => {
+    const result = getItemColor('item-1');
+    expect(result).toBeGreaterThanOrEqual(1);
+    expect(result).toBeLessThanOrEqual(8);
+  });
+
+  it('returns an integer', () => {
+    expect(Number.isInteger(getItemColor('item-1'))).toBe(true);
+  });
+
+  it('is deterministic — same input always yields same output', () => {
+    expect(getItemColor('abc-123')).toBe(getItemColor('abc-123'));
+  });
+
+  it('distributes differently for distinct IDs', () => {
+    const colors = new Set(
+      [
+        'item-1',
+        'item-2',
+        'item-3',
+        'item-4',
+        'item-5',
+        'item-6',
+        'item-7',
+        'item-8',
+        'item-9',
+        'item-10',
+      ].map(getItemColor),
+    );
+    // At least 2 distinct color values across 10 items
+    expect(colors.size).toBeGreaterThanOrEqual(2);
+  });
+
+  it('empty string ID returns a value in range', () => {
+    const result = getItemColor('');
+    expect(result).toBeGreaterThanOrEqual(1);
+    expect(result).toBeLessThanOrEqual(8);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getContrastTextColor (#335)
+// ---------------------------------------------------------------------------
+
+describe('getContrastTextColor', () => {
+  it('returns #ffffff for a dark background (black)', () => {
+    expect(getContrastTextColor('#000000')).toBe('#ffffff');
+  });
+
+  it('returns #000000 for a light background (white)', () => {
+    expect(getContrastTextColor('#ffffff')).toBe('#000000');
+  });
+
+  it('returns #ffffff for a dark blue background', () => {
+    // #1e3a5f is a dark navy — should use white text
+    expect(getContrastTextColor('#1e3a5f')).toBe('#ffffff');
+  });
+
+  it('returns #000000 for a light yellow background', () => {
+    // #ffff00 is bright yellow — should use black text
+    expect(getContrastTextColor('#ffff00')).toBe('#000000');
+  });
+
+  it('handles hex without # prefix', () => {
+    // Should work with or without leading '#'
+    expect(getContrastTextColor('000000')).toBe('#ffffff');
+    expect(getContrastTextColor('ffffff')).toBe('#000000');
+  });
+
+  it('returns #000000 for invalid (too-short) hex string', () => {
+    // Fallback for malformed input
+    expect(getContrastTextColor('#fff')).toBe('#000000');
+    expect(getContrastTextColor('#12')).toBe('#000000');
+  });
+
+  it('returns #ffffff for a medium-dark red (#cc0000)', () => {
+    expect(getContrastTextColor('#cc0000')).toBe('#ffffff');
+  });
+
+  it('returns #000000 for a medium-light green (#90ee90 = lightgreen)', () => {
+    // lightgreen has high luminance — should prefer black text
+    expect(getContrastTextColor('#90ee90')).toBe('#000000');
+  });
+
+  it('returns one of the two expected values', () => {
+    // The function must always return exactly '#ffffff' or '#000000'
+    const result = getContrastTextColor('#3b82f6');
+    expect(['#ffffff', '#000000']).toContain(result);
   });
 });

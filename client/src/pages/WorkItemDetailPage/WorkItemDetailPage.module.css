@@ -323,6 +323,73 @@
   box-shadow: var(--shadow-focus-subtle);
 }
 
+/* ---- Inline field wrapper: input + clear button + autosave indicator ---- */
+
+.inlineFieldWrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  position: relative;
+}
+
+.inlineFieldWrapper .propertyInput {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Clear (×) button for date fields — shown only when a value is set */
+.clearDateButton {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  padding: 0 var(--spacing-1);
+  font-size: var(--font-size-base);
+  line-height: 1;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: color 0.1s;
+}
+
+.clearDateButton:hover {
+  color: var(--color-text-primary);
+}
+
+/* Autosave indicator: small text badge appearing after the field */
+.autosaveIndicator {
+  flex-shrink: 0;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  border-radius: var(--radius-full);
+  padding: 1px var(--spacing-1-5);
+  line-height: 1.4;
+  transition: opacity 0.2s;
+}
+
+.autosaveSaving {
+  color: var(--color-text-tertiary);
+}
+
+.autosaveSuccess {
+  color: var(--color-success-text-on-light);
+  background: var(--color-success-bg);
+}
+
+.autosaveError {
+  color: var(--color-danger);
+  background: var(--color-danger-bg);
+}
+
+[data-theme='dark'] .autosaveSuccess {
+  color: var(--color-emerald-300);
+  background: rgba(16, 185, 129, 0.15);
+}
+
+[data-theme='dark'] .autosaveError {
+  color: var(--color-red-400);
+  background: rgba(239, 68, 68, 0.15);
+}
+
 /* Notes */
 .addNoteForm {
   display: flex;

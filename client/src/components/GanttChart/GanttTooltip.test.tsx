@@ -744,6 +744,7 @@ describe('GanttTooltip — milestone kind (no dependencies section)', () => {
     isLate: false,
     completedAt: null,
     linkedWorkItems: [],
+    dependentWorkItems: [],
   };
 
   it('does not render a "Dependencies" section label for milestone tooltips', () => {
@@ -756,27 +757,169 @@ describe('GanttTooltip — milestone kind (no dependencies section)', () => {
     expect(screen.getByText('Target')).toBeInTheDocument();
   });
 
-  it('milestone tooltip with linkedWorkItems shows linked count', () => {
-    const msWithItems: GanttTooltipMilestoneData = {
+  it('milestone tooltip with dependentWorkItems shows "Blocked by this (N)" label', () => {
+    const msWithDependents: GanttTooltipMilestoneData = {
+      ...MILESTONE_DATA,
+      dependentWorkItems: [
+        { id: 'wi-1', title: 'Framing' },
+        { id: 'wi-2', title: 'Electrical Rough-in' },
+      ],
+    };
+    render(<GanttTooltip data={msWithDependents} position={{ x: 100, y: 200 }} />);
+    expect(screen.getByText(/Blocked by this \(2\)/)).toBeInTheDocument();
+  });
+
+  it('milestone tooltip with linkedWorkItems shows "Contributing (N)" label', () => {
+    const msWithLinked: GanttTooltipMilestoneData = {
       ...MILESTONE_DATA,
       linkedWorkItems: [
         { id: 'wi-1', title: 'Site Prep' },
         { id: 'wi-2', title: 'Foundation Dig' },
       ],
     };
-    render(<GanttTooltip data={msWithItems} position={{ x: 100, y: 200 }} />);
-    expect(screen.getByText(/Linked \(2\)/)).toBeInTheDocument();
+    render(<GanttTooltip data={msWithLinked} position={{ x: 100, y: 200 }} />);
+    expect(screen.getByText(/Contributing \(2\)/)).toBeInTheDocument();
   });
 
-  it('milestone tooltip linked items overflow indicator shows "+N more" when > 5 linked items', () => {
-    const msWithSixItems: GanttTooltipMilestoneData = {
+  it('milestone tooltip shows both Contributing and Blocked sections when both lists are populated', () => {
+    const msWithBoth: GanttTooltipMilestoneData = {
+      ...MILESTONE_DATA,
+      linkedWorkItems: [{ id: 'wi-1', title: 'Site Prep' }],
+      dependentWorkItems: [{ id: 'wi-2', title: 'Framing' }],
+    };
+    render(<GanttTooltip data={msWithBoth} position={{ x: 100, y: 200 }} />);
+    expect(screen.getByText(/Contributing \(1\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Blocked by this \(1\)/)).toBeInTheDocument();
+    expect(screen.getByText('Site Prep')).toBeInTheDocument();
+    expect(screen.getByText('Framing')).toBeInTheDocument();
+  });
+
+  it('milestone tooltip dependent items overflow indicator shows "+N more" when > 5 dependent items', () => {
+    const msWithSixDependents: GanttTooltipMilestoneData = {
+      ...MILESTONE_DATA,
+      dependentWorkItems: Array.from({ length: 6 }, (_, i) => ({
+        id: `wi-${i}`,
+        title: `Work Item ${i + 1}`,
+      })),
+    };
+    render(<GanttTooltip data={msWithSixDependents} position={{ x: 100, y: 200 }} />);
+    expect(screen.getByText('+1 more')).toBeInTheDocument();
+  });
+
+  it('milestone tooltip linked items overflow indicator shows "+N more" when > 5 contributing items', () => {
+    const msWithSixLinked: GanttTooltipMilestoneData = {
       ...MILESTONE_DATA,
       linkedWorkItems: Array.from({ length: 6 }, (_, i) => ({
         id: `wi-${i}`,
         title: `Work Item ${i + 1}`,
       })),
     };
-    render(<GanttTooltip data={msWithSixItems} position={{ x: 100, y: 200 }} />);
+    render(<GanttTooltip data={msWithSixLinked} position={{ x: 100, y: 200 }} />);
     expect(screen.getByText('+1 more')).toBeInTheDocument();
+  });
+
+  it('milestone tooltip with both lists empty shows a single "No linked items" row (None label)', () => {
+    render(<GanttTooltip data={MILESTONE_DATA} position={{ x: 100, y: 200 }} />);
+    // When both lists are empty, hasBothEmpty = true — shows single "Linked / None" row
+    expect(screen.getByText('Linked')).toBeInTheDocument();
+    expect(screen.getByText('None')).toBeInTheDocument();
+  });
+
+  it('milestone tooltip with only contributing items shows "None" for Blocked by this section', () => {
+    const msWithLinkedOnly: GanttTooltipMilestoneData = {
+      ...MILESTONE_DATA,
+      linkedWorkItems: [{ id: 'wi-1', title: 'Site Prep' }],
+    };
+    render(<GanttTooltip data={msWithLinkedOnly} position={{ x: 100, y: 200 }} />);
+    expect(screen.getByText(/Contributing \(1\)/)).toBeInTheDocument();
+    expect(screen.getByText('Blocked by this')).toBeInTheDocument();
+    expect(screen.getByText('None')).toBeInTheDocument();
+  });
+
+  it('milestone tooltip with only dependent items shows "None" for Contributing section', () => {
+    const msWithDependentsOnly: GanttTooltipMilestoneData = {
+      ...MILESTONE_DATA,
+      dependentWorkItems: [{ id: 'wi-1', title: 'Framing' }],
+    };
+    render(<GanttTooltip data={msWithDependentsOnly} position={{ x: 100, y: 200 }} />);
+    expect(screen.getByText('Contributing')).toBeInTheDocument();
+    expect(screen.getByText('None')).toBeInTheDocument();
+    expect(screen.getByText(/Blocked by this \(1\)/)).toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GanttTooltip — planned/actual duration and variance display (#333)
+// ---------------------------------------------------------------------------
+
+describe('GanttTooltip — planned/actual duration and variance (#333)', () => {
+  beforeEach(() => {
+    Object.defineProperty(window, 'innerWidth', { writable: true, value: 1280 });
+    Object.defineProperty(window, 'innerHeight', { writable: true, value: 800 });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(window, 'innerWidth', { writable: true, value: 1280 });
+    Object.defineProperty(window, 'innerHeight', { writable: true, value: 800 });
+  });
+
+  it('shows "Planned" and "Actual" rows when both plannedDurationDays and actualDurationDays are provided', () => {
+    renderTooltip({ plannedDurationDays: 14, actualDurationDays: 14, durationDays: 14 });
+    expect(screen.getByText('Planned')).toBeInTheDocument();
+    expect(screen.getByText('Actual')).toBeInTheDocument();
+  });
+
+  it('shows "Variance" row when both plannedDurationDays and actualDurationDays are provided', () => {
+    renderTooltip({ plannedDurationDays: 14, actualDurationDays: 16, durationDays: 14 });
+    expect(screen.getByText('Variance')).toBeInTheDocument();
+  });
+
+  it('shows "On plan" variance when actual equals planned', () => {
+    renderTooltip({ plannedDurationDays: 14, actualDurationDays: 14, durationDays: 14 });
+    expect(screen.getByText('On plan')).toBeInTheDocument();
+  });
+
+  it('shows "+N days" variance when actual exceeds planned (over plan)', () => {
+    renderTooltip({ plannedDurationDays: 10, actualDurationDays: 13, durationDays: 10 });
+    expect(screen.getByText('+3 days')).toBeInTheDocument();
+  });
+
+  it('shows "-N days" variance when actual is less than planned (under plan)', () => {
+    renderTooltip({ plannedDurationDays: 10, actualDurationDays: 7, durationDays: 10 });
+    expect(screen.getByText('-3 days')).toBeInTheDocument();
+  });
+
+  it('uses singular "day" when variance is exactly 1', () => {
+    renderTooltip({ plannedDurationDays: 10, actualDurationDays: 11, durationDays: 10 });
+    expect(screen.getByText('+1 day')).toBeInTheDocument();
+  });
+
+  it('falls back to "Planned" row only when only plannedDurationDays is set', () => {
+    renderTooltip({ plannedDurationDays: 10, actualDurationDays: undefined, durationDays: 10 });
+    expect(screen.getByText('Planned')).toBeInTheDocument();
+    expect(screen.queryByText('Actual')).not.toBeInTheDocument();
+    expect(screen.queryByText('Variance')).not.toBeInTheDocument();
+  });
+
+  it('falls back to "Duration" row when neither plannedDurationDays nor actualDurationDays is set', () => {
+    renderTooltip({
+      plannedDurationDays: undefined,
+      actualDurationDays: undefined,
+      durationDays: 14,
+    });
+    expect(screen.getByText('Duration')).toBeInTheDocument();
+    expect(screen.queryByText('Planned')).not.toBeInTheDocument();
+    expect(screen.queryByText('Actual')).not.toBeInTheDocument();
+  });
+
+  it('does NOT show delay info for work items (delay removed in #330)', () => {
+    // The delayDays field exists for type compatibility only — no UI shows it
+    renderTooltip({
+      durationDays: 14,
+      plannedDurationDays: undefined,
+      actualDurationDays: undefined,
+    });
+    expect(screen.queryByText(/Delay/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Late/i)).not.toBeInTheDocument();
   });
 });

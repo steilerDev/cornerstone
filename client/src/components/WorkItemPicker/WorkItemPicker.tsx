@@ -27,6 +27,13 @@ interface WorkItemPickerProps {
   specialOptions?: SpecialOption[];
   /** When true, opens dropdown with initial results on focus without requiring typing. */
   showItemsOnFocus?: boolean;
+  /**
+   * Title to display when `value` is pre-populated from an external source
+   * (e.g. editing an existing record with a linked work item).
+   * When provided and `value` is non-empty, the picker renders in selected-display mode
+   * showing this title until the user clears or changes the selection.
+   */
+  initialTitle?: string;
 }
 
 export function WorkItemPicker({
@@ -38,6 +45,7 @@ export function WorkItemPicker({
   placeholder = 'Search work items...',
   specialOptions,
   showItemsOnFocus,
+  initialTitle,
 }: WorkItemPickerProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [results, setResults] = useState<WorkItemSummary[]>([]);
@@ -45,6 +53,8 @@ export function WorkItemPicker({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<WorkItemSummary | null>(null);
+  // Track whether the user has explicitly cleared an initialTitle-based selection
+  const [initialTitleCleared, setInitialTitleCleared] = useState(false);
 
   // The currently selected special option (if value matches one)
   const selectedSpecial = specialOptions?.find((opt) => opt.id === value) ?? null;
@@ -75,6 +85,7 @@ export function WorkItemPicker({
     if (value === '') {
       setSelectedItem(null);
       setSearchTerm('');
+      setInitialTitleCleared(false);
     }
   }, [value]);
 
@@ -169,6 +180,7 @@ export function WorkItemPicker({
 
   const handleClear = () => {
     setSelectedItem(null);
+    setInitialTitleCleared(true);
     onChange('');
     setSearchTerm('');
     setResults([]);
@@ -183,6 +195,26 @@ export function WorkItemPicker({
           <span className={`${styles.selectedTitle} ${styles.selectedTitleSpecial}`}>
             {selectedSpecial.label}
           </span>
+          <button
+            type="button"
+            className={styles.clearButton}
+            onClick={handleClear}
+            aria-label="Clear selection"
+            disabled={disabled}
+          >
+            &times;
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Show initialTitle when value is pre-populated and not yet changed by the user
+  if (initialTitle && value && !selectedItem && !initialTitleCleared) {
+    return (
+      <div className={styles.container} ref={containerRef}>
+        <div className={styles.selectedDisplay}>
+          <span className={styles.selectedTitle}>{initialTitle}</span>
           <button
             type="button"
             className={styles.clearButton}
