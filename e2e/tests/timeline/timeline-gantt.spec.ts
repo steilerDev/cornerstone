@@ -532,7 +532,21 @@ test.describe('Sidebar navigation (Scenario 9)', () => {
       // Find and click the sidebar row for our work item
       const sidebarRow = page.getByTestId(`gantt-sidebar-row-${createdId}`);
       await sidebarRow.waitFor({ state: 'visible' });
+
+      // On touch devices (tablet/mobile), the Gantt uses a two-tap pattern:
+      // first tap shows the tooltip, second tap navigates.
+      // On pointer devices (desktop), a single click navigates directly.
+      const isTouchDevice = await page.evaluate(
+        () => window.matchMedia('(pointer: coarse)').matches,
+      );
+
       await sidebarRow.click();
+
+      if (isTouchDevice) {
+        // Wait briefly for the tooltip to appear, then tap again to navigate
+        await page.waitForTimeout(300);
+        await sidebarRow.click();
+      }
 
       // Should navigate to work item detail
       await page.waitForURL(`**/work-items/${createdId}`);

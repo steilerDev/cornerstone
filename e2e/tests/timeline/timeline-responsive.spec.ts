@@ -282,7 +282,22 @@ test.describe('Keyboard navigation on sidebar (Scenario 4)', () => {
       const row = page.getByTestId('gantt-sidebar-row-enter-nav-item');
       await row.waitFor({ state: 'visible' });
       await row.focus();
+
+      // On touch devices (tablet/mobile), the Gantt uses a two-tap pattern routed through
+      // handleBarOrSidebarClick: first activation shows the tooltip, second navigates.
+      // On pointer devices (desktop), a single Enter navigates directly.
+      const isTouchDevice = await page.evaluate(
+        () => window.matchMedia('(pointer: coarse)').matches,
+      );
+
       await page.keyboard.press('Enter');
+
+      if (isTouchDevice) {
+        // Wait briefly for the tooltip state to settle, then press Enter again to navigate
+        await page.waitForTimeout(300);
+        await row.focus(); // Re-focus in case focus moved
+        await page.keyboard.press('Enter');
+      }
 
       await page.waitForURL('**/work-items/enter-nav-item');
       expect(page.url()).toContain('/work-items/enter-nav-item');

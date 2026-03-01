@@ -77,7 +77,8 @@ test.describe('View Profile', () => {
     const profileInfo = await profilePage.getProfileInfo();
 
     // Then: Member Since should be a valid date string
+    // App renders dates in "MMM D, YYYY" format (e.g. "Mar 1, 2026")
     expect(profileInfo.memberSince).toBeTruthy();
-    expect(profileInfo.memberSince).toMatch(/\d{1,2}\/\d{1,2}\/\d{4}/); // MM/DD/YYYY or similar
+    expect(profileInfo.memberSince).toMatch(/[A-Z][a-z]{2} \d{1,2}, \d{4}/);
   });
 });
