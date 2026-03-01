@@ -5,22 +5,29 @@ import type {
   WorkItemSubsidyPaybackEntry,
   WorkItemSubsidyPaybackResponse,
 } from '@cornerstone/shared';
+import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
 import { NotFoundError } from '../errors/AppError.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
+type ConfidenceLevel = keyof typeof CONFIDENCE_MARGINS;
+
 /**
- * Calculate the expected subsidy payback for a single work item.
+ * Calculate the expected subsidy payback range for a single work item.
  *
  * Rules:
  *   - Only non-rejected subsidies linked to this work item are included.
- *   - For percentage subsidies: sum of (budgetLineEffectiveAmount × reductionValue / 100)
- *     for each budget line whose category matches the subsidy's applicable categories.
- *     Universal subsidies (no applicable categories) match ALL budget lines.
- *   - For fixed subsidies: reductionValue is the total amount per subsidy program.
- *   - Budget line effective amount:
- *     * If the line has invoices: use actual invoiced cost (SUM of invoice amounts).
- *     * Otherwise: use plannedAmount.
+ *   - For percentage subsidies: iterate over matching budget lines and compute
+ *     min/max amounts using confidence margins.
+ *     * If a line HAS invoices: actual cost is known → min = max = actualCost
+ *     * If a line has NO invoices: apply confidence margin to plannedAmount:
+ *         minAmount = plannedAmount * (1 - margin)
+ *         maxAmount = plannedAmount * (1 + margin)
+ *     Payback range per line = [minAmount * rate/100, maxAmount * rate/100]
+ *     Sum across all matching lines per subsidy, then across subsidies.
+ *   - For fixed subsidies: amount is fixed regardless of budget lines →
+ *     minPayback = maxPayback = reductionValue
+ *   - Universal subsidies (no applicable categories) match ALL budget lines.
  *
  * @throws NotFoundError if work item does not exist
  */
@@ -53,24 +60,26 @@ export function getWorkItemSubsidyPayback(
   );
 
   if (linkedRows.length === 0) {
-    return { workItemId, totalPayback: 0, subsidies: [] };
+    return { workItemId, minTotalPayback: 0, maxTotalPayback: 0, subsidies: [] };
   }
 
-  // Fetch all budget lines for this work item
+  // Fetch all budget lines for this work item, including confidence level
   const budgetLineRows = db.all<{
     id: string;
     plannedAmount: number;
+    confidence: string;
     budgetCategoryId: string | null;
   }>(
     sql`SELECT
       id                 AS id,
       planned_amount     AS plannedAmount,
+      confidence         AS confidence,
       budget_category_id AS budgetCategoryId
     FROM work_item_budgets
     WHERE work_item_id = ${workItemId}`,
   );
 
-  // Fetch actual invoice costs per budget line (actual cost when invoices exist)
+  // Fetch actual invoice costs per budget line (SUM of invoice amounts)
   const invoiceRows = db.all<{ workItemBudgetId: string; actualCost: number }>(
     sql`SELECT
       work_item_budget_id AS workItemBudgetId,
@@ -87,12 +96,29 @@ export function getWorkItemSubsidyPayback(
     invoiceMap.set(row.workItemBudgetId, row.actualCost);
   }
 
-  // Compute effective amount per budget line: invoiced cost if invoices exist, else planned amount
-  const budgetLines = budgetLineRows.map((line) => ({
-    id: line.id,
-    budgetCategoryId: line.budgetCategoryId,
-    effectiveAmount: invoiceMap.has(line.id) ? (invoiceMap.get(line.id) ?? 0) : line.plannedAmount,
-  }));
+  // Compute per-line min/max effective amounts
+  const budgetLines = budgetLineRows.map((line) => {
+    if (invoiceMap.has(line.id)) {
+      // Actual cost known: min === max === actual invoiced cost
+      const actualCost = invoiceMap.get(line.id) ?? 0;
+      return {
+        id: line.id,
+        budgetCategoryId: line.budgetCategoryId,
+        minAmount: actualCost,
+        maxAmount: actualCost,
+      };
+    } else {
+      // No invoices: apply confidence margin
+      const margin =
+        CONFIDENCE_MARGINS[line.confidence as ConfidenceLevel] ?? CONFIDENCE_MARGINS.own_estimate;
+      return {
+        id: line.id,
+        budgetCategoryId: line.budgetCategoryId,
+        minAmount: line.plannedAmount * (1 - margin),
+        maxAmount: line.plannedAmount * (1 + margin),
+      };
+    }
+  });
 
   // Load applicable categories for all relevant subsidy programs in one query
   const subsidyIds = linkedRows.map((r) => r.subsidyProgramId);
@@ -113,27 +139,32 @@ export function getWorkItemSubsidyPayback(
     cats.add(row.budgetCategoryId);
   }
 
-  // Calculate payback per subsidy
+  // Calculate min/max payback per subsidy
   const subsidyEntries: WorkItemSubsidyPaybackEntry[] = [];
-  let totalPayback = 0;
+  let minTotalPayback = 0;
+  let maxTotalPayback = 0;
 
   for (const subsidy of linkedRows) {
     const applicableCategories = subsidyCategoryMap.get(subsidy.subsidyProgramId);
     const isUniversal = !applicableCategories || applicableCategories.size === 0;
-    let paybackAmount = 0;
+    let minPayback = 0;
+    let maxPayback = 0;
 
     if (subsidy.reductionType === 'percentage') {
+      const rate = subsidy.reductionValue / 100;
       for (const line of budgetLines) {
         const categoryMatches =
           isUniversal ||
           (line.budgetCategoryId !== null && applicableCategories!.has(line.budgetCategoryId));
         if (categoryMatches) {
-          paybackAmount += line.effectiveAmount * (subsidy.reductionValue / 100);
+          minPayback += line.minAmount * rate;
+          maxPayback += line.maxAmount * rate;
         }
       }
     } else if (subsidy.reductionType === 'fixed') {
-      // Fixed amount: return the full reductionValue as the total payback for this program
-      paybackAmount = subsidy.reductionValue;
+      // Fixed amount: min === max === reductionValue (not affected by budget line ranges)
+      minPayback = subsidy.reductionValue;
+      maxPayback = subsidy.reductionValue;
     }
 
     subsidyEntries.push({
@@ -141,10 +172,12 @@ export function getWorkItemSubsidyPayback(
       name: subsidy.name,
       reductionType: subsidy.reductionType as 'percentage' | 'fixed',
       reductionValue: subsidy.reductionValue,
-      paybackAmount,
+      minPayback,
+      maxPayback,
     });
-    totalPayback += paybackAmount;
+    minTotalPayback += minPayback;
+    maxTotalPayback += maxPayback;
   }
 
-  return { workItemId, totalPayback, subsidies: subsidyEntries };
+  return { workItemId, minTotalPayback, maxTotalPayback, subsidies: subsidyEntries };
 }

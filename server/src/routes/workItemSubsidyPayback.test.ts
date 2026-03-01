@@ -133,6 +133,7 @@ describe('Work Item Subsidy Payback Routes', () => {
     workItemId: string,
     plannedAmount: number,
     budgetCategoryId?: string | null,
+    confidence: 'own_estimate' | 'professional_estimate' | 'quote' | 'invoice' = 'invoice',
   ): string {
     const id = `bl-${++entityCounter}`;
     const timestamp = new Date(Date.now() + entityCounter).toISOString();
@@ -143,7 +144,7 @@ describe('Work Item Subsidy Payback Routes', () => {
         workItemId,
         description: null,
         plannedAmount,
-        confidence: 'own_estimate',
+        confidence,
         budgetCategoryId: budgetCategoryId ?? null,
         budgetSourceId: null,
         createdAt: timestamp,
@@ -226,7 +227,7 @@ describe('Work Item Subsidy Payback Routes', () => {
       expect(body.error.code).toBe('NOT_FOUND');
     });
 
-    it('returns 200 with zero totalPayback and empty subsidies when none linked', async () => {
+    it('returns 200 with zero totals and empty subsidies when none linked', async () => {
       const { userId, cookie } = await createUserWithSession(
         'user@example.com',
         'Test User',
@@ -243,18 +244,20 @@ describe('Work Item Subsidy Payback Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<WorkItemSubsidyPaybackResponse>();
       expect(body.workItemId).toBe(workItemId);
-      expect(body.totalPayback).toBe(0);
+      expect(body.minTotalPayback).toBe(0);
+      expect(body.maxTotalPayback).toBe(0);
       expect(body.subsidies).toEqual([]);
     });
 
-    it('returns correct payback for a percentage subsidy with budget lines', async () => {
+    it('returns correct payback range for a percentage subsidy with budget lines (invoice confidence)', async () => {
       const { userId, cookie } = await createUserWithSession(
         'user@example.com',
         'Test User',
         'password123',
       );
       const workItemId = createTestWorkItem('Work Item', userId);
-      createBudgetLine(workItemId, 1000);
+      // invoice confidence: margin=0, so min===max
+      createBudgetLine(workItemId, 1000, null, 'invoice');
 
       const subsidyId = createTestSubsidyProgram({
         reductionType: 'percentage',
@@ -270,12 +273,44 @@ describe('Work Item Subsidy Payback Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const body = response.json<WorkItemSubsidyPaybackResponse>();
-      expect(body.totalPayback).toBeCloseTo(100);
+      // invoice: min = max = 1000 * 10% = 100
+      expect(body.minTotalPayback).toBeCloseTo(100);
+      expect(body.maxTotalPayback).toBeCloseTo(100);
       expect(body.subsidies).toHaveLength(1);
-      expect(body.subsidies[0].paybackAmount).toBeCloseTo(100);
+      expect(body.subsidies[0].minPayback).toBeCloseTo(100);
+      expect(body.subsidies[0].maxPayback).toBeCloseTo(100);
     });
 
-    it('returns correct payback for a fixed subsidy', async () => {
+    it('returns min < max range for own_estimate confidence percentage subsidy', async () => {
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'Test User',
+        'password123',
+      );
+      const workItemId = createTestWorkItem('Work Item', userId);
+      // own_estimate: ±20%
+      createBudgetLine(workItemId, 1000, null, 'own_estimate');
+
+      const subsidyId = createTestSubsidyProgram({
+        reductionType: 'percentage',
+        reductionValue: 10,
+      });
+      linkSubsidy(workItemId, subsidyId);
+
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/work-items/${workItemId}/subsidy-payback`,
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<WorkItemSubsidyPaybackResponse>();
+      // min: 1000 * 0.8 * 10% = 80, max: 1000 * 1.2 * 10% = 120
+      expect(body.minTotalPayback).toBeCloseTo(80);
+      expect(body.maxTotalPayback).toBeCloseTo(120);
+    });
+
+    it('returns correct payback for a fixed subsidy (min === max)', async () => {
       const { userId, cookie } = await createUserWithSession(
         'user@example.com',
         'Test User',
@@ -294,8 +329,10 @@ describe('Work Item Subsidy Payback Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const body = response.json<WorkItemSubsidyPaybackResponse>();
-      expect(body.totalPayback).toBe(3000);
-      expect(body.subsidies[0].paybackAmount).toBe(3000);
+      expect(body.minTotalPayback).toBe(3000);
+      expect(body.maxTotalPayback).toBe(3000);
+      expect(body.subsidies[0].minPayback).toBe(3000);
+      expect(body.subsidies[0].maxPayback).toBe(3000);
     });
 
     it('excludes rejected subsidies from the result', async () => {
@@ -305,7 +342,7 @@ describe('Work Item Subsidy Payback Routes', () => {
         'password123',
       );
       const workItemId = createTestWorkItem('Work Item', userId);
-      createBudgetLine(workItemId, 1000);
+      createBudgetLine(workItemId, 1000, null, 'invoice');
 
       const rejectedId = createTestSubsidyProgram({
         reductionType: 'percentage',
@@ -322,18 +359,20 @@ describe('Work Item Subsidy Payback Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const body = response.json<WorkItemSubsidyPaybackResponse>();
-      expect(body.totalPayback).toBe(0);
+      expect(body.minTotalPayback).toBe(0);
+      expect(body.maxTotalPayback).toBe(0);
       expect(body.subsidies).toHaveLength(0);
     });
 
-    it('uses actual invoiced cost instead of plannedAmount when invoices exist', async () => {
+    it('uses actual invoiced cost instead of plannedAmount when invoices exist (min === max)', async () => {
       const { userId, cookie } = await createUserWithSession(
         'user@example.com',
         'Test User',
         'password123',
       );
       const workItemId = createTestWorkItem('Work Item', userId);
-      const budgetLineId = createBudgetLine(workItemId, 2000); // planned = 2000
+      // own_estimate planned=2000, but invoiced=800 → actual cost overrides margin
+      const budgetLineId = createBudgetLine(workItemId, 2000, null, 'own_estimate');
       createVendorAndInvoice(budgetLineId, 800); // actual = 800
 
       const subsidyId = createTestSubsidyProgram({
@@ -350,8 +389,9 @@ describe('Work Item Subsidy Payback Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const body = response.json<WorkItemSubsidyPaybackResponse>();
-      // 800 × 10% = 80, not 2000 × 10% = 200
-      expect(body.totalPayback).toBeCloseTo(80);
+      // actual cost 800 × 10% = 80, no margin applied (actual cost known)
+      expect(body.minTotalPayback).toBeCloseTo(80);
+      expect(body.maxTotalPayback).toBeCloseTo(80);
     });
 
     it('applies category restriction correctly', async () => {
@@ -362,8 +402,8 @@ describe('Work Item Subsidy Payback Routes', () => {
       );
       const workItemId = createTestWorkItem('Work Item', userId);
       const catId = createBudgetCategory('Electrical');
-      createBudgetLine(workItemId, 1000, catId); // matches
-      createBudgetLine(workItemId, 500); // no category — no match
+      createBudgetLine(workItemId, 1000, catId, 'invoice'); // matches, invoice: no margin
+      createBudgetLine(workItemId, 500, null, 'invoice'); // no category — no match
 
       const subsidyId = createTestSubsidyProgram({
         reductionType: 'percentage',
@@ -380,8 +420,9 @@ describe('Work Item Subsidy Payback Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const body = response.json<WorkItemSubsidyPaybackResponse>();
-      // Only 1000 matches: 1000 × 10% = 100
-      expect(body.totalPayback).toBeCloseTo(100);
+      // Only 1000 matches: 1000 × 10% = 100 (invoice confidence: min===max)
+      expect(body.minTotalPayback).toBeCloseTo(100);
+      expect(body.maxTotalPayback).toBeCloseTo(100);
     });
 
     it('returns response with all required fields in each subsidy entry', async () => {
@@ -391,7 +432,7 @@ describe('Work Item Subsidy Payback Routes', () => {
         'password123',
       );
       const workItemId = createTestWorkItem('Work Item', userId);
-      createBudgetLine(workItemId, 1000);
+      createBudgetLine(workItemId, 1000, null, 'invoice');
 
       const subsidyId = createTestSubsidyProgram({
         name: 'Solar Panel Rebate',
@@ -413,20 +454,24 @@ describe('Work Item Subsidy Payback Routes', () => {
       expect(entry.name).toBe('Solar Panel Rebate');
       expect(entry.reductionType).toBe('percentage');
       expect(entry.reductionValue).toBe(15);
-      expect(typeof entry.paybackAmount).toBe('number');
+      expect(typeof entry.minPayback).toBe('number');
+      expect(typeof entry.maxPayback).toBe('number');
     });
 
-    it('returns totalPayback as sum of all subsidy paybacks', async () => {
+    it('returns totals as sum of all subsidy min/max paybacks', async () => {
       const { userId, cookie } = await createUserWithSession(
         'user@example.com',
         'Test User',
         'password123',
       );
       const workItemId = createTestWorkItem('Work Item', userId);
-      createBudgetLine(workItemId, 1000);
+      // invoice confidence: no margin, min===max
+      createBudgetLine(workItemId, 1000, null, 'invoice');
 
-      const sp1 = createTestSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 }); // 100
-      const sp2 = createTestSubsidyProgram({ reductionType: 'fixed', reductionValue: 500 }); // 500
+      // percentage: min=max=1000*10%=100
+      const sp1 = createTestSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
+      // fixed: min=max=500
+      const sp2 = createTestSubsidyProgram({ reductionType: 'fixed', reductionValue: 500 });
       linkSubsidy(workItemId, sp1);
       linkSubsidy(workItemId, sp2);
 
@@ -439,7 +484,8 @@ describe('Work Item Subsidy Payback Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<WorkItemSubsidyPaybackResponse>();
       expect(body.subsidies).toHaveLength(2);
-      expect(body.totalPayback).toBeCloseTo(600);
+      expect(body.minTotalPayback).toBeCloseTo(600); // 100 + 500
+      expect(body.maxTotalPayback).toBeCloseTo(600); // 100 + 500
     });
 
     it('is accessible to member role users', async () => {

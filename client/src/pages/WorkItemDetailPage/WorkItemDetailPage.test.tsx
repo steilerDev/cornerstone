@@ -278,7 +278,8 @@ describe('WorkItemDetailPage', () => {
     mockFetchWorkItemSubsidies.mockResolvedValue([]);
     mockFetchWorkItemSubsidyPayback.mockResolvedValue({
       workItemId: 'work-1',
-      totalPayback: 0,
+      minTotalPayback: 0,
+      maxTotalPayback: 0,
       subsidies: [],
     });
     // Milestone-related defaults

@@ -1398,17 +1398,22 @@ export default function WorkItemDetailPage() {
             {/* Expected Subsidy Payback — shown when non-rejected subsidies are linked */}
             {subsidyPayback !== null && subsidyPayback.subsidies.length > 0 && (
               <div
-                className={`${styles.subsidyPaybackRow} ${subsidyPayback.totalPayback > 0 ? styles.subsidyPaybackRowActive : styles.subsidyPaybackRowZero}`}
+                className={`${styles.subsidyPaybackRow} ${subsidyPayback.maxTotalPayback > 0 ? styles.subsidyPaybackRowActive : styles.subsidyPaybackRowZero}`}
               >
                 <span className={styles.subsidyPaybackLabel}>Expected Subsidy Payback</span>
                 <span className={styles.subsidyPaybackAmount} aria-live="polite" aria-atomic="true">
-                  {formatCurrency(subsidyPayback.totalPayback)}
+                  {subsidyPayback.minTotalPayback === subsidyPayback.maxTotalPayback
+                    ? formatCurrency(subsidyPayback.minTotalPayback)
+                    : `${formatCurrency(subsidyPayback.minTotalPayback)} – ${formatCurrency(subsidyPayback.maxTotalPayback)}`}
                 </span>
                 {subsidyPayback.subsidies.length > 0 && (
                   <div className={styles.subsidyPaybackChips} aria-label="Per-subsidy breakdown">
                     {subsidyPayback.subsidies.map((entry) => (
                       <span key={entry.subsidyProgramId} className={styles.subsidyPaybackChip}>
-                        {entry.name}: {formatCurrency(entry.paybackAmount)}
+                        {entry.name}:{' '}
+                        {entry.minPayback === entry.maxPayback
+                          ? formatCurrency(entry.minPayback)
+                          : `${formatCurrency(entry.minPayback)} – ${formatCurrency(entry.maxPayback)}`}
                       </span>
                     ))}
                   </div>
