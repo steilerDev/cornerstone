@@ -463,3 +463,38 @@ export const workItemMilestoneDeps = sqliteTable(
     milestoneIdIdx: index('idx_wi_milestone_deps_milestone').on(table.milestoneId),
   }),
 );
+
+// ─── EPIC-08: Paperless-ngx Document Integration ─────────────────────────────
+
+/**
+ * Document links table - polymorphic junction table linking Paperless-ngx documents
+ * to various Cornerstone entities (work items, household items, invoices).
+ *
+ * Uses entity_type discriminator + entity_id pattern. No foreign key on entity_id
+ * because it references different tables depending on entity_type. Referential
+ * integrity is enforced at the application layer.
+ *
+ * See ADR-015 for design rationale.
+ */
+export const documentLinks = sqliteTable(
+  'document_links',
+  {
+    id: text('id').primaryKey(),
+    entityType: text('entity_type', {
+      enum: ['work_item', 'household_item', 'invoice'],
+    }).notNull(),
+    entityId: text('entity_id').notNull(),
+    paperlessDocumentId: integer('paperless_document_id').notNull(),
+    createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: text('created_at').notNull(),
+  },
+  (table) => ({
+    uniqueLink: uniqueIndex('idx_document_links_unique').on(
+      table.entityType,
+      table.entityId,
+      table.paperlessDocumentId,
+    ),
+    entityIdx: index('idx_document_links_entity').on(table.entityType, table.entityId),
+    paperlessDocIdx: index('idx_document_links_paperless_doc').on(table.paperlessDocumentId),
+  }),
+);
