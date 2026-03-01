@@ -25,6 +25,9 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         oidcClientSecret: undefined,
         oidcRedirectUri: undefined,
         oidcEnabled: false,
+        paperlessUrl: undefined,
+        paperlessApiToken: undefined,
+        paperlessEnabled: false,
       });
     });
 
@@ -51,6 +54,9 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         oidcClientSecret: undefined,
         oidcRedirectUri: undefined,
         oidcEnabled: false,
+        paperlessUrl: undefined,
+        paperlessApiToken: undefined,
+        paperlessEnabled: false,
       });
     });
   });
@@ -79,6 +85,9 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         oidcClientSecret: undefined,
         oidcRedirectUri: undefined,
         oidcEnabled: false,
+        paperlessUrl: undefined,
+        paperlessApiToken: undefined,
+        paperlessEnabled: false,
       });
     });
 
@@ -102,6 +111,9 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         oidcClientSecret: undefined,
         oidcRedirectUri: undefined,
         oidcEnabled: false,
+        paperlessUrl: undefined,
+        paperlessApiToken: undefined,
+        paperlessEnabled: false,
       });
     });
   });

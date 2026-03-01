@@ -15,6 +15,9 @@ export interface AppConfig {
   oidcClientSecret?: string;
   oidcRedirectUri?: string;
   oidcEnabled: boolean;
+  paperlessUrl?: string;
+  paperlessApiToken?: string;
+  paperlessEnabled: boolean;
 }
 
 // Type augmentation: makes fastify.config available across all routes/plugins
@@ -101,6 +104,13 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
   // OIDC is enabled when issuer, client ID, and client secret are set (redirect URI is optional)
   const oidcEnabled = !!(oidcIssuer && oidcClientId && oidcClientSecret);
 
+  // Paperless-ngx configuration (all optional)
+  const paperlessUrl = getValue('PAPERLESS_URL');
+  const paperlessApiToken = getValue('PAPERLESS_API_TOKEN');
+
+  // Paperless-ngx is enabled when both URL and API token are set
+  const paperlessEnabled = !!(paperlessUrl && paperlessApiToken);
+
   // If there are any validation errors, throw a single error listing all of them
   if (errors.length > 0) {
     throw new Error(`Configuration validation failed:\n  - ${errors.join('\n  - ')}`);
@@ -120,6 +130,9 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     oidcClientSecret,
     oidcRedirectUri,
     oidcEnabled,
+    paperlessUrl,
+    paperlessApiToken,
+    paperlessEnabled,
   };
 }
 
@@ -141,6 +154,8 @@ export default fp(
         trustProxy: config.trustProxy,
         oidcEnabled: config.oidcEnabled,
         oidcIssuer: config.oidcIssuer,
+        paperlessEnabled: config.paperlessEnabled,
+        paperlessUrl: config.paperlessUrl,
       },
       'Configuration loaded',
     );
