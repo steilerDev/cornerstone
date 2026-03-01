@@ -40,11 +40,20 @@ export interface BudgetOverview {
   remainingVsActualPaid: number; // availableFunds - actualCostPaid
   remainingVsActualClaimed: number; // availableFunds - actualCostClaimed
 
+  /** Payback-adjusted remaining vs min planned: availableFunds + minTotalPayback - minPlanned */
+  remainingVsMinPlannedWithPayback: number;
+  /** Payback-adjusted remaining vs max planned: availableFunds + maxTotalPayback - maxPlanned */
+  remainingVsMaxPlannedWithPayback: number;
+
   categorySummaries: CategoryBudgetSummary[];
 
   subsidySummary: {
     totalReductions: number;
     activeSubsidyCount: number;
+    /** Sum of min expected payback across all work items with linked subsidies */
+    minTotalPayback: number;
+    /** Sum of max expected payback across all work items with linked subsidies */
+    maxTotalPayback: number;
   };
 }
 

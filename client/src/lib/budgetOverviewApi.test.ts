@@ -22,6 +22,8 @@ describe('budgetOverviewApi', () => {
     remainingVsActualCost: 120000,
     remainingVsActualPaid: 125000,
     remainingVsActualClaimed: 150000,
+    remainingVsMinPlannedWithPayback: 110000,
+    remainingVsMaxPlannedWithPayback: 90000,
     categorySummaries: [
       {
         categoryId: 'cat-1',
@@ -53,6 +55,8 @@ describe('budgetOverviewApi', () => {
     subsidySummary: {
       totalReductions: 10000,
       activeSubsidyCount: 2,
+      minTotalPayback: 0,
+      maxTotalPayback: 0,
     },
   };
 
@@ -191,10 +195,14 @@ describe('budgetOverviewApi', () => {
         remainingVsActualCost: 0,
         remainingVsActualPaid: 0,
         remainingVsActualClaimed: 0,
+        remainingVsMinPlannedWithPayback: 0,
+        remainingVsMaxPlannedWithPayback: 0,
         categorySummaries: [],
         subsidySummary: {
           totalReductions: 0,
           activeSubsidyCount: 0,
+          minTotalPayback: 0,
+          maxTotalPayback: 0,
         },
       };
 

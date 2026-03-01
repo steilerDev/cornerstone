@@ -1515,4 +1515,218 @@ describe('getBudgetOverview', () => {
       expect(cat!.actualCostClaimed).toBe(3000); // only claimed
     });
   });
+
+  // ─── Subsidy payback aggregation (#346) ────────────────────────────────────
+
+  describe('subsidySummary.minTotalPayback / maxTotalPayback', () => {
+    it('returns 0 for minTotalPayback and maxTotalPayback when no subsidies exist', () => {
+      const result = getBudgetOverview(db);
+
+      expect(result.subsidySummary.minTotalPayback).toBe(0);
+      expect(result.subsidySummary.maxTotalPayback).toBe(0);
+    });
+
+    it('returns 0 payback when subsidies exist but are not linked to work items', () => {
+      // A subsidy program exists but is not linked to any work item
+      insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 20 });
+
+      const result = getBudgetOverview(db);
+
+      expect(result.subsidySummary.minTotalPayback).toBe(0);
+      expect(result.subsidySummary.maxTotalPayback).toBe(0);
+    });
+
+    it('returns 0 payback for rejected subsidy programs', () => {
+      const { workItemId } = insertWorkItem({ plannedAmount: 1000, confidence: 'invoice' });
+      const subsidyId = insertSubsidyProgram({
+        reductionType: 'percentage',
+        reductionValue: 10,
+        applicationStatus: 'rejected',
+      });
+      linkWorkItemSubsidy(workItemId, subsidyId);
+
+      const result = getBudgetOverview(db);
+
+      expect(result.subsidySummary.minTotalPayback).toBe(0);
+      expect(result.subsidySummary.maxTotalPayback).toBe(0);
+    });
+
+    it('calculates payback for a percentage subsidy with invoice-confidence budget line (min === max)', () => {
+      // invoice confidence → margin = 0 → min/max = plannedAmount = 1000
+      // Percentage 10% → payback = 100 (no range)
+      const { workItemId } = insertWorkItem({ plannedAmount: 1000, confidence: 'invoice' });
+      const subsidyId = insertSubsidyProgram({
+        reductionType: 'percentage',
+        reductionValue: 10,
+      });
+      linkWorkItemSubsidy(workItemId, subsidyId);
+
+      const result = getBudgetOverview(db);
+
+      expect(result.subsidySummary.minTotalPayback).toBeCloseTo(100);
+      expect(result.subsidySummary.maxTotalPayback).toBeCloseTo(100);
+    });
+
+    it('calculates payback range for a percentage subsidy with own_estimate confidence (±20% margin)', () => {
+      // own_estimate confidence → margin = 0.2
+      // plannedAmount = 1000 → minAmount = 800, maxAmount = 1200
+      // Percentage 10% → minPayback = 80, maxPayback = 120
+      const { workItemId } = insertWorkItem({ plannedAmount: 1000, confidence: 'own_estimate' });
+      const subsidyId = insertSubsidyProgram({
+        reductionType: 'percentage',
+        reductionValue: 10,
+      });
+      linkWorkItemSubsidy(workItemId, subsidyId);
+
+      const result = getBudgetOverview(db);
+
+      expect(result.subsidySummary.minTotalPayback).toBeCloseTo(80);
+      expect(result.subsidySummary.maxTotalPayback).toBeCloseTo(120);
+    });
+
+    it('calculates fixed payback as min === max === reductionValue', () => {
+      const { workItemId } = insertWorkItem({ plannedAmount: 5000, confidence: 'own_estimate' });
+      const subsidyId = insertSubsidyProgram({
+        reductionType: 'fixed',
+        reductionValue: 3000,
+      });
+      linkWorkItemSubsidy(workItemId, subsidyId);
+
+      const result = getBudgetOverview(db);
+
+      expect(result.subsidySummary.minTotalPayback).toBe(3000);
+      expect(result.subsidySummary.maxTotalPayback).toBe(3000);
+    });
+
+    it('uses actual invoice cost for lines with invoices (min === max === actualCost)', () => {
+      // Budget line with invoice: actual cost overrides confidence margin
+      // Actual cost = 900 → min/max = 900
+      // Percentage 10% → payback = 90 (no range)
+      const { workItemId, budgetLineId } = insertWorkItem({
+        plannedAmount: 1000,
+        confidence: 'own_estimate', // would give range without invoice
+      });
+      // Manually add a paid invoice to set actual cost
+      const vendorId = `wi-vendor-payback-${idCounter++}`;
+      const now = new Date().toISOString();
+      db.insert(schema.vendors)
+        .values({ id: vendorId, name: `Vendor ${vendorId}`, createdAt: now, updatedAt: now })
+        .run();
+      const invoiceId = `wi-inv-payback-${idCounter++}`;
+      db.insert(schema.invoices)
+        .values({
+          id: invoiceId,
+          vendorId,
+          workItemBudgetId: budgetLineId!,
+          amount: 900,
+          date: '2026-01-01',
+          status: 'paid',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+
+      const subsidyId = insertSubsidyProgram({
+        reductionType: 'percentage',
+        reductionValue: 10,
+      });
+      linkWorkItemSubsidy(workItemId, subsidyId);
+
+      const result = getBudgetOverview(db);
+
+      // Actual cost = 900, 10% → payback = 90 (no range since actual cost is known)
+      expect(result.subsidySummary.minTotalPayback).toBeCloseTo(90);
+      expect(result.subsidySummary.maxTotalPayback).toBeCloseTo(90);
+    });
+
+    it('sums payback across multiple work items', () => {
+      // Work item 1: 10% of 1000 (invoice confidence) → payback = 100
+      // Work item 2: fixed 500 → payback = 500
+      // Total: min = 600, max = 600
+      const { workItemId: wi1 } = insertWorkItem({ plannedAmount: 1000, confidence: 'invoice' });
+      const { workItemId: wi2 } = insertWorkItem({ plannedAmount: 2000 });
+
+      const subsidyPct = insertSubsidyProgram({
+        reductionType: 'percentage',
+        reductionValue: 10,
+      });
+      const subsidyFixed = insertSubsidyProgram({
+        reductionType: 'fixed',
+        reductionValue: 500,
+      });
+
+      linkWorkItemSubsidy(wi1, subsidyPct);
+      linkWorkItemSubsidy(wi2, subsidyFixed);
+
+      const result = getBudgetOverview(db);
+
+      expect(result.subsidySummary.minTotalPayback).toBeCloseTo(600); // 100 + 500
+      expect(result.subsidySummary.maxTotalPayback).toBeCloseTo(600); // 100 + 500
+    });
+
+    it('category-scoped subsidy only applies to lines with matching category', () => {
+      const cat = insertBudgetCategory('Payback Cat');
+      const { workItemId } = insertWorkItem({
+        plannedAmount: 1000,
+        confidence: 'invoice',
+        budgetCategoryId: cat,
+      });
+      // Insert a second budget line without matching category
+      insertWorkItem({ plannedAmount: 2000, confidence: 'invoice' });
+
+      const subsidyId = insertSubsidyProgram({
+        reductionType: 'percentage',
+        reductionValue: 10,
+        categoryIds: [cat],
+      });
+      linkWorkItemSubsidy(workItemId, subsidyId);
+
+      const result = getBudgetOverview(db);
+
+      // Only the line with matching category contributes: 10% of 1000 = 100
+      expect(result.subsidySummary.minTotalPayback).toBeCloseTo(100);
+      expect(result.subsidySummary.maxTotalPayback).toBeCloseTo(100);
+    });
+  });
+
+  // ─── Payback-adjusted remaining perspectives (#346) ────────────────────────
+
+  describe('remainingVsMinPlannedWithPayback / remainingVsMaxPlannedWithPayback', () => {
+    it('returns 0 for both payback-adjusted remaining fields when empty database', () => {
+      const result = getBudgetOverview(db);
+
+      expect(result.remainingVsMinPlannedWithPayback).toBe(0);
+      expect(result.remainingVsMaxPlannedWithPayback).toBe(0);
+    });
+
+    it('computes remainingVsMinPlannedWithPayback = availableFunds + minPayback - minPlanned', () => {
+      // availableFunds = 10000
+      // Work item: plannedAmount = 1000, invoice confidence → min=max=1000
+      // Subsidy: fixed 200 → subsidyReduction=200 → totalMinPlanned = 1000 - 200 = 800
+      //                    → minPayback = maxPayback = 200
+      // remainingVsMinPlanned = 10000 - 800 = 9200  (subsidy reduction lowers cost)
+      // remainingVsMinPlannedWithPayback = 10000 + 200 - 800 = 9400  (payback adds on top)
+      insertBudgetSource({ totalAmount: 10000 });
+      const { workItemId } = insertWorkItem({ plannedAmount: 1000, confidence: 'invoice' });
+      const subsidyId = insertSubsidyProgram({ reductionType: 'fixed', reductionValue: 200 });
+      linkWorkItemSubsidy(workItemId, subsidyId);
+
+      const result = getBudgetOverview(db);
+
+      expect(result.remainingVsMinPlanned).toBeCloseTo(9200); // subsidy reduces planned → remaining higher
+      expect(result.remainingVsMinPlannedWithPayback).toBeCloseTo(9400); // payback adds on top
+      expect(result.remainingVsMaxPlannedWithPayback).toBeCloseTo(9400); // fixed: min === max
+    });
+
+    it('equals non-adjusted remaining when no subsidies linked', () => {
+      insertBudgetSource({ totalAmount: 5000 });
+      insertWorkItem({ plannedAmount: 2000, confidence: 'invoice' });
+
+      const result = getBudgetOverview(db);
+
+      // No subsidies → payback = 0 → adjusted === non-adjusted
+      expect(result.remainingVsMinPlannedWithPayback).toBe(result.remainingVsMinPlanned);
+      expect(result.remainingVsMaxPlannedWithPayback).toBe(result.remainingVsMaxPlanned);
+    });
+  });
 });

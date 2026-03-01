@@ -786,3 +786,35 @@ export function autoReschedule(db: DbType): number {
 
   return updatedCount;
 }
+
+// ─── Daily auto-reschedule tracker ────────────────────────────────────────────
+
+/**
+ * Last date (YYYY-MM-DD) on which autoReschedule was called.
+ * Resets to null on server restart. Module-level state.
+ */
+let lastRescheduleDate: string | null = null;
+
+/**
+ * Reset the daily reschedule tracker (for testing purposes).
+ */
+export function resetRescheduleTracker(): void {
+  lastRescheduleDate = null;
+}
+
+/**
+ * Ensure autoReschedule has been called today.
+ *
+ * If autoReschedule has already run today (tracked by lastRescheduleDate), this is a no-op.
+ * Otherwise, runs autoReschedule synchronously and records today's date.
+ *
+ * @param db - Drizzle database handle
+ */
+export function ensureDailyReschedule(db: DbType): void {
+  const today = new Date().toISOString().slice(0, 10);
+  if (lastRescheduleDate === today) {
+    return;
+  }
+  autoReschedule(db);
+  lastRescheduleDate = today;
+}
