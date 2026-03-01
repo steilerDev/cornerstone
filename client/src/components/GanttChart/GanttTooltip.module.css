@@ -222,6 +222,41 @@
   padding: var(--spacing-1) 0;
 }
 
+/* ---- Touch device navigation affordance ---- */
+/* Shown only on touch (pointer: coarse) devices via the isTouchDevice prop in JSX.
+   pointer-events: none on the tooltip is overridden here so the link is tappable. */
+
+@media (pointer: coarse) {
+  .tooltip {
+    pointer-events: auto;
+  }
+}
+
+.viewItemLink {
+  display: block;
+  width: 100%;
+  text-align: center;
+  color: var(--color-blue-200);
+  text-decoration: underline;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  padding: var(--spacing-1) 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+}
+
+.viewItemLink:hover,
+.viewItemLink:focus-visible {
+  color: var(--color-blue-300, var(--color-blue-200));
+  opacity: 0.85;
+}
+
+[data-theme='dark'] .viewItemLink {
+  color: var(--color-blue-600);
+}
+
 /* ---- Dark mode: tooltip uses --color-bg-inverse which already flips ---- */
 /* In dark mode, bg-inverse = gray-100 (light), so text and badge colors flip */
 
@@ -268,7 +303,7 @@
 
 [data-theme='dark'] .statusInProgress {
   background: rgba(59, 130, 246, 0.15);
-  color: var(--color-blue-600);
+  color: var(--color-primary);
 }
 
 [data-theme='dark'] .statusCompleted {

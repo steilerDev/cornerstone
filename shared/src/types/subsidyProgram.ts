@@ -86,3 +86,32 @@ export interface SubsidyProgramListResponse {
 export interface SubsidyProgramResponse {
   subsidyProgram: SubsidyProgram;
 }
+
+/**
+ * Per-subsidy payback entry returned in the work item subsidy payback response.
+ * min and max reflect the confidence margin range for non-invoiced budget lines.
+ * For fixed subsidies and fully-invoiced lines, minPayback === maxPayback.
+ */
+export interface WorkItemSubsidyPaybackEntry {
+  subsidyProgramId: string;
+  name: string;
+  reductionType: SubsidyReductionType;
+  reductionValue: number;
+  /** Minimum expected payback (lower bound based on confidence margins). */
+  minPayback: number;
+  /** Maximum expected payback (upper bound based on confidence margins). */
+  maxPayback: number;
+}
+
+/**
+ * Response for GET /api/work-items/:workItemId/subsidy-payback
+ */
+export interface WorkItemSubsidyPaybackResponse {
+  workItemId: string;
+  /** Minimum total payback across all non-rejected linked subsidies. */
+  minTotalPayback: number;
+  /** Maximum total payback across all non-rejected linked subsidies. */
+  maxTotalPayback: number;
+  /** Per-subsidy breakdown. Empty array when no subsidies are linked. */
+  subsidies: WorkItemSubsidyPaybackEntry[];
+}

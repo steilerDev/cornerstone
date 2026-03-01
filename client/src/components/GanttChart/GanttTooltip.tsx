@@ -1,4 +1,5 @@
 import { createPortal } from 'react-dom';
+import { Link } from 'react-router-dom';
 import type { WorkItemStatus, DependencyType } from '@cornerstone/shared';
 import styles from './GanttTooltip.module.css';
 
@@ -38,6 +39,12 @@ export interface GanttTooltipWorkItemData {
   plannedDurationDays?: number | null;
   /** Computed actual/effective duration in days (from start/end dates). Null if not computable. */
   actualDurationDays?: number | null;
+  /**
+   * Work item ID used for the "View item" navigation link on touch devices.
+   * When provided, a "View item" link to `/work-items/:workItemId` is rendered
+   * in the tooltip on touch (pointer: coarse) devices.
+   */
+  workItemId?: string;
 }
 
 export interface GanttTooltipMilestoneData {
@@ -54,6 +61,12 @@ export interface GanttTooltipMilestoneData {
   linkedWorkItems: { id: string; title: string }[];
   /** Work items that depend on this milestone (have this milestone in their requiredMilestoneIds). */
   dependentWorkItems: { id: string; title: string }[];
+  /**
+   * Milestone ID used for the "View item" navigation link on touch devices.
+   * When provided, a "View item" button is rendered in the tooltip on touch devices.
+   * The click handler calls onMilestoneNavigate with the milestone ID.
+   */
+  milestoneId?: number;
 }
 
 export interface GanttTooltipArrowData {
@@ -82,6 +95,17 @@ interface GanttTooltipProps {
   position: GanttTooltipPosition;
   /** ID to apply to the tooltip element (for aria-describedby on the trigger). */
   id?: string;
+  /**
+   * When true, renders a "View item" link/button inside the tooltip.
+   * Used on touch (pointer: coarse) devices where the two-tap pattern is active.
+   * On desktop, this prop should be false so the action is not rendered.
+   */
+  isTouchDevice?: boolean;
+  /**
+   * Called when the "View item" action is tapped on a milestone tooltip.
+   * Receives the milestone ID. Used on touch devices only.
+   */
+  onMilestoneNavigate?: (milestoneId: number) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -140,10 +164,27 @@ const DEPENDENCY_TYPE_LABELS: Record<DependencyType, string> = {
   start_to_finish: 'Start-to-Finish',
 };
 
-function WorkItemTooltipContent({ data }: { data: GanttTooltipWorkItemData }) {
+function WorkItemTooltipContent({
+  data,
+  isTouchDevice,
+}: {
+  data: GanttTooltipWorkItemData;
+  isTouchDevice?: boolean;
+}) {
   const dependencies = data.dependencies ?? [];
   const shownDeps = dependencies.slice(0, MAX_DEPS_SHOWN);
   const depsOverflowCount = dependencies.length - shownDeps.length;
+
+  // Whether the duration section rendered a trailing separator.
+  // Used to avoid a double separator when there is no owner row between the
+  // variance section and the dependencies section.
+  const hasBothDurations = data.plannedDurationDays != null && data.actualDurationDays != null;
+  // A separator before dependencies is only needed when the last section before
+  // dependencies did NOT already emit a trailing separator. The trailing separator
+  // in the variance branch handles the case where there IS an owner row or dependencies
+  // follow directly. We suppress it here by moving the separator responsibility to
+  // the dependencies block and removing the trailing separator from the variance branch.
+  const hasOwner = data.assignedUserName !== null;
 
   return (
     <>
@@ -168,19 +209,23 @@ function WorkItemTooltipContent({ data }: { data: GanttTooltipWorkItemData }) {
       </div>
 
       {/* Duration section — planned/actual/variance when both available, single row fallback */}
-      {data.plannedDurationDays != null && data.actualDurationDays != null ? (
+      {hasBothDurations ? (
         <>
           <div className={styles.separator} aria-hidden="true" />
           <div className={styles.detailRow}>
             <span className={styles.detailLabel}>Planned</span>
-            <span className={styles.detailValue}>{formatDuration(data.plannedDurationDays)}</span>
+            <span className={styles.detailValue}>
+              {formatDuration(data.plannedDurationDays ?? null)}
+            </span>
           </div>
           <div className={styles.detailRow}>
             <span className={styles.detailLabel}>Actual</span>
-            <span className={styles.detailValue}>{formatDuration(data.actualDurationDays)}</span>
+            <span className={styles.detailValue}>
+              {formatDuration(data.actualDurationDays ?? null)}
+            </span>
           </div>
           {(() => {
-            const variance = data.actualDurationDays - data.plannedDurationDays;
+            const variance = data.actualDurationDays! - data.plannedDurationDays!;
             if (variance === 0) {
               return (
                 <div className={styles.detailRow}>
@@ -203,7 +248,6 @@ function WorkItemTooltipContent({ data }: { data: GanttTooltipWorkItemData }) {
               </div>
             );
           })()}
-          <div className={styles.separator} aria-hidden="true" />
         </>
       ) : data.plannedDurationDays != null ? (
         <div className={styles.detailRow}>
@@ -222,15 +266,20 @@ function WorkItemTooltipContent({ data }: { data: GanttTooltipWorkItemData }) {
         </div>
       )}
 
+      {/* Separator after duration section — only when variance was shown AND owner follows.
+          When variance is shown but no owner, the separator before dependencies handles it.
+          When no variance is shown, no separator is needed here. */}
+      {hasBothDurations && hasOwner && <div className={styles.separator} aria-hidden="true" />}
+
       {/* Assigned user */}
-      {data.assignedUserName !== null && (
+      {hasOwner && (
         <div className={styles.detailRow}>
           <span className={styles.detailLabel}>Owner</span>
           <span className={styles.detailValue}>{data.assignedUserName}</span>
         </div>
       )}
 
-      {/* Dependencies section — rendered when item has at least one dependency */}
+      {/* Dependencies section — separator only when preceding content exists */}
       {dependencies.length > 0 && (
         <>
           <div className={styles.separator} aria-hidden="true" />
@@ -252,6 +301,20 @@ function WorkItemTooltipContent({ data }: { data: GanttTooltipWorkItemData }) {
           </div>
         </>
       )}
+
+      {/* Touch device navigation affordance — "View item" link visible only on pointer: coarse */}
+      {isTouchDevice && data.workItemId && (
+        <>
+          <div className={styles.separator} aria-hidden="true" />
+          <Link
+            to={`/work-items/${data.workItemId}`}
+            className={styles.viewItemLink}
+            aria-label={`View details for ${data.title}`}
+          >
+            View item
+          </Link>
+        </>
+      )}
     </>
   );
 }
@@ -262,7 +325,15 @@ function WorkItemTooltipContent({ data }: { data: GanttTooltipWorkItemData }) {
 
 const MAX_LINKED_ITEMS_SHOWN = 5;
 
-function MilestoneTooltipContent({ data }: { data: GanttTooltipMilestoneData }) {
+function MilestoneTooltipContent({
+  data,
+  isTouchDevice,
+  onMilestoneNavigate,
+}: {
+  data: GanttTooltipMilestoneData;
+  isTouchDevice?: boolean;
+  onMilestoneNavigate?: (milestoneId: number) => void;
+}) {
   let statusLabel: string;
   let statusClass: string;
   if (data.isCompleted) {
@@ -397,6 +468,21 @@ function MilestoneTooltipContent({ data }: { data: GanttTooltipMilestoneData }) 
           )}
         </>
       )}
+
+      {/* Touch device navigation affordance — "View item" button visible only on pointer: coarse */}
+      {isTouchDevice && data.milestoneId !== undefined && onMilestoneNavigate && (
+        <>
+          <div className={styles.separator} aria-hidden="true" />
+          <button
+            type="button"
+            className={styles.viewItemLink}
+            onClick={() => onMilestoneNavigate(data.milestoneId!)}
+            aria-label={`View details for milestone ${data.title}`}
+          >
+            View item
+          </button>
+        </>
+      )}
     </>
   );
 }
@@ -428,7 +514,13 @@ function ArrowTooltipContent({ data }: { data: GanttTooltipArrowData }) {
  * The `data` prop is polymorphic — set `kind: 'work-item'`, `kind: 'milestone'`,
  * or `kind: 'arrow'` to switch between tooltip layouts.
  */
-export function GanttTooltip({ data, position, id }: GanttTooltipProps) {
+export function GanttTooltip({
+  data,
+  position,
+  id,
+  isTouchDevice,
+  onMilestoneNavigate,
+}: GanttTooltipProps) {
   // Compute tooltip x/y, flipping to avoid viewport overflow
   const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1280;
   const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
@@ -466,9 +558,13 @@ export function GanttTooltip({ data, position, id }: GanttTooltipProps) {
       data-testid="gantt-tooltip"
     >
       {data.kind === 'work-item' ? (
-        <WorkItemTooltipContent data={data} />
+        <WorkItemTooltipContent data={data} isTouchDevice={isTouchDevice} />
       ) : data.kind === 'milestone' ? (
-        <MilestoneTooltipContent data={data} />
+        <MilestoneTooltipContent
+          data={data}
+          isTouchDevice={isTouchDevice}
+          onMilestoneNavigate={onMilestoneNavigate}
+        />
       ) : (
         <ArrowTooltipContent data={data} />
       )}

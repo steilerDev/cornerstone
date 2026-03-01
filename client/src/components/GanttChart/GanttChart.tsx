@@ -818,6 +818,7 @@ export function GanttChart({
           actualDurationDays,
           assignedUserName: tooltipItem.assignedUser?.displayName ?? null,
           dependencies: tooltipDeps.length > 0 ? [...tooltipDeps] : undefined,
+          workItemId: itemId,
         });
         setTooltipPosition({
           x: window.innerWidth / 2,
@@ -1025,6 +1026,7 @@ export function GanttChart({
                       completedAt: milestone.completedAt,
                       linkedWorkItems,
                       dependentWorkItems,
+                      milestoneId: milestone.id,
                     });
                     setTooltipPosition(newPos);
                   }, TOOLTIP_SHOW_DELAY);
@@ -1077,6 +1079,7 @@ export function GanttChart({
                       completedAt: milestone.completedAt,
                       linkedWorkItems,
                       dependentWorkItems,
+                      milestoneId: milestone.id,
                     });
                     setTooltipPosition(newPos);
                   }, TOOLTIP_SHOW_DELAY);
@@ -1144,6 +1147,7 @@ export function GanttChart({
                         actualDurationDays,
                         assignedUserName: tooltipItem.assignedUser?.displayName ?? null,
                         dependencies: tooltipDeps.length > 0 ? [...tooltipDeps] : undefined,
+                        workItemId: item.id,
                       });
                       setTooltipPosition(newPos);
                     }, TOOLTIP_SHOW_DELAY);
@@ -1194,6 +1198,7 @@ export function GanttChart({
                         actualDurationDays,
                         assignedUserName: tooltipItem.assignedUser?.displayName ?? null,
                         dependencies: tooltipDeps.length > 0 ? [...tooltipDeps] : undefined,
+                        workItemId: item.id,
                       });
                       setTooltipPosition(newPos);
                     }, TOOLTIP_SHOW_DELAY);
@@ -1215,7 +1220,13 @@ export function GanttChart({
 
       {/* Tooltip portal */}
       {tooltipData !== null && (
-        <GanttTooltip data={tooltipData} position={tooltipPosition} id={TOOLTIP_ID} />
+        <GanttTooltip
+          data={tooltipData}
+          position={tooltipPosition}
+          id={TOOLTIP_ID}
+          isTouchDevice={isTouchDevice}
+          onMilestoneNavigate={onMilestoneClick}
+        />
       )}
     </div>
   );

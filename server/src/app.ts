@@ -28,6 +28,7 @@ import standaloneInvoiceRoutes from './routes/standaloneInvoices.js';
 import subsidyProgramRoutes from './routes/subsidyPrograms.js';
 import workItemVendorRoutes from './routes/workItemVendors.js';
 import workItemSubsidyRoutes from './routes/workItemSubsidies.js';
+import workItemSubsidyPaybackRoutes from './routes/workItemSubsidyPayback.js';
 import workItemBudgetRoutes from './routes/workItemBudgets.js';
 import budgetOverviewRoutes from './routes/budgetOverview.js';
 import milestoneRoutes from './routes/milestones.js';
@@ -111,6 +112,11 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Work item subsidy linking routes (nested under work items)
   await app.register(workItemSubsidyRoutes, { prefix: '/api/work-items/:workItemId/subsidies' });
+
+  // Work item subsidy payback (per-work-item expected payback calculation)
+  await app.register(workItemSubsidyPaybackRoutes, {
+    prefix: '/api/work-items/:workItemId/subsidy-payback',
+  });
 
   // Work item budget line routes (nested under work items)
   await app.register(workItemBudgetRoutes, { prefix: '/api/work-items/:workItemId/budgets' });

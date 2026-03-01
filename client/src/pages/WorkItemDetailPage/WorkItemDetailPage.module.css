@@ -1373,3 +1373,72 @@
     width: 100%;
   }
 }
+
+/* ─── Subsidy Payback Row ─────────────────────────────────────────────────── */
+
+.subsidyPaybackRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-3) var(--spacing-4);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-3);
+}
+
+/* Green accent when payback > 0 */
+.subsidyPaybackRowActive {
+  background: var(--color-success-bg);
+  border: 1px solid var(--color-success-border);
+}
+
+/* Muted when payback = 0 */
+.subsidyPaybackRowZero {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+}
+
+.subsidyPaybackLabel {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.subsidyPaybackAmount {
+  font-size: var(--font-size-base);
+  font-weight: 700;
+  margin-left: auto;
+}
+
+.subsidyPaybackRowActive .subsidyPaybackAmount {
+  color: var(--color-success-text-on-light);
+}
+
+.subsidyPaybackRowZero .subsidyPaybackAmount {
+  color: var(--color-text-muted);
+}
+
+.subsidyPaybackChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-1-5);
+  width: 100%;
+  margin-top: var(--spacing-1);
+}
+
+.subsidyPaybackChip {
+  display: inline-block;
+  padding: var(--spacing-0-5) var(--spacing-2);
+  border-radius: var(--radius-full, 9999px);
+  font-size: var(--font-size-xs);
+  background: var(--color-success-badge-bg);
+  color: var(--color-success-badge-text);
+  border: 1px solid var(--color-success-border);
+}
+
+.subsidyPaybackRowZero .subsidyPaybackChip {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-muted);
+  border-color: var(--color-border);
+}
