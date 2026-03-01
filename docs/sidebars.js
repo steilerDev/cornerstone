@@ -45,6 +45,16 @@ const sidebars = {
         'guides/budget/budget-overview',
       ],
     },
+    {
+      type: 'category',
+      label: 'Timeline',
+      link: { type: 'doc', id: 'guides/timeline/index' },
+      items: [
+        'guides/timeline/gantt-chart',
+        'guides/timeline/milestones',
+        'guides/timeline/calendar-view',
+      ],
+    },
     'guides/appearance/dark-mode',
     'roadmap',
   ],
