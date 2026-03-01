@@ -33,6 +33,7 @@ import {
   DAY_NAMES,
   getWeekDates,
 } from './calendarUtils.js';
+import { computeActualDuration } from '../../lib/formatters.js';
 import styles from './CalendarView.module.css';
 
 // ---------------------------------------------------------------------------
@@ -242,13 +243,7 @@ export function CalendarView({
         const today = new Date();
         const effectiveStart = item.actualStartDate ?? item.startDate;
         const effectiveEnd = item.actualEndDate ?? item.endDate;
-        let actualDurationDays: number | null = null;
-        if (effectiveStart) {
-          const startMs = new Date(effectiveStart).getTime();
-          const endMs = effectiveEnd ? new Date(effectiveEnd).getTime() : today.getTime();
-          const diffDays = Math.round((endMs - startMs) / (1000 * 60 * 60 * 24));
-          actualDurationDays = diffDays >= 0 ? diffDays : null;
-        }
+        const actualDurationDays = computeActualDuration(effectiveStart, effectiveEnd, today);
         setTooltipData({
           kind: 'work-item',
           title: item.title,
@@ -289,13 +284,7 @@ export function CalendarView({
         const today = new Date();
         const effectiveStart = item.actualStartDate ?? item.startDate;
         const effectiveEnd = item.actualEndDate ?? item.endDate;
-        let actualDurationDays: number | null = null;
-        if (effectiveStart) {
-          const startMs = new Date(effectiveStart).getTime();
-          const endMs = effectiveEnd ? new Date(effectiveEnd).getTime() : today.getTime();
-          const diffDays = Math.round((endMs - startMs) / (1000 * 60 * 60 * 24));
-          actualDurationDays = diffDays >= 0 ? diffDays : null;
-        }
+        const actualDurationDays = computeActualDuration(effectiveStart, effectiveEnd, today);
         setTooltipData({
           kind: 'work-item',
           title: item.title,

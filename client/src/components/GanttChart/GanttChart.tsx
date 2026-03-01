@@ -1,6 +1,7 @@
 import { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import type { TimelineResponse, WorkItemStatus } from '@cornerstone/shared';
 import { useTouchTooltip } from '../../hooks/useTouchTooltip.js';
+import { computeActualDuration } from '../../lib/formatters.js';
 import {
   computeChartRange,
   computeChartWidth,
@@ -104,27 +105,6 @@ const SKELETON_BAR_OFFSETS = [10, 25, 5, 35, 50, 15, 30, 20, 8, 45];
 
 const TOOLTIP_SHOW_DELAY = 120;
 const TOOLTIP_HIDE_DELAY = 80;
-
-// ---------------------------------------------------------------------------
-// Duration helpers for tooltip (#333)
-// ---------------------------------------------------------------------------
-
-/**
- * Computes the actual/effective duration in calendar days from start and end date strings.
- * For items in-progress with only a start date, computes elapsed days from start to today.
- * Returns null if dates are not available.
- */
-function computeActualDuration(
-  startDate: string | null,
-  endDate: string | null,
-  today: Date,
-): number | null {
-  if (!startDate) return null;
-  const startMs = new Date(startDate).getTime();
-  const endMs = endDate ? new Date(endDate).getTime() : today.getTime();
-  const diffDays = Math.round((endMs - startMs) / (1000 * 60 * 60 * 24));
-  return diffDays >= 0 ? diffDays : null;
-}
 
 // ---------------------------------------------------------------------------
 // Main GanttChart component
