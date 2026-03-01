@@ -639,13 +639,19 @@ export function BudgetOverviewPage() {
                 className={`${styles.footerItem} ${styles.footerItemPayback}`}
                 aria-live="polite"
                 aria-atomic="true"
+                aria-label={
+                  overview.subsidySummary.minTotalPayback ===
+                  overview.subsidySummary.maxTotalPayback
+                    ? `Expected payback: ${formatCurrency(overview.subsidySummary.minTotalPayback)}`
+                    : `Expected payback: ${formatCurrency(overview.subsidySummary.minTotalPayback)} to ${formatCurrency(overview.subsidySummary.maxTotalPayback)}`
+                }
               >
                 Expected payback:{' '}
                 <strong>
-                  {formatShort(overview.subsidySummary.minTotalPayback)}
+                  {formatCurrency(overview.subsidySummary.minTotalPayback)}
                   {overview.subsidySummary.minTotalPayback !==
                   overview.subsidySummary.maxTotalPayback
-                    ? ` \u2013 ${formatShort(overview.subsidySummary.maxTotalPayback)}`
+                    ? ` \u2013 ${formatCurrency(overview.subsidySummary.maxTotalPayback)}`
                     : ''}
                 </strong>
               </span>

@@ -120,17 +120,17 @@ export function getWorkItemSubsidyPayback(
     }
   });
 
-  // Load applicable categories for all relevant subsidy programs in one query
+  // Load applicable categories for relevant subsidy programs only
   const subsidyIds = linkedRows.map((r) => r.subsidyProgramId);
+  const inList = subsidyIds.map((id) => sql`${id}`);
   const categoryRows = db.all<{ subsidyProgramId: string; budgetCategoryId: string }>(
     sql`SELECT subsidy_program_id AS subsidyProgramId, budget_category_id AS budgetCategoryId
-    FROM subsidy_program_categories`,
+    FROM subsidy_program_categories
+    WHERE subsidy_program_id IN (${sql.join(inList, sql`, `)})`,
   );
 
-  const subsidyIdSet = new Set(subsidyIds);
   const subsidyCategoryMap = new Map<string, Set<string>>();
   for (const row of categoryRows) {
-    if (!subsidyIdSet.has(row.subsidyProgramId)) continue;
     let cats = subsidyCategoryMap.get(row.subsidyProgramId);
     if (!cats) {
       cats = new Set<string>();

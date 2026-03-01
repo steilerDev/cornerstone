@@ -58,3 +58,25 @@ export function formatDate(dateStr: string | null | undefined, fallback = '—')
     day: 'numeric',
   });
 }
+
+/**
+ * Computes the actual/effective duration in calendar days from start and end date strings.
+ * For items in-progress with only a start date, computes elapsed days from start to today.
+ * Returns null if the start date is not available.
+ *
+ * @param startDate - ISO date string for the start date, or null.
+ * @param endDate - ISO date string for the end date, or null (uses today if omitted).
+ * @param today - The current date reference used when endDate is null.
+ * @returns Duration in whole calendar days, or null if startDate is not available.
+ */
+export function computeActualDuration(
+  startDate: string | null,
+  endDate: string | null,
+  today: Date,
+): number | null {
+  if (!startDate) return null;
+  const startMs = new Date(startDate).getTime();
+  const endMs = endDate ? new Date(endDate).getTime() : today.getTime();
+  const diffDays = Math.round((endMs - startMs) / (1000 * 60 * 60 * 24));
+  return diffDays >= 0 ? diffDays : null;
+}

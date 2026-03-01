@@ -69,6 +69,8 @@ import {
 } from '../../components/DependencySentenceBuilder/index.js';
 import type { DependencyType } from '@cornerstone/shared';
 import { formatDate } from '../../lib/formatters.js';
+import { AutosaveIndicator } from '../../components/AutosaveIndicator/AutosaveIndicator.js';
+import type { AutosaveState } from '../../components/AutosaveIndicator/AutosaveIndicator.js';
 import styles from './WorkItemDetailPage.module.css';
 
 interface DeletingDependency {
@@ -196,7 +198,6 @@ export default function WorkItemDetailPage() {
   const [localActualEndDate, setLocalActualEndDate] = useState<string>('');
 
   // Autosave indicator state per inline-edited field
-  type AutosaveState = 'idle' | 'saving' | 'success' | 'error';
   const [autosaveDuration, setAutosaveDuration] = useState<AutosaveState>('idle');
   const [autosaveStartAfter, setAutosaveStartAfter] = useState<AutosaveState>('idle');
   const [autosaveStartBefore, setAutosaveStartBefore] = useState<AutosaveState>('idle');
@@ -1401,7 +1402,16 @@ export default function WorkItemDetailPage() {
                 className={`${styles.subsidyPaybackRow} ${subsidyPayback.maxTotalPayback > 0 ? styles.subsidyPaybackRowActive : styles.subsidyPaybackRowZero}`}
               >
                 <span className={styles.subsidyPaybackLabel}>Expected Subsidy Payback</span>
-                <span className={styles.subsidyPaybackAmount} aria-live="polite" aria-atomic="true">
+                <span
+                  className={styles.subsidyPaybackAmount}
+                  aria-live="polite"
+                  aria-atomic="true"
+                  aria-label={
+                    subsidyPayback.minTotalPayback === subsidyPayback.maxTotalPayback
+                      ? `Expected subsidy payback: ${formatCurrency(subsidyPayback.minTotalPayback)}`
+                      : `Expected subsidy payback: ${formatCurrency(subsidyPayback.minTotalPayback)} to ${formatCurrency(subsidyPayback.maxTotalPayback)}`
+                  }
+                >
                   {subsidyPayback.minTotalPayback === subsidyPayback.maxTotalPayback
                     ? formatCurrency(subsidyPayback.minTotalPayback)
                     : `${formatCurrency(subsidyPayback.minTotalPayback)} – ${formatCurrency(subsidyPayback.maxTotalPayback)}`}
@@ -1409,7 +1419,15 @@ export default function WorkItemDetailPage() {
                 {subsidyPayback.subsidies.length > 0 && (
                   <div className={styles.subsidyPaybackChips} aria-label="Per-subsidy breakdown">
                     {subsidyPayback.subsidies.map((entry) => (
-                      <span key={entry.subsidyProgramId} className={styles.subsidyPaybackChip}>
+                      <span
+                        key={entry.subsidyProgramId}
+                        className={styles.subsidyPaybackChip}
+                        aria-label={
+                          entry.minPayback === entry.maxPayback
+                            ? `${entry.name}: ${formatCurrency(entry.minPayback)}`
+                            : `${entry.name}: ${formatCurrency(entry.minPayback)} to ${formatCurrency(entry.maxPayback)}`
+                        }
+                      >
                         {entry.name}:{' '}
                         {entry.minPayback === entry.maxPayback
                           ? formatCurrency(entry.minPayback)
@@ -1984,18 +2002,7 @@ export default function WorkItemDetailPage() {
                     min="0"
                     placeholder="0"
                   />
-                  {autosaveDuration !== 'idle' && (
-                    <span
-                      className={`${styles.autosaveIndicator} ${autosaveDuration === 'saving' ? styles.autosaveSaving : autosaveDuration === 'success' ? styles.autosaveSuccess : styles.autosaveError}`}
-                      aria-live="polite"
-                    >
-                      {autosaveDuration === 'saving'
-                        ? '…'
-                        : autosaveDuration === 'success'
-                          ? '✓'
-                          : '✗'}
-                    </span>
-                  )}
+                  <AutosaveIndicator state={autosaveDuration} />
                 </div>
               </div>
             </div>
@@ -2039,18 +2046,7 @@ export default function WorkItemDetailPage() {
                         ×
                       </button>
                     )}
-                    {autosaveStartAfter !== 'idle' && (
-                      <span
-                        className={`${styles.autosaveIndicator} ${autosaveStartAfter === 'saving' ? styles.autosaveSaving : autosaveStartAfter === 'success' ? styles.autosaveSuccess : styles.autosaveError}`}
-                        aria-live="polite"
-                      >
-                        {autosaveStartAfter === 'saving'
-                          ? '…'
-                          : autosaveStartAfter === 'success'
-                            ? '✓'
-                            : '✗'}
-                      </span>
-                    )}
+                    <AutosaveIndicator state={autosaveStartAfter} />
                   </div>
                 </div>
 
@@ -2089,18 +2085,7 @@ export default function WorkItemDetailPage() {
                         ×
                       </button>
                     )}
-                    {autosaveStartBefore !== 'idle' && (
-                      <span
-                        className={`${styles.autosaveIndicator} ${autosaveStartBefore === 'saving' ? styles.autosaveSaving : autosaveStartBefore === 'success' ? styles.autosaveSuccess : styles.autosaveError}`}
-                        aria-live="polite"
-                      >
-                        {autosaveStartBefore === 'saving'
-                          ? '…'
-                          : autosaveStartBefore === 'success'
-                            ? '✓'
-                            : '✗'}
-                      </span>
-                    )}
+                    <AutosaveIndicator state={autosaveStartBefore} />
                   </div>
                 </div>
 
@@ -2139,18 +2124,7 @@ export default function WorkItemDetailPage() {
                         ×
                       </button>
                     )}
-                    {autosaveActualStart !== 'idle' && (
-                      <span
-                        className={`${styles.autosaveIndicator} ${autosaveActualStart === 'saving' ? styles.autosaveSaving : autosaveActualStart === 'success' ? styles.autosaveSuccess : styles.autosaveError}`}
-                        aria-live="polite"
-                      >
-                        {autosaveActualStart === 'saving'
-                          ? '…'
-                          : autosaveActualStart === 'success'
-                            ? '✓'
-                            : '✗'}
-                      </span>
-                    )}
+                    <AutosaveIndicator state={autosaveActualStart} />
                   </div>
                 </div>
 
@@ -2189,18 +2163,7 @@ export default function WorkItemDetailPage() {
                         ×
                       </button>
                     )}
-                    {autosaveActualEnd !== 'idle' && (
-                      <span
-                        className={`${styles.autosaveIndicator} ${autosaveActualEnd === 'saving' ? styles.autosaveSaving : autosaveActualEnd === 'success' ? styles.autosaveSuccess : styles.autosaveError}`}
-                        aria-live="polite"
-                      >
-                        {autosaveActualEnd === 'saving'
-                          ? '…'
-                          : autosaveActualEnd === 'success'
-                            ? '✓'
-                            : '✗'}
-                      </span>
-                    )}
+                    <AutosaveIndicator state={autosaveActualEnd} />
                   </div>
                 </div>
               </div>
