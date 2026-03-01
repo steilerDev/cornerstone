@@ -1702,9 +1702,10 @@ describe('getBudgetOverview', () => {
     it('computes remainingVsMinPlannedWithPayback = availableFunds + minPayback - minPlanned', () => {
       // availableFunds = 10000
       // Work item: plannedAmount = 1000, invoice confidence → min=max=1000
-      // Subsidy: fixed 200 → minPayback = maxPayback = 200
-      // remainingVsMinPlanned = 10000 - 1000 = 9000
-      // remainingVsMinPlannedWithPayback = 10000 + 200 - 1000 = 9200
+      // Subsidy: fixed 200 → subsidyReduction=200 → totalMinPlanned = 1000 - 200 = 800
+      //                    → minPayback = maxPayback = 200
+      // remainingVsMinPlanned = 10000 - 800 = 9200  (subsidy reduction lowers cost)
+      // remainingVsMinPlannedWithPayback = 10000 + 200 - 800 = 9400  (payback adds on top)
       insertBudgetSource({ totalAmount: 10000 });
       const { workItemId } = insertWorkItem({ plannedAmount: 1000, confidence: 'invoice' });
       const subsidyId = insertSubsidyProgram({ reductionType: 'fixed', reductionValue: 200 });
@@ -1712,9 +1713,9 @@ describe('getBudgetOverview', () => {
 
       const result = getBudgetOverview(db);
 
-      expect(result.remainingVsMinPlanned).toBeCloseTo(9000); // baseline: no payback
-      expect(result.remainingVsMinPlannedWithPayback).toBeCloseTo(9200); // with payback
-      expect(result.remainingVsMaxPlannedWithPayback).toBeCloseTo(9200); // fixed: min === max
+      expect(result.remainingVsMinPlanned).toBeCloseTo(9200); // subsidy reduces planned → remaining higher
+      expect(result.remainingVsMinPlannedWithPayback).toBeCloseTo(9400); // payback adds on top
+      expect(result.remainingVsMaxPlannedWithPayback).toBeCloseTo(9400); // fixed: min === max
     });
 
     it('equals non-adjusted remaining when no subsidies linked', () => {
