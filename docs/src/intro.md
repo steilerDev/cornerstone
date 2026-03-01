@@ -33,18 +33,22 @@ Cornerstone is designed for **homeowners managing a construction or renovation p
 
 - **Work Items** -- Create and manage construction tasks with statuses, dates, assignments, tags, notes, subtasks, and dependencies
 - **Budget Management** -- Track costs with budget categories, financing sources, vendor invoices, subsidies, and a dashboard with multiple projection perspectives
+- **Timeline & Gantt Chart** -- Interactive Gantt chart with dependency arrows, critical path highlighting, zoom controls, milestones, and automatic scheduling via the Critical Path Method
+- **Calendar View** -- Monthly and weekly calendar grids showing work items and milestones
+- **Milestones** -- Track major project checkpoints with target dates, projected completion, and late detection
 - **Authentication** -- Local accounts with first-run setup wizard, plus OIDC single sign-on for existing identity providers
 - **User Management** -- Admin and Member roles with a dedicated admin panel
 - **Dark Mode** -- Light, Dark, or System theme with instant switching
 - **Design System** -- Consistent visual language with CSS custom property tokens
 
-See the [Roadmap](roadmap) for upcoming features like Gantt charts and household item tracking.
+See the [Roadmap](roadmap) for upcoming features like household item tracking and reporting.
 
 ## Quick Links
 
 - [Getting Started](getting-started) -- Deploy Cornerstone with Docker in minutes
 - [Work Items Guide](guides/work-items) -- Learn how to manage your project tasks
 - [Budget Guide](guides/budget) -- Track costs, invoices, and financing sources
+- [Timeline Guide](guides/timeline) -- Gantt chart, calendar view, and milestones
 - [OIDC Setup](guides/users/oidc-setup) -- Connect your identity provider
 - [Development](development) -- How Cornerstone is built by an AI agent team
 - [GitHub Repository](https://github.com/steilerDev/cornerstone) -- Source code and issue tracker
