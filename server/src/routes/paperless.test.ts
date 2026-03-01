@@ -291,6 +291,48 @@ describe('Paperless Routes', () => {
       expect(response.statusCode).toBe(400);
     });
 
+    it('returns 400 on invalid tags format (non-numeric)', async () => {
+      await rebuildAppWithPaperless();
+      const { cookie } = await createUserWithSession();
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/paperless/documents?tags=abc',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(400);
+    });
+
+    it('returns 400 on tags with SQL injection attempt', async () => {
+      await rebuildAppWithPaperless();
+      const { cookie } = await createUserWithSession();
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/paperless/documents?tags=1%20OR%201%3D1',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(400);
+    });
+
+    it('accepts valid comma-separated integer tags', async () => {
+      await rebuildAppWithPaperless();
+      const { cookie } = await createUserWithSession();
+
+      mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_LIST_RESPONSE));
+      mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/paperless/documents?tags=5%2C12%2C20',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+    });
+
     it('returns 502 PAPERLESS_UNREACHABLE when fetch throws', async () => {
       await rebuildAppWithPaperless();
       const { cookie } = await createUserWithSession();
@@ -476,6 +518,23 @@ describe('Paperless Routes', () => {
       expect(response.statusCode).toBe(200);
       expect(response.headers['content-type']).toContain('image/webp');
     });
+
+    it('replaces disallowed upstream content-type with application/octet-stream', async () => {
+      await rebuildAppWithPaperless();
+      const { cookie } = await createUserWithSession();
+
+      // Upstream returns an unusual/unexpected content-type
+      mockFetch.mockResolvedValueOnce(mockBinaryResponse('text/html'));
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/paperless/documents/42/thumb',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.headers['content-type']).toContain('application/octet-stream');
+    });
   });
 
   // ─── GET /api/paperless/documents/:id/preview ─────────────────────────────
@@ -569,6 +628,23 @@ describe('Paperless Routes', () => {
 
       expect(response.statusCode).toBe(200);
       expect(response.headers['content-type']).toContain('application/pdf');
+    });
+
+    it('replaces disallowed upstream content-type with application/octet-stream', async () => {
+      await rebuildAppWithPaperless();
+      const { cookie } = await createUserWithSession();
+
+      // Upstream returns an unusual/unexpected content-type
+      mockFetch.mockResolvedValueOnce(mockBinaryResponse('application/javascript'));
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/paperless/documents/42/preview',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.headers['content-type']).toContain('application/octet-stream');
     });
   });
 

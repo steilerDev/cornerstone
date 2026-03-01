@@ -15,6 +15,7 @@ import type {
   PaperlessTag,
   PaperlessDocumentSearchResult,
   PaperlessDocumentListResponse,
+  PaperlessDocumentListQuery,
   PaperlessTagListResponse,
   PaperlessStatusResponse,
 } from '@cornerstone/shared';
@@ -251,6 +252,22 @@ function mapDocument(
 // ─── Exported service functions ───────────────────────────────────────────────
 
 /**
+ * Sanitize an error message for use in status responses.
+ * Strips IP addresses and hostnames to avoid information disclosure.
+ * Preserves general error type information (e.g., "Connection failed", "HTTP 502").
+ */
+function sanitizeErrorMessage(message: string): string {
+  // Replace IPv4 addresses (e.g., 10.0.0.5:8000)
+  let sanitized = message.replace(/\b\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?\b/g, '<host>');
+  // Replace hostnames with port (e.g., paperless:8000, my-host.local:8080)
+  sanitized = sanitized.replace(
+    /\b[a-zA-Z0-9](?:[a-zA-Z0-9\-._]*[a-zA-Z0-9])?:\d{1,5}\b/g,
+    '<host>',
+  );
+  return sanitized;
+}
+
+/**
  * Check the connectivity status of the Paperless-ngx integration.
  * Performs a lightweight probe request to verify reachability.
  */
@@ -259,23 +276,10 @@ export async function getStatus(baseUrl: string, token: string): Promise<Paperle
     await fetchPaperless<{ count: number }>(baseUrl, token, '/api/documents/?page_size=1');
     return { configured: true, reachable: true, error: null };
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const rawMessage = err instanceof Error ? err.message : String(err);
+    const message = sanitizeErrorMessage(rawMessage);
     return { configured: true, reachable: false, error: message };
   }
-}
-
-/**
- * Query parameters for listing/searching Paperless-ngx documents.
- */
-export interface ListDocumentsQuery {
-  query?: string;
-  tags?: string; // comma-separated Paperless-ngx tag IDs
-  correspondent?: number;
-  documentType?: number;
-  page?: number;
-  pageSize?: number;
-  sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
 }
 
 /**
@@ -285,7 +289,7 @@ export interface ListDocumentsQuery {
 export async function listDocuments(
   baseUrl: string,
   token: string,
-  query: ListDocumentsQuery,
+  query: PaperlessDocumentListQuery,
 ): Promise<PaperlessDocumentListResponse> {
   const page = Math.max(1, query.page ?? 1);
   const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 25));

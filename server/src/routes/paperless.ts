@@ -17,6 +17,31 @@ import { AppError, UnauthorizedError } from '../errors/AppError.js';
 import * as paperlessService from '../services/paperlessService.js';
 import type { PaperlessDocumentListQuery } from '@cornerstone/shared';
 
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+/**
+ * Allowlist of MIME types accepted for binary passthrough from Paperless-ngx.
+ * Any upstream content-type not in this list is replaced with application/octet-stream.
+ */
+const BINARY_CONTENT_TYPE_ALLOWLIST = new Set([
+  'image/webp',
+  'image/png',
+  'image/jpeg',
+  'image/gif',
+  'application/pdf',
+]);
+
+/**
+ * Filter an upstream content-type against the binary allowlist.
+ * Returns the original type if allowed, or 'application/octet-stream' otherwise.
+ */
+function sanitizeBinaryContentType(contentType: string | null, fallback: string): string {
+  if (!contentType) return fallback;
+  // Strip any parameters (e.g., "image/webp; charset=utf-8") before checking
+  const mimeType = contentType.split(';')[0].trim().toLowerCase();
+  return BINARY_CONTENT_TYPE_ALLOWLIST.has(mimeType) ? mimeType : 'application/octet-stream';
+}
+
 // ─── JSON schemas ─────────────────────────────────────────────────────────────
 
 const listDocumentsSchema = {
@@ -24,7 +49,7 @@ const listDocumentsSchema = {
     type: 'object',
     properties: {
       query: { type: 'string', maxLength: 500 },
-      tags: { type: 'string', maxLength: 200 },
+      tags: { type: 'string', maxLength: 200, pattern: '^\\d+(,\\d+)*$' },
       correspondent: { type: 'integer', minimum: 1 },
       documentType: { type: 'integer', minimum: 1 },
       page: { type: 'integer', minimum: 1 },
@@ -164,7 +189,10 @@ export default async function paperlessRoutes(fastify: FastifyInstance) {
         `/api/documents/${request.params.id}/thumb/`,
       );
 
-      const contentType = upstream.headers.get('content-type') ?? 'image/webp';
+      const contentType = sanitizeBinaryContentType(
+        upstream.headers.get('content-type'),
+        'image/webp',
+      );
       const contentDisposition = upstream.headers.get('content-disposition');
 
       reply.header('content-type', contentType);
@@ -201,7 +229,10 @@ export default async function paperlessRoutes(fastify: FastifyInstance) {
         `/api/documents/${request.params.id}/preview/`,
       );
 
-      const contentType = upstream.headers.get('content-type') ?? 'application/pdf';
+      const contentType = sanitizeBinaryContentType(
+        upstream.headers.get('content-type'),
+        'application/pdf',
+      );
       const contentDisposition = upstream.headers.get('content-disposition');
 
       reply.header('content-type', contentType);

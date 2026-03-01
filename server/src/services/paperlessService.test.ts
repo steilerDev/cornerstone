@@ -121,6 +121,30 @@ describe('getStatus()', () => {
     expect(result.error).toContain('ECONNREFUSED');
   });
 
+  it('sanitizes IP addresses from error messages to prevent information disclosure', async () => {
+    mockFetch.mockRejectedValueOnce(new Error('connect ECONNREFUSED 10.0.0.5:8000'));
+
+    const result = await paperlessService.getStatus(BASE_URL, TOKEN);
+
+    expect(result.reachable).toBe(false);
+    // IP address should be redacted
+    expect(result.error).not.toContain('10.0.0.5');
+    expect(result.error).toContain('<host>');
+    // General error type should still be present
+    expect(result.error).toContain('ECONNREFUSED');
+  });
+
+  it('sanitizes hostname:port from error messages to prevent information disclosure', async () => {
+    mockFetch.mockRejectedValueOnce(new Error('getaddrinfo ENOTFOUND paperless-host:8000'));
+
+    const result = await paperlessService.getStatus(BASE_URL, TOKEN);
+
+    expect(result.reachable).toBe(false);
+    // Hostname:port should be redacted
+    expect(result.error).not.toContain('paperless-host:8000');
+    expect(result.error).toContain('<host>');
+  });
+
   it('returns reachable=false with error message when Paperless returns non-ok', async () => {
     mockFetch.mockResolvedValueOnce(mockJsonResponse({ detail: 'Forbidden' }, 403));
 
