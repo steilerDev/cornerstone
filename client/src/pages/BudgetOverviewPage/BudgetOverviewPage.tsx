@@ -448,6 +448,9 @@ export function BudgetOverviewPage() {
     },
   ];
 
+  // Payback visibility flag
+  const hasPayback = overview.subsidySummary.maxTotalPayback > 0;
+
   // Remaining perspectives detail items (uses filtered where sensible)
   const remainingDetailItems: RemainingDetail[] = [
     { label: 'Remaining vs Min Planned', value: overview.remainingVsMinPlanned },
@@ -456,6 +459,18 @@ export function BudgetOverviewPage() {
     { label: 'Remaining vs Projected Max', value: filteredRemainingVsProjectedMax },
     { label: 'Remaining vs Actual Cost', value: overview.remainingVsActualCost },
     { label: 'Remaining vs Actual Paid', value: overview.remainingVsActualPaid },
+    ...(hasPayback
+      ? [
+          {
+            label: 'Remaining vs Min Planned (incl. payback)',
+            value: overview.remainingVsMinPlannedWithPayback,
+          },
+          {
+            label: 'Remaining vs Max Planned (incl. payback)',
+            value: overview.remainingVsMaxPlannedWithPayback,
+          },
+        ]
+      : []),
   ];
 
   // Format projected max segment with reduced opacity
@@ -619,6 +634,22 @@ export function BudgetOverviewPage() {
               {overview.subsidySummary.activeSubsidyCount === 1 ? 'program' : 'programs'}
               {')'}
             </span>
+            {hasPayback && (
+              <span
+                className={`${styles.footerItem} ${styles.footerItemPayback}`}
+                aria-live="polite"
+                aria-atomic="true"
+              >
+                Expected payback:{' '}
+                <strong>
+                  {formatShort(overview.subsidySummary.minTotalPayback)}
+                  {overview.subsidySummary.minTotalPayback !==
+                  overview.subsidySummary.maxTotalPayback
+                    ? ` \u2013 ${formatShort(overview.subsidySummary.maxTotalPayback)}`
+                    : ''}
+                </strong>
+              </span>
+            )}
             <span className={styles.footerItem}>
               Sources: <strong>{overview.sourceCount}</strong>
             </span>

@@ -408,12 +408,99 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
     }
   }
 
+  // ── 11b. Aggregate subsidy payback across all work items ──────────────────
+  //
+  // Replicates subsidyPaybackService logic globally across all budget lines.
+  // For percentage subsidies: iterate over matching budget lines per work item.
+  //   - Lines WITH invoices: min=max=actualCost (from lineInvoiceMap)
+  //   - Lines WITHOUT invoices: apply confidence margin to plannedAmount
+  //   Payback = minAmount * rate/100  (min) and maxAmount * rate/100 (max)
+  // For fixed subsidies: minPayback = maxPayback = reductionValue
+  // Only non-rejected subsidies linked to a work item are included.
+  //
+  // Note: subsidyMeta and workItemSubsidyMap already fetched above.
+
+  let totalMinPayback = 0;
+  let totalMaxPayback = 0;
+
+  // Group budget lines by workItemId for efficient per-item processing
+  const linesByWorkItem = new Map<
+    string,
+    {
+      id: string;
+      workItemId: string;
+      plannedAmount: number;
+      confidence: string;
+      budgetCategoryId: string | null;
+    }[]
+  >();
+  for (const line of budgetLines) {
+    let arr = linesByWorkItem.get(line.workItemId);
+    if (!arr) {
+      arr = [];
+      linesByWorkItem.set(line.workItemId, arr);
+    }
+    arr.push(line);
+  }
+
+  // For each work item that has linked subsidies, compute payback
+  for (const [workItemId, linkedSubsidyIds] of workItemSubsidyMap) {
+    const wiLines = linesByWorkItem.get(workItemId) ?? [];
+
+    // Compute per-line effective min/max amounts (mirrors subsidyPaybackService)
+    const effectiveLines = wiLines.map((line) => {
+      const lineActualCost = lineInvoiceMap.get(line.id);
+      if (lineActualCost !== undefined) {
+        return {
+          budgetCategoryId: line.budgetCategoryId,
+          minAmount: lineActualCost,
+          maxAmount: lineActualCost,
+        };
+      }
+      const margin =
+        CONFIDENCE_MARGINS[line.confidence as keyof typeof CONFIDENCE_MARGINS] ??
+        CONFIDENCE_MARGINS.own_estimate;
+      return {
+        budgetCategoryId: line.budgetCategoryId,
+        minAmount: line.plannedAmount * (1 - margin),
+        maxAmount: line.plannedAmount * (1 + margin),
+      };
+    });
+
+    for (const subsidyId of linkedSubsidyIds) {
+      const meta = subsidyMeta.get(subsidyId);
+      if (!meta) continue;
+
+      const applicableCategories = subsidyCategoryMap.get(subsidyId);
+      const isUniversal = !applicableCategories || applicableCategories.size === 0;
+
+      if (meta.reductionType === 'percentage') {
+        const rate = meta.reductionValue / 100;
+        for (const line of effectiveLines) {
+          const categoryMatches =
+            isUniversal ||
+            (line.budgetCategoryId !== null && applicableCategories!.has(line.budgetCategoryId));
+          if (categoryMatches) {
+            totalMinPayback += line.minAmount * rate;
+            totalMaxPayback += line.maxAmount * rate;
+          }
+        }
+      } else if (meta.reductionType === 'fixed') {
+        // Fixed amount: min === max === reductionValue
+        totalMinPayback += meta.reductionValue;
+        totalMaxPayback += meta.reductionValue;
+      }
+    }
+  }
+
   const subsidySummary = {
     totalReductions,
     activeSubsidyCount: subsidyCountRow?.activeSubsidyCount ?? 0,
+    minTotalPayback: totalMinPayback,
+    maxTotalPayback: totalMaxPayback,
   };
 
-  // ── 12. Seven remaining-funds perspectives ─────────────────────────────────
+  // ── 12. Remaining-funds perspectives ───────────────────────────────────────
   const remainingVsMinPlanned = availableFunds - totalMinPlanned;
   const remainingVsMaxPlanned = availableFunds - totalMaxPlanned;
   const remainingVsProjectedMin = availableFunds - totalProjectedMin;
@@ -421,6 +508,10 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
   const remainingVsActualCost = availableFunds - actualCost;
   const remainingVsActualPaid = availableFunds - actualCostPaid;
   const remainingVsActualClaimed = availableFunds - actualCostClaimed;
+
+  // Payback-adjusted remaining perspectives
+  const remainingVsMinPlannedWithPayback = availableFunds + totalMinPayback - totalMinPlanned;
+  const remainingVsMaxPlannedWithPayback = availableFunds + totalMaxPayback - totalMaxPlanned;
 
   return {
     availableFunds,
@@ -439,6 +530,8 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
     remainingVsActualCost,
     remainingVsActualPaid,
     remainingVsActualClaimed,
+    remainingVsMinPlannedWithPayback,
+    remainingVsMaxPlannedWithPayback,
     categorySummaries,
     subsidySummary,
   };

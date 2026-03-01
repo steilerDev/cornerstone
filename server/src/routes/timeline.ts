@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { UnauthorizedError } from '../errors/AppError.js';
 import { getTimeline } from '../services/timelineService.js';
+import { ensureDailyReschedule } from '../services/schedulingEngine.js';
 
 // ─── Route plugin ─────────────────────────────────────────────────────────────
 
@@ -20,6 +21,7 @@ export default async function timelineRoutes(fastify: FastifyInstance) {
       throw new UnauthorizedError();
     }
 
+    ensureDailyReschedule(fastify.db);
     const timeline = getTimeline(fastify.db);
     return reply.status(200).send(timeline);
   });

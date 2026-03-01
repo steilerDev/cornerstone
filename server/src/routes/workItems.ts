@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { UnauthorizedError } from '../errors/AppError.js';
 import * as workItemService from '../services/workItemService.js';
+import { ensureDailyReschedule } from '../services/schedulingEngine.js';
 import type {
   CreateWorkItemRequest,
   UpdateWorkItemRequest,
@@ -141,6 +142,7 @@ export default async function workItemRoutes(fastify: FastifyInstance) {
 
     const query = request.query as WorkItemListQuery;
 
+    ensureDailyReschedule(fastify.db);
     const result = workItemService.listWorkItems(fastify.db, query);
 
     return reply.status(200).send(result);
