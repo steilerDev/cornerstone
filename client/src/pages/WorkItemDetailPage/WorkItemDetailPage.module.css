@@ -50,12 +50,18 @@
   margin-bottom: 2rem;
 }
 
+.navButtons {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
 .backButton {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
-  margin-bottom: 1rem;
   background: transparent;
   border: 1px solid var(--color-border-strong);
   border-radius: 0.375rem;
@@ -73,6 +79,35 @@
 .backButton:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.secondaryNavButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  opacity: 0.7;
+}
+
+.secondaryNavButton:hover {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  opacity: 1;
+}
+
+.secondaryNavButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  opacity: 1;
+  position: relative;
+  z-index: 1;
 }
 
 .headerRow {
@@ -242,6 +277,34 @@
   color: var(--color-text-muted);
 }
 
+.propertyValue {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  padding: 0.625rem 0;
+}
+
+.sectionDescription {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  margin: -0.5rem 0 1rem 0;
+  line-height: 1.5;
+}
+
+/* Delay indicator — shown when a not-started work item's scheduled start is in the past */
+.delayIndicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.375rem;
+  border: 1px solid var(--color-danger-border);
+  background: var(--color-danger-bg);
+  color: var(--color-danger-text-on-light);
+  font-size: 0.8125rem;
+  font-weight: var(--font-weight-medium);
+}
+
 .propertyInput,
 .propertySelect {
   padding: 0.625rem;
@@ -258,6 +321,73 @@
   outline: none;
   border-color: var(--color-primary);
   box-shadow: var(--shadow-focus-subtle);
+}
+
+/* ---- Inline field wrapper: input + clear button + autosave indicator ---- */
+
+.inlineFieldWrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  position: relative;
+}
+
+.inlineFieldWrapper .propertyInput {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Clear (×) button for date fields — shown only when a value is set */
+.clearDateButton {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  padding: 0 var(--spacing-1);
+  font-size: var(--font-size-base);
+  line-height: 1;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: color 0.1s;
+}
+
+.clearDateButton:hover {
+  color: var(--color-text-primary);
+}
+
+/* Autosave indicator: small text badge appearing after the field */
+.autosaveIndicator {
+  flex-shrink: 0;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  border-radius: var(--radius-full);
+  padding: 1px var(--spacing-1-5);
+  line-height: 1.4;
+  transition: opacity 0.2s;
+}
+
+.autosaveSaving {
+  color: var(--color-text-tertiary);
+}
+
+.autosaveSuccess {
+  color: var(--color-success-text-on-light);
+  background: var(--color-success-bg);
+}
+
+.autosaveError {
+  color: var(--color-danger);
+  background: var(--color-danger-bg);
+}
+
+[data-theme='dark'] .autosaveSuccess {
+  color: var(--color-emerald-300);
+  background: rgba(16, 185, 129, 0.15);
+}
+
+[data-theme='dark'] .autosaveError {
+  color: var(--color-red-400);
+  background: rgba(239, 68, 68, 0.15);
 }
 
 /* Notes */
@@ -437,10 +567,95 @@
   cursor: not-allowed;
 }
 
+/* Constraints section subsections */
+.constraintSubsection {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.constraintSubsectionFirst {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.constraintSubsectionDesc {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  margin: -0.25rem 0 0.75rem 0;
+  line-height: 1.5;
+}
+
+/* Milestone chips */
+.milestoneChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.milestoneChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.3125rem 0.5rem 0.3125rem 0.75rem;
+  background: var(--color-primary-bg);
+  border: 1px solid var(--color-primary-bg-hover);
+  border-radius: var(--radius-full, 9999px);
+  font-size: 0.8125rem;
+  color: var(--color-primary-badge-text);
+  max-width: 100%;
+}
+
+.milestoneChipLinked {
+  background: var(--color-success-badge-bg);
+  border-color: var(--color-success-badge-bg-alt);
+  color: var(--color-success-badge-text);
+}
+
+.milestoneChipName {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.milestoneChipDate {
+  font-size: 0.75rem;
+  opacity: 0.8;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.milestoneChipRemove {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.125rem 0.25rem;
+  border-radius: var(--radius-sm, 0.25rem);
+  color: inherit;
+  opacity: 0.6;
+  transition:
+    opacity 0.15s,
+    background 0.15s;
+}
+
+.milestoneChipRemove:hover {
+  opacity: 1;
+  background: var(--color-overlay-danger);
+  color: var(--color-danger);
+}
+
 /* Dependencies */
 .addDependencySection {
-  margin-top: 1.25rem;
-  padding-top: 1rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
   border-top: 1px solid var(--color-border);
 }
 
@@ -1157,4 +1372,73 @@
   .deleteWorkItemButton {
     width: 100%;
   }
+}
+
+/* ─── Subsidy Payback Row ─────────────────────────────────────────────────── */
+
+.subsidyPaybackRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-3) var(--spacing-4);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-3);
+}
+
+/* Green accent when payback > 0 */
+.subsidyPaybackRowActive {
+  background: var(--color-success-bg);
+  border: 1px solid var(--color-success-border);
+}
+
+/* Muted when payback = 0 */
+.subsidyPaybackRowZero {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+}
+
+.subsidyPaybackLabel {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.subsidyPaybackAmount {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+  margin-left: auto;
+}
+
+.subsidyPaybackRowActive .subsidyPaybackAmount {
+  color: var(--color-success-text-on-light);
+}
+
+.subsidyPaybackRowZero .subsidyPaybackAmount {
+  color: var(--color-text-muted);
+}
+
+.subsidyPaybackChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-1-5);
+  width: 100%;
+  margin-top: var(--spacing-1);
+}
+
+.subsidyPaybackChip {
+  display: inline-block;
+  padding: var(--spacing-0-5) var(--spacing-2);
+  border-radius: var(--radius-full, 9999px);
+  font-size: var(--font-size-xs);
+  background: var(--color-success-badge-bg);
+  color: var(--color-success-badge-text);
+  border: 1px solid var(--color-success-border);
+}
+
+.subsidyPaybackRowZero .subsidyPaybackChip {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-muted);
+  border-color: var(--color-border);
 }

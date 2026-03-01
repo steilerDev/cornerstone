@@ -107,3 +107,13 @@ export class BudgetLineInUseError extends AppError {
     this.name = 'BudgetLineInUseError';
   }
 }
+
+export class CircularDependencyError extends AppError {
+  constructor(
+    message = 'Circular dependency detected in the dependency graph',
+    details?: { cycle: string[] },
+  ) {
+    super('CIRCULAR_DEPENDENCY', 409, message, details);
+    this.name = 'CircularDependencyError';
+  }
+}

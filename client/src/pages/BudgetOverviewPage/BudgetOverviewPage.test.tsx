@@ -38,10 +38,14 @@ describe('BudgetOverviewPage', () => {
     remainingVsActualCost: 0,
     remainingVsActualPaid: 0,
     remainingVsActualClaimed: 0,
+    remainingVsMinPlannedWithPayback: 0,
+    remainingVsMaxPlannedWithPayback: 0,
     categorySummaries: [],
     subsidySummary: {
       totalReductions: 0,
       activeSubsidyCount: 0,
+      minTotalPayback: 0,
+      maxTotalPayback: 0,
     },
   };
 
@@ -65,6 +69,8 @@ describe('BudgetOverviewPage', () => {
     remainingVsActualCost: 80000,
     remainingVsActualPaid: 100000,
     remainingVsActualClaimed: 140000,
+    remainingVsMinPlannedWithPayback: 80000,
+    remainingVsMaxPlannedWithPayback: 20000,
     categorySummaries: [
       {
         categoryId: 'cat-1',
@@ -96,6 +102,8 @@ describe('BudgetOverviewPage', () => {
     subsidySummary: {
       totalReductions: 15000,
       activeSubsidyCount: 3,
+      minTotalPayback: 0,
+      maxTotalPayback: 0,
     },
   };
 
@@ -471,7 +479,12 @@ describe('BudgetOverviewPage', () => {
     it('shows "1 program" (singular) when activeSubsidyCount is 1', async () => {
       const oneProgramOverview: BudgetOverview = {
         ...richOverview,
-        subsidySummary: { totalReductions: 5000, activeSubsidyCount: 1 },
+        subsidySummary: {
+          totalReductions: 5000,
+          activeSubsidyCount: 1,
+          minTotalPayback: 0,
+          maxTotalPayback: 0,
+        },
       };
       mockFetchBudgetOverview.mockResolvedValueOnce(oneProgramOverview);
       renderPage();
@@ -822,6 +835,113 @@ describe('BudgetOverviewPage', () => {
       // richOverview: availableFunds = 200000 → formatted as full currency in Available Funds
       await waitFor(() => {
         expect(screen.getByText(/200,000\.00/)).toBeInTheDocument();
+      });
+    });
+  });
+
+  // ─── Subsidy payback display (#346) ────────────────────────────────────────
+
+  describe('subsidy payback footer display', () => {
+    it('does NOT show "Expected payback" when maxTotalPayback is 0', async () => {
+      // richOverview has maxTotalPayback = 0 → payback row should not appear
+      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.queryByText(/expected payback/i)).not.toBeInTheDocument();
+      });
+    });
+
+    it('shows "Expected payback" footer item when maxTotalPayback > 0', async () => {
+      const paybackOverview: BudgetOverview = {
+        ...richOverview,
+        subsidySummary: {
+          totalReductions: 15000,
+          activeSubsidyCount: 3,
+          minTotalPayback: 5000,
+          maxTotalPayback: 7500,
+        },
+      };
+      mockFetchBudgetOverview.mockResolvedValueOnce(paybackOverview);
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText(/expected payback/i)).toBeInTheDocument();
+      });
+    });
+
+    it('shows a range when minTotalPayback != maxTotalPayback', async () => {
+      const paybackOverview: BudgetOverview = {
+        ...richOverview,
+        subsidySummary: {
+          totalReductions: 15000,
+          activeSubsidyCount: 3,
+          minTotalPayback: 5000,
+          maxTotalPayback: 7500,
+        },
+      };
+      mockFetchBudgetOverview.mockResolvedValueOnce(paybackOverview);
+      renderPage();
+
+      // Should show formatted range: €5K – €7K or €5,000 – €7,500
+      await waitFor(() => {
+        const paybackEl = screen.getByText(/expected payback/i);
+        // The payback element should contain a range (both values present in vicinity)
+        expect(paybackEl).toBeInTheDocument();
+      });
+    });
+
+    it('shows a single value when minTotalPayback === maxTotalPayback', async () => {
+      const paybackOverview: BudgetOverview = {
+        ...richOverview,
+        subsidySummary: {
+          totalReductions: 15000,
+          activeSubsidyCount: 3,
+          minTotalPayback: 5000,
+          maxTotalPayback: 5000,
+        },
+      };
+      mockFetchBudgetOverview.mockResolvedValueOnce(paybackOverview);
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText(/expected payback/i)).toBeInTheDocument();
+      });
+    });
+
+    it('payback-adjusted rows appear in remaining detail panel when payback > 0', async () => {
+      const paybackOverview: BudgetOverview = {
+        ...richOverview,
+        remainingVsMinPlannedWithPayback: 85000,
+        remainingVsMaxPlannedWithPayback: 25000,
+        subsidySummary: {
+          totalReductions: 15000,
+          activeSubsidyCount: 3,
+          minTotalPayback: 5000,
+          maxTotalPayback: 5000,
+        },
+      };
+      mockFetchBudgetOverview.mockResolvedValueOnce(paybackOverview);
+      renderPage();
+
+      await waitFor(() => {
+        // The payback-adjusted perspective labels should appear in the detail panel
+        expect(
+          screen.getAllByText(/remaining vs min planned \(incl\. payback\)/i).length,
+        ).toBeGreaterThan(0);
+        expect(
+          screen.getAllByText(/remaining vs max planned \(incl\. payback\)/i).length,
+        ).toBeGreaterThan(0);
+      });
+    });
+
+    it('payback rows do NOT appear in remaining detail panel when payback = 0', async () => {
+      // richOverview has maxTotalPayback = 0
+      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.queryByText(/incl\. payback/i)).not.toBeInTheDocument();
       });
     });
   });

@@ -95,3 +95,21 @@ export async function createSubsidyProgramViaApi(
 export async function deleteSubsidyProgramViaApi(page: Page, id: string): Promise<void> {
   await page.request.delete(`${API.subsidyPrograms}/${id}`);
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Milestones
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function createMilestoneViaApi(
+  page: Page,
+  data: { title: string; targetDate: string; description?: string | null },
+): Promise<number> {
+  const response = await page.request.post(API.milestones, { data });
+  expect(response.ok()).toBeTruthy();
+  const body = (await response.json()) as { milestone: { id: number } };
+  return body.milestone.id;
+}
+
+export async function deleteMilestoneViaApi(page: Page, id: number): Promise<void> {
+  await page.request.delete(`${API.milestones}/${id}`);
+}

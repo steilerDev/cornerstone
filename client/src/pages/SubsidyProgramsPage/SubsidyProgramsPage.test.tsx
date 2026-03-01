@@ -816,13 +816,14 @@ describe('SubsidyProgramsPage', () => {
       });
 
       const materialsCheckbox = screen.getByLabelText('Materials') as HTMLInputElement;
-      expect(materialsCheckbox.checked).toBe(false);
-
-      await user.click(materialsCheckbox);
+      // All categories default to checked (#336: Select All by default)
       expect(materialsCheckbox.checked).toBe(true);
 
       await user.click(materialsCheckbox);
       expect(materialsCheckbox.checked).toBe(false);
+
+      await user.click(materialsCheckbox);
+      expect(materialsCheckbox.checked).toBe(true);
     });
 
     it('includes selected categoryIds in create request', async () => {
@@ -846,7 +847,8 @@ describe('SubsidyProgramsPage', () => {
       await user.type(screen.getByLabelText(/name/i), 'With Category');
       const reductionValueInput = screen.getByLabelText(/value \(%\)/i);
       fireEvent.change(reductionValueInput, { target: { value: '10' } });
-      await user.click(screen.getByLabelText('Materials'));
+      // All categories default to checked; uncheck Labor (cat-2) so only Materials (cat-1) is selected
+      await user.click(screen.getByLabelText('Labor'));
 
       await user.click(screen.getByRole('button', { name: /create program/i }));
 

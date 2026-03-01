@@ -1,0 +1,115 @@
+/* ============================================================
+ * GanttArrows — dependency arrow SVG styles
+ *
+ * Arrow colors are resolved from CSS custom properties via
+ * getComputedStyle in the component (SVG fill/stroke cannot
+ * reference CSS var() in all browsers at attribute level).
+ * These classes are used only for structural / transition
+ * properties that don't rely on color resolution.
+ * ============================================================ */
+
+/* Arrow group — captures hover events for the whole arrow */
+.arrowGroup {
+  pointer-events: stroke;
+  cursor: default;
+  transition: opacity var(--transition-normal);
+}
+
+.arrowGroup:hover {
+  opacity: 1 !important;
+}
+
+/* Invisible wider hit-area path for easier hover targeting */
+.arrowHitArea {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 12;
+  pointer-events: stroke;
+}
+
+/* Default (non-critical) connector path */
+.arrowDefault {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition:
+    opacity var(--transition-normal),
+    stroke-width var(--transition-fast);
+}
+
+.arrowGroup:hover .arrowDefault {
+  stroke-width: 2.5;
+}
+
+/* Critical path connector path */
+.arrowCritical {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition:
+    opacity var(--transition-normal),
+    stroke-width var(--transition-fast);
+}
+
+.arrowGroup:hover .arrowCritical {
+  stroke-width: 3;
+}
+
+/* Default arrowhead */
+.arrowheadDefault {
+  transition: opacity var(--transition-normal);
+}
+
+/* Critical arrowhead */
+.arrowheadCritical {
+  transition: opacity var(--transition-normal);
+}
+
+/* Milestone linkage connector path (dashed) */
+.arrowMilestone {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition:
+    opacity var(--transition-normal),
+    stroke-width var(--transition-fast);
+}
+
+.arrowGroup:hover .arrowMilestone {
+  stroke-width: 2.5;
+}
+
+/* Milestone linkage arrowhead */
+.arrowheadMilestone {
+  transition: opacity var(--transition-normal);
+}
+
+/* Dotted critical path connection (no explicit dependency) */
+.arrowDotted {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 4 4;
+  transition: opacity var(--transition-normal);
+}
+
+/* Arrow hover dimming — applied to non-hovered arrow groups */
+.arrowGroupDimmed {
+  opacity: 0.15 !important;
+  transition: opacity var(--transition-normal);
+}
+
+/* Hovered arrow — full opacity regardless of base opacity */
+.arrowGroupHovered {
+  opacity: 1 !important;
+  transition: opacity var(--transition-normal);
+}
+
+/* Respect user preference for reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .arrowGroup,
+  .arrowGroupHovered,
+  .arrowGroupDimmed {
+    transition: none;
+  }
+}

@@ -1,0 +1,444 @@
+/**
+ * Shared composable CSS utility classes for Cornerstone components.
+ *
+ * USAGE — CSS Modules composition:
+ *
+ *   In a component module file (e.g. MyComponent.module.css):
+ *
+ *     .myButton {
+ *       composes: btnPrimary from '../../styles/shared.module.css';
+ *       / * additional overrides * /
+ *     }
+ *
+ *   Or import the class names in TSX and apply alongside local classes:
+ *
+ *     import shared from '../../styles/shared.module.css';
+ *     <button className={shared.btnPrimary}>Save</button>
+ *
+ * SCOPE — Extract patterns that appear in 3+ component or page CSS module
+ * files. Do NOT put one-off styles here. Prefer semantic token references
+ * (var(--...)) over literal values at all times.
+ *
+ * The classes below are deliberately not prefixed with "." placeholders;
+ * they are real locally-scoped CSS Modules class names. Each class describes
+ * a visual role, not a component name, so they remain reusable across domains.
+ */
+
+/* ============================================================
+ * BUTTONS
+ * ============================================================ */
+
+/**
+ * Primary action button — filled blue, used for the main CTA on a form or
+ * panel (e.g. "Add", "Save", "Create"). Matches the full-size variant seen
+ * in BudgetCategoriesPage, BudgetSourcesPage, VendorsPage, and many others.
+ */
+.btnPrimary {
+  padding: var(--spacing-2-5) var(--spacing-4);
+  background-color: var(--color-primary);
+  color: var(--color-primary-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition-button);
+  white-space: nowrap;
+}
+
+.btnPrimary:hover:not(:disabled) {
+  background-color: var(--color-primary-hover);
+}
+
+.btnPrimary:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.btnPrimary:disabled {
+  background-color: var(--color-text-placeholder);
+  cursor: not-allowed;
+}
+
+/**
+ * Compact primary button — same visual treatment as btnPrimary but smaller
+ * padding, used for inline "Save" buttons inside list rows and edit forms
+ * (e.g. BudgetCategoriesPage saveButton, BudgetSourcesPage saveButton).
+ */
+.btnPrimaryCompact {
+  padding: var(--spacing-1-5) var(--spacing-3);
+  background-color: var(--color-primary);
+  color: var(--color-primary-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition-button);
+}
+
+.btnPrimaryCompact:hover:not(:disabled) {
+  background-color: var(--color-primary-hover);
+}
+
+.btnPrimaryCompact:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.btnPrimaryCompact:disabled {
+  background-color: var(--color-text-placeholder);
+  cursor: not-allowed;
+}
+
+/**
+ * Secondary / cancel button — outlined appearance on a light background,
+ * used for non-destructive alternative actions ("Cancel", "Edit").
+ * Seen in BudgetCategoriesPage, BudgetSourcesPage, VendorsPage, VendorDetailPage.
+ */
+.btnSecondary {
+  padding: var(--spacing-2-5) var(--spacing-4);
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition-button-border);
+}
+
+.btnSecondary:hover:not(:disabled) {
+  background-color: var(--color-bg-hover);
+}
+
+.btnSecondary:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.btnSecondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/**
+ * Compact secondary button — same as btnSecondary but with smaller padding,
+ * used for inline cancel / edit buttons inside list rows.
+ */
+.btnSecondaryCompact {
+  padding: var(--spacing-1-5) var(--spacing-3);
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition-button-border);
+}
+
+.btnSecondaryCompact:hover:not(:disabled) {
+  background-color: var(--color-bg-hover);
+}
+
+.btnSecondaryCompact:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.btnSecondaryCompact:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/**
+ * Danger outline button — tinted red background with a red border,
+ * used for delete actions on list rows where a lighter affordance is
+ * appropriate before a confirmation step.
+ * Seen in BudgetCategoriesPage, BudgetSourcesPage, VendorsPage.
+ */
+.btnDanger {
+  padding: var(--spacing-1-5) var(--spacing-3);
+  background-color: var(--color-danger-bg);
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background-color var(--transition-normal);
+}
+
+.btnDanger:hover:not(:disabled) {
+  background-color: var(--color-danger-bg-strong);
+}
+
+.btnDanger:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus-danger);
+}
+
+.btnDanger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/**
+ * Confirm-delete button — solid red fill, used as the final destructive
+ * action inside a confirmation modal ("Delete", "Yes, delete").
+ * Seen in BudgetCategoriesPage, BudgetSourcesPage, VendorsPage.
+ */
+.btnConfirmDelete {
+  padding: var(--spacing-2-5) var(--spacing-4);
+  background-color: var(--color-danger);
+  color: var(--color-danger-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background-color var(--transition-normal);
+}
+
+.btnConfirmDelete:hover:not(:disabled) {
+  background-color: var(--color-danger-hover);
+}
+
+.btnConfirmDelete:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus-danger);
+}
+
+.btnConfirmDelete:disabled {
+  background-color: var(--color-text-placeholder);
+  cursor: not-allowed;
+}
+
+/* ============================================================
+ * FORM INPUTS
+ * ============================================================ */
+
+/**
+ * Standard text / date / number input field.
+ * Seen in BudgetCategoriesPage, BudgetSourcesPage, VendorsPage, SubsidyProgramsPage.
+ */
+.input {
+  padding: var(--spacing-2) var(--spacing-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-primary);
+  transition: var(--transition-input);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.input:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-focus-subtle);
+}
+
+.input:disabled {
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
+/**
+ * Select / dropdown element — identical base styles to input plus
+ * cursor:pointer and native appearance.
+ * Seen in BudgetSourcesPage, VendorDetailPage, InvoicesPage.
+ */
+.select {
+  padding: var(--spacing-2) var(--spacing-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-primary);
+  transition: var(--transition-input);
+  width: 100%;
+  box-sizing: border-box;
+  cursor: pointer;
+  appearance: auto;
+}
+
+.select:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-focus-subtle);
+}
+
+.select:disabled {
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
+/**
+ * Textarea — multi-line text input. Resizable vertically only.
+ * Seen in BudgetSourcesPage, VendorDetailPage, WorkItemCreatePage.
+ */
+.textarea {
+  padding: var(--spacing-2) var(--spacing-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-primary);
+  transition: var(--transition-input);
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.5;
+}
+
+.textarea:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-focus-subtle);
+}
+
+.textarea:disabled {
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
+/* ============================================================
+ * MODAL
+ * ============================================================ */
+
+/**
+ * Fixed full-screen modal overlay container — centers the content panel
+ * above the backdrop. Used in every page that has a confirmation dialog.
+ */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/**
+ * Semi-transparent backdrop behind the modal panel.
+ */
+.modalBackdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--color-overlay);
+}
+
+/**
+ * Modal content panel — white card floating above the backdrop.
+ * Use a local override to adjust max-width per dialog type.
+ */
+.modalContent {
+  position: relative;
+  background: var(--color-bg-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-2xl);
+  padding: var(--spacing-6);
+  max-width: 28rem;
+  width: calc(100% - var(--spacing-8));
+  margin: var(--spacing-4);
+}
+
+/**
+ * Row of action buttons at the bottom of a modal, right-aligned.
+ */
+.modalActions {
+  display: flex;
+  gap: var(--spacing-3);
+  justify-content: flex-end;
+}
+
+/* ============================================================
+ * CARD / PANEL
+ * ============================================================ */
+
+/**
+ * Standard content card — white background, subtle shadow, rounded corners.
+ * Seen in BudgetCategoriesPage, BudgetSourcesPage, SubsidyProgramsPage,
+ * VendorsPage, WorkItemsPage, and many more.
+ */
+.card {
+  background: var(--color-bg-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--spacing-6);
+}
+
+/* ============================================================
+ * LOADING STATE
+ * ============================================================ */
+
+/**
+ * Full-height loading placeholder shown while data is being fetched.
+ * Vertically centers a text message inside a minimum 400px-tall area.
+ */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  font-size: var(--font-size-base);
+  color: var(--color-text-muted);
+}
+
+/* ============================================================
+ * EMPTY STATE
+ * ============================================================ */
+
+/**
+ * Centered empty state area — shown when a list has no items to display.
+ * Seen in BudgetCategoriesPage, BudgetSourcesPage, SubsidyProgramsPage.
+ */
+.emptyState {
+  padding: var(--spacing-8);
+  text-align: center;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+/* ============================================================
+ * STATUS BANNERS
+ * ============================================================ */
+
+/**
+ * Inline success banner — green-tinted, displayed after a successful
+ * create / update operation. Auto-dismissed after a few seconds in most pages.
+ */
+.bannerSuccess {
+  background-color: var(--color-success-bg);
+  border: 1px solid var(--color-success-border);
+  border-radius: var(--radius-md);
+  color: var(--color-success-text-on-light);
+  padding: var(--spacing-3);
+  font-size: var(--font-size-sm);
+}
+
+/**
+ * Inline error banner — red-tinted, displayed when an API call fails.
+ * Seen in BudgetCategoriesPage, BudgetSourcesPage, SubsidyProgramsPage.
+ */
+.bannerError {
+  background-color: var(--color-danger-bg);
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-md);
+  color: var(--color-danger-active);
+  padding: var(--spacing-3);
+  font-size: var(--font-size-sm);
+}

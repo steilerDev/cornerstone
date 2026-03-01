@@ -1,0 +1,317 @@
+/* ============================================================
+ * GanttTooltip — portal-based SVG bar hover tooltip
+ * ============================================================ */
+
+.tooltip {
+  /* Local custom properties for tooltip surface — override in dark mode below */
+  --color-tooltip-subdued: rgba(255, 255, 255, 0.55);
+  --color-tooltip-bullet: rgba(255, 255, 255, 0.4);
+
+  position: fixed;
+  z-index: var(--z-modal);
+  background: var(--color-bg-inverse);
+  color: var(--color-text-inverse);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--spacing-3) var(--spacing-4);
+  min-width: 180px;
+  max-width: 280px;
+  font-size: var(--font-size-sm);
+  pointer-events: none;
+  /* Fade-in animation */
+  animation: tooltipFadeIn 0.1s ease forwards;
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ---- Header row: title + status badge ---- */
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-2);
+  margin-bottom: var(--spacing-2);
+}
+
+.title {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-inverse);
+  line-height: 1.4;
+  word-break: break-word;
+  flex: 1;
+}
+
+/* ---- Separator ---- */
+
+.separator {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.15);
+  margin: var(--spacing-2) 0;
+}
+
+/* ---- Detail rows ---- */
+
+.detailRow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-2);
+  margin-bottom: var(--spacing-1);
+  font-size: var(--font-size-xs);
+  line-height: 1.5;
+}
+
+.detailRow:last-child {
+  margin-bottom: 0;
+}
+
+.detailLabel {
+  color: rgba(255, 255, 255, 0.55);
+  flex-shrink: 0;
+  min-width: 52px;
+}
+
+.detailValue {
+  color: var(--color-text-inverse);
+  font-weight: var(--font-weight-medium);
+}
+
+/* Late projected date value — shown in red */
+.detailValueLate {
+  color: var(--color-red-200);
+}
+
+/* Delay value — shown in red to indicate the item is behind schedule */
+.detailValueDelay {
+  color: var(--color-red-200);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Variance: over plan (took longer than planned) — red */
+.detailValueOverPlan {
+  color: var(--color-red-200);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Variance: under plan (finished faster than planned) — green */
+.detailValueUnderPlan {
+  color: var(--color-emerald-200);
+  font-weight: var(--font-weight-semibold);
+}
+
+[data-theme='dark'] .detailValueOverPlan {
+  color: var(--color-red-400);
+}
+
+[data-theme='dark'] .detailValueUnderPlan {
+  color: var(--color-emerald-300);
+}
+
+/* ---- Status badge inside tooltip ---- */
+
+.statusBadge {
+  display: inline-block;
+  padding: 1px var(--spacing-1-5);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.statusNotStarted {
+  background: rgba(156, 163, 175, 0.25);
+  color: var(--color-gray-200);
+}
+
+.statusInProgress {
+  background: rgba(59, 130, 246, 0.3);
+  color: var(--color-blue-200);
+}
+
+.statusCompleted {
+  background: rgba(16, 185, 129, 0.3);
+  color: var(--color-emerald-200);
+}
+
+.statusLate {
+  background: rgba(239, 68, 68, 0.3);
+  color: var(--color-red-200);
+}
+
+/* ---- Milestone linked items list ---- */
+
+.linkedItemsSection {
+  margin-top: var(--spacing-2);
+}
+
+.linkedItemsLabel {
+  display: block;
+  font-size: var(--font-size-xs);
+  color: var(--color-tooltip-subdued);
+  margin-bottom: var(--spacing-1);
+}
+
+.linkedItemsList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.linkedItem {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-inverse);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-left: var(--spacing-2);
+  position: relative;
+}
+
+.linkedItem::before {
+  content: '•';
+  position: absolute;
+  left: 0;
+  color: var(--color-tooltip-bullet);
+}
+
+.linkedItemsOverflow {
+  font-size: var(--font-size-xs);
+  color: var(--color-tooltip-subdued);
+  font-style: italic;
+  padding-left: var(--spacing-2);
+  line-height: 1.5;
+}
+
+/* Dependency type label shown inline before the related item title */
+.depTypeLabel {
+  color: var(--color-tooltip-subdued);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-normal);
+}
+
+/* ---- Milestone diamond icon in tooltip header ---- */
+
+.milestoneIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: var(--spacing-1);
+  color: var(--color-text-inverse);
+  flex-shrink: 0;
+}
+
+/* ---- Arrow relationship description ---- */
+
+.arrowDescription {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-normal);
+  color: var(--color-text-inverse);
+  line-height: 1.5;
+  padding: var(--spacing-1) 0;
+}
+
+/* ---- Touch device navigation affordance ---- */
+/* Shown only on touch (pointer: coarse) devices via the isTouchDevice prop in JSX.
+   pointer-events: none on the tooltip is overridden here so the link is tappable. */
+
+@media (pointer: coarse) {
+  .tooltip {
+    pointer-events: auto;
+  }
+}
+
+.viewItemLink {
+  display: block;
+  width: 100%;
+  text-align: center;
+  color: var(--color-blue-200);
+  text-decoration: underline;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  padding: var(--spacing-1) 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+}
+
+.viewItemLink:hover,
+.viewItemLink:focus-visible {
+  color: var(--color-blue-300, var(--color-blue-200));
+  opacity: 0.85;
+}
+
+[data-theme='dark'] .viewItemLink {
+  color: var(--color-blue-600);
+}
+
+/* ---- Dark mode: tooltip uses --color-bg-inverse which already flips ---- */
+/* In dark mode, bg-inverse = gray-100 (light), so text and badge colors flip */
+
+[data-theme='dark'] .tooltip {
+  --color-tooltip-subdued: rgba(0, 0, 0, 0.5);
+  --color-tooltip-bullet: rgba(0, 0, 0, 0.3);
+
+  background: var(--color-bg-inverse);
+  color: var(--color-text-inverse);
+}
+
+[data-theme='dark'] .separator {
+  background: rgba(0, 0, 0, 0.15);
+}
+
+[data-theme='dark'] .title {
+  color: var(--color-text-inverse);
+}
+
+[data-theme='dark'] .detailLabel {
+  color: rgba(0, 0, 0, 0.5);
+}
+
+[data-theme='dark'] .linkedItem {
+  color: var(--color-text-inverse);
+}
+
+[data-theme='dark'] .detailValue {
+  color: var(--color-text-inverse);
+}
+
+[data-theme='dark'] .detailValueLate {
+  color: var(--color-red-400);
+}
+
+[data-theme='dark'] .detailValueDelay {
+  color: var(--color-red-400);
+}
+
+[data-theme='dark'] .statusNotStarted {
+  background: rgba(107, 114, 128, 0.2);
+  color: var(--color-gray-700);
+}
+
+[data-theme='dark'] .statusInProgress {
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--color-primary);
+}
+
+[data-theme='dark'] .statusCompleted {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--color-green-600);
+}
+
+[data-theme='dark'] .statusLate {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--color-red-600);
+}

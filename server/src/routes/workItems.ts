@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { UnauthorizedError } from '../errors/AppError.js';
 import * as workItemService from '../services/workItemService.js';
+import { ensureDailyReschedule } from '../services/schedulingEngine.js';
 import type {
   CreateWorkItemRequest,
   UpdateWorkItemRequest,
@@ -17,10 +18,12 @@ const createWorkItemSchema = {
       description: { type: ['string', 'null'], maxLength: 10000 },
       status: {
         type: 'string',
-        enum: ['not_started', 'in_progress', 'completed', 'blocked'],
+        enum: ['not_started', 'in_progress', 'completed'],
       },
       startDate: { type: ['string', 'null'], format: 'date' },
       endDate: { type: ['string', 'null'], format: 'date' },
+      actualStartDate: { type: ['string', 'null'], format: 'date' },
+      actualEndDate: { type: ['string', 'null'], format: 'date' },
       durationDays: { type: ['integer', 'null'], minimum: 0 },
       startAfter: { type: ['string', 'null'], format: 'date' },
       startBefore: { type: ['string', 'null'], format: 'date' },
@@ -44,7 +47,7 @@ const listWorkItemsSchema = {
       pageSize: { type: 'integer', minimum: 1, maximum: 100 },
       status: {
         type: 'string',
-        enum: ['not_started', 'in_progress', 'completed', 'blocked'],
+        enum: ['not_started', 'in_progress', 'completed'],
       },
       assignedUserId: { type: 'string' },
       tagId: { type: 'string' },
@@ -68,10 +71,12 @@ const updateWorkItemSchema = {
       description: { type: ['string', 'null'], maxLength: 10000 },
       status: {
         type: 'string',
-        enum: ['not_started', 'in_progress', 'completed', 'blocked'],
+        enum: ['not_started', 'in_progress', 'completed'],
       },
       startDate: { type: ['string', 'null'], format: 'date' },
       endDate: { type: ['string', 'null'], format: 'date' },
+      actualStartDate: { type: ['string', 'null'], format: 'date' },
+      actualEndDate: { type: ['string', 'null'], format: 'date' },
       durationDays: { type: ['integer', 'null'], minimum: 0 },
       startAfter: { type: ['string', 'null'], format: 'date' },
       startBefore: { type: ['string', 'null'], format: 'date' },
@@ -137,6 +142,7 @@ export default async function workItemRoutes(fastify: FastifyInstance) {
 
     const query = request.query as WorkItemListQuery;
 
+    ensureDailyReschedule(fastify.db);
     const result = workItemService.listWorkItems(fastify.db, query);
 
     return reply.status(200).send(result);

@@ -19,6 +19,7 @@ export interface Dependency {
   predecessorId: string;
   successorId: string;
   dependencyType: DependencyType;
+  leadLagDays: number;
 }
 
 /**
@@ -27,13 +28,24 @@ export interface Dependency {
 export interface CreateDependencyRequest {
   predecessorId: string;
   dependencyType?: DependencyType;
+  /** Lead (negative) or lag (positive) offset in days. Default: 0. EPIC-06 addition. */
+  leadLagDays?: number;
 }
 
 /**
- * Response for creating a dependency.
+ * Request body for updating a dependency (PATCH). EPIC-06 addition.
+ */
+export interface UpdateDependencyRequest {
+  dependencyType?: DependencyType;
+  leadLagDays?: number;
+}
+
+/**
+ * Response for creating or updating a dependency.
  */
 export interface DependencyCreatedResponse {
   predecessorId: string;
   successorId: string;
   dependencyType: DependencyType;
+  leadLagDays: number;
 }

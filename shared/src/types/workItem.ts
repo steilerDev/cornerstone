@@ -11,8 +11,9 @@ import type { WorkItemBudgetLine } from './workItemBudget.js';
 
 /**
  * Work item status enum.
+ * EPIC-07: 'blocked' removed — status simplification (Issue #296).
  */
-export type WorkItemStatus = 'not_started' | 'in_progress' | 'completed' | 'blocked';
+export type WorkItemStatus = 'not_started' | 'in_progress' | 'completed';
 
 /**
  * User summary shape used in work item responses.
@@ -33,6 +34,10 @@ export interface WorkItem {
   status: WorkItemStatus;
   startDate: string | null;
   endDate: string | null;
+  /** Actual start date recorded when work began (YYYY-MM-DD). Set automatically on status transition. */
+  actualStartDate: string | null;
+  /** Actual end date recorded when work completed (YYYY-MM-DD). Set automatically on status transition. */
+  actualEndDate: string | null;
   durationDays: number | null;
   startAfter: string | null;
   startBefore: string | null;
@@ -51,6 +56,10 @@ export interface WorkItemSummary {
   status: WorkItemStatus;
   startDate: string | null;
   endDate: string | null;
+  /** Actual start date (YYYY-MM-DD) — set automatically on status transition or manually. */
+  actualStartDate: string | null;
+  /** Actual end date (YYYY-MM-DD) — set automatically on status transition or manually. */
+  actualEndDate: string | null;
   durationDays: number | null;
   assignedUser: UserSummary | null;
   tags: TagResponse[];
@@ -60,10 +69,12 @@ export interface WorkItemSummary {
 
 /**
  * Dependency response shape (used in work item detail).
+ * EPIC-06: Added leadLagDays for scheduling offset support.
  */
 export interface DependencyResponse {
   workItem: WorkItemSummary;
   dependencyType: DependencyType;
+  leadLagDays: number;
 }
 
 /**
@@ -76,6 +87,10 @@ export interface WorkItemDetail {
   status: WorkItemStatus;
   startDate: string | null;
   endDate: string | null;
+  /** Actual start date (YYYY-MM-DD) — set automatically on status transition or manually. */
+  actualStartDate: string | null;
+  /** Actual end date (YYYY-MM-DD) — set automatically on status transition or manually. */
+  actualEndDate: string | null;
   durationDays: number | null;
   startAfter: string | null;
   startBefore: string | null;
@@ -102,6 +117,10 @@ export interface CreateWorkItemRequest {
   status?: WorkItemStatus;
   startDate?: string | null;
   endDate?: string | null;
+  /** Manually override actual start date (YYYY-MM-DD). */
+  actualStartDate?: string | null;
+  /** Manually override actual end date (YYYY-MM-DD). */
+  actualEndDate?: string | null;
   durationDays?: number | null;
   startAfter?: string | null;
   startBefore?: string | null;
@@ -119,6 +138,10 @@ export interface UpdateWorkItemRequest {
   status?: WorkItemStatus;
   startDate?: string | null;
   endDate?: string | null;
+  /** Manually override actual start date (YYYY-MM-DD). Explicit value prevents auto-population. */
+  actualStartDate?: string | null;
+  /** Manually override actual end date (YYYY-MM-DD). Explicit value prevents auto-population. */
+  actualEndDate?: string | null;
   durationDays?: number | null;
   startAfter?: string | null;
   startBefore?: string | null;
@@ -151,4 +174,25 @@ export type WorkItemListResponse = PaginatedResponse<WorkItemSummary>;
 export interface WorkItemDependenciesResponse {
   predecessors: DependencyResponse[];
   successors: DependencyResponse[];
+}
+
+/**
+ * Compact milestone shape used in work item milestone responses.
+ * EPIC-06 UAT Fix 4: Bidirectional milestone-work item dependency tracking.
+ */
+export interface MilestoneSummaryForWorkItem {
+  id: number;
+  name: string;
+  targetDate: string | null;
+}
+
+/**
+ * Response for GET /api/work-items/:id/milestones.
+ * EPIC-06 UAT Fix 4: Bidirectional milestone-work item dependency tracking.
+ */
+export interface WorkItemMilestones {
+  /** Milestones this work item depends on (must complete before work item can start). */
+  required: MilestoneSummaryForWorkItem[];
+  /** Milestones this work item contributes to (linked milestones). */
+  linked: MilestoneSummaryForWorkItem[];
 }

@@ -787,7 +787,7 @@ describe('Work Item Routes', () => {
       // When: Filtering by non-matching status
       const response = await app.inject({
         method: 'GET',
-        url: '/api/work-items?status=blocked',
+        url: '/api/work-items?status=completed',
         headers: { cookie },
       });
 
@@ -1258,6 +1258,209 @@ describe('Work Item Routes', () => {
 
       // Then: Returns 204 (member can delete)
       expect(response.statusCode).toBe(204);
+    });
+  });
+
+  // ─── Actual dates in API routes (Issue #296) ──────────────────────────────
+
+  describe('POST /api/work-items - actualStartDate and actualEndDate (Issue #296)', () => {
+    it('creates work item with actualStartDate and actualEndDate', async () => {
+      // Given: Authenticated user
+      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+
+      // When: Creating work item with actual dates
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/work-items',
+        headers: { cookie, 'content-type': 'application/json' },
+        body: JSON.stringify({
+          title: 'Foundation Work',
+          actualStartDate: '2026-03-01',
+          actualEndDate: '2026-03-10',
+        }),
+      });
+
+      // Then: Returns 201 with actual dates in response
+      expect(response.statusCode).toBe(201);
+      const body = JSON.parse(response.body) as WorkItemDetail;
+      expect(body.actualStartDate).toBe('2026-03-01');
+      expect(body.actualEndDate).toBe('2026-03-10');
+    });
+
+    it('actual dates default to null when not provided', async () => {
+      // Given: Authenticated user
+      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+
+      // When: Creating work item without actual dates
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/work-items',
+        headers: { cookie, 'content-type': 'application/json' },
+        body: JSON.stringify({ title: 'Foundation Work' }),
+      });
+
+      // Then: Returns 201 with null actual dates
+      expect(response.statusCode).toBe(201);
+      const body = JSON.parse(response.body) as WorkItemDetail;
+      expect(body.actualStartDate).toBeNull();
+      expect(body.actualEndDate).toBeNull();
+    });
+
+    it('rejects blocked status with 400 validation error', async () => {
+      // Given: Authenticated user
+      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+
+      // When: Creating work item with blocked status (no longer valid)
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/work-items',
+        headers: { cookie, 'content-type': 'application/json' },
+        body: JSON.stringify({
+          title: 'Foundation Work',
+          status: 'blocked',
+        }),
+      });
+
+      // Then: Returns 400 validation error (blocked is not in the enum)
+      expect(response.statusCode).toBe(400);
+    });
+  });
+
+  describe('PATCH /api/work-items/:id - actualStartDate and actualEndDate (Issue #296)', () => {
+    it('updates actualStartDate on a work item', async () => {
+      // Given: Authenticated user and existing work item
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'Test User',
+        'password',
+      );
+      const workItem = workItemService.createWorkItem(app.db, userId, { title: 'Foundation Work' });
+
+      // When: Updating actualStartDate
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/work-items/${workItem.id}`,
+        headers: { cookie, 'content-type': 'application/json' },
+        body: JSON.stringify({ actualStartDate: '2026-04-01' }),
+      });
+
+      // Then: Returns 200 with updated actual start date
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body) as WorkItemDetail;
+      expect(body.actualStartDate).toBe('2026-04-01');
+    });
+
+    it('updates actualEndDate on a work item', async () => {
+      // Given: Authenticated user and existing work item
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'Test User',
+        'password',
+      );
+      const workItem = workItemService.createWorkItem(app.db, userId, { title: 'Foundation Work' });
+
+      // When: Updating actualEndDate
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/work-items/${workItem.id}`,
+        headers: { cookie, 'content-type': 'application/json' },
+        body: JSON.stringify({ actualEndDate: '2026-04-15' }),
+      });
+
+      // Then: Returns 200 with updated actual end date
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body) as WorkItemDetail;
+      expect(body.actualEndDate).toBe('2026-04-15');
+    });
+
+    it('rejects blocked status update with 400 validation error', async () => {
+      // Given: Authenticated user and existing work item
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'Test User',
+        'password',
+      );
+      const workItem = workItemService.createWorkItem(app.db, userId, { title: 'Foundation Work' });
+
+      // When: Updating status to blocked (no longer valid)
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/work-items/${workItem.id}`,
+        headers: { cookie, 'content-type': 'application/json' },
+        body: JSON.stringify({ status: 'blocked' }),
+      });
+
+      // Then: Returns 400 validation error
+      expect(response.statusCode).toBe(400);
+    });
+
+    it('actual dates appear in GET response after update', async () => {
+      // Given: Authenticated user and work item with actual dates set
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'Test User',
+        'password',
+      );
+      const workItem = workItemService.createWorkItem(app.db, userId, {
+        title: 'Foundation Work',
+        actualStartDate: '2026-03-05',
+        actualEndDate: '2026-03-15',
+      });
+
+      // When: Getting the work item
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/work-items/${workItem.id}`,
+        headers: { cookie },
+      });
+
+      // Then: Actual dates appear in the response
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body) as WorkItemDetail;
+      expect(body.actualStartDate).toBe('2026-03-05');
+      expect(body.actualEndDate).toBe('2026-03-15');
+    });
+
+    it('GET list response includes actual dates in work item summaries', async () => {
+      // Given: Work item with actual dates
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'Test User',
+        'password',
+      );
+      workItemService.createWorkItem(app.db, userId, {
+        title: 'Foundation Work',
+        actualStartDate: '2026-03-05',
+        actualEndDate: '2026-03-15',
+      });
+
+      // When: Listing work items
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/work-items',
+        headers: { cookie },
+      });
+
+      // Then: Actual dates appear in summaries
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body) as WorkItemListResponse;
+      expect(body.items[0].actualStartDate).toBe('2026-03-05');
+      expect(body.items[0].actualEndDate).toBe('2026-03-15');
+    });
+
+    it('GET filter by status=blocked returns 400 validation error', async () => {
+      // Given: Authenticated user
+      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+
+      // When: Filtering by blocked status
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/work-items?status=blocked',
+        headers: { cookie },
+      });
+
+      // Then: 400 validation error (blocked is not in the enum)
+      expect(response.statusCode).toBe(400);
     });
   });
 });

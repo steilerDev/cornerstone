@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, type FormEvent } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import type {
   WorkItemDetail,
   WorkItemStatus,
@@ -16,6 +16,9 @@ import type {
   ConfidenceLevel,
   CreateWorkItemBudgetRequest,
   UpdateWorkItemBudgetRequest,
+  WorkItemMilestones,
+  MilestoneSummary,
+  WorkItemSubsidyPaybackResponse,
 } from '@cornerstone/shared';
 import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
 import {
@@ -25,6 +28,7 @@ import {
   fetchWorkItemSubsidies,
   linkWorkItemSubsidy,
   unlinkWorkItemSubsidy,
+  fetchWorkItemSubsidyPayback,
 } from '../../lib/workItemsApi.js';
 import {
   fetchWorkItemBudgets,
@@ -47,6 +51,14 @@ import { fetchBudgetCategories } from '../../lib/budgetCategoriesApi.js';
 import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
 import { fetchSubsidyPrograms } from '../../lib/subsidyProgramsApi.js';
+import { listMilestones } from '../../lib/milestonesApi.js';
+import {
+  getWorkItemMilestones,
+  addRequiredMilestone,
+  removeRequiredMilestone,
+  addLinkedMilestone,
+  removeLinkedMilestone,
+} from '../../lib/workItemMilestonesApi.js';
 import { TagPicker } from '../../components/TagPicker/TagPicker.js';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
@@ -56,6 +68,9 @@ import {
   DependencySentenceDisplay,
 } from '../../components/DependencySentenceBuilder/index.js';
 import type { DependencyType } from '@cornerstone/shared';
+import { formatDate } from '../../lib/formatters.js';
+import { AutosaveIndicator } from '../../components/AutosaveIndicator/AutosaveIndicator.js';
+import type { AutosaveState } from '../../components/AutosaveIndicator/AutosaveIndicator.js';
 import styles from './WorkItemDetailPage.module.css';
 
 interface DeletingDependency {
@@ -93,6 +108,10 @@ const EMPTY_BUDGET_FORM: BudgetLineFormState = {
 export default function WorkItemDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const locationState = location.state as { from?: string; view?: string } | null;
+  const fromTimeline = locationState?.from === 'timeline';
+  const fromView = locationState?.view;
   const { user } = useAuth();
 
   const [workItem, setWorkItem] = useState<WorkItemDetail | null>(null);
@@ -129,6 +148,9 @@ export default function WorkItemDetailPage() {
   const [selectedSubsidyId, setSelectedSubsidyId] = useState('');
   const [isLinkingSubsidy, setIsLinkingSubsidy] = useState(false);
 
+  // Subsidy payback state
+  const [subsidyPayback, setSubsidyPayback] = useState<WorkItemSubsidyPaybackResponse | null>(null);
+
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -150,12 +172,49 @@ export default function WorkItemDetailPage() {
 
   const [isAddingDependency, setIsAddingDependency] = useState(false);
 
+  // Milestone relationships state
+  const [workItemMilestones, setWorkItemMilestones] = useState<WorkItemMilestones>({
+    required: [],
+    linked: [],
+  });
+  const [allMilestones, setAllMilestones] = useState<MilestoneSummary[]>([]);
+  const [selectedRequiredMilestoneId, setSelectedRequiredMilestoneId] = useState('');
+  const [selectedLinkedMilestoneId, setSelectedLinkedMilestoneId] = useState('');
+  const [isAddingRequiredMilestone, setIsAddingRequiredMilestone] = useState(false);
+  const [isAddingLinkedMilestone, setIsAddingLinkedMilestone] = useState(false);
+
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
 
   const [inlineError, setInlineError] = useState<string | null>(null);
+
+  // Local state for duration/constraint inputs (onBlur save pattern to avoid race conditions)
+  const [localDuration, setLocalDuration] = useState<string>('');
+  const [localStartAfter, setLocalStartAfter] = useState<string>('');
+  const [localStartBefore, setLocalStartBefore] = useState<string>('');
+  const [localActualStartDate, setLocalActualStartDate] = useState<string>('');
+  const [localActualEndDate, setLocalActualEndDate] = useState<string>('');
+
+  // Autosave indicator state per inline-edited field
+  const [autosaveDuration, setAutosaveDuration] = useState<AutosaveState>('idle');
+  const [autosaveStartAfter, setAutosaveStartAfter] = useState<AutosaveState>('idle');
+  const [autosaveStartBefore, setAutosaveStartBefore] = useState<AutosaveState>('idle');
+  const [autosaveActualStart, setAutosaveActualStart] = useState<AutosaveState>('idle');
+  const [autosaveActualEnd, setAutosaveActualEnd] = useState<AutosaveState>('idle');
+  // Timeouts to auto-reset indicator back to idle after success/error
+  const autosaveResetRefs = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  function triggerAutosaveReset(setter: (v: AutosaveState) => void, key: string) {
+    if (autosaveResetRefs.current[key]) {
+      clearTimeout(autosaveResetRefs.current[key]);
+    }
+    autosaveResetRefs.current[key] = setTimeout(() => {
+      setter('idle');
+    }, 2000);
+  }
+
   const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
   const [deletingSubtaskId, setDeletingSubtaskId] = useState<string | null>(null);
   const [deletingDependency, setDeletingDependency] = useState<DeletingDependency | null>(null);
@@ -182,6 +241,9 @@ export default function WorkItemDetailPage() {
           budgetLinesData,
           subsidiesData,
           linkedSubsidiesData,
+          workItemMilestonesData,
+          allMilestonesData,
+          subsidyPaybackData,
         ] = await Promise.all([
           getWorkItem(id!),
           listNotes(id!),
@@ -195,9 +257,19 @@ export default function WorkItemDetailPage() {
           fetchWorkItemBudgets(id!),
           fetchSubsidyPrograms(),
           fetchWorkItemSubsidies(id!),
+          getWorkItemMilestones(id!),
+          listMilestones(),
+          fetchWorkItemSubsidyPayback(id!),
         ]);
 
         setWorkItem(workItemData);
+        setLocalDuration(
+          workItemData.durationDays != null ? String(workItemData.durationDays) : '',
+        );
+        setLocalStartAfter(workItemData.startAfter || '');
+        setLocalStartBefore(workItemData.startBefore || '');
+        setLocalActualStartDate(workItemData.actualStartDate || '');
+        setLocalActualEndDate(workItemData.actualEndDate || '');
         setNotes(notesData.notes);
         setSubtasks(subtasksData.subtasks);
         setDependencies(depsData);
@@ -209,6 +281,9 @@ export default function WorkItemDetailPage() {
         setBudgetLines(budgetLinesData);
         setAllSubsidyPrograms(subsidiesData.subsidyPrograms);
         setLinkedSubsidies(linkedSubsidiesData);
+        setWorkItemMilestones(workItemMilestonesData);
+        setAllMilestones(allMilestonesData);
+        setSubsidyPayback(subsidyPaybackData);
       } catch (err: unknown) {
         if ((err as { statusCode?: number })?.statusCode === 404) {
           setError('Work item not found');
@@ -242,6 +317,11 @@ export default function WorkItemDetailPage() {
     try {
       const updated = await getWorkItem(id);
       setWorkItem(updated);
+      setLocalDuration(updated.durationDays != null ? String(updated.durationDays) : '');
+      setLocalStartAfter(updated.startAfter || '');
+      setLocalStartBefore(updated.startBefore || '');
+      setLocalActualStartDate(updated.actualStartDate || '');
+      setLocalActualEndDate(updated.actualEndDate || '');
     } catch (err) {
       console.error('Failed to reload work item:', err);
     }
@@ -294,6 +374,26 @@ export default function WorkItemDetailPage() {
       setLinkedSubsidies(data);
     } catch (err) {
       console.error('Failed to reload linked subsidies:', err);
+    }
+  };
+
+  const reloadSubsidyPayback = async () => {
+    if (!id) return;
+    try {
+      const data = await fetchWorkItemSubsidyPayback(id);
+      setSubsidyPayback(data);
+    } catch (err) {
+      console.error('Failed to reload subsidy payback:', err);
+    }
+  };
+
+  const reloadWorkItemMilestones = async () => {
+    if (!id) return;
+    try {
+      const data = await getWorkItemMilestones(id);
+      setWorkItemMilestones(data);
+    } catch (err) {
+      console.error('Failed to reload work item milestones:', err);
     }
   };
 
@@ -356,7 +456,7 @@ export default function WorkItemDetailPage() {
         await createWorkItemBudget(id, payload as CreateWorkItemBudgetRequest);
       }
       closeBudgetForm();
-      await reloadBudgetLines();
+      await Promise.all([reloadBudgetLines(), reloadSubsidyPayback()]);
     } catch (err) {
       const apiErr = err as { statusCode?: number; message?: string };
       setBudgetFormError(apiErr.message ?? 'Failed to save budget line. Please try again.');
@@ -376,7 +476,7 @@ export default function WorkItemDetailPage() {
     try {
       await deleteWorkItemBudget(id, deletingBudgetId);
       setDeletingBudgetId(null);
-      await reloadBudgetLines();
+      await Promise.all([reloadBudgetLines(), reloadSubsidyPayback()]);
     } catch (err) {
       setDeletingBudgetId(null);
       const apiErr = err as { statusCode?: number; message?: string };
@@ -398,7 +498,7 @@ export default function WorkItemDetailPage() {
     try {
       await linkWorkItemSubsidy(id, selectedSubsidyId);
       setSelectedSubsidyId('');
-      await reloadLinkedSubsidies();
+      await Promise.all([reloadLinkedSubsidies(), reloadSubsidyPayback()]);
     } catch (err) {
       const apiErr = err as { statusCode?: number; message?: string };
       if (apiErr.statusCode === 409) {
@@ -417,10 +517,78 @@ export default function WorkItemDetailPage() {
     setInlineError(null);
     try {
       await unlinkWorkItemSubsidy(id, subsidyProgramId);
-      await reloadLinkedSubsidies();
+      await Promise.all([reloadLinkedSubsidies(), reloadSubsidyPayback()]);
     } catch (err) {
       setInlineError('Failed to unlink subsidy program');
       console.error('Failed to unlink subsidy:', err);
+    }
+  };
+
+  // ─── Milestone relationship handlers ──────────────────────────────────────
+
+  const handleAddRequiredMilestone = async () => {
+    if (!id || !selectedRequiredMilestoneId) return;
+    setIsAddingRequiredMilestone(true);
+    setInlineError(null);
+    try {
+      await addRequiredMilestone(id, Number(selectedRequiredMilestoneId));
+      setSelectedRequiredMilestoneId('');
+      await reloadWorkItemMilestones();
+    } catch (err) {
+      const apiErr = err as { statusCode?: number; message?: string };
+      if (apiErr.statusCode === 409) {
+        setInlineError('This milestone is already a required dependency');
+      } else {
+        setInlineError('Failed to add required milestone');
+      }
+      console.error('Failed to add required milestone:', err);
+    } finally {
+      setIsAddingRequiredMilestone(false);
+    }
+  };
+
+  const handleRemoveRequiredMilestone = async (milestoneId: number) => {
+    if (!id) return;
+    setInlineError(null);
+    try {
+      await removeRequiredMilestone(id, milestoneId);
+      await reloadWorkItemMilestones();
+    } catch (err) {
+      setInlineError('Failed to remove required milestone');
+      console.error('Failed to remove required milestone:', err);
+    }
+  };
+
+  const handleAddLinkedMilestone = async () => {
+    if (!id || !selectedLinkedMilestoneId) return;
+    setIsAddingLinkedMilestone(true);
+    setInlineError(null);
+    try {
+      await addLinkedMilestone(id, Number(selectedLinkedMilestoneId));
+      setSelectedLinkedMilestoneId('');
+      await reloadWorkItemMilestones();
+    } catch (err) {
+      const apiErr = err as { statusCode?: number; message?: string };
+      if (apiErr.statusCode === 409) {
+        setInlineError('This milestone is already linked');
+      } else {
+        setInlineError('Failed to add linked milestone');
+      }
+      console.error('Failed to add linked milestone:', err);
+    } finally {
+      setIsAddingLinkedMilestone(false);
+    }
+  };
+
+  const handleRemoveLinkedMilestone = async (milestoneId: number) => {
+    if (!id) return;
+    setInlineError(null);
+    try {
+      await removeLinkedMilestone(id, milestoneId);
+      await reloadWorkItemMilestones();
+    } catch (err) {
+      setInlineError('Failed to remove linked milestone');
+      console.error('Failed to remove linked milestone:', err);
     }
   };
 
@@ -506,44 +674,79 @@ export default function WorkItemDetailPage() {
     }
   };
 
-  // Date changes
-  const handleDateChange = async (field: 'startDate' | 'endDate', value: string) => {
-    if (!id) return;
-    setInlineError(null);
-    try {
-      await updateWorkItem(id, { [field]: value || null });
-      await reloadWorkItem();
-    } catch (err) {
-      setInlineError(`Failed to update ${field}`);
-      console.error(`Failed to update ${field}:`, err);
-    }
-  };
-
-  // Duration change
-  const handleDurationChange = async (value: string) => {
-    if (!id) return;
-    const duration = value ? Number(value) : null;
+  // Duration change — saves onBlur to avoid race conditions from rapid keystroke API calls
+  const handleDurationBlur = async () => {
+    if (!id || !workItem) return;
+    const duration = localDuration ? Number(localDuration) : null;
     if (duration !== null && (isNaN(duration) || duration < 0)) return;
 
+    // Only save if the value actually changed
+    const currentDuration = workItem.durationDays;
+    if (duration === currentDuration) return;
+
     setInlineError(null);
+    setAutosaveDuration('saving');
     try {
       await updateWorkItem(id, { durationDays: duration });
       await reloadWorkItem();
+      setAutosaveDuration('success');
+      triggerAutosaveReset(setAutosaveDuration, 'duration');
     } catch (err) {
+      setAutosaveDuration('error');
+      triggerAutosaveReset(setAutosaveDuration, 'duration');
       setInlineError('Failed to update duration');
       console.error('Failed to update duration:', err);
     }
   };
 
-  // Constraint changes
-  const handleConstraintChange = async (field: 'startAfter' | 'startBefore', value: string) => {
-    if (!id) return;
+  // Constraint changes — saves onBlur to avoid race conditions
+  const handleConstraintBlur = async (field: 'startAfter' | 'startBefore') => {
+    if (!id || !workItem) return;
+    const localValue = field === 'startAfter' ? localStartAfter : localStartBefore;
+    const currentValue = workItem[field] || '';
+
+    // Only save if the value actually changed
+    if (localValue === currentValue) return;
+
     setInlineError(null);
+    const setter = field === 'startAfter' ? setAutosaveStartAfter : setAutosaveStartBefore;
+    setter('saving');
     try {
-      await updateWorkItem(id, { [field]: value || null });
+      await updateWorkItem(id, { [field]: localValue || null });
       await reloadWorkItem();
+      setter('success');
+      triggerAutosaveReset(setter, field);
     } catch (err) {
+      setter('error');
+      triggerAutosaveReset(setter, field);
       setInlineError(`Failed to update ${field}`);
+      console.error(`Failed to update ${field}:`, err);
+    }
+  };
+
+  // Actual date changes — saves onBlur, allows manual override or clearing
+  const handleActualDateBlur = async (field: 'actualStartDate' | 'actualEndDate') => {
+    if (!id || !workItem) return;
+    const localValue = field === 'actualStartDate' ? localActualStartDate : localActualEndDate;
+    const currentValue = workItem[field] || '';
+
+    // Only save if the value actually changed
+    if (localValue === currentValue) return;
+
+    setInlineError(null);
+    const setter = field === 'actualStartDate' ? setAutosaveActualStart : setAutosaveActualEnd;
+    setter('saving');
+    try {
+      await updateWorkItem(id, { [field]: localValue || null });
+      await reloadWorkItem();
+      setter('success');
+      triggerAutosaveReset(setter, field);
+    } catch (err) {
+      setter('error');
+      triggerAutosaveReset(setter, field);
+      setInlineError(
+        `Failed to update ${field === 'actualStartDate' ? 'actual start date' : 'actual end date'}`,
+      );
       console.error(`Failed to update ${field}:`, err);
     }
   };
@@ -911,6 +1114,17 @@ export default function WorkItemDetailPage() {
   // Compute budget line totals
   const totalPlanned = budgetLines.reduce((sum, b) => sum + b.plannedAmount, 0);
   const totalActualCost = budgetLines.reduce((sum, b) => sum + b.actualCost, 0);
+  // Confidence-based min/max planned range: each line contributes amount ± margin
+  const totalMinPlanned = budgetLines.reduce((sum, b) => {
+    const margin = CONFIDENCE_MARGINS[b.confidence] ?? 0;
+    return sum + b.plannedAmount * (1 - margin);
+  }, 0);
+  const totalMaxPlanned = budgetLines.reduce((sum, b) => {
+    const margin = CONFIDENCE_MARGINS[b.confidence] ?? 0;
+    return sum + b.plannedAmount * (1 + margin);
+  }, 0);
+  // Show range only when there's meaningful variance (min !== max)
+  const hasPlannedRange = Math.abs(totalMaxPlanned - totalMinPlanned) > 0.01;
 
   // Subsidies not yet linked
   const linkedSubsidyIds = new Set(linkedSubsidies.map((s) => s.id));
@@ -935,9 +1149,43 @@ export default function WorkItemDetailPage() {
 
       {/* Header */}
       <div className={styles.header}>
-        <button type="button" className={styles.backButton} onClick={() => navigate('/work-items')}>
-          ← Back to Work Items
-        </button>
+        <div className={styles.navButtons}>
+          {fromTimeline ? (
+            <>
+              <button
+                type="button"
+                className={styles.backButton}
+                onClick={() => navigate(fromView ? `/timeline?view=${fromView}` : '/timeline')}
+              >
+                ← Back to Timeline
+              </button>
+              <button
+                type="button"
+                className={styles.secondaryNavButton}
+                onClick={() => navigate('/work-items')}
+              >
+                To Work Items
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                className={styles.backButton}
+                onClick={() => navigate('/work-items')}
+              >
+                ← Back to Work Items
+              </button>
+              <button
+                type="button"
+                className={styles.secondaryNavButton}
+                onClick={() => navigate('/timeline')}
+              >
+                To Timeline
+              </button>
+            </>
+          )}
+        </div>
 
         <div className={styles.headerRow}>
           <div className={styles.titleSection}>
@@ -979,7 +1227,6 @@ export default function WorkItemDetailPage() {
               <option value="not_started">Not Started</option>
               <option value="in_progress">In Progress</option>
               <option value="completed">Completed</option>
-              <option value="blocked">Blocked</option>
             </select>
           </div>
         </div>
@@ -1024,68 +1271,44 @@ export default function WorkItemDetailPage() {
             )}
           </section>
 
-          {/* Dates and Duration */}
+          {/* Dates (computed by scheduling engine) */}
           <section className={styles.section}>
             <h2 className={styles.sectionTitle}>Schedule</h2>
+            <p className={styles.sectionDescription}>
+              Start and end dates are computed by the scheduling engine based on constraints and
+              dependencies.
+            </p>
             <div className={styles.propertyGrid}>
               <div className={styles.property}>
-                <label className={styles.propertyLabel}>Start Date</label>
-                <input
-                  type="date"
-                  className={styles.propertyInput}
-                  value={workItem.startDate || ''}
-                  onChange={(e) => handleDateChange('startDate', e.target.value)}
-                />
+                <span className={styles.propertyLabel}>Start Date</span>
+                <span className={styles.propertyValue}>
+                  {workItem.startDate ? formatDate(workItem.startDate) : 'Not scheduled'}
+                </span>
               </div>
 
               <div className={styles.property}>
-                <label className={styles.propertyLabel}>End Date</label>
-                <input
-                  type="date"
-                  className={styles.propertyInput}
-                  value={workItem.endDate || ''}
-                  onChange={(e) => handleDateChange('endDate', e.target.value)}
-                />
-              </div>
-
-              <div className={styles.property}>
-                <label className={styles.propertyLabel}>Duration (days)</label>
-                <input
-                  type="number"
-                  className={styles.propertyInput}
-                  value={workItem.durationDays ?? ''}
-                  onChange={(e) => handleDurationChange(e.target.value)}
-                  min="0"
-                  placeholder="0"
-                />
+                <span className={styles.propertyLabel}>End Date</span>
+                <span className={styles.propertyValue}>
+                  {workItem.endDate ? formatDate(workItem.endDate) : 'Not scheduled'}
+                </span>
               </div>
             </div>
-          </section>
-
-          {/* Constraints */}
-          <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>Constraints</h2>
-            <div className={styles.propertyGrid}>
-              <div className={styles.property}>
-                <label className={styles.propertyLabel}>Start After</label>
-                <input
-                  type="date"
-                  className={styles.propertyInput}
-                  value={workItem.startAfter || ''}
-                  onChange={(e) => handleConstraintChange('startAfter', e.target.value)}
-                />
-              </div>
-
-              <div className={styles.property}>
-                <label className={styles.propertyLabel}>Start Before</label>
-                <input
-                  type="date"
-                  className={styles.propertyInput}
-                  value={workItem.startBefore || ''}
-                  onChange={(e) => handleConstraintChange('startBefore', e.target.value)}
-                />
-              </div>
-            </div>
+            {/* Delay indicator: shown when not_started and scheduled start is in the past */}
+            {(() => {
+              if (workItem.status !== 'not_started' || !workItem.startDate) return null;
+              const today = new Date();
+              const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+              if (workItem.startDate >= todayStr) return null;
+              const startMs = new Date(workItem.startDate).getTime();
+              const todayMs = new Date(todayStr).getTime();
+              const delayDays = Math.floor((todayMs - startMs) / (1000 * 60 * 60 * 24));
+              return (
+                <div className={styles.delayIndicator} role="status" aria-live="polite">
+                  <span aria-hidden="true">⚠</span>
+                  Delayed by {delayDays} {delayDays === 1 ? 'day' : 'days'}
+                </div>
+              );
+            })()}
           </section>
 
           {/* Assigned User */}
@@ -1147,16 +1370,22 @@ export default function WorkItemDetailPage() {
                         </span>
                       </div>
                       <div className={styles.property}>
-                        <span className={styles.propertyLabel}>Total Planned</span>
+                        <span className={styles.propertyLabel}>Planned Range</span>
                         <span className={styles.budgetValueMuted}>
-                          {formatCurrency(totalPlanned)}
+                          {hasPlannedRange
+                            ? `${formatCurrency(totalMinPlanned)} – ${formatCurrency(totalMaxPlanned)}`
+                            : formatCurrency(totalPlanned)}
                         </span>
                       </div>
                     </>
                   ) : (
                     <div className={styles.property}>
-                      <span className={styles.propertyLabel}>Total Planned</span>
-                      <span className={styles.budgetValue}>{formatCurrency(totalPlanned)}</span>
+                      <span className={styles.propertyLabel}>Planned Range</span>
+                      <span className={styles.budgetValue}>
+                        {hasPlannedRange
+                          ? `${formatCurrency(totalMinPlanned)} – ${formatCurrency(totalMaxPlanned)}`
+                          : formatCurrency(totalPlanned)}
+                      </span>
                     </div>
                   )}
                   <div className={styles.property}>
@@ -1164,6 +1393,49 @@ export default function WorkItemDetailPage() {
                     <span className={styles.budgetValue}>{budgetLines.length}</span>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Expected Subsidy Payback — shown when non-rejected subsidies are linked */}
+            {subsidyPayback !== null && subsidyPayback.subsidies.length > 0 && (
+              <div
+                className={`${styles.subsidyPaybackRow} ${subsidyPayback.maxTotalPayback > 0 ? styles.subsidyPaybackRowActive : styles.subsidyPaybackRowZero}`}
+              >
+                <span className={styles.subsidyPaybackLabel}>Expected Subsidy Payback</span>
+                <span
+                  className={styles.subsidyPaybackAmount}
+                  aria-live="polite"
+                  aria-atomic="true"
+                  aria-label={
+                    subsidyPayback.minTotalPayback === subsidyPayback.maxTotalPayback
+                      ? `Expected subsidy payback: ${formatCurrency(subsidyPayback.minTotalPayback)}`
+                      : `Expected subsidy payback: ${formatCurrency(subsidyPayback.minTotalPayback)} to ${formatCurrency(subsidyPayback.maxTotalPayback)}`
+                  }
+                >
+                  {subsidyPayback.minTotalPayback === subsidyPayback.maxTotalPayback
+                    ? formatCurrency(subsidyPayback.minTotalPayback)
+                    : `${formatCurrency(subsidyPayback.minTotalPayback)} – ${formatCurrency(subsidyPayback.maxTotalPayback)}`}
+                </span>
+                {subsidyPayback.subsidies.length > 0 && (
+                  <div className={styles.subsidyPaybackChips} aria-label="Per-subsidy breakdown">
+                    {subsidyPayback.subsidies.map((entry) => (
+                      <span
+                        key={entry.subsidyProgramId}
+                        className={styles.subsidyPaybackChip}
+                        aria-label={
+                          entry.minPayback === entry.maxPayback
+                            ? `${entry.name}: ${formatCurrency(entry.minPayback)}`
+                            : `${entry.name}: ${formatCurrency(entry.minPayback)} to ${formatCurrency(entry.maxPayback)}`
+                        }
+                      >
+                        {entry.name}:{' '}
+                        {entry.minPayback === entry.maxPayback
+                          ? formatCurrency(entry.minPayback)
+                          : `${formatCurrency(entry.minPayback)} – ${formatCurrency(entry.maxPayback)}`}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -1517,7 +1789,7 @@ export default function WorkItemDetailPage() {
           </section>
         </div>
 
-        {/* Right column: Notes, Subtasks, Dependencies */}
+        {/* Right column: Notes, Subtasks, Constraints */}
         <div className={styles.rightColumn}>
           {/* Notes */}
           <section className={styles.section}>
@@ -1549,9 +1821,7 @@ export default function WorkItemDetailPage() {
                     <span className={styles.noteAuthor}>
                       {note.createdBy?.displayName || 'Unknown'}
                     </span>
-                    <span className={styles.noteDate}>
-                      {new Date(note.createdAt).toLocaleDateString()}
-                    </span>
+                    <span className={styles.noteDate}>{formatDate(note.createdAt)}</span>
                   </div>
 
                   {editingNoteId === note.id ? (
@@ -1713,24 +1983,334 @@ export default function WorkItemDetailPage() {
             </div>
           </section>
 
-          {/* Dependencies */}
+          {/* Constraints */}
           <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>Dependencies</h2>
+            <h2 className={styles.sectionTitle}>Constraints</h2>
 
-            <DependencySentenceDisplay
-              predecessors={dependencies.predecessors}
-              successors={dependencies.successors}
-              onDelete={handleDeleteDependency}
-            />
+            {/* Duration subsection — first, no top border */}
+            <div className={`${styles.constraintSubsection} ${styles.constraintSubsectionFirst}`}>
+              <h3 className={styles.subsectionTitle}>Duration</h3>
+              <div className={styles.property}>
+                <label className={styles.propertyLabel}>Duration (days)</label>
+                <div className={styles.inlineFieldWrapper}>
+                  <input
+                    type="number"
+                    className={styles.propertyInput}
+                    value={localDuration}
+                    onChange={(e) => setLocalDuration(e.target.value)}
+                    onBlur={() => void handleDurationBlur()}
+                    min="0"
+                    placeholder="0"
+                  />
+                  <AutosaveIndicator state={autosaveDuration} />
+                </div>
+              </div>
+            </div>
 
-            <div className={styles.addDependencySection}>
-              <DependencySentenceBuilder
-                thisItemId={id!}
-                thisItemLabel={workItem.title}
-                excludeIds={excludedWorkItemIds}
-                disabled={isAddingDependency}
-                onAdd={handleAddDependency}
+            {/* Date Constraints subsection */}
+            <div className={styles.constraintSubsection}>
+              <h3 className={styles.subsectionTitle}>Date Constraints</h3>
+              <div className={styles.propertyGrid}>
+                <div className={styles.property}>
+                  <label className={styles.propertyLabel}>Start After</label>
+                  <div className={styles.inlineFieldWrapper}>
+                    <input
+                      type="date"
+                      className={styles.propertyInput}
+                      value={localStartAfter}
+                      onChange={(e) => setLocalStartAfter(e.target.value)}
+                      onBlur={() => void handleConstraintBlur('startAfter')}
+                    />
+                    {localStartAfter && (
+                      <button
+                        type="button"
+                        className={styles.clearDateButton}
+                        aria-label="Clear start after date"
+                        onClick={() => {
+                          setLocalStartAfter('');
+                          if (id && workItem && workItem.startAfter) {
+                            setAutosaveStartAfter('saving');
+                            void updateWorkItem(id, { startAfter: null })
+                              .then(() => reloadWorkItem())
+                              .then(() => {
+                                setAutosaveStartAfter('success');
+                                triggerAutosaveReset(setAutosaveStartAfter, 'startAfter');
+                              })
+                              .catch(() => {
+                                setAutosaveStartAfter('error');
+                                triggerAutosaveReset(setAutosaveStartAfter, 'startAfter');
+                              });
+                          }
+                        }}
+                      >
+                        ×
+                      </button>
+                    )}
+                    <AutosaveIndicator state={autosaveStartAfter} />
+                  </div>
+                </div>
+
+                <div className={styles.property}>
+                  <label className={styles.propertyLabel}>Start Before</label>
+                  <div className={styles.inlineFieldWrapper}>
+                    <input
+                      type="date"
+                      className={styles.propertyInput}
+                      value={localStartBefore}
+                      onChange={(e) => setLocalStartBefore(e.target.value)}
+                      onBlur={() => void handleConstraintBlur('startBefore')}
+                    />
+                    {localStartBefore && (
+                      <button
+                        type="button"
+                        className={styles.clearDateButton}
+                        aria-label="Clear start before date"
+                        onClick={() => {
+                          setLocalStartBefore('');
+                          if (id && workItem && workItem.startBefore) {
+                            setAutosaveStartBefore('saving');
+                            void updateWorkItem(id, { startBefore: null })
+                              .then(() => reloadWorkItem())
+                              .then(() => {
+                                setAutosaveStartBefore('success');
+                                triggerAutosaveReset(setAutosaveStartBefore, 'startBefore');
+                              })
+                              .catch(() => {
+                                setAutosaveStartBefore('error');
+                                triggerAutosaveReset(setAutosaveStartBefore, 'startBefore');
+                              });
+                          }
+                        }}
+                      >
+                        ×
+                      </button>
+                    )}
+                    <AutosaveIndicator state={autosaveStartBefore} />
+                  </div>
+                </div>
+
+                <div className={styles.property}>
+                  <label className={styles.propertyLabel}>Actual Start</label>
+                  <div className={styles.inlineFieldWrapper}>
+                    <input
+                      type="date"
+                      className={styles.propertyInput}
+                      value={localActualStartDate}
+                      onChange={(e) => setLocalActualStartDate(e.target.value)}
+                      onBlur={() => void handleActualDateBlur('actualStartDate')}
+                    />
+                    {localActualStartDate && (
+                      <button
+                        type="button"
+                        className={styles.clearDateButton}
+                        aria-label="Clear actual start date"
+                        onClick={() => {
+                          setLocalActualStartDate('');
+                          if (id && workItem && workItem.actualStartDate) {
+                            setAutosaveActualStart('saving');
+                            void updateWorkItem(id, { actualStartDate: null })
+                              .then(() => reloadWorkItem())
+                              .then(() => {
+                                setAutosaveActualStart('success');
+                                triggerAutosaveReset(setAutosaveActualStart, 'actualStartDate');
+                              })
+                              .catch(() => {
+                                setAutosaveActualStart('error');
+                                triggerAutosaveReset(setAutosaveActualStart, 'actualStartDate');
+                              });
+                          }
+                        }}
+                      >
+                        ×
+                      </button>
+                    )}
+                    <AutosaveIndicator state={autosaveActualStart} />
+                  </div>
+                </div>
+
+                <div className={styles.property}>
+                  <label className={styles.propertyLabel}>Actual End</label>
+                  <div className={styles.inlineFieldWrapper}>
+                    <input
+                      type="date"
+                      className={styles.propertyInput}
+                      value={localActualEndDate}
+                      onChange={(e) => setLocalActualEndDate(e.target.value)}
+                      onBlur={() => void handleActualDateBlur('actualEndDate')}
+                    />
+                    {localActualEndDate && (
+                      <button
+                        type="button"
+                        className={styles.clearDateButton}
+                        aria-label="Clear actual end date"
+                        onClick={() => {
+                          setLocalActualEndDate('');
+                          if (id && workItem && workItem.actualEndDate) {
+                            setAutosaveActualEnd('saving');
+                            void updateWorkItem(id, { actualEndDate: null })
+                              .then(() => reloadWorkItem())
+                              .then(() => {
+                                setAutosaveActualEnd('success');
+                                triggerAutosaveReset(setAutosaveActualEnd, 'actualEndDate');
+                              })
+                              .catch(() => {
+                                setAutosaveActualEnd('error');
+                                triggerAutosaveReset(setAutosaveActualEnd, 'actualEndDate');
+                              });
+                          }
+                        }}
+                      >
+                        ×
+                      </button>
+                    )}
+                    <AutosaveIndicator state={autosaveActualEnd} />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Dependencies subsection */}
+            <div className={styles.constraintSubsection}>
+              <h3 className={styles.subsectionTitle}>Dependencies</h3>
+
+              <DependencySentenceDisplay
+                predecessors={dependencies.predecessors}
+                successors={dependencies.successors}
+                onDelete={handleDeleteDependency}
               />
+
+              <div className={styles.addDependencySection}>
+                <DependencySentenceBuilder
+                  thisItemId={id!}
+                  thisItemLabel={workItem.title}
+                  excludeIds={excludedWorkItemIds}
+                  disabled={isAddingDependency}
+                  onAdd={handleAddDependency}
+                />
+              </div>
+            </div>
+
+            {/* Required Milestones subsection */}
+            <div className={styles.constraintSubsection}>
+              <h3 className={styles.subsectionTitle}>Required Milestones</h3>
+              <p className={styles.constraintSubsectionDesc}>
+                Milestones that must be completed before this work item can start.
+              </p>
+
+              <div className={styles.milestoneChips}>
+                {workItemMilestones.required.length === 0 && (
+                  <div className={styles.emptyState}>No required milestones</div>
+                )}
+                {workItemMilestones.required.map((ms) => (
+                  <div key={ms.id} className={styles.milestoneChip}>
+                    <span className={styles.milestoneChipName}>{ms.name}</span>
+                    {ms.targetDate && (
+                      <span className={styles.milestoneChipDate}>{formatDate(ms.targetDate)}</span>
+                    )}
+                    <button
+                      type="button"
+                      className={styles.milestoneChipRemove}
+                      onClick={() => handleRemoveRequiredMilestone(ms.id)}
+                      aria-label={`Remove required milestone: ${ms.name}`}
+                    >
+                      &times;
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {(() => {
+                const requiredIds = new Set(workItemMilestones.required.map((m) => m.id));
+                const available = allMilestones.filter((m) => !requiredIds.has(m.id));
+                return available.length > 0 ? (
+                  <div className={styles.linkPickerRow}>
+                    <select
+                      className={styles.linkPickerSelect}
+                      value={selectedRequiredMilestoneId}
+                      onChange={(e) => setSelectedRequiredMilestoneId(e.target.value)}
+                      aria-label="Select required milestone to add"
+                    >
+                      <option value="">Select milestone...</option>
+                      {available.map((m) => (
+                        <option key={m.id} value={String(m.id)}>
+                          {m.title} — {formatDate(m.targetDate)}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      className={styles.addButton}
+                      onClick={handleAddRequiredMilestone}
+                      disabled={!selectedRequiredMilestoneId || isAddingRequiredMilestone}
+                    >
+                      {isAddingRequiredMilestone ? 'Adding...' : 'Add'}
+                    </button>
+                  </div>
+                ) : null;
+              })()}
+            </div>
+
+            {/* Linked Milestones subsection */}
+            <div className={styles.constraintSubsection}>
+              <h3 className={styles.subsectionTitle}>Linked Milestones</h3>
+              <p className={styles.constraintSubsectionDesc}>
+                Milestones this work item contributes to.
+              </p>
+
+              <div className={styles.milestoneChips}>
+                {workItemMilestones.linked.length === 0 && (
+                  <div className={styles.emptyState}>No linked milestones</div>
+                )}
+                {workItemMilestones.linked.map((ms) => (
+                  <div
+                    key={ms.id}
+                    className={`${styles.milestoneChip} ${styles.milestoneChipLinked}`}
+                  >
+                    <span className={styles.milestoneChipName}>{ms.name}</span>
+                    {ms.targetDate && (
+                      <span className={styles.milestoneChipDate}>{formatDate(ms.targetDate)}</span>
+                    )}
+                    <button
+                      type="button"
+                      className={styles.milestoneChipRemove}
+                      onClick={() => handleRemoveLinkedMilestone(ms.id)}
+                      aria-label={`Remove linked milestone: ${ms.name}`}
+                    >
+                      &times;
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {(() => {
+                const linkedIds = new Set(workItemMilestones.linked.map((m) => m.id));
+                const available = allMilestones.filter((m) => !linkedIds.has(m.id));
+                return available.length > 0 ? (
+                  <div className={styles.linkPickerRow}>
+                    <select
+                      className={styles.linkPickerSelect}
+                      value={selectedLinkedMilestoneId}
+                      onChange={(e) => setSelectedLinkedMilestoneId(e.target.value)}
+                      aria-label="Select milestone to link"
+                    >
+                      <option value="">Select milestone...</option>
+                      {available.map((m) => (
+                        <option key={m.id} value={String(m.id)}>
+                          {m.title} — {formatDate(m.targetDate)}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      className={styles.addButton}
+                      onClick={handleAddLinkedMilestone}
+                      disabled={!selectedLinkedMilestoneId || isAddingLinkedMilestone}
+                    >
+                      {isAddingLinkedMilestone ? 'Adding...' : 'Link'}
+                    </button>
+                  </div>
+                ) : null;
+              })()}
             </div>
           </section>
         </div>
@@ -1741,9 +2321,9 @@ export default function WorkItemDetailPage() {
         <div className={styles.timestamps}>
           <div>
             Created by {workItem.createdBy?.displayName || 'Unknown'} on{' '}
-            {new Date(workItem.createdAt).toLocaleDateString()}
+            {formatDate(workItem.createdAt)}
           </div>
-          <div>Last updated {new Date(workItem.updatedAt).toLocaleDateString()}</div>
+          <div>Last updated {formatDate(workItem.updatedAt)}</div>
         </div>
 
         <button

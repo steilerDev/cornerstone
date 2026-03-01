@@ -64,12 +64,20 @@ describe('Sidebar', () => {
     onClose: mockOnClose,
   });
 
-  it('renders all 9 navigation links plus 1 GitHub footer link', () => {
+  it('renders all 9 navigation links plus 1 logo link plus 1 GitHub footer link', () => {
     renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
 
     const links = screen.getAllByRole('link');
-    // 9 nav links + 1 GitHub link in the footer
-    expect(links).toHaveLength(10);
+    // 9 nav links + 1 logo link (Go to dashboard) + 1 GitHub link in the footer
+    expect(links).toHaveLength(11);
+  });
+
+  it('logo link navigates to dashboard (/) and has aria-label', () => {
+    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
+
+    const logoLink = screen.getByRole('link', { name: /go to dashboard/i });
+    expect(logoLink).toBeInTheDocument();
+    expect(logoLink).toHaveAttribute('href', '/');
   });
 
   it('renders navigation with correct aria-label', () => {
@@ -82,7 +90,7 @@ describe('Sidebar', () => {
   it('links have correct href attributes', () => {
     renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
 
-    expect(screen.getByRole('link', { name: /dashboard/i })).toHaveAttribute('href', '/');
+    expect(screen.getByRole('link', { name: /^dashboard$/i })).toHaveAttribute('href', '/');
     expect(screen.getByRole('link', { name: /work items/i })).toHaveAttribute(
       'href',
       '/work-items',
@@ -99,7 +107,7 @@ describe('Sidebar', () => {
   it('dashboard link is active at exact / path only (end prop)', () => {
     renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />, { initialEntries: ['/'] });
 
-    const dashboardLink = screen.getByRole('link', { name: /dashboard/i });
+    const dashboardLink = screen.getByRole('link', { name: /^dashboard$/i });
     expect(dashboardLink).toHaveClass('active');
 
     // Other links should not be active
@@ -111,7 +119,7 @@ describe('Sidebar', () => {
       initialEntries: ['/work-items'],
     });
 
-    const dashboardLink = screen.getByRole('link', { name: /dashboard/i });
+    const dashboardLink = screen.getByRole('link', { name: /^dashboard$/i });
     expect(dashboardLink).not.toHaveClass('active');
   });
 
@@ -124,7 +132,7 @@ describe('Sidebar', () => {
     expect(workItemsLink).toHaveClass('active');
 
     // Dashboard should not be active
-    expect(screen.getByRole('link', { name: /dashboard/i })).not.toHaveClass('active');
+    expect(screen.getByRole('link', { name: /^dashboard$/i })).not.toHaveClass('active');
   });
 
   it('budget link is active at /budget', () => {
@@ -210,7 +218,7 @@ describe('Sidebar', () => {
     const user = userEvent.setup();
     renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
 
-    const dashboardLink = screen.getByRole('link', { name: /dashboard/i });
+    const dashboardLink = screen.getByRole('link', { name: /^dashboard$/i });
     await user.click(dashboardLink);
 
     expect(mockOnClose).toHaveBeenCalledTimes(1);
@@ -356,8 +364,8 @@ describe('Sidebar', () => {
     const links = screen.getAllByRole('link');
     const buttons = screen.getAllByRole('button');
 
-    // 9 nav links + 1 GitHub link in the footer
-    expect(links).toHaveLength(10);
+    // 9 nav links + 1 logo link (Go to dashboard) + 1 GitHub link in the footer
+    expect(links).toHaveLength(11);
     // 3 buttons: close button + theme toggle + logout button
     expect(buttons).toHaveLength(3);
     expect(buttons[0]).toHaveAttribute('aria-label', 'Close menu');

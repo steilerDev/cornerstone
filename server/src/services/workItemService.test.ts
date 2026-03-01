@@ -1038,4 +1038,287 @@ describe('Work Item Service', () => {
   // NOTE: Story #147 budget fields (plannedBudget, actualCost, confidencePercent,
   // budgetCategoryId, budgetSourceId) were removed from work_items in Story 5.9.
   // Budget data now lives in work_item_budgets (see workItemBudgetService.test.ts).
+
+  // ─── Actual dates: createWorkItem() ───────────────────────────────────────
+
+  describe('createWorkItem() - actual dates (Issue #296)', () => {
+    it('creates work item with actualStartDate and actualEndDate', () => {
+      // Given: A request with explicit actual dates
+      const userId = createTestUser('user@example.com', 'Test User');
+      const data: CreateWorkItemRequest = {
+        title: 'Foundation Work',
+        actualStartDate: '2026-03-01',
+        actualEndDate: '2026-03-10',
+      };
+
+      // When: Creating the work item
+      const result = workItemService.createWorkItem(db, userId, data);
+
+      // Then: Actual dates are persisted and returned
+      expect(result.actualStartDate).toBe('2026-03-01');
+      expect(result.actualEndDate).toBe('2026-03-10');
+    });
+
+    it('actual dates default to null when not provided', () => {
+      // Given: A request without actual dates
+      const userId = createTestUser('user@example.com', 'Test User');
+      const data: CreateWorkItemRequest = { title: 'Foundation Work' };
+
+      // When: Creating the work item
+      const result = workItemService.createWorkItem(db, userId, data);
+
+      // Then: Actual dates are null
+      expect(result.actualStartDate).toBeNull();
+      expect(result.actualEndDate).toBeNull();
+    });
+
+    it('actual dates appear in WorkItemSummary list response', () => {
+      // Given: A work item with actual dates
+      const userId = createTestUser('user@example.com', 'Test User');
+      workItemService.createWorkItem(db, userId, {
+        title: 'Foundation Work',
+        actualStartDate: '2026-03-01',
+        actualEndDate: '2026-03-10',
+      });
+
+      // When: Listing work items
+      const result = workItemService.listWorkItems(db, {});
+
+      // Then: Actual dates are included in list summary
+      expect(result.items[0].actualStartDate).toBe('2026-03-01');
+      expect(result.items[0].actualEndDate).toBe('2026-03-10');
+    });
+
+    it('actual dates appear in WorkItemDetail response', () => {
+      // Given: A work item with actual dates
+      const userId = createTestUser('user@example.com', 'Test User');
+      const created = workItemService.createWorkItem(db, userId, {
+        title: 'Foundation Work',
+        actualStartDate: '2026-03-05',
+        actualEndDate: '2026-03-12',
+      });
+
+      // When: Getting work item detail
+      const detail = workItemService.getWorkItemDetail(db, created.id);
+
+      // Then: Actual dates are in the detail
+      expect(detail.actualStartDate).toBe('2026-03-05');
+      expect(detail.actualEndDate).toBe('2026-03-12');
+    });
+  });
+
+  // ─── Status transition auto-population of actual dates (Issue #296) ────────
+
+  describe('updateWorkItem() - status transitions auto-populate actual dates', () => {
+    it('not_started → in_progress auto-populates actualStartDate with today', () => {
+      // Given: A not_started work item with no actualStartDate
+      const userId = createTestUser('user@example.com', 'Test User');
+      const workItem = workItemService.createWorkItem(db, userId, {
+        title: 'Foundation Work',
+        status: 'not_started',
+      });
+      expect(workItem.actualStartDate).toBeNull();
+
+      // When: Transitioning to in_progress
+      const updated = workItemService.updateWorkItem(db, workItem.id, { status: 'in_progress' });
+
+      // Then: actualStartDate is set to today (YYYY-MM-DD)
+      const today = new Date().toISOString().slice(0, 10);
+      expect(updated.actualStartDate).toBe(today);
+      expect(updated.actualEndDate).toBeNull(); // Not set yet
+    });
+
+    it('in_progress → completed auto-populates actualEndDate with today', () => {
+      // Given: An in_progress work item with no actualEndDate
+      const userId = createTestUser('user@example.com', 'Test User');
+      const workItem = workItemService.createWorkItem(db, userId, {
+        title: 'Foundation Work',
+        status: 'in_progress',
+        actualStartDate: '2026-03-01', // Already has start date
+      });
+      expect(workItem.actualEndDate).toBeNull();
+
+      // When: Transitioning to completed
+      const updated = workItemService.updateWorkItem(db, workItem.id, { status: 'completed' });
+
+      // Then: actualEndDate is set to today, actualStartDate unchanged
+      const today = new Date().toISOString().slice(0, 10);
+      expect(updated.actualEndDate).toBe(today);
+      expect(updated.actualStartDate).toBe('2026-03-01'); // Not overwritten
+    });
+
+    it('not_started → completed (direct skip) auto-populates both actual dates', () => {
+      // Given: A not_started work item with no actual dates
+      const userId = createTestUser('user@example.com', 'Test User');
+      const workItem = workItemService.createWorkItem(db, userId, {
+        title: 'Foundation Work',
+        status: 'not_started',
+      });
+      expect(workItem.actualStartDate).toBeNull();
+      expect(workItem.actualEndDate).toBeNull();
+
+      // When: Transitioning directly to completed
+      const updated = workItemService.updateWorkItem(db, workItem.id, { status: 'completed' });
+
+      // Then: Both actual dates are set to today
+      const today = new Date().toISOString().slice(0, 10);
+      expect(updated.actualStartDate).toBe(today);
+      expect(updated.actualEndDate).toBe(today);
+    });
+
+    it('does NOT overwrite existing actualStartDate on not_started → in_progress transition', () => {
+      // Given: A not_started work item with an existing actualStartDate
+      const userId = createTestUser('user@example.com', 'Test User');
+      const workItem = workItemService.createWorkItem(db, userId, {
+        title: 'Foundation Work',
+        status: 'not_started',
+        actualStartDate: '2026-01-15', // Already set
+      });
+
+      // When: Transitioning to in_progress
+      const updated = workItemService.updateWorkItem(db, workItem.id, { status: 'in_progress' });
+
+      // Then: Existing actualStartDate is preserved, not overwritten with today
+      expect(updated.actualStartDate).toBe('2026-01-15');
+    });
+
+    it('does NOT overwrite existing actualEndDate on in_progress → completed transition', () => {
+      // Given: An in_progress work item with an existing actualEndDate
+      const userId = createTestUser('user@example.com', 'Test User');
+      const workItem = workItemService.createWorkItem(db, userId, {
+        title: 'Foundation Work',
+        status: 'in_progress',
+        actualStartDate: '2026-03-01',
+        actualEndDate: '2026-03-08', // Already set
+      });
+
+      // When: Transitioning to completed
+      const updated = workItemService.updateWorkItem(db, workItem.id, { status: 'completed' });
+
+      // Then: Existing actualEndDate is preserved
+      expect(updated.actualEndDate).toBe('2026-03-08');
+    });
+
+    it('uses explicitly provided actualStartDate in same request, not today', () => {
+      // Given: A not_started work item
+      const userId = createTestUser('user@example.com', 'Test User');
+      const workItem = workItemService.createWorkItem(db, userId, {
+        title: 'Foundation Work',
+        status: 'not_started',
+      });
+
+      // When: Transitioning to in_progress AND providing explicit actualStartDate
+      const updated = workItemService.updateWorkItem(db, workItem.id, {
+        status: 'in_progress',
+        actualStartDate: '2026-02-20', // Explicit date, not today
+      });
+
+      // Then: The explicit date is used instead of today
+      expect(updated.actualStartDate).toBe('2026-02-20');
+    });
+
+    it('uses explicitly provided actualEndDate in same request, not today', () => {
+      // Given: An in_progress work item
+      const userId = createTestUser('user@example.com', 'Test User');
+      const workItem = workItemService.createWorkItem(db, userId, {
+        title: 'Foundation Work',
+        status: 'in_progress',
+        actualStartDate: '2026-03-01',
+      });
+
+      // When: Transitioning to completed AND providing explicit actualEndDate
+      const updated = workItemService.updateWorkItem(db, workItem.id, {
+        status: 'completed',
+        actualEndDate: '2026-03-20', // Explicit date, not today
+      });
+
+      // Then: The explicit date is used instead of today
+      expect(updated.actualEndDate).toBe('2026-03-20');
+    });
+
+    it('no auto-population when status does not change', () => {
+      // Given: A not_started work item
+      const userId = createTestUser('user@example.com', 'Test User');
+      const workItem = workItemService.createWorkItem(db, userId, {
+        title: 'Foundation Work',
+        status: 'not_started',
+      });
+
+      // When: Updating only the title (status unchanged)
+      const updated = workItemService.updateWorkItem(db, workItem.id, {
+        title: 'Updated Title',
+      });
+
+      // Then: Actual dates remain null (no auto-population)
+      expect(updated.actualStartDate).toBeNull();
+      expect(updated.actualEndDate).toBeNull();
+    });
+
+    it('no auto-population on in_progress → not_started reversal', () => {
+      // Given: An in_progress work item
+      const userId = createTestUser('user@example.com', 'Test User');
+      const workItem = workItemService.createWorkItem(db, userId, {
+        title: 'Foundation Work',
+        status: 'in_progress',
+      });
+
+      // When: Reversing status back to not_started
+      const updated = workItemService.updateWorkItem(db, workItem.id, {
+        status: 'not_started',
+      });
+
+      // Then: No auto-population occurs for this transition
+      expect(updated.actualStartDate).toBeNull();
+      expect(updated.actualEndDate).toBeNull();
+    });
+  });
+
+  // ─── Manual actualDate updates via updateWorkItem() ───────────────────────
+
+  describe('updateWorkItem() - manual actual date updates (Issue #296)', () => {
+    it('allows updating actualStartDate directly', () => {
+      // Given: A work item with no actualStartDate
+      const userId = createTestUser('user@example.com', 'Test User');
+      const workItem = workItemService.createWorkItem(db, userId, { title: 'Foundation Work' });
+
+      // When: Updating actualStartDate
+      const updated = workItemService.updateWorkItem(db, workItem.id, {
+        actualStartDate: '2026-04-01',
+      });
+
+      // Then: actualStartDate is set
+      expect(updated.actualStartDate).toBe('2026-04-01');
+    });
+
+    it('allows updating actualEndDate directly', () => {
+      // Given: A work item with no actualEndDate
+      const userId = createTestUser('user@example.com', 'Test User');
+      const workItem = workItemService.createWorkItem(db, userId, { title: 'Foundation Work' });
+
+      // When: Updating actualEndDate
+      const updated = workItemService.updateWorkItem(db, workItem.id, {
+        actualEndDate: '2026-04-15',
+      });
+
+      // Then: actualEndDate is set
+      expect(updated.actualEndDate).toBe('2026-04-15');
+    });
+
+    it('allows clearing actualStartDate to null', () => {
+      // Given: A work item with actualStartDate set
+      const userId = createTestUser('user@example.com', 'Test User');
+      const workItem = workItemService.createWorkItem(db, userId, {
+        title: 'Foundation Work',
+        actualStartDate: '2026-03-01',
+      });
+
+      // When: Clearing actualStartDate
+      const updated = workItemService.updateWorkItem(db, workItem.id, {
+        actualStartDate: null,
+      });
+
+      // Then: actualStartDate is null
+      expect(updated.actualStartDate).toBeNull();
+    });
+  });
 });

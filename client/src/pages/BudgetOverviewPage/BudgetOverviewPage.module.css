@@ -391,6 +391,10 @@
   font-weight: var(--font-weight-semibold);
 }
 
+.footerItemPayback strong {
+  color: var(--color-success-text-on-light);
+}
+
 /* ---- Category filter row ---- */
 
 .categoryFilterRow {

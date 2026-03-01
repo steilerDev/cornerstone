@@ -1,8 +1,15 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import type { WorkItemSummary } from '@cornerstone/shared';
+import type { WorkItemSummary, WorkItemStatus } from '@cornerstone/shared';
 import { listWorkItems } from '../../lib/workItemsApi.js';
-import { StatusBadge } from '../StatusBadge/StatusBadge.js';
+
 import styles from './WorkItemPicker.module.css';
+
+/** Maps work item status values to their CSS custom property for the left-border color. */
+const STATUS_BORDER_COLORS: Record<WorkItemStatus, string> = {
+  not_started: 'var(--color-status-not-started-text)',
+  in_progress: 'var(--color-status-in-progress-text)',
+  completed: 'var(--color-status-completed-text)',
+};
 
 export interface SpecialOption {
   id: string;
@@ -20,6 +27,13 @@ interface WorkItemPickerProps {
   specialOptions?: SpecialOption[];
   /** When true, opens dropdown with initial results on focus without requiring typing. */
   showItemsOnFocus?: boolean;
+  /**
+   * Title to display when `value` is pre-populated from an external source
+   * (e.g. editing an existing record with a linked work item).
+   * When provided and `value` is non-empty, the picker renders in selected-display mode
+   * showing this title until the user clears or changes the selection.
+   */
+  initialTitle?: string;
 }
 
 export function WorkItemPicker({
@@ -31,6 +45,7 @@ export function WorkItemPicker({
   placeholder = 'Search work items...',
   specialOptions,
   showItemsOnFocus,
+  initialTitle,
 }: WorkItemPickerProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [results, setResults] = useState<WorkItemSummary[]>([]);
@@ -38,6 +53,8 @@ export function WorkItemPicker({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<WorkItemSummary | null>(null);
+  // Track whether the user has explicitly cleared an initialTitle-based selection
+  const [initialTitleCleared, setInitialTitleCleared] = useState(false);
 
   // The currently selected special option (if value matches one)
   const selectedSpecial = specialOptions?.find((opt) => opt.id === value) ?? null;
@@ -68,6 +85,7 @@ export function WorkItemPicker({
     if (value === '') {
       setSelectedItem(null);
       setSearchTerm('');
+      setInitialTitleCleared(false);
     }
   }, [value]);
 
@@ -162,6 +180,7 @@ export function WorkItemPicker({
 
   const handleClear = () => {
     setSelectedItem(null);
+    setInitialTitleCleared(true);
     onChange('');
     setSearchTerm('');
     setResults([]);
@@ -190,12 +209,34 @@ export function WorkItemPicker({
     );
   }
 
-  if (selectedItem) {
+  // Show initialTitle when value is pre-populated and not yet changed by the user
+  if (initialTitle && value && !selectedItem && !initialTitleCleared) {
     return (
       <div className={styles.container} ref={containerRef}>
         <div className={styles.selectedDisplay}>
+          <span className={styles.selectedTitle}>{initialTitle}</span>
+          <button
+            type="button"
+            className={styles.clearButton}
+            onClick={handleClear}
+            aria-label="Clear selection"
+            disabled={disabled}
+          >
+            &times;
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (selectedItem) {
+    return (
+      <div className={styles.container} ref={containerRef}>
+        <div
+          className={styles.selectedDisplay}
+          style={{ borderLeftColor: STATUS_BORDER_COLORS[selectedItem.status] }}
+        >
           <span className={styles.selectedTitle}>{selectedItem.title}</span>
-          <StatusBadge status={selectedItem.status} />
           <button
             type="button"
             className={styles.clearButton}
@@ -266,7 +307,6 @@ export function WorkItemPicker({
                 onClick={() => handleSelect(item)}
               >
                 <span className={styles.resultTitle}>{item.title}</span>
-                <StatusBadge status={item.status} />
               </button>
             ))}
 

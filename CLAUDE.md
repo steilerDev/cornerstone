@@ -10,20 +10,21 @@ Cornerstone is a web-based home building project management application designed
 
 ## Agent Team
 
-This project uses a team of 10 specialized Claude Code agents defined in `.claude/agents/`:
+This project uses a team of 11 specialized Claude Code agents defined in `.claude/agents/`:
 
-| Agent                   | Role                                                                                  |
-| ----------------------- | ------------------------------------------------------------------------------------- |
-| `product-owner`         | Defines epics, user stories, and acceptance criteria; manages the backlog             |
-| `product-architect`     | Tech stack, schema, API contract, project structure, ADRs, Dockerfile                 |
-| `ux-designer`           | Design tokens, brand identity, component styling specs, dark mode, accessibility      |
-| `backend-developer`     | API endpoints, business logic, auth, database operations, backend tests               |
-| `frontend-developer`    | UI components, pages, interactions, API client, frontend tests                        |
-| `qa-integration-tester` | Unit test coverage (95%+ target), integration tests, performance testing, bug reports |
-| `e2e-test-engineer`     | Playwright E2E browser tests, test container infrastructure, UAT scenario coverage    |
-| `security-engineer`     | Security audits, vulnerability reports, remediation guidance                          |
-| `uat-validator`         | UAT scenarios, manual validation steps, user sign-off per epic                        |
-| `docs-writer`           | Documentation site (`docs/`), lean README.md, user-facing guides after UAT approval   |
+| Agent                   | Role                                                                                                                  |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `product-owner`         | Defines epics, user stories, and acceptance criteria; manages the backlog                                             |
+| `product-architect`     | Tech stack, schema, API contract, project structure, ADRs, Dockerfile                                                 |
+| `ux-designer`           | Design tokens, brand identity, component styling specs, dark mode, accessibility                                      |
+| `dev-team-lead`         | Delivery lead (Sonnet): decomposes work, writes specs, delegates to developers/QA, reviews code, commits, monitors CI |
+| `backend-developer`     | API endpoints, business logic, auth, database operations (Haiku, managed by dev-team-lead)                            |
+| `frontend-developer`    | UI components, pages, interactions, API client (Haiku, managed by dev-team-lead)                                      |
+| `qa-integration-tester` | Unit test coverage (95%+ target), integration tests, performance testing, bug reports                                 |
+| `e2e-test-engineer`     | Playwright E2E browser tests, test container infrastructure, UAT scenario coverage                                    |
+| `security-engineer`     | Security audits, vulnerability reports, remediation guidance                                                          |
+| `uat-validator`         | UAT scenarios, manual validation steps, user sign-off per epic                                                        |
+| `docs-writer`           | Documentation site (`docs/`), lean README.md, user-facing guides after UAT approval                                   |
 
 ## GitHub Tools Strategy
 
@@ -49,13 +50,7 @@ The GitHub Wiki is checked out as a git submodule at `wiki/` in the project root
 
 ### Wiki Submodule
 
-Wiki pages are markdown files in `wiki/` (e.g., `wiki/Architecture.md`, `wiki/API-Contract.md`). Ensure up to date before reading: `git submodule update --init wiki && git -C wiki pull origin master`
-
-**Writing:** Edit `wiki/` → `git -C wiki add -A && git -C wiki commit -m "docs: ..."` → `git -C wiki push origin master` → `git add wiki` and commit the parent ref.
-
-**Page naming:** `Architecture.md`, `API-Contract.md`, `Schema.md`, `Style-Guide.md`, `ADR-001-Server-Framework.md`, `ADR-Index.md`, `Security-Audit.md`
-
-**Deviation workflow:** Flag in the PR; determine source of truth; get product-architect approval for wiki changes (`security-engineer` owns `Security-Audit.md`); fix and wiki update land together; add a Deviation Log entry to the wiki page and log on the relevant GitHub Issue.
+Wiki pages are markdown files in `wiki/`. Sync before reading: `git submodule update --init wiki && git -C wiki pull origin master`. See skill files for writing workflows and page naming conventions.
 
 ### GitHub Repo
 
@@ -63,32 +58,9 @@ Wiki pages are markdown files in `wiki/` (e.g., `wiki/Architecture.md`, `wiki/AP
 - **Default branch**: `main`
 - **Integration branch**: `beta` (feature PRs land here; promoted to `main` after epic completion)
 
-### Board Status Categories
+### Board & Issue Relationships
 
-The GitHub Projects board uses 4 status categories:
-
-| Status          | Option ID  | Color  | Purpose                                      |
-| --------------- | ---------- | ------ | -------------------------------------------- |
-| **Backlog**     | `7404f88c` | Gray   | Epics and future-sprint stories              |
-| **Todo**        | `dc74a3b0` | Blue   | Current sprint stories ready for development |
-| **In Progress** | `296eeabe` | Yellow | Stories actively being developed             |
-| **Done**        | `c558f50d` | Green  | Completed and accepted                       |
-
-Project ID: `PVT_kwHOAGtLQM4BOlve`
-Status Field ID: `PVTSSF_lAHOAGtLQM4BOlvezg9P0yo`
-
-### Issue Relationships
-
-All agents must maintain GitHub's native issue relationships:
-
-- **Sub-issues**: Every user story must be linked as a sub-issue of its parent epic. Use the `addSubIssue` GraphQL mutation.
-- **Blocked-by/Blocking**: When a story or epic has dependencies, create `addBlockedBy` relationships. This populates the "Blocked by" section in the issue sidebar.
-
-**Node ID lookup** (required for GraphQL mutations):
-
-```bash
-gh api graphql -f query='{ repository(owner: "steilerDev", name: "cornerstone") { issue(number: <N>) { id } } }'
-```
+The GitHub Projects board uses 4 statuses: Backlog, Todo, In Progress, Done. All stories must be linked as sub-issues of their parent epic, and dependency relationships must be maintained. Board IDs, GraphQL mutations, and exact commands are in the skill files.
 
 ## Agile Workflow
 
@@ -102,46 +74,28 @@ gh api graphql -f query='{ repository(owner: "steilerDev", name: "cornerstone") 
 
 **The orchestrator delegates, never implements.** Must NEVER write production code, tests, or architectural artifacts. Delegate all implementation:
 
-- **Backend code** → `backend-developer` agent
-- **Frontend code** → `frontend-developer` agent
+- **Backend code + Frontend code + Unit/integration tests** → `dev-team-lead` agent (who internally coordinates `backend-developer`, `frontend-developer`, and `qa-integration-tester`)
 - **Visual specs, design tokens, brand assets, CSS files** → `ux-designer` agent
 - **Schema/API design, ADRs, wiki** → `product-architect` agent
-- **Unit tests & test coverage** → `qa-integration-tester` agent
 - **E2E tests** → `e2e-test-engineer` agent
 - **UAT scenarios** → `uat-validator` agent
 - **Story definitions** → `product-owner` agent
 - **Security reviews** → `security-engineer` agent
 - **User-facing documentation** (docs site + README) → `docs-writer` agent
 
+### Orchestration Skills
+
+The orchestrator uses three skills to drive work. Each skill contains the full operational checklist with exact commands and agent coordination. The orchestrator delegates all work — never writes production code, tests, or architectural artifacts directly.
+
+| Skill         | Purpose                                                                    | Input                                                           |
+| ------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `/epic-start` | Planning: PO creates stories, architect designs schema/API/ADRs            | Epic description or issue number                                |
+| `/develop`    | Full dev cycle for one or more stories/bug fixes, bundled into a single PR | Issue number, description, semicolon-separated list, or `@file` |
+| `/epic-close` | Refinement, E2E validation, UAT, docs, promotion to `main`                 | Epic issue number                                               |
+
 ## Acceptance & Validation
 
-Every epic follows a two-phase validation lifecycle.
-
-### Development Phase
-
-During each story's development cycle:
-
-- The **product-owner** defines stories with acceptance criteria and UAT scenarios (Given/When/Then) posted on the story's GitHub Issue
-- The **qa-integration-tester** owns unit + integration tests (95%+ coverage); the **e2e-test-engineer** owns Playwright E2E tests; the **security-engineer** reviews the PR for vulnerabilities
-- All automated tests (unit + integration + E2E) must pass before merge
-
-### Epic Validation Phase
-
-After all stories in an epic are merged to `beta`:
-
-1. The orchestrator collects all **non-blocking review comments** (observations noted but not required for merge) and creates a refinement task on `chore/<epic-number>-refinement`
-2. Developer agent(s) implement the refinements; **qa-integration-tester** updates tests if needed
-3. Standard quality gates must pass, then the refinement PR is merged before proceeding to UAT
-
-### Validation Phase
-
-After the refinement task is complete and all automated tests pass:
-
-1. The **e2e-test-engineer** confirms all Playwright E2E tests pass and every approved UAT scenario has E2E coverage. This approval is required before proceeding to manual validation.
-2. The **uat-validator** produces a UAT Validation Report and provides step-by-step manual validation instructions to the user
-3. The user walks through each scenario; if any fail, developers fix and the cycle repeats from step 1
-4. After user approval, the **docs-writer** updates the docs site (`docs/`) and `README.md`
-5. The epic is complete only after explicit user approval and documentation is updated
+Every epic follows a two-phase validation lifecycle. **Development phase** (`/develop`): PO defines acceptance criteria, QA + E2E + security review each story/bug PR (single items or batched). **Epic validation phase** (`/epic-close`): refinement, E2E coverage confirmation, UAT with user, docs update, promotion.
 
 ### Key Rules
 
@@ -151,6 +105,7 @@ After the refinement task is complete and all automated tests pass:
 - **Acceptance criteria live on GitHub Issues** — stored on story issues, summarized on promotion PRs
 - **Security review required** — the `security-engineer` must review every story PR
 - **Test agents own all tests** — `qa-integration-tester` owns unit + integration tests; `e2e-test-engineer` owns Playwright E2E tests. Developer agents do not write tests.
+- **Dev-team-lead owns delivery** — the `dev-team-lead` coordinates implementation (Haiku developers), testing (QA), commits, and CI. The orchestrator launches `dev-team-lead` instead of individual developers.
 
 ## Git & Commit Conventions
 
@@ -199,37 +154,7 @@ All agents must clearly identify themselves:
 
 **NEVER `cd` to the base project directory to modify files.** All file edits, git operations, and commands must be performed from within the git worktree assigned at session start. The base project directory may have other sessions' uncommitted changes. This applies to subagents too — all file reads, writes, and exploration must use the worktree path.
 
-- **Workflow** (full agent cycle for each user story):
-  1. **Plan**: Launch `product-owner` (verify story + acceptance criteria) and `product-architect` (design schema/API/architecture) agents
-  2. **UAT Plan**: Launch `uat-validator` to draft UAT scenarios from acceptance criteria; launch `qa-integration-tester` to review unit/integration testability and `e2e-test-engineer` to review browser automation feasibility; present to user for approval
-  3. **Visual Spec** (stories with UI only): Launch `ux-designer` to post a styling specification on the GitHub Issue — which tokens, interactive states, responsive behavior, animations, and accessibility requirements. Backend-only stories skip this step.
-  4. **Branch**: The session runs in a worktree. If the branch has a random name, rename it once work scope is clear: `git branch -m <type>/<issue-number>-<short-description>`. If the branch already has a meaningful name, skip this step.
-  5. **Implement**: Launch the appropriate developer agent (`backend-developer` and/or `frontend-developer`) to write the production code. Frontend developers reference the ux-designer's visual spec.
-  6. **Test**: Launch `qa-integration-tester` to write unit tests (95%+ coverage target) and integration tests; launch `e2e-test-engineer` to write Playwright E2E tests covering UAT scenarios. Both agents work during the story's development cycle.
-  7. **Commit & PR**: Commit (the pre-commit hook runs all quality gates automatically — selective lint/format/tests on staged files + full typecheck/build/audit), push the branch, create a PR targeting `beta`: `gh pr create --base beta --title "..." --body "..."`. E2E smoke tests run automatically in CI (see `e2e-smoke` job in `.github/workflows/ci.yml`) — do not run them locally.
-  8. **CI (mandatory)**: Wait for all CI checks to pass: `gh pr checks <pr-number> --watch`. **Do not proceed** to review or any next step until CI is fully green. If CI fails, fix the issues on the branch and push again.
-  9. **Review**: After CI passes, launch review agents **in parallel**:
-     - `product-owner` — verifies requirements coverage, acceptance criteria, UAT alignment, and that all agent responsibilities were fulfilled (QA coverage, UAT scenarios, security review, visual spec, etc.). Only approves if all agents have completed their work.
-     - `product-architect` — verifies architecture compliance, test coverage, and code quality
-     - `security-engineer` — reviews for security vulnerabilities, input validation, authentication/authorization gaps
-     - `ux-designer` — reviews frontend PRs (those touching `client/src/`) for token adherence, visual consistency, and accessibility. Skipped for backend-only PRs.
-       All agents review the PR diff and comment via `gh pr review`.
-  10. **Fix loop**: If any reviewer requests changes:
-      a. The reviewer posts specific feedback on the PR (`gh pr review --request-changes`)
-      b. The orchestrator launches the original implementing agent on the same branch to address the feedback
-      c. The implementing agent pushes fixes, then the orchestrator re-requests review from the agent(s) that requested changes
-      d. Repeat until all reviewers approve
-  11. **Merge**: Once all agents approve and CI is green, merge immediately: `gh pr merge --squash <pr-url>`
-  12. After merge, clean up: `git checkout beta && git pull && git branch -d <branch-name>`
-
-- **Epic-level steps** (after all stories in an epic are complete, merged to `beta`, and refinement is done):
-  1. **Documentation**: Launch `docs-writer` to update the docs site (`docs/`) and `README.md` with newly shipped features. Commit to `beta`.
-  2. **Epic promotion**: Create a PR from `beta` to `main` using a **merge commit** (not squash): `gh pr create --base main --head beta --title "..." --body "..."`
-     a. Post UAT validation criteria and manual testing steps as comments on the promotion PR — this gives the user a single place to review what was built and how to validate it
-     b. Wait for all CI checks to pass on the PR. If any check fails, investigate and resolve before proceeding
-     c. Once CI is green and the UAT criteria are posted, **wait for user approval** before merging. The user reviews the PR, validates the UAT scenarios, and approves
-     d. After user approval, merge: `gh pr merge --merge <pr-url>`. Merge commits preserve individual commits for semantic-release analysis.
-  3. **Merge-back**: Automated by the `merge-back` job in `release.yml` (creates a PR from `main` into `beta`). If it fails, manually resolve: branch from `beta`, merge `origin/main`, push, PR to `beta`.
+See the skill files (`.claude/skills/`) for the full operational checklists. The typical lifecycle is: `/epic-start` (once per epic) → `/develop` (once per story, or batched for multiple small items) → `/epic-close` (once per epic after all stories merged).
 
 Note: Dependabot auto-merge (`.github/workflows/dependabot-auto-merge.yml`) targets `beta` — it handles automated dependency updates, not agent work.
 
@@ -247,22 +172,11 @@ Cornerstone uses a two-tier release model:
 - **Feature PR -> `beta`**: Squash merge (clean history)
 - **`beta` -> `main`** (epic promotion): Merge commit (preserves individual commits so semantic-release can analyze them)
 
-- **Merge-back after promotion:** `release.yml` automates a `main` → `beta` PR after each epic promotion. If it fails, manually resolve so the stable tag is reachable from beta's history.
-- **Hotfixes:** Cherry-pick any `main` hotfix back to `beta` immediately.
+- **Hotfixes:** Cherry-pick any `main` hotfix back to `beta` immediately. See `/epic-close` for merge-back, release summary, and DockerHub sync details.
 
 ### Branch Protection
 
-Both `main` and `beta` have branch protection rules enforced on GitHub:
-
-| Setting                           | `main`                    | `beta`                    |
-| --------------------------------- | ------------------------- | ------------------------- |
-| PR required                       | Yes                       | Yes                       |
-| Required approving reviews        | 0                         | 0                         |
-| Required status checks            | `Quality Gates`, `Docker` | `Quality Gates`, `Docker` |
-| Strict status checks (up-to-date) | Yes                       | No                        |
-| Enforce admins                    | No                        | Yes                       |
-| Force pushes                      | Blocked                   | Blocked                   |
-| Deletions                         | Blocked                   | Blocked                   |
+Both `main` and `beta` require PRs with passing `Quality Gates` and `Docker` status checks. Force pushes and deletions are blocked on both branches.
 
 ## Tech Stack
 
@@ -288,77 +202,33 @@ Full rationale for each decision is in the corresponding ADR on the GitHub Wiki.
 
 ```
 cornerstone/
-  .sandbox/                 # Dev sandbox template (Dockerfile for Claude Code sandbox)
   package.json              # Root workspace config, shared dev dependencies
-  .nvmrc                    # Node.js version pin (24 LTS)
-  tsconfig.base.json        # Base TypeScript config
-  eslint.config.js          # ESLint flat config (all packages)
-  .prettierrc               # Prettier config
-  jest.config.ts            # Jest config (all packages)
-  Dockerfile                # Multi-stage Docker build
-  docker-compose.yml        # Docker Compose for end-user deployment
-  .env.example              # Example environment variables
-  .releaserc.json           # semantic-release configuration
   CLAUDE.md                 # This file
+  Dockerfile                # Multi-stage Docker build
   plan/                     # Requirements document
-  wiki/                     # GitHub Wiki (git submodule) - architecture docs, API contract, schema, ADRs
-  shared/                   # @cornerstone/shared - TypeScript types
-    package.json
-    tsconfig.json
+  wiki/                     # GitHub Wiki (git submodule) — architecture, ADRs, API contract
+  shared/                   # @cornerstone/shared — TypeScript types
+    src/types/              # API types, entity types
+  server/                   # @cornerstone/server — Fastify REST API
     src/
-      types/                # API types, entity types
-      index.ts              # Re-exports
-  server/                   # @cornerstone/server - Fastify REST API
-    package.json
-    tsconfig.json
-    src/
-      app.ts                # Fastify app factory
-      server.ts             # Entry point
       routes/               # Route handlers by domain
       plugins/              # Fastify plugins (auth, db, etc.)
       services/             # Business logic
-      db/
-        schema.ts           # Drizzle schema definitions
-        migrations/         # SQL migration files
-      types/                # Server-only types
-  client/                   # @cornerstone/client - React SPA
-    package.json
-    tsconfig.json
-    webpack.config.cjs
-    index.html
+      db/schema.ts          # Drizzle schema definitions
+      db/migrations/        # SQL migration files
+  client/                   # @cornerstone/client — React SPA
     src/
-      main.tsx              # Entry point
-      App.tsx               # Root component
       components/           # Reusable UI components
       pages/                # Route-level pages
       hooks/                # Custom React hooks
       lib/                  # Utilities, API client
-      types/                # Type declarations (CSS modules, etc.)
-      styles/               # Global CSS (index.css)
-  e2e/                      # @cornerstone/e2e - Playwright E2E tests
-    package.json
-    tsconfig.json
-    playwright.config.ts    # Playwright configuration
-    auth.setup.ts           # Authentication setup for tests
-    containers/             # Testcontainers setup modules
+  e2e/                      # @cornerstone/e2e — Playwright E2E tests
+    containers/             # Testcontainers setup
     fixtures/               # Test fixtures and helpers
     pages/                  # Page Object Models
-    tests/                  # Test files organized by feature/epic
-  docs/                     # @cornerstone/docs - Docusaurus documentation site
-    package.json
-    tsconfig.json
-    docusaurus.config.ts    # Site configuration
-    sidebars.ts             # Sidebar navigation
-    theme/
-      custom.css            # Brand colors
-    static/
-      img/                  # Favicon, logo, screenshots
-    src/                    # Documentation content (Markdown)
-      intro.md              # Landing page
-      roadmap.md            # Feature roadmap
-      getting-started/      # Deployment guides
-      guides/               # Feature user guides
-      development/          # Agentic development docs
+    tests/                  # Test files by feature/epic
+  docs/                     # @cornerstone/docs — Docusaurus site
+    src/                    # Markdown content (guides, getting-started, development)
 ```
 
 ### Package Dependency Graph
@@ -473,27 +343,11 @@ npm run dev                   # Start server (port 3000) + client dev server (po
 
 ### Documentation Site
 
-Docusaurus 3.x site deployed to GitHub Pages at `https://steilerDev.github.io/cornerstone/`. Deployed via `.github/workflows/docs.yml` on push to `main` with changes in `docs/**`. Content: `docs/src/` (user guides, end users) · `wiki/` (architecture/ADRs, agents) · `README.md` (GitHub visitors) · `CLAUDE.md` (AI agents).
+Docusaurus 3.x site deployed to GitHub Pages at `https://steilerDev.github.io/cornerstone/`. Deployed via the `docs-deploy` job in `.github/workflows/release.yml` on stable releases (screenshots are auto-captured from the released Docker image). Content: `docs/src/` (user guides, end users) · `wiki/` (architecture/ADRs, agents) · `README.md` (GitHub visitors) · `CLAUDE.md` (AI agents).
 
 ### Database Migrations
 
 Hand-written SQL files in `server/src/db/migrations/` with a numeric prefix (e.g., `0001_create_users.sql`). Run `npm run db:migrate` to apply. The runner (`server/src/db/migrate.ts`) tracks applied migrations in `_migrations` and runs new ones in a transaction.
-
-### Docker Build
-
-Production images use [Docker Hardened Images](https://hub.docker.com/r/dhi.io/node) (DHI). **Docker build does not work in the sandbox** (no Docker daemon available).
-
-```bash
-docker build -t cornerstone .
-docker run -p 3000:3000 -v cornerstone-data:/app/data cornerstone
-```
-
-### Docker Compose (Recommended for Deployment)
-
-```bash
-cp .env.example .env
-docker compose up -d
-```
 
 ### Environment Variables
 
@@ -506,7 +360,7 @@ docker compose up -d
 | `NODE_ENV`        | `production`               | Environment                                   |
 | `CLIENT_DEV_PORT` | `5173`                     | Webpack dev server port (development only)    |
 
-Additional variables for OIDC, Paperless-ngx, and sessions will be added as those features are implemented.
+Production images use Docker Hardened Images (DHI). See `Dockerfile` and `docker-compose.yml` for build/deploy details.
 
 ## Protected Files
 
@@ -519,3 +373,23 @@ Any agent making a decision that affects other agents (e.g., a new naming conven
 ### Agent Memory Maintenance
 
 When a code change invalidates information in agent memory (e.g., fixing a bug documented in memory, changing a public API, updating routes), the implementing agent must update the relevant agent memory files.
+
+### Review Metrics
+
+All reviewing agents (product-architect, security-engineer, product-owner, ux-designer) must append a structured metrics block as an HTML comment at the end of every PR review body. This is invisible to GitHub readers but parsed by the orchestrator for performance tracking.
+
+**Format** — append to the `--body` argument of `gh pr review`:
+
+```
+<!-- REVIEW_METRICS
+{
+  "agent": "<agent-name>",
+  "verdict": "<approve|request-changes|comment>",
+  "findings": { "critical": 0, "high": 0, "medium": 0, "low": 0, "informational": 0 }
+}
+-->
+```
+
+- `verdict` must match the `gh pr review` action (`--approve` → `"approve"`, `--request-changes` → `"request-changes"`, `--comment` → `"comment"`)
+- Count each distinct issue raised, classified by severity
+- If no issues found, all counts are 0

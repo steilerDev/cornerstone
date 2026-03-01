@@ -28,6 +28,8 @@ describe('WorkItemPicker', () => {
       startDate: null,
       endDate: null,
       durationDays: null,
+      actualStartDate: null,
+      actualEndDate: null,
       assignedUser: null,
       tags: [],
       createdAt: '2024-01-01T00:00:00Z',
@@ -40,6 +42,8 @@ describe('WorkItemPicker', () => {
       startDate: null,
       endDate: null,
       durationDays: null,
+      actualStartDate: null,
+      actualEndDate: null,
       assignedUser: null,
       tags: [],
       createdAt: '2024-01-01T00:00:00Z',
@@ -317,6 +321,58 @@ describe('WorkItemPicker', () => {
       await waitFor(() => {
         expect(screen.getByText('Failed to load work items')).toBeInTheDocument();
       });
+    });
+  });
+
+  // ── initialTitle prop (#338) ──────────────────────────────────────────────
+
+  describe('initialTitle prop', () => {
+    it('shows the initialTitle text when value and initialTitle are provided (no selectedItem yet)', async () => {
+      renderPicker({ value: 'wi-existing', initialTitle: 'Foundation Work' });
+      // Should render in selected-display mode showing the initialTitle
+      await waitFor(() => {
+        expect(screen.getByText('Foundation Work')).toBeInTheDocument();
+      });
+    });
+
+    it('shows a clear button when initialTitle is displayed', async () => {
+      renderPicker({ value: 'wi-existing', initialTitle: 'Foundation Work' });
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /clear selection/i })).toBeInTheDocument();
+      });
+    });
+
+    it('switches to search input when clear button is clicked', async () => {
+      const user = userEvent.setup();
+      const onChange = jest.fn<(id: string) => void>();
+      renderPicker({
+        value: 'wi-existing',
+        initialTitle: 'Foundation Work',
+        onChange: onChange as ReturnType<typeof jest.fn>,
+      });
+
+      await waitFor(() => expect(screen.getByText('Foundation Work')).toBeInTheDocument());
+
+      const clearBtn = screen.getByRole('button', { name: /clear selection/i });
+      await user.click(clearBtn);
+
+      // After clearing, should show the search input again
+      expect(screen.getByPlaceholderText('Search work items...')).toBeInTheDocument();
+      expect(screen.queryByText('Foundation Work')).not.toBeInTheDocument();
+      expect(onChange).toHaveBeenCalledWith('');
+    });
+
+    it('does NOT show initialTitle when value is empty string', () => {
+      renderPicker({ value: '', initialTitle: 'Foundation Work' });
+      // Empty value: picker is in search mode, not selected-display mode
+      expect(screen.queryByText('Foundation Work')).not.toBeInTheDocument();
+      expect(screen.getByPlaceholderText('Search work items...')).toBeInTheDocument();
+    });
+
+    it('does NOT show initialTitle when initialTitle prop is not provided', () => {
+      renderPicker({ value: 'wi-existing' });
+      // No initialTitle: falls through to search input (no selectedItem in state)
+      expect(screen.getByPlaceholderText('Search work items...')).toBeInTheDocument();
     });
   });
 });

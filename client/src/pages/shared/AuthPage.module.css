@@ -18,6 +18,12 @@
   max-width: 28rem;
 }
 
+.logo {
+  display: block;
+  margin: 0 auto 1rem;
+  max-width: 100%;
+}
+
 .title {
   font-size: 1.875rem;
   font-weight: 700;

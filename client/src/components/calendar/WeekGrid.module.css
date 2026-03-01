@@ -1,0 +1,128 @@
+/* ============================================================
+ * WeekGrid — 7-column weekly calendar layout
+ * ============================================================ */
+
+.grid {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* ---- Header row (day name + number) ---- */
+
+.headerRow {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  border-bottom: 2px solid var(--color-border-strong);
+  background: var(--color-bg-secondary);
+  flex-shrink: 0;
+}
+
+.headerCell {
+  padding: var(--spacing-2) var(--spacing-3);
+  text-align: center;
+  border-right: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-1);
+}
+
+.headerCell:last-child {
+  border-right: none;
+}
+
+.headerCellToday {
+  background: var(--color-primary-bg);
+}
+
+.dayName {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.dayNumber {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-circle);
+}
+
+.dayNumberToday {
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+  font-weight: var(--font-weight-bold);
+}
+
+/* ---- Days row (fills remaining height) ---- */
+
+.daysRow {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  flex: 1;
+  min-height: 0;
+  min-width: 480px;
+  overflow-y: auto;
+  align-items: start;
+}
+
+/* ---- Day cell ---- */
+/* position:relative is set via inline style in WeekGrid.tsx for lane-based
+   absolute positioning of items. min-height here acts as a fallback for
+   empty weeks; the JS-computed value overrides it when items are present. */
+
+.dayCell {
+  padding: var(--spacing-2);
+  border-right: 1px solid var(--color-border);
+  min-height: 200px;
+  background: var(--color-bg-primary);
+  overflow: visible;
+}
+
+.dayCell:last-child {
+  border-right: none;
+}
+
+/* Today highlight (subtle tint behind items — use the primary-bg token directly) */
+.today {
+  background: var(--color-primary-bg);
+}
+
+/* ---- Empty day placeholder ---- */
+
+.emptyDay {
+  height: 200px;
+}
+
+/* ---- Responsive ---- */
+
+@media (max-width: 767px) {
+  .headerCell {
+    padding: var(--spacing-1) var(--spacing-1);
+  }
+
+  .dayName {
+    font-size: var(--font-size-2xs);
+  }
+
+  .dayNumber {
+    font-size: var(--font-size-sm);
+    width: 28px;
+    height: 28px;
+  }
+
+  .dayCell {
+    padding: var(--spacing-1);
+    min-height: 100px;
+  }
+}

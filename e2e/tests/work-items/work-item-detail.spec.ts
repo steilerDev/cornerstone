@@ -63,7 +63,7 @@ test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
       // Right column sections
       await expect(detailPage.notesSection).toBeVisible();
       await expect(detailPage.subtasksSection).toBeVisible();
-      await expect(detailPage.dependenciesSection).toBeVisible();
+      await expect(detailPage.constraintsSection).toBeVisible();
     } finally {
       if (createdId) await deleteWorkItemViaApi(page, createdId);
     }
