@@ -85,17 +85,30 @@ The GitHub Projects board uses 4 statuses: Backlog, Todo, In Progress, Done. All
 
 ### Orchestration Skills
 
-The orchestrator uses three skills to drive work. Each skill contains the full operational checklist with exact commands and agent coordination. The orchestrator delegates all work — never writes production code, tests, or architectural artifacts directly.
+The orchestrator uses four skills to drive work. Each skill contains the full operational checklist with exact commands and agent coordination. The orchestrator delegates all work — never writes production code, tests, or architectural artifacts directly.
 
 | Skill         | Purpose                                                                    | Input                                                           |
 | ------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------- |
 | `/epic-start` | Planning: PO creates stories, architect designs schema/API/ADRs            | Epic description or issue number                                |
 | `/develop`    | Full dev cycle for one or more stories/bug fixes, bundled into a single PR | Issue number, description, semicolon-separated list, or `@file` |
 | `/epic-close` | Refinement, E2E validation, UAT, docs, promotion to `main`                 | Epic issue number                                               |
+| `/epic-run`   | Autonomous end-to-end epic: plan, develop all stories, close               | Epic description or issue number                                |
+
+### AUTO_MODE Convention
+
+`/epic-run` activates **AUTO_MODE** for the session. When AUTO_MODE is active, intermediate user approval gates are auto-approved. The existing skills (`/epic-start`, `/develop`, `/epic-close`) each contain `AUTO_MODE override` blocks that describe the alternate behavior. AUTO_MODE is never active when skills are invoked directly — only when chained by `/epic-run`.
+
+| Skill         | Gate                | Interactive (default) | AUTO_MODE                                          |
+| ------------- | ------------------- | --------------------- | -------------------------------------------------- |
+| `/epic-start` | Plan approval       | Wait for user         | Post plan to epic issue, auto-proceed              |
+| `/develop`    | Bug spec approval   | Wait for user         | Auto-approve PO spec, create issue immediately     |
+| `/develop`    | PR merge approval   | Wait for user         | Auto-merge after CI green + all reviewers approved |
+| `/epic-close` | UAT validation      | User walkthrough      | E2E pass + uat-validator report = sufficient       |
+| `/epic-close` | Promotion to `main` | **Wait for user**     | **Wait for user (ALWAYS)** — never auto-approved   |
 
 ## Acceptance & Validation
 
-Every epic follows a two-phase validation lifecycle. **Development phase** (`/develop`): PO defines acceptance criteria, QA + E2E + security review each story/bug PR (single items or batched). **Epic validation phase** (`/epic-close`): refinement, E2E coverage confirmation, UAT with user, docs update, promotion.
+Every epic follows a two-phase validation lifecycle. **Development phase** (`/develop`): PO defines acceptance criteria, QA + E2E + security review each story/bug PR (single items or batched). **Epic validation phase** (`/epic-close`): refinement, E2E coverage confirmation, UAT with user, docs update, promotion. Alternatively, use `/epic-run` to execute the entire lifecycle autonomously in a single session (only pauses for promotion approval).
 
 ### Key Rules
 
@@ -167,7 +180,7 @@ Production files: any file under `server/`, `client/`, or `shared/`.
 
 **NEVER `cd` to the base project directory to modify files.** All file edits, git operations, and commands must be performed from within the git worktree assigned at session start. The base project directory may have other sessions' uncommitted changes. This applies to subagents too — all file reads, writes, and exploration must use the worktree path.
 
-See the skill files (`.claude/skills/`) for the full operational checklists. The typical lifecycle is: `/epic-start` (once per epic) → `/develop` (once per story, or batched for multiple small items) → `/epic-close` (once per epic after all stories merged).
+See the skill files (`.claude/skills/`) for the full operational checklists. The typical lifecycle is: `/epic-start` (once per epic) → `/develop` (once per story, or batched for multiple small items) → `/epic-close` (once per epic after all stories merged). Alternatively, `/epic-run` chains all three phases autonomously (only pauses for promotion approval).
 
 Note: Dependabot auto-merge (`.github/workflows/dependabot-auto-merge.yml`) targets `beta` — it handles automated dependency updates, not agent work.
 

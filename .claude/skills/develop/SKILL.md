@@ -73,7 +73,9 @@ Confirm the issue exists, note its labels (`user-story` or `bug`), and proceed t
 - Present the spec to the user for review and discussion
 - **Only after user approval**: Create a GitHub Issue labeled `bug`, add to Projects board in "Todo", and link as sub-issue of the parent epic if applicable
 
-**Important:** Do NOT create the GitHub Issue until the user explicitly approves the spec.
+**AUTO_MODE override**: If AUTO_MODE is active (set by `/epic-run`), skip the user approval wait for bug specs. Auto-approve the PO spec and create the GitHub Issue immediately.
+
+**Interactive mode** (default): Do NOT create the GitHub Issue until the user explicitly approves the spec.
 
 #### Multi-item mode
 
@@ -317,7 +319,9 @@ In multi-item mode, present a **per-item summary table**:
 | #61   | Add export button to Gantt     | Resolved |
 ```
 
-Ask the user to approve the PR for merge. **Do NOT merge until the user explicitly approves.** Wait for explicit confirmation:
+**AUTO_MODE override**: If AUTO_MODE is active (set by `/epic-run`), skip the user approval wait. Once CI is green and all reviewers have approved, proceed directly to step 10a (persist metrics) and then merge.
+
+**Interactive mode** (default): Ask the user to approve the PR for merge. **Do NOT merge until the user explicitly approves.** Wait for explicit confirmation:
 
 - **User approves** → proceed to step 10a (persist metrics), then merge
 - **User reports issues** → take the user's feedback as new input and loop back to **step 6** (Implement + Test) on a new branch to address it

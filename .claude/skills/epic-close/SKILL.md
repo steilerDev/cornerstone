@@ -96,7 +96,9 @@ Launch the **uat-validator** agent to:
 - Produce a UAT Validation Report covering all stories in the epic
 - Provide step-by-step manual validation instructions to the user
 
-Present the report to the user. The user walks through each scenario:
+**AUTO_MODE override**: If AUTO_MODE is active (set by `/epic-run`), treat E2E pass + uat-validator report as sufficient validation. Post the UAT report as a comment on the epic issue and proceed to step 7 without waiting for user walkthrough.
+
+**Interactive mode** (default): Present the report to the user. The user walks through each scenario:
 
 - **All pass** → proceed to step 7
 - **Any fail** → launch `/develop` for the failing issue(s), then loop back to step 5
