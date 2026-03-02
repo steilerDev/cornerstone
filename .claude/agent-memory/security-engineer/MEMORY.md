@@ -1,0 +1,116 @@
+# Security Engineer Memory
+
+> Detailed findings per story/PR live in `review-history.md`. This index stays under 200 lines.
+
+## Repo & Process
+
+- **Repo**: `steilerDev/cornerstone`, beta → main model
+- **Auth comment**: All comments must start with `**[security-engineer]**`
+- **Commit trailer**: `Co-Authored-By: Claude security-engineer (Sonnet 4.6) <noreply@anthropic.com>`
+- **PR review**: Post as `--comment` (NOT `--approve` — same token can't approve own PRs)
+- **npm audit**: Run `npm audit --omit=dev` for production vuln check (dev audit includes npm's own bundled tools which have 39 vulns unrelated to app)
+
+## Established Baseline Security Controls
+
+Verified across EPIC-01/02/03/05 — all confirmed STRONG:
+
+- **Argon2id** password hashing (N=65536, t=3, p=4) — OWASP-compliant
+- **Session tokens**: 256-bit crypto.randomBytes(32), HttpOnly+Secure+SameSite=strict cookies
+- **OIDC**: openid-client@6.x, 256-bit state param, server-side Map, 10-min TTL, one-time use
+- **RBAC**: requireRole() preHandler, fresh DB lookup every request (no caching)
+- **SQL injection**: Drizzle ORM parameterized queries throughout; `sql\`\`` tagged templates also safe
+- **XSS**: Zero dangerouslySetInnerHTML/innerHTML/eval in any client code across all EPICs
+- **CSRF**: SameSite=strict session cookies (no token needed)
+- **Sensitive data**: toUserResponse() strips passwordHash/oidcSubject; toBudgetCategory() explicit field mapping
+- **Dockerfile**: DHI images (near-zero CVEs), non-root user, multi-stage, no shell in prod
+- **Dependencies**: 0 production vulnerabilities (npm audit --omit=dev)
+
+## Review Status by Story/PR
+
+See `review-history.md` for detailed findings per PR.
+
+| PR   | Story                                                                             | Status                                                            | Date       |
+| ---- | --------------------------------------------------------------------------------- | ----------------------------------------------------------------- | ---------- |
+| #55  | #28 Schema                                                                        | APPROVED                                                          | 2026-02-16 |
+| #56  | #30 Local Auth                                                                    | APPROVED                                                          | 2026-02-16 |
+| #57  | #32 Sessions                                                                      | APPROVED w/ medium findings                                       | 2026-02-16 |
+| #60  | #37 RBAC                                                                          | APPROVED                                                          | 2026-02-16 |
+| #61  | #34 OIDC                                                                          | APPROVED                                                          | 2026-02-16 |
+| #62  | #36 User Profile                                                                  | APPROVED                                                          | 2026-02-16 |
+| #63  | #38 Admin Mgmt                                                                    | APPROVED                                                          | 2026-02-16 |
+| #69  | #68 Logout UI                                                                     | APPROVED                                                          | 2026-02-16 |
+| #82  | EPIC-01 Promo                                                                     | APPROVED                                                          | 2026-02-16 |
+| #97  | EPIC-03 Schema                                                                    | APPROVED                                                          | 2026-02-17 |
+| #98  | 3.2 Work Items CRUD                                                               | APPROVED                                                          | 2026-02-17 |
+| #101 | 3.3 Tag Mgmt                                                                      | APPROVED                                                          | 2026-02-17 |
+| #102 | 3.4 Notes/Subtasks                                                                | APPROVED w/ medium                                                | 2026-02-17 |
+| #103 | 3.7 Dependencies                                                                  | APPROVED w/ medium                                                | 2026-02-17 |
+| #104 | 3.5 Work Items List                                                               | APPROVED                                                          | 2026-02-17 |
+| #105 | 3.6 Work Item Detail                                                              | APPROVED                                                          | 2026-02-17 |
+| #106 | 3.8 Keyboard Shortcuts                                                            | APPROVED                                                          | 2026-02-17 |
+| #150 | #142 Budget Categories                                                            | APPROVED                                                          | 2026-02-20 |
+| #151 | #143 Vendor Mgmt                                                                  | APPROVED w/ low findings                                          | 2026-02-20 |
+| #152 | #144 Invoice Mgmt                                                                 | APPROVED w/ low findings                                          | 2026-02-20 |
+| #153 | #145 Budget Sources                                                               | APPROVED w/ low findings                                          | 2026-02-20 |
+| #157 | #148 Budget Overview                                                              | APPROVED                                                          | 2026-02-20 |
+| #158 | #149 Budget Sub-Nav                                                               | APPROVED                                                          | 2026-02-20 |
+| #187 | EPIC-05 Stories 5.9-5.12 Budget Rework                                            | APPROVED w/ low finding                                           | 2026-02-21 |
+| #193 | #186 5.12 Budget Frontend Rework                                                  | APPROVED w/ low findings                                          | 2026-02-22 |
+| #195 | Budget Hero Bar + Category Filter                                                 | APPROVED                                                          | 2026-02-22 |
+| #203 | Standalone Invoices View                                                          | APPROVED w/ informational                                         | 2026-02-23 |
+| #247 | EPIC-06 Milestones Backend                                                        | APPROVED w/ low/informational                                     | 2026-02-24 |
+| #248 | EPIC-06 Scheduling Engine (CPM)                                                   | APPROVED w/ informational                                         | 2026-02-24 |
+| #249 | EPIC-06 Timeline Data API                                                         | APPROVED                                                          | 2026-02-24 |
+| #250 | EPIC-06 Gantt Chart Core                                                          | APPROVED                                                          | 2026-02-24 |
+| #253 | EPIC-06 Gantt Interactive Features                                                | APPROVED                                                          | 2026-02-24 |
+| #254 | EPIC-06 Milestones Frontend — CRUD Panel & Diamond Markers                        | APPROVED                                                          | 2026-02-24 |
+| #263 | EPIC-06 UAT Fixes (projected dates, WorkItemSelector portal)                      | APPROVED w/ informational                                         | 2026-02-25 |
+| #267 | EPIC-06 UAT Feedback Fixes (column zoom, milestone rows, back-to-timeline nav)    | APPROVED (no findings)                                            | 2026-02-25 |
+| #306 | Gantt dependency highlighting on hover — frontend-only, Issue #295                | APPROVED (no findings)                                            | 2026-02-26 |
+| #308 | EPIC-07 Actual dates, delay tracking, blocked-status removal                      | COMMENTED (no blocking findings)                                  | 2026-02-26 |
+| #316 | Retro improvements — dep pinning, shared CSS, formatDate, invoiceService refactor | COMMENTED (1 low finding: heredoc path injection in shell script) | 2026-02-27 |
+| #320 | Bug fixes #318 (login logo) + #319 (scheduling engine rules/isLate)               | COMMENTED (no findings)                                           | 2026-02-27 |
+
+## Known Open Recommendations (Low Priority)
+
+These have been noted in previous reviews. **GitHub Issue #315** tracks items 1-6 (security hygiene backlog story). Items 7-17 remain as informational tracking.
+
+1. **Rate limiting** (Medium): Add @fastify/rate-limit to login/setup/password endpoints
+2. **Security headers** (Low): Install @fastify/helmet for CSP, HSTS, X-Frame-Options
+3. **Account lockout** (Low): After N failed login attempts
+4. **Case-insensitive DB unique index** (Low): For budget_categories.name (PR #150)
+5. **409 error detail suppression** (Low): Remove counts from CATEGORY_IN_USE/VENDOR_IN_USE/BUDGET_SOURCE_IN_USE/BUDGET_LINE_IN_USE 409 details fields (PRs #150, #151, #152, #187)
+6. **Vendor email format validation** (Low): Add `format: 'email'` to vendor schema (PR #151)
+7. **Missing server-side maxLength** (Low): budget_sources.terms/notes, any future text fields (PR #151, #152)
+8. **workItemBudgetId cross-vendor boundary** (Low): invoiceService.ts doesn't verify budget line's work item is vendor-related (PR #187)
+9. **Swallowed promise rejection in budget line fetch** (Low): VendorDetailPage.tsx:1037,1256 — no .catch() on fetchWorkItemBudgets (PR #193) [NEW pages in PR #203 fixed this for InvoicesPage/InvoiceDetailPage]
+10. **pageSize 200 exceeds server maximum** (Low): RESOLVED in PR #203 — new InvoicesPage/InvoiceDetailPage use pageSize: 100 correctly
+11. **getInvoiceByIdSchema missing additionalProperties: false** (Informational): standaloneInvoices.ts params schema — no exploit path (PR #203)
+12. **Milestone color field lacks schema-layer pattern constraint** (Low): milestones.ts createMilestoneSchema/updateMilestoneSchema — service validates correctly but schema doesn't (PR #247)
+13. **leadLagDays field has no magnitude bound** (Informational): dependencies.ts schema — extreme values flow into CPM arithmetic (PR #247, also relevant for PR #248 scheduling engine)
+14. **CircularDependencyError cycle field exposes internal work item IDs** (Informational): schedule.ts 409 details — acceptable in single-tenant model (PR #248)
+15. **anchorWorkItemId schema lacks minLength: 1** (Informational): schedule.ts schema — empty string caught by handler not schema (PR #248)
+16. **workItemIds schema lacks maxItems/maxLength** (Informational): milestones.ts createMilestoneSchema — array and items have no size bounds; N+1 DB loop in milestoneService (PR #263)
+17. **actualStartDate/actualEndDate cross-field ordering** (Informational): workItems.ts — no validation that actualEndDate >= actualStartDate at schema or service layer; same gap as existing startDate/endDate pair (PR #308)
+
+## Key Architecture Patterns (Security-Relevant)
+
+- **Public routes exempted from auth**: `/api/auth/setup`, `/api/auth/login`, `/api/auth/me`, `/api/health`, static files
+- **Fastify AJV**: Does NOT enforce `additionalProperties: false` even when specified — extra body fields silently ignored (accepted risk, low impact)
+- **SQLite**: Foreign keys disabled by default — enabled at connection init via `db.pragma('foreign_keys = ON')`
+- **better-sqlite3**: Synchronous, serialized — race conditions not possible for single-writer operations
+- **Error codes**: `INVALID_CREDENTIALS` used for both user-not-found and wrong-password (prevents enumeration)
+- **OIDC error codes**: Whitelisted map in frontend — no reflection of unknown codes
+- **Work items pageSize max**: Server enforces `maximum: 100` on pageSize for GET /api/work-items — client must not exceed this
+- **CSS class from server enum**: `styles[\`status\_\${invoice.status}\`]` pattern is safe — CSS Modules scopes at build time; server validates enum
+- **location.state navigation pattern** (PR #267 WorkItemDetailPage): `?.from === 'timeline'` strict-equality check against a literal. All `navigate()` targets are hardcoded strings. No open redirect risk from this pattern.
+- **Ctrl+scroll / keyboard zoom** (PR #267 TimelinePage): Raw wheel deltaY/keyboard events reduced to ±1 direction sign before arithmetic. Column width clamped to [COLUMN_WIDTH_MIN, COLUMN_WIDTH_MAX]. Clean pattern.
+- **createPortal to document.body** (PR #263 WorkItemSelector): Safe pattern — renders React virtual DOM tree; all dynamic content remains in React's controlled rendering pipeline (no raw HTML injection). Outside-click handled via `document.querySelector('[data-work-item-selector-dropdown]')` data attribute — legitimate pattern.
+- **GanttChart hover state (PR #306)**: hoveredItemId set exclusively from DOM event handlers. Arrow keys (`${predId}-${succId}-${dep.dependencyType}`) used only for Set.has() lookups — no execution path. All user data in tooltip dependency list rendered as JSX text nodes. No dangerouslySetInnerHTML anywhere in GanttChart component tree. ARIA labels with user titles safe — React escapes JSX attributes.
+- **Wiki submodule detached HEAD**: After `git submodule update --init`, the wiki is in detached HEAD. Must `git -C wiki checkout master` before committing. Always `git -C wiki pull --rebase origin master` before pushing to handle concurrent wiki edits from other PRs.
+- **Wiki submodule commit on virtiofs FAILS**: The sandbox uses a virtiofs mount — git's tmp-file write pattern for objects is incompatible with virtiofs write semantics. `git -C wiki add` always fails with "insufficient permission for adding an object to repository database". Workaround: `git clone /path/to/wiki /tmp/wiki-tmp` → edit in /tmp/wiki-tmp → commit → `git remote set-url origin <token-url-from-wiki/.git/config>` → push. Token URL is in `wiki/.git/config` under `[remote "origin"] url`.
+- **check-dep-pinning.sh heredoc injection (Low)**: The shell script uses an unquoted `<<EOF` heredoc embedding `${PACKAGE_JSON}` in a JS string literal. Exploitation is negligible in practice (lint-staged controls paths), but the fix is trivial: use `<<'EOF'` and pass path via `process.argv[1]`. Documented in PR #316 review.
+- **WorkItemStatus enum**: As of PR #308, is `'not_started' | 'in_progress' | 'completed'` — `blocked` removed. Migration 0008 migrated existing blocked rows to not_started.
+- **Actual dates (PR #308)**: `actualStartDate` and `actualEndDate` added to work_items. Auto-populated on status transitions (not_started→in_progress sets actualStartDate; in_progress→completed sets actualEndDate; not_started→completed sets both). Both fields use `format: 'date'` schema validation. No cross-field ordering validation — open informational finding #17.
+- **Category color rendering**: Always via React style object `{ backgroundColor: color }`, never string interpolation — CSS injection impossible
+- **Scheduling engine (PR #248)**: Pure function, O(V+E) Kahn's algorithm — no DoS risk at construction project scale. Cycle detection as byproduct of Kahn's. Unbounded SELECT of all work items/deps is acceptable at target scale. Drizzle ORM throughout. POST /api/schedule is read-only (no DB writes).
