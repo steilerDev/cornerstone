@@ -1,12 +1,12 @@
 # Product Owner Agent Memory
 
-## Backlog State (as of 2026-03-01)
+## Backlog State (as of 2026-03-02)
 
-- 12 epics, 60+ user stories across all epics
+- 12 epics, 75+ user stories across all epics
 - Sprint 1 COMPLETE: EPIC-01, EPIC-02, EPIC-11
 - Sprint 2 COMPLETE: EPIC-03, EPIC-12
 - Sprint 3 COMPLETE: EPIC-05 (v1.9.0), EPIC-06 (v1.10.0)
-- Sprint 4 PLANNING: EPIC-08 stories created (#354-#360), EPIC-04 not yet decomposed
+- Sprint 4 IN PROGRESS: EPIC-08 COMPLETE (v1.11.0), EPIC-04 stories created (#387-#394)
 - Security hygiene backlog: Issue #315 (rate limiting, headers, lockout, etc.)
 - GitHub Projects board: "Cornerstone Backlog" (project #4, owner steilerDev)
 
@@ -19,6 +19,7 @@
 - EPIC-12 (#115): Design System Bootstrap -- CLOSED 2026-02-18, promoted with EPIC-03 via PR #110
 - EPIC-05 (#5): Budget Management -- CLOSED (v1.9.0), all 12 stories
 - EPIC-06 (#6): Timeline & Gantt -- CLOSED (v1.10.0), all 9 stories
+- EPIC-08 (#8): Paperless-ngx Document Integration -- CLOSED (v1.11.0), all 6 stories
 
 ## Epic Quick Reference
 
@@ -50,13 +51,16 @@ All 8 stories merged to beta. Promotion PR #110 (beta -> main) merged. See [epic
 
 All 9 stories + refinement + E2E tests + UAT fixes merged and promoted to main.
 
-## EPIC-08 Stories (Paperless-ngx Document Integration) — IN PROGRESS
+## EPIC-08 — COMPLETE (v1.11.0, promoted 2026-03-02)
 
-7 stories created (#354-#360). See [epic-08-planning.md](epic-08-planning.md) for full details.
-Story 8.1 (#354): ACCEPTED (PR #362, round 2 review). All 12 ACs passed.
+All 6 stories merged and promoted to main. Story 8.6 (#359) remains open, blocked by EPIC-04. See [epic-08-planning.md](epic-08-planning.md).
 
-- Acceptance criteria text corrected post-review: PAPERLESS_TOKEN -> PAPERLESS_API_TOKEN, removed version from status, /thumbnail -> /thumb
-  Remaining stories in Backlog. Story 8.6 blocked by EPIC-04.
+## EPIC-04 Stories (Household Items & Furniture) — PLANNING COMPLETE
+
+8 stories created (#387-#394). See [epic-04-planning.md](epic-04-planning.md) for full details.
+Stories 4.1 (#387) and 4.2 (#388) set to Todo. Remaining stories in Backlog.
+Story 8.6 (#359, EPIC-08) linked as sub-issue, blocked by #391 (detail page).
+Total: 85 ACs, 103 UAT scenarios across 8 stories.
 
 ## EPIC-05 — COMPLETE (v1.9.0, promoted)
 

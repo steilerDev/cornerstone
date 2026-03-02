@@ -196,3 +196,20 @@ export type {
   DocumentLinkResponse,
   DocumentLinkListResponse,
 } from './types/document.js';
+
+// Household Items
+export type {
+  HouseholdItemCategory,
+  HouseholdItemStatus,
+  HouseholdItemVendorSummary,
+  HouseholdItemWorkItemSummary,
+  HouseholdItemSubsidySummary,
+  HouseholdItem,
+  HouseholdItemSummary,
+  HouseholdItemDetail,
+  CreateHouseholdItemRequest,
+  UpdateHouseholdItemRequest,
+  HouseholdItemListQuery,
+  HouseholdItemListResponse,
+  HouseholdItemResponse,
+} from './types/householdItem.js';
