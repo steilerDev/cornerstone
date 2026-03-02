@@ -40,6 +40,7 @@ A self-hosted home building project management tool for homeowners. Track work i
 - **Budget Management** -- Budget categories, financing sources, vendor invoices, subsidies, overview dashboard with projections
 - **Timeline & Gantt Chart** -- Interactive Gantt chart with dependency arrows, critical path, zoom controls, milestones, and CPM-based auto-scheduling
 - **Calendar View** -- Monthly and weekly calendar grids with work items and milestones
+- **Document Integration** -- Browse and link documents from Paperless-ngx to work items and invoices
 - **Authentication** -- Local accounts with setup wizard, OIDC single sign-on
 - **User Management** -- Admin and Member roles, admin panel
 - **Dark Mode** -- Light, Dark, or System theme
@@ -66,9 +67,9 @@ Open `http://localhost:3000` -- the setup wizard will guide you through creating
 - [x] **EPIC-12**: Design System Bootstrap
 - [x] **EPIC-05**: Budget Management
 - [x] **EPIC-06**: Timeline and Gantt Chart
+- [x] **EPIC-08**: Paperless-ngx Integration
 - [ ] **EPIC-04**: Household Items
 - [ ] **EPIC-07**: Reporting and Export
-- [ ] **EPIC-08**: Paperless-ngx Integration
 - [ ] **EPIC-09**: Dashboard and Overview
 - [ ] **EPIC-10**: UX Polish and Accessibility
 

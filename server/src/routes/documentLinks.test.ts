@@ -367,6 +367,24 @@ describe('Document Links Routes', () => {
 
       expect(response.statusCode).toBe(400);
     });
+
+    it('returns 400 when entityId exceeds 36 characters', async () => {
+      const { cookie } = await createUserWithSession();
+      const tooLongId = 'a'.repeat(37);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/document-links',
+        headers: { cookie, 'content-type': 'application/json' },
+        payload: JSON.stringify({
+          entityType: 'work_item',
+          entityId: tooLongId,
+          paperlessDocumentId: 1,
+        }),
+      });
+
+      expect(response.statusCode).toBe(400);
+    });
   });
 
   // ─── GET /api/document-links ───────────────────────────────────────────────
@@ -401,6 +419,19 @@ describe('Document Links Routes', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/document-links?entityType=work_item',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(400);
+    });
+
+    it('returns 400 when entityId query param exceeds 36 characters', async () => {
+      const { cookie } = await createUserWithSession();
+      const tooLongId = 'b'.repeat(37);
+
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/document-links?entityType=work_item&entityId=${tooLongId}`,
         headers: { cookie },
       });
 

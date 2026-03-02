@@ -20,7 +20,11 @@
   outline: none;
 }
 
-.searchInput:focus {
+.searchInput:hover {
+  border-color: var(--color-border-strong);
+}
+
+.searchInput:focus-visible {
   border-color: var(--color-border-focus);
   box-shadow: var(--shadow-focus-subtle);
 }
@@ -32,6 +36,8 @@
   overflow-x: auto;
   padding-bottom: var(--spacing-1);
   scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
 }
 
 .tagChip {
@@ -49,9 +55,9 @@
   white-space: nowrap;
   flex-shrink: 0;
   transition:
-    background-color 0.1s ease,
-    border-color 0.1s ease,
-    color 0.1s ease;
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
   outline: none;
   user-select: none;
 }
@@ -73,7 +79,7 @@
 }
 
 .tagCount {
-  font-size: 0.625rem;
+  font-size: var(--font-size-xs);
   opacity: 0.75;
 }
 
@@ -137,7 +143,7 @@
   background-color: var(--color-bg-tertiary);
   padding: 0.1rem 0.3rem;
   border-radius: 0.2rem;
-  font-size: 0.8em;
+  font-size: 0.8em; /* Relative to parent text — no absolute token applies */
 }
 
 .errorState {
@@ -225,4 +231,10 @@
 .pageInfo {
   font-size: var(--font-size-sm);
   color: var(--color-text-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tagChip {
+    transition: none;
+  }
 }

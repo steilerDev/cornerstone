@@ -48,3 +48,14 @@ OIDC is automatically enabled when `OIDC_ISSUER`, `OIDC_CLIENT_ID`, and `OIDC_CL
 | `OIDC_REDIRECT_URI` | -- | Callback URL (optional -- auto-derived from the request if not set) |
 
 For detailed OIDC setup instructions, see [OIDC Setup](../guides/users/oidc-setup).
+
+## Paperless-ngx (Document Integration)
+
+The document integration is automatically enabled when both `PAPERLESS_URL` and `PAPERLESS_API_TOKEN` are set.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PAPERLESS_URL` | -- | Base URL of your Paperless-ngx instance (e.g., `https://paperless.example.com`) |
+| `PAPERLESS_API_TOKEN` | -- | API authentication token from Paperless-ngx |
+
+For detailed setup instructions, see [Documents Setup](/guides/documents/setup).
