@@ -72,7 +72,9 @@ describe('DocumentCard', () => {
         onSelect={jest.fn()}
       />,
     );
-    expect(screen.queryByText(/2025/)).not.toBeInTheDocument();
+    // Check that no formatted date (e.g. "Mar 15, 2025") is rendered.
+    // Use a pattern that matches month-day-year format but not the document title.
+    expect(screen.queryByText(/^[A-Z][a-z]+ \d+, \d{4}$/)).not.toBeInTheDocument();
   });
 
   it('renders correspondent name', () => {
