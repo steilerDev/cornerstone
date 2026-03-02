@@ -27,8 +27,8 @@
 .countBadge {
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
-  background: var(--color-primary-bg);
-  color: var(--color-primary-badge-text);
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-muted);
   padding: var(--spacing-1) var(--spacing-2-5);
   border-radius: var(--radius-full);
   min-width: 2rem;
@@ -124,7 +124,7 @@
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
   margin: 0 0 var(--spacing-2) 0;
-  font-size: 0.9375rem;
+  font-size: var(--font-size-sm);
 }
 
 .notConfiguredBody {
@@ -163,6 +163,11 @@
   background: var(--color-overlay-danger);
 }
 
+.retryButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
 .detailPanel {
   margin-top: var(--spacing-8);
   margin-bottom: var(--spacing-4);
@@ -199,7 +204,7 @@
 }
 
 .modalContentLarge {
-  max-width: 800px;
+  max-width: min(860px, calc(100vw - var(--spacing-8)));
 }
 
 .modalHeader {
@@ -238,6 +243,11 @@
 
 .modalClose:hover {
   color: var(--color-text-primary);
+}
+
+.modalClose:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus-subtle);
 }
 
 .pickerBody {
@@ -285,6 +295,11 @@
   border-color: var(--color-text-placeholder);
 }
 
+.modalCancelButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
 .modalDeleteButton {
   background: var(--color-danger);
   color: var(--color-danger-text-on-light);
@@ -294,6 +309,11 @@
 .modalDeleteButton:hover:not(:disabled) {
   background: var(--color-danger-active);
   border-color: var(--color-danger-active);
+}
+
+.modalDeleteButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus-danger);
 }
 
 .modalCancelButton:disabled,
@@ -332,9 +352,13 @@
 
   .modalContent,
   .modalContentLarge {
-    width: 95%;
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
     max-width: none;
-    border-radius: var(--radius-sm);
+    max-height: none;
+    border-radius: 0;
   }
 
   .section {
