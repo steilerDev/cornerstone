@@ -3,14 +3,8 @@
 }
 
 .title {
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
   font-size: 2rem;
   font-weight: 700;
   color: var(--color-text-primary);
-}
-
-.description {
-  font-size: 1rem;
-  line-height: 1.5;
-  color: var(--color-text-subtle);
 }

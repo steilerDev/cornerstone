@@ -7,6 +7,10 @@ services:
       - cornerstone-data:/app/data
     env_file:
       - .env
+    # Paperless-ngx integration (optional — add to your .env file):
+    # environment:
+    #   - PAPERLESS_URL=http://paperless:8000
+    #   - PAPERLESS_API_TOKEN=your-paperless-api-token
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/health').then(r=>{if(!r.ok)throw r.status}).catch(()=>process.exit(1))"]
