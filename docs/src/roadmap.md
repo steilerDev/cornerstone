@@ -16,12 +16,12 @@ Cornerstone is under active development. Here is the current state of planned fe
 - [x] **EPIC-12: Design System Bootstrap** ([#115](https://github.com/steilerDev/cornerstone/issues/115)) -- Design token system, dark mode, brand identity, CSS module migration, style guide
 - [x] **EPIC-05: Budget Management** ([#5](https://github.com/steilerDev/cornerstone/issues/5)) -- Budget categories, financing sources, work item cost tracking, vendor invoices, subsidy programs, budget overview dashboard
 - [x] **EPIC-06: Timeline and Gantt Chart** ([#6](https://github.com/steilerDev/cornerstone/issues/6)) -- Interactive Gantt chart, calendar view, milestones, CPM-based scheduling engine, dependency arrows, critical path highlighting
+- [x] **EPIC-08: Paperless-ngx Integration** ([#8](https://github.com/steilerDev/cornerstone/issues/8)) -- Document browser, document linking to work items and invoices, proxy architecture, thumbnail and metadata display
 
 ## Planned
 
 - [ ] **EPIC-04: Household Items** ([#4](https://github.com/steilerDev/cornerstone/issues/4)) -- Furniture and appliance purchase tracking
 - [ ] **EPIC-07: Reporting and Export** ([#7](https://github.com/steilerDev/cornerstone/issues/7)) -- Document export and reporting features
-- [ ] **EPIC-08: Paperless-ngx Integration** ([#8](https://github.com/steilerDev/cornerstone/issues/8)) -- Reference documents from a Paperless-ngx instance
 - [ ] **EPIC-09: Dashboard and Overview** ([#9](https://github.com/steilerDev/cornerstone/issues/9)) -- Project dashboard with budget summary and activity
 - [ ] **EPIC-10: UX Polish and Accessibility** ([#10](https://github.com/steilerDev/cornerstone/issues/10)) -- Accessibility improvements and UI refinements
 

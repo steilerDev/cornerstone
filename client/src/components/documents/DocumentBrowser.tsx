@@ -12,6 +12,8 @@ interface DocumentBrowserProps {
   onSelect?: (doc: PaperlessDocumentSearchResult) => void;
 }
 
+const GRID_ID = 'document-grid';
+
 export function DocumentBrowser({ mode = 'page', onSelect }: DocumentBrowserProps) {
   const hook = usePaperless();
   const [selectedDoc, setSelectedDoc] = useState<PaperlessDocumentSearchResult | null>(null);
@@ -105,6 +107,7 @@ export function DocumentBrowser({ mode = 'page', onSelect }: DocumentBrowserProp
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           aria-label="Search documents"
+          aria-controls={GRID_ID}
         />
       </div>
 
@@ -136,7 +139,7 @@ export function DocumentBrowser({ mode = 'page', onSelect }: DocumentBrowserProp
 
       {/* Document grid */}
       {hook.isLoading ? (
-        <div className={gridClass}>
+        <div className={gridClass} role="list" id={GRID_ID} aria-label="Documents" aria-busy="true">
           <DocumentSkeleton count={mode === 'modal' ? 4 : 6} />
         </div>
       ) : hook.error ? (
@@ -167,15 +170,22 @@ export function DocumentBrowser({ mode = 'page', onSelect }: DocumentBrowserProp
           )}
         </div>
       ) : (
-        <div className={gridClass}>
+        <div
+          className={gridClass}
+          role="list"
+          id={GRID_ID}
+          aria-label="Documents"
+          aria-busy="false"
+        >
           {hook.documents.map((doc) => (
-            <DocumentCard
-              key={doc.id}
-              document={doc}
-              isSelected={selectedDoc?.id === doc.id}
-              onSelect={handleCardSelect}
-              ariaControls={selectedDoc?.id === doc.id ? 'detail-panel' : undefined}
-            />
+            <div key={doc.id} role="listitem">
+              <DocumentCard
+                document={doc}
+                isSelected={selectedDoc?.id === doc.id}
+                onSelect={handleCardSelect}
+                ariaControls={selectedDoc?.id === doc.id ? 'detail-panel' : undefined}
+              />
+            </div>
           ))}
         </div>
       )}
