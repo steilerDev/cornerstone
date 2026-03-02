@@ -60,7 +60,9 @@ describe('DocumentsPage', () => {
 
   it('renders not-configured state when paperless is not set up', () => {
     mockUsePaperless.mockReturnValue(
-      makeHook({ status: { configured: false, reachable: false, error: null, paperlessUrl: null } }),
+      makeHook({
+        status: { configured: false, reachable: false, error: null, paperlessUrl: null },
+      }),
     );
     render(<DocumentsPage />);
     expect(screen.getByText(/Paperless-ngx Not Configured/i)).toBeInTheDocument();

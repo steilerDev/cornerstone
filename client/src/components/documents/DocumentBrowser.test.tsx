@@ -80,7 +80,9 @@ describe('DocumentBrowser', () => {
 
     it('renders not configured state when configured=false', () => {
       mockUsePaperless.mockReturnValue(
-        makeHook({ status: { configured: false, reachable: false, error: null, paperlessUrl: null } }),
+        makeHook({
+          status: { configured: false, reachable: false, error: null, paperlessUrl: null },
+        }),
       );
       render(<DocumentBrowser />);
       expect(screen.getByText(/Paperless-ngx Not Configured/i)).toBeInTheDocument();
