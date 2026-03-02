@@ -20,8 +20,7 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
 import * as documentLinkService from './documentLinkService.js';
-import type { AppError} from '../errors/AppError.js';
-import { NotFoundError } from '../errors/AppError.js';
+import { type AppError, NotFoundError } from '../errors/AppError.js';
 import type { DocumentLinkEntityType } from '@cornerstone/shared';
 
 // ─── Mock global fetch (used by paperlessService.getDocument) ─────────────────
