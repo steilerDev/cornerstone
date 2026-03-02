@@ -139,6 +139,19 @@ All agents must clearly identify themselves:
 - **GitHub comments**: prefix with `**[agent-name]**` (e.g., `**[backend-developer]** This endpoint...`)
 - **Orchestrator**: when committing work produced by an agent, use that agent's name in the trailer.
 
+### Delegation Enforcement
+
+The `dev-team-lead` agent coordinates implementation but must NOT write production code directly. All production source file changes must be delegated to `backend-developer` (Haiku) or `frontend-developer` (Haiku) agents via the Agent tool.
+
+The orchestrator runs a **delegation audit** after every dev-team-lead session:
+
+1. Commit trailers must include Haiku co-authors for production file changes
+2. The dev-team-lead's delegation report must list no directly-modified files
+
+Commits from the dev-team-lead that change production files without Haiku co-author trailers are rejected, reset, and re-delegated.
+
+Production files: any `.ts`, `.tsx`, `.css`, `.module.css`, `.sql` under `server/`, `client/`, or `shared/`.
+
 ### Branching Strategy
 
 **Never commit directly to `main` or `beta`.** All changes go through feature branches and pull requests.

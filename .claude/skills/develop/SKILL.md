@@ -159,6 +159,7 @@ Provide the dev-team-lead with:
 - Layers affected: backend-only, frontend-only, or full-stack
 - UX visual spec reference (if posted in step 3)
 - Branch name
+- **Delegation reminder**: "You MUST delegate ALL code changes to `backend-developer` (Haiku) and/or `frontend-developer` (Haiku) via the Agent tool. After completion, the orchestrator will audit commit trailers — production file changes without Haiku co-author trailers will be rejected."
 
 The dev-team-lead internally:
 
@@ -176,6 +177,34 @@ The dev-team-lead internally:
 #### Multi-item mode
 
 Provide the dev-team-lead with the **full items list** — all issue numbers, titles, acceptance criteria, and UX specs. The dev-team-lead addresses all items in a single coordinated pass.
+
+### 6a. Delegation Audit
+
+After the dev-team-lead returns, verify that Haiku delegation actually occurred. **Do not skip this step.**
+
+**Check 1 — Delegation report**: The dev-team-lead must have returned a delegation report. Verify:
+
+- "Files modified by dev-team-lead directly" says "NONE"
+- At least one Haiku agent launch is listed
+
+**Check 2 — Commit trailers**: Inspect the commits on the branch:
+
+```bash
+git log origin/beta..HEAD --format="%b"
+```
+
+If production files were changed (`git diff --name-only origin/beta..HEAD | grep -E '^(server|client|shared)/'`), verify the commit body contains `Co-Authored-By: Claude backend-developer (Haiku` and/or `Co-Authored-By: Claude frontend-developer (Haiku` as appropriate:
+
+- Files under `server/` or `shared/` → must have backend-developer trailer
+- Files under `client/` → must have frontend-developer trailer
+
+**If delegation audit fails** (missing Haiku trailers for production changes, or delegation report lists directly modified files):
+
+1. Reset the work: `git reset --soft origin/beta`
+2. Re-launch the dev-team-lead with the same requirements plus this prepended instruction:
+   > "CRITICAL: Your previous session wrote production code directly instead of delegating to Haiku agents. This violated the delegation protocol. In this session, delegate ALL code changes to backend-developer (Haiku) and/or frontend-developer (Haiku) via the Agent tool. The orchestrator will audit trailers again."
+3. After re-launch, run the delegation audit again
+4. If it fails a second time, escalate to the user: report what happened and ask how to proceed
 
 ### 7. Verify PR
 
@@ -257,9 +286,10 @@ Track `fixLoopCount` (starts at 0). Each fix-and-re-review iteration increments 
 If any reviewer identifies blocking issues:
 
 1. Re-launch the **dev-team-lead** with the reviewer feedback — the dev-team-lead delegates targeted fixes to the appropriate Haiku agent(s) and/or QA, commits, pushes, and watches CI until green
-2. Re-request review from the agent(s) that flagged issues
-3. Increment `fixLoopCount` and record the new round's `REVIEW_METRICS`
-4. Repeat until all reviewers approve
+2. After the dev-team-lead completes the fix, run the **delegation audit** (same checks as step 6a) on the new commits before re-requesting reviews
+3. Re-request review from the agent(s) that flagged issues
+4. Increment `fixLoopCount` and record the new round's `REVIEW_METRICS`
+5. Repeat until all reviewers approve
 
 ### 10. User Approval & Merge
 
