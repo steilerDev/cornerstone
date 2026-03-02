@@ -484,9 +484,7 @@ describe('LinkedDocumentsSection', () => {
       expect(screen.getByRole('dialog', { name: /Unlink Document/i })).toBeInTheDocument();
 
       // Focus is moved to Cancel button via setTimeout(..., 0) in useEffect
-      await waitFor(() =>
-        expect(screen.getByRole('button', { name: /Cancel/i })).toHaveFocus(),
-      );
+      await waitFor(() => expect(screen.getByRole('button', { name: /Cancel/i })).toHaveFocus());
     });
   });
 

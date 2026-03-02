@@ -170,7 +170,13 @@ export function DocumentBrowser({ mode = 'page', onSelect }: DocumentBrowserProp
           )}
         </div>
       ) : (
-        <div className={gridClass} role="list" id={GRID_ID} aria-label="Documents" aria-busy="false">
+        <div
+          className={gridClass}
+          role="list"
+          id={GRID_ID}
+          aria-label="Documents"
+          aria-busy="false"
+        >
           {hook.documents.map((doc) => (
             <div key={doc.id} role="listitem">
               <DocumentCard
