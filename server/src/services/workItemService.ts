@@ -12,6 +12,7 @@ import {
 } from '../db/schema.js';
 import { listWorkItemBudgets } from './workItemBudgetService.js';
 import { autoReschedule } from './schedulingEngine.js';
+import { deleteLinksForEntity } from './documentLinkService.js';
 import type {
   WorkItemDetail,
   WorkItemSummary,
@@ -542,6 +543,9 @@ export function deleteWorkItem(db: DbType, id: string): void {
   if (!workItem) {
     throw new NotFoundError('Work item not found');
   }
+
+  // Cascade delete document links (polymorphic FK, enforced at app layer)
+  deleteLinksForEntity(db, 'work_item', id);
 
   db.delete(workItems).where(eq(workItems.id, id)).run();
 }

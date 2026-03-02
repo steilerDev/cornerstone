@@ -15,6 +15,7 @@ import type {
   InvoiceStatusSummary,
 } from '@cornerstone/shared';
 import { NotFoundError, ValidationError } from '../errors/AppError.js';
+import { deleteLinksForEntity } from './documentLinkService.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -438,6 +439,9 @@ export function deleteInvoice(db: DbType, vendorId: string, invoiceId: string): 
   if (!existing) {
     throw new NotFoundError('Invoice not found');
   }
+
+  // Cascade delete document links (polymorphic FK, enforced at app layer)
+  deleteLinksForEntity(db, 'invoice', invoiceId);
 
   db.delete(invoices).where(eq(invoices.id, invoiceId)).run();
 }
