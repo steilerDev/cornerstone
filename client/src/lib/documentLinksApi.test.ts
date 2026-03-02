@@ -78,6 +78,16 @@ describe('documentLinksApi', () => {
       expect(mockGet).toHaveBeenCalledWith('/document-links?entityType=invoice&entityId=inv-999');
     });
 
+    it('URL-encodes special characters in entityId', async () => {
+      mockGet.mockResolvedValueOnce({ documentLinks: [] });
+
+      await documentLinksApi.listDocumentLinks('work_item', 'id with spaces');
+
+      // URLSearchParams encodes spaces as '+', not as raw spaces
+      expect(mockGet).not.toHaveBeenCalledWith(expect.stringContaining('id with spaces'));
+      expect(mockGet).toHaveBeenCalledWith(expect.stringContaining('entityId='));
+    });
+
     it('returns multiple links from the response', async () => {
       const mockLinks = [
         {

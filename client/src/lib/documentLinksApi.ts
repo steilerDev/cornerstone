@@ -12,8 +12,9 @@ export function listDocumentLinks(
   entityType: string,
   entityId: string,
 ): Promise<DocumentLinkWithMetadata[]> {
+  const params = new URLSearchParams({ entityType, entityId });
   return get<{ documentLinks: DocumentLinkWithMetadata[] }>(
-    `/document-links?entityType=${entityType}&entityId=${entityId}`,
+    `/document-links?${params.toString()}`,
   ).then((r) => r.documentLinks);
 }
 
