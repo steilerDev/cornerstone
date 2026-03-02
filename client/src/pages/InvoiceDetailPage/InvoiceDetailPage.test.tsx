@@ -214,7 +214,8 @@ describe('InvoiceDetailPage', () => {
     it('renders the status badge', async () => {
       renderPage();
 
-      await waitFor(() => expect(screen.getByText('Pending')).toBeInTheDocument());
+      // The page renders the status badge in two places: the page header and the info list
+      await waitFor(() => expect(screen.getAllByText('Pending').length).toBeGreaterThanOrEqual(1));
     });
 
     it('renders the invoice number in the details list', async () => {

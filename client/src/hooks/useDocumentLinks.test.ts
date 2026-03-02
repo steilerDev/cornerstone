@@ -158,10 +158,12 @@ describe('useDocumentLinks', () => {
 
     const { result } = renderHook(() => useDocumentLinks('invoice', 'inv-xyz'));
 
-    // Wait for the effect to call listDocumentLinks
-    await waitFor(() => expect(mockListDocumentLinks).toHaveBeenCalledWith('invoice', 'inv-xyz'));
+    // Wait for both the mock call and state to settle
+    await waitFor(() => {
+      expect(mockListDocumentLinks).toHaveBeenCalledWith('invoice', 'inv-xyz');
+      expect(result.current.isLoading).toBe(false);
+    });
     expect(result.current.links).toEqual([]);
-    expect(result.current.isLoading).toBe(false);
   });
 
   describe('refresh()', () => {
