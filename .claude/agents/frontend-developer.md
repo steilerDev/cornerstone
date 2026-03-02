@@ -13,18 +13,18 @@ You implement the complete user interface: all pages, components, interactions, 
 
 You do **not** implement server-side logic, modify the database schema, or write tests. If asked to do any of these, politely decline and explain which agent or role is responsible.
 
-## Working with the Dev Team Lead
+## Working with Implementation Specs
 
-When launched by the **dev-team-lead** agent, you receive a detailed implementation specification. Follow it precisely:
+When launched with an implementation specification (produced by the dev-team-lead and routed by the orchestrator), follow it precisely:
 
 - **Implement exactly what the spec says** — files to create/modify, component structure, types, patterns
 - **Read the reference files** listed in the spec to understand existing patterns
-- **Do not commit or create PRs** — the dev-team-lead handles all git operations
+- **Do not commit or create PRs** — the dev-team-lead handles all git operations in a separate step
 - **Do not read wiki pages** — the dev-team-lead has already extracted the relevant context into your spec
 - **If the spec is ambiguous or conflicts with existing code**, flag the issue clearly in your response rather than guessing
-- **Return a clear summary** of what you implemented and any concerns you encountered
+- **Return a clear summary** of what you implemented, which files were created/modified, and any concerns you encountered
 
-When launched standalone (not by the dev-team-lead), follow the full workflow below including wiki reading and git operations.
+When launched standalone (not via a dev-team-lead spec), follow the full workflow below including wiki reading and git operations.
 
 ## Mandatory Context Files
 
@@ -159,7 +159,7 @@ Before considering any task complete:
 
 ## Git Workflow
 
-**When working under the dev-team-lead**: Do not commit, push, or create PRs. Simply write code as specified. The dev-team-lead handles all git operations.
+**When working with an implementation spec**: Do not commit, push, or create PRs. Simply write code as specified. The dev-team-lead handles all git operations in a separate step.
 
 **When working standalone** (directly launched by the orchestrator):
 

@@ -12,19 +12,19 @@ Cornerstone is a web-based home building project management application designed
 
 This project uses a team of 11 specialized Claude Code agents defined in `.claude/agents/`:
 
-| Agent                   | Role                                                                                                                  |
-| ----------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `product-owner`         | Defines epics, user stories, and acceptance criteria; manages the backlog                                             |
-| `product-architect`     | Tech stack, schema, API contract, project structure, ADRs, Dockerfile                                                 |
-| `ux-designer`           | Design tokens, brand identity, component styling specs, dark mode, accessibility                                      |
-| `dev-team-lead`         | Delivery lead (Sonnet): decomposes work, writes specs, delegates to developers/QA, reviews code, commits, monitors CI |
-| `backend-developer`     | API endpoints, business logic, auth, database operations (Haiku, managed by dev-team-lead)                            |
-| `frontend-developer`    | UI components, pages, interactions, API client (Haiku, managed by dev-team-lead)                                      |
-| `qa-integration-tester` | Unit test coverage (95%+ target), integration tests, performance testing, bug reports                                 |
-| `e2e-test-engineer`     | Playwright E2E browser tests, test container infrastructure, UAT scenario coverage                                    |
-| `security-engineer`     | Security audits, vulnerability reports, remediation guidance                                                          |
-| `uat-validator`         | UAT scenarios, manual validation steps, user sign-off per epic                                                        |
-| `docs-writer`           | Documentation site (`docs/`), lean README.md, user-facing guides after UAT approval                                   |
+| Agent                   | Role                                                                                                                                    |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `product-owner`         | Defines epics, user stories, and acceptance criteria; manages the backlog                                                               |
+| `product-architect`     | Tech stack, schema, API contract, project structure, ADRs, Dockerfile                                                                   |
+| `ux-designer`           | Design tokens, brand identity, component styling specs, dark mode, accessibility                                                        |
+| `dev-team-lead`         | Spec-writer, reviewer, and committer (Sonnet): decomposes work into implementation specs, reviews agent output, commits and monitors CI |
+| `backend-developer`     | API endpoints, business logic, auth, database operations (Haiku, launched by orchestrator with dev-team-lead specs)                     |
+| `frontend-developer`    | UI components, pages, interactions, API client (Haiku, launched by orchestrator with dev-team-lead specs)                               |
+| `qa-integration-tester` | Unit test coverage (95%+ target), integration tests, performance testing, bug reports                                                   |
+| `e2e-test-engineer`     | Playwright E2E browser tests, test container infrastructure, UAT scenario coverage                                                      |
+| `security-engineer`     | Security audits, vulnerability reports, remediation guidance                                                                            |
+| `uat-validator`         | UAT scenarios, manual validation steps, user sign-off per epic                                                                          |
+| `docs-writer`           | Documentation site (`docs/`), lean README.md, user-facing guides after UAT approval                                                     |
 
 ## GitHub Tools Strategy
 
@@ -74,7 +74,10 @@ The GitHub Projects board uses 4 statuses: Backlog, Todo, In Progress, Done. All
 
 **The orchestrator delegates, never implements.** Must NEVER write production code, tests, or architectural artifacts. Delegate all implementation:
 
-- **Backend code + Frontend code + Unit/integration tests** → `dev-team-lead` agent (who internally coordinates `backend-developer`, `frontend-developer`, and `qa-integration-tester`)
+- **Implementation specs** → `dev-team-lead` agent (produces specs, reviews code, commits)
+- **Backend code** → `backend-developer` agent (Haiku, launched by orchestrator with dev-team-lead specs)
+- **Frontend code** → `frontend-developer` agent (Haiku, launched by orchestrator with dev-team-lead specs)
+- **Unit/integration tests** → `qa-integration-tester` agent (launched by orchestrator with dev-team-lead specs)
 - **Visual specs, design tokens, brand assets, CSS files** → `ux-designer` agent
 - **Schema/API design, ADRs, wiki** → `product-architect` agent
 - **E2E tests** → `e2e-test-engineer` agent
@@ -85,17 +88,30 @@ The GitHub Projects board uses 4 statuses: Backlog, Todo, In Progress, Done. All
 
 ### Orchestration Skills
 
-The orchestrator uses three skills to drive work. Each skill contains the full operational checklist with exact commands and agent coordination. The orchestrator delegates all work — never writes production code, tests, or architectural artifacts directly.
+The orchestrator uses four skills to drive work. Each skill contains the full operational checklist with exact commands and agent coordination. The orchestrator delegates all work — never writes production code, tests, or architectural artifacts directly.
 
 | Skill         | Purpose                                                                    | Input                                                           |
 | ------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------- |
 | `/epic-start` | Planning: PO creates stories, architect designs schema/API/ADRs            | Epic description or issue number                                |
 | `/develop`    | Full dev cycle for one or more stories/bug fixes, bundled into a single PR | Issue number, description, semicolon-separated list, or `@file` |
 | `/epic-close` | Refinement, E2E validation, UAT, docs, promotion to `main`                 | Epic issue number                                               |
+| `/epic-run`   | Autonomous end-to-end epic: plan, develop all stories, close               | Epic description or issue number                                |
+
+### AUTO_MODE Convention
+
+`/epic-run` activates **AUTO_MODE** for the session. When AUTO_MODE is active, intermediate user approval gates are auto-approved. The existing skills (`/epic-start`, `/develop`, `/epic-close`) each contain `AUTO_MODE override` blocks that describe the alternate behavior. AUTO_MODE is never active when skills are invoked directly — only when chained by `/epic-run`.
+
+| Skill         | Gate                | Interactive (default) | AUTO_MODE                                          |
+| ------------- | ------------------- | --------------------- | -------------------------------------------------- |
+| `/epic-start` | Plan approval       | Wait for user         | Post plan to epic issue, auto-proceed              |
+| `/develop`    | Bug spec approval   | Wait for user         | Auto-approve PO spec, create issue immediately     |
+| `/develop`    | PR merge approval   | Wait for user         | Auto-merge after CI green + all reviewers approved |
+| `/epic-close` | UAT validation      | User walkthrough      | E2E pass + uat-validator report = sufficient       |
+| `/epic-close` | Promotion to `main` | **Wait for user**     | **Wait for user (ALWAYS)** — never auto-approved   |
 
 ## Acceptance & Validation
 
-Every epic follows a two-phase validation lifecycle. **Development phase** (`/develop`): PO defines acceptance criteria, QA + E2E + security review each story/bug PR (single items or batched). **Epic validation phase** (`/epic-close`): refinement, E2E coverage confirmation, UAT with user, docs update, promotion.
+Every epic follows a two-phase validation lifecycle. **Development phase** (`/develop`): PO defines acceptance criteria, QA + E2E + security review each story/bug PR (single items or batched). **Epic validation phase** (`/epic-close`): refinement, E2E coverage confirmation, UAT with user, docs update, promotion. Alternatively, use `/epic-run` to execute the entire lifecycle autonomously in a single session (only pauses for promotion approval).
 
 ### Key Rules
 
@@ -105,7 +121,7 @@ Every epic follows a two-phase validation lifecycle. **Development phase** (`/de
 - **Acceptance criteria live on GitHub Issues** — stored on story issues, summarized on promotion PRs
 - **Security review required** — the `security-engineer` must review every story PR
 - **Test agents own all tests** — `qa-integration-tester` owns unit + integration tests; `e2e-test-engineer` owns Playwright E2E tests. Developer agents do not write tests.
-- **Dev-team-lead owns delivery** — the `dev-team-lead` coordinates implementation (Haiku developers), testing (QA), commits, and CI. The orchestrator launches `dev-team-lead` instead of individual developers.
+- **Flat delegation model** — the orchestrator launches all agents directly. The `dev-team-lead` produces implementation specs, reviews agent output, and handles commits/CI. The orchestrator routes specs to `backend-developer`, `frontend-developer`, and `qa-integration-tester`.
 
 ## Git & Commit Conventions
 
@@ -139,6 +155,20 @@ All agents must clearly identify themselves:
 - **GitHub comments**: prefix with `**[agent-name]**` (e.g., `**[backend-developer]** This endpoint...`)
 - **Orchestrator**: when committing work produced by an agent, use that agent's name in the trailer.
 
+### Delegation Enforcement
+
+The orchestrator launches all implementation agents directly using specs produced by the `dev-team-lead`. The dev-team-lead never launches sub-agents — it operates in three modes (spec, review, commit) and never modifies production files.
+
+The orchestrator runs a **trailer verification** after every commit:
+
+1. Commit trailers must include Haiku co-authors for production file changes
+2. Files under `server/` or `shared/` → must have `backend-developer` trailer
+3. Files under `client/` → must have `frontend-developer` trailer
+
+Commits that change production files without the appropriate Haiku co-author trailers are rejected and re-committed with corrected trailers.
+
+Production files: any file under `server/`, `client/`, or `shared/`.
+
 ### Branching Strategy
 
 **Never commit directly to `main` or `beta`.** All changes go through feature branches and pull requests.
@@ -154,7 +184,7 @@ All agents must clearly identify themselves:
 
 **NEVER `cd` to the base project directory to modify files.** All file edits, git operations, and commands must be performed from within the git worktree assigned at session start. The base project directory may have other sessions' uncommitted changes. This applies to subagents too — all file reads, writes, and exploration must use the worktree path.
 
-See the skill files (`.claude/skills/`) for the full operational checklists. The typical lifecycle is: `/epic-start` (once per epic) → `/develop` (once per story, or batched for multiple small items) → `/epic-close` (once per epic after all stories merged).
+See the skill files (`.claude/skills/`) for the full operational checklists. The typical lifecycle is: `/epic-start` (once per epic) → `/develop` (once per story, or batched for multiple small items) → `/epic-close` (once per epic after all stories merged). Alternatively, `/epic-run` chains all three phases autonomously (only pauses for promotion approval).
 
 Note: Dependabot auto-merge (`.github/workflows/dependabot-auto-merge.yml`) targets `beta` — it handles automated dependency updates, not agent work.
 
@@ -351,14 +381,16 @@ Hand-written SQL files in `server/src/db/migrations/` with a numeric prefix (e.g
 
 ### Environment Variables
 
-| Variable          | Default                    | Description                                   |
-| ----------------- | -------------------------- | --------------------------------------------- |
-| `PORT`            | `3000`                     | Server port                                   |
-| `HOST`            | `0.0.0.0`                  | Server bind address                           |
-| `DATABASE_URL`    | `/app/data/cornerstone.db` | SQLite database path                          |
-| `LOG_LEVEL`       | `info`                     | Log level (trace/debug/info/warn/error/fatal) |
-| `NODE_ENV`        | `production`               | Environment                                   |
-| `CLIENT_DEV_PORT` | `5173`                     | Webpack dev server port (development only)    |
+| Variable              | Default                    | Description                                   |
+| --------------------- | -------------------------- | --------------------------------------------- |
+| `PORT`                | `3000`                     | Server port                                   |
+| `HOST`                | `0.0.0.0`                  | Server bind address                           |
+| `DATABASE_URL`        | `/app/data/cornerstone.db` | SQLite database path                          |
+| `LOG_LEVEL`           | `info`                     | Log level (trace/debug/info/warn/error/fatal) |
+| `NODE_ENV`            | `production`               | Environment                                   |
+| `CLIENT_DEV_PORT`     | `5173`                     | Webpack dev server port (development only)    |
+| `PAPERLESS_URL`       | (none)                     | Paperless-ngx instance base URL               |
+| `PAPERLESS_API_TOKEN` | (none)                     | Paperless-ngx API authentication token        |
 
 Production images use Docker Hardened Images (DHI). See `Dockerfile` and `docker-compose.yml` for build/deploy details.
 

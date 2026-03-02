@@ -3,14 +3,15 @@
 }
 
 .title {
-  margin-bottom: 1rem;
-  font-size: 2rem;
+  margin-bottom: var(--spacing-6);
+  font-size: var(--font-size-4xl);
   font-weight: 700;
   color: var(--color-text-primary);
 }
 
-.description {
-  font-size: 1rem;
-  line-height: 1.5;
-  color: var(--color-text-subtle);
+@media (max-width: 767px) {
+  .title {
+    font-size: var(--font-size-2xl);
+    margin-bottom: var(--spacing-4);
+  }
 }

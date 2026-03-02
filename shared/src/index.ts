@@ -177,3 +177,22 @@ export type {
   TimelineDateRange,
   TimelineResponse,
 } from './types/timeline.js';
+
+// Documents (Paperless-ngx Integration)
+export type {
+  DocumentLinkEntityType,
+  PaperlessTag,
+  PaperlessDocument,
+  PaperlessSearchHit,
+  PaperlessDocumentSearchResult,
+  PaperlessDocumentListQuery,
+  PaperlessDocumentListResponse,
+  PaperlessDocumentDetailResponse,
+  PaperlessTagListResponse,
+  PaperlessStatusResponse,
+  DocumentLink,
+  DocumentLinkWithMetadata,
+  CreateDocumentLinkRequest,
+  DocumentLinkResponse,
+  DocumentLinkListResponse,
+} from './types/document.js';

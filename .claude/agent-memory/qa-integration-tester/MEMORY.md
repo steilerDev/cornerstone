@@ -1,0 +1,619 @@
+# QA & Integration Tester — Agent Memory (Index)
+
+> Detailed notes live in topic files. This index links to them.
+> See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`
+
+## Running Tests from a Worktree (Critical Pattern)
+
+Worktrees have no `node_modules`. To run tests from a worktree:
+
+1. Create symlinks: `ln -sf /main/node_modules /worktree/node_modules` and `ln -sf /main/server/node_modules /worktree/server/node_modules`
+2. Run from the WORKTREE directory: `node --experimental-vm-modules /main/node_modules/.bin/jest "path/to/test.ts" --no-coverage`
+
+- Do NOT cast `mockGet.mock.calls[0] as [string]` — TypeScript strict mode rejects empty arrays cast to tuple. Use `expect(mockGet).not.toHaveBeenCalledWith(expect.stringContaining(...))` pattern instead.
+
+## Story #360 Document Responsive & A11y (2026-03-02)
+
+See `story-360-document-a11y.md` for full details. Key learnings:
+
+- **DocumentCard aria-label**: now includes formatted date — `"Document: {title}, Mar 15, 2025"`
+- **aria-busy={false}** in JSX renders as `aria-busy="false"` string — test with string `'false'`
+- **tabIndex attr**: lowercase `tabindex` in HTML — use `toHaveAttribute('tabindex', '-1')`
+- **Focus via setTimeout**: always use `await waitFor(...)` for focus assertions
+- **Stash pop corruption**: `git stash pop` can break deferred mock import order — verify invariants
+
+## Story #358 Document Linking (PR #378, 2026-03-02)
+
+See `story-358-document-linking.md` for full details. Key learnings:
+
+- **waitFor race condition**: include `isLoading` check INSIDE the same `waitFor` as mock call checks
+- **Duplicate text**: `InvoiceDetailPage` renders status badge TWICE — use `getAllByText()`
+- **Prettier must run FROM worktree dir** (not from main repo root) to resolve `.prettierrc` correctly
+- **Skipping bug-blocked tests**: use `it.skip()` with `// TODO: Unskip after bug #N is fixed`
+- **Bug #379**: unlink modal hardcodes "this work item" — must fix before enabling invoice unlink test
+
+## EPIC-06 E2E Coverage (PR #259, 2026-02-24)
+
+See topic file `e2e-timeline-tests.md` for full details.
+
+- TimelinePage POM fully implemented: `e2e/pages/TimelinePage.ts` (50+ locators)
+- 5 test files: `e2e/tests/timeline/timeline-{gantt,milestones,calendar,schedule,responsive}.spec.ts`
+- GanttMilestoneDiamond has `role="graphics-symbol"` — select via `data-testid="gantt-milestone-diamond"`
+- Timeline stub test removed from `stub-pages.spec.ts`
+- Milestone API helpers added to `apiHelpers.ts`; `milestones`/`timeline`/`schedule` added to `testData.ts`
+
+## E2E Parallel Isolation (2026-02-20)
+
+`testPrefix` fixture added to `e2e/fixtures/auth.ts` — use `async (_fixtures, use, testInfo)` (NOT `{}` — ESLint `no-empty-pattern`).
+Produces `"E2E-des0 Vendor Name"` — unique per worker+project. See `e2e-parallel-isolation.md`.
+Shared-state tests (profile, admin user) use `test.describe.configure({ mode: 'serial' })`.
+Count assertions: use `>= DEFAULT_CATEGORIES.length` not `=== 10`; capture `countBefore` before actions.
+
+## Test Infrastructure Quick Reference
+
+- **Framework**: Jest 30.x with ts-jest, ESM mode (`--experimental-vm-modules`)
+- **API Testing**: Fastify `app.inject()` (in-process, no HTTP server)
+- **Database**: better-sqlite3 (synchronous); Drizzle ORM 0.45.x
+- **Client Testing**: jsdom + `@testing-library/react` + `@testing-library/jest-dom`
+- **Test co-location**: `foo.test.ts` next to `foo.ts`
+- **Test command**: `npm test -- --maxWorkers=2` (2 workers to avoid OOM in sandbox)
+- **Coverage command**: `npm run test:coverage`
+
+## Critical Patterns
+
+### better-sqlite3 Is Synchronous
+
+Constraint errors throw synchronously. Use try/catch, NOT `.rejects.toThrow()`:
+
+```typescript
+let error: Error | undefined;
+try { await db.insert(schema.foo).values({...}); } catch (err) { error = err as Error; }
+expect(error?.message).toMatch(/UNIQUE constraint failed/);
+```
+
+### ESM Mock Pattern (Client Tests)
+
+```typescript
+jest.unstable_mockModule('../../lib/someApi.js', () => ({ fetchFoo: mockFetchFoo }));
+// Then deferred import inside beforeEach:
+const { MyComponent } = await import('./MyComponent.js');
+```
+
+### Timestamp Ordering (DB queries with ORDER BY created_at)
+
+Use a counter offset to ensure unique timestamps:
+
+```typescript
+let timestampOffset = 0;
+function createRecord(...) { const ts = new Date(Date.now() + timestampOffset++).toISOString(); }
+beforeEach(() => { timestampOffset = 0; });
+```
+
+### jsdom Limitation: isContentEditable
+
+```typescript
+Object.defineProperty(div, 'isContentEditable', { value: true, configurable: true });
+```
+
+### Fastify additionalProperties: false
+
+Strips unknown properties (does NOT return 400). Assert 201/200, not 400.
+
+## Test Count History (recent)
+
+| Story                           | Tests | Suites | Date       |
+| ------------------------------- | ----- | ------ | ---------- |
+| EPIC-12 (Design System)         | 1072  | 53     | 2026-02-18 |
+| Story #142 (Budget Categories)  | 1325  | 61     | 2026-02-20 |
+| Story #143 (Vendors)            | 1555  | 66     | 2026-02-20 |
+| Story #144 (Invoices)           | 1725  | 69     | 2026-02-20 |
+| Story #145 (Budget Sources)     | 1927  | 73     | 2026-02-20 |
+| Story #146 (Subsidy Programs)   | 2155  | 77     | 2026-02-20 |
+| Story #147 (Work Item Budget)   | 2289  | 81     | 2026-02-20 |
+| Story #148 (Budget Overview)    | 2388  | 85     | 2026-02-20 |
+| Story 5.11 (Projected fields)   | 2379  | 85     | 2026-02-22 |
+| feat/budget-hero-bar (hero bar) | 2463  | 88     | 2026-02-22 |
+
+## Migration-Seeded Data (Critical)
+
+`0003_create_budget_tables.sql` seeds 10 default budget categories:
+Materials, Labor, Permits, Design, Equipment, Landscaping, Utilities, Insurance, Contingency, Other
+
+**Never use these names in budget category tests** — UNIQUE constraint violations.
+Use `SEEDED_CATEGORY_COUNT = 10` constant; assert `result.length >= SEEDED_CATEGORY_COUNT`.
+See `budget-categories-story-142.md` for full details.
+
+## Key File Locations
+
+- Test utilities: `server/src/test/utils.ts`
+- Test fixtures: `server/src/test/fixtures/migrations/`
+- Schema tests: `server/src/db/schema.test.ts`
+- Tag service tests (pattern reference): `server/src/services/tagService.test.ts`
+- Tag route tests (pattern reference): `server/src/routes/tags.test.ts`
+
+## renderHook Pattern (Custom Hooks)
+
+```typescript
+import { renderHook, act } from '@testing-library/react';
+const { result } = renderHook(() => useMyHook());
+act(() => {
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'n' }));
+});
+```
+
+## Story Patterns by Test Type
+
+### Service Unit Tests
+
+- Fresh in-memory SQLite per test (`new Database(':memory:')`)
+- Run migrations inline (SQL strings or migration runner)
+- Direct DB inserts for test data setup
+
+### Route Integration Tests
+
+- Temp-file SQLite per test (`fs.mkdtempSync()`)
+- `buildApp()` factory from `server/src/test/utils.ts`
+- `app.inject()` for HTTP requests
+- `createLocalUser` + `createSession` for auth
+
+### API Client Tests (Client)
+
+- Mock `globalThis.fetch` with `jest.fn<typeof globalThis.fetch>()`
+- Restore in `afterEach(() => { jest.restoreAllMocks(); })`
+
+### React Component Tests
+
+- `jest.unstable_mockModule()` + deferred import
+- `renderWithRouter()` wrapper for components needing router context
+- `userEvent` for interactions, `fireEvent` when you need to bypass disabled state
+
+## Drizzle ORM Import Pattern
+
+```typescript
+import { eq } from 'drizzle-orm'; // NOT schema.eq()
+db.select().from(schema.tableName).where(eq(schema.tableName.column, value));
+```
+
+## Authorization Test Patterns
+
+- Notes: author-based (only author or admin can update/delete)
+- Budget categories: any authenticated user can CRUD
+- Test 401 (no auth), 403 (wrong user), 200/204 (authorized)
+
+## Circular Dependency Testing
+
+- Test A→B direct cycle, A→B→C indirect, A→B→C→D chain
+- Verify `ConflictError` with `code: 'CIRCULAR_DEPENDENCY'` and `cyclePath` array
+- Diamond DAGs (A→B, A→C, B→D, C→D) must succeed
+
+## BudgetCategoriesPage Behavior Notes
+
+See `budget-categories-story-142.md` for:
+
+- Empty name: button disabled (not validation error path)
+- Modal text: scope to `getByRole('dialog')` when name appears in both list and modal
+- Success message: persists when re-opening create form (only `createError` is cleared)
+- `CategoryInUseError`: triggers 409 with in-use details from subsidy program junction table
+
+## VendorDetailPage / VendorsPage Behavior Notes (Story #143)
+
+- Vendors schema: NOT unique by name (multiple vendors may share the same name)
+- `VendorInUseError`: throws 409 when vendor has invoices OR work item links (either)
+- `deleteVendor` blocks on paid invoices too (invoiceCount > 0 regardless of status)
+- Route tests use `buildApp()` + temp-file SQLite (same pattern as budget categories)
+- VendorsPage renders BOTH desktop table and mobile cards — same phone/email appears twice
+  → Use `getAllByText()` or `getByRole('link')` when asserting phone/email in VendorsPage
+- VendorDetailPage renders specialty in TWO places (pageSubtitle + infoList dd)
+  → Use `getAllByText('Plumbing')` when asserting specialty in VendorDetailPage
+- VendorDetailPage ESM mock: mock all 5 exports in `jest.unstable_mockModule()`, including
+  unused ones (fetchVendors, createVendor) as `jest.fn()` to avoid import errors
+- VendorDetailPage uses `useParams` + `useNavigate` — need full Routes setup in tests:
+  `<Route path="/budget/vendors/:id" element={<VendorDetailPage />} />`
+  `<Route path="/budget/vendors" element={<div>Vendors List Page</div>} />`
+- Delete success in VendorDetailPage navigates away (no success message stays on page)
+- Edit success in VendorDetailPage: updates vendor state inline (no page reload needed)
+- `within(dialog).getByRole(...)` pattern is required when modal button text matches page text
+
+## Worktree Test Execution — ARM64 Crash and Shared Types
+
+### ARM64 / SIGKILL (server tests with better-sqlite3)
+
+- Server tests (all `server/src/services/*.test.ts`) get SIGKILL'd in the sandbox (ARM64 emulation).
+- **Client tests** (jsdom, no native binary) run fine: `npx jest "Name" --no-coverage --testEnvironment=jsdom`
+- Server tests MUST be validated via CI (ubuntu-latest, x86_64). Do not run them locally.
+- The pre-commit hook and CI both run them successfully on the x86 CI machine.
+
+### Stale @cornerstone/shared dist in Worktrees
+
+- Worktrees share the main project's `node_modules` (symlink to `../../shared`).
+- When a worktree branch adds fields to shared types (e.g., `vendorName` on `Invoice`), the main project's `shared/dist` is STALE — the symlink points to main project's compiled output which doesn't have the new field.
+- Fix: copy the updated dist files from worktree to main project's shared/dist:
+  ```bash
+  cp worktree/shared/dist/types/invoice.d.ts mainproject/shared/dist/types/invoice.d.ts
+  cp worktree/shared/dist/index.d.ts mainproject/shared/dist/index.d.ts
+  ```
+- The pre-commit hook automatically rebuilds shared (`npm run build -w shared`) before typechecking, so committing works correctly even when local test runs fail due to stale types.
+
+## VendorDetailPage Invoice Tests (Story #144)
+
+- Must mock BOTH `../../lib/vendorsApi.js` AND `../../lib/invoicesApi.js` before importing component
+  → Two separate `jest.unstable_mockModule()` calls; mock all 4 invoicesApi exports
+- Default `mockFetchInvoices.mockResolvedValue([])` in `beforeEach` prevents unexpected failures
+- Resetting invoiceApi mocks in `beforeEach` is required (`mockFetchInvoices.mockReset()` etc.)
+- `fireEvent.change()` needed for number/date inputs (not `userEvent.type()`) to trigger React state
+- Invoice renders in BOTH desktop table AND mobile card list → amounts/status appear 2x:
+  → Use `getAllByText(/\$1,500\.00/)` or assert `.length > 0` on amount assertions
+- Outstanding balance badge ("Outstanding: $X.XX") only appears when `invoices.length > 0`
+  → Test `screen.queryByText(/outstanding:/i)` for empty state assertion
+- Edit button aria-label includes invoice number: `aria-label="Edit invoice INV-001"` (table row)
+  and `aria-label="Edit invoice invoice-id"` for no-number invoices → use regex match
+- Delete modal shows "this invoice" (not invoice number) when `invoiceNumber` is null
+- Service unit tests: `insertRawInvoice()` helper bypasses service validation — use for setup only
+- Route tests: service tests use `:memory:` DB, route tests use temp-file DB (`mkdtempSync`)
+- Nested route prefix: `invoiceRoutes` registered at `/api/vendors/:vendorId/invoices` in app.ts
+- JSON schema for invoices: `exclusiveMinimum: 0` enforced by Fastify (no amount<=0 through)
+- Git workflow: if remote has diverged, `git reset --hard origin/branch` then re-copy test files
+
+## BudgetSourcesPage / budgetSourceService Notes (Story #145)
+
+- `users` schema requires `authProvider: 'local'` — always include in service test `insertTestUser()` helper
+- BudgetSourcesPage: `totalAmount` and `availableAmount` both format as `$200,000.00` when usedAmount=0
+  → Use `getAllByText('$200,000.00')` not `getByText()` to avoid multiple-element errors
+- BudgetSourcesPage: `type="number"` inputs block non-numeric values from `userEvent.type()`
+  → For negative amount validation test, use `fireEvent.change(input, { target: { value: '-1' } })`
+  → `Object.defineProperty(input, 'value')` does NOT trigger React state — avoid this pattern
+- BudgetSourcesPage delete modal confirm button is labeled "Delete Source" (not "Delete Budget Source")
+  → Use `getByRole('button', { name: /delete source/i })` for the confirm button inside the modal
+- BudgetSourcesPage: delete modal Cancel button is the FIRST button in the dialog
+  → Scope to `dialog.querySelector('button')` to click Cancel safely
+- budgetSources schema: no UNIQUE constraint on name (unlike budget categories) — duplicates allowed
+- `BudgetSourceInUseError` has code `BUDGET_SOURCE_IN_USE` (not `CONFLICT`)
+- Budget source amounts: `usedAmount` and `availableAmount` are computed fields (currently always 0 / totalAmount)
+- Route tests: service tests use buildApp() + temp-file SQLite (same as other budget features)
+
+## BudgetOverviewPage Hero Bar Test Patterns (feat/budget-hero-bar)
+
+- `RemainingDetailPanel` is rendered TWICE (Tooltip panel + mobile inline panel) → use `getAllByText()` not `getByText()`
+- Remaining range values (€60K, €40K) appear in BOTH the tooltip content AND the mobile inline panel → `getAllByText(/€60K/)`
+- DOM traversal for mobile inline panel: `remainingBtn → .closest('.wrapper') → .nextElementSibling`
+  (wrapper span is the Tooltip component; its sibling is the remainingDetailPanel div)
+- `BudgetHealthIndicator` uses `role="status"` — conflicts with loading indicator. After loading completes, only the health badge has `role="status"`.
+- `CategoryFilter` dropdown uses `role="listbox"` — check with `screen.getByRole('listbox')` when open
+- Category checkboxes are labeled by `categoryName` text — use `getByRole('checkbox', { name: 'Materials' })`
+- `formatShort()` converts ≥1000 to `€NNK` notation — assert `getByText(/€140K/)` not `getByText(/140,000/)`
+- `availableFunds` is shown as full currency (not short) in the Available Funds metric group
+- Bar segments are `aria-hidden="true"` divs — select via `container.querySelectorAll('[aria-hidden="true"]')`
+- Tooltip component hide has 50ms delay — use `jest.useFakeTimers()` + `act(() => jest.advanceTimersByTime(100))`
+
+## Two Critical E2E Anti-Patterns (2026-02-21, PR #174)
+
+See `e2e-pom-patterns.md` for full details on:
+
+1. **Hardcoded `waitFor({ timeout: N })`** overrides project-level tablet/mobile 15s timeout
+   → Always omit explicit timeout in POM `waitFor()` calls (NEVER use `timeout: 5000`)
+   → All `timeout: 5000` occurrences purged from all POMs and specs 2026-02-21 (19 files)
+2. **`[class*="prefix"]` strict mode violations** — `emptyState` matches `emptyStateTitle` too
+   → Add element type: `div[class*="emptyState"]` instead of `[class*="emptyState"]`
+3. **Mobile CSS-hidden table** — `display:none` elements still in DOM; `textContent()` works,
+   clicks fail → check `tableContainer.isVisible()` before using table rows
+
+## E2E Wait Patterns: waitForResponse BEFORE the action (2026-02-23, PR #207)
+
+**THE MOST IMPORTANT RULE**: `page.waitForResponse(pred)` must ALWAYS be registered
+BEFORE the action that triggers the request. If registered after, a fast runner can
+complete the request before the listener is attached, causing it to never resolve.
+
+```typescript
+// CORRECT — register listener first, then trigger, then await
+const responsePromise = page.waitForResponse(pred);
+await triggeringAction(); // fill/click/submit
+await responsePromise;
+
+// WRONG — triggers request first, may miss the response on fast/slow runners
+await triggeringAction();
+await page.waitForResponse(pred); // race condition
+```
+
+This applies to:
+
+- `search()` / `clearSearch()` in WorkItemsPage.ts (debounce = 300ms)
+- `confirmDelete()` in WorkItemsPage.ts (DELETE 204)
+- Proxy login tests in proxy-setup.spec.ts (use Promise.all pattern)
+- Any form submit that navigates
+
+Additionally: after a `waitForResponse` for a search/filter, call `waitForLoaded()`
+to wait for React to flush the new data into the DOM. The response arriving does NOT
+mean the DOM has updated.
+
+**After delete:** Register the list-refresh GET listener BEFORE calling confirmDelete().
+confirmDelete() now waits for DELETE 204 AND modal to hide internally.
+
+**Navigation timeouts:** Never hardcode `{ timeout: 7000 }` on `waitForURL()` or expect
+assertions — use project-level timeouts (15s for mobile/tablet WebKit).
+
+**Proxy login:** Use `waitForURL(url => !url.pathname.includes('/login'), { timeout: 15000 })`
+not `expect(page).not.toHaveURL(/\/login/, { timeout: 15000 })` — `waitForURL` is a
+reliable condition-based wait; `not.toHaveURL` can race with React router updates.
+
+## TagManagementPage E2E Notes (2026-02-21)
+
+- Modal has `role="dialog" aria-modal="true"` but NO `aria-labelledby` — use `page.locator('[role="dialog"][aria-modal="true"]')` not `getByRole('dialog', { name: })`.
+- Edit/Delete buttons in tag rows have NO aria-labels — scope to `.tagRow` and use `getByRole('button', { name: 'Edit', exact: true })`.
+- Edit form has NO aria-label — locate by `filter({ has: page.locator('input[type="text"]') })` on `.tagRow`.
+- `createErrorBanner` filter: `/already exists|tag name is required|50 characters/i` — these are the server/component messages for duplicate/validation errors.
+- `successBanner` filter: `/successfully/i` — all success messages contain "successfully".
+- `getTagNames()` reads `.tagInfo` divs (not whole `.tagRow` which includes "Edit"/"Delete" text).
+- `getEditModeRow()` is public (not private) — needed for `editSaveButton` getter.
+- `waitForTagsLoaded()` races between `.tagRow first()` and `.emptyState`.
+- Spec file: `e2e/tests/tags/tag-management.spec.ts` (12 scenarios, ~20 tests).
+- POM file: `e2e/pages/TagManagementPage.ts`.
+- `API.tags` was already in `testData.ts` (added in an earlier story).
+
+## SubsidyProgramsPage / subsidyProgramService Notes (Story #146)
+
+- Component imports from BOTH `subsidyProgramsApi.js` AND `budgetCategoriesApi.js` — must mock both
+  → Two separate `jest.unstable_mockModule()` calls before deferred component import
+- Delete confirm button text: `"Delete Program"` (not "Delete Subsidy Program")
+  → Use `getByRole('button', { name: /delete program/i })` inside dialog scope
+- 409 in-use error hides delete confirm button (conditional render: `!deleteError`)
+  → After triggering in-use error, assert confirm button is gone (`queryByRole` returns null)
+- Edit form queried with `getByRole('form', { name: /edit <program name>/i })`
+  → `aria-label={`Edit ${program.name}`}` on the form element
+- Reduction display: `15%` for percentage type, `$5,000.00` for fixed type (Intl.NumberFormat)
+- Status badges: `{ eligible: 'Eligible', applied: 'Applied', approved: 'Approved', received: 'Received', rejected: 'Rejected' }`
+
+## Work Item Budget Properties Notes (Story #147)
+
+- Test count: 2289 tests, 81 suites (added ~564 tests)
+- `post<void>` in API client: 201 responses return parsed JSON body, NOT undefined
+  → Test `.resolves.not.toThrow()` not `.toBeUndefined()`; 204 responses DO return undefined
+- budgetSourceService.computeUsedAmount: NOW real (sums work items' actualCost)
+  → Old "Story 6 placeholder" tests replaced with real work item fixture tests
+  → Use `insertRawWorkItemWithSource(sourceId, actualCost)` helper (bypasses service)
+- Known Bug #155: `fetchWorkItemSubsidies` reads `r.subsidyPrograms` but route sends `{ subsidies: [...] }`
+  → Client type: `get<{ subsidyPrograms: SubsidyProgram[] }>` — mock with `{ subsidyPrograms: [...] }` in tests
+- workItemVendorService / workItemSubsidyService: standard service pattern (`:memory:` DB)
+- workItemVendors.test.ts / workItemSubsidies.test.ts: standard route pattern (`mkdtempSync`)
+- Both vendor and subsidy linking routes: any authenticated user (member or admin) can CRUD
+- Duplicate link → 409 CONFLICT; missing work item → 404; missing vendor/subsidy → 404 NOT_FOUND
+- Category pills: each category name appears as a `<span>` inside the program card
+- `SubsidyProgramInUseError` has code `SUBSIDY_PROGRAM_IN_USE` (409)
+- `ApiClientError(statusCode, error)` — 2-arg constructor (NOT 3-arg)
+- Network error wraps as `'Network request failed'` (NOT the original error message)
+- `updatedAt` timestamp test: use `setTimeout(resolve, 5)` (not 1ms — too tight)
+- `fireEvent.change()` required to clear input in disabled state (not `user.clear()`)
+- Service tests: avoid seeded budget category names (use `'TestCategory-${id}'` prefix)
+- Route tests: use `'TestMatCat'`, `'TestLaborCat'`, `'TestDesign'` as distinct test category names
+- `reductionType` enum: `'percentage' | 'fixed'`; `applicationStatus` enum: `'eligible' | 'applied' | 'approved' | 'received' | 'rejected'`
+- Valid Fastify JSON schema: `exclusiveMinimum: 0` for reductionValue; `minProperties: 1` for PATCH body
+
+## BudgetOverviewPage / budgetOverviewService Notes (Story #148)
+
+- `getBudgetOverview(db)` runs 5 raw SQL queries — test with `:memory:` DB (service) and temp-file DB (route)
+- Route registered at `/api/budget/overview` (GET) — both admin and member can access
+- `categorySummaries` includes all budget categories (LEFT JOIN), even with 0 work items
+  → Empty DB returns 10 rows (seeded categories), all zeroes
+- `financingSummary.totalUsed` = sum of `actualCost` from work items that reference ACTIVE sources
+  → Exhausted/closed sources excluded from both `totalAvailable` AND `totalUsed`
+- Subsidy `totalReductions`: percentage uses `planned_budget * value / 100` (NULL planned_budget → 0)
+  → Rejected programs excluded from both `activeSubsidyCount` AND `totalReductions`
+- Currency format: `en-US` locale with `EUR` currency → `€150,000.00` notation
+  → Use `/150,000\.00/` regex; `getAllByText(...)` for amounts appearing in both card and table
+
+## BudgetSource unclaimedAmount Field (feat/budget-source-unclaimed, 2026-02-23)
+
+- `unclaimedAmount` = SUM of `invoices.amount` WHERE `status='paid'` joined via `work_item_budgets.budget_source_id`
+- `claimedAmount` = SUM WHERE `status='claimed'` — these two are INDEPENDENT; test them separately
+- `actualAvailableAmount = totalAmount - claimedAmount` (unclaimedAmount does NOT affect it)
+- BudgetSourcesPage new UI layout: Total/Claimed/Unclaimed/Available (actualAvailableAmount) + "Planned: $X" secondary line
+  → "Planned" secondary line shows `usedAmount` (planned/estimated usage, not actual invoices)
+  → `usedAmount` and `availableAmount` are still computed from planned budget assignments
+- Route test helper pattern: `insertBudgetLineWithPaidInvoice()` mirrors `insertBudgetLineWithClaimedInvoice()`
+  → Only difference is `status: 'paid'` vs `status: 'claimed'` on the invoice insert
+- Test file execution count: 240 tests (4 files) all pass after update
+
+## Worktree Jest Execution — Definitive Pattern
+
+When running Jest from a worktree (no local node_modules):
+
+```bash
+NODE_PATH=/path/to/cornerstone/server/node_modules:/path/to/cornerstone/client/node_modules \
+/usr/bin/node --experimental-vm-modules \
+/path/to/cornerstone/node_modules/.bin/jest \
+<test-file> --no-coverage \
+--rootDir /path/to/worktree
+```
+
+- **Never `npm install` in a worktree** — installs ARM64-incompatible binaries → `Illegal instruction` (SIGKILL)
+- If worktree has stale `node_modules`, remove them: `rm -rf /worktree/node_modules`
+- **Stale shared dist**: worktrees share main project's `node_modules/@cornerstone/shared → ../../shared`
+  → After changing `shared/src/types/`, rebuild main project's dist OR copy worktree dist files:
+  `cp -r /worktree/shared/dist /path/to/cornerstone/shared/`
+- Server tests (better-sqlite3 native binary) may SIGKILL on ARM64 sandbox — validate via CI if needed
+
+## Story 6.2 (Scheduling Engine CPM, #248) — Key Patterns (2026-02-24)
+
+### ARM64 Prettier Fix Workflow
+
+- `npx prettier --check <file>` works on ARM64 (unlike Jest/ESLint)
+- Run BEFORE every `git commit --no-verify` to catch formatting issues early
+- Prettier COLLAPSES arrays/objects to single line if they fit within 100 chars
+  → Don't manually expand `[makeItem('A', 5), makeItem('B', 3, { key: 'val' })]` — 89 chars fits on one line
+- Two-line diagnosis: "warn: file.ts" only — use `npx prettier --write <file>` then `git diff` to see what changed
+
+### CPM Engine Behavior
+
+- `today` floor ONLY for predecessor-less items (line 408-410 of schedulingEngine.ts)
+- Items WITH predecessors: ES driven purely by dependency math, CAN go before `today`
+- SF(A,B): B.ES = A.ES + leadLag - B.duration (can be before today if A.ES is close to B.duration)
+- Test accordingly: SF with A.ES=2026-01-01, B.duration=3 → B.ES=2025-12-29
+
+### Fastify additionalProperties Reminder
+
+- `additionalProperties: false` STRIPS unknown fields → 200, not 400
+- Reference: `milestones.test.ts` line 337 "Fastify with additionalProperties: false strips unknown fields rather than rejecting"
+- Test should assert 200 and rename to "should strip and ignore unknown body properties (Fastify default)"
+
+## Story 6.3 (Timeline Data API, GET /api/timeline, #240) — 2026-02-24
+
+- **41 unit tests** in `server/src/services/timelineService.test.ts` — mocks `schedulingEngine.js`
+- **29 integration tests** in `server/src/routes/timeline.test.ts` — real scheduling engine
+- ESM mock pattern used: `jest.unstable_mockModule('./schedulingEngine.js', ...)` + dynamic import in `beforeEach`
+- Committed `d7d92e3` on branch `feat/240-timeline-data-api`
+
+### computeDateRange edge case (IMPORTANT)
+
+When only `startDate` set on items → `latest` falls back to `earliest` (minimum startDate).
+When only `endDate` set on items → `earliest` falls back to `latest` (maximum endDate).
+Source: `computeDateRange()` uses `earliest ?? latest!` and `latest ?? earliest!` as fallbacks.
+
+### Timeline vs Schedule endpoint behavior
+
+- GET /api/timeline: returns 200 + empty `criticalPath: []` when circular dependency exists
+- POST /api/schedule: returns 409 CIRCULAR_DEPENDENCY for the same scenario
+- Both behaviors are intentional; timeline uses `scheduleResult.cycleNodes?.length ? [] : scheduleResult.criticalPath`
+
+### Timeline `dependencies` and `milestones` not filtered by date
+
+Only `workItems` is filtered (must have startDate OR endDate). `dependencies` and `milestones` are
+returned regardless — even if the linked work items have no dates.
+
+## Story 6.1 (Milestones Backend, #238) — Worktree Issues (2026-02-24)
+
+Worktree `effervescent-drifting-flute` had `npm install --ignore-scripts` run on it, which
+downloaded **corrupted TypeScript and eslint-plugin-react-hooks packages** (truncated .js files).
+Fix: symlink from base project:
+
+```bash
+rm -rf /worktree/node_modules/typescript && ln -s /base/node_modules/typescript /worktree/node_modules/typescript
+rm -rf /worktree/node_modules/eslint-plugin-react-hooks && ln -s /base/node_modules/eslint-plugin-react-hooks /worktree/node_modules/
+```
+
+The worktree's `@cornerstone/shared` symlink correctly points to `../../shared` (the worktree's own shared),
+which already has the milestone types built. The pre-commit hook builds shared from source anyway.
+
+Milestone service pattern: `getMilestoneById` with `null` scheduledDate returns `undefined` from DB
+(SQLite null → JS null, not undefined). The `completedAt` field is auto-managed: set on `complete`
+status, cleared on other statuses.
+
+Milestone routes: `POST /api/milestones/:id/work-items` links by `workItemId`; responds 409 on duplicate.
+`DELETE /api/milestones/:id/work-items/:workItemId` uses predecessorId in URL (unlinks, does NOT delete the work item).
+Cascade delete of milestone: work items are preserved (only the link is deleted).
+
+## Story 6.4 (Gantt Chart Core, PR #250) — 2026-02-24
+
+### SVG element `tabindex` casing
+
+SVG elements use lowercase `tabindex` attribute (per SVG spec), unlike HTML elements (`tabIndex`).
+
+- `expect(svgElement).toHaveAttribute('tabindex', '0')` — CORRECT for SVG `<g>`, `<rect>`, etc.
+- `expect(htmlElement).toHaveAttribute('tabIndex', '0')` — CORRECT for HTML `<div>`, `<button>`, etc.
+
+### `toHaveStyle` with numeric pixel values
+
+`toHaveStyle({ height: 48 })` FAILS — jsdom renders inline styles as strings with `px` units.
+Fix: always use string format: `toHaveStyle({ height: '48px' })`.
+The `px` suffix is required; bare numbers only work for unitless properties (opacity, z-index, etc.).
+
+### SVG components need `<svg>` wrapper in jsdom
+
+```tsx
+function renderInSvg(props) {
+  return render(
+    <svg>
+      <GanttBar {...props} />
+    </svg>,
+  );
+}
+```
+
+Without the wrapper, SVG elements like `<g>`, `<rect>`, `<text>` fail to render correctly in jsdom.
+
+### ganttUtils.ts Constants Quick Reference
+
+| Constant               | Value | Note                        |
+| ---------------------- | ----- | --------------------------- |
+| `COLUMN_WIDTHS.day`    | 40    | px per day                  |
+| `COLUMN_WIDTHS.week`   | 110   | px per week                 |
+| `COLUMN_WIDTHS.month`  | 180   | px per month                |
+| `ROW_HEIGHT`           | 40    | full row height             |
+| `BAR_HEIGHT`           | 32    | bar rect height             |
+| `BAR_OFFSET_Y`         | 4     | top padding within row      |
+| `HEADER_HEIGHT`        | 48    | date header row height      |
+| `SIDEBAR_WIDTH`        | 260   | left panel width            |
+| `TEXT_LABEL_MIN_WIDTH` | 60    | min bar width to show label |
+
+BAR_OFFSET_Y + BAR_HEIGHT = 36, NOT ROW_HEIGHT (40). 4px bottom padding intentional.
+
+### useTimeline hook mock call-count limitation
+
+Same pre-existing ESM mock limitation as AuthContext/WorkItemsPage: `mockGetTimeline` call
+count stays 0 when testing the hook in isolation. Remove mock call-count assertions; test
+behavioral outcomes (loading state, error messages) instead. Call-count tests only work
+at page level (TimelinePage.test.tsx) where the mock path matches the load context exactly.
+
+### Test files created (Story 6.4)
+
+- `client/src/components/GanttChart/ganttUtils.test.ts` — 127 tests (pure utils)
+- `client/src/hooks/useTimeline.test.tsx` — 8 tests (hook state mgmt)
+- `client/src/components/GanttChart/GanttBar.test.tsx` — 29 tests (SVG bar)
+- `client/src/components/GanttChart/GanttSidebar.test.tsx` — 25 tests (sidebar)
+- `client/src/components/GanttChart/GanttHeader.test.tsx` — 21 tests (date header)
+
+## EPIC-06 UAT Fixes (PR #263, 2026-02-25)
+
+### Route Schema: workItemIds must NOT use `format: 'uuid'`
+
+Work item IDs in Cornerstone are NOT UUIDs — they're `work-item-${timestamp}-${random}` strings.
+The `format: 'uuid'` validator in Fastify JSON schema REJECTS these, returning HTTP 400.
+Use `{ type: 'string' }` without any format for work item ID fields in route body schemas.
+This bug was found by integration tests in CI: milestones.test.ts returned 400 instead of 201.
+
+### MilestoneWorkItemLinker Refactor — Test Updates
+
+When a component is refactored to delegate to WorkItemSelector:
+
+- aria-label changes: `"search work items to link"` → `"search work items to add"` (WorkItemSelector's label)
+- Placeholder text: `"No work items linked"` → `"No work items selected"` (WorkItemSelector's placeholder)
+- Always update pre-existing tests to match the new component's DOM (don't assume stale tests are valid)
+
+### global.fetch Mocking vs jest.unstable_mockModule
+
+For components that call fetch internally (WorkItemSelector, MilestonePanel):
+
+- `global.fetch` mocking is more reliable than `jest.unstable_mockModule` for API-calling components
+- Pattern: `global.fetch = jest.fn()` in `beforeEach`; `global.fetch = undefined` in `afterEach`
+- `import type * as FooTypes from './Foo.js'; let Foo: (typeof FooTypes)['Foo'];` for deferred imports
+
+### ESLint Rules in Test Files
+
+- `import()` type annotations forbidden inline: use `import type * as X from './X.js'` at top
+- `no-unused-vars`: unused variables must be removed or prefixed with `_`
+- `no-explicit-any`: add `// eslint-disable-next-line @typescript-eslint/no-explicit-any` on LINE BEFORE
+
+### Prettier: Run After Every File Edit
+
+- Base project prettier: `cd /base && node_modules/.bin/prettier --write <file>`
+- CI's format:check will fail if files aren't formatted
+- Run prettier on ALL modified files before committing
+
+## Calendar Tooltip Tests (PR #297 fix, 2026-02-26)
+
+### Mouse event callback patterns
+
+- `CalendarItem`: `onMouseEnter(itemId, clientX, clientY)`, `onMouseLeave()`, `onMouseMove(clientX, clientY)`
+- `CalendarMilestone`: `onMouseEnter(milestoneId, clientX, clientY)`, `onMouseLeave()`, `onMouseMove(clientX, clientY)`
+- Fire with `fireEvent.mouseEnter(el, { clientX: N, clientY: N })` — React synthetic event maps `clientX/Y`
+
+### Tooltip portal test assertion
+
+- `GanttTooltip` renders via `createPortal` to `document.body` — jsdom supports this natively
+- Tooltip appears after `TOOLTIP_SHOW_DELAY=120ms` — use `jest.useFakeTimers()` + `act(() => jest.advanceTimersByTime(150))`
+- When title text appears in BOTH the CalendarItem bar AND the tooltip, use `tooltip.toHaveTextContent(title)` (scoped to tooltip element), NOT `screen.getByText()` (throws multiple-match error)
+- `beforeAll`/`afterAll` for `jest.useFakeTimers()` / `jest.useRealTimers()` — avoids polluting other tests
+
+### S/M/L toggle removed — test pattern
+
+- `screen.queryByRole('toolbar', { name: /column size/i })` should return null
+- Check mode toggle toolbar has exactly 2 buttons (Month + Week)
+- `calendarSize` URL param should be silently ignored (grid renders normally)
