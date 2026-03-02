@@ -83,7 +83,7 @@ afterEach(() => {
 describe('useDocumentLinks', () => {
   it('starts with isLoading=true before fetch completes', () => {
     mockListDocumentLinks.mockImplementationOnce(() => new Promise(() => {}));
-    const { result } = renderHook(() => useDocumentLinks('wi-abc'));
+    const { result } = renderHook(() => useDocumentLinks('work_item', 'wi-abc'));
     expect(result.current.isLoading).toBe(true);
     expect(result.current.links).toEqual([]);
     expect(result.current.error).toBeNull();
@@ -93,22 +93,23 @@ describe('useDocumentLinks', () => {
     const links = [makeLink('link-1', 42), makeLink('link-2', 99)];
     mockListDocumentLinks.mockResolvedValueOnce(links);
 
-    const { result } = renderHook(() => useDocumentLinks('wi-abc'));
+    const { result } = renderHook(() => useDocumentLinks('work_item', 'wi-abc'));
 
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    // Wait for links to be populated (not for isLoading to go false — it starts false)
+    await waitFor(() => expect(result.current.links).toEqual(links));
 
     expect(mockListDocumentLinks).toHaveBeenCalledWith('work_item', 'wi-abc');
-    expect(result.current.links).toEqual(links);
+    expect(result.current.isLoading).toBe(false);
     expect(result.current.error).toBeNull();
   });
 
   it('sets isLoading=false after fetch completes', async () => {
     mockListDocumentLinks.mockResolvedValueOnce([makeLink('link-1')]);
 
-    const { result } = renderHook(() => useDocumentLinks('wi-abc'));
+    const { result } = renderHook(() => useDocumentLinks('work_item', 'wi-abc'));
 
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(result.current.links).toHaveLength(1);
+    await waitFor(() => expect(result.current.links).toHaveLength(1));
+    expect(result.current.isLoading).toBe(false);
   });
 
   it('sets error string and isLoading=false on ApiClientError; links stays empty', async () => {
@@ -116,10 +117,10 @@ describe('useDocumentLinks', () => {
       new MockApiClientError(500, { code: 'INTERNAL_ERROR', message: 'Server error' }),
     );
 
-    const { result } = renderHook(() => useDocumentLinks('wi-abc'));
+    const { result } = renderHook(() => useDocumentLinks('work_item', 'wi-abc'));
 
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(result.current.error).toBe('Server error');
+    await waitFor(() => expect(result.current.error).toBe('Server error'));
+    expect(result.current.isLoading).toBe(false);
     expect(result.current.links).toEqual([]);
   });
 
@@ -128,37 +129,49 @@ describe('useDocumentLinks', () => {
       new MockApiClientError(500, { code: 'INTERNAL_ERROR' }),
     );
 
-    const { result } = renderHook(() => useDocumentLinks('wi-abc'));
+    const { result } = renderHook(() => useDocumentLinks('work_item', 'wi-abc'));
 
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(result.current.error).toBe('Failed to load documents.');
+    await waitFor(() => expect(result.current.error).toBe('Failed to load documents.'));
+    expect(result.current.isLoading).toBe(false);
   });
 
   it('sets error string on NetworkError', async () => {
     mockListDocumentLinks.mockRejectedValueOnce(new MockNetworkError('Network request failed'));
 
-    const { result } = renderHook(() => useDocumentLinks('wi-abc'));
+    const { result } = renderHook(() => useDocumentLinks('work_item', 'wi-abc'));
 
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(result.current.error).toContain('Network error');
+    await waitFor(() => expect(result.current.error).toContain('Network error'));
+    expect(result.current.isLoading).toBe(false);
   });
 
   it('sets generic error message on unknown error', async () => {
     mockListDocumentLinks.mockRejectedValueOnce(new Error('Something unexpected'));
 
-    const { result } = renderHook(() => useDocumentLinks('wi-abc'));
+    const { result } = renderHook(() => useDocumentLinks('work_item', 'wi-abc'));
 
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(result.current.error).toBe('An unexpected error occurred.');
+    await waitFor(() => expect(result.current.error).toBe('An unexpected error occurred.'));
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it('calls listDocumentLinks with invoice entityType and entityId', async () => {
+    mockListDocumentLinks.mockResolvedValueOnce([]);
+
+    const { result } = renderHook(() => useDocumentLinks('invoice', 'inv-xyz'));
+
+    // Wait for the effect to call listDocumentLinks
+    await waitFor(() => expect(mockListDocumentLinks).toHaveBeenCalledWith('invoice', 'inv-xyz'));
+    expect(result.current.links).toEqual([]);
+    expect(result.current.isLoading).toBe(false);
   });
 
   describe('refresh()', () => {
     it('increments fetch count to trigger a new fetch', async () => {
       mockListDocumentLinks.mockResolvedValue([]);
 
-      const { result } = renderHook(() => useDocumentLinks('wi-abc'));
+      const { result } = renderHook(() => useDocumentLinks('work_item', 'wi-abc'));
 
-      await waitFor(() => expect(result.current.isLoading).toBe(false));
+      // Wait for initial load to complete
+      await waitFor(() => expect(mockListDocumentLinks).toHaveBeenCalledTimes(1));
 
       const callsBefore = mockListDocumentLinks.mock.calls.length;
 
@@ -173,8 +186,10 @@ describe('useDocumentLinks', () => {
 
     it('fetches fresh data after refresh', async () => {
       mockListDocumentLinks.mockResolvedValueOnce([]);
-      const { result } = renderHook(() => useDocumentLinks('wi-abc'));
-      await waitFor(() => expect(result.current.isLoading).toBe(false));
+      const { result } = renderHook(() => useDocumentLinks('work_item', 'wi-abc'));
+
+      // Wait for initial load to complete
+      await waitFor(() => expect(mockListDocumentLinks).toHaveBeenCalledTimes(1));
 
       const newLinks = [makeLink('link-new', 77)];
       mockListDocumentLinks.mockResolvedValueOnce(newLinks);
@@ -188,7 +203,7 @@ describe('useDocumentLinks', () => {
   });
 
   describe('addLink()', () => {
-    it('calls createDocumentLink with correct args and workItemId', async () => {
+    it('calls createDocumentLink with correct args and work_item entityType', async () => {
       mockListDocumentLinks.mockResolvedValue([]);
       mockCreateDocumentLink.mockResolvedValueOnce({
         id: 'link-new',
@@ -199,8 +214,10 @@ describe('useDocumentLinks', () => {
         createdAt: '2026-01-01T00:00:00Z',
       });
 
-      const { result } = renderHook(() => useDocumentLinks('wi-abc'));
-      await waitFor(() => expect(result.current.isLoading).toBe(false));
+      const { result } = renderHook(() => useDocumentLinks('work_item', 'wi-abc'));
+
+      // Wait for initial load before calling addLink
+      await waitFor(() => expect(mockListDocumentLinks).toHaveBeenCalledTimes(1));
 
       await act(async () => {
         await result.current.addLink(42);
@@ -209,6 +226,33 @@ describe('useDocumentLinks', () => {
       expect(mockCreateDocumentLink).toHaveBeenCalledWith({
         entityType: 'work_item',
         entityId: 'wi-abc',
+        paperlessDocumentId: 42,
+      });
+    });
+
+    it('calls createDocumentLink with invoice entityType and entityId', async () => {
+      mockListDocumentLinks.mockResolvedValue([]);
+      mockCreateDocumentLink.mockResolvedValueOnce({
+        id: 'link-new',
+        entityType: 'invoice',
+        entityId: 'inv-xyz',
+        paperlessDocumentId: 42,
+        createdBy: null,
+        createdAt: '2026-01-01T00:00:00Z',
+      });
+
+      const { result } = renderHook(() => useDocumentLinks('invoice', 'inv-xyz'));
+
+      // Wait for initial load before calling addLink
+      await waitFor(() => expect(mockListDocumentLinks).toHaveBeenCalledTimes(1));
+
+      await act(async () => {
+        await result.current.addLink(42);
+      });
+
+      expect(mockCreateDocumentLink).toHaveBeenCalledWith({
+        entityType: 'invoice',
+        entityId: 'inv-xyz',
         paperlessDocumentId: 42,
       });
     });
@@ -227,8 +271,10 @@ describe('useDocumentLinks', () => {
         createdAt: '2026-01-01T00:00:00Z',
       });
 
-      const { result } = renderHook(() => useDocumentLinks('wi-abc'));
-      await waitFor(() => expect(result.current.isLoading).toBe(false));
+      const { result } = renderHook(() => useDocumentLinks('work_item', 'wi-abc'));
+
+      // Wait for initial load before calling addLink
+      await waitFor(() => expect(mockListDocumentLinks).toHaveBeenCalledTimes(1));
 
       await act(async () => {
         await result.current.addLink(42);
@@ -243,8 +289,10 @@ describe('useDocumentLinks', () => {
         new MockApiClientError(409, { code: 'DUPLICATE_DOCUMENT_LINK', message: 'Already linked' }),
       );
 
-      const { result } = renderHook(() => useDocumentLinks('wi-abc'));
-      await waitFor(() => expect(result.current.isLoading).toBe(false));
+      const { result } = renderHook(() => useDocumentLinks('work_item', 'wi-abc'));
+
+      // Wait for initial load before calling addLink
+      await waitFor(() => expect(mockListDocumentLinks).toHaveBeenCalledTimes(1));
 
       let thrownError: unknown;
       await act(async () => {
@@ -263,8 +311,10 @@ describe('useDocumentLinks', () => {
       mockListDocumentLinks.mockResolvedValue([]);
       mockCreateDocumentLink.mockRejectedValueOnce(new Error('Network failure'));
 
-      const { result } = renderHook(() => useDocumentLinks('wi-abc'));
-      await waitFor(() => expect(result.current.isLoading).toBe(false));
+      const { result } = renderHook(() => useDocumentLinks('work_item', 'wi-abc'));
+
+      // Wait for initial load before calling addLink
+      await waitFor(() => expect(mockListDocumentLinks).toHaveBeenCalledTimes(1));
 
       let thrownError: unknown;
       await act(async () => {
@@ -285,7 +335,7 @@ describe('useDocumentLinks', () => {
       mockListDocumentLinks.mockResolvedValue([existingLink]);
       mockDeleteDocumentLink.mockResolvedValueOnce(undefined);
 
-      const { result } = renderHook(() => useDocumentLinks('wi-abc'));
+      const { result } = renderHook(() => useDocumentLinks('work_item', 'wi-abc'));
       await waitFor(() => expect(result.current.links).toHaveLength(1));
 
       await act(async () => {
@@ -301,7 +351,7 @@ describe('useDocumentLinks', () => {
       mockListDocumentLinks.mockResolvedValue([link1, link2]);
       mockDeleteDocumentLink.mockResolvedValueOnce(undefined);
 
-      const { result } = renderHook(() => useDocumentLinks('wi-abc'));
+      const { result } = renderHook(() => useDocumentLinks('work_item', 'wi-abc'));
       await waitFor(() => expect(result.current.links).toHaveLength(2));
 
       await act(async () => {
@@ -319,7 +369,7 @@ describe('useDocumentLinks', () => {
       mockListDocumentLinks.mockResolvedValue([link1, link2, link3]);
       mockDeleteDocumentLink.mockResolvedValueOnce(undefined);
 
-      const { result } = renderHook(() => useDocumentLinks('wi-abc'));
+      const { result } = renderHook(() => useDocumentLinks('work_item', 'wi-abc'));
       await waitFor(() => expect(result.current.links).toHaveLength(3));
 
       await act(async () => {
