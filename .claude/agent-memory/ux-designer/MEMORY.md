@@ -111,3 +111,19 @@ Common misses in this PR to watch for in card/grid components:
 - `aria-controls` + `id` pairing: search input → results container
 - `aria-label` on tag chips must describe count meaningfully ("5 documents"), not raw number
 - `:focus-visible` missing on secondary/utility buttons (closeButton, retryButton, pageButton)
+
+## PR #380 Review Findings — Responsive & Accessibility Polish (Story 8.7)
+
+Key observations for future a11y polishing PRs:
+
+- `0.625rem` tag font (10px) has no token — `var(--font-size-xs)` (12px) is nearest; deviation accepted
+- `transition: all` on buttons — flag informational; prefer explicit properties list
+- Skeleton items inside `role="list"` should have `role="listitem"` even if `aria-hidden="true"` (not a blocker)
+- ARIA focus trap: `useEffect` + `setTimeout(0)` + keydown Tab/Shift+Tab intercept = correct pattern
+- Reduced-motion guards: audit ALL selectors with `transition` in the file, not just newly-added ones
+
+## Token Scale Gaps (document for spec writing)
+
+- `0.625rem` (10px) — no font-size token; nearest is `var(--font-size-xs)` = 12px
+- `2.5rem` (40px) — no font-size token; nearest is `var(--font-size-4xl)` = 32px (or keep literal)
+- `1.75rem` (28px) — no token; falls between `--font-size-2xl` (24px) and `--font-size-3xl` (30px)
