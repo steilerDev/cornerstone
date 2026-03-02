@@ -134,6 +134,8 @@ export interface PaperlessStatusResponse {
   reachable: boolean;
   /** Human-readable error message if not reachable. */
   error: string | null;
+  /** The Paperless-ngx base URL, present only when configured. */
+  paperlessUrl: string | null;
 }
 
 // ─── Document Link Types ─────────────────────────────────────────────────────

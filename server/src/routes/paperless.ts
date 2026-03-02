@@ -112,14 +112,16 @@ export default async function paperlessRoutes(fastify: FastifyInstance) {
     }
 
     if (!fastify.config.paperlessEnabled) {
-      return reply.status(200).send({ configured: false, reachable: false, error: null });
+      return reply
+        .status(200)
+        .send({ configured: false, reachable: false, error: null, paperlessUrl: null });
     }
 
     const status = await paperlessService.getStatus(
       fastify.config.paperlessUrl!,
       fastify.config.paperlessApiToken!,
     );
-    return reply.status(200).send(status);
+    return reply.status(200).send({ ...status, paperlessUrl: fastify.config.paperlessUrl ?? null });
   });
 
   /**

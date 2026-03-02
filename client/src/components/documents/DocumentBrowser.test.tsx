@@ -1,7 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { jest } from '@jest/globals';
 import type { UsePaperlessResult } from '../../hooks/usePaperless.js';
-import type * as DocumentBrowserModule from './DocumentBrowser.js';
 
 // Mock usePaperless hook
 const mockUsePaperless = jest.fn<() => UsePaperlessResult>();
@@ -19,6 +18,10 @@ jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
   getDocumentThumbnailUrl: (id: number) => `/api/paperless/documents/${id}/thumb`,
   getDocumentPreviewUrl: (id: number) => `/api/paperless/documents/${id}/preview`,
 }));
+
+// Deferred type import — must appear AFTER jest.unstable_mockModule calls to ensure mock
+// registration happens before module resolution. See usePaperless.test.tsx for the same pattern.
+import type * as DocumentBrowserModule from './DocumentBrowser.js';
 
 let DocumentBrowser: (typeof DocumentBrowserModule)['DocumentBrowser'];
 
@@ -46,7 +49,7 @@ const makePagination = (page = 1, totalPages = 1, totalItems = 2) => ({
 });
 
 const makeHook = (overrides: Partial<UsePaperlessResult> = {}): UsePaperlessResult => ({
-  status: { configured: true, reachable: true, error: null },
+  status: { configured: true, reachable: true, error: null, paperlessUrl: null },
   documents: [makeDoc(1), makeDoc(2)],
   tags: [],
   pagination: makePagination(),
@@ -77,7 +80,9 @@ describe('DocumentBrowser', () => {
 
     it('renders not configured state when configured=false', () => {
       mockUsePaperless.mockReturnValue(
-        makeHook({ status: { configured: false, reachable: false, error: null } }),
+        makeHook({
+          status: { configured: false, reachable: false, error: null, paperlessUrl: null },
+        }),
       );
       render(<DocumentBrowser />);
       expect(screen.getByText(/Paperless-ngx Not Configured/i)).toBeInTheDocument();
@@ -87,7 +92,9 @@ describe('DocumentBrowser', () => {
 
     it('renders unreachable state when configured=true but reachable=false', () => {
       mockUsePaperless.mockReturnValue(
-        makeHook({ status: { configured: true, reachable: false, error: null } }),
+        makeHook({
+          status: { configured: true, reachable: false, error: null, paperlessUrl: null },
+        }),
       );
       render(<DocumentBrowser />);
       expect(screen.getByRole('alert')).toBeInTheDocument();
@@ -98,7 +105,7 @@ describe('DocumentBrowser', () => {
       const refresh = jest.fn();
       mockUsePaperless.mockReturnValue(
         makeHook({
-          status: { configured: true, reachable: false, error: null },
+          status: { configured: true, reachable: false, error: null, paperlessUrl: null },
           refresh,
         }),
       );
@@ -156,7 +163,9 @@ describe('DocumentBrowser', () => {
         }),
       );
       render(<DocumentBrowser />);
-      const chip = screen.getByRole('checkbox', { name: /Invoice/i });
+      const chip = screen.getByRole('checkbox', {
+        name: /Filter by tag: Invoice \(5 documents\)/i,
+      });
       expect(chip).toHaveAttribute('aria-checked', 'false');
     });
 
@@ -168,7 +177,9 @@ describe('DocumentBrowser', () => {
         }),
       );
       render(<DocumentBrowser />);
-      const chip = screen.getByRole('checkbox', { name: /Invoice/i });
+      const chip = screen.getByRole('checkbox', {
+        name: /Filter by tag: Invoice \(5 documents\)/i,
+      });
       expect(chip).toHaveAttribute('aria-checked', 'true');
     });
 
@@ -181,7 +192,9 @@ describe('DocumentBrowser', () => {
         }),
       );
       render(<DocumentBrowser />);
-      fireEvent.click(screen.getByRole('checkbox', { name: /Invoice/i }));
+      fireEvent.click(
+        screen.getByRole('checkbox', { name: /Filter by tag: Invoice \(5 documents\)/i }),
+      );
       expect(toggleTag).toHaveBeenCalledWith(1);
     });
 
@@ -194,7 +207,10 @@ describe('DocumentBrowser', () => {
         }),
       );
       render(<DocumentBrowser />);
-      fireEvent.keyDown(screen.getByRole('checkbox', { name: /Invoice/i }), { key: 'Enter' });
+      fireEvent.keyDown(
+        screen.getByRole('checkbox', { name: /Filter by tag: Invoice \(5 documents\)/i }),
+        { key: 'Enter' },
+      );
       expect(toggleTag).toHaveBeenCalledWith(1);
     });
   });
@@ -290,6 +306,42 @@ describe('DocumentBrowser', () => {
       expect(
         screen.queryByRole('region', { name: /Details for Document 1/i }),
       ).not.toBeInTheDocument();
+    });
+
+    it('passes paperlessUrl from status to detail panel as paperlessBaseUrl', () => {
+      mockUsePaperless.mockReturnValue(
+        makeHook({
+          status: {
+            configured: true,
+            reachable: true,
+            error: null,
+            paperlessUrl: 'https://paperless.example.com',
+          },
+        }),
+      );
+      render(<DocumentBrowser mode="page" />);
+      fireEvent.click(screen.getByRole('button', { name: /Document: Document 1/i }));
+      const link = screen.getByRole('link', {
+        name: /View in Paperless/i,
+      }) as HTMLAnchorElement;
+      expect(link).toBeInTheDocument();
+      expect(link.href).toContain('https://paperless.example.com/documents/1/details');
+    });
+
+    it('does not show View in Paperless link when paperlessUrl is null', () => {
+      mockUsePaperless.mockReturnValue(
+        makeHook({
+          status: {
+            configured: true,
+            reachable: true,
+            error: null,
+            paperlessUrl: null,
+          },
+        }),
+      );
+      render(<DocumentBrowser mode="page" />);
+      fireEvent.click(screen.getByRole('button', { name: /Document: Document 1/i }));
+      expect(screen.queryByRole('link', { name: /View in Paperless/i })).not.toBeInTheDocument();
     });
   });
 

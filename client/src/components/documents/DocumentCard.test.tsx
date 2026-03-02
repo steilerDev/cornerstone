@@ -114,16 +114,16 @@ describe('DocumentCard', () => {
     ).toBeInTheDocument();
   });
 
-  it('has aria-pressed=false when not selected', () => {
+  it('has aria-expanded=false when not selected', () => {
     render(<DocumentCard document={makeDoc()} isSelected={false} onSelect={jest.fn()} />);
     const card = screen.getByRole('button', { name: /Document: Test Invoice 2025/i });
-    expect(card).toHaveAttribute('aria-pressed', 'false');
+    expect(card).toHaveAttribute('aria-expanded', 'false');
   });
 
-  it('has aria-pressed=true when selected', () => {
+  it('has aria-expanded=true when selected', () => {
     render(<DocumentCard document={makeDoc()} isSelected={true} onSelect={jest.fn()} />);
     const card = screen.getByRole('button', { name: /Document: Test Invoice 2025/i });
-    expect(card).toHaveAttribute('aria-pressed', 'true');
+    expect(card).toHaveAttribute('aria-expanded', 'true');
   });
 
   it('calls onSelect with document when clicked', () => {
