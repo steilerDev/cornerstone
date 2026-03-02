@@ -87,9 +87,9 @@ let Component: typeof ComponentTypes.Component;
 
 The pre-commit hook runs lint-staged + typecheck + build + audit automatically. Just `git commit` and the hook validates. Avoid manually running `npm test` or `npm run build` beforehand (per CLAUDE.md policy).
 
-## Nested Claude Sessions: Cannot Run in Worktree
+## Nested Claude Sessions: Use Agent Tool, Not CLI
 
-`claude --model haiku ...` fails with "Claude Code cannot be launched inside another Claude Code session." — nested agent delegation is not possible in sandbox. Implement changes directly as dev-team-lead instead.
+`claude --model haiku ...` fails with "Claude Code cannot be launched inside another Claude Code session." The CLI cannot be used for delegation. Use the **Agent tool** with `subagent_type` and `model: "haiku"` instead — this is how delegation works within Claude Code. Never implement production code directly as dev-team-lead.
 
 ## Drizzle-orm sql.join: Available in 0.45.1
 

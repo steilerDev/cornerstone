@@ -150,7 +150,7 @@ The orchestrator runs a **delegation audit** after every dev-team-lead session:
 
 Commits from the dev-team-lead that change production files without Haiku co-author trailers are rejected, reset, and re-delegated.
 
-Production files: any `.ts`, `.tsx`, `.css`, `.module.css`, `.sql` under `server/`, `client/`, or `shared/`.
+Production files: any file under `server/`, `client/`, or `shared/`.
 
 ### Branching Strategy
 

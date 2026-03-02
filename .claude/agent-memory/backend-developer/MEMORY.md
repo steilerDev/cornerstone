@@ -205,13 +205,13 @@ Cascade mode uses BFS from anchor to collect all downstream successors.
 
 ## Formatting Gotcha
 
-CI runs `prettier --check` before typecheck. Always run prettier from main project root:
+CI runs `prettier --check` before typecheck. Always run Prettier from within the worktree directory to use the correct `.prettierrc`:
 
 ```bash
-npx prettier --write "path/to/file.ts"
+cd /path/to/worktree && npx prettier --write "path/to/file.ts"
 ```
 
-Do NOT format from worktree (different cwd can affect config resolution).
+Running from the parent project root uses a different config and may not format correctly.
 
 ## EPIC-06 UAT Fixes (2a, 2b, 3a) — applied to worktree jazzy-percolating-bird
 

@@ -78,7 +78,7 @@ Implements tag-based filtering with multi-select dropdown.
 
 Fixes #42
 
-Co-Authored-By: Claude frontend-developer (Sonnet 4.5) <noreply@anthropic.com>
+Co-Authored-By: Claude frontend-developer (Haiku 4.5) <noreply@anthropic.com>
 ```
 
 Types: `feat`, `fix`, `docs`, `chore`, `refactor`, `test`, `build`, `ci`

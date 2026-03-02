@@ -8,7 +8,6 @@
 - `e2e-test-engineer` owns **all** Playwright E2E tests
 - Developer agents implement production code only — never `*.test.ts` / `*.test.tsx` files
 - Violating this rule causes BLOCKING PR rejection (as happened in PR #152 where frontend-developer wrote 211 tests)
-- The only exception: trivial test count/fixture fixes unblocking the dev build (see "Breaking Existing Tests" section)
 - If you find yourself writing a test file, stop and delegate to the QA agent instead
 
 Key learnings for the Cornerstone project. Detailed patterns → `patterns.md`.
@@ -90,8 +89,8 @@ className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}
 
 When UI changes affect test counts (e.g., adding nav links, buttons):
 
-- Trivial fixes (update count from 8→9): fix inline, note in commit
-- This is an exception to "QA owns tests" rule — small fixes that unblock dev are acceptable
+- Delegate ALL test fixes to the QA agent, even trivial count updates (e.g., 8→9)
+- The "QA owns all tests" rule has no exceptions for developer agents
 
 ## npm audit — dev vs prod (2026-02-18)
 

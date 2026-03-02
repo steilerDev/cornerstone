@@ -159,7 +159,7 @@ Provide the dev-team-lead with:
 - Layers affected: backend-only, frontend-only, or full-stack
 - UX visual spec reference (if posted in step 3)
 - Branch name
-- **Delegation reminder**: "You MUST delegate ALL code changes to `backend-developer` (Haiku) and/or `frontend-developer` (Haiku) via the Agent tool. After completion, the orchestrator will audit commit trailers — production file changes without Haiku co-author trailers will be rejected."
+- **Delegation reminder**: "You MUST delegate ALL code changes to `backend-developer` (Haiku) and/or `frontend-developer` (Haiku) via the Agent tool. After completion, the orchestrator will audit both your delegation report and commit trailers — production file changes without Haiku co-author trailers, or a delegation report listing directly modified files, will be rejected."
 
 The dev-team-lead internally:
 
