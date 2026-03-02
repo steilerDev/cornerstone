@@ -94,9 +94,11 @@ export interface HouseholdItemSummary {
   orderDate: string | null;
   expectedDeliveryDate: string | null;
   actualDeliveryDate: string | null;
+  url: string | null;
   tagIds: string[];
   budgetLineCount: number;
   totalPlannedAmount: number;
+  createdBy: UserSummary | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -105,8 +107,6 @@ export interface HouseholdItemSummary {
  * Household item detail (used in single-item responses).
  */
 export interface HouseholdItemDetail extends HouseholdItemSummary {
-  url: string | null;
-  createdBy: UserSummary | null;
   tags: TagResponse[];
   workItems: HouseholdItemWorkItemSummary[];
   subsidies: HouseholdItemSubsidySummary[];
@@ -157,7 +157,17 @@ export interface HouseholdItemListQuery {
   category?: HouseholdItemCategory;
   status?: HouseholdItemStatus;
   room?: string;
-  sortBy?: 'name' | 'category' | 'status' | 'room' | 'created_at' | 'updated_at';
+  vendorId?: string;
+  tagId?: string;
+  sortBy?:
+    | 'name'
+    | 'category'
+    | 'status'
+    | 'room'
+    | 'order_date'
+    | 'expected_delivery_date'
+    | 'created_at'
+    | 'updated_at';
   sortOrder?: 'asc' | 'desc';
 }
 
