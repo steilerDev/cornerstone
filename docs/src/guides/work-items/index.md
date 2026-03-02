@@ -18,6 +18,7 @@ Work items support:
 - **Notes** -- Timestamped comments with author attribution
 - **Subtasks** -- Checklist items within a work item
 - **Dependencies** -- Relationships between work items (what must happen before or after)
+- **Document links** -- Attach documents from [Paperless-ngx](/guides/documents) (contracts, receipts, plans)
 
 ## List View
 
@@ -31,13 +32,17 @@ The work items list page provides:
 
 All filter and sort settings are synced to the URL, so your view is bookmarkable and shareable.
 
-![Work Items List](/img/screenshots/work-items-list-light.png)
+:::info Screenshot needed
+A screenshot of the work items list page will be added on the next stable release.
+:::
 
 ## Detail View
 
-Click any work item to see its full detail page with all fields, notes, subtasks, and dependencies.
+Click any work item to see its full detail page with all fields, notes, subtasks, dependencies, and linked documents.
 
-![Work Item Detail](/img/screenshots/work-item-detail-light.png)
+:::info Screenshot needed
+A screenshot of the work item detail page will be added on the next stable release.
+:::
 
 ## Next Steps
 
