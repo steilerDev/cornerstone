@@ -37,6 +37,7 @@ import scheduleRoutes from './routes/schedule.js';
 import timelineRoutes from './routes/timeline.js';
 import paperlessRoutes from './routes/paperless.js';
 import documentLinksRoutes from './routes/documentLinks.js';
+import householdItemRoutes from './routes/householdItems.js';
 import { hashPassword, verifyPassword } from './services/userService.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -145,6 +146,9 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Document link routes (EPIC-08: Link Paperless-ngx documents to entities)
   await app.register(documentLinksRoutes, { prefix: '/api/document-links' });
+
+  // Household item routes (EPIC-04: Household Items & Furniture Management)
+  await app.register(householdItemRoutes, { prefix: '/api/household-items' });
 
   // Health check endpoint (liveness)
   app.get('/api/health', async () => {
