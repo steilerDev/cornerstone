@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { jest } from '@jest/globals';
 import type { UsePaperlessResult } from '../../hooks/usePaperless.js';
+import type * as DocumentsPageModule from './DocumentsPage.js';
 
 // Mock usePaperless (used by DocumentBrowser inside DocumentsPage)
 const mockUsePaperless = jest.fn<() => UsePaperlessResult>();
@@ -19,7 +20,7 @@ jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
   getDocumentPreviewUrl: (id: number) => `/api/paperless/documents/${id}/preview`,
 }));
 
-let DocumentsPage: (typeof import('./DocumentsPage.js'))['DocumentsPage'];
+let DocumentsPage: (typeof DocumentsPageModule)['DocumentsPage'];
 
 const makeHook = (overrides: Partial<UsePaperlessResult> = {}): UsePaperlessResult => ({
   status: { configured: true, reachable: true, error: null },
@@ -38,7 +39,7 @@ const makeHook = (overrides: Partial<UsePaperlessResult> = {}): UsePaperlessResu
 });
 
 beforeEach(async () => {
-  ({ DocumentsPage } = await import('./DocumentsPage.js'));
+  ({ DocumentsPage } = (await import('./DocumentsPage.js')) as typeof DocumentsPageModule);
   mockUsePaperless.mockReset();
   mockUsePaperless.mockReturnValue(makeHook());
 });
@@ -100,8 +101,6 @@ describe('DocumentsPage', () => {
       }),
     );
     render(<DocumentsPage />);
-    expect(
-      screen.getByRole('button', { name: /Document: Contract 2025/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Document: Contract 2025/i })).toBeInTheDocument();
   });
 });

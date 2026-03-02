@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { jest } from '@jest/globals';
 import type { UsePaperlessResult } from '../../hooks/usePaperless.js';
+import type * as DocumentBrowserModule from './DocumentBrowser.js';
 
 // Mock usePaperless hook
 const mockUsePaperless = jest.fn<() => UsePaperlessResult>();
@@ -19,7 +20,7 @@ jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
   getDocumentPreviewUrl: (id: number) => `/api/paperless/documents/${id}/preview`,
 }));
 
-let DocumentBrowser: (typeof import('./DocumentBrowser.js'))['DocumentBrowser'];
+let DocumentBrowser: (typeof DocumentBrowserModule)['DocumentBrowser'];
 
 const makeDoc = (id: number, title = `Document ${id}`) => ({
   id,
@@ -61,7 +62,7 @@ const makeHook = (overrides: Partial<UsePaperlessResult> = {}): UsePaperlessResu
 });
 
 beforeEach(async () => {
-  ({ DocumentBrowser } = await import('./DocumentBrowser.js'));
+  ({ DocumentBrowser } = (await import('./DocumentBrowser.js')) as typeof DocumentBrowserModule);
   mockUsePaperless.mockReset();
   mockUsePaperless.mockReturnValue(makeHook());
 });
@@ -230,25 +231,19 @@ describe('DocumentBrowser', () => {
 
   describe('empty state', () => {
     it('renders "No documents found" when no docs and no query', () => {
-      mockUsePaperless.mockReturnValue(
-        makeHook({ documents: [], query: '', selectedTags: [] }),
-      );
+      mockUsePaperless.mockReturnValue(makeHook({ documents: [], query: '', selectedTags: [] }));
       render(<DocumentBrowser />);
       expect(screen.getByText(/No documents found\./i)).toBeInTheDocument();
     });
 
     it('renders "No documents match" when query is active', () => {
-      mockUsePaperless.mockReturnValue(
-        makeHook({ documents: [], query: 'invoice' }),
-      );
+      mockUsePaperless.mockReturnValue(makeHook({ documents: [], query: 'invoice' }));
       render(<DocumentBrowser />);
       expect(screen.getByText(/No documents match your search\./i)).toBeInTheDocument();
     });
 
     it('renders Clear Search button when query is active in empty state', () => {
-      mockUsePaperless.mockReturnValue(
-        makeHook({ documents: [], query: 'invoice' }),
-      );
+      mockUsePaperless.mockReturnValue(makeHook({ documents: [], query: 'invoice' }));
       render(<DocumentBrowser />);
       expect(screen.getByRole('button', { name: /Clear Search/i })).toBeInTheDocument();
     });
@@ -302,13 +297,13 @@ describe('DocumentBrowser', () => {
     it('does not render pagination when totalPages <= 1', () => {
       mockUsePaperless.mockReturnValue(makeHook({ pagination: makePagination(1, 1, 2) }));
       render(<DocumentBrowser />);
-      expect(screen.queryByRole('navigation', { name: /Document pagination/i })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('navigation', { name: /Document pagination/i }),
+      ).not.toBeInTheDocument();
     });
 
     it('renders pagination nav when totalPages > 1', () => {
-      mockUsePaperless.mockReturnValue(
-        makeHook({ pagination: makePagination(1, 3, 75) }),
-      );
+      mockUsePaperless.mockReturnValue(makeHook({ pagination: makePagination(1, 3, 75) }));
       render(<DocumentBrowser />);
       expect(screen.getByRole('navigation', { name: /Document pagination/i })).toBeInTheDocument();
     });

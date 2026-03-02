@@ -42,7 +42,9 @@ jest.unstable_mockModule('../lib/apiClient.js', () => ({
   NetworkError: MockNetworkError,
 }));
 
-let usePaperless: (typeof import('./usePaperless.js'))['usePaperless'];
+import type * as UsePaperlessModule from './usePaperless.js';
+
+let usePaperless: (typeof UsePaperlessModule)['usePaperless'];
 
 const makeStatus = (configured = true, reachable = true) => ({
   configured,
@@ -83,7 +85,7 @@ const makeTagsResponse = (tags = [{ id: 1, name: 'Invoice', color: null, documen
 });
 
 beforeEach(async () => {
-  ({ usePaperless } = await import('./usePaperless.js'));
+  ({ usePaperless } = (await import('./usePaperless.js')) as typeof UsePaperlessModule);
   mockGetPaperlessStatus.mockReset();
   mockListPaperlessDocuments.mockReset();
   mockListPaperlessTags.mockReset();
@@ -253,10 +255,10 @@ describe('usePaperless', () => {
       await waitFor(() => expect(result.current.selectedTags).toEqual([1, 3]));
       await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-      const lastCall = mockListPaperlessDocuments.mock.calls[
+      const lastCallArgs = mockListPaperlessDocuments.mock.calls[
         mockListPaperlessDocuments.mock.calls.length - 1
-      ] as [{ tags?: string }];
-      expect(lastCall[0].tags).toBe('1,3');
+      ] as unknown as [{ tags?: string }];
+      expect(lastCallArgs[0].tags).toBe('1,3');
     });
   });
 
@@ -271,9 +273,7 @@ describe('usePaperless', () => {
 
       await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-      expect(mockListPaperlessDocuments).toHaveBeenCalledWith(
-        expect.objectContaining({ page: 3 }),
-      );
+      expect(mockListPaperlessDocuments).toHaveBeenCalledWith(expect.objectContaining({ page: 3 }));
     });
   });
 

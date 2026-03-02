@@ -1,5 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { jest } from '@jest/globals';
+import type * as DocumentDetailPanelModule from './DocumentDetailPanel.js';
 
 const mockGetDocumentThumbnailUrl = jest.fn<(id: number) => string>();
 
@@ -12,14 +13,13 @@ jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
   getDocumentPreviewUrl: jest.fn(),
 }));
 
-let DocumentDetailPanel: (typeof import('./DocumentDetailPanel.js'))['DocumentDetailPanel'];
+let DocumentDetailPanel: (typeof DocumentDetailPanelModule)['DocumentDetailPanel'];
 
 beforeEach(async () => {
-  ({ DocumentDetailPanel } = await import('./DocumentDetailPanel.js'));
+  ({ DocumentDetailPanel } =
+    (await import('./DocumentDetailPanel.js')) as typeof DocumentDetailPanelModule);
   mockGetDocumentThumbnailUrl.mockReset();
-  mockGetDocumentThumbnailUrl.mockImplementation(
-    (id) => `/api/paperless/documents/${id}/thumb`,
-  );
+  mockGetDocumentThumbnailUrl.mockImplementation((id) => `/api/paperless/documents/${id}/thumb`);
 });
 
 const makeDoc = (overrides = {}) => ({
@@ -86,7 +86,9 @@ describe('DocumentDetailPanel', () => {
   });
 
   it('renders created date in metadata', () => {
-    render(<DocumentDetailPanel document={makeDoc({ created: '2025-01-01' })} onClose={jest.fn()} />);
+    render(
+      <DocumentDetailPanel document={makeDoc({ created: '2025-01-01' })} onClose={jest.fn()} />,
+    );
     expect(screen.getByText(/January 1, 2025/i)).toBeInTheDocument();
   });
 
@@ -113,7 +115,9 @@ describe('DocumentDetailPanel', () => {
 
   it('truncates long content to 300 chars with ellipsis', () => {
     const longContent = 'A'.repeat(400);
-    render(<DocumentDetailPanel document={makeDoc({ content: longContent })} onClose={jest.fn()} />);
+    render(
+      <DocumentDetailPanel document={makeDoc({ content: longContent })} onClose={jest.fn()} />,
+    );
     const snippetText = screen.getByText(/A{100,}\.\.\.$/);
     expect(snippetText.textContent?.length).toBeLessThanOrEqual(304); // 300 + '...'
   });
@@ -144,9 +148,7 @@ describe('DocumentDetailPanel', () => {
   });
 
   it('does not render created date when created is null', () => {
-    render(
-      <DocumentDetailPanel document={makeDoc({ created: null })} onClose={jest.fn()} />,
-    );
+    render(<DocumentDetailPanel document={makeDoc({ created: null })} onClose={jest.fn()} />);
     // "Created" label should not be in the metadata
     const metaLabels = screen.queryAllByText(/^Created$/i);
     expect(metaLabels).toHaveLength(0);

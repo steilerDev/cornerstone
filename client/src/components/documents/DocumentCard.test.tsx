@@ -1,5 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { jest } from '@jest/globals';
+import type * as DocumentCardModule from './DocumentCard.js';
 
 const mockGetDocumentThumbnailUrl = jest.fn<(id: number) => string>();
 const mockGetDocumentPreviewUrl = jest.fn<(id: number) => string>();
@@ -13,10 +14,10 @@ jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
   getDocumentPreviewUrl: mockGetDocumentPreviewUrl,
 }));
 
-let DocumentCard: (typeof import('./DocumentCard.js'))['DocumentCard'];
+let DocumentCard: (typeof DocumentCardModule)['DocumentCard'];
 
 beforeEach(async () => {
-  ({ DocumentCard } = await import('./DocumentCard.js'));
+  ({ DocumentCard } = (await import('./DocumentCard.js')) as typeof DocumentCardModule);
   mockGetDocumentThumbnailUrl.mockReset();
   mockGetDocumentThumbnailUrl.mockImplementation((id) => `/api/paperless/documents/${id}/thumb`);
   mockGetDocumentPreviewUrl.mockImplementation((id) => `/api/paperless/documents/${id}/preview`);
@@ -41,16 +42,12 @@ const makeDoc = (overrides = {}) => ({
 
 describe('DocumentCard', () => {
   it('renders the document title', () => {
-    render(
-      <DocumentCard document={makeDoc()} isSelected={false} onSelect={jest.fn()} />,
-    );
+    render(<DocumentCard document={makeDoc()} isSelected={false} onSelect={jest.fn()} />);
     expect(screen.getByRole('heading', { name: 'Test Invoice 2025' })).toBeInTheDocument();
   });
 
   it('renders thumbnail image with correct alt text', () => {
-    render(
-      <DocumentCard document={makeDoc()} isSelected={false} onSelect={jest.fn()} />,
-    );
+    render(<DocumentCard document={makeDoc()} isSelected={false} onSelect={jest.fn()} />);
     const img = screen.getByAltText('Test Invoice 2025') as HTMLImageElement;
     expect(img).toBeInTheDocument();
     expect(img.src).toContain('/api/paperless/documents/42/thumb');
@@ -58,22 +55,28 @@ describe('DocumentCard', () => {
 
   it('renders created date when present', () => {
     render(
-      <DocumentCard document={makeDoc({ created: '2025-03-15' })} isSelected={false} onSelect={jest.fn()} />,
+      <DocumentCard
+        document={makeDoc({ created: '2025-03-15' })}
+        isSelected={false}
+        onSelect={jest.fn()}
+      />,
     );
     expect(screen.getByText(/Mar 15, 2025/)).toBeInTheDocument();
   });
 
   it('does not render date when created is null', () => {
     render(
-      <DocumentCard document={makeDoc({ created: null })} isSelected={false} onSelect={jest.fn()} />,
+      <DocumentCard
+        document={makeDoc({ created: null })}
+        isSelected={false}
+        onSelect={jest.fn()}
+      />,
     );
     expect(screen.queryByText(/2025/)).not.toBeInTheDocument();
   });
 
   it('renders correspondent name', () => {
-    render(
-      <DocumentCard document={makeDoc()} isSelected={false} onSelect={jest.fn()} />,
-    );
+    render(<DocumentCard document={makeDoc()} isSelected={false} onSelect={jest.fn()} />);
     expect(screen.getByText('ACME Corp')).toBeInTheDocument();
   });
 
@@ -103,24 +106,20 @@ describe('DocumentCard', () => {
   });
 
   it('has role="button" for keyboard/screen reader navigation', () => {
-    render(
-      <DocumentCard document={makeDoc()} isSelected={false} onSelect={jest.fn()} />,
-    );
-    expect(screen.getByRole('button', { name: /Document: Test Invoice 2025/i })).toBeInTheDocument();
+    render(<DocumentCard document={makeDoc()} isSelected={false} onSelect={jest.fn()} />);
+    expect(
+      screen.getByRole('button', { name: /Document: Test Invoice 2025/i }),
+    ).toBeInTheDocument();
   });
 
   it('has aria-pressed=false when not selected', () => {
-    render(
-      <DocumentCard document={makeDoc()} isSelected={false} onSelect={jest.fn()} />,
-    );
+    render(<DocumentCard document={makeDoc()} isSelected={false} onSelect={jest.fn()} />);
     const card = screen.getByRole('button', { name: /Document: Test Invoice 2025/i });
     expect(card).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('has aria-pressed=true when selected', () => {
-    render(
-      <DocumentCard document={makeDoc()} isSelected={true} onSelect={jest.fn()} />,
-    );
+    render(<DocumentCard document={makeDoc()} isSelected={true} onSelect={jest.fn()} />);
     const card = screen.getByRole('button', { name: /Document: Test Invoice 2025/i });
     expect(card).toHaveAttribute('aria-pressed', 'true');
   });

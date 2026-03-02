@@ -1,10 +1,11 @@
 import { jest } from '@jest/globals';
+import type * as PaperlessApiModule from './paperlessApi.js';
 
 // Mock apiClient before imports
 const mockGet = jest.fn<() => Promise<unknown>>();
 const mockGetBaseUrl = jest.fn<() => string>().mockReturnValue('/api');
 
-jest.unstable_mockModule('../../lib/apiClient.js', () => ({
+jest.unstable_mockModule('./apiClient.js', () => ({
   get: mockGet,
   getBaseUrl: mockGetBaseUrl,
   post: jest.fn(),
@@ -25,10 +26,10 @@ jest.unstable_mockModule('../../lib/apiClient.js', () => ({
 }));
 
 // Deferred import after mock
-let paperlessApi: typeof import('./paperlessApi.js');
+let paperlessApi: typeof PaperlessApiModule;
 
 beforeEach(async () => {
-  paperlessApi = await import('./paperlessApi.js');
+  paperlessApi = (await import('./paperlessApi.js')) as typeof PaperlessApiModule;
   mockGet.mockReset();
   mockGetBaseUrl.mockReturnValue('/api');
 });
@@ -56,7 +57,10 @@ describe('paperlessApi', () => {
 
   describe('listPaperlessDocuments', () => {
     it('calls GET /paperless/documents with no query when no args', async () => {
-      const mockResponse = { documents: [], pagination: { page: 1, pageSize: 25, totalItems: 0, totalPages: 0 } };
+      const mockResponse = {
+        documents: [],
+        pagination: { page: 1, pageSize: 25, totalItems: 0, totalPages: 0 },
+      };
       mockGet.mockResolvedValueOnce(mockResponse);
 
       const result = await paperlessApi.listPaperlessDocuments();
@@ -66,7 +70,10 @@ describe('paperlessApi', () => {
     });
 
     it('appends query string when query is provided', async () => {
-      mockGet.mockResolvedValueOnce({ documents: [], pagination: { page: 1, pageSize: 25, totalItems: 0, totalPages: 0 } });
+      mockGet.mockResolvedValueOnce({
+        documents: [],
+        pagination: { page: 1, pageSize: 25, totalItems: 0, totalPages: 0 },
+      });
 
       await paperlessApi.listPaperlessDocuments({ query: 'invoice' });
 
@@ -74,7 +81,10 @@ describe('paperlessApi', () => {
     });
 
     it('appends tags query string', async () => {
-      mockGet.mockResolvedValueOnce({ documents: [], pagination: { page: 1, pageSize: 25, totalItems: 0, totalPages: 0 } });
+      mockGet.mockResolvedValueOnce({
+        documents: [],
+        pagination: { page: 1, pageSize: 25, totalItems: 0, totalPages: 0 },
+      });
 
       await paperlessApi.listPaperlessDocuments({ tags: '1,2,3' });
 
@@ -82,7 +92,10 @@ describe('paperlessApi', () => {
     });
 
     it('appends page and pageSize', async () => {
-      mockGet.mockResolvedValueOnce({ documents: [], pagination: { page: 2, pageSize: 10, totalItems: 0, totalPages: 0 } });
+      mockGet.mockResolvedValueOnce({
+        documents: [],
+        pagination: { page: 2, pageSize: 10, totalItems: 0, totalPages: 0 },
+      });
 
       await paperlessApi.listPaperlessDocuments({ page: 2, pageSize: 10 });
 
@@ -92,7 +105,10 @@ describe('paperlessApi', () => {
     });
 
     it('appends correspondent and documentType as numbers', async () => {
-      mockGet.mockResolvedValueOnce({ documents: [], pagination: { page: 1, pageSize: 25, totalItems: 0, totalPages: 0 } });
+      mockGet.mockResolvedValueOnce({
+        documents: [],
+        pagination: { page: 1, pageSize: 25, totalItems: 0, totalPages: 0 },
+      });
 
       await paperlessApi.listPaperlessDocuments({ correspondent: 5, documentType: 3 });
 
@@ -102,7 +118,10 @@ describe('paperlessApi', () => {
     });
 
     it('appends sortBy and sortOrder', async () => {
-      mockGet.mockResolvedValueOnce({ documents: [], pagination: { page: 1, pageSize: 25, totalItems: 0, totalPages: 0 } });
+      mockGet.mockResolvedValueOnce({
+        documents: [],
+        pagination: { page: 1, pageSize: 25, totalItems: 0, totalPages: 0 },
+      });
 
       await paperlessApi.listPaperlessDocuments({ sortBy: 'created', sortOrder: 'desc' });
 
@@ -112,7 +131,10 @@ describe('paperlessApi', () => {
     });
 
     it('omits undefined values from query string', async () => {
-      mockGet.mockResolvedValueOnce({ documents: [], pagination: { page: 1, pageSize: 25, totalItems: 0, totalPages: 0 } });
+      mockGet.mockResolvedValueOnce({
+        documents: [],
+        pagination: { page: 1, pageSize: 25, totalItems: 0, totalPages: 0 },
+      });
 
       await paperlessApi.listPaperlessDocuments({ query: undefined, page: 1 });
 
@@ -124,7 +146,22 @@ describe('paperlessApi', () => {
 
   describe('getPaperlessDocument', () => {
     it('calls GET /paperless/documents/:id', async () => {
-      const mockDoc = { document: { id: 42, title: 'Test Doc', content: null, tags: [], created: null, added: null, modified: null, correspondent: null, documentType: null, archiveSerialNumber: null, originalFileName: null, pageCount: null } };
+      const mockDoc = {
+        document: {
+          id: 42,
+          title: 'Test Doc',
+          content: null,
+          tags: [],
+          created: null,
+          added: null,
+          modified: null,
+          correspondent: null,
+          documentType: null,
+          archiveSerialNumber: null,
+          originalFileName: null,
+          pageCount: null,
+        },
+      };
       mockGet.mockResolvedValueOnce(mockDoc);
 
       const result = await paperlessApi.getPaperlessDocument(42);
@@ -136,7 +173,9 @@ describe('paperlessApi', () => {
 
   describe('listPaperlessTags', () => {
     it('calls GET /paperless/tags and returns response', async () => {
-      const mockResponse = { tags: [{ id: 1, name: 'Invoice', color: '#ff0000', documentCount: 5 }] };
+      const mockResponse = {
+        tags: [{ id: 1, name: 'Invoice', color: '#ff0000', documentCount: 5 }],
+      };
       mockGet.mockResolvedValueOnce(mockResponse);
 
       const result = await paperlessApi.listPaperlessTags();
