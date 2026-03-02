@@ -304,6 +304,17 @@ describe('LinkedDocumentsSection', () => {
       expect(screen.getByRole('dialog')).toHaveAttribute('aria-modal', 'true');
     });
 
+    it('picker modal content div has tabIndex={-1} for programmatic focus', async () => {
+      render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /\+ Add Document/i })).not.toBeDisabled(),
+      );
+      fireEvent.click(screen.getByRole('button', { name: /\+ Add Document/i }));
+      // The modal dialog element has tabIndex=-1 so it can receive focus programmatically
+      const dialog = screen.getByRole('dialog', { name: /Add Document/i });
+      expect(dialog).toHaveAttribute('tabindex', '-1');
+    });
+
     it('closes picker when close button is clicked', async () => {
       render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
       await waitFor(() =>
@@ -459,6 +470,23 @@ describe('LinkedDocumentsSection', () => {
 
       fireEvent.click(screen.getByRole('button', { name: /Cancel/i }));
       expect(screen.queryByRole('dialog', { name: /Unlink Document/i })).not.toBeInTheDocument();
+    });
+
+    it('Cancel button receives focus when unlink confirmation dialog opens', async () => {
+      mockUseDocumentLinks.mockReturnValue(
+        makeHook({ links: [makeLink('link-1')], isLoading: false }),
+      );
+      render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
+      await waitFor(() => expect(screen.getByTestId('linked-card-link-1')).toBeInTheDocument());
+
+      // Open the unlink confirmation dialog
+      fireEvent.click(screen.getByRole('button', { name: /Unlink link-1/i }));
+      expect(screen.getByRole('dialog', { name: /Unlink Document/i })).toBeInTheDocument();
+
+      // Focus is moved to Cancel button via setTimeout(..., 0) in useEffect
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /Cancel/i })).toHaveFocus(),
+      );
     });
   });
 

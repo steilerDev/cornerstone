@@ -5,8 +5,8 @@
   overflow: hidden;
   cursor: pointer;
   transition:
-    box-shadow 0.15s ease,
-    border-color 0.15s ease;
+    box-shadow var(--transition-normal),
+    border-color var(--transition-normal);
   box-shadow: var(--shadow-sm);
   outline: none;
   display: flex;
@@ -41,6 +41,8 @@
   height: 100%;
   object-fit: cover;
   display: block;
+  -webkit-touch-callout: none;
+  user-select: none;
 }
 
 .thumbFallback {
@@ -52,7 +54,7 @@
 }
 
 .thumbFallbackIcon {
-  font-size: 2.5rem;
+  font-size: var(--font-size-4xl);
   opacity: 0.4;
 }
 
@@ -99,7 +101,7 @@
 .tagChip {
   display: inline-block;
   padding: var(--spacing-0-5) var(--spacing-1-5);
-  font-size: 0.625rem;
+  font-size: var(--font-size-xs);
   font-weight: 500;
   background-color: var(--color-primary-bg);
   color: var(--color-primary-badge-text);
@@ -111,9 +113,15 @@
 .tagChipMore {
   display: inline-block;
   padding: var(--spacing-0-5) var(--spacing-1-5);
-  font-size: 0.625rem;
+  font-size: var(--font-size-xs);
   font-weight: 500;
   background-color: var(--color-bg-tertiary);
   color: var(--color-text-muted);
   border-radius: var(--radius-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    transition: none;
+  }
 }

@@ -179,7 +179,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: var(--z-modal);
 }
 
 .modalBackdrop {
@@ -200,6 +200,8 @@
   flex-direction: column;
   width: 90%;
   max-width: 500px;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 .modalContentLarge {
@@ -232,7 +234,7 @@
 .modalClose {
   background: transparent;
   border: none;
-  font-size: 1.75rem;
+  font-size: var(--font-size-2xl);
   color: var(--color-text-muted);
   cursor: pointer;
   padding: 0;
@@ -253,10 +255,12 @@
   padding: var(--spacing-6);
   flex: 1;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 .modalText {
-  font-size: 0.9375rem;
+  font-size: var(--font-size-base);
   color: var(--color-text-secondary);
   line-height: 1.6;
   margin: 0 0 var(--spacing-6) 0;
@@ -376,5 +380,15 @@
   .cardStrip,
   .skeletonStrip {
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .addButton,
+  .retryButton,
+  .modalCancelButton,
+  .modalDeleteButton,
+  .modalClose {
+    transition: none;
   }
 }
