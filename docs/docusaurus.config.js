@@ -77,6 +77,7 @@ const config = {
               { label: 'Work Items', to: '/guides/work-items' },
               { label: 'Budget', to: '/guides/budget' },
               { label: 'Timeline', to: '/guides/timeline' },
+              { label: 'Documents', to: '/guides/documents' },
               { label: 'Roadmap', to: '/roadmap' },
             ],
           },
