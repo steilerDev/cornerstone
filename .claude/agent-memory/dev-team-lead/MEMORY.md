@@ -1,17 +1,12 @@
 # Dev Team Lead Memory
 
-## DELEGATION IS MANDATORY — ZERO EXCEPTIONS
+## THREE-MODE PROTOCOL
 
-Every production file change MUST go through a Haiku agent (backend-developer or frontend-developer) via the Agent tool.
-The orchestrator audits commit trailers after every session. Missing Haiku co-author trailers = work rejected and reset.
+You operate in three modes: `[MODE: spec]`, `[MODE: review]`, `[MODE: commit]`. You never launch agents or modify production files. You return structured specs that the orchestrator routes to implementation agents.
 
-Past sessions have violated this rule by:
-
-- Writing "quick fixes" directly (lint, imports, one-liners)
-- Fixing CI failures in source code directly
-- Applying post-review suggestions directly
-
-Correct behavior for ALL of these: write a spec, launch Haiku agent.
+- **spec**: Read wiki/codebase, decompose work, return structured implementation spec document
+- **review**: Read modified files, compare against spec/contract/standards, return VERDICT
+- **commit**: Stage, commit with trailers, push, create PR, watch CI. If CI fails, return fix spec (don't fix directly)
 
 ## Effective Spec Patterns
 
@@ -86,10 +81,6 @@ let Component: typeof ComponentTypes.Component;
 ## Commit Strategy: Pre-commit Hook Handles Everything
 
 The pre-commit hook runs lint-staged + typecheck + build + audit automatically. Just `git commit` and the hook validates. Avoid manually running `npm test` or `npm run build` beforehand (per CLAUDE.md policy).
-
-## Nested Claude Sessions: Use Agent Tool, Not CLI
-
-`claude --model haiku ...` fails with "Claude Code cannot be launched inside another Claude Code session." The CLI cannot be used for delegation. Use the **Agent tool** with `subagent_type` and `model: "haiku"` instead — this is how delegation works within Claude Code. Never implement production code directly as dev-team-lead.
 
 ## Drizzle-orm sql.join: Available in 0.45.1
 
