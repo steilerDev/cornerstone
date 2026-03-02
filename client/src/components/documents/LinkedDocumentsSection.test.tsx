@@ -564,9 +564,7 @@ describe('LinkedDocumentsSection', () => {
         makeHook({ links: [makeInvoiceLink('link-inv-1')], isLoading: false }),
       );
       render(<LinkedDocumentsSection entityType="invoice" entityId="inv-xyz" />);
-      await waitFor(() =>
-        expect(screen.getByTestId('linked-card-link-inv-1')).toBeInTheDocument(),
-      );
+      await waitFor(() => expect(screen.getByTestId('linked-card-link-inv-1')).toBeInTheDocument());
       fireEvent.click(screen.getByRole('button', { name: /Unlink link-inv-1/i }));
       expect(screen.getByRole('dialog', { name: /Unlink Document/i })).toBeInTheDocument();
       // The unlink modal body should mention "this invoice" for invoice entity
@@ -576,9 +574,7 @@ describe('LinkedDocumentsSection', () => {
     it('shows invoice-specific empty state body when no links exist', async () => {
       mockUseDocumentLinks.mockReturnValue(makeHook({ links: [], isLoading: false }));
       render(<LinkedDocumentsSection entityType="invoice" entityId="inv-xyz" />);
-      await waitFor(() =>
-        expect(screen.getByText(/No documents linked yet/i)).toBeInTheDocument(),
-      );
+      await waitFor(() => expect(screen.getByText(/No documents linked yet/i)).toBeInTheDocument());
       expect(screen.getByText(/invoice PDFs/i)).toBeInTheDocument();
     });
 

@@ -167,9 +167,7 @@ describe('InvoiceDetailPage', () => {
       );
       renderPage();
 
-      await waitFor(() =>
-        expect(screen.getByText(/Invoice not found/i)).toBeInTheDocument(),
-      );
+      await waitFor(() => expect(screen.getByText(/Invoice not found/i)).toBeInTheDocument());
     });
 
     it('renders generic error message on non-404 API error', async () => {
@@ -178,18 +176,14 @@ describe('InvoiceDetailPage', () => {
       );
       renderPage();
 
-      await waitFor(() =>
-        expect(screen.getByText(/Internal server error/i)).toBeInTheDocument(),
-      );
+      await waitFor(() => expect(screen.getByText(/Internal server error/i)).toBeInTheDocument());
     });
 
     it('renders generic error message on network failure', async () => {
       mockFetchInvoiceById.mockRejectedValue(new Error('Network error'));
       renderPage();
 
-      await waitFor(() =>
-        expect(screen.getByText(/Failed to load invoice/i)).toBeInTheDocument(),
-      );
+      await waitFor(() => expect(screen.getByText(/Failed to load invoice/i)).toBeInTheDocument());
     });
   });
 
@@ -207,34 +201,26 @@ describe('InvoiceDetailPage', () => {
     it('renders the vendor name', async () => {
       renderPage();
 
-      await waitFor(() =>
-        expect(screen.getByText('Acme Construction')).toBeInTheDocument(),
-      );
+      await waitFor(() => expect(screen.getByText('Acme Construction')).toBeInTheDocument());
     });
 
     it('renders the formatted amount', async () => {
       renderPage();
 
       // Amount 1500 formatted as currency ($1,500.00)
-      await waitFor(() =>
-        expect(screen.getByText(/1,500/)).toBeInTheDocument(),
-      );
+      await waitFor(() => expect(screen.getByText(/1,500/)).toBeInTheDocument());
     });
 
     it('renders the status badge', async () => {
       renderPage();
 
-      await waitFor(() =>
-        expect(screen.getByText('Pending')).toBeInTheDocument(),
-      );
+      await waitFor(() => expect(screen.getByText('Pending')).toBeInTheDocument());
     });
 
     it('renders the invoice number in the details list', async () => {
       renderPage();
 
-      await waitFor(() =>
-        expect(screen.getByText('Invoice #')).toBeInTheDocument(),
-      );
+      await waitFor(() => expect(screen.getByText('Invoice #')).toBeInTheDocument());
     });
 
     it('renders "Invoice Details" section heading', async () => {
