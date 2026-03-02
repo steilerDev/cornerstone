@@ -95,6 +95,10 @@ export function createLink(
   const id = randomUUID();
   const createdAt = new Date().toISOString();
 
+  // Resolve userId to null if user no longer exists (FK is nullable with ON DELETE SET NULL)
+  const userExists = resolveCreatedBy(db, userId) !== null;
+  const createdBy = userExists ? userId : null;
+
   try {
     db.insert(documentLinks)
       .values({
@@ -102,7 +106,7 @@ export function createLink(
         entityType,
         entityId,
         paperlessDocumentId,
-        createdBy: userId,
+        createdBy,
         createdAt,
       })
       .run();

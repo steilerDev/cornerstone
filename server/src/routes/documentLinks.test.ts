@@ -131,7 +131,7 @@ describe('Document Links Routes', () => {
       payload: JSON.stringify({ title }),
     });
     expect(response.statusCode).toBe(201);
-    return response.json<{ workItem: { id: string } }>().workItem.id;
+    return response.json<{ id: string }>().id;
   }
 
   /**
