@@ -127,11 +127,13 @@ export interface CreateHouseholdItemRequest {
   orderDate?: string | null;
   expectedDeliveryDate?: string | null;
   actualDeliveryDate?: string | null;
+  tagIds?: string[];
 }
 
 /**
  * Request body for updating a household item.
  * All fields are optional; at least one must be provided.
+ * Sending tagIds replaces the entire tag set (set-semantics).
  */
 export interface UpdateHouseholdItemRequest {
   name?: string;
@@ -145,6 +147,7 @@ export interface UpdateHouseholdItemRequest {
   orderDate?: string | null;
   expectedDeliveryDate?: string | null;
   actualDeliveryDate?: string | null;
+  tagIds?: string[];
 }
 
 /**
