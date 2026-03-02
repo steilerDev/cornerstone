@@ -45,8 +45,7 @@ test-results/
 # Data directory (SQLite runtime data)
 data/
 
-# Claude Code local settings and agent memory
-.claude/agent-memory/
+# Claude Code local settings
 .claude/settings.local.json
 
 # Temporary files
