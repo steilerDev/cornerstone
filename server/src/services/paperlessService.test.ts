@@ -102,7 +102,7 @@ describe('getStatus()', () => {
 
     const result = await paperlessService.getStatus(BASE_URL, TOKEN);
 
-    expect(result).toEqual({ configured: true, reachable: true, error: null });
+    expect(result).toEqual({ configured: true, reachable: true, error: null, paperlessUrl: null });
     expect(mockFetch).toHaveBeenCalledWith(
       `${BASE_URL}/api/documents/?page_size=1`,
       expect.objectContaining({

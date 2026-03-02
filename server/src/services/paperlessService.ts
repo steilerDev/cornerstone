@@ -274,11 +274,12 @@ function sanitizeErrorMessage(message: string): string {
 export async function getStatus(baseUrl: string, token: string): Promise<PaperlessStatusResponse> {
   try {
     await fetchPaperless<{ count: number }>(baseUrl, token, '/api/documents/?page_size=1');
-    return { configured: true, reachable: true, error: null };
+    // paperlessUrl is always overridden by the route handler with fastify.config.paperlessUrl
+    return { configured: true, reachable: true, error: null, paperlessUrl: null };
   } catch (err) {
     const rawMessage = err instanceof Error ? err.message : String(err);
     const message = sanitizeErrorMessage(rawMessage);
-    return { configured: true, reachable: false, error: message };
+    return { configured: true, reachable: false, error: message, paperlessUrl: null };
   }
 }
 

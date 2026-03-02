@@ -1,7 +1,7 @@
 .card {
   background-color: var(--color-bg-primary);
-  border: 2px solid var(--color-border);
-  border-radius: 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
   overflow: hidden;
   cursor: pointer;
   transition:
@@ -25,7 +25,7 @@
 
 .cardSelected {
   border-color: var(--color-primary);
-  box-shadow: var(--shadow-focus);
+  box-shadow: 0 0 0 2px var(--color-primary-bg);
 }
 
 .thumbContainer {
@@ -57,15 +57,15 @@
 }
 
 .body {
-  padding: 0.75rem;
+  padding: var(--spacing-3);
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--spacing-1);
   flex: 1;
 }
 
 .title {
-  font-size: 0.875rem;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   color: var(--color-text-primary);
   margin: 0;
@@ -77,13 +77,13 @@
 }
 
 .meta {
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
   color: var(--color-text-muted);
   margin: 0;
 }
 
 .correspondent {
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
   color: var(--color-text-subtle);
   margin: 0;
   font-style: italic;
@@ -92,28 +92,28 @@
 .tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.25rem;
-  margin-top: 0.25rem;
+  gap: var(--spacing-1);
+  margin-top: var(--spacing-1);
 }
 
 .tagChip {
   display: inline-block;
-  padding: 0.125rem 0.375rem;
+  padding: var(--spacing-0-5) var(--spacing-1-5);
   font-size: 0.625rem;
   font-weight: 500;
   background-color: var(--color-primary-bg);
   color: var(--color-primary-badge-text);
-  border-radius: 0.25rem;
+  border-radius: var(--radius-full);
   text-transform: uppercase;
   letter-spacing: 0.025em;
 }
 
 .tagChipMore {
   display: inline-block;
-  padding: 0.125rem 0.375rem;
+  padding: var(--spacing-0-5) var(--spacing-1-5);
   font-size: 0.625rem;
   font-weight: 500;
   background-color: var(--color-bg-tertiary);
   color: var(--color-text-muted);
-  border-radius: 0.25rem;
+  border-radius: var(--radius-sm);
 }

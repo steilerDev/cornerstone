@@ -20,7 +20,7 @@ export function DocumentDetailPanel({
     : null;
 
   return (
-    <div className={styles.panel} role="region" aria-label={`Details for ${document.title}`}>
+    <div id="detail-panel" className={styles.panel} role="region" aria-label={`Details for ${document.title}`}>
       <div className={styles.header}>
         <h3 className={styles.panelTitle}>{document.title}</h3>
         <button

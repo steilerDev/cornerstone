@@ -56,7 +56,12 @@ export function usePaperless(): UsePaperlessResult {
         if (!cancelled) setStatus(s);
       } catch {
         if (!cancelled) {
-          setStatus({ configured: false, reachable: false, error: 'Failed to check status' });
+          setStatus({
+            configured: false,
+            reachable: false,
+            error: 'Failed to check status',
+            paperlessUrl: null,
+          });
         }
       }
     }
