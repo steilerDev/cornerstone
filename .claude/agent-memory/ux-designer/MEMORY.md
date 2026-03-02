@@ -83,6 +83,20 @@ Common token mistakes in this PR to watch for in future reviews:
 
 WorkItemPicker (`client/src/components/WorkItemPicker/`) is the existing reference for search-as-you-type inline pickers. DocumentBrowser is a richer version of that pattern — a full grid browser rather than a dropdown list.
 
+## Story 8.4 — Document Linking Spec (Issue #357)
+
+- Documents section: full-width panel BELOW the two-column contentGrid, ABOVE the footer
+- Linked doc display: mini-card strip using CSS Grid `auto-fill minmax(180px, 1fr)` — NOT the full DocumentCard (different semantics)
+- Card action tray: View / Open in Paperless / Unlink — tray uses `--color-bg-secondary` background with `border-top: 1px solid var(--color-border)`
+- Unlink confirmation: uses `.btnDanger` (outline red, not `.btnConfirmDelete` solid red) — unlinking is reversible
+- Picker modal: wide (860px max), not the default 28rem `.modalContent` size — `min(860px, calc(100vw - 2rem))`
+- Single-click document selection in modal (no separate confirm step) — linking is reversible via Unlink
+- Not-configured banner: neutral tokens (`--color-bg-secondary`, `--color-border`) NOT `--color-primary-bg` which is blue-tinted
+- Count badge in heading uses `--color-bg-tertiary` + `--color-text-muted` (neutral pill, not status-colored)
+- Skeleton: show 2 cards (not spinner text); uses same shimmer as DocumentSkeleton from 8.3
+- `srAnnouncement` visually-hidden live region announces "Document linked: title" / "Document unlinked: title"
+- Mobile modal: full-viewport sheet (width:100vw; height:100vh; border-radius:0) at < 768px
+
 ## PR #364 Review Findings — Document Browser (for future reference)
 
 Common misses in this PR to watch for in card/grid components:

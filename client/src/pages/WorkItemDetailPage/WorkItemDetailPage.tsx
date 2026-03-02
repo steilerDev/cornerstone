@@ -71,6 +71,7 @@ import type { DependencyType } from '@cornerstone/shared';
 import { formatDate } from '../../lib/formatters.js';
 import { AutosaveIndicator } from '../../components/AutosaveIndicator/AutosaveIndicator.js';
 import type { AutosaveState } from '../../components/AutosaveIndicator/AutosaveIndicator.js';
+import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
 import styles from './WorkItemDetailPage.module.css';
 
 interface DeletingDependency {
@@ -2314,6 +2315,11 @@ export default function WorkItemDetailPage() {
             </div>
           </section>
         </div>
+      </div>
+
+      {/* Documents — full-width section, loads independently */}
+      <div className={styles.section}>
+        <LinkedDocumentsSection workItemId={id!} />
       </div>
 
       {/* Footer */}
