@@ -332,8 +332,8 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
               Unlink Document?
             </h2>
             <p className={styles.modalText}>
-              &ldquo;{unlinkTarget.document?.title ?? 'This document'}&rdquo; will be removed from
-              this work item. The document will remain in Paperless-ngx.
+              &ldquo;{unlinkTarget.document?.title ?? 'This document'}&rdquo; will be removed from{' '}
+              {copy.unlinkBody}. The document will remain in Paperless-ngx.
             </p>
             <div className={styles.modalActions}>
               <button

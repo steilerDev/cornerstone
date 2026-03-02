@@ -559,8 +559,7 @@ describe('LinkedDocumentsSection', () => {
       expect(screen.getByText(/to link to this invoice/i)).toBeInTheDocument();
     });
 
-    // TODO: Unskip after bug #379 is fixed (unlink modal hardcodes "this work item" instead of copy.unlinkBody)
-    it.skip('shows invoice-specific body in unlink confirmation dialog', async () => {
+    it('shows invoice-specific body in unlink confirmation dialog', async () => {
       mockUseDocumentLinks.mockReturnValue(
         makeHook({ links: [makeInvoiceLink('link-inv-1')], isLoading: false }),
       );
