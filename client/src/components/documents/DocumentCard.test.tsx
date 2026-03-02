@@ -114,6 +114,33 @@ describe('DocumentCard', () => {
     ).toBeInTheDocument();
   });
 
+  it('includes formatted date in aria-label when created is set', () => {
+    render(
+      <DocumentCard
+        document={makeDoc({ created: '2025-03-15' })}
+        isSelected={false}
+        onSelect={jest.fn()}
+      />,
+    );
+    // The date '2025-03-15' formats to 'Mar 15, 2025' via toLocaleDateString('en-US', ...)
+    const card = screen.getByRole('button', { name: /Document: Test Invoice 2025, Mar 15, 2025/i });
+    expect(card).toBeInTheDocument();
+  });
+
+  it('aria-label is just "Document: {title}" when created is null', () => {
+    render(
+      <DocumentCard
+        document={makeDoc({ created: null })}
+        isSelected={false}
+        onSelect={jest.fn()}
+      />,
+    );
+    const card = screen.getByRole('button', { name: 'Document: Test Invoice 2025' });
+    expect(card).toBeInTheDocument();
+    // Ensure no date suffix is appended
+    expect(card).toHaveAttribute('aria-label', 'Document: Test Invoice 2025');
+  });
+
   it('has aria-expanded=false when not selected', () => {
     render(<DocumentCard document={makeDoc()} isSelected={false} onSelect={jest.fn()} />);
     const card = screen.getByRole('button', { name: /Document: Test Invoice 2025/i });

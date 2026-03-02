@@ -13,6 +13,15 @@ interface DocumentCardProps {
 export function DocumentCard({ document, isSelected, onSelect, ariaControls }: DocumentCardProps) {
   const thumbUrl = getDocumentThumbnailUrl(document.id);
 
+  // Compute formatted date for aria-label (same format as the visible date)
+  const formattedDate = document.created
+    ? new Date(document.created).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      })
+    : null;
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
@@ -29,7 +38,7 @@ export function DocumentCard({ document, isSelected, onSelect, ariaControls }: D
       tabIndex={0}
       aria-expanded={isSelected}
       aria-controls={ariaControls}
-      aria-label={`Document: ${document.title}`}
+      aria-label={`Document: ${document.title}${formattedDate ? `, ${formattedDate}` : ''}`}
     >
       <div className={styles.thumbContainer}>
         <img

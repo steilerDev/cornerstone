@@ -68,6 +68,8 @@ This is how estimates transition to actual costs -- as invoices arrive, your bud
 
 Click an invoice to see its full detail page with all line items, current status, and linked budget lines.
 
+If you have [Paperless-ngx configured](/guides/documents/setup), you can also link documents (invoice PDFs, receipts, supporting files) directly to invoices from the detail page. See [Linking Documents](/guides/documents/linking-documents) for details.
+
 :::info Screenshot needed
 A screenshot of the invoice detail page will be added here.
 :::

@@ -38,6 +38,7 @@ Cornerstone is designed for **homeowners managing a construction or renovation p
 - **Milestones** -- Track major project checkpoints with target dates, projected completion, and late detection
 - **Authentication** -- Local accounts with first-run setup wizard, plus OIDC single sign-on for existing identity providers
 - **User Management** -- Admin and Member roles with a dedicated admin panel
+- **Document Integration** -- Browse, search, and link documents from a connected [Paperless-ngx](https://docs.paperless-ngx.com/) instance to work items and invoices
 - **Dark Mode** -- Light, Dark, or System theme with instant switching
 - **Design System** -- Consistent visual language with CSS custom property tokens
 
@@ -49,6 +50,7 @@ See the [Roadmap](roadmap) for upcoming features like household item tracking an
 - [Work Items Guide](guides/work-items) -- Learn how to manage your project tasks
 - [Budget Guide](guides/budget) -- Track costs, invoices, and financing sources
 - [Timeline Guide](guides/timeline) -- Gantt chart, calendar view, and milestones
+- [Documents Guide](guides/documents) -- Paperless-ngx integration for document linking
 - [OIDC Setup](guides/users/oidc-setup) -- Connect your identity provider
 - [Development](development) -- How Cornerstone is built by an AI agent team
 - [GitHub Repository](https://github.com/steilerDev/cornerstone) -- Source code and issue tracker

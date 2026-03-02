@@ -222,6 +222,13 @@ describe('DocumentBrowser', () => {
       const skeletons = container.querySelectorAll('[aria-hidden="true"]');
       expect(skeletons.length).toBeGreaterThan(0);
     });
+
+    it('grid has aria-busy="true" when isLoading=true', () => {
+      mockUsePaperless.mockReturnValue(makeHook({ isLoading: true }));
+      render(<DocumentBrowser />);
+      const grid = screen.getByRole('list', { name: 'Documents' });
+      expect(grid).toHaveAttribute('aria-busy', 'true');
+    });
   });
 
   describe('error state', () => {
@@ -270,6 +277,29 @@ describe('DocumentBrowser', () => {
       render(<DocumentBrowser />);
       expect(screen.getByRole('button', { name: /Document: Document 1/i })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /Document: Document 2/i })).toBeInTheDocument();
+    });
+
+    it('grid container has role="list" and aria-label="Documents"', () => {
+      render(<DocumentBrowser />);
+      expect(screen.getByRole('list', { name: 'Documents' })).toBeInTheDocument();
+    });
+
+    it('each document card is wrapped in a role="listitem" element', () => {
+      render(<DocumentBrowser />);
+      const listItems = screen.getAllByRole('listitem');
+      expect(listItems.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('grid has aria-busy="false" when documents are shown', () => {
+      render(<DocumentBrowser />);
+      const grid = screen.getByRole('list', { name: 'Documents' });
+      expect(grid).toHaveAttribute('aria-busy', 'false');
+    });
+
+    it('search input has aria-controls pointing to document-grid', () => {
+      render(<DocumentBrowser />);
+      const searchInput = screen.getByRole('searchbox', { name: /search documents/i });
+      expect(searchInput).toHaveAttribute('aria-controls', 'document-grid');
     });
 
     it('shows detail panel when card is clicked (page mode)', () => {

@@ -22,7 +22,7 @@ const createLinkSchema = {
     required: ['entityType', 'entityId', 'paperlessDocumentId'],
     properties: {
       entityType: { type: 'string', enum: ['work_item', 'household_item', 'invoice'] },
-      entityId: { type: 'string', minLength: 1 },
+      entityId: { type: 'string', minLength: 1, maxLength: 36 },
       paperlessDocumentId: { type: 'integer', minimum: 1 },
     },
     additionalProperties: false,
@@ -35,7 +35,7 @@ const listLinksSchema = {
     required: ['entityType', 'entityId'],
     properties: {
       entityType: { type: 'string', enum: ['work_item', 'household_item', 'invoice'] },
-      entityId: { type: 'string', minLength: 1 },
+      entityId: { type: 'string', minLength: 1, maxLength: 36 },
     },
     additionalProperties: false,
   },
@@ -48,6 +48,7 @@ const deleteLinkSchema = {
     properties: {
       id: { type: 'string' },
     },
+    additionalProperties: false,
   },
 };
 
