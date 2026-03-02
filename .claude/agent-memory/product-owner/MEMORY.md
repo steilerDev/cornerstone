@@ -55,12 +55,11 @@ All 9 stories + refinement + E2E tests + UAT fixes merged and promoted to main.
 
 All 6 stories merged and promoted to main. Story 8.6 (#359) remains open, blocked by EPIC-04. See [epic-08-planning.md](epic-08-planning.md).
 
-## EPIC-04 Stories (Household Items & Furniture) — PLANNING COMPLETE
+## EPIC-04 Stories (Household Items & Furniture) — IN PROGRESS
 
 8 stories created (#387-#394). See [epic-04-planning.md](epic-04-planning.md) for full details.
-Stories 4.1 (#387) and 4.2 (#388) set to Todo. Remaining stories in Backlog.
+Story 4.1 (#387): PR #396 reviewed APPROVED. Architect refined schema: flat planned_cost/actual_cost/notes replaced by household_item_budgets/household_item_notes tables (mirrors EPIC-05 pattern). Extra columns: url, quantity. Category enum expanded to 8 values. 6 tables total in migration 0010. Document link cascade is application-layer (Story 4.2).
 Story 8.6 (#359, EPIC-08) linked as sub-issue, blocked by #391 (detail page).
-Total: 85 ACs, 103 UAT scenarios across 8 stories.
 
 ## EPIC-05 — COMPLETE (v1.9.0, promoted)
 
