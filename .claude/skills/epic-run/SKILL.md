@@ -39,9 +39,9 @@ This skill activates **AUTO_MODE** for the session. When AUTO_MODE is active:
 
 Each story has a **retry budget of 3**. The counter increments when:
 
-- Delegation audit fails and dev-team-lead is re-launched
-- CI fails after push and dev-team-lead is re-launched
-- Review fix loop requires re-launching dev-team-lead (not just re-requesting review)
+- Internal code review (step 2.5e) requires re-launching an implementation agent
+- CI fails after push and a fix spec must be routed to an agent
+- Review fix loop (step 2.9) requires a full spec→implement→commit cycle
 
 **At 3 failed retries:**
 
@@ -185,23 +185,31 @@ ITEM_ID=$(gh api graphql -f query='{ repository(owner: "steilerDev", name: "corn
 gh api graphql -f query='mutation { updateProjectV2ItemFieldValue(input: { projectId: "PVT_kwHOAGtLQM4BOlve", itemId: "'"$ITEM_ID"'", fieldId: "PVTSSF_lAHOAGtLQM4BOlvezg9P0yo", value: { singleSelectOptionId: "296eeabe" } }) { clientMutationId } }'
 ```
 
-### 2.5 Implement + Test
+### 2.5 Implement + Test (Multi-Phase)
 
-Launch the **dev-team-lead** agent with:
+Follow the same multi-phase flow as `/develop` step 6:
 
-- Issue number and acceptance criteria
-- Layers affected: backend-only, frontend-only, or full-stack
-- UX visual spec reference (if posted in step 2.3)
-- Branch name
-- **Delegation reminder**: "You MUST delegate ALL code changes to `backend-developer` (Haiku) and/or `frontend-developer` (Haiku) via the Agent tool."
+**2.5a. Spec Generation**: Launch **dev-team-lead** in `[MODE: spec]` with issue number, acceptance criteria, layers affected, UX visual spec reference (if posted in step 2.3), and branch name.
 
-### 2.6 Delegation Audit
+**2.5b. Backend Implementation**: If backend spec present, launch **backend-developer** (Haiku) with the `## Backend Spec` section.
 
-Same as `/develop` step 6a:
+**2.5c. Frontend Implementation**: If frontend spec present, launch **frontend-developer** (Haiku) — in parallel with 2.5b if `Execution Order: parallel`, otherwise sequentially after 2.5b.
 
-1. Verify dev-team-lead delegation report says "NONE" for directly modified files
-2. Verify commit trailers include Haiku co-authors for production file changes
-3. If audit fails, reset and re-launch (counts toward retry budget)
+**2.5d. QA Testing**: Launch **qa-integration-tester** with the `## QA Spec` section + list of files changed.
+
+**2.5e. Code Review**: Launch **dev-team-lead** in `[MODE: review]` with original spec + changed files list. If `VERDICT: CHANGES_REQUIRED`, run fix loop (max 3 iterations — route fixes to appropriate agents, re-review). Each re-launch of an implementation agent counts toward the story's retry budget.
+
+**2.5f. Commit and PR**: Launch **dev-team-lead** in `[MODE: commit]` with contributing agents list, issue number, and branch name. If CI fails, route fix spec to appropriate agent and re-launch `[MODE: commit]`. CI fix attempts also count toward retry budget.
+
+### 2.6 Trailer Verification
+
+Verify commit trailers match the agents launched (same as `/develop` step 6h):
+
+```bash
+git log origin/beta..HEAD --format="%b"
+```
+
+If production files were changed, verify appropriate Co-Authored-By trailers are present. If missing, re-launch `[MODE: commit]` with corrected contributing agents list.
 
 ### 2.7 Verify/Create PR
 
@@ -237,11 +245,14 @@ Launch 4 reviewer agents in parallel:
 
 If any reviewer identifies blocking issues:
 
-1. Re-launch **dev-team-lead** with reviewer feedback
-2. Run delegation audit on new commits
-3. Re-request review from the agent(s) that flagged issues
-4. Track `fixLoopCount` per story
-5. Each dev-team-lead re-launch increments the retry counter
+1. Collect reviewer feedback into a fix request
+2. Launch **dev-team-lead** in `[MODE: spec]` with reviewer feedback to produce targeted fix specs (or write fix specs directly if feedback is clear)
+3. Route fix specs to appropriate implementation agents (backend-developer, frontend-developer, or qa-integration-tester)
+4. Launch **dev-team-lead** in `[MODE: review]` to verify fixes
+5. Launch **dev-team-lead** in `[MODE: commit]` to commit, push, watch CI
+6. Run trailer verification (step 2.6)
+7. Re-request review from the agent(s) that flagged issues
+8. Track `fixLoopCount` per story — each full spec→implement→commit cycle increments the retry counter
 
 If retry budget (3) is exhausted:
 
@@ -317,8 +328,11 @@ Read `.claude/metrics/review-metrics.jsonl` and generate a summary for the epic.
 Review all story PRs for non-blocking review comments. If refinement items exist:
 
 1. Create a branch: `git checkout -B chore/<epic-number>-refinement origin/beta`
-2. Launch **dev-team-lead** with refinement observations
-3. Create PR targeting `beta`, wait for CI, auto-merge
+2. Launch **dev-team-lead** in `[MODE: spec]` with refinement observations
+3. Route fix specs to appropriate implementation agents (backend-developer, frontend-developer, qa-integration-tester)
+4. Launch **dev-team-lead** in `[MODE: review]` to verify fixes
+5. Launch **dev-team-lead** in `[MODE: commit]` with contributing agents list
+6. Create PR targeting `beta`, wait for CI, auto-merge
 
 ### 3.4 E2E Validation
 

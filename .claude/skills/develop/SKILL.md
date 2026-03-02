@@ -149,64 +149,94 @@ gh api graphql -f query='mutation { updateProjectV2ItemFieldValue(input: { proje
 
 Run the same GraphQL mutation for **each issue** in the items list.
 
-### 6. Implement + Test
+### 6. Implement + Test (Multi-Phase)
 
-Launch the **dev-team-lead** agent to coordinate all implementation, testing, commits, and CI monitoring.
+Implementation uses a flat delegation model. The orchestrator launches all agents directly — the dev-team-lead produces specs and reviews but never launches sub-agents.
 
-#### Single-item mode
+#### 6a. Spec Generation
 
-Provide the dev-team-lead with:
+Launch the **dev-team-lead** in `[MODE: spec]` with:
 
-- Issue number and acceptance criteria
+- Issue number(s) and acceptance criteria (single-item or full items list for multi-item mode)
 - Layers affected: backend-only, frontend-only, or full-stack
 - UX visual spec reference (if posted in step 3)
 - Branch name
-- **Delegation reminder**: "You MUST delegate ALL code changes to `backend-developer` (Haiku) and/or `frontend-developer` (Haiku) via the Agent tool. After completion, the orchestrator will audit both your delegation report and commit trailers — production file changes without Haiku co-author trailers, or a delegation report listing directly modified files, will be rejected."
 
-The dev-team-lead internally:
+The dev-team-lead returns a structured spec document with `## Backend Spec`, `## Frontend Spec`, and `## QA Spec` sections. Store the full spec — you will pass sections to implementation agents and the full spec to review.
 
-1. Decomposes work into backend/frontend tasks
-2. Writes detailed implementation specs for Haiku developer agents
-3. Launches `backend-developer` (Haiku) and/or `frontend-developer` (Haiku)
-4. Reviews all code produced by developer agents
-5. Launches `qa-integration-tester` (Sonnet) for unit/integration tests (95%+ coverage)
-6. Iterates on any issues found during review
-7. Commits with conventional commit message and all contributing agent trailers
-8. Pushes to the branch
-9. Creates the PR targeting `beta`
-10. Watches CI and fixes any failures
+#### 6b. Backend Implementation (if backend spec present)
 
-#### Multi-item mode
+Launch **backend-developer** (Haiku) with the `## Backend Spec` section from the spec document. The prompt should include the full backend spec section verbatim.
 
-Provide the dev-team-lead with the **full items list** — all issue numbers, titles, acceptance criteria, and UX specs. The dev-team-lead addresses all items in a single coordinated pass.
+#### 6c. Frontend Implementation (if frontend spec present)
 
-### 6a. Delegation Audit
+Check the `Execution Order` field in the spec metadata:
 
-After the dev-team-lead returns, verify that Haiku delegation actually occurred. **Do not skip this step.**
+- **`parallel`** → Launch **frontend-developer** (Haiku) simultaneously with step 6b
+- **`sequential`** → Wait for step 6b to complete first (frontend depends on new shared types)
 
-**Check 1 — Delegation report**: The dev-team-lead must have returned a delegation report. Verify:
+Launch **frontend-developer** (Haiku) with the `## Frontend Spec` section from the spec document.
 
-- "Files modified by dev-team-lead directly" says "NONE"
-- At least one Haiku agent launch is listed
+#### 6d. QA Testing
 
-**Check 2 — Commit trailers**: Inspect the commits on the branch:
+After implementation agents complete, launch **qa-integration-tester** with:
+
+- The `## QA Spec` section from the spec document
+- List of files created/modified by the backend and frontend agents
+
+#### 6e. Code Review
+
+Launch the **dev-team-lead** in `[MODE: review]` with:
+
+- The original full spec document
+- List of all files changed by implementation agents (from 6b, 6c, 6d)
+- Any error output or concerns reported by implementation agents
+
+**If `VERDICT: APPROVED`** → proceed to step 6g
+
+**If `VERDICT: CHANGES_REQUIRED`** → proceed to step 6f
+
+#### 6f. Fix Loop (max 3 iterations)
+
+Track `internalFixCount` (starts at 0). For each iteration:
+
+1. Parse the fix specs from the review verdict — each fix specifies which agent should handle it
+2. Re-launch the appropriate agent(s) with targeted fix specs:
+   - Backend fixes → **backend-developer** (Haiku)
+   - Frontend fixes → **frontend-developer** (Haiku)
+   - Test fixes → **qa-integration-tester**
+3. After fixes complete, re-launch **dev-team-lead** in `[MODE: review]` with updated file list
+4. Increment `internalFixCount`
+5. If `VERDICT: APPROVED` → proceed to step 6g
+6. If `VERDICT: CHANGES_REQUIRED` and `internalFixCount < 3` → repeat from step 1
+7. If `internalFixCount >= 3` → escalate to the user with the remaining issues
+
+#### 6g. Commit and PR
+
+Launch the **dev-team-lead** in `[MODE: commit]` with:
+
+- Contributing agents list: list every agent that was launched in steps 6b-6d (and 6f if applicable). Include `backend-developer`, `frontend-developer`, and/or `qa-integration-tester` as appropriate.
+- Issue number(s) for `Fixes #N` lines
+- Branch name
+
+The dev-team-lead stages files, commits with conventional message + all agent trailers, pushes, creates the PR targeting `beta`, and watches CI.
+
+**If CI fails**: The dev-team-lead returns a CI fix spec. Route the fix to the specified agent, then re-launch the dev-team-lead in `[MODE: commit]` (it will amend or create a new commit). Repeat until CI is green or escalate after 3 CI fix attempts.
+
+#### 6h. Trailer Verification
+
+After the commit is created, verify that commit trailers match the agents launched:
 
 ```bash
 git log origin/beta..HEAD --format="%b"
 ```
 
-If production files were changed (`git diff --name-only origin/beta..HEAD | grep -E '^(server|client|shared)/'`), verify the commit body contains `Co-Authored-By: Claude backend-developer (Haiku` and/or `Co-Authored-By: Claude frontend-developer (Haiku` as appropriate:
+If production files were changed (`git diff --name-only origin/beta..HEAD | grep -E '^(server|client|shared)/'`), verify the commit body contains the appropriate Co-Authored-By trailers:
 
-- Files under `server/` or `shared/` → must have backend-developer trailer
-- Files under `client/` → must have frontend-developer trailer
+- Files under `server/` or `shared/` → must have `Co-Authored-By: Claude backend-developer (Haiku`
+- Files under `client/` → must have `Co-Authored-By: Claude frontend-developer (Haiku`
 
-**If delegation audit fails** (missing Haiku trailers for production changes, or delegation report lists directly modified files):
-
-1. Reset the work: `git reset --soft origin/beta`
-2. Re-launch the dev-team-lead with the same requirements plus this prepended instruction:
-   > "CRITICAL: Your previous session wrote production code directly instead of delegating to Haiku agents. This violated the delegation protocol. In this session, delegate ALL code changes to backend-developer (Haiku) and/or frontend-developer (Haiku) via the Agent tool. The orchestrator will audit trailers again."
-3. After re-launch, run the delegation audit again
-4. If it fails a second time, escalate to the user: report what happened and ask how to proceed
+If trailers are missing, the dev-team-lead missed an agent in the contributing list. Re-launch `[MODE: commit]` with the corrected list.
 
 ### 7. Verify PR
 
@@ -287,11 +317,18 @@ Track `fixLoopCount` (starts at 0). Each fix-and-re-review iteration increments 
 
 If any reviewer identifies blocking issues:
 
-1. Re-launch the **dev-team-lead** with the reviewer feedback — the dev-team-lead delegates targeted fixes to the appropriate Haiku agent(s) and/or QA, commits, pushes, and watches CI until green
-2. After the dev-team-lead completes the fix, run the **delegation audit** (same checks as step 6a) on the new commits before re-requesting reviews
-3. Re-request review from the agent(s) that flagged issues
-4. Increment `fixLoopCount` and record the new round's `REVIEW_METRICS`
-5. Repeat until all reviewers approve
+1. Collect all reviewer feedback into a fix request
+2. Launch the **dev-team-lead** in `[MODE: spec]` with the reviewer feedback to produce targeted fix specs (or write the fix specs yourself if the feedback is clear enough to route directly)
+3. Route fix specs to the appropriate implementation agent(s):
+   - Backend fixes → **backend-developer** (Haiku)
+   - Frontend fixes → **frontend-developer** (Haiku)
+   - Test fixes → **qa-integration-tester**
+4. After fixes, launch **dev-team-lead** in `[MODE: review]` to verify the fixes
+5. Launch **dev-team-lead** in `[MODE: commit]` to commit, push, and watch CI
+6. Run **trailer verification** (same as step 6h)
+7. Re-request review from the agent(s) that flagged issues
+8. Increment `fixLoopCount` and record the new round's `REVIEW_METRICS`
+9. Repeat until all reviewers approve
 
 ### 10. User Approval & Merge
 

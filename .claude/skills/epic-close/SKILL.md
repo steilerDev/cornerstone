@@ -67,13 +67,20 @@ gh pr list --state merged --search "label:user-story" --json number,title
 If there are refinement items to address:
 
 1. Rename the branch: `git branch -m chore/<epic-number>-refinement`
-2. Launch the **dev-team-lead** agent with the refinement observations — the dev-team-lead delegates to the appropriate Haiku developer agent(s) and coordinates QA test updates as needed
-3. Verify the dev-team-lead has committed, pushed, and created the PR. If not, stage, commit, push, and create a PR targeting `beta`:
+2. Launch the **dev-team-lead** in `[MODE: spec]` with the refinement observations to produce targeted fix specs
+3. Route fix specs to the appropriate implementation agents:
+   - Backend fixes → **backend-developer** (Haiku)
+   - Frontend fixes → **frontend-developer** (Haiku)
+   - Test fixes → **qa-integration-tester**
+4. Launch the **dev-team-lead** in `[MODE: review]` with the original refinement items + changed files
+5. If `VERDICT: CHANGES_REQUIRED`, iterate fixes (route to agents, re-review)
+6. Launch the **dev-team-lead** in `[MODE: commit]` with contributing agents list, branch name, and no issue number (refinement)
+7. Verify PR exists. If not, create a PR targeting `beta`:
    ```
    gh pr create --base beta --title "chore: address refinement items for epic #<epic-number>" --body "..."
    ```
-4. Wait for CI: `gh pr checks <pr-number> --watch`
-5. Squash merge: `gh pr merge --squash <pr-url>`
+8. Wait for CI: `gh pr checks <pr-number> --watch`
+9. Squash merge: `gh pr merge --squash <pr-url>`
 
 If no refinement items exist, skip to step 5.
 

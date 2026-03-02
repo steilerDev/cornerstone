@@ -12,19 +12,19 @@ Cornerstone is a web-based home building project management application designed
 
 This project uses a team of 11 specialized Claude Code agents defined in `.claude/agents/`:
 
-| Agent                   | Role                                                                                                                  |
-| ----------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `product-owner`         | Defines epics, user stories, and acceptance criteria; manages the backlog                                             |
-| `product-architect`     | Tech stack, schema, API contract, project structure, ADRs, Dockerfile                                                 |
-| `ux-designer`           | Design tokens, brand identity, component styling specs, dark mode, accessibility                                      |
-| `dev-team-lead`         | Delivery lead (Sonnet): decomposes work, writes specs, delegates to developers/QA, reviews code, commits, monitors CI |
-| `backend-developer`     | API endpoints, business logic, auth, database operations (Haiku, managed by dev-team-lead)                            |
-| `frontend-developer`    | UI components, pages, interactions, API client (Haiku, managed by dev-team-lead)                                      |
-| `qa-integration-tester` | Unit test coverage (95%+ target), integration tests, performance testing, bug reports                                 |
-| `e2e-test-engineer`     | Playwright E2E browser tests, test container infrastructure, UAT scenario coverage                                    |
-| `security-engineer`     | Security audits, vulnerability reports, remediation guidance                                                          |
-| `uat-validator`         | UAT scenarios, manual validation steps, user sign-off per epic                                                        |
-| `docs-writer`           | Documentation site (`docs/`), lean README.md, user-facing guides after UAT approval                                   |
+| Agent                   | Role                                                                                                                                    |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `product-owner`         | Defines epics, user stories, and acceptance criteria; manages the backlog                                                               |
+| `product-architect`     | Tech stack, schema, API contract, project structure, ADRs, Dockerfile                                                                   |
+| `ux-designer`           | Design tokens, brand identity, component styling specs, dark mode, accessibility                                                        |
+| `dev-team-lead`         | Spec-writer, reviewer, and committer (Sonnet): decomposes work into implementation specs, reviews agent output, commits and monitors CI |
+| `backend-developer`     | API endpoints, business logic, auth, database operations (Haiku, launched by orchestrator with dev-team-lead specs)                     |
+| `frontend-developer`    | UI components, pages, interactions, API client (Haiku, launched by orchestrator with dev-team-lead specs)                               |
+| `qa-integration-tester` | Unit test coverage (95%+ target), integration tests, performance testing, bug reports                                                   |
+| `e2e-test-engineer`     | Playwright E2E browser tests, test container infrastructure, UAT scenario coverage                                                      |
+| `security-engineer`     | Security audits, vulnerability reports, remediation guidance                                                                            |
+| `uat-validator`         | UAT scenarios, manual validation steps, user sign-off per epic                                                                          |
+| `docs-writer`           | Documentation site (`docs/`), lean README.md, user-facing guides after UAT approval                                                     |
 
 ## GitHub Tools Strategy
 
@@ -74,7 +74,10 @@ The GitHub Projects board uses 4 statuses: Backlog, Todo, In Progress, Done. All
 
 **The orchestrator delegates, never implements.** Must NEVER write production code, tests, or architectural artifacts. Delegate all implementation:
 
-- **Backend code + Frontend code + Unit/integration tests** → `dev-team-lead` agent (who internally coordinates `backend-developer`, `frontend-developer`, and `qa-integration-tester`)
+- **Implementation specs** → `dev-team-lead` agent (produces specs, reviews code, commits)
+- **Backend code** → `backend-developer` agent (Haiku, launched by orchestrator with dev-team-lead specs)
+- **Frontend code** → `frontend-developer` agent (Haiku, launched by orchestrator with dev-team-lead specs)
+- **Unit/integration tests** → `qa-integration-tester` agent (launched by orchestrator with dev-team-lead specs)
 - **Visual specs, design tokens, brand assets, CSS files** → `ux-designer` agent
 - **Schema/API design, ADRs, wiki** → `product-architect` agent
 - **E2E tests** → `e2e-test-engineer` agent
@@ -118,7 +121,7 @@ Every epic follows a two-phase validation lifecycle. **Development phase** (`/de
 - **Acceptance criteria live on GitHub Issues** — stored on story issues, summarized on promotion PRs
 - **Security review required** — the `security-engineer` must review every story PR
 - **Test agents own all tests** — `qa-integration-tester` owns unit + integration tests; `e2e-test-engineer` owns Playwright E2E tests. Developer agents do not write tests.
-- **Dev-team-lead owns delivery** — the `dev-team-lead` coordinates implementation (Haiku developers), testing (QA), commits, and CI. The orchestrator launches `dev-team-lead` instead of individual developers.
+- **Flat delegation model** — the orchestrator launches all agents directly. The `dev-team-lead` produces implementation specs, reviews agent output, and handles commits/CI. The orchestrator routes specs to `backend-developer`, `frontend-developer`, and `qa-integration-tester`.
 
 ## Git & Commit Conventions
 
@@ -154,14 +157,15 @@ All agents must clearly identify themselves:
 
 ### Delegation Enforcement
 
-The `dev-team-lead` agent coordinates implementation but must NOT write production code directly. All production source file changes must be delegated to `backend-developer` (Haiku) or `frontend-developer` (Haiku) agents via the Agent tool.
+The orchestrator launches all implementation agents directly using specs produced by the `dev-team-lead`. The dev-team-lead never launches sub-agents — it operates in three modes (spec, review, commit) and never modifies production files.
 
-The orchestrator runs a **delegation audit** after every dev-team-lead session:
+The orchestrator runs a **trailer verification** after every commit:
 
 1. Commit trailers must include Haiku co-authors for production file changes
-2. The dev-team-lead's delegation report must list no directly-modified files
+2. Files under `server/` or `shared/` → must have `backend-developer` trailer
+3. Files under `client/` → must have `frontend-developer` trailer
 
-Commits from the dev-team-lead that change production files without Haiku co-author trailers are rejected, reset, and re-delegated.
+Commits that change production files without the appropriate Haiku co-author trailers are rejected and re-committed with corrected trailers.
 
 Production files: any file under `server/`, `client/`, or `shared/`.
 
