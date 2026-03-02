@@ -297,6 +297,74 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
     });
   });
 
+  describe('Paperless-ngx Configuration', () => {
+    it('accepts valid http PAPERLESS_URL', () => {
+      const config = loadConfig({
+        PAPERLESS_URL: 'http://paperless:8000',
+        PAPERLESS_API_TOKEN: 'test-token',
+      });
+
+      expect(config.paperlessUrl).toBe('http://paperless:8000');
+      expect(config.paperlessApiToken).toBe('test-token');
+      expect(config.paperlessEnabled).toBe(true);
+    });
+
+    it('accepts valid https PAPERLESS_URL', () => {
+      const config = loadConfig({
+        PAPERLESS_URL: 'https://paperless.example.com',
+        PAPERLESS_API_TOKEN: 'test-token',
+      });
+
+      expect(config.paperlessUrl).toBe('https://paperless.example.com');
+      expect(config.paperlessEnabled).toBe(true);
+    });
+
+    it('rejects file:// scheme in PAPERLESS_URL (SSRF prevention)', () => {
+      expect(() =>
+        loadConfig({
+          PAPERLESS_URL: 'file:///etc/passwd',
+          PAPERLESS_API_TOKEN: 'test-token',
+        }),
+      ).toThrow('PAPERLESS_URL must use http or https scheme, got: file');
+    });
+
+    it('rejects ftp:// scheme in PAPERLESS_URL (SSRF prevention)', () => {
+      expect(() =>
+        loadConfig({
+          PAPERLESS_URL: 'ftp://internal.host/resource',
+          PAPERLESS_API_TOKEN: 'test-token',
+        }),
+      ).toThrow('PAPERLESS_URL must use http or https scheme, got: ftp');
+    });
+
+    it('rejects invalid URL in PAPERLESS_URL', () => {
+      expect(() =>
+        loadConfig({
+          PAPERLESS_URL: 'not-a-url',
+          PAPERLESS_API_TOKEN: 'test-token',
+        }),
+      ).toThrow('PAPERLESS_URL must be a valid URL, got: not-a-url');
+    });
+
+    it('paperlessEnabled is false when PAPERLESS_URL is not set', () => {
+      const config = loadConfig({ PAPERLESS_API_TOKEN: 'test-token' });
+      expect(config.paperlessEnabled).toBe(false);
+      expect(config.paperlessUrl).toBeUndefined();
+    });
+
+    it('paperlessEnabled is false when PAPERLESS_API_TOKEN is not set', () => {
+      const config = loadConfig({ PAPERLESS_URL: 'http://paperless:8000' });
+      expect(config.paperlessEnabled).toBe(false);
+    });
+
+    it('paperlessEnabled is false when neither Paperless env var is set', () => {
+      const config = loadConfig({});
+      expect(config.paperlessEnabled).toBe(false);
+      expect(config.paperlessUrl).toBeUndefined();
+      expect(config.paperlessApiToken).toBeUndefined();
+    });
+  });
+
   describe('Scenario 6: Collect All Validation Errors', () => {
     it('reports multiple bad values in a single error', () => {
       expect(() =>

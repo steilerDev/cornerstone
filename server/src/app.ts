@@ -35,6 +35,7 @@ import milestoneRoutes from './routes/milestones.js';
 import workItemMilestoneRoutes from './routes/workItemMilestones.js';
 import scheduleRoutes from './routes/schedule.js';
 import timelineRoutes from './routes/timeline.js';
+import paperlessRoutes from './routes/paperless.js';
 import { hashPassword, verifyPassword } from './services/userService.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -137,6 +138,9 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Timeline routes (EPIC-06: Aggregated timeline data for Gantt chart)
   await app.register(timelineRoutes, { prefix: '/api/timeline' });
+
+  // Paperless-ngx proxy routes (EPIC-08: Document Integration)
+  await app.register(paperlessRoutes, { prefix: '/api/paperless' });
 
   // Health check endpoint (liveness)
   app.get('/api/health', async () => {

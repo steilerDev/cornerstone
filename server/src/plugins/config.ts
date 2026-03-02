@@ -105,8 +105,26 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
   const oidcEnabled = !!(oidcIssuer && oidcClientId && oidcClientSecret);
 
   // Paperless-ngx configuration (all optional)
-  const paperlessUrl = getValue('PAPERLESS_URL');
+  const paperlessUrlRaw = getValue('PAPERLESS_URL');
   const paperlessApiToken = getValue('PAPERLESS_API_TOKEN');
+
+  // Validate PAPERLESS_URL scheme to prevent SSRF via file://, ftp://, etc.
+  let paperlessUrl: string | undefined = undefined;
+  if (paperlessUrlRaw) {
+    try {
+      const parsed = new URL(paperlessUrlRaw);
+      const allowedSchemes = ['http:', 'https:'];
+      if (!allowedSchemes.includes(parsed.protocol)) {
+        errors.push(
+          `PAPERLESS_URL must use http or https scheme, got: ${parsed.protocol.replace(':', '')}`,
+        );
+      } else {
+        paperlessUrl = paperlessUrlRaw;
+      }
+    } catch {
+      errors.push(`PAPERLESS_URL must be a valid URL, got: ${paperlessUrlRaw}`);
+    }
+  }
 
   // Paperless-ngx is enabled when both URL and API token are set
   const paperlessEnabled = !!(paperlessUrl && paperlessApiToken);
