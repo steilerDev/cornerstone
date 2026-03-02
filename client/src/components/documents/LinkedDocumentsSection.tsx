@@ -1,5 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import type { DocumentLinkWithMetadata, PaperlessDocumentSearchResult } from '@cornerstone/shared';
+import type {
+  DocumentLinkWithMetadata,
+  DocumentLinkEntityType,
+  PaperlessDocumentSearchResult,
+} from '@cornerstone/shared';
 import { getPaperlessStatus } from '../../lib/paperlessApi.js';
 import { useDocumentLinks } from '../../hooks/useDocumentLinks.js';
 import { ApiClientError } from '../../lib/apiClient.js';
@@ -10,11 +14,39 @@ import { DocumentSkeleton } from './DocumentSkeleton.js';
 import styles from './LinkedDocumentsSection.module.css';
 
 interface LinkedDocumentsSectionProps {
-  workItemId: string;
+  entityType: DocumentLinkEntityType;
+  entityId: string;
 }
 
-export function LinkedDocumentsSection({ workItemId }: LinkedDocumentsSectionProps) {
-  const hook = useDocumentLinks(workItemId);
+export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocumentsSectionProps) {
+  const hook = useDocumentLinks(entityType, entityId);
+
+  // Copy for different entity types
+  const entityCopy = {
+    work_item: {
+      pickerSubtitle: 'Select a document from Paperless-ngx to link to this work item.',
+      unlinkBody: 'this work item',
+      emptyBody:
+        'Link receipts, contracts, and plans from Paperless-ngx to keep everything in one place.',
+    },
+    household_item: {
+      pickerSubtitle: 'Select a document from Paperless-ngx to link to this household item.',
+      unlinkBody: 'this household item',
+      emptyBody:
+        'Link receipts, warranties, and manuals from Paperless-ngx to keep everything in one place.',
+    },
+    invoice: {
+      pickerSubtitle: 'Select a document from Paperless-ngx to link to this invoice.',
+      unlinkBody: 'this invoice',
+      emptyBody:
+        'Link invoice PDFs, receipts, and related documents from Paperless-ngx to keep everything in one place.',
+    },
+  } as const satisfies Record<
+    DocumentLinkEntityType,
+    { pickerSubtitle: string; unlinkBody: string; emptyBody: string }
+  >;
+
+  const copy = entityCopy[entityType];
 
   // Paperless status state
   const [paperlessStatus, setPaperlessStatus] = useState<Awaited<
@@ -94,7 +126,7 @@ export function LinkedDocumentsSection({ workItemId }: LinkedDocumentsSectionPro
         setTimeout(() => setAnnounceMessage(''), 3000);
       } catch (err) {
         if (err instanceof ApiClientError && err.error.code === 'DUPLICATE_DOCUMENT_LINK') {
-          setLinkError('This document is already linked to this work item.');
+          setLinkError(`This document is already linked to ${copy.unlinkBody}.`);
         } else {
           setLinkError('Failed to link document. Please try again.');
         }
@@ -214,9 +246,7 @@ export function LinkedDocumentsSection({ workItemId }: LinkedDocumentsSectionPro
         <div className={styles.emptyState}>
           <span className={styles.emptyIcon}>📄</span>
           <p className={styles.emptyTitle}>No documents linked yet</p>
-          <p className={styles.emptyBody}>
-            Link receipts, contracts, and plans from Paperless-ngx to keep everything in one place.
-          </p>
+          <p className={styles.emptyBody}>{copy.emptyBody}</p>
         </div>
       )}
 
@@ -267,9 +297,7 @@ export function LinkedDocumentsSection({ workItemId }: LinkedDocumentsSectionPro
                 <h2 id="picker-title" className={styles.modalTitle}>
                   Add Document
                 </h2>
-                <p className={styles.modalSubtitle}>
-                  Select a document from Paperless-ngx to link to this work item.
-                </p>
+                <p className={styles.modalSubtitle}>{copy.pickerSubtitle}</p>
               </div>
               <button
                 type="button"

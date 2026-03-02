@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { DocumentLinkWithMetadata } from '@cornerstone/shared';
+import type { DocumentLinkWithMetadata, DocumentLinkEntityType } from '@cornerstone/shared';
 import {
   listDocumentLinks,
   createDocumentLink,
@@ -17,10 +17,13 @@ export interface UseDocumentLinksResult {
 }
 
 /**
- * Manages document links for a work item.
+ * Manages document links for an entity (work item, household item, or invoice).
  * Handles fetching the list, adding new links, and removing existing links.
  */
-export function useDocumentLinks(workItemId: string): UseDocumentLinksResult {
+export function useDocumentLinks(
+  entityType: DocumentLinkEntityType,
+  entityId: string,
+): UseDocumentLinksResult {
   const [links, setLinks] = useState<DocumentLinkWithMetadata[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +38,7 @@ export function useDocumentLinks(workItemId: string): UseDocumentLinksResult {
       setError(null);
 
       try {
-        const fetchedLinks = await listDocumentLinks('work_item', workItemId);
+        const fetchedLinks = await listDocumentLinks(entityType, entityId);
         if (!cancelled) {
           setLinks(fetchedLinks);
         }
@@ -60,19 +63,19 @@ export function useDocumentLinks(workItemId: string): UseDocumentLinksResult {
     return () => {
       cancelled = true;
     };
-  }, [workItemId, fetchCount]);
+  }, [entityType, entityId, fetchCount]);
 
   const addLink = useCallback(
     async (paperlessDocumentId: number) => {
       await createDocumentLink({
-        entityType: 'work_item',
-        entityId: workItemId,
+        entityType,
+        entityId,
         paperlessDocumentId,
       });
       // Refresh the list after successful creation
       setFetchCount((c) => c + 1);
     },
-    [workItemId],
+    [entityType, entityId],
   );
 
   const removeLink = useCallback(async (linkId: string) => {

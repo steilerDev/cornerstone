@@ -2319,7 +2319,7 @@ export default function WorkItemDetailPage() {
 
       {/* Documents — full-width section, loads independently */}
       <div className={styles.section}>
-        <LinkedDocumentsSection workItemId={id!} />
+        <LinkedDocumentsSection entityType="work_item" entityId={id!} />
       </div>
 
       {/* Footer */}
