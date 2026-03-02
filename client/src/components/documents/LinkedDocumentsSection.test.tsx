@@ -333,14 +333,12 @@ describe('LinkedDocumentsSection', () => {
 
   describe('duplicate error shown inline', () => {
     it('shows duplicate error message when addLink rejects with DUPLICATE_DOCUMENT_LINK', async () => {
-      const addLink = jest
-        .fn<() => Promise<void>>()
-        .mockRejectedValue(
-          new MockApiClientError(409, {
-            code: 'DUPLICATE_DOCUMENT_LINK',
-            message: 'Already linked',
-          }),
-        );
+      const addLink = jest.fn<() => Promise<void>>().mockRejectedValue(
+        new MockApiClientError(409, {
+          code: 'DUPLICATE_DOCUMENT_LINK',
+          message: 'Already linked',
+        }),
+      );
       mockUseDocumentLinks.mockReturnValue(makeHook({ addLink }));
 
       render(<LinkedDocumentsSection workItemId="wi-abc" />);
@@ -380,14 +378,12 @@ describe('LinkedDocumentsSection', () => {
     });
 
     it('can dismiss the error banner', async () => {
-      const addLink = jest
-        .fn<() => Promise<void>>()
-        .mockRejectedValue(
-          new MockApiClientError(409, {
-            code: 'DUPLICATE_DOCUMENT_LINK',
-            message: 'Already linked',
-          }),
-        );
+      const addLink = jest.fn<() => Promise<void>>().mockRejectedValue(
+        new MockApiClientError(409, {
+          code: 'DUPLICATE_DOCUMENT_LINK',
+          message: 'Already linked',
+        }),
+      );
       mockUseDocumentLinks.mockReturnValue(makeHook({ addLink }));
 
       render(<LinkedDocumentsSection workItemId="wi-abc" />);

@@ -49,8 +49,6 @@ export function LinkedDocumentsSection({ workItemId }: LinkedDocumentsSectionPro
             paperlessUrl: null,
           });
         }
-      } finally {
-        // Status loaded, nothing more to do
       }
     }
 
@@ -58,6 +56,14 @@ export function LinkedDocumentsSection({ workItemId }: LinkedDocumentsSectionPro
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  const closePicker = useCallback(() => {
+    setShowPicker(false);
+    // Restore focus to add button
+    setTimeout(() => {
+      addButtonRef.current?.focus();
+    }, 0);
   }, []);
 
   // Close modals on Escape key
@@ -75,14 +81,6 @@ export function LinkedDocumentsSection({ workItemId }: LinkedDocumentsSectionPro
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [showPicker, unlinkTarget, isUnlinking, closePicker]);
-
-  const closePicker = useCallback(() => {
-    setShowPicker(false);
-    // Restore focus to add button
-    setTimeout(() => {
-      addButtonRef.current?.focus();
-    }, 0);
-  }, []);
 
   const handleDocumentSelect = useCallback(
     async (doc: PaperlessDocumentSearchResult) => {
