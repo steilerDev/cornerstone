@@ -171,6 +171,7 @@ describe('Paperless Routes', () => {
       expect(body.configured).toBe(false);
       expect(body.reachable).toBe(false);
       expect(body.error).toBeNull();
+      expect(body.paperlessUrl).toBeNull();
     });
 
     it('returns configured=true, reachable=true when Paperless is reachable', async () => {
@@ -190,6 +191,7 @@ describe('Paperless Routes', () => {
       expect(body.configured).toBe(true);
       expect(body.reachable).toBe(true);
       expect(body.error).toBeNull();
+      expect(body.paperlessUrl).toBe('http://paperless:8000');
     });
 
     it('returns configured=true, reachable=false when Paperless is unreachable', async () => {
@@ -209,6 +211,7 @@ describe('Paperless Routes', () => {
       expect(body.configured).toBe(true);
       expect(body.reachable).toBe(false);
       expect(body.error).toContain('ECONNREFUSED');
+      expect(body.paperlessUrl).toBe('http://paperless:8000');
     });
   });
 

@@ -119,6 +119,7 @@ export function DocumentBrowser({ mode = 'page', onSelect }: DocumentBrowserProp
                 className={`${styles.tagChip} ${isChecked ? styles.tagChipActive : ''}`}
                 role="checkbox"
                 aria-checked={isChecked}
+                aria-label={`Filter by tag: ${tag.name} (${tag.documentCount} documents)`}
                 tabIndex={0}
                 onClick={() => hook.toggleTag(tag.id)}
                 onKeyDown={(e) => handleTagKeyDown(e, tag.id)}
@@ -173,6 +174,7 @@ export function DocumentBrowser({ mode = 'page', onSelect }: DocumentBrowserProp
               document={doc}
               isSelected={selectedDoc?.id === doc.id}
               onSelect={handleCardSelect}
+              ariaControls={selectedDoc?.id === doc.id ? 'detail-panel' : undefined}
             />
           ))}
         </div>
@@ -180,7 +182,11 @@ export function DocumentBrowser({ mode = 'page', onSelect }: DocumentBrowserProp
 
       {/* Detail panel — shown below the grid when a card is selected (page mode only) */}
       {selectedDoc && !onSelect && (
-        <DocumentDetailPanel document={selectedDoc} onClose={() => setSelectedDoc(null)} />
+        <DocumentDetailPanel
+          document={selectedDoc}
+          onClose={() => setSelectedDoc(null)}
+          paperlessBaseUrl={hook.status.paperlessUrl ?? undefined}
+        />
       )}
 
       {/* Pagination */}

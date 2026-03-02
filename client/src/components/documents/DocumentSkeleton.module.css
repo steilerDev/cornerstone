@@ -10,7 +10,7 @@
 .skeletonCard {
   background-color: var(--color-bg-primary);
   border: 1px solid var(--color-border);
-  border-radius: 0.5rem;
+  border-radius: var(--radius-lg);
   overflow: hidden;
   box-shadow: var(--shadow-sm);
 }
@@ -29,15 +29,15 @@
 }
 
 .skeletonBody {
-  padding: 0.75rem;
+  padding: var(--spacing-3);
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--spacing-2);
 }
 
 .skeletonTitle {
   height: 1rem;
-  border-radius: 0.25rem;
+  border-radius: var(--radius-sm);
   width: 80%;
   background: linear-gradient(
     90deg,
@@ -51,7 +51,7 @@
 
 .skeletonMeta {
   height: 0.75rem;
-  border-radius: 0.25rem;
+  border-radius: var(--radius-sm);
   width: 60%;
   background: linear-gradient(
     90deg,
@@ -65,7 +65,7 @@
 
 .skeletonTags {
   height: 0.75rem;
-  border-radius: 0.25rem;
+  border-radius: var(--radius-sm);
   width: 40%;
   background: linear-gradient(
     90deg,
@@ -75,4 +75,13 @@
   );
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite linear;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeletonThumb,
+  .skeletonTitle,
+  .skeletonMeta,
+  .skeletonTags {
+    animation: none;
+  }
 }

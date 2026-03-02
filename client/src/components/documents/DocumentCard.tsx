@@ -6,9 +6,11 @@ interface DocumentCardProps {
   document: PaperlessDocumentSearchResult;
   isSelected: boolean;
   onSelect: (doc: PaperlessDocumentSearchResult) => void;
+  /** Optional id of the associated detail panel for aria-controls pairing. */
+  ariaControls?: string;
 }
 
-export function DocumentCard({ document, isSelected, onSelect }: DocumentCardProps) {
+export function DocumentCard({ document, isSelected, onSelect, ariaControls }: DocumentCardProps) {
   const thumbUrl = getDocumentThumbnailUrl(document.id);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -25,7 +27,8 @@ export function DocumentCard({ document, isSelected, onSelect }: DocumentCardPro
       onKeyDown={handleKeyDown}
       role="button"
       tabIndex={0}
-      aria-pressed={isSelected}
+      aria-expanded={isSelected}
+      aria-controls={ariaControls}
       aria-label={`Document: ${document.title}`}
     >
       <div className={styles.thumbContainer}>

@@ -1,7 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { jest } from '@jest/globals';
 import type { UsePaperlessResult } from '../../hooks/usePaperless.js';
-import type * as DocumentsPageModule from './DocumentsPage.js';
 
 // Mock usePaperless (used by DocumentBrowser inside DocumentsPage)
 const mockUsePaperless = jest.fn<() => UsePaperlessResult>();
@@ -20,10 +19,14 @@ jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
   getDocumentPreviewUrl: (id: number) => `/api/paperless/documents/${id}/preview`,
 }));
 
+// Deferred type import — must appear AFTER jest.unstable_mockModule calls to ensure mock
+// registration happens before module resolution. See usePaperless.test.tsx for the same pattern.
+import type * as DocumentsPageModule from './DocumentsPage.js';
+
 let DocumentsPage: (typeof DocumentsPageModule)['DocumentsPage'];
 
 const makeHook = (overrides: Partial<UsePaperlessResult> = {}): UsePaperlessResult => ({
-  status: { configured: true, reachable: true, error: null },
+  status: { configured: true, reachable: true, error: null, paperlessUrl: null },
   documents: [],
   tags: [],
   pagination: null,
@@ -57,7 +60,7 @@ describe('DocumentsPage', () => {
 
   it('renders not-configured state when paperless is not set up', () => {
     mockUsePaperless.mockReturnValue(
-      makeHook({ status: { configured: false, reachable: false, error: null } }),
+      makeHook({ status: { configured: false, reachable: false, error: null, paperlessUrl: null } }),
     );
     render(<DocumentsPage />);
     expect(screen.getByText(/Paperless-ngx Not Configured/i)).toBeInTheDocument();
@@ -65,7 +68,7 @@ describe('DocumentsPage', () => {
 
   it('renders unreachable state when paperless cannot be reached', () => {
     mockUsePaperless.mockReturnValue(
-      makeHook({ status: { configured: true, reachable: false, error: null } }),
+      makeHook({ status: { configured: true, reachable: false, error: null, paperlessUrl: null } }),
     );
     render(<DocumentsPage />);
     expect(screen.getByRole('alert')).toBeInTheDocument();
