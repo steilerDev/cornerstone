@@ -1,7 +1,36 @@
 # QA & Integration Tester — Agent Memory (Index)
 
 > Detailed notes live in topic files. This index links to them.
-> See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`
+> See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`
+
+## Running Tests from a Worktree (Critical Pattern)
+
+Worktrees have no `node_modules`. To run tests from a worktree:
+
+1. Create symlinks: `ln -sf /main/node_modules /worktree/node_modules` and `ln -sf /main/server/node_modules /worktree/server/node_modules`
+2. Run from the WORKTREE directory: `node --experimental-vm-modules /main/node_modules/.bin/jest "path/to/test.ts" --no-coverage`
+
+- Do NOT cast `mockGet.mock.calls[0] as [string]` — TypeScript strict mode rejects empty arrays cast to tuple. Use `expect(mockGet).not.toHaveBeenCalledWith(expect.stringContaining(...))` pattern instead.
+
+## Story #360 Document Responsive & A11y (2026-03-02)
+
+See `story-360-document-a11y.md` for full details. Key learnings:
+
+- **DocumentCard aria-label**: now includes formatted date — `"Document: {title}, Mar 15, 2025"`
+- **aria-busy={false}** in JSX renders as `aria-busy="false"` string — test with string `'false'`
+- **tabIndex attr**: lowercase `tabindex` in HTML — use `toHaveAttribute('tabindex', '-1')`
+- **Focus via setTimeout**: always use `await waitFor(...)` for focus assertions
+- **Stash pop corruption**: `git stash pop` can break deferred mock import order — verify invariants
+
+## Story #358 Document Linking (PR #378, 2026-03-02)
+
+See `story-358-document-linking.md` for full details. Key learnings:
+
+- **waitFor race condition**: include `isLoading` check INSIDE the same `waitFor` as mock call checks
+- **Duplicate text**: `InvoiceDetailPage` renders status badge TWICE — use `getAllByText()`
+- **Prettier must run FROM worktree dir** (not from main repo root) to resolve `.prettierrc` correctly
+- **Skipping bug-blocked tests**: use `it.skip()` with `// TODO: Unskip after bug #N is fixed`
+- **Bug #379**: unlink modal hardcodes "this work item" — must fix before enabling invoice unlink test
 
 ## EPIC-06 E2E Coverage (PR #259, 2026-02-24)
 
