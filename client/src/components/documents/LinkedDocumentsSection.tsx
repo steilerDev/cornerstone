@@ -61,6 +61,8 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
   const [linkError, setLinkError] = useState<string | null>(null);
   const [announceMessage, setAnnounceMessage] = useState('');
   const addButtonRef = useRef<HTMLButtonElement>(null);
+  const pickerModalRef = useRef<HTMLDivElement>(null);
+  const cancelButtonRef = useRef<HTMLButtonElement>(null);
 
   // Load Paperless status on mount
   useEffect(() => {
@@ -90,6 +92,24 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
     };
   }, []);
 
+  // Focus into picker modal when it opens
+  useEffect(() => {
+    if (showPicker && pickerModalRef.current) {
+      setTimeout(() => {
+        pickerModalRef.current?.focus();
+      }, 0);
+    }
+  }, [showPicker]);
+
+  // Focus Cancel button when unlink confirmation opens
+  useEffect(() => {
+    if (unlinkTarget && cancelButtonRef.current) {
+      setTimeout(() => {
+        cancelButtonRef.current?.focus();
+      }, 0);
+    }
+  }, [unlinkTarget]);
+
   const closePicker = useCallback(() => {
     setShowPicker(false);
     // Restore focus to add button
@@ -98,16 +118,44 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
     }, 0);
   }, []);
 
-  // Close modals on Escape key
+  // Close modals on Escape key and implement focus trap for picker modal
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key !== 'Escape') return;
-      if (showPicker) {
-        closePicker();
+      if (e.key !== 'Escape' && e.key !== 'Tab') return;
+
+      if (e.key === 'Escape') {
+        if (showPicker) {
+          closePicker();
+          return;
+        }
+        if (unlinkTarget && !isUnlinking) {
+          setUnlinkTarget(null);
+        }
         return;
       }
-      if (unlinkTarget && !isUnlinking) {
-        setUnlinkTarget(null);
+
+      // Tab key: trap focus within picker modal
+      if (e.key === 'Tab' && showPicker && pickerModalRef.current) {
+        const focusable = pickerModalRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        );
+        const focusableArray = Array.from(focusable);
+        if (focusableArray.length === 0) return;
+
+        const firstEl = focusableArray[0];
+        const lastEl = focusableArray[focusableArray.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === firstEl) {
+            e.preventDefault();
+            lastEl.focus();
+          }
+        } else {
+          if (document.activeElement === lastEl) {
+            e.preventDefault();
+            firstEl.focus();
+          }
+        }
       }
     }
     document.addEventListener('keydown', handleKeyDown);
@@ -137,7 +185,7 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
         addButtonRef.current?.focus();
       }, 0);
     },
-    [hook],
+    [hook, copy],
   );
 
   const handleUnlink = useCallback(async () => {
@@ -287,10 +335,12 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
         <div className={styles.modal}>
           <div className={styles.modalBackdrop} onClick={closePicker} />
           <div
+            ref={pickerModalRef}
             className={`${styles.modalContent} ${styles.modalContentLarge}`}
             role="dialog"
             aria-modal="true"
             aria-labelledby="picker-title"
+            tabIndex={-1}
           >
             <div className={styles.modalHeader}>
               <div>
@@ -338,6 +388,7 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
             <div className={styles.modalActions}>
               <button
                 type="button"
+                ref={cancelButtonRef}
                 className={styles.modalCancelButton}
                 onClick={() => setUnlinkTarget(null)}
                 disabled={isUnlinking}
