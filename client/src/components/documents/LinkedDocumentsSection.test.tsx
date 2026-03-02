@@ -142,6 +142,29 @@ const makeLink = (id: string): DocumentLinkWithMetadata => ({
   },
 });
 
+const makeInvoiceLink = (id: string): DocumentLinkWithMetadata => ({
+  id,
+  entityType: 'invoice',
+  entityId: 'inv-xyz',
+  paperlessDocumentId: 42,
+  createdBy: null,
+  createdAt: '2026-01-01T00:00:00Z',
+  document: {
+    id: 42,
+    title: `Document ${id}`,
+    content: null,
+    tags: [],
+    created: '2026-01-15',
+    added: null,
+    modified: null,
+    correspondent: null,
+    documentType: null,
+    archiveSerialNumber: null,
+    originalFileName: null,
+    pageCount: null,
+  },
+});
+
 const makeConfiguredStatus = (overrides = {}) => ({
   configured: true,
   reachable: true,
@@ -174,7 +197,7 @@ describe('LinkedDocumentsSection', () => {
   describe('loading state', () => {
     it('renders DocumentSkeleton when hook.isLoading=true', async () => {
       mockUseDocumentLinks.mockReturnValue(makeHook({ isLoading: true }));
-      render(<LinkedDocumentsSection workItemId="wi-abc" />);
+      render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
       await waitFor(() => expect(screen.getByTestId('document-skeleton')).toBeInTheDocument());
     });
   });
@@ -184,7 +207,7 @@ describe('LinkedDocumentsSection', () => {
       mockUseDocumentLinks.mockReturnValue(
         makeHook({ error: 'Failed to load documents', isLoading: false }),
       );
-      render(<LinkedDocumentsSection workItemId="wi-abc" />);
+      render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
       await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
       expect(screen.getByText('Failed to load documents')).toBeInTheDocument();
     });
@@ -194,7 +217,7 @@ describe('LinkedDocumentsSection', () => {
       mockUseDocumentLinks.mockReturnValue(
         makeHook({ error: 'Failed to load', isLoading: false, refresh }),
       );
-      render(<LinkedDocumentsSection workItemId="wi-abc" />);
+      render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
       await waitFor(() =>
         expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument(),
       );
@@ -211,7 +234,7 @@ describe('LinkedDocumentsSection', () => {
         error: null,
         paperlessUrl: null,
       });
-      render(<LinkedDocumentsSection workItemId="wi-abc" />);
+      render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
       await waitFor(() =>
         expect(screen.getByText(/Paperless-ngx is not configured/i)).toBeInTheDocument(),
       );
@@ -224,7 +247,7 @@ describe('LinkedDocumentsSection', () => {
         error: null,
         paperlessUrl: null,
       });
-      render(<LinkedDocumentsSection workItemId="wi-abc" />);
+      render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
       await waitFor(() =>
         expect(screen.getByRole('button', { name: /\+ Add Document/i })).toBeDisabled(),
       );
@@ -234,7 +257,7 @@ describe('LinkedDocumentsSection', () => {
   describe('empty state', () => {
     it('renders empty state text when links=[] and paperless is configured', async () => {
       mockUseDocumentLinks.mockReturnValue(makeHook({ links: [], isLoading: false }));
-      render(<LinkedDocumentsSection workItemId="wi-abc" />);
+      render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
       await waitFor(() => expect(screen.getByText(/No documents linked yet/i)).toBeInTheDocument());
     });
   });
@@ -244,7 +267,7 @@ describe('LinkedDocumentsSection', () => {
       mockUseDocumentLinks.mockReturnValue(
         makeHook({ links: [makeLink('link-1'), makeLink('link-2')], isLoading: false }),
       );
-      render(<LinkedDocumentsSection workItemId="wi-abc" />);
+      render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
       await waitFor(() => expect(screen.getByTestId('linked-card-link-1')).toBeInTheDocument());
       expect(screen.getByTestId('linked-card-link-2')).toBeInTheDocument();
     });
@@ -253,7 +276,7 @@ describe('LinkedDocumentsSection', () => {
       mockUseDocumentLinks.mockReturnValue(
         makeHook({ links: [makeLink('link-1')], isLoading: false }),
       );
-      render(<LinkedDocumentsSection workItemId="wi-abc" />);
+      render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
       await waitFor(() =>
         expect(screen.getByRole('list', { name: /Linked documents/i })).toBeInTheDocument(),
       );
@@ -262,7 +285,7 @@ describe('LinkedDocumentsSection', () => {
 
   describe('Add Document opens picker', () => {
     it('shows DocumentBrowser when "Add Document" is clicked', async () => {
-      render(<LinkedDocumentsSection workItemId="wi-abc" />);
+      render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
       // Wait for paperless status to load
       await waitFor(() =>
         expect(screen.getByRole('button', { name: /\+ Add Document/i })).not.toBeDisabled(),
@@ -272,7 +295,7 @@ describe('LinkedDocumentsSection', () => {
     });
 
     it('shows the picker dialog with aria-modal', async () => {
-      render(<LinkedDocumentsSection workItemId="wi-abc" />);
+      render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
       await waitFor(() =>
         expect(screen.getByRole('button', { name: /\+ Add Document/i })).not.toBeDisabled(),
       );
@@ -282,7 +305,7 @@ describe('LinkedDocumentsSection', () => {
     });
 
     it('closes picker when close button is clicked', async () => {
-      render(<LinkedDocumentsSection workItemId="wi-abc" />);
+      render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
       await waitFor(() =>
         expect(screen.getByRole('button', { name: /\+ Add Document/i })).not.toBeDisabled(),
       );
@@ -299,7 +322,7 @@ describe('LinkedDocumentsSection', () => {
       const addLink = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
       mockUseDocumentLinks.mockReturnValue(makeHook({ addLink }));
 
-      render(<LinkedDocumentsSection workItemId="wi-abc" />);
+      render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
       await waitFor(() =>
         expect(screen.getByRole('button', { name: /\+ Add Document/i })).not.toBeDisabled(),
       );
@@ -317,7 +340,7 @@ describe('LinkedDocumentsSection', () => {
       const addLink = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
       mockUseDocumentLinks.mockReturnValue(makeHook({ addLink }));
 
-      render(<LinkedDocumentsSection workItemId="wi-abc" />);
+      render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
       await waitFor(() =>
         expect(screen.getByRole('button', { name: /\+ Add Document/i })).not.toBeDisabled(),
       );
@@ -341,7 +364,7 @@ describe('LinkedDocumentsSection', () => {
       );
       mockUseDocumentLinks.mockReturnValue(makeHook({ addLink }));
 
-      render(<LinkedDocumentsSection workItemId="wi-abc" />);
+      render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
       await waitFor(() =>
         expect(screen.getByRole('button', { name: /\+ Add Document/i })).not.toBeDisabled(),
       );
@@ -362,7 +385,7 @@ describe('LinkedDocumentsSection', () => {
       const addLink = jest.fn<() => Promise<void>>().mockRejectedValue(new Error('Unknown error'));
       mockUseDocumentLinks.mockReturnValue(makeHook({ addLink }));
 
-      render(<LinkedDocumentsSection workItemId="wi-abc" />);
+      render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
       await waitFor(() =>
         expect(screen.getByRole('button', { name: /\+ Add Document/i })).not.toBeDisabled(),
       );
@@ -386,7 +409,7 @@ describe('LinkedDocumentsSection', () => {
       );
       mockUseDocumentLinks.mockReturnValue(makeHook({ addLink }));
 
-      render(<LinkedDocumentsSection workItemId="wi-abc" />);
+      render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
       await waitFor(() =>
         expect(screen.getByRole('button', { name: /\+ Add Document/i })).not.toBeDisabled(),
       );
@@ -414,7 +437,7 @@ describe('LinkedDocumentsSection', () => {
       mockUseDocumentLinks.mockReturnValue(
         makeHook({ links: [makeLink('link-1')], isLoading: false }),
       );
-      render(<LinkedDocumentsSection workItemId="wi-abc" />);
+      render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
       await waitFor(() => expect(screen.getByTestId('linked-card-link-1')).toBeInTheDocument());
 
       // Click the Unlink button on the card
@@ -428,7 +451,7 @@ describe('LinkedDocumentsSection', () => {
       mockUseDocumentLinks.mockReturnValue(
         makeHook({ links: [makeLink('link-1')], isLoading: false }),
       );
-      render(<LinkedDocumentsSection workItemId="wi-abc" />);
+      render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
       await waitFor(() => expect(screen.getByTestId('linked-card-link-1')).toBeInTheDocument());
 
       fireEvent.click(screen.getByRole('button', { name: /Unlink link-1/i }));
@@ -445,7 +468,7 @@ describe('LinkedDocumentsSection', () => {
       mockUseDocumentLinks.mockReturnValue(
         makeHook({ links: [makeLink('link-1')], isLoading: false, removeLink }),
       );
-      render(<LinkedDocumentsSection workItemId="wi-abc" />);
+      render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
       await waitFor(() => expect(screen.getByTestId('linked-card-link-1')).toBeInTheDocument());
 
       fireEvent.click(screen.getByRole('button', { name: /Unlink link-1/i }));
@@ -463,7 +486,7 @@ describe('LinkedDocumentsSection', () => {
       mockUseDocumentLinks.mockReturnValue(
         makeHook({ links: [makeLink('link-1')], isLoading: false, removeLink }),
       );
-      render(<LinkedDocumentsSection workItemId="wi-abc" />);
+      render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
       await waitFor(() => expect(screen.getByTestId('linked-card-link-1')).toBeInTheDocument());
 
       fireEvent.click(screen.getByRole('button', { name: /Unlink link-1/i }));
@@ -483,7 +506,7 @@ describe('LinkedDocumentsSection', () => {
       const addLink = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
       mockUseDocumentLinks.mockReturnValue(makeHook({ addLink }));
 
-      render(<LinkedDocumentsSection workItemId="wi-abc" />);
+      render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
       await waitFor(() =>
         expect(screen.getByRole('button', { name: /\+ Add Document/i })).not.toBeDisabled(),
       );
@@ -504,7 +527,7 @@ describe('LinkedDocumentsSection', () => {
 
   describe('section structure', () => {
     it('renders the "Documents" section heading', async () => {
-      render(<LinkedDocumentsSection workItemId="wi-abc" />);
+      render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
       expect(screen.getByRole('heading', { name: /^Documents/i, level: 2 })).toBeInTheDocument();
     });
 
@@ -512,17 +535,96 @@ describe('LinkedDocumentsSection', () => {
       mockUseDocumentLinks.mockReturnValue(
         makeHook({ links: [makeLink('link-1'), makeLink('link-2')], isLoading: false }),
       );
-      render(<LinkedDocumentsSection workItemId="wi-abc" />);
+      render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
       await waitFor(() => expect(screen.getByLabelText(/2 documents linked/i)).toBeInTheDocument());
     });
 
     it('does not render count badge when there are no links', async () => {
       mockUseDocumentLinks.mockReturnValue(makeHook({ links: [], isLoading: false }));
-      render(<LinkedDocumentsSection workItemId="wi-abc" />);
+      render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
       await waitFor(() =>
         expect(screen.getByRole('button', { name: /\+ Add Document/i })).toBeInTheDocument(),
       );
       expect(screen.queryByLabelText(/documents linked/i)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('invoice entity type', () => {
+    it('shows invoice-specific subtitle in picker modal', async () => {
+      render(<LinkedDocumentsSection entityType="invoice" entityId="inv-xyz" />);
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /\+ Add Document/i })).not.toBeDisabled(),
+      );
+      fireEvent.click(screen.getByRole('button', { name: /\+ Add Document/i }));
+      expect(screen.getByText(/to link to this invoice/i)).toBeInTheDocument();
+    });
+
+    it('shows invoice-specific body in unlink confirmation dialog', async () => {
+      mockUseDocumentLinks.mockReturnValue(
+        makeHook({ links: [makeInvoiceLink('link-inv-1')], isLoading: false }),
+      );
+      render(<LinkedDocumentsSection entityType="invoice" entityId="inv-xyz" />);
+      await waitFor(() => expect(screen.getByTestId('linked-card-link-inv-1')).toBeInTheDocument());
+      fireEvent.click(screen.getByRole('button', { name: /Unlink link-inv-1/i }));
+      expect(screen.getByRole('dialog', { name: /Unlink Document/i })).toBeInTheDocument();
+      // The unlink modal body should mention "this invoice" for invoice entity
+      expect(screen.getByText(/this invoice/i)).toBeInTheDocument();
+    });
+
+    it('shows invoice-specific empty state body when no links exist', async () => {
+      mockUseDocumentLinks.mockReturnValue(makeHook({ links: [], isLoading: false }));
+      render(<LinkedDocumentsSection entityType="invoice" entityId="inv-xyz" />);
+      await waitFor(() => expect(screen.getByText(/No documents linked yet/i)).toBeInTheDocument());
+      expect(screen.getByText(/invoice PDFs/i)).toBeInTheDocument();
+    });
+
+    it('shows invoice-specific duplicate error when addLink returns DUPLICATE_DOCUMENT_LINK', async () => {
+      const addLink = jest.fn<() => Promise<void>>().mockRejectedValue(
+        new MockApiClientError(409, {
+          code: 'DUPLICATE_DOCUMENT_LINK',
+          message: 'Already linked',
+        }),
+      );
+      mockUseDocumentLinks.mockReturnValue(makeHook({ addLink }));
+
+      render(<LinkedDocumentsSection entityType="invoice" entityId="inv-xyz" />);
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /\+ Add Document/i })).not.toBeDisabled(),
+      );
+      fireEvent.click(screen.getByRole('button', { name: /\+ Add Document/i }));
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('document-browser'));
+      });
+
+      await waitFor(() =>
+        expect(
+          screen.getByText(/This document is already linked to this invoice/i),
+        ).toBeInTheDocument(),
+      );
+    });
+  });
+
+  describe('work_item entity type — backwards-compatibility', () => {
+    it('shows work-item-specific subtitle in picker modal', async () => {
+      render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /\+ Add Document/i })).not.toBeDisabled(),
+      );
+      fireEvent.click(screen.getByRole('button', { name: /\+ Add Document/i }));
+      expect(screen.getByText(/to link to this work item/i)).toBeInTheDocument();
+    });
+
+    it('shows work-item-specific body in unlink confirmation dialog', async () => {
+      mockUseDocumentLinks.mockReturnValue(
+        makeHook({ links: [makeLink('link-1')], isLoading: false }),
+      );
+      render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
+      await waitFor(() => expect(screen.getByTestId('linked-card-link-1')).toBeInTheDocument());
+      fireEvent.click(screen.getByRole('button', { name: /Unlink link-1/i }));
+      expect(screen.getByRole('dialog', { name: /Unlink Document/i })).toBeInTheDocument();
+      // The unlink modal body should mention "this work item" for work_item entity
+      expect(screen.getByText(/this work item/i)).toBeInTheDocument();
     });
   });
 });
