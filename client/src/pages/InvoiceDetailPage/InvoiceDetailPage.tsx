@@ -6,6 +6,7 @@ import { fetchWorkItemBudgets } from '../../lib/workItemBudgetsApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { formatDate } from '../../lib/formatters.js';
 import { WorkItemPicker } from '../../components/WorkItemPicker/WorkItemPicker.js';
+import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
 import styles from './InvoiceDetailPage.module.css';
 
 function formatCurrency(amount: number): string {
@@ -329,6 +330,8 @@ export function InvoiceDetailPage() {
             </div>
           </dl>
         </section>
+
+        <LinkedDocumentsSection entityType="invoice" entityId={id!} />
       </div>
 
       {/* Edit invoice modal */}

@@ -55,6 +55,16 @@ const sidebars = {
         'guides/timeline/calendar-view',
       ],
     },
+    {
+      type: 'category',
+      label: 'Documents',
+      link: { type: 'doc', id: 'guides/documents/index' },
+      items: [
+        'guides/documents/setup',
+        'guides/documents/browsing-documents',
+        'guides/documents/linking-documents',
+      ],
+    },
     'guides/appearance/dark-mode',
     'roadmap',
   ],

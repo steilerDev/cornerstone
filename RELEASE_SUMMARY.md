@@ -1,12 +1,20 @@
 ## What's New
 
-Cornerstone now includes a full timeline and scheduling system. Visualize your entire construction project on an interactive Gantt chart, manage milestones to track major progress points, and let the scheduling engine automatically calculate optimal dates based on task dependencies.
+Cornerstone now integrates with Paperless-ngx for document management. Browse your entire document archive from within Cornerstone, and link invoices, contracts, permits, and receipts directly to work items and vendor invoices -- keeping all project-related documents one click away.
 
 ### Highlights
 
-- **Interactive Gantt Chart** -- SVG-based timeline visualization with horizontal bars for work items, dependency arrows between connected tasks, critical path highlighting, a today marker, and three zoom levels (day, week, month) with adjustable column widths
-- **Calendar View** -- Monthly and weekly calendar grids showing work items as multi-day colored bars and milestones as diamond markers, with navigation controls and view persistence
-- **Milestones** -- Create named checkpoints with target dates, link contributing and dependent work items, and see projected completion dates with automatic late detection when a milestone is at risk of slipping
-- **Scheduling Engine** -- Critical Path Method (CPM) based automatic scheduling that respects all four dependency types (FS, SS, FF, SF), lead/lag days, and start-after/start-before constraints
-- **Auto-Reschedule** -- Server-side automatic rescheduling of not-started work items when a new day begins, keeping your schedule current without manual intervention
-- **Responsive & Accessible** -- Full keyboard navigation, ARIA roles on all SVG elements, touch-friendly two-tap interaction on mobile, and proper dark mode support across all timeline components
+- **Document Browser** -- A dedicated page to search, filter by tags, and browse all documents in your Paperless-ngx instance, with thumbnail previews, pagination, and a detail panel showing document metadata and content excerpts
+- **Document Linking** -- Attach Paperless-ngx documents to work items and vendor invoices with a picker modal, view linked documents as thumbnail cards, and open them directly in Paperless-ngx
+- **Secure Proxy Architecture** -- All Paperless-ngx communication is proxied through the Cornerstone backend, keeping your API token server-side and simplifying network configuration
+- **Graceful Degradation** -- Clear status messages when Paperless-ngx is not configured or unreachable, with retry functionality and preserved link records even when the connection is temporarily unavailable
+- **Responsive & Accessible** -- Full keyboard navigation, ARIA roles, focus management, screen reader announcements, and a responsive layout that works on desktop, tablet, and mobile
+
+### Configuration
+
+To enable the integration, set two environment variables and restart Cornerstone:
+
+```
+PAPERLESS_URL=https://paperless.example.com
+PAPERLESS_API_TOKEN=your-api-token-here
+```
