@@ -34,12 +34,7 @@ export function DocumentDetailPanel({
       </div>
       <div className={styles.content}>
         <div className={styles.thumbSection}>
-          <img
-            src={thumbUrl}
-            alt={document.title}
-            className={styles.thumb}
-            loading="lazy"
-          />
+          <img src={thumbUrl} alt={document.title} className={styles.thumb} loading="lazy" />
         </div>
         <div className={styles.metaSection}>
           <dl className={styles.metaList}>

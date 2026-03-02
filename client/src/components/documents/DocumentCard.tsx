@@ -53,9 +53,7 @@ export function DocumentCard({ document, isSelected, onSelect }: DocumentCardPro
             })}
           </p>
         )}
-        {document.correspondent && (
-          <p className={styles.correspondent}>{document.correspondent}</p>
-        )}
+        {document.correspondent && <p className={styles.correspondent}>{document.correspondent}</p>}
         {document.tags.length > 0 && (
           <div className={styles.tags}>
             {document.tags.slice(0, 3).map((tag: PaperlessTag) => (

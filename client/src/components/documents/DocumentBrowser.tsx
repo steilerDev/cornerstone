@@ -67,8 +67,8 @@ export function DocumentBrowser({ mode = 'page', onSelect }: DocumentBrowserProp
           <p className={styles.infoText}>
             To use the document browser, configure your Paperless-ngx integration by setting the{' '}
             <code className={styles.inlineCode}>PAPERLESS_URL</code> and{' '}
-            <code className={styles.inlineCode}>PAPERLESS_API_TOKEN</code> environment variables
-            and restarting Cornerstone.
+            <code className={styles.inlineCode}>PAPERLESS_API_TOKEN</code> environment variables and
+            restarting Cornerstone.
           </p>
         </div>
       </div>
