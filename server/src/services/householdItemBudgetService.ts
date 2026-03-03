@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, sql, inArray } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import {
@@ -109,13 +109,18 @@ function getActualCostForBudget(db: DbType, budgetId: string): number {
 
 /**
  * Get total actual paid amount from invoices linked to a household item budget line
- * (only invoices with status 'paid').
+ * (invoices with status 'paid' or 'claimed').
  */
 function getActualCostPaidForBudget(db: DbType, budgetId: string): number {
   const result = db
     .select({ total: sql<number>`COALESCE(SUM(${invoices.amount}), 0)` })
     .from(invoices)
-    .where(and(eq(invoices.householdItemBudgetId, budgetId), eq(invoices.status, 'paid')))
+    .where(
+      and(
+        eq(invoices.householdItemBudgetId, budgetId),
+        inArray(invoices.status, ['paid', 'claimed']),
+      ),
+    )
     .get();
   return result?.total ?? 0;
 }

@@ -495,6 +495,7 @@ export function InvoiceDetailPage() {
                   value={editForm.selectedWorkItemId}
                   onChange={(workItemId) => {
                     setBudgetLinkTouched(true);
+                    setHouseholdItemBudgetLinkTouched(true);
                     setEditForm({
                       ...editForm,
                       selectedWorkItemId: workItemId,
@@ -557,6 +558,7 @@ export function InvoiceDetailPage() {
                   onChange={(e) => {
                     const householdItemId = e.target.value;
                     setHouseholdItemBudgetLinkTouched(true);
+                    setBudgetLinkTouched(true);
                     setEditForm({
                       ...editForm,
                       selectedHouseholdItemId: householdItemId,
