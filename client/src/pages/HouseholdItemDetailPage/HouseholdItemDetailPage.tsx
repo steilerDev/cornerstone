@@ -46,6 +46,7 @@ import { formatDate, formatCurrency } from '../../lib/formatters.js';
 import { HouseholdItemStatusBadge } from '../../components/HouseholdItemStatusBadge/HouseholdItemStatusBadge.js';
 import { StatusBadge } from '../../components/StatusBadge/StatusBadge.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
+import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
 import styles from './HouseholdItemDetailPage.module.css';
 
 const CATEGORY_LABELS: Record<HouseholdItemCategory, string> = {
@@ -1145,6 +1146,9 @@ export function HouseholdItemDetailPage() {
             </div>
           )}
         </section>
+
+        {/* Documents section */}
+        <LinkedDocumentsSection entityType="household_item" entityId={id!} />
 
         {/* Metadata card */}
         <section className={styles.card}>

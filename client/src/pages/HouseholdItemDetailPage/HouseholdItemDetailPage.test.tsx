@@ -130,6 +130,22 @@ jest.unstable_mockModule('../../lib/householdItemSubsidiesApi.js', () => ({
   fetchHouseholdItemSubsidyPayback: mockFetchHouseholdItemSubsidyPayback,
 }));
 
+// Mock LinkedDocumentsSection to avoid pulling in full documents component tree
+jest.unstable_mockModule('../../components/documents/LinkedDocumentsSection.js', () => ({
+  LinkedDocumentsSection: function MockLinkedDocumentsSection(props: {
+    entityType: string;
+    entityId: string;
+  }) {
+    return (
+      <section data-testid="linked-documents-section">
+        <h2>Documents</h2>
+        <span data-testid="entity-type">{props.entityType}</span>
+        <span data-testid="entity-id">{props.entityId}</span>
+      </section>
+    );
+  },
+}));
+
 // Helper to capture current location
 function LocationDisplay() {
   const location = useLocation();
@@ -1061,6 +1077,80 @@ describe('HouseholdItemDetailPage', () => {
       expect(screen.getAllByText('Ordered').length).toBeGreaterThan(0);
       expect(screen.getAllByText('In Transit').length).toBeGreaterThan(0);
       expect(screen.getAllByText('Delivered').length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Documents section', () => {
+    it('renders LinkedDocumentsSection with entityType="household_item"', async () => {
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
+      });
+
+      expect(screen.getByTestId('linked-documents-section')).toBeInTheDocument();
+      expect(screen.getByTestId('entity-type')).toHaveTextContent('household_item');
+    });
+
+    it('renders with correct entityId from URL params', async () => {
+      mockGetHouseholdItem.mockResolvedValue(makeItem({ id: 'item-abc' }));
+
+      renderPage('item-abc');
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
+      });
+
+      expect(screen.getByTestId('entity-id')).toHaveTextContent('item-abc');
+    });
+
+    it('renders Documents section heading between Subsidies and Metadata sections', async () => {
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
+      });
+
+      // Get all h2 headings on the page
+      const headings = screen.getAllByRole('heading', { level: 2 });
+      const headingTexts = headings.map((h) => h.textContent);
+
+      // Verify "Documents" heading exists
+      expect(headingTexts).toContain('Documents');
+
+      // Verify Documents comes after Subsidies
+      const subsidiesIndex = headingTexts.findIndex((text) => text === 'Subsidies');
+      const documentsIndex = headingTexts.findIndex((text) => text === 'Documents');
+      expect(subsidiesIndex).toBeGreaterThan(-1);
+      expect(documentsIndex).toBeGreaterThan(-1);
+      expect(documentsIndex).toBeGreaterThan(subsidiesIndex);
+    });
+
+    it('does not render LinkedDocumentsSection in loading state', async () => {
+      mockGetHouseholdItem.mockImplementation(() => new Promise(() => {})); // Never resolves
+
+      renderPage();
+
+      expect(screen.getByText('Loading household item...')).toBeInTheDocument();
+      expect(screen.queryByTestId('linked-documents-section')).not.toBeInTheDocument();
+    });
+
+    it('does not render LinkedDocumentsSection when item returns 404', async () => {
+      mockGetHouseholdItem.mockRejectedValue(
+        new MockApiClientError(404, { code: 'NOT_FOUND', message: 'Item not found' }),
+      );
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Item Not Found')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByTestId('linked-documents-section')).not.toBeInTheDocument();
     });
   });
 });
