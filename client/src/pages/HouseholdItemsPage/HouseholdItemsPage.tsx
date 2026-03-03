@@ -560,24 +560,90 @@ export function HouseholdItemsPage() {
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th className={styles.sortableHeader} onClick={() => handleSortChange('name')}>
+                  <th
+                    className={styles.sortableHeader}
+                    onClick={() => handleSortChange('name')}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleSortChange('name');
+                      }
+                    }}
+                    tabIndex={0}
+                    role="columnheader"
+                    aria-sort={
+                      sortBy === 'name'
+                        ? sortOrder === 'asc'
+                          ? 'ascending'
+                          : 'descending'
+                        : undefined
+                    }
+                  >
                     Name{renderSortIcon('name')}
                   </th>
                   <th
                     className={styles.sortableHeader}
                     onClick={() => handleSortChange('category')}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleSortChange('category');
+                      }
+                    }}
+                    tabIndex={0}
+                    role="columnheader"
+                    aria-sort={
+                      sortBy === 'category'
+                        ? sortOrder === 'asc'
+                          ? 'ascending'
+                          : 'descending'
+                        : undefined
+                    }
                   >
                     Category{renderSortIcon('category')}
                   </th>
-                  <th className={styles.sortableHeader} onClick={() => handleSortChange('status')}>
+                  <th
+                    className={styles.sortableHeader}
+                    onClick={() => handleSortChange('status')}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleSortChange('status');
+                      }
+                    }}
+                    tabIndex={0}
+                    role="columnheader"
+                    aria-sort={
+                      sortBy === 'status'
+                        ? sortOrder === 'asc'
+                          ? 'ascending'
+                          : 'descending'
+                        : undefined
+                    }
+                  >
                     Status{renderSortIcon('status')}
                   </th>
                   <th>Room</th>
                   <th>Vendor</th>
-                  <th>Cost</th>
+                  <th>Planned Cost</th>
                   <th
                     className={styles.sortableHeader}
                     onClick={() => handleSortChange('expected_delivery_date')}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleSortChange('expected_delivery_date');
+                      }
+                    }}
+                    tabIndex={0}
+                    role="columnheader"
+                    aria-sort={
+                      sortBy === 'expected_delivery_date'
+                        ? sortOrder === 'asc'
+                          ? 'ascending'
+                          : 'descending'
+                        : undefined
+                    }
                   >
                     Expected Delivery{renderSortIcon('expected_delivery_date')}
                   </th>
@@ -606,15 +672,16 @@ export function HouseholdItemsPage() {
                           type="button"
                           className={styles.menuButton}
                           onClick={() => setActiveMenuId(activeMenuId === item.id ? null : item.id)}
-                          aria-label="Actions menu"
+                          aria-label={`Actions for ${item.name}`}
                         >
                           ⋮
                         </button>
                         {activeMenuId === item.id && (
-                          <div className={styles.menuDropdown}>
+                          <div className={styles.menuDropdown} role="menu">
                             <button
                               type="button"
                               className={styles.menuItem}
+                              role="menuitem"
                               onClick={() => navigate(`/household-items/${item.id}`)}
                             >
                               Edit
@@ -622,6 +689,7 @@ export function HouseholdItemsPage() {
                             <button
                               type="button"
                               className={`${styles.menuItem} ${styles.menuItemDanger}`}
+                              role="menuitem"
                               onClick={(e) => handleDeleteClick(item, e)}
                             >
                               Delete
@@ -648,15 +716,16 @@ export function HouseholdItemsPage() {
                         type="button"
                         className={styles.menuButton}
                         onClick={() => setActiveMenuId(activeMenuId === item.id ? null : item.id)}
-                        aria-label="Actions menu"
+                        aria-label={`Actions for ${item.name}`}
                       >
                         ⋮
                       </button>
                       {activeMenuId === item.id && (
-                        <div className={styles.menuDropdown}>
+                        <div className={styles.menuDropdown} role="menu">
                           <button
                             type="button"
                             className={styles.menuItem}
+                            role="menuitem"
                             onClick={() => navigate(`/household-items/${item.id}`)}
                           >
                             Edit
@@ -664,6 +733,7 @@ export function HouseholdItemsPage() {
                           <button
                             type="button"
                             className={`${styles.menuItem} ${styles.menuItemDanger}`}
+                            role="menuitem"
                             onClick={(e) => handleDeleteClick(item, e)}
                           >
                             Delete
@@ -691,7 +761,7 @@ export function HouseholdItemsPage() {
                     <span>{item.vendor?.name || '—'}</span>
                   </div>
                   <div className={styles.cardRow}>
-                    <span className={styles.cardLabel}>Cost:</span>
+                    <span className={styles.cardLabel}>Planned Cost:</span>
                     <span>{formatCurrency(item.totalPlannedAmount)}</span>
                   </div>
                   <div className={styles.cardRow}>

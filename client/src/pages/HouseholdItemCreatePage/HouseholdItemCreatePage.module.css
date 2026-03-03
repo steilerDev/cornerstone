@@ -1,18 +1,18 @@
 .page {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: var(--spacing-8);
 }
 
 .title {
-  margin-bottom: 1rem;
-  font-size: 2rem;
-  font-weight: 700;
+  margin-bottom: var(--spacing-4);
+  font-size: var(--font-size-4xl);
+  font-weight: var(--font-weight-bold);
   color: var(--color-text-primary);
 }
 
 .description {
-  font-size: 1rem;
+  font-size: var(--font-size-base);
   line-height: 1.5;
   color: var(--color-text-subtle);
 }

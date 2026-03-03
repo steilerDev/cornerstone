@@ -87,6 +87,11 @@
   --color-orange-300: #fdba74;
   --color-orange-400: #fb923c;
 
+  /* Amber scale — household item in-transit status */
+  --color-amber-100: #fef3c7;
+  --color-amber-300: #fcd34d;
+  --color-amber-800: #92400e;
+
   /* Emerald scale — dark mode success variants */
   --color-emerald-400: #34d399;
   --color-emerald-300: #6ee7b7;
@@ -218,8 +223,8 @@
   --color-hi-status-ordered-text: var(--color-blue-800);
 
   /* HI Status: In Transit (amber) */
-  --color-hi-status-in-transit-bg: #fef3c7;
-  --color-hi-status-in-transit-text: #92400e;
+  --color-hi-status-in-transit-bg: var(--color-amber-100);
+  --color-hi-status-in-transit-text: var(--color-amber-800);
 
   /* HI Status: Delivered (green) */
   --color-hi-status-delivered-bg: var(--color-green-100);
@@ -548,7 +553,7 @@
   --color-hi-status-ordered-bg: rgba(59, 130, 246, 0.2);
   --color-hi-status-ordered-text: var(--color-blue-300);
   --color-hi-status-in-transit-bg: rgba(245, 158, 11, 0.2);
-  --color-hi-status-in-transit-text: #fcd34d;
+  --color-hi-status-in-transit-text: var(--color-amber-300);
   --color-hi-status-delivered-bg: rgba(16, 185, 129, 0.15);
   --color-hi-status-delivered-text: var(--color-emerald-200);
 
