@@ -1,5 +1,5 @@
 import { memo, useCallback, useMemo, useState } from 'react';
-import type { TimelineDependency, DependencyType } from '@cornerstone/shared';
+import type { TimelineDependency, DependencyType, TimelineHouseholdItem } from '@cornerstone/shared';
 import {
   computeArrowPath,
   computeArrowhead,
@@ -70,6 +70,20 @@ export interface GanttArrowsProps {
    * Map from milestone ID to its title — used for accessible aria-labels.
    */
   milestoneTitles?: ReadonlyMap<number, string>;
+  /**
+   * Map from HI ID to its circle center position in SVG coordinates.
+   * Required to draw household item dependency arrows.
+   */
+  hiPoints?: ReadonlyMap<string, { x: number; y: number }>;
+  /**
+   * List of household items with their dependencies.
+   * Used to draw arrows from work items/milestones to HI delivery dates.
+   */
+  householdItems?: Array<{
+    id: string;
+    name: string;
+    dependencyIds: Array<{ predecessorType: 'work_item' | 'milestone'; predecessorId: string }>;
+  }>;
   /**
    * Called when the user hovers or focuses an arrow.
    * Receives the set of connected entity IDs (work item string IDs and
@@ -169,6 +183,8 @@ export const GanttArrows = memo(function GanttArrows({
   milestoneContributors,
   workItemRequiredMilestones,
   milestoneTitles,
+  hiPoints,
+  householdItems,
   onArrowHover,
   onArrowMouseMove,
   onArrowLeave,
