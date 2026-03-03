@@ -156,52 +156,28 @@ Key misses to watch for in list-page PRs:
 - `z-index: 1000` → `var(--z-modal)`; `z-index: 10` → `var(--z-dropdown)`
 - Tablet breakpoint upper bound should be `1023px` not `1024px` to avoid overlap with desktop
 
-## Story 4.7 — Work Item Linking Spec (Issue #393)
+## Stories 4.7–4.9 Key Patterns (see story-4-9-invoice-linking-hi.md for full spec)
 
-- HI Detail page: "Linked Work Items" full-width card between Subsidies and Metadata cards
-- WI Detail page: "Linked Household Items" full-width belt before Documents section
-- Linking is initiated from the HI side only — WI side is read-only (no "Add Link" button there)
-- Unlink on HI Detail page requires NO modal confirmation (action is reversible) — toast only
-- WorkItemPicker component (`client/src/components/WorkItemPicker/`) reused for searchable add
-- Category badge on WI Detail: `--color-role-member-bg` / `--color-role-member-text` (neutral gray)
-- HI purchase status badge: use existing `<HouseholdItemStatusBadge>` component
-- WI status badge: use existing `<StatusBadge>` component
-- srOnly live region announces "Work item linked/unlinked: {title}"
-- HI page section title: `--font-size-xl` (20px) to match other `.cardTitle` headings on that page
-- WI page section title: `--font-size-lg` (18px) to match `.sectionTitle` on that page
-- Both pages use existing `.linkedItem` / `.subsidyItem` row patterns (bg-secondary, border, radius-md)
-- WI Detail `.section` uses `border: 1px solid var(--color-border)` — NOT `box-shadow: var(--shadow-sm)`
+- HI Detail: section cards use `border: 1px solid var(--color-border)` NOT `box-shadow: var(--shadow-sm)` for `.section`
+- HI page card titles: `--font-size-xl` (20px); WI page section titles: `--font-size-lg` (18px)
+- WorkItemPicker reused for searchable add; `<HouseholdItemStatusBadge>` reused for HI status
+- srOnly live region announces link/unlink actions
+- `--spacing-xs` / `--spacing-sm` are NOT valid tokens — use `--spacing-1` through `--spacing-16`
+- `--color-warning-bg` does NOT exist; for warning bg use `--color-hi-status-in-transit-bg`
+- RECURRING BUG: `outline: 2px solid var(--color-primary)` on focus-visible — always use `box-shadow: var(--shadow-focus)` (flagged PRs #402, #414)
 
-## Story 4.8 — Household Items Responsive & Accessibility Polish (Issue #394)
+## PR #399 Review Findings — HI Create & Edit Forms (APPROVED)
 
-- Dark mode contrast bug: `--color-hi-status-not-ordered-text` dark = `var(--color-slate-200)` (#94a3b8) is ~3.8:1 on `--color-slate-500` — FAILS WCAG AA; fix to `var(--color-slate-100)` (#e2e8f0) for ~5.0:1
-- `HouseholdItemsPage` modal: missing `aria-labelledby`, focus trap, `aria-live` result count announcer, ↑↓ arrow-key menu navigation
-- Create/Edit form pages: missing `aria-required`, `aria-invalid`, `aria-describedby`; `prefers-reduced-motion` guard; `min-height: 44px` on mobile buttons
-- `HouseholdItemDetailPage.module.css`: `.backLink`/`.infoLink` use `outline: 2px solid var(--color-primary)` — must use `box-shadow: var(--shadow-focus)` to match system
-- `HouseholdItemDetailPage.module.css`: duplicate `@media (max-width: 767px)` block at line 756 — merge into line 612 block
-- Collapsible filter panel (new): `aria-expanded` + `aria-controls` on toggle button; `role="search"` on panel; `display: none` for collapsed state; `min-height: 44px`, full-width on mobile
-- `menuButton` (⋮): needs `min-width: 44px; min-height: 44px` at mobile breakpoint
-
-## PR #402 Review Findings — Work Item Linking (Story 4.7, REQUEST CHANGES)
-
-Key token mistakes to watch for in future reviews:
-
-- `--spacing-xs` and `--spacing-sm` are NOT valid tokens — no aliased shorthand exists; use `--spacing-1` through `--spacing-16`
-- `--color-warning-bg` does NOT exist — only `--color-warning` (orange-400) is defined; for warning bg use `--color-hi-status-in-transit-bg`
-- Existing `<HouseholdItemStatusBadge>` component should be reused rather than building custom status badge CSS from scratch
-- Class used in TSX (`sectionHeading`) but CSS only defines `sectionTitle` — silently applies no styles, not an error
-- `outline: 2px solid var(--color-primary)` on focus-visible — must use `box-shadow: var(--shadow-focus)` (the project standard)
-- `border-radius: 1rem` → `var(--radius-full)`, `font-weight: 500` → `var(--font-weight-medium)`, `padding: 0.125rem` → `var(--spacing-0-5)`
-
-## PR #399 Review Findings — Household Item Create & Edit Forms (APPROVED)
-
-Model implementation — both Create and Edit pages use tokens comprehensively. See `story-4-9-invoice-linking-hi.md` for latest HI domain patterns.
+Model implementation — tokens used comprehensively. See `story-4-9-invoice-linking-hi.md` for HI domain patterns.
 
 ## Story 4.9 — Invoice Linking for HI Budget Lines (Issue #413)
 
-See `story-4-9-invoice-linking-hi.md` for full spec decisions. Key points:
+See `story-4-9-invoice-linking-hi.md`. Spec: entity type toggle (`role="group"` + `role="radio"`), "Linked To" column in invoice list table (hidden at tablet). No new tokens needed.
 
-- HI Detail: new Budget card (shadow-sm, font-size-xl title) reuses HouseholdItemDetailPage.module.css classes
-- Invoice form: entity type toggle (`role="group"`, two `role="radio"` buttons, collapsed shared border)
-- Invoice list: new "Linked To" column, hidden at tablet breakpoint
-- No new design tokens required
+## PR #414 Review Findings — Invoice Linking for HI (COMMENT)
+
+- `outline: 2px solid var(--color-primary)` on `invoiceLink:focus-visible` — recurring mistake; always use `box-shadow: var(--shadow-focus)`
+- Inline `Intl.NumberFormat('en-US', { currency: 'USD' })` in budget line dropdown — always use `formatCurrency()` from formatters.ts (EUR, not USD)
+- Badge `padding: 2px 6px` hardcoded — use `var(--spacing-0-5) var(--spacing-1-5)`
+- Spec entity type toggle not implemented (used plain separator div instead) — flag as spec deviation
+- "Linked To" table column omitted from invoice list page — functional omission

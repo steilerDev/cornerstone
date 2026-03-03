@@ -19,17 +19,8 @@ import type {
   WorkItemBudgetLine,
   HouseholdItemBudgetLine,
 } from '@cornerstone/shared';
-import { formatDate } from '../../lib/formatters.js';
+import { formatDate, formatCurrency } from '../../lib/formatters.js';
 import styles from './InvoicesPage.module.css';
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
-}
 
 const STATUS_LABELS: Record<InvoiceStatus, string> = {
   pending: 'Pending',
@@ -485,6 +476,7 @@ export function InvoicesPage() {
                     >
                       Amount{renderSortIcon('amount')}
                     </th>
+                    <th>Linked To</th>
                     <th
                       className={styles.sortableHeader}
                       onClick={() => handleSortChange('due_date')}
@@ -544,6 +536,13 @@ export function InvoicesPage() {
                         </Link>
                       </td>
                       <td className={styles.amountCell}>{formatCurrency(invoice.amount)}</td>
+                      <td>
+                        {invoice.workItemBudget
+                          ? invoice.workItemBudget.workItemTitle
+                          : invoice.householdItemBudget
+                            ? invoice.householdItemBudget.householdItemName
+                            : '—'}
+                      </td>
                       <td>{invoice.dueDate ? formatDate(invoice.dueDate) : '\u2014'}</td>
                       <td>
                         <span
@@ -841,8 +840,7 @@ export function InvoicesPage() {
                     <option value="">None</option>
                     {budgetLines.map((bl) => (
                       <option key={bl.id} value={bl.id}>
-                        {bl.description ||
-                          `${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(bl.plannedAmount)} (${bl.confidence})`}
+                        {bl.description || `${formatCurrency(bl.plannedAmount)} (${bl.confidence})`}
                       </option>
                     ))}
                   </select>
@@ -912,8 +910,7 @@ export function InvoicesPage() {
                     <option value="">None</option>
                     {householdItemBudgetLines.map((bl) => (
                       <option key={bl.id} value={bl.id}>
-                        {bl.description ||
-                          `${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(bl.plannedAmount)} (${bl.confidence})`}
+                        {bl.description || `${formatCurrency(bl.plannedAmount)} (${bl.confidence})`}
                       </option>
                     ))}
                   </select>

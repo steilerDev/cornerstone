@@ -1057,6 +1057,7 @@ export function HouseholdItemDetailPage() {
                               >
                                 {inv.status.charAt(0).toUpperCase() + inv.status.slice(1)}
                               </span>
+                              <span className={styles.invoiceDate}>{formatDate(inv.date)}</span>
                             </li>
                           ))}
                         </ul>

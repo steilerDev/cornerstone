@@ -940,9 +940,8 @@
 }
 
 .invoiceLink:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
-  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-focus);
+  outline: none;
 }
 
 .invoiceAmount {
@@ -955,6 +954,12 @@
   font-weight: var(--font-weight-semibold);
   padding: 2px 6px;
   border-radius: var(--radius-sm);
+}
+
+.invoiceDate {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  white-space: nowrap;
 }
 
 .invoiceStatus_pending {

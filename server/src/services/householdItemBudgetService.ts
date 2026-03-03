@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import {
@@ -9,6 +9,7 @@ import {
   budgetSources,
   vendors,
   users,
+  invoices,
 } from '../db/schema.js';
 import type {
   HouseholdItemBudgetLine,
@@ -95,9 +96,46 @@ function toVendorSummary(
 }
 
 /**
+ * Get total actual amount from invoices linked to a household item budget line.
+ */
+function getActualCostForBudget(db: DbType, budgetId: string): number {
+  const result = db
+    .select({ total: sql<number>`COALESCE(SUM(${invoices.amount}), 0)` })
+    .from(invoices)
+    .where(eq(invoices.householdItemBudgetId, budgetId))
+    .get();
+  return result?.total ?? 0;
+}
+
+/**
+ * Get total actual paid amount from invoices linked to a household item budget line
+ * (only invoices with status 'paid').
+ */
+function getActualCostPaidForBudget(db: DbType, budgetId: string): number {
+  const result = db
+    .select({ total: sql<number>`COALESCE(SUM(${invoices.amount}), 0)` })
+    .from(invoices)
+    .where(and(eq(invoices.householdItemBudgetId, budgetId), eq(invoices.status, 'paid')))
+    .get();
+  return result?.total ?? 0;
+}
+
+/**
+ * Get count of invoices linked to a household item budget line.
+ */
+function getInvoiceCountForBudget(db: DbType, budgetId: string): number {
+  const result = db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(invoices)
+    .where(eq(invoices.householdItemBudgetId, budgetId))
+    .get();
+  return result?.count ?? 0;
+}
+
+/**
  * Convert a database household_item_budgets row to HouseholdItemBudgetLine API shape.
  * Joins all related entities (category, source, vendor, createdBy).
- * For household items, actualCost, actualCostPaid, and invoiceCount are always 0.
+ * Computes actualCost, actualCostPaid, and invoiceCount from linked invoices.
  */
 function toHouseholdItemBudgetLine(
   db: DbType,
@@ -132,9 +170,9 @@ function toHouseholdItemBudgetLine(
     budgetCategory: toBudgetCategory(category),
     budgetSource: toBudgetSourceSummary(source),
     vendor: toVendorSummary(vendor),
-    actualCost: 0 as const,
-    actualCostPaid: 0 as const,
-    invoiceCount: 0 as const,
+    actualCost: getActualCostForBudget(db, row.id),
+    actualCostPaid: getActualCostPaidForBudget(db, row.id),
+    invoiceCount: getInvoiceCountForBudget(db, row.id),
     createdBy: toUserSummary(createdByUser),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -389,7 +427,6 @@ export function updateHouseholdItemBudget(
 
 /**
  * Delete a budget line.
- * Household items never have invoices, so we can delete directly.
  * @throws NotFoundError if household item or budget line does not exist, or if budget line
  *   does not belong to the given household item
  */

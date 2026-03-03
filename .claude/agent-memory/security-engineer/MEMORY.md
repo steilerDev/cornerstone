@@ -75,6 +75,7 @@ See `review-history.md` for detailed findings per PR.
 | #398 | EPIC-04 Story 4.3 — Household Items List Page (frontend)                          | COMMENTED (no findings)                                           | 2026-03-03 |
 | #400 | EPIC-04 Story #391 — Household Item Detail Page                                   | COMMENTED (1 low: javascript: URL protocol not validated)         | 2026-03-03 |
 | #401 | EPIC-04 Story 4.6 — Household Items Budget Integration                            | COMMENTED (2 informational)                                       | 2026-03-03 |
+| #414 | EPIC-04 Story 4.9 — Invoice Linking for Household Item Budget Lines               | COMMENTED (2 informational)                                       | 2026-03-03 |
 
 ## Known Open Recommendations (Low Priority)
 

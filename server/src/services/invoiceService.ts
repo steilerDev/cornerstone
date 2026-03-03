@@ -23,7 +23,11 @@ import type {
   InvoiceStatusBreakdown,
   InvoiceStatusSummary,
 } from '@cornerstone/shared';
-import { NotFoundError, ValidationError } from '../errors/AppError.js';
+import {
+  NotFoundError,
+  ValidationError,
+  MutuallyExclusiveBudgetLinkError,
+} from '../errors/AppError.js';
 import { deleteLinksForEntity } from './documentLinkService.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
@@ -347,9 +351,7 @@ export function createInvoice(
 
   // Mutual exclusivity: cannot link to both work item and household item budgets
   if (data.workItemBudgetId && data.householdItemBudgetId) {
-    throw new ValidationError(
-      'An invoice can only be linked to one budget line (work item or household item, not both)',
-    );
+    throw new MutuallyExclusiveBudgetLinkError();
   }
 
   // Validate workItemBudgetId if provided
@@ -512,9 +514,7 @@ export function updateInvoice(
       : existing.householdItemBudgetId;
 
   if (effectiveWorkItemBudgetId && effectiveHouseholdItemBudgetId) {
-    throw new ValidationError(
-      'An invoice can only be linked to one budget line (work item or household item, not both)',
-    );
+    throw new MutuallyExclusiveBudgetLinkError();
   }
 
   const now = new Date().toISOString();

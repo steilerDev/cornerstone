@@ -11,19 +11,10 @@ import { fetchWorkItemBudgets } from '../../lib/workItemBudgetsApi.js';
 import { fetchHouseholdItemBudgets } from '../../lib/householdItemBudgetsApi.js';
 import { listHouseholdItems } from '../../lib/householdItemsApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
-import { formatDate } from '../../lib/formatters.js';
+import { formatDate, formatCurrency } from '../../lib/formatters.js';
 import { WorkItemPicker } from '../../components/WorkItemPicker/WorkItemPicker.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
 import styles from './InvoiceDetailPage.module.css';
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
-}
 
 const STATUS_LABELS: Record<InvoiceStatus, string> = {
   pending: 'Pending',
@@ -547,8 +538,7 @@ export function InvoiceDetailPage() {
                     <option value="">None</option>
                     {budgetLines.map((bl) => (
                       <option key={bl.id} value={bl.id}>
-                        {bl.description ||
-                          `${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(bl.plannedAmount)} (${bl.confidence})`}
+                        {bl.description || `${formatCurrency(bl.plannedAmount)} (${bl.confidence})`}
                       </option>
                     ))}
                   </select>
@@ -620,8 +610,7 @@ export function InvoiceDetailPage() {
                     <option value="">None</option>
                     {householdItemBudgetLines.map((bl) => (
                       <option key={bl.id} value={bl.id}>
-                        {bl.description ||
-                          `${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(bl.plannedAmount)} (${bl.confidence})`}
+                        {bl.description || `${formatCurrency(bl.plannedAmount)} (${bl.confidence})`}
                       </option>
                     ))}
                   </select>
