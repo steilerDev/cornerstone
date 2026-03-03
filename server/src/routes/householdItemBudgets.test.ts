@@ -88,7 +88,7 @@ describe('Household Item Budget Routes', () => {
       {
         name,
         sourceType: 'savings',
-        totalAmount: 0,
+        totalAmount: 10000,
       },
       userId,
     );
