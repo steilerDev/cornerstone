@@ -50,6 +50,7 @@ describe('householdItemWorkItemsApi', () => {
         status: 'in_progress',
         startDate: '2026-04-01T00:00:00.000Z',
         endDate: '2026-04-15T00:00:00.000Z',
+        assignedUser: null,
       };
 
       mockFetch.mockResolvedValueOnce({
@@ -85,6 +86,7 @@ describe('householdItemWorkItemsApi', () => {
           status: 'not_started',
           startDate: null,
           endDate: null,
+          assignedUser: null,
         },
         {
           id: 'wi-2',
@@ -92,6 +94,7 @@ describe('householdItemWorkItemsApi', () => {
           status: 'in_progress',
           startDate: '2026-04-01T00:00:00.000Z',
           endDate: null,
+          assignedUser: null,
         },
       ];
 
@@ -138,6 +141,7 @@ describe('householdItemWorkItemsApi', () => {
         status: 'not_started',
         startDate: null,
         endDate: null,
+        assignedUser: null,
       };
 
       mockFetch.mockResolvedValueOnce({
@@ -164,6 +168,7 @@ describe('householdItemWorkItemsApi', () => {
         status: 'not_started',
         startDate: '2026-05-01T00:00:00.000Z',
         endDate: '2026-05-10T00:00:00.000Z',
+        assignedUser: null,
       };
 
       mockFetch.mockResolvedValueOnce({
