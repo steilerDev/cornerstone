@@ -127,3 +127,81 @@ Key observations for future a11y polishing PRs:
 - `0.625rem` (10px) — no font-size token; nearest is `var(--font-size-xs)` = 12px
 - `2.5rem` (40px) — no font-size token; nearest is `var(--font-size-4xl)` = 32px (or keep literal)
 - `1.75rem` (28px) — no token; falls between `--font-size-2xl` (24px) and `--font-size-3xl` (30px)
+
+## Story 4.3 — Household Items List Page (Issue #389)
+
+- New amber badge tokens required: `--color-status-in-transit-bg` + `--color-status-in-transit-text` (Layer 2 + Layer 3 in tokens.css)
+- Status badge token mapping: Not Ordered→not-started, Ordered→in-progress, In Transit→in-transit (new), Delivered→completed
+- Category badge: use `--color-role-member-bg` / `--color-role-member-text` (neutral gray pill)
+- Table vs card breakpoint: `< 768px` shows cards, `>= 768px` shows table (matches WorkItemsPage)
+- Tablet (768–1024px): hide "Expected Delivery" and "Room" columns
+- Cost formatting: German locale (`de-DE`, EUR) — consistent with WorkItemDetailPage
+- Sidebar already has "Household Items" nav link — no sidebar changes needed
+- WorkItemsPage.module.css has many hardcoded values — do NOT copy them; spec must use tokens
+- Empty state split: "no items exist" (icon + CTA) vs "filtered empty" (text + clear filters link, no icon)
+- `prefers-reduced-motion`: wrap all transitions in a media query guard in the CSS module
+
+## PR #398 Review Findings — Household Items List Page
+
+Key misses to watch for in list-page PRs:
+
+- Entire CSS module used hardcoded literals for spacing/font/radius/transition — every value must use tokens
+- New token family amber in-transit: Layer 2 `:root` used `#fef3c7` and `#92400e` directly — must be Layer 1 palette refs; need `--color-amber-100`, `--color-amber-800`, `--color-amber-300` added to Layer 1
+- Layer 3 dark mode in-transit text `#fcd34d` also hardcoded — use `var(--color-amber-300)`
+- Buttons (primaryButton, secondaryButton, cancelButton, confirmDeleteButton) fully duplicated from shared.module.css — use `composes:` instead
+- modal/modalBackdrop/modalContent/modalActions/loading/emptyState also duplicated from shared.module.css
+- `secondaryButton:hover` used `var(--color-border)` as background (border token, not bg token) — should be `var(--color-bg-hover)`; same bug exists in WorkItemsPage
+- Sortable `<th>` elements need keyboard support + `aria-sort` attribute on active column
+- Action menu button `aria-label="Actions menu"` too generic — must include item name
+- `z-index: 1000` → `var(--z-modal)`; `z-index: 10` → `var(--z-dropdown)`
+- Tablet breakpoint upper bound should be `1023px` not `1024px` to avoid overlap with desktop
+
+## Story 4.7 — Work Item Linking Spec (Issue #393)
+
+- HI Detail page: "Linked Work Items" full-width card between Subsidies and Metadata cards
+- WI Detail page: "Linked Household Items" full-width belt before Documents section
+- Linking is initiated from the HI side only — WI side is read-only (no "Add Link" button there)
+- Unlink on HI Detail page requires NO modal confirmation (action is reversible) — toast only
+- WorkItemPicker component (`client/src/components/WorkItemPicker/`) reused for searchable add
+- Category badge on WI Detail: `--color-role-member-bg` / `--color-role-member-text` (neutral gray)
+- HI purchase status badge: use existing `<HouseholdItemStatusBadge>` component
+- WI status badge: use existing `<StatusBadge>` component
+- srOnly live region announces "Work item linked/unlinked: {title}"
+- HI page section title: `--font-size-xl` (20px) to match other `.cardTitle` headings on that page
+- WI page section title: `--font-size-lg` (18px) to match `.sectionTitle` on that page
+- Both pages use existing `.linkedItem` / `.subsidyItem` row patterns (bg-secondary, border, radius-md)
+- WI Detail `.section` uses `border: 1px solid var(--color-border)` — NOT `box-shadow: var(--shadow-sm)`
+
+## Story 4.8 — Household Items Responsive & Accessibility Polish (Issue #394)
+
+- Dark mode contrast bug: `--color-hi-status-not-ordered-text` dark = `var(--color-slate-200)` (#94a3b8) is ~3.8:1 on `--color-slate-500` — FAILS WCAG AA; fix to `var(--color-slate-100)` (#e2e8f0) for ~5.0:1
+- `HouseholdItemsPage` modal: missing `aria-labelledby`, focus trap, `aria-live` result count announcer, ↑↓ arrow-key menu navigation
+- Create/Edit form pages: missing `aria-required`, `aria-invalid`, `aria-describedby`; `prefers-reduced-motion` guard; `min-height: 44px` on mobile buttons
+- `HouseholdItemDetailPage.module.css`: `.backLink`/`.infoLink` use `outline: 2px solid var(--color-primary)` — must use `box-shadow: var(--shadow-focus)` to match system
+- `HouseholdItemDetailPage.module.css`: duplicate `@media (max-width: 767px)` block at line 756 — merge into line 612 block
+- Collapsible filter panel (new): `aria-expanded` + `aria-controls` on toggle button; `role="search"` on panel; `display: none` for collapsed state; `min-height: 44px`, full-width on mobile
+- `menuButton` (⋮): needs `min-width: 44px; min-height: 44px` at mobile breakpoint
+
+## PR #402 Review Findings — Work Item Linking (Story 4.7, REQUEST CHANGES)
+
+Key token mistakes to watch for in future reviews:
+
+- `--spacing-xs` and `--spacing-sm` are NOT valid tokens — no aliased shorthand exists; use `--spacing-1` through `--spacing-16`
+- `--color-warning-bg` does NOT exist — only `--color-warning` (orange-400) is defined; for warning bg use `--color-hi-status-in-transit-bg`
+- Existing `<HouseholdItemStatusBadge>` component should be reused rather than building custom status badge CSS from scratch
+- Class used in TSX (`sectionHeading`) but CSS only defines `sectionTitle` — silently applies no styles, not an error
+- `outline: 2px solid var(--color-primary)` on focus-visible — must use `box-shadow: var(--shadow-focus)` (the project standard)
+- `border-radius: 1rem` → `var(--radius-full)`, `font-weight: 500` → `var(--font-weight-medium)`, `padding: 0.125rem` → `var(--spacing-0-5)`
+
+## PR #399 Review Findings — Household Item Create & Edit Forms (APPROVED)
+
+Model implementation with excellent token usage:
+
+- Both Create and Edit pages use tokens comprehensively (spacing, colors, typography, radius, transitions)
+- All interactive states properly defined: `:focus-visible`, hover, active, disabled — with semantic tokens
+- `prefers-reduced-motion` guard guards all transitions
+- Dark mode: all color values use Layer 2 semantic tokens (no hardcoded hex)
+- Responsive: mobile breakpoint `767px` (note: project convention is `768px`, both equivalent)
+- Form validation with error states uses `var(--color-danger)` and error-specific shadow tokens
+- Clean CSS Modules with semantic class names
+- **Improvement over WorkItemCreatePage**: Uses tokens (`var(--spacing-8)`) instead of hardcoded values (`2rem`)

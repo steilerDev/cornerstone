@@ -8,6 +8,8 @@ import type * as BudgetCategoriesApiTypes from './lib/budgetCategoriesApi.js';
 import type * as MilestonesApiTypes from './lib/milestonesApi.js';
 import type * as TimelineApiTypes from './lib/timelineApi.js';
 import type * as WorkItemsApiTypes from './lib/workItemsApi.js';
+import type * as HouseholdItemsApiTypes from './lib/householdItemsApi.js';
+import type * as VendorsApiTypes from './lib/vendorsApi.js';
 import type * as AppTypes from './App.js';
 
 const mockGetAuthMe = jest.fn<typeof AuthApiTypes.getAuthMe>();
@@ -72,6 +74,26 @@ jest.unstable_mockModule('./lib/workItemsApi.js', () => ({
   unlinkWorkItemSubsidy: jest.fn<typeof WorkItemsApiTypes.unlinkWorkItemSubsidy>(),
 }));
 
+// HouseholdItemsPage calls listHouseholdItems and fetchVendors on mount.
+// Mock to prevent fetch calls in the jsdom test environment.
+const mockListHouseholdItems = jest.fn<typeof HouseholdItemsApiTypes.listHouseholdItems>();
+jest.unstable_mockModule('./lib/householdItemsApi.js', () => ({
+  listHouseholdItems: mockListHouseholdItems,
+  getHouseholdItem: jest.fn<typeof HouseholdItemsApiTypes.getHouseholdItem>(),
+  createHouseholdItem: jest.fn<typeof HouseholdItemsApiTypes.createHouseholdItem>(),
+  updateHouseholdItem: jest.fn<typeof HouseholdItemsApiTypes.updateHouseholdItem>(),
+  deleteHouseholdItem: jest.fn<typeof HouseholdItemsApiTypes.deleteHouseholdItem>(),
+}));
+
+const mockFetchVendors = jest.fn<typeof VendorsApiTypes.fetchVendors>();
+jest.unstable_mockModule('./lib/vendorsApi.js', () => ({
+  fetchVendors: mockFetchVendors,
+  fetchVendor: jest.fn<typeof VendorsApiTypes.fetchVendor>(),
+  createVendor: jest.fn<typeof VendorsApiTypes.createVendor>(),
+  updateVendor: jest.fn<typeof VendorsApiTypes.updateVendor>(),
+  deleteVendor: jest.fn<typeof VendorsApiTypes.deleteVendor>(),
+}));
+
 describe('App', () => {
   // Dynamic imports
   let App: typeof AppTypes.App;
@@ -94,6 +116,8 @@ describe('App', () => {
     mockListMilestones.mockReset();
     mockGetTimeline.mockReset();
     mockListWorkItems.mockReset();
+    mockListHouseholdItems.mockReset();
+    mockFetchVendors.mockReset();
 
     // Default: budget categories returns empty list
     mockFetchBudgetCategories.mockResolvedValue({ categories: [] });
@@ -115,6 +139,18 @@ describe('App', () => {
     mockListWorkItems.mockResolvedValue({
       items: [],
       pagination: { page: 1, pageSize: 20, totalItems: 0, totalPages: 0 },
+    });
+
+    // Default: household items returns empty paginated list (used by HouseholdItemsPage)
+    mockListHouseholdItems.mockResolvedValue({
+      items: [],
+      pagination: { page: 1, pageSize: 25, totalItems: 0, totalPages: 0 },
+    });
+
+    // Default: vendors returns empty list (used by HouseholdItemsPage vendor filter)
+    mockFetchVendors.mockResolvedValue({
+      vendors: [],
+      pagination: { page: 1, pageSize: 25, totalItems: 0, totalPages: 0 },
     });
 
     // Default: authenticated user (no setup required)
@@ -206,8 +242,12 @@ describe('App', () => {
     window.history.pushState({}, 'Household Items', '/household-items');
     render(<App />);
 
-    // Wait for lazy-loaded HouseholdItems component to resolve
-    const heading = await screen.findByRole('heading', { name: /household items/i });
+    // Wait for lazy-loaded HouseholdItems component to resolve.
+    // Use level: 1 to match the page title h1 (not the h2 empty state "No household items yet").
+    const heading = await screen.findByRole('heading', {
+      name: /household items/i,
+      level: 1,
+    });
     expect(heading).toBeInTheDocument();
   });
 

@@ -9,8 +9,37 @@ Worktrees have no `node_modules`. To run tests from a worktree:
 
 1. Create symlinks: `ln -sf /main/node_modules /worktree/node_modules` and `ln -sf /main/server/node_modules /worktree/server/node_modules`
 2. Run from the WORKTREE directory: `node --experimental-vm-modules /main/node_modules/.bin/jest "path/to/test.ts" --no-coverage`
+3. **This worktree already has node_modules** — node_modules are present in the worktree directly. Run jest directly without symlink step.
+
+## EPIC-04 Worktree @cornerstone/shared Symlink Fix
+
+When testing new stories that add types to `shared/`, the worktree's `node_modules/@cornerstone/shared` symlink resolves to the **main repo's shared** (not the worktree's). The main repo won't have the new types built yet.
+
+**Fix**: Update the symlink to point to the worktree's own shared directory:
+
+```bash
+rm node_modules/@cornerstone/shared
+ln -s /absolute/path/to/worktree/shared node_modules/@cornerstone/shared
+```
+
+Also rebuild the worktree's shared: `node_modules/.bin/tsc -p shared/tsconfig.json`
+
+Do NOT use `import type { Foo } from '@cornerstone/shared'` in test files if Foo is a newly added type — instead use `Parameters<typeof service.method>[N]` to derive types from the service function signatures.
+
+## Schema Quirk: tags table has NO updated_at
+
+The `tags` table (migration 0002) only has: `id, name, color, created_at` — NO `updated_at`. `TagResponse` also has no `updatedAt`. Do not include this field in test inserts or type assertions.
 
 - Do NOT cast `mockGet.mock.calls[0] as [string]` — TypeScript strict mode rejects empty arrays cast to tuple. Use `expect(mockGet).not.toHaveBeenCalledWith(expect.stringContaining(...))` pattern instead.
+
+## Story #390 Household Item Create & Edit Forms (2026-03-03)
+
+- `Vendor` interface (shared/types/vendor.ts) has many required nullable fields: `phone`, `email`, `address`, `notes`, `createdBy`, `createdAt`, `updatedAt`. In vendor mock arrays, always include all fields or TypeScript strict-mode will reject.
+- `HouseholdItemVendorSummary` (used in `HouseholdItemDetail.vendor`) only has `id`, `name`, `specialty` — safe to use directly.
+- `HouseholdItemEditPage` error check: component checks `err.message.includes('404')`, `'not found'`, `'Not found'` for 404 detection — test all three variants.
+- Submit button text: Create page uses "Create Item"; Edit page uses "Save Changes".
+- Back button text: Create page "Back to Household Items"; Edit page "Back to Item".
+- useToast mock pattern (same as TimelinePage): `jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({ ToastProvider: ..., useToast: () => ({ toasts: [], showToast: jest.fn(), dismissToast: jest.fn() }) }))`.
 
 ## Story #360 Document Responsive & A11y (2026-03-02)
 
@@ -617,3 +646,24 @@ For components that call fetch internally (WorkItemSelector, MilestonePanel):
 - `screen.queryByRole('toolbar', { name: /column size/i })` should return null
 - Check mode toggle toolbar has exactly 2 buttons (Month + Week)
 - `calendarSize` URL param should be silently ignored (grid renders normally)
+
+## Story 4.7 Work Item Linking Tests (2026-03-03)
+
+**57 comprehensive tests committed: 15 service + 20 route integration + 22 API client**
+
+Key learnings:
+
+- **HouseholdItemStatus enum**: valid values are `'not_ordered' | 'ordered' | 'in_transit' | 'delivered'`
+  (NOT `'not_started'` which is only for WorkItems). Always use correct status in tests.
+- **Household items schema fields**: `vendorId`, `url`, `room`, `quantity`, `orderDate`, `expectedDeliveryDate`, `actualDeliveryDate`
+  (NOT `vendor: null` or `cost: null`). Full insert example in service test.
+- **Drizzle ORM WHERE clauses**: must use `eq(schema.table.column, value)` (NOT column comparison)
+  and `and()` operator for multiple conditions. Never use lambda comparison `(t) => t.col === val`.
+- **Valid HouseholdItemCategory values**: `'furniture' | 'appliances' | 'fixtures' | 'decor' | 'electronics' | 'outdoor' | 'storage' | 'other'`
+  (NOT `'flooring'`). Reference tests check all 8 values.
+- **API client test patterns**: 4 functions (fetch linked, link, unlink both directions) use standard mock fetch pattern
+  with `jest.fn<typeof globalThis.fetch>()` and error assertions for all non-OK statuses.
+- **Route test patterns**: household item and work item route tests follow established pattern
+  (buildApp + temp-file SQLite + createUserWithSession + createTestWorkItem/HouseholdItem helpers).
+- **Test count**: 57 tests total, categorized as: 8 auth, 21 success path (201/204/200), 1 validation (400),
+  15 not found (404), 2 conflict (409), 5 error handling (500), 5 data shape validation.

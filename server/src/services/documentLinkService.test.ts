@@ -264,17 +264,14 @@ describe('documentLinkService', () => {
       }).toThrow('Invoice not found');
     });
 
-    it('throws VALIDATION_ERROR for household_item (not yet implemented)', () => {
-      let error: AppError | undefined;
-      try {
-        documentLinkService.createLink(db, 'household_item', 'any-id', 42, 'user-001');
-      } catch (err) {
-        error = err as AppError;
-      }
-      expect(error).toBeDefined();
-      expect(error?.code).toBe('VALIDATION_ERROR');
-      expect(error?.statusCode).toBe(400);
-      expect(error?.message).toContain('not yet implemented');
+    it('throws NotFoundError when household_item does not exist', () => {
+      expect(() => {
+        documentLinkService.createLink(db, 'household_item', 'non-existent-id', 42, 'user-001');
+      }).toThrow(NotFoundError);
+
+      expect(() => {
+        documentLinkService.createLink(db, 'household_item', 'non-existent-id', 42, 'user-001');
+      }).toThrow('Household item not found');
     });
 
     it('throws DUPLICATE_DOCUMENT_LINK when same link already exists', () => {
