@@ -1,0 +1,1090 @@
+import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import Database from 'better-sqlite3';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
+import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import { eq } from 'drizzle-orm';
+import { runMigrations } from '../db/migrate.js';
+import * as schema from '../db/schema.js';
+import * as householdItemService from './householdItemService.js';
+import { NotFoundError, ValidationError } from '../errors/AppError.js';
+
+describe('Household Item Service', () => {
+  let sqlite: Database.Database;
+  let db: BetterSQLite3Database<typeof schema>;
+
+  /** Creates a fresh in-memory database with migrations applied. */
+  function createTestDb() {
+    const sqliteDb = new Database(':memory:');
+    sqliteDb.pragma('journal_mode = WAL');
+    sqliteDb.pragma('foreign_keys = ON');
+    runMigrations(sqliteDb);
+    return { sqlite: sqliteDb, db: drizzle(sqliteDb, { schema }) };
+  }
+
+  let idCounter = 0;
+
+  /** Helper: Create a test user */
+  function createTestUser(email: string, displayName: string, role: 'admin' | 'member' = 'member') {
+    const now = new Date(Date.now() + idCounter++).toISOString();
+    const userId = `user-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    db.insert(schema.users)
+      .values({
+        id: userId,
+        email,
+        displayName,
+        role,
+        authProvider: 'local',
+        passwordHash: '$scrypt$n=16384,r=8,p=1$c29tZXNhbHQ=$c29tZWhhc2g=',
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    return userId;
+  }
+
+  /** Helper: Create a test vendor */
+  function createTestVendor(name: string) {
+    const now = new Date(Date.now() + idCounter++).toISOString();
+    const vendorId = `vendor-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    db.insert(schema.vendors)
+      .values({
+        id: vendorId,
+        name,
+        specialty: null,
+        phone: null,
+        email: null,
+        address: null,
+        notes: null,
+        createdBy: null,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    return vendorId;
+  }
+
+  /** Helper: Create a test tag */
+  function createTestTag(name: string, color: string = '#3b82f6') {
+    const tagId = `tag-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    db.insert(schema.tags)
+      .values({
+        id: tagId,
+        name,
+        color,
+        createdAt: new Date(Date.now() + idCounter++).toISOString(),
+      })
+      .run();
+    return tagId;
+  }
+
+  beforeEach(() => {
+    idCounter = 0;
+    const testDb = createTestDb();
+    sqlite = testDb.sqlite;
+    db = testDb.db;
+  });
+
+  afterEach(() => {
+    sqlite.close();
+  });
+
+  // ---------------------------------------------------------------------------
+  // createHouseholdItem()
+  // ---------------------------------------------------------------------------
+
+  describe('createHouseholdItem()', () => {
+    it('creates item with only required name field and applies all defaults', () => {
+      // Given: A user and minimal request data
+      const userId = createTestUser('user@example.com', 'Test User');
+      const data: Parameters<typeof householdItemService.createHouseholdItem>[2] = {
+        name: 'Living Room Sofa',
+      };
+
+      // When: Creating household item
+      const result = householdItemService.createHouseholdItem(db, userId, data);
+
+      // Then: Item is created with correct defaults
+      expect(result.id).toBeDefined();
+      expect(result.name).toBe('Living Room Sofa');
+      expect(result.description).toBeNull();
+      expect(result.category).toBe('other');
+      expect(result.status).toBe('not_ordered');
+      expect(result.quantity).toBe(1);
+      expect(result.vendor).toBeNull();
+      expect(result.room).toBeNull();
+      expect(result.url).toBeNull();
+      expect(result.orderDate).toBeNull();
+      expect(result.expectedDeliveryDate).toBeNull();
+      expect(result.actualDeliveryDate).toBeNull();
+      expect(result.earliestDeliveryDate).toBeNull();
+      expect(result.latestDeliveryDate).toBeNull();
+      expect(result.tagIds).toEqual([]);
+      expect(result.tags).toEqual([]);
+      expect(result.dependencies).toEqual([]);
+      expect(result.subsidies).toEqual([]);
+      expect(result.budgetLineCount).toBe(0);
+      expect(result.totalPlannedAmount).toBe(0);
+      expect(result.createdBy?.id).toBe(userId);
+      expect(result.createdAt).toBeDefined();
+      expect(result.updatedAt).toBeDefined();
+    });
+
+    it('creates item with all optional fields', () => {
+      // Given: A user, vendor, and tags
+      const userId = createTestUser('user@example.com', 'Test User');
+      const vendorId = createTestVendor('IKEA');
+      const tagId1 = createTestTag('Bedroom');
+      const tagId2 = createTestTag('Priority');
+
+      const data: Parameters<typeof householdItemService.createHouseholdItem>[2] = {
+        name: 'King Bed Frame',
+        description: 'Solid oak king bed frame with headboard',
+        category: 'furniture',
+        status: 'ordered',
+        vendorId,
+        url: 'https://ikea.com/king-bed',
+        room: 'Bedroom',
+        quantity: 1,
+        orderDate: '2026-03-01',
+        expectedDeliveryDate: '2026-04-01',
+        actualDeliveryDate: null,
+        tagIds: [tagId1, tagId2],
+      };
+
+      // When: Creating household item
+      const result = householdItemService.createHouseholdItem(db, userId, data);
+
+      // Then: All fields are set correctly
+      expect(result.name).toBe('King Bed Frame');
+      expect(result.description).toBe('Solid oak king bed frame with headboard');
+      expect(result.category).toBe('furniture');
+      expect(result.status).toBe('ordered');
+      expect(result.vendor?.id).toBe(vendorId);
+      expect(result.vendor?.name).toBe('IKEA');
+      expect(result.url).toBe('https://ikea.com/king-bed');
+      expect(result.room).toBe('Bedroom');
+      expect(result.quantity).toBe(1);
+      expect(result.orderDate).toBe('2026-03-01');
+      expect(result.expectedDeliveryDate).toBe('2026-04-01');
+      expect(result.actualDeliveryDate).toBeNull();
+      expect(result.tagIds).toHaveLength(2);
+      expect(result.tags).toHaveLength(2);
+      const tagNames = result.tags.map((t) => t.name).sort();
+      expect(tagNames).toEqual(['Bedroom', 'Priority']);
+      expect(result.createdBy?.id).toBe(userId);
+    });
+
+    it('trims whitespace from name', () => {
+      // Given: Name with leading/trailing whitespace
+      const userId = createTestUser('user@example.com', 'Test User');
+      const data: Parameters<typeof householdItemService.createHouseholdItem>[2] = {
+        name: '  Kitchen Table  ',
+      };
+
+      // When: Creating household item
+      const result = householdItemService.createHouseholdItem(db, userId, data);
+
+      // Then: Name is trimmed
+      expect(result.name).toBe('Kitchen Table');
+    });
+
+    it('throws ValidationError when name is empty string', () => {
+      // Given: Empty name
+      const userId = createTestUser('user@example.com', 'Test User');
+      const data: Parameters<typeof householdItemService.createHouseholdItem>[2] = { name: '' };
+
+      // When/Then: Throws validation error
+      expect(() => householdItemService.createHouseholdItem(db, userId, data)).toThrow(
+        ValidationError,
+      );
+      expect(() => householdItemService.createHouseholdItem(db, userId, data)).toThrow(
+        'Name is required',
+      );
+    });
+
+    it('throws ValidationError when name is only whitespace', () => {
+      // Given: Whitespace-only name
+      const userId = createTestUser('user@example.com', 'Test User');
+      const data: Parameters<typeof householdItemService.createHouseholdItem>[2] = { name: '   ' };
+
+      // When/Then: Throws validation error
+      expect(() => householdItemService.createHouseholdItem(db, userId, data)).toThrow(
+        ValidationError,
+      );
+    });
+
+    it('throws ValidationError for non-existent vendorId', () => {
+      // Given: Non-existent vendor ID
+      const userId = createTestUser('user@example.com', 'Test User');
+      const data: Parameters<typeof householdItemService.createHouseholdItem>[2] = {
+        name: 'Test Item',
+        vendorId: 'non-existent-vendor-id',
+      };
+
+      // When/Then: Throws validation error
+      expect(() => householdItemService.createHouseholdItem(db, userId, data)).toThrow(
+        ValidationError,
+      );
+      expect(() => householdItemService.createHouseholdItem(db, userId, data)).toThrow(
+        'Vendor not found: non-existent-vendor-id',
+      );
+    });
+
+    it('throws ValidationError for non-existent tagId', () => {
+      // Given: Non-existent tag ID
+      const userId = createTestUser('user@example.com', 'Test User');
+      const data: Parameters<typeof householdItemService.createHouseholdItem>[2] = {
+        name: 'Test Item',
+        tagIds: ['non-existent-tag-id'],
+      };
+
+      // When/Then: Throws validation error
+      expect(() => householdItemService.createHouseholdItem(db, userId, data)).toThrow(
+        ValidationError,
+      );
+      expect(() => householdItemService.createHouseholdItem(db, userId, data)).toThrow(
+        'Tag not found: non-existent-tag-id',
+      );
+    });
+
+    it('sets createdBy from userId', () => {
+      // Given: Two users
+      const user1 = createTestUser('user1@example.com', 'User One');
+      const user2 = createTestUser('user2@example.com', 'User Two');
+
+      // When: Creating with specific user
+      const result = householdItemService.createHouseholdItem(db, user2, { name: 'My Lamp' });
+
+      // Then: createdBy reflects user2, not user1
+      expect(result.createdBy?.id).toBe(user2);
+      expect(result.createdBy?.id).not.toBe(user1);
+    });
+
+    it('creates item with category appliances', () => {
+      // Given: User
+      const userId = createTestUser('user@example.com', 'Test User');
+
+      // When: Creating with specific category
+      const result = householdItemService.createHouseholdItem(db, userId, {
+        name: 'Dishwasher',
+        category: 'appliances',
+      });
+
+      // Then: Category is set correctly
+      expect(result.category).toBe('appliances');
+    });
+
+    it('creates item with status in_transit', () => {
+      // Given: User
+      const userId = createTestUser('user@example.com', 'Test User');
+
+      // When: Creating with specific status
+      const result = householdItemService.createHouseholdItem(db, userId, {
+        name: 'Washing Machine',
+        status: 'in_transit',
+      });
+
+      // Then: Status is set correctly
+      expect(result.status).toBe('in_transit');
+    });
+
+    it('creates item with quantity greater than 1', () => {
+      // Given: User
+      const userId = createTestUser('user@example.com', 'Test User');
+
+      // When: Creating with specific quantity
+      const result = householdItemService.createHouseholdItem(db, userId, {
+        name: 'Bar Stools',
+        quantity: 4,
+      });
+
+      // Then: Quantity is set correctly
+      expect(result.quantity).toBe(4);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // getHouseholdItemById()
+  // ---------------------------------------------------------------------------
+
+  describe('getHouseholdItemById()', () => {
+    it('returns full detail with tags, dependencies, and subsidies', () => {
+      // Given: An item created with a tag
+      const userId = createTestUser('user@example.com', 'Test User');
+      const tagId = createTestTag('Living Room');
+      const created = householdItemService.createHouseholdItem(db, userId, {
+        name: 'Coffee Table',
+        tagIds: [tagId],
+      });
+
+      // When: Getting by ID
+      const result = householdItemService.getHouseholdItemById(db, created.id);
+
+      // Then: Full detail is returned
+      expect(result.id).toBe(created.id);
+      expect(result.name).toBe('Coffee Table');
+      expect(result.tags).toHaveLength(1);
+      expect(result.tags[0].name).toBe('Living Room');
+      expect(result.dependencies).toEqual([]);
+      expect(result.subsidies).toEqual([]);
+    });
+
+    it('throws NotFoundError for non-existent ID', () => {
+      // Given: No household items exist
+      // When/Then: Throws not found error
+      expect(() => householdItemService.getHouseholdItemById(db, 'non-existent-id')).toThrow(
+        NotFoundError,
+      );
+      expect(() => householdItemService.getHouseholdItemById(db, 'non-existent-id')).toThrow(
+        'Household item not found',
+      );
+    });
+
+    it('returns vendor details when vendor is linked', () => {
+      // Given: An item with a vendor
+      const userId = createTestUser('user@example.com', 'Test User');
+      const vendorId = createTestVendor('Best Buy');
+      const created = householdItemService.createHouseholdItem(db, userId, {
+        name: 'Smart TV',
+        vendorId,
+        category: 'electronics',
+      });
+
+      // When: Getting by ID
+      const result = householdItemService.getHouseholdItemById(db, created.id);
+
+      // Then: Vendor info is populated
+      expect(result.vendor?.id).toBe(vendorId);
+      expect(result.vendor?.name).toBe('Best Buy');
+    });
+
+    it('returns dependencies linked to the household item', () => {
+      // Given: A household item and a work item to depend on
+      const userId = createTestUser('user@example.com', 'Test User');
+      const created = householdItemService.createHouseholdItem(db, userId, {
+        name: 'Kitchen Cabinets',
+      });
+
+      // Insert a work item and link it as a dependency
+      const now = new Date().toISOString();
+      const workItemId = 'wi-test-001';
+      db.insert(schema.workItems)
+        .values({
+          id: workItemId,
+          title: 'Install Cabinets',
+          status: 'not_started',
+          createdBy: userId,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      db.insert(schema.householdItemDeps)
+        .values({
+          householdItemId: created.id,
+          predecessorType: 'work_item',
+          predecessorId: workItemId,
+          dependencyType: 'finish_to_start',
+          leadLagDays: 0,
+        })
+        .run();
+
+      // When: Getting by ID
+      const result = householdItemService.getHouseholdItemById(db, created.id);
+
+      // Then: Dependency is included
+      expect(result.dependencies).toHaveLength(1);
+      expect(result.dependencies[0].predecessorType).toBe('work_item');
+      expect(result.dependencies[0].predecessorId).toBe(workItemId);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // updateHouseholdItem()
+  // ---------------------------------------------------------------------------
+
+  describe('updateHouseholdItem()', () => {
+    it('updates a single field and leaves others unchanged', () => {
+      // Given: An existing household item
+      const userId = createTestUser('user@example.com', 'Test User');
+      const item = householdItemService.createHouseholdItem(db, userId, {
+        name: 'Original Name',
+        category: 'furniture',
+        status: 'not_ordered',
+      });
+
+      // When: Updating only status
+      const updated = householdItemService.updateHouseholdItem(db, item.id, {
+        status: 'ordered',
+      });
+
+      // Then: Only status changed
+      expect(updated.status).toBe('ordered');
+      expect(updated.name).toBe('Original Name');
+      expect(updated.category).toBe('furniture');
+      expect(updated.updatedAt).not.toBe(item.updatedAt);
+    });
+
+    it('updates vendor to null (clears it)', () => {
+      // Given: An item with a vendor
+      const userId = createTestUser('user@example.com', 'Test User');
+      const vendorId = createTestVendor('Home Depot');
+      const item = householdItemService.createHouseholdItem(db, userId, {
+        name: 'Paint',
+        vendorId,
+      });
+      expect(item.vendor?.id).toBe(vendorId);
+
+      // When: Clearing vendor
+      const updated = householdItemService.updateHouseholdItem(db, item.id, {
+        vendorId: null,
+      });
+
+      // Then: Vendor is null
+      expect(updated.vendor).toBeNull();
+    });
+
+    it('replaces tags with a new tagIds array', () => {
+      // Given: An item with one tag
+      const userId = createTestUser('user@example.com', 'Test User');
+      const tagOld = createTestTag('OldTag');
+      const tagNew1 = createTestTag('NewTag1');
+      const tagNew2 = createTestTag('NewTag2');
+      const item = householdItemService.createHouseholdItem(db, userId, {
+        name: 'Lamp',
+        tagIds: [tagOld],
+      });
+      expect(item.tags).toHaveLength(1);
+
+      // When: Replacing tags
+      const updated = householdItemService.updateHouseholdItem(db, item.id, {
+        tagIds: [tagNew1, tagNew2],
+      });
+
+      // Then: Tags are replaced
+      expect(updated.tags).toHaveLength(2);
+      const names = updated.tags.map((t) => t.name).sort();
+      expect(names).toEqual(['NewTag1', 'NewTag2']);
+    });
+
+    it('clears tags when tagIds is an empty array', () => {
+      // Given: An item with tags
+      const userId = createTestUser('user@example.com', 'Test User');
+      const tagId = createTestTag('Kitchen');
+      const item = householdItemService.createHouseholdItem(db, userId, {
+        name: 'Blender',
+        tagIds: [tagId],
+      });
+      expect(item.tags).toHaveLength(1);
+
+      // When: Clearing tags with empty array
+      const updated = householdItemService.updateHouseholdItem(db, item.id, {
+        tagIds: [],
+      });
+
+      // Then: Tags are cleared
+      expect(updated.tags).toEqual([]);
+      expect(updated.tagIds).toEqual([]);
+    });
+
+    it('throws NotFoundError for non-existent ID', () => {
+      // Given: No household items exist
+      // When/Then: Throws not found error
+      expect(() =>
+        householdItemService.updateHouseholdItem(db, 'non-existent-id', { status: 'ordered' }),
+      ).toThrow(NotFoundError);
+      expect(() =>
+        householdItemService.updateHouseholdItem(db, 'non-existent-id', { status: 'ordered' }),
+      ).toThrow('Household item not found');
+    });
+
+    it('throws ValidationError for non-existent vendorId in update', () => {
+      // Given: An existing item
+      const userId = createTestUser('user@example.com', 'Test User');
+      const item = householdItemService.createHouseholdItem(db, userId, { name: 'Chair' });
+
+      // When/Then: Throws validation error for bad vendor
+      expect(() =>
+        householdItemService.updateHouseholdItem(db, item.id, {
+          vendorId: 'bad-vendor-id',
+        }),
+      ).toThrow(ValidationError);
+      expect(() =>
+        householdItemService.updateHouseholdItem(db, item.id, {
+          vendorId: 'bad-vendor-id',
+        }),
+      ).toThrow('Vendor not found: bad-vendor-id');
+    });
+
+    it('throws ValidationError for non-existent tagId in update', () => {
+      // Given: An existing item
+      const userId = createTestUser('user@example.com', 'Test User');
+      const item = householdItemService.createHouseholdItem(db, userId, { name: 'Chair' });
+
+      // When/Then: Throws validation error for bad tag
+      expect(() =>
+        householdItemService.updateHouseholdItem(db, item.id, {
+          tagIds: ['non-existent-tag-id'],
+        }),
+      ).toThrow(ValidationError);
+      expect(() =>
+        householdItemService.updateHouseholdItem(db, item.id, {
+          tagIds: ['non-existent-tag-id'],
+        }),
+      ).toThrow('Tag not found: non-existent-tag-id');
+    });
+
+    it('throws ValidationError when name is empty string in update', () => {
+      // Given: An existing item
+      const userId = createTestUser('user@example.com', 'Test User');
+      const item = householdItemService.createHouseholdItem(db, userId, { name: 'Chair' });
+
+      // When/Then: Throws validation error for empty name
+      expect(() => householdItemService.updateHouseholdItem(db, item.id, { name: '' })).toThrow(
+        ValidationError,
+      );
+      expect(() => householdItemService.updateHouseholdItem(db, item.id, { name: '' })).toThrow(
+        'Name cannot be empty',
+      );
+    });
+
+    it('updates multiple fields simultaneously', () => {
+      // Given: An existing item
+      const userId = createTestUser('user@example.com', 'Test User');
+      const item = householdItemService.createHouseholdItem(db, userId, {
+        name: 'Draft Item',
+        category: 'other',
+        status: 'not_ordered',
+      });
+
+      // When: Updating multiple fields
+      const updated = householdItemService.updateHouseholdItem(db, item.id, {
+        name: 'Final Name',
+        category: 'fixtures',
+        status: 'ordered',
+        room: 'Master Bath',
+        quantity: 2,
+      });
+
+      // Then: All updated fields are correct
+      expect(updated.name).toBe('Final Name');
+      expect(updated.category).toBe('fixtures');
+      expect(updated.status).toBe('ordered');
+      expect(updated.room).toBe('Master Bath');
+      expect(updated.quantity).toBe(2);
+    });
+
+    it('can update delivery dates', () => {
+      // Given: An existing item
+      const userId = createTestUser('user@example.com', 'Test User');
+      const item = householdItemService.createHouseholdItem(db, userId, { name: 'Fridge' });
+
+      // When: Setting delivery dates
+      const updated = householdItemService.updateHouseholdItem(db, item.id, {
+        orderDate: '2026-03-10',
+        expectedDeliveryDate: '2026-04-15',
+        actualDeliveryDate: '2026-04-12',
+      });
+
+      // Then: Dates are set correctly
+      expect(updated.orderDate).toBe('2026-03-10');
+      expect(updated.expectedDeliveryDate).toBe('2026-04-15');
+      expect(updated.actualDeliveryDate).toBe('2026-04-12');
+    });
+
+    it('can clear optional fields to null', () => {
+      // Given: An item with optional fields set
+      const userId = createTestUser('user@example.com', 'Test User');
+      const item = householdItemService.createHouseholdItem(db, userId, {
+        name: 'Rug',
+        room: 'Living Room',
+        url: 'https://example.com/rug',
+        orderDate: '2026-03-01',
+      });
+
+      // When: Clearing optional fields
+      const updated = householdItemService.updateHouseholdItem(db, item.id, {
+        room: null,
+        url: null,
+        orderDate: null,
+      });
+
+      // Then: Fields are null
+      expect(updated.room).toBeNull();
+      expect(updated.url).toBeNull();
+      expect(updated.orderDate).toBeNull();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // deleteHouseholdItem()
+  // ---------------------------------------------------------------------------
+
+  describe('deleteHouseholdItem()', () => {
+    it('deletes the item successfully', () => {
+      // Given: An existing item
+      const userId = createTestUser('user@example.com', 'Test User');
+      const item = householdItemService.createHouseholdItem(db, userId, { name: 'Ottoman' });
+
+      // When: Deleting it
+      householdItemService.deleteHouseholdItem(db, item.id);
+
+      // Then: It can no longer be found
+      expect(() => householdItemService.getHouseholdItemById(db, item.id)).toThrow(NotFoundError);
+    });
+
+    it('throws NotFoundError for non-existent ID', () => {
+      // Given: No household items exist
+      // When/Then: Throws not found error
+      expect(() => householdItemService.deleteHouseholdItem(db, 'non-existent-id')).toThrow(
+        NotFoundError,
+      );
+      expect(() => householdItemService.deleteHouseholdItem(db, 'non-existent-id')).toThrow(
+        'Household item not found',
+      );
+    });
+
+    it('cascades to tags junction records', () => {
+      // Given: An item with a tag
+      const userId = createTestUser('user@example.com', 'Test User');
+      const tagId = createTestTag('Furniture');
+      const item = householdItemService.createHouseholdItem(db, userId, {
+        name: 'Armchair',
+        tagIds: [tagId],
+      });
+
+      // When: Deleting the item
+      householdItemService.deleteHouseholdItem(db, item.id);
+
+      // Then: Tag junction records are deleted (tag itself still exists)
+      const tagRows = db
+        .select()
+        .from(schema.householdItemTags)
+        .where(eq(schema.householdItemTags.householdItemId, item.id))
+        .all();
+      expect(tagRows).toHaveLength(0);
+
+      // The tag itself still exists
+      const tagStillExists = db.select().from(schema.tags).where(eq(schema.tags.id, tagId)).get();
+      expect(tagStillExists).toBeDefined();
+    });
+
+    it('cascades to dependency records', () => {
+      // Given: An item linked to a work item dependency
+      const userId = createTestUser('user@example.com', 'Test User');
+      const item = householdItemService.createHouseholdItem(db, userId, {
+        name: 'Countertop',
+      });
+
+      const now = new Date().toISOString();
+      const workItemId = 'wi-cascade-test';
+      db.insert(schema.workItems)
+        .values({
+          id: workItemId,
+          title: 'Install Countertop',
+          status: 'not_started',
+          createdBy: userId,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      db.insert(schema.householdItemDeps)
+        .values({
+          householdItemId: item.id,
+          predecessorType: 'work_item',
+          predecessorId: workItemId,
+          dependencyType: 'finish_to_start',
+          leadLagDays: 0,
+        })
+        .run();
+
+      // When: Deleting the item
+      householdItemService.deleteHouseholdItem(db, item.id);
+
+      // Then: Dependency records are deleted
+      const depRows = db
+        .select()
+        .from(schema.householdItemDeps)
+        .where(eq(schema.householdItemDeps.householdItemId, item.id))
+        .all();
+      expect(depRows).toHaveLength(0);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // listHouseholdItems()
+  // ---------------------------------------------------------------------------
+
+  describe('listHouseholdItems()', () => {
+    it('returns empty list when no items exist', () => {
+      // Given: No items
+      const query: Parameters<typeof householdItemService.listHouseholdItems>[1] = {};
+
+      // When: Listing
+      const result = householdItemService.listHouseholdItems(db, query);
+
+      // Then: Returns empty paginated response
+      expect(result.items).toHaveLength(0);
+      expect(result.pagination.totalItems).toBe(0);
+      expect(result.pagination.totalPages).toBe(0);
+      expect(result.pagination.page).toBe(1);
+      expect(result.pagination.pageSize).toBe(25);
+    });
+
+    it('returns paginated items with default page/pageSize', () => {
+      // Given: A user and 3 items
+      const userId = createTestUser('user@example.com', 'Test User');
+      for (let i = 1; i <= 3; i++) {
+        householdItemService.createHouseholdItem(db, userId, { name: `Item ${i}` });
+      }
+
+      // When: Listing with defaults
+      const result = householdItemService.listHouseholdItems(db, {});
+
+      // Then: Returns all 3 items
+      expect(result.items).toHaveLength(3);
+      expect(result.pagination.totalItems).toBe(3);
+      expect(result.pagination.page).toBe(1);
+      expect(result.pagination.pageSize).toBe(25);
+    });
+
+    it('paginates correctly with page and pageSize', () => {
+      // Given: A user and 10 items
+      const userId = createTestUser('user@example.com', 'Test User');
+      for (let i = 1; i <= 10; i++) {
+        householdItemService.createHouseholdItem(db, userId, { name: `Item ${i}` });
+      }
+
+      // When: Getting page 2 with pageSize 4
+      const result = householdItemService.listHouseholdItems(db, { page: 2, pageSize: 4 });
+
+      // Then: Correct pagination metadata
+      expect(result.items).toHaveLength(4);
+      expect(result.pagination.totalItems).toBe(10);
+      expect(result.pagination.page).toBe(2);
+      expect(result.pagination.pageSize).toBe(4);
+      expect(result.pagination.totalPages).toBe(3);
+    });
+
+    it('filters by category (exact match)', () => {
+      // Given: Items with different categories
+      const userId = createTestUser('user@example.com', 'Test User');
+      householdItemService.createHouseholdItem(db, userId, {
+        name: 'Sofa',
+        category: 'furniture',
+      });
+      householdItemService.createHouseholdItem(db, userId, {
+        name: 'Dishwasher',
+        category: 'appliances',
+      });
+      householdItemService.createHouseholdItem(db, userId, {
+        name: 'Chandelier',
+        category: 'fixtures',
+      });
+
+      // When: Filtering by category
+      const result = householdItemService.listHouseholdItems(db, { category: 'appliances' });
+
+      // Then: Only appliances returned
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].name).toBe('Dishwasher');
+    });
+
+    it('filters by status (exact match)', () => {
+      // Given: Items with different statuses
+      const userId = createTestUser('user@example.com', 'Test User');
+      householdItemService.createHouseholdItem(db, userId, {
+        name: 'Item A',
+        status: 'not_ordered',
+      });
+      householdItemService.createHouseholdItem(db, userId, {
+        name: 'Item B',
+        status: 'ordered',
+      });
+      householdItemService.createHouseholdItem(db, userId, {
+        name: 'Item C',
+        status: 'delivered',
+      });
+
+      // When: Filtering by status
+      const result = householdItemService.listHouseholdItems(db, { status: 'ordered' });
+
+      // Then: Only ordered items
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].name).toBe('Item B');
+    });
+
+    it('filters by vendorId (exact match)', () => {
+      // Given: Items with different vendors
+      const userId = createTestUser('user@example.com', 'Test User');
+      const vendor1 = createTestVendor('IKEA');
+      const vendor2 = createTestVendor('Pottery Barn');
+      householdItemService.createHouseholdItem(db, userId, {
+        name: 'Billy Shelf',
+        vendorId: vendor1,
+      });
+      householdItemService.createHouseholdItem(db, userId, {
+        name: 'Linen Sofa',
+        vendorId: vendor2,
+      });
+      householdItemService.createHouseholdItem(db, userId, { name: 'No Vendor' });
+
+      // When: Filtering by vendor1
+      const result = householdItemService.listHouseholdItems(db, { vendorId: vendor1 });
+
+      // Then: Only vendor1's items
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].name).toBe('Billy Shelf');
+    });
+
+    it('filters by room (exact match)', () => {
+      // Given: Items in different rooms
+      const userId = createTestUser('user@example.com', 'Test User');
+      householdItemService.createHouseholdItem(db, userId, { name: 'Bed', room: 'Bedroom' });
+      householdItemService.createHouseholdItem(db, userId, {
+        name: 'Couch',
+        room: 'Living Room',
+      });
+      householdItemService.createHouseholdItem(db, userId, {
+        name: 'Table',
+        room: 'Dining Room',
+      });
+
+      // When: Filtering by room
+      const result = householdItemService.listHouseholdItems(db, { room: 'Living Room' });
+
+      // Then: Only items from Living Room
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].name).toBe('Couch');
+    });
+
+    it('filters by tagId', () => {
+      // Given: Items with different tags
+      const userId = createTestUser('user@example.com', 'Test User');
+      const tag1 = createTestTag('Priority');
+      const tag2 = createTestTag('Optional');
+      householdItemService.createHouseholdItem(db, userId, {
+        name: 'Priority Item',
+        tagIds: [tag1],
+      });
+      householdItemService.createHouseholdItem(db, userId, {
+        name: 'Optional Item',
+        tagIds: [tag2],
+      });
+      householdItemService.createHouseholdItem(db, userId, { name: 'Untagged Item' });
+
+      // When: Filtering by tag1
+      const result = householdItemService.listHouseholdItems(db, { tagId: tag1 });
+
+      // Then: Only tagged items
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].name).toBe('Priority Item');
+    });
+
+    it('search q matches name (case-insensitive)', () => {
+      // Given: Items with different names
+      const userId = createTestUser('user@example.com', 'Test User');
+      householdItemService.createHouseholdItem(db, userId, { name: 'Living Room Sofa' });
+      householdItemService.createHouseholdItem(db, userId, { name: 'Bedroom Dresser' });
+      householdItemService.createHouseholdItem(db, userId, { name: 'Kitchen Blender' });
+
+      // When: Searching by name fragment
+      const result = householdItemService.listHouseholdItems(db, { q: 'sofa' });
+
+      // Then: Only matching items
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].name).toBe('Living Room Sofa');
+    });
+
+    it('search q matches description (case-insensitive)', () => {
+      // Given: Items with different descriptions
+      const userId = createTestUser('user@example.com', 'Test User');
+      householdItemService.createHouseholdItem(db, userId, {
+        name: 'Item A',
+        description: 'This is a leather recliner chair',
+      });
+      householdItemService.createHouseholdItem(db, userId, {
+        name: 'Item B',
+        description: 'Oak dining table',
+      });
+
+      // When: Searching by description fragment
+      const result = householdItemService.listHouseholdItems(db, { q: 'LEATHER' });
+
+      // Then: Only matching items
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].name).toBe('Item A');
+    });
+
+    it('search q matches room (case-insensitive)', () => {
+      // Given: Items with different rooms
+      const userId = createTestUser('user@example.com', 'Test User');
+      householdItemService.createHouseholdItem(db, userId, {
+        name: 'Shelf',
+        room: 'Home Office',
+      });
+      householdItemService.createHouseholdItem(db, userId, {
+        name: 'Mirror',
+        room: 'Bathroom',
+      });
+
+      // When: Searching by room fragment
+      const result = householdItemService.listHouseholdItems(db, { q: 'office' });
+
+      // Then: Only matching items
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].name).toBe('Shelf');
+    });
+
+    it('sorts by name ascending', () => {
+      // Given: Items with different names
+      const userId = createTestUser('user@example.com', 'Test User');
+      householdItemService.createHouseholdItem(db, userId, { name: 'Zebra Chair' });
+      householdItemService.createHouseholdItem(db, userId, { name: 'Apple Lamp' });
+      householdItemService.createHouseholdItem(db, userId, { name: 'Mango Table' });
+
+      // When: Sorting by name asc
+      const result = householdItemService.listHouseholdItems(db, {
+        sortBy: 'name',
+        sortOrder: 'asc',
+      });
+
+      // Then: Items are sorted alphabetically
+      const names = result.items.map((i) => i.name);
+      expect(names[0]).toBe('Apple Lamp');
+      expect(names[1]).toBe('Mango Table');
+      expect(names[2]).toBe('Zebra Chair');
+    });
+
+    it('sorts by category descending', () => {
+      // Given: Items with different categories
+      const userId = createTestUser('user@example.com', 'Test User');
+      householdItemService.createHouseholdItem(db, userId, {
+        name: 'Sofa',
+        category: 'furniture',
+      });
+      householdItemService.createHouseholdItem(db, userId, {
+        name: 'Blender',
+        category: 'appliances',
+      });
+
+      // When: Sorting by category desc
+      const result = householdItemService.listHouseholdItems(db, {
+        sortBy: 'category',
+        sortOrder: 'desc',
+      });
+
+      // Then: Sorted category desc
+      const categories = result.items.map((i) => i.category);
+      expect(categories[0]).toBe('furniture');
+      expect(categories[1]).toBe('appliances');
+    });
+
+    it('includes budgetLineCount and totalPlannedAmount aggregation', () => {
+      // Given: An item with budget lines
+      const userId = createTestUser('user@example.com', 'Test User');
+      const item = householdItemService.createHouseholdItem(db, userId, { name: 'TV Stand' });
+
+      // Add two budget lines
+      const now = new Date().toISOString();
+      db.insert(schema.householdItemBudgets)
+        .values({
+          id: 'budget-1',
+          householdItemId: item.id,
+          plannedAmount: 150.0,
+          confidence: 'own_estimate',
+          createdBy: userId,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      db.insert(schema.householdItemBudgets)
+        .values({
+          id: 'budget-2',
+          householdItemId: item.id,
+          plannedAmount: 75.5,
+          confidence: 'quote',
+          createdBy: userId,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+
+      // When: Listing items
+      const result = householdItemService.listHouseholdItems(db, {});
+
+      // Then: Aggregates are correct
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].budgetLineCount).toBe(2);
+      expect(result.items[0].totalPlannedAmount).toBe(225.5);
+    });
+
+    it('combined category + status filter works correctly', () => {
+      // Given: Items with various category/status combinations
+      const userId = createTestUser('user@example.com', 'Test User');
+      householdItemService.createHouseholdItem(db, userId, {
+        name: 'Match',
+        category: 'appliances',
+        status: 'delivered',
+      });
+      householdItemService.createHouseholdItem(db, userId, {
+        name: 'Wrong Status',
+        category: 'appliances',
+        status: 'ordered',
+      });
+      householdItemService.createHouseholdItem(db, userId, {
+        name: 'Wrong Category',
+        category: 'furniture',
+        status: 'delivered',
+      });
+
+      // When: Filtering by both category and status
+      const result = householdItemService.listHouseholdItems(db, {
+        category: 'appliances',
+        status: 'delivered',
+      });
+
+      // Then: Only the matching item is returned
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].name).toBe('Match');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // toHouseholdItemSummary() — export sanity checks
+  // ---------------------------------------------------------------------------
+
+  describe('toHouseholdItemSummary()', () => {
+    it('returns summary shape with tagIds array populated', () => {
+      // Given: An item with tags
+      const userId = createTestUser('user@example.com', 'Test User');
+      const tagId = createTestTag('Garden');
+      const item = householdItemService.createHouseholdItem(db, userId, {
+        name: 'Patio Table',
+        tagIds: [tagId],
+      });
+
+      // When: Getting list (which returns summary)
+      const result = householdItemService.listHouseholdItems(db, {});
+
+      // Then: tagIds in summary is populated
+      expect(result.items[0].tagIds).toEqual([tagId]);
+    });
+
+    it('returns summary with earliestDeliveryDate and latestDeliveryDate fields', () => {
+      // Given: An item
+      const userId = createTestUser('user@example.com', 'Test User');
+      const item = householdItemService.createHouseholdItem(db, userId, {
+        name: 'Patio Table',
+      });
+
+      // When: Getting list (which returns summary)
+      const result = householdItemService.listHouseholdItems(db, {});
+
+      // Then: Summary includes delivery date fields
+      expect(result.items[0]).toHaveProperty('earliestDeliveryDate');
+      expect(result.items[0]).toHaveProperty('latestDeliveryDate');
+      expect(result.items[0].earliestDeliveryDate).toBeNull();
+      expect(result.items[0].latestDeliveryDate).toBeNull();
+    });
+  });
+});
