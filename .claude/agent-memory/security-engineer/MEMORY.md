@@ -70,6 +70,11 @@ See `review-history.md` for detailed findings per PR.
 | #308 | EPIC-07 Actual dates, delay tracking, blocked-status removal                      | COMMENTED (no blocking findings)                                  | 2026-02-26 |
 | #316 | Retro improvements — dep pinning, shared CSS, formatDate, invoiceService refactor | COMMENTED (1 low finding: heredoc path injection in shell script) | 2026-02-27 |
 | #320 | Bug fixes #318 (login logo) + #319 (scheduling engine rules/isLate)               | COMMENTED (no findings)                                           | 2026-02-27 |
+| #396 | EPIC-04 Story 4.1 — Household Items Schema & Migration                            | COMMENTED (2 informational)                                       | 2026-03-02 |
+| #397 | EPIC-04 Story 4.2 — Household Items CRUD API                                      | COMMENTED (2 informational)                                       | 2026-03-02 |
+| #398 | EPIC-04 Story 4.3 — Household Items List Page (frontend)                          | COMMENTED (no findings)                                           | 2026-03-03 |
+| #400 | EPIC-04 Story #391 — Household Item Detail Page                                   | COMMENTED (1 low: javascript: URL protocol not validated)         | 2026-03-03 |
+| #401 | EPIC-04 Story 4.6 — Household Items Budget Integration                            | COMMENTED (2 informational)                                       | 2026-03-03 |
 
 ## Known Open Recommendations (Low Priority)
 
@@ -114,3 +119,5 @@ These have been noted in previous reviews. **GitHub Issue #315** tracks items 1-
 - **Actual dates (PR #308)**: `actualStartDate` and `actualEndDate` added to work_items. Auto-populated on status transitions (not_started→in_progress sets actualStartDate; in_progress→completed sets actualEndDate; not_started→completed sets both). Both fields use `format: 'date'` schema validation. No cross-field ordering validation — open informational finding #17.
 - **Category color rendering**: Always via React style object `{ backgroundColor: color }`, never string interpolation — CSS injection impossible
 - **Scheduling engine (PR #248)**: Pure function, O(V+E) Kahn's algorithm — no DoS risk at construction project scale. Cycle detection as byproduct of Kahn's. Unbounded SELECT of all work items/deps is acceptable at target scale. Drizzle ORM throughout. POST /api/schedule is read-only (no DB writes).
+- **household_items.url field (PR #396, #400)**: Stores user-provided retailer URLs — stored as text only, never fetched server-side. Frontend renders with rel="noopener noreferrer" (correct). However, no protocol allowlist — `javascript:` URIs accepted. Low finding in PR #400. Fix: validate `new URL(url).protocol` is `http:` or `https:` before rendering as href, OR add `^https?://` regex to server-side schema.
+- **EPIC-04 household_items schema (PR #396)**: migration 0010, 6 tables. planned_amount >= 0 CHECK correctly included (unlike PR #187 gap on work_item_budgets). sortBy in HouseholdItemListQuery uses snake_case literals — API implementation must whitelist before use in ORDER BY clause.
