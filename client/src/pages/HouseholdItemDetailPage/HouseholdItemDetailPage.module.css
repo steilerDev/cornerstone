@@ -72,8 +72,8 @@
 }
 
 .backLink:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: var(--shadow-focus);
   border-radius: var(--radius-sm);
 }
 
@@ -215,8 +215,8 @@
 }
 
 .infoLink:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: var(--shadow-focus);
   border-radius: var(--radius-sm);
 }
 
@@ -350,8 +350,8 @@
 }
 
 .workItemLink:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: var(--shadow-focus);
   border-radius: var(--radius-sm);
 }
 
@@ -722,6 +722,17 @@
   .budgetFormActions .cancelButton {
     min-height: 44px;
   }
+
+  .addWorkItemRow {
+    flex-direction: column;
+  }
+
+  .addWorkItemRow .formInput,
+  .addWorkItemRow .formSelect,
+  .addWorkItemRow .button {
+    width: 100%;
+    min-width: unset;
+  }
 }
 
 /* ============================================================
@@ -746,23 +757,6 @@
   .subsidyItem,
   .unlinkButton {
     transition: none;
-  }
-}
-
-/* ============================================================
- * RESPONSIVE — Mobile (max-width: 767px)
- * ============================================================ */
-
-@media (max-width: 767px) {
-  .addWorkItemRow {
-    flex-direction: column;
-  }
-
-  .addWorkItemRow .formInput,
-  .addWorkItemRow .formSelect,
-  .addWorkItemRow .button {
-    width: 100%;
-    min-width: unset;
   }
 }
 

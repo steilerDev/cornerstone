@@ -230,5 +230,6 @@
   .cancelButton,
   .submitButton {
     width: 100%;
+    min-height: 44px;
   }
 }

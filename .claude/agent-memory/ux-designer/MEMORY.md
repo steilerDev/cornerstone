@@ -172,6 +172,16 @@ Key misses to watch for in list-page PRs:
 - Both pages use existing `.linkedItem` / `.subsidyItem` row patterns (bg-secondary, border, radius-md)
 - WI Detail `.section` uses `border: 1px solid var(--color-border)` — NOT `box-shadow: var(--shadow-sm)`
 
+## Story 4.8 — Household Items Responsive & Accessibility Polish (Issue #394)
+
+- Dark mode contrast bug: `--color-hi-status-not-ordered-text` dark = `var(--color-slate-200)` (#94a3b8) is ~3.8:1 on `--color-slate-500` — FAILS WCAG AA; fix to `var(--color-slate-100)` (#e2e8f0) for ~5.0:1
+- `HouseholdItemsPage` modal: missing `aria-labelledby`, focus trap, `aria-live` result count announcer, ↑↓ arrow-key menu navigation
+- Create/Edit form pages: missing `aria-required`, `aria-invalid`, `aria-describedby`; `prefers-reduced-motion` guard; `min-height: 44px` on mobile buttons
+- `HouseholdItemDetailPage.module.css`: `.backLink`/`.infoLink` use `outline: 2px solid var(--color-primary)` — must use `box-shadow: var(--shadow-focus)` to match system
+- `HouseholdItemDetailPage.module.css`: duplicate `@media (max-width: 767px)` block at line 756 — merge into line 612 block
+- Collapsible filter panel (new): `aria-expanded` + `aria-controls` on toggle button; `role="search"` on panel; `display: none` for collapsed state; `min-height: 44px`, full-width on mobile
+- `menuButton` (⋮): needs `min-width: 44px; min-height: 44px` at mobile breakpoint
+
 ## PR #402 Review Findings — Work Item Linking (Story 4.7, REQUEST CHANGES)
 
 Key token mistakes to watch for in future reviews:
