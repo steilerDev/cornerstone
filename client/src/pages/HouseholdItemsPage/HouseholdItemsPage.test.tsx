@@ -370,34 +370,137 @@ describe('HouseholdItemsPage', () => {
         expect(screen.getByRole('button', { name: /new item/i })).toBeInTheDocument();
       });
 
-      // Find and click a delete button in one of the rows
-      const rows = screen.getAllByRole('row');
-      // Skip header row
-      if (rows.length > 1) {
-        // Simulate a delete action - we need to find a way to trigger it
-        // Since the delete button is in a menu/actions column, we'll trigger the modal state differently
-        // For now, we'll wait for the modal and verify its structure
-      }
+      // Open the actions menu for the first item by clicking the first menu button
+      const menuButtons = screen.getAllByRole('button', { name: /actions for/i });
+      await user.click(menuButtons[0]);
+
+      // Get all delete menuitems and click the first visible one
+      const deleteMenuItems = screen.getAllByRole('menuitem', { name: /delete/i });
+      await user.click(deleteMenuItems[0]);
+
+      // Verify the modal has correct ARIA attributes
+      await waitFor(() => {
+        const modal = screen.getByRole('dialog');
+        expect(modal).toHaveAttribute('aria-modal', 'true');
+        expect(modal).toHaveAttribute('aria-labelledby', 'hi-delete-modal-title');
+      });
+
+      // Verify the h2 title exists with the correct id
+      const modalTitle = screen.getByRole('heading', { name: /delete household item/i });
+      expect(modalTitle).toHaveAttribute('id', 'hi-delete-modal-title');
     });
 
     it('delete modal content div has tabIndex -1', async () => {
       const user = userEvent.setup();
-      mockListHouseholdItems.mockResolvedValueOnce(listResponse);
-
       renderPage();
 
-      // We need to trigger the delete confirmation modal
-      // Since this requires interaction, we check that the component structure supports it
       await waitFor(() => {
-        expect(
-          screen.getByRole('searchbox', { name: /search household items/i }),
-        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /new item/i })).toBeInTheDocument();
       });
 
-      // The modal structure is in the component, so we verify the pattern is correct
-      // by checking the HTML structure when modal would be rendered
-      const container = screen.getByRole('searchbox').closest('div');
-      expect(container).toBeTruthy();
+      // Open the actions menu for the first item
+      const menuButtons = screen.getAllByRole('button', { name: /actions for/i });
+      await user.click(menuButtons[0]);
+
+      // Click the first Delete menu item to open the modal
+      const deleteMenuItems = screen.getAllByRole('menuitem', { name: /delete/i });
+      await user.click(deleteMenuItems[0]);
+
+      // Verify the modal content div has tabIndex -1
+      await waitFor(() => {
+        const modalContent = screen.getByRole('dialog').querySelector('div[tabindex="-1"]');
+        expect(modalContent).toBeInTheDocument();
+        expect(modalContent).toHaveAttribute('tabindex', '-1');
+      });
+    });
+  });
+
+  describe('Accessibility - Menu keyboard navigation', () => {
+    it('ArrowDown focuses next menu item', async () => {
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /new item/i })).toBeInTheDocument();
+      });
+
+      // Open the actions menu for the first item
+      const menuButtons = screen.getAllByRole('button', { name: /actions for/i });
+      await user.click(menuButtons[0]);
+
+      // Get the menu items
+      const menuItems = screen.getAllByRole('menuitem');
+      expect(menuItems.length).toBeGreaterThanOrEqual(2);
+
+      // Focus the first menu item
+      await user.click(menuItems[0]);
+
+      // Press ArrowDown
+      await user.keyboard('{ArrowDown}');
+
+      // Verify focus moved to second menu item
+      await waitFor(() => {
+        expect(menuItems[1]).toHaveFocus();
+      });
+    });
+
+    it('Escape closes the menu', async () => {
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /new item/i })).toBeInTheDocument();
+      });
+
+      // Open the actions menu for the first item
+      const menuButtons = screen.getAllByRole('button', { name: /actions for/i });
+      await user.click(menuButtons[0]);
+
+      // Verify menu is open
+      const menus = screen.getAllByRole('menu');
+      expect(menus.length).toBeGreaterThan(0);
+
+      // Focus the first menu item and press Escape
+      const menuItems = screen.getAllByRole('menuitem');
+      await user.click(menuItems[0]);
+      await user.keyboard('{Escape}');
+
+      // Verify menu is gone (all menus should be hidden now)
+      await waitFor(() => {
+        expect(screen.queryAllByRole('menu')).toHaveLength(0);
+      });
+    });
+  });
+
+  describe('Accessibility - Delete modal focus trap', () => {
+    it('Escape closes delete modal', async () => {
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /new item/i })).toBeInTheDocument();
+      });
+
+      // Open the actions menu for the first item
+      const menuButtons = screen.getAllByRole('button', { name: /actions for/i });
+      await user.click(menuButtons[0]);
+
+      // Click the first Delete menu item to open the modal
+      const deleteMenuItems = screen.getAllByRole('menuitem', { name: /delete/i });
+      await user.click(deleteMenuItems[0]);
+
+      // Verify the modal is open
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+
+      // Press Escape
+      await user.keyboard('{Escape}');
+
+      // Verify modal is gone
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      });
     });
   });
 
