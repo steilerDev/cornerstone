@@ -14,6 +14,7 @@ import type {
   HouseholdItemStatus,
   HouseholdItemVendorSummary,
   HouseholdItemWorkItemSummary,
+  WorkItemLinkedHouseholdItemSummary,
   HouseholdItemSubsidySummary,
   HouseholdItem,
   HouseholdItemSummary,
@@ -117,11 +118,101 @@ describe('HouseholdItemWorkItemSummary interface', () => {
       status: 'in_progress',
       startDate: '2026-04-01',
       endDate: '2026-04-15',
+      assignedUser: {
+        id: 'user-1',
+        displayName: 'John Doe',
+        email: 'john@example.com',
+      },
     };
 
     expect(workItem.id).toBe('wi-1');
     expect(workItem.title).toBe('Install Kitchen Cabinets');
     expect(workItem.status).toBe('in_progress');
+    expect(workItem.assignedUser?.displayName).toBe('John Doe');
+  });
+
+  it('allows assignedUser to be null', () => {
+    const workItem: HouseholdItemWorkItemSummary = {
+      id: 'wi-2',
+      title: 'Paint Walls',
+      status: 'not_started',
+      startDate: '2026-05-01',
+      endDate: '2026-05-10',
+      assignedUser: null,
+    };
+
+    expect(workItem.assignedUser).toBeNull();
+  });
+});
+
+describe('WorkItemLinkedHouseholdItemSummary interface', () => {
+  it('constructs a valid household item summary with all fields populated', () => {
+    const householdItem: WorkItemLinkedHouseholdItemSummary = {
+      id: 'hi-1',
+      name: 'Leather Sofa',
+      category: 'furniture',
+      status: 'delivered',
+      expectedDeliveryDate: '2026-05-15',
+    };
+
+    expect(householdItem.id).toBe('hi-1');
+    expect(householdItem.name).toBe('Leather Sofa');
+    expect(householdItem.category).toBe('furniture');
+    expect(householdItem.status).toBe('delivered');
+    expect(householdItem.expectedDeliveryDate).toBe('2026-05-15');
+  });
+
+  it('allows expectedDeliveryDate to be null', () => {
+    const householdItem: WorkItemLinkedHouseholdItemSummary = {
+      id: 'hi-2',
+      name: 'Wall Paint',
+      category: 'decor',
+      status: 'not_ordered',
+      expectedDeliveryDate: null,
+    };
+
+    expect(householdItem.expectedDeliveryDate).toBeNull();
+    expect(householdItem.category).toBe('decor');
+    expect(householdItem.status).toBe('not_ordered');
+  });
+
+  it('accepts all valid category values', () => {
+    const categories: HouseholdItemCategory[] = [
+      'furniture',
+      'appliances',
+      'fixtures',
+      'decor',
+      'electronics',
+      'outdoor',
+      'storage',
+      'other',
+    ];
+
+    for (const category of categories) {
+      const householdItem: WorkItemLinkedHouseholdItemSummary = {
+        id: `hi-cat-${category}`,
+        name: `Item in ${category}`,
+        category,
+        status: 'ordered',
+        expectedDeliveryDate: '2026-06-01',
+      };
+      expect(householdItem.category).toBe(category);
+    }
+  });
+
+  it('accepts all valid status values', () => {
+    const statuses: HouseholdItemStatus[] = ['not_ordered', 'ordered', 'in_transit', 'delivered'];
+
+    for (const status of statuses) {
+      const householdItem: WorkItemLinkedHouseholdItemSummary = {
+        id: `hi-status-${status}`,
+        name: `Item with status ${status}`,
+        category: 'furniture',
+        status,
+        expectedDeliveryDate: '2026-06-01',
+      };
+      expect(householdItem.status).toBe(status);
+    }
   });
 });
 
@@ -275,6 +366,11 @@ describe('HouseholdItemDetail interface', () => {
           status: 'not_started',
           startDate: '2026-05-01',
           endDate: '2026-05-05',
+          assignedUser: {
+            id: 'user-2',
+            displayName: 'Bob Smith',
+            email: 'bob@example.com',
+          },
         },
       ],
       subsidies: [

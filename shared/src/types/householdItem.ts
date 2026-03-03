@@ -58,6 +58,7 @@ export interface HouseholdItemWorkItemSummary {
   status: string;
   startDate: string | null;
   endDate: string | null;
+  assignedUser: { id: string; displayName: string; email: string } | null;
 }
 
 /**

@@ -126,6 +126,7 @@ describe('householdItemWorkItemService', () => {
         status: 'not_started',
         startDate: null,
         endDate: null,
+        assignedUser: null,
       });
       expect(result[1]).toMatchObject({
         id: wi2,
@@ -133,6 +134,7 @@ describe('householdItemWorkItemService', () => {
         status: 'not_started',
         startDate: null,
         endDate: null,
+        assignedUser: null,
       });
     });
 
@@ -164,6 +166,7 @@ describe('householdItemWorkItemService', () => {
       expect(result).toHaveLength(1);
       expect(result[0].startDate).toBe(startDate);
       expect(result[0].endDate).toBe(endDate);
+      expect(result[0].assignedUser).toBeNull();
     });
 
     it('throws NotFoundError when household item does not exist', () => {
@@ -186,6 +189,7 @@ describe('householdItemWorkItemService', () => {
         status: 'not_started',
         startDate: null,
         endDate: null,
+        assignedUser: null,
       });
 
       // Verify link was created

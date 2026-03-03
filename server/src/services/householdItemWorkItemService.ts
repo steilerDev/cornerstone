@@ -1,7 +1,7 @@
 import { eq, and } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { householdItems, householdItemWorkItems, workItems } from '../db/schema.js';
+import { householdItems, householdItemWorkItems, workItems, users } from '../db/schema.js';
 import type {
   HouseholdItemWorkItemSummary,
   WorkItemLinkedHouseholdItemSummary,
@@ -45,9 +45,10 @@ export function listLinkedWorkItems(
   assertHouseholdItemExists(db, householdItemId);
 
   const rows = db
-    .select({ workItem: workItems })
+    .select({ workItem: workItems, assignedUser: users })
     .from(householdItemWorkItems)
     .innerJoin(workItems, eq(workItems.id, householdItemWorkItems.workItemId))
+    .leftJoin(users, eq(users.id, workItems.assignedUserId))
     .where(eq(householdItemWorkItems.householdItemId, householdItemId))
     .all();
 
@@ -57,6 +58,13 @@ export function listLinkedWorkItems(
     status: row.workItem.status,
     startDate: row.workItem.startDate,
     endDate: row.workItem.endDate,
+    assignedUser: row.assignedUser
+      ? {
+          id: row.assignedUser.id,
+          displayName: row.assignedUser.displayName,
+          email: row.assignedUser.email,
+        }
+      : null,
   }));
 }
 
@@ -92,14 +100,27 @@ export function linkWorkItemToHouseholdItem(
   // Create the link
   db.insert(householdItemWorkItems).values({ householdItemId, workItemId }).run();
 
-  // Fetch and return the work item
-  const workItem = db.select().from(workItems).where(eq(workItems.id, workItemId)).get()!;
+  // Fetch and return the work item with assigned user
+  const row = db
+    .select({ workItem: workItems, assignedUser: users })
+    .from(workItems)
+    .leftJoin(users, eq(users.id, workItems.assignedUserId))
+    .where(eq(workItems.id, workItemId))
+    .get()!;
+
   return {
-    id: workItem.id,
-    title: workItem.title,
-    status: workItem.status,
-    startDate: workItem.startDate,
-    endDate: workItem.endDate,
+    id: row.workItem.id,
+    title: row.workItem.title,
+    status: row.workItem.status,
+    startDate: row.workItem.startDate,
+    endDate: row.workItem.endDate,
+    assignedUser: row.assignedUser
+      ? {
+          id: row.assignedUser.id,
+          displayName: row.assignedUser.displayName,
+          email: row.assignedUser.email,
+        }
+      : null,
   };
 }
 

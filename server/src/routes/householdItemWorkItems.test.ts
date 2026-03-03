@@ -165,6 +165,7 @@ describe('Household Item Work Items Routes', () => {
         status: 'not_started',
         startDate,
         endDate,
+        assignedUser: null,
       });
     });
 
@@ -233,6 +234,7 @@ describe('Household Item Work Items Routes', () => {
         status: 'not_started',
         startDate: null,
         endDate: null,
+        assignedUser: null,
       });
     });
 
