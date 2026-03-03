@@ -84,6 +84,7 @@ The `npm audit` vulnerabilities are pre-existing (in dev/tooling deps — eslint
 - Story #146 (EPIC-05): subsidy program management — branch feat/146-subsidy-programs
 - Story #147 (EPIC-05): work item budget props + vendor/subsidy linking — branch feat/147-work-item-budget-props
 - Story #148 (EPIC-05): budget overview dashboard aggregation — branch feat/148-budget-overview-dashboard
+- Story #393 (EPIC-04 Story 4.7): work item ↔ household item linking — PR #402
 
 ## Shared Type Changes Break Client Tests
 

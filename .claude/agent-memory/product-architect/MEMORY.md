@@ -55,7 +55,7 @@
 - EPIC-05 Budget: Complete (promoted to main, v1.9.0)
 - EPIC-06 Timeline/Gantt: Complete (promoted to main, v1.10.0)
 - EPIC-08 Documents: Complete (promoted to main, v1.11.0)
-- EPIC-04 Household Items: In progress. Schema (PR #396), CRUD API (PR #397)
+- EPIC-04 Household Items: In progress. Schema (PR #396), CRUD API (PR #397), Budget (PR #401)
 
 ## GitHub Wiki
 
@@ -146,3 +146,25 @@ The forms omit the `quantity` field from the API contract (type: number, min 1, 
 ### Recommendation
 
 Add quantity field to both forms (perhaps in the date row), validate as integer >= 1, include in API payload.
+
+## Story 4.6 Review (PR #401): Household Item Budget Integration
+
+**Verdict:** Request Changes — Confidence margin display bug
+
+### Architecture Quality
+
+- Budget/subsidy services correctly mirror work item patterns
+- Budget overview UNION ALL approach is sound — household item budgets correctly aggregated
+- Shared types properly reuse ConfidenceLevel, BudgetSourceSummary, VendorSummary from workItemBudget
+- HouseholdItemBudgetLine enforces `actualCost: 0`, `actualCostPaid: 0`, `invoiceCount: 0` at type level
+- Subsidy payback calculation correctly skips invoice lookup (household items have no invoices)
+
+### Issues Found
+
+1. **MEDIUM:** Confidence margin displays as decimal (±0.2%) instead of percentage (±20%). Work item page uses `Math.round(CONFIDENCE_MARGINS[line.confidence] * 100)`. Fix: multiply by 100.
+2. **LOW:** app.ts comments reference "EPIC-09" — should be "EPIC-04"
+3. **LOW:** Unused `entityCounter = 0` variable in budget route test
+
+### Pattern Note
+
+- CONFIDENCE_MARGINS values are fractions (0.2, 0.1, 0.05, 0), NOT percentages. Frontend must multiply by 100 for display.
