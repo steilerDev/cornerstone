@@ -147,6 +147,14 @@ To validate your work: **stage and commit**. If the hook fails, fix the issues a
 
 The only exception is the QA agent running a specific test file it just wrote (e.g., `npx jest path/to/new.test.ts`) to verify correctness before committing — but never `npm test` (the full suite).
 
+### Sandbox Test Execution Constraints
+
+The sandbox environment is resource-constrained. When running tests locally:
+
+- **Never run the full test suite** (`npm test`) — only run tightly scoped, specific test files (e.g., `npx jest path/to/specific.test.ts`)
+- **Always use a single worker** — pass `--maxWorkers=1` to Jest for any local test execution
+- Rely on the pre-commit hook and CI for full suite validation
+
 ### Agent Attribution
 
 All agents must clearly identify themselves:

@@ -1442,3 +1442,129 @@
   color: var(--color-text-muted);
   border-color: var(--color-border);
 }
+
+/* ============================================================
+ * Linked Household Items
+ * ============================================================ */
+
+.householdItemLinkList {
+  list-style: none;
+  margin: var(--spacing-3) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.householdItemLinkRow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-2) var(--spacing-3);
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  flex-wrap: wrap;
+  transition: background-color var(--transition-fast);
+}
+
+.householdItemLinkRow:hover {
+  background: var(--color-bg-secondary);
+}
+
+.householdItemLinkName {
+  color: var(--color-primary);
+  text-decoration: none;
+  font-weight: 500;
+  flex: 1;
+  min-width: 8rem;
+}
+
+.householdItemLinkName:hover {
+  text-decoration: underline;
+  color: var(--color-primary-hover);
+}
+
+.householdItemLinkName:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.householdItemCategoryBadge {
+  font-size: var(--font-size-xs);
+  padding: var(--spacing-0-5) var(--spacing-2);
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.householdItemStatusBadge {
+  font-size: var(--font-size-xs);
+  padding: var(--spacing-0-5) var(--spacing-2);
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+}
+
+.householdItemStatusBadge[data-status='delivered'] {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+  border-color: var(--color-success);
+}
+
+.householdItemStatusBadge[data-status='ordered'] {
+  background: var(--color-hi-status-ordered-bg);
+  color: var(--color-hi-status-ordered-text);
+  border-color: var(--color-hi-status-ordered-text);
+}
+
+.householdItemStatusBadge[data-status='in_transit'] {
+  background: var(--color-hi-status-in-transit-bg);
+  color: var(--color-hi-status-in-transit-text);
+  border-color: var(--color-hi-status-in-transit-text);
+}
+
+.householdItemStatusBadge[data-status='not_ordered'] {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  border-color: var(--color-border);
+}
+
+.householdItemDeliveryDate {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.countBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 var(--spacing-1-5);
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  color: var(--color-bg-primary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  margin-left: var(--spacing-2);
+}
+
+.emptyText {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  margin: var(--spacing-3) 0 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .householdItemLinkRow,
+  .householdItemLinkName {
+    transition: none;
+  }
+}
