@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { UnauthorizedError } from '../errors/AppError.js';
 import * as workItemService from '../services/workItemService.js';
+import * as householdItemWorkItemService from '../services/householdItemWorkItemService.js';
 import { ensureDailyReschedule } from '../services/schedulingEngine.js';
 import type {
   CreateWorkItemRequest,
@@ -110,6 +111,17 @@ const workItemIdSchema = {
   },
 };
 
+// JSON schema for GET /api/work-items/:id/dependent-household-items
+const getWorkItemDependentHouseholdItemsSchema = {
+  params: {
+    type: 'object',
+    required: ['id'],
+    properties: {
+      id: { type: 'string' },
+    },
+  },
+};
+
 export default async function workItemRoutes(fastify: FastifyInstance) {
   /**
    * POST /api/work-items
@@ -202,4 +214,29 @@ export default async function workItemRoutes(fastify: FastifyInstance) {
 
     return reply.status(204).send();
   });
+
+  /**
+   * GET /api/work-items/:id/dependent-household-items
+   *
+   * Returns household items that depend on this work item.
+   * Requires authentication.
+   */
+  fastify.get(
+    '/:id/dependent-household-items',
+    { schema: getWorkItemDependentHouseholdItemsSchema },
+    async (request, reply) => {
+      if (!request.user) {
+        throw new UnauthorizedError('Authentication required');
+      }
+
+      const { id } = request.params as { id: string };
+
+      const householdItems = householdItemWorkItemService.listDependentHouseholdItemsForWorkItem(
+        fastify.db,
+        id,
+      );
+
+      return reply.status(200).send({ householdItems });
+    },
+  );
 }

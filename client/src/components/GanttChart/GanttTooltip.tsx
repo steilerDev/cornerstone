@@ -75,13 +75,28 @@ export interface GanttTooltipArrowData {
   description: string;
 }
 
+export interface GanttTooltipHouseholdItemData {
+  kind: 'household-item';
+  name: string;
+  category: string;
+  status: string;
+  earliestDeliveryDate: string | null;
+  latestDeliveryDate: string | null;
+  expectedDeliveryDate: string | null;
+  actualDeliveryDate: string | null;
+  isLate: boolean;
+  /** HI ID for "View item" touch link. */
+  householdItemId?: string;
+}
+
 /**
  * Polymorphic tooltip data — discriminated by the `kind` field.
  */
 export type GanttTooltipData =
   | GanttTooltipWorkItemData
   | GanttTooltipMilestoneData
-  | GanttTooltipArrowData;
+  | GanttTooltipArrowData
+  | GanttTooltipHouseholdItemData;
 
 export interface GanttTooltipPosition {
   /** Mouse X in viewport coordinates. */
@@ -106,6 +121,11 @@ interface GanttTooltipProps {
    * Receives the milestone ID. Used on touch devices only.
    */
   onMilestoneNavigate?: (milestoneId: number) => void;
+  /**
+   * Called when the "View item" action is tapped on a household item tooltip.
+   * Receives the household item ID. Used on touch devices only.
+   */
+  onHiNavigate?: (itemId: string) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -491,6 +511,94 @@ function MilestoneTooltipContent({
 // Arrow tooltip content
 // ---------------------------------------------------------------------------
 
+function HouseholdItemTooltipContent({
+  data,
+  isTouchDevice,
+  onNavigate,
+}: {
+  data: GanttTooltipHouseholdItemData;
+  isTouchDevice?: boolean;
+  onNavigate?: (itemId: string) => void;
+}) {
+  const statusLabel = data.status.replace(/_/g, ' ');
+
+  return (
+    <>
+      {/* Header: name + category */}
+      <div className={styles.header}>
+        <span className={styles.title}>{data.name}</span>
+        <span
+          className={styles.statusBadge}
+          style={{ backgroundColor: 'var(--color-hi-status-in-transit-bg)' }}
+        >
+          {data.category}
+        </span>
+      </div>
+
+      <div className={styles.separator} aria-hidden="true" />
+
+      {/* Status */}
+      <div className={styles.detailRow}>
+        <span className={styles.detailLabel}>Status</span>
+        <span className={styles.detailValue}>{statusLabel}</span>
+      </div>
+
+      {/* Earliest delivery date */}
+      {data.earliestDeliveryDate && (
+        <div className={styles.detailRow}>
+          <span className={styles.detailLabel}>Earliest</span>
+          <span className={styles.detailValue}>{formatDisplayDate(data.earliestDeliveryDate)}</span>
+        </div>
+      )}
+
+      {/* Expected delivery date */}
+      {data.expectedDeliveryDate && (
+        <div className={styles.detailRow}>
+          <span className={styles.detailLabel}>Expected</span>
+          <span className={styles.detailValue}>{formatDisplayDate(data.expectedDeliveryDate)}</span>
+        </div>
+      )}
+
+      {/* Latest delivery date */}
+      {data.latestDeliveryDate && (
+        <div className={styles.detailRow}>
+          <span className={styles.detailLabel}>Latest</span>
+          <span className={styles.detailValue}>{formatDisplayDate(data.latestDeliveryDate)}</span>
+        </div>
+      )}
+
+      {/* Actual delivery date */}
+      {data.actualDeliveryDate && (
+        <div className={styles.detailRow}>
+          <span className={styles.detailLabel}>Actual</span>
+          <span className={styles.detailValue}>{formatDisplayDate(data.actualDeliveryDate)}</span>
+        </div>
+      )}
+
+      {/* Floored to today note */}
+      {data.isLate && (
+        <div className={styles.detailRow}>
+          <span className={styles.detailValueFloored}>Floored to today</span>
+        </div>
+      )}
+
+      {/* View item link (touch devices only) */}
+      {isTouchDevice && data.householdItemId && onNavigate && (
+        <>
+          <div className={styles.separator} aria-hidden="true" />
+          <button
+            type="button"
+            className={styles.viewItemButton}
+            onClick={() => onNavigate(data.householdItemId!)}
+          >
+            View item
+          </button>
+        </>
+      )}
+    </>
+  );
+}
+
 function ArrowTooltipContent({ data }: { data: GanttTooltipArrowData }) {
   return (
     <div className={styles.arrowDescription} role="status">
@@ -520,6 +628,7 @@ export function GanttTooltip({
   id,
   isTouchDevice,
   onMilestoneNavigate,
+  onHiNavigate,
 }: GanttTooltipProps) {
   // Compute tooltip x/y, flipping to avoid viewport overflow
   const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1280;
@@ -564,6 +673,12 @@ export function GanttTooltip({
           data={data}
           isTouchDevice={isTouchDevice}
           onMilestoneNavigate={onMilestoneNavigate}
+        />
+      ) : data.kind === 'household-item' ? (
+        <HouseholdItemTooltipContent
+          data={data}
+          isTouchDevice={isTouchDevice}
+          onNavigate={onHiNavigate}
         />
       ) : (
         <ArrowTooltipContent data={data} />

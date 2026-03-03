@@ -18,6 +18,9 @@ import {
   workItemDependencies,
   workItemMilestoneDeps,
   milestoneWorkItems,
+  householdItems,
+  householdItemDeps,
+  milestones,
 } from '../db/schema.js';
 import type { ScheduleResponse, ScheduleWarning } from '@cornerstone/shared';
 
@@ -779,6 +782,156 @@ export function autoReschedule(db: DbType): number {
           updatedAt: now,
         })
         .where(eq(workItems.id, scheduled.workItemId))
+        .run();
+      updatedCount++;
+    }
+  }
+
+  // ── 7. Compute household item delivery dates ──────────────────────────────────
+  //
+  // Build CPM nodes for household items using work item end dates.
+  // HIs are zero-duration terminal nodes.
+
+  const allHouseholdItems = db.select().from(householdItems).all();
+  const allHIDeps = db.select().from(householdItemDeps).all();
+  const allMilestones = db.select().from(milestones).all();
+
+  // Map milestone IDs to milestones for quick lookup
+  const milestoneMap = new Map<number, typeof milestones.$inferSelect>();
+  for (const milestone of allMilestones) {
+    milestoneMap.set(milestone.id, milestone);
+  }
+
+  // Build the scheduled result map for quick lookup of work item end dates
+  const scheduledMap = new Map<string, (typeof result.scheduledItems)[0]>();
+  for (const scheduled of result.scheduledItems) {
+    scheduledMap.set(scheduled.workItemId, scheduled);
+  }
+
+  // ── 8. Compute delivery dates for household items ─────────────────────────────
+
+  const hiDeliveryDates = new Map<
+    string,
+    { earliest: string | null; latest: string | null; isLate: boolean }
+  >();
+
+  for (const hi of allHouseholdItems) {
+    // Find all dependencies for this HI
+    const hiDeps = allHIDeps.filter((dep) => dep.householdItemId === hi.id);
+
+    if (hiDeps.length === 0) {
+      // No dependencies — HI is unconstrained
+      hiDeliveryDates.set(hi.id, { earliest: null, latest: null, isLate: false });
+      continue;
+    }
+
+    // Compute ES (earliest start): max of all predecessor finish times + lead/lag
+    let maxES = today; // Default to today if no predecessors
+
+    for (const dep of hiDeps) {
+      let predEF = today;
+
+      if (dep.predecessorType === 'work_item') {
+        // Look up the work item's end date from the scheduled result
+        const scheduled = scheduledMap.get(dep.predecessorId);
+        if (scheduled) {
+          predEF = scheduled.scheduledEndDate;
+        } else {
+          // Work item not in scheduled results (shouldn't happen, but fallback)
+          const wiRow = db
+            .select()
+            .from(workItems)
+            .where(eq(workItems.id, dep.predecessorId))
+            .get();
+          if (wiRow && wiRow.endDate) {
+            predEF = wiRow.endDate;
+          }
+        }
+      } else if (dep.predecessorType === 'milestone') {
+        // Look up milestone target date
+        const milestoneId = parseInt(dep.predecessorId, 10);
+        const milestone = milestoneMap.get(milestoneId);
+        if (milestone) {
+          predEF = milestone.targetDate;
+        }
+      }
+
+      // Apply dependency type and lead/lag math (CPM formulas from ADR-014)
+      let depES = predEF;
+      if (dep.dependencyType === 'start_to_start') {
+        // SS: successorES = predES + leadLag (not predEF + leadLag)
+        // But we don't have predES here, so conservatively use predEF
+        depES = addDays(predEF, dep.leadLagDays);
+      } else if (dep.dependencyType === 'finish_to_start') {
+        // FS: successorES = predEF + leadLag
+        depES = addDays(predEF, dep.leadLagDays);
+      } else if (dep.dependencyType === 'finish_to_finish') {
+        // FF: successorEF = predEF + leadLag, but HIs are zero-duration, so ES = EF
+        depES = addDays(predEF, dep.leadLagDays);
+      } else if (dep.dependencyType === 'start_to_finish') {
+        // SF: successorEF = predES + leadLag (rare; not commonly used)
+        // Again, we don't have predES, so conservatively use predEF
+        depES = addDays(predEF, dep.leadLagDays);
+      }
+
+      maxES = maxDate(maxES, depES);
+    }
+
+    // Apply expectedDeliveryDate constraint: ES >= expectedDeliveryDate if set
+    let es = maxES;
+    if (hi.expectedDeliveryDate) {
+      es = maxDate(es, hi.expectedDeliveryDate);
+    }
+
+    // Since HIs are zero-duration, EF = ES
+    let ef = es;
+
+    // ── 9. Apply floor rules ──────────────────────────────────────────────────────
+
+    let isLate = false;
+
+    if (hi.actualDeliveryDate) {
+      // Actual date overrides CPM — use it directly
+      es = hi.actualDeliveryDate;
+      ef = hi.actualDeliveryDate;
+    } else if (hi.status === 'not_ordered' || hi.status === 'ordered') {
+      // Floor ES to today; mark as late if floored
+      const esBeforeFloor = es;
+      es = maxDate(es, today);
+      if (es !== esBeforeFloor) {
+        isLate = true;
+      }
+      ef = es; // HIs are zero-duration
+    } else if (hi.status === 'in_transit') {
+      // Floor LF (=EF for HIs) to today; mark as late if floored
+      const efBeforeFloor = ef;
+      ef = maxDate(ef, today);
+      if (ef !== efBeforeFloor) {
+        isLate = true;
+      }
+      es = ef; // HIs are zero-duration
+    }
+
+    hiDeliveryDates.set(hi.id, { earliest: es, latest: ef, isLate });
+  }
+
+  // ── 10. Write HI delivery dates back to database ────────────────────────────────
+
+  for (const [hiId, dates] of hiDeliveryDates) {
+    const current = allHouseholdItems.find((hi) => hi.id === hiId);
+    if (!current) continue;
+
+    const earliestChanged = dates.earliest !== current.earliestDeliveryDate;
+    const latestChanged = dates.latest !== current.latestDeliveryDate;
+
+    if (earliestChanged || latestChanged) {
+      db.update(householdItems)
+        .set({
+          earliestDeliveryDate: dates.earliest,
+          latestDeliveryDate: dates.latest,
+          updatedAt: now,
+        })
+        .where(eq(householdItems.id, hiId))
         .run();
       updatedCount++;
     }

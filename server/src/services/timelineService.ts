@@ -17,12 +17,15 @@ import {
   milestones,
   milestoneWorkItems,
   workItemMilestoneDeps,
+  householdItems,
+  householdItemDeps,
 } from '../db/schema.js';
 import type {
   TimelineResponse,
   TimelineWorkItem,
   TimelineDependency,
   TimelineMilestone,
+  TimelineHouseholdItem,
   TimelineDateRange,
   UserSummary,
   TagResponse,
@@ -63,14 +66,18 @@ function getWorkItemTags(db: DbType, workItemId: string): TagResponse[] {
 }
 
 /**
- * Compute the date range (earliest startDate, latest endDate) across a set of timeline work items.
- * Returns null if no work item has either date set.
+ * Compute the date range (earliest startDate, latest endDate) across work items and household items.
+ * Returns null if no item has either date set.
  */
-function computeDateRange(items: TimelineWorkItem[]): TimelineDateRange | null {
+function computeDateRange(
+  workItems: TimelineWorkItem[],
+  householdItems: TimelineHouseholdItem[],
+): TimelineDateRange | null {
   let earliest: string | null = null;
   let latest: string | null = null;
 
-  for (const item of items) {
+  // Consider work item dates
+  for (const item of workItems) {
     if (item.startDate) {
       if (!earliest || item.startDate < earliest) {
         earliest = item.startDate;
@@ -79,6 +86,20 @@ function computeDateRange(items: TimelineWorkItem[]): TimelineDateRange | null {
     if (item.endDate) {
       if (!latest || item.endDate > latest) {
         latest = item.endDate;
+      }
+    }
+  }
+
+  // Consider household item delivery dates
+  for (const item of householdItems) {
+    if (item.earliestDeliveryDate) {
+      if (!earliest || item.earliestDeliveryDate < earliest) {
+        earliest = item.earliestDeliveryDate;
+      }
+    }
+    if (item.latestDeliveryDate) {
+      if (!latest || item.latestDeliveryDate > latest) {
+        latest = item.latestDeliveryDate;
       }
     }
   }
@@ -295,14 +316,83 @@ export function getTimeline(db: DbType): TimelineResponse {
     };
   });
 
-  // ── 7. Compute date range from returned work items ────────────────────────────
+  // ── 7. Fetch household items with at least one date set ─────────────────────────
 
-  const dateRange = computeDateRange(timelineWorkItems);
+  const hiWithDates = db
+    .select()
+    .from(householdItems)
+    .where(
+      or(
+        isNotNull(householdItems.earliestDeliveryDate),
+        isNotNull(householdItems.latestDeliveryDate),
+      ),
+    )
+    .all();
+
+  // ── 7a. Fetch all HI dependencies ────────────────────────────────────────────
+
+  const allHIDeps = db.select().from(householdItemDeps).all();
+
+  // Build householdItemId → dependency references map.
+  const hiDepRefMap = new Map<
+    string,
+    { predecessorType: 'work_item' | 'milestone'; predecessorId: string }[]
+  >();
+  for (const dep of allHIDeps) {
+    const existing = hiDepRefMap.get(dep.householdItemId) ?? [];
+    existing.push({
+      predecessorType: dep.predecessorType as 'work_item' | 'milestone',
+      predecessorId: dep.predecessorId,
+    });
+    hiDepRefMap.set(dep.householdItemId, existing);
+  }
+
+  // ── 7b. Compute isLate for each household item ────────────────────────────────
+  // isLate is true when the scheduler floored earliestDeliveryDate to today.
+  // Re-compute based on status and delivery dates.
+
+  const timelineHouseholdItems: TimelineHouseholdItem[] = hiWithDates.map((hi) => {
+    let isLate = false;
+
+    // isLate heuristic: if status is not_ordered/ordered and earliest is today or later
+    // relative to when it was scheduled, or if status is in_transit and latest was floored.
+    // For simplicity, check if earliest/latest is today and status suggests it should be later.
+    if (
+      (hi.status === 'not_ordered' || hi.status === 'ordered') &&
+      hi.earliestDeliveryDate === today
+    ) {
+      // Could be late if it was supposed to be earlier, but we can't tell from DB alone.
+      // Mark as potentially late if earliest = today and status suggests ordering/transit.
+      isLate = true;
+    } else if (hi.status === 'in_transit' && hi.latestDeliveryDate === today) {
+      isLate = true;
+    }
+
+    const dependencyIds = hiDepRefMap.get(hi.id) ?? [];
+
+    return {
+      id: hi.id,
+      name: hi.name,
+      category: hi.category as any,
+      status: hi.status as any,
+      expectedDeliveryDate: hi.expectedDeliveryDate,
+      earliestDeliveryDate: hi.earliestDeliveryDate,
+      latestDeliveryDate: hi.latestDeliveryDate,
+      actualDeliveryDate: hi.actualDeliveryDate,
+      isLate,
+      dependencyIds,
+    };
+  });
+
+  // ── 8. Compute date range from returned work items and household items ────────
+
+  const dateRange = computeDateRange(timelineWorkItems, timelineHouseholdItems);
 
   return {
     workItems: timelineWorkItems,
     dependencies: timelineDependencies,
     milestones: timelineMilestones,
+    householdItems: timelineHouseholdItems,
     criticalPath,
     dateRange,
   };

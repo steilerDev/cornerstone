@@ -39,8 +39,6 @@ import paperlessRoutes from './routes/paperless.js';
 import documentLinksRoutes from './routes/documentLinks.js';
 import householdItemRoutes from './routes/householdItems.js';
 import householdItemBudgetRoutes from './routes/householdItemBudgets.js';
-import householdItemWorkItemRoutes from './routes/householdItemWorkItems.js';
-import workItemHouseholdItemRoutes from './routes/workItemHouseholdItems.js';
 import householdItemSubsidyRoutes from './routes/householdItemSubsidies.js';
 import householdItemSubsidyPaybackRoutes from './routes/householdItemSubsidyPayback.js';
 import { hashPassword, verifyPassword } from './services/userService.js';
@@ -168,16 +166,6 @@ export async function buildApp(): Promise<FastifyInstance> {
   // Household item subsidy payback (per-household-item expected payback calculation)
   await app.register(householdItemSubsidyPaybackRoutes, {
     prefix: '/api/household-items/:householdItemId/subsidy-payback',
-  });
-
-  // Household item work item linking routes (EPIC-04: Story 4.7)
-  await app.register(householdItemWorkItemRoutes, {
-    prefix: '/api/household-items/:householdItemId/work-items',
-  });
-
-  // Work item household item linking routes (EPIC-04: Story 4.7 — reverse direction)
-  await app.register(workItemHouseholdItemRoutes, {
-    prefix: '/api/work-items/:workItemId/household-items',
   });
 
   // Health check endpoint (liveness)
