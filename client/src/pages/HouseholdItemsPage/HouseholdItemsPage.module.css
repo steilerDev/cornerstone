@@ -438,6 +438,12 @@
   display: none;
 }
 
+@media (min-width: 768px) {
+  .filterPanelHidden {
+    display: block;
+  }
+}
+
 .emptyState {
   text-align: center;
   padding: var(--spacing-16) var(--spacing-8);
