@@ -172,6 +172,17 @@ Key misses to watch for in list-page PRs:
 - Both pages use existing `.linkedItem` / `.subsidyItem` row patterns (bg-secondary, border, radius-md)
 - WI Detail `.section` uses `border: 1px solid var(--color-border)` — NOT `box-shadow: var(--shadow-sm)`
 
+## PR #402 Review Findings — Work Item Linking (Story 4.7, REQUEST CHANGES)
+
+Key token mistakes to watch for in future reviews:
+
+- `--spacing-xs` and `--spacing-sm` are NOT valid tokens — no aliased shorthand exists; use `--spacing-1` through `--spacing-16`
+- `--color-warning-bg` does NOT exist — only `--color-warning` (orange-400) is defined; for warning bg use `--color-hi-status-in-transit-bg`
+- Existing `<HouseholdItemStatusBadge>` component should be reused rather than building custom status badge CSS from scratch
+- Class used in TSX (`sectionHeading`) but CSS only defines `sectionTitle` — silently applies no styles, not an error
+- `outline: 2px solid var(--color-primary)` on focus-visible — must use `box-shadow: var(--shadow-focus)` (the project standard)
+- `border-radius: 1rem` → `var(--radius-full)`, `font-weight: 500` → `var(--font-weight-medium)`, `padding: 0.125rem` → `var(--spacing-0-5)`
+
 ## PR #399 Review Findings — Household Item Create & Edit Forms (APPROVED)
 
 Model implementation with excellent token usage:
