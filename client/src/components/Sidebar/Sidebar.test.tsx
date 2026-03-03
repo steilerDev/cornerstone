@@ -101,7 +101,6 @@ describe('Sidebar', () => {
       'href',
       '/household-items',
     );
-    expect(screen.getByRole('link', { name: /documents/i })).toHaveAttribute('href', '/documents');
   });
 
   it('dashboard link is active at exact / path only (end prop)', () => {
@@ -345,8 +344,8 @@ describe('Sidebar', () => {
     const links = screen.getAllByRole('link');
     const buttons = screen.getAllByRole('button');
 
-    // 9 nav links + 1 logo link (Go to dashboard) + 1 GitHub link in the footer
-    expect(links).toHaveLength(11);
+    // 8 nav links + 1 logo link (Go to dashboard) + 1 GitHub link in the footer
+    expect(links).toHaveLength(10);
     // 3 buttons: close button + theme toggle + logout button
     expect(buttons).toHaveLength(3);
     expect(buttons[0]).toHaveAttribute('aria-label', 'Close menu');
