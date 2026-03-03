@@ -23,6 +23,7 @@ import {
   householdItemSubsidies,
   workItems,
   subsidyPrograms,
+  invoices,
 } from '../db/schema.js';
 import { deleteLinksForEntity } from './documentLinkService.js';
 import type {
@@ -33,7 +34,7 @@ import type {
   TagResponse,
   HouseholdItemWorkItemSummary,
   HouseholdItemSubsidySummary,
-  HouseholdItemBudgetSummary,
+  HouseholdItemBudgetAggregate,
   CreateHouseholdItemRequest,
   UpdateHouseholdItemRequest,
   HouseholdItemListQuery,
@@ -173,6 +174,19 @@ function getTotalPlannedAmount(db: DbType, householdItemId: string): number {
 }
 
 /**
+ * Sum total actual amount from invoices linked to household item budget lines.
+ */
+function getTotalActualAmount(db: DbType, householdItemId: string): number {
+  const result = db
+    .select({ total: sql<number>`COALESCE(SUM(${invoices.amount}), 0)` })
+    .from(invoices)
+    .innerJoin(householdItemBudgets, eq(invoices.householdItemBudgetId, householdItemBudgets.id))
+    .where(eq(householdItemBudgets.householdItemId, householdItemId))
+    .get();
+  return result?.total ?? 0;
+}
+
+/**
  * Calculate the total subsidy reduction for a household item.
  * Sums up all reductions from linked subsidy programs (non-rejected).
  * For percentage subsidies, computes based on matching budget lines with confidence margins.
@@ -217,16 +231,17 @@ function getTotalSubsidyReduction(db: DbType, householdItemId: string): number {
 }
 
 /**
- * Compute the budget summary for a household item.
+ * Compute the budget aggregates for a household item.
  */
-function getBudgetSummary(db: DbType, householdItemId: string): HouseholdItemBudgetSummary {
+function getBudgetSummary(db: DbType, householdItemId: string): HouseholdItemBudgetAggregate {
   const totalPlanned = getTotalPlannedAmount(db, householdItemId);
+  const totalActual = getTotalActualAmount(db, householdItemId);
   const subsidyReduction = getTotalSubsidyReduction(db, householdItemId);
   const netCost = totalPlanned - subsidyReduction;
 
   return {
     totalPlanned,
-    totalActual: 0, // Household items never have invoices
+    totalActual,
     subsidyReduction,
     netCost,
   };

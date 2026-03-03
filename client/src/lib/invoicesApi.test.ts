@@ -28,6 +28,8 @@ describe('invoicesApi', () => {
     vendorName: 'Test Vendor',
     workItemBudgetId: null,
     workItemBudget: null,
+    householdItemBudgetId: null,
+    householdItemBudget: null,
     invoiceNumber: 'INV-001',
     amount: 2500.0,
     date: '2026-02-01',

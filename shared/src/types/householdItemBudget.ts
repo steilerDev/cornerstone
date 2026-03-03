@@ -27,12 +27,12 @@ export interface HouseholdItemBudgetLine {
   budgetCategory: BudgetCategory | null;
   budgetSource: BudgetSourceSummary | null;
   vendor: VendorSummary | null;
-  /** Always 0 for household items (no invoices) */
-  actualCost: 0;
-  /** Always 0 for household items (no invoices) */
-  actualCostPaid: 0;
-  /** Always 0 for household items (no invoices) */
-  invoiceCount: 0;
+  /** Computed: sum of invoice amounts linked to this budget line */
+  actualCost: number;
+  /** Computed: sum of paid invoice amounts linked to this budget line */
+  actualCostPaid: number;
+  /** Computed: count of invoices linked to this budget line */
+  invoiceCount: number;
   createdBy: UserSummary | null;
   createdAt: string;
   updatedAt: string;

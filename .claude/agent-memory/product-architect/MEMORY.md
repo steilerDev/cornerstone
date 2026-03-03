@@ -24,7 +24,7 @@
 
 - DB: snake_case | TS vars: camelCase | TS types: PascalCase | Files: camelCase.ts (React: PascalCase.tsx) | API: kebab-case | Env: UPPER_SNAKE_CASE
 
-## Migrations (10 total)
+## Migrations (11 total)
 
 - 0001: users + sessions (EPIC-01)
 - 0002: work_items + tags + notes + subtasks + dependencies (EPIC-03)
@@ -35,7 +35,8 @@
 - 0007: work_item_milestone_deps (EPIC-06) -- NOT documented in Schema.md wiki
 - 0008: actual_start/end_date, blocked->not_started migration (EPIC-06)
 - 0009: document_links polymorphic table (EPIC-08)
-- 0010: household_items + 5 supporting tables (EPIC-04) -- DESIGNED, not yet implemented
+- 0010: household_items + 5 supporting tables (EPIC-04)
+- 0011: household_item_budget_id FK + index on invoices (EPIC-04, PR #414) -- REVIEW: needs wiki docs
 
 ## ADRs (ADR-001 through ADR-016)
 
@@ -55,7 +56,7 @@
 - EPIC-05 Budget: Complete (promoted to main, v1.9.0)
 - EPIC-06 Timeline/Gantt: Complete (promoted to main, v1.10.0)
 - EPIC-08 Documents: Complete (promoted to main, v1.11.0)
-- EPIC-04 Household Items: In progress. Schema (PR #396), CRUD API (PR #397), Budget (PR #401), Work Item Linking (PR #402)
+- EPIC-04 Household Items: In progress. Schema (PR #396), CRUD API (PR #397), Budget (PR #401), Work Item Linking (PR #402), Invoice Linking (PR #414 -- request changes)
 
 ## GitHub Wiki
 
@@ -188,3 +189,30 @@ Add quantity field to both forms (perhaps in the date row), validate as integer 
 2. **LOW:** `.gitignore` has both `node_modules/` (dirs) and `node_modules` (symlinks in worktrees) -- both are intentional, not redundant.
 3. **INFO:** `as any` type casts on budget mock functions in HouseholdItemDetailPage test
 4. **INFO:** Work item dates displayed as raw strings instead of using `formatDate()` for locale consistency
+
+## Story 4.9 Review (PR #414): Invoice Linking for Household Item Budget Lines
+
+**Verdict:** Request Changes -- 1 critical, 1 high, 2 medium
+
+### Architecture Quality
+
+- Migration 0011: clean ALTER TABLE + index, follows FK pattern (ON DELETE SET NULL)
+- Mutual exclusivity validation in createInvoice/updateInvoice: correct (checks both, rejects if both)
+- Budget overview UNION ALL: correctly aggregates HI invoices alongside WI invoices
+- Shared types: HouseholdItemBudgetSummary added, HouseholdItemBudgetAggregate renamed to avoid conflict
+- 50 tests across 6 files covering backend + frontend
+
+### Critical Issues
+
+1. **CRITICAL:** `deleteHouseholdItemBudget()` does not check for linked invoices. Comment says "no invoices" but now they exist via migration 0011. Must add BUDGET_LINE_IN_USE check like workItemBudgetService.
+2. **HIGH:** No wiki updates (Schema.md, API-Contract.md) for migration 0011, new fields, or mutual exclusivity.
+3. **MEDIUM:** `HouseholdItemBudgetLine` type enforces `actualCost: 0` literal type. Service hardcodes zeros. Budget overview computes correctly but per-budget-line responses are wrong.
+4. **MEDIUM:** Frontend `loadBudgetLineInvoices()` queries only the HI's vendor, missing invoices from other vendors.
+
+### Key Architectural Pattern
+
+When adding FK links to existing tables, always audit ALL services that operate on the referenced entity for:
+
+- DELETE operations (need BUDGET_LINE_IN_USE guard)
+- Response builders (hardcoded "no data" fields may become wrong)
+- Type definitions (literal `0` types may need relaxing to `number`)
