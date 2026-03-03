@@ -6,6 +6,8 @@ import { buildApp } from '../app.js';
 import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
 import * as householdItemService from '../services/householdItemService.js';
+import * as milestoneService from '../services/milestoneService.js';
+import * as workItemService from '../services/workItemService.js';
 import type { FastifyInstance } from 'fastify';
 import type { ApiErrorResponse } from '@cornerstone/shared';
 import { tags } from '../db/schema.js';
@@ -1159,6 +1161,502 @@ describe('Household Item Routes', () => {
       };
       expect(body.pagination.totalItems).toBe(1);
       expect(body.items[0].id).toBe(item1.id);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // GET /api/household-items/:id/dependencies
+  // ---------------------------------------------------------------------------
+
+  describe('GET /api/household-items/:id/dependencies', () => {
+    it('returns 200 with empty dependencies array for item with no deps', async () => {
+      // Given: An authenticated user and a household item with no dependencies
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'User',
+        'password',
+      );
+      const item = householdItemService.createHouseholdItem(app.db, userId, {
+        name: 'Standalone Item',
+      });
+
+      // When: Fetching dependencies
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/household-items/${item.id}/dependencies`,
+        headers: { cookie },
+      });
+
+      // Then: Returns 200 with empty array
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body) as { dependencies: unknown[] };
+      expect(body.dependencies).toEqual([]);
+    });
+
+    it('returns 404 when household item does not exist', async () => {
+      // Given: An authenticated user
+      const { cookie } = await createUserWithSession('user@example.com', 'User', 'password');
+
+      // When: Fetching dependencies for non-existent item
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/household-items/nonexistent-id/dependencies',
+        headers: { cookie },
+      });
+
+      // Then: Returns 404
+      expect(response.statusCode).toBe(404);
+      const error = JSON.parse(response.body) as ApiErrorResponse;
+      expect(error.error.code).toBe('NOT_FOUND');
+    });
+
+    it('returns 200 with dependencies array when deps exist', async () => {
+      // Given: An authenticated user, a work item, and a household item with a dep
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'User',
+        'password',
+      );
+      const workItem = workItemService.createWorkItem(app.db, userId, {
+        title: 'Foundation Work',
+      });
+      const item = householdItemService.createHouseholdItem(app.db, userId, { name: 'Sofa' });
+
+      // Create a dependency via POST
+      await app.inject({
+        method: 'POST',
+        url: `/api/household-items/${item.id}/dependencies`,
+        headers: { cookie },
+        payload: {
+          predecessorType: 'work_item',
+          predecessorId: workItem.id,
+        },
+      });
+
+      // When: Fetching dependencies
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/household-items/${item.id}/dependencies`,
+        headers: { cookie },
+      });
+
+      // Then: Returns 200 with the dependency
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body) as {
+        dependencies: Array<{
+          householdItemId: string;
+          predecessorType: string;
+          predecessorId: string;
+          dependencyType: string;
+          leadLagDays: number;
+          predecessor: { id: string; title: string };
+        }>;
+      };
+      expect(body.dependencies).toHaveLength(1);
+      expect(body.dependencies[0].predecessorType).toBe('work_item');
+      expect(body.dependencies[0].predecessorId).toBe(workItem.id);
+      expect(body.dependencies[0].dependencyType).toBe('finish_to_start');
+      expect(body.dependencies[0].leadLagDays).toBe(0);
+      expect(body.dependencies[0].predecessor.title).toBe('Foundation Work');
+    });
+
+    it('returns 401 when not authenticated', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/household-items/some-id/dependencies',
+      });
+      expect(response.statusCode).toBe(401);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // POST /api/household-items/:id/dependencies
+  // ---------------------------------------------------------------------------
+
+  describe('POST /api/household-items/:id/dependencies', () => {
+    it('returns 201 with created work_item dependency', async () => {
+      // Given: Authenticated user, work item, and household item
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'User',
+        'password',
+      );
+      const workItem = workItemService.createWorkItem(app.db, userId, {
+        title: 'Framing Work',
+      });
+      const item = householdItemService.createHouseholdItem(app.db, userId, {
+        name: 'Living Room Set',
+      });
+
+      // When: Creating a dependency
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/household-items/${item.id}/dependencies`,
+        headers: { cookie },
+        payload: {
+          predecessorType: 'work_item',
+          predecessorId: workItem.id,
+        },
+      });
+
+      // Then: Returns 201 with the created dependency
+      expect(response.statusCode).toBe(201);
+      const body = JSON.parse(response.body) as {
+        dependency: {
+          householdItemId: string;
+          predecessorType: string;
+          predecessorId: string;
+          dependencyType: string;
+          leadLagDays: number;
+          predecessor: { id: string; title: string };
+        };
+      };
+      expect(body.dependency.householdItemId).toBe(item.id);
+      expect(body.dependency.predecessorType).toBe('work_item');
+      expect(body.dependency.predecessorId).toBe(workItem.id);
+      expect(body.dependency.dependencyType).toBe('finish_to_start');
+      expect(body.dependency.leadLagDays).toBe(0);
+      expect(body.dependency.predecessor.id).toBe(workItem.id);
+      expect(body.dependency.predecessor.title).toBe('Framing Work');
+    });
+
+    it('returns 201 with created milestone dependency', async () => {
+      // Given: Authenticated user, milestone, and household item
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'User',
+        'password',
+      );
+      const milestone = milestoneService.createMilestone(
+        app.db,
+        { title: 'Framing Complete', targetDate: '2026-07-01' },
+        userId,
+      );
+      const item = householdItemService.createHouseholdItem(app.db, userId, { name: 'Bookcase' });
+
+      // When: Creating a milestone dependency
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/household-items/${item.id}/dependencies`,
+        headers: { cookie },
+        payload: {
+          predecessorType: 'milestone',
+          predecessorId: milestone.id.toString(),
+        },
+      });
+
+      // Then: Returns 201
+      expect(response.statusCode).toBe(201);
+      const body = JSON.parse(response.body) as {
+        dependency: {
+          predecessorType: string;
+          predecessorId: string;
+          predecessor: { title: string };
+        };
+      };
+      expect(body.dependency.predecessorType).toBe('milestone');
+      expect(body.dependency.predecessorId).toBe(milestone.id.toString());
+      expect(body.dependency.predecessor.title).toBe('Framing Complete');
+    });
+
+    it('returns 201 with custom dependencyType and leadLagDays', async () => {
+      // Given: Authenticated user, work item, and household item
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'User',
+        'password',
+      );
+      const workItem = workItemService.createWorkItem(app.db, userId, { title: 'Electrical' });
+      const item = householdItemService.createHouseholdItem(app.db, userId, { name: 'Chandelier' });
+
+      // When: Creating a dependency with custom type and lag
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/household-items/${item.id}/dependencies`,
+        headers: { cookie },
+        payload: {
+          predecessorType: 'work_item',
+          predecessorId: workItem.id,
+          dependencyType: 'start_to_start',
+          leadLagDays: 14,
+        },
+      });
+
+      // Then: Returns 201 with custom fields
+      expect(response.statusCode).toBe(201);
+      const body = JSON.parse(response.body) as {
+        dependency: { dependencyType: string; leadLagDays: number };
+      };
+      expect(body.dependency.dependencyType).toBe('start_to_start');
+      expect(body.dependency.leadLagDays).toBe(14);
+    });
+
+    it('returns 400 for missing required fields (predecessorType)', async () => {
+      // Given: Authenticated user and household item
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'User',
+        'password',
+      );
+      const item = householdItemService.createHouseholdItem(app.db, userId, { name: 'Lamp' });
+
+      // When: Creating dependency without predecessorType
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/household-items/${item.id}/dependencies`,
+        headers: { cookie },
+        payload: { predecessorId: 'some-id' }, // missing predecessorType
+      });
+
+      // Then: Returns 400
+      expect(response.statusCode).toBe(400);
+    });
+
+    it('returns 400 for missing required fields (predecessorId)', async () => {
+      // Given: Authenticated user and household item
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'User',
+        'password',
+      );
+      const item = householdItemService.createHouseholdItem(app.db, userId, { name: 'Lamp' });
+
+      // When: Creating dependency without predecessorId
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/household-items/${item.id}/dependencies`,
+        headers: { cookie },
+        payload: { predecessorType: 'work_item' }, // missing predecessorId
+      });
+
+      // Then: Returns 400
+      expect(response.statusCode).toBe(400);
+    });
+
+    it('returns 404 when household item does not exist', async () => {
+      // Given: Authenticated user and a work item
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'User',
+        'password',
+      );
+      const workItem = workItemService.createWorkItem(app.db, userId, { title: 'Test WI' });
+
+      // When: Creating dependency for non-existent HI
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/household-items/nonexistent-hi/dependencies',
+        headers: { cookie },
+        payload: { predecessorType: 'work_item', predecessorId: workItem.id },
+      });
+
+      // Then: Returns 404
+      expect(response.statusCode).toBe(404);
+      const error = JSON.parse(response.body) as ApiErrorResponse;
+      expect(error.error.code).toBe('NOT_FOUND');
+    });
+
+    it('returns 404 when predecessor work item does not exist', async () => {
+      // Given: Authenticated user and household item
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'User',
+        'password',
+      );
+      const item = householdItemService.createHouseholdItem(app.db, userId, { name: 'Rug' });
+
+      // When: Creating dependency for non-existent work item
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/household-items/${item.id}/dependencies`,
+        headers: { cookie },
+        payload: { predecessorType: 'work_item', predecessorId: 'nonexistent-wi' },
+      });
+
+      // Then: Returns 404
+      expect(response.statusCode).toBe(404);
+      const error = JSON.parse(response.body) as ApiErrorResponse;
+      expect(error.error.code).toBe('NOT_FOUND');
+    });
+
+    it('returns 409 for duplicate dependency', async () => {
+      // Given: Authenticated user, work item, and household item with existing dep
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'User',
+        'password',
+      );
+      const workItem = workItemService.createWorkItem(app.db, userId, { title: 'Foundation' });
+      const item = householdItemService.createHouseholdItem(app.db, userId, { name: 'Cabinet' });
+
+      const payload = { predecessorType: 'work_item', predecessorId: workItem.id };
+
+      // First create succeeds
+      const first = await app.inject({
+        method: 'POST',
+        url: `/api/household-items/${item.id}/dependencies`,
+        headers: { cookie },
+        payload,
+      });
+      expect(first.statusCode).toBe(201);
+
+      // Second create returns 409
+      const second = await app.inject({
+        method: 'POST',
+        url: `/api/household-items/${item.id}/dependencies`,
+        headers: { cookie },
+        payload,
+      });
+
+      expect(second.statusCode).toBe(409);
+      const error = JSON.parse(second.body) as ApiErrorResponse;
+      expect(error.error.code).toBe('DUPLICATE_DEPENDENCY');
+    });
+
+    it('returns 401 when not authenticated', async () => {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/household-items/some-id/dependencies',
+        payload: { predecessorType: 'work_item', predecessorId: 'wi-id' },
+      });
+      expect(response.statusCode).toBe(401);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // DELETE /api/household-items/:id/dependencies/:predecessorType/:predecessorId
+  // ---------------------------------------------------------------------------
+
+  describe('DELETE /api/household-items/:id/dependencies/:predecessorType/:predecessorId', () => {
+    it('returns 204 when dependency is successfully deleted', async () => {
+      // Given: An authenticated user, work item, and HI with a dependency
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'User',
+        'password',
+      );
+      const workItem = workItemService.createWorkItem(app.db, userId, { title: 'Plumbing' });
+      const item = householdItemService.createHouseholdItem(app.db, userId, { name: 'Bathtub' });
+
+      // Create the dependency first
+      await app.inject({
+        method: 'POST',
+        url: `/api/household-items/${item.id}/dependencies`,
+        headers: { cookie },
+        payload: { predecessorType: 'work_item', predecessorId: workItem.id },
+      });
+
+      // When: Deleting the dependency
+      const response = await app.inject({
+        method: 'DELETE',
+        url: `/api/household-items/${item.id}/dependencies/work_item/${workItem.id}`,
+        headers: { cookie },
+      });
+
+      // Then: Returns 204
+      expect(response.statusCode).toBe(204);
+
+      // Verify: The dep is gone
+      const depsResponse = await app.inject({
+        method: 'GET',
+        url: `/api/household-items/${item.id}/dependencies`,
+        headers: { cookie },
+      });
+      const body = JSON.parse(depsResponse.body) as { dependencies: unknown[] };
+      expect(body.dependencies).toHaveLength(0);
+    });
+
+    it('returns 404 when dependency does not exist', async () => {
+      // Given: Authenticated user and household item (no deps)
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'User',
+        'password',
+      );
+      const workItem = workItemService.createWorkItem(app.db, userId, { title: 'Work' });
+      const item = householdItemService.createHouseholdItem(app.db, userId, { name: 'Sink' });
+
+      // When: Trying to delete a non-existent dep
+      const response = await app.inject({
+        method: 'DELETE',
+        url: `/api/household-items/${item.id}/dependencies/work_item/${workItem.id}`,
+        headers: { cookie },
+      });
+
+      // Then: Returns 404
+      expect(response.statusCode).toBe(404);
+      const error = JSON.parse(response.body) as ApiErrorResponse;
+      expect(error.error.code).toBe('NOT_FOUND');
+    });
+
+    it('returns 404 when household item does not exist', async () => {
+      // Given: Authenticated user
+      const { cookie } = await createUserWithSession('user@example.com', 'User', 'password');
+
+      // When: Deleting dep for non-existent HI
+      const response = await app.inject({
+        method: 'DELETE',
+        url: '/api/household-items/nonexistent-hi/dependencies/work_item/some-wi',
+        headers: { cookie },
+      });
+
+      // Then: Returns 404
+      expect(response.statusCode).toBe(404);
+    });
+
+    it('returns 401 when not authenticated', async () => {
+      const response = await app.inject({
+        method: 'DELETE',
+        url: '/api/household-items/some-id/dependencies/work_item/some-wi',
+      });
+      expect(response.statusCode).toBe(401);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Old work-items junction endpoints should NOT exist (routes removed in 0012)
+  // ---------------------------------------------------------------------------
+
+  describe('old /work-items junction endpoints (removed)', () => {
+    it('GET /api/household-items/:id/work-items returns 404 (route removed)', async () => {
+      // Given: Authenticated user and household item
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'User',
+        'password',
+      );
+      const item = householdItemService.createHouseholdItem(app.db, userId, { name: 'Dresser' });
+
+      // When: Calling the old work-items endpoint
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/household-items/${item.id}/work-items`,
+        headers: { cookie },
+      });
+
+      // Then: Returns 404 (route does not exist)
+      expect(response.statusCode).toBe(404);
+    });
+
+    it('POST /api/household-items/:id/work-items returns 404 (route removed)', async () => {
+      // Given: Authenticated user and household item
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'User',
+        'password',
+      );
+      const item = householdItemService.createHouseholdItem(app.db, userId, { name: 'Nightstand' });
+
+      // When: Calling the old POST work-items endpoint
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/household-items/${item.id}/work-items`,
+        headers: { cookie },
+        payload: { workItemId: 'some-wi' },
+      });
+
+      // Then: Returns 404 (route does not exist)
+      expect(response.statusCode).toBe(404);
     });
   });
 });

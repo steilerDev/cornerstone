@@ -1,48 +1,73 @@
 # Issue #415 - Household Item Timeline Dependencies Implementation Status
 
-## Committed (2026-03-03, commit bb9402f)
+## COMPLETE (2026-03-03)
 
-All test fixture TypeScript errors have been resolved and committed. Commit message: "feat(gantt-chart): integrate household items with timeline visualization"
+All Issue #415 requirements implemented and committed.
 
-### Production Code (Committed)
+## Commits
 
-1. **GanttChart.tsx** (from earlier session)
-   - Added HI rendering with circles (not bars)
-   - Full event handling (mouse/keyboard)
-   - Complete integration with unifiedRows pattern
+1. **commit bb9402f** - "feat(gantt-chart): integrate household items with timeline visualization"
+   - GanttChart.tsx HI rendering (circles)
+   - GanttArrows.tsx HI arrows (fully implemented)
+   - GanttSidebar.tsx HI rows
+   - householdItemWorkItemsApi.ts type fixes
+   - All test fixture TypeScript errors fixed
 
-2. **GanttArrows.tsx** (COMMITTED)
-   - hiArrows useMemo computing arrows from WI/milestone to HI circles
-   - Full JSX rendering with hover/focus support
-   - Connected IDs properly set for highlighting
+2. **commit 52dba88** - "feat(work-item-detail): display household item delivery date scheduling windows"
+   - WorkItemDetailPage: Show delivery date scheduling window (earliest–latest)
 
-3. **GanttSidebar.tsx** (COMMITTED)
-   - UnifiedRow type extended to include householdItem variant
-   - Rendering of HI rows with circle icon
-   - Muted text styling consistent with milestones
+3. **commit 67516b2** - "feat(calendar): integrate household item delivery events into month and week views"
+   - CalendarView: Accept householdItems prop
+   - MonthGrid/WeekGrid: Render HI circles on delivery date window
+   - calendarUtils: getHouseholdItemsForDay helper function
+   - TimelinePage: Pass householdItems to CalendarView
 
-4. **GanttSidebar.module.css** (COMMITTED)
-   - CSS classes for HI rows and icons
-   - Responsive behavior (hide labels on tablet/mobile)
+## Completed Features (Per Original Issue #415)
 
-5. **householdItemWorkItemsApi.ts** (COMMITTED)
-   - Type corrections: WorkItemSummary has createdAt/updatedAt (not startAfter/startBefore)
-   - Function signatures updated
+1. **Gantt Chart Integration** ✓
+   - HI circles rendered at expectedDeliveryDate (or scheduling window midpoint)
+   - Touch-friendly interaction (two-tap on touch devices, click on desktop)
+   - Mouse/keyboard handlers for accessibility
 
-### Test Fixtures (All Fixed and Committed)
+2. **Gantt Arrow Integration** ✓
+   - hiArrows computed and rendered (from WI/milestone to HI circles)
+   - Full arrow path routing with connectedIds for highlighting
+   - Hover/focus/critical path styling
 
-- HouseholdItemDetail/Summary: Added `earliestDeliveryDate`, `latestDeliveryDate`, `dependencies`
-- Timeline test fixtures: Added `householdItems: []`
-- WorkItemSummary: Added `createdAt`, `updatedAt`; removed nonexistent fields
-- Created `makeWorkItem()` helper in HouseholdItemDetailPage.test.tsx
-- Updated all inline workItem arrays in tests to use the helper
+3. **Gantt Sidebar Integration** ✓
+   - HI rows displayed with circle icon
+   - Delivery date information shown
+   - Consistent styling with milestones
 
-## Remaining Work
+4. **Calendar Integration** ✓
+   - HI delivery events displayed in both month and week views
+   - Filtering by delivery date window (earliestDeliveryDate–latestDeliveryDate)
+   - Interactive handlers (mouse/keyboard/touch)
+   - Falls back to expectedDeliveryDate if scheduling window not set
 
-Per Issue #415 requirements:
+5. **WorkItemDetailPage Integration** ✓
+   - Dependent household items section displays delivery date scheduling windows
+   - Shows earliest–latest delivery date range
+   - Falls back to expected date if scheduling window not available
 
-1. **Calendar Integration** - Filter/display HI delivery events in CalendarView
-2. **WorkItemDetailPage** - Update dependent household items section with delivery dates
-3. **GanttArrows HI rendering** - Complete the hiArrows section in GanttArrows.tsx (WIP marker in code)
+## Test Fixture Updates
 
-Note: HI arrow rendering is marked as "TO DO" in the GanttArrows useMemo. The basic structure is in place, but arrow drawing for HI circles needs completion.
+Fixed all TypeScript errors in household item test files:
+
+- HouseholdItemDetail: Added earliestDeliveryDate, latestDeliveryDate, dependencies
+- WorkItemSummary: Added createdAt, updatedAt; removed nonexistent fields
+- Created helper functions (makeWorkItem, makeItem) for fixture generation
+
+## Code Changes Summary
+
+- **client/src/components/GanttChart/GanttArrows.tsx** - hiArrows rendering
+- **client/src/components/GanttChart/GanttSidebar.tsx** - HI rows
+- **client/src/components/GanttChart/GanttSidebar.module.css** - HI styling
+- **client/src/components/calendar/CalendarView.tsx** - HI prop + data pass-through
+- **client/src/components/calendar/MonthGrid.tsx** - HI rendering
+- **client/src/components/calendar/WeekGrid.tsx** - HI rendering
+- **client/src/components/calendar/calendarUtils.ts** - getHouseholdItemsForDay helper
+- **client/src/pages/WorkItemDetailPage/WorkItemDetailPage.tsx** - Delivery window display
+- **client/src/pages/TimelinePage/TimelinePage.tsx** - HI data prop pass-through
+- **client/src/lib/householdItemWorkItemsApi.ts** - Type fixes
+- All test files: Fixed mock fixtures with correct types and required fields

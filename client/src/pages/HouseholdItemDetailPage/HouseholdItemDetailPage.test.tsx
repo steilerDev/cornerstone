@@ -16,6 +16,10 @@ import type {
 import type React from 'react';
 import type * as HouseholdItemWorkItemsApiTypes from '../../lib/householdItemWorkItemsApi.js';
 import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
+import type * as HouseholdItemDepsApiTypes from '../../lib/householdItemDepsApi.js';
+import type * as MilestonesApiTypes from '../../lib/milestonesApi.js';
+import type * as InvoicesApiTypes from '../../lib/invoicesApi.js';
+import type { HouseholdItemDepDetail } from '@cornerstone/shared';
 
 const mockGetHouseholdItem = jest.fn<typeof HouseholdItemsApiTypes.getHouseholdItem>();
 const mockDeleteHouseholdItem = jest.fn<typeof HouseholdItemsApiTypes.deleteHouseholdItem>();
@@ -24,6 +28,12 @@ const mockNavigate = jest.fn();
 const mockFetchLinkedWorkItems =
   jest.fn<typeof HouseholdItemWorkItemsApiTypes.fetchLinkedWorkItems>();
 const mockListWorkItems = jest.fn<typeof WorkItemsApiTypes.listWorkItems>();
+const mockFetchHouseholdItemDeps =
+  jest.fn<typeof HouseholdItemDepsApiTypes.fetchHouseholdItemDeps>();
+const mockCreateHouseholdItemDep =
+  jest.fn<typeof HouseholdItemDepsApiTypes.createHouseholdItemDep>();
+const mockDeleteHouseholdItemDep =
+  jest.fn<typeof HouseholdItemDepsApiTypes.deleteHouseholdItemDep>();
 const mockFetchHouseholdItemBudgets = jest.fn() as any;
 const mockFetchBudgetCategories = jest.fn() as any;
 const mockFetchBudgetSources = jest.fn() as any;
@@ -131,6 +141,38 @@ jest.unstable_mockModule('../../lib/householdItemSubsidiesApi.js', () => ({
   fetchHouseholdItemSubsidyPayback: mockFetchHouseholdItemSubsidyPayback,
 }));
 
+// Mock householdItemDepsApi (added for Story #415 — Dependencies section)
+jest.unstable_mockModule('../../lib/householdItemDepsApi.js', () => ({
+  fetchHouseholdItemDeps: mockFetchHouseholdItemDeps,
+  createHouseholdItemDep: mockCreateHouseholdItemDep,
+  deleteHouseholdItemDep: mockDeleteHouseholdItemDep,
+}));
+
+// Mock milestonesApi to avoid unhandled promise rejection in add dep modal
+const mockListMilestones = jest.fn<typeof MilestonesApiTypes.listMilestones>();
+jest.unstable_mockModule('../../lib/milestonesApi.js', () => ({
+  listMilestones: mockListMilestones,
+  getMilestone: jest.fn<typeof MilestonesApiTypes.getMilestone>(),
+  createMilestone: jest.fn<typeof MilestonesApiTypes.createMilestone>(),
+  updateMilestone: jest.fn<typeof MilestonesApiTypes.updateMilestone>(),
+  deleteMilestone: jest.fn<typeof MilestonesApiTypes.deleteMilestone>(),
+  linkWorkItem: jest.fn<typeof MilestonesApiTypes.linkWorkItem>(),
+  unlinkWorkItem: jest.fn<typeof MilestonesApiTypes.unlinkWorkItem>(),
+  addDependentWorkItem: jest.fn<typeof MilestonesApiTypes.addDependentWorkItem>(),
+  removeDependentWorkItem: jest.fn<typeof MilestonesApiTypes.removeDependentWorkItem>(),
+}));
+
+// Mock invoicesApi to avoid unhandled promise rejection
+const mockFetchInvoices = jest.fn<typeof InvoicesApiTypes.fetchInvoices>();
+jest.unstable_mockModule('../../lib/invoicesApi.js', () => ({
+  fetchInvoices: mockFetchInvoices,
+  fetchAllInvoices: jest.fn<typeof InvoicesApiTypes.fetchAllInvoices>(),
+  fetchInvoiceById: jest.fn<typeof InvoicesApiTypes.fetchInvoiceById>(),
+  createInvoice: jest.fn<typeof InvoicesApiTypes.createInvoice>(),
+  updateInvoice: jest.fn<typeof InvoicesApiTypes.updateInvoice>(),
+  deleteInvoice: jest.fn<typeof InvoicesApiTypes.deleteInvoice>(),
+}));
+
 // Mock LinkedDocumentsSection to avoid pulling in full documents component tree
 jest.unstable_mockModule('../../components/documents/LinkedDocumentsSection.js', () => ({
   LinkedDocumentsSection: function MockLinkedDocumentsSection(props: {
@@ -220,6 +262,11 @@ describe('HouseholdItemDetailPage', () => {
     mockFetchSubsidyPrograms.mockReset();
     mockFetchHouseholdItemSubsidies.mockReset();
     mockFetchHouseholdItemSubsidyPayback.mockReset();
+    mockFetchHouseholdItemDeps.mockReset();
+    mockCreateHouseholdItemDep.mockReset();
+    mockDeleteHouseholdItemDep.mockReset();
+    mockListMilestones.mockReset();
+    mockFetchInvoices.mockReset();
 
     if (!HouseholdItemDetailPageModule) {
       HouseholdItemDetailPageModule = await import('./HouseholdItemDetailPage.js');
@@ -246,6 +293,18 @@ describe('HouseholdItemDetailPage', () => {
       maxTotalPayback: 0,
       subsidies: [],
     });
+    mockFetchHouseholdItemDeps.mockResolvedValue([]);
+    mockCreateHouseholdItemDep.mockResolvedValue({
+      householdItemId: 'item-1',
+      predecessorType: 'work_item',
+      predecessorId: 'wi-1',
+      dependencyType: 'finish_to_start',
+      leadLagDays: 0,
+      predecessor: { id: 'wi-1', title: 'Work Item', status: 'not_started', endDate: null },
+    } as HouseholdItemDepDetail);
+    mockDeleteHouseholdItemDep.mockResolvedValue(undefined);
+    mockListMilestones.mockResolvedValue([]);
+    mockFetchInvoices.mockResolvedValue([]);
   });
 
   function renderPage(itemId = 'item-1') {
@@ -1151,6 +1210,241 @@ describe('HouseholdItemDetailPage', () => {
       });
 
       expect(screen.queryByTestId('linked-documents-section')).not.toBeInTheDocument();
+    });
+  });
+
+  // ── Dependencies section (Story #415) ───────────────────────────────────────
+
+  describe('Dependencies section', () => {
+    it('renders "Dependencies" heading when item loads', async () => {
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
+      });
+
+      expect(screen.getByRole('heading', { name: 'Dependencies' })).toBeInTheDocument();
+    });
+
+    it('shows empty state text when no dependencies exist', async () => {
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+      mockFetchHouseholdItemDeps.mockResolvedValue([]);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
+      });
+
+      expect(
+        screen.getByText('No dependencies yet. Add a dependency to schedule this item.'),
+      ).toBeInTheDocument();
+    });
+
+    it('shows earliestDeliveryDate label in delivery summary row', async () => {
+      mockGetHouseholdItem.mockResolvedValue(makeItem({ earliestDeliveryDate: '2026-03-01' }));
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('Earliest delivery')).toBeInTheDocument();
+    });
+
+    it('shows latestDeliveryDate label in delivery summary row', async () => {
+      mockGetHouseholdItem.mockResolvedValue(makeItem({ latestDeliveryDate: '2026-03-10' }));
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('Latest delivery')).toBeInTheDocument();
+    });
+
+    it('shows "Floored to today" chip when item is not_ordered and earliestDeliveryDate is today', async () => {
+      const today = new Date().toISOString().slice(0, 10);
+      mockGetHouseholdItem.mockResolvedValue(
+        makeItem({
+          status: 'not_ordered',
+          earliestDeliveryDate: today,
+        }),
+      );
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('Floored to today')).toBeInTheDocument();
+    });
+
+    it('does NOT show "Floored to today" chip when item is delivered', async () => {
+      const today = new Date().toISOString().slice(0, 10);
+      mockGetHouseholdItem.mockResolvedValue(
+        makeItem({
+          status: 'delivered',
+          earliestDeliveryDate: today,
+          actualDeliveryDate: today,
+        }),
+      );
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
+      });
+
+      expect(screen.queryByText('Floored to today')).not.toBeInTheDocument();
+    });
+
+    it('renders dependency list when work_item dependencies exist', async () => {
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+      mockFetchHouseholdItemDeps.mockResolvedValue([
+        {
+          householdItemId: 'item-1',
+          predecessorType: 'work_item',
+          predecessorId: 'wi-1',
+          dependencyType: 'finish_to_start',
+          leadLagDays: 0,
+          predecessor: {
+            id: 'wi-1',
+            title: 'Foundation Work',
+            status: 'in_progress',
+            endDate: '2026-05-15',
+          },
+        } as HouseholdItemDepDetail,
+      ]);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('Foundation Work')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('Work Item')).toBeInTheDocument();
+    });
+
+    it('renders milestone dependency with "Milestone" type badge', async () => {
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+      mockFetchHouseholdItemDeps.mockResolvedValue([
+        {
+          householdItemId: 'item-1',
+          predecessorType: 'milestone',
+          predecessorId: '42',
+          dependencyType: 'finish_to_start',
+          leadLagDays: 0,
+          predecessor: { id: '42', title: 'Frame Complete', status: null, endDate: '2026-04-30' },
+        } as HouseholdItemDepDetail,
+      ]);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('Frame Complete')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('Milestone')).toBeInTheDocument();
+    });
+
+    it('"Add Dependency" button is visible in the Dependencies card', async () => {
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
+      });
+
+      expect(screen.getByRole('button', { name: 'Add Dependency' })).toBeInTheDocument();
+    });
+
+    it('clicking "×" remove button shows Confirm and Cancel actions', async () => {
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+      mockFetchHouseholdItemDeps.mockResolvedValue([
+        {
+          householdItemId: 'item-1',
+          predecessorType: 'work_item',
+          predecessorId: 'wi-1',
+          dependencyType: 'finish_to_start',
+          leadLagDays: 0,
+          predecessor: {
+            id: 'wi-1',
+            title: 'Foundation Work',
+            status: 'in_progress',
+            endDate: null,
+          },
+        } as HouseholdItemDepDetail,
+      ]);
+
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Foundation Work')).toBeInTheDocument();
+      });
+
+      const removeButton = screen.getByRole('button', {
+        name: /Remove dependency on Foundation Work/i,
+      });
+      await user.click(removeButton);
+
+      expect(screen.getByRole('button', { name: 'Confirm' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
+    });
+
+    it('confirming removal calls deleteHouseholdItemDep', async () => {
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+      mockFetchHouseholdItemDeps
+        .mockResolvedValueOnce([
+          {
+            householdItemId: 'item-1',
+            predecessorType: 'work_item',
+            predecessorId: 'wi-1',
+            dependencyType: 'finish_to_start',
+            leadLagDays: 0,
+            predecessor: {
+              id: 'wi-1',
+              title: 'Foundation Work',
+              status: 'in_progress',
+              endDate: null,
+            },
+          } as HouseholdItemDepDetail,
+        ])
+        .mockResolvedValueOnce([]);
+
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Foundation Work')).toBeInTheDocument();
+      });
+
+      const removeButton = screen.getByRole('button', {
+        name: /Remove dependency on Foundation Work/i,
+      });
+      await user.click(removeButton);
+
+      const confirmButton = screen.getByRole('button', { name: 'Confirm' });
+      await user.click(confirmButton);
+
+      await waitFor(() => {
+        expect(mockDeleteHouseholdItemDep).toHaveBeenCalledWith('item-1', 'work_item', 'wi-1');
+      });
     });
   });
 });
