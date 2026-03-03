@@ -67,13 +67,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           Household Items
         </NavLink>
         <NavLink
-          to="/documents"
-          className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
-          onClick={onClose}
-        >
-          Documents
-        </NavLink>
-        <NavLink
           to="/tags"
           className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
           onClick={onClose}
