@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
@@ -127,6 +127,15 @@ describe('HouseholdItemDetailPage', () => {
       renderPage();
 
       expect(screen.getByText('Loading household item...')).toBeInTheDocument();
+    });
+
+    it('loading state has status role for accessibility', async () => {
+      // Don't resolve the API call immediately
+      mockGetHouseholdItem.mockReturnValue(new Promise(() => {}));
+      renderPage();
+
+      const loadingEl = screen.getByText('Loading household item...');
+      expect(loadingEl).toHaveAttribute('role', 'status');
     });
 
     it('calls getHouseholdItem with the correct id', async () => {
@@ -394,6 +403,10 @@ describe('HouseholdItemDetailPage', () => {
       });
 
       expect(screen.queryByRole('link', { name: 'IKEA' })).not.toBeInTheDocument();
+      // Vendor row is still rendered with "—" placeholder
+      expect(screen.getByText('Vendor')).toBeInTheDocument();
+      const dashValues = screen.getAllByText('\u2014');
+      expect(dashValues.length).toBeGreaterThan(0);
     });
 
     it('shows dash for missing URL', async () => {
@@ -406,6 +419,10 @@ describe('HouseholdItemDetailPage', () => {
       });
 
       expect(screen.queryByRole('link', { name: /https:\/\/example.com/ })).not.toBeInTheDocument();
+      // Product URL row is still rendered with "—" placeholder
+      expect(screen.getByText('Product URL')).toBeInTheDocument();
+      const dashValues = screen.getAllByText('\u2014');
+      expect(dashValues.length).toBeGreaterThan(0);
     });
 
     it('shows "No tags" for empty tags array', async () => {
@@ -735,6 +752,29 @@ describe('HouseholdItemDetailPage', () => {
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
       });
     });
+
+    it('closes delete modal on Escape key', async () => {
+      const user = userEvent.setup();
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /delete/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /delete/i }));
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+
+      await user.keyboard('{Escape}');
+
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      });
+    });
   });
 
   describe('linked work items display', () => {
@@ -776,6 +816,22 @@ describe('HouseholdItemDetailPage', () => {
   });
 
   describe('delivery progress indicator', () => {
+    it('renders delivery progress with accessible list semantics', async () => {
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
+      });
+
+      const progressList = screen.getByRole('list', { name: /delivery progress/i });
+      expect(progressList).toBeInTheDocument();
+
+      const steps = within(progressList).getAllByRole('listitem');
+      expect(steps).toHaveLength(4);
+    });
+
     it('shows correct progress for "ordered" status', async () => {
       mockGetHouseholdItem.mockResolvedValue(
         makeItem({ status: 'ordered' as HouseholdItemStatus }),

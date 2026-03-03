@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import type {
   HouseholdItemDetail,
@@ -39,12 +39,46 @@ export function HouseholdItemDetailPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!id) return;
     void loadItem();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  useEffect(() => {
+    if (!showDeleteModal) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        closeDeleteModal();
+        return;
+      }
+      if (e.key === 'Tab' && modalRef.current) {
+        const focusable = modalRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        );
+        const focusableArray = Array.from(focusable);
+        if (focusableArray.length === 0) return;
+        const firstEl = focusableArray[0];
+        const lastEl = focusableArray[focusableArray.length - 1];
+        if (e.shiftKey) {
+          if (document.activeElement === firstEl) {
+            e.preventDefault();
+            lastEl.focus();
+          }
+        } else {
+          if (document.activeElement === lastEl) {
+            e.preventDefault();
+            firstEl.focus();
+          }
+        }
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showDeleteModal, isDeleting, deleteError]);
 
   const loadItem = async () => {
     if (!id) return;
@@ -104,7 +138,9 @@ export function HouseholdItemDetailPage() {
   if (isLoading) {
     return (
       <div className={styles.container}>
-        <div className={styles.loading}>Loading household item...</div>
+        <div className={styles.loading} role="status">
+          Loading household item...
+        </div>
       </div>
     );
   }
@@ -199,20 +235,22 @@ export function HouseholdItemDetailPage() {
               <dt className={styles.infoLabel}>Description</dt>
               <dd className={styles.infoValue}>{item.description ?? '\u2014'}</dd>
             </div>
-            {item.vendor && (
-              <div className={styles.infoRow}>
-                <dt className={styles.infoLabel}>Vendor</dt>
-                <dd className={styles.infoValue}>
+            <div className={styles.infoRow}>
+              <dt className={styles.infoLabel}>Vendor</dt>
+              <dd className={styles.infoValue}>
+                {item.vendor ? (
                   <Link to={`/budget/vendors/${item.vendor.id}`} className={styles.infoLink}>
                     {item.vendor.name}
                   </Link>
-                </dd>
-              </div>
-            )}
-            {item.url && (
-              <div className={styles.infoRow}>
-                <dt className={styles.infoLabel}>Product URL</dt>
-                <dd className={styles.infoValue}>
+                ) : (
+                  '\u2014'
+                )}
+              </dd>
+            </div>
+            <div className={styles.infoRow}>
+              <dt className={styles.infoLabel}>Product URL</dt>
+              <dd className={styles.infoValue}>
+                {item.url ? (
                   <a
                     href={item.url}
                     target="_blank"
@@ -221,9 +259,11 @@ export function HouseholdItemDetailPage() {
                   >
                     {item.url}
                   </a>
-                </dd>
-              </div>
-            )}
+                ) : (
+                  '\u2014'
+                )}
+              </dd>
+            </div>
             <div className={styles.infoRow}>
               <dt className={styles.infoLabel}>Room</dt>
               <dd className={styles.infoValue}>{item.room ?? '\u2014'}</dd>
@@ -257,7 +297,7 @@ export function HouseholdItemDetailPage() {
             <h2 className={styles.cardTitle}>Dates & Delivery</h2>
           </div>
           <div className={styles.deliveryProgressContainer}>
-            <div className={styles.deliveryProgress}>
+            <ol className={styles.deliveryProgress} aria-label="Delivery progress">
               {(['not_ordered', 'ordered', 'in_transit', 'delivered'] as const).map(
                 (stepStatus, index) => {
                   const stepLabels = {
@@ -276,9 +316,14 @@ export function HouseholdItemDetailPage() {
 
                   const currentStatusIndex = statusOrder[item.status];
                   const isActive = statusOrder[stepStatus] <= currentStatusIndex;
+                  const isCurrent = stepStatus === item.status;
 
                   return (
-                    <div key={stepStatus} className={styles.deliveryStepWrapper}>
+                    <li
+                      key={stepStatus}
+                      className={styles.deliveryStepWrapper}
+                      {...(isCurrent ? { 'aria-current': 'step' as const } : {})}
+                    >
                       <div
                         className={`${styles.deliveryStep} ${isActive ? styles.deliveryStepActive : ''}`}
                       />
@@ -288,11 +333,11 @@ export function HouseholdItemDetailPage() {
                         />
                       )}
                       <div className={styles.deliveryStepLabel}>{stepLabels[stepStatus]}</div>
-                    </div>
+                    </li>
                   );
                 },
               )}
-            </div>
+            </ol>
           </div>
           <dl className={styles.infoList}>
             <div className={styles.infoRow}>
@@ -365,7 +410,7 @@ export function HouseholdItemDetailPage() {
           aria-labelledby="delete-modal-title"
         >
           <div className={styles.modalBackdrop} onClick={closeDeleteModal} />
-          <div className={styles.modalContent}>
+          <div className={styles.modalContent} ref={modalRef}>
             <h2 id="delete-modal-title" className={styles.modalTitle}>
               Delete Household Item
             </h2>
