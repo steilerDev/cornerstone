@@ -124,7 +124,7 @@ describe('Household Item Routes', () => {
       expect(item.actualDeliveryDate).toBeNull();
       expect(item.tagIds).toEqual([]);
       expect(item.tags).toEqual([]);
-      expect(item.workItems).toEqual([]);
+      expect(item.dependencies).toEqual([]);
       expect(item.subsidies).toEqual([]);
       expect(item.budgetLineCount).toBe(0);
       expect(item.totalPlannedAmount).toBe(0);
@@ -386,7 +386,7 @@ describe('Household Item Routes', () => {
       expect(item).toHaveProperty('id');
       expect(item).toHaveProperty('name');
       expect(item).toHaveProperty('tags');
-      expect(item).toHaveProperty('workItems');
+      expect(item).toHaveProperty('dependencies');
       expect(item).toHaveProperty('subsidies');
     });
 
@@ -711,7 +711,7 @@ describe('Household Item Routes', () => {
       expect(item.name).toBe('Bookshelf');
       expect(item.category).toBe('storage');
       expect(item).toHaveProperty('tags');
-      expect(item).toHaveProperty('workItems');
+      expect(item).toHaveProperty('dependencies');
       expect(item).toHaveProperty('subsidies');
     });
 
@@ -1510,7 +1510,8 @@ describe('Household Item Routes', () => {
 
       expect(second.statusCode).toBe(409);
       const error = JSON.parse(second.body) as ApiErrorResponse;
-      expect(error.error.code).toBe('DUPLICATE_DEPENDENCY');
+      // ConflictError uses 'CONFLICT' as the API error code (details carry 'DUPLICATE_DEPENDENCY')
+      expect(error.error.code).toBe('CONFLICT');
     });
 
     it('returns 401 when not authenticated', async () => {

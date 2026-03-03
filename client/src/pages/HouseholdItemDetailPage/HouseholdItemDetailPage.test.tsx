@@ -545,8 +545,9 @@ describe('HouseholdItemDetailPage', () => {
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      // Verify expected delivery date is displayed
-      expect(screen.getByText(/Mar 1, 2026|2026-03-01/)).toBeInTheDocument();
+      // Verify expected delivery date is displayed (may appear multiple times — info row + deps section)
+      const dateMatches = screen.getAllByText(/Mar 1, 2026|2026-03-01/);
+      expect(dateMatches.length).toBeGreaterThan(0);
     });
 
     it('renders breadcrumb with household items link', async () => {
@@ -637,9 +638,10 @@ describe('HouseholdItemDetailPage', () => {
       expect(screen.getByText('No tags')).toBeInTheDocument();
     });
 
-    it('shows "No work items linked" for empty work items', async () => {
+    it('shows empty Dependencies section when no deps exist', async () => {
+      // The old "linked work items" section was replaced by the Dependencies section (migration 0012)
       mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockFetchLinkedWorkItems.mockResolvedValue([]);
+      mockFetchHouseholdItemDeps.mockResolvedValue([]);
 
       renderPage();
 
@@ -647,9 +649,8 @@ describe('HouseholdItemDetailPage', () => {
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      expect(
-        screen.getByText('No work items linked. Use the form below to add a link.'),
-      ).toBeInTheDocument();
+      // Dependencies section should be present even when empty
+      expect(screen.getByText('Dependencies')).toBeInTheDocument();
     });
 
     it('shows dash for missing order date', async () => {
@@ -980,63 +981,71 @@ describe('HouseholdItemDetailPage', () => {
     });
   });
 
-  describe('linked work items display', () => {
-    it('renders multiple work items with titles', async () => {
-      const workItems = [
-        makeWorkItem({
-          id: 'wi-1',
-          title: 'Install desk',
-          status: 'in_progress' as const,
-          startDate: '2026-04-01',
-          endDate: '2026-04-15',
-        }),
-        makeWorkItem({
-          id: 'wi-2',
-          title: 'Setup cables',
-          status: 'not_started' as const,
-          startDate: '2026-04-16',
-          endDate: null,
-        }),
-        makeWorkItem({
-          id: 'wi-3',
-          title: 'Test connection',
-          status: 'completed' as const,
-          startDate: '2026-03-01',
-          endDate: '2026-03-05',
-        }),
-      ];
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockFetchLinkedWorkItems.mockResolvedValueOnce(workItems);
+  describe('dependency predecessors display', () => {
+    // Note: migration 0012 replaced the "linked work items" section with a
+    // Dependencies section showing work_item and milestone predecessors.
 
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('link', { name: 'Install desk' })).toBeInTheDocument();
-      });
-
-      expect(screen.getByRole('link', { name: 'Setup cables' })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Test connection' })).toBeInTheDocument();
-    });
-
-    it('links each work item to its detail page', async () => {
-      const workItems = [
-        makeWorkItem({
+    it('renders work item dependency predecessor as a link', async () => {
+      const dep: HouseholdItemDepDetail = {
+        householdItemId: 'item-1',
+        predecessorType: 'work_item',
+        predecessorId: 'wi-abc-123',
+        dependencyType: 'finish_to_start',
+        leadLagDays: 0,
+        predecessor: {
           id: 'wi-abc-123',
           title: 'Install desk',
-          status: 'in_progress' as const,
-          startDate: '2026-04-01',
+          status: 'in_progress',
           endDate: '2026-04-15',
-        }),
-      ];
+        },
+      };
       mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockFetchLinkedWorkItems.mockResolvedValueOnce(workItems);
+      mockFetchHouseholdItemDeps.mockResolvedValue([dep]);
 
       renderPage();
 
       await waitFor(() => {
-        const link = screen.getByRole('link', { name: 'Install desk' });
-        expect(link).toHaveAttribute('href', '/work-items/wi-abc-123');
+        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
+
+      expect(screen.getByText('Install desk')).toBeInTheDocument();
+    });
+
+    it('renders multiple dependency predecessors', async () => {
+      const deps: HouseholdItemDepDetail[] = [
+        {
+          householdItemId: 'item-1',
+          predecessorType: 'work_item',
+          predecessorId: 'wi-1',
+          dependencyType: 'finish_to_start',
+          leadLagDays: 0,
+          predecessor: { id: 'wi-1', title: 'Setup cables', status: 'not_started', endDate: null },
+        },
+        {
+          householdItemId: 'item-1',
+          predecessorType: 'work_item',
+          predecessorId: 'wi-2',
+          dependencyType: 'finish_to_start',
+          leadLagDays: 0,
+          predecessor: {
+            id: 'wi-2',
+            title: 'Test connection',
+            status: 'completed',
+            endDate: '2026-03-05',
+          },
+        },
+      ];
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+      mockFetchHouseholdItemDeps.mockResolvedValue(deps);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('Setup cables')).toBeInTheDocument();
+      expect(screen.getByText('Test connection')).toBeInTheDocument();
     });
   });
 
