@@ -26,6 +26,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         oidcRedirectUri: undefined,
         oidcEnabled: false,
         paperlessUrl: undefined,
+        paperlessExternalUrl: undefined,
         paperlessApiToken: undefined,
         paperlessEnabled: false,
       });
@@ -55,6 +56,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         oidcRedirectUri: undefined,
         oidcEnabled: false,
         paperlessUrl: undefined,
+        paperlessExternalUrl: undefined,
         paperlessApiToken: undefined,
         paperlessEnabled: false,
       });
@@ -86,6 +88,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         oidcRedirectUri: undefined,
         oidcEnabled: false,
         paperlessUrl: undefined,
+        paperlessExternalUrl: undefined,
         paperlessApiToken: undefined,
         paperlessEnabled: false,
       });
@@ -112,6 +115,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         oidcRedirectUri: undefined,
         oidcEnabled: false,
         paperlessUrl: undefined,
+        paperlessExternalUrl: undefined,
         paperlessApiToken: undefined,
         paperlessEnabled: false,
       });
@@ -362,6 +366,83 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
       expect(config.paperlessEnabled).toBe(false);
       expect(config.paperlessUrl).toBeUndefined();
       expect(config.paperlessApiToken).toBeUndefined();
+    });
+  });
+
+  describe('PAPERLESS_EXTERNAL_URL Configuration', () => {
+    it('PAPERLESS_EXTERNAL_URL not set → paperlessExternalUrl is undefined', () => {
+      const config = loadConfig({});
+      expect(config.paperlessExternalUrl).toBeUndefined();
+    });
+
+    it('valid https:// URL → paperlessExternalUrl equals that URL', () => {
+      const config = loadConfig({
+        PAPERLESS_EXTERNAL_URL: 'https://paperless.example.com',
+      });
+
+      expect(config.paperlessExternalUrl).toBe('https://paperless.example.com');
+    });
+
+    it('valid http:// URL → accepted', () => {
+      const config = loadConfig({
+        PAPERLESS_EXTERNAL_URL: 'http://paperless.internal:8000',
+      });
+
+      expect(config.paperlessExternalUrl).toBe('http://paperless.internal:8000');
+    });
+
+    it('file:// scheme → throws error containing PAPERLESS_EXTERNAL_URL must use http or https scheme, got: file', () => {
+      expect(() =>
+        loadConfig({
+          PAPERLESS_EXTERNAL_URL: 'file:///etc/passwd',
+        }),
+      ).toThrow('PAPERLESS_EXTERNAL_URL must use http or https scheme, got: file');
+    });
+
+    it('ftp:// scheme → throws error containing PAPERLESS_EXTERNAL_URL must use http or https scheme, got: ftp', () => {
+      expect(() =>
+        loadConfig({
+          PAPERLESS_EXTERNAL_URL: 'ftp://host/resource',
+        }),
+      ).toThrow('PAPERLESS_EXTERNAL_URL must use http or https scheme, got: ftp');
+    });
+
+    it('invalid URL string → throws error containing PAPERLESS_EXTERNAL_URL must be a valid URL', () => {
+      expect(() =>
+        loadConfig({
+          PAPERLESS_EXTERNAL_URL: 'not-a-url',
+        }),
+      ).toThrow('PAPERLESS_EXTERNAL_URL must be a valid URL, got: not-a-url');
+    });
+
+    it('empty string → treated as undefined, paperlessExternalUrl is undefined', () => {
+      const config = loadConfig({
+        PAPERLESS_EXTERNAL_URL: '',
+      });
+
+      expect(config.paperlessExternalUrl).toBeUndefined();
+    });
+
+    it('external URL set without PAPERLESS_URL/PAPERLESS_API_TOKEN → paperlessEnabled is false, but paperlessExternalUrl is set', () => {
+      const config = loadConfig({
+        PAPERLESS_EXTERNAL_URL: 'https://external.example.com',
+      });
+
+      expect(config.paperlessEnabled).toBe(false);
+      expect(config.paperlessExternalUrl).toBe('https://external.example.com');
+    });
+
+    it('all three paperless vars set → paperlessEnabled is true, both URLs set', () => {
+      const config = loadConfig({
+        PAPERLESS_URL: 'http://paperless:8000',
+        PAPERLESS_EXTERNAL_URL: 'https://external.example.com',
+        PAPERLESS_API_TOKEN: 'test-token',
+      });
+
+      expect(config.paperlessEnabled).toBe(true);
+      expect(config.paperlessUrl).toBe('http://paperless:8000');
+      expect(config.paperlessExternalUrl).toBe('https://external.example.com');
+      expect(config.paperlessApiToken).toBe('test-token');
     });
   });
 
