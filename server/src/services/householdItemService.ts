@@ -112,6 +112,8 @@ function getHouseholdItemWorkItems(
     id: row.workItem.id,
     title: row.workItem.title,
     status: row.workItem.status,
+    startDate: row.workItem.startDate,
+    endDate: row.workItem.endDate,
   }));
 }
 

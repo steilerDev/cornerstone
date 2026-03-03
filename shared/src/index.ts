@@ -203,6 +203,7 @@ export type {
   HouseholdItemStatus,
   HouseholdItemVendorSummary,
   HouseholdItemWorkItemSummary,
+  WorkItemLinkedHouseholdItemSummary,
   HouseholdItemSubsidySummary,
   HouseholdItem,
   HouseholdItemSummary,

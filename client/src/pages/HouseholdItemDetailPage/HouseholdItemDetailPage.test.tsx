@@ -91,7 +91,15 @@ describe('HouseholdItemDetailPage', () => {
       tags: [
         { id: 'tag-1', name: 'Priority', color: '#ff0000', createdAt: '2026-01-01T00:00:00Z' },
       ],
-      workItems: [{ id: 'wi-1', title: 'Install desk', status: 'in_progress' }],
+      workItems: [
+        {
+          id: 'wi-1',
+          title: 'Install desk',
+          status: 'in_progress',
+          startDate: '2026-04-01',
+          endDate: '2026-04-15',
+        },
+      ],
       subsidies: [],
       ...overrides,
     };
@@ -783,9 +791,27 @@ describe('HouseholdItemDetailPage', () => {
       mockGetHouseholdItem.mockResolvedValue(
         makeItem({
           workItems: [
-            { id: 'wi-1', title: 'Install desk', status: 'in_progress' },
-            { id: 'wi-2', title: 'Setup cables', status: 'pending' },
-            { id: 'wi-3', title: 'Test connection', status: 'completed' },
+            {
+              id: 'wi-1',
+              title: 'Install desk',
+              status: 'in_progress',
+              startDate: '2026-04-01',
+              endDate: '2026-04-15',
+            },
+            {
+              id: 'wi-2',
+              title: 'Setup cables',
+              status: 'pending',
+              startDate: '2026-04-16',
+              endDate: null,
+            },
+            {
+              id: 'wi-3',
+              title: 'Test connection',
+              status: 'completed',
+              startDate: '2026-03-01',
+              endDate: '2026-03-05',
+            },
           ],
         }),
       );
@@ -803,7 +829,15 @@ describe('HouseholdItemDetailPage', () => {
     it('links each work item to its detail page', async () => {
       mockGetHouseholdItem.mockResolvedValue(
         makeItem({
-          workItems: [{ id: 'wi-abc-123', title: 'Install desk', status: 'in_progress' }],
+          workItems: [
+            {
+              id: 'wi-abc-123',
+              title: 'Install desk',
+              status: 'in_progress',
+              startDate: '2026-04-01',
+              endDate: '2026-04-15',
+            },
+          ],
         }),
       );
 

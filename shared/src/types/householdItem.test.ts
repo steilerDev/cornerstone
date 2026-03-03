@@ -115,6 +115,8 @@ describe('HouseholdItemWorkItemSummary interface', () => {
       id: 'wi-1',
       title: 'Install Kitchen Cabinets',
       status: 'in_progress',
+      startDate: '2026-04-01',
+      endDate: '2026-04-15',
     };
 
     expect(workItem.id).toBe('wi-1');
@@ -271,6 +273,8 @@ describe('HouseholdItemDetail interface', () => {
           id: 'wi-1',
           title: 'Mount TV',
           status: 'not_started',
+          startDate: '2026-05-01',
+          endDate: '2026-05-05',
         },
       ],
       subsidies: [
