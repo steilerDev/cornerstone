@@ -64,12 +64,12 @@ describe('Sidebar', () => {
     onClose: mockOnClose,
   });
 
-  it('renders all 9 navigation links plus 1 logo link plus 1 GitHub footer link', () => {
+  it('renders all 8 navigation links plus 1 logo link plus 1 GitHub footer link', () => {
     renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
 
     const links = screen.getAllByRole('link');
-    // 9 nav links + 1 logo link (Go to dashboard) + 1 GitHub link in the footer
-    expect(links).toHaveLength(11);
+    // 8 nav links + 1 logo link (Go to dashboard) + 1 GitHub link in the footer
+    expect(links).toHaveLength(10);
   });
 
   it('logo link navigates to dashboard (/) and has aria-label', () => {

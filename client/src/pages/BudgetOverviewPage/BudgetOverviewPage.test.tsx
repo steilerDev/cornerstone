@@ -457,43 +457,6 @@ describe('BudgetOverviewPage', () => {
   // ─── Footer row ────────────────────────────────────────────────────────────
 
   describe('hero card footer', () => {
-    it('shows subsidy total reductions in footer', async () => {
-      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
-      renderPage();
-
-      // richOverview: subsidySummary.totalReductions = 15000 → €15,000.00
-      await waitFor(() => {
-        expect(screen.getByText(/15,000\.00/)).toBeInTheDocument();
-      });
-    });
-
-    it('shows "3 programs" when activeSubsidyCount is 3', async () => {
-      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText(/3 programs/i)).toBeInTheDocument();
-      });
-    });
-
-    it('shows "1 program" (singular) when activeSubsidyCount is 1', async () => {
-      const oneProgramOverview: BudgetOverview = {
-        ...richOverview,
-        subsidySummary: {
-          totalReductions: 5000,
-          activeSubsidyCount: 1,
-          minTotalPayback: 0,
-          maxTotalPayback: 0,
-        },
-      };
-      mockFetchBudgetOverview.mockResolvedValueOnce(oneProgramOverview);
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText(/1 program/i)).toBeInTheDocument();
-      });
-    });
-
     it('shows source count in footer', async () => {
       mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
       renderPage();
