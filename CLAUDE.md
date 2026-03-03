@@ -399,6 +399,7 @@ Hand-written SQL files in `server/src/db/migrations/` with a numeric prefix (e.g
 | `CLIENT_DEV_PORT`     | `5173`                     | Webpack dev server port (development only)    |
 | `PAPERLESS_URL`       | (none)                     | Paperless-ngx instance base URL               |
 | `PAPERLESS_API_TOKEN` | (none)                     | Paperless-ngx API authentication token        |
+| `PAPERLESS_EXTERNAL_URL` | (none)                  | Browser-facing URL for Paperless-ngx links (falls back to `PAPERLESS_URL` if unset) |
 
 Production images use Docker Hardened Images (DHI). See `Dockerfile` and `docker-compose.yml` for build/deploy details.
 

@@ -121,7 +121,10 @@ export default async function paperlessRoutes(fastify: FastifyInstance) {
       fastify.config.paperlessUrl!,
       fastify.config.paperlessApiToken!,
     );
-    return reply.status(200).send({ ...status, paperlessUrl: fastify.config.paperlessUrl ?? null });
+    return reply.status(200).send({
+      ...status,
+      paperlessUrl: fastify.config.paperlessExternalUrl ?? fastify.config.paperlessUrl ?? null,
+    });
   });
 
   /**

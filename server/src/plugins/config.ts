@@ -16,6 +16,7 @@ export interface AppConfig {
   oidcRedirectUri?: string;
   oidcEnabled: boolean;
   paperlessUrl?: string;
+  paperlessExternalUrl?: string;
   paperlessApiToken?: string;
   paperlessEnabled: boolean;
 }
@@ -126,6 +127,25 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     }
   }
 
+  // Paperless-ngx external URL (optional, used for browser-facing links)
+  const paperlessExternalUrlRaw = getValue('PAPERLESS_EXTERNAL_URL');
+  let paperlessExternalUrl: string | undefined = undefined;
+  if (paperlessExternalUrlRaw) {
+    try {
+      const parsed = new URL(paperlessExternalUrlRaw);
+      const allowedSchemes = ['http:', 'https:'];
+      if (!allowedSchemes.includes(parsed.protocol)) {
+        errors.push(
+          `PAPERLESS_EXTERNAL_URL must use http or https scheme, got: ${parsed.protocol.replace(':', '')}`,
+        );
+      } else {
+        paperlessExternalUrl = paperlessExternalUrlRaw;
+      }
+    } catch {
+      errors.push(`PAPERLESS_EXTERNAL_URL must be a valid URL, got: ${paperlessExternalUrlRaw}`);
+    }
+  }
+
   // Paperless-ngx is enabled when both URL and API token are set
   const paperlessEnabled = !!(paperlessUrl && paperlessApiToken);
 
@@ -149,6 +169,7 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     oidcRedirectUri,
     oidcEnabled,
     paperlessUrl,
+    paperlessExternalUrl,
     paperlessApiToken,
     paperlessEnabled,
   };
