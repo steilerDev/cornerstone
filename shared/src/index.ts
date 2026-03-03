@@ -207,6 +207,7 @@ export type {
   HouseholdItem,
   HouseholdItemSummary,
   HouseholdItemDetail,
+  HouseholdItemBudgetSummary,
   CreateHouseholdItemRequest,
   UpdateHouseholdItemRequest,
   HouseholdItemListQuery,

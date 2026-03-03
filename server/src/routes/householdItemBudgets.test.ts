@@ -58,8 +58,6 @@ describe('Household Item Budget Routes', () => {
     };
   }
 
-  const entityCounter = 0;
-
   /**
    * Helper: Create a household item directly in the database.
    */
@@ -230,7 +228,7 @@ describe('Household Item Budget Routes', () => {
         'password123',
       );
       const householdItem = createTestHouseholdItem('Item', userId);
-      const category = createTestBudgetCategory('Materials');
+      const category = createTestBudgetCategory('HI Test Materials');
       const source = createTestBudgetSource('Savings', userId);
       const vendor = createTestVendor('Home Depot', userId);
 

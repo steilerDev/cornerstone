@@ -712,6 +712,16 @@
     flex-direction: column;
     gap: var(--spacing-3);
   }
+
+  .unlinkButton {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .budgetFormActions .button,
+  .budgetFormActions .cancelButton {
+    min-height: 44px;
+  }
 }
 
 /* ============================================================
@@ -729,7 +739,12 @@
   .deliveryLine,
   .backLink,
   .infoLink,
-  .workItemLink {
+  .workItemLink,
+  .formInput,
+  .formSelect,
+  .budgetLineItem,
+  .subsidyItem,
+  .unlinkButton {
     transition: none;
   }
 }
@@ -772,8 +787,8 @@
   transition: border-color var(--transition-normal);
 }
 
-.formInput:focus,
-.formSelect:focus {
+.formInput:focus-visible,
+.formSelect:focus-visible {
   outline: none;
   border-color: var(--color-primary);
   box-shadow: var(--shadow-focus-subtle);
@@ -968,7 +983,9 @@
   cursor: pointer;
   padding: var(--spacing-1);
   border-radius: var(--radius-sm);
-  transition: all var(--transition-normal);
+  transition:
+    color var(--transition-fast),
+    background-color var(--transition-fast);
 }
 
 .unlinkButton:hover {

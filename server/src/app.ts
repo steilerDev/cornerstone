@@ -153,12 +153,12 @@ export async function buildApp(): Promise<FastifyInstance> {
   // Household item routes (EPIC-04: Household Items & Furniture Management)
   await app.register(householdItemRoutes, { prefix: '/api/household-items' });
 
-  // Household item budget line routes (EPIC-09: Household Item Budget Integration)
+  // Household item budget line routes (EPIC-04: Household Items & Furniture Management)
   await app.register(householdItemBudgetRoutes, {
     prefix: '/api/household-items/:householdItemId/budgets',
   });
 
-  // Household item subsidy linking routes (EPIC-09: Household Item Budget Integration)
+  // Household item subsidy linking routes (EPIC-04: Household Items & Furniture Management)
   await app.register(householdItemSubsidyRoutes, {
     prefix: '/api/household-items/:householdItemId/subsidies',
   });

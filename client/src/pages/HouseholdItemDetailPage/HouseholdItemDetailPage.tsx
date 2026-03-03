@@ -823,7 +823,8 @@ export function HouseholdItemDetailPage() {
                         {formatCurrency(line.plannedAmount)}
                       </span>
                       <span className={styles.budgetLineConfidence}>
-                        {CONFIDENCE_LABELS[line.confidence]} (±{CONFIDENCE_MARGINS[line.confidence]}
+                        {CONFIDENCE_LABELS[line.confidence]} (±
+                        {Math.round(CONFIDENCE_MARGINS[line.confidence] * 100)}
                         %)
                       </span>
                     </div>
@@ -932,7 +933,7 @@ export function HouseholdItemDetailPage() {
                     type="button"
                     className={styles.unlinkButton}
                     onClick={() => void handleUnlinkSubsidy(subsidy.id)}
-                    title="Unlink subsidy"
+                    aria-label={`Unlink ${subsidy.name}`}
                   >
                     ×
                   </button>
@@ -948,6 +949,7 @@ export function HouseholdItemDetailPage() {
               onChange={(e) => setSelectedSubsidyId(e.target.value)}
               className={styles.formSelect}
               disabled={isLinkingSubsidy}
+              aria-label="Select subsidy program"
             >
               <option value="">— Link Subsidy Program —</option>
               {allSubsidyPrograms
