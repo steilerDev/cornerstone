@@ -196,3 +196,15 @@ See `story-4-9-invoice-linking-hi.md`. Spec: entity type toggle (`role="group"` 
 - HI rows appear AFTER work items, sorted by earliestDeliveryDate (same principle as milestones by targetDate)
 - `srAnnouncement` live region: "Dependency added: [name]" / "Dependency removed: [name]"
 - `HouseholdItemDetailPage.module.css` `prefers-reduced-motion` block must be extended to cover new dep section elements
+
+## PR #416 Review Findings — HI Timeline Dependencies (Story 4.10)
+
+Key misses to watch for in Gantt/detail-page dependency PRs:
+
+- `--color-primary-text` (white in light mode) used on `--color-primary-bg` (light blue) chip — contrast failure; always use `var(--color-primary)` for text on `--color-primary-bg` tinted chips
+- `depSearchOptionSelected` same mistake — selected state bg is `--color-primary-bg`, text must be `var(--color-primary)` not `--color-primary-text`
+- `role="dialog"` modal with no focus trap and no initial focus — `autoFocus` on first input is the minimum acceptable fix
+- `role="listbox"` + `role="option"` requires arrow-key keyboard navigation; without it use `role="list"` + `role="button"` items instead
+- Tooltip HI status badge hardcoded amber color regardless of delivered state — status-conditional token selection required
+- "Floored to today" heuristic: spec uses `isLate` flag from scheduling engine; date-string equality to today is a fragile approximation
+- `showToast()` alone is insufficient for spec-required `aria-live="polite"` srAnnouncement — toast is visual, not reliable for screen-reader-only users

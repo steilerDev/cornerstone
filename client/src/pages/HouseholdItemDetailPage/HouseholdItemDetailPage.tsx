@@ -129,6 +129,10 @@ export function HouseholdItemDetailPage() {
   const [deleteError, setDeleteError] = useState('');
   const modalRef = useRef<HTMLDivElement>(null);
 
+  // Add Dependency modal
+  const depModalRef = useRef<HTMLDivElement>(null);
+  const depSearchInputRef = useRef<HTMLInputElement>(null);
+
   // Budget lines state
   const [budgetLines, setBudgetLines] = useState<HouseholdItemBudgetLine[]>([]);
   const [budgetCategories, setBudgetCategories] = useState<BudgetCategory[]>([]);
@@ -212,6 +216,22 @@ export function HouseholdItemDetailPage() {
     return () => document.removeEventListener('keydown', handleKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showDeleteModal, isDeleting, deleteError]);
+
+  // Add Dependency modal: focus trap and Escape key handler
+  useEffect(() => {
+    if (!showAddDepModal) return;
+    // Auto-focus the search input when modal opens
+    depSearchInputRef.current?.focus();
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setShowAddDepModal(false);
+        setDepError(null);
+        return;
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [showAddDepModal]);
 
   // Load invoices for budget lines whenever the item or budget lines change
   useEffect(() => {
@@ -904,6 +924,7 @@ export function HouseholdItemDetailPage() {
           {/* Add Dependency modal */}
           {showAddDepModal && (
             <div
+              ref={depModalRef}
               className={styles.modalOverlay}
               role="dialog"
               aria-modal="true"
@@ -946,15 +967,17 @@ export function HouseholdItemDetailPage() {
                 </div>
                 {/* Search */}
                 <input
+                  ref={depSearchInputRef}
                   type="text"
                   className={styles.formInput}
                   placeholder={`Search ${depPredecessorType === 'work_item' ? 'work items' : 'milestones'}...`}
                   value={depSearchQuery}
                   onChange={(e) => setDepSearchQuery(e.target.value)}
                   aria-label="Search predecessors"
+                  autoFocus
                 />
                 {/* Results list */}
-                <ul role="listbox" aria-label="Search results" className={styles.depSearchResults}>
+                <ul role="list" aria-label="Search results" className={styles.depSearchResults}>
                   {(depPredecessorType === 'work_item' ? allWorkItems : allMilestones)
                     .filter((item) => {
                       const title = depPredecessorType === 'work_item' ? item.title : item.title;
@@ -970,14 +993,25 @@ export function HouseholdItemDetailPage() {
                     .map((item) => (
                       <li
                         key={item.id}
-                        role="option"
-                        aria-selected={depSelectedId === String(item.id)}
+                        role="listitem"
                         className={`${styles.depSearchOption} ${
                           depSelectedId === String(item.id) ? styles.depSearchOptionSelected : ''
                         }`}
-                        onClick={() => setDepSelectedId(String(item.id))}
                       >
-                        {depPredecessorType === 'work_item' ? item.title : item.title}
+                        <button
+                          type="button"
+                          onClick={() => setDepSelectedId(String(item.id))}
+                          style={{
+                            width: '100%',
+                            textAlign: 'left',
+                            background: 'none',
+                            border: 'none',
+                            padding: 0,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {depPredecessorType === 'work_item' ? item.title : item.title}
+                        </button>
                       </li>
                     ))}
                 </ul>

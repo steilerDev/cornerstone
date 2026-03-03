@@ -24,19 +24,12 @@
 
 - DB: snake_case | TS vars: camelCase | TS types: PascalCase | Files: camelCase.ts (React: PascalCase.tsx) | API: kebab-case | Env: UPPER_SNAKE_CASE
 
-## Migrations (11 total)
+## Migrations (12 total)
 
-- 0001: users + sessions (EPIC-01)
-- 0002: work_items + tags + notes + subtasks + dependencies (EPIC-03)
-- 0003: budget_categories + vendors + invoices + budget_sources + subsidy_programs + junctions (EPIC-05)
-- 0004: flat budget fields on work_items (SUPERSEDED by 0005)
-- 0005: work_item_budgets table (budget rework) (EPIC-05)
-- 0006: milestones + milestone_work_items + lead_lag_days (EPIC-06)
-- 0007: work_item_milestone_deps (EPIC-06) -- NOT documented in Schema.md wiki
-- 0008: actual_start/end_date, blocked->not_started migration (EPIC-06)
-- 0009: document_links polymorphic table (EPIC-08)
+- 0001-0009: Auth, work items, budget, milestones, deps, actual dates, document_links
 - 0010: household_items + 5 supporting tables (EPIC-04)
-- 0011: household_item_budget_id FK + index on invoices (EPIC-04, PR #414) -- REVIEW: needs wiki docs
+- 0011: household_item_budget_id FK + index on invoices (EPIC-04)
+- 0012: household_item_deps + delivery date columns, drops household_item_work_items (PR #416, in review)
 
 ## ADRs (ADR-001 through ADR-016)
 
@@ -120,99 +113,18 @@ See `epic04-household-items.md` for full details.
 - `epic05-budget.md` -- EPIC-05 budget management details
 - `epic04-household-items.md` -- EPIC-04 household items architecture
 
-## Story 4.4 Review (PR #399): Household Item Create & Edit Form
+## EPIC-04 Review Summary (see story-reviews.md for details)
 
-**Verdict:** Request Changes — Missing quantity field for API contract compliance
+- PR #399 (4.4): Request Changes -- missing quantity field
+- PR #401 (4.6): Request Changes -- confidence margin display bug (fractions not percentages)
+- PR #402 (4.7): Comment -- 1 medium (wiki gap, resolved)
+- PR #414 (4.9): Request Changes -- missing invoice delete guard, wiki gaps
+- PR #416 (4.10): Request Changes -- orphaned deps on WI/milestone delete, deleted 1060-line test file, wiki not updated
 
-### Key Finding
+### Recurring Pattern: Polymorphic FK Cleanup
 
-The forms omit the `quantity` field from the API contract (type: number, min 1, default 1). Users cannot specify how many items to order. The field is present in mock data but not exposed in the UI. This is a **critical API contract deviation**.
+When using polymorphic FKs (no DB-level constraint), ALL services that delete the referenced entity must manually clean up. Applies to `document_links` and `household_item_deps`.
 
-### Form Quality
+### Recurring Pattern: CONFIDENCE_MARGINS
 
-- Routes correct: `/household-items/new`, `/household-items/:id/edit`
-- API calls correct: POST/PATCH with proper request/response shapes
-- Type usage: CreateHouseholdItemRequest, UpdateHouseholdItemRequest, HouseholdItemDetail all proper
-- Follows WorkItemCreatePage pattern (async data loading, validation, error states, tag picker)
-- CSS tokens used correctly, responsive at 767px breakpoint
-- Tests comprehensive: 8 suites (create), 9 suites (edit), cover initial render, nav, validation, submission, load failures, 404 handling
-- Accessibility: labels linked, semantic HTML, keyboard nav
-
-### Issues Found
-
-1. **CRITICAL:** Missing quantity input field (no type: number, min: 1 validation)
-2. **MEDIUM:** Error detection via `error.message.includes('404')` is fragile string matching
-3. **LOW:** Vendor fetch with pageSize: 200 not documented
-4. **LOW:** Category select defaults to 'other' but not all categories tested for rendering
-
-### Recommendation
-
-Add quantity field to both forms (perhaps in the date row), validate as integer >= 1, include in API payload.
-
-## Story 4.6 Review (PR #401): Household Item Budget Integration
-
-**Verdict:** Request Changes — Confidence margin display bug
-
-### Architecture Quality
-
-- Budget/subsidy services correctly mirror work item patterns
-- Budget overview UNION ALL approach is sound — household item budgets correctly aggregated
-- Shared types properly reuse ConfidenceLevel, BudgetSourceSummary, VendorSummary from workItemBudget
-- HouseholdItemBudgetLine enforces `actualCost: 0`, `actualCostPaid: 0`, `invoiceCount: 0` at type level
-- Subsidy payback calculation correctly skips invoice lookup (household items have no invoices)
-
-### Issues Found
-
-1. **MEDIUM:** Confidence margin displays as decimal (±0.2%) instead of percentage (±20%). Work item page uses `Math.round(CONFIDENCE_MARGINS[line.confidence] * 100)`. Fix: multiply by 100.
-2. **LOW:** app.ts comments reference "EPIC-09" — should be "EPIC-04"
-3. **LOW:** Unused `entityCounter = 0` variable in budget route test
-
-### Pattern Note
-
-- CONFIDENCE_MARGINS values are fractions (0.2, 0.1, 0.05, 0), NOT percentages. Frontend must multiply by 100 for display.
-
-## Story 4.7 Review (PR #402): Work Item Linking
-
-**Verdict:** Comment (cannot approve own PRs) — 1 medium finding
-
-### Architecture Quality
-
-- Service layer follows junction table pattern (assert exists, check duplicate, link/unlink)
-- Routes use standard Fastify JSON Schema validation + UnauthorizedError guard
-- Shared types: HouseholdItemWorkItemSummary extended with startDate/endDate/assignedUser; new WorkItemLinkedHouseholdItemSummary
-- Both directions implemented: HI->WI (GET/POST/DELETE) and WI->HI (GET read-only)
-- 57 tests across service, routes, API client, and shared types
-
-### Issues Found
-
-1. **MEDIUM:** `GET /api/work-items/:workItemId/household-items` not documented in API-Contract.md wiki. **RESOLVED** -- added to wiki.
-2. **LOW:** `.gitignore` has both `node_modules/` (dirs) and `node_modules` (symlinks in worktrees) -- both are intentional, not redundant.
-3. **INFO:** `as any` type casts on budget mock functions in HouseholdItemDetailPage test
-4. **INFO:** Work item dates displayed as raw strings instead of using `formatDate()` for locale consistency
-
-## Story 4.9 Review (PR #414): Invoice Linking for Household Item Budget Lines
-
-**Verdict:** Request Changes -- 1 critical, 1 high, 2 medium
-
-### Architecture Quality
-
-- Migration 0011: clean ALTER TABLE + index, follows FK pattern (ON DELETE SET NULL)
-- Mutual exclusivity validation in createInvoice/updateInvoice: correct (checks both, rejects if both)
-- Budget overview UNION ALL: correctly aggregates HI invoices alongside WI invoices
-- Shared types: HouseholdItemBudgetSummary added, HouseholdItemBudgetAggregate renamed to avoid conflict
-- 50 tests across 6 files covering backend + frontend
-
-### Critical Issues
-
-1. **CRITICAL:** `deleteHouseholdItemBudget()` does not check for linked invoices. Comment says "no invoices" but now they exist via migration 0011. Must add BUDGET_LINE_IN_USE check like workItemBudgetService.
-2. **HIGH:** No wiki updates (Schema.md, API-Contract.md) for migration 0011, new fields, or mutual exclusivity.
-3. **MEDIUM:** `HouseholdItemBudgetLine` type enforces `actualCost: 0` literal type. Service hardcodes zeros. Budget overview computes correctly but per-budget-line responses are wrong.
-4. **MEDIUM:** Frontend `loadBudgetLineInvoices()` queries only the HI's vendor, missing invoices from other vendors.
-
-### Key Architectural Pattern
-
-When adding FK links to existing tables, always audit ALL services that operate on the referenced entity for:
-
-- DELETE operations (need BUDGET_LINE_IN_USE guard)
-- Response builders (hardcoded "no data" fields may become wrong)
-- Type definitions (literal `0` types may need relaxing to `number`)
+Values are fractions (0.2, 0.1, 0.05, 0), NOT percentages. Frontend must multiply by 100 for display.

@@ -522,6 +522,15 @@ function HouseholdItemTooltipContent({
 }) {
   const statusLabel = data.status.replace(/_/g, ' ');
 
+  // Select badge colors based on delivery status
+  const isDelivered = data.status === 'delivered';
+  const badgeBg = isDelivered
+    ? 'var(--color-hi-status-delivered-bg)'
+    : 'var(--color-hi-status-in-transit-bg)';
+  const badgeColor = isDelivered
+    ? 'var(--color-hi-status-delivered-text)'
+    : 'var(--color-hi-status-in-transit-text)';
+
   return (
     <>
       {/* Header: name + category */}
@@ -529,7 +538,7 @@ function HouseholdItemTooltipContent({
         <span className={styles.title}>{data.name}</span>
         <span
           className={styles.statusBadge}
-          style={{ backgroundColor: 'var(--color-hi-status-in-transit-bg)' }}
+          style={{ backgroundColor: badgeBg, color: badgeColor }}
         >
           {data.category}
         </span>

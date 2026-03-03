@@ -16,6 +16,8 @@ import type {
   HouseholdItemDepPredecessorSummary,
   CreateHouseholdItemDepRequest,
   WorkItemLinkedHouseholdItemSummary,
+  HouseholdItemCategory,
+  HouseholdItemStatus,
 } from '@cornerstone/shared';
 import { NotFoundError, ValidationError, ConflictError } from '../errors/AppError.js';
 import { autoReschedule } from './schedulingEngine.js';
@@ -102,14 +104,12 @@ function getMilestonePredecessor(
 }
 
 /**
- * Detect circular dependencies using depth-first search.
- * Since household items are terminal nodes (they don't have successors),
- * a circular dependency can only occur if a work item or milestone that is
- * an ancestor of predecessorId itself (transitively) depends on householdItemId.
+ * Detect circular dependencies.
+ * Household items are terminal nodes in the dependency graph — they can depend
+ * on work items and milestones, but nothing depends on them. Therefore, cycles
+ * are impossible by construction.
  *
- * Because HIs are sinks, this will always return false, but the logic is complete for extensibility.
- *
- * @returns true if cycle detected, false otherwise
+ * @returns false (cycles are impossible)
  */
 function detectCycle(
   db: DbType,
@@ -117,61 +117,9 @@ function detectCycle(
   predecessorId: string,
   predecessorType: 'work_item' | 'milestone',
 ): boolean {
-  // Since HIs are terminal nodes (nothing depends on them), cycles cannot occur.
-  // A cycle would require: HI → WI → ... → HI (impossible, HIs are sinks).
-  // Document this for code clarity and future extensibility.
-  // Implement the detection anyway by checking if any ancestor of predecessorId
-  // has a dependency on householdItemId (which will never be true given current model).
-
-  const MAX_ITERATIONS = 10000;
-  const visited = new Set<string>();
-  let iterations = 0;
-
-  /**
-   * Traverse all ancestors of a work item.
-   */
-  function hasAncestorDependingOnHI(workItemId: string): boolean {
-    if (++iterations > MAX_ITERATIONS) {
-      return false;
-    }
-
-    if (visited.has(`wi:${workItemId}`)) {
-      return false;
-    }
-
-    visited.add(`wi:${workItemId}`);
-
-    // Find all predecessors of this work item
-    const predecessors = db
-      .select({ predecessorId: householdItemDeps.predecessorId })
-      .from(householdItemDeps)
-      .where(
-        and(
-          eq(householdItemDeps.householdItemId, workItemId),
-          eq(householdItemDeps.predecessorType, 'work_item'),
-        ),
-      )
-      .all();
-
-    for (const { predecessorId: predId } of predecessors) {
-      if (predId === householdItemId) {
-        return true; // Cycle: HI has dep on WI that depends on HI
-      }
-      if (hasAncestorDependingOnHI(predId)) {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  // If predecessor is a work item, check its ancestors
-  if (predecessorType === 'work_item') {
-    return hasAncestorDependingOnHI(predecessorId);
-  }
-
-  // If predecessor is a milestone, would need to check work items linked to milestone
-  // But again, HIs can't have cycles, so this is a formality.
+  // Household items are terminal nodes in the dependency graph — they can depend
+  // on work items and milestones, but nothing depends on them. Cycles are
+  // impossible by construction.
   return false;
 }
 
@@ -363,8 +311,8 @@ export function listDependentHouseholdItemsForWorkItem(
   return rows.map((row) => ({
     id: row.householdItem.id,
     name: row.householdItem.name,
-    category: row.householdItem.category as any,
-    status: row.householdItem.status as any,
+    category: row.householdItem.category as HouseholdItemCategory,
+    status: row.householdItem.status as HouseholdItemStatus,
     expectedDeliveryDate: row.householdItem.expectedDeliveryDate,
     earliestDeliveryDate: row.householdItem.earliestDeliveryDate,
     latestDeliveryDate: row.householdItem.latestDeliveryDate,

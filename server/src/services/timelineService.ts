@@ -29,6 +29,8 @@ import type {
   TimelineDateRange,
   UserSummary,
   TagResponse,
+  HouseholdItemCategory,
+  HouseholdItemStatus,
 } from '@cornerstone/shared';
 import { schedule } from './schedulingEngine.js';
 import type { SchedulingWorkItem, SchedulingDependency } from './schedulingEngine.js';
@@ -348,8 +350,12 @@ export function getTimeline(db: DbType): TimelineResponse {
   }
 
   // ── 7b. Compute isLate for each household item ────────────────────────────────
-  // isLate is true when the scheduler floored earliestDeliveryDate to today.
-  // Re-compute based on status and delivery dates.
+  // NOTE: isLate is a heuristic approximation — it flags items whose earliest
+  // delivery date equals today AND whose status suggests they should have been
+  // scheduled earlier. The scheduling engine computes precise isLate values
+  // during auto-reschedule, but that value is not persisted. This heuristic
+  // may produce false positives (items genuinely scheduled for today) but
+  // is the best approximation without an additional DB column.
 
   const timelineHouseholdItems: TimelineHouseholdItem[] = hiWithDates.map((hi) => {
     let isLate = false;
@@ -373,8 +379,8 @@ export function getTimeline(db: DbType): TimelineResponse {
     return {
       id: hi.id,
       name: hi.name,
-      category: hi.category as any,
-      status: hi.status as any,
+      category: hi.category as HouseholdItemCategory,
+      status: hi.status as HouseholdItemStatus,
       expectedDeliveryDate: hi.expectedDeliveryDate,
       earliestDeliveryDate: hi.earliestDeliveryDate,
       latestDeliveryDate: hi.latestDeliveryDate,

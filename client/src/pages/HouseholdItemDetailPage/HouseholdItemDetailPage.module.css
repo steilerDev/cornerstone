@@ -1255,7 +1255,7 @@
   align-items: center;
   gap: var(--spacing-1);
   background: var(--color-primary-bg);
-  color: var(--color-primary-text, var(--color-primary));
+  color: var(--color-primary);
   border-radius: var(--radius-full);
   padding: var(--spacing-0-5) var(--spacing-2);
   font-size: var(--font-size-xs);
@@ -1341,7 +1341,7 @@
 
 .depSearchOptionSelected {
   background: var(--color-primary-bg);
-  color: var(--color-primary-text, var(--color-primary));
+  color: var(--color-primary);
 }
 
 .modalOverlay {
