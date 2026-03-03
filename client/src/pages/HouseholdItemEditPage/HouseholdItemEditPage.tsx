@@ -40,6 +40,7 @@ export function HouseholdItemEditPage() {
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<HouseholdItemCategory>('other');
   const [status, setStatus] = useState<HouseholdItemStatus>('not_ordered');
+  const [quantity, setQuantity] = useState(1);
   const [vendorId, setVendorId] = useState('');
   const [url, setUrl] = useState('');
   const [room, setRoom] = useState('');
@@ -76,6 +77,7 @@ export function HouseholdItemEditPage() {
         setDescription(item.description || '');
         setCategory(item.category);
         setStatus(item.status);
+        setQuantity(item.quantity);
         setVendorId(item.vendor?.id ?? '');
         setUrl(item.url || '');
         setRoom(item.room || '');
@@ -118,6 +120,10 @@ export function HouseholdItemEditPage() {
       errors.name = 'Name is required';
     }
 
+    if (quantity < 1) {
+      errors.quantity = 'Quantity must be at least 1';
+    }
+
     if (actualDeliveryDate && orderDate && actualDeliveryDate < orderDate) {
       errors.deliveryDates = 'Actual delivery date must be after or equal to order date';
     }
@@ -142,6 +148,7 @@ export function HouseholdItemEditPage() {
         description: description.trim() || null,
         category,
         status,
+        quantity,
         vendorId: vendorId || null,
         url: url.trim() || null,
         room: room.trim() || null,
@@ -273,6 +280,24 @@ export function HouseholdItemEditPage() {
                 </option>
               ))}
             </select>
+          </div>
+
+          <div className={styles.formGroup}>
+            <label htmlFor="quantity" className={styles.label}>
+              Quantity
+            </label>
+            <input
+              type="number"
+              id="quantity"
+              className={`${styles.input} ${validationErrors.quantity ? styles.inputError : ''}`}
+              value={quantity}
+              onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value, 10) || 1))}
+              min={1}
+              disabled={isSubmitting}
+            />
+            {validationErrors.quantity && (
+              <div className={styles.errorText}>{validationErrors.quantity}</div>
+            )}
           </div>
         </div>
 
