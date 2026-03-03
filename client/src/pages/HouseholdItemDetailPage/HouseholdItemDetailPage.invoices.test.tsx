@@ -15,16 +15,16 @@ import type * as InvoicesApiTypes from '../../lib/invoicesApi.js';
 
 // ─── Mock functions ────────────────────────────────────────────────────────
 
-const mockGetHouseholdItemById = jest.fn<typeof HouseholdItemsApiTypes.getHouseholdItemById>();
+const mockGetHouseholdItem = jest.fn<typeof HouseholdItemsApiTypes.getHouseholdItem>();
 const mockFetchInvoices = jest.fn<typeof InvoicesApiTypes.fetchInvoices>();
 
 // ─── Mock modules ─────────────────────────────────────────────────────────
 
 jest.unstable_mockModule('../../lib/householdItemsApi.js', () => ({
-  getHouseholdItemById: mockGetHouseholdItemById,
+  getHouseholdItem: mockGetHouseholdItem,
   updateHouseholdItem: jest.fn(),
   deleteHouseholdItem: jest.fn(),
-  fetchHouseholdItems: jest.fn(),
+  listHouseholdItems: jest.fn(),
   createHouseholdItem: jest.fn(),
 }));
 
@@ -173,11 +173,11 @@ const mockInvoices = [
 // ─── Setup ────────────────────────────────────────────────────────────────
 
 beforeEach(async () => {
-  mockGetHouseholdItemById.mockReset();
+  mockGetHouseholdItem.mockReset();
   mockFetchInvoices.mockReset();
 
   // Default mocks
-  mockGetHouseholdItemById.mockResolvedValue(mockHouseholdItem);
+  mockGetHouseholdItem.mockResolvedValue(mockHouseholdItem);
   mockFetchInvoices.mockResolvedValue(mockInvoices);
 
   const module =
@@ -212,7 +212,7 @@ describe('HouseholdItemDetailPage - Household Item Invoice Display', () => {
       expect(screen.getByText('Kitchen Appliance')).toBeInTheDocument();
     });
 
-    expect(mockGetHouseholdItemById).toHaveBeenCalledWith('hi-001');
+    expect(mockGetHouseholdItem).toHaveBeenCalledWith('hi-001');
   });
 
   it('fetches invoices for linked household item budgets', async () => {

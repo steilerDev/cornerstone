@@ -72,7 +72,7 @@ describe('Budget Overview Service - Household Item Invoice Aggregation', () => {
       name,
       vendorId: undefined,
       tagIds: [],
-      estimatedDeliveryDate: undefined,
+      expectedDeliveryDate: undefined,
     });
     return result.id;
   }
@@ -188,10 +188,10 @@ describe('Budget Overview Service - Household Item Invoice Aggregation', () => {
           id: workItemId,
           title: 'Plumbing Work',
           description: null,
-          status: 'planning',
+          status: 'not_started',
           startDate: null,
           endDate: null,
-          estimatedDays: null,
+          durationDays: null,
           assignedUserId: null,
           createdBy: userId,
           createdAt: now,
@@ -317,10 +317,10 @@ describe('Budget Overview Service - Household Item Invoice Aggregation', () => {
           id: workItemId,
           title: 'Plumbing Work',
           description: null,
-          status: 'planning',
+          status: 'not_started',
           startDate: null,
           endDate: null,
-          estimatedDays: null,
+          durationDays: null,
           assignedUserId: null,
           createdBy: userId,
           createdAt: now,
@@ -369,7 +369,7 @@ describe('Budget Overview Service - Household Item Invoice Aggregation', () => {
 
       const overview = budgetOverviewService.getBudgetOverview(db);
 
-      const categorySummary = overview.categorySummaries.find((cs) => cs.id === categoryId);
+      const categorySummary = overview.categorySummaries.find((cs) => cs.categoryId === categoryId);
       expect(categorySummary).toBeDefined();
       // 1000 (household) + 800 (work item) = 1800
       expect(categorySummary?.actualCost).toBe(1800);
@@ -413,7 +413,7 @@ describe('Budget Overview Service - Household Item Invoice Aggregation', () => {
 
       // Overview should still complete successfully
       expect(overview).toBeDefined();
-      expect(overview.financingSummary.totalActualCost).toBe(2500);
+      expect(overview.actualCost).toBe(2500);
     });
   });
 

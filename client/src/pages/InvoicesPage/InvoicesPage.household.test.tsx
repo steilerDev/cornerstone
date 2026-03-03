@@ -345,6 +345,7 @@ describe('InvoicesPage - Household Item Budget Linking', () => {
     // Verify householdItemBudgetId was included in the request
     await waitFor(() => {
       expect(mockCreateInvoice).toHaveBeenCalledWith(
+        expect.any(String),
         expect.objectContaining({
           householdItemBudgetId: expect.any(String),
         }),

@@ -283,6 +283,7 @@ describe('InvoiceDetailPage - Household Item Budget Linking', () => {
     await waitFor(() => {
       expect(mockUpdateInvoice).toHaveBeenCalledWith(
         expect.anything(),
+        expect.anything(),
         expect.objectContaining({
           householdItemBudgetId: null,
         }),
