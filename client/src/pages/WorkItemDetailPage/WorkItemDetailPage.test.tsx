@@ -19,6 +19,7 @@ import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as SubsidyProgramsApiTypes from '../../lib/subsidyProgramsApi.js';
 import type * as MilestonesApiTypes from '../../lib/milestonesApi.js';
 import type * as WorkItemMilestonesApiTypes from '../../lib/workItemMilestonesApi.js';
+import type * as HouseholdItemWorkItemsApiTypes from '../../lib/householdItemWorkItemsApi.js';
 import type * as WorkItemDetailPageTypes from './WorkItemDetailPage.js';
 
 // Module-scope mocks
@@ -64,6 +65,8 @@ const mockRemoveRequiredMilestone =
 const mockAddLinkedMilestone = jest.fn<typeof WorkItemMilestonesApiTypes.addLinkedMilestone>();
 const mockRemoveLinkedMilestone =
   jest.fn<typeof WorkItemMilestonesApiTypes.removeLinkedMilestone>();
+const mockFetchLinkedHouseholdItems =
+  jest.fn<typeof HouseholdItemWorkItemsApiTypes.fetchLinkedHouseholdItems>();
 
 // Mock AuthContext
 jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
@@ -155,6 +158,13 @@ jest.unstable_mockModule('../../lib/workItemMilestonesApi.js', () => ({
   removeLinkedMilestone: mockRemoveLinkedMilestone,
 }));
 
+jest.unstable_mockModule('../../lib/householdItemWorkItemsApi.js', () => ({
+  fetchLinkedWorkItems: jest.fn(),
+  linkWorkItemToHouseholdItem: jest.fn(),
+  unlinkWorkItemFromHouseholdItem: jest.fn(),
+  fetchLinkedHouseholdItems: mockFetchLinkedHouseholdItems,
+}));
+
 describe('WorkItemDetailPage', () => {
   let WorkItemDetailPageModule: typeof WorkItemDetailPageTypes;
 
@@ -240,6 +250,7 @@ describe('WorkItemDetailPage', () => {
     mockRemoveRequiredMilestone.mockReset();
     mockAddLinkedMilestone.mockReset();
     mockRemoveLinkedMilestone.mockReset();
+    mockFetchLinkedHouseholdItems.mockReset();
 
     if (!WorkItemDetailPageModule) {
       WorkItemDetailPageModule = await import('./WorkItemDetailPage.js');
@@ -285,6 +296,8 @@ describe('WorkItemDetailPage', () => {
     // Milestone-related defaults
     mockListMilestones.mockResolvedValue([]);
     mockGetWorkItemMilestones.mockResolvedValue({ required: [], linked: [] });
+    // Household item work items defaults
+    mockFetchLinkedHouseholdItems.mockResolvedValue([]);
   });
 
   function renderPage(id = 'work-1') {

@@ -13,11 +13,16 @@ import type {
   HouseholdItemCategory,
 } from '@cornerstone/shared';
 import type React from 'react';
+import type * as HouseholdItemWorkItemsApiTypes from '../../lib/householdItemWorkItemsApi.js';
+import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
 
 const mockGetHouseholdItem = jest.fn<typeof HouseholdItemsApiTypes.getHouseholdItem>();
 const mockDeleteHouseholdItem = jest.fn<typeof HouseholdItemsApiTypes.deleteHouseholdItem>();
 const mockShowToast = jest.fn();
 const mockNavigate = jest.fn();
+const mockFetchLinkedWorkItems =
+  jest.fn<typeof HouseholdItemWorkItemsApiTypes.fetchLinkedWorkItems>();
+const mockListWorkItems = jest.fn<typeof WorkItemsApiTypes.listWorkItems>();
 
 // Mock ApiClientError for error scenarios
 class MockApiClientError extends Error {
@@ -56,6 +61,21 @@ jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({
     showToast: mockShowToast,
     dismissToast: jest.fn(),
   }),
+}));
+
+jest.unstable_mockModule('../../lib/householdItemWorkItemsApi.js', () => ({
+  fetchLinkedWorkItems: mockFetchLinkedWorkItems,
+  linkWorkItemToHouseholdItem: jest.fn(),
+  unlinkWorkItemFromHouseholdItem: jest.fn(),
+  fetchLinkedHouseholdItems: jest.fn(),
+}));
+
+jest.unstable_mockModule('../../lib/workItemsApi.js', () => ({
+  listWorkItems: mockListWorkItems,
+  getWorkItem: jest.fn(),
+  createWorkItem: jest.fn(),
+  updateWorkItem: jest.fn(),
+  deleteWorkItem: jest.fn(),
 }));
 
 // Helper to capture current location
@@ -111,10 +131,19 @@ describe('HouseholdItemDetailPage', () => {
     mockDeleteHouseholdItem.mockReset();
     mockShowToast.mockReset();
     mockNavigate.mockReset();
+    mockFetchLinkedWorkItems.mockReset();
+    mockListWorkItems.mockReset();
 
     if (!HouseholdItemDetailPageModule) {
       HouseholdItemDetailPageModule = await import('./HouseholdItemDetailPage.js');
     }
+
+    // Setup default API responses for work items APIs
+    mockFetchLinkedWorkItems.mockResolvedValue([]);
+    mockListWorkItems.mockResolvedValue({
+      items: [],
+      pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
+    });
   });
 
   function renderPage(itemId = 'item-1') {
@@ -456,7 +485,9 @@ describe('HouseholdItemDetailPage', () => {
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      expect(screen.getByText('No work items linked to this item.')).toBeInTheDocument();
+      expect(
+        screen.getByText('No work items linked. Use the form below to add a link.'),
+      ).toBeInTheDocument();
     });
 
     it('shows dash for missing order date', async () => {
