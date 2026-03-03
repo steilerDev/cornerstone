@@ -1,0 +1,1164 @@
+import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { buildApp } from '../app.js';
+import * as userService from '../services/userService.js';
+import * as sessionService from '../services/sessionService.js';
+import * as householdItemService from '../services/householdItemService.js';
+import type { FastifyInstance } from 'fastify';
+import type { ApiErrorResponse } from '@cornerstone/shared';
+import { tags } from '../db/schema.js';
+
+describe('Household Item Routes', () => {
+  let app: FastifyInstance;
+  let tempDir: string;
+  let originalEnv: NodeJS.ProcessEnv;
+
+  beforeEach(async () => {
+    // Save original environment
+    originalEnv = { ...process.env };
+
+    // Create temporary directory for test database
+    tempDir = mkdtempSync(join(tmpdir(), 'cornerstone-household-items-test-'));
+    process.env.DATABASE_URL = join(tempDir, 'test.db');
+    process.env.SECURE_COOKIES = 'false';
+
+    // Build app (runs migrations)
+    app = await buildApp();
+  });
+
+  afterEach(async () => {
+    // Close the app
+    if (app) {
+      await app.close();
+    }
+
+    // Restore original environment
+    process.env = originalEnv;
+
+    // Clean up temporary directory
+    try {
+      rmSync(tempDir, { recursive: true, force: true });
+    } catch {
+      // Ignore cleanup errors
+    }
+  });
+
+  /**
+   * Helper: Create a user and return a session cookie string.
+   */
+  async function createUserWithSession(
+    email: string,
+    displayName: string,
+    password: string,
+    role: 'admin' | 'member' = 'member',
+  ): Promise<{ userId: string; cookie: string }> {
+    const user = await userService.createLocalUser(app.db, email, displayName, password, role);
+    const sessionToken = sessionService.createSession(app.db, user.id, 3600);
+    return {
+      userId: user.id,
+      cookie: `cornerstone_session=${sessionToken}`,
+    };
+  }
+
+  /**
+   * Helper: Create a test tag.
+   */
+  function createTestTag(name: string, color: string = '#3b82f6') {
+    const tagId = `tag-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    app.db
+      .insert(tags)
+      .values({
+        id: tagId,
+        name,
+        color,
+        createdAt: new Date().toISOString(),
+      })
+      .run();
+    return tagId;
+  }
+
+  // ---------------------------------------------------------------------------
+  // POST /api/household-items
+  // ---------------------------------------------------------------------------
+
+  describe('POST /api/household-items', () => {
+    it('creates item with minimum required name field and returns 201', async () => {
+      // Given: Authenticated member user
+      const { userId, cookie } = await createUserWithSession(
+        'member@example.com',
+        'Member User',
+        'password',
+        'member',
+      );
+
+      const body = { name: 'Living Room Sofa' };
+
+      // When: Creating household item
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/household-items',
+        headers: { cookie },
+        payload: body,
+      });
+
+      // Then: Returns 201 with created item
+      expect(response.statusCode).toBe(201);
+      const parsed = JSON.parse(response.body) as { householdItem: Record<string, unknown> };
+      const item = parsed.householdItem;
+
+      expect(item.id).toBeDefined();
+      expect(item.name).toBe('Living Room Sofa');
+      expect(item.description).toBeNull();
+      expect(item.category).toBe('other');
+      expect(item.status).toBe('not_ordered');
+      expect(item.quantity).toBe(1);
+      expect(item.vendor).toBeNull();
+      expect(item.room).toBeNull();
+      expect(item.url).toBeNull();
+      expect(item.orderDate).toBeNull();
+      expect(item.expectedDeliveryDate).toBeNull();
+      expect(item.actualDeliveryDate).toBeNull();
+      expect(item.tagIds).toEqual([]);
+      expect(item.tags).toEqual([]);
+      expect(item.workItems).toEqual([]);
+      expect(item.subsidies).toEqual([]);
+      expect(item.budgetLineCount).toBe(0);
+      expect(item.totalPlannedAmount).toBe(0);
+      expect((item.createdBy as Record<string, unknown>)?.id).toBe(userId);
+      expect(item.createdAt).toBeDefined();
+      expect(item.updatedAt).toBeDefined();
+    });
+
+    it('creates item with all optional fields and returns 201', async () => {
+      // Given: Authenticated user and a tag
+      const { cookie } = await createUserWithSession(
+        'admin@example.com',
+        'Admin',
+        'password',
+        'admin',
+      );
+      const tagId = createTestTag('Living Room');
+
+      const body = {
+        name: 'King Bed Frame',
+        description: 'Solid oak king bed frame',
+        category: 'furniture',
+        status: 'ordered',
+        url: 'https://ikea.com/bed',
+        room: 'Bedroom',
+        quantity: 1,
+        orderDate: '2026-03-01',
+        expectedDeliveryDate: '2026-04-01',
+        tagIds: [tagId],
+      };
+
+      // When: Creating with all fields
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/household-items',
+        headers: { cookie },
+        payload: body,
+      });
+
+      // Then: Returns 201 with all fields populated
+      expect(response.statusCode).toBe(201);
+      const parsed = JSON.parse(response.body) as { householdItem: Record<string, unknown> };
+      const item = parsed.householdItem;
+
+      expect(item.name).toBe('King Bed Frame');
+      expect(item.description).toBe('Solid oak king bed frame');
+      expect(item.category).toBe('furniture');
+      expect(item.status).toBe('ordered');
+      expect(item.url).toBe('https://ikea.com/bed');
+      expect(item.room).toBe('Bedroom');
+      expect(item.quantity).toBe(1);
+      expect(item.orderDate).toBe('2026-03-01');
+      expect(item.expectedDeliveryDate).toBe('2026-04-01');
+      expect(item.tagIds as string[]).toHaveLength(1);
+      expect((item.tags as unknown[])?.length).toBe(1);
+    });
+
+    it('returns 400 when name is missing', async () => {
+      // Given: Authenticated user
+      const { cookie } = await createUserWithSession('user@example.com', 'User', 'password');
+
+      // When: Creating without name
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/household-items',
+        headers: { cookie },
+        payload: { description: 'No name provided' },
+      });
+
+      // Then: Returns 400 VALIDATION_ERROR
+      expect(response.statusCode).toBe(400);
+      const error = JSON.parse(response.body) as ApiErrorResponse;
+      expect(error.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('returns 400 when name is empty string (minLength violation)', async () => {
+      // Given: Authenticated user
+      const { cookie } = await createUserWithSession('user@example.com', 'User', 'password');
+
+      // When: Creating with empty name
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/household-items',
+        headers: { cookie },
+        payload: { name: '' },
+      });
+
+      // Then: Returns 400 VALIDATION_ERROR
+      expect(response.statusCode).toBe(400);
+      const error = JSON.parse(response.body) as ApiErrorResponse;
+      expect(error.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('returns 400 when category is invalid enum value', async () => {
+      // Given: Authenticated user
+      const { cookie } = await createUserWithSession('user@example.com', 'User', 'password');
+
+      // When: Creating with invalid category
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/household-items',
+        headers: { cookie },
+        payload: { name: 'Test Item', category: 'invalid_category' },
+      });
+
+      // Then: Returns 400 VALIDATION_ERROR
+      expect(response.statusCode).toBe(400);
+      const error = JSON.parse(response.body) as ApiErrorResponse;
+      expect(error.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('returns 400 when status is invalid enum value', async () => {
+      // Given: Authenticated user
+      const { cookie } = await createUserWithSession('user@example.com', 'User', 'password');
+
+      // When: Creating with invalid status
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/household-items',
+        headers: { cookie },
+        payload: { name: 'Test Item', status: 'invalid_status' },
+      });
+
+      // Then: Returns 400 VALIDATION_ERROR
+      expect(response.statusCode).toBe(400);
+      const error = JSON.parse(response.body) as ApiErrorResponse;
+      expect(error.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('returns 400 when vendorId does not exist', async () => {
+      // Given: Authenticated user
+      const { cookie } = await createUserWithSession('user@example.com', 'User', 'password');
+
+      // When: Creating with non-existent vendor
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/household-items',
+        headers: { cookie },
+        payload: { name: 'Test Item', vendorId: 'non-existent-vendor-id' },
+      });
+
+      // Then: Returns 400 VALIDATION_ERROR
+      expect(response.statusCode).toBe(400);
+      const error = JSON.parse(response.body) as ApiErrorResponse;
+      expect(error.error.code).toBe('VALIDATION_ERROR');
+      expect(error.error.message).toContain('Vendor not found');
+    });
+
+    it('returns 400 when tagId does not exist', async () => {
+      // Given: Authenticated user
+      const { cookie } = await createUserWithSession('user@example.com', 'User', 'password');
+
+      // When: Creating with non-existent tag
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/household-items',
+        headers: { cookie },
+        payload: { name: 'Test Item', tagIds: ['non-existent-tag-id'] },
+      });
+
+      // Then: Returns 400 VALIDATION_ERROR
+      expect(response.statusCode).toBe(400);
+      const error = JSON.parse(response.body) as ApiErrorResponse;
+      expect(error.error.code).toBe('VALIDATION_ERROR');
+      expect(error.error.message).toContain('Tag not found');
+    });
+
+    it('returns 400 when quantity is less than 1', async () => {
+      // Given: Authenticated user
+      const { cookie } = await createUserWithSession('user@example.com', 'User', 'password');
+
+      // When: Creating with quantity 0
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/household-items',
+        headers: { cookie },
+        payload: { name: 'Test Item', quantity: 0 },
+      });
+
+      // Then: Returns 400 VALIDATION_ERROR
+      expect(response.statusCode).toBe(400);
+      const error = JSON.parse(response.body) as ApiErrorResponse;
+      expect(error.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('returns 400 when orderDate format is invalid', async () => {
+      // Given: Authenticated user
+      const { cookie } = await createUserWithSession('user@example.com', 'User', 'password');
+
+      // When: Creating with invalid date format
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/household-items',
+        headers: { cookie },
+        payload: { name: 'Test Item', orderDate: '03/01/2026' },
+      });
+
+      // Then: Returns 400 VALIDATION_ERROR
+      expect(response.statusCode).toBe(400);
+      const error = JSON.parse(response.body) as ApiErrorResponse;
+      expect(error.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('returns 401 when not authenticated', async () => {
+      // Given: No authentication
+      const body = { name: 'Test Item' };
+
+      // When: Creating without session
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/household-items',
+        payload: body,
+      });
+
+      // Then: Returns 401 UNAUTHORIZED
+      expect(response.statusCode).toBe(401);
+      const error = JSON.parse(response.body) as ApiErrorResponse;
+      expect(error.error.code).toBe('UNAUTHORIZED');
+    });
+
+    it('allows member users to create household items', async () => {
+      // Given: Member user (not admin)
+      const { cookie } = await createUserWithSession(
+        'member@example.com',
+        'Member',
+        'password',
+        'member',
+      );
+
+      // When: Creating household item
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/household-items',
+        headers: { cookie },
+        payload: { name: 'Member Item' },
+      });
+
+      // Then: Returns 201 (member can create)
+      expect(response.statusCode).toBe(201);
+    });
+
+    it('response body is nested under householdItem key', async () => {
+      // Given: Authenticated user
+      const { cookie } = await createUserWithSession('user@example.com', 'User', 'password');
+
+      // When: Creating item
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/household-items',
+        headers: { cookie },
+        payload: { name: 'Test Item' },
+      });
+
+      // Then: Response is wrapped in householdItem key
+      expect(response.statusCode).toBe(201);
+      const parsed = JSON.parse(response.body) as Record<string, unknown>;
+      expect(parsed).toHaveProperty('householdItem');
+      const item = parsed.householdItem as Record<string, unknown>;
+      expect(item).toHaveProperty('id');
+      expect(item).toHaveProperty('name');
+      expect(item).toHaveProperty('tags');
+      expect(item).toHaveProperty('workItems');
+      expect(item).toHaveProperty('subsidies');
+    });
+
+    it('returns camelCase property names', async () => {
+      // Given: Authenticated user
+      const { cookie } = await createUserWithSession('user@example.com', 'User', 'password');
+
+      // When: Creating item
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/household-items',
+        headers: { cookie },
+        payload: {
+          name: 'Test Item',
+          orderDate: '2026-03-01',
+          expectedDeliveryDate: '2026-04-01',
+        },
+      });
+
+      // Then: Properties are camelCase
+      expect(response.statusCode).toBe(201);
+      const item = (JSON.parse(response.body) as { householdItem: Record<string, unknown> })
+        .householdItem;
+      expect(item).toHaveProperty('orderDate');
+      expect(item).toHaveProperty('expectedDeliveryDate');
+      expect(item).toHaveProperty('actualDeliveryDate');
+      expect(item).toHaveProperty('budgetLineCount');
+      expect(item).toHaveProperty('totalPlannedAmount');
+      expect(item).toHaveProperty('createdAt');
+      expect(item).toHaveProperty('updatedAt');
+      expect(item).toHaveProperty('createdBy');
+      // Ensure no snake_case properties
+      expect(item).not.toHaveProperty('order_date');
+      expect(item).not.toHaveProperty('expected_delivery_date');
+      expect(item).not.toHaveProperty('actual_delivery_date');
+      expect(item).not.toHaveProperty('budget_line_count');
+      expect(item).not.toHaveProperty('created_at');
+      expect(item).not.toHaveProperty('updated_at');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // GET /api/household-items
+  // ---------------------------------------------------------------------------
+
+  describe('GET /api/household-items', () => {
+    it('returns paginated list with defaults and returns 200', async () => {
+      // Given: Authenticated user and 3 items
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'User',
+        'password',
+      );
+      for (let i = 1; i <= 3; i++) {
+        householdItemService.createHouseholdItem(app.db, userId, { name: `Item ${i}` });
+      }
+
+      // When: Listing household items
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/household-items',
+        headers: { cookie },
+      });
+
+      // Then: Returns 200 with pagination
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body) as {
+        items: unknown[];
+        pagination: {
+          page: number;
+          pageSize: number;
+          totalItems: number;
+          totalPages: number;
+        };
+      };
+
+      expect(body.items).toHaveLength(3);
+      expect(body.pagination).toBeDefined();
+      expect(body.pagination.page).toBe(1);
+      expect(body.pagination.pageSize).toBe(25);
+      expect(body.pagination.totalItems).toBe(3);
+      expect(body.pagination.totalPages).toBe(1);
+    });
+
+    it('returns empty list when no items exist', async () => {
+      // Given: Authenticated user, no items
+      const { cookie } = await createUserWithSession('user@example.com', 'User', 'password');
+
+      // When: Listing
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/household-items',
+        headers: { cookie },
+      });
+
+      // Then: Returns 200 with empty list
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body) as {
+        items: unknown[];
+        pagination: { totalItems: number };
+      };
+      expect(body.items).toHaveLength(0);
+      expect(body.pagination.totalItems).toBe(0);
+    });
+
+    it('supports pagination via page and pageSize query params', async () => {
+      // Given: 10 items
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'User',
+        'password',
+      );
+      for (let i = 1; i <= 10; i++) {
+        householdItemService.createHouseholdItem(app.db, userId, { name: `Item ${i}` });
+      }
+
+      // When: Requesting page 2 with pageSize 4
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/household-items?page=2&pageSize=4',
+        headers: { cookie },
+      });
+
+      // Then: Correct pagination
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body) as {
+        items: unknown[];
+        pagination: { page: number; pageSize: number; totalItems: number; totalPages: number };
+      };
+      expect(body.items).toHaveLength(4);
+      expect(body.pagination.page).toBe(2);
+      expect(body.pagination.pageSize).toBe(4);
+      expect(body.pagination.totalItems).toBe(10);
+      expect(body.pagination.totalPages).toBe(3);
+    });
+
+    it('filters by category query param', async () => {
+      // Given: Items with different categories
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'User',
+        'password',
+      );
+      householdItemService.createHouseholdItem(app.db, userId, {
+        name: 'Sofa',
+        category: 'furniture',
+      });
+      householdItemService.createHouseholdItem(app.db, userId, {
+        name: 'Dishwasher',
+        category: 'appliances',
+      });
+
+      // When: Filtering by category
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/household-items?category=appliances',
+        headers: { cookie },
+      });
+
+      // Then: Only appliances returned
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body) as { items: Array<{ name: string }> };
+      expect(body.items).toHaveLength(1);
+      expect(body.items[0].name).toBe('Dishwasher');
+    });
+
+    it('filters by status query param', async () => {
+      // Given: Items with different statuses
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'User',
+        'password',
+      );
+      householdItemService.createHouseholdItem(app.db, userId, {
+        name: 'Item A',
+        status: 'not_ordered',
+      });
+      householdItemService.createHouseholdItem(app.db, userId, {
+        name: 'Item B',
+        status: 'delivered',
+      });
+
+      // When: Filtering by delivered
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/household-items?status=delivered',
+        headers: { cookie },
+      });
+
+      // Then: Only delivered items
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body) as { items: Array<{ name: string }> };
+      expect(body.items).toHaveLength(1);
+      expect(body.items[0].name).toBe('Item B');
+    });
+
+    it('supports full-text search via q query param', async () => {
+      // Given: Items with different names
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'User',
+        'password',
+      );
+      householdItemService.createHouseholdItem(app.db, userId, { name: 'Coffee Table' });
+      householdItemService.createHouseholdItem(app.db, userId, { name: 'Dining Chair' });
+
+      // When: Searching
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/household-items?q=coffee',
+        headers: { cookie },
+      });
+
+      // Then: Only matching items
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body) as { items: Array<{ name: string }> };
+      expect(body.items).toHaveLength(1);
+      expect(body.items[0].name).toBe('Coffee Table');
+    });
+
+    it('returns 400 when category query param is invalid', async () => {
+      // Given: Authenticated user
+      const { cookie } = await createUserWithSession('user@example.com', 'User', 'password');
+
+      // When: Using invalid category
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/household-items?category=invalid_category',
+        headers: { cookie },
+      });
+
+      // Then: Returns 400
+      expect(response.statusCode).toBe(400);
+      const error = JSON.parse(response.body) as ApiErrorResponse;
+      expect(error.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('returns 400 when sortBy is invalid', async () => {
+      // Given: Authenticated user
+      const { cookie } = await createUserWithSession('user@example.com', 'User', 'password');
+
+      // When: Using invalid sortBy
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/household-items?sortBy=invalid_field',
+        headers: { cookie },
+      });
+
+      // Then: Returns 400
+      expect(response.statusCode).toBe(400);
+      const error = JSON.parse(response.body) as ApiErrorResponse;
+      expect(error.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('returns 401 when not authenticated', async () => {
+      // Given: No authentication
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/household-items',
+      });
+
+      // Then: Returns 401 UNAUTHORIZED
+      expect(response.statusCode).toBe(401);
+      const error = JSON.parse(response.body) as ApiErrorResponse;
+      expect(error.error.code).toBe('UNAUTHORIZED');
+    });
+
+    it('supports sorting by name asc', async () => {
+      // Given: Items with different names
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'User',
+        'password',
+      );
+      householdItemService.createHouseholdItem(app.db, userId, { name: 'Zebra Chair' });
+      householdItemService.createHouseholdItem(app.db, userId, { name: 'Apple Lamp' });
+
+      // When: Sorting by name asc
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/household-items?sortBy=name&sortOrder=asc',
+        headers: { cookie },
+      });
+
+      // Then: Items are sorted
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body) as { items: Array<{ name: string }> };
+      expect(body.items[0].name).toBe('Apple Lamp');
+      expect(body.items[1].name).toBe('Zebra Chair');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // GET /api/household-items/:id
+  // ---------------------------------------------------------------------------
+
+  describe('GET /api/household-items/:id', () => {
+    it('returns household item detail with 200', async () => {
+      // Given: An existing item
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'User',
+        'password',
+      );
+      const created = householdItemService.createHouseholdItem(app.db, userId, {
+        name: 'Bookshelf',
+        category: 'storage',
+      });
+
+      // When: Getting by ID
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/household-items/${created.id}`,
+        headers: { cookie },
+      });
+
+      // Then: Returns 200 with full detail
+      expect(response.statusCode).toBe(200);
+      const parsed = JSON.parse(response.body) as { householdItem: Record<string, unknown> };
+      const item = parsed.householdItem;
+      expect(item.id).toBe(created.id);
+      expect(item.name).toBe('Bookshelf');
+      expect(item.category).toBe('storage');
+      expect(item).toHaveProperty('tags');
+      expect(item).toHaveProperty('workItems');
+      expect(item).toHaveProperty('subsidies');
+    });
+
+    it('returns 404 for non-existent ID', async () => {
+      // Given: Authenticated user
+      const { cookie } = await createUserWithSession('user@example.com', 'User', 'password');
+
+      // When: Getting by non-existent ID
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/household-items/non-existent-id',
+        headers: { cookie },
+      });
+
+      // Then: Returns 404 NOT_FOUND
+      expect(response.statusCode).toBe(404);
+      const error = JSON.parse(response.body) as ApiErrorResponse;
+      expect(error.error.code).toBe('NOT_FOUND');
+      expect(error.error.message).toContain('Household item not found');
+    });
+
+    it('returns 401 when not authenticated', async () => {
+      // Given: No authentication
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/household-items/some-id',
+      });
+
+      // Then: Returns 401 UNAUTHORIZED
+      expect(response.statusCode).toBe(401);
+      const error = JSON.parse(response.body) as ApiErrorResponse;
+      expect(error.error.code).toBe('UNAUTHORIZED');
+    });
+
+    it('response is nested under householdItem key', async () => {
+      // Given: An existing item
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'User',
+        'password',
+      );
+      const created = householdItemService.createHouseholdItem(app.db, userId, {
+        name: 'Test Item',
+      });
+
+      // When: Getting by ID
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/household-items/${created.id}`,
+        headers: { cookie },
+      });
+
+      // Then: Response is wrapped
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body) as Record<string, unknown>;
+      expect(body).toHaveProperty('householdItem');
+    });
+
+    it('includes linked tags in detail response', async () => {
+      // Given: An item with a tag
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'User',
+        'password',
+      );
+      const tagId = createTestTag('Bedroom');
+      const created = householdItemService.createHouseholdItem(app.db, userId, {
+        name: 'Dresser',
+        tagIds: [tagId],
+      });
+
+      // When: Getting by ID
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/household-items/${created.id}`,
+        headers: { cookie },
+      });
+
+      // Then: Tags are included
+      expect(response.statusCode).toBe(200);
+      const item = (JSON.parse(response.body) as { householdItem: Record<string, unknown> })
+        .householdItem;
+      expect((item.tags as unknown[])?.length).toBe(1);
+      expect((item.tags as Array<{ name: string }>)[0].name).toBe('Bedroom');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // PATCH /api/household-items/:id
+  // ---------------------------------------------------------------------------
+
+  describe('PATCH /api/household-items/:id', () => {
+    it('updates household item and returns 200', async () => {
+      // Given: An existing item
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'User',
+        'password',
+      );
+      const created = householdItemService.createHouseholdItem(app.db, userId, {
+        name: 'Original Name',
+        status: 'not_ordered',
+      });
+
+      // When: Updating status
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/household-items/${created.id}`,
+        headers: { cookie },
+        payload: { status: 'ordered' },
+      });
+
+      // Then: Returns 200 with updated item
+      expect(response.statusCode).toBe(200);
+      const item = (JSON.parse(response.body) as { householdItem: Record<string, unknown> })
+        .householdItem;
+      expect(item.status).toBe('ordered');
+      expect(item.name).toBe('Original Name');
+    });
+
+    it('updates name field', async () => {
+      // Given: An existing item
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'User',
+        'password',
+      );
+      const created = householdItemService.createHouseholdItem(app.db, userId, {
+        name: 'Old Name',
+      });
+
+      // When: Updating name
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/household-items/${created.id}`,
+        headers: { cookie },
+        payload: { name: 'New Name' },
+      });
+
+      // Then: Returns 200 with new name
+      expect(response.statusCode).toBe(200);
+      const item = (JSON.parse(response.body) as { householdItem: Record<string, unknown> })
+        .householdItem;
+      expect(item.name).toBe('New Name');
+    });
+
+    it('replaces tags via tagIds', async () => {
+      // Given: An item with one tag
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'User',
+        'password',
+      );
+      const oldTag = createTestTag('OldTag');
+      const newTag = createTestTag('NewTag');
+      const created = householdItemService.createHouseholdItem(app.db, userId, {
+        name: 'Lamp',
+        tagIds: [oldTag],
+      });
+
+      // When: Replacing tags
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/household-items/${created.id}`,
+        headers: { cookie },
+        payload: { tagIds: [newTag] },
+      });
+
+      // Then: Tags replaced
+      expect(response.statusCode).toBe(200);
+      const item = (JSON.parse(response.body) as { householdItem: Record<string, unknown> })
+        .householdItem;
+      expect((item.tags as Array<{ name: string }>).map((t) => t.name)).toEqual(['NewTag']);
+    });
+
+    it('returns 404 for non-existent ID', async () => {
+      // Given: Authenticated user
+      const { cookie } = await createUserWithSession('user@example.com', 'User', 'password');
+
+      // When: Updating non-existent item
+      const response = await app.inject({
+        method: 'PATCH',
+        url: '/api/household-items/non-existent-id',
+        headers: { cookie },
+        payload: { status: 'ordered' },
+      });
+
+      // Then: Returns 404 NOT_FOUND
+      expect(response.statusCode).toBe(404);
+      const error = JSON.parse(response.body) as ApiErrorResponse;
+      expect(error.error.code).toBe('NOT_FOUND');
+    });
+
+    it('returns 400 when body is empty (minProperties violation)', async () => {
+      // Given: An existing item
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'User',
+        'password',
+      );
+      const created = householdItemService.createHouseholdItem(app.db, userId, { name: 'Chair' });
+
+      // When: Sending empty body
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/household-items/${created.id}`,
+        headers: { cookie },
+        payload: {},
+      });
+
+      // Then: Returns 400 VALIDATION_ERROR
+      expect(response.statusCode).toBe(400);
+      const error = JSON.parse(response.body) as ApiErrorResponse;
+      expect(error.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('returns 400 when category is invalid enum value', async () => {
+      // Given: An existing item
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'User',
+        'password',
+      );
+      const created = householdItemService.createHouseholdItem(app.db, userId, { name: 'Lamp' });
+
+      // When: Setting invalid category
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/household-items/${created.id}`,
+        headers: { cookie },
+        payload: { category: 'not_valid' },
+      });
+
+      // Then: Returns 400
+      expect(response.statusCode).toBe(400);
+      const error = JSON.parse(response.body) as ApiErrorResponse;
+      expect(error.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('returns 400 when vendorId does not exist', async () => {
+      // Given: An existing item
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'User',
+        'password',
+      );
+      const created = householdItemService.createHouseholdItem(app.db, userId, {
+        name: 'Fridge',
+      });
+
+      // When: Setting non-existent vendor
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/household-items/${created.id}`,
+        headers: { cookie },
+        payload: { vendorId: 'non-existent-vendor-id' },
+      });
+
+      // Then: Returns 400
+      expect(response.statusCode).toBe(400);
+      const error = JSON.parse(response.body) as ApiErrorResponse;
+      expect(error.error.code).toBe('VALIDATION_ERROR');
+      expect(error.error.message).toContain('Vendor not found');
+    });
+
+    it('returns 401 when not authenticated', async () => {
+      // Given: No authentication
+      const response = await app.inject({
+        method: 'PATCH',
+        url: '/api/household-items/some-id',
+        payload: { status: 'ordered' },
+      });
+
+      // Then: Returns 401 UNAUTHORIZED
+      expect(response.statusCode).toBe(401);
+      const error = JSON.parse(response.body) as ApiErrorResponse;
+      expect(error.error.code).toBe('UNAUTHORIZED');
+    });
+
+    it('response is nested under householdItem key', async () => {
+      // Given: An existing item
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'User',
+        'password',
+      );
+      const created = householdItemService.createHouseholdItem(app.db, userId, {
+        name: 'Lamp',
+      });
+
+      // When: Updating
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/household-items/${created.id}`,
+        headers: { cookie },
+        payload: { room: 'Living Room' },
+      });
+
+      // Then: Response is wrapped
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body) as Record<string, unknown>;
+      expect(body).toHaveProperty('householdItem');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // DELETE /api/household-items/:id
+  // ---------------------------------------------------------------------------
+
+  describe('DELETE /api/household-items/:id', () => {
+    it('deletes household item and returns 204', async () => {
+      // Given: An existing item
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'User',
+        'password',
+      );
+      const created = householdItemService.createHouseholdItem(app.db, userId, {
+        name: 'Old Couch',
+      });
+
+      // When: Deleting it
+      const response = await app.inject({
+        method: 'DELETE',
+        url: `/api/household-items/${created.id}`,
+        headers: { cookie },
+      });
+
+      // Then: Returns 204 with no body
+      expect(response.statusCode).toBe(204);
+      expect(response.body).toBe('');
+    });
+
+    it('verifies item is gone after deletion', async () => {
+      // Given: An existing item
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'User',
+        'password',
+      );
+      const created = householdItemService.createHouseholdItem(app.db, userId, {
+        name: 'Deletable Lamp',
+      });
+
+      // When: Deleting then trying to get it
+      await app.inject({
+        method: 'DELETE',
+        url: `/api/household-items/${created.id}`,
+        headers: { cookie },
+      });
+
+      const getResponse = await app.inject({
+        method: 'GET',
+        url: `/api/household-items/${created.id}`,
+        headers: { cookie },
+      });
+
+      // Then: Item no longer exists
+      expect(getResponse.statusCode).toBe(404);
+    });
+
+    it('returns 404 for non-existent ID', async () => {
+      // Given: Authenticated user
+      const { cookie } = await createUserWithSession('user@example.com', 'User', 'password');
+
+      // When: Deleting non-existent item
+      const response = await app.inject({
+        method: 'DELETE',
+        url: '/api/household-items/non-existent-id',
+        headers: { cookie },
+      });
+
+      // Then: Returns 404 NOT_FOUND
+      expect(response.statusCode).toBe(404);
+      const error = JSON.parse(response.body) as ApiErrorResponse;
+      expect(error.error.code).toBe('NOT_FOUND');
+      expect(error.error.message).toContain('Household item not found');
+    });
+
+    it('returns 401 when not authenticated', async () => {
+      // Given: No authentication
+      const response = await app.inject({
+        method: 'DELETE',
+        url: '/api/household-items/some-id',
+      });
+
+      // Then: Returns 401 UNAUTHORIZED
+      expect(response.statusCode).toBe(401);
+      const error = JSON.parse(response.body) as ApiErrorResponse;
+      expect(error.error.code).toBe('UNAUTHORIZED');
+    });
+
+    it('allows any authenticated user to delete', async () => {
+      // Given: Member user (not admin) creates and deletes an item
+      const { userId, cookie } = await createUserWithSession(
+        'member@example.com',
+        'Member',
+        'password',
+        'member',
+      );
+      const created = householdItemService.createHouseholdItem(app.db, userId, {
+        name: 'Member Item',
+      });
+
+      // When: Member deletes their item
+      const response = await app.inject({
+        method: 'DELETE',
+        url: `/api/household-items/${created.id}`,
+        headers: { cookie },
+      });
+
+      // Then: Returns 204
+      expect(response.statusCode).toBe(204);
+    });
+
+    it('also removes item from list after deletion', async () => {
+      // Given: Two items
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'User',
+        'password',
+      );
+      const item1 = householdItemService.createHouseholdItem(app.db, userId, {
+        name: 'Keep This',
+      });
+      const item2 = householdItemService.createHouseholdItem(app.db, userId, {
+        name: 'Delete This',
+      });
+
+      // When: Deleting item2 and listing
+      await app.inject({
+        method: 'DELETE',
+        url: `/api/household-items/${item2.id}`,
+        headers: { cookie },
+      });
+
+      const listResponse = await app.inject({
+        method: 'GET',
+        url: '/api/household-items',
+        headers: { cookie },
+      });
+
+      // Then: Only item1 remains
+      const body = JSON.parse(listResponse.body) as {
+        items: Array<{ id: string }>;
+        pagination: { totalItems: number };
+      };
+      expect(body.pagination.totalItems).toBe(1);
+      expect(body.items[0].id).toBe(item1.id);
+    });
+  });
+});

@@ -14,7 +14,7 @@ import { randomUUID } from 'node:crypto';
 import { eq, and } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { documentLinks, users, workItems, invoices } from '../db/schema.js';
+import { documentLinks, users, workItems, invoices, householdItems } from '../db/schema.js';
 import { AppError, NotFoundError } from '../errors/AppError.js';
 import type {
   DocumentLink,
@@ -88,8 +88,10 @@ export function createLink(
       throw new NotFoundError('Invoice not found');
     }
   } else if (entityType === 'household_item') {
-    // EPIC-04 not yet implemented — household_items table does not exist
-    throw new AppError('VALIDATION_ERROR', 400, 'Household items are not yet implemented');
+    const item = db.select().from(householdItems).where(eq(householdItems.id, entityId)).get();
+    if (!item) {
+      throw new NotFoundError('Household item not found');
+    }
   }
 
   const id = randomUUID();

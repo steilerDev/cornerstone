@@ -11,6 +11,21 @@ Worktrees have no `node_modules`. To run tests from a worktree:
 2. Run from the WORKTREE directory: `node --experimental-vm-modules /main/node_modules/.bin/jest "path/to/test.ts" --no-coverage`
 3. **This worktree already has node_modules** — node_modules are present in the worktree directly. Run jest directly without symlink step.
 
+## EPIC-04 Worktree @cornerstone/shared Symlink Fix
+
+When testing new stories that add types to `shared/`, the worktree's `node_modules/@cornerstone/shared` symlink resolves to the **main repo's shared** (not the worktree's). The main repo won't have the new types built yet.
+
+**Fix**: Update the symlink to point to the worktree's own shared directory:
+
+```bash
+rm node_modules/@cornerstone/shared
+ln -s /absolute/path/to/worktree/shared node_modules/@cornerstone/shared
+```
+
+Also rebuild the worktree's shared: `node_modules/.bin/tsc -p shared/tsconfig.json`
+
+Do NOT use `import type { Foo } from '@cornerstone/shared'` in test files if Foo is a newly added type — instead use `Parameters<typeof service.method>[N]` to derive types from the service function signatures.
+
 ## Schema Quirk: tags table has NO updated_at
 
 The `tags` table (migration 0002) only has: `id, name, color, created_at` — NO `updated_at`. `TagResponse` also has no `updatedAt`. Do not include this field in test inserts or type assertions.
