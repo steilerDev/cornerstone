@@ -117,3 +117,32 @@ See `epic04-household-items.md` for full details.
 - `epic03-refinement.md` -- 40 consolidated refinement items from EPIC-03
 - `epic05-budget.md` -- EPIC-05 budget management details
 - `epic04-household-items.md` -- EPIC-04 household items architecture
+
+## Story 4.4 Review (PR #399): Household Item Create & Edit Form
+
+**Verdict:** Request Changes — Missing quantity field for API contract compliance
+
+### Key Finding
+
+The forms omit the `quantity` field from the API contract (type: number, min 1, default 1). Users cannot specify how many items to order. The field is present in mock data but not exposed in the UI. This is a **critical API contract deviation**.
+
+### Form Quality
+
+- Routes correct: `/household-items/new`, `/household-items/:id/edit`
+- API calls correct: POST/PATCH with proper request/response shapes
+- Type usage: CreateHouseholdItemRequest, UpdateHouseholdItemRequest, HouseholdItemDetail all proper
+- Follows WorkItemCreatePage pattern (async data loading, validation, error states, tag picker)
+- CSS tokens used correctly, responsive at 767px breakpoint
+- Tests comprehensive: 8 suites (create), 9 suites (edit), cover initial render, nav, validation, submission, load failures, 404 handling
+- Accessibility: labels linked, semantic HTML, keyboard nav
+
+### Issues Found
+
+1. **CRITICAL:** Missing quantity input field (no type: number, min: 1 validation)
+2. **MEDIUM:** Error detection via `error.message.includes('404')` is fragile string matching
+3. **LOW:** Vendor fetch with pageSize: 200 not documented
+4. **LOW:** Category select defaults to 'other' but not all categories tested for rendering
+
+### Recommendation
+
+Add quantity field to both forms (perhaps in the date row), validate as integer >= 1, include in API payload.

@@ -155,3 +155,16 @@ Key misses to watch for in list-page PRs:
 - Action menu button `aria-label="Actions menu"` too generic — must include item name
 - `z-index: 1000` → `var(--z-modal)`; `z-index: 10` → `var(--z-dropdown)`
 - Tablet breakpoint upper bound should be `1023px` not `1024px` to avoid overlap with desktop
+
+## PR #399 Review Findings — Household Item Create & Edit Forms (APPROVED)
+
+Model implementation with excellent token usage:
+
+- Both Create and Edit pages use tokens comprehensively (spacing, colors, typography, radius, transitions)
+- All interactive states properly defined: `:focus-visible`, hover, active, disabled — with semantic tokens
+- `prefers-reduced-motion` guard guards all transitions
+- Dark mode: all color values use Layer 2 semantic tokens (no hardcoded hex)
+- Responsive: mobile breakpoint `767px` (note: project convention is `768px`, both equivalent)
+- Form validation with error states uses `var(--color-danger)` and error-specific shadow tokens
+- Clean CSS Modules with semantic class names
+- **Improvement over WorkItemCreatePage**: Uses tokens (`var(--spacing-8)`) instead of hardcoded values (`2rem`)

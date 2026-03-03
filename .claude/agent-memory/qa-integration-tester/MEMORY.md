@@ -32,6 +32,15 @@ The `tags` table (migration 0002) only has: `id, name, color, created_at` — NO
 
 - Do NOT cast `mockGet.mock.calls[0] as [string]` — TypeScript strict mode rejects empty arrays cast to tuple. Use `expect(mockGet).not.toHaveBeenCalledWith(expect.stringContaining(...))` pattern instead.
 
+## Story #390 Household Item Create & Edit Forms (2026-03-03)
+
+- `Vendor` interface (shared/types/vendor.ts) has many required nullable fields: `phone`, `email`, `address`, `notes`, `createdBy`, `createdAt`, `updatedAt`. In vendor mock arrays, always include all fields or TypeScript strict-mode will reject.
+- `HouseholdItemVendorSummary` (used in `HouseholdItemDetail.vendor`) only has `id`, `name`, `specialty` — safe to use directly.
+- `HouseholdItemEditPage` error check: component checks `err.message.includes('404')`, `'not found'`, `'Not found'` for 404 detection — test all three variants.
+- Submit button text: Create page uses "Create Item"; Edit page uses "Save Changes".
+- Back button text: Create page "Back to Household Items"; Edit page "Back to Item".
+- useToast mock pattern (same as TimelinePage): `jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({ ToastProvider: ..., useToast: () => ({ toasts: [], showToast: jest.fn(), dismissToast: jest.fn() }) }))`.
+
 ## Story #360 Document Responsive & A11y (2026-03-02)
 
 See `story-360-document-a11y.md` for full details. Key learnings:
