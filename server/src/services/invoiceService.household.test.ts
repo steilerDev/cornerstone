@@ -12,7 +12,11 @@ import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
 import * as invoiceService from './invoiceService.js';
 import * as householdItemService from './householdItemService.js';
-import { ValidationError, NotFoundError } from '../errors/AppError.js';
+import {
+  ValidationError,
+  NotFoundError,
+  MutuallyExclusiveBudgetLinkError,
+} from '../errors/AppError.js';
 
 describe('Invoice Service - Household Item Budget Linking', () => {
   let sqlite: Database.Database;
@@ -236,7 +240,7 @@ describe('Invoice Service - Household Item Budget Linking', () => {
           },
           userId,
         );
-      }).toThrow(ValidationError);
+      }).toThrow(MutuallyExclusiveBudgetLinkError);
       expect(() => {
         invoiceService.createInvoice(
           db,
@@ -322,7 +326,7 @@ describe('Invoice Service - Household Item Budget Linking', () => {
         invoiceService.updateInvoice(db, vendorId, created.id, {
           householdItemBudgetId,
         });
-      }).toThrow(ValidationError);
+      }).toThrow(MutuallyExclusiveBudgetLinkError);
       expect(() => {
         invoiceService.updateInvoice(db, vendorId, created.id, {
           householdItemBudgetId,

@@ -63,6 +63,15 @@ jest.unstable_mockModule('../../lib/formatters.js', () => ({
   formatRelativeTime: (d: string) => d,
 }));
 
+jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({
+  ToastProvider: ({ children }: { children: React.ReactNode }) => children,
+  useToast: () => ({
+    toasts: [],
+    showToast: jest.fn(),
+    dismissToast: jest.fn(),
+  }),
+}));
+
 jest.unstable_mockModule('../../components/documents/LinkedDocumentsSection.js', () => ({
   LinkedDocumentsSection: () => null,
 }));

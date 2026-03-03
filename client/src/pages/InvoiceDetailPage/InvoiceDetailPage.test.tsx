@@ -7,6 +7,7 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import type { Invoice } from '@cornerstone/shared';
 import type * as InvoicesApiTypes from '../../lib/invoicesApi.js';
 import type * as WorkItemBudgetsApiTypes from '../../lib/workItemBudgetsApi.js';
+import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
 import type * as InvoiceDetailPageTypes from './InvoiceDetailPage.js';
 
 // ─── Module-scope mock functions ──────────────────────────────────────────────
@@ -15,6 +16,7 @@ const mockFetchInvoiceById = jest.fn<typeof InvoicesApiTypes.fetchInvoiceById>()
 const mockUpdateInvoice = jest.fn<typeof InvoicesApiTypes.updateInvoice>();
 const mockDeleteInvoice = jest.fn<typeof InvoicesApiTypes.deleteInvoice>();
 const mockFetchWorkItemBudgets = jest.fn<typeof WorkItemBudgetsApiTypes.fetchWorkItemBudgets>();
+const mockListHouseholdItems = jest.fn<typeof HouseholdItemsApiTypes.listHouseholdItems>();
 
 // ─── Mock: invoicesApi ─────────────────────────────────────────────────────────
 
@@ -34,6 +36,16 @@ jest.unstable_mockModule('../../lib/workItemBudgetsApi.js', () => ({
   createWorkItemBudget: jest.fn(),
   updateWorkItemBudget: jest.fn(),
   deleteWorkItemBudget: jest.fn(),
+}));
+
+// ─── Mock: householdItemsApi ───────────────────────────────────────────────
+
+jest.unstable_mockModule('../../lib/householdItemsApi.js', () => ({
+  listHouseholdItems: mockListHouseholdItems,
+  createHouseholdItem: jest.fn(),
+  getHouseholdItem: jest.fn(),
+  updateHouseholdItem: jest.fn(),
+  deleteHouseholdItem: jest.fn(),
 }));
 
 // ─── Mock: WorkItemPicker ──────────────────────────────────────────────────────
@@ -124,10 +136,15 @@ beforeEach(async () => {
   mockUpdateInvoice.mockReset();
   mockDeleteInvoice.mockReset();
   mockFetchWorkItemBudgets.mockReset();
+  mockListHouseholdItems.mockReset();
 
   // Default: successful load
   mockFetchInvoiceById.mockResolvedValue(mockInvoice);
   mockFetchWorkItemBudgets.mockResolvedValue([]);
+  mockListHouseholdItems.mockResolvedValue({
+    items: [],
+    pagination: { page: 1, pageSize: 25, totalItems: 0, totalPages: 0 },
+  });
 
   // Deferred import after mock registration
   const module = (await import('./InvoiceDetailPage.js')) as typeof InvoiceDetailPageTypes;
