@@ -12,12 +12,14 @@ import type { SubsidyApplicationStatus } from './subsidyProgram.js';
 import type { UserSummary } from './workItem.js';
 
 /**
- * Budget summary for a household item.
- * Aggregates budget information including planned costs, actual costs (always 0), and subsidy reductions.
+ * Budget aggregates for a household item.
+ * Aggregates budget information including planned costs, actual costs from invoices, and subsidy reductions.
+ * Used internally to compute the budget summary embedded in household item responses.
+ * (The invoice context uses HouseholdItemBudgetSummary to represent a single linked budget line.)
  */
-export interface HouseholdItemBudgetSummary {
+export interface HouseholdItemBudgetAggregate {
   totalPlanned: number; // Sum of plannedAmount from all budget lines
-  totalActual: number; // Always 0 for household items (no invoices)
+  totalActual: number; // Sum of invoice amounts linked to this household item's budget lines
   subsidyReduction: number; // Sum of subsidy reductions applied
   netCost: number; // totalPlanned - subsidyReduction
 }
@@ -123,7 +125,7 @@ export interface HouseholdItemSummary {
   tagIds: string[];
   budgetLineCount: number;
   totalPlannedAmount: number;
-  budgetSummary: HouseholdItemBudgetSummary;
+  budgetSummary: HouseholdItemBudgetAggregate;
   createdBy: UserSummary | null;
   createdAt: string;
   updatedAt: string;

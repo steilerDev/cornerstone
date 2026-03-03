@@ -2,11 +2,20 @@ import { randomUUID } from 'node:crypto';
 import { eq, desc, and, asc, sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { invoices, vendors, workItemBudgets, workItems, users } from '../db/schema.js';
+import {
+  invoices,
+  vendors,
+  workItemBudgets,
+  workItems,
+  users,
+  householdItemBudgets,
+  householdItems,
+} from '../db/schema.js';
 import type {
   Invoice,
   InvoiceStatus,
   WorkItemBudgetSummary,
+  HouseholdItemBudgetSummary,
   CreateInvoiceRequest,
   UpdateInvoiceRequest,
   UserSummary,
@@ -72,8 +81,40 @@ function toWorkItemBudgetSummary(db: DbType, budgetId: string): WorkItemBudgetSu
 }
 
 /**
+ * Resolve the HouseholdItemBudgetSummary for an invoice, if linked.
+ * Joins household_item_budgets and household_items to build the summary shape.
+ */
+function toHouseholdItemBudgetSummary(
+  db: DbType,
+  budgetId: string,
+): HouseholdItemBudgetSummary | null {
+  const budgetRow = db
+    .select()
+    .from(householdItemBudgets)
+    .where(eq(householdItemBudgets.id, budgetId))
+    .get();
+  if (!budgetRow) return null;
+
+  const householdItemRow = db
+    .select()
+    .from(householdItems)
+    .where(eq(householdItems.id, budgetRow.householdItemId))
+    .get();
+  if (!householdItemRow) return null;
+
+  return {
+    id: budgetRow.id,
+    householdItemId: budgetRow.householdItemId,
+    householdItemName: householdItemRow.name,
+    description: budgetRow.description,
+    plannedAmount: budgetRow.plannedAmount,
+    confidence: budgetRow.confidence,
+  };
+}
+
+/**
  * Convert a database invoice row to Invoice API shape.
- * Resolves vendorName, createdBy, and workItemBudget via separate queries.
+ * Resolves vendorName, createdBy, workItemBudget, and householdItemBudget via separate queries.
  * If knownVendorName is provided, skips the vendor DB lookup.
  */
 function toInvoice(
@@ -93,12 +134,18 @@ function toInvoice(
     ? toWorkItemBudgetSummary(db, row.workItemBudgetId)
     : null;
 
+  const householdItemBudget = row.householdItemBudgetId
+    ? toHouseholdItemBudgetSummary(db, row.householdItemBudgetId)
+    : null;
+
   return {
     id: row.id,
     vendorId: row.vendorId,
     vendorName,
     workItemBudgetId: row.workItemBudgetId,
     workItemBudget,
+    householdItemBudgetId: row.householdItemBudgetId,
+    householdItemBudget,
     invoiceNumber: row.invoiceNumber,
     amount: row.amount,
     date: row.date,
@@ -238,6 +285,9 @@ export function listAllInvoices(
   }
 
   // Map rows using toInvoice(), passing the joined vendorName to avoid an extra DB lookup
+  // NOTE: toInvoice() will call toWorkItemBudgetSummary() and toHouseholdItemBudgetSummary()
+  // for any linked budget lines. If new Invoice fields are added in the future,
+  // ensure they are resolved in BOTH toInvoice() AND this inline map.
   const invoiceList: Invoice[] = rows.map(({ invoice: row, vendorName }) =>
     toInvoice(db, row, vendorName),
   );
@@ -295,6 +345,13 @@ export function createInvoice(
     }
   }
 
+  // Mutual exclusivity: cannot link to both work item and household item budgets
+  if (data.workItemBudgetId && data.householdItemBudgetId) {
+    throw new ValidationError(
+      'An invoice can only be linked to one budget line (work item or household item, not both)',
+    );
+  }
+
   // Validate workItemBudgetId if provided
   if (data.workItemBudgetId) {
     const budgetLine = db
@@ -304,6 +361,20 @@ export function createInvoice(
       .get();
     if (!budgetLine) {
       throw new ValidationError(`Work item budget line not found: ${data.workItemBudgetId}`);
+    }
+  }
+
+  // Validate householdItemBudgetId if provided
+  if (data.householdItemBudgetId) {
+    const budgetLine = db
+      .select()
+      .from(householdItemBudgets)
+      .where(eq(householdItemBudgets.id, data.householdItemBudgetId))
+      .get();
+    if (!budgetLine) {
+      throw new ValidationError(
+        `Household item budget line not found: ${data.householdItemBudgetId}`,
+      );
     }
   }
 
@@ -321,6 +392,7 @@ export function createInvoice(
       status: data.status ?? 'pending',
       notes: data.notes ?? null,
       workItemBudgetId: data.workItemBudgetId ?? null,
+      householdItemBudgetId: data.householdItemBudgetId ?? null,
       createdBy: userId,
       createdAt: now,
       updatedAt: now,
@@ -412,6 +484,37 @@ export function updateInvoice(
       }
     }
     updates.workItemBudgetId = data.workItemBudgetId ?? null;
+  }
+
+  // householdItemBudgetId (nullable — null unlinks)
+  if ('householdItemBudgetId' in data) {
+    if (data.householdItemBudgetId) {
+      const budgetLine = db
+        .select()
+        .from(householdItemBudgets)
+        .where(eq(householdItemBudgets.id, data.householdItemBudgetId))
+        .get();
+      if (!budgetLine) {
+        throw new ValidationError(
+          `Household item budget line not found: ${data.householdItemBudgetId}`,
+        );
+      }
+    }
+    updates.householdItemBudgetId = data.householdItemBudgetId ?? null;
+  }
+
+  // Mutual exclusivity: compute effective values and validate
+  const effectiveWorkItemBudgetId =
+    'workItemBudgetId' in data ? (data.workItemBudgetId ?? null) : existing.workItemBudgetId;
+  const effectiveHouseholdItemBudgetId =
+    'householdItemBudgetId' in data
+      ? (data.householdItemBudgetId ?? null)
+      : existing.householdItemBudgetId;
+
+  if (effectiveWorkItemBudgetId && effectiveHouseholdItemBudgetId) {
+    throw new ValidationError(
+      'An invoice can only be linked to one budget line (work item or household item, not both)',
+    );
   }
 
   const now = new Date().toISOString();

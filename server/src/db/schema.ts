@@ -322,6 +322,10 @@ export const invoices = sqliteTable(
     workItemBudgetId: text('work_item_budget_id').references(() => workItemBudgets.id, {
       onDelete: 'set null',
     }),
+    householdItemBudgetId: text('household_item_budget_id').references(
+      () => householdItemBudgets.id,
+      { onDelete: 'set null' },
+    ),
     createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
@@ -331,6 +335,9 @@ export const invoices = sqliteTable(
     statusIdx: index('idx_invoices_status').on(table.status),
     dateIdx: index('idx_invoices_date').on(table.date),
     workItemBudgetIdIdx: index('idx_invoices_work_item_budget_id').on(table.workItemBudgetId),
+    householdItemBudgetIdIdx: index('idx_invoices_household_item_budget_id').on(
+      table.householdItemBudgetId,
+    ),
   }),
 );
 
