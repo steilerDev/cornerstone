@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
@@ -195,6 +195,15 @@ describe('HouseholdItemEditPage', () => {
       expect(descriptionInput.value).toBe('Custom maple island');
     });
 
+    it('pre-populates quantity field with existing item quantity', async () => {
+      renderPage();
+
+      await waitFor(() => {
+        const quantityInput = screen.getByLabelText(/quantity/i) as HTMLInputElement;
+        expect(quantityInput.value).toBe('1');
+      });
+    });
+
     it('pre-populates vendor select with existing vendor', async () => {
       renderPage();
 
@@ -344,6 +353,59 @@ describe('HouseholdItemEditPage', () => {
         'hi-001',
         expect.objectContaining({
           name: 'Updated Kitchen Island',
+        }),
+      );
+    });
+
+    it('includes quantity in update submission with pre-populated value', async () => {
+      const user = userEvent.setup();
+      mockUpdateHouseholdItem.mockResolvedValue(mockUpdatedItem);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/quantity/i)).toBeInTheDocument();
+      });
+
+      // Just submit with the pre-populated quantity value
+      await user.click(screen.getByRole('button', { name: /save changes/i }));
+
+      await waitFor(() => {
+        expect(mockUpdateHouseholdItem).toHaveBeenCalledTimes(1);
+      });
+
+      expect(mockUpdateHouseholdItem).toHaveBeenCalledWith(
+        'hi-001',
+        expect.objectContaining({
+          quantity: 1,
+        }),
+      );
+    });
+
+    it('includes user-updated quantity in update submission', async () => {
+      const user = userEvent.setup();
+      mockUpdateHouseholdItem.mockResolvedValue(mockUpdatedItem);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/quantity/i)).toBeInTheDocument();
+      });
+
+      const quantityInput = screen.getByLabelText(/quantity/i) as HTMLInputElement;
+      // Set the value using fireEvent to bypass the onChange clamping during typing
+      fireEvent.change(quantityInput, { target: { value: '3' } });
+
+      await user.click(screen.getByRole('button', { name: /save changes/i }));
+
+      await waitFor(() => {
+        expect(mockUpdateHouseholdItem).toHaveBeenCalledTimes(1);
+      });
+
+      expect(mockUpdateHouseholdItem).toHaveBeenCalledWith(
+        'hi-001',
+        expect.objectContaining({
+          quantity: 3,
         }),
       );
     });

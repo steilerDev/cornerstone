@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
@@ -175,6 +175,7 @@ describe('HouseholdItemCreatePage', () => {
       expect(screen.getByLabelText(/vendor/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/^url/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/^room/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/quantity/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/order date/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/expected delivery/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/actual delivery/i)).toBeInTheDocument();
@@ -191,6 +192,17 @@ describe('HouseholdItemCreatePage', () => {
 
       const statusSelect = screen.getByLabelText(/purchase status/i) as HTMLSelectElement;
       expect(statusSelect.value).toBe('not_ordered');
+    });
+
+    it('quantity field defaults to 1 on create page', async () => {
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/quantity/i)).toBeInTheDocument();
+      });
+
+      const quantityInput = screen.getByLabelText(/quantity/i) as HTMLInputElement;
+      expect(quantityInput.value).toBe('1');
     });
 
     it('renders back button', async () => {
@@ -348,6 +360,59 @@ describe('HouseholdItemCreatePage', () => {
           name: 'Kitchen Island',
           description: 'Custom maple island',
           status: 'not_ordered',
+        }),
+      );
+    });
+
+    it('includes quantity in submission with default value of 1', async () => {
+      const user = userEvent.setup();
+      mockCreateHouseholdItem.mockResolvedValue(mockCreatedItem);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/^name/i)).toBeInTheDocument();
+      });
+
+      await user.type(screen.getByLabelText(/^name/i), 'Kitchen Island');
+
+      await user.click(screen.getByRole('button', { name: /create item/i }));
+
+      await waitFor(() => {
+        expect(mockCreateHouseholdItem).toHaveBeenCalledTimes(1);
+      });
+
+      expect(mockCreateHouseholdItem).toHaveBeenCalledWith(
+        expect.objectContaining({
+          quantity: 1,
+        }),
+      );
+    });
+
+    it('includes user-specified quantity in submission', async () => {
+      const user = userEvent.setup();
+      mockCreateHouseholdItem.mockResolvedValue(mockCreatedItem);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/^name/i)).toBeInTheDocument();
+      });
+
+      await user.type(screen.getByLabelText(/^name/i), 'Kitchen Island');
+      const quantityInput = screen.getByLabelText(/quantity/i) as HTMLInputElement;
+      // Set the value using fireEvent to bypass the onChange clamping during typing
+      fireEvent.change(quantityInput, { target: { value: '5' } });
+
+      await user.click(screen.getByRole('button', { name: /create item/i }));
+
+      await waitFor(() => {
+        expect(mockCreateHouseholdItem).toHaveBeenCalledTimes(1);
+      });
+
+      expect(mockCreateHouseholdItem).toHaveBeenCalledWith(
+        expect.objectContaining({
+          quantity: 5,
         }),
       );
     });
