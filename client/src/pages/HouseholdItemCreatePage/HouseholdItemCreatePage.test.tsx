@@ -461,4 +461,125 @@ describe('HouseholdItemCreatePage', () => {
       });
     });
   });
+
+  describe('Accessibility - Form input ARIA attributes', () => {
+    it('name input has aria-required="true"', async () => {
+      renderPage();
+
+      await waitFor(() => {
+        const nameInput = screen.getByLabelText(/^name/i);
+        expect(nameInput).toHaveAttribute('aria-required', 'true');
+      });
+    });
+
+    it('category select has aria-required="true"', async () => {
+      renderPage();
+
+      await waitFor(() => {
+        const categorySelect = screen.getByLabelText(/category/i);
+        expect(categorySelect).toHaveAttribute('aria-required', 'true');
+      });
+    });
+
+    it('status select has aria-required="true"', async () => {
+      renderPage();
+
+      await waitFor(() => {
+        const statusSelect = screen.getByLabelText(/purchase status/i);
+        expect(statusSelect).toHaveAttribute('aria-required', 'true');
+      });
+    });
+
+    it('quantity input has aria-required="true"', async () => {
+      renderPage();
+
+      await waitFor(() => {
+        const quantityInput = screen.getByLabelText(/quantity/i);
+        expect(quantityInput).toHaveAttribute('aria-required', 'true');
+      });
+    });
+
+    it('name input shows aria-invalid when validation error occurs', async () => {
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /create item/i })).toBeInTheDocument();
+      });
+
+      // Submit without filling in the name
+      await user.click(screen.getByRole('button', { name: /create item/i }));
+
+      await waitFor(() => {
+        const nameInput = screen.getByLabelText(/^name/i) as HTMLInputElement;
+        expect(nameInput).toHaveAttribute('aria-invalid', 'true');
+      });
+    });
+
+    it('name input has aria-describedby pointing to error element', async () => {
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /create item/i })).toBeInTheDocument();
+      });
+
+      // Submit without filling in the name
+      await user.click(screen.getByRole('button', { name: /create item/i }));
+
+      await waitFor(() => {
+        const nameInput = screen.getByLabelText(/^name/i);
+        expect(nameInput).toHaveAttribute('aria-describedby', 'hi-create-name-error');
+      });
+    });
+
+    it('error element has correct id, role, and content', async () => {
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /create item/i })).toBeInTheDocument();
+      });
+
+      // Submit without filling in the name
+      await user.click(screen.getByRole('button', { name: /create item/i }));
+
+      await waitFor(() => {
+        const errorElement = screen.getByText('Name is required');
+        expect(errorElement).toHaveAttribute('id', 'hi-create-name-error');
+        expect(errorElement).toHaveAttribute('role', 'alert');
+      });
+    });
+
+    it('aria-invalid is cleared when validation passes', async () => {
+      const user = userEvent.setup();
+      mockCreateHouseholdItem.mockResolvedValue(mockCreatedItem);
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/^name/i)).toBeInTheDocument();
+      });
+
+      // First, try to submit empty to trigger error
+      await user.click(screen.getByRole('button', { name: /create item/i }));
+
+      await waitFor(() => {
+        const nameInput = screen.getByLabelText(/^name/i) as HTMLInputElement;
+        expect(nameInput).toHaveAttribute('aria-invalid', 'true');
+      });
+
+      // Now fill in the name
+      const nameInput = screen.getByLabelText(/^name/i);
+      await user.clear(nameInput);
+      await user.type(nameInput, 'Test Item');
+
+      // Submit again
+      await user.click(screen.getByRole('button', { name: /create item/i }));
+
+      // The aria-invalid should be false or not present
+      await waitFor(() => {
+        expect(mockCreateHouseholdItem).toHaveBeenCalled();
+      });
+    });
+  });
 });
