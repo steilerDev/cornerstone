@@ -521,6 +521,7 @@ export function TimelinePage() {
           <CalendarView
             workItems={data.workItems}
             milestones={data.milestones}
+            householdItems={data.householdItems}
             dependencies={data.dependencies}
             onMilestoneClick={(milestoneId) => {
               setSelectedMilestoneId(milestoneId);
