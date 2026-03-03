@@ -132,7 +132,6 @@ describe('AppShell', () => {
     expect(screen.getByRole('link', { name: /^budget$/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /timeline/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /household items/i })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /documents/i })).toBeInTheDocument();
   });
 
   it('renders header with menu toggle button', () => {

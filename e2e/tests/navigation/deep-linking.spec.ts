@@ -34,11 +34,6 @@ test.describe('Deep Linking', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Household Items' })).toBeVisible();
     expect(page.url()).toContain(ROUTES.householdItems);
 
-    // Documents
-    await page.goto(ROUTES.documents);
-    await expect(page.getByRole('heading', { level: 1, name: 'Documents' })).toBeVisible();
-    expect(page.url()).toContain(ROUTES.documents);
-
     // Profile
     await page.goto(ROUTES.profile);
     await expect(page.getByRole('heading', { level: 1, name: 'Profile' })).toBeVisible();

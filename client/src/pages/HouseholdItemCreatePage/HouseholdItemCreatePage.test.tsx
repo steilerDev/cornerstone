@@ -127,7 +127,7 @@ describe('HouseholdItemCreatePage', () => {
     mockFetchTags.mockResolvedValue({ tags: mockTags });
     mockFetchVendors.mockResolvedValue({
       vendors: mockVendors,
-      pagination: { page: 1, pageSize: 200, totalItems: 2, totalPages: 1 },
+      pagination: { page: 1, pageSize: 100, totalItems: 2, totalPages: 1 },
     });
   });
 

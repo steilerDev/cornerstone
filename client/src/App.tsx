@@ -32,7 +32,6 @@ const HouseholdItemDetailPage = lazy(
 const HouseholdItemEditPage = lazy(
   () => import('./pages/HouseholdItemEditPage/HouseholdItemEditPage'),
 );
-const DocumentsPage = lazy(() => import('./pages/DocumentsPage/DocumentsPage'));
 const TagManagementPage = lazy(() => import('./pages/TagManagementPage/TagManagementPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage/ProfilePage'));
 const UserManagementPage = lazy(() => import('./pages/UserManagementPage/UserManagementPage'));
@@ -88,7 +87,6 @@ export function App() {
                   <Route path="household-items/new" element={<HouseholdItemCreatePage />} />
                   <Route path="household-items/:id" element={<HouseholdItemDetailPage />} />
                   <Route path="household-items/:id/edit" element={<HouseholdItemEditPage />} />
-                  <Route path="documents" element={<DocumentsPage />} />
                   <Route path="tags" element={<TagManagementPage />} />
                   <Route path="profile" element={<ProfilePage />} />
                   <Route path="admin/users" element={<UserManagementPage />} />
