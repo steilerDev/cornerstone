@@ -242,8 +242,12 @@ describe('App', () => {
     window.history.pushState({}, 'Household Items', '/household-items');
     render(<App />);
 
-    // Wait for lazy-loaded HouseholdItems component to resolve
-    const heading = await screen.findByRole('heading', { name: /household items/i });
+    // Wait for lazy-loaded HouseholdItems component to resolve.
+    // Use level: 1 to match the page title h1 (not the h2 empty state "No household items yet").
+    const heading = await screen.findByRole('heading', {
+      name: /household items/i,
+      level: 1,
+    });
     expect(heading).toBeInTheDocument();
   });
 
