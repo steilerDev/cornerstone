@@ -156,6 +156,33 @@ Key misses to watch for in list-page PRs:
 - `z-index: 1000` → `var(--z-modal)`; `z-index: 10` → `var(--z-dropdown)`
 - Tablet breakpoint upper bound should be `1023px` not `1024px` to avoid overlap with desktop
 
+## Story 4.7 — Work Item Linking Spec (Issue #393)
+
+- HI Detail page: "Linked Work Items" full-width card between Subsidies and Metadata cards
+- WI Detail page: "Linked Household Items" full-width belt before Documents section
+- Linking is initiated from the HI side only — WI side is read-only (no "Add Link" button there)
+- Unlink on HI Detail page requires NO modal confirmation (action is reversible) — toast only
+- WorkItemPicker component (`client/src/components/WorkItemPicker/`) reused for searchable add
+- Category badge on WI Detail: `--color-role-member-bg` / `--color-role-member-text` (neutral gray)
+- HI purchase status badge: use existing `<HouseholdItemStatusBadge>` component
+- WI status badge: use existing `<StatusBadge>` component
+- srOnly live region announces "Work item linked/unlinked: {title}"
+- HI page section title: `--font-size-xl` (20px) to match other `.cardTitle` headings on that page
+- WI page section title: `--font-size-lg` (18px) to match `.sectionTitle` on that page
+- Both pages use existing `.linkedItem` / `.subsidyItem` row patterns (bg-secondary, border, radius-md)
+- WI Detail `.section` uses `border: 1px solid var(--color-border)` — NOT `box-shadow: var(--shadow-sm)`
+
+## PR #402 Review Findings — Work Item Linking (Story 4.7, REQUEST CHANGES)
+
+Key token mistakes to watch for in future reviews:
+
+- `--spacing-xs` and `--spacing-sm` are NOT valid tokens — no aliased shorthand exists; use `--spacing-1` through `--spacing-16`
+- `--color-warning-bg` does NOT exist — only `--color-warning` (orange-400) is defined; for warning bg use `--color-hi-status-in-transit-bg`
+- Existing `<HouseholdItemStatusBadge>` component should be reused rather than building custom status badge CSS from scratch
+- Class used in TSX (`sectionHeading`) but CSS only defines `sectionTitle` — silently applies no styles, not an error
+- `outline: 2px solid var(--color-primary)` on focus-visible — must use `box-shadow: var(--shadow-focus)` (the project standard)
+- `border-radius: 1rem` → `var(--radius-full)`, `font-weight: 500` → `var(--font-weight-medium)`, `padding: 0.125rem` → `var(--spacing-0-5)`
+
 ## PR #399 Review Findings — Household Item Create & Edit Forms (APPROVED)
 
 Model implementation with excellent token usage:

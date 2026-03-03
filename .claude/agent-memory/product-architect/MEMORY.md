@@ -55,7 +55,7 @@
 - EPIC-05 Budget: Complete (promoted to main, v1.9.0)
 - EPIC-06 Timeline/Gantt: Complete (promoted to main, v1.10.0)
 - EPIC-08 Documents: Complete (promoted to main, v1.11.0)
-- EPIC-04 Household Items: In progress. Schema (PR #396), CRUD API (PR #397)
+- EPIC-04 Household Items: In progress. Schema (PR #396), CRUD API (PR #397), Budget (PR #401), Work Item Linking (PR #402)
 
 ## GitHub Wiki
 
@@ -75,7 +75,7 @@ The wiki MUST be updated as part of story implementation, not caught at review t
 
 See `epic04-household-items.md` for full details.
 
-- 6 new tables, 20 API endpoints, ADR-016
+- 6 new tables, 21 API endpoints (includes reverse WI->HI GET), ADR-016
 - Reuses shared tags, vendors, budget_categories, budget_sources, subsidy_programs
 - document_links already supports household_item entity_type
 - Budget overview must aggregate both work_item_budgets and household_item_budgets
@@ -85,6 +85,7 @@ See `epic04-household-items.md` for full details.
 - Migration 0007 (work_item_milestone_deps) not documented in Schema.md
 - Wiki sandbox worktrees have persistent permission issues with `.git/objects/pack/`
 - API-Contract.md household items POST says 404 for vendor/tag not found, but work items says 400 — implementation uses 400 (consistent with work items). Wiki needs harmonization.
+- **PR #402**: `GET /api/work-items/:workItemId/household-items` -- RESOLVED, added to API-Contract.md wiki
 
 ## Sandbox Limitations (not real project issues)
 
@@ -146,3 +147,44 @@ The forms omit the `quantity` field from the API contract (type: number, min 1, 
 ### Recommendation
 
 Add quantity field to both forms (perhaps in the date row), validate as integer >= 1, include in API payload.
+
+## Story 4.6 Review (PR #401): Household Item Budget Integration
+
+**Verdict:** Request Changes — Confidence margin display bug
+
+### Architecture Quality
+
+- Budget/subsidy services correctly mirror work item patterns
+- Budget overview UNION ALL approach is sound — household item budgets correctly aggregated
+- Shared types properly reuse ConfidenceLevel, BudgetSourceSummary, VendorSummary from workItemBudget
+- HouseholdItemBudgetLine enforces `actualCost: 0`, `actualCostPaid: 0`, `invoiceCount: 0` at type level
+- Subsidy payback calculation correctly skips invoice lookup (household items have no invoices)
+
+### Issues Found
+
+1. **MEDIUM:** Confidence margin displays as decimal (±0.2%) instead of percentage (±20%). Work item page uses `Math.round(CONFIDENCE_MARGINS[line.confidence] * 100)`. Fix: multiply by 100.
+2. **LOW:** app.ts comments reference "EPIC-09" — should be "EPIC-04"
+3. **LOW:** Unused `entityCounter = 0` variable in budget route test
+
+### Pattern Note
+
+- CONFIDENCE_MARGINS values are fractions (0.2, 0.1, 0.05, 0), NOT percentages. Frontend must multiply by 100 for display.
+
+## Story 4.7 Review (PR #402): Work Item Linking
+
+**Verdict:** Comment (cannot approve own PRs) — 1 medium finding
+
+### Architecture Quality
+
+- Service layer follows junction table pattern (assert exists, check duplicate, link/unlink)
+- Routes use standard Fastify JSON Schema validation + UnauthorizedError guard
+- Shared types: HouseholdItemWorkItemSummary extended with startDate/endDate/assignedUser; new WorkItemLinkedHouseholdItemSummary
+- Both directions implemented: HI->WI (GET/POST/DELETE) and WI->HI (GET read-only)
+- 57 tests across service, routes, API client, and shared types
+
+### Issues Found
+
+1. **MEDIUM:** `GET /api/work-items/:workItemId/household-items` not documented in API-Contract.md wiki. **RESOLVED** -- added to wiki.
+2. **LOW:** `.gitignore` has both `node_modules/` (dirs) and `node_modules` (symlinks in worktrees) -- both are intentional, not redundant.
+3. **INFO:** `as any` type casts on budget mock functions in HouseholdItemDetailPage test
+4. **INFO:** Work item dates displayed as raw strings instead of using `formatDate()` for locale consistency

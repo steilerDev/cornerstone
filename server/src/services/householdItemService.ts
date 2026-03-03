@@ -102,9 +102,10 @@ function getHouseholdItemWorkItems(
   householdItemId: string,
 ): HouseholdItemWorkItemSummary[] {
   const rows = db
-    .select({ workItem: workItems })
+    .select({ workItem: workItems, assignedUser: users })
     .from(householdItemWorkItems)
     .innerJoin(workItems, eq(workItems.id, householdItemWorkItems.workItemId))
+    .leftJoin(users, eq(users.id, workItems.assignedUserId))
     .where(eq(householdItemWorkItems.householdItemId, householdItemId))
     .all();
 
@@ -112,6 +113,15 @@ function getHouseholdItemWorkItems(
     id: row.workItem.id,
     title: row.workItem.title,
     status: row.workItem.status,
+    startDate: row.workItem.startDate,
+    endDate: row.workItem.endDate,
+    assignedUser: row.assignedUser
+      ? {
+          id: row.assignedUser.id,
+          displayName: row.assignedUser.displayName,
+          email: row.assignedUser.email,
+        }
+      : null,
   }));
 }
 

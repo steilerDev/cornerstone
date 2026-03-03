@@ -14,6 +14,8 @@ import type {
   BudgetSource,
   Vendor,
   HouseholdItemSubsidyPaybackResponse,
+  HouseholdItemWorkItemSummary,
+  WorkItemSummary,
 } from '@cornerstone/shared';
 import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
 import { getHouseholdItem, deleteHouseholdItem } from '../../lib/householdItemsApi.js';
@@ -29,10 +31,16 @@ import {
   unlinkHouseholdItemSubsidy,
   fetchHouseholdItemSubsidyPayback,
 } from '../../lib/householdItemSubsidiesApi.js';
+import {
+  fetchLinkedWorkItems,
+  linkWorkItemToHouseholdItem,
+  unlinkWorkItemFromHouseholdItem,
+} from '../../lib/householdItemWorkItemsApi.js';
 import { fetchBudgetCategories } from '../../lib/budgetCategoriesApi.js';
 import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
 import { fetchSubsidyPrograms } from '../../lib/subsidyProgramsApi.js';
+import { listWorkItems } from '../../lib/workItemsApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { formatDate, formatCurrency } from '../../lib/formatters.js';
 import { HouseholdItemStatusBadge } from '../../components/HouseholdItemStatusBadge/HouseholdItemStatusBadge.js';
@@ -56,6 +64,12 @@ const CONFIDENCE_LABELS: Record<ConfidenceLevel, string> = {
   professional_estimate: 'Professional Estimate',
   quote: 'Quote',
   invoice: 'Invoice',
+};
+
+const WORK_ITEM_STATUS_LABELS: Record<string, string> = {
+  not_started: 'Not Started',
+  in_progress: 'In Progress',
+  completed: 'Completed',
 };
 
 /** Budget line form state used for both create and edit. */
@@ -118,7 +132,15 @@ export function HouseholdItemDetailPage() {
     null,
   );
 
-  // Inline error for budget/subsidy operations
+  // Work item linking state
+  const [linkedWorkItems, setLinkedWorkItems] = useState<HouseholdItemWorkItemSummary[]>([]);
+  const [allWorkItems, setAllWorkItems] = useState<WorkItemSummary[]>([]);
+  const [workItemSearchQuery, setWorkItemSearchQuery] = useState('');
+  const [selectedWorkItemId, setSelectedWorkItemId] = useState('');
+  const [isLinkingWorkItem, setIsLinkingWorkItem] = useState(false);
+  const [unlinkingWorkItemId, setUnlinkingWorkItemId] = useState<string | null>(null);
+
+  // Inline error for budget/subsidy/work item operations
   const [inlineError, setInlineError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -188,16 +210,27 @@ export function HouseholdItemDetailPage() {
 
   const loadBudgetData = async (itemId: string) => {
     try {
-      const [budgets, subsidies, payback, categories, sources, vendors, programs] =
-        await Promise.all([
-          fetchHouseholdItemBudgets(itemId),
-          fetchHouseholdItemSubsidies(itemId),
-          fetchHouseholdItemSubsidyPayback(itemId),
-          fetchBudgetCategories(),
-          fetchBudgetSources(),
-          fetchVendors({ pageSize: 100 }),
-          fetchSubsidyPrograms(),
-        ]);
+      const [
+        budgets,
+        subsidies,
+        payback,
+        categories,
+        sources,
+        vendors,
+        programs,
+        workItems,
+        linkedWorkItemsData,
+      ] = await Promise.all([
+        fetchHouseholdItemBudgets(itemId),
+        fetchHouseholdItemSubsidies(itemId),
+        fetchHouseholdItemSubsidyPayback(itemId),
+        fetchBudgetCategories(),
+        fetchBudgetSources(),
+        fetchVendors({ pageSize: 100 }),
+        fetchSubsidyPrograms(),
+        listWorkItems({ pageSize: 100 }),
+        fetchLinkedWorkItems(itemId),
+      ]);
       setBudgetLines(budgets);
       setLinkedSubsidies(subsidies);
       setSubsidyPayback(payback);
@@ -205,6 +238,8 @@ export function HouseholdItemDetailPage() {
       setBudgetSources(sources.budgetSources);
       setAllVendors(vendors.vendors);
       setAllSubsidyPrograms(programs.subsidyPrograms);
+      setAllWorkItems(workItems.items);
+      setLinkedWorkItems(linkedWorkItemsData);
     } catch (err) {
       // Non-critical — budget data failure shouldn't block the page
       console.error('Failed to load budget data:', err);
@@ -238,6 +273,52 @@ export function HouseholdItemDetailPage() {
       setSubsidyPayback(data);
     } catch (err) {
       console.error('Failed to reload subsidy payback:', err);
+    }
+  };
+
+  const reloadLinkedWorkItems = async () => {
+    if (!id) return;
+    try {
+      const data = await fetchLinkedWorkItems(id);
+      setLinkedWorkItems(data);
+    } catch (err) {
+      console.error('Failed to reload linked work items:', err);
+    }
+  };
+
+  // ─── Work item linking handlers ────────────────────────────────────────────
+
+  const handleLinkWorkItem = async () => {
+    if (!id || !selectedWorkItemId) return;
+    setIsLinkingWorkItem(true);
+    setInlineError(null);
+    try {
+      await linkWorkItemToHouseholdItem(id, selectedWorkItemId);
+      setSelectedWorkItemId('');
+      setWorkItemSearchQuery('');
+      await reloadLinkedWorkItems();
+    } catch (err) {
+      const apiErr = err as { statusCode?: number; message?: string };
+      if (apiErr.statusCode === 409) {
+        setInlineError('This work item is already linked');
+      } else {
+        setInlineError('Failed to link work item');
+      }
+    } finally {
+      setIsLinkingWorkItem(false);
+    }
+  };
+
+  const handleUnlinkWorkItem = async () => {
+    if (!id || !unlinkingWorkItemId) return;
+    setInlineError(null);
+    try {
+      await unlinkWorkItemFromHouseholdItem(id, unlinkingWorkItemId);
+      setUnlinkingWorkItemId(null);
+      await reloadLinkedWorkItems();
+    } catch (err) {
+      setUnlinkingWorkItemId(null);
+      setInlineError('Failed to unlink work item');
     }
   };
 
@@ -634,20 +715,104 @@ export function HouseholdItemDetailPage() {
           <div className={styles.cardHeader}>
             <h2 className={styles.cardTitle}>Linked Work Items</h2>
           </div>
-          {item.workItems.length === 0 ? (
-            <p className={styles.emptyState}>No work items linked to this item.</p>
+
+          {linkedWorkItems.length === 0 ? (
+            <p className={styles.emptyState}>
+              No work items linked. Use the form below to add a link.
+            </p>
           ) : (
-            <ul className={styles.workItemList}>
-              {item.workItems.map((workItem) => (
-                <li key={workItem.id} className={styles.workItemRow}>
-                  <Link to={`/work-items/${workItem.id}`} className={styles.workItemLink}>
-                    {workItem.title}
-                  </Link>
-                  <StatusBadge status={workItem.status as WorkItemStatus} />
+            <ul className={styles.budgetLinesList}>
+              {linkedWorkItems.map((workItem) => (
+                <li key={workItem.id} className={styles.subsidyItem}>
+                  <div className={styles.workItemInfo}>
+                    <Link to={`/work-items/${workItem.id}`} className={styles.workItemLink}>
+                      {workItem.title}
+                    </Link>
+                    <StatusBadge status={workItem.status as WorkItemStatus} />
+                    {(workItem.startDate || workItem.endDate) && (
+                      <span className={styles.workItemDates}>
+                        {workItem.startDate ? formatDate(workItem.startDate) : '—'} —{' '}
+                        {workItem.endDate ? formatDate(workItem.endDate) : '—'}
+                      </span>
+                    )}
+                  </div>
+                  {unlinkingWorkItemId === workItem.id ? (
+                    <span className={styles.subsidyActions}>
+                      <button
+                        type="button"
+                        className={styles.deleteButton}
+                        onClick={() => void handleUnlinkWorkItem()}
+                      >
+                        Confirm
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.cancelButton}
+                        onClick={() => setUnlinkingWorkItemId(null)}
+                      >
+                        Cancel
+                      </button>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      className={styles.unlinkButton}
+                      onClick={() => setUnlinkingWorkItemId(workItem.id)}
+                      aria-label={`Unlink ${workItem.title}`}
+                    >
+                      ×
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
           )}
+
+          {/* Add work item link row */}
+          <div className={styles.addWorkItemRow}>
+            <input
+              type="text"
+              value={workItemSearchQuery}
+              onChange={(e) => {
+                setWorkItemSearchQuery(e.target.value);
+                setSelectedWorkItemId('');
+              }}
+              placeholder="Search work items by title..."
+              className={styles.formInput}
+              disabled={isLinkingWorkItem}
+              aria-label="Search work items"
+            />
+            <select
+              value={selectedWorkItemId}
+              onChange={(e) => setSelectedWorkItemId(e.target.value)}
+              className={styles.formSelect}
+              disabled={isLinkingWorkItem}
+              aria-label="Select work item to link"
+            >
+              <option value="">— Select Work Item —</option>
+              {allWorkItems
+                .filter(
+                  (wi) =>
+                    !linkedWorkItems.some((lw) => lw.id === wi.id) &&
+                    (workItemSearchQuery === '' ||
+                      wi.title.toLowerCase().includes(workItemSearchQuery.toLowerCase())),
+                )
+                .map((wi) => (
+                  <option key={wi.id} value={wi.id}>
+                    {wi.title} ({WORK_ITEM_STATUS_LABELS[wi.status] || wi.status})
+                  </option>
+                ))}
+            </select>
+            <button
+              type="button"
+              className={styles.button}
+              onClick={() => void handleLinkWorkItem()}
+              disabled={!selectedWorkItemId || isLinkingWorkItem}
+              aria-label="Link a work item to this household item"
+            >
+              {isLinkingWorkItem ? 'Linking...' : 'Add Link'}
+            </button>
+          </div>
         </section>
 
         {/* Budget card */}

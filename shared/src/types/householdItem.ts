@@ -56,6 +56,20 @@ export interface HouseholdItemWorkItemSummary {
   id: string;
   title: string;
   status: string;
+  startDate: string | null;
+  endDate: string | null;
+  assignedUser: { id: string; displayName: string; email: string } | null;
+}
+
+/**
+ * Household item summary shape for work item responses (reverse direction).
+ */
+export interface WorkItemLinkedHouseholdItemSummary {
+  id: string;
+  name: string;
+  category: HouseholdItemCategory;
+  status: HouseholdItemStatus;
+  expectedDeliveryDate: string | null;
 }
 
 /**
