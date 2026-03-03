@@ -198,8 +198,7 @@ describe('HouseholdItemDetailPage', () => {
     }
 
     // Setup default API responses
-    // mockFetchLinkedWorkItems MUST be set up by each test individually
-    // since it needs to match the test's data
+    mockFetchLinkedWorkItems.mockResolvedValue([]);
     mockListWorkItems.mockResolvedValue({
       items: [],
       pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
