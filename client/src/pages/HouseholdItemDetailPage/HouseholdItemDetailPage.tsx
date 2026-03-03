@@ -1,14 +1,40 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import type {
   HouseholdItemDetail,
   HouseholdItemStatus,
   HouseholdItemCategory,
   WorkItemStatus,
+  HouseholdItemBudgetLine,
+  ConfidenceLevel,
+  CreateHouseholdItemBudgetRequest,
+  UpdateHouseholdItemBudgetRequest,
+  SubsidyProgram,
+  BudgetCategory,
+  BudgetSource,
+  Vendor,
+  HouseholdItemSubsidyPaybackResponse,
 } from '@cornerstone/shared';
+import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
 import { getHouseholdItem, deleteHouseholdItem } from '../../lib/householdItemsApi.js';
+import {
+  fetchHouseholdItemBudgets,
+  createHouseholdItemBudget,
+  updateHouseholdItemBudget,
+  deleteHouseholdItemBudget,
+} from '../../lib/householdItemBudgetsApi.js';
+import {
+  fetchHouseholdItemSubsidies,
+  linkHouseholdItemSubsidy,
+  unlinkHouseholdItemSubsidy,
+  fetchHouseholdItemSubsidyPayback,
+} from '../../lib/householdItemSubsidiesApi.js';
+import { fetchBudgetCategories } from '../../lib/budgetCategoriesApi.js';
+import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
+import { fetchVendors } from '../../lib/vendorsApi.js';
+import { fetchSubsidyPrograms } from '../../lib/subsidyProgramsApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
-import { formatDate } from '../../lib/formatters.js';
+import { formatDate, formatCurrency } from '../../lib/formatters.js';
 import { HouseholdItemStatusBadge } from '../../components/HouseholdItemStatusBadge/HouseholdItemStatusBadge.js';
 import { StatusBadge } from '../../components/StatusBadge/StatusBadge.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
@@ -23,6 +49,32 @@ const CATEGORY_LABELS: Record<HouseholdItemCategory, string> = {
   outdoor: 'Outdoor',
   storage: 'Storage',
   other: 'Other',
+};
+
+const CONFIDENCE_LABELS: Record<ConfidenceLevel, string> = {
+  own_estimate: 'Own Estimate',
+  professional_estimate: 'Professional Estimate',
+  quote: 'Quote',
+  invoice: 'Invoice',
+};
+
+/** Budget line form state used for both create and edit. */
+interface BudgetLineFormState {
+  description: string;
+  plannedAmount: string;
+  confidence: ConfidenceLevel;
+  budgetCategoryId: string;
+  budgetSourceId: string;
+  vendorId: string;
+}
+
+const EMPTY_BUDGET_FORM: BudgetLineFormState = {
+  description: '',
+  plannedAmount: '',
+  confidence: 'own_estimate',
+  budgetCategoryId: '',
+  budgetSourceId: '',
+  vendorId: '',
 };
 
 export function HouseholdItemDetailPage() {
@@ -40,6 +92,34 @@ export function HouseholdItemDetailPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const modalRef = useRef<HTMLDivElement>(null);
+
+  // Budget lines state
+  const [budgetLines, setBudgetLines] = useState<HouseholdItemBudgetLine[]>([]);
+  const [budgetCategories, setBudgetCategories] = useState<BudgetCategory[]>([]);
+  const [budgetSources, setBudgetSources] = useState<BudgetSource[]>([]);
+  const [allVendors, setAllVendors] = useState<Vendor[]>([]);
+
+  // Budget line form state
+  const [showBudgetForm, setShowBudgetForm] = useState(false);
+  const [budgetForm, setBudgetForm] = useState<BudgetLineFormState>(EMPTY_BUDGET_FORM);
+  const [editingBudgetId, setEditingBudgetId] = useState<string | null>(null);
+  const [isSavingBudget, setIsSavingBudget] = useState(false);
+  const [budgetFormError, setBudgetFormError] = useState<string | null>(null);
+  const [deletingBudgetId, setDeletingBudgetId] = useState<string | null>(null);
+
+  // Subsidy linking state
+  const [linkedSubsidies, setLinkedSubsidies] = useState<SubsidyProgram[]>([]);
+  const [allSubsidyPrograms, setAllSubsidyPrograms] = useState<SubsidyProgram[]>([]);
+  const [selectedSubsidyId, setSelectedSubsidyId] = useState('');
+  const [isLinkingSubsidy, setIsLinkingSubsidy] = useState(false);
+
+  // Subsidy payback state
+  const [subsidyPayback, setSubsidyPayback] = useState<HouseholdItemSubsidyPaybackResponse | null>(
+    null,
+  );
+
+  // Inline error for budget/subsidy operations
+  const [inlineError, setInlineError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -88,6 +168,8 @@ export function HouseholdItemDetailPage() {
     try {
       const data = await getHouseholdItem(id);
       setItem(data);
+      // Load budget data after item is loaded
+      void loadBudgetData(id);
     } catch (err) {
       if (err instanceof ApiClientError) {
         if (err.statusCode === 404) {
@@ -104,6 +186,61 @@ export function HouseholdItemDetailPage() {
     }
   };
 
+  const loadBudgetData = async (itemId: string) => {
+    try {
+      const [budgets, subsidies, payback, categories, sources, vendors, programs] =
+        await Promise.all([
+          fetchHouseholdItemBudgets(itemId),
+          fetchHouseholdItemSubsidies(itemId),
+          fetchHouseholdItemSubsidyPayback(itemId),
+          fetchBudgetCategories(),
+          fetchBudgetSources(),
+          fetchVendors({ pageSize: 100 }),
+          fetchSubsidyPrograms(),
+        ]);
+      setBudgetLines(budgets);
+      setLinkedSubsidies(subsidies);
+      setSubsidyPayback(payback);
+      setBudgetCategories(categories.categories);
+      setBudgetSources(sources.budgetSources);
+      setAllVendors(vendors.vendors);
+      setAllSubsidyPrograms(programs.subsidyPrograms);
+    } catch (err) {
+      // Non-critical — budget data failure shouldn't block the page
+      console.error('Failed to load budget data:', err);
+    }
+  };
+
+  const reloadBudgetLines = async () => {
+    if (!id) return;
+    try {
+      const data = await fetchHouseholdItemBudgets(id);
+      setBudgetLines(data);
+    } catch (err) {
+      console.error('Failed to reload budget lines:', err);
+    }
+  };
+
+  const reloadLinkedSubsidies = async () => {
+    if (!id) return;
+    try {
+      const data = await fetchHouseholdItemSubsidies(id);
+      setLinkedSubsidies(data);
+    } catch (err) {
+      console.error('Failed to reload linked subsidies:', err);
+    }
+  };
+
+  const reloadSubsidyPayback = async () => {
+    if (!id) return;
+    try {
+      const data = await fetchHouseholdItemSubsidyPayback(id);
+      setSubsidyPayback(data);
+    } catch (err) {
+      console.error('Failed to reload subsidy payback:', err);
+    }
+  };
+
   const openDeleteModal = () => {
     setDeleteError('');
     setShowDeleteModal(true);
@@ -113,6 +250,137 @@ export function HouseholdItemDetailPage() {
     if (!isDeleting) {
       setShowDeleteModal(false);
       setDeleteError('');
+    }
+  };
+
+  // ─── Budget line handlers ──────────────────────────────────────────────────
+
+  const openAddBudgetForm = () => {
+    setEditingBudgetId(null);
+    setBudgetForm(EMPTY_BUDGET_FORM);
+    setBudgetFormError(null);
+    setShowBudgetForm(true);
+  };
+
+  const openEditBudgetForm = (line: HouseholdItemBudgetLine) => {
+    setEditingBudgetId(line.id);
+    setBudgetForm({
+      description: line.description ?? '',
+      plannedAmount: String(line.plannedAmount),
+      confidence: line.confidence,
+      budgetCategoryId: line.budgetCategory?.id ?? '',
+      budgetSourceId: line.budgetSource?.id ?? '',
+      vendorId: line.vendor?.id ?? '',
+    });
+    setBudgetFormError(null);
+    setShowBudgetForm(true);
+  };
+
+  const closeBudgetForm = () => {
+    setShowBudgetForm(false);
+    setEditingBudgetId(null);
+    setBudgetForm(EMPTY_BUDGET_FORM);
+    setBudgetFormError(null);
+  };
+
+  const handleSaveBudgetLine = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!id) return;
+
+    const plannedAmount = parseFloat(budgetForm.plannedAmount);
+    if (isNaN(plannedAmount) || plannedAmount < 0) {
+      setBudgetFormError('Planned amount must be a valid non-negative number.');
+      return;
+    }
+
+    setIsSavingBudget(true);
+    setBudgetFormError(null);
+
+    const payload: CreateHouseholdItemBudgetRequest | UpdateHouseholdItemBudgetRequest = {
+      description: budgetForm.description.trim() || null,
+      plannedAmount,
+      confidence: budgetForm.confidence,
+      budgetCategoryId: budgetForm.budgetCategoryId || null,
+      budgetSourceId: budgetForm.budgetSourceId || null,
+      vendorId: budgetForm.vendorId || null,
+    };
+
+    try {
+      if (editingBudgetId) {
+        await updateHouseholdItemBudget(
+          id,
+          editingBudgetId,
+          payload as UpdateHouseholdItemBudgetRequest,
+        );
+      } else {
+        await createHouseholdItemBudget(id, payload as CreateHouseholdItemBudgetRequest);
+      }
+      closeBudgetForm();
+      await Promise.all([reloadBudgetLines(), reloadSubsidyPayback()]);
+    } catch (err) {
+      const apiErr = err as { statusCode?: number; message?: string };
+      setBudgetFormError(apiErr.message ?? 'Failed to save budget line. Please try again.');
+      console.error('Failed to save budget line:', err);
+    } finally {
+      setIsSavingBudget(false);
+    }
+  };
+
+  const handleDeleteBudgetLine = (budgetId: string) => {
+    setDeletingBudgetId(budgetId);
+  };
+
+  const confirmDeleteBudgetLine = async () => {
+    if (!id || !deletingBudgetId) return;
+    setInlineError(null);
+    try {
+      await deleteHouseholdItemBudget(id, deletingBudgetId);
+      setDeletingBudgetId(null);
+      await Promise.all([reloadBudgetLines(), reloadSubsidyPayback()]);
+    } catch (err) {
+      setDeletingBudgetId(null);
+      const apiErr = err as { statusCode?: number; message?: string };
+      if (apiErr.statusCode === 409) {
+        setInlineError(apiErr.message || 'Budget line cannot be deleted because it is in use');
+      } else {
+        setInlineError('Failed to delete budget line');
+      }
+      console.error('Failed to delete budget line:', err);
+    }
+  };
+
+  // ─── Subsidy linking handlers ──────────────────────────────────────────────
+
+  const handleLinkSubsidy = async () => {
+    if (!id || !selectedSubsidyId) return;
+    setIsLinkingSubsidy(true);
+    setInlineError(null);
+    try {
+      await linkHouseholdItemSubsidy(id, selectedSubsidyId);
+      setSelectedSubsidyId('');
+      await Promise.all([reloadLinkedSubsidies(), reloadSubsidyPayback()]);
+    } catch (err) {
+      const apiErr = err as { statusCode?: number; message?: string };
+      if (apiErr.statusCode === 409) {
+        setInlineError('This subsidy program is already linked');
+      } else {
+        setInlineError('Failed to link subsidy program');
+      }
+      console.error('Failed to link subsidy:', err);
+    } finally {
+      setIsLinkingSubsidy(false);
+    }
+  };
+
+  const handleUnlinkSubsidy = async (subsidyProgramId: string) => {
+    if (!id) return;
+    setInlineError(null);
+    try {
+      await unlinkHouseholdItemSubsidy(id, subsidyProgramId);
+      await Promise.all([reloadLinkedSubsidies(), reloadSubsidyPayback()]);
+    } catch (err) {
+      setInlineError('Failed to unlink subsidy program');
+      console.error('Failed to unlink subsidy:', err);
     }
   };
 
@@ -379,6 +647,337 @@ export function HouseholdItemDetailPage() {
                 </li>
               ))}
             </ul>
+          )}
+        </section>
+
+        {/* Budget card */}
+        <section className={styles.card}>
+          <div className={styles.cardHeader}>
+            <h2 className={styles.cardTitle}>Budget</h2>
+            {!showBudgetForm && (
+              <button type="button" className={styles.button} onClick={openAddBudgetForm}>
+                Add Budget Line
+              </button>
+            )}
+          </div>
+
+          {inlineError && (
+            <div className={styles.errorBanner} role="alert">
+              {inlineError}
+            </div>
+          )}
+
+          {/* Budget form */}
+          {showBudgetForm && (
+            <form onSubmit={handleSaveBudgetLine} className={styles.budgetLineForm}>
+              <div className={styles.budgetFormField}>
+                <label htmlFor="budget-description" className={styles.formLabel}>
+                  Description
+                </label>
+                <input
+                  id="budget-description"
+                  type="text"
+                  value={budgetForm.description}
+                  onChange={(e) => setBudgetForm({ ...budgetForm, description: e.target.value })}
+                  placeholder="e.g., Kitchen appliance"
+                  className={styles.formInput}
+                  disabled={isSavingBudget}
+                />
+              </div>
+
+              <div className={styles.budgetFormField}>
+                <label htmlFor="budget-amount" className={styles.formLabel}>
+                  Planned Amount *
+                </label>
+                <input
+                  id="budget-amount"
+                  type="number"
+                  value={budgetForm.plannedAmount}
+                  onChange={(e) => setBudgetForm({ ...budgetForm, plannedAmount: e.target.value })}
+                  placeholder="0.00"
+                  step="0.01"
+                  min="0"
+                  className={styles.formInput}
+                  disabled={isSavingBudget}
+                  required
+                />
+              </div>
+
+              <div className={styles.budgetFormField}>
+                <label htmlFor="budget-confidence" className={styles.formLabel}>
+                  Confidence Level
+                </label>
+                <select
+                  id="budget-confidence"
+                  value={budgetForm.confidence}
+                  onChange={(e) =>
+                    setBudgetForm({ ...budgetForm, confidence: e.target.value as ConfidenceLevel })
+                  }
+                  className={styles.formSelect}
+                  disabled={isSavingBudget}
+                >
+                  {(Object.entries(CONFIDENCE_LABELS) as Array<[ConfidenceLevel, string]>).map(
+                    ([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ),
+                  )}
+                </select>
+              </div>
+
+              <div className={styles.budgetFormField}>
+                <label htmlFor="budget-category" className={styles.formLabel}>
+                  Budget Category
+                </label>
+                <select
+                  id="budget-category"
+                  value={budgetForm.budgetCategoryId}
+                  onChange={(e) =>
+                    setBudgetForm({ ...budgetForm, budgetCategoryId: e.target.value })
+                  }
+                  className={styles.formSelect}
+                  disabled={isSavingBudget}
+                >
+                  <option value="">— Select Category —</option>
+                  {budgetCategories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className={styles.budgetFormField}>
+                <label htmlFor="budget-source" className={styles.formLabel}>
+                  Budget Source
+                </label>
+                <select
+                  id="budget-source"
+                  value={budgetForm.budgetSourceId}
+                  onChange={(e) => setBudgetForm({ ...budgetForm, budgetSourceId: e.target.value })}
+                  className={styles.formSelect}
+                  disabled={isSavingBudget}
+                >
+                  <option value="">— Select Source —</option>
+                  {budgetSources.map((source) => (
+                    <option key={source.id} value={source.id}>
+                      {source.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className={styles.budgetFormField}>
+                <label htmlFor="budget-vendor" className={styles.formLabel}>
+                  Vendor
+                </label>
+                <select
+                  id="budget-vendor"
+                  value={budgetForm.vendorId}
+                  onChange={(e) => setBudgetForm({ ...budgetForm, vendorId: e.target.value })}
+                  className={styles.formSelect}
+                  disabled={isSavingBudget}
+                >
+                  <option value="">— Select Vendor —</option>
+                  {allVendors.map((vendor) => (
+                    <option key={vendor.id} value={vendor.id}>
+                      {vendor.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {budgetFormError && (
+                <div className={styles.errorBanner} role="alert">
+                  {budgetFormError}
+                </div>
+              )}
+
+              <div className={styles.budgetFormActions}>
+                <button type="submit" className={styles.button} disabled={isSavingBudget}>
+                  {isSavingBudget ? 'Saving...' : editingBudgetId ? 'Update' : 'Add'}
+                </button>
+                <button
+                  type="button"
+                  className={styles.cancelButton}
+                  onClick={closeBudgetForm}
+                  disabled={isSavingBudget}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* Budget lines list */}
+          {budgetLines.length === 0 && !showBudgetForm ? (
+            <p className={styles.emptyState}>No budget lines added.</p>
+          ) : (
+            <div className={styles.budgetLinesList}>
+              {budgetLines.map((line) => (
+                <div key={line.id} className={styles.budgetLineItem}>
+                  <div className={styles.budgetLineMain}>
+                    <div className={styles.budgetLineTopRow}>
+                      <span className={styles.budgetLineAmount}>
+                        {formatCurrency(line.plannedAmount)}
+                      </span>
+                      <span className={styles.budgetLineConfidence}>
+                        {CONFIDENCE_LABELS[line.confidence]} (±
+                        {Math.round(CONFIDENCE_MARGINS[line.confidence] * 100)}
+                        %)
+                      </span>
+                    </div>
+                    {line.description && (
+                      <div className={styles.budgetLineDescription}>{line.description}</div>
+                    )}
+                    <div className={styles.budgetLineMeta}>
+                      {line.budgetCategory && (
+                        <span className={styles.budgetLineMetaItem}>
+                          {line.budgetCategory.name}
+                        </span>
+                      )}
+                      {line.budgetSource && (
+                        <span className={styles.budgetLineMetaItem}>{line.budgetSource.name}</span>
+                      )}
+                      {line.vendor && (
+                        <span className={styles.budgetLineMetaItem}>{line.vendor.name}</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className={styles.budgetLineActions}>
+                    {deletingBudgetId === line.id ? (
+                      <>
+                        <button
+                          type="button"
+                          className={styles.deleteButton}
+                          onClick={confirmDeleteBudgetLine}
+                          disabled={false}
+                          title="Confirm delete"
+                        >
+                          Confirm
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.cancelButton}
+                          onClick={() => setDeletingBudgetId(null)}
+                          title="Cancel delete"
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          className={styles.editButton}
+                          onClick={() => openEditBudgetForm(line)}
+                          title="Edit budget line"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.deleteButton}
+                          onClick={() => handleDeleteBudgetLine(line.id)}
+                          title="Delete budget line"
+                        >
+                          Delete
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Budget summary */}
+          {budgetLines.length > 0 && (
+            <div className={styles.budgetSummary}>
+              <div className={styles.budgetSummaryRow}>
+                <span className={styles.budgetSummaryLabel}>Total Planned:</span>
+                <span className={styles.budgetSummaryValue}>
+                  {formatCurrency(budgetLines.reduce((sum, line) => sum + line.plannedAmount, 0))}
+                </span>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* Subsidies card */}
+        <section className={styles.card}>
+          <div className={styles.cardHeader}>
+            <h2 className={styles.cardTitle}>Subsidies</h2>
+          </div>
+
+          {/* Linked subsidies list */}
+          {linkedSubsidies.length > 0 && (
+            <div className={styles.subsidiesList}>
+              {linkedSubsidies.map((subsidy) => (
+                <div key={subsidy.id} className={styles.subsidyItem}>
+                  <div className={styles.subsidyInfo}>
+                    <div className={styles.subsidyName}>{subsidy.name}</div>
+                    <div className={styles.subsidyMeta}>
+                      {subsidy.reductionType === 'percentage' ? (
+                        <span className={styles.subsidyReduction}>−{subsidy.reductionValue}%</span>
+                      ) : (
+                        <span className={styles.subsidyReduction}>
+                          −{formatCurrency(subsidy.reductionValue)}
+                        </span>
+                      )}
+                      <span className={styles.subsidyStatus}>{subsidy.applicationStatus}</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className={styles.unlinkButton}
+                    onClick={() => void handleUnlinkSubsidy(subsidy.id)}
+                    aria-label={`Unlink ${subsidy.name}`}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Add subsidy row */}
+          <div className={styles.addSubsidyRow}>
+            <select
+              value={selectedSubsidyId}
+              onChange={(e) => setSelectedSubsidyId(e.target.value)}
+              className={styles.formSelect}
+              disabled={isLinkingSubsidy}
+              aria-label="Select subsidy program"
+            >
+              <option value="">— Link Subsidy Program —</option>
+              {allSubsidyPrograms
+                .filter((prog) => !linkedSubsidies.some((linked) => linked.id === prog.id))
+                .map((prog) => (
+                  <option key={prog.id} value={prog.id}>
+                    {prog.name}
+                  </option>
+                ))}
+            </select>
+            <button
+              type="button"
+              className={styles.button}
+              onClick={() => void handleLinkSubsidy()}
+              disabled={!selectedSubsidyId || isLinkingSubsidy}
+            >
+              {isLinkingSubsidy ? 'Linking...' : 'Add'}
+            </button>
+          </div>
+
+          {/* Subsidy payback summary */}
+          {subsidyPayback && subsidyPayback.maxTotalPayback > 0 && (
+            <div className={styles.subsidyPaybackSummary}>
+              <p className={styles.subsidyPaybackText}>
+                Estimated Subsidy Reduction: {formatCurrency(subsidyPayback.minTotalPayback)}–
+                {formatCurrency(subsidyPayback.maxTotalPayback)}
+              </p>
+            </div>
           )}
         </section>
 

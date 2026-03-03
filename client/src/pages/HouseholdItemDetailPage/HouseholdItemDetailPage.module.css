@@ -712,6 +712,16 @@
     flex-direction: column;
     gap: var(--spacing-3);
   }
+
+  .unlinkButton {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .budgetFormActions .button,
+  .budgetFormActions .cancelButton {
+    min-height: 44px;
+  }
 }
 
 /* ============================================================
@@ -729,9 +739,284 @@
   .deliveryLine,
   .backLink,
   .infoLink,
-  .workItemLink {
+  .workItemLink,
+  .formInput,
+  .formSelect,
+  .budgetLineItem,
+  .subsidyItem,
+  .unlinkButton {
     transition: none;
   }
+}
+
+/* ============================================================
+ * Budget & Subsidy Sections
+ * ============================================================ */
+
+.budgetLineForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+  margin-bottom: var(--spacing-4);
+  padding: var(--spacing-4);
+  background-color: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+}
+
+.budgetFormField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.formLabel {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.formInput,
+.formSelect {
+  padding: var(--spacing-2-5) var(--spacing-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  transition: border-color var(--transition-normal);
+}
+
+.formInput:focus-visible,
+.formSelect:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-focus-subtle);
+}
+
+.formInput:disabled,
+.formSelect:disabled {
+  background-color: var(--color-bg-tertiary);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.budgetFormActions {
+  display: flex;
+  gap: var(--spacing-2);
+  justify-content: flex-start;
+}
+
+.budgetLinesList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  margin-bottom: var(--spacing-4);
+}
+
+.budgetLineItem {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+  padding: var(--spacing-3);
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  transition: background-color var(--transition-normal);
+}
+
+.budgetLineItem:hover {
+  background-color: var(--color-bg-tertiary);
+}
+
+.budgetLineMain {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
+.budgetLineTopRow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-2);
+  flex-wrap: wrap;
+}
+
+.budgetLineAmount {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.budgetLineConfidence {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-medium);
+}
+
+.budgetLineDescription {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.budgetLineMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-1);
+  margin-top: var(--spacing-1);
+}
+
+.budgetLineMetaItem {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  padding: var(--spacing-0-5) var(--spacing-2);
+  white-space: nowrap;
+}
+
+.budgetLineActions {
+  display: flex;
+  gap: var(--spacing-1);
+  flex-shrink: 0;
+}
+
+.budgetSummary {
+  margin-top: var(--spacing-3);
+  padding: var(--spacing-3);
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.budgetSummaryRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--spacing-4);
+}
+
+.budgetSummaryLabel {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-muted);
+}
+
+.budgetSummaryValue {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+/* Subsidy section */
+
+.subsidiesList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  margin-bottom: var(--spacing-3);
+}
+
+.subsidyItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-2);
+  padding: var(--spacing-3);
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  transition: background-color var(--transition-normal);
+}
+
+.subsidyItem:hover {
+  background-color: var(--color-bg-tertiary);
+}
+
+.subsidyInfo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  flex: 1;
+  min-width: 0;
+}
+
+.subsidyName {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subsidyMeta {
+  display: flex;
+  gap: var(--spacing-2);
+  font-size: var(--font-size-xs);
+}
+
+.subsidyReduction {
+  color: var(--color-success-text-on-light);
+  font-weight: var(--font-weight-medium);
+}
+
+.subsidyStatus {
+  color: var(--color-text-muted);
+  text-transform: capitalize;
+}
+
+.unlinkButton {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  font-size: var(--font-size-xl);
+  line-height: 1;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: var(--spacing-1);
+  border-radius: var(--radius-sm);
+  transition:
+    color var(--transition-fast),
+    background-color var(--transition-fast);
+}
+
+.unlinkButton:hover {
+  color: var(--color-danger);
+  background-color: var(--color-danger-bg);
+}
+
+.addSubsidyRow {
+  display: flex;
+  gap: var(--spacing-2);
+  align-items: center;
+  margin-bottom: var(--spacing-3);
+}
+
+.addSubsidyRow .formSelect {
+  flex: 1;
+}
+
+.subsidyPaybackSummary {
+  padding: var(--spacing-3);
+  background-color: var(--color-success-bg);
+  border: 1px solid var(--color-success-border);
+  border-radius: var(--radius-md);
+  margin-top: var(--spacing-3);
+}
+
+.subsidyPaybackText {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-success-text-on-light);
+  font-weight: var(--font-weight-medium);
 }
 
 /* ============================================================
@@ -751,5 +1036,17 @@
   .cancelButton,
   .confirmDeleteButton {
     min-height: 44px;
+  }
+
+  .budgetLineActions,
+  .addSubsidyRow {
+    flex-direction: column;
+  }
+
+  .budgetLineActions .button,
+  .budgetLineActions .editButton,
+  .budgetLineActions .deleteButton,
+  .budgetLineActions .cancelButton {
+    width: 100%;
   }
 }

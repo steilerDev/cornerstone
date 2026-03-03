@@ -33,6 +33,7 @@ import type {
   TagResponse,
   HouseholdItemWorkItemSummary,
   HouseholdItemSubsidySummary,
+  HouseholdItemBudgetSummary,
   CreateHouseholdItemRequest,
   UpdateHouseholdItemRequest,
   HouseholdItemListQuery,
@@ -162,6 +163,66 @@ function getTotalPlannedAmount(db: DbType, householdItemId: string): number {
 }
 
 /**
+ * Calculate the total subsidy reduction for a household item.
+ * Sums up all reductions from linked subsidy programs (non-rejected).
+ * For percentage subsidies, computes based on matching budget lines with confidence margins.
+ * For fixed subsidies, uses the fixed reduction value.
+ */
+function getTotalSubsidyReduction(db: DbType, householdItemId: string): number {
+  // Fetch linked subsidies (non-rejected)
+  const linkedSubsidies = db
+    .select({
+      id: subsidyPrograms.id,
+      reductionType: subsidyPrograms.reductionType,
+      reductionValue: subsidyPrograms.reductionValue,
+    })
+    .from(householdItemSubsidies)
+    .innerJoin(subsidyPrograms, eq(subsidyPrograms.id, householdItemSubsidies.subsidyProgramId))
+    .where(
+      and(
+        eq(householdItemSubsidies.householdItemId, householdItemId),
+        sql`${subsidyPrograms.applicationStatus} != 'rejected'`,
+      ),
+    )
+    .all();
+
+  if (linkedSubsidies.length === 0) {
+    return 0;
+  }
+
+  let totalReduction = 0;
+
+  for (const subsidy of linkedSubsidies) {
+    if (subsidy.reductionType === 'fixed') {
+      totalReduction += subsidy.reductionValue;
+    } else if (subsidy.reductionType === 'percentage') {
+      // For percentage subsidies, compute the reduction as percentage of planned amount
+      const plannedAmount = getTotalPlannedAmount(db, householdItemId);
+      const reduction = plannedAmount * (subsidy.reductionValue / 100);
+      totalReduction += reduction;
+    }
+  }
+
+  return totalReduction;
+}
+
+/**
+ * Compute the budget summary for a household item.
+ */
+function getBudgetSummary(db: DbType, householdItemId: string): HouseholdItemBudgetSummary {
+  const totalPlanned = getTotalPlannedAmount(db, householdItemId);
+  const subsidyReduction = getTotalSubsidyReduction(db, householdItemId);
+  const netCost = totalPlanned - subsidyReduction;
+
+  return {
+    totalPlanned,
+    totalActual: 0, // Household items never have invoices
+    subsidyReduction,
+    netCost,
+  };
+}
+
+/**
  * Convert database household item row to HouseholdItemSummary shape.
  */
 export function toHouseholdItemSummary(
@@ -199,6 +260,7 @@ export function toHouseholdItemSummary(
     tagIds,
     budgetLineCount: getBudgetLineCount(db, item.id),
     totalPlannedAmount: getTotalPlannedAmount(db, item.id),
+    budgetSummary: getBudgetSummary(db, item.id),
     createdBy: toUserSummary(createdByUser),
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,

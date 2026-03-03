@@ -84,6 +84,7 @@ describe('HouseholdItemDetailPage', () => {
       tagIds: ['tag-1'],
       budgetLineCount: 1,
       totalPlannedAmount: 599.99,
+      budgetSummary: { totalPlanned: 599.99, totalActual: 0, subsidyReduction: 0, netCost: 599.99 },
       createdBy: { id: 'user-1', displayName: 'John Doe', email: 'john@example.com' },
       createdAt: '2026-01-15T10:00:00Z',
       updatedAt: '2026-02-15T14:30:00Z',

@@ -207,9 +207,21 @@ export type {
   HouseholdItem,
   HouseholdItemSummary,
   HouseholdItemDetail,
+  HouseholdItemBudgetSummary,
   CreateHouseholdItemRequest,
   UpdateHouseholdItemRequest,
   HouseholdItemListQuery,
   HouseholdItemListResponse,
   HouseholdItemResponse,
 } from './types/householdItem.js';
+
+// Household Item Budgets
+export type {
+  HouseholdItemBudgetLine,
+  CreateHouseholdItemBudgetRequest,
+  UpdateHouseholdItemBudgetRequest,
+  HouseholdItemBudgetListResponse,
+  HouseholdItemBudgetResponse,
+  HouseholdItemSubsidyPaybackEntry,
+  HouseholdItemSubsidyPaybackResponse,
+} from './types/householdItemBudget.js';

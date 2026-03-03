@@ -12,6 +12,17 @@ import type { SubsidyApplicationStatus } from './subsidyProgram.js';
 import type { UserSummary } from './workItem.js';
 
 /**
+ * Budget summary for a household item.
+ * Aggregates budget information including planned costs, actual costs (always 0), and subsidy reductions.
+ */
+export interface HouseholdItemBudgetSummary {
+  totalPlanned: number; // Sum of plannedAmount from all budget lines
+  totalActual: number; // Always 0 for household items (no invoices)
+  subsidyReduction: number; // Sum of subsidy reductions applied
+  netCost: number; // totalPlanned - subsidyReduction
+}
+
+/**
  * Household item category enum - type of household item.
  */
 export type HouseholdItemCategory =
@@ -98,6 +109,7 @@ export interface HouseholdItemSummary {
   tagIds: string[];
   budgetLineCount: number;
   totalPlannedAmount: number;
+  budgetSummary: HouseholdItemBudgetSummary;
   createdBy: UserSummary | null;
   createdAt: string;
   updatedAt: string;

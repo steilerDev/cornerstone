@@ -105,6 +105,7 @@ describe('HouseholdItemCreatePage', () => {
     tagIds: [],
     budgetLineCount: 0,
     totalPlannedAmount: 0,
+    budgetSummary: { totalPlanned: 0, totalActual: 0, subsidyReduction: 0, netCost: 0 },
     createdBy: null,
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-01T00:00:00Z',

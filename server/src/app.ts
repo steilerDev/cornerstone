@@ -38,6 +38,9 @@ import timelineRoutes from './routes/timeline.js';
 import paperlessRoutes from './routes/paperless.js';
 import documentLinksRoutes from './routes/documentLinks.js';
 import householdItemRoutes from './routes/householdItems.js';
+import householdItemBudgetRoutes from './routes/householdItemBudgets.js';
+import householdItemSubsidyRoutes from './routes/householdItemSubsidies.js';
+import householdItemSubsidyPaybackRoutes from './routes/householdItemSubsidyPayback.js';
 import { hashPassword, verifyPassword } from './services/userService.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -149,6 +152,21 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Household item routes (EPIC-04: Household Items & Furniture Management)
   await app.register(householdItemRoutes, { prefix: '/api/household-items' });
+
+  // Household item budget line routes (EPIC-04: Household Items & Furniture Management)
+  await app.register(householdItemBudgetRoutes, {
+    prefix: '/api/household-items/:householdItemId/budgets',
+  });
+
+  // Household item subsidy linking routes (EPIC-04: Household Items & Furniture Management)
+  await app.register(householdItemSubsidyRoutes, {
+    prefix: '/api/household-items/:householdItemId/subsidies',
+  });
+
+  // Household item subsidy payback (per-household-item expected payback calculation)
+  await app.register(householdItemSubsidyPaybackRoutes, {
+    prefix: '/api/household-items/:householdItemId/subsidy-payback',
+  });
 
   // Health check endpoint (liveness)
   app.get('/api/health', async () => {
