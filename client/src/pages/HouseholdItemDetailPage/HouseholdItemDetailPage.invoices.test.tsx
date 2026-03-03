@@ -223,7 +223,7 @@ describe('HouseholdItemDetailPage - Household Item Invoice Display', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText('Kitchen Appliance')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Kitchen Appliance' })).toBeInTheDocument();
     });
 
     expect(mockGetHouseholdItem).toHaveBeenCalledWith('hi-001');
@@ -295,11 +295,11 @@ describe('HouseholdItemDetailPage - Household Item Invoice Display', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText('Kitchen Appliance')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Kitchen Appliance' })).toBeInTheDocument();
     });
 
     // Page should still render household item despite fetch error
-    expect(screen.getByText('Kitchen Appliance')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Kitchen Appliance' })).toBeInTheDocument();
   });
 
   it('aggregates invoice amounts for household item budget', async () => {

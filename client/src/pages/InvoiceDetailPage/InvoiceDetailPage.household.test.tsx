@@ -14,6 +14,8 @@ import type { Invoice } from '@cornerstone/shared';
 import type * as InvoiceDetailPageTypes from './InvoiceDetailPage.js';
 import type * as InvoicesApiTypes from '../../lib/invoicesApi.js';
 import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
+import type * as WorkItemBudgetsApiTypes from '../../lib/workItemBudgetsApi.js';
+import type * as HouseholdItemBudgetsApiTypes from '../../lib/householdItemBudgetsApi.js';
 
 // ─── Mock functions ────────────────────────────────────────────────────────
 
@@ -21,6 +23,9 @@ const mockFetchInvoiceById = jest.fn<typeof InvoicesApiTypes.fetchInvoiceById>()
 const mockUpdateInvoice = jest.fn<typeof InvoicesApiTypes.updateInvoice>();
 const mockDeleteInvoice = jest.fn<typeof InvoicesApiTypes.deleteInvoice>();
 const mockListHouseholdItems = jest.fn<typeof HouseholdItemsApiTypes.listHouseholdItems>();
+const mockFetchWorkItemBudgets = jest.fn<typeof WorkItemBudgetsApiTypes.fetchWorkItemBudgets>();
+const mockFetchHouseholdItemBudgets =
+  jest.fn<typeof HouseholdItemBudgetsApiTypes.fetchHouseholdItemBudgets>();
 
 // ─── Mock modules ─────────────────────────────────────────────────────────
 
@@ -73,6 +78,14 @@ jest.unstable_mockModule('../../components/WorkItemPicker/WorkItemPicker.js', ()
 
 jest.unstable_mockModule('../../components/documents/LinkedDocumentsSection.js', () => ({
   LinkedDocumentsSection: () => null,
+}));
+
+jest.unstable_mockModule('../../lib/workItemBudgetsApi.js', () => ({
+  fetchWorkItemBudgets: mockFetchWorkItemBudgets,
+}));
+
+jest.unstable_mockModule('../../lib/householdItemBudgetsApi.js', () => ({
+  fetchHouseholdItemBudgets: mockFetchHouseholdItemBudgets,
 }));
 
 // ─── Type import ──────────────────────────────────────────────────────────
@@ -153,6 +166,8 @@ beforeEach(async () => {
   mockUpdateInvoice.mockReset();
   mockDeleteInvoice.mockReset();
   mockListHouseholdItems.mockReset();
+  mockFetchWorkItemBudgets.mockReset();
+  mockFetchHouseholdItemBudgets.mockReset();
 
   // Default mocks
   mockFetchInvoiceById.mockResolvedValue(mockInvoiceWithHouseholdItem);
@@ -160,6 +175,8 @@ beforeEach(async () => {
     items: [mockHouseholdItem],
     pagination: { page: 1, pageSize: 25, totalItems: 1, totalPages: 1 },
   });
+  mockFetchWorkItemBudgets.mockResolvedValue([]);
+  mockFetchHouseholdItemBudgets.mockResolvedValue([]);
 
   const module = (await import('./InvoiceDetailPage.js')) as typeof InvoiceDetailPageTypes;
   InvoiceDetailPage = module.InvoiceDetailPage;

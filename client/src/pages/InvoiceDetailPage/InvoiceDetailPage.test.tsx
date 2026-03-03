@@ -226,8 +226,8 @@ describe('InvoiceDetailPage', () => {
     it('renders the formatted amount', async () => {
       renderPage();
 
-      // Amount 1500 formatted as currency ($1,500.00)
-      await waitFor(() => expect(screen.getByText(/1,500/)).toBeInTheDocument());
+      // Amount 1500 formatted as currency (mock returns $1500.00)
+      await waitFor(() => expect(screen.getByText('$1500.00')).toBeInTheDocument());
     });
 
     it('renders the status badge', async () => {

@@ -13,6 +13,10 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import type * as InvoicesPageTypes from './InvoicesPage.js';
 import type * as InvoicesApiTypes from '../../lib/invoicesApi.js';
 import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
+import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
+import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
+import type * as WorkItemBudgetsApiTypes from '../../lib/workItemBudgetsApi.js';
+import type * as HouseholdItemBudgetsApiTypes from '../../lib/householdItemBudgetsApi.js';
 
 // ─── Mock functions ────────────────────────────────────────────────────────
 
@@ -20,6 +24,11 @@ const mockFetchAllInvoices = jest.fn<typeof InvoicesApiTypes.fetchAllInvoices>()
 const mockFetchInvoices = jest.fn<typeof InvoicesApiTypes.fetchInvoices>();
 const mockCreateInvoice = jest.fn<typeof InvoicesApiTypes.createInvoice>();
 const mockListHouseholdItems = jest.fn<typeof HouseholdItemsApiTypes.listHouseholdItems>();
+const mockFetchVendors = jest.fn<typeof VendorsApiTypes.fetchVendors>();
+const mockListWorkItems = jest.fn<typeof WorkItemsApiTypes.listWorkItems>();
+const mockFetchWorkItemBudgets = jest.fn<typeof WorkItemBudgetsApiTypes.fetchWorkItemBudgets>();
+const mockFetchHouseholdItemBudgets =
+  jest.fn<typeof HouseholdItemBudgetsApiTypes.fetchHouseholdItemBudgets>();
 
 // ─── Mock modules ─────────────────────────────────────────────────────────
 
@@ -38,6 +47,30 @@ jest.unstable_mockModule('../../lib/householdItemsApi.js', () => ({
   getHouseholdItem: jest.fn(),
   updateHouseholdItem: jest.fn(),
   deleteHouseholdItem: jest.fn(),
+}));
+
+jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
+  fetchVendors: mockFetchVendors,
+  createVendor: jest.fn(),
+  getVendor: jest.fn(),
+  updateVendor: jest.fn(),
+  deleteVendor: jest.fn(),
+}));
+
+jest.unstable_mockModule('../../lib/workItemsApi.js', () => ({
+  listWorkItems: mockListWorkItems,
+  createWorkItem: jest.fn(),
+  getWorkItem: jest.fn(),
+  updateWorkItem: jest.fn(),
+  deleteWorkItem: jest.fn(),
+}));
+
+jest.unstable_mockModule('../../lib/workItemBudgetsApi.js', () => ({
+  fetchWorkItemBudgets: mockFetchWorkItemBudgets,
+}));
+
+jest.unstable_mockModule('../../lib/householdItemBudgetsApi.js', () => ({
+  fetchHouseholdItemBudgets: mockFetchHouseholdItemBudgets,
 }));
 
 jest.unstable_mockModule('../../lib/apiClient.js', () => ({
@@ -121,6 +154,10 @@ beforeEach(async () => {
   mockFetchInvoices.mockReset();
   mockCreateInvoice.mockReset();
   mockListHouseholdItems.mockReset();
+  mockFetchVendors.mockReset();
+  mockListWorkItems.mockReset();
+  mockFetchWorkItemBudgets.mockReset();
+  mockFetchHouseholdItemBudgets.mockReset();
 
   // Default mocks
   mockFetchAllInvoices.mockResolvedValue({
@@ -136,6 +173,16 @@ beforeEach(async () => {
     items: [mockHouseholdItem],
     pagination: { page: 1, pageSize: 25, totalItems: 1, totalPages: 1 },
   });
+  mockFetchVendors.mockResolvedValue({
+    vendors: [],
+    pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
+  });
+  mockListWorkItems.mockResolvedValue({
+    items: [],
+    pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
+  });
+  mockFetchWorkItemBudgets.mockResolvedValue([]);
+  mockFetchHouseholdItemBudgets.mockResolvedValue([]);
 
   const module = (await import('./InvoicesPage.js')) as typeof InvoicesPageTypes;
   InvoicesPage = module.InvoicesPage;
