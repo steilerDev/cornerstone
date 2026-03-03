@@ -38,21 +38,29 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
   const availableFunds = sourcesRow?.availableFunds ?? 0;
   const sourceCount = sourcesRow?.sourceCount ?? 0;
 
-  // ── 2. All budget lines ────────────────────────────────────────────────────
+  // ── 2. All budget lines (UNION work items + household items) ────────────────
   const budgetLines = db.all<{
     id: string;
-    workItemId: string;
+    entityId: string;
     plannedAmount: number;
     confidence: string;
     budgetCategoryId: string | null;
   }>(
     sql`SELECT
       id              AS id,
-      work_item_id    AS workItemId,
+      work_item_id    AS entityId,
       planned_amount  AS plannedAmount,
       confidence      AS confidence,
       budget_category_id AS budgetCategoryId
-    FROM work_item_budgets`,
+    FROM work_item_budgets
+    UNION ALL
+    SELECT
+      id              AS id,
+      household_item_id AS entityId,
+      planned_amount  AS plannedAmount,
+      confidence      AS confidence,
+      budget_category_id AS budgetCategoryId
+    FROM household_item_budgets`,
   );
 
   // ── 3. Active subsidies with their applicable category IDs ─────────────────
@@ -88,23 +96,30 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
     cats.add(row.budgetCategoryId);
   }
 
-  // ── 4. Work item -> subsidy links (non-rejected) ───────────────────────────
-  // Map workItemId -> Set of active subsidy IDs linked to that work item
-  const workItemSubsidyRows = db.all<{ workItemId: string; subsidyProgramId: string }>(
+  // ── 4. Entity -> subsidy links (non-rejected, both work items + household items) ──
+  // Map entityId -> Set of active subsidy IDs linked to that entity
+  const entitySubsidyRows = db.all<{ entityId: string; subsidyProgramId: string }>(
     sql`SELECT
-      wis.work_item_id       AS workItemId,
+      wis.work_item_id       AS entityId,
       wis.subsidy_program_id AS subsidyProgramId
     FROM work_item_subsidies wis
     INNER JOIN subsidy_programs sp ON sp.id = wis.subsidy_program_id
+    WHERE sp.application_status != 'rejected'
+    UNION ALL
+    SELECT
+      his.household_item_id  AS entityId,
+      his.subsidy_program_id AS subsidyProgramId
+    FROM household_item_subsidies his
+    INNER JOIN subsidy_programs sp ON sp.id = his.subsidy_program_id
     WHERE sp.application_status != 'rejected'`,
   );
 
-  const workItemSubsidyMap = new Map<string, Set<string>>();
-  for (const row of workItemSubsidyRows) {
-    let progs = workItemSubsidyMap.get(row.workItemId);
+  const entitySubsidyMap = new Map<string, Set<string>>();
+  for (const row of entitySubsidyRows) {
+    let progs = entitySubsidyMap.get(row.entityId);
     if (!progs) {
       progs = new Set<string>();
-      workItemSubsidyMap.set(row.workItemId, progs);
+      entitySubsidyMap.set(row.entityId, progs);
     }
     progs.add(row.subsidyProgramId);
   }
@@ -179,7 +194,7 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
     // Compute subsidy reduction for this line
     let subsidyReduction = 0;
 
-    const linkedSubsidyIds = workItemSubsidyMap.get(line.workItemId);
+    const linkedSubsidyIds = entitySubsidyMap.get(line.entityId);
     if (linkedSubsidyIds) {
       for (const subsidyId of linkedSubsidyIds) {
         const meta = subsidyMeta.get(subsidyId);
@@ -197,15 +212,15 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
           subsidyReduction += line.plannedAmount * (meta.reductionValue / 100);
         } else if (meta.reductionType === 'fixed') {
           // Divide fixed amount equally across all matching budget lines for
-          // this (workItem, subsidy) combination.
-          const cacheKey = `${line.workItemId}:${subsidyId}`;
+          // this (entity, subsidy) combination.
+          const cacheKey = `${line.entityId}:${subsidyId}`;
           let matchingLineCount = fixedSubsidyLineCountCache.get(cacheKey);
           if (matchingLineCount === undefined) {
-            // Universal subsidies match ALL budget lines for the work item;
+            // Universal subsidies match ALL budget lines for the entity;
             // category-scoped subsidies match only lines with a matching category.
             matchingLineCount = budgetLines.filter(
               (l) =>
-                l.workItemId === line.workItemId &&
+                l.entityId === line.entityId &&
                 (isUniversalSubsidy ||
                   (l.budgetCategoryId !== null && applicableCategories.has(l.budgetCategoryId))),
             ).length;
@@ -374,7 +389,7 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
   const fixedSubsidyLineCountCacheForTotal = new Map<string, number>();
 
   for (const line of budgetLines) {
-    const linkedSubsidyIds = workItemSubsidyMap.get(line.workItemId);
+    const linkedSubsidyIds = entitySubsidyMap.get(line.entityId);
     if (!linkedSubsidyIds) continue;
 
     for (const subsidyId of linkedSubsidyIds) {
@@ -391,12 +406,12 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
       if (meta.reductionType === 'percentage') {
         totalReductions += line.plannedAmount * (meta.reductionValue / 100);
       } else if (meta.reductionType === 'fixed') {
-        const cacheKey = `${line.workItemId}:${subsidyId}`;
+        const cacheKey = `${line.entityId}:${subsidyId}`;
         let matchingLineCount = fixedSubsidyLineCountCacheForTotal.get(cacheKey);
         if (matchingLineCount === undefined) {
           matchingLineCount = budgetLines.filter(
             (l) =>
-              l.workItemId === line.workItemId &&
+              l.entityId === line.entityId &&
               (isUniversalSubsidy ||
                 (l.budgetCategoryId !== null && applicableCategories.has(l.budgetCategoryId))),
           ).length;
@@ -423,32 +438,32 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
   let totalMinPayback = 0;
   let totalMaxPayback = 0;
 
-  // Group budget lines by workItemId for efficient per-item processing
-  const linesByWorkItem = new Map<
+  // Group budget lines by entityId for efficient per-entity processing
+  const linesByEntity = new Map<
     string,
     {
       id: string;
-      workItemId: string;
+      entityId: string;
       plannedAmount: number;
       confidence: string;
       budgetCategoryId: string | null;
     }[]
   >();
   for (const line of budgetLines) {
-    let arr = linesByWorkItem.get(line.workItemId);
+    let arr = linesByEntity.get(line.entityId);
     if (!arr) {
       arr = [];
-      linesByWorkItem.set(line.workItemId, arr);
+      linesByEntity.set(line.entityId, arr);
     }
     arr.push(line);
   }
 
-  // For each work item that has linked subsidies, compute payback
-  for (const [workItemId, linkedSubsidyIds] of workItemSubsidyMap) {
-    const wiLines = linesByWorkItem.get(workItemId) ?? [];
+  // For each entity that has linked subsidies, compute payback
+  for (const [entityId, linkedSubsidyIds] of entitySubsidyMap) {
+    const entityLines = linesByEntity.get(entityId) ?? [];
 
     // Compute per-line effective min/max amounts (mirrors subsidyPaybackService)
-    const effectiveLines = wiLines.map((line) => {
+    const effectiveLines = entityLines.map((line) => {
       const lineActualCost = lineInvoiceMap.get(line.id);
       if (lineActualCost !== undefined) {
         return {

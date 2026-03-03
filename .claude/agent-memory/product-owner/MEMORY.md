@@ -61,6 +61,7 @@ All 6 stories merged and promoted to main. Story 8.6 (#359) remains open, blocke
 Story 4.1 (#387): PR #396 reviewed APPROVED. Architect refined schema: flat planned_cost/actual_cost/notes replaced by household_item_budgets/household_item_notes tables (mirrors EPIC-05 pattern). Extra columns: url, quantity. Category enum expanded to 8 values. 6 tables total in migration 0010. Document link cascade is application-layer (Story 4.2).
 Story 4.2 (#388): PR #397 reviewed APPROVED. 5 CRUD endpoints, 90 tests (46 service + 44 route). Search uses `q` param (consistent with work items). Vendor summary includes `specialty` (superset of AC). documentLinkService updated to validate household_item entity type.
 Story 8.6 (#359, EPIC-08) linked as sub-issue, blocked by #391 (detail page).
+Story 4.5 (#391): PR #400 reviewed REQUEST CHANGES. AC #11 fail: vendor/URL rows hidden when null instead of showing "--". AC #6 (Notes section) is N/A -- household_item_notes is a separate table requiring its own CRUD API (like work_item_notes), no endpoints exist yet. Need follow-up story for household item notes CRUD.
 
 ## EPIC-05 — COMPLETE (v1.9.0, promoted)
 
@@ -171,6 +172,7 @@ Created 11 issues (#328-#338) from user feedback:
 - **Frontend totalAmount validation boundary** — PR #153: Frontend allows totalAmount = 0 (min={0}, checks `< 0`), but backend uses `exclusiveMinimum: 0`. Server rejects 0 with 400. Flag for refinement so client-side validation is consistent with server.
 - **statusExhausted badge semantic color** — PR #153: "Exhausted" status badge uses gray (`--color-status-not-started-bg`) instead of yellow/amber. Semantically "exhausted" should signal warning. Flag for UX review.
 - **E2E test gate is MANDATORY** — PR #157 (Story #148) had all 7 ACs met and 99 unit/integration tests passing, but CI showed "E2E Tests: SKIPPED". This is a BLOCKING issue per CLAUDE.md. When UAT scenarios are marked "Automated (E2E)", Playwright test coverage is mandatory before PO can approve. Requested changes and asked e2e-test-engineer to write tests in e2e/tests/budget/.
+- **Conditional row rendering vs placeholder pattern** — PR #400 (Story 4.5): Vendor and URL rows used `{item.vendor && (...)}` which hides the entire row when null. AC #11 requires "--" placeholder for all optional fields. This is the same pattern as the VendorDetailPage Notes row issue from PR #151. ALWAYS check that optional field rows render unconditionally with ternary: `{item.field ? <value> : '\u2014'}`.
 
 ### Chore/Maintenance PR Patterns
 
