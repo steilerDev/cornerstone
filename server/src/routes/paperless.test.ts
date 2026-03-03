@@ -115,6 +115,7 @@ describe('Paperless Routes', () => {
       await app.close();
     }
 
+    delete process.env.PAPERLESS_EXTERNAL_URL;
     process.env = originalEnv;
 
     try {
@@ -143,6 +144,17 @@ describe('Paperless Routes', () => {
     await app.close();
     process.env.PAPERLESS_URL = 'http://paperless:8000';
     process.env.PAPERLESS_API_TOKEN = 'test-token';
+    app = await buildApp();
+  }
+
+  /**
+   * Helper: Re-build the app with Paperless and External URL configured
+   */
+  async function rebuildAppWithPaperlessAndExternalUrl(): Promise<void> {
+    await app.close();
+    process.env.PAPERLESS_URL = 'http://paperless:8000';
+    process.env.PAPERLESS_API_TOKEN = 'test-token';
+    process.env.PAPERLESS_EXTERNAL_URL = 'https://external.example.com';
     app = await buildApp();
   }
 
@@ -211,6 +223,61 @@ describe('Paperless Routes', () => {
       expect(body.configured).toBe(true);
       expect(body.reachable).toBe(false);
       expect(body.error).toContain('ECONNREFUSED');
+      expect(body.paperlessUrl).toBe('http://paperless:8000');
+    });
+
+    it('when PAPERLESS_EXTERNAL_URL is set and Paperless is reachable → paperlessUrl equals external URL', async () => {
+      await rebuildAppWithPaperlessAndExternalUrl();
+      const { cookie } = await createUserWithSession();
+
+      mockFetch.mockResolvedValueOnce(mockJsonResponse({ count: 10 }));
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/paperless/status',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<PaperlessStatusResponse>();
+      expect(body.configured).toBe(true);
+      expect(body.reachable).toBe(true);
+      expect(body.paperlessUrl).toBe('https://external.example.com');
+    });
+
+    it('when PAPERLESS_EXTERNAL_URL is set and Paperless is unreachable → paperlessUrl still equals external URL', async () => {
+      await rebuildAppWithPaperlessAndExternalUrl();
+      const { cookie } = await createUserWithSession();
+
+      mockFetch.mockRejectedValueOnce(new Error('ECONNREFUSED'));
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/paperless/status',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<PaperlessStatusResponse>();
+      expect(body.configured).toBe(true);
+      expect(body.reachable).toBe(false);
+      expect(body.paperlessUrl).toBe('https://external.example.com');
+    });
+
+    it('backward compatibility: no external URL → paperlessUrl shows internal URL', async () => {
+      await rebuildAppWithPaperless();
+      const { cookie } = await createUserWithSession();
+
+      mockFetch.mockResolvedValueOnce(mockJsonResponse({ count: 10 }));
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/paperless/status',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<PaperlessStatusResponse>();
       expect(body.paperlessUrl).toBe('http://paperless:8000');
     });
   });
