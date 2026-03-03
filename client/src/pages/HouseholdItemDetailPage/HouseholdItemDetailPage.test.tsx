@@ -25,8 +25,6 @@ const mockGetHouseholdItem = jest.fn<typeof HouseholdItemsApiTypes.getHouseholdI
 const mockDeleteHouseholdItem = jest.fn<typeof HouseholdItemsApiTypes.deleteHouseholdItem>();
 const mockShowToast = jest.fn();
 const mockNavigate = jest.fn();
-const mockFetchLinkedWorkItems =
-  jest.fn<typeof HouseholdItemWorkItemsApiTypes.fetchLinkedWorkItems>();
 const mockListWorkItems = jest.fn<typeof WorkItemsApiTypes.listWorkItems>();
 const mockFetchHouseholdItemDeps =
   jest.fn<typeof HouseholdItemDepsApiTypes.fetchHouseholdItemDeps>();
@@ -82,9 +80,6 @@ jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({
 }));
 
 jest.unstable_mockModule('../../lib/householdItemWorkItemsApi.js', () => ({
-  fetchLinkedWorkItems: mockFetchLinkedWorkItems,
-  linkWorkItemToHouseholdItem: jest.fn(),
-  unlinkWorkItemFromHouseholdItem: jest.fn(),
   fetchLinkedHouseholdItems: jest.fn(),
 }));
 
@@ -253,7 +248,6 @@ describe('HouseholdItemDetailPage', () => {
     mockDeleteHouseholdItem.mockReset();
     mockShowToast.mockReset();
     mockNavigate.mockReset();
-    mockFetchLinkedWorkItems.mockReset();
     mockListWorkItems.mockReset();
     mockFetchHouseholdItemBudgets.mockReset();
     mockFetchBudgetCategories.mockReset();
@@ -273,7 +267,6 @@ describe('HouseholdItemDetailPage', () => {
     }
 
     // Setup default API responses
-    mockFetchLinkedWorkItems.mockResolvedValue([]);
     mockListWorkItems.mockResolvedValue({
       items: [],
       pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },

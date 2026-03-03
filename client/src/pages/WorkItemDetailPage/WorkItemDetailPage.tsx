@@ -2350,15 +2350,13 @@ export default function WorkItemDetailPage() {
       {/* Linked Household Items section */}
       <div className={styles.section}>
         <h2 className={styles.sectionTitle}>
-          Linked Household Items
+          Dependent Household Items
           {linkedHouseholdItems.length > 0 && (
             <span className={styles.countBadge}>{linkedHouseholdItems.length}</span>
           )}
         </h2>
         {linkedHouseholdItems.length === 0 ? (
-          <p className={styles.emptyText}>
-            No household items linked. Link household items from their detail pages.
-          </p>
+          <p className={styles.emptyText}>No household items depend on this work item.</p>
         ) : (
           <ul className={styles.householdItemLinkList}>
             {linkedHouseholdItems.map((hi) => (

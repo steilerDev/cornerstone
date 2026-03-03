@@ -159,9 +159,6 @@ jest.unstable_mockModule('../../lib/workItemMilestonesApi.js', () => ({
 }));
 
 jest.unstable_mockModule('../../lib/householdItemWorkItemsApi.js', () => ({
-  fetchLinkedWorkItems: jest.fn(),
-  linkWorkItemToHouseholdItem: jest.fn(),
-  unlinkWorkItemFromHouseholdItem: jest.fn(),
   fetchLinkedHouseholdItems: mockFetchLinkedHouseholdItems,
 }));
 
@@ -711,7 +708,7 @@ describe('WorkItemDetailPage', () => {
   // ── Linked/Dependent Household Items section (Story #415) ──────────────────
 
   describe('Linked Household Items section', () => {
-    it('renders "Linked Household Items" section heading', async () => {
+    it('renders "Dependent Household Items" section heading', async () => {
       renderPage();
 
       await waitFor(() => {
@@ -721,7 +718,7 @@ describe('WorkItemDetailPage', () => {
       });
 
       // Section heading appears on the page
-      expect(screen.getByText('Linked Household Items')).toBeInTheDocument();
+      expect(screen.getByText('Dependent Household Items')).toBeInTheDocument();
     });
 
     it('shows empty state text when no household items are linked', async () => {
@@ -735,11 +732,7 @@ describe('WorkItemDetailPage', () => {
         ).toBeInTheDocument();
       });
 
-      expect(
-        screen.getByText(
-          'No household items linked. Link household items from their detail pages.',
-        ),
-      ).toBeInTheDocument();
+      expect(screen.getByText('No household items depend on this work item.')).toBeInTheDocument();
     });
 
     it('renders linked household items when data is present', async () => {

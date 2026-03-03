@@ -432,18 +432,17 @@ export function formatDateForAria(dateStr: string): string {
 }
 
 /**
- * Returns household items that have a delivery window overlapping the given date.
- * A household item is considered to be "on" a date if:
- *   - earliestDeliveryDate <= dateStr <= latestDeliveryDate
- * If scheduling window is not set, checks expectedDeliveryDate == dateStr.
+ * Returns household items that have their earliest delivery date on the given date.
+ * A household item is shown on a date if:
+ *   - earliestDeliveryDate === dateStr, or if not set, expectedDeliveryDate === dateStr
  */
 export function getHouseholdItemsForDay(
   dateStr: string,
   items: TimelineHouseholdItem[],
 ): TimelineHouseholdItem[] {
   return items.filter((item) => {
-    if (item.earliestDeliveryDate && item.latestDeliveryDate) {
-      return item.earliestDeliveryDate <= dateStr && item.latestDeliveryDate >= dateStr;
+    if (item.earliestDeliveryDate) {
+      return item.earliestDeliveryDate === dateStr;
     }
     return item.expectedDeliveryDate === dateStr;
   });

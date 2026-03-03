@@ -671,13 +671,10 @@ export function autoReschedule(db: DbType): number {
 
   const allWorkItems = db.select().from(workItems).all();
 
-  if (allWorkItems.length === 0) {
-    return 0;
-  }
-
   // ── 2. Fetch real dependencies ───────────────────────────────────────────────
 
-  const allDependencies = db.select().from(workItemDependencies).all();
+  const allDependencies =
+    allWorkItems.length > 0 ? db.select().from(workItemDependencies).all() : [];
 
   // ── 3. Milestone dependency expansion ───────────────────────────────────────
   //

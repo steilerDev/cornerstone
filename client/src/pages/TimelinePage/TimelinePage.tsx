@@ -512,6 +512,7 @@ export function TimelinePage() {
                 setSelectedMilestoneId(milestoneId);
                 setShowMilestonePanel(true);
               }}
+              onHouseholdItemClick={(hiId) => navigate(`/household-items/${hiId}`)}
               onCtrlScroll={(delta) => adjustColumnWidth(delta > 0 ? 1 : -1)}
             />
           )}
