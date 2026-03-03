@@ -249,8 +249,8 @@ describe('GanttHouseholdItems', () => {
       });
       const circle = screen.getByTestId('gantt-hi-circle');
       // hiHighlighted and hiDimmed classes should NOT be present
-      expect(circle.className).not.toContain('hiHighlighted');
-      expect(circle.className).not.toContain('hiDimmed');
+      expect(circle.getAttribute('class') ?? '').not.toContain('hiHighlighted');
+      expect(circle.getAttribute('class') ?? '').not.toContain('hiDimmed');
     });
 
     it('applies hiHighlighted class when interaction state is "highlighted"', () => {
@@ -259,7 +259,7 @@ describe('GanttHouseholdItems', () => {
       });
       const circle = screen.getByTestId('gantt-hi-circle');
       // CSS module class name will contain 'hiHighlighted' (module obfuscation not applied in tests)
-      expect(circle.className).toContain('hiHighlighted');
+      expect(circle.getAttribute('class') ?? '').toContain('hiHighlighted');
     });
 
     it('applies hiDimmed class when interaction state is "dimmed"', () => {
@@ -267,14 +267,14 @@ describe('GanttHouseholdItems', () => {
         hiInteractionStates: new Map([['hi-1', 'dimmed' as HouseholdItemInteractionState]]),
       });
       const circle = screen.getByTestId('gantt-hi-circle');
-      expect(circle.className).toContain('hiDimmed');
+      expect(circle.getAttribute('class') ?? '').toContain('hiDimmed');
     });
 
     it('uses "default" state when hiInteractionStates is not provided', () => {
       renderHouseholdItems({ hiInteractionStates: undefined });
       const circle = screen.getByTestId('gantt-hi-circle');
-      expect(circle.className).not.toContain('hiHighlighted');
-      expect(circle.className).not.toContain('hiDimmed');
+      expect(circle.getAttribute('class') ?? '').not.toContain('hiHighlighted');
+      expect(circle.getAttribute('class') ?? '').not.toContain('hiDimmed');
     });
 
     it('uses "default" state when HI id is not in hiInteractionStates map', () => {
@@ -285,7 +285,7 @@ describe('GanttHouseholdItems', () => {
         ]),
       });
       const circle = screen.getByTestId('gantt-hi-circle');
-      expect(circle.className).not.toContain('hiHighlighted');
+      expect(circle.getAttribute('class') ?? '').not.toContain('hiHighlighted');
     });
   });
 
