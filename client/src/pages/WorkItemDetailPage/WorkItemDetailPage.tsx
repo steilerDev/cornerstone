@@ -2372,11 +2372,15 @@ export default function WorkItemDetailPage() {
                 <span className={styles.householdItemStatusBadge} data-status={hi.status}>
                   {HOUSEHOLD_ITEM_STATUS_LABELS[hi.status]}
                 </span>
-                {hi.expectedDeliveryDate && (
+                {hi.earliestDeliveryDate && hi.latestDeliveryDate ? (
                   <span className={styles.householdItemDeliveryDate}>
-                    Expected: {formatDate(hi.expectedDeliveryDate)}
+                    {formatDate(hi.earliestDeliveryDate)} – {formatDate(hi.latestDeliveryDate)}
                   </span>
-                )}
+                ) : hi.expectedDeliveryDate ? (
+                  <span className={styles.householdItemDeliveryDate}>
+                    {formatDate(hi.expectedDeliveryDate)}
+                  </span>
+                ) : null}
               </li>
             ))}
           </ul>
