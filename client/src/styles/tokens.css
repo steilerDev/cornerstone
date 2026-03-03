@@ -549,7 +549,7 @@
 
   /* --- Household item status badges --- */
   --color-hi-status-not-ordered-bg: var(--color-slate-500);
-  --color-hi-status-not-ordered-text: var(--color-slate-200);
+  --color-hi-status-not-ordered-text: var(--color-slate-100);
   --color-hi-status-ordered-bg: rgba(59, 130, 246, 0.2);
   --color-hi-status-ordered-text: var(--color-blue-300);
   --color-hi-status-in-transit-bg: rgba(245, 158, 11, 0.2);

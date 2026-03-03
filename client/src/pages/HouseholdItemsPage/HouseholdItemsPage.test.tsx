@@ -3,6 +3,7 @@
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { screen, waitFor, render } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
 import type { HouseholdItemListResponse, HouseholdItemSummary } from '@cornerstone/shared';
@@ -289,6 +290,253 @@ describe('HouseholdItemsPage', () => {
 
       await waitFor(() => {
         expect(screen.getByRole('alert')).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Accessibility - Filter toggle and panel', () => {
+    it('renders filter toggle button with correct ARIA attributes', async () => {
+      renderPage();
+
+      await waitFor(() => {
+        const filterButton = screen.getByRole('button', { name: /filters/i });
+        expect(filterButton).toHaveAttribute('aria-expanded', 'false');
+        expect(filterButton).toHaveAttribute('aria-controls', 'hi-filter-panel');
+      });
+    });
+
+    it('displays active filter count in toggle text', async () => {
+      const user = userEvent.setup();
+      mockListHouseholdItems.mockResolvedValueOnce(listResponse);
+
+      renderPage();
+
+      // Wait for the initial render and find the category filter
+      await waitFor(() => {
+        expect(screen.getByLabelText(/category:/i)).toBeInTheDocument();
+      });
+
+      // Change the category filter
+      const categorySelect = screen.getByLabelText(/category:/i);
+      await user.selectOptions(categorySelect, 'furniture');
+
+      // Check that toggle shows active count
+      await waitFor(() => {
+        const filterButton = screen.getByRole('button', { name: /filters.*1 active/i });
+        expect(filterButton).toBeInTheDocument();
+      });
+    });
+
+    it('toggles filter panel aria-expanded state on button click', async () => {
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/category:/i)).toBeInTheDocument();
+      });
+
+      const filterButton = screen.getByRole('button', { name: /filters/i });
+      expect(filterButton).toHaveAttribute('aria-expanded', 'false');
+
+      // Click to expand
+      await user.click(filterButton);
+
+      expect(filterButton).toHaveAttribute('aria-expanded', 'true');
+
+      // Click to collapse
+      await user.click(filterButton);
+
+      expect(filterButton).toHaveAttribute('aria-expanded', 'false');
+    });
+
+    it('filter panel has correct ARIA attributes', async () => {
+      renderPage();
+
+      await waitFor(() => {
+        const filterPanel = screen.getByRole('search', { name: /household item filters/i });
+        expect(filterPanel).toHaveAttribute('id', 'hi-filter-panel');
+        expect(filterPanel).toHaveAttribute('role', 'search');
+        expect(filterPanel).toHaveAttribute('aria-label', 'Household item filters');
+      });
+    });
+  });
+
+  describe('Accessibility - Delete modal', () => {
+    it('delete modal has correct ARIA labelledby', async () => {
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /new item/i })).toBeInTheDocument();
+      });
+
+      // Open the actions menu for the first item by clicking the first menu button
+      const menuButtons = screen.getAllByRole('button', { name: /actions for/i });
+      await user.click(menuButtons[0]);
+
+      // Get all delete menuitems and click the first visible one
+      const deleteMenuItems = screen.getAllByRole('menuitem', { name: /delete/i });
+      await user.click(deleteMenuItems[0]);
+
+      // Verify the modal has correct ARIA attributes
+      await waitFor(() => {
+        const modal = screen.getByRole('dialog');
+        expect(modal).toHaveAttribute('aria-modal', 'true');
+        expect(modal).toHaveAttribute('aria-labelledby', 'hi-delete-modal-title');
+      });
+
+      // Verify the h2 title exists with the correct id
+      const modalTitle = screen.getByRole('heading', { name: /delete household item/i });
+      expect(modalTitle).toHaveAttribute('id', 'hi-delete-modal-title');
+    });
+
+    it('delete modal content div has tabIndex -1', async () => {
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /new item/i })).toBeInTheDocument();
+      });
+
+      // Open the actions menu for the first item
+      const menuButtons = screen.getAllByRole('button', { name: /actions for/i });
+      await user.click(menuButtons[0]);
+
+      // Click the first Delete menu item to open the modal
+      const deleteMenuItems = screen.getAllByRole('menuitem', { name: /delete/i });
+      await user.click(deleteMenuItems[0]);
+
+      // Verify the modal content div has tabIndex -1
+      await waitFor(() => {
+        const modalContent = screen.getByRole('dialog').querySelector('div[tabindex="-1"]');
+        expect(modalContent).toBeInTheDocument();
+        expect(modalContent).toHaveAttribute('tabindex', '-1');
+      });
+    });
+  });
+
+  describe('Accessibility - Menu keyboard navigation', () => {
+    it('ArrowDown focuses next menu item', async () => {
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /new item/i })).toBeInTheDocument();
+      });
+
+      // Open the actions menu for the first item
+      const menuButtons = screen.getAllByRole('button', { name: /actions for/i });
+      await user.click(menuButtons[0]);
+
+      // Get the menu items
+      const menuItems = screen.getAllByRole('menuitem');
+      expect(menuItems.length).toBeGreaterThanOrEqual(2);
+
+      // Focus the first menu item
+      await user.click(menuItems[0]);
+
+      // Press ArrowDown
+      await user.keyboard('{ArrowDown}');
+
+      // Verify focus moved to second menu item
+      await waitFor(() => {
+        expect(menuItems[1]).toHaveFocus();
+      });
+    });
+
+    it('Escape closes the menu', async () => {
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /new item/i })).toBeInTheDocument();
+      });
+
+      // Open the actions menu for the first item
+      const menuButtons = screen.getAllByRole('button', { name: /actions for/i });
+      await user.click(menuButtons[0]);
+
+      // Verify menu is open
+      const menus = screen.getAllByRole('menu');
+      expect(menus.length).toBeGreaterThan(0);
+
+      // Focus the first menu item and press Escape
+      const menuItems = screen.getAllByRole('menuitem');
+      await user.click(menuItems[0]);
+      await user.keyboard('{Escape}');
+
+      // Verify menu is gone (all menus should be hidden now)
+      await waitFor(() => {
+        expect(screen.queryAllByRole('menu')).toHaveLength(0);
+      });
+    });
+  });
+
+  describe('Accessibility - Delete modal focus trap', () => {
+    it('Escape closes delete modal', async () => {
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /new item/i })).toBeInTheDocument();
+      });
+
+      // Open the actions menu for the first item
+      const menuButtons = screen.getAllByRole('button', { name: /actions for/i });
+      await user.click(menuButtons[0]);
+
+      // Click the first Delete menu item to open the modal
+      const deleteMenuItems = screen.getAllByRole('menuitem', { name: /delete/i });
+      await user.click(deleteMenuItems[0]);
+
+      // Verify the modal is open
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+
+      // Press Escape
+      await user.keyboard('{Escape}');
+
+      // Verify modal is gone
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Accessibility - Screen reader announcements', () => {
+    it('renders SR announcement region with aria-live and aria-atomic', async () => {
+      renderPage();
+
+      await waitFor(() => {
+        const announcement = screen.getByText(/household item.*found/i);
+        expect(announcement).toHaveAttribute('aria-live', 'polite');
+        expect(announcement).toHaveAttribute('aria-atomic', 'true');
+      });
+    });
+
+    it('announces item count after loading', async () => {
+      mockListHouseholdItems.mockResolvedValueOnce(listResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        const announcement = screen.getByText(/2 household items found/i);
+        expect(announcement).toBeInTheDocument();
+      });
+    });
+
+    it('announces singular form when one item found', async () => {
+      const singleItemResponse: HouseholdItemListResponse = {
+        items: [sampleItems[0]],
+        pagination: { page: 1, pageSize: 25, totalPages: 1, totalItems: 1 },
+      };
+      mockListHouseholdItems.mockResolvedValueOnce(singleItemResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText(/1 household item found/i)).toBeInTheDocument();
       });
     });
   });

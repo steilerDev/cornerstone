@@ -99,6 +99,21 @@ export function HouseholdItemsPage() {
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  // Mobile filter panel state
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const deleteTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  // Calculate active filter count
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (categoryFilter) count++;
+    if (statusFilter) count++;
+    if (roomFilter) count++;
+    if (vendorFilter) count++;
+    return count;
+  }, [categoryFilter, statusFilter, roomFilter, vendorFilter]);
+
   // Load vendors on mount
   useEffect(() => {
     const loadVendors = async () => {
@@ -229,6 +244,44 @@ export function HouseholdItemsPage() {
     };
   }, [activeMenuId]);
 
+  // Modal focus trap for delete confirmation
+  useEffect(() => {
+    if (!deletingItem) return;
+    modalRef.current?.focus();
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        if (!isDeleting) {
+          setDeletingItem(null);
+          deleteTriggerRef.current?.focus();
+        }
+        return;
+      }
+      if (e.key === 'Tab' && modalRef.current) {
+        const focusable = modalRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        );
+        const focusableArray = Array.from(focusable);
+        if (focusableArray.length === 0) return;
+        const firstEl = focusableArray[0];
+        const lastEl = focusableArray[focusableArray.length - 1];
+        if (e.shiftKey) {
+          if (document.activeElement === firstEl) {
+            e.preventDefault();
+            lastEl.focus();
+          }
+        } else {
+          if (document.activeElement === lastEl) {
+            e.preventDefault();
+            firstEl.focus();
+          }
+        }
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [deletingItem, isDeleting]);
+
   const updateSearchParams = (updates: Record<string, string | undefined>) => {
     const newParams = new URLSearchParams(searchParams);
 
@@ -270,6 +323,7 @@ export function HouseholdItemsPage() {
 
   const handleDeleteClick = (item: HouseholdItemSummary, event: React.MouseEvent) => {
     event.stopPropagation();
+    deleteTriggerRef.current = event.currentTarget as HTMLButtonElement;
     setDeletingItem(item);
   };
 
@@ -418,106 +472,127 @@ export function HouseholdItemsPage() {
           />
         </div>
 
-        <div className={styles.filtersRow}>
-          <div className={styles.filter}>
-            <label htmlFor="category-filter" className={styles.filterLabel}>
-              Category:
-            </label>
-            <select
-              id="category-filter"
-              value={categoryFilter || ''}
-              onChange={(e) => handleCategoryFilterChange(e.target.value)}
-              className={styles.filterSelect}
+        <button
+          type="button"
+          className={styles.filterToggle}
+          aria-expanded={filtersOpen}
+          aria-controls="hi-filter-panel"
+          onClick={() => setFiltersOpen((prev) => !prev)}
+        >
+          Filters{activeFilterCount > 0 ? ` (${activeFilterCount} active)` : ''}
+        </button>
+
+        <div
+          id="hi-filter-panel"
+          role="search"
+          aria-label="Household item filters"
+          className={filtersOpen ? styles.filterPanel : styles.filterPanelHidden}
+        >
+          <div className={styles.filtersRow}>
+            <div className={styles.filter}>
+              <label htmlFor="category-filter" className={styles.filterLabel}>
+                Category:
+              </label>
+              <select
+                id="category-filter"
+                value={categoryFilter || ''}
+                onChange={(e) => handleCategoryFilterChange(e.target.value)}
+                className={styles.filterSelect}
+              >
+                <option value="">All Categories</option>
+                {CATEGORY_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className={styles.filter}>
+              <label htmlFor="status-filter" className={styles.filterLabel}>
+                Status:
+              </label>
+              <select
+                id="status-filter"
+                value={statusFilter || ''}
+                onChange={(e) => handleStatusFilterChange(e.target.value)}
+                className={styles.filterSelect}
+              >
+                <option value="">All Statuses</option>
+                {STATUS_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className={styles.filter}>
+              <label htmlFor="room-input" className={styles.filterLabel}>
+                Room:
+              </label>
+              <input
+                id="room-input"
+                type="text"
+                placeholder="Filter by room..."
+                value={roomInput}
+                onChange={(e) => setRoomInput(e.target.value)}
+                className={styles.filterSelect}
+                aria-label="Filter by room"
+              />
+            </div>
+
+            <div className={styles.filter}>
+              <label htmlFor="vendor-filter" className={styles.filterLabel}>
+                Vendor:
+              </label>
+              <select
+                id="vendor-filter"
+                value={vendorFilter}
+                onChange={(e) => handleVendorFilterChange(e.target.value)}
+                className={styles.filterSelect}
+              >
+                <option value="">All Vendors</option>
+                {vendors.map((vendor) => (
+                  <option key={vendor.id} value={vendor.id}>
+                    {vendor.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className={styles.filter}>
+              <label htmlFor="sort-filter" className={styles.filterLabel}>
+                Sort by:
+              </label>
+              <select
+                id="sort-filter"
+                value={sortBy}
+                onChange={(e) => handleSortChange(e.target.value)}
+                className={styles.filterSelect}
+              >
+                {SORT_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              onClick={() => handleSortChange(sortBy)}
+              aria-label="Toggle sort order"
             >
-              <option value="">All Categories</option>
-              {CATEGORY_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+              {sortOrder === 'asc' ? '↑ Asc' : '↓ Desc'}
+            </button>
           </div>
-
-          <div className={styles.filter}>
-            <label htmlFor="status-filter" className={styles.filterLabel}>
-              Status:
-            </label>
-            <select
-              id="status-filter"
-              value={statusFilter || ''}
-              onChange={(e) => handleStatusFilterChange(e.target.value)}
-              className={styles.filterSelect}
-            >
-              <option value="">All Statuses</option>
-              {STATUS_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className={styles.filter}>
-            <label htmlFor="room-input" className={styles.filterLabel}>
-              Room:
-            </label>
-            <input
-              id="room-input"
-              type="text"
-              placeholder="Filter by room..."
-              value={roomInput}
-              onChange={(e) => setRoomInput(e.target.value)}
-              className={styles.filterSelect}
-              aria-label="Filter by room"
-            />
-          </div>
-
-          <div className={styles.filter}>
-            <label htmlFor="vendor-filter" className={styles.filterLabel}>
-              Vendor:
-            </label>
-            <select
-              id="vendor-filter"
-              value={vendorFilter}
-              onChange={(e) => handleVendorFilterChange(e.target.value)}
-              className={styles.filterSelect}
-            >
-              <option value="">All Vendors</option>
-              {vendors.map((vendor) => (
-                <option key={vendor.id} value={vendor.id}>
-                  {vendor.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className={styles.filter}>
-            <label htmlFor="sort-filter" className={styles.filterLabel}>
-              Sort by:
-            </label>
-            <select
-              id="sort-filter"
-              value={sortBy}
-              onChange={(e) => handleSortChange(e.target.value)}
-              className={styles.filterSelect}
-            >
-              {SORT_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <button
-            type="button"
-            className={styles.secondaryButton}
-            onClick={() => handleSortChange(sortBy)}
-            aria-label="Toggle sort order"
-          >
-            {sortOrder === 'asc' ? '↑ Asc' : '↓ Desc'}
-          </button>
         </div>
+
+        <p className={styles.srAnnouncement} aria-live="polite" aria-atomic="true">
+          {!isLoading && `${totalItems} household item${totalItems !== 1 ? 's' : ''} found`}
+        </p>
       </div>
 
       {/* Household items list */}
@@ -677,7 +752,31 @@ export function HouseholdItemsPage() {
                           ⋮
                         </button>
                         {activeMenuId === item.id && (
-                          <div className={styles.menuDropdown} role="menu">
+                          <div
+                            className={styles.menuDropdown}
+                            role="menu"
+                            onKeyDown={(e) => {
+                              const items = (
+                                e.currentTarget as HTMLDivElement
+                              ).querySelectorAll<HTMLElement>('[role="menuitem"]');
+                              const arr = Array.from(items);
+                              const currentIndex = arr.indexOf(
+                                document.activeElement as HTMLElement,
+                              );
+                              if (e.key === 'ArrowDown') {
+                                e.preventDefault();
+                                const nextIndex = (currentIndex + 1) % arr.length;
+                                arr[nextIndex]?.focus();
+                              } else if (e.key === 'ArrowUp') {
+                                e.preventDefault();
+                                const prevIndex = (currentIndex - 1 + arr.length) % arr.length;
+                                arr[prevIndex]?.focus();
+                              } else if (e.key === 'Escape') {
+                                e.preventDefault();
+                                setActiveMenuId(null);
+                              }
+                            }}
+                          >
                             <button
                               type="button"
                               className={styles.menuItem}
@@ -721,7 +820,29 @@ export function HouseholdItemsPage() {
                         ⋮
                       </button>
                       {activeMenuId === item.id && (
-                        <div className={styles.menuDropdown} role="menu">
+                        <div
+                          className={styles.menuDropdown}
+                          role="menu"
+                          onKeyDown={(e) => {
+                            const items = (
+                              e.currentTarget as HTMLDivElement
+                            ).querySelectorAll<HTMLElement>('[role="menuitem"]');
+                            const arr = Array.from(items);
+                            const currentIndex = arr.indexOf(document.activeElement as HTMLElement);
+                            if (e.key === 'ArrowDown') {
+                              e.preventDefault();
+                              const nextIndex = (currentIndex + 1) % arr.length;
+                              arr[nextIndex]?.focus();
+                            } else if (e.key === 'ArrowUp') {
+                              e.preventDefault();
+                              const prevIndex = (currentIndex - 1 + arr.length) % arr.length;
+                              arr[prevIndex]?.focus();
+                            } else if (e.key === 'Escape') {
+                              e.preventDefault();
+                              setActiveMenuId(null);
+                            }
+                          }}
+                        >
                           <button
                             type="button"
                             className={styles.menuItem}
@@ -833,13 +954,20 @@ export function HouseholdItemsPage() {
 
       {/* Delete confirmation modal */}
       {deletingItem && (
-        <div className={styles.modal} role="dialog" aria-modal="true">
+        <div
+          className={styles.modal}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="hi-delete-modal-title"
+        >
           <div
             className={styles.modalBackdrop}
             onClick={() => !isDeleting && setDeletingItem(null)}
           />
-          <div className={styles.modalContent}>
-            <h2 className={styles.modalTitle}>Delete Household Item</h2>
+          <div className={styles.modalContent} ref={modalRef} tabIndex={-1}>
+            <h2 id="hi-delete-modal-title" className={styles.modalTitle}>
+              Delete Household Item
+            </h2>
             <p className={styles.modalText}>
               Are you sure you want to delete &quot;<strong>{deletingItem.name}</strong>&quot;?
             </p>

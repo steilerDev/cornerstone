@@ -224,8 +224,15 @@ export function HouseholdItemEditPage() {
             onChange={(e) => setName(e.target.value)}
             disabled={isSubmitting}
             placeholder="Enter item name"
+            aria-required="true"
+            aria-invalid={!!validationErrors.name}
+            aria-describedby={validationErrors.name ? 'hi-edit-name-error' : undefined}
           />
-          {validationErrors.name && <div className={styles.errorText}>{validationErrors.name}</div>}
+          {validationErrors.name && (
+            <div id="hi-edit-name-error" className={styles.errorText} role="alert">
+              {validationErrors.name}
+            </div>
+          )}
         </div>
 
         <div className={styles.formGroup}>
@@ -254,6 +261,7 @@ export function HouseholdItemEditPage() {
               value={category}
               onChange={(e) => setCategory(e.target.value as HouseholdItemCategory)}
               disabled={isSubmitting}
+              aria-required="true"
             >
               {CATEGORIES.map((cat) => (
                 <option key={cat.value} value={cat.value}>
@@ -273,6 +281,7 @@ export function HouseholdItemEditPage() {
               value={status}
               onChange={(e) => setStatus(e.target.value as HouseholdItemStatus)}
               disabled={isSubmitting}
+              aria-required="true"
             >
               {STATUSES.map((s) => (
                 <option key={s.value} value={s.value}>
@@ -294,9 +303,14 @@ export function HouseholdItemEditPage() {
               onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value, 10) || 1))}
               min={1}
               disabled={isSubmitting}
+              aria-required="true"
+              aria-invalid={!!validationErrors.quantity}
+              aria-describedby={validationErrors.quantity ? 'hi-edit-quantity-error' : undefined}
             />
             {validationErrors.quantity && (
-              <div className={styles.errorText}>{validationErrors.quantity}</div>
+              <div id="hi-edit-quantity-error" className={styles.errorText} role="alert">
+                {validationErrors.quantity}
+              </div>
             )}
           </div>
         </div>
@@ -391,9 +405,15 @@ export function HouseholdItemEditPage() {
               value={actualDeliveryDate}
               onChange={(e) => setActualDeliveryDate(e.target.value)}
               disabled={isSubmitting}
+              aria-invalid={!!validationErrors.deliveryDates}
+              aria-describedby={
+                validationErrors.deliveryDates ? 'hi-edit-delivery-error' : undefined
+              }
             />
             {validationErrors.deliveryDates && (
-              <div className={styles.errorText}>{validationErrors.deliveryDates}</div>
+              <div id="hi-edit-delivery-error" className={styles.errorText} role="alert">
+                {validationErrors.deliveryDates}
+              </div>
             )}
           </div>
         </div>

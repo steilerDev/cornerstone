@@ -492,4 +492,106 @@ describe('HouseholdItemEditPage', () => {
       });
     });
   });
+
+  describe('Accessibility - Form input ARIA attributes', () => {
+    it('name input has aria-required="true"', async () => {
+      renderPage();
+
+      await waitFor(() => {
+        const nameInput = screen.getByLabelText(/^name/i);
+        expect(nameInput).toHaveAttribute('aria-required', 'true');
+      });
+    });
+
+    it('category select has aria-required="true"', async () => {
+      renderPage();
+
+      await waitFor(() => {
+        const categorySelect = screen.getByLabelText(/category/i);
+        expect(categorySelect).toHaveAttribute('aria-required', 'true');
+      });
+    });
+
+    it('status select has aria-required="true"', async () => {
+      renderPage();
+
+      await waitFor(() => {
+        const statusSelect = screen.getByLabelText(/purchase status/i);
+        expect(statusSelect).toHaveAttribute('aria-required', 'true');
+      });
+    });
+
+    it('quantity input has aria-required="true"', async () => {
+      renderPage();
+
+      await waitFor(() => {
+        const quantityInput = screen.getByLabelText(/quantity/i);
+        expect(quantityInput).toHaveAttribute('aria-required', 'true');
+      });
+    });
+
+    it('error element ids use hi-edit prefix', async () => {
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/^name/i)).toBeInTheDocument();
+      });
+
+      // Clear the name field
+      const nameInput = screen.getByLabelText(/^name/i);
+      await user.clear(nameInput);
+
+      // Submit to trigger validation error
+      await user.click(screen.getByRole('button', { name: /save changes/i }));
+
+      await waitFor(() => {
+        const errorElement = screen.getByText('Name is required');
+        expect(errorElement).toHaveAttribute('id', 'hi-edit-name-error');
+        expect(errorElement).toHaveAttribute('role', 'alert');
+      });
+    });
+
+    it('name input shows aria-invalid when validation error occurs', async () => {
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/^name/i)).toBeInTheDocument();
+      });
+
+      // Clear the name field
+      const nameInput = screen.getByLabelText(/^name/i);
+      await user.clear(nameInput);
+
+      // Submit to trigger validation error
+      await user.click(screen.getByRole('button', { name: /save changes/i }));
+
+      await waitFor(() => {
+        const nameInputElement = screen.getByLabelText(/^name/i) as HTMLInputElement;
+        expect(nameInputElement).toHaveAttribute('aria-invalid', 'true');
+      });
+    });
+
+    it('name input has aria-describedby pointing to error element', async () => {
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/^name/i)).toBeInTheDocument();
+      });
+
+      // Clear the name field
+      const nameInput = screen.getByLabelText(/^name/i);
+      await user.clear(nameInput);
+
+      // Submit to trigger validation error
+      await user.click(screen.getByRole('button', { name: /save changes/i }));
+
+      await waitFor(() => {
+        const nameInputElement = screen.getByLabelText(/^name/i);
+        expect(nameInputElement).toHaveAttribute('aria-describedby', 'hi-edit-name-error');
+      });
+    });
+  });
 });

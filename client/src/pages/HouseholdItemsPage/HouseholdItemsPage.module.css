@@ -392,6 +392,58 @@
 }
 
 /* Empty State */
+.srAnnouncement {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.filterToggle {
+  display: none;
+  width: 100%;
+  min-height: 44px;
+  padding: var(--spacing-2-5) var(--spacing-4);
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  text-align: left;
+  transition: var(--transition-button-border);
+  margin-bottom: var(--spacing-3);
+}
+
+.filterToggle:hover {
+  background-color: var(--color-bg-tertiary);
+}
+
+.filterToggle:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.filterPanel {
+  display: block;
+}
+
+.filterPanelHidden {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .filterPanelHidden {
+    display: block;
+  }
+}
+
 .emptyState {
   text-align: center;
   padding: var(--spacing-16) var(--spacing-8);
@@ -616,6 +668,11 @@
     padding: var(--spacing-4);
   }
 
+  .filterToggle {
+    display: flex;
+    align-items: center;
+  }
+
   .filtersRow {
     flex-direction: column;
     gap: var(--spacing-3);
@@ -623,6 +680,19 @@
 
   .filter {
     width: 100%;
+  }
+
+  .menuButton {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .menuItem {
+    min-height: 44px;
+  }
+
+  .paginationButton {
+    min-height: 44px;
   }
 
   .secondaryButton {
@@ -689,7 +759,8 @@
   .cancelButton,
   .confirmDeleteButton,
   .searchInput,
-  .filterSelect {
+  .filterSelect,
+  .filterToggle {
     transition: none;
   }
 }
