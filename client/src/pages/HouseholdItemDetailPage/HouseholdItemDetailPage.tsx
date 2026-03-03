@@ -195,12 +195,10 @@ export function HouseholdItemDetailPage() {
             <h2 className={styles.cardTitle}>Details</h2>
           </div>
           <dl className={styles.infoList}>
-            {item.description && (
-              <div className={styles.infoRow}>
-                <dt className={styles.infoLabel}>Description</dt>
-                <dd className={styles.infoValue}>{item.description}</dd>
-              </div>
-            )}
+            <div className={styles.infoRow}>
+              <dt className={styles.infoLabel}>Description</dt>
+              <dd className={styles.infoValue}>{item.description ?? '\u2014'}</dd>
+            </div>
             {item.vendor && (
               <div className={styles.infoRow}>
                 <dt className={styles.infoLabel}>Vendor</dt>
