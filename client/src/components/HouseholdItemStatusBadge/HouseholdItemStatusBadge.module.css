@@ -1,0 +1,34 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--spacing-1) var(--spacing-2-5);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+  line-height: 1;
+}
+
+/* Not Ordered — gray (same as not_started) */
+.not_ordered {
+  background-color: var(--color-hi-status-not-ordered-bg);
+  color: var(--color-hi-status-not-ordered-text);
+}
+
+/* Ordered — blue (same as in_progress) */
+.ordered {
+  background-color: var(--color-hi-status-ordered-bg);
+  color: var(--color-hi-status-ordered-text);
+}
+
+/* In Transit — amber */
+.in_transit {
+  background-color: var(--color-hi-status-in-transit-bg);
+  color: var(--color-hi-status-in-transit-text);
+}
+
+/* Delivered — green (same as completed) */
+.delivered {
+  background-color: var(--color-hi-status-delivered-bg);
+  color: var(--color-hi-status-delivered-text);
+}

@@ -289,7 +289,7 @@ describe('Document Links Routes', () => {
       expect(body.error.code).toBe('DUPLICATE_DOCUMENT_LINK');
     });
 
-    it('returns 400 VALIDATION_ERROR for household_item (not yet implemented)', async () => {
+    it('returns 404 NOT_FOUND for non-existent household_item', async () => {
       const { cookie } = await createUserWithSession();
 
       const response = await app.inject({
@@ -298,14 +298,14 @@ describe('Document Links Routes', () => {
         headers: { cookie, 'content-type': 'application/json' },
         payload: JSON.stringify({
           entityType: 'household_item',
-          entityId: 'any-id',
+          entityId: 'non-existent-id',
           paperlessDocumentId: 42,
         }),
       });
 
-      expect(response.statusCode).toBe(400);
+      expect(response.statusCode).toBe(404);
       const body = response.json<ApiErrorResponse>();
-      expect(body.error.code).toBe('VALIDATION_ERROR');
+      expect(body.error.code).toBe('NOT_FOUND');
     });
 
     it('returns 400 when entityType is invalid', async () => {
