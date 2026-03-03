@@ -1,15 +1,15 @@
 import { get, post, patch, del } from './apiClient.js';
 import type {
-  HouseholdItemListResponse,
-  HouseholdItemListQuery,
   HouseholdItemDetail,
+  HouseholdItemListQuery,
+  HouseholdItemListResponse,
   HouseholdItemResponse,
   CreateHouseholdItemRequest,
   UpdateHouseholdItemRequest,
 } from '@cornerstone/shared';
 
 /**
- * Fetches a paginated list of household items with optional filters, search, and sorting.
+ * Fetches a paginated list of household items with optional search and filtering.
  */
 export function listHouseholdItems(
   params?: HouseholdItemListQuery,
@@ -71,6 +71,7 @@ export function createHouseholdItem(
 
 /**
  * Updates an existing household item.
+ * All fields are optional; at least one must be provided.
  */
 export function updateHouseholdItem(
   id: string,

@@ -55,7 +55,7 @@
 - EPIC-05 Budget: Complete (promoted to main, v1.9.0)
 - EPIC-06 Timeline/Gantt: Complete (promoted to main, v1.10.0)
 - EPIC-08 Documents: Complete (promoted to main, v1.11.0)
-- EPIC-04 Household Items: Architecture designed (PR #395), implementation pending
+- EPIC-04 Household Items: In progress. Schema (PR #396), CRUD API (PR #397)
 
 ## GitHub Wiki
 
@@ -84,6 +84,7 @@ See `epic04-household-items.md` for full details.
 
 - Migration 0007 (work_item_milestone_deps) not documented in Schema.md
 - Wiki sandbox worktrees have persistent permission issues with `.git/objects/pack/`
+- API-Contract.md household items POST says 404 for vendor/tag not found, but work items says 400 — implementation uses 400 (consistent with work items). Wiki needs harmonization.
 
 ## Sandbox Limitations (not real project issues)
 

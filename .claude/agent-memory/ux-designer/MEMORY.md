@@ -127,3 +127,31 @@ Key observations for future a11y polishing PRs:
 - `0.625rem` (10px) — no font-size token; nearest is `var(--font-size-xs)` = 12px
 - `2.5rem` (40px) — no font-size token; nearest is `var(--font-size-4xl)` = 32px (or keep literal)
 - `1.75rem` (28px) — no token; falls between `--font-size-2xl` (24px) and `--font-size-3xl` (30px)
+
+## Story 4.3 — Household Items List Page (Issue #389)
+
+- New amber badge tokens required: `--color-status-in-transit-bg` + `--color-status-in-transit-text` (Layer 2 + Layer 3 in tokens.css)
+- Status badge token mapping: Not Ordered→not-started, Ordered→in-progress, In Transit→in-transit (new), Delivered→completed
+- Category badge: use `--color-role-member-bg` / `--color-role-member-text` (neutral gray pill)
+- Table vs card breakpoint: `< 768px` shows cards, `>= 768px` shows table (matches WorkItemsPage)
+- Tablet (768–1024px): hide "Expected Delivery" and "Room" columns
+- Cost formatting: German locale (`de-DE`, EUR) — consistent with WorkItemDetailPage
+- Sidebar already has "Household Items" nav link — no sidebar changes needed
+- WorkItemsPage.module.css has many hardcoded values — do NOT copy them; spec must use tokens
+- Empty state split: "no items exist" (icon + CTA) vs "filtered empty" (text + clear filters link, no icon)
+- `prefers-reduced-motion`: wrap all transitions in a media query guard in the CSS module
+
+## PR #398 Review Findings — Household Items List Page
+
+Key misses to watch for in list-page PRs:
+
+- Entire CSS module used hardcoded literals for spacing/font/radius/transition — every value must use tokens
+- New token family amber in-transit: Layer 2 `:root` used `#fef3c7` and `#92400e` directly — must be Layer 1 palette refs; need `--color-amber-100`, `--color-amber-800`, `--color-amber-300` added to Layer 1
+- Layer 3 dark mode in-transit text `#fcd34d` also hardcoded — use `var(--color-amber-300)`
+- Buttons (primaryButton, secondaryButton, cancelButton, confirmDeleteButton) fully duplicated from shared.module.css — use `composes:` instead
+- modal/modalBackdrop/modalContent/modalActions/loading/emptyState also duplicated from shared.module.css
+- `secondaryButton:hover` used `var(--color-border)` as background (border token, not bg token) — should be `var(--color-bg-hover)`; same bug exists in WorkItemsPage
+- Sortable `<th>` elements need keyboard support + `aria-sort` attribute on active column
+- Action menu button `aria-label="Actions menu"` too generic — must include item name
+- `z-index: 1000` → `var(--z-modal)`; `z-index: 10` → `var(--z-dropdown)`
+- Tablet breakpoint upper bound should be `1023px` not `1024px` to avoid overlap with desktop
