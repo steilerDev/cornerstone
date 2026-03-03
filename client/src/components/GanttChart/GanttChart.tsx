@@ -31,6 +31,8 @@ import type {
 } from './GanttTooltip.js';
 import { GanttMilestones, computeMilestoneStatus } from './GanttMilestones.js';
 import type { MilestoneColors, MilestoneInteractionState } from './GanttMilestones.js';
+import { GanttHouseholdItems } from './GanttHouseholdItems.js';
+import type { HouseholdItemColors, HouseholdItemInteractionState } from './GanttHouseholdItems.js';
 import type { MilestonePoint } from './GanttArrows.js';
 import styles from './GanttChart.module.css';
 
@@ -58,6 +60,7 @@ interface ChartColors {
   arrowMilestone: string;
   criticalBorder: string;
   milestone: MilestoneColors;
+  householdItem: HouseholdItemColors;
 }
 
 function resolveColors(): ChartColors {
@@ -86,6 +89,13 @@ function resolveColors(): ChartColors {
       hoverGlow: readCssVar('--color-milestone-hover-glow'),
       completeHoverGlow: readCssVar('--color-milestone-complete-hover-glow'),
       lateHoverGlow: readCssVar('--color-milestone-late-hover-glow') || 'rgba(220, 38, 38, 0.25)',
+    },
+    householdItem: {
+      fill: readCssVar('--color-gantt-hi-fill'),
+      stroke: readCssVar('--color-gantt-hi-stroke'),
+      deliveredFill: readCssVar('--color-gantt-hi-delivered-fill'),
+      deliveredStroke: readCssVar('--color-gantt-hi-delivered-stroke'),
+      hoverGlow: readCssVar('--color-gantt-hi-hover-glow'),
     },
   };
 }
@@ -125,6 +135,10 @@ export interface GanttChartProps {
    * Called when user clicks a milestone diamond — passes milestone ID.
    */
   onMilestoneClick?: (milestoneId: number) => void;
+  /**
+   * Called when user clicks a household item circle — passes HI ID.
+   */
+  onHouseholdItemClick?: (householdItemId: string) => void;
   /** Called when user scrolls with Ctrl held — for zoom via scroll. Positive = zoom in. */
   onCtrlScroll?: (delta: number) => void;
 }
@@ -137,6 +151,7 @@ export function GanttChart({
   showArrows = true,
   highlightCriticalPath = true,
   onMilestoneClick,
+  onHouseholdItemClick,
   onCtrlScroll,
 }: GanttChartProps) {
   // Refs for scroll synchronization
@@ -327,11 +342,12 @@ export function GanttChart({
     });
   }, [data.workItems]);
 
-  // Build a unified sorted row list interleaving work items and milestones by date.
+  // Build a unified sorted row list interleaving work items, milestones, and household items by date.
   // Each row gets a globally unique rowIndex for sidebar and SVG positioning.
   type UnifiedRow =
     | { kind: 'workItem'; item: (typeof data.workItems)[0] }
-    | { kind: 'milestone'; milestone: (typeof data.milestones)[0] };
+    | { kind: 'milestone'; milestone: (typeof data.milestones)[0] }
+    | { kind: 'householdItem'; item: (typeof data.householdItems)[0] };
 
   const unifiedRows = useMemo<UnifiedRow[]>(() => {
     // Helper: get effective sort date for a milestone
@@ -346,27 +362,36 @@ export function GanttChart({
       kind: 'milestone',
       milestone,
     }));
+    const hiRows: UnifiedRow[] = (data.householdItems ?? []).map((item) => ({
+      kind: 'householdItem',
+      item,
+    }));
 
-    const all = [...workItemRows, ...milestoneRows];
+    const all = [...workItemRows, ...milestoneRows, ...hiRows];
 
-    // Sort: by effective date ascending, nulls last; milestones after work items on the same date
+    // Sort: by effective date ascending, nulls last; order on same date: work items, then milestones, then HIs
     all.sort((a, b) => {
-      const dateA = a.kind === 'workItem' ? a.item.startDate : milestoneSortDate(a.milestone);
-      const dateB = b.kind === 'workItem' ? b.item.startDate : milestoneSortDate(b.milestone);
+      const getDate = (row: UnifiedRow): string | null => {
+        if (row.kind === 'workItem') return row.item.startDate;
+        if (row.kind === 'milestone') return milestoneSortDate(row.milestone);
+        return row.item.earliestDeliveryDate;
+      };
+
+      const dateA = getDate(a);
+      const dateB = getDate(b);
 
       if (dateA === null && dateB === null) return 0;
       if (dateA === null) return 1;
       if (dateB === null) return -1;
       if (dateA < dateB) return -1;
       if (dateA > dateB) return 1;
-      // Same date: work items before milestones
-      if (a.kind === 'workItem' && b.kind === 'milestone') return -1;
-      if (a.kind === 'milestone' && b.kind === 'workItem') return 1;
-      return 0;
+      // Same date: work items, then milestones, then HIs
+      const kindOrder = { workItem: 0, milestone: 1, householdItem: 2 };
+      return kindOrder[a.kind] - kindOrder[b.kind];
     });
 
     return all;
-  }, [sortedWorkItems, data.milestones]);
+  }, [sortedWorkItems, data.milestones, data.householdItems]);
 
   // Derive work item row indices and milestone row indices from the unified row list
   const workItemRowIndices = useMemo(() => {
@@ -381,6 +406,14 @@ export function GanttChart({
     const map = new Map<number, number>();
     unifiedRows.forEach((row, idx) => {
       if (row.kind === 'milestone') map.set(row.milestone.id, idx);
+    });
+    return map;
+  }, [unifiedRows]);
+
+  const hiRowIndices = useMemo(() => {
+    const map = new Map<string, number>();
+    unifiedRows.forEach((row, idx) => {
+      if (row.kind === 'householdItem') map.set(row.item.id, idx);
     });
     return map;
   }, [unifiedRows]);
@@ -543,6 +576,24 @@ export function GanttChart({
   const milestoneTitles = useMemo<ReadonlyMap<number, string>>(() => {
     return new Map(data.milestones.map((m) => [m.id, m.title]));
   }, [data.milestones]);
+
+  /**
+   * Map from HI ID to its circle center position in SVG coordinates.
+   * Mirrors the positioning logic in GanttHouseholdItems: each HI occupies
+   * its own row in the unified row list. The x position uses earliestDeliveryDate.
+   */
+  const hiPoints = useMemo<ReadonlyMap<string, { x: number; y: number }>>(() => {
+    const map = new Map<string, { x: number; y: number }>();
+    for (const hi of data.householdItems ?? []) {
+      const dateStr = hi.actualDeliveryDate ?? hi.earliestDeliveryDate;
+      if (!dateStr) continue;
+      const rowIdx = hiRowIndices.get(hi.id) ?? 0;
+      const y = rowIdx * ROW_HEIGHT + ROW_HEIGHT / 2;
+      const x = dateToX(toUtcMidnight(dateStr), chartRange, zoom, columnWidth);
+      map.set(hi.id, { x, y });
+    }
+    return map;
+  }, [data.householdItems, hiRowIndices, chartRange, zoom, columnWidth]);
 
   // ---------------------------------------------------------------------------
   // Item hover dependency lookup — pre-computed for performance
@@ -728,6 +779,33 @@ export function GanttChart({
     }
     return new Map();
   }, [hoveredArrowConnectedIds, hoveredItemId, data.milestones, itemDependencyLookup]);
+
+  /**
+   * Computes the interaction state for each household item given the current
+   * hovered arrow's connected IDs or hovered item's connected IDs.
+   * HI IDs in the connected set are encoded as "hi:<id>".
+   */
+  const hiInteractionStates = useMemo<ReadonlyMap<string, HouseholdItemInteractionState>>(() => {
+    if (hoveredArrowConnectedIds !== null) {
+      const map = new Map<string, HouseholdItemInteractionState>();
+      for (const hi of data.householdItems ?? []) {
+        const key = `hi:${hi.id}`;
+        map.set(hi.id, hoveredArrowConnectedIds.has(key) ? 'highlighted' : 'dimmed');
+      }
+      return map;
+    }
+    if (hoveredItemId !== null) {
+      const connectedIds = itemDependencyLookup.get(hoveredItemId)?.connectedEntityIds;
+      if (!connectedIds) return new Map();
+      const map = new Map<string, HouseholdItemInteractionState>();
+      for (const hi of data.householdItems ?? []) {
+        const key = `hi:${hi.id}`;
+        map.set(hi.id, connectedIds.has(key) ? 'highlighted' : 'dimmed');
+      }
+      return map;
+    }
+    return new Map();
+  }, [hoveredArrowConnectedIds, hoveredItemId, data.householdItems, itemDependencyLookup]);
 
   /**
    * The set of arrow keys that should be highlighted due to item hover.
@@ -953,6 +1031,8 @@ export function GanttChart({
               milestoneContributors={milestoneContributors}
               workItemRequiredMilestones={workItemRequiredMilestones}
               milestoneTitles={milestoneTitles}
+              hiPoints={hiPoints}
+              householdItems={data.householdItems}
               onArrowHover={handleArrowHover}
               onArrowMouseMove={handleArrowMouseMove}
               onArrowLeave={handleArrowLeave}
@@ -1072,6 +1152,83 @@ export function GanttChart({
                   }, TOOLTIP_HIDE_DELAY);
                 }}
                 onMilestoneClick={onMilestoneClick}
+              />
+            )}
+
+            {/* Household item circle markers */}
+            {(data.householdItems?.length ?? 0) > 0 && (
+              <GanttHouseholdItems
+                householdItems={data.householdItems ?? []}
+                chartRange={chartRange}
+                zoom={zoom}
+                hiRowIndices={hiRowIndices}
+                colors={colors.householdItem}
+                columnWidth={columnWidth}
+                hiInteractionStates={hiInteractionStates.size > 0 ? hiInteractionStates : undefined}
+                onHiMouseEnter={(hi, e) => {
+                  clearTooltipTimers();
+                  setHoveredItemId(`hi:${hi.id}`);
+                  tooltipTriggerElementRef.current = e.currentTarget;
+                  const newPos: GanttTooltipPosition = { x: e.clientX, y: e.clientY };
+                  showTimerRef.current = setTimeout(() => {
+                    setTooltipData({
+                      kind: 'household-item',
+                      name: hi.name,
+                      category: hi.category,
+                      status: hi.status,
+                      earliestDeliveryDate: hi.earliestDeliveryDate,
+                      latestDeliveryDate: hi.latestDeliveryDate,
+                      expectedDeliveryDate: hi.expectedDeliveryDate,
+                      actualDeliveryDate: hi.actualDeliveryDate,
+                      isLate: hi.isLate,
+                      householdItemId: hi.id,
+                    });
+                    setTooltipPosition(newPos);
+                  }, TOOLTIP_SHOW_DELAY);
+                }}
+                onHiMouseLeave={() => {
+                  clearTooltipTimers();
+                  setHoveredItemId(null);
+                  hideTimerRef.current = setTimeout(() => {
+                    setTooltipData(null);
+                  }, TOOLTIP_HIDE_DELAY);
+                }}
+                onHiMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onHiFocus={(hi, e) => {
+                  clearTooltipTimers();
+                  setHoveredItemId(`hi:${hi.id}`);
+                  tooltipTriggerElementRef.current = e.currentTarget;
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const newPos: GanttTooltipPosition = {
+                    x: rect.left + rect.width / 2,
+                    y: rect.top + rect.height / 2,
+                  };
+                  showTimerRef.current = setTimeout(() => {
+                    setTooltipData({
+                      kind: 'household-item',
+                      name: hi.name,
+                      category: hi.category,
+                      status: hi.status,
+                      earliestDeliveryDate: hi.earliestDeliveryDate,
+                      latestDeliveryDate: hi.latestDeliveryDate,
+                      expectedDeliveryDate: hi.expectedDeliveryDate,
+                      actualDeliveryDate: hi.actualDeliveryDate,
+                      isLate: hi.isLate,
+                      householdItemId: hi.id,
+                    });
+                    setTooltipPosition(newPos);
+                  }, TOOLTIP_SHOW_DELAY);
+                }}
+                onHiBlur={() => {
+                  clearTooltipTimers();
+                  setHoveredItemId(null);
+                  hideTimerRef.current = setTimeout(() => {
+                    setTooltipData(null);
+                  }, TOOLTIP_HIDE_DELAY);
+                }}
+                onHiClick={onHouseholdItemClick}
               />
             )}
 

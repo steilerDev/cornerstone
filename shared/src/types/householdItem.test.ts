@@ -13,7 +13,8 @@ import type {
   HouseholdItemCategory,
   HouseholdItemStatus,
   HouseholdItemVendorSummary,
-  HouseholdItemWorkItemSummary,
+  HouseholdItemDepRef,
+  HouseholdItemDepDetail,
   WorkItemLinkedHouseholdItemSummary,
   HouseholdItemSubsidySummary,
   HouseholdItem,
@@ -110,41 +111,6 @@ describe('HouseholdItemVendorSummary interface', () => {
   });
 });
 
-describe('HouseholdItemWorkItemSummary interface', () => {
-  it('constructs a valid work item summary', () => {
-    const workItem: HouseholdItemWorkItemSummary = {
-      id: 'wi-1',
-      title: 'Install Kitchen Cabinets',
-      status: 'in_progress',
-      startDate: '2026-04-01',
-      endDate: '2026-04-15',
-      assignedUser: {
-        id: 'user-1',
-        displayName: 'John Doe',
-        email: 'john@example.com',
-      },
-    };
-
-    expect(workItem.id).toBe('wi-1');
-    expect(workItem.title).toBe('Install Kitchen Cabinets');
-    expect(workItem.status).toBe('in_progress');
-    expect(workItem.assignedUser?.displayName).toBe('John Doe');
-  });
-
-  it('allows assignedUser to be null', () => {
-    const workItem: HouseholdItemWorkItemSummary = {
-      id: 'wi-2',
-      title: 'Paint Walls',
-      status: 'not_started',
-      startDate: '2026-05-01',
-      endDate: '2026-05-10',
-      assignedUser: null,
-    };
-
-    expect(workItem.assignedUser).toBeNull();
-  });
-});
-
 describe('WorkItemLinkedHouseholdItemSummary interface', () => {
   it('constructs a valid household item summary with all fields populated', () => {
     const householdItem: WorkItemLinkedHouseholdItemSummary = {
@@ -153,6 +119,8 @@ describe('WorkItemLinkedHouseholdItemSummary interface', () => {
       category: 'furniture',
       status: 'delivered',
       expectedDeliveryDate: '2026-05-15',
+      earliestDeliveryDate: '2026-05-15',
+      latestDeliveryDate: '2026-05-20',
     };
 
     expect(householdItem.id).toBe('hi-1');
@@ -160,18 +128,24 @@ describe('WorkItemLinkedHouseholdItemSummary interface', () => {
     expect(householdItem.category).toBe('furniture');
     expect(householdItem.status).toBe('delivered');
     expect(householdItem.expectedDeliveryDate).toBe('2026-05-15');
+    expect(householdItem.earliestDeliveryDate).toBe('2026-05-15');
+    expect(householdItem.latestDeliveryDate).toBe('2026-05-20');
   });
 
-  it('allows expectedDeliveryDate to be null', () => {
+  it('allows delivery dates to be null', () => {
     const householdItem: WorkItemLinkedHouseholdItemSummary = {
       id: 'hi-2',
       name: 'Wall Paint',
       category: 'decor',
       status: 'not_ordered',
       expectedDeliveryDate: null,
+      earliestDeliveryDate: null,
+      latestDeliveryDate: null,
     };
 
     expect(householdItem.expectedDeliveryDate).toBeNull();
+    expect(householdItem.earliestDeliveryDate).toBeNull();
+    expect(householdItem.latestDeliveryDate).toBeNull();
     expect(householdItem.category).toBe('decor');
     expect(householdItem.status).toBe('not_ordered');
   });
@@ -195,6 +169,8 @@ describe('WorkItemLinkedHouseholdItemSummary interface', () => {
         category,
         status: 'ordered',
         expectedDeliveryDate: '2026-06-01',
+        earliestDeliveryDate: '2026-05-20',
+        latestDeliveryDate: '2026-06-10',
       };
       expect(householdItem.category).toBe(category);
     }
@@ -210,6 +186,8 @@ describe('WorkItemLinkedHouseholdItemSummary interface', () => {
         category: 'furniture',
         status,
         expectedDeliveryDate: '2026-06-01',
+        earliestDeliveryDate: '2026-05-20',
+        latestDeliveryDate: '2026-06-10',
       };
       expect(householdItem.status).toBe(status);
     }
@@ -264,6 +242,8 @@ describe('HouseholdItemSummary interface', () => {
       orderDate: '2025-01-15',
       expectedDeliveryDate: '2025-02-15',
       actualDeliveryDate: null,
+      earliestDeliveryDate: '2025-02-10',
+      latestDeliveryDate: '2025-02-20',
       url: 'https://example.com/sofa',
       tagIds: ['tag-1', 'tag-2'],
       budgetLineCount: 2,
@@ -286,9 +266,11 @@ describe('HouseholdItemSummary interface', () => {
     expect(summary.tagIds).toHaveLength(2);
     expect(summary.budgetLineCount).toBe(2);
     expect(summary.totalPlannedAmount).toBe(1200.0);
+    expect(summary.earliestDeliveryDate).toBe('2025-02-10');
+    expect(summary.latestDeliveryDate).toBe('2025-02-20');
   });
 
-  it('allows vendor to be null', () => {
+  it('allows vendor and delivery dates to be null', () => {
     const summary: HouseholdItemSummary = {
       id: 'item-2',
       name: 'Dining Table',
@@ -301,6 +283,8 @@ describe('HouseholdItemSummary interface', () => {
       orderDate: null,
       expectedDeliveryDate: null,
       actualDeliveryDate: null,
+      earliestDeliveryDate: null,
+      latestDeliveryDate: null,
       url: null,
       tagIds: [],
       budgetLineCount: 0,
@@ -315,6 +299,8 @@ describe('HouseholdItemSummary interface', () => {
     expect(summary.description).toBeNull();
     expect(summary.room).toBeNull();
     expect(summary.tagIds).toHaveLength(0);
+    expect(summary.earliestDeliveryDate).toBeNull();
+    expect(summary.latestDeliveryDate).toBeNull();
   });
 });
 
@@ -333,6 +319,8 @@ describe('HouseholdItemDetail interface', () => {
       orderDate: '2025-01-01',
       expectedDeliveryDate: '2025-01-20',
       actualDeliveryDate: '2025-01-18',
+      earliestDeliveryDate: '2025-01-15',
+      latestDeliveryDate: '2025-01-25',
       url: 'https://example.com/tv',
       tagIds: ['tag-electronics'],
       budgetLineCount: 1,
@@ -359,17 +347,18 @@ describe('HouseholdItemDetail interface', () => {
           createdAt: '2025-01-01T00:00:00Z',
         },
       ],
-      workItems: [
+      dependencies: [
         {
-          id: 'wi-1',
-          title: 'Mount TV',
-          status: 'not_started',
-          startDate: '2026-05-01',
-          endDate: '2026-05-05',
-          assignedUser: {
-            id: 'user-2',
-            displayName: 'Bob Smith',
-            email: 'bob@example.com',
+          householdItemId: 'item-detail-1',
+          predecessorType: 'work_item',
+          predecessorId: 'wi-1',
+          dependencyType: 'finish_to_start',
+          leadLagDays: 0,
+          predecessor: {
+            id: 'wi-1',
+            title: 'Mount TV',
+            status: 'not_started',
+            endDate: '2026-05-05',
           },
         },
       ],
@@ -393,9 +382,11 @@ describe('HouseholdItemDetail interface', () => {
     expect(detail.url).toBe('https://example.com/tv');
     expect(detail.createdBy?.displayName).toBe('Alice');
     expect(detail.tags).toHaveLength(1);
-    expect(detail.workItems).toHaveLength(1);
+    expect(detail.dependencies).toHaveLength(1);
     expect(detail.subsidies).toHaveLength(1);
     expect(detail.subsidies[0].applicationStatus).toBe('applied');
+    expect(detail.earliestDeliveryDate).toBe('2025-01-15');
+    expect(detail.latestDeliveryDate).toBe('2025-01-25');
   });
 
   it('allows url and createdBy to be null', () => {
@@ -411,6 +402,8 @@ describe('HouseholdItemDetail interface', () => {
       orderDate: null,
       expectedDeliveryDate: null,
       actualDeliveryDate: null,
+      earliestDeliveryDate: null,
+      latestDeliveryDate: null,
       tagIds: [],
       budgetLineCount: 0,
       totalPlannedAmount: 0,
@@ -420,15 +413,17 @@ describe('HouseholdItemDetail interface', () => {
       url: null,
       createdBy: null,
       tags: [],
-      workItems: [],
+      dependencies: [],
       subsidies: [],
     };
 
     expect(detail.url).toBeNull();
     expect(detail.createdBy).toBeNull();
     expect(detail.tags).toHaveLength(0);
-    expect(detail.workItems).toHaveLength(0);
+    expect(detail.dependencies).toHaveLength(0);
     expect(detail.subsidies).toHaveLength(0);
+    expect(detail.earliestDeliveryDate).toBeNull();
+    expect(detail.latestDeliveryDate).toBeNull();
   });
 });
 
@@ -611,6 +606,8 @@ describe('HouseholdItemListResponse type', () => {
           orderDate: null,
           expectedDeliveryDate: null,
           actualDeliveryDate: null,
+          earliestDeliveryDate: null,
+          latestDeliveryDate: null,
           url: null,
           tagIds: [],
           budgetLineCount: 0,
@@ -668,6 +665,8 @@ describe('HouseholdItemResponse interface', () => {
         orderDate: null,
         expectedDeliveryDate: null,
         actualDeliveryDate: null,
+        earliestDeliveryDate: null,
+        latestDeliveryDate: null,
         tagIds: [],
         budgetLineCount: 0,
         totalPlannedAmount: 0,
@@ -677,7 +676,7 @@ describe('HouseholdItemResponse interface', () => {
         url: null,
         createdBy: null,
         tags: [],
-        workItems: [],
+        dependencies: [],
         subsidies: [],
       },
     };

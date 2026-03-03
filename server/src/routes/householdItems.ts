@@ -1,10 +1,12 @@
 import type { FastifyInstance } from 'fastify';
 import { UnauthorizedError } from '../errors/AppError.js';
 import * as householdItemService from '../services/householdItemService.js';
+import * as householdItemDepService from '../services/householdItemDepService.js';
 import type {
   CreateHouseholdItemRequest,
   UpdateHouseholdItemRequest,
   HouseholdItemListQuery,
+  CreateHouseholdItemDepRequest,
 } from '@cornerstone/shared';
 
 // JSON schema for POST /api/household-items (create household item)
@@ -156,6 +158,55 @@ const householdItemIdSchema = {
   },
 };
 
+// JSON schema for POST /api/household-items/:id/dependencies (create dependency)
+const createHouseholdItemDepSchema = {
+  params: {
+    type: 'object',
+    required: ['id'],
+    properties: {
+      id: { type: 'string' },
+    },
+  },
+  body: {
+    type: 'object',
+    required: ['predecessorType', 'predecessorId'],
+    properties: {
+      predecessorType: { type: 'string', enum: ['work_item', 'milestone'] },
+      predecessorId: { type: 'string', minLength: 1 },
+      dependencyType: {
+        type: 'string',
+        enum: ['finish_to_start', 'start_to_start', 'finish_to_finish', 'start_to_finish'],
+      },
+      leadLagDays: { type: 'integer' },
+    },
+    additionalProperties: false,
+  },
+};
+
+// JSON schema for GET /api/household-items/:id/dependencies
+const getHouseholdItemDepsSchema = {
+  params: {
+    type: 'object',
+    required: ['id'],
+    properties: {
+      id: { type: 'string' },
+    },
+  },
+};
+
+// JSON schema for DELETE /api/household-items/:id/dependencies/:predecessorType/:predecessorId
+const deleteHouseholdItemDepSchema = {
+  params: {
+    type: 'object',
+    required: ['id', 'predecessorType', 'predecessorId'],
+    properties: {
+      id: { type: 'string' },
+      predecessorType: { type: 'string', enum: ['work_item', 'milestone'] },
+      predecessorId: { type: 'string' },
+    },
+  },
+};
+
 export default async function householdItemRoutes(fastify: FastifyInstance) {
   /**
    * POST /api/household-items
@@ -247,4 +298,75 @@ export default async function householdItemRoutes(fastify: FastifyInstance) {
 
     return reply.status(204).send();
   });
+
+  /**
+   * GET /api/household-items/:id/dependencies
+   *
+   * Lists all dependencies for a household item.
+   * Requires authentication.
+   */
+  fastify.get(
+    '/:id/dependencies',
+    { schema: getHouseholdItemDepsSchema },
+    async (request, reply) => {
+      if (!request.user) {
+        throw new UnauthorizedError('Authentication required');
+      }
+
+      const { id } = request.params as { id: string };
+
+      const dependencies = householdItemDepService.listDeps(fastify.db, id);
+
+      return reply.status(200).send({ dependencies });
+    },
+  );
+
+  /**
+   * POST /api/household-items/:id/dependencies
+   *
+   * Creates a new dependency for a household item.
+   * Requires authentication.
+   */
+  fastify.post(
+    '/:id/dependencies',
+    { schema: createHouseholdItemDepSchema },
+    async (request, reply) => {
+      if (!request.user) {
+        throw new UnauthorizedError('Authentication required');
+      }
+
+      const { id } = request.params as { id: string };
+      const data = request.body as CreateHouseholdItemDepRequest;
+
+      const dependency = householdItemDepService.createDep(fastify.db, id, data);
+
+      return reply.status(201).send({ dependency });
+    },
+  );
+
+  /**
+   * DELETE /api/household-items/:id/dependencies/:predecessorType/:predecessorId
+   *
+   * Deletes a dependency for a household item.
+   * Requires authentication.
+   */
+  fastify.delete(
+    '/:id/dependencies/:predecessorType/:predecessorId',
+    { schema: deleteHouseholdItemDepSchema },
+    async (request, reply) => {
+      if (!request.user) {
+        throw new UnauthorizedError('Authentication required');
+      }
+
+      const { id, predecessorType, predecessorId } = request.params as {
+        id: string;
+        predecessorType: string;
+        predecessorId: string;
+      };
+
+      householdItemDepService.deleteDep(fastify.db, id, predecessorType, predecessorId);
+
+      return reply.status(204).send();
+    },
+  );
 }

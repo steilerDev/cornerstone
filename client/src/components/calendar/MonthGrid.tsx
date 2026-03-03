@@ -11,13 +11,19 @@
  */
 
 import { useMemo } from 'react';
-import type { TimelineWorkItem, TimelineMilestone } from '@cornerstone/shared';
+import type {
+  TimelineWorkItem,
+  TimelineMilestone,
+  TimelineHouseholdItem,
+} from '@cornerstone/shared';
 import { CalendarItem, LANE_HEIGHT_COMPACT } from './CalendarItem.js';
 import { CalendarMilestone } from './CalendarMilestone.js';
+import { CalendarHouseholdItem } from './CalendarHouseholdItem.js';
 import {
   getMonthGrid,
   getItemsForDay,
   getMilestonesForDay,
+  getHouseholdItemsForDay,
   isItemStart,
   isItemEnd,
   allocateLanes,
@@ -38,6 +44,7 @@ export interface MonthGridProps {
   month: number; // 1-indexed
   workItems: TimelineWorkItem[];
   milestones: TimelineMilestone[];
+  householdItems?: TimelineHouseholdItem[];
   onMilestoneClick?: (milestoneId: number) => void;
   /** The item ID currently being hovered (for cross-cell highlight). */
   hoveredItemId?: string | null;
@@ -64,6 +71,7 @@ export function MonthGrid({
   month,
   workItems,
   milestones,
+  householdItems = [],
   onMilestoneClick,
   hoveredItemId = null,
   onItemMouseEnter,
@@ -193,6 +201,32 @@ export function MonthGrid({
                           onMouseEnter={onMilestoneMouseEnter}
                           onMouseLeave={onMilestoneMouseLeave}
                           onMouseMove={onMilestoneMouseMove}
+                        />
+                      </div>
+                    ))}
+
+                    {/* Household items — stacked after milestones */}
+                    {getHouseholdItemsForDay(day.dateStr, householdItems).map((hi, hiIdx) => (
+                      <div
+                        key={`hi-${hi.id}`}
+                        style={{
+                          position: 'absolute',
+                          top:
+                            milestoneTopOffset +
+                            dayMilestones.length * LANE_HEIGHT_COMPACT +
+                            hiIdx * LANE_HEIGHT_COMPACT,
+                          left: 0,
+                          right: 0,
+                        }}
+                      >
+                        <CalendarHouseholdItem
+                          item={hi}
+                          onMouseEnter={onItemMouseEnter}
+                          onMouseLeave={onItemMouseLeave}
+                          onMouseMove={onItemMouseMove}
+                          isTouchDevice={isTouchDevice}
+                          activeTouchId={activeTouchId}
+                          onTouchTap={onTouchTap}
                         />
                       </div>
                     ))}

@@ -181,3 +181,30 @@ See `story-4-9-invoice-linking-hi.md`. Spec: entity type toggle (`role="group"` 
 - Badge `padding: 2px 6px` hardcoded — use `var(--spacing-0-5) var(--spacing-1-5)`
 - Spec entity type toggle not implemented (used plain separator div instead) — flag as spec deviation
 - "Linked To" table column omitted from invoice list page — functional omission
+
+## Story 4.10 — HI Timeline Dependencies (Issue #415)
+
+- HI Gantt visual: amber circle marker (r=7px), NOT a bar or diamond — zero-duration node
+- 5 new Gantt tokens: `--color-gantt-hi-fill`, `--color-gantt-hi-stroke`, `--color-gantt-hi-delivered-fill`, `--color-gantt-hi-delivered-stroke`, `--color-gantt-hi-hover-glow` (both layers in tokens.css)
+- Amber fills reference existing palette: `var(--color-amber-100)` / `var(--color-amber-800)` / `var(--color-amber-300)` (already in Layer 1)
+- Calendar HI badge: pill shape, reuses `--color-hi-status-in-transit-*` and `--color-hi-status-delivered-*` (NO new calendar tokens)
+- Dependency row: reuses `budgetLineItem` / `subsidyItem` pattern from HouseholdItemDetailPage.module.css
+- "Floored to today" late indicator: `--color-hi-status-in-transit-bg` / `--color-hi-status-in-transit-text` (amber)
+- Add Dependency modal: 36rem max-width (wider than standard 28rem), entity type toggle = `role="radiogroup"`
+- HI tooltip kind: `kind: 'household-item'` extending GanttTooltipData discriminated union
+- GanttSidebar UnifiedRow gains `kind: 'householdItem'` variant
+- HI rows appear AFTER work items, sorted by earliestDeliveryDate (same principle as milestones by targetDate)
+- `srAnnouncement` live region: "Dependency added: [name]" / "Dependency removed: [name]"
+- `HouseholdItemDetailPage.module.css` `prefers-reduced-motion` block must be extended to cover new dep section elements
+
+## PR #416 Review Findings — HI Timeline Dependencies (Story 4.10)
+
+Key misses to watch for in Gantt/detail-page dependency PRs:
+
+- `--color-primary-text` (white in light mode) used on `--color-primary-bg` (light blue) chip — contrast failure; always use `var(--color-primary)` for text on `--color-primary-bg` tinted chips
+- `depSearchOptionSelected` same mistake — selected state bg is `--color-primary-bg`, text must be `var(--color-primary)` not `--color-primary-text`
+- `role="dialog"` modal with no focus trap and no initial focus — `autoFocus` on first input is the minimum acceptable fix
+- `role="listbox"` + `role="option"` requires arrow-key keyboard navigation; without it use `role="list"` + `role="button"` items instead
+- Tooltip HI status badge hardcoded amber color regardless of delivered state — status-conditional token selection required
+- "Floored to today" heuristic: spec uses `isLate` flag from scheduling engine; date-string equality to today is a fragile approximation
+- `showToast()` alone is insufficient for spec-required `aria-live="polite"` srAnnouncement — toast is visual, not reliable for screen-reader-only users

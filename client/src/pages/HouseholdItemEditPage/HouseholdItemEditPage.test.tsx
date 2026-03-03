@@ -103,6 +103,8 @@ describe('HouseholdItemEditPage', () => {
     orderDate: '2026-03-01',
     expectedDeliveryDate: '2026-04-15',
     actualDeliveryDate: null,
+    earliestDeliveryDate: '2026-04-15',
+    latestDeliveryDate: '2026-04-20',
     tagIds: ['tag-1'],
     budgetLineCount: 0,
     totalPlannedAmount: 0,
@@ -111,7 +113,7 @@ describe('HouseholdItemEditPage', () => {
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-01T00:00:00Z',
     tags: [{ id: 'tag-1', name: 'Kitchen', color: '#E57373', createdAt: '2026-01-01T00:00:00Z' }],
-    workItems: [],
+    dependencies: [],
     subsidies: [],
   };
 

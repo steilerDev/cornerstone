@@ -116,9 +116,11 @@ describe('Household Item Service', () => {
       expect(result.orderDate).toBeNull();
       expect(result.expectedDeliveryDate).toBeNull();
       expect(result.actualDeliveryDate).toBeNull();
+      expect(result.earliestDeliveryDate).toBeNull();
+      expect(result.latestDeliveryDate).toBeNull();
       expect(result.tagIds).toEqual([]);
       expect(result.tags).toEqual([]);
-      expect(result.workItems).toEqual([]);
+      expect(result.dependencies).toEqual([]);
       expect(result.subsidies).toEqual([]);
       expect(result.budgetLineCount).toBe(0);
       expect(result.totalPlannedAmount).toBe(0);
@@ -306,7 +308,7 @@ describe('Household Item Service', () => {
   // ---------------------------------------------------------------------------
 
   describe('getHouseholdItemById()', () => {
-    it('returns full detail with tags, workItems, and subsidies', () => {
+    it('returns full detail with tags, dependencies, and subsidies', () => {
       // Given: An item created with a tag
       const userId = createTestUser('user@example.com', 'Test User');
       const tagId = createTestTag('Living Room');
@@ -323,7 +325,7 @@ describe('Household Item Service', () => {
       expect(result.name).toBe('Coffee Table');
       expect(result.tags).toHaveLength(1);
       expect(result.tags[0].name).toBe('Living Room');
-      expect(result.workItems).toEqual([]);
+      expect(result.dependencies).toEqual([]);
       expect(result.subsidies).toEqual([]);
     });
 
@@ -356,14 +358,14 @@ describe('Household Item Service', () => {
       expect(result.vendor?.name).toBe('Best Buy');
     });
 
-    it('returns work items linked to the household item', () => {
-      // Given: A household item and a work item linked to it
+    it('returns dependencies linked to the household item', () => {
+      // Given: A household item and a work item to depend on
       const userId = createTestUser('user@example.com', 'Test User');
       const created = householdItemService.createHouseholdItem(db, userId, {
         name: 'Kitchen Cabinets',
       });
 
-      // Insert a work item and link it
+      // Insert a work item and link it as a dependency
       const now = new Date().toISOString();
       const workItemId = 'wi-test-001';
       db.insert(schema.workItems)
@@ -376,18 +378,23 @@ describe('Household Item Service', () => {
           updatedAt: now,
         })
         .run();
-      db.insert(schema.householdItemWorkItems)
-        .values({ householdItemId: created.id, workItemId })
+      db.insert(schema.householdItemDeps)
+        .values({
+          householdItemId: created.id,
+          predecessorType: 'work_item',
+          predecessorId: workItemId,
+          dependencyType: 'finish_to_start',
+          leadLagDays: 0,
+        })
         .run();
 
       // When: Getting by ID
       const result = householdItemService.getHouseholdItemById(db, created.id);
 
-      // Then: Work item is included
-      expect(result.workItems).toHaveLength(1);
-      expect(result.workItems[0].id).toBe(workItemId);
-      expect(result.workItems[0].title).toBe('Install Cabinets');
-      expect(result.workItems[0].status).toBe('not_started');
+      // Then: Dependency is included
+      expect(result.dependencies).toHaveLength(1);
+      expect(result.dependencies[0].predecessorType).toBe('work_item');
+      expect(result.dependencies[0].predecessorId).toBe(workItemId);
     });
   });
 
@@ -661,8 +668,8 @@ describe('Household Item Service', () => {
       expect(tagStillExists).toBeDefined();
     });
 
-    it('cascades to work item link records', () => {
-      // Given: An item linked to a work item
+    it('cascades to dependency records', () => {
+      // Given: An item linked to a work item dependency
       const userId = createTestUser('user@example.com', 'Test User');
       const item = householdItemService.createHouseholdItem(db, userId, {
         name: 'Countertop',
@@ -680,20 +687,26 @@ describe('Household Item Service', () => {
           updatedAt: now,
         })
         .run();
-      db.insert(schema.householdItemWorkItems)
-        .values({ householdItemId: item.id, workItemId })
+      db.insert(schema.householdItemDeps)
+        .values({
+          householdItemId: item.id,
+          predecessorType: 'work_item',
+          predecessorId: workItemId,
+          dependencyType: 'finish_to_start',
+          leadLagDays: 0,
+        })
         .run();
 
       // When: Deleting the item
       householdItemService.deleteHouseholdItem(db, item.id);
 
-      // Then: Work item link records are deleted
-      const linkRows = db
+      // Then: Dependency records are deleted
+      const depRows = db
         .select()
-        .from(schema.householdItemWorkItems)
-        .where(eq(schema.householdItemWorkItems.householdItemId, item.id))
+        .from(schema.householdItemDeps)
+        .where(eq(schema.householdItemDeps.householdItemId, item.id))
         .all();
-      expect(linkRows).toHaveLength(0);
+      expect(depRows).toHaveLength(0);
     });
   });
 
@@ -1055,6 +1068,23 @@ describe('Household Item Service', () => {
 
       // Then: tagIds in summary is populated
       expect(result.items[0].tagIds).toEqual([tagId]);
+    });
+
+    it('returns summary with earliestDeliveryDate and latestDeliveryDate fields', () => {
+      // Given: An item
+      const userId = createTestUser('user@example.com', 'Test User');
+      const item = householdItemService.createHouseholdItem(db, userId, {
+        name: 'Patio Table',
+      });
+
+      // When: Getting list (which returns summary)
+      const result = householdItemService.listHouseholdItems(db, {});
+
+      // Then: Summary includes delivery date fields
+      expect(result.items[0]).toHaveProperty('earliestDeliveryDate');
+      expect(result.items[0]).toHaveProperty('latestDeliveryDate');
+      expect(result.items[0].earliestDeliveryDate).toBeNull();
+      expect(result.items[0].latestDeliveryDate).toBeNull();
     });
   });
 });

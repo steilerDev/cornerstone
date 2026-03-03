@@ -7,6 +7,7 @@ import {
   workItemMilestoneDeps,
   users,
   workItems,
+  householdItemDeps,
 } from '../db/schema.js';
 import type {
   MilestoneSummary,
@@ -354,6 +355,17 @@ export function deleteMilestone(db: DbType, id: number): void {
   if (!milestone) {
     throw new NotFoundError('Milestone not found');
   }
+
+  // Cascade delete household item dependencies where this milestone is the predecessor
+  db.delete(householdItemDeps)
+    .where(
+      and(
+        eq(householdItemDeps.predecessorType, 'milestone'),
+        eq(householdItemDeps.predecessorId, id.toString()),
+      ),
+    )
+    .run();
+
   db.delete(milestones).where(eq(milestones.id, id)).run();
 }
 

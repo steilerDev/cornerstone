@@ -5,7 +5,11 @@
  * (YYYY-MM-DD) to avoid local timezone shifting when constructing Date objects.
  */
 
-import type { TimelineWorkItem, TimelineMilestone } from '@cornerstone/shared';
+import type {
+  TimelineWorkItem,
+  TimelineMilestone,
+  TimelineHouseholdItem,
+} from '@cornerstone/shared';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -425,4 +429,21 @@ export function formatDateForAria(dateStr: string): string {
   const weekday = date.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
   const monthName = date.toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' });
   return `${weekday}, ${monthName} ${day}, ${year}`;
+}
+
+/**
+ * Returns household items that have their earliest delivery date on the given date.
+ * A household item is shown on a date if:
+ *   - earliestDeliveryDate === dateStr, or if not set, expectedDeliveryDate === dateStr
+ */
+export function getHouseholdItemsForDay(
+  dateStr: string,
+  items: TimelineHouseholdItem[],
+): TimelineHouseholdItem[] {
+  return items.filter((item) => {
+    if (item.earliestDeliveryDate) {
+      return item.earliestDeliveryDate === dateStr;
+    }
+    return item.expectedDeliveryDate === dateStr;
+  });
 }

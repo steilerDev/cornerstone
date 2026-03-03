@@ -101,6 +101,28 @@
   max-width: 100%;
 }
 
+/* Household item rows — appear after milestones, visually distinct */
+.sidebarHouseholdItemRow {
+  cursor: default;
+  gap: var(--spacing-2);
+}
+
+.householdItemCircleIcon {
+  color: var(--color-gantt-hi-stroke);
+  flex-shrink: 0;
+}
+
+.sidebarHouseholdItemLabel {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-normal);
+  font-style: italic;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
 /* Tablet and mobile: collapse sidebar to icon strip */
 @media (max-width: 1279px) {
   .sidebar {
@@ -119,6 +141,10 @@
   }
 
   .sidebarMilestoneLabel {
+    display: none;
+  }
+
+  .sidebarHouseholdItemLabel {
     display: none;
   }
 
