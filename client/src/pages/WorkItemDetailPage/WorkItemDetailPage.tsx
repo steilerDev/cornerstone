@@ -2374,7 +2374,7 @@ export default function WorkItemDetailPage() {
                 </span>
                 {hi.expectedDeliveryDate && (
                   <span className={styles.householdItemDeliveryDate}>
-                    Expected: {hi.expectedDeliveryDate}
+                    Expected: {formatDate(hi.expectedDeliveryDate)}
                   </span>
                 )}
               </li>
