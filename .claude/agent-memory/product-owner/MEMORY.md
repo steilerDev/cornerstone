@@ -57,7 +57,8 @@ All 6 stories merged and promoted to main. Story 8.6 (#359) remains open, blocke
 
 ## EPIC-04 Stories (Household Items & Furniture) — IN PROGRESS
 
-8 stories created (#387-#394). See [epic-04-planning.md](epic-04-planning.md) for full details.
+9 stories created (#387-#394, #413). See [epic-04-planning.md](epic-04-planning.md) for full details.
+Story 4.9 (#413): Invoice Linking for Household Item Budget Lines. Extends invoices table with `household_item_budget_id` FK so invoices can link to household item budget lines (mirrors work item pattern). Mutual exclusivity constraint: invoice links to work_item_budget OR household_item_budget, not both. Blocked by #387, #388, #392.
 Story 4.1 (#387): PR #396 reviewed APPROVED. Architect refined schema: flat planned_cost/actual_cost/notes replaced by household_item_budgets/household_item_notes tables (mirrors EPIC-05 pattern). Extra columns: url, quantity. Category enum expanded to 8 values. 6 tables total in migration 0010. Document link cascade is application-layer (Story 4.2).
 Story 4.2 (#388): PR #397 reviewed APPROVED. 5 CRUD endpoints, 90 tests (46 service + 44 route). Search uses `q` param (consistent with work items). Vendor summary includes `specialty` (superset of AC). documentLinkService updated to validate household_item entity type.
 Story 8.6 (#359, EPIC-08) linked as sub-issue, blocked by #391 (detail page).

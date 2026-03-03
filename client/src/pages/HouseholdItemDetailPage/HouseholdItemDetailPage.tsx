@@ -16,6 +16,7 @@ import type {
   HouseholdItemSubsidyPaybackResponse,
   HouseholdItemWorkItemSummary,
   WorkItemSummary,
+  Invoice,
 } from '@cornerstone/shared';
 import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
 import { getHouseholdItem, deleteHouseholdItem } from '../../lib/householdItemsApi.js';
@@ -41,6 +42,7 @@ import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
 import { fetchSubsidyPrograms } from '../../lib/subsidyProgramsApi.js';
 import { listWorkItems } from '../../lib/workItemsApi.js';
+import { fetchInvoices } from '../../lib/invoicesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { formatDate, formatCurrency } from '../../lib/formatters.js';
 import { HouseholdItemStatusBadge } from '../../components/HouseholdItemStatusBadge/HouseholdItemStatusBadge.js';
@@ -113,6 +115,7 @@ export function HouseholdItemDetailPage() {
   const [budgetCategories, setBudgetCategories] = useState<BudgetCategory[]>([]);
   const [budgetSources, setBudgetSources] = useState<BudgetSource[]>([]);
   const [allVendors, setAllVendors] = useState<Vendor[]>([]);
+  const [budgetLineInvoices, setBudgetLineInvoices] = useState<Record<string, Invoice[]>>({});
 
   // Budget line form state
   const [showBudgetForm, setShowBudgetForm] = useState(false);
@@ -182,6 +185,14 @@ export function HouseholdItemDetailPage() {
     return () => document.removeEventListener('keydown', handleKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showDeleteModal, isDeleting, deleteError]);
+
+  // Load invoices for budget lines whenever the item or budget lines change
+  useEffect(() => {
+    if (item?.vendor && budgetLines.length > 0) {
+      const budgetLineIds = budgetLines.map((bl) => bl.id);
+      void loadBudgetLineInvoices(item.vendor.id, budgetLineIds);
+    }
+  }, [item?.vendor?.id, budgetLines.map((bl) => bl.id).join(',')]);
 
   const loadItem = async () => {
     if (!id) return;
@@ -254,6 +265,22 @@ export function HouseholdItemDetailPage() {
       setBudgetLines(data);
     } catch (err) {
       console.error('Failed to reload budget lines:', err);
+    }
+  };
+
+  const loadBudgetLineInvoices = async (vendorId: string, budgetLineIds: string[]) => {
+    try {
+      const allVendorInvoices = await fetchInvoices(vendorId);
+      const grouped: Record<string, Invoice[]> = {};
+      for (const inv of allVendorInvoices) {
+        if (inv.householdItemBudgetId && budgetLineIds.includes(inv.householdItemBudgetId)) {
+          if (!grouped[inv.householdItemBudgetId]) grouped[inv.householdItemBudgetId] = [];
+          grouped[inv.householdItemBudgetId].push(inv);
+        }
+      }
+      setBudgetLineInvoices(grouped);
+    } catch {
+      // Silently fail — invoices are supplementary
     }
   };
 
@@ -1010,6 +1037,31 @@ export function HouseholdItemDetailPage() {
                         <span className={styles.budgetLineMetaItem}>{line.vendor.name}</span>
                       )}
                     </div>
+                    {budgetLineInvoices[line.id]?.length > 0 && (
+                      <div className={styles.budgetLineInvoices}>
+                        <h4 className={styles.budgetLineInvoicesTitle}>Linked Invoices</h4>
+                        <ul className={styles.invoiceList}>
+                          {budgetLineInvoices[line.id].map((inv) => (
+                            <li key={inv.id} className={styles.invoiceListItem}>
+                              <Link
+                                to={`/budget/invoices/${inv.id}`}
+                                className={styles.invoiceLink}
+                              >
+                                {inv.invoiceNumber ? `#${inv.invoiceNumber}` : 'Invoice'}
+                              </Link>
+                              <span className={styles.invoiceAmount}>
+                                {formatCurrency(inv.amount)}
+                              </span>
+                              <span
+                                className={`${styles.invoiceStatusBadge} ${styles[`invoiceStatus_${inv.status}`]}`}
+                              >
+                                {inv.status.charAt(0).toUpperCase() + inv.status.slice(1)}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                   <div className={styles.budgetLineActions}>
                     {deletingBudgetId === line.id ? (

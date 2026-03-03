@@ -368,6 +368,19 @@
   font-style: italic;
 }
 
+.separator {
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  margin: var(--spacing-2) 0;
+  font-weight: var(--font-weight-medium);
+}
+
+.budgetLineDescription {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
 /* ---- Buttons ---- */
 
 .button {

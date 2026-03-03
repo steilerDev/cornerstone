@@ -195,13 +195,13 @@ Key token mistakes to watch for in future reviews:
 
 ## PR #399 Review Findings — Household Item Create & Edit Forms (APPROVED)
 
-Model implementation with excellent token usage:
+Model implementation — both Create and Edit pages use tokens comprehensively. See `story-4-9-invoice-linking-hi.md` for latest HI domain patterns.
 
-- Both Create and Edit pages use tokens comprehensively (spacing, colors, typography, radius, transitions)
-- All interactive states properly defined: `:focus-visible`, hover, active, disabled — with semantic tokens
-- `prefers-reduced-motion` guard guards all transitions
-- Dark mode: all color values use Layer 2 semantic tokens (no hardcoded hex)
-- Responsive: mobile breakpoint `767px` (note: project convention is `768px`, both equivalent)
-- Form validation with error states uses `var(--color-danger)` and error-specific shadow tokens
-- Clean CSS Modules with semantic class names
-- **Improvement over WorkItemCreatePage**: Uses tokens (`var(--spacing-8)`) instead of hardcoded values (`2rem`)
+## Story 4.9 — Invoice Linking for HI Budget Lines (Issue #413)
+
+See `story-4-9-invoice-linking-hi.md` for full spec decisions. Key points:
+
+- HI Detail: new Budget card (shadow-sm, font-size-xl title) reuses HouseholdItemDetailPage.module.css classes
+- Invoice form: entity type toggle (`role="group"`, two `role="radio"` buttons, collapsed shared border)
+- Invoice list: new "Linked To" column, hidden at tablet breakpoint
+- No new design tokens required
