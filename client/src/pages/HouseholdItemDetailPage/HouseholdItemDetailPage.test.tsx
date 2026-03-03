@@ -23,6 +23,13 @@ const mockNavigate = jest.fn();
 const mockFetchLinkedWorkItems =
   jest.fn<typeof HouseholdItemWorkItemsApiTypes.fetchLinkedWorkItems>();
 const mockListWorkItems = jest.fn<typeof WorkItemsApiTypes.listWorkItems>();
+const mockFetchHouseholdItemBudgets = jest.fn() as any;
+const mockFetchBudgetCategories = jest.fn() as any;
+const mockFetchBudgetSources = jest.fn() as any;
+const mockFetchVendors = jest.fn() as any;
+const mockFetchSubsidyPrograms = jest.fn() as any;
+const mockFetchHouseholdItemSubsidies = jest.fn() as any;
+const mockFetchHouseholdItemSubsidyPayback = jest.fn() as any;
 
 // Mock ApiClientError for error scenarios
 class MockApiClientError extends Error {
@@ -76,6 +83,51 @@ jest.unstable_mockModule('../../lib/workItemsApi.js', () => ({
   createWorkItem: jest.fn(),
   updateWorkItem: jest.fn(),
   deleteWorkItem: jest.fn(),
+}));
+
+jest.unstable_mockModule('../../lib/householdItemBudgetsApi.js', () => ({
+  fetchHouseholdItemBudgets: mockFetchHouseholdItemBudgets,
+  createHouseholdItemBudget: jest.fn(),
+  updateHouseholdItemBudget: jest.fn(),
+  deleteHouseholdItemBudget: jest.fn(),
+}));
+
+jest.unstable_mockModule('../../lib/budgetCategoriesApi.js', () => ({
+  fetchBudgetCategories: mockFetchBudgetCategories,
+  createBudgetCategory: jest.fn(),
+  updateBudgetCategory: jest.fn(),
+  deleteBudgetCategory: jest.fn(),
+}));
+
+jest.unstable_mockModule('../../lib/budgetSourcesApi.js', () => ({
+  fetchBudgetSources: mockFetchBudgetSources,
+  fetchBudgetSource: jest.fn(),
+  createBudgetSource: jest.fn(),
+  updateBudgetSource: jest.fn(),
+  deleteBudgetSource: jest.fn(),
+}));
+
+jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
+  fetchVendors: mockFetchVendors,
+  fetchVendor: jest.fn(),
+  createVendor: jest.fn(),
+  updateVendor: jest.fn(),
+  deleteVendor: jest.fn(),
+}));
+
+jest.unstable_mockModule('../../lib/subsidyProgramsApi.js', () => ({
+  fetchSubsidyPrograms: mockFetchSubsidyPrograms,
+  fetchSubsidyProgram: jest.fn(),
+  createSubsidyProgram: jest.fn(),
+  updateSubsidyProgram: jest.fn(),
+  deleteSubsidyProgram: jest.fn(),
+}));
+
+jest.unstable_mockModule('../../lib/householdItemSubsidiesApi.js', () => ({
+  fetchHouseholdItemSubsidies: mockFetchHouseholdItemSubsidies,
+  linkHouseholdItemSubsidy: jest.fn(),
+  unlinkHouseholdItemSubsidy: jest.fn(),
+  fetchHouseholdItemSubsidyPayback: mockFetchHouseholdItemSubsidyPayback,
 }));
 
 // Helper to capture current location
@@ -133,16 +185,39 @@ describe('HouseholdItemDetailPage', () => {
     mockNavigate.mockReset();
     mockFetchLinkedWorkItems.mockReset();
     mockListWorkItems.mockReset();
+    mockFetchHouseholdItemBudgets.mockReset();
+    mockFetchBudgetCategories.mockReset();
+    mockFetchBudgetSources.mockReset();
+    mockFetchVendors.mockReset();
+    mockFetchSubsidyPrograms.mockReset();
+    mockFetchHouseholdItemSubsidies.mockReset();
+    mockFetchHouseholdItemSubsidyPayback.mockReset();
 
     if (!HouseholdItemDetailPageModule) {
       HouseholdItemDetailPageModule = await import('./HouseholdItemDetailPage.js');
     }
 
-    // Setup default API responses for work items APIs
-    mockFetchLinkedWorkItems.mockResolvedValue([]);
+    // Setup default API responses
+    // mockFetchLinkedWorkItems MUST be set up by each test individually
+    // since it needs to match the test's data
     mockListWorkItems.mockResolvedValue({
       items: [],
       pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
+    });
+    mockFetchHouseholdItemBudgets.mockResolvedValue([]);
+    mockFetchBudgetCategories.mockResolvedValue({ categories: [] });
+    mockFetchBudgetSources.mockResolvedValue({ budgetSources: [] });
+    mockFetchVendors.mockResolvedValue({
+      vendors: [],
+      pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
+    });
+    mockFetchSubsidyPrograms.mockResolvedValue({ subsidyPrograms: [] });
+    mockFetchHouseholdItemSubsidies.mockResolvedValue([]);
+    mockFetchHouseholdItemSubsidyPayback.mockResolvedValue({
+      householdItemId: 'item-1',
+      minTotalPayback: 0,
+      maxTotalPayback: 0,
+      subsidies: [],
     });
   });
 
@@ -478,6 +553,7 @@ describe('HouseholdItemDetailPage', () => {
 
     it('shows "No work items linked" for empty work items', async () => {
       mockGetHouseholdItem.mockResolvedValue(makeItem({ workItems: [] }));
+      mockFetchLinkedWorkItems.mockResolvedValue([]);
 
       renderPage();
 
@@ -820,36 +896,38 @@ describe('HouseholdItemDetailPage', () => {
 
   describe('linked work items display', () => {
     it('renders multiple work items with titles', async () => {
+      const workItems = [
+        {
+          id: 'wi-1',
+          title: 'Install desk',
+          status: 'in_progress',
+          startDate: '2026-04-01',
+          endDate: '2026-04-15',
+          assignedUser: null,
+        },
+        {
+          id: 'wi-2',
+          title: 'Setup cables',
+          status: 'pending',
+          startDate: '2026-04-16',
+          endDate: null,
+          assignedUser: null,
+        },
+        {
+          id: 'wi-3',
+          title: 'Test connection',
+          status: 'completed',
+          startDate: '2026-03-01',
+          endDate: '2026-03-05',
+          assignedUser: null,
+        },
+      ];
       mockGetHouseholdItem.mockResolvedValue(
         makeItem({
-          workItems: [
-            {
-              id: 'wi-1',
-              title: 'Install desk',
-              status: 'in_progress',
-              startDate: '2026-04-01',
-              endDate: '2026-04-15',
-              assignedUser: null,
-            },
-            {
-              id: 'wi-2',
-              title: 'Setup cables',
-              status: 'pending',
-              startDate: '2026-04-16',
-              endDate: null,
-              assignedUser: null,
-            },
-            {
-              id: 'wi-3',
-              title: 'Test connection',
-              status: 'completed',
-              startDate: '2026-03-01',
-              endDate: '2026-03-05',
-              assignedUser: null,
-            },
-          ],
+          workItems,
         }),
       );
+      mockFetchLinkedWorkItems.mockResolvedValueOnce(workItems);
 
       renderPage();
 
@@ -862,20 +940,22 @@ describe('HouseholdItemDetailPage', () => {
     });
 
     it('links each work item to its detail page', async () => {
+      const workItems = [
+        {
+          id: 'wi-abc-123',
+          title: 'Install desk',
+          status: 'in_progress',
+          startDate: '2026-04-01',
+          endDate: '2026-04-15',
+          assignedUser: null,
+        },
+      ];
       mockGetHouseholdItem.mockResolvedValue(
         makeItem({
-          workItems: [
-            {
-              id: 'wi-abc-123',
-              title: 'Install desk',
-              status: 'in_progress',
-              startDate: '2026-04-01',
-              endDate: '2026-04-15',
-              assignedUser: null,
-            },
-          ],
+          workItems,
         }),
       );
+      mockFetchLinkedWorkItems.mockResolvedValueOnce(workItems);
 
       renderPage();
 

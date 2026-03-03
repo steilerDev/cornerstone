@@ -646,3 +646,24 @@ For components that call fetch internally (WorkItemSelector, MilestonePanel):
 - `screen.queryByRole('toolbar', { name: /column size/i })` should return null
 - Check mode toggle toolbar has exactly 2 buttons (Month + Week)
 - `calendarSize` URL param should be silently ignored (grid renders normally)
+
+## Story 4.7 Work Item Linking Tests (2026-03-03)
+
+**57 comprehensive tests committed: 15 service + 20 route integration + 22 API client**
+
+Key learnings:
+
+- **HouseholdItemStatus enum**: valid values are `'not_ordered' | 'ordered' | 'in_transit' | 'delivered'`
+  (NOT `'not_started'` which is only for WorkItems). Always use correct status in tests.
+- **Household items schema fields**: `vendorId`, `url`, `room`, `quantity`, `orderDate`, `expectedDeliveryDate`, `actualDeliveryDate`
+  (NOT `vendor: null` or `cost: null`). Full insert example in service test.
+- **Drizzle ORM WHERE clauses**: must use `eq(schema.table.column, value)` (NOT column comparison)
+  and `and()` operator for multiple conditions. Never use lambda comparison `(t) => t.col === val`.
+- **Valid HouseholdItemCategory values**: `'furniture' | 'appliances' | 'fixtures' | 'decor' | 'electronics' | 'outdoor' | 'storage' | 'other'`
+  (NOT `'flooring'`). Reference tests check all 8 values.
+- **API client test patterns**: 4 functions (fetch linked, link, unlink both directions) use standard mock fetch pattern
+  with `jest.fn<typeof globalThis.fetch>()` and error assertions for all non-OK statuses.
+- **Route test patterns**: household item and work item route tests follow established pattern
+  (buildApp + temp-file SQLite + createUserWithSession + createTestWorkItem/HouseholdItem helpers).
+- **Test count**: 57 tests total, categorized as: 8 auth, 21 success path (201/204/200), 1 validation (400),
+  15 not found (404), 2 conflict (409), 5 error handling (500), 5 data shape validation.
