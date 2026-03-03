@@ -122,23 +122,29 @@ const mockInvoiceWithoutHouseholdItem: Invoice = {
 const mockHouseholdItem = {
   id: 'hi-001',
   name: 'Kitchen Appliance',
+  description: null,
   category: 'appliances',
   status: 'not_ordered',
   url: null,
   room: null,
-  quantity: null,
+  quantity: 1,
   orderDate: null,
   expectedDeliveryDate: null,
   actualDeliveryDate: null,
   vendor: null,
+  tagIds: [],
   tags: [],
   workItems: [],
+  subsidies: [],
+  budgetLineCount: 1,
+  totalPlannedAmount: 5000,
   budgetSummary: {
     totalPlanned: 5000,
     totalActual: 2500,
     subsidyReduction: 0,
     netCost: 5000,
   },
+  createdBy: null,
   createdAt: '2026-01-15T10:00:00Z',
   updatedAt: '2026-01-15T10:00:00Z',
 };
@@ -239,11 +245,9 @@ describe('InvoiceDetailPage - Household Item Budget Linking', () => {
 
   it('can unlink household item in edit modal', async () => {
     mockUpdateInvoice.mockResolvedValue({
-      invoice: {
-        ...mockInvoiceWithHouseholdItem,
-        householdItemBudgetId: null,
-        householdItemBudget: null,
-      },
+      ...mockInvoiceWithHouseholdItem,
+      householdItemBudgetId: null,
+      householdItemBudget: null,
     });
 
     renderPage();
@@ -323,19 +327,17 @@ describe('InvoiceDetailPage - Household Item Budget Linking', () => {
 
     mockFetchInvoiceById.mockResolvedValue(invoiceWithWorkItem);
     mockUpdateInvoice.mockResolvedValue({
-      invoice: {
-        ...invoiceWithWorkItem,
-        workItemBudgetId: null,
-        workItemBudget: null,
-        householdItemBudgetId: 'hib-001',
-        householdItemBudget: {
-          id: 'hib-001',
-          householdItemId: 'hi-001',
-          householdItemName: 'Kitchen Appliance',
-          description: 'Primary budget line',
-          plannedAmount: 5000,
-          confidence: 'professional_estimate',
-        },
+      ...invoiceWithWorkItem,
+      workItemBudgetId: null,
+      workItemBudget: null,
+      householdItemBudgetId: 'hib-001',
+      householdItemBudget: {
+        id: 'hib-001',
+        householdItemId: 'hi-001',
+        householdItemName: 'Kitchen Appliance',
+        description: 'Primary budget line',
+        plannedAmount: 5000,
+        confidence: 'professional_estimate',
       },
     });
 

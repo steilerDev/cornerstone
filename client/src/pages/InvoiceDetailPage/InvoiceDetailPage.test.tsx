@@ -100,6 +100,8 @@ const mockInvoice: Invoice = {
   vendorName: 'Acme Construction',
   workItemBudgetId: null,
   workItemBudget: null,
+  householdItemBudgetId: null,
+  householdItemBudget: null,
   invoiceNumber: 'INV-2026-001',
   amount: 1500.0,
   date: '2026-01-15',
