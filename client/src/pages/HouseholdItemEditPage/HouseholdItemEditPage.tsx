@@ -1,12 +1,12 @@
 import { useState, useEffect, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import type { TagResponse, HouseholdItemCategory, HouseholdItemStatus } from '@cornerstone/shared';
-import { createHouseholdItem } from '../../lib/householdItemsApi.js';
+import { getHouseholdItem, updateHouseholdItem } from '../../lib/householdItemsApi.js';
 import { fetchTags, createTag } from '../../lib/tagsApi.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
 import { TagPicker } from '../../components/TagPicker/TagPicker.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
-import styles from './HouseholdItemCreatePage.module.css';
+import styles from './HouseholdItemEditPage.module.css';
 
 const CATEGORIES: Array<{ value: HouseholdItemCategory; label: string }> = [
   { value: 'furniture', label: 'Furniture' },
@@ -31,8 +31,9 @@ interface Vendor {
   name: string;
 }
 
-export function HouseholdItemCreatePage() {
+export function HouseholdItemEditPage() {
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
   const { showToast } = useToast();
 
   const [name, setName] = useState('');
@@ -55,28 +56,56 @@ export function HouseholdItemCreatePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [notFound, setNotFound] = useState(false);
 
-  // Load tags and vendors on mount
+  // Load item data, tags, and vendors on mount
   useEffect(() => {
     async function loadData() {
       setIsLoadingData(true);
       try {
-        const [tagsResponse, vendorsResponse] = await Promise.all([
+        const [tagsResponse, vendorsResponse, item] = await Promise.all([
           fetchTags(),
           fetchVendors({ pageSize: 200 }),
+          getHouseholdItem(id!),
         ]);
+
         setAvailableTags(tagsResponse.tags);
         setVendors(vendorsResponse.vendors);
+
+        // Populate form with item data
+        setName(item.name);
+        setDescription(item.description || '');
+        setCategory(item.category);
+        setStatus(item.status);
+        setQuantity(item.quantity);
+        setVendorId(item.vendor?.id ?? '');
+        setUrl(item.url || '');
+        setRoom(item.room || '');
+        setOrderDate(item.orderDate || '');
+        setExpectedDeliveryDate(item.expectedDeliveryDate || '');
+        setActualDeliveryDate(item.actualDeliveryDate || '');
+        setSelectedTagIds(item.tagIds);
       } catch (err) {
-        setError('Failed to load form data. Please try again.');
         console.error('Failed to load data:', err);
+        if (
+          err instanceof Error &&
+          (err.message.includes('404') ||
+            err.message.includes('not found') ||
+            err.message.includes('Not found'))
+        ) {
+          setNotFound(true);
+        } else {
+          setError('Failed to load form data. Please try again.');
+        }
       } finally {
         setIsLoadingData(false);
       }
     }
 
-    loadData();
-  }, []);
+    if (id) {
+      loadData();
+    }
+  }, [id]);
 
   const handleCreateTag = async (name: string, color: string | null): Promise<TagResponse> => {
     const newTag = await createTag({ name, color });
@@ -114,7 +143,7 @@ export function HouseholdItemCreatePage() {
     setIsSubmitting(true);
 
     try {
-      const item = await createHouseholdItem({
+      await updateHouseholdItem(id!, {
         name: name.trim(),
         description: description.trim() || null,
         category,
@@ -129,11 +158,11 @@ export function HouseholdItemCreatePage() {
         tagIds: selectedTagIds,
       });
 
-      showToast('success', 'Household item created successfully');
-      navigate(`/household-items/${item.id}`);
+      showToast('success', 'Household item updated successfully');
+      navigate(`/household-items/${id}`);
     } catch (err) {
-      setError('Failed to create household item. Please try again.');
-      console.error('Failed to create household item:', err);
+      setError('Failed to update household item. Please try again.');
+      console.error('Failed to update household item:', err);
       setIsSubmitting(false);
     }
   };
@@ -146,18 +175,38 @@ export function HouseholdItemCreatePage() {
     );
   }
 
+  if (notFound) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.header}>
+          <button
+            type="button"
+            className={styles.backButton}
+            onClick={() => navigate('/household-items')}
+          >
+            ← Back to Household Items
+          </button>
+          <h1 className={styles.title}>Household Item Not Found</h1>
+        </div>
+        <div className={styles.errorBanner}>
+          The household item you are looking for does not exist.
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.container}>
       <div className={styles.header}>
         <button
           type="button"
           className={styles.backButton}
-          onClick={() => navigate('/household-items')}
+          onClick={() => navigate(`/household-items/${id}`)}
           disabled={isSubmitting}
         >
-          ← Back to Household Items
+          ← Back to Item
         </button>
-        <h1 className={styles.title}>New Household Item</h1>
+        <h1 className={styles.title}>Edit Household Item</h1>
       </div>
 
       {error && <div className={styles.errorBanner}>{error}</div>}
@@ -364,13 +413,13 @@ export function HouseholdItemCreatePage() {
           <button
             type="button"
             className={styles.cancelButton}
-            onClick={() => navigate('/household-items')}
+            onClick={() => navigate(`/household-items/${id}`)}
             disabled={isSubmitting}
           >
             Cancel
           </button>
           <button type="submit" className={styles.submitButton} disabled={isSubmitting}>
-            {isSubmitting ? 'Creating...' : 'Create Item'}
+            {isSubmitting ? 'Saving...' : 'Save Changes'}
           </button>
         </div>
       </form>
@@ -378,4 +427,4 @@ export function HouseholdItemCreatePage() {
   );
 }
 
-export default HouseholdItemCreatePage;
+export default HouseholdItemEditPage;

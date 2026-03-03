@@ -71,6 +71,8 @@ See `review-history.md` for detailed findings per PR.
 | #316 | Retro improvements — dep pinning, shared CSS, formatDate, invoiceService refactor | COMMENTED (1 low finding: heredoc path injection in shell script) | 2026-02-27 |
 | #320 | Bug fixes #318 (login logo) + #319 (scheduling engine rules/isLate)               | COMMENTED (no findings)                                           | 2026-02-27 |
 | #396 | EPIC-04 Story 4.1 — Household Items Schema & Migration                            | COMMENTED (2 informational)                                       | 2026-03-02 |
+| #397 | EPIC-04 Story 4.2 — Household Items CRUD API                                      | COMMENTED (2 informational)                                       | 2026-03-02 |
+| #398 | EPIC-04 Story 4.3 — Household Items List Page (frontend)                          | COMMENTED (no findings)                                           | 2026-03-03 |
 
 ## Known Open Recommendations (Low Priority)
 
