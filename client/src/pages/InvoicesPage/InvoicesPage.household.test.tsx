@@ -19,7 +19,7 @@ import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
 const mockFetchAllInvoices = jest.fn<typeof InvoicesApiTypes.fetchAllInvoices>();
 const mockFetchInvoices = jest.fn<typeof InvoicesApiTypes.fetchInvoices>();
 const mockCreateInvoice = jest.fn<typeof InvoicesApiTypes.createInvoice>();
-const mockFetchHouseholdItems = jest.fn<typeof HouseholdItemsApiTypes.fetchHouseholdItems>();
+const mockListHouseholdItems = jest.fn<typeof HouseholdItemsApiTypes.listHouseholdItems>();
 
 // ─── Mock modules ─────────────────────────────────────────────────────────
 
@@ -33,9 +33,9 @@ jest.unstable_mockModule('../../lib/invoicesApi.js', () => ({
 }));
 
 jest.unstable_mockModule('../../lib/householdItemsApi.js', () => ({
-  fetchHouseholdItems: mockFetchHouseholdItems,
+  listHouseholdItems: mockListHouseholdItems,
   createHouseholdItem: jest.fn(),
-  getHouseholdItemById: jest.fn(),
+  getHouseholdItem: jest.fn(),
   updateHouseholdItem: jest.fn(),
   deleteHouseholdItem: jest.fn(),
 }));
@@ -117,7 +117,7 @@ beforeEach(async () => {
   mockFetchAllInvoices.mockReset();
   mockFetchInvoices.mockReset();
   mockCreateInvoice.mockReset();
-  mockFetchHouseholdItems.mockReset();
+  mockListHouseholdItems.mockReset();
 
   // Default mocks
   mockFetchAllInvoices.mockResolvedValue({
@@ -129,7 +129,10 @@ beforeEach(async () => {
       claimed: { count: 0, totalAmount: 0 },
     },
   });
-  mockFetchHouseholdItems.mockResolvedValue([mockHouseholdItem]);
+  mockListHouseholdItems.mockResolvedValue({
+    items: [mockHouseholdItem],
+    pagination: { page: 1, pageSize: 25, totalItems: 1, totalPages: 1 },
+  });
 
   const module = (await import('./InvoicesPage.js')) as typeof InvoicesPageTypes;
   InvoicesPage = module.InvoicesPage;
@@ -174,14 +177,17 @@ describe('InvoicesPage - Household Item Budget Linking', () => {
   });
 
   it('displays household items in the household item dropdown', async () => {
-    mockFetchHouseholdItems.mockResolvedValue([
-      mockHouseholdItem,
-      {
-        ...mockHouseholdItem,
-        id: 'hi-002',
-        name: 'Bathroom Fixture',
-      },
-    ]);
+    mockListHouseholdItems.mockResolvedValue({
+      items: [
+        mockHouseholdItem,
+        {
+          ...mockHouseholdItem,
+          id: 'hi-002',
+          name: 'Bathroom Fixture',
+        },
+      ],
+      pagination: { page: 1, pageSize: 25, totalItems: 2, totalPages: 1 },
+    });
 
     renderPage();
 

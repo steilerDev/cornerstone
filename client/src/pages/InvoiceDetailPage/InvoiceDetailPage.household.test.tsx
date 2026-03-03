@@ -20,7 +20,7 @@ import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
 const mockFetchInvoiceById = jest.fn<typeof InvoicesApiTypes.fetchInvoiceById>();
 const mockUpdateInvoice = jest.fn<typeof InvoicesApiTypes.updateInvoice>();
 const mockDeleteInvoice = jest.fn<typeof InvoicesApiTypes.deleteInvoice>();
-const mockFetchHouseholdItems = jest.fn<typeof HouseholdItemsApiTypes.fetchHouseholdItems>();
+const mockListHouseholdItems = jest.fn<typeof HouseholdItemsApiTypes.listHouseholdItems>();
 
 // ─── Mock modules ─────────────────────────────────────────────────────────
 
@@ -34,9 +34,9 @@ jest.unstable_mockModule('../../lib/invoicesApi.js', () => ({
 }));
 
 jest.unstable_mockModule('../../lib/householdItemsApi.js', () => ({
-  fetchHouseholdItems: mockFetchHouseholdItems,
+  listHouseholdItems: mockListHouseholdItems,
   createHouseholdItem: jest.fn(),
-  getHouseholdItemById: jest.fn(),
+  getHouseholdItem: jest.fn(),
   updateHouseholdItem: jest.fn(),
   deleteHouseholdItem: jest.fn(),
 }));
@@ -149,11 +149,14 @@ beforeEach(async () => {
   mockFetchInvoiceById.mockReset();
   mockUpdateInvoice.mockReset();
   mockDeleteInvoice.mockReset();
-  mockFetchHouseholdItems.mockReset();
+  mockListHouseholdItems.mockReset();
 
   // Default mocks
   mockFetchInvoiceById.mockResolvedValue(mockInvoiceWithHouseholdItem);
-  mockFetchHouseholdItems.mockResolvedValue([mockHouseholdItem]);
+  mockListHouseholdItems.mockResolvedValue({
+    items: [mockHouseholdItem],
+    pagination: { page: 1, pageSize: 25, totalItems: 1, totalPages: 1 },
+  });
 
   const module = (await import('./InvoiceDetailPage.js')) as typeof InvoiceDetailPageTypes;
   InvoiceDetailPage = module.InvoiceDetailPage;
@@ -231,7 +234,7 @@ describe('InvoiceDetailPage - Household Item Budget Linking', () => {
     // Household item dropdown should show the pre-selected value
     const modal = screen.getByRole('dialog');
     const hiDropdown = within(modal).getByLabelText(/household item/i);
-    expect(hiDropdown).toHaveValue('hib-001');
+    expect(hiDropdown).toHaveValue('hi-001');
   });
 
   it('can unlink household item in edit modal', async () => {

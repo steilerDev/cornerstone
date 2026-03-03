@@ -133,9 +133,9 @@ describe('Budget Overview Service - Household Item Invoice Aggregation', () => {
 
       const overview = budgetOverviewService.getBudgetOverview(db);
 
-      expect(overview.financingSummary).toBeDefined();
-      // totalActualCost should include the household item invoice
-      expect(overview.financingSummary.totalActualCost).toBe(2500);
+      expect(overview.actualCost).toBeDefined();
+      // actualCost should include the household item invoice
+      expect(overview.actualCost).toBe(2500);
     });
 
     it('sums household item invoices across multiple budget lines', () => {
@@ -170,7 +170,7 @@ describe('Budget Overview Service - Household Item Invoice Aggregation', () => {
       const overview = budgetOverviewService.getBudgetOverview(db);
 
       // 2000 + 1500 = 3500
-      expect(overview.financingSummary.totalActualCost).toBe(3500);
+      expect(overview.actualCost).toBe(3500);
     });
 
     it('combines household item and work item invoices in actualCost', () => {
@@ -242,7 +242,7 @@ describe('Budget Overview Service - Household Item Invoice Aggregation', () => {
       const overview = budgetOverviewService.getBudgetOverview(db);
 
       // 2000 (household) + 1500 (work item) = 3500
-      expect(overview.financingSummary.totalActualCost).toBe(3500);
+      expect(overview.actualCost).toBe(3500);
     });
 
     it('returns 0 actualCost when no invoices are created', () => {
@@ -252,7 +252,7 @@ describe('Budget Overview Service - Household Item Invoice Aggregation', () => {
 
       const overview = budgetOverviewService.getBudgetOverview(db);
 
-      expect(overview.financingSummary.totalActualCost).toBe(0);
+      expect(overview.actualCost).toBe(0);
     });
   });
 
@@ -290,7 +290,7 @@ describe('Budget Overview Service - Household Item Invoice Aggregation', () => {
       const overview = budgetOverviewService.getBudgetOverview(db);
 
       // Find the category summary for the assigned category
-      const categorySummary = overview.categorySummaries.find((cs) => cs.id === categoryId);
+      const categorySummary = overview.categorySummaries.find((cs) => cs.categoryId === categoryId);
       expect(categorySummary).toBeDefined();
       expect(categorySummary?.actualCost).toBe(2500);
     });
@@ -440,21 +440,20 @@ describe('Budget Overview Service - Household Item Invoice Aggregation', () => {
       const overview = budgetOverviewService.getBudgetOverview(db);
 
       // Verify top-level structure
-      expect(overview).toHaveProperty('financingSummary');
+      expect(overview).toHaveProperty('availableFunds');
       expect(overview).toHaveProperty('categorySummaries');
 
-      // Verify financingSummary structure
-      expect(overview.financingSummary).toHaveProperty('totalAvailable');
-      expect(overview.financingSummary).toHaveProperty('totalUsed');
-      expect(overview.financingSummary).toHaveProperty('totalActualCost');
-      expect(overview.financingSummary).toHaveProperty('activeSourceCount');
+      // Verify top-level fields
+      expect(overview).toHaveProperty('availableFunds');
+      expect(overview).toHaveProperty('sourceCount');
+      expect(overview).toHaveProperty('actualCost');
 
       // Verify categorySummaries structure
       expect(Array.isArray(overview.categorySummaries)).toBe(true);
       if (overview.categorySummaries.length > 0) {
         const summary = overview.categorySummaries[0];
-        expect(summary).toHaveProperty('id');
-        expect(summary).toHaveProperty('name');
+        expect(summary).toHaveProperty('categoryId');
+        expect(summary).toHaveProperty('categoryName');
         expect(summary).toHaveProperty('actualCost');
       }
     });

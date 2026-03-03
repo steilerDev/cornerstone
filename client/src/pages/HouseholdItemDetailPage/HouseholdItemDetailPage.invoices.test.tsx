@@ -84,7 +84,11 @@ const mockHouseholdItem = {
   orderDate: null,
   expectedDeliveryDate: null,
   actualDeliveryDate: null,
-  vendor: null,
+  vendor: {
+    id: 'vendor-1',
+    name: 'Appliance Vendor',
+    specialty: null,
+  },
   tags: [],
   workItems: [],
   subsidies: [],
@@ -218,12 +222,8 @@ describe('HouseholdItemDetailPage - Household Item Invoice Display', () => {
       expect(mockFetchInvoices).toHaveBeenCalled();
     });
 
-    // Should fetch invoices for the household item
-    expect(mockFetchInvoices).toHaveBeenCalledWith(
-      expect.objectContaining({
-        householdItemId: 'hi-001',
-      }),
-    );
+    // Should fetch invoices for the vendor
+    expect(mockFetchInvoices).toHaveBeenCalledWith('vendor-1');
   });
 
   it('displays invoices linked to household item budgets', async () => {

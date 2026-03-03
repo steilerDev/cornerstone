@@ -73,7 +73,7 @@ describe('Invoice Service - Household Item Budget Linking', () => {
       name,
       vendorId: undefined,
       tagIds: [],
-      estimatedDeliveryDate: undefined,
+      expectedDeliveryDate: undefined,
     });
     return result.id;
   }
@@ -129,10 +129,10 @@ describe('Invoice Service - Household Item Budget Linking', () => {
         id,
         title,
         description: null,
-        status: 'planning',
+        status: 'not_started',
         startDate: null,
         endDate: null,
-        estimatedDays: null,
+        durationDays: null,
         assignedUserId: null,
         createdBy: userId,
         createdAt: now,

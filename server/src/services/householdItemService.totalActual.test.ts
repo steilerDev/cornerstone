@@ -71,7 +71,7 @@ describe('Household Item Service - Total Actual Amount', () => {
       name,
       vendorId: undefined,
       tagIds: [],
-      estimatedDeliveryDate: undefined,
+      expectedDeliveryDate: undefined,
     });
     return result.id;
   }
