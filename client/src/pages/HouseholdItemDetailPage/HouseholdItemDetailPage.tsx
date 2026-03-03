@@ -731,7 +731,8 @@ export function HouseholdItemDetailPage() {
                     <StatusBadge status={workItem.status as WorkItemStatus} />
                     {(workItem.startDate || workItem.endDate) && (
                       <span className={styles.workItemDates}>
-                        {workItem.startDate || '—'} — {workItem.endDate || '—'}
+                        {workItem.startDate ? formatDate(workItem.startDate) : '—'} —{' '}
+                        {workItem.endDate ? formatDate(workItem.endDate) : '—'}
                       </span>
                     )}
                   </div>
@@ -807,6 +808,7 @@ export function HouseholdItemDetailPage() {
               className={styles.button}
               onClick={() => void handleLinkWorkItem()}
               disabled={!selectedWorkItemId || isLinkingWorkItem}
+              aria-label="Link a work item to this household item"
             >
               {isLinkingWorkItem ? 'Linking...' : 'Add Link'}
             </button>

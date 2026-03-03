@@ -2349,7 +2349,7 @@ export default function WorkItemDetailPage() {
 
       {/* Linked Household Items section */}
       <div className={styles.section}>
-        <h2 className={styles.sectionHeading}>
+        <h2 className={styles.sectionTitle}>
           Linked Household Items
           {linkedHouseholdItems.length > 0 && (
             <span className={styles.countBadge}>{linkedHouseholdItems.length}</span>

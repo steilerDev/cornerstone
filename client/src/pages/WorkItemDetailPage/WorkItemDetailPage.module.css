@@ -1449,18 +1449,18 @@
 
 .householdItemLinkList {
   list-style: none;
-  margin: var(--spacing-sm) 0 0;
+  margin: var(--spacing-3) 0 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-xs);
+  gap: var(--spacing-2);
 }
 
 .householdItemLinkRow {
   display: flex;
   align-items: center;
-  gap: var(--spacing-xs);
-  padding: var(--spacing-xs) var(--spacing-sm);
+  gap: var(--spacing-2);
+  padding: var(--spacing-2) var(--spacing-3);
   background: var(--color-bg-primary);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -1493,18 +1493,18 @@
 
 .householdItemCategoryBadge {
   font-size: var(--font-size-xs);
-  padding: 0.125rem var(--spacing-xs);
+  padding: var(--spacing-0-5) var(--spacing-2);
   background: var(--color-bg-tertiary);
   border: 1px solid var(--color-border);
-  border-radius: 1rem;
+  border-radius: var(--radius-full);
   color: var(--color-text-secondary);
   white-space: nowrap;
 }
 
 .householdItemStatusBadge {
   font-size: var(--font-size-xs);
-  padding: 0.125rem var(--spacing-xs);
-  border-radius: 1rem;
+  padding: var(--spacing-0-5) var(--spacing-2);
+  border-radius: var(--radius-full);
   white-space: nowrap;
   background: var(--color-bg-tertiary);
   color: var(--color-text-secondary);
@@ -1517,11 +1517,16 @@
   border-color: var(--color-success);
 }
 
-.householdItemStatusBadge[data-status='ordered'],
+.householdItemStatusBadge[data-status='ordered'] {
+  background: var(--color-hi-status-ordered-bg);
+  color: var(--color-hi-status-ordered-text);
+  border-color: var(--color-hi-status-ordered-text);
+}
+
 .householdItemStatusBadge[data-status='in_transit'] {
-  background: var(--color-warning-bg);
-  color: var(--color-warning);
-  border-color: var(--color-warning);
+  background: var(--color-hi-status-in-transit-bg);
+  color: var(--color-hi-status-in-transit-text);
+  border-color: var(--color-hi-status-in-transit-text);
 }
 
 .householdItemStatusBadge[data-status='not_ordered'] {
@@ -1542,19 +1547,19 @@
   justify-content: center;
   min-width: 1.25rem;
   height: 1.25rem;
-  padding: 0 0.375rem;
-  border-radius: 1rem;
+  padding: 0 var(--spacing-1-5);
+  border-radius: var(--radius-full);
   background: var(--color-primary);
   color: var(--color-bg-primary);
   font-size: var(--font-size-xs);
-  font-weight: 600;
-  margin-left: var(--spacing-xs);
+  font-weight: var(--font-weight-semibold);
+  margin-left: var(--spacing-2);
 }
 
 .emptyText {
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
-  margin: var(--spacing-sm) 0 0;
+  margin: var(--spacing-3) 0 0;
 }
 
 @media (prefers-reduced-motion: reduce) {
