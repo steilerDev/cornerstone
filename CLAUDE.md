@@ -400,6 +400,7 @@ Hand-written SQL files in `server/src/db/migrations/` with a numeric prefix (e.g
 | `PAPERLESS_URL`          | (none)                     | Paperless-ngx instance base URL                                                     |
 | `PAPERLESS_API_TOKEN`    | (none)                     | Paperless-ngx API authentication token                                              |
 | `PAPERLESS_EXTERNAL_URL` | (none)                     | Browser-facing URL for Paperless-ngx links (falls back to `PAPERLESS_URL` if unset) |
+| `PAPERLESS_FILTER_TAG`   | (none)                     | Tag name for automatic document pre-filtering                                       |
 
 Production images use Docker Hardened Images (DHI). See `Dockerfile` and `docker-compose.yml` for build/deploy details.
 

@@ -280,6 +280,79 @@ describe('Paperless Routes', () => {
       const body = response.json<PaperlessStatusResponse>();
       expect(body.paperlessUrl).toBe('http://paperless:8000');
     });
+
+    describe('PAPERLESS_FILTER_TAG support', () => {
+      it('returns filterTag=null when PAPERLESS_FILTER_TAG not set', async () => {
+        await rebuildAppWithPaperless();
+        const { cookie } = await createUserWithSession();
+
+        mockFetch.mockResolvedValueOnce(mockJsonResponse({ count: 10 }));
+
+        const response = await app.inject({
+          method: 'GET',
+          url: '/api/paperless/status',
+          headers: { cookie },
+        });
+
+        expect(response.statusCode).toBe(200);
+        const body = response.json<PaperlessStatusResponse>();
+        expect(body.filterTag).toBeNull();
+      });
+
+      it('returns filterTag with tag name when PAPERLESS_FILTER_TAG set and tag found', async () => {
+        await app.close();
+        process.env.PAPERLESS_URL = 'http://paperless:8000';
+        process.env.PAPERLESS_API_TOKEN = 'test-token';
+        process.env.PAPERLESS_FILTER_TAG = 'cornerstone';
+        app = await buildApp();
+
+        const { cookie } = await createUserWithSession();
+
+        // Status probe
+        mockFetch.mockResolvedValueOnce(mockJsonResponse({ count: 10 }));
+        // Tags lookup
+        mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
+
+        const response = await app.inject({
+          method: 'GET',
+          url: '/api/paperless/status',
+          headers: { cookie },
+        });
+
+        expect(response.statusCode).toBe(200);
+        const body = response.json<PaperlessStatusResponse>();
+        expect(body.filterTag).toBe('cornerstone');
+      });
+
+      it('returns filterTag=null when PAPERLESS_FILTER_TAG set but tag not found', async () => {
+        await app.close();
+        process.env.PAPERLESS_URL = 'http://paperless:8000';
+        process.env.PAPERLESS_API_TOKEN = 'test-token';
+        process.env.PAPERLESS_FILTER_TAG = 'missing-tag';
+        app = await buildApp();
+
+        const { cookie } = await createUserWithSession();
+
+        // Status probe
+        mockFetch.mockResolvedValueOnce(mockJsonResponse({ count: 10 }));
+        // Tags lookup (returns no matching tag)
+        mockFetch.mockResolvedValueOnce(mockJsonResponse({ count: 2, results: [RAW_TAG] }));
+
+        const response = await app.inject({
+          method: 'GET',
+          url: '/api/paperless/status',
+          headers: { cookie },
+        });
+
+        expect(response.statusCode).toBe(200);
+        const body = response.json<PaperlessStatusResponse>();
+        expect(body.filterTag).toBeNull();
+      });
+
+      afterEach(async () => {
+        delete process.env.PAPERLESS_FILTER_TAG;
+      });
+    });
   });
 
   // ─── GET /api/paperless/documents ─────────────────────────────────────────
@@ -418,6 +491,36 @@ describe('Paperless Routes', () => {
       expect(response.statusCode).toBe(502);
       const body = response.json<ApiErrorResponse>();
       expect(body.error.code).toBe('PAPERLESS_UNREACHABLE');
+    });
+
+    it('includes filter tag in upstream request when PAPERLESS_FILTER_TAG set', async () => {
+      await app.close();
+      process.env.PAPERLESS_URL = 'http://paperless:8000';
+      process.env.PAPERLESS_API_TOKEN = 'test-token';
+      process.env.PAPERLESS_FILTER_TAG = 'cornerstone';
+      app = await buildApp();
+
+      const { cookie } = await createUserWithSession();
+
+      // Documents call
+      mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_LIST_RESPONSE));
+      // Tags call (for mapping)
+      mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
+      // Tags call (for filter tag resolution)
+      mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/paperless/documents',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      // Verify the documents endpoint was called with filter tag in URL
+      const firstCallUrl = (mockFetch.mock.calls[0] as [string, ...unknown[]])[0];
+      expect(firstCallUrl).toContain('tags__id__in=5');
+
+      delete process.env.PAPERLESS_FILTER_TAG;
     });
   });
 

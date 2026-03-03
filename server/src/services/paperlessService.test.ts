@@ -102,7 +102,13 @@ describe('getStatus()', () => {
 
     const result = await paperlessService.getStatus(BASE_URL, TOKEN);
 
-    expect(result).toEqual({ configured: true, reachable: true, error: null, paperlessUrl: null });
+    expect(result).toEqual({
+      configured: true,
+      reachable: true,
+      error: null,
+      paperlessUrl: null,
+      filterTag: null,
+    });
     expect(mockFetch).toHaveBeenCalledWith(
       `${BASE_URL}/api/documents/?page_size=1`,
       expect.objectContaining({
@@ -167,6 +173,63 @@ describe('getStatus()', () => {
         headers: expect.objectContaining({ Accept: 'application/json; version=5' }),
       }),
     );
+  });
+
+  describe('filter tag resolution', () => {
+    beforeEach(() => {
+      paperlessService._resetFilterTagCache();
+    });
+
+    it('returns filterTag=null when filterTagName not provided', async () => {
+      mockFetch.mockResolvedValueOnce(mockJsonResponse({ count: 1 }));
+
+      const result = await paperlessService.getStatus(BASE_URL, TOKEN);
+
+      expect(result.filterTag).toBeNull();
+      // Only one fetch call (the status probe), no tags lookup
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns filterTag with tag name when tag found', async () => {
+      // First call: status probe
+      mockFetch.mockResolvedValueOnce(mockJsonResponse({ count: 1 }));
+      // Second call: tags lookup
+      mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
+
+      const result = await paperlessService.getStatus(BASE_URL, TOKEN, 'invoice');
+
+      expect(result.filterTag).toBe('invoice');
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('returns filterTag=null when tag name not found in Paperless', async () => {
+      // First call: status probe
+      mockFetch.mockResolvedValueOnce(mockJsonResponse({ count: 1 }));
+      // Second call: tags lookup (empty results)
+      mockFetch.mockResolvedValueOnce(mockJsonResponse({ count: 0, results: [] }));
+
+      const result = await paperlessService.getStatus(BASE_URL, TOKEN, 'missing');
+
+      expect(result.filterTag).toBeNull();
+    });
+
+    it('caches filter tag ID for subsequent calls', async () => {
+      mockFetch.mockClear();
+      // First call to getStatus
+      mockFetch.mockResolvedValueOnce(mockJsonResponse({ count: 1 }));
+      mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
+
+      await paperlessService.getStatus(BASE_URL, TOKEN, 'invoice');
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+
+      mockFetch.mockClear();
+      // Second call to getStatus with same tag name
+      mockFetch.mockResolvedValueOnce(mockJsonResponse({ count: 1 }));
+
+      await paperlessService.getStatus(BASE_URL, TOKEN, 'invoice');
+      // Should only call once (status probe) since tag is cached
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
   });
 });
 
@@ -423,6 +486,79 @@ describe('listDocuments()', () => {
     await expect(paperlessService.listDocuments(BASE_URL, TOKEN, {})).rejects.toMatchObject({
       code: 'PAPERLESS_ERROR',
       statusCode: 502,
+    });
+  });
+
+  describe('filter tag integration', () => {
+    beforeEach(() => {
+      paperlessService._resetFilterTagCache();
+    });
+
+    it('appends filter tag ID to tags__id__in when filter tag found', async () => {
+      // Documents call
+      mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_LIST_RESPONSE));
+      // Tags call (for mapping)
+      mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
+      // Correspondent call
+      mockFetch.mockResolvedValueOnce(mockJsonResponse({ id: 3, name: 'Builder Co' }));
+      // Document type call
+      mockFetch.mockResolvedValueOnce(mockJsonResponse({ id: 7, name: 'Invoice' }));
+      // Tags call (for filter tag resolution)
+      mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
+
+      await paperlessService.listDocuments(BASE_URL, TOKEN, {}, 'invoice');
+
+      const callUrl = (mockFetch.mock.calls[0] as [string, ...unknown[]])[0];
+      expect(callUrl).toContain('tags__id__in=5');
+    });
+
+    it('merges client-specified tags with filter tag, avoiding duplication', async () => {
+      setupListMocks();
+      // Tags call (for filter tag resolution) — called after initial mocks
+      mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
+
+      await paperlessService.listDocuments(BASE_URL, TOKEN, { tags: '12' }, 'invoice');
+
+      const callUrl = (mockFetch.mock.calls[0] as [string, ...unknown[]])[0];
+      // Both 5 (invoice) and 12 (contract) should be in tags__id__in
+      expect(callUrl).toContain('tags__id__in');
+      const decoded = decodeURIComponent(callUrl);
+      expect(decoded).toMatch(/tags__id__in=(5.*12|12.*5)/);
+    });
+
+    it('deduplicates when filter tag ID matches client tags', async () => {
+      setupListMocks();
+      // Tags call (for filter tag resolution)
+      mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
+
+      await paperlessService.listDocuments(BASE_URL, TOKEN, { tags: '5' }, 'invoice');
+
+      const callUrl = (mockFetch.mock.calls[0] as [string, ...unknown[]])[0];
+      // Should only have 5, not 5,5
+      expect(callUrl).toContain('tags__id__in=5');
+      expect(callUrl).not.toContain('tags__id__in=5%2C5');
+    });
+
+    it('preserves client tags when filter tag not found', async () => {
+      setupListMocks();
+      // Tags call (for filter tag resolution) — returns empty
+      mockFetch.mockResolvedValueOnce(mockJsonResponse({ count: 0, results: [] }));
+
+      await paperlessService.listDocuments(BASE_URL, TOKEN, { tags: '12' }, 'missing');
+
+      const callUrl = (mockFetch.mock.calls[0] as [string, ...unknown[]])[0];
+      // Should still have client-specified tag
+      expect(callUrl).toContain('tags__id__in=12');
+    });
+
+    it('does not append tags__id__in when no filter tag and no client tags', async () => {
+      setupListMocks();
+
+      await paperlessService.listDocuments(BASE_URL, TOKEN, {}, 'missing');
+
+      const callUrl = (mockFetch.mock.calls[0] as [string, ...unknown[]])[0];
+      // No tags__id__in should be present
+      expect(callUrl).not.toContain('tags__id__in');
     });
   });
 });

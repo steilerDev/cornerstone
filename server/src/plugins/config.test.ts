@@ -28,6 +28,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         paperlessUrl: undefined,
         paperlessExternalUrl: undefined,
         paperlessApiToken: undefined,
+        paperlessFilterTag: undefined,
         paperlessEnabled: false,
       });
     });
@@ -58,6 +59,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         paperlessUrl: undefined,
         paperlessExternalUrl: undefined,
         paperlessApiToken: undefined,
+        paperlessFilterTag: undefined,
         paperlessEnabled: false,
       });
     });
@@ -90,6 +92,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         paperlessUrl: undefined,
         paperlessExternalUrl: undefined,
         paperlessApiToken: undefined,
+        paperlessFilterTag: undefined,
         paperlessEnabled: false,
       });
     });
@@ -117,6 +120,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         paperlessUrl: undefined,
         paperlessExternalUrl: undefined,
         paperlessApiToken: undefined,
+        paperlessFilterTag: undefined,
         paperlessEnabled: false,
       });
     });
@@ -443,6 +447,58 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
       expect(config.paperlessUrl).toBe('http://paperless:8000');
       expect(config.paperlessExternalUrl).toBe('https://external.example.com');
       expect(config.paperlessApiToken).toBe('test-token');
+    });
+  });
+
+  describe('PAPERLESS_FILTER_TAG Configuration', () => {
+    it('PAPERLESS_FILTER_TAG not set → paperlessFilterTag is undefined', () => {
+      const config = loadConfig({});
+      expect(config.paperlessFilterTag).toBeUndefined();
+    });
+
+    it('PAPERLESS_FILTER_TAG set to "cornerstone" → paperlessFilterTag equals "cornerstone"', () => {
+      const config = loadConfig({
+        PAPERLESS_FILTER_TAG: 'cornerstone',
+      });
+
+      expect(config.paperlessFilterTag).toBe('cornerstone');
+    });
+
+    it('PAPERLESS_FILTER_TAG set to "invoice" → paperlessFilterTag equals "invoice"', () => {
+      const config = loadConfig({
+        PAPERLESS_FILTER_TAG: 'invoice',
+      });
+
+      expect(config.paperlessFilterTag).toBe('invoice');
+    });
+
+    it('PAPERLESS_FILTER_TAG empty string → paperlessFilterTag is undefined', () => {
+      const config = loadConfig({
+        PAPERLESS_FILTER_TAG: '',
+      });
+
+      expect(config.paperlessFilterTag).toBeUndefined();
+    });
+
+    it('PAPERLESS_FILTER_TAG set without Paperless enabled → paperlessFilterTag still set', () => {
+      const config = loadConfig({
+        PAPERLESS_FILTER_TAG: 'cornerstone',
+        // No PAPERLESS_URL or PAPERLESS_API_TOKEN
+      });
+
+      expect(config.paperlessFilterTag).toBe('cornerstone');
+      expect(config.paperlessEnabled).toBe(false);
+    });
+
+    it('PAPERLESS_FILTER_TAG set with Paperless enabled → both set', () => {
+      const config = loadConfig({
+        PAPERLESS_URL: 'http://paperless:8000',
+        PAPERLESS_API_TOKEN: 'test-token',
+        PAPERLESS_FILTER_TAG: 'cornerstone',
+      });
+
+      expect(config.paperlessEnabled).toBe(true);
+      expect(config.paperlessFilterTag).toBe('cornerstone');
     });
   });
 

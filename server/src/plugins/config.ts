@@ -18,6 +18,7 @@ export interface AppConfig {
   paperlessUrl?: string;
   paperlessExternalUrl?: string;
   paperlessApiToken?: string;
+  paperlessFilterTag?: string;
   paperlessEnabled: boolean;
 }
 
@@ -149,6 +150,9 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
   // Paperless-ngx is enabled when both URL and API token are set
   const paperlessEnabled = !!(paperlessUrl && paperlessApiToken);
 
+  // Paperless-ngx filter tag (optional, tag name string)
+  const paperlessFilterTag = getValue('PAPERLESS_FILTER_TAG');
+
   // If there are any validation errors, throw a single error listing all of them
   if (errors.length > 0) {
     throw new Error(`Configuration validation failed:\n  - ${errors.join('\n  - ')}`);
@@ -171,6 +175,7 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     paperlessUrl,
     paperlessExternalUrl,
     paperlessApiToken,
+    paperlessFilterTag,
     paperlessEnabled,
   };
 }
@@ -195,6 +200,7 @@ export default fp(
         oidcIssuer: config.oidcIssuer,
         paperlessEnabled: config.paperlessEnabled,
         paperlessUrl: config.paperlessUrl,
+        paperlessFilterTag: config.paperlessFilterTag,
       },
       'Configuration loaded',
     );
