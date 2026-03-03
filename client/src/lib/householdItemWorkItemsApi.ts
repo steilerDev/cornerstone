@@ -1,16 +1,11 @@
 import { get, post, del } from './apiClient.js';
-import type {
-  HouseholdItemWorkItemSummary,
-  WorkItemLinkedHouseholdItemSummary,
-} from '@cornerstone/shared';
+import type { WorkItemSummary, WorkItemLinkedHouseholdItemSummary } from '@cornerstone/shared';
 
 /**
  * Fetches all work items linked to a household item.
  */
-export function fetchLinkedWorkItems(
-  householdItemId: string,
-): Promise<HouseholdItemWorkItemSummary[]> {
-  return get<{ workItems: HouseholdItemWorkItemSummary[] }>(
+export function fetchLinkedWorkItems(householdItemId: string): Promise<WorkItemSummary[]> {
+  return get<{ workItems: WorkItemSummary[] }>(
     `/household-items/${householdItemId}/work-items`,
   ).then((r) => r.workItems);
 }
@@ -21,11 +16,10 @@ export function fetchLinkedWorkItems(
 export function linkWorkItemToHouseholdItem(
   householdItemId: string,
   workItemId: string,
-): Promise<HouseholdItemWorkItemSummary> {
-  return post<{ workItem: HouseholdItemWorkItemSummary }>(
-    `/household-items/${householdItemId}/work-items`,
-    { workItemId },
-  ).then((r) => r.workItem);
+): Promise<WorkItemSummary> {
+  return post<{ workItem: WorkItemSummary }>(`/household-items/${householdItemId}/work-items`, {
+    workItemId,
+  }).then((r) => r.workItem);
 }
 
 /**

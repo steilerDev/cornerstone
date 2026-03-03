@@ -5,13 +5,29 @@ import {
   unlinkWorkItemFromHouseholdItem,
   fetchLinkedHouseholdItems,
 } from './householdItemWorkItemsApi.js';
-import type {
-  HouseholdItemWorkItemSummary,
-  WorkItemLinkedHouseholdItemSummary,
-} from '@cornerstone/shared';
+import type { WorkItemSummary, WorkItemLinkedHouseholdItemSummary } from '@cornerstone/shared';
 
 describe('householdItemWorkItemsApi', () => {
   let mockFetch: jest.MockedFunction<typeof globalThis.fetch>;
+
+  // Helper to create complete WorkItemSummary fixtures
+  function makeWorkItem(overrides: Partial<WorkItemSummary> = {}): WorkItemSummary {
+    return {
+      id: 'wi-1',
+      title: 'Work Item',
+      status: 'not_started' as const,
+      startDate: null,
+      endDate: null,
+      actualStartDate: null,
+      actualEndDate: null,
+      durationDays: null,
+      assignedUser: null,
+      tags: [],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      ...overrides,
+    };
+  }
 
   beforeEach(() => {
     mockFetch = jest.fn<typeof globalThis.fetch>();
@@ -27,7 +43,7 @@ describe('householdItemWorkItemsApi', () => {
   describe('fetchLinkedWorkItems', () => {
     it('sends GET request to /api/household-items/:householdItemId/work-items', async () => {
       const mockResponse = {
-        workItems: [] as HouseholdItemWorkItemSummary[],
+        workItems: [] as WorkItemSummary[],
       };
 
       mockFetch.mockResolvedValueOnce({
@@ -44,14 +60,12 @@ describe('householdItemWorkItemsApi', () => {
     });
 
     it('returns an array of work items', async () => {
-      const mockWorkItem: HouseholdItemWorkItemSummary = {
-        id: 'wi-1',
+      const mockWorkItem = makeWorkItem({
         title: 'Install HVAC',
-        status: 'in_progress',
+        status: 'in_progress' as const,
         startDate: '2026-04-01T00:00:00.000Z',
         endDate: '2026-04-15T00:00:00.000Z',
-        assignedUser: null,
-      };
+      });
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -79,23 +93,14 @@ describe('householdItemWorkItemsApi', () => {
     });
 
     it('returns multiple work items', async () => {
-      const workItems: HouseholdItemWorkItemSummary[] = [
-        {
-          id: 'wi-1',
-          title: 'Task 1',
-          status: 'not_started',
-          startDate: null,
-          endDate: null,
-          assignedUser: null,
-        },
-        {
+      const workItems: WorkItemSummary[] = [
+        makeWorkItem({ id: 'wi-1', title: 'Task 1', status: 'not_started' as const }),
+        makeWorkItem({
           id: 'wi-2',
           title: 'Task 2',
-          status: 'in_progress',
+          status: 'in_progress' as const,
           startDate: '2026-04-01T00:00:00.000Z',
-          endDate: null,
-          assignedUser: null,
-        },
+        }),
       ];
 
       mockFetch.mockResolvedValueOnce({
@@ -135,14 +140,10 @@ describe('householdItemWorkItemsApi', () => {
 
   describe('linkWorkItemToHouseholdItem', () => {
     it('sends POST request with correct URL and body', async () => {
-      const mockWorkItem: HouseholdItemWorkItemSummary = {
-        id: 'wi-1',
+      const mockWorkItem = makeWorkItem({
         title: 'Test Task',
-        status: 'not_started',
-        startDate: null,
-        endDate: null,
-        assignedUser: null,
-      };
+        status: 'not_started' as const,
+      });
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -162,14 +163,12 @@ describe('householdItemWorkItemsApi', () => {
     });
 
     it('returns linked work item', async () => {
-      const mockWorkItem: HouseholdItemWorkItemSummary = {
-        id: 'wi-1',
+      const mockWorkItem = makeWorkItem({
         title: 'Install Kitchen Cabinets',
-        status: 'not_started',
+        status: 'not_started' as const,
         startDate: '2026-05-01T00:00:00.000Z',
         endDate: '2026-05-10T00:00:00.000Z',
-        assignedUser: null,
-      };
+      });
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -317,6 +316,8 @@ describe('householdItemWorkItemsApi', () => {
         category: 'appliances',
         status: 'in_transit',
         expectedDeliveryDate: '2026-05-01T00:00:00.000Z',
+        earliestDeliveryDate: '2026-05-01',
+        latestDeliveryDate: '2026-05-10',
       };
 
       mockFetch.mockResolvedValueOnce({
@@ -352,6 +353,8 @@ describe('householdItemWorkItemsApi', () => {
           category: 'appliances',
           status: 'not_ordered',
           expectedDeliveryDate: null,
+          earliestDeliveryDate: null,
+          latestDeliveryDate: null,
         },
         {
           id: 'hi-2',
@@ -359,6 +362,8 @@ describe('householdItemWorkItemsApi', () => {
           category: 'fixtures',
           status: 'ordered',
           expectedDeliveryDate: '2026-05-15T00:00:00.000Z',
+          earliestDeliveryDate: '2026-05-15',
+          latestDeliveryDate: '2026-05-20',
         },
       ];
 

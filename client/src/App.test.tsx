@@ -130,6 +130,7 @@ describe('App', () => {
       workItems: [],
       dependencies: [],
       milestones: [],
+      householdItems: [],
       criticalPath: [],
       dateRange: null,
     });

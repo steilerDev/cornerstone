@@ -957,7 +957,7 @@ export function HouseholdItemDetailPage() {
                 <ul role="listbox" aria-label="Search results" className={styles.depSearchResults}>
                   {(depPredecessorType === 'work_item' ? allWorkItems : allMilestones)
                     .filter((item) => {
-                      const title = 'title' in item ? item.title : item.title;
+                      const title = depPredecessorType === 'work_item' ? item.title : item.title;
                       const alreadyAdded = dependencies.some(
                         (d) =>
                           d.predecessorType === depPredecessorType &&
@@ -977,7 +977,7 @@ export function HouseholdItemDetailPage() {
                         }`}
                         onClick={() => setDepSelectedId(String(item.id))}
                       >
-                        {'title' in item ? item.title : item.title}
+                        {depPredecessorType === 'work_item' ? item.title : item.title}
                       </li>
                     ))}
                 </ul>

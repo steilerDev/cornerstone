@@ -11,6 +11,7 @@ import type {
   HouseholdItemDetail,
   HouseholdItemStatus,
   HouseholdItemCategory,
+  WorkItemSummary,
 } from '@cornerstone/shared';
 import type React from 'react';
 import type * as HouseholdItemWorkItemsApiTypes from '../../lib/householdItemWorkItemsApi.js';
@@ -168,6 +169,8 @@ describe('HouseholdItemDetailPage', () => {
       orderDate: '2026-02-15',
       expectedDeliveryDate: '2026-03-01',
       actualDeliveryDate: null,
+      earliestDeliveryDate: '2026-03-01',
+      latestDeliveryDate: '2026-03-10',
       url: 'https://example.com/desk',
       tagIds: ['tag-1'],
       budgetLineCount: 1,
@@ -179,17 +182,26 @@ describe('HouseholdItemDetailPage', () => {
       tags: [
         { id: 'tag-1', name: 'Priority', color: '#ff0000', createdAt: '2026-01-01T00:00:00Z' },
       ],
-      workItems: [
-        {
-          id: 'wi-1',
-          title: 'Install desk',
-          status: 'in_progress',
-          startDate: '2026-04-01',
-          endDate: '2026-04-15',
-          assignedUser: null,
-        },
-      ],
+      dependencies: [],
       subsidies: [],
+      ...overrides,
+    };
+  }
+
+  function makeWorkItem(overrides: Partial<WorkItemSummary> = {}): WorkItemSummary {
+    return {
+      id: 'wi-1',
+      title: 'Work Item',
+      status: 'not_started' as const,
+      startDate: null,
+      endDate: null,
+      actualStartDate: null,
+      actualEndDate: null,
+      durationDays: null,
+      assignedUser: null,
+      tags: [],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
       ...overrides,
     };
   }
@@ -567,7 +579,7 @@ describe('HouseholdItemDetailPage', () => {
     });
 
     it('shows "No work items linked" for empty work items', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem({ workItems: [] }));
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
       mockFetchLinkedWorkItems.mockResolvedValue([]);
 
       renderPage();
@@ -912,36 +924,29 @@ describe('HouseholdItemDetailPage', () => {
   describe('linked work items display', () => {
     it('renders multiple work items with titles', async () => {
       const workItems = [
-        {
+        makeWorkItem({
           id: 'wi-1',
           title: 'Install desk',
-          status: 'in_progress',
+          status: 'in_progress' as const,
           startDate: '2026-04-01',
           endDate: '2026-04-15',
-          assignedUser: null,
-        },
-        {
+        }),
+        makeWorkItem({
           id: 'wi-2',
           title: 'Setup cables',
-          status: 'pending',
+          status: 'not_started' as const,
           startDate: '2026-04-16',
           endDate: null,
-          assignedUser: null,
-        },
-        {
+        }),
+        makeWorkItem({
           id: 'wi-3',
           title: 'Test connection',
-          status: 'completed',
+          status: 'completed' as const,
           startDate: '2026-03-01',
           endDate: '2026-03-05',
-          assignedUser: null,
-        },
-      ];
-      mockGetHouseholdItem.mockResolvedValue(
-        makeItem({
-          workItems,
         }),
-      );
+      ];
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
       mockFetchLinkedWorkItems.mockResolvedValueOnce(workItems);
 
       renderPage();
@@ -956,20 +961,15 @@ describe('HouseholdItemDetailPage', () => {
 
     it('links each work item to its detail page', async () => {
       const workItems = [
-        {
+        makeWorkItem({
           id: 'wi-abc-123',
           title: 'Install desk',
-          status: 'in_progress',
+          status: 'in_progress' as const,
           startDate: '2026-04-01',
           endDate: '2026-04-15',
-          assignedUser: null,
-        },
-      ];
-      mockGetHouseholdItem.mockResolvedValue(
-        makeItem({
-          workItems,
         }),
-      );
+      ];
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
       mockFetchLinkedWorkItems.mockResolvedValueOnce(workItems);
 
       renderPage();

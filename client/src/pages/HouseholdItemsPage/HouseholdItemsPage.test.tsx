@@ -53,6 +53,8 @@ describe('HouseholdItemsPage', () => {
       orderDate: null,
       expectedDeliveryDate: null,
       actualDeliveryDate: null,
+      earliestDeliveryDate: null,
+      latestDeliveryDate: null,
       url: null,
       tagIds: [],
       budgetLineCount: 0,

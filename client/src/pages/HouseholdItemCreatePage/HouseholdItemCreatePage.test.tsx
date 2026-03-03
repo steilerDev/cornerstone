@@ -102,6 +102,8 @@ describe('HouseholdItemCreatePage', () => {
     orderDate: null,
     expectedDeliveryDate: null,
     actualDeliveryDate: null,
+    earliestDeliveryDate: null,
+    latestDeliveryDate: null,
     tagIds: [],
     budgetLineCount: 0,
     totalPlannedAmount: 0,
@@ -110,7 +112,7 @@ describe('HouseholdItemCreatePage', () => {
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-01T00:00:00Z',
     tags: [],
-    workItems: [],
+    dependencies: [],
     subsidies: [],
   };
 
