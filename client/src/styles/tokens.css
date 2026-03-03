@@ -209,6 +209,22 @@
   --color-user-inactive-bg: var(--color-red-100);
   --color-user-inactive-text: var(--color-red-700);
 
+  /* HI Status: Not Ordered (gray) */
+  --color-hi-status-not-ordered-bg: var(--color-gray-200);
+  --color-hi-status-not-ordered-text: var(--color-gray-700);
+
+  /* HI Status: Ordered (blue) */
+  --color-hi-status-ordered-bg: var(--color-blue-100);
+  --color-hi-status-ordered-text: var(--color-blue-800);
+
+  /* HI Status: In Transit (amber) */
+  --color-hi-status-in-transit-bg: #fef3c7;
+  --color-hi-status-in-transit-text: #92400e;
+
+  /* HI Status: Delivered (green) */
+  --color-hi-status-delivered-bg: var(--color-green-100);
+  --color-hi-status-delivered-text: var(--color-green-900);
+
   /* ============================================================
    * LAYER 2 — SHADOWS
    * ============================================================ */
@@ -525,6 +541,16 @@
   --color-user-active-text: var(--color-emerald-300);
   --color-user-inactive-bg: rgba(239, 68, 68, 0.15);
   --color-user-inactive-text: var(--color-red-300);
+
+  /* --- Household item status badges --- */
+  --color-hi-status-not-ordered-bg: var(--color-slate-500);
+  --color-hi-status-not-ordered-text: var(--color-slate-200);
+  --color-hi-status-ordered-bg: rgba(59, 130, 246, 0.2);
+  --color-hi-status-ordered-text: var(--color-blue-300);
+  --color-hi-status-in-transit-bg: rgba(245, 158, 11, 0.2);
+  --color-hi-status-in-transit-text: #fcd34d;
+  --color-hi-status-delivered-bg: rgba(16, 185, 129, 0.15);
+  --color-hi-status-delivered-text: var(--color-emerald-200);
 
   /* --- Shadows (deeper/darker in dark mode) --- */
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
