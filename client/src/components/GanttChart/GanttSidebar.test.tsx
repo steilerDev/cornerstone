@@ -8,6 +8,7 @@
 import { jest, describe, it, expect, beforeAll, afterAll } from '@jest/globals';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { GanttSidebar } from './GanttSidebar.js';
+import type { UnifiedRow } from './GanttSidebar.js';
 import { ROW_HEIGHT, HEADER_HEIGHT } from './ganttUtils.js';
 import type { TimelineWorkItem, TimelineHouseholdItem } from '@cornerstone/shared';
 
@@ -52,7 +53,7 @@ function makeHI(
 }
 
 // Helper to create a unified row for a household item
-function makeHIRow(hi: TimelineHouseholdItem): import('./GanttSidebar.js').UnifiedRow {
+function makeHIRow(hi: TimelineHouseholdItem): UnifiedRow {
   return { kind: 'householdItem', item: hi };
 }
 
