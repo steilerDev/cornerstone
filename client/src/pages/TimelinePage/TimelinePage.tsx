@@ -170,7 +170,16 @@ function HouseholdItemsIcon() {
         strokeLinejoin="round"
         fill="none"
       />
-      <rect x="7" y="12" width="6" height="5" rx="0.5" stroke="currentColor" strokeWidth="1.5" fill="none" />
+      <rect
+        x="7"
+        y="12"
+        width="6"
+        height="5"
+        rx="0.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        fill="none"
+      />
     </svg>
   );
 }
@@ -188,9 +197,9 @@ const FILTER_PARAM = 'filter';
 /** Parse the `?filter=` URL param into a Set of active entity types. */
 export function parseFilterParam(raw: string | null): ReadonlySet<EntityType> {
   if (raw === null) return new Set(ALL_ENTITY_TYPES);
-  const parts = raw.split(',').filter((p): p is EntityType =>
-    (ALL_ENTITY_TYPES as string[]).includes(p),
-  );
+  const parts = raw
+    .split(',')
+    .filter((p): p is EntityType => (ALL_ENTITY_TYPES as string[]).includes(p));
   return parts.length > 0 ? new Set(parts) : new Set(ALL_ENTITY_TYPES);
 }
 
@@ -342,7 +351,9 @@ export function TimelinePage() {
   // ---- Filtered data arrays for display ----
   const filteredWorkItems = activeEntities.has('work-items') ? (data?.workItems ?? []) : [];
   const filteredMilestones = activeEntities.has('milestones') ? (data?.milestones ?? []) : [];
-  const filteredHouseholdItems = activeEntities.has('household-items') ? (data?.householdItems ?? []) : [];
+  const filteredHouseholdItems = activeEntities.has('household-items')
+    ? (data?.householdItems ?? [])
+    : [];
 
   const hasWorkItemsWithDates =
     data !== null &&

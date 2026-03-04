@@ -62,9 +62,7 @@ describe('TimelinePage', () => {
       const module = await import('./TimelinePage.js');
       TimelinePage = module.TimelinePage;
       parseFilterParam = module.parseFilterParam as (raw: string | null) => ReadonlySet<string>;
-      serializeFilterParam = module.serializeFilterParam as (
-        active: ReadonlySet<string>,
-      ) => string;
+      serializeFilterParam = module.serializeFilterParam as (active: ReadonlySet<string>) => string;
     }
 
     mockGetTimeline.mockResolvedValue(EMPTY_TIMELINE);
@@ -237,8 +235,14 @@ describe('TimelinePage', () => {
   describe('entity filter URL param initialisation', () => {
     it('shows only work items active when URL has ?filter=work-items', () => {
       renderWithRouter(['/timeline?filter=work-items']);
-      expect(screen.getByTestId('entity-filter-work-items')).toHaveAttribute('aria-pressed', 'true');
-      expect(screen.getByTestId('entity-filter-milestones')).toHaveAttribute('aria-pressed', 'false');
+      expect(screen.getByTestId('entity-filter-work-items')).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+      expect(screen.getByTestId('entity-filter-milestones')).toHaveAttribute(
+        'aria-pressed',
+        'false',
+      );
       expect(screen.getByTestId('entity-filter-household-items')).toHaveAttribute(
         'aria-pressed',
         'false',
@@ -247,8 +251,14 @@ describe('TimelinePage', () => {
 
     it('falls back to all entities shown when URL has an invalid filter param', () => {
       renderWithRouter(['/timeline?filter=invalid-value']);
-      expect(screen.getByTestId('entity-filter-work-items')).toHaveAttribute('aria-pressed', 'true');
-      expect(screen.getByTestId('entity-filter-milestones')).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByTestId('entity-filter-work-items')).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+      expect(screen.getByTestId('entity-filter-milestones')).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
       expect(screen.getByTestId('entity-filter-household-items')).toHaveAttribute(
         'aria-pressed',
         'true',
