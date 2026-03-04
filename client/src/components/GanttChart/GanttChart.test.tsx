@@ -658,6 +658,203 @@ describe('GanttChart — onItemClick integration', () => {
 });
 
 // ---------------------------------------------------------------------------
+// GanttChart — onHouseholdItemClick integration (Issue #449)
+// ---------------------------------------------------------------------------
+
+describe('GanttChart — onHouseholdItemClick integration', () => {
+  it('renders household item circles when householdItems are present', () => {
+    const data = makeTimeline({
+      householdItems: [
+        {
+          id: 'hi-1',
+          name: 'Kitchen Appliances',
+          category: 'appliances',
+          status: 'not_ordered',
+          expectedDeliveryDate: '2024-08-15',
+          earliestDeliveryDate: '2024-08-10',
+          latestDeliveryDate: '2024-08-20',
+          actualDeliveryDate: null,
+          isLate: false,
+          dependencyIds: [],
+        },
+      ],
+    });
+    renderGanttChart({ data });
+    expect(screen.getByTestId('gantt-hi-layer')).toBeInTheDocument();
+  });
+
+  it('clicking a household item circle calls onHouseholdItemClick with correct id — Issue #449', () => {
+    const onHouseholdItemClick = jest.fn<(id: string) => void>();
+    const data = makeTimeline({
+      householdItems: [
+        {
+          id: 'hi-1',
+          name: 'Kitchen Appliances',
+          category: 'appliances',
+          status: 'not_ordered',
+          expectedDeliveryDate: '2024-08-15',
+          earliestDeliveryDate: '2024-08-10',
+          latestDeliveryDate: '2024-08-20',
+          actualDeliveryDate: null,
+          isLate: false,
+          dependencyIds: [],
+        },
+      ],
+    });
+    renderGanttChart({ data, onHouseholdItemClick });
+
+    const hiCircles = screen.getAllByTestId('gantt-hi-circle');
+    expect(hiCircles.length).toBeGreaterThan(0);
+    fireEvent.click(hiCircles[0]);
+
+    expect(onHouseholdItemClick).toHaveBeenCalledWith('hi-1');
+  });
+
+  it('clicking different household item circles calls onHouseholdItemClick with correct id', () => {
+    const onHouseholdItemClick = jest.fn<(id: string) => void>();
+    const data = makeTimeline({
+      householdItems: [
+        {
+          id: 'hi-kitchen',
+          name: 'Kitchen Appliances',
+          category: 'appliances',
+          status: 'not_ordered',
+          expectedDeliveryDate: '2024-08-15',
+          earliestDeliveryDate: '2024-08-10',
+          latestDeliveryDate: '2024-08-20',
+          actualDeliveryDate: null,
+          isLate: false,
+          dependencyIds: [],
+        },
+        {
+          id: 'hi-flooring',
+          name: 'Flooring Materials',
+          category: 'fixtures',
+          status: 'not_ordered',
+          expectedDeliveryDate: '2024-09-01',
+          earliestDeliveryDate: '2024-08-25',
+          latestDeliveryDate: '2024-09-05',
+          actualDeliveryDate: null,
+          isLate: false,
+          dependencyIds: [],
+        },
+      ],
+    });
+    renderGanttChart({ data, onHouseholdItemClick });
+
+    const hiCircles = screen.getAllByTestId('gantt-hi-circle');
+    expect(hiCircles.length).toBeGreaterThanOrEqual(2);
+    fireEvent.click(hiCircles[1]);
+
+    expect(onHouseholdItemClick).toHaveBeenCalledWith('hi-flooring');
+  });
+
+  it('does not throw when onHouseholdItemClick is not provided and HI circle is clicked', () => {
+    const data = makeTimeline({
+      householdItems: [
+        {
+          id: 'hi-1',
+          name: 'Kitchen Appliances',
+          category: 'appliances',
+          status: 'not_ordered',
+          expectedDeliveryDate: '2024-08-15',
+          earliestDeliveryDate: '2024-08-10',
+          latestDeliveryDate: '2024-08-20',
+          actualDeliveryDate: null,
+          isLate: false,
+          dependencyIds: [],
+        },
+      ],
+    });
+    renderGanttChart({ data });
+
+    expect(() => {
+      const hiCircles = screen.getAllByTestId('gantt-hi-circle');
+      if (hiCircles.length > 0) {
+        fireEvent.click(hiCircles[0]);
+      }
+    }).not.toThrow();
+  });
+
+  it('calls onHouseholdItemClick when HI sidebar row is clicked — Issue #449', () => {
+    const onHouseholdItemClick = jest.fn<(id: string) => void>();
+    const data = makeTimeline({
+      householdItems: [
+        {
+          id: 'hi-1',
+          name: 'Kitchen Appliances',
+          category: 'appliances',
+          status: 'not_ordered',
+          expectedDeliveryDate: '2024-08-15',
+          earliestDeliveryDate: '2024-08-10',
+          latestDeliveryDate: '2024-08-20',
+          actualDeliveryDate: null,
+          isLate: false,
+          dependencyIds: [],
+        },
+      ],
+    });
+    renderGanttChart({ data, onHouseholdItemClick });
+
+    const hiSidebarRow = screen.getByTestId('gantt-sidebar-hi-hi-1');
+    fireEvent.click(hiSidebarRow);
+
+    expect(onHouseholdItemClick).toHaveBeenCalledWith('hi-1');
+  });
+
+  it('calls onHouseholdItemClick when Enter key is pressed on HI sidebar row', () => {
+    const onHouseholdItemClick = jest.fn<(id: string) => void>();
+    const data = makeTimeline({
+      householdItems: [
+        {
+          id: 'hi-1',
+          name: 'Kitchen Appliances',
+          category: 'appliances',
+          status: 'not_ordered',
+          expectedDeliveryDate: '2024-08-15',
+          earliestDeliveryDate: '2024-08-10',
+          latestDeliveryDate: '2024-08-20',
+          actualDeliveryDate: null,
+          isLate: false,
+          dependencyIds: [],
+        },
+      ],
+    });
+    renderGanttChart({ data, onHouseholdItemClick });
+
+    const hiSidebarRow = screen.getByTestId('gantt-sidebar-hi-hi-1');
+    fireEvent.keyDown(hiSidebarRow, { key: 'Enter' });
+
+    expect(onHouseholdItemClick).toHaveBeenCalledWith('hi-1');
+  });
+
+  it('does not throw when onHouseholdItemClick is not provided and HI sidebar row is clicked', () => {
+    const data = makeTimeline({
+      householdItems: [
+        {
+          id: 'hi-1',
+          name: 'Kitchen Appliances',
+          category: 'appliances',
+          status: 'not_ordered',
+          expectedDeliveryDate: '2024-08-15',
+          earliestDeliveryDate: '2024-08-10',
+          latestDeliveryDate: '2024-08-20',
+          actualDeliveryDate: null,
+          isLate: false,
+          dependencyIds: [],
+        },
+      ],
+    });
+    renderGanttChart({ data });
+
+    expect(() => {
+      const hiSidebarRow = screen.getByTestId('gantt-sidebar-hi-hi-1');
+      fireEvent.click(hiSidebarRow);
+    }).not.toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // GanttChartSkeleton — basic smoke test
 // ---------------------------------------------------------------------------
 

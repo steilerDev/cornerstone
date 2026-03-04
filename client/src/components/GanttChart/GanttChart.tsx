@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo, useEffect, useCallback } from 'react';
-import type { TimelineResponse, WorkItemStatus } from '@cornerstone/shared';
+import type { TimelineResponse, WorkItemStatus, TimelineHouseholdItem } from '@cornerstone/shared';
 import { useTouchTooltip } from '../../hooks/useTouchTooltip.js';
 import { computeActualDuration } from '../../lib/formatters.js';
 import {
@@ -423,6 +423,15 @@ export function GanttChart({
     const map = new Map(data.workItems.map((item) => [item.id, item]));
     return map;
   }, [data.workItems]);
+
+  // Build a lookup map from household item ID to TimelineHouseholdItem for tooltip data
+  const householdItemMap = useMemo<ReadonlyMap<string, TimelineHouseholdItem>>(() => {
+    const map = new Map<string, TimelineHouseholdItem>();
+    for (const hi of data.householdItems ?? []) {
+      map.set(hi.id, hi);
+    }
+    return map;
+  }, [data.householdItems]);
 
   // Build a title map for GanttArrows aria-labels
   const workItemTitles = useMemo<ReadonlyMap<string, string>>(() => {
@@ -897,6 +906,68 @@ export function GanttChart({
   );
 
   /**
+   * Handles a tap on a household item circle marker or sidebar row on touch devices.
+   * First tap: shows the household item tooltip at the center of the viewport.
+   * Second tap on the same item: clears tooltip and navigates.
+   * Tap on a different item: shows that item's tooltip instead.
+   */
+  const handleHiTouchTap = useCallback(
+    (hiId: string) => {
+      const tooltipItem = householdItemMap.get(hiId);
+      handleTouchTap(hiId, () => {
+        // Second tap — clear tooltip and navigate
+        if (showTimerRef.current !== null) {
+          clearTimeout(showTimerRef.current);
+          showTimerRef.current = null;
+        }
+        if (hideTimerRef.current !== null) {
+          clearTimeout(hideTimerRef.current);
+          hideTimerRef.current = null;
+        }
+        setTooltipData(null);
+        setTooltipTriggerId(null);
+        onHouseholdItemClick?.(hiId);
+      });
+      if (tooltipItem && activeTouchId !== hiId) {
+        // First tap — show tooltip at approximate center of viewport
+        if (showTimerRef.current !== null) {
+          clearTimeout(showTimerRef.current);
+          showTimerRef.current = null;
+        }
+        if (hideTimerRef.current !== null) {
+          clearTimeout(hideTimerRef.current);
+          hideTimerRef.current = null;
+        }
+        setTooltipTriggerId(hiId);
+        setTooltipData({
+          kind: 'household-item',
+          name: tooltipItem.name,
+          category: tooltipItem.category,
+          status: tooltipItem.status,
+          earliestDeliveryDate: tooltipItem.earliestDeliveryDate,
+          latestDeliveryDate: tooltipItem.latestDeliveryDate,
+          expectedDeliveryDate: tooltipItem.expectedDeliveryDate,
+          actualDeliveryDate: tooltipItem.actualDeliveryDate,
+          isLate: tooltipItem.isLate,
+          householdItemId: hiId,
+        });
+        setTooltipPosition({
+          x: window.innerWidth / 2,
+          y: window.innerHeight / 3,
+        });
+      }
+    },
+    [
+      householdItemMap,
+      activeTouchId,
+      handleTouchTap,
+      onHouseholdItemClick,
+      showTimerRef,
+      hideTimerRef,
+    ],
+  );
+
+  /**
    * Click handler for GanttBar and GanttSidebar rows.
    * On touch devices: routes through two-tap pattern.
    * On pointer devices: calls onItemClick directly.
@@ -910,6 +981,22 @@ export function GanttChart({
       }
     },
     [isTouchDevice, handleGanttTouchTap, onItemClick],
+  );
+
+  /**
+   * Click handler for household item circle markers and sidebar rows.
+   * On touch devices: routes through two-tap pattern.
+   * On pointer devices: calls onHouseholdItemClick directly.
+   */
+  const handleHiClick = useCallback(
+    (hiId: string) => {
+      if (isTouchDevice) {
+        handleHiTouchTap(hiId);
+      } else {
+        onHouseholdItemClick?.(hiId);
+      }
+    },
+    [isTouchDevice, handleHiTouchTap, onHouseholdItemClick],
   );
 
   // ---------------------------------------------------------------------------
@@ -972,6 +1059,7 @@ export function GanttChart({
         milestones={data.milestones}
         unifiedRows={unifiedRows}
         onItemClick={handleBarOrSidebarClick}
+        onHouseholdItemClick={handleHiClick}
         ref={sidebarScrollRef}
       />
 
@@ -1228,7 +1316,7 @@ export function GanttChart({
                     setTooltipData(null);
                   }, TOOLTIP_HIDE_DELAY);
                 }}
-                onHiClick={onHouseholdItemClick}
+                onHiClick={handleHiClick}
               />
             )}
 
