@@ -202,7 +202,7 @@ jobs:
 
     steps:
       - name: Download image artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: cornerstone-docker-image
 
@@ -232,7 +232,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Download image artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: cornerstone-docker-image
 
@@ -312,7 +312,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Download image artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: cornerstone-docker-image
 
@@ -399,7 +399,7 @@ jobs:
         run: npm ci -w e2e
 
       - name: Download blob reports
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: e2e-blob-report-*
           path: e2e/all-blob-reports
