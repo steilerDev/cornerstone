@@ -23,7 +23,7 @@ import type {
   DependencyType,
 } from '@cornerstone/shared';
 import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
-import { getHouseholdItem, deleteHouseholdItem } from '../../lib/householdItemsApi.js';
+import { getHouseholdItem, deleteHouseholdItem, updateHouseholdItem } from '../../lib/householdItemsApi.js';
 import {
   fetchHouseholdItemBudgets,
   createHouseholdItemBudget,
@@ -161,6 +161,7 @@ export function HouseholdItemDetailPage() {
 
   // Inline error for budget/subsidy/dependency operations
   const [inlineError, setInlineError] = useState<string | null>(null);
+  const [isChangingStatus, setIsChangingStatus] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -520,6 +521,22 @@ export function HouseholdItemDetailPage() {
     }
   };
 
+  const handleStatusChange = async (newStatus: HouseholdItemStatus) => {
+    if (!id || !item) return;
+    setIsChangingStatus(true);
+    setInlineError(null);
+    try {
+      const updated = await updateHouseholdItem(id, { status: newStatus });
+      setItem(updated);
+      showToast('success', 'Status updated');
+    } catch (err) {
+      setInlineError('Failed to update status. Please try again.');
+      console.error('Failed to update status:', err);
+    } finally {
+      setIsChangingStatus(false);
+    }
+  };
+
   const handleDelete = async () => {
     if (!item) return;
     setIsDeleting(true);
@@ -731,48 +748,24 @@ export function HouseholdItemDetailPage() {
           <div className={styles.cardHeader}>
             <h2 className={styles.cardTitle}>Dates & Delivery</h2>
           </div>
-          <div className={styles.deliveryProgressContainer}>
-            <ol className={styles.deliveryProgress} aria-label="Delivery progress">
-              {(['planned', 'purchased', 'scheduled', 'arrived'] as const).map(
-                (stepStatus, index) => {
-                  const stepLabels = {
-                    planned: 'Planned',
-                    purchased: 'Purchased',
-                    scheduled: 'Scheduled',
-                    arrived: 'Arrived',
-                  };
-
-                  const statusOrder = {
-                    planned: 0,
-                    purchased: 1,
-                    scheduled: 2,
-                    arrived: 3,
-                  };
-
-                  const currentStatusIndex = statusOrder[item.status];
-                  const isActive = statusOrder[stepStatus] <= currentStatusIndex;
-                  const isCurrent = stepStatus === item.status;
-
-                  return (
-                    <li
-                      key={stepStatus}
-                      className={styles.deliveryStepWrapper}
-                      {...(isCurrent ? { 'aria-current': 'step' as const } : {})}
-                    >
-                      <div
-                        className={`${styles.deliveryStep} ${isActive ? styles.deliveryStepActive : ''}`}
-                      />
-                      {index < 3 && (
-                        <div
-                          className={`${styles.deliveryLine} ${isActive ? styles.deliveryLineActive : ''}`}
-                        />
-                      )}
-                      <div className={styles.deliveryStepLabel}>{stepLabels[stepStatus]}</div>
-                    </li>
-                  );
-                },
-              )}
-            </ol>
+          {/* Inline status selector */}
+          <div className={styles.statusSection}>
+            <label htmlFor="hi-status-select" className={styles.infoLabel}>
+              Purchase Status
+            </label>
+            <select
+              id="hi-status-select"
+              className={styles.statusSelect}
+              value={item.status}
+              disabled={isChangingStatus}
+              aria-label="Purchase status"
+              onChange={(e) => void handleStatusChange(e.target.value as HouseholdItemStatus)}
+            >
+              <option value="planned">Planned</option>
+              <option value="purchased">Purchased</option>
+              <option value="scheduled">Scheduled</option>
+              <option value="arrived">Arrived</option>
+            </select>
           </div>
           <dl className={styles.infoList}>
             <div className={styles.infoRow}>
