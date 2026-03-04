@@ -75,6 +75,8 @@ See `review-history.md` for detailed findings per PR.
 | #398 | EPIC-04 Story 4.3 — Household Items List Page (frontend)                          | COMMENTED (no findings)                                           | 2026-03-03 |
 | #400 | EPIC-04 Story #391 — Household Item Detail Page                                   | COMMENTED (1 low: javascript: URL protocol not validated)         | 2026-03-03 |
 | #401 | EPIC-04 Story 4.6 — Household Items Budget Integration                            | COMMENTED (2 informational)                                       | 2026-03-03 |
+| #414 | EPIC-04 Story 4.9 — Invoice Linking for Household Item Budget Lines               | COMMENTED (2 informational)                                       | 2026-03-03 |
+| #416 | EPIC-04 Story 4.10 — HI Timeline Dependencies & Delivery Date Scheduling          | COMMENTED (2 informational)                                       | 2026-03-03 |
 
 ## Known Open Recommendations (Low Priority)
 
@@ -97,6 +99,8 @@ These have been noted in previous reviews. **GitHub Issue #315** tracks items 1-
 15. **anchorWorkItemId schema lacks minLength: 1** (Informational): schedule.ts schema — empty string caught by handler not schema (PR #248)
 16. **workItemIds schema lacks maxItems/maxLength** (Informational): milestones.ts createMilestoneSchema — array and items have no size bounds; N+1 DB loop in milestoneService (PR #263)
 17. **actualStartDate/actualEndDate cross-field ordering** (Informational): workItems.ts — no validation that actualEndDate >= actualStartDate at schema or service layer; same gap as existing startDate/endDate pair (PR #308)
+18. **leadLagDays no magnitude bound on HI dep endpoints** (Informational): householdItems.ts createHouseholdItemDepSchema — mirrors finding #13 for WI deps (PR #416)
+19. **GET /api/work-items/:id/dependent-household-items no work item existence check** (Informational): workItems.ts handler — returns 200+empty array for non-existent WI IDs instead of 404; listDependentHouseholdItemsForWorkItem service also lacks assertWorkItemExists guard (PR #416)
 
 ## Key Architecture Patterns (Security-Relevant)
 
@@ -121,3 +125,6 @@ These have been noted in previous reviews. **GitHub Issue #315** tracks items 1-
 - **Scheduling engine (PR #248)**: Pure function, O(V+E) Kahn's algorithm — no DoS risk at construction project scale. Cycle detection as byproduct of Kahn's. Unbounded SELECT of all work items/deps is acceptable at target scale. Drizzle ORM throughout. POST /api/schedule is read-only (no DB writes).
 - **household_items.url field (PR #396, #400)**: Stores user-provided retailer URLs — stored as text only, never fetched server-side. Frontend renders with rel="noopener noreferrer" (correct). However, no protocol allowlist — `javascript:` URIs accepted. Low finding in PR #400. Fix: validate `new URL(url).protocol` is `http:` or `https:` before rendering as href, OR add `^https?://` regex to server-side schema.
 - **EPIC-04 household_items schema (PR #396)**: migration 0010, 6 tables. planned_amount >= 0 CHECK correctly included (unlike PR #187 gap on work_item_budgets). sortBy in HouseholdItemListQuery uses snake_case literals — API implementation must whitelist before use in ORDER BY clause.
+- **household_item_deps polymorphic FK pattern (PR #416)**: predecessor_id has NO FK constraint (intentional — references either work_items or milestones). Referential integrity enforced at service layer via ensureWorkItemExists/ensureMilestoneExists. DB-level CHECK constrains predecessor_type and dependency_type enums. Composite PK prevents duplicate deps. This is the accepted pattern for polymorphic refs in this codebase.
+- **HI dependency cycle detection (PR #416)**: DFS with MAX_ITERATIONS=10000 guard. HIs are correctly identified as terminal sinks — cycles are structurally impossible in current model. Logic complete for future extensibility.
+- **`predecessorType` enum-validated in DELETE params** (PR #416): Explicitly included in deleteHouseholdItemDepSchema — closes the enum bypass pattern noted in earlier reviews. Service layer casts to typed union after route validation.

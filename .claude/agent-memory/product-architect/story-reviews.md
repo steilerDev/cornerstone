@@ -115,3 +115,34 @@ Detailed review notes for individual stories. Referenced from MEMORY.md.
   - O1: BudgetCategoriesPage.tsx is 619 lines -- consider extracting sub-components
   - O2: CSS button variant repetition -- consider shared base class
   - O3: Seeded IDs are deterministic strings (bc-materials etc.) not UUIDs -- intentional per design
+
+## Story 4.10 Review (PR #416): HI Timeline Dependencies & Delivery Date Scheduling
+
+**Verdict:** Request Changes -- 3 high, 3 medium, 2 low
+
+### Architecture Quality
+
+- Migration 0012: clean ALTER TABLE + CREATE + INSERT...SELECT + DROP pattern
+- CPM extension: HIs as zero-duration nodes with floor rules follows ADR-014
+- Polymorphic `predecessor_id` (no FK): same pattern as `document_links`
+- Route consolidation under `/api/household-items/:id/dependencies` is cleaner
+- Shared types well-structured: `HouseholdItemDepDetail`, `TimelineHouseholdItem`, etc.
+- Comprehensive new tests: dep service (680), scheduling engine HI (484), timeline service (335)
+
+### Issues Found
+
+1. **HIGH:** Orphaned `household_item_deps` rows on WI/milestone delete. No cleanup in `deleteWorkItem()` or `deleteMilestone()`. `listDeps()` will crash with NotFoundError.
+2. **HIGH:** `householdItemService.test.ts` (1060 lines of core CRUD tests) deleted entirely with no replacement.
+3. **HIGH:** Wiki not updated -- no Schema.md, API-Contract.md, or ADR-017 (referenced in migration).
+4. **MEDIUM:** `isLate` computed precisely in scheduling engine but re-derived with lossy heuristic in timelineService.
+5. **MEDIUM:** `detectCycle` queries `householdItemDeps.householdItemId = workItemId` -- wrong column, always no-op.
+6. **MEDIUM:** `as any` casts for category/status in depService and timelineService.
+7. **LOW:** EPIC-09 referenced throughout but story is EPIC-04 Story 4.10.
+8. **LOW:** Migration 0010 test modified to expect post-0012 state.
+
+### Polymorphic FK Cleanup Pattern
+
+When using polymorphic FKs (no DB-level constraint), ALL services that delete the referenced entity must manually clean up the referencing table. This applies to:
+
+- `document_links` (entity_type/entity_id) -- cleanup in deleteWorkItem, deleteVendor
+- `household_item_deps` (predecessor_type/predecessor_id) -- **MISSING** cleanup in deleteWorkItem, deleteMilestone

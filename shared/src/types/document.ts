@@ -134,8 +134,14 @@ export interface PaperlessStatusResponse {
   reachable: boolean;
   /** Human-readable error message if not reachable. */
   error: string | null;
-  /** The Paperless-ngx base URL, present only when configured. */
+  /**
+   * The browser-facing Paperless-ngx base URL, present only when configured.
+   * Returns PAPERLESS_EXTERNAL_URL when set, otherwise falls back to PAPERLESS_URL.
+   * Used by the frontend to construct "View in Paperless-ngx" links.
+   */
   paperlessUrl: string | null;
+  /** The filter tag name when PAPERLESS_FILTER_TAG is configured and the tag exists. null when not set or not found. */
+  filterTag: string | null;
 }
 
 // ─── Document Link Types ─────────────────────────────────────────────────────

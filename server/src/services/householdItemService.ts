@@ -19,21 +19,22 @@ import {
   users,
   vendors,
   householdItemBudgets,
-  householdItemWorkItems,
+  householdItemDeps,
   householdItemSubsidies,
-  workItems,
   subsidyPrograms,
+  invoices,
 } from '../db/schema.js';
 import { deleteLinksForEntity } from './documentLinkService.js';
+import { listDeps } from './householdItemDepService.js';
 import type {
   HouseholdItemDetail,
   HouseholdItemSummary,
   HouseholdItemVendorSummary,
   UserSummary,
   TagResponse,
-  HouseholdItemWorkItemSummary,
+  HouseholdItemDepDetail,
   HouseholdItemSubsidySummary,
-  HouseholdItemBudgetSummary,
+  HouseholdItemBudgetAggregate,
   CreateHouseholdItemRequest,
   UpdateHouseholdItemRequest,
   HouseholdItemListQuery,
@@ -95,37 +96,6 @@ function getHouseholdItemTags(db: DbType, householdItemId: string): TagResponse[
 }
 
 /**
- * Fetch work items linked to a household item.
- */
-function getHouseholdItemWorkItems(
-  db: DbType,
-  householdItemId: string,
-): HouseholdItemWorkItemSummary[] {
-  const rows = db
-    .select({ workItem: workItems, assignedUser: users })
-    .from(householdItemWorkItems)
-    .innerJoin(workItems, eq(workItems.id, householdItemWorkItems.workItemId))
-    .leftJoin(users, eq(users.id, workItems.assignedUserId))
-    .where(eq(householdItemWorkItems.householdItemId, householdItemId))
-    .all();
-
-  return rows.map((row) => ({
-    id: row.workItem.id,
-    title: row.workItem.title,
-    status: row.workItem.status,
-    startDate: row.workItem.startDate,
-    endDate: row.workItem.endDate,
-    assignedUser: row.assignedUser
-      ? {
-          id: row.assignedUser.id,
-          displayName: row.assignedUser.displayName,
-          email: row.assignedUser.email,
-        }
-      : null,
-  }));
-}
-
-/**
  * Fetch subsidy programs linked to a household item.
  */
 function getHouseholdItemSubsidies(
@@ -167,6 +137,19 @@ function getTotalPlannedAmount(db: DbType, householdItemId: string): number {
   const result = db
     .select({ total: sql<number>`COALESCE(SUM(${householdItemBudgets.plannedAmount}), 0)` })
     .from(householdItemBudgets)
+    .where(eq(householdItemBudgets.householdItemId, householdItemId))
+    .get();
+  return result?.total ?? 0;
+}
+
+/**
+ * Sum total actual amount from invoices linked to household item budget lines.
+ */
+function getTotalActualAmount(db: DbType, householdItemId: string): number {
+  const result = db
+    .select({ total: sql<number>`COALESCE(SUM(${invoices.amount}), 0)` })
+    .from(invoices)
+    .innerJoin(householdItemBudgets, eq(invoices.householdItemBudgetId, householdItemBudgets.id))
     .where(eq(householdItemBudgets.householdItemId, householdItemId))
     .get();
   return result?.total ?? 0;
@@ -217,16 +200,17 @@ function getTotalSubsidyReduction(db: DbType, householdItemId: string): number {
 }
 
 /**
- * Compute the budget summary for a household item.
+ * Compute the budget aggregates for a household item.
  */
-function getBudgetSummary(db: DbType, householdItemId: string): HouseholdItemBudgetSummary {
+function getBudgetSummary(db: DbType, householdItemId: string): HouseholdItemBudgetAggregate {
   const totalPlanned = getTotalPlannedAmount(db, householdItemId);
+  const totalActual = getTotalActualAmount(db, householdItemId);
   const subsidyReduction = getTotalSubsidyReduction(db, householdItemId);
   const netCost = totalPlanned - subsidyReduction;
 
   return {
     totalPlanned,
-    totalActual: 0, // Household items never have invoices
+    totalActual,
     subsidyReduction,
     netCost,
   };
@@ -266,6 +250,8 @@ export function toHouseholdItemSummary(
     orderDate: item.orderDate,
     expectedDeliveryDate: item.expectedDeliveryDate,
     actualDeliveryDate: item.actualDeliveryDate,
+    earliestDeliveryDate: item.earliestDeliveryDate,
+    latestDeliveryDate: item.latestDeliveryDate,
     url: item.url,
     tagIds,
     budgetLineCount: getBudgetLineCount(db, item.id),
@@ -286,13 +272,13 @@ export function toHouseholdItemDetail(
 ): HouseholdItemDetail {
   const summary = toHouseholdItemSummary(db, item);
   const itemTags = getHouseholdItemTags(db, item.id);
-  const workItems = getHouseholdItemWorkItems(db, item.id);
+  const dependencies = listDeps(db, item.id);
   const subsidies = getHouseholdItemSubsidies(db, item.id);
 
   return {
     ...summary,
     tags: itemTags,
-    workItems,
+    dependencies,
     subsidies,
   };
 }

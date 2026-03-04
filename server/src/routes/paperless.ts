@@ -112,16 +112,24 @@ export default async function paperlessRoutes(fastify: FastifyInstance) {
     }
 
     if (!fastify.config.paperlessEnabled) {
-      return reply
-        .status(200)
-        .send({ configured: false, reachable: false, error: null, paperlessUrl: null });
+      return reply.status(200).send({
+        configured: false,
+        reachable: false,
+        error: null,
+        paperlessUrl: null,
+        filterTag: null,
+      });
     }
 
     const status = await paperlessService.getStatus(
       fastify.config.paperlessUrl!,
       fastify.config.paperlessApiToken!,
+      fastify.config.paperlessFilterTag,
     );
-    return reply.status(200).send({ ...status, paperlessUrl: fastify.config.paperlessUrl ?? null });
+    return reply.status(200).send({
+      ...status,
+      paperlessUrl: fastify.config.paperlessExternalUrl ?? fastify.config.paperlessUrl ?? null,
+    });
   });
 
   /**
@@ -141,7 +149,12 @@ export default async function paperlessRoutes(fastify: FastifyInstance) {
       }
 
       const { baseUrl, token } = requirePaperless(fastify);
-      const result = await paperlessService.listDocuments(baseUrl, token, request.query);
+      const result = await paperlessService.listDocuments(
+        baseUrl,
+        token,
+        request.query,
+        fastify.config.paperlessFilterTag,
+      );
       return reply.status(200).send(result);
     },
   );

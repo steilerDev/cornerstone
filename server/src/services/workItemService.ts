@@ -9,6 +9,7 @@ import {
   users,
   workItemSubtasks,
   workItemDependencies,
+  householdItemDeps,
 } from '../db/schema.js';
 import { listWorkItemBudgets } from './workItemBudgetService.js';
 import { autoReschedule } from './schedulingEngine.js';
@@ -543,6 +544,16 @@ export function deleteWorkItem(db: DbType, id: string): void {
   if (!workItem) {
     throw new NotFoundError('Work item not found');
   }
+
+  // Cascade delete household item dependencies where this work item is the predecessor
+  db.delete(householdItemDeps)
+    .where(
+      and(
+        eq(householdItemDeps.predecessorType, 'work_item'),
+        eq(householdItemDeps.predecessorId, id),
+      ),
+    )
+    .run();
 
   // Cascade delete document links (polymorphic FK, enforced at app layer)
   deleteLinksForEntity(db, 'work_item', id);

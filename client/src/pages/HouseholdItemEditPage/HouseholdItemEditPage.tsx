@@ -65,7 +65,7 @@ export function HouseholdItemEditPage() {
       try {
         const [tagsResponse, vendorsResponse, item] = await Promise.all([
           fetchTags(),
-          fetchVendors({ pageSize: 200 }),
+          fetchVendors({ pageSize: 100 }),
           getHouseholdItem(id!),
         ]);
 

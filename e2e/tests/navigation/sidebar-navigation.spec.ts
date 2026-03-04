@@ -36,9 +36,6 @@ test.describe('Sidebar Navigation', { tag: '@responsive' }, () => {
     await clickNav('Household Items');
     await expect(page).toHaveURL(new RegExp(`${ROUTES.householdItems}(\\?.*)?$`));
 
-    await clickNav('Documents');
-    await expect(page).toHaveURL(new RegExp(`${ROUTES.documents}(\\?.*)?$`));
-
     await clickNav('Profile');
     await expect(page).toHaveURL(new RegExp(`${ROUTES.profile}(\\?.*)?$`));
 
@@ -96,7 +93,6 @@ test.describe('Sidebar Navigation', { tag: '@responsive' }, () => {
       'Budget',
       'Timeline',
       'Household Items',
-      'Documents',
       'Profile',
       'User Management',
     ];

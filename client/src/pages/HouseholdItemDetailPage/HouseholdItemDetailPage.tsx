@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, type FormEvent } from 'react';
+import { useState, useEffect, useRef, useMemo, type FormEvent } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import type {
   HouseholdItemDetail,
@@ -14,8 +14,13 @@ import type {
   BudgetSource,
   Vendor,
   HouseholdItemSubsidyPaybackResponse,
-  HouseholdItemWorkItemSummary,
   WorkItemSummary,
+  Invoice,
+  HouseholdItemDepDetail,
+  HouseholdItemDepPredecessorType,
+  CreateHouseholdItemDepRequest,
+  MilestoneSummary,
+  DependencyType,
 } from '@cornerstone/shared';
 import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
 import { getHouseholdItem, deleteHouseholdItem } from '../../lib/householdItemsApi.js';
@@ -32,15 +37,17 @@ import {
   fetchHouseholdItemSubsidyPayback,
 } from '../../lib/householdItemSubsidiesApi.js';
 import {
-  fetchLinkedWorkItems,
-  linkWorkItemToHouseholdItem,
-  unlinkWorkItemFromHouseholdItem,
-} from '../../lib/householdItemWorkItemsApi.js';
+  fetchHouseholdItemDeps,
+  createHouseholdItemDep,
+  deleteHouseholdItemDep,
+} from '../../lib/householdItemDepsApi.js';
 import { fetchBudgetCategories } from '../../lib/budgetCategoriesApi.js';
 import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
 import { fetchSubsidyPrograms } from '../../lib/subsidyProgramsApi.js';
 import { listWorkItems } from '../../lib/workItemsApi.js';
+import { listMilestones } from '../../lib/milestonesApi.js';
+import { fetchInvoices } from '../../lib/invoicesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { formatDate, formatCurrency } from '../../lib/formatters.js';
 import { HouseholdItemStatusBadge } from '../../components/HouseholdItemStatusBadge/HouseholdItemStatusBadge.js';
@@ -71,6 +78,20 @@ const WORK_ITEM_STATUS_LABELS: Record<string, string> = {
   not_started: 'Not Started',
   in_progress: 'In Progress',
   completed: 'Completed',
+};
+
+const DEP_TYPE_SHORT: Record<string, string> = {
+  finish_to_start: 'FS',
+  start_to_start: 'SS',
+  finish_to_finish: 'FF',
+  start_to_finish: 'SF',
+};
+
+const DEP_TYPE_LABELS: Record<string, string> = {
+  finish_to_start: 'Finish to Start',
+  start_to_start: 'Start to Start',
+  finish_to_finish: 'Finish to Finish',
+  start_to_finish: 'Start to Finish',
 };
 
 /** Budget line form state used for both create and edit. */
@@ -108,11 +129,16 @@ export function HouseholdItemDetailPage() {
   const [deleteError, setDeleteError] = useState('');
   const modalRef = useRef<HTMLDivElement>(null);
 
+  // Add Dependency modal
+  const depModalRef = useRef<HTMLDivElement>(null);
+  const depSearchInputRef = useRef<HTMLInputElement>(null);
+
   // Budget lines state
   const [budgetLines, setBudgetLines] = useState<HouseholdItemBudgetLine[]>([]);
   const [budgetCategories, setBudgetCategories] = useState<BudgetCategory[]>([]);
   const [budgetSources, setBudgetSources] = useState<BudgetSource[]>([]);
   const [allVendors, setAllVendors] = useState<Vendor[]>([]);
+  const [budgetLineInvoices, setBudgetLineInvoices] = useState<Record<string, Invoice[]>>({});
 
   // Budget line form state
   const [showBudgetForm, setShowBudgetForm] = useState(false);
@@ -133,15 +159,23 @@ export function HouseholdItemDetailPage() {
     null,
   );
 
-  // Work item linking state
-  const [linkedWorkItems, setLinkedWorkItems] = useState<HouseholdItemWorkItemSummary[]>([]);
+  // Dependency state
+  const [dependencies, setDependencies] = useState<HouseholdItemDepDetail[]>([]);
+  const [showAddDepModal, setShowAddDepModal] = useState(false);
+  const [depPredecessorType, setDepPredecessorType] =
+    useState<HouseholdItemDepPredecessorType>('work_item');
+  const [depSearchQuery, setDepSearchQuery] = useState('');
+  const [depDependencyType, setDepDependencyType] = useState<string>('finish_to_start');
+  const [depLeadLagDays, setDepLeadLagDays] = useState('0');
+  const [depSelectedId, setDepSelectedId] = useState('');
+  const [depError, setDepError] = useState<string | null>(null);
+  const [isAddingDep, setIsAddingDep] = useState(false);
+  const [removingDepKey, setRemovingDepKey] = useState<string | null>(null);
+  // For modal search results
   const [allWorkItems, setAllWorkItems] = useState<WorkItemSummary[]>([]);
-  const [workItemSearchQuery, setWorkItemSearchQuery] = useState('');
-  const [selectedWorkItemId, setSelectedWorkItemId] = useState('');
-  const [isLinkingWorkItem, setIsLinkingWorkItem] = useState(false);
-  const [unlinkingWorkItemId, setUnlinkingWorkItemId] = useState<string | null>(null);
+  const [allMilestones, setAllMilestones] = useState<MilestoneSummary[]>([]);
 
-  // Inline error for budget/subsidy/work item operations
+  // Inline error for budget/subsidy/dependency operations
   const [inlineError, setInlineError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -183,6 +217,30 @@ export function HouseholdItemDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showDeleteModal, isDeleting, deleteError]);
 
+  // Add Dependency modal: focus trap and Escape key handler
+  useEffect(() => {
+    if (!showAddDepModal) return;
+    // Auto-focus the search input when modal opens
+    depSearchInputRef.current?.focus();
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setShowAddDepModal(false);
+        setDepError(null);
+        return;
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [showAddDepModal]);
+
+  // Load invoices for budget lines whenever the item or budget lines change
+  useEffect(() => {
+    if (item?.vendor && budgetLines.length > 0) {
+      const budgetLineIds = budgetLines.map((bl) => bl.id);
+      void loadBudgetLineInvoices(item.vendor.id, budgetLineIds);
+    }
+  }, [item?.vendor?.id, budgetLines.map((bl) => bl.id).join(',')]);
+
   const loadItem = async () => {
     if (!id) return;
     setIsLoading(true);
@@ -211,27 +269,17 @@ export function HouseholdItemDetailPage() {
 
   const loadBudgetData = async (itemId: string) => {
     try {
-      const [
-        budgets,
-        subsidies,
-        payback,
-        categories,
-        sources,
-        vendors,
-        programs,
-        workItems,
-        linkedWorkItemsData,
-      ] = await Promise.all([
-        fetchHouseholdItemBudgets(itemId),
-        fetchHouseholdItemSubsidies(itemId),
-        fetchHouseholdItemSubsidyPayback(itemId),
-        fetchBudgetCategories(),
-        fetchBudgetSources(),
-        fetchVendors({ pageSize: 100 }),
-        fetchSubsidyPrograms(),
-        listWorkItems({ pageSize: 100 }),
-        fetchLinkedWorkItems(itemId),
-      ]);
+      const [budgets, subsidies, payback, categories, sources, vendors, programs, depsData] =
+        await Promise.all([
+          fetchHouseholdItemBudgets(itemId),
+          fetchHouseholdItemSubsidies(itemId),
+          fetchHouseholdItemSubsidyPayback(itemId),
+          fetchBudgetCategories(),
+          fetchBudgetSources(),
+          fetchVendors({ pageSize: 100 }),
+          fetchSubsidyPrograms(),
+          fetchHouseholdItemDeps(itemId),
+        ]);
       setBudgetLines(budgets);
       setLinkedSubsidies(subsidies);
       setSubsidyPayback(payback);
@@ -239,8 +287,7 @@ export function HouseholdItemDetailPage() {
       setBudgetSources(sources.budgetSources);
       setAllVendors(vendors.vendors);
       setAllSubsidyPrograms(programs.subsidyPrograms);
-      setAllWorkItems(workItems.items);
-      setLinkedWorkItems(linkedWorkItemsData);
+      setDependencies(depsData);
     } catch (err) {
       // Non-critical — budget data failure shouldn't block the page
       console.error('Failed to load budget data:', err);
@@ -254,6 +301,22 @@ export function HouseholdItemDetailPage() {
       setBudgetLines(data);
     } catch (err) {
       console.error('Failed to reload budget lines:', err);
+    }
+  };
+
+  const loadBudgetLineInvoices = async (vendorId: string, budgetLineIds: string[]) => {
+    try {
+      const allVendorInvoices = await fetchInvoices(vendorId);
+      const grouped: Record<string, Invoice[]> = {};
+      for (const inv of allVendorInvoices) {
+        if (inv.householdItemBudgetId && budgetLineIds.includes(inv.householdItemBudgetId)) {
+          if (!grouped[inv.householdItemBudgetId]) grouped[inv.householdItemBudgetId] = [];
+          grouped[inv.householdItemBudgetId].push(inv);
+        }
+      }
+      setBudgetLineInvoices(grouped);
+    } catch {
+      // Silently fail — invoices are supplementary
     }
   };
 
@@ -277,49 +340,58 @@ export function HouseholdItemDetailPage() {
     }
   };
 
-  const reloadLinkedWorkItems = async () => {
-    if (!id) return;
-    try {
-      const data = await fetchLinkedWorkItems(id);
-      setLinkedWorkItems(data);
-    } catch (err) {
-      console.error('Failed to reload linked work items:', err);
+  // ─── Dependency handlers ──────────────────────────────────────────────────
+
+  const handleOpenAddDepModal = async () => {
+    setShowAddDepModal(true);
+    if (allWorkItems.length === 0) {
+      const wis = await listWorkItems({ pageSize: 100 });
+      setAllWorkItems(wis.items);
+    }
+    if (allMilestones.length === 0) {
+      const ms = await listMilestones();
+      setAllMilestones(ms);
     }
   };
 
-  // ─── Work item linking handlers ────────────────────────────────────────────
-
-  const handleLinkWorkItem = async () => {
-    if (!id || !selectedWorkItemId) return;
-    setIsLinkingWorkItem(true);
-    setInlineError(null);
+  const handleAddDep = async () => {
+    if (!id || !depSelectedId) return;
+    setIsAddingDep(true);
+    setDepError(null);
     try {
-      await linkWorkItemToHouseholdItem(id, selectedWorkItemId);
-      setSelectedWorkItemId('');
-      setWorkItemSearchQuery('');
-      await reloadLinkedWorkItems();
+      await createHouseholdItemDep(id, {
+        predecessorType: depPredecessorType,
+        predecessorId: depSelectedId,
+        dependencyType: depDependencyType as DependencyType,
+        leadLagDays: parseInt(depLeadLagDays, 10) || 0,
+      });
+      const updated = await fetchHouseholdItemDeps(id);
+      setDependencies(updated);
+      const newItem = await getHouseholdItem(id);
+      setItem(newItem);
+      setShowAddDepModal(false);
+      showToast('success', 'Dependency added');
     } catch (err) {
-      const apiErr = err as { statusCode?: number; message?: string };
-      if (apiErr.statusCode === 409) {
-        setInlineError('This work item is already linked');
-      } else {
-        setInlineError('Failed to link work item');
+      if (err instanceof ApiClientError) {
+        setDepError(err.error.message ?? 'Failed to add dependency');
       }
     } finally {
-      setIsLinkingWorkItem(false);
+      setIsAddingDep(false);
     }
   };
 
-  const handleUnlinkWorkItem = async () => {
-    if (!id || !unlinkingWorkItemId) return;
-    setInlineError(null);
+  const handleRemoveDep = async (dep: HouseholdItemDepDetail) => {
+    if (!id) return;
     try {
-      await unlinkWorkItemFromHouseholdItem(id, unlinkingWorkItemId);
-      setUnlinkingWorkItemId(null);
-      await reloadLinkedWorkItems();
+      await deleteHouseholdItemDep(id, dep.predecessorType, dep.predecessorId);
+      const updated = await fetchHouseholdItemDeps(id);
+      setDependencies(updated);
+      const newItem = await getHouseholdItem(id);
+      setItem(newItem);
+      setRemovingDepKey(null);
+      showToast('success', 'Dependency removed');
     } catch (err) {
-      setUnlinkingWorkItemId(null);
-      setInlineError('Failed to unlink work item');
+      showToast('error', 'Failed to remove dependency');
     }
   };
 
@@ -484,6 +556,20 @@ export function HouseholdItemDetailPage() {
       setIsDeleting(false);
     }
   };
+
+  function MilestoneIconSvg() {
+    return (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 10 10"
+        width="10"
+        height="10"
+        aria-hidden="true"
+      >
+        <polygon points="5,0 10,5 5,10 0,5" fill="currentColor" />
+      </svg>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -711,109 +797,276 @@ export function HouseholdItemDetailPage() {
           </dl>
         </section>
 
-        {/* Linked Work Items card */}
+        {/* Dependencies card */}
         <section className={styles.card}>
           <div className={styles.cardHeader}>
-            <h2 className={styles.cardTitle}>Linked Work Items</h2>
-          </div>
-
-          {linkedWorkItems.length === 0 ? (
-            <p className={styles.emptyState}>
-              No work items linked. Use the form below to add a link.
-            </p>
-          ) : (
-            <ul className={styles.budgetLinesList}>
-              {linkedWorkItems.map((workItem) => (
-                <li key={workItem.id} className={styles.subsidyItem}>
-                  <div className={styles.workItemInfo}>
-                    <Link to={`/work-items/${workItem.id}`} className={styles.workItemLink}>
-                      {workItem.title}
-                    </Link>
-                    <StatusBadge status={workItem.status as WorkItemStatus} />
-                    {(workItem.startDate || workItem.endDate) && (
-                      <span className={styles.workItemDates}>
-                        {workItem.startDate ? formatDate(workItem.startDate) : '—'} —{' '}
-                        {workItem.endDate ? formatDate(workItem.endDate) : '—'}
-                      </span>
-                    )}
-                  </div>
-                  {unlinkingWorkItemId === workItem.id ? (
-                    <span className={styles.subsidyActions}>
-                      <button
-                        type="button"
-                        className={styles.deleteButton}
-                        onClick={() => void handleUnlinkWorkItem()}
-                      >
-                        Confirm
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.cancelButton}
-                        onClick={() => setUnlinkingWorkItemId(null)}
-                      >
-                        Cancel
-                      </button>
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      className={styles.unlinkButton}
-                      onClick={() => setUnlinkingWorkItemId(workItem.id)}
-                      aria-label={`Unlink ${workItem.title}`}
-                    >
-                      ×
-                    </button>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {/* Add work item link row */}
-          <div className={styles.addWorkItemRow}>
-            <input
-              type="text"
-              value={workItemSearchQuery}
-              onChange={(e) => {
-                setWorkItemSearchQuery(e.target.value);
-                setSelectedWorkItemId('');
-              }}
-              placeholder="Search work items by title..."
-              className={styles.formInput}
-              disabled={isLinkingWorkItem}
-              aria-label="Search work items"
-            />
-            <select
-              value={selectedWorkItemId}
-              onChange={(e) => setSelectedWorkItemId(e.target.value)}
-              className={styles.formSelect}
-              disabled={isLinkingWorkItem}
-              aria-label="Select work item to link"
-            >
-              <option value="">— Select Work Item —</option>
-              {allWorkItems
-                .filter(
-                  (wi) =>
-                    !linkedWorkItems.some((lw) => lw.id === wi.id) &&
-                    (workItemSearchQuery === '' ||
-                      wi.title.toLowerCase().includes(workItemSearchQuery.toLowerCase())),
-                )
-                .map((wi) => (
-                  <option key={wi.id} value={wi.id}>
-                    {wi.title} ({WORK_ITEM_STATUS_LABELS[wi.status] || wi.status})
-                  </option>
-                ))}
-            </select>
+            <h2 className={styles.cardTitle}>Dependencies</h2>
             <button
               type="button"
               className={styles.button}
-              onClick={() => void handleLinkWorkItem()}
-              disabled={!selectedWorkItemId || isLinkingWorkItem}
-              aria-label="Link a work item to this household item"
+              onClick={() => void handleOpenAddDepModal()}
             >
-              {isLinkingWorkItem ? 'Linking...' : 'Add Link'}
+              Add Dependency
             </button>
           </div>
+
+          {/* Delivery date summary row */}
+          <div className={styles.deliverySummaryRow}>
+            <div className={styles.deliveryDateCol}>
+              <span className={styles.deliveryLabel}>Earliest delivery</span>
+              <span className={styles.deliveryValue}>
+                {item.earliestDeliveryDate ? formatDate(item.earliestDeliveryDate) : '—'}
+              </span>
+              {item.earliestDeliveryDate &&
+                item.status !== 'delivered' &&
+                item.earliestDeliveryDate === new Date().toISOString().slice(0, 10) && (
+                  <span className={styles.lateChip}>Floored to today</span>
+                )}
+            </div>
+            {item.expectedDeliveryDate && (
+              <div className={styles.deliveryDateColCenter}>
+                <span className={styles.deliveryLabelSm}>Expected</span>
+                <span className={styles.deliveryValueSm}>
+                  {formatDate(item.expectedDeliveryDate)}
+                </span>
+              </div>
+            )}
+            <div className={styles.deliveryDateCol}>
+              <span className={styles.deliveryLabel}>Latest delivery</span>
+              <span className={styles.deliveryValue}>
+                {item.latestDeliveryDate ? formatDate(item.latestDeliveryDate) : '—'}
+              </span>
+            </div>
+          </div>
+
+          {/* Dependency list */}
+          {dependencies.length === 0 ? (
+            <p className={styles.emptyState}>
+              No dependencies yet. Add a dependency to schedule this item.
+            </p>
+          ) : (
+            <ul role="list" className={styles.depList}>
+              {dependencies.map((dep) => {
+                const depKey = `${dep.predecessorType}:${dep.predecessorId}`;
+                return (
+                  <li key={depKey} role="listitem" className={styles.depRow}>
+                    <span
+                      className={
+                        dep.predecessorType === 'work_item'
+                          ? styles.predTypeWorkItem
+                          : styles.predTypeMilestone
+                      }
+                    >
+                      {dep.predecessorType === 'milestone' && <MilestoneIconSvg />}
+                      {dep.predecessorType === 'work_item' ? 'Work Item' : 'Milestone'}
+                    </span>
+                    <Link
+                      to={
+                        dep.predecessorType === 'work_item'
+                          ? `/work-items/${dep.predecessorId}`
+                          : '#'
+                      }
+                      onClick={
+                        dep.predecessorType === 'milestone'
+                          ? (e) => {
+                              e.preventDefault();
+                              // TODO: open milestone panel via useMilestones hook
+                            }
+                          : undefined
+                      }
+                      className={styles.depPredLink}
+                    >
+                      {dep.predecessor.title}
+                    </Link>
+                    <span
+                      className={styles.depTypeChip}
+                      title={DEP_TYPE_LABELS[dep.dependencyType]}
+                    >
+                      {DEP_TYPE_SHORT[dep.dependencyType]}
+                    </span>
+                    {dep.leadLagDays !== 0 && (
+                      <span className={styles.depLagChip}>
+                        {dep.leadLagDays > 0 ? `+${dep.leadLagDays}d` : `${dep.leadLagDays}d`}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      className={styles.unlinkButton}
+                      onClick={() => setRemovingDepKey(depKey)}
+                      aria-label={`Remove dependency on ${dep.predecessor.title}`}
+                    >
+                      ×
+                    </button>
+                    {removingDepKey === depKey && (
+                      <>
+                        <button
+                          type="button"
+                          className={styles.deleteButton}
+                          onClick={() => void handleRemoveDep(dep)}
+                        >
+                          Confirm
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.cancelButton}
+                          onClick={() => setRemovingDepKey(null)}
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
+          {/* Add Dependency modal */}
+          {showAddDepModal && (
+            <div
+              ref={depModalRef}
+              className={styles.modalOverlay}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Add Dependency"
+            >
+              <div className={styles.modalContent} style={{ maxWidth: '36rem' }}>
+                <h3 className={styles.modalTitle}>Add Dependency</h3>
+                {/* Entity type toggle (radiogroup) */}
+                <div
+                  role="radiogroup"
+                  aria-label="Predecessor type"
+                  className={styles.depTypeToggle}
+                >
+                  <label className={styles.radioOption}>
+                    <input
+                      type="radio"
+                      name="predType"
+                      value="work_item"
+                      checked={depPredecessorType === 'work_item'}
+                      onChange={() => {
+                        setDepPredecessorType('work_item');
+                        setDepSelectedId('');
+                      }}
+                    />
+                    Work Item
+                  </label>
+                  <label className={styles.radioOption}>
+                    <input
+                      type="radio"
+                      name="predType"
+                      value="milestone"
+                      checked={depPredecessorType === 'milestone'}
+                      onChange={() => {
+                        setDepPredecessorType('milestone');
+                        setDepSelectedId('');
+                      }}
+                    />
+                    Milestone
+                  </label>
+                </div>
+                {/* Search */}
+                <input
+                  ref={depSearchInputRef}
+                  type="text"
+                  className={styles.formInput}
+                  placeholder={`Search ${depPredecessorType === 'work_item' ? 'work items' : 'milestones'}...`}
+                  value={depSearchQuery}
+                  onChange={(e) => setDepSearchQuery(e.target.value)}
+                  aria-label="Search predecessors"
+                  autoFocus
+                />
+                {/* Results list */}
+                <ul role="list" aria-label="Search results" className={styles.depSearchResults}>
+                  {(depPredecessorType === 'work_item' ? allWorkItems : allMilestones)
+                    .filter((item) => {
+                      const title = depPredecessorType === 'work_item' ? item.title : item.title;
+                      const alreadyAdded = dependencies.some(
+                        (d) =>
+                          d.predecessorType === depPredecessorType &&
+                          d.predecessorId === String(item.id),
+                      );
+                      return (
+                        !alreadyAdded && title.toLowerCase().includes(depSearchQuery.toLowerCase())
+                      );
+                    })
+                    .map((item) => (
+                      <li
+                        key={item.id}
+                        role="listitem"
+                        className={`${styles.depSearchOption} ${
+                          depSelectedId === String(item.id) ? styles.depSearchOptionSelected : ''
+                        }`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setDepSelectedId(String(item.id))}
+                          style={{
+                            width: '100%',
+                            textAlign: 'left',
+                            background: 'none',
+                            border: 'none',
+                            padding: 0,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {depPredecessorType === 'work_item' ? item.title : item.title}
+                        </button>
+                      </li>
+                    ))}
+                </ul>
+                {/* Dependency type select */}
+                <label className={styles.formLabel}>
+                  Dependency Type
+                  <select
+                    className={styles.formSelect}
+                    value={depDependencyType}
+                    onChange={(e) => setDepDependencyType(e.target.value)}
+                  >
+                    <option value="finish_to_start">Finish to Start (FS)</option>
+                    <option value="start_to_start">Start to Start (SS)</option>
+                    <option value="finish_to_finish">Finish to Finish (FF)</option>
+                    <option value="start_to_finish">Start to Finish (SF)</option>
+                  </select>
+                </label>
+                {/* Lead/lag */}
+                <label className={styles.formLabel}>
+                  Lead/Lag Days
+                  <input
+                    type="number"
+                    className={styles.formInput}
+                    value={depLeadLagDays}
+                    onChange={(e) => setDepLeadLagDays(e.target.value)}
+                  />
+                </label>
+                {depError && (
+                  <div role="alert" className={styles.errorBanner}>
+                    {depError}
+                  </div>
+                )}
+                <div className={styles.modalActions}>
+                  <button
+                    type="button"
+                    className={styles.cancelButton}
+                    onClick={() => {
+                      setShowAddDepModal(false);
+                      setDepError(null);
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.button}
+                    disabled={!depSelectedId || isAddingDep}
+                    onClick={() => void handleAddDep()}
+                  >
+                    {isAddingDep ? 'Adding...' : 'Add Dependency'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </section>
 
         {/* Budget card */}
@@ -1010,6 +1263,32 @@ export function HouseholdItemDetailPage() {
                         <span className={styles.budgetLineMetaItem}>{line.vendor.name}</span>
                       )}
                     </div>
+                    {budgetLineInvoices[line.id]?.length > 0 && (
+                      <div className={styles.budgetLineInvoices}>
+                        <h4 className={styles.budgetLineInvoicesTitle}>Linked Invoices</h4>
+                        <ul className={styles.invoiceList}>
+                          {budgetLineInvoices[line.id].map((inv) => (
+                            <li key={inv.id} className={styles.invoiceListItem}>
+                              <Link
+                                to={`/budget/invoices/${inv.id}`}
+                                className={styles.invoiceLink}
+                              >
+                                {inv.invoiceNumber ? `#${inv.invoiceNumber}` : 'Invoice'}
+                              </Link>
+                              <span className={styles.invoiceAmount}>
+                                {formatCurrency(inv.amount)}
+                              </span>
+                              <span
+                                className={`${styles.invoiceStatusBadge} ${styles[`invoiceStatus_${inv.status}`]}`}
+                              >
+                                {inv.status.charAt(0).toUpperCase() + inv.status.slice(1)}
+                              </span>
+                              <span className={styles.invoiceDate}>{formatDate(inv.date)}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                   <div className={styles.budgetLineActions}>
                     {deletingBudgetId === line.id ? (

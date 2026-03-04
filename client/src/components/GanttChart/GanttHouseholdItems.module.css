@@ -1,0 +1,28 @@
+.hiMarker {
+  cursor: pointer;
+  outline: none;
+}
+
+.hiGlow {
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.hiMarker:hover .hiGlow,
+.hiMarker:focus-visible .hiGlow {
+  opacity: 1;
+}
+
+.hiHighlighted {
+  opacity: 1;
+}
+
+.hiDimmed {
+  opacity: 0.3;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hiGlow {
+    transition: none;
+  }
+}

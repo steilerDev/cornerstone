@@ -12,8 +12,8 @@
  *
  * NOTE: Timeline has graduated to a full feature page (EPIC-06). Its smoke
  * test now lives in e2e/tests/timeline/timeline-gantt.spec.ts.
- * NOTE: Documents has graduated to a full feature page (EPIC-08). Its tests
- * now live in e2e/tests/documents/documents-browser.spec.ts.
+ * NOTE: Documents page was removed (standalone browser unnecessary). Document
+ * linking tests remain in e2e/tests/documents/documents-linked-sections.spec.ts.
  */
 
 import { test, expect } from '../../fixtures/auth.js';

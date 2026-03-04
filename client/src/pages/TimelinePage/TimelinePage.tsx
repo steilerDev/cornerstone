@@ -512,6 +512,7 @@ export function TimelinePage() {
                 setSelectedMilestoneId(milestoneId);
                 setShowMilestonePanel(true);
               }}
+              onHouseholdItemClick={(hiId) => navigate(`/household-items/${hiId}`)}
               onCtrlScroll={(delta) => adjustColumnWidth(delta > 0 ? 1 : -1)}
             />
           )}
@@ -521,6 +522,7 @@ export function TimelinePage() {
           <CalendarView
             workItems={data.workItems}
             milestones={data.milestones}
+            householdItems={data.householdItems}
             dependencies={data.dependencies}
             onMilestoneClick={(milestoneId) => {
               setSelectedMilestoneId(milestoneId);

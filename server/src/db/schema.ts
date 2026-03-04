@@ -322,6 +322,10 @@ export const invoices = sqliteTable(
     workItemBudgetId: text('work_item_budget_id').references(() => workItemBudgets.id, {
       onDelete: 'set null',
     }),
+    householdItemBudgetId: text('household_item_budget_id').references(
+      () => householdItemBudgets.id,
+      { onDelete: 'set null' },
+    ),
     createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
@@ -331,6 +335,9 @@ export const invoices = sqliteTable(
     statusIdx: index('idx_invoices_status').on(table.status),
     dateIdx: index('idx_invoices_date').on(table.date),
     workItemBudgetIdIdx: index('idx_invoices_work_item_budget_id').on(table.workItemBudgetId),
+    householdItemBudgetIdIdx: index('idx_invoices_household_item_budget_id').on(
+      table.householdItemBudgetId,
+    ),
   }),
 );
 
@@ -538,6 +545,8 @@ export const householdItems = sqliteTable(
     orderDate: text('order_date'),
     expectedDeliveryDate: text('expected_delivery_date'),
     actualDeliveryDate: text('actual_delivery_date'),
+    earliestDeliveryDate: text('earliest_delivery_date'),
+    latestDeliveryDate: text('latest_delivery_date'),
     createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
@@ -638,22 +647,32 @@ export const householdItemBudgets = sqliteTable(
 );
 
 /**
- * Household item work items junction table - M:N relationship between household items and work items.
- * Represents coordination between household items and construction work items.
+ * Household item dependencies table - full dependency model for household item delivery scheduling.
+ * Household items can depend on work items or milestones.
+ * EPIC-09: Story 9.1 — Household Item Timeline Dependencies
  */
-export const householdItemWorkItems = sqliteTable(
-  'household_item_work_items',
+export const householdItemDeps = sqliteTable(
+  'household_item_deps',
   {
     householdItemId: text('household_item_id')
       .notNull()
       .references(() => householdItems.id, { onDelete: 'cascade' }),
-    workItemId: text('work_item_id')
+    predecessorType: text('predecessor_type', {
+      enum: ['work_item', 'milestone'],
+    }).notNull(),
+    predecessorId: text('predecessor_id').notNull(),
+    dependencyType: text('dependency_type', {
+      enum: ['finish_to_start', 'start_to_start', 'finish_to_finish', 'start_to_finish'],
+    })
       .notNull()
-      .references(() => workItems.id, { onDelete: 'cascade' }),
+      .default('finish_to_start'),
+    leadLagDays: integer('lead_lag_days').notNull().default(0),
   },
   (table) => ({
-    pk: primaryKey({ columns: [table.householdItemId, table.workItemId] }),
-    workItemIdIdx: index('idx_household_item_work_items_work_item_id').on(table.workItemId),
+    pk: primaryKey({
+      columns: [table.householdItemId, table.predecessorType, table.predecessorId],
+    }),
+    predecessorIdx: index('idx_hi_deps_predecessor').on(table.predecessorType, table.predecessorId),
   }),
 );
 

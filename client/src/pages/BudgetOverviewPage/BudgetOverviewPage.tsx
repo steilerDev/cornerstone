@@ -627,13 +627,6 @@ export function BudgetOverviewPage() {
 
           {/* Footer row */}
           <div className={styles.heroFooter}>
-            <span className={styles.footerItem}>
-              Subsidies: <strong>{formatCurrency(overview.subsidySummary.totalReductions)}</strong>
-              {' ('}
-              {overview.subsidySummary.activeSubsidyCount}{' '}
-              {overview.subsidySummary.activeSubsidyCount === 1 ? 'program' : 'programs'}
-              {')'}
-            </span>
             {hasPayback && (
               <span
                 className={`${styles.footerItem} ${styles.footerItemPayback}`}

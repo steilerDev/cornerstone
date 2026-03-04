@@ -134,21 +134,29 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
   }
 
   // ── 5. Per-line invoice aggregates (for blended projected model) ──────────────
+  // Include both work item and household item budget lines
   const lineInvoiceRows = db.all<{
-    workItemBudgetId: string;
+    budgetLineId: string;
     actualCost: number;
   }>(
     sql`SELECT
-      work_item_budget_id AS workItemBudgetId,
+      work_item_budget_id AS budgetLineId,
       COALESCE(SUM(amount), 0) AS actualCost
     FROM invoices
     WHERE work_item_budget_id IS NOT NULL
-    GROUP BY work_item_budget_id`,
+    GROUP BY work_item_budget_id
+    UNION ALL
+    SELECT
+      household_item_budget_id AS budgetLineId,
+      COALESCE(SUM(amount), 0) AS actualCost
+    FROM invoices
+    WHERE household_item_budget_id IS NOT NULL
+    GROUP BY household_item_budget_id`,
   );
 
   const lineInvoiceMap = new Map<string, number>();
   for (const row of lineInvoiceRows) {
-    lineInvoiceMap.set(row.workItemBudgetId, row.actualCost);
+    lineInvoiceMap.set(row.budgetLineId, row.actualCost);
   }
 
   // ── 6. For fixed subsidies: count matching budget lines per work_item+subsidy ─
@@ -272,6 +280,7 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
   }
 
   // ── 8. Actual costs from invoices linked to budget lines ──────────────────
+  // Include both work item and household item invoices
   const invoiceTotalsRow = db.get<{
     actualCost: number | null;
     actualCostPaid: number | null;
@@ -282,7 +291,7 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
       COALESCE(SUM(CASE WHEN status IN ('paid', 'claimed') THEN amount ELSE 0 END), 0) AS actualCostPaid,
       COALESCE(SUM(CASE WHEN status = 'claimed' THEN amount ELSE 0 END), 0)            AS actualCostClaimed
     FROM invoices
-    WHERE work_item_budget_id IS NOT NULL`,
+    WHERE work_item_budget_id IS NOT NULL OR household_item_budget_id IS NOT NULL`,
   );
 
   const actualCost = invoiceTotalsRow?.actualCost ?? 0;
@@ -290,6 +299,7 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
   const actualCostClaimed = invoiceTotalsRow?.actualCostClaimed ?? 0;
 
   // ── 9. Per-category actual costs from invoices ────────────────────────────
+  // Include both work item and household item budget invoices using UNION ALL
   const categoryInvoiceRows = db.all<{
     budgetCategoryId: string | null;
     actualCost: number;
@@ -303,7 +313,16 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
       COALESCE(SUM(CASE WHEN inv.status = 'claimed' THEN inv.amount ELSE 0 END), 0)              AS actualCostClaimed
     FROM invoices inv
     INNER JOIN work_item_budgets wib ON wib.id = inv.work_item_budget_id
-    GROUP BY wib.budget_category_id`,
+    GROUP BY wib.budget_category_id
+    UNION ALL
+    SELECT
+      hib.budget_category_id                                                                      AS budgetCategoryId,
+      COALESCE(SUM(inv.amount), 0)                                                                AS actualCost,
+      COALESCE(SUM(CASE WHEN inv.status IN ('paid', 'claimed') THEN inv.amount ELSE 0 END), 0)   AS actualCostPaid,
+      COALESCE(SUM(CASE WHEN inv.status = 'claimed' THEN inv.amount ELSE 0 END), 0)              AS actualCostClaimed
+    FROM invoices inv
+    INNER JOIN household_item_budgets hib ON hib.id = inv.household_item_budget_id
+    GROUP BY hib.budget_category_id`,
   );
 
   for (const row of categoryInvoiceRows) {
@@ -321,9 +340,10 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
       };
       categoryAgg.set(row.budgetCategoryId, agg);
     }
-    agg.actualCost = row.actualCost;
-    agg.actualCostPaid = row.actualCostPaid;
-    agg.actualCostClaimed = row.actualCostClaimed;
+    // Use += to accumulate for duplicate categories (one from work items, one from household items)
+    agg.actualCost += row.actualCost;
+    agg.actualCostPaid += row.actualCostPaid;
+    agg.actualCostClaimed += row.actualCostClaimed;
   }
 
   // ── 10. Budget category metadata (name, color) ────────────────────────────

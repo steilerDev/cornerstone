@@ -366,6 +366,21 @@
   --color-gantt-bar-critical-border: var(--color-orange-400);
 
   /* ============================================================
+   * LAYER 1-B — HOUSEHOLD ITEM GANTT TOKENS
+   * ============================================================ */
+
+  /* Circle marker — pending delivery (amber) */
+  --color-gantt-hi-fill: var(--color-amber-100);
+  --color-gantt-hi-stroke: var(--color-amber-800);
+
+  /* Circle marker — delivered (green) */
+  --color-gantt-hi-delivered-fill: var(--color-green-100);
+  --color-gantt-hi-delivered-stroke: var(--color-green-600);
+
+  /* Hover glow effect */
+  --color-gantt-hi-hover-glow: rgba(245, 158, 11, 0.25);
+
+  /* ============================================================
    * LAYER 2 — MILESTONE TOKENS
    * ============================================================ */
 
@@ -600,6 +615,13 @@
 
   /* Critical path bar accent stripe (warmer orange in dark mode) */
   --color-gantt-bar-critical-border: var(--color-orange-300);
+
+  /* Household item circle markers */
+  --color-gantt-hi-fill: rgba(245, 158, 11, 0.2);
+  --color-gantt-hi-stroke: var(--color-amber-300);
+  --color-gantt-hi-delivered-fill: rgba(16, 185, 129, 0.15);
+  --color-gantt-hi-delivered-stroke: var(--color-emerald-400);
+  --color-gantt-hi-hover-glow: rgba(245, 158, 11, 0.3);
 
   /* --- Milestones --- */
   --color-milestone-incomplete-fill: transparent;

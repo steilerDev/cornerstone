@@ -129,7 +129,7 @@ jobs:
       # --- Restore caches ---
       - name: Restore browser cache
         id: browser-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: ~/.cache/ms-playwright
           key: playwright-v3-${{ steps.playwright-version.outputs.version }}-${{ runner.os }}
@@ -139,7 +139,7 @@ jobs:
 
       - name: Restore apt cache
         id: apt-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: /var/cache/apt/archives
           key: apt-v3-playwright-${{ steps.playwright-version.outputs.version }}-${{ runner.os }}
@@ -152,7 +152,7 @@ jobs:
 
       - name: Save browser cache
         if: steps.browser-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: ~/.cache/ms-playwright
           key: playwright-v3-${{ steps.playwright-version.outputs.version }}-${{ runner.os }}
@@ -189,7 +189,7 @@ jobs:
 
       - name: Save apt cache
         if: steps.apt-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: /var/cache/apt/archives
           key: apt-v3-playwright-${{ steps.playwright-version.outputs.version }}-${{ runner.os }}
@@ -202,7 +202,7 @@ jobs:
 
     steps:
       - name: Download image artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: cornerstone-docker-image
 
@@ -232,7 +232,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Download image artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: cornerstone-docker-image
 
@@ -249,7 +249,7 @@ jobs:
         run: npm ci -w e2e
 
       - name: Restore browser cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: ~/.cache/ms-playwright
           key: playwright-v3-${{ needs.e2e-warmup.outputs.playwright-version }}-${{ runner.os }}
@@ -258,7 +258,7 @@ jobs:
         run: sudo chown -R $(id -u):$(id -g) /var/cache/apt/archives
 
       - name: Restore apt cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: /var/cache/apt/archives
           key: apt-v3-playwright-${{ needs.e2e-warmup.outputs.playwright-version }}-${{ runner.os }}
@@ -312,7 +312,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Download image artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: cornerstone-docker-image
 
@@ -329,7 +329,7 @@ jobs:
         run: npm ci -w e2e
 
       - name: Restore browser cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: ~/.cache/ms-playwright
           key: playwright-v3-${{ needs.e2e-warmup.outputs.playwright-version }}-${{ runner.os }}
@@ -338,7 +338,7 @@ jobs:
         run: sudo chown -R $(id -u):$(id -g) /var/cache/apt/archives
 
       - name: Restore apt cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: /var/cache/apt/archives
           key: apt-v3-playwright-${{ needs.e2e-warmup.outputs.playwright-version }}-${{ runner.os }}
@@ -399,7 +399,7 @@ jobs:
         run: npm ci -w e2e
 
       - name: Download blob reports
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: e2e-blob-report-*
           path: e2e/all-blob-reports

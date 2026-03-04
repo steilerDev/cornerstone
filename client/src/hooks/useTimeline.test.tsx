@@ -48,6 +48,7 @@ const EMPTY_TIMELINE: TimelineResponse = {
   workItems: [],
   dependencies: [],
   milestones: [],
+  householdItems: [],
   criticalPath: [],
   dateRange: null,
 };

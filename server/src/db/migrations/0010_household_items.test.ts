@@ -125,12 +125,13 @@ describe('Migration 0010: Household Items', () => {
         .all() as Array<{ name: string }>;
 
       const tableNames = tables.map((t) => t.name).sort();
+      // Note: migration 0012 replaces household_item_work_items with household_item_deps
       expect(tableNames).toEqual([
         'household_item_budgets',
+        'household_item_deps',
         'household_item_notes',
         'household_item_subsidies',
         'household_item_tags',
-        'household_item_work_items',
         'household_items',
       ]);
     });
@@ -507,20 +508,23 @@ describe('Migration 0010: Household Items', () => {
       expect(budgets).toHaveLength(0);
     });
 
-    it('removes work item links when household item is deleted', () => {
-      insertHouseholdItem(sqlite, 'item-cascade-wi');
-      insertWorkItem(sqlite, 'wi-cascade-1');
+    it('removes dependency links when household item is deleted', () => {
+      // Note: migration 0012 replaced household_item_work_items with household_item_deps
+      insertHouseholdItem(sqlite, 'item-cascade-dep');
+      insertWorkItem(sqlite, 'wi-cascade-dep-1');
       sqlite
         .prepare(
-          `INSERT INTO household_item_work_items (household_item_id, work_item_id) VALUES (?, ?)`,
+          `INSERT INTO household_item_deps (household_item_id, predecessor_type, predecessor_id,
+            dependency_type, lead_lag_days)
+           VALUES (?, ?, ?, ?, ?)`,
         )
-        .run('item-cascade-wi', 'wi-cascade-1');
+        .run('item-cascade-dep', 'work_item', 'wi-cascade-dep-1', 'finish_to_start', 0);
 
-      sqlite.prepare('DELETE FROM household_items WHERE id = ?').run('item-cascade-wi');
+      sqlite.prepare('DELETE FROM household_items WHERE id = ?').run('item-cascade-dep');
 
       const links = sqlite
-        .prepare('SELECT * FROM household_item_work_items WHERE household_item_id = ?')
-        .all('item-cascade-wi');
+        .prepare('SELECT * FROM household_item_deps WHERE household_item_id = ?')
+        .all('item-cascade-dep');
       expect(links).toHaveLength(0);
     });
 
@@ -552,23 +556,28 @@ describe('Migration 0010: Household Items', () => {
   });
 
   // ── 9. CASCADE on work item delete ────────────────────────────────────────
+  // Note: migration 0012 replaced household_item_work_items with household_item_deps.
+  // Dep rows with predecessor_type='work_item' are NOT cascade-deleted when the WI is deleted
+  // (the predecessor_id is just a string ref, not a FK). We test the HI cascade instead.
 
-  describe('CASCADE on work_item delete from household_item_work_items', () => {
-    it('removes junction rows when work item is deleted', () => {
-      insertHouseholdItem(sqlite, 'item-wi-cascade');
-      insertWorkItem(sqlite, 'wi-to-delete');
+  describe('CASCADE on household_item delete removes dependency rows', () => {
+    it('removes dep rows when household item is deleted', () => {
+      insertHouseholdItem(sqlite, 'item-hi-dep-cascade');
+      insertWorkItem(sqlite, 'wi-dep-cascade');
       sqlite
         .prepare(
-          `INSERT INTO household_item_work_items (household_item_id, work_item_id) VALUES (?, ?)`,
+          `INSERT INTO household_item_deps (household_item_id, predecessor_type, predecessor_id,
+            dependency_type, lead_lag_days)
+           VALUES (?, ?, ?, ?, ?)`,
         )
-        .run('item-wi-cascade', 'wi-to-delete');
+        .run('item-hi-dep-cascade', 'work_item', 'wi-dep-cascade', 'finish_to_start', 0);
 
-      sqlite.prepare('DELETE FROM work_items WHERE id = ?').run('wi-to-delete');
+      sqlite.prepare('DELETE FROM household_items WHERE id = ?').run('item-hi-dep-cascade');
 
-      const links = sqlite
-        .prepare('SELECT * FROM household_item_work_items WHERE work_item_id = ?')
-        .all('wi-to-delete');
-      expect(links).toHaveLength(0);
+      const rows = sqlite
+        .prepare('SELECT * FROM household_item_deps WHERE household_item_id = ?')
+        .all('item-hi-dep-cascade');
+      expect(rows).toHaveLength(0);
     });
   });
 
@@ -690,14 +699,16 @@ describe('Migration 0010: Household Items', () => {
       expect(indexNames).toContain('idx_household_item_budgets_budget_source_id');
     });
 
-    it('creates index on household_item_work_items work_item_id', () => {
+    it('creates index on household_item_deps (added by migration 0012)', () => {
+      // migration 0012 replaced household_item_work_items with household_item_deps
+      // and added idx_hi_deps_predecessor index
       const indexes = sqlite
         .prepare(
-          `SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='household_item_work_items'`,
+          `SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='household_item_deps'`,
         )
         .all() as Array<{ name: string }>;
       const indexNames = indexes.map((i) => i.name);
-      expect(indexNames).toContain('idx_household_item_work_items_work_item_id');
+      expect(indexNames).toContain('idx_hi_deps_predecessor');
     });
 
     it('creates index on household_item_subsidies subsidy_program_id', () => {
