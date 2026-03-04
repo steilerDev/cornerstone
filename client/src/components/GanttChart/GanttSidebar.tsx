@@ -63,7 +63,7 @@ export const GanttSidebar = forwardRef<HTMLDivElement, GanttSidebarProps>(functi
           const nextRow = rows[nextIdx];
           nextRow.focus();
           // Scroll the row into view within the sidebar
-          nextRow.scrollIntoView({ block: 'nearest' });
+          nextRow.scrollIntoView?.({ block: 'nearest' });
         }
       }
     },
@@ -90,7 +90,7 @@ export const GanttSidebar = forwardRef<HTMLDivElement, GanttSidebarProps>(functi
           const nextRow = rows[nextIdx];
           nextRow.focus();
           // Scroll the row into view within the sidebar
-          nextRow.scrollIntoView({ block: 'nearest' });
+          nextRow.scrollIntoView?.({ block: 'nearest' });
         }
       }
     },
