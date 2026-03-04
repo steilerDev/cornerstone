@@ -378,6 +378,16 @@ describe('HouseholdItemPicker', () => {
         expect(screen.queryByPlaceholderText('Search household items...')).not.toBeInTheDocument();
       });
 
+      // Simulate parent updating value after onChange (like real form state)
+      rerender(
+        <HouseholdItemPicker
+          value="hi-1"
+          onChange={onChange as ReturnType<typeof jest.fn>}
+          excludeIds={[]}
+          showItemsOnFocus={true}
+        />,
+      );
+
       // Parent resets value to empty (e.g. form submission)
       rerender(
         <HouseholdItemPicker
