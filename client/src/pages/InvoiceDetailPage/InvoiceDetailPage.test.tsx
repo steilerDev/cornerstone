@@ -54,6 +54,12 @@ jest.unstable_mockModule('../../components/WorkItemPicker/WorkItemPicker.js', ()
   WorkItemPicker: () => null,
 }));
 
+// ─── Mock: HouseholdItemPicker ─────────────────────────────────────────────────
+
+jest.unstable_mockModule('../../components/HouseholdItemPicker/HouseholdItemPicker.js', () => ({
+  HouseholdItemPicker: () => null,
+}));
+
 // ─── Mock: LinkedDocumentsSection stub ────────────────────────────────────────
 
 jest.unstable_mockModule('../../components/documents/LinkedDocumentsSection.js', () => ({
