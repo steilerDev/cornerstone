@@ -228,3 +228,11 @@ Broken usages as of PR #457 (pre-existing, need cleanup):
 - modalOverlay uses `rgba(0,0,0,0.5)` and `z-index:1000` instead of `var(--color-overlay)` and `var(--z-modal)` (MEDIUM, pre-existing)
 - `--color-danger-active` used for errorBanner text instead of `--color-danger-text-on-light` (LOW, pre-existing inconsistency)
 - "Target Delivery (computed)" — parenthetical "(computed)" is dev-oriented language in a user-facing label (LOW)
+
+## PR #460 Review Findings — HI Inline Status Selector (APPROVED)
+
+Token adherence exemplary. PR correctly uses tokens throughout (unlike WorkItemDetailPage `.statusSelect` which has hardcoded values):
+
+- WorkItemDetailPage.module.css `.statusSelect` (lines 172–187) uses `0.625rem`, `0.375rem`, `0.875rem`, `0.15s` (hardcoded)
+- PR #460 HI version uses `var(--spacing-2-5)`, `var(--radius-md)`, `var(--font-size-sm)`, `var(--transition-normal)` (correct)
+- **Action**: Fix WorkItemDetailPage `.statusSelect` to use tokens for consistency (future refactor task)

@@ -128,3 +128,9 @@ When using polymorphic FKs (no DB-level constraint), ALL services that delete th
 ### Recurring Pattern: CONFIDENCE_MARGINS
 
 Values are fractions (0.2, 0.1, 0.05, 0), NOT percentages. Frontend must multiply by 100 for display.
+
+## PR #460 Review (2026-03-04)
+
+Fix for inline status selector. Auto-sets actualDeliveryDate when status → 'arrived' and date is null.
+
+**Finding**: API Contract wiki was not updated to document the auto-set behavior. Backend/frontend/tests are correct; wiki doc gap identified and flagged.

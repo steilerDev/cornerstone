@@ -1022,6 +1022,130 @@ describe('Household Item Routes', () => {
   });
 
   // ---------------------------------------------------------------------------
+  // PATCH /api/household-items/:id — auto-set actualDeliveryDate
+  // ---------------------------------------------------------------------------
+
+  describe('PATCH /api/household-items/:id — auto-set actualDeliveryDate', () => {
+    it('auto-sets actualDeliveryDate to today when status changes to arrived and date is null', async () => {
+      // Given: An existing item with no actualDeliveryDate
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'User',
+        'password',
+      );
+      const created = householdItemService.createHouseholdItem(app.db, userId, {
+        name: 'Dining Table',
+        status: 'planned',
+      });
+      expect(created.actualDeliveryDate).toBeNull();
+
+      // When: Updating status to 'arrived'
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/household-items/${created.id}`,
+        headers: { cookie },
+        payload: { status: 'arrived' },
+      });
+
+      // Then: Returns 200 and actualDeliveryDate is set to today's date
+      expect(response.statusCode).toBe(200);
+      const item = (JSON.parse(response.body) as { householdItem: Record<string, unknown> })
+        .householdItem;
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      expect(item.actualDeliveryDate).toBe(today);
+    });
+
+    it('does not overwrite existing actualDeliveryDate when status changes to arrived', async () => {
+      // Given: An existing item with an actualDeliveryDate already set
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'User',
+        'password',
+      );
+      const created = householdItemService.createHouseholdItem(app.db, userId, {
+        name: 'Kitchen Table',
+        status: 'purchased',
+      });
+      // PATCH to set actualDeliveryDate
+      await app.inject({
+        method: 'PATCH',
+        url: `/api/household-items/${created.id}`,
+        headers: { cookie },
+        payload: { actualDeliveryDate: '2026-01-01' },
+      });
+
+      // When: Updating status to 'arrived' without providing actualDeliveryDate
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/household-items/${created.id}`,
+        headers: { cookie },
+        payload: { status: 'arrived' },
+      });
+
+      // Then: Returns 200 and actualDeliveryDate remains '2026-01-01'
+      expect(response.statusCode).toBe(200);
+      const item = (JSON.parse(response.body) as { householdItem: Record<string, unknown> })
+        .householdItem;
+      expect(item.actualDeliveryDate).toBe('2026-01-01');
+    });
+
+    it('uses explicit actualDeliveryDate from body even when status is arrived', async () => {
+      // Given: An existing item with no actualDeliveryDate
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'User',
+        'password',
+      );
+      const created = householdItemService.createHouseholdItem(app.db, userId, {
+        name: 'Office Desk',
+        status: 'purchased',
+      });
+
+      // When: Updating with status 'arrived' and explicit actualDeliveryDate
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/household-items/${created.id}`,
+        headers: { cookie },
+        payload: { status: 'arrived', actualDeliveryDate: '2025-06-15' },
+      });
+
+      // Then: Returns 200 and actualDeliveryDate is '2025-06-15'
+      expect(response.statusCode).toBe(200);
+      const item = (JSON.parse(response.body) as { householdItem: Record<string, unknown> })
+        .householdItem;
+      expect(item.actualDeliveryDate).toBe('2025-06-15');
+    });
+
+    it('does not touch actualDeliveryDate when status changes to non-arrived state', async () => {
+      // Given: An existing item with no actualDeliveryDate
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'User',
+        'password',
+      );
+      const created = householdItemService.createHouseholdItem(app.db, userId, {
+        name: 'Bookshelf',
+        status: 'planned',
+      });
+      expect(created.actualDeliveryDate).toBeNull();
+
+      // When: Updating status to 'purchased' (not 'arrived')
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/household-items/${created.id}`,
+        headers: { cookie },
+        payload: { status: 'purchased' },
+      });
+
+      // Then: Returns 200 and actualDeliveryDate remains null
+      expect(response.statusCode).toBe(200);
+      const item = (JSON.parse(response.body) as { householdItem: Record<string, unknown> })
+        .householdItem;
+      expect(item.actualDeliveryDate).toBeNull();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // DELETE /api/household-items/:id
   // ---------------------------------------------------------------------------
 
