@@ -606,6 +606,23 @@ export function HouseholdItemDetailPage() {
     );
   }
 
+  // Compute budget line totals
+  const totalPlanned = budgetLines.reduce((sum, b) => sum + b.plannedAmount, 0);
+  const totalActualCost = budgetLines.reduce((sum, b) => sum + b.actualCost, 0);
+  // Confidence-based min/max planned range: each line contributes amount ± margin
+  const totalMinPlanned = budgetLines.reduce((sum, b) => {
+    const margin = CONFIDENCE_MARGINS[b.confidence] ?? 0;
+    return sum + b.plannedAmount * (1 - margin);
+  }, 0);
+  const totalMaxPlanned = budgetLines.reduce((sum, b) => {
+    const margin = CONFIDENCE_MARGINS[b.confidence] ?? 0;
+    return sum + b.plannedAmount * (1 + margin);
+  }, 0);
+  // Show range only when there's meaningful variance (min !== max)
+  const hasPlannedRange = Math.abs(totalMaxPlanned - totalMinPlanned) > 0.01;
+  // Check if any budget lines have invoiced amounts
+  const hasInvoicedLines = budgetLines.some((b) => b.invoiceCount > 0);
+
   return (
     <div className={styles.container}>
       <div className={styles.content}>
@@ -1185,14 +1202,34 @@ export function HouseholdItemDetailPage() {
                 <div key={line.id} className={styles.budgetLineItem}>
                   <div className={styles.budgetLineMain}>
                     <div className={styles.budgetLineTopRow}>
-                      <span className={styles.budgetLineAmount}>
-                        {formatCurrency(line.plannedAmount)}
-                      </span>
-                      <span className={styles.budgetLineConfidence}>
-                        {CONFIDENCE_LABELS[line.confidence]} (±
-                        {Math.round(CONFIDENCE_MARGINS[line.confidence] * 100)}
-                        %)
-                      </span>
+                      {line.invoiceCount > 0 ? (
+                        <>
+                          <span
+                            className={`${styles.budgetLineAmount} ${styles.budgetLineAmountInvoiced}`}
+                          >
+                            {formatCurrency(line.actualCost)}
+                          </span>
+                          <span className={styles.budgetLineInvoicedLabel}>Invoiced Amount</span>
+                          <span className={styles.budgetLinePlannedSecondary}>
+                            (planned: {formatCurrency(line.plannedAmount)})
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <span className={styles.budgetLineAmount}>
+                            {formatCurrency(line.plannedAmount)}
+                          </span>
+                          <span className={styles.budgetLineConfidence}>
+                            {CONFIDENCE_LABELS[line.confidence]}
+                            {CONFIDENCE_MARGINS[line.confidence] > 0 && (
+                              <span className={styles.budgetLineMargin}>
+                                {' '}
+                                (+{Math.round(CONFIDENCE_MARGINS[line.confidence] * 100)}%)
+                              </span>
+                            )}
+                          </span>
+                        </>
+                      )}
                     </div>
                     {line.description && (
                       <div className={styles.budgetLineDescription}>{line.description}</div>
@@ -1287,10 +1324,22 @@ export function HouseholdItemDetailPage() {
           {/* Budget summary */}
           {budgetLines.length > 0 && (
             <div className={styles.budgetSummary}>
+              {hasInvoicedLines && (
+                <div className={styles.budgetSummaryRow}>
+                  <span className={styles.budgetSummaryLabel}>Total Actual Cost:</span>
+                  <span className={styles.budgetSummaryValue}>
+                    {formatCurrency(totalActualCost)}
+                  </span>
+                </div>
+              )}
               <div className={styles.budgetSummaryRow}>
-                <span className={styles.budgetSummaryLabel}>Total Planned:</span>
+                <span className={styles.budgetSummaryLabel}>
+                  {hasPlannedRange ? 'Planned Range:' : 'Total Planned:'}
+                </span>
                 <span className={styles.budgetSummaryValue}>
-                  {formatCurrency(budgetLines.reduce((sum, line) => sum + line.plannedAmount, 0))}
+                  {hasPlannedRange
+                    ? `${formatCurrency(totalMinPlanned)} – ${formatCurrency(totalMaxPlanned)}`
+                    : formatCurrency(totalPlanned)}
                 </span>
               </div>
             </div>
