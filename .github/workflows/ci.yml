@@ -94,7 +94,7 @@ jobs:
         run: docker save cornerstone:e2e -o cornerstone-e2e.tar
 
       - name: Upload image artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: cornerstone-docker-image
           path: cornerstone-e2e.tar
@@ -283,7 +283,7 @@ jobs:
 
       - name: Upload test results
         if: ${{ always() }}
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-smoke-results
           path: |
@@ -363,7 +363,7 @@ jobs:
 
       - name: Upload blob report
         if: ${{ always() }}
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-blob-report-${{ matrix.shardIndex }}
           path: e2e/blob-report/
@@ -371,7 +371,7 @@ jobs:
 
       - name: Upload test output
         if: ${{ always() }}
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-test-output-${{ matrix.shardIndex }}
           path: |
@@ -409,7 +409,7 @@ jobs:
         run: npm run test:e2e:merge-reports
 
       - name: Upload merged report
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-test-results
           path: e2e/playwright-report/
