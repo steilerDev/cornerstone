@@ -34,9 +34,7 @@ function makeItem(overrides: Partial<TimelineWorkItem> = {}): TimelineWorkItem {
 }
 
 // Minimal TimelineHouseholdItem factory
-function makeHI(
-  overrides: Partial<TimelineHouseholdItem> = {},
-): TimelineHouseholdItem {
+function makeHI(overrides: Partial<TimelineHouseholdItem> = {}): TimelineHouseholdItem {
   return {
     id: 'hi-1',
     name: 'Kitchen Cabinet Delivery',
@@ -456,7 +454,13 @@ describe('GanttSidebar — household item rows', () => {
   it('calls onHouseholdItemClick when HI row is clicked — Issue #449', () => {
     const handleHIClick = jest.fn<(id: string) => void>();
     const hi = makeHI({ id: 'hi-click' });
-    render(<GanttSidebar items={[]} unifiedRows={[makeHIRow(hi)]} onHouseholdItemClick={handleHIClick} />);
+    render(
+      <GanttSidebar
+        items={[]}
+        unifiedRows={[makeHIRow(hi)]}
+        onHouseholdItemClick={handleHIClick}
+      />,
+    );
 
     fireEvent.click(screen.getByTestId('gantt-sidebar-hi-hi-click'));
 
@@ -475,7 +479,13 @@ describe('GanttSidebar — household item rows', () => {
   it('Enter key calls onHouseholdItemClick on HI row — Issue #449', () => {
     const handleHIClick = jest.fn<(id: string) => void>();
     const hi = makeHI({ id: 'hi-enter' });
-    render(<GanttSidebar items={[]} unifiedRows={[makeHIRow(hi)]} onHouseholdItemClick={handleHIClick} />);
+    render(
+      <GanttSidebar
+        items={[]}
+        unifiedRows={[makeHIRow(hi)]}
+        onHouseholdItemClick={handleHIClick}
+      />,
+    );
 
     fireEvent.keyDown(screen.getByTestId('gantt-sidebar-hi-hi-enter'), { key: 'Enter' });
 
@@ -485,7 +495,13 @@ describe('GanttSidebar — household item rows', () => {
   it('Space key calls onHouseholdItemClick on HI row — Issue #449', () => {
     const handleHIClick = jest.fn<(id: string) => void>();
     const hi = makeHI({ id: 'hi-space' });
-    render(<GanttSidebar items={[]} unifiedRows={[makeHIRow(hi)]} onHouseholdItemClick={handleHIClick} />);
+    render(
+      <GanttSidebar
+        items={[]}
+        unifiedRows={[makeHIRow(hi)]}
+        onHouseholdItemClick={handleHIClick}
+      />,
+    );
 
     fireEvent.keyDown(screen.getByTestId('gantt-sidebar-hi-hi-space'), { key: ' ' });
 
@@ -495,7 +511,13 @@ describe('GanttSidebar — household item rows', () => {
   it('other keys do not trigger onHouseholdItemClick on HI row', () => {
     const handleHIClick = jest.fn<(id: string) => void>();
     const hi = makeHI({ id: 'hi-key' });
-    render(<GanttSidebar items={[]} unifiedRows={[makeHIRow(hi)]} onHouseholdItemClick={handleHIClick} />);
+    render(
+      <GanttSidebar
+        items={[]}
+        unifiedRows={[makeHIRow(hi)]}
+        onHouseholdItemClick={handleHIClick}
+      />,
+    );
 
     const row = screen.getByTestId('gantt-sidebar-hi-hi-key');
     fireEvent.keyDown(row, { key: 'Tab' });
