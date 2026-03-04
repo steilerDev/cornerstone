@@ -65,7 +65,7 @@ describe('Migration 0012: Household Item Deps', () => {
     db.prepare(
       `INSERT INTO household_items (id, name, category, status, quantity, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    ).run(id, `Item ${id}`, 'other', 'not_ordered', 1, now, now);
+    ).run(id, `Item ${id}`, 'other', 'planned', 1, now, now);
   }
 
   /**

@@ -6,10 +6,10 @@ import styles from './HouseholdItemPicker.module.css';
 
 /** Maps household item status values to their CSS custom property for the left-border color. */
 const STATUS_BORDER_COLORS: Record<HouseholdItemStatus, string> = {
-  not_ordered: 'var(--color-status-not-started-text)',
-  ordered: 'var(--color-status-in-progress-text)',
-  in_transit: 'var(--color-status-in-progress-text)',
-  delivered: 'var(--color-status-completed-text)',
+  planned: 'var(--color-status-not-started-text)',
+  purchased: 'var(--color-status-in-progress-text)',
+  scheduled: 'var(--color-status-in-progress-text)',
+  arrived: 'var(--color-status-completed-text)',
 };
 
 interface HouseholdItemPickerProps {

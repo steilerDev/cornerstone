@@ -94,7 +94,7 @@ describe('HouseholdItemCreatePage', () => {
     name: 'Test Item',
     description: null,
     category: 'other' as const,
-    status: 'not_ordered' as const,
+    status: 'planned' as const,
     vendor: null,
     url: null,
     room: null,
@@ -194,7 +194,7 @@ describe('HouseholdItemCreatePage', () => {
       });
 
       const statusSelect = screen.getByLabelText(/purchase status/i) as HTMLSelectElement;
-      expect(statusSelect.value).toBe('not_ordered');
+      expect(statusSelect.value).toBe('planned');
     });
 
     it('quantity field defaults to 1 on create page', async () => {
@@ -362,7 +362,7 @@ describe('HouseholdItemCreatePage', () => {
         expect.objectContaining({
           name: 'Kitchen Island',
           description: 'Custom maple island',
-          status: 'not_ordered',
+          status: 'planned',
         }),
       );
     });

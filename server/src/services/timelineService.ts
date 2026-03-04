@@ -360,17 +360,17 @@ export function getTimeline(db: DbType): TimelineResponse {
   const timelineHouseholdItems: TimelineHouseholdItem[] = hiWithDates.map((hi) => {
     let isLate = false;
 
-    // isLate heuristic: if status is not_ordered/ordered and earliest is today or later
-    // relative to when it was scheduled, or if status is in_transit and latest was floored.
+    // isLate heuristic: if status is planned/purchased and earliest is today or later
+    // relative to when it was scheduled, or if status is scheduled and latest was floored.
     // For simplicity, check if earliest/latest is today and status suggests it should be later.
     if (
-      (hi.status === 'not_ordered' || hi.status === 'ordered') &&
+      (hi.status === 'planned' || hi.status === 'purchased') &&
       hi.earliestDeliveryDate === today
     ) {
       // Could be late if it was supposed to be earlier, but we can't tell from DB alone.
       // Mark as potentially late if earliest = today and status suggests ordering/transit.
       isLate = true;
-    } else if (hi.status === 'in_transit' && hi.latestDeliveryDate === today) {
+    } else if (hi.status === 'scheduled' && hi.latestDeliveryDate === today) {
       isLate = true;
     }
 

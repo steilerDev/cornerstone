@@ -71,17 +71,17 @@ describe('HouseholdItemCategory type', () => {
 
 describe('HouseholdItemStatus type', () => {
   it('accepts all 4 valid status values', () => {
-    const statuses: HouseholdItemStatus[] = ['not_ordered', 'ordered', 'in_transit', 'delivered'];
+    const statuses: HouseholdItemStatus[] = ['planned', 'purchased', 'scheduled', 'arrived'];
 
     expect(statuses).toHaveLength(4);
-    expect(statuses).toContain('not_ordered');
-    expect(statuses).toContain('ordered');
-    expect(statuses).toContain('in_transit');
-    expect(statuses).toContain('delivered');
+    expect(statuses).toContain('planned');
+    expect(statuses).toContain('purchased');
+    expect(statuses).toContain('scheduled');
+    expect(statuses).toContain('arrived');
   });
 
   it('each status value is a distinct string', () => {
-    const statuses: HouseholdItemStatus[] = ['not_ordered', 'ordered', 'in_transit', 'delivered'];
+    const statuses: HouseholdItemStatus[] = ['planned', 'purchased', 'scheduled', 'arrived'];
     const unique = new Set(statuses);
     expect(unique.size).toBe(4);
   });
@@ -117,7 +117,7 @@ describe('WorkItemLinkedHouseholdItemSummary interface', () => {
       id: 'hi-1',
       name: 'Leather Sofa',
       category: 'furniture',
-      status: 'delivered',
+      status: 'arrived',
       expectedDeliveryDate: '2026-05-15',
       earliestDeliveryDate: '2026-05-15',
       latestDeliveryDate: '2026-05-20',
@@ -126,7 +126,7 @@ describe('WorkItemLinkedHouseholdItemSummary interface', () => {
     expect(householdItem.id).toBe('hi-1');
     expect(householdItem.name).toBe('Leather Sofa');
     expect(householdItem.category).toBe('furniture');
-    expect(householdItem.status).toBe('delivered');
+    expect(householdItem.status).toBe('arrived');
     expect(householdItem.expectedDeliveryDate).toBe('2026-05-15');
     expect(householdItem.earliestDeliveryDate).toBe('2026-05-15');
     expect(householdItem.latestDeliveryDate).toBe('2026-05-20');
@@ -137,7 +137,7 @@ describe('WorkItemLinkedHouseholdItemSummary interface', () => {
       id: 'hi-2',
       name: 'Wall Paint',
       category: 'decor',
-      status: 'not_ordered',
+      status: 'planned',
       expectedDeliveryDate: null,
       earliestDeliveryDate: null,
       latestDeliveryDate: null,
@@ -147,7 +147,7 @@ describe('WorkItemLinkedHouseholdItemSummary interface', () => {
     expect(householdItem.earliestDeliveryDate).toBeNull();
     expect(householdItem.latestDeliveryDate).toBeNull();
     expect(householdItem.category).toBe('decor');
-    expect(householdItem.status).toBe('not_ordered');
+    expect(householdItem.status).toBe('planned');
   });
 
   it('accepts all valid category values', () => {
@@ -167,7 +167,7 @@ describe('WorkItemLinkedHouseholdItemSummary interface', () => {
         id: `hi-cat-${category}`,
         name: `Item in ${category}`,
         category,
-        status: 'ordered',
+        status: 'purchased',
         expectedDeliveryDate: '2026-06-01',
         earliestDeliveryDate: '2026-05-20',
         latestDeliveryDate: '2026-06-10',
@@ -177,7 +177,7 @@ describe('WorkItemLinkedHouseholdItemSummary interface', () => {
   });
 
   it('accepts all valid status values', () => {
-    const statuses: HouseholdItemStatus[] = ['not_ordered', 'ordered', 'in_transit', 'delivered'];
+    const statuses: HouseholdItemStatus[] = ['planned', 'purchased', 'scheduled', 'arrived'];
 
     for (const status of statuses) {
       const householdItem: WorkItemLinkedHouseholdItemSummary = {
@@ -231,7 +231,7 @@ describe('HouseholdItemSummary interface', () => {
       name: 'Leather Sofa',
       description: 'A 3-seat leather sofa',
       category: 'furniture',
-      status: 'ordered',
+      status: 'purchased',
       vendor: {
         id: 'vendor-1',
         name: 'IKEA',
@@ -261,7 +261,7 @@ describe('HouseholdItemSummary interface', () => {
     expect(summary.id).toBe('item-1');
     expect(summary.name).toBe('Leather Sofa');
     expect(summary.category).toBe('furniture');
-    expect(summary.status).toBe('ordered');
+    expect(summary.status).toBe('purchased');
     expect(summary.vendor?.name).toBe('IKEA');
     expect(summary.tagIds).toHaveLength(2);
     expect(summary.budgetLineCount).toBe(2);
@@ -276,7 +276,7 @@ describe('HouseholdItemSummary interface', () => {
       name: 'Dining Table',
       description: null,
       category: 'furniture',
-      status: 'not_ordered',
+      status: 'planned',
       vendor: null,
       room: null,
       quantity: 1,
@@ -312,7 +312,7 @@ describe('HouseholdItemDetail interface', () => {
       name: 'Smart TV',
       description: '65-inch 4K OLED television',
       category: 'electronics',
-      status: 'delivered',
+      status: 'arrived',
       vendor: null,
       room: 'Living Room',
       quantity: 1,
@@ -393,7 +393,7 @@ describe('HouseholdItemDetail interface', () => {
       name: 'Bookshelf',
       description: null,
       category: 'storage',
-      status: 'not_ordered',
+      status: 'planned',
       vendor: null,
       room: null,
       quantity: 1,
@@ -449,7 +449,7 @@ describe('CreateHouseholdItemRequest interface', () => {
       name: 'Sofa',
       description: 'A comfortable sofa',
       category: 'furniture',
-      status: 'ordered',
+      status: 'purchased',
       vendorId: 'vendor-1',
       url: 'https://example.com/sofa',
       room: 'Living Room',
@@ -460,7 +460,7 @@ describe('CreateHouseholdItemRequest interface', () => {
     };
 
     expect(request.category).toBe('furniture');
-    expect(request.status).toBe('ordered');
+    expect(request.status).toBe('purchased');
     expect(request.quantity).toBe(2);
     expect(request.actualDeliveryDate).toBeNull();
   });
@@ -487,10 +487,10 @@ describe('CreateHouseholdItemRequest interface', () => {
 describe('UpdateHouseholdItemRequest interface', () => {
   it('allows single field update', () => {
     const request: UpdateHouseholdItemRequest = {
-      status: 'delivered',
+      status: 'arrived',
     };
 
-    expect(request.status).toBe('delivered');
+    expect(request.status).toBe('arrived');
     expect(request.name).toBeUndefined();
     expect(request.category).toBeUndefined();
   });
@@ -505,12 +505,12 @@ describe('UpdateHouseholdItemRequest interface', () => {
 
   it('allows updating multiple fields at once', () => {
     const request: UpdateHouseholdItemRequest = {
-      status: 'in_transit',
+      status: 'scheduled',
       expectedDeliveryDate: '2025-03-01',
       room: 'Bedroom',
     };
 
-    expect(request.status).toBe('in_transit');
+    expect(request.status).toBe('scheduled');
     expect(request.expectedDeliveryDate).toBe('2025-03-01');
     expect(request.room).toBe('Bedroom');
   });
@@ -528,7 +528,7 @@ describe('HouseholdItemListQuery interface', () => {
       pageSize: 20,
       q: 'sofa',
       category: 'furniture',
-      status: 'ordered',
+      status: 'purchased',
       room: 'Living Room',
       sortBy: 'name',
       sortOrder: 'asc',
@@ -538,7 +538,7 @@ describe('HouseholdItemListQuery interface', () => {
     expect(query.pageSize).toBe(20);
     expect(query.q).toBe('sofa');
     expect(query.category).toBe('furniture');
-    expect(query.status).toBe('ordered');
+    expect(query.status).toBe('purchased');
     expect(query.room).toBe('Living Room');
     expect(query.sortBy).toBe('name');
     expect(query.sortOrder).toBe('asc');
@@ -597,7 +597,7 @@ describe('HouseholdItemListResponse type', () => {
           name: 'Sofa',
           description: null,
           category: 'furniture',
-          status: 'not_ordered',
+          status: 'planned',
           vendor: null,
           room: null,
           quantity: 1,
@@ -656,7 +656,7 @@ describe('HouseholdItemResponse interface', () => {
         name: 'Armchair',
         description: null,
         category: 'furniture',
-        status: 'not_ordered',
+        status: 'planned',
         vendor: null,
         room: null,
         quantity: 1,
@@ -693,7 +693,7 @@ describe('HouseholdItem entity interface', () => {
       name: 'Coffee Table',
       description: 'Oak wood coffee table',
       category: 'furniture',
-      status: 'delivered',
+      status: 'arrived',
       vendorId: 'vendor-1',
       url: 'https://example.com/table',
       room: 'Living Room',
@@ -709,7 +709,7 @@ describe('HouseholdItem entity interface', () => {
     expect(item.id).toBe('item-entity-1');
     expect(item.name).toBe('Coffee Table');
     expect(item.category).toBe('furniture');
-    expect(item.status).toBe('delivered');
+    expect(item.status).toBe('arrived');
     expect(item.vendorId).toBe('vendor-1');
     expect(item.quantity).toBe(1);
     expect(item.actualDeliveryDate).toBe('2025-01-28');
@@ -721,7 +721,7 @@ describe('HouseholdItem entity interface', () => {
       name: 'Lamp',
       description: null,
       category: 'decor',
-      status: 'not_ordered',
+      status: 'planned',
       vendorId: null,
       url: null,
       room: null,

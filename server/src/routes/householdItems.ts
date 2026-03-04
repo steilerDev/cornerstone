@@ -32,7 +32,7 @@ const createHouseholdItemSchema = {
       },
       status: {
         type: 'string',
-        enum: ['not_ordered', 'ordered', 'in_transit', 'delivered'],
+        enum: ['planned', 'purchased', 'scheduled', 'arrived'],
       },
       vendorId: { type: ['string', 'null'] },
       url: { type: ['string', 'null'], maxLength: 2000 },
@@ -73,7 +73,7 @@ const listHouseholdItemsSchema = {
       },
       status: {
         type: 'string',
-        enum: ['not_ordered', 'ordered', 'in_transit', 'delivered'],
+        enum: ['planned', 'purchased', 'scheduled', 'arrived'],
       },
       vendorId: { type: 'string' },
       room: { type: 'string' },
@@ -120,7 +120,7 @@ const updateHouseholdItemSchema = {
       },
       status: {
         type: 'string',
-        enum: ['not_ordered', 'ordered', 'in_transit', 'delivered'],
+        enum: ['planned', 'purchased', 'scheduled', 'arrived'],
       },
       vendorId: { type: ['string', 'null'] },
       url: { type: ['string', 'null'], maxLength: 2000 },

@@ -523,13 +523,13 @@ function HouseholdItemTooltipContent({
   const statusLabel = data.status.replace(/_/g, ' ');
 
   // Select badge colors based on delivery status
-  const isDelivered = data.status === 'delivered';
+  const isDelivered = data.status === 'arrived';
   const badgeBg = isDelivered
-    ? 'var(--color-hi-status-delivered-bg)'
-    : 'var(--color-hi-status-in-transit-bg)';
+    ? 'var(--color-hi-status-arrived-bg)'
+    : 'var(--color-hi-status-scheduled-bg)';
   const badgeColor = isDelivered
-    ? 'var(--color-hi-status-delivered-text)'
-    : 'var(--color-hi-status-in-transit-text)';
+    ? 'var(--color-hi-status-arrived-text)'
+    : 'var(--color-hi-status-scheduled-text)';
 
   return (
     <>

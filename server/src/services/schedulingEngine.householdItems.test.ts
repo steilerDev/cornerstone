@@ -6,9 +6,9 @@
  * based on their dependencies on work items and milestones.
  *
  * Floor rules:
- * - not_ordered/ordered: floor ES to today (isLate = true when floored)
- * - in_transit: floor LF to today (isLate = true when floored)
- * - delivered (actualDeliveryDate set): use actual date, isLate = false
+ * - planned/purchased: floor ES to today (isLate = true when floored)
+ * - scheduled: floor LF to today (isLate = true when floored)
+ * - arrived (actualDeliveryDate set): use actual date, isLate = false
  * - expectedDeliveryDate acts as a start_after constraint
  *
  * EPIC-09: Story 9.1 — Household Item Timeline Dependencies & Delivery Date Scheduling
@@ -119,7 +119,7 @@ function insertHouseholdItem(
       id,
       name: 'Test Household Item',
       category: 'furniture',
-      status: 'not_ordered',
+      status: 'planned',
       quantity: 1,
       createdAt: now(),
       updatedAt: now(),
@@ -191,7 +191,7 @@ describe('autoReschedule — household item delivery date computation', () => {
   describe('basic CPM delivery date computation', () => {
     it('HI with no deps has null delivery dates (not computed)', () => {
       // Given: A household item with no dependencies
-      const hiId = insertHouseholdItem(db, { status: 'not_ordered' });
+      const hiId = insertHouseholdItem(db, { status: 'planned' });
 
       // When: autoReschedule runs
       autoReschedule(db);
@@ -206,7 +206,7 @@ describe('autoReschedule — household item delivery date computation', () => {
       // Given: A work item with endDate = 2026-05-15 and a HI that depends on it FS
       const userId = insertUser(db);
       const wiId = insertWorkItem(db, userId, { endDate: '2026-05-15' });
-      const hiId = insertHouseholdItem(db, { status: 'not_ordered' });
+      const hiId = insertHouseholdItem(db, { status: 'planned' });
       insertHIDep(db, hiId, 'work_item', wiId);
 
       // When: autoReschedule runs
@@ -228,7 +228,7 @@ describe('autoReschedule — household item delivery date computation', () => {
       const userId = insertUser(db);
       const wiA = insertWorkItem(db, userId, { endDate: '2026-05-01' });
       const wiB = insertWorkItem(db, userId, { endDate: '2026-06-15' });
-      const hiId = insertHouseholdItem(db, { status: 'not_ordered' });
+      const hiId = insertHouseholdItem(db, { status: 'planned' });
       insertHIDep(db, hiId, 'work_item', wiA);
       insertHIDep(db, hiId, 'work_item', wiB);
 
@@ -245,11 +245,11 @@ describe('autoReschedule — household item delivery date computation', () => {
   // ─── Floor rules ──────────────────────────────────────────────────────────
 
   describe('floor rules', () => {
-    it('HI with status not_ordered and CPM date in the past is floored to today', () => {
+    it('HI with status planned and CPM date in the past is floored to today', () => {
       // Given: A HI with a dep on a WI that already ended (past date)
       const userId = insertUser(db);
       const wiId = insertWorkItem(db, userId, { endDate: '2020-01-01' }); // far in past
-      const hiId = insertHouseholdItem(db, { status: 'not_ordered' });
+      const hiId = insertHouseholdItem(db, { status: 'planned' });
       insertHIDep(db, hiId, 'work_item', wiId);
 
       autoReschedule(db);
@@ -260,11 +260,11 @@ describe('autoReschedule — household item delivery date computation', () => {
       expect(earliestDeliveryDate).toBe(today);
     });
 
-    it('HI with status ordered and CPM date in the past is floored to today', () => {
+    it('HI with status purchased and CPM date in the past is floored to today', () => {
       // Given: A HI (ordered) with a dep on a past-ended WI
       const userId = insertUser(db);
       const wiId = insertWorkItem(db, userId, { endDate: '2020-01-01' });
-      const hiId = insertHouseholdItem(db, { status: 'ordered' });
+      const hiId = insertHouseholdItem(db, { status: 'purchased' });
       insertHIDep(db, hiId, 'work_item', wiId);
 
       autoReschedule(db);
@@ -275,11 +275,11 @@ describe('autoReschedule — household item delivery date computation', () => {
       expect(earliestDeliveryDate).toBe(today);
     });
 
-    it('HI with status in_transit and CPM date in the past is floored to today (LF)', () => {
-      // Given: A HI (in_transit) with a dep on a past-ended WI
+    it('HI with status scheduled and CPM date in the past is floored to today (LF)', () => {
+      // Given: A HI (scheduled) with a dep on a past-ended WI
       const userId = insertUser(db);
       const wiId = insertWorkItem(db, userId, { endDate: '2020-01-01' });
-      const hiId = insertHouseholdItem(db, { status: 'in_transit' });
+      const hiId = insertHouseholdItem(db, { status: 'scheduled' });
       insertHIDep(db, hiId, 'work_item', wiId);
 
       autoReschedule(db);
@@ -291,11 +291,11 @@ describe('autoReschedule — household item delivery date computation', () => {
     });
 
     it('HI with actualDeliveryDate uses actual date, not CPM result', () => {
-      // Given: A delivered HI with actualDeliveryDate set
+      // Given: An arrived HI with actualDeliveryDate set
       const userId = insertUser(db);
       const wiId = insertWorkItem(db, userId, { endDate: '2026-06-01' });
       const hiId = insertHouseholdItem(db, {
-        status: 'delivered',
+        status: 'arrived',
         actualDeliveryDate: '2026-02-20',
       });
       insertHIDep(db, hiId, 'work_item', wiId);
@@ -314,7 +314,7 @@ describe('autoReschedule — household item delivery date computation', () => {
       // Use a future date for the WI end so it doesn't get floored to today
       const wiId = insertWorkItem(db, userId, { endDate: '2030-03-01' });
       const hiId = insertHouseholdItem(db, {
-        status: 'not_ordered',
+        status: 'planned',
         expectedDeliveryDate: '2030-06-01', // later than WI end date
       });
       insertHIDep(db, hiId, 'work_item', wiId);
@@ -331,7 +331,7 @@ describe('autoReschedule — household item delivery date computation', () => {
       const userId = insertUser(db);
       const wiId = insertWorkItem(db, userId, { endDate: '2030-08-01' });
       const hiId = insertHouseholdItem(db, {
-        status: 'not_ordered',
+        status: 'planned',
         expectedDeliveryDate: '2030-03-01', // earlier than WI end date
       });
       insertHIDep(db, hiId, 'work_item', wiId);
@@ -351,7 +351,7 @@ describe('autoReschedule — household item delivery date computation', () => {
       // Given: A milestone with targetDate = 2030-07-01 and a HI depending on it
       const userId = insertUser(db);
       const milestoneId = insertMilestone(db, userId, { targetDate: '2030-07-01' });
-      const hiId = insertHouseholdItem(db, { status: 'not_ordered' });
+      const hiId = insertHouseholdItem(db, { status: 'planned' });
       insertHIDep(db, hiId, 'milestone', milestoneId.toString());
 
       autoReschedule(db);
@@ -365,7 +365,7 @@ describe('autoReschedule — household item delivery date computation', () => {
       // Given: A milestone with past targetDate
       const userId = insertUser(db);
       const milestoneId = insertMilestone(db, userId, { targetDate: '2020-01-01' });
-      const hiId = insertHouseholdItem(db, { status: 'not_ordered' });
+      const hiId = insertHouseholdItem(db, { status: 'planned' });
       insertHIDep(db, hiId, 'milestone', milestoneId.toString());
 
       autoReschedule(db);
@@ -381,7 +381,7 @@ describe('autoReschedule — household item delivery date computation', () => {
       // (allWorkItems.length === 0) was incorrectly skipping HI date computation.
       const userId = insertUser(db);
       const milestoneId = insertMilestone(db, userId, { targetDate: '2030-09-01' });
-      const hiId = insertHouseholdItem(db, { status: 'not_ordered' });
+      const hiId = insertHouseholdItem(db, { status: 'planned' });
       insertHIDep(db, hiId, 'milestone', milestoneId.toString());
 
       // When: autoReschedule runs with zero work items
@@ -470,7 +470,7 @@ describe('autoReschedule — household item delivery date computation', () => {
         completedAt: '2030-01-15T14:30:00.000Z',
         isCompleted: true,
       });
-      const hiId = insertHouseholdItem(db, { status: 'not_ordered' });
+      const hiId = insertHouseholdItem(db, { status: 'planned' });
       insertHIDep(db, hiId, 'milestone', milestoneId.toString());
 
       // When: autoReschedule runs
@@ -499,7 +499,7 @@ describe('autoReschedule — household item delivery date computation', () => {
       db.insert(schema.milestoneWorkItems).values({ milestoneId, workItemId: wiA }).run();
       db.insert(schema.milestoneWorkItems).values({ milestoneId, workItemId: wiB }).run();
 
-      const hiId = insertHouseholdItem(db, { status: 'not_ordered' });
+      const hiId = insertHouseholdItem(db, { status: 'planned' });
       insertHIDep(db, hiId, 'milestone', milestoneId.toString());
 
       // When: autoReschedule runs
@@ -519,7 +519,7 @@ describe('autoReschedule — household item delivery date computation', () => {
         completedAt: null,
         isCompleted: false,
       });
-      const hiId = insertHouseholdItem(db, { status: 'not_ordered' });
+      const hiId = insertHouseholdItem(db, { status: 'planned' });
       insertHIDep(db, hiId, 'milestone', milestoneId.toString());
 
       // When: autoReschedule runs
@@ -542,7 +542,7 @@ describe('autoReschedule — household item delivery date computation', () => {
       const wi = insertWorkItem(db, userId, { endDate: '2030-07-01' });
       db.insert(schema.milestoneWorkItems).values({ milestoneId, workItemId: wi }).run();
 
-      const hiId = insertHouseholdItem(db, { status: 'not_ordered' });
+      const hiId = insertHouseholdItem(db, { status: 'planned' });
       insertHIDep(db, hiId, 'milestone', milestoneId.toString());
 
       // When: autoReschedule runs
@@ -565,7 +565,7 @@ describe('autoReschedule — household item delivery date computation', () => {
       const wi = insertWorkItem(db, userId, { endDate: '2030-06-01' });
       db.insert(schema.milestoneWorkItems).values({ milestoneId, workItemId: wi }).run();
 
-      const hiId = insertHouseholdItem(db, { status: 'not_ordered' });
+      const hiId = insertHouseholdItem(db, { status: 'planned' });
       insertHIDep(db, hiId, 'milestone', milestoneId.toString());
 
       // When: autoReschedule runs
@@ -594,7 +594,7 @@ describe('autoReschedule — household item delivery date computation', () => {
       });
       db.insert(schema.milestoneWorkItems).values({ milestoneId, workItemId: wi }).run();
 
-      const hiId = insertHouseholdItem(db, { status: 'not_ordered' });
+      const hiId = insertHouseholdItem(db, { status: 'planned' });
       insertHIDep(db, hiId, 'milestone', milestoneId.toString());
 
       // When: autoReschedule runs
@@ -611,7 +611,7 @@ describe('autoReschedule — household item delivery date computation', () => {
       // Given: WI with endDate = '2030-03-01', HI depending on that WI (not milestone)
       const userId = insertUser(db);
       const wi = insertWorkItem(db, userId, { endDate: '2030-03-01' });
-      const hiId = insertHouseholdItem(db, { status: 'not_ordered' });
+      const hiId = insertHouseholdItem(db, { status: 'planned' });
       insertHIDep(db, hiId, 'work_item', wi);
 
       // When: autoReschedule runs

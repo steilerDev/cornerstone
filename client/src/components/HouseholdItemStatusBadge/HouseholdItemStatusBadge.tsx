@@ -6,10 +6,10 @@ interface HouseholdItemStatusBadgeProps {
 }
 
 const STATUS_LABELS: Record<HouseholdItemStatus, string> = {
-  not_ordered: 'Not Ordered',
-  ordered: 'Ordered',
-  in_transit: 'In Transit',
-  delivered: 'Delivered',
+  planned: 'Planned',
+  purchased: 'Purchased',
+  scheduled: 'Scheduled',
+  arrived: 'Arrived',
 };
 
 export function HouseholdItemStatusBadge({ status }: HouseholdItemStatusBadgeProps) {

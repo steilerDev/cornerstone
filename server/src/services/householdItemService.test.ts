@@ -108,7 +108,7 @@ describe('Household Item Service', () => {
       expect(result.name).toBe('Living Room Sofa');
       expect(result.description).toBeNull();
       expect(result.category).toBe('other');
-      expect(result.status).toBe('not_ordered');
+      expect(result.status).toBe('planned');
       expect(result.quantity).toBe(1);
       expect(result.vendor).toBeNull();
       expect(result.room).toBeNull();
@@ -140,7 +140,7 @@ describe('Household Item Service', () => {
         name: 'King Bed Frame',
         description: 'Solid oak king bed frame with headboard',
         category: 'furniture',
-        status: 'ordered',
+        status: 'purchased',
         vendorId,
         url: 'https://ikea.com/king-bed',
         room: 'Bedroom',
@@ -158,7 +158,7 @@ describe('Household Item Service', () => {
       expect(result.name).toBe('King Bed Frame');
       expect(result.description).toBe('Solid oak king bed frame with headboard');
       expect(result.category).toBe('furniture');
-      expect(result.status).toBe('ordered');
+      expect(result.status).toBe('purchased');
       expect(result.vendor?.id).toBe(vendorId);
       expect(result.vendor?.name).toBe('IKEA');
       expect(result.url).toBe('https://ikea.com/king-bed');
@@ -274,18 +274,18 @@ describe('Household Item Service', () => {
       expect(result.category).toBe('appliances');
     });
 
-    it('creates item with status in_transit', () => {
+    it('creates item with status scheduled', () => {
       // Given: User
       const userId = createTestUser('user@example.com', 'Test User');
 
       // When: Creating with specific status
       const result = householdItemService.createHouseholdItem(db, userId, {
         name: 'Washing Machine',
-        status: 'in_transit',
+        status: 'scheduled',
       });
 
       // Then: Status is set correctly
-      expect(result.status).toBe('in_transit');
+      expect(result.status).toBe('scheduled');
     });
 
     it('creates item with quantity greater than 1', () => {
@@ -407,16 +407,16 @@ describe('Household Item Service', () => {
       const item = householdItemService.createHouseholdItem(db, userId, {
         name: 'Original Name',
         category: 'furniture',
-        status: 'not_ordered',
+        status: 'planned',
       });
 
       // When: Updating only status
       const updated = householdItemService.updateHouseholdItem(db, item.id, {
-        status: 'ordered',
+        status: 'purchased',
       });
 
       // Then: Only status changed
-      expect(updated.status).toBe('ordered');
+      expect(updated.status).toBe('purchased');
       expect(updated.name).toBe('Original Name');
       expect(updated.category).toBe('furniture');
       expect(updated.updatedAt).not.toBe(item.updatedAt);
@@ -488,10 +488,10 @@ describe('Household Item Service', () => {
       // Given: No household items exist
       // When/Then: Throws not found error
       expect(() =>
-        householdItemService.updateHouseholdItem(db, 'non-existent-id', { status: 'ordered' }),
+        householdItemService.updateHouseholdItem(db, 'non-existent-id', { status: 'purchased' }),
       ).toThrow(NotFoundError);
       expect(() =>
-        householdItemService.updateHouseholdItem(db, 'non-existent-id', { status: 'ordered' }),
+        householdItemService.updateHouseholdItem(db, 'non-existent-id', { status: 'purchased' }),
       ).toThrow('Household item not found');
     });
 
@@ -551,14 +551,14 @@ describe('Household Item Service', () => {
       const item = householdItemService.createHouseholdItem(db, userId, {
         name: 'Draft Item',
         category: 'other',
-        status: 'not_ordered',
+        status: 'planned',
       });
 
       // When: Updating multiple fields
       const updated = householdItemService.updateHouseholdItem(db, item.id, {
         name: 'Final Name',
         category: 'fixtures',
-        status: 'ordered',
+        status: 'purchased',
         room: 'Master Bath',
         quantity: 2,
       });
@@ -566,7 +566,7 @@ describe('Household Item Service', () => {
       // Then: All updated fields are correct
       expect(updated.name).toBe('Final Name');
       expect(updated.category).toBe('fixtures');
-      expect(updated.status).toBe('ordered');
+      expect(updated.status).toBe('purchased');
       expect(updated.room).toBe('Master Bath');
       expect(updated.quantity).toBe(2);
     });
@@ -790,21 +790,21 @@ describe('Household Item Service', () => {
       const userId = createTestUser('user@example.com', 'Test User');
       householdItemService.createHouseholdItem(db, userId, {
         name: 'Item A',
-        status: 'not_ordered',
+        status: 'planned',
       });
       householdItemService.createHouseholdItem(db, userId, {
         name: 'Item B',
-        status: 'ordered',
+        status: 'purchased',
       });
       householdItemService.createHouseholdItem(db, userId, {
         name: 'Item C',
-        status: 'delivered',
+        status: 'arrived',
       });
 
       // When: Filtering by status
-      const result = householdItemService.listHouseholdItems(db, { status: 'ordered' });
+      const result = householdItemService.listHouseholdItems(db, { status: 'purchased' });
 
-      // Then: Only ordered items
+      // Then: Only purchased items
       expect(result.items).toHaveLength(1);
       expect(result.items[0].name).toBe('Item B');
     });
@@ -1020,23 +1020,23 @@ describe('Household Item Service', () => {
       householdItemService.createHouseholdItem(db, userId, {
         name: 'Match',
         category: 'appliances',
-        status: 'delivered',
+        status: 'arrived',
       });
       householdItemService.createHouseholdItem(db, userId, {
         name: 'Wrong Status',
         category: 'appliances',
-        status: 'ordered',
+        status: 'purchased',
       });
       householdItemService.createHouseholdItem(db, userId, {
         name: 'Wrong Category',
         category: 'furniture',
-        status: 'delivered',
+        status: 'arrived',
       });
 
       // When: Filtering by both category and status
       const result = householdItemService.listHouseholdItems(db, {
         category: 'appliances',
-        status: 'delivered',
+        status: 'arrived',
       });
 
       // Then: Only the matching item is returned

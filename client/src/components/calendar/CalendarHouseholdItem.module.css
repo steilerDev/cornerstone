@@ -29,13 +29,13 @@
 }
 
 .default {
-  background: var(--color-hi-status-in-transit-bg);
-  color: var(--color-hi-status-in-transit-text);
+  background: var(--color-hi-status-scheduled-bg);
+  color: var(--color-hi-status-scheduled-text);
 }
 
-.delivered {
-  background: var(--color-hi-status-delivered-bg);
-  color: var(--color-hi-status-delivered-text);
+.arrived {
+  background: var(--color-hi-status-arrived-bg);
+  color: var(--color-hi-status-arrived-text);
 }
 
 .name {

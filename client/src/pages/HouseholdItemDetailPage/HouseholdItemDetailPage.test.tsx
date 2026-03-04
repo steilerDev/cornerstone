@@ -199,7 +199,7 @@ describe('HouseholdItemDetailPage', () => {
       name: 'Standing Desk',
       description: 'Electric height-adjustable desk',
       category: 'furniture' as HouseholdItemCategory,
-      status: 'ordered' as HouseholdItemStatus,
+      status: 'purchased' as HouseholdItemStatus,
       vendor: { id: 'vendor-1', name: 'IKEA', specialty: 'Furniture' },
       room: 'Office',
       quantity: 2,
@@ -1053,7 +1053,7 @@ describe('HouseholdItemDetailPage', () => {
 
     it('shows correct progress for "ordered" status', async () => {
       mockGetHouseholdItem.mockResolvedValue(
-        makeItem({ status: 'ordered' as HouseholdItemStatus }),
+        makeItem({ status: 'purchased' as HouseholdItemStatus }),
       );
 
       renderPage();
@@ -1063,17 +1063,17 @@ describe('HouseholdItemDetailPage', () => {
       });
 
       // All steps should be visible
-      expect(screen.getAllByText('Not Ordered').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Planned').length).toBeGreaterThan(0);
       // Use getAllByText for Ordered since it appears in multiple places
-      expect(screen.getAllByText('Ordered').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('In Transit').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('Delivered').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Purchased').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Scheduled').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Arrived').length).toBeGreaterThan(0);
     });
 
     it('shows all steps completed for "delivered" status', async () => {
       mockGetHouseholdItem.mockResolvedValue(
         makeItem({
-          status: 'delivered' as HouseholdItemStatus,
+          status: 'arrived' as HouseholdItemStatus,
           actualDeliveryDate: '2026-03-10',
         }),
       );
@@ -1084,17 +1084,17 @@ describe('HouseholdItemDetailPage', () => {
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      // All steps should be shown: Not Ordered, Ordered, In Transit, Delivered
-      expect(screen.getAllByText('Not Ordered').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('Ordered').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('In Transit').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('Delivered').length).toBeGreaterThan(0);
+      // All steps should be shown: Planned, Purchased, Scheduled, Arrived
+      expect(screen.getAllByText('Planned').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Purchased').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Scheduled').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Arrived').length).toBeGreaterThan(0);
     });
 
-    it('shows all steps for "not_ordered" status', async () => {
+    it('shows all steps for "planned" status', async () => {
       mockGetHouseholdItem.mockResolvedValue(
         makeItem({
-          status: 'not_ordered' as HouseholdItemStatus,
+          status: 'planned' as HouseholdItemStatus,
           orderDate: null,
           expectedDeliveryDate: null,
         }),
@@ -1107,16 +1107,16 @@ describe('HouseholdItemDetailPage', () => {
       });
 
       // All step labels should be visible
-      expect(screen.getAllByText('Not Ordered').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('Ordered').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('In Transit').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('Delivered').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Planned').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Purchased').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Scheduled').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Arrived').length).toBeGreaterThan(0);
     });
 
-    it('shows all steps for "in_transit" status', async () => {
+    it('shows all steps for "scheduled" status', async () => {
       mockGetHouseholdItem.mockResolvedValue(
         makeItem({
-          status: 'in_transit' as HouseholdItemStatus,
+          status: 'scheduled' as HouseholdItemStatus,
         }),
       );
 
@@ -1126,10 +1126,10 @@ describe('HouseholdItemDetailPage', () => {
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      expect(screen.getAllByText('Not Ordered').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('Ordered').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('In Transit').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('Delivered').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Planned').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Purchased').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Scheduled').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Arrived').length).toBeGreaterThan(0);
     });
   });
 
@@ -1261,11 +1261,11 @@ describe('HouseholdItemDetailPage', () => {
       expect(screen.getByText('Latest delivery')).toBeInTheDocument();
     });
 
-    it('shows "Floored to today" chip when item is not_ordered and earliestDeliveryDate is today', async () => {
+    it('shows "Floored to today" chip when item is planned and earliestDeliveryDate is today', async () => {
       const today = new Date().toISOString().slice(0, 10);
       mockGetHouseholdItem.mockResolvedValue(
         makeItem({
-          status: 'not_ordered',
+          status: 'planned',
           earliestDeliveryDate: today,
         }),
       );
@@ -1283,7 +1283,7 @@ describe('HouseholdItemDetailPage', () => {
       const today = new Date().toISOString().slice(0, 10);
       mockGetHouseholdItem.mockResolvedValue(
         makeItem({
-          status: 'delivered',
+          status: 'arrived',
           earliestDeliveryDate: today,
           actualDeliveryDate: today,
         }),

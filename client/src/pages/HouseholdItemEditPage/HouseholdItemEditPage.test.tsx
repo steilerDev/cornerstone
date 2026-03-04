@@ -95,7 +95,7 @@ describe('HouseholdItemEditPage', () => {
     name: 'Kitchen Island',
     description: 'Custom maple island',
     category: 'furniture' as const,
-    status: 'ordered' as const,
+    status: 'purchased' as const,
     vendor: { id: 'v-1', name: 'IKEA', specialty: 'Furniture' },
     url: 'https://example.com/island',
     room: 'Kitchen',
@@ -189,7 +189,7 @@ describe('HouseholdItemEditPage', () => {
       expect(categorySelect.value).toBe('furniture');
 
       const statusSelect = screen.getByLabelText(/purchase status/i) as HTMLSelectElement;
-      expect(statusSelect.value).toBe('ordered');
+      expect(statusSelect.value).toBe('purchased');
 
       const roomInput = screen.getByLabelText(/^room/i) as HTMLInputElement;
       expect(roomInput.value).toBe('Kitchen');

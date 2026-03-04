@@ -943,7 +943,7 @@ export function autoReschedule(db: DbType): number {
       // Actual date overrides CPM — use it directly
       es = hi.actualDeliveryDate;
       ef = hi.actualDeliveryDate;
-    } else if (hi.status === 'not_ordered' || hi.status === 'ordered') {
+    } else if (hi.status === 'planned' || hi.status === 'purchased') {
       // Floor ES to today; mark as late if floored
       const esBeforeFloor = es;
       es = maxDate(es, today);
@@ -951,7 +951,7 @@ export function autoReschedule(db: DbType): number {
         isLate = true;
       }
       ef = es; // HIs are zero-duration
-    } else if (hi.status === 'in_transit') {
+    } else if (hi.status === 'scheduled') {
       // Floor LF (=EF for HIs) to today; mark as late if floored
       const efBeforeFloor = ef;
       ef = maxDate(ef, today);

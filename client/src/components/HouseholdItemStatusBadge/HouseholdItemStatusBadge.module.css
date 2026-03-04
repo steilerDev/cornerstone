@@ -9,26 +9,26 @@
   line-height: 1;
 }
 
-/* Not Ordered — gray (same as not_started) */
-.not_ordered {
-  background-color: var(--color-hi-status-not-ordered-bg);
-  color: var(--color-hi-status-not-ordered-text);
+/* Planned — gray (same as not_started) */
+.planned {
+  background-color: var(--color-hi-status-planned-bg);
+  color: var(--color-hi-status-planned-text);
 }
 
-/* Ordered — blue (same as in_progress) */
-.ordered {
-  background-color: var(--color-hi-status-ordered-bg);
-  color: var(--color-hi-status-ordered-text);
+/* Purchased — blue (same as in_progress) */
+.purchased {
+  background-color: var(--color-hi-status-purchased-bg);
+  color: var(--color-hi-status-purchased-text);
 }
 
-/* In Transit — amber */
-.in_transit {
-  background-color: var(--color-hi-status-in-transit-bg);
-  color: var(--color-hi-status-in-transit-text);
+/* Scheduled — amber */
+.scheduled {
+  background-color: var(--color-hi-status-scheduled-bg);
+  color: var(--color-hi-status-scheduled-text);
 }
 
-/* Delivered — green (same as completed) */
-.delivered {
-  background-color: var(--color-hi-status-delivered-bg);
-  color: var(--color-hi-status-delivered-text);
+/* Arrived — green (same as completed) */
+.arrived {
+  background-color: var(--color-hi-status-arrived-bg);
+  color: var(--color-hi-status-arrived-text);
 }

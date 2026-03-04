@@ -23,7 +23,7 @@ function makeHouseholdItem(overrides: Partial<TimelineHouseholdItem> = {}): Time
     id: 'hi-1',
     name: 'Leather Sofa',
     category: 'furniture',
-    status: 'not_ordered',
+    status: 'planned',
     expectedDeliveryDate: null,
     earliestDeliveryDate: '2026-05-15',
     latestDeliveryDate: '2026-06-01',
@@ -129,15 +129,15 @@ describe('CalendarHouseholdItem', () => {
     });
 
     it('aria-label includes the status (with underscores replaced by spaces)', () => {
-      renderHI({ item: makeHouseholdItem({ status: 'not_ordered' }) });
+      renderHI({ item: makeHouseholdItem({ status: 'planned' }) });
       const button = screen.getByRole('button');
       expect(button.getAttribute('aria-label')).toContain('not ordered');
     });
 
     it('aria-label includes ordered status', () => {
-      renderHI({ item: makeHouseholdItem({ status: 'ordered' }) });
+      renderHI({ item: makeHouseholdItem({ status: 'purchased' }) });
       const button = screen.getByRole('button');
-      expect(button.getAttribute('aria-label')).toContain('ordered');
+      expect(button.getAttribute('aria-label')).toContain('purchased');
     });
 
     it('aria-label includes the earliestDeliveryDate when set', () => {
@@ -159,33 +159,33 @@ describe('CalendarHouseholdItem', () => {
 
   describe('CSS class for color scheme', () => {
     it('non-delivered item uses the "default" CSS class (not delivered)', () => {
-      renderHI({ item: makeHouseholdItem({ status: 'not_ordered' }) });
+      renderHI({ item: makeHouseholdItem({ status: 'planned' }) });
       const button = screen.getByTestId('calendar-hi-item');
       // Should have the default class and NOT the delivered class
       expect(button.className).toContain('default');
-      expect(button.className).not.toContain('delivered');
+      expect(button.className).not.toContain('arrived');
     });
 
     it('delivered item uses the "delivered" CSS class', () => {
       renderHI({
-        item: makeHouseholdItem({ status: 'delivered', actualDeliveryDate: '2026-04-18' }),
+        item: makeHouseholdItem({ status: 'arrived', actualDeliveryDate: '2026-04-18' }),
       });
       const button = screen.getByTestId('calendar-hi-item');
-      expect(button.className).toContain('delivered');
+      expect(button.className).toContain('arrived');
     });
 
     it('ordered item uses the "default" CSS class (not delivered)', () => {
-      renderHI({ item: makeHouseholdItem({ status: 'ordered' }) });
+      renderHI({ item: makeHouseholdItem({ status: 'purchased' }) });
       const button = screen.getByTestId('calendar-hi-item');
       expect(button.className).toContain('default');
-      expect(button.className).not.toContain('delivered');
+      expect(button.className).not.toContain('arrived');
     });
 
-    it('in_transit item uses the "default" CSS class (not delivered)', () => {
-      renderHI({ item: makeHouseholdItem({ status: 'in_transit' }) });
+    it('scheduled item uses the "default" CSS class (not arrived)', () => {
+      renderHI({ item: makeHouseholdItem({ status: 'scheduled' }) });
       const button = screen.getByTestId('calendar-hi-item');
       expect(button.className).toContain('default');
-      expect(button.className).not.toContain('delivered');
+      expect(button.className).not.toContain('arrived');
     });
   });
 

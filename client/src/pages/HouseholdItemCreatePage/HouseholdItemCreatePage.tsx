@@ -20,10 +20,10 @@ const CATEGORIES: Array<{ value: HouseholdItemCategory; label: string }> = [
 ];
 
 const STATUSES: Array<{ value: HouseholdItemStatus; label: string }> = [
-  { value: 'not_ordered', label: 'Not Ordered' },
-  { value: 'ordered', label: 'Ordered' },
-  { value: 'in_transit', label: 'In Transit' },
-  { value: 'delivered', label: 'Delivered' },
+  { value: 'planned', label: 'Planned' },
+  { value: 'purchased', label: 'Purchased' },
+  { value: 'scheduled', label: 'Scheduled' },
+  { value: 'arrived', label: 'Arrived' },
 ];
 
 interface Vendor {
@@ -38,7 +38,7 @@ export function HouseholdItemCreatePage() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<HouseholdItemCategory>('other');
-  const [status, setStatus] = useState<HouseholdItemStatus>('not_ordered');
+  const [status, setStatus] = useState<HouseholdItemStatus>('planned');
   const [quantity, setQuantity] = useState(1);
   const [vendorId, setVendorId] = useState('');
   const [url, setUrl] = useState('');

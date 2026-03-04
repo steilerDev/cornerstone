@@ -103,10 +103,10 @@ const HOUSEHOLD_ITEM_CATEGORY_LABELS: Record<HouseholdItemCategory, string> = {
 };
 
 const HOUSEHOLD_ITEM_STATUS_LABELS: Record<HouseholdItemStatus, string> = {
-  not_ordered: 'Not Ordered',
-  ordered: 'Ordered',
-  in_transit: 'In Transit',
-  delivered: 'Delivered',
+  planned: 'Planned',
+  purchased: 'Purchased',
+  scheduled: 'Scheduled',
+  arrived: 'Arrived',
 };
 
 /** Budget line form state used for both create and edit. */
