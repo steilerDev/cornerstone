@@ -51,10 +51,11 @@ describe('HouseholdItemsPage', () => {
       room: null,
       quantity: 1,
       orderDate: null,
-      expectedDeliveryDate: null,
+      targetDeliveryDate: null,
       actualDeliveryDate: null,
       earliestDeliveryDate: null,
       latestDeliveryDate: null,
+      isLate: false,
       url: null,
       tagIds: [],
       budgetLineCount: 0,
@@ -76,7 +77,7 @@ describe('HouseholdItemsPage', () => {
       vendor: { id: 'vendor-1', name: 'Furniture Plus', specialty: 'Furniture' },
       room: 'living room',
       totalPlannedAmount: 200,
-      expectedDeliveryDate: '2026-01-10',
+      targetDeliveryDate: '2026-01-10',
     }),
     createMockItem({
       id: 'hi-2',
@@ -86,7 +87,7 @@ describe('HouseholdItemsPage', () => {
       vendor: { id: 'vendor-1', name: 'Furniture Plus', specialty: 'Furniture' },
       room: 'dining room',
       totalPlannedAmount: 150,
-      expectedDeliveryDate: '2026-01-15',
+      targetDeliveryDate: '2026-01-15',
     }),
   ];
 

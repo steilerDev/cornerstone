@@ -124,11 +124,12 @@ function insertHouseholdItem(
       url: null,
       room: null,
       orderDate: null,
-      expectedDeliveryDate: null,
       actualDeliveryDate: null,
       createdBy: null,
       earliestDeliveryDate: null,
       latestDeliveryDate: null,
+      targetDeliveryDate: null,
+      isLate: false,
       ...overrides,
     })
     .run();
@@ -531,7 +532,7 @@ describe('householdItemDepService', () => {
         name: 'Custom Sofa',
         category: 'furniture',
         status: 'purchased',
-        expectedDeliveryDate: '2026-06-01',
+        targetDeliveryDate: '2026-06-01',
         earliestDeliveryDate: '2026-05-20',
         latestDeliveryDate: '2026-05-20',
       });
@@ -552,7 +553,7 @@ describe('householdItemDepService', () => {
       expect(hi.name).toBe('Custom Sofa');
       expect(hi.category).toBe('furniture');
       expect(hi.status).toBe('purchased');
-      expect(hi.expectedDeliveryDate).toBe('2026-06-01');
+      expect(hi.targetDeliveryDate).toBe('2026-06-01');
       expect(hi.earliestDeliveryDate).toBe('2026-05-20');
       expect(hi.latestDeliveryDate).toBe('2026-05-20');
     });

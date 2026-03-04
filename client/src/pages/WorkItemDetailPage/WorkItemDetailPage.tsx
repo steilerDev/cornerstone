@@ -2374,9 +2374,9 @@ export default function WorkItemDetailPage() {
                   <span className={styles.householdItemDeliveryDate}>
                     {formatDate(hi.earliestDeliveryDate)} – {formatDate(hi.latestDeliveryDate)}
                   </span>
-                ) : hi.expectedDeliveryDate ? (
+                ) : hi.targetDeliveryDate ? (
                   <span className={styles.householdItemDeliveryDate}>
-                    {formatDate(hi.expectedDeliveryDate)}
+                    {formatDate(hi.targetDeliveryDate)}
                   </span>
                 ) : null}
               </li>

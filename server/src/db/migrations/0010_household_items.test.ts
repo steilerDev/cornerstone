@@ -168,11 +168,10 @@ describe('Migration 0010: Household Items', () => {
       expect(colMap.get('url')?.notnull).toBe(0);
       expect(colMap.get('room')?.notnull).toBe(0);
       expect(colMap.get('order_date')?.notnull).toBe(0);
-      expect(colMap.get('expected_delivery_date')?.notnull).toBe(0);
       expect(colMap.get('actual_delivery_date')?.notnull).toBe(0);
       expect(colMap.get('created_by')?.notnull).toBe(0);
 
-      // All expected columns are present
+      // All expected columns are present (expected_delivery_date removed in 0015)
       const expectedColumns = [
         'id',
         'name',
@@ -184,7 +183,6 @@ describe('Migration 0010: Household Items', () => {
         'room',
         'quantity',
         'order_date',
-        'expected_delivery_date',
         'actual_delivery_date',
         'created_by',
         'created_at',
@@ -723,9 +721,9 @@ describe('Migration 0010: Household Items', () => {
         .prepare(
           `INSERT INTO household_items
              (id, name, description, category, status, vendor_id, url, room, quantity,
-              order_date, expected_delivery_date, actual_delivery_date, created_by,
+              order_date, actual_delivery_date, created_by,
               created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
           'item-full',
@@ -738,7 +736,6 @@ describe('Migration 0010: Household Items', () => {
           'Living Room',
           2,
           '2025-01-15',
-          '2025-02-15',
           null,
           'user-full',
           now,
@@ -757,7 +754,6 @@ describe('Migration 0010: Household Items', () => {
       expect(row.vendor_id).toBe('vendor-full');
       expect(row.url).toBe('https://example.com/sofa');
       expect(row.order_date).toBe('2025-01-15');
-      expect(row.expected_delivery_date).toBe('2025-02-15');
       expect(row.actual_delivery_date).toBeNull();
       expect(row.created_by).toBe('user-full');
     });

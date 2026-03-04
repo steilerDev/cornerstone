@@ -72,7 +72,8 @@ describe('Budget Overview Service - Household Item Invoice Aggregation', () => {
       name,
       vendorId: undefined,
       tagIds: [],
-      expectedDeliveryDate: undefined,
+      earliestDeliveryDate: undefined,
+      latestDeliveryDate: undefined,
     });
     return result.id;
   }

@@ -248,10 +248,11 @@ export function toHouseholdItemSummary(
     room: item.room,
     quantity: item.quantity,
     orderDate: item.orderDate,
-    expectedDeliveryDate: item.expectedDeliveryDate,
     actualDeliveryDate: item.actualDeliveryDate,
     earliestDeliveryDate: item.earliestDeliveryDate,
     latestDeliveryDate: item.latestDeliveryDate,
+    targetDeliveryDate: item.targetDeliveryDate,
+    isLate: !!item.isLate,
     url: item.url,
     tagIds,
     budgetLineCount: getBudgetLineCount(db, item.id),
@@ -357,6 +358,15 @@ export function createHouseholdItem(
     validateTagIds(db, tagIds);
   }
 
+  // Cross-field validation: if both earliest and latest are provided, earliest <= latest
+  if (data.earliestDeliveryDate && data.latestDeliveryDate) {
+    if (data.earliestDeliveryDate > data.latestDeliveryDate) {
+      throw new ValidationError(
+        'Earliest delivery date must be before or equal to latest delivery date',
+      );
+    }
+  }
+
   const id = randomUUID();
   const now = new Date().toISOString();
 
@@ -372,8 +382,11 @@ export function createHouseholdItem(
       room: data.room ?? null,
       quantity: data.quantity ?? 1,
       orderDate: data.orderDate ?? null,
-      expectedDeliveryDate: data.expectedDeliveryDate ?? null,
       actualDeliveryDate: data.actualDeliveryDate ?? null,
+      earliestDeliveryDate: data.earliestDeliveryDate ?? null,
+      latestDeliveryDate: data.latestDeliveryDate ?? null,
+      targetDeliveryDate: null,
+      isLate: false,
       createdBy: userId,
       createdAt: now,
       updatedAt: now,
@@ -430,6 +443,19 @@ export function updateHouseholdItem(
     }
   }
 
+  // Cross-field validation: if both earliest and latest are provided, earliest <= latest
+  const earliestFromData =
+    'earliestDeliveryDate' in data ? data.earliestDeliveryDate : item.earliestDeliveryDate;
+  const latestFromData =
+    'latestDeliveryDate' in data ? data.latestDeliveryDate : item.latestDeliveryDate;
+  if (earliestFromData && latestFromData) {
+    if (earliestFromData > latestFromData) {
+      throw new ValidationError(
+        'Earliest delivery date must be before or equal to latest delivery date',
+      );
+    }
+  }
+
   // Build update data
   const updateData: Partial<typeof householdItems.$inferInsert> = {};
 
@@ -472,8 +498,12 @@ export function updateHouseholdItem(
     updateData.orderDate = data.orderDate ?? null;
   }
 
-  if ('expectedDeliveryDate' in data) {
-    updateData.expectedDeliveryDate = data.expectedDeliveryDate ?? null;
+  if ('earliestDeliveryDate' in data) {
+    updateData.earliestDeliveryDate = data.earliestDeliveryDate ?? null;
+  }
+
+  if ('latestDeliveryDate' in data) {
+    updateData.latestDeliveryDate = data.latestDeliveryDate ?? null;
   }
 
   if ('actualDeliveryDate' in data) {
@@ -588,8 +618,8 @@ export function listHouseholdItems(
             ? householdItems.room
             : sortBy === 'order_date'
               ? householdItems.orderDate
-              : sortBy === 'expected_delivery_date'
-                ? householdItems.expectedDeliveryDate
+              : sortBy === 'target_delivery_date'
+                ? householdItems.targetDeliveryDate
                 : sortBy === 'updated_at'
                   ? householdItems.updatedAt
                   : householdItems.createdAt;

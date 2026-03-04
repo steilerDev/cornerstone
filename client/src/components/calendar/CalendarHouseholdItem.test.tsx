@@ -24,7 +24,7 @@ function makeHouseholdItem(overrides: Partial<TimelineHouseholdItem> = {}): Time
     name: 'Leather Sofa',
     category: 'furniture',
     status: 'planned',
-    expectedDeliveryDate: null,
+    targetDeliveryDate: null,
     earliestDeliveryDate: '2026-05-15',
     latestDeliveryDate: '2026-06-01',
     actualDeliveryDate: null,

@@ -204,10 +204,11 @@ describe('HouseholdItemDetailPage', () => {
       room: 'Office',
       quantity: 2,
       orderDate: '2026-02-15',
-      expectedDeliveryDate: '2026-03-01',
+      targetDeliveryDate: '2026-03-01',
       actualDeliveryDate: null,
       earliestDeliveryDate: '2026-03-01',
       latestDeliveryDate: '2026-03-10',
+      isLate: false,
       url: 'https://example.com/desk',
       tagIds: ['tag-1'],
       budgetLineCount: 1,
@@ -655,7 +656,7 @@ describe('HouseholdItemDetailPage', () => {
     });
 
     it('shows dash for missing expected delivery date', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem({ expectedDeliveryDate: null }));
+      mockGetHouseholdItem.mockResolvedValue(makeItem({ targetDeliveryDate: null }));
 
       renderPage();
 
@@ -1096,7 +1097,7 @@ describe('HouseholdItemDetailPage', () => {
         makeItem({
           status: 'planned' as HouseholdItemStatus,
           orderDate: null,
-          expectedDeliveryDate: null,
+          targetDeliveryDate: null,
         }),
       );
 
@@ -1261,12 +1262,11 @@ describe('HouseholdItemDetailPage', () => {
       expect(screen.getByText('Latest delivery')).toBeInTheDocument();
     });
 
-    it('shows "Floored to today" chip when item is planned and earliestDeliveryDate is today', async () => {
-      const today = new Date().toISOString().slice(0, 10);
+    it('shows "Floored to today" chip when item is planned and isLate is true', async () => {
       mockGetHouseholdItem.mockResolvedValue(
         makeItem({
           status: 'planned',
-          earliestDeliveryDate: today,
+          isLate: true,
         }),
       );
 

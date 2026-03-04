@@ -926,7 +926,7 @@ describe('getTimeline service', () => {
         name: 'Dining Table',
         category: 'furniture',
         status: 'purchased',
-        expectedDeliveryDate: '2026-05-20',
+        targetDeliveryDate: '2026-05-20',
         earliestDeliveryDate: '2026-05-10',
         latestDeliveryDate: '2026-06-01',
         actualDeliveryDate: null,
@@ -943,7 +943,7 @@ describe('getTimeline service', () => {
       expect(hi.name).toBe('Dining Table');
       expect(hi.category).toBe('furniture');
       expect(hi.status).toBe('purchased');
-      expect(hi.expectedDeliveryDate).toBe('2026-05-20');
+      expect(hi.targetDeliveryDate).toBe('2026-05-20');
       expect(hi.earliestDeliveryDate).toBe('2026-05-10');
       expect(hi.latestDeliveryDate).toBe('2026-06-01');
       expect(hi.actualDeliveryDate).toBeNull();
@@ -1046,6 +1046,7 @@ describe('getTimeline service', () => {
         status: 'planned',
         earliestDeliveryDate: today,
         latestDeliveryDate: null,
+        isLate: true,
       });
 
       const result = getTimeline(db);
@@ -1061,6 +1062,7 @@ describe('getTimeline service', () => {
         status: 'purchased',
         earliestDeliveryDate: today,
         latestDeliveryDate: null,
+        isLate: true,
       });
 
       const result = getTimeline(db);
@@ -1076,6 +1078,7 @@ describe('getTimeline service', () => {
         status: 'scheduled',
         earliestDeliveryDate: '2026-01-01',
         latestDeliveryDate: today,
+        isLate: true,
       });
 
       const result = getTimeline(db);

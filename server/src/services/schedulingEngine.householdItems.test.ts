@@ -9,7 +9,7 @@
  * - planned/purchased: floor ES to today (isLate = true when floored)
  * - scheduled: floor LF to today (isLate = true when floored)
  * - arrived (actualDeliveryDate set): use actual date, isLate = false
- * - expectedDeliveryDate acts as a start_after constraint
+ * - earliestDeliveryDate acts as a start_after constraint (user-editable)
  *
  * EPIC-09: Story 9.1 — Household Item Timeline Dependencies & Delivery Date Scheduling
  */
@@ -128,11 +128,12 @@ function insertHouseholdItem(
       url: null,
       room: null,
       orderDate: null,
-      expectedDeliveryDate: null,
       actualDeliveryDate: null,
       createdBy: null,
       earliestDeliveryDate: null,
       latestDeliveryDate: null,
+      targetDeliveryDate: null,
+      isLate: false,
       ...overrides,
     })
     .run();
@@ -157,16 +158,16 @@ function insertHIDep(
 function getHIDeliveryDates(
   db: BetterSQLite3Database<typeof schema>,
   hiId: string,
-): { earliestDeliveryDate: string | null; latestDeliveryDate: string | null } {
+): { targetDeliveryDate: string | null; actualDeliveryDate: string | null } {
   const row = db
     .select({
-      earliestDeliveryDate: schema.householdItems.earliestDeliveryDate,
-      latestDeliveryDate: schema.householdItems.latestDeliveryDate,
+      targetDeliveryDate: schema.householdItems.targetDeliveryDate,
+      actualDeliveryDate: schema.householdItems.actualDeliveryDate,
     })
     .from(schema.householdItems)
     .where(eq(schema.householdItems.id, hiId))
     .get();
-  return row ?? { earliestDeliveryDate: null, latestDeliveryDate: null };
+  return row ?? { targetDeliveryDate: null, actualDeliveryDate: null };
 }
 
 // ─── Tests ─────────────────────────────────────────────────────────────────────
@@ -189,20 +190,19 @@ describe('autoReschedule — household item delivery date computation', () => {
   // ─── Basic CPM delivery date computation ───────────────────────────────────
 
   describe('basic CPM delivery date computation', () => {
-    it('HI with no deps has null delivery dates (not computed)', () => {
+    it('HI with no deps has null target delivery date (not computed)', () => {
       // Given: A household item with no dependencies
       const hiId = insertHouseholdItem(db, { status: 'planned' });
 
       // When: autoReschedule runs
       autoReschedule(db);
 
-      // Then: delivery dates remain null
-      const { earliestDeliveryDate, latestDeliveryDate } = getHIDeliveryDates(db, hiId);
-      expect(earliestDeliveryDate).toBeNull();
-      expect(latestDeliveryDate).toBeNull();
+      // Then: target delivery date remains null
+      const { targetDeliveryDate } = getHIDeliveryDates(db, hiId);
+      expect(targetDeliveryDate).toBeNull();
     });
 
-    it('HI with FS dep on WI ending 2026-05-15 gets earliestDeliveryDate = 2026-05-15', () => {
+    it('HI with FS dep on WI ending 2026-05-15 gets targetDeliveryDate = 2026-05-15', () => {
       // Given: A work item with endDate = 2026-05-15 and a HI that depends on it FS
       const userId = insertUser(db);
       const wiId = insertWorkItem(db, userId, { endDate: '2026-05-15' });
@@ -214,16 +214,15 @@ describe('autoReschedule — household item delivery date computation', () => {
       // The test uses the real "today" so we just verify the dep calculation
       autoReschedule(db);
 
-      // Then: earliest delivery date is computed
-      const { earliestDeliveryDate, latestDeliveryDate } = getHIDeliveryDates(db, hiId);
-      // The result depends on today — if today < 2026-05-15, earliest = 2026-05-15
-      // If today >= 2026-05-15, earliest = today (floored)
+      // Then: target delivery date is computed
+      const { targetDeliveryDate } = getHIDeliveryDates(db, hiId);
+      // The result depends on today — if today < 2026-05-15, target = 2026-05-15
+      // If today >= 2026-05-15, target = today (floored)
       // We can verify it's not null (dep was processed)
-      expect(earliestDeliveryDate).not.toBeNull();
-      expect(latestDeliveryDate).not.toBeNull();
+      expect(targetDeliveryDate).not.toBeNull();
     });
 
-    it('HI with two deps takes the max predecessor finish as earliestDeliveryDate', () => {
+    it('HI with two deps takes the max predecessor finish as targetDeliveryDate', () => {
       // Given: Two work items, one ending earlier, one ending later
       const userId = insertUser(db);
       const wiA = insertWorkItem(db, userId, { endDate: '2026-05-01' });
@@ -234,11 +233,11 @@ describe('autoReschedule — household item delivery date computation', () => {
 
       autoReschedule(db);
 
-      const { earliestDeliveryDate } = getHIDeliveryDates(db, hiId);
-      // CPM: earliest = max(2026-05-01, 2026-06-15) = 2026-06-15 (or today if later)
+      const { targetDeliveryDate } = getHIDeliveryDates(db, hiId);
+      // CPM: target = max(2026-05-01, 2026-06-15) = 2026-06-15 (or today if later)
       const today = new Date().toISOString().slice(0, 10);
       const expected = '2026-06-15' >= today ? '2026-06-15' : today;
-      expect(earliestDeliveryDate).toBe(expected);
+      expect(targetDeliveryDate).toBe(expected);
     });
   });
 
@@ -254,10 +253,10 @@ describe('autoReschedule — household item delivery date computation', () => {
 
       autoReschedule(db);
 
-      // Then: earliestDeliveryDate is floored to today
+      // Then: targetDeliveryDate is floored to today
       const today = new Date().toISOString().slice(0, 10);
-      const { earliestDeliveryDate } = getHIDeliveryDates(db, hiId);
-      expect(earliestDeliveryDate).toBe(today);
+      const { targetDeliveryDate } = getHIDeliveryDates(db, hiId);
+      expect(targetDeliveryDate).toBe(today);
     });
 
     it('HI with status purchased and CPM date in the past is floored to today', () => {
@@ -271,11 +270,11 @@ describe('autoReschedule — household item delivery date computation', () => {
 
       // Then: floored to today
       const today = new Date().toISOString().slice(0, 10);
-      const { earliestDeliveryDate } = getHIDeliveryDates(db, hiId);
-      expect(earliestDeliveryDate).toBe(today);
+      const { targetDeliveryDate } = getHIDeliveryDates(db, hiId);
+      expect(targetDeliveryDate).toBe(today);
     });
 
-    it('HI with status scheduled and CPM date in the past is floored to today (LF)', () => {
+    it('HI with status scheduled and CPM date in the past is floored to today', () => {
       // Given: A HI (scheduled) with a dep on a past-ended WI
       const userId = insertUser(db);
       const wiId = insertWorkItem(db, userId, { endDate: '2020-01-01' });
@@ -284,10 +283,10 @@ describe('autoReschedule — household item delivery date computation', () => {
 
       autoReschedule(db);
 
-      // Then: latestDeliveryDate (LF) floored to today
+      // Then: targetDeliveryDate floored to today
       const today = new Date().toISOString().slice(0, 10);
-      const { latestDeliveryDate } = getHIDeliveryDates(db, hiId);
-      expect(latestDeliveryDate).toBe(today);
+      const { targetDeliveryDate } = getHIDeliveryDates(db, hiId);
+      expect(targetDeliveryDate).toBe(today);
     });
 
     it('HI with actualDeliveryDate uses actual date, not CPM result', () => {
@@ -302,52 +301,52 @@ describe('autoReschedule — household item delivery date computation', () => {
 
       autoReschedule(db);
 
-      // Then: uses actual delivery date
-      const { earliestDeliveryDate, latestDeliveryDate } = getHIDeliveryDates(db, hiId);
-      expect(earliestDeliveryDate).toBe('2026-02-20');
-      expect(latestDeliveryDate).toBe('2026-02-20');
+      // Then: uses actual delivery date for target
+      const { targetDeliveryDate, actualDeliveryDate } = getHIDeliveryDates(db, hiId);
+      expect(targetDeliveryDate).toBe('2026-02-20');
+      expect(actualDeliveryDate).toBe('2026-02-20');
     });
 
-    it('HI expectedDeliveryDate overrides CPM earliestDeliveryDate when later', () => {
-      // Given: A HI with expectedDeliveryDate far in the future, WI ends earlier
+    it('HI earliestDeliveryDate constraint overrides CPM date when later', () => {
+      // Given: A HI with earliestDeliveryDate constraint far in the future, WI ends earlier
       const userId = insertUser(db);
       // Use a future date for the WI end so it doesn't get floored to today
       const wiId = insertWorkItem(db, userId, { endDate: '2030-03-01' });
       const hiId = insertHouseholdItem(db, {
         status: 'planned',
-        expectedDeliveryDate: '2030-06-01', // later than WI end date
+        earliestDeliveryDate: '2030-06-01', // constraint: later than WI end date
       });
       insertHIDep(db, hiId, 'work_item', wiId);
 
       autoReschedule(db);
 
-      // Then: earliest = max(2030-03-01, 2030-06-01) = 2030-06-01
-      const { earliestDeliveryDate } = getHIDeliveryDates(db, hiId);
-      expect(earliestDeliveryDate).toBe('2030-06-01');
+      // Then: target = max(2030-03-01, 2030-06-01) = 2030-06-01
+      const { targetDeliveryDate } = getHIDeliveryDates(db, hiId);
+      expect(targetDeliveryDate).toBe('2030-06-01');
     });
 
-    it('HI expectedDeliveryDate is ignored when CPM date is already later', () => {
-      // Given: A HI with expectedDeliveryDate earlier than WI end date
+    it('HI earliestDeliveryDate constraint is ignored when CPM date is already later', () => {
+      // Given: A HI with earliestDeliveryDate constraint earlier than WI end date
       const userId = insertUser(db);
       const wiId = insertWorkItem(db, userId, { endDate: '2030-08-01' });
       const hiId = insertHouseholdItem(db, {
         status: 'planned',
-        expectedDeliveryDate: '2030-03-01', // earlier than WI end date
+        earliestDeliveryDate: '2030-03-01', // constraint: earlier than WI end date
       });
       insertHIDep(db, hiId, 'work_item', wiId);
 
       autoReschedule(db);
 
-      // Then: earliest = max(2030-08-01, 2030-03-01) = 2030-08-01
-      const { earliestDeliveryDate } = getHIDeliveryDates(db, hiId);
-      expect(earliestDeliveryDate).toBe('2030-08-01');
+      // Then: target = max(2030-08-01, 2030-03-01) = 2030-08-01
+      const { targetDeliveryDate } = getHIDeliveryDates(db, hiId);
+      expect(targetDeliveryDate).toBe('2030-08-01');
     });
   });
 
   // ─── Milestone deps ────────────────────────────────────────────────────────
 
   describe('milestone dependencies', () => {
-    it('HI with milestone dep gets earliestDeliveryDate from milestone targetDate', () => {
+    it('HI with milestone dep gets targetDeliveryDate from milestone targetDate', () => {
       // Given: A milestone with targetDate = 2030-07-01 and a HI depending on it
       const userId = insertUser(db);
       const milestoneId = insertMilestone(db, userId, { targetDate: '2030-07-01' });
@@ -356,9 +355,9 @@ describe('autoReschedule — household item delivery date computation', () => {
 
       autoReschedule(db);
 
-      // Then: earliestDeliveryDate = milestone targetDate (since it's in the future)
-      const { earliestDeliveryDate } = getHIDeliveryDates(db, hiId);
-      expect(earliestDeliveryDate).toBe('2030-07-01');
+      // Then: targetDeliveryDate = milestone targetDate (since it's in the future)
+      const { targetDeliveryDate } = getHIDeliveryDates(db, hiId);
+      expect(targetDeliveryDate).toBe('2030-07-01');
     });
 
     it('HI with milestone dep and past targetDate gets floored to today', () => {
@@ -371,8 +370,8 @@ describe('autoReschedule — household item delivery date computation', () => {
       autoReschedule(db);
 
       const today = new Date().toISOString().slice(0, 10);
-      const { earliestDeliveryDate } = getHIDeliveryDates(db, hiId);
-      expect(earliestDeliveryDate).toBe(today);
+      const { targetDeliveryDate } = getHIDeliveryDates(db, hiId);
+      expect(targetDeliveryDate).toBe(today);
     });
 
     it('HI with milestone dep computes delivery date even when no work items exist', () => {
@@ -387,9 +386,9 @@ describe('autoReschedule — household item delivery date computation', () => {
       // When: autoReschedule runs with zero work items
       autoReschedule(db);
 
-      // Then: earliestDeliveryDate is computed from the milestone targetDate
-      const { earliestDeliveryDate } = getHIDeliveryDates(db, hiId);
-      expect(earliestDeliveryDate).toBe('2030-09-01');
+      // Then: targetDeliveryDate is computed from the milestone targetDate
+      const { targetDeliveryDate } = getHIDeliveryDates(db, hiId);
+      expect(targetDeliveryDate).toBe('2030-09-01');
     });
   });
 
@@ -403,9 +402,9 @@ describe('autoReschedule — household item delivery date computation', () => {
       const hiId = insertHouseholdItem(db);
       insertHIDep(db, hiId, 'work_item', wiId);
 
-      // Verify dates are null before autoReschedule
+      // Verify date is null before autoReschedule
       const before = getHIDeliveryDates(db, hiId);
-      expect(before.earliestDeliveryDate).toBeNull();
+      expect(before.targetDeliveryDate).toBeNull();
 
       // When: autoReschedule runs
       const updatedCount = autoReschedule(db);
@@ -413,28 +412,27 @@ describe('autoReschedule — household item delivery date computation', () => {
       // Then: at least 1 item was updated (the HI)
       expect(updatedCount).toBeGreaterThan(0);
 
-      // And: the HI now has delivery dates set
+      // And: the HI now has target delivery date set
       const after = getHIDeliveryDates(db, hiId);
-      expect(after.earliestDeliveryDate).not.toBeNull();
+      expect(after.targetDeliveryDate).not.toBeNull();
     });
 
     it('does not update HI delivery dates when they have not changed', () => {
-      // Given: A HI already with correct delivery dates set
+      // Given: A HI already with correct target delivery date set
       const userId = insertUser(db);
       const wiId = insertWorkItem(db, userId, { endDate: '2030-05-15' });
       const hiId = insertHouseholdItem(db, {
-        earliestDeliveryDate: '2030-05-15',
-        latestDeliveryDate: '2030-05-15',
+        targetDeliveryDate: '2030-05-15',
       });
       insertHIDep(db, hiId, 'work_item', wiId);
 
       // When: autoReschedule runs
       const count = autoReschedule(db);
 
-      // Then: updatedCount might be 0 if the dates match (or 1 if there's a rounding difference)
-      // The key point is the delivery dates remain correct
+      // Then: updatedCount might be 0 if the date matches (or 1 if there's a rounding difference)
+      // The key point is the target delivery date remains correct
       const after = getHIDeliveryDates(db, hiId);
-      expect(after.earliestDeliveryDate).toBe('2030-05-15');
+      expect(after.targetDeliveryDate).toBe('2030-05-15');
     });
 
     it('handles multiple HIs with deps correctly', () => {
@@ -450,12 +448,12 @@ describe('autoReschedule — household item delivery date computation', () => {
 
       autoReschedule(db);
 
-      // Both HIs should have delivery dates
+      // Both HIs should have target delivery dates
       const dates1 = getHIDeliveryDates(db, hi1);
       const dates2 = getHIDeliveryDates(db, hi2);
 
-      expect(dates1.earliestDeliveryDate).toBe('2030-04-01');
-      expect(dates2.earliestDeliveryDate).toBe('2030-07-01');
+      expect(dates1.targetDeliveryDate).toBe('2030-04-01');
+      expect(dates2.targetDeliveryDate).toBe('2030-07-01');
     });
   });
 
@@ -476,9 +474,9 @@ describe('autoReschedule — household item delivery date computation', () => {
       // When: autoReschedule runs
       autoReschedule(db);
 
-      // Then: HI earliestDeliveryDate = '2030-01-15' (completedAt truncated, not targetDate)
-      const { earliestDeliveryDate } = getHIDeliveryDates(db, hiId);
-      expect(earliestDeliveryDate).toBe('2030-01-15');
+      // Then: HI targetDeliveryDate = '2030-01-15' (completedAt truncated, not targetDate)
+      const { targetDeliveryDate } = getHIDeliveryDates(db, hiId);
+      expect(targetDeliveryDate).toBe('2030-01-15');
     });
 
     it('AC 2: when milestone not completed and has contributing WIs, uses projected date (max WI end)', () => {
@@ -505,9 +503,9 @@ describe('autoReschedule — household item delivery date computation', () => {
       // When: autoReschedule runs
       autoReschedule(db);
 
-      // Then: HI earliestDeliveryDate = '2030-07-15' (max of contributor end dates)
-      const { earliestDeliveryDate } = getHIDeliveryDates(db, hiId);
-      expect(earliestDeliveryDate).toBe('2030-07-15');
+      // Then: HI targetDeliveryDate = '2030-07-15' (max of contributor end dates)
+      const { targetDeliveryDate } = getHIDeliveryDates(db, hiId);
+      expect(targetDeliveryDate).toBe('2030-07-15');
     });
 
     it('AC 3: when milestone not completed and has no contributors, falls back to targetDate', () => {
@@ -525,9 +523,9 @@ describe('autoReschedule — household item delivery date computation', () => {
       // When: autoReschedule runs
       autoReschedule(db);
 
-      // Then: HI earliestDeliveryDate = '2030-08-01' (targetDate fallback)
-      const { earliestDeliveryDate } = getHIDeliveryDates(db, hiId);
-      expect(earliestDeliveryDate).toBe('2030-08-01');
+      // Then: HI targetDeliveryDate = '2030-08-01' (targetDate fallback)
+      const { targetDeliveryDate } = getHIDeliveryDates(db, hiId);
+      expect(targetDeliveryDate).toBe('2030-08-01');
     });
 
     it('AC 4: milestone running late (projected > targetDate), uses projected date', () => {
@@ -548,9 +546,9 @@ describe('autoReschedule — household item delivery date computation', () => {
       // When: autoReschedule runs
       autoReschedule(db);
 
-      // Then: HI earliestDeliveryDate = '2030-07-01' (projected, not targetDate)
-      const { earliestDeliveryDate } = getHIDeliveryDates(db, hiId);
-      expect(earliestDeliveryDate).toBe('2030-07-01');
+      // Then: HI targetDeliveryDate = '2030-07-01' (projected, not targetDate)
+      const { targetDeliveryDate } = getHIDeliveryDates(db, hiId);
+      expect(targetDeliveryDate).toBe('2030-07-01');
     });
 
     it('AC 5: milestone ahead of schedule (projected < targetDate), uses projected date', () => {
@@ -571,9 +569,9 @@ describe('autoReschedule — household item delivery date computation', () => {
       // When: autoReschedule runs
       autoReschedule(db);
 
-      // Then: HI earliestDeliveryDate = '2030-06-01' (projected, not targetDate)
-      const { earliestDeliveryDate } = getHIDeliveryDates(db, hiId);
-      expect(earliestDeliveryDate).toBe('2030-06-01');
+      // Then: HI targetDeliveryDate = '2030-06-01' (projected, not targetDate)
+      const { targetDeliveryDate } = getHIDeliveryDates(db, hiId);
+      expect(targetDeliveryDate).toBe('2030-06-01');
     });
 
     it('AC 3 edge: contributors with null end dates use CPM-projected today, not targetDate', () => {
@@ -600,11 +598,11 @@ describe('autoReschedule — household item delivery date computation', () => {
       // When: autoReschedule runs
       autoReschedule(db);
 
-      // Then: HI earliestDeliveryDate = today (CPM projects the contributor to today,
+      // Then: HI targetDeliveryDate = today (CPM projects the contributor to today,
       //       which becomes the projected milestone date, then floored to today)
       const today = new Date().toISOString().slice(0, 10);
-      const { earliestDeliveryDate } = getHIDeliveryDates(db, hiId);
-      expect(earliestDeliveryDate).toBe(today);
+      const { targetDeliveryDate } = getHIDeliveryDates(db, hiId);
+      expect(targetDeliveryDate).toBe(today);
     });
 
     it('AC 7 regression guard: WI dependency (not milestone) still works correctly', () => {
@@ -617,9 +615,9 @@ describe('autoReschedule — household item delivery date computation', () => {
       // When: autoReschedule runs
       autoReschedule(db);
 
-      // Then: HI earliestDeliveryDate = '2030-03-01' (WI scheduling unaffected)
-      const { earliestDeliveryDate } = getHIDeliveryDates(db, hiId);
-      expect(earliestDeliveryDate).toBe('2030-03-01');
+      // Then: HI targetDeliveryDate = '2030-03-01' (WI scheduling unaffected)
+      const { targetDeliveryDate } = getHIDeliveryDates(db, hiId);
+      expect(targetDeliveryDate).toBe('2030-03-01');
     });
   });
 });

@@ -39,7 +39,7 @@ const SORT_OPTIONS: { value: string; label: string }[] = [
   { value: 'status', label: 'Status' },
   { value: 'room', label: 'Room' },
   { value: 'order_date', label: 'Order Date' },
-  { value: 'expected_delivery_date', label: 'Expected Delivery' },
+  { value: 'target_delivery_date', label: 'Target Delivery' },
   { value: 'created_at', label: 'Created' },
   { value: 'updated_at', label: 'Updated' },
 ];
@@ -73,7 +73,7 @@ export function HouseholdItemsPage() {
       | 'status'
       | 'room'
       | 'order_date'
-      | 'expected_delivery_date'
+      | 'target_delivery_date'
       | 'created_at'
       | 'updated_at'
       | null) || 'created_at';
@@ -682,24 +682,24 @@ export function HouseholdItemsPage() {
                   <th>Planned Cost</th>
                   <th
                     className={styles.sortableHeader}
-                    onClick={() => handleSortChange('expected_delivery_date')}
+                    onClick={() => handleSortChange('target_delivery_date')}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
-                        handleSortChange('expected_delivery_date');
+                        handleSortChange('target_delivery_date');
                       }
                     }}
                     tabIndex={0}
                     role="columnheader"
                     aria-sort={
-                      sortBy === 'expected_delivery_date'
+                      sortBy === 'target_delivery_date'
                         ? sortOrder === 'asc'
                           ? 'ascending'
                           : 'descending'
                         : undefined
                     }
                   >
-                    Expected Delivery{renderSortIcon('expected_delivery_date')}
+                    Target Delivery{renderSortIcon('target_delivery_date')}
                   </th>
                   <th className={styles.actionsColumn}>Actions</th>
                 </tr>
@@ -719,7 +719,7 @@ export function HouseholdItemsPage() {
                     <td>{item.room || '—'}</td>
                     <td>{item.vendor?.name || '—'}</td>
                     <td>{formatCurrency(item.totalPlannedAmount)}</td>
-                    <td>{formatDate(item.expectedDeliveryDate)}</td>
+                    <td>{formatDate(item.targetDeliveryDate)}</td>
                     <td className={styles.actionsCell} onClick={(e) => e.stopPropagation()}>
                       <div className={styles.actionsMenu}>
                         <button
@@ -865,8 +865,8 @@ export function HouseholdItemsPage() {
                     <span>{formatCurrency(item.totalPlannedAmount)}</span>
                   </div>
                   <div className={styles.cardRow}>
-                    <span className={styles.cardLabel}>Delivery:</span>
-                    <span>{formatDate(item.expectedDeliveryDate)}</span>
+                    <span className={styles.cardLabel}>Target Delivery:</span>
+                    <span>{formatDate(item.targetDeliveryDate)}</span>
                   </div>
                 </div>
               </div>

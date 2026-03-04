@@ -118,7 +118,7 @@ describe('WorkItemLinkedHouseholdItemSummary interface', () => {
       name: 'Leather Sofa',
       category: 'furniture',
       status: 'arrived',
-      expectedDeliveryDate: '2026-05-15',
+      targetDeliveryDate: '2026-05-15',
       earliestDeliveryDate: '2026-05-15',
       latestDeliveryDate: '2026-05-20',
     };
@@ -127,7 +127,7 @@ describe('WorkItemLinkedHouseholdItemSummary interface', () => {
     expect(householdItem.name).toBe('Leather Sofa');
     expect(householdItem.category).toBe('furniture');
     expect(householdItem.status).toBe('arrived');
-    expect(householdItem.expectedDeliveryDate).toBe('2026-05-15');
+    expect(householdItem.targetDeliveryDate).toBe('2026-05-15');
     expect(householdItem.earliestDeliveryDate).toBe('2026-05-15');
     expect(householdItem.latestDeliveryDate).toBe('2026-05-20');
   });
@@ -138,12 +138,12 @@ describe('WorkItemLinkedHouseholdItemSummary interface', () => {
       name: 'Wall Paint',
       category: 'decor',
       status: 'planned',
-      expectedDeliveryDate: null,
+      targetDeliveryDate: null,
       earliestDeliveryDate: null,
       latestDeliveryDate: null,
     };
 
-    expect(householdItem.expectedDeliveryDate).toBeNull();
+    expect(householdItem.targetDeliveryDate).toBeNull();
     expect(householdItem.earliestDeliveryDate).toBeNull();
     expect(householdItem.latestDeliveryDate).toBeNull();
     expect(householdItem.category).toBe('decor');
@@ -168,7 +168,7 @@ describe('WorkItemLinkedHouseholdItemSummary interface', () => {
         name: `Item in ${category}`,
         category,
         status: 'purchased',
-        expectedDeliveryDate: '2026-06-01',
+        targetDeliveryDate: '2026-06-01',
         earliestDeliveryDate: '2026-05-20',
         latestDeliveryDate: '2026-06-10',
       };
@@ -185,7 +185,7 @@ describe('WorkItemLinkedHouseholdItemSummary interface', () => {
         name: `Item with status ${status}`,
         category: 'furniture',
         status,
-        expectedDeliveryDate: '2026-06-01',
+        targetDeliveryDate: '2026-06-01',
         earliestDeliveryDate: '2026-05-20',
         latestDeliveryDate: '2026-06-10',
       };
@@ -240,10 +240,11 @@ describe('HouseholdItemSummary interface', () => {
       room: 'Living Room',
       quantity: 1,
       orderDate: '2025-01-15',
-      expectedDeliveryDate: '2025-02-15',
+      targetDeliveryDate: '2025-02-15',
       actualDeliveryDate: null,
       earliestDeliveryDate: '2025-02-10',
       latestDeliveryDate: '2025-02-20',
+      isLate: false,
       url: 'https://example.com/sofa',
       tagIds: ['tag-1', 'tag-2'],
       budgetLineCount: 2,
@@ -281,10 +282,11 @@ describe('HouseholdItemSummary interface', () => {
       room: null,
       quantity: 1,
       orderDate: null,
-      expectedDeliveryDate: null,
+      targetDeliveryDate: null,
       actualDeliveryDate: null,
       earliestDeliveryDate: null,
       latestDeliveryDate: null,
+      isLate: false,
       url: null,
       tagIds: [],
       budgetLineCount: 0,
@@ -317,10 +319,11 @@ describe('HouseholdItemDetail interface', () => {
       room: 'Living Room',
       quantity: 1,
       orderDate: '2025-01-01',
-      expectedDeliveryDate: '2025-01-20',
+      targetDeliveryDate: '2025-01-20',
       actualDeliveryDate: '2025-01-18',
       earliestDeliveryDate: '2025-01-15',
       latestDeliveryDate: '2025-01-25',
+      isLate: false,
       url: 'https://example.com/tv',
       tagIds: ['tag-electronics'],
       budgetLineCount: 1,
@@ -398,10 +401,11 @@ describe('HouseholdItemDetail interface', () => {
       room: null,
       quantity: 1,
       orderDate: null,
-      expectedDeliveryDate: null,
+      targetDeliveryDate: null,
       actualDeliveryDate: null,
       earliestDeliveryDate: null,
       latestDeliveryDate: null,
+      isLate: false,
       tagIds: [],
       budgetLineCount: 0,
       totalPlannedAmount: 0,
@@ -440,7 +444,8 @@ describe('CreateHouseholdItemRequest interface', () => {
     expect(request.room).toBeUndefined();
     expect(request.quantity).toBeUndefined();
     expect(request.orderDate).toBeUndefined();
-    expect(request.expectedDeliveryDate).toBeUndefined();
+    expect(request.earliestDeliveryDate).toBeUndefined();
+    expect(request.latestDeliveryDate).toBeUndefined();
     expect(request.actualDeliveryDate).toBeUndefined();
   });
 
@@ -455,7 +460,8 @@ describe('CreateHouseholdItemRequest interface', () => {
       room: 'Living Room',
       quantity: 2,
       orderDate: '2025-01-15',
-      expectedDeliveryDate: '2025-02-15',
+      earliestDeliveryDate: '2025-02-10',
+      latestDeliveryDate: '2025-02-20',
       actualDeliveryDate: null,
     };
 
@@ -473,7 +479,8 @@ describe('CreateHouseholdItemRequest interface', () => {
       url: null,
       room: null,
       orderDate: null,
-      expectedDeliveryDate: null,
+      earliestDeliveryDate: undefined,
+      latestDeliveryDate: undefined,
       actualDeliveryDate: null,
     };
 
@@ -506,12 +513,14 @@ describe('UpdateHouseholdItemRequest interface', () => {
   it('allows updating multiple fields at once', () => {
     const request: UpdateHouseholdItemRequest = {
       status: 'scheduled',
-      expectedDeliveryDate: '2025-03-01',
+      earliestDeliveryDate: '2025-02-20',
+      latestDeliveryDate: '2025-03-01',
       room: 'Bedroom',
     };
 
     expect(request.status).toBe('scheduled');
-    expect(request.expectedDeliveryDate).toBe('2025-03-01');
+    expect(request.earliestDeliveryDate).toBe('2025-02-20');
+    expect(request.latestDeliveryDate).toBe('2025-03-01');
     expect(request.room).toBe('Bedroom');
   });
 
@@ -566,7 +575,7 @@ describe('HouseholdItemListQuery interface', () => {
       'status',
       'room',
       'order_date',
-      'expected_delivery_date',
+      'target_delivery_date',
       'created_at',
       'updated_at',
     ];
@@ -602,10 +611,11 @@ describe('HouseholdItemListResponse type', () => {
           room: null,
           quantity: 1,
           orderDate: null,
-          expectedDeliveryDate: null,
+          targetDeliveryDate: null,
           actualDeliveryDate: null,
           earliestDeliveryDate: null,
           latestDeliveryDate: null,
+          isLate: false,
           url: null,
           tagIds: [],
           budgetLineCount: 0,
@@ -661,10 +671,11 @@ describe('HouseholdItemResponse interface', () => {
         room: null,
         quantity: 1,
         orderDate: null,
-        expectedDeliveryDate: null,
+        targetDeliveryDate: null,
         actualDeliveryDate: null,
         earliestDeliveryDate: null,
         latestDeliveryDate: null,
+        isLate: false,
         tagIds: [],
         budgetLineCount: 0,
         totalPlannedAmount: 0,
@@ -699,8 +710,11 @@ describe('HouseholdItem entity interface', () => {
       room: 'Living Room',
       quantity: 1,
       orderDate: '2025-01-01',
-      expectedDeliveryDate: '2025-02-01',
+      targetDeliveryDate: '2025-02-01',
+      earliestDeliveryDate: '2025-01-25',
+      latestDeliveryDate: '2025-02-05',
       actualDeliveryDate: '2025-01-28',
+      isLate: false,
       createdBy: 'user-1',
       createdAt: '2025-01-01T00:00:00Z',
       updatedAt: '2025-01-28T00:00:00Z',
@@ -727,8 +741,11 @@ describe('HouseholdItem entity interface', () => {
       room: null,
       quantity: 1,
       orderDate: null,
-      expectedDeliveryDate: null,
+      targetDeliveryDate: null,
+      earliestDeliveryDate: null,
+      latestDeliveryDate: null,
       actualDeliveryDate: null,
+      isLate: false,
       createdBy: null,
       createdAt: '2025-01-01T00:00:00Z',
       updatedAt: '2025-01-01T00:00:00Z',
@@ -739,7 +756,7 @@ describe('HouseholdItem entity interface', () => {
     expect(item.url).toBeNull();
     expect(item.room).toBeNull();
     expect(item.orderDate).toBeNull();
-    expect(item.expectedDeliveryDate).toBeNull();
+    expect(item.targetDeliveryDate).toBeNull();
     expect(item.actualDeliveryDate).toBeNull();
     expect(item.createdBy).toBeNull();
   });

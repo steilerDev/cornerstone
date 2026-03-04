@@ -1225,8 +1225,8 @@
 .lateChip {
   display: inline-flex;
   align-items: center;
-  background: var(--color-hi-status-in-transit-bg);
-  color: var(--color-hi-status-in-transit-text);
+  background: var(--color-hi-status-scheduled-bg);
+  color: var(--color-hi-status-scheduled-text);
   border-radius: var(--radius-full);
   padding: var(--spacing-0-5) var(--spacing-2);
   font-size: var(--font-size-xs);

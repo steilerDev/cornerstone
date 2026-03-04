@@ -82,7 +82,7 @@ export interface GanttTooltipHouseholdItemData {
   status: string;
   earliestDeliveryDate: string | null;
   latestDeliveryDate: string | null;
-  expectedDeliveryDate: string | null;
+  targetDeliveryDate: string | null;
   actualDeliveryDate: string | null;
   isLate: boolean;
   /** HI ID for "View item" touch link. */
@@ -560,11 +560,11 @@ function HouseholdItemTooltipContent({
         </div>
       )}
 
-      {/* Expected delivery date */}
-      {data.expectedDeliveryDate && (
+      {/* Target delivery date */}
+      {data.targetDeliveryDate && (
         <div className={styles.detailRow}>
-          <span className={styles.detailLabel}>Expected</span>
-          <span className={styles.detailValue}>{formatDisplayDate(data.expectedDeliveryDate)}</span>
+          <span className={styles.detailLabel}>Target</span>
+          <span className={styles.detailValue}>{formatDisplayDate(data.targetDeliveryDate)}</span>
         </div>
       )}
 

@@ -109,7 +109,7 @@ export interface WorkItemLinkedHouseholdItemSummary {
   name: string;
   category: HouseholdItemCategory;
   status: HouseholdItemStatus;
-  expectedDeliveryDate: string | null;
+  targetDeliveryDate: string | null;
   earliestDeliveryDate: string | null;
   latestDeliveryDate: string | null;
 }
@@ -139,8 +139,11 @@ export interface HouseholdItem {
   room: string | null;
   quantity: number;
   orderDate: string | null;
-  expectedDeliveryDate: string | null;
   actualDeliveryDate: string | null;
+  earliestDeliveryDate: string | null;
+  latestDeliveryDate: string | null;
+  targetDeliveryDate: string | null;
+  isLate: boolean;
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;
@@ -159,10 +162,11 @@ export interface HouseholdItemSummary {
   room: string | null;
   quantity: number;
   orderDate: string | null;
-  expectedDeliveryDate: string | null;
   actualDeliveryDate: string | null;
   earliestDeliveryDate: string | null;
   latestDeliveryDate: string | null;
+  targetDeliveryDate: string | null;
+  isLate: boolean;
   url: string | null;
   tagIds: string[];
   budgetLineCount: number;
@@ -195,7 +199,8 @@ export interface CreateHouseholdItemRequest {
   room?: string | null;
   quantity?: number;
   orderDate?: string | null;
-  expectedDeliveryDate?: string | null;
+  earliestDeliveryDate?: string;
+  latestDeliveryDate?: string;
   actualDeliveryDate?: string | null;
   tagIds?: string[];
 }
@@ -215,7 +220,8 @@ export interface UpdateHouseholdItemRequest {
   room?: string | null;
   quantity?: number;
   orderDate?: string | null;
-  expectedDeliveryDate?: string | null;
+  earliestDeliveryDate?: string | null;
+  latestDeliveryDate?: string | null;
   actualDeliveryDate?: string | null;
   tagIds?: string[];
 }
@@ -238,7 +244,7 @@ export interface HouseholdItemListQuery {
     | 'status'
     | 'room'
     | 'order_date'
-    | 'expected_delivery_date'
+    | 'target_delivery_date'
     | 'created_at'
     | 'updated_at';
   sortOrder?: 'asc' | 'desc';

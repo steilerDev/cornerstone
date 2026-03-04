@@ -101,10 +101,11 @@ describe('HouseholdItemEditPage', () => {
     room: 'Kitchen',
     quantity: 1,
     orderDate: '2026-03-01',
-    expectedDeliveryDate: '2026-04-15',
+    targetDeliveryDate: '2026-04-15',
     actualDeliveryDate: null,
     earliestDeliveryDate: '2026-04-15',
     latestDeliveryDate: '2026-04-20',
+    isLate: false,
     tagIds: ['tag-1'],
     budgetLineCount: 0,
     totalPlannedAmount: 0,
@@ -224,8 +225,8 @@ describe('HouseholdItemEditPage', () => {
         expect(orderDateInput.value).toBe('2026-03-01');
       });
 
-      const expectedDeliveryInput = screen.getByLabelText(/expected delivery/i) as HTMLInputElement;
-      expect(expectedDeliveryInput.value).toBe('2026-04-15');
+      const earliestDeliveryInput = screen.getByLabelText(/earliest delivery/i) as HTMLInputElement;
+      expect(earliestDeliveryInput.value).toBe('2026-04-15');
     });
   });
 

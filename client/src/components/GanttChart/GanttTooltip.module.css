@@ -317,7 +317,7 @@
 }
 
 .detailValueFloored {
-  color: var(--color-hi-status-in-transit-text);
+  color: var(--color-hi-status-scheduled-text);
   font-weight: var(--font-weight-medium);
 }
 

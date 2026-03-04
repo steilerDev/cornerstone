@@ -853,10 +853,7 @@ export function autoReschedule(db: DbType): number {
 
   // ── 9. Compute delivery dates for household items ─────────────────────────────
 
-  const hiDeliveryDates = new Map<
-    string,
-    { earliest: string | null; latest: string | null; isLate: boolean }
-  >();
+  const hiDeliveryDates = new Map<string, { targetDate: string | null; isLate: boolean }>();
 
   for (const hi of allHouseholdItems) {
     // Find all dependencies for this HI
@@ -864,7 +861,7 @@ export function autoReschedule(db: DbType): number {
 
     if (hiDeps.length === 0) {
       // No dependencies — HI is unconstrained
-      hiDeliveryDates.set(hi.id, { earliest: null, latest: null, isLate: false });
+      hiDeliveryDates.set(hi.id, { targetDate: null, isLate: false });
       continue;
     }
 
@@ -926,14 +923,14 @@ export function autoReschedule(db: DbType): number {
       maxES = maxDate(maxES, depES);
     }
 
-    // Apply expectedDeliveryDate constraint: ES >= expectedDeliveryDate if set
+    // Apply earliestDeliveryDate constraint (user-editable): ES >= earliestDeliveryDate if set
     let es = maxES;
-    if (hi.expectedDeliveryDate) {
-      es = maxDate(es, hi.expectedDeliveryDate);
+    if (hi.earliestDeliveryDate) {
+      es = maxDate(es, hi.earliestDeliveryDate);
     }
 
     // Since HIs are zero-duration, EF = ES
-    let ef = es;
+    let targetDate = es; // Start with the computed earliest date
 
     // ── 10. Apply floor rules ─────────────────────────────────────────────────────
 
@@ -941,43 +938,42 @@ export function autoReschedule(db: DbType): number {
 
     if (hi.actualDeliveryDate) {
       // Actual date overrides CPM — use it directly
-      es = hi.actualDeliveryDate;
-      ef = hi.actualDeliveryDate;
+      targetDate = hi.actualDeliveryDate;
     } else if (hi.status === 'planned' || hi.status === 'purchased') {
-      // Floor ES to today; mark as late if floored
-      const esBeforeFloor = es;
-      es = maxDate(es, today);
-      if (es !== esBeforeFloor) {
+      // Floor to today; mark as late if floored
+      const targetBeforeFloor = targetDate;
+      targetDate = maxDate(targetDate, today);
+      if (targetDate !== targetBeforeFloor) {
         isLate = true;
       }
-      ef = es; // HIs are zero-duration
     } else if (hi.status === 'scheduled') {
-      // Floor LF (=EF for HIs) to today; mark as late if floored
-      const efBeforeFloor = ef;
-      ef = maxDate(ef, today);
-      if (ef !== efBeforeFloor) {
+      // Floor to today; mark as late if floored
+      const targetBeforeFloor = targetDate;
+      targetDate = maxDate(targetDate, today);
+      if (targetDate !== targetBeforeFloor) {
         isLate = true;
       }
-      es = ef; // HIs are zero-duration
     }
 
-    hiDeliveryDates.set(hi.id, { earliest: es, latest: ef, isLate });
+    hiDeliveryDates.set(hi.id, { targetDate, isLate });
   }
 
-  // ── 11. Write HI delivery dates back to database ────────────────────────────────
+  // ── 11. Write HI target delivery dates back to database ────────────────────────────────
+  // Note: scheduler does NOT write to earliestDeliveryDate or latestDeliveryDate.
+  // Those are now user-editable constraints. Only targetDeliveryDate and isLate are computed by scheduler.
 
   for (const [hiId, dates] of hiDeliveryDates) {
     const current = allHouseholdItems.find((hi) => hi.id === hiId);
     if (!current) continue;
 
-    const earliestChanged = dates.earliest !== current.earliestDeliveryDate;
-    const latestChanged = dates.latest !== current.latestDeliveryDate;
+    const targetDateChanged = dates.targetDate !== current.targetDeliveryDate;
+    const isLateChanged = dates.isLate !== current.isLate;
 
-    if (earliestChanged || latestChanged) {
+    if (targetDateChanged || isLateChanged) {
       db.update(householdItems)
         .set({
-          earliestDeliveryDate: dates.earliest,
-          latestDeliveryDate: dates.latest,
+          targetDeliveryDate: dates.targetDate,
+          isLate: dates.isLate,
           updatedAt: now,
         })
         .where(eq(householdItems.id, hiId))
