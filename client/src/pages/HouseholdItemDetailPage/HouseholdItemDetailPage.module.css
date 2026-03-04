@@ -868,6 +868,27 @@
   font-weight: var(--font-weight-medium);
 }
 
+.budgetLineMargin {
+  color: var(--color-text-placeholder);
+  font-weight: var(--font-weight-normal);
+}
+
+.budgetLineAmountInvoiced {
+  color: var(--color-success-text-on-light);
+}
+
+.budgetLineInvoicedLabel {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-success-text-on-light);
+}
+
+.budgetLinePlannedSecondary {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-placeholder);
+  font-weight: var(--font-weight-normal);
+}
+
 .budgetLineDescription {
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
