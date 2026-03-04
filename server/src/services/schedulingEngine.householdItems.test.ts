@@ -144,19 +144,12 @@ function insertHIDep(
   householdItemId: string,
   predecessorType: 'work_item' | 'milestone',
   predecessorId: string,
-  options: { dependencyType?: string; leadLagDays?: number } = {},
 ) {
   db.insert(schema.householdItemDeps)
     .values({
       householdItemId,
       predecessorType,
       predecessorId,
-      dependencyType: (options.dependencyType ?? 'finish_to_start') as
-        | 'finish_to_start'
-        | 'start_to_start'
-        | 'finish_to_finish'
-        | 'start_to_finish',
-      leadLagDays: options.leadLagDays ?? 0,
     })
     .run();
 }
@@ -214,10 +207,7 @@ describe('autoReschedule — household item delivery date computation', () => {
       const userId = insertUser(db);
       const wiId = insertWorkItem(db, userId, { endDate: '2026-05-15' });
       const hiId = insertHouseholdItem(db, { status: 'not_ordered' });
-      insertHIDep(db, hiId, 'work_item', wiId, {
-        dependencyType: 'finish_to_start',
-        leadLagDays: 0,
-      });
+      insertHIDep(db, hiId, 'work_item', wiId);
 
       // When: autoReschedule runs
       // We need today to be <= 2026-05-15 so it doesn't get floored
@@ -231,30 +221,6 @@ describe('autoReschedule — household item delivery date computation', () => {
       // We can verify it's not null (dep was processed)
       expect(earliestDeliveryDate).not.toBeNull();
       expect(latestDeliveryDate).not.toBeNull();
-    });
-
-    it('HI with FS dep and leadLag=+5 gets earliestDeliveryDate = WI.endDate + 5', () => {
-      // Given: A work item with endDate = 2026-05-15 and a HI with 5-day lag
-      const userId = insertUser(db);
-      const wiId = insertWorkItem(db, userId, { endDate: '2026-05-15' });
-      const hiId = insertHouseholdItem(db, { status: 'not_ordered' });
-      insertHIDep(db, hiId, 'work_item', wiId, {
-        dependencyType: 'finish_to_start',
-        leadLagDays: 5,
-      });
-
-      autoReschedule(db);
-
-      const { earliestDeliveryDate } = getHIDeliveryDates(db, hiId);
-      // The computed date before floor = 2026-05-15 + 5 days = 2026-05-20
-      // If today >= 2026-05-20, it gets floored to today
-      // Either way, it should be >= 2026-05-20 or == today (whichever is later)
-      expect(earliestDeliveryDate).not.toBeNull();
-
-      // Verify the lag is applied: parse date should be >= 2026-05-20
-      const today = new Date().toISOString().slice(0, 10);
-      const expected = '2026-05-20' >= today ? '2026-05-20' : today;
-      expect(earliestDeliveryDate).toBe(expected);
     });
 
     it('HI with two deps takes the max predecessor finish as earliestDeliveryDate', () => {

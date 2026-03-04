@@ -291,8 +291,6 @@ describe('HouseholdItemDetailPage', () => {
       householdItemId: 'item-1',
       predecessorType: 'work_item',
       predecessorId: 'wi-1',
-      dependencyType: 'finish_to_start',
-      leadLagDays: 0,
       predecessor: { id: 'wi-1', title: 'Work Item', status: 'not_started', endDate: null },
     } as HouseholdItemDepDetail);
     mockDeleteHouseholdItemDep.mockResolvedValue(undefined);
@@ -983,8 +981,6 @@ describe('HouseholdItemDetailPage', () => {
         householdItemId: 'item-1',
         predecessorType: 'work_item',
         predecessorId: 'wi-abc-123',
-        dependencyType: 'finish_to_start',
-        leadLagDays: 0,
         predecessor: {
           id: 'wi-abc-123',
           title: 'Install desk',
@@ -1010,16 +1006,12 @@ describe('HouseholdItemDetailPage', () => {
           householdItemId: 'item-1',
           predecessorType: 'work_item',
           predecessorId: 'wi-1',
-          dependencyType: 'finish_to_start',
-          leadLagDays: 0,
           predecessor: { id: 'wi-1', title: 'Setup cables', status: 'not_started', endDate: null },
         },
         {
           householdItemId: 'item-1',
           predecessorType: 'work_item',
           predecessorId: 'wi-2',
-          dependencyType: 'finish_to_start',
-          leadLagDays: 0,
           predecessor: {
             id: 'wi-2',
             title: 'Test connection',
@@ -1313,8 +1305,6 @@ describe('HouseholdItemDetailPage', () => {
           householdItemId: 'item-1',
           predecessorType: 'work_item',
           predecessorId: 'wi-1',
-          dependencyType: 'finish_to_start',
-          leadLagDays: 0,
           predecessor: {
             id: 'wi-1',
             title: 'Foundation Work',
@@ -1344,8 +1334,6 @@ describe('HouseholdItemDetailPage', () => {
           householdItemId: 'item-1',
           predecessorType: 'milestone',
           predecessorId: '42',
-          dependencyType: 'finish_to_start',
-          leadLagDays: 0,
           predecessor: { id: '42', title: 'Frame Complete', status: null, endDate: '2026-04-30' },
         } as HouseholdItemDepDetail,
       ]);
@@ -1382,8 +1370,6 @@ describe('HouseholdItemDetailPage', () => {
           householdItemId: 'item-1',
           predecessorType: 'work_item',
           predecessorId: 'wi-1',
-          dependencyType: 'finish_to_start',
-          leadLagDays: 0,
           predecessor: {
             id: 'wi-1',
             title: 'Foundation Work',
@@ -1417,8 +1403,6 @@ describe('HouseholdItemDetailPage', () => {
             householdItemId: 'item-1',
             predecessorType: 'work_item',
             predecessorId: 'wi-1',
-            dependencyType: 'finish_to_start',
-            leadLagDays: 0,
             predecessor: {
               id: 'wi-1',
               title: 'Foundation Work',

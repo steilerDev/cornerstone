@@ -173,13 +173,8 @@ const createHouseholdItemDepSchema = {
     properties: {
       predecessorType: { type: 'string', enum: ['work_item', 'milestone'] },
       predecessorId: { type: 'string', minLength: 1 },
-      dependencyType: {
-        type: 'string',
-        enum: ['finish_to_start', 'start_to_start', 'finish_to_finish', 'start_to_finish'],
-      },
-      leadLagDays: { type: 'integer' },
     },
-    additionalProperties: false,
+    additionalProperties: true,
   },
 };
 

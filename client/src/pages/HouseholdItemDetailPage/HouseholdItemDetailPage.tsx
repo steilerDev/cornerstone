@@ -80,20 +80,6 @@ const WORK_ITEM_STATUS_LABELS: Record<string, string> = {
   completed: 'Completed',
 };
 
-const DEP_TYPE_SHORT: Record<string, string> = {
-  finish_to_start: 'FS',
-  start_to_start: 'SS',
-  finish_to_finish: 'FF',
-  start_to_finish: 'SF',
-};
-
-const DEP_TYPE_LABELS: Record<string, string> = {
-  finish_to_start: 'Finish to Start',
-  start_to_start: 'Start to Start',
-  finish_to_finish: 'Finish to Finish',
-  start_to_finish: 'Start to Finish',
-};
-
 /** Budget line form state used for both create and edit. */
 interface BudgetLineFormState {
   description: string;
@@ -165,8 +151,6 @@ export function HouseholdItemDetailPage() {
   const [depPredecessorType, setDepPredecessorType] =
     useState<HouseholdItemDepPredecessorType>('work_item');
   const [depSearchQuery, setDepSearchQuery] = useState('');
-  const [depDependencyType, setDepDependencyType] = useState<string>('finish_to_start');
-  const [depLeadLagDays, setDepLeadLagDays] = useState('0');
   const [depSelectedId, setDepSelectedId] = useState('');
   const [depError, setDepError] = useState<string | null>(null);
   const [isAddingDep, setIsAddingDep] = useState(false);
@@ -362,8 +346,6 @@ export function HouseholdItemDetailPage() {
       await createHouseholdItemDep(id, {
         predecessorType: depPredecessorType,
         predecessorId: depSelectedId,
-        dependencyType: depDependencyType as DependencyType,
-        leadLagDays: parseInt(depLeadLagDays, 10) || 0,
       });
       const updated = await fetchHouseholdItemDeps(id);
       setDependencies(updated);
@@ -878,17 +860,6 @@ export function HouseholdItemDetailPage() {
                     >
                       {dep.predecessor.title}
                     </Link>
-                    <span
-                      className={styles.depTypeChip}
-                      title={DEP_TYPE_LABELS[dep.dependencyType]}
-                    >
-                      {DEP_TYPE_SHORT[dep.dependencyType]}
-                    </span>
-                    {dep.leadLagDays !== 0 && (
-                      <span className={styles.depLagChip}>
-                        {dep.leadLagDays > 0 ? `+${dep.leadLagDays}d` : `${dep.leadLagDays}d`}
-                      </span>
-                    )}
                     <button
                       type="button"
                       className={styles.unlinkButton}
@@ -1015,30 +986,6 @@ export function HouseholdItemDetailPage() {
                       </li>
                     ))}
                 </ul>
-                {/* Dependency type select */}
-                <label className={styles.formLabel}>
-                  Dependency Type
-                  <select
-                    className={styles.formSelect}
-                    value={depDependencyType}
-                    onChange={(e) => setDepDependencyType(e.target.value)}
-                  >
-                    <option value="finish_to_start">Finish to Start (FS)</option>
-                    <option value="start_to_start">Start to Start (SS)</option>
-                    <option value="finish_to_finish">Finish to Finish (FF)</option>
-                    <option value="start_to_finish">Start to Finish (SF)</option>
-                  </select>
-                </label>
-                {/* Lead/lag */}
-                <label className={styles.formLabel}>
-                  Lead/Lag Days
-                  <input
-                    type="number"
-                    className={styles.formInput}
-                    value={depLeadLagDays}
-                    onChange={(e) => setDepLeadLagDays(e.target.value)}
-                  />
-                </label>
                 {depError && (
                   <div role="alert" className={styles.errorBanner}>
                     {depError}

@@ -185,8 +185,6 @@ describe('householdItemDepService', () => {
           householdItemId: hiId,
           predecessorType: 'work_item',
           predecessorId: wiId,
-          dependencyType: 'finish_to_start',
-          leadLagDays: 0,
         })
         .run();
 
@@ -197,8 +195,6 @@ describe('householdItemDepService', () => {
       expect(dep.householdItemId).toBe(hiId);
       expect(dep.predecessorType).toBe('work_item');
       expect(dep.predecessorId).toBe(wiId);
-      expect(dep.dependencyType).toBe('finish_to_start');
-      expect(dep.leadLagDays).toBe(0);
       expect(dep.predecessor.id).toBe(wiId);
       expect(dep.predecessor.title).toBe('Pour Foundation');
       expect(dep.predecessor.status).toBe('in_progress');
@@ -218,8 +214,6 @@ describe('householdItemDepService', () => {
           householdItemId: hiId,
           predecessorType: 'milestone',
           predecessorId: milestoneId.toString(),
-          dependencyType: 'finish_to_start',
-          leadLagDays: 0,
         })
         .run();
 
@@ -246,15 +240,11 @@ describe('householdItemDepService', () => {
             householdItemId: hiId,
             predecessorType: 'work_item',
             predecessorId: wiId1,
-            dependencyType: 'finish_to_start',
-            leadLagDays: 0,
           },
           {
             householdItemId: hiId,
             predecessorType: 'work_item',
             predecessorId: wiId2,
-            dependencyType: 'start_to_start',
-            leadLagDays: 5,
           },
         ])
         .run();
@@ -267,8 +257,6 @@ describe('householdItemDepService', () => {
       expect(predIds).toContain(wiId2);
 
       const dep2 = result.find((d) => d.predecessorId === wiId2)!;
-      expect(dep2.dependencyType).toBe('start_to_start');
-      expect(dep2.leadLagDays).toBe(5);
     });
   });
 
@@ -288,8 +276,6 @@ describe('householdItemDepService', () => {
       expect(result.householdItemId).toBe(hiId);
       expect(result.predecessorType).toBe('work_item');
       expect(result.predecessorId).toBe(wiId);
-      expect(result.dependencyType).toBe('finish_to_start');
-      expect(result.leadLagDays).toBe(0);
       expect(result.predecessor.id).toBe(wiId);
       expect(result.predecessor.title).toBe('Foundation Work');
       expect(result.predecessor.endDate).toBe('2026-05-15');
@@ -323,17 +309,10 @@ describe('householdItemDepService', () => {
       const result = householdItemDepService.createDep(db, hiId, {
         predecessorType: 'work_item',
         predecessorId: wiId,
-        dependencyType: 'start_to_start',
-        leadLagDays: 7,
       });
-
-      expect(result.dependencyType).toBe('start_to_start');
-      expect(result.leadLagDays).toBe(7);
 
       // Verify persisted to DB
       const deps = householdItemDepService.listDeps(db, hiId);
-      expect(deps[0].dependencyType).toBe('start_to_start');
-      expect(deps[0].leadLagDays).toBe(7);
     });
 
     it('throws NotFoundError when household item does not exist', () => {
@@ -562,8 +541,6 @@ describe('householdItemDepService', () => {
           householdItemId: hiId,
           predecessorType: 'work_item',
           predecessorId: wiId,
-          dependencyType: 'finish_to_start',
-          leadLagDays: 0,
         })
         .run();
 
@@ -593,15 +570,11 @@ describe('householdItemDepService', () => {
             householdItemId: hi1,
             predecessorType: 'work_item',
             predecessorId: wiId1,
-            dependencyType: 'finish_to_start',
-            leadLagDays: 0,
           },
           {
             householdItemId: hi2,
             predecessorType: 'work_item',
             predecessorId: wiId2,
-            dependencyType: 'finish_to_start',
-            leadLagDays: 0,
           },
         ])
         .run();
@@ -624,8 +597,6 @@ describe('householdItemDepService', () => {
           householdItemId: hiId,
           predecessorType: 'milestone',
           predecessorId: milestoneId.toString(),
-          dependencyType: 'finish_to_start',
-          leadLagDays: 0,
         })
         .run();
 
@@ -648,22 +619,16 @@ describe('householdItemDepService', () => {
             householdItemId: hi1,
             predecessorType: 'work_item',
             predecessorId: wiId,
-            dependencyType: 'finish_to_start',
-            leadLagDays: 0,
           },
           {
             householdItemId: hi2,
             predecessorType: 'work_item',
             predecessorId: wiId,
-            dependencyType: 'finish_to_start',
-            leadLagDays: 0,
           },
           {
             householdItemId: hi3,
             predecessorType: 'work_item',
             predecessorId: wiId,
-            dependencyType: 'finish_to_start',
-            leadLagDays: 0,
           },
         ])
         .run();

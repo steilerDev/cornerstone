@@ -76,13 +76,12 @@ export interface HouseholdItemDepPredecessorSummary {
 
 /**
  * A single dependency row (detail shape for GET /api/household-items/:id/dependencies).
+ * Household items are zero-duration terminal nodes; all dependencies are treated as finish-to-start with zero lag.
  */
 export interface HouseholdItemDepDetail {
   householdItemId: string;
   predecessorType: HouseholdItemDepPredecessorType;
   predecessorId: string;
-  dependencyType: 'finish_to_start' | 'start_to_start' | 'finish_to_finish' | 'start_to_finish';
-  leadLagDays: number;
   predecessor: HouseholdItemDepPredecessorSummary;
 }
 
@@ -95,12 +94,11 @@ export interface HouseholdItemDepsResponse {
 
 /**
  * Request body for POST /api/household-items/:id/dependencies.
+ * Household items are zero-duration terminal nodes; only predecessorType and predecessorId are required.
  */
 export interface CreateHouseholdItemDepRequest {
   predecessorType: HouseholdItemDepPredecessorType;
   predecessorId: string;
-  dependencyType?: 'finish_to_start' | 'start_to_start' | 'finish_to_finish' | 'start_to_finish';
-  leadLagDays?: number;
 }
 
 /**

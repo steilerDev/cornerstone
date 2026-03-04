@@ -853,23 +853,8 @@ export function autoReschedule(db: DbType): number {
         }
       }
 
-      // Apply dependency type and lead/lag math (CPM formulas from ADR-014)
-      let depES = predEF;
-      if (dep.dependencyType === 'start_to_start') {
-        // SS: successorES = predES + leadLag (not predEF + leadLag)
-        // But we don't have predES here, so conservatively use predEF
-        depES = addDays(predEF, dep.leadLagDays);
-      } else if (dep.dependencyType === 'finish_to_start') {
-        // FS: successorES = predEF + leadLag
-        depES = addDays(predEF, dep.leadLagDays);
-      } else if (dep.dependencyType === 'finish_to_finish') {
-        // FF: successorEF = predEF + leadLag, but HIs are zero-duration, so ES = EF
-        depES = addDays(predEF, dep.leadLagDays);
-      } else if (dep.dependencyType === 'start_to_finish') {
-        // SF: successorEF = predES + leadLag (rare; not commonly used)
-        // Again, we don't have predES, so conservatively use predEF
-        depES = addDays(predEF, dep.leadLagDays);
-      }
+      // All HI dependencies are finish-to-start with zero lag (HIs are zero-duration terminal nodes)
+      const depES = predEF;
 
       maxES = maxDate(maxES, depES);
     }

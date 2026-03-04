@@ -146,12 +146,6 @@ export function listDeps(db: DbType, householdItemId: string): HouseholdItemDepD
       householdItemId: row.householdItemId,
       predecessorType: row.predecessorType as 'work_item' | 'milestone',
       predecessorId: row.predecessorId,
-      dependencyType: row.dependencyType as
-        | 'finish_to_start'
-        | 'start_to_start'
-        | 'finish_to_finish'
-        | 'start_to_finish',
-      leadLagDays: row.leadLagDays,
       predecessor,
     };
   });
@@ -168,12 +162,7 @@ export function createDep(
   householdItemId: string,
   data: CreateHouseholdItemDepRequest,
 ): HouseholdItemDepDetail {
-  const {
-    predecessorType,
-    predecessorId,
-    dependencyType = 'finish_to_start',
-    leadLagDays = 0,
-  } = data;
+  const { predecessorType, predecessorId } = data;
 
   // Validate household item exists
   ensureHouseholdItemExists(db, householdItemId);
@@ -215,8 +204,6 @@ export function createDep(
       householdItemId,
       predecessorType,
       predecessorId,
-      dependencyType,
-      leadLagDays,
     })
     .run();
 
@@ -232,12 +219,6 @@ export function createDep(
     householdItemId,
     predecessorType,
     predecessorId,
-    dependencyType: dependencyType as
-      | 'finish_to_start'
-      | 'start_to_start'
-      | 'finish_to_finish'
-      | 'start_to_finish',
-    leadLagDays,
     predecessor,
   };
 }

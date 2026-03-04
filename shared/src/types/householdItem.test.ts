@@ -352,8 +352,6 @@ describe('HouseholdItemDetail interface', () => {
           householdItemId: 'item-detail-1',
           predecessorType: 'work_item',
           predecessorId: 'wi-1',
-          dependencyType: 'finish_to_start',
-          leadLagDays: 0,
           predecessor: {
             id: 'wi-1',
             title: 'Mount TV',
