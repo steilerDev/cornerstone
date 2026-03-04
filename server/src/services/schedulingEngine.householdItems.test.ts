@@ -349,11 +349,7 @@ describe('autoReschedule — household item delivery date computation', () => {
   describe('milestone dependencies', () => {
     it('HI with milestone dep gets earliestDeliveryDate from milestone targetDate', () => {
       // Given: A milestone with targetDate = 2030-07-01 and a HI depending on it
-      // Note: autoReschedule requires at least one work item to pass its guard check
-      // (see schedulingEngine.ts - early return when allWorkItems.length === 0).
-      // We add a dummy work item to satisfy this requirement.
       const userId = insertUser(db);
-      insertWorkItem(db, userId, { endDate: '2026-01-01' }); // required by autoReschedule guard
       const milestoneId = insertMilestone(db, userId, { targetDate: '2030-07-01' });
       const hiId = insertHouseholdItem(db, { status: 'not_ordered' });
       insertHIDep(db, hiId, 'milestone', milestoneId.toString());
@@ -367,9 +363,7 @@ describe('autoReschedule — household item delivery date computation', () => {
 
     it('HI with milestone dep and past targetDate gets floored to today', () => {
       // Given: A milestone with past targetDate
-      // Note: autoReschedule requires at least one work item to pass its guard check.
       const userId = insertUser(db);
-      insertWorkItem(db, userId, { endDate: '2026-01-01' }); // required by autoReschedule guard
       const milestoneId = insertMilestone(db, userId, { targetDate: '2020-01-01' });
       const hiId = insertHouseholdItem(db, { status: 'not_ordered' });
       insertHIDep(db, hiId, 'milestone', milestoneId.toString());
@@ -379,6 +373,23 @@ describe('autoReschedule — household item delivery date computation', () => {
       const today = new Date().toISOString().slice(0, 10);
       const { earliestDeliveryDate } = getHIDeliveryDates(db, hiId);
       expect(earliestDeliveryDate).toBe(today);
+    });
+
+    it('HI with milestone dep computes delivery date even when no work items exist', () => {
+      // Given: No work items in the database — only a milestone and a HI
+      // This is the exact scenario from bug #418: the early return guard
+      // (allWorkItems.length === 0) was incorrectly skipping HI date computation.
+      const userId = insertUser(db);
+      const milestoneId = insertMilestone(db, userId, { targetDate: '2030-09-01' });
+      const hiId = insertHouseholdItem(db, { status: 'not_ordered' });
+      insertHIDep(db, hiId, 'milestone', milestoneId.toString());
+
+      // When: autoReschedule runs with zero work items
+      autoReschedule(db);
+
+      // Then: earliestDeliveryDate is computed from the milestone targetDate
+      const { earliestDeliveryDate } = getHIDeliveryDates(db, hiId);
+      expect(earliestDeliveryDate).toBe('2030-09-01');
     });
   });
 
