@@ -18,6 +18,7 @@ import { join } from 'node:path';
 import { buildApp } from '../app.js';
 import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
+import { _resetFilterTagCache } from '../services/paperlessService.js';
 import type { FastifyInstance } from 'fastify';
 import type {
   PaperlessStatusResponse,
@@ -95,6 +96,7 @@ describe('Paperless Routes', () => {
     originalFetch = global.fetch;
     global.fetch = mockFetch as unknown as typeof fetch;
     mockFetch.mockClear();
+    _resetFilterTagCache();
 
     originalEnv = { ...process.env };
 
@@ -308,10 +310,13 @@ describe('Paperless Routes', () => {
 
         const { cookie } = await createUserWithSession();
 
+        const CORNERSTONE_TAG = { id: 10, name: 'cornerstone', colour: 3, document_count: 50 };
+        const TAGS_WITH_CORNERSTONE = { count: 2, results: [RAW_TAG, CORNERSTONE_TAG] };
+
         // Status probe
         mockFetch.mockResolvedValueOnce(mockJsonResponse({ count: 10 }));
         // Tags lookup
-        mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
+        mockFetch.mockResolvedValueOnce(mockJsonResponse(TAGS_WITH_CORNERSTONE));
 
         const response = await app.inject({
           method: 'GET',
@@ -502,12 +507,16 @@ describe('Paperless Routes', () => {
 
       const { cookie } = await createUserWithSession();
 
-      // Documents call
+      const CORNERSTONE_TAG = { id: 10, name: 'cornerstone', colour: 3, document_count: 50 };
+      const TAGS_WITH_CORNERSTONE = { count: 2, results: [RAW_TAG, CORNERSTONE_TAG] };
+
+      // 1. Filter tag resolution (resolveFilterTagId runs first)
+      mockFetch.mockResolvedValueOnce(mockJsonResponse(TAGS_WITH_CORNERSTONE));
+      // 2. Documents call
       mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_LIST_RESPONSE));
-      // Tags call (for mapping)
-      mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
-      // Tags call (for filter tag resolution)
-      mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
+      // 3. Tags call (for mapping via fetchTagsMap)
+      mockFetch.mockResolvedValueOnce(mockJsonResponse(TAGS_WITH_CORNERSTONE));
+      // No correspondent or document type calls (RAW_DOCUMENT has null for both)
 
       const response = await app.inject({
         method: 'GET',
@@ -516,9 +525,9 @@ describe('Paperless Routes', () => {
       });
 
       expect(response.statusCode).toBe(200);
-      // Verify the documents endpoint was called with filter tag in URL
-      const firstCallUrl = (mockFetch.mock.calls[0] as [string, ...unknown[]])[0];
-      expect(firstCallUrl).toContain('tags__id__in=5');
+      // Documents call is now at index 1 (after filter tag resolution at index 0)
+      const docsCallUrl = (mockFetch.mock.calls[1] as [string, ...unknown[]])[0];
+      expect(docsCallUrl).toContain('tags__id__in=10');
 
       delete process.env.PAPERLESS_FILTER_TAG;
     });

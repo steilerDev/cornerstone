@@ -26,7 +26,8 @@ let originalFetch: typeof fetch;
 beforeEach(() => {
   originalFetch = global.fetch;
   global.fetch = mockFetch as unknown as typeof fetch;
-  mockFetch.mockClear();
+  mockFetch.mockReset();
+  paperlessService._resetFilterTagCache();
 });
 
 afterEach(() => {
@@ -495,31 +496,34 @@ describe('listDocuments()', () => {
     });
 
     it('appends filter tag ID to tags__id__in when filter tag found', async () => {
-      // Documents call
+      // 1. Filter tag resolution (resolveFilterTagId runs first)
+      mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
+      // 2. Documents call
       mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_LIST_RESPONSE));
-      // Tags call (for mapping)
+      // 3. Tags call (for mapping via fetchTagsMap)
       mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
-      // Correspondent call
+      // 4. Correspondent call
       mockFetch.mockResolvedValueOnce(mockJsonResponse({ id: 3, name: 'Builder Co' }));
-      // Document type call
+      // 5. Document type call
       mockFetch.mockResolvedValueOnce(mockJsonResponse({ id: 7, name: 'Invoice' }));
-      // Tags call (for filter tag resolution)
-      mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
 
       await paperlessService.listDocuments(BASE_URL, TOKEN, {}, 'invoice');
 
-      const callUrl = (mockFetch.mock.calls[0] as [string, ...unknown[]])[0];
+      // The documents call is now the second fetch (index 1)
+      const callUrl = (mockFetch.mock.calls[1] as [string, ...unknown[]])[0];
       expect(callUrl).toContain('tags__id__in=5');
     });
 
     it('merges client-specified tags with filter tag, avoiding duplication', async () => {
-      setupListMocks();
-      // Tags call (for filter tag resolution) — called after initial mocks
+      // 1. Filter tag resolution (runs first)
       mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
+      // 2-5. Standard list mocks (documents, tags map, correspondent, doc type)
+      setupListMocks();
 
       await paperlessService.listDocuments(BASE_URL, TOKEN, { tags: '12' }, 'invoice');
 
-      const callUrl = (mockFetch.mock.calls[0] as [string, ...unknown[]])[0];
+      // Documents call is at index 1 (after tag resolution)
+      const callUrl = (mockFetch.mock.calls[1] as [string, ...unknown[]])[0];
       // Both 5 (invoice) and 12 (contract) should be in tags__id__in
       expect(callUrl).toContain('tags__id__in');
       const decoded = decodeURIComponent(callUrl);
@@ -527,36 +531,44 @@ describe('listDocuments()', () => {
     });
 
     it('deduplicates when filter tag ID matches client tags', async () => {
-      setupListMocks();
-      // Tags call (for filter tag resolution)
+      // 1. Filter tag resolution (runs first)
       mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
+      // 2-5. Standard list mocks
+      setupListMocks();
 
       await paperlessService.listDocuments(BASE_URL, TOKEN, { tags: '5' }, 'invoice');
 
-      const callUrl = (mockFetch.mock.calls[0] as [string, ...unknown[]])[0];
+      // Documents call is at index 1
+      const callUrl = (mockFetch.mock.calls[1] as [string, ...unknown[]])[0];
       // Should only have 5, not 5,5
       expect(callUrl).toContain('tags__id__in=5');
       expect(callUrl).not.toContain('tags__id__in=5%2C5');
     });
 
     it('preserves client tags when filter tag not found', async () => {
-      setupListMocks();
-      // Tags call (for filter tag resolution) — returns empty
+      // 1. Filter tag resolution — returns empty (tag not found)
       mockFetch.mockResolvedValueOnce(mockJsonResponse({ count: 0, results: [] }));
+      // 2-5. Standard list mocks
+      setupListMocks();
 
       await paperlessService.listDocuments(BASE_URL, TOKEN, { tags: '12' }, 'missing');
 
-      const callUrl = (mockFetch.mock.calls[0] as [string, ...unknown[]])[0];
+      // Documents call is at index 1
+      const callUrl = (mockFetch.mock.calls[1] as [string, ...unknown[]])[0];
       // Should still have client-specified tag
       expect(callUrl).toContain('tags__id__in=12');
     });
 
     it('does not append tags__id__in when no filter tag and no client tags', async () => {
+      // 1. Filter tag resolution — returns empty (tag not found)
+      mockFetch.mockResolvedValueOnce(mockJsonResponse({ count: 0, results: [] }));
+      // 2-5. Standard list mocks
       setupListMocks();
 
       await paperlessService.listDocuments(BASE_URL, TOKEN, {}, 'missing');
 
-      const callUrl = (mockFetch.mock.calls[0] as [string, ...unknown[]])[0];
+      // Documents call is at index 1
+      const callUrl = (mockFetch.mock.calls[1] as [string, ...unknown[]])[0];
       // No tags__id__in should be present
       expect(callUrl).not.toContain('tags__id__in');
     });
