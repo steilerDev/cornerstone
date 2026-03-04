@@ -211,7 +211,7 @@ describe('HouseholdItemDetailPage — budget line rendering (bug #436)', () => {
       name: 'Standing Desk',
       description: 'Electric height-adjustable desk',
       category: 'furniture' as HouseholdItemCategory,
-      status: 'ordered' as HouseholdItemStatus,
+      status: 'purchased' as HouseholdItemStatus,
       vendor: { id: 'vendor-1', name: 'IKEA', specialty: 'Furniture' },
       room: 'Office',
       quantity: 1,

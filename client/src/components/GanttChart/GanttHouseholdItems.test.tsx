@@ -26,8 +26,8 @@ import type { ChartRange } from './ganttUtils.js';
 const COLORS: HouseholdItemColors = {
   fill: '#F59E0B',
   stroke: '#B45309',
-  deliveredFill: '#22C55E',
-  deliveredStroke: '#15803D',
+  arrivedFill: '#22C55E',
+  arrivedStroke: '#15803D',
   hoverGlow: 'rgba(245,158,11,0.3)',
 };
 
@@ -42,7 +42,7 @@ const HI_NOT_ORDERED: TimelineHouseholdItem = {
   id: 'hi-1',
   name: 'Leather Sofa',
   category: 'furniture',
-  status: 'not_ordered',
+  status: 'planned',
   expectedDeliveryDate: null,
   earliestDeliveryDate: '2026-05-15',
   latestDeliveryDate: '2026-06-01',
@@ -55,7 +55,7 @@ const HI_DELIVERED: TimelineHouseholdItem = {
   id: 'hi-2',
   name: 'Kitchen Fridge',
   category: 'appliances',
-  status: 'delivered',
+  status: 'arrived',
   expectedDeliveryDate: null,
   earliestDeliveryDate: '2026-04-15',
   latestDeliveryDate: '2026-04-20',
@@ -68,7 +68,7 @@ const HI_ORDERED: TimelineHouseholdItem = {
   id: 'hi-3',
   name: 'Dining Table',
   category: 'furniture',
-  status: 'ordered',
+  status: 'purchased',
   expectedDeliveryDate: '2026-06-01',
   earliestDeliveryDate: '2026-06-10',
   latestDeliveryDate: '2026-07-01',
@@ -81,7 +81,7 @@ const HI_NO_DATES: TimelineHouseholdItem = {
   id: 'hi-4',
   name: 'Lamp',
   category: 'decor',
-  status: 'not_ordered',
+  status: 'planned',
   expectedDeliveryDate: null,
   earliestDeliveryDate: null,
   latestDeliveryDate: null,
@@ -186,14 +186,14 @@ describe('GanttHouseholdItems', () => {
       const ariaLabel = circle.getAttribute('aria-label');
       expect(ariaLabel).toBeDefined();
       expect(ariaLabel).toContain('Leather Sofa');
-      expect(ariaLabel).toContain('not_ordered');
+      expect(ariaLabel).toContain('planned');
     });
   });
 
-  // ── Delivered vs non-delivered color ──────────────────────────────────────
+  // ── Arrived vs non-arrived color ──────────────────────────────────────
 
   describe('color scheme based on status', () => {
-    it('delivered HI circle uses deliveredFill color', () => {
+    it('arrived HI circle uses arrivedFill color', () => {
       renderHouseholdItems({
         householdItems: [HI_DELIVERED],
         hiRowIndices: new Map([['hi-2', 0]]),
@@ -202,7 +202,7 @@ describe('GanttHouseholdItems', () => {
       // The main filled circle is the 3rd circle element (hit area + glow + main)
       const circles = circle.querySelectorAll('circle');
       const mainCircle = circles[circles.length - 1];
-      expect(mainCircle.getAttribute('fill')).toBe(COLORS.deliveredFill);
+      expect(mainCircle.getAttribute('fill')).toBe(COLORS.arrivedFill);
     });
 
     it('non-delivered HI circle uses default fill color', () => {

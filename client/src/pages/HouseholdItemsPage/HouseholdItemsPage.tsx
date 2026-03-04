@@ -27,10 +27,10 @@ const CATEGORY_OPTIONS: { value: HouseholdItemCategory; label: string }[] = [
 ];
 
 const STATUS_OPTIONS: { value: HouseholdItemStatus; label: string }[] = [
-  { value: 'not_ordered', label: 'Not Ordered' },
-  { value: 'ordered', label: 'Ordered' },
-  { value: 'in_transit', label: 'In Transit' },
-  { value: 'delivered', label: 'Delivered' },
+  { value: 'planned', label: 'Planned' },
+  { value: 'purchased', label: 'Purchased' },
+  { value: 'scheduled', label: 'Scheduled' },
+  { value: 'arrived', label: 'Arrived' },
 ];
 
 const SORT_OPTIONS: { value: string; label: string }[] = [

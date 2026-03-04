@@ -93,8 +93,8 @@ function resolveColors(): ChartColors {
     householdItem: {
       fill: readCssVar('--color-gantt-hi-fill'),
       stroke: readCssVar('--color-gantt-hi-stroke'),
-      deliveredFill: readCssVar('--color-gantt-hi-delivered-fill'),
-      deliveredStroke: readCssVar('--color-gantt-hi-delivered-stroke'),
+      arrivedFill: readCssVar('--color-gantt-hi-arrived-fill'),
+      arrivedStroke: readCssVar('--color-gantt-hi-arrived-stroke'),
       hoverGlow: readCssVar('--color-gantt-hi-hover-glow'),
     },
   };

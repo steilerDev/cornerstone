@@ -40,7 +40,7 @@ export type HouseholdItemCategory =
 /**
  * Household item status enum - lifecycle status of a purchase.
  */
-export type HouseholdItemStatus = 'not_ordered' | 'ordered' | 'in_transit' | 'delivered';
+export type HouseholdItemStatus = 'planned' | 'purchased' | 'scheduled' | 'arrived';
 
 /**
  * Vendor summary shape used in household item responses.

@@ -57,7 +57,7 @@ describe('Migration 0010: Household Items', () => {
       id,
       name: `Item ${id}`,
       category: 'other',
-      status: 'not_ordered',
+      status: 'planned',
       quantity: 1,
       created_at: now,
       updated_at: now,
@@ -236,7 +236,7 @@ describe('Migration 0010: Household Items', () => {
             `INSERT INTO household_items (id, name, category, status, quantity, created_at, updated_at)
              VALUES (?, ?, ?, ?, ?, ?, ?)`,
           )
-          .run(`item-${category}`, `Test ${category}`, category, 'not_ordered', 1, now, now);
+          .run(`item-${category}`, `Test ${category}`, category, 'planned', 1, now, now);
       }).not.toThrow();
 
       const row = sqlite
@@ -254,7 +254,7 @@ describe('Migration 0010: Household Items', () => {
             `INSERT INTO household_items (id, name, category, status, quantity, created_at, updated_at)
              VALUES (?, ?, ?, ?, ?, ?, ?)`,
           )
-          .run('item-bad-cat', 'Test Item', 'invalid_category', 'not_ordered', 1, now, now);
+          .run('item-bad-cat', 'Test Item', 'invalid_category', 'planned', 1, now, now);
       } catch (err) {
         error = err as Error;
       }
@@ -266,7 +266,7 @@ describe('Migration 0010: Household Items', () => {
   // ── 4. Status CHECK constraint ────────────────────────────────────────────
 
   describe('status CHECK constraint', () => {
-    const validStatuses = ['not_ordered', 'ordered', 'in_transit', 'delivered'];
+    const validStatuses = ['planned', 'purchased', 'scheduled', 'arrived'];
 
     it.each(validStatuses)('accepts valid status: %s', (status) => {
       const now = new Date().toISOString();
@@ -309,7 +309,7 @@ describe('Migration 0010: Household Items', () => {
             `INSERT INTO household_items (id, name, category, status, quantity, created_at, updated_at)
              VALUES (?, ?, ?, ?, ?, ?, ?)`,
           )
-          .run('item-qty-1', 'Test Item', 'other', 'not_ordered', 1, now, now);
+          .run('item-qty-1', 'Test Item', 'other', 'planned', 1, now, now);
       }).not.toThrow();
     });
 
@@ -321,7 +321,7 @@ describe('Migration 0010: Household Items', () => {
             `INSERT INTO household_items (id, name, category, status, quantity, created_at, updated_at)
              VALUES (?, ?, ?, ?, ?, ?, ?)`,
           )
-          .run('item-qty-5', 'Test Item', 'other', 'not_ordered', 5, now, now);
+          .run('item-qty-5', 'Test Item', 'other', 'planned', 5, now, now);
       }).not.toThrow();
     });
 
@@ -334,7 +334,7 @@ describe('Migration 0010: Household Items', () => {
             `INSERT INTO household_items (id, name, category, status, quantity, created_at, updated_at)
              VALUES (?, ?, ?, ?, ?, ?, ?)`,
           )
-          .run('item-qty-0', 'Test Item', 'other', 'not_ordered', 0, now, now);
+          .run('item-qty-0', 'Test Item', 'other', 'planned', 0, now, now);
       } catch (err) {
         error = err as Error;
       }
@@ -351,7 +351,7 @@ describe('Migration 0010: Household Items', () => {
             `INSERT INTO household_items (id, name, category, status, quantity, created_at, updated_at)
              VALUES (?, ?, ?, ?, ?, ?, ?)`,
           )
-          .run('item-qty-neg', 'Test Item', 'other', 'not_ordered', -1, now, now);
+          .run('item-qty-neg', 'Test Item', 'other', 'planned', -1, now, now);
       } catch (err) {
         error = err as Error;
       }
@@ -590,16 +590,7 @@ describe('Migration 0010: Household Items', () => {
           `INSERT INTO household_items (id, name, category, status, quantity, vendor_id, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         )
-        .run(
-          'item-vendor-setnull',
-          'Test Item',
-          'other',
-          'not_ordered',
-          1,
-          'vendor-setnull',
-          now,
-          now,
-        );
+        .run('item-vendor-setnull', 'Test Item', 'other', 'planned', 1, 'vendor-setnull', now, now);
 
       // Verify vendor_id is set
       const before = sqlite
@@ -629,7 +620,7 @@ describe('Migration 0010: Household Items', () => {
           `INSERT INTO household_items (id, name, category, status, quantity, created_by, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         )
-        .run('item-user-setnull', 'Test Item', 'other', 'not_ordered', 1, 'user-setnull', now, now);
+        .run('item-user-setnull', 'Test Item', 'other', 'planned', 1, 'user-setnull', now, now);
 
       // Verify created_by is set
       const before = sqlite
@@ -741,7 +732,7 @@ describe('Migration 0010: Household Items', () => {
           'Leather Sofa',
           'A beautiful 3-seat leather sofa',
           'furniture',
-          'ordered',
+          'purchased',
           'vendor-full',
           'https://example.com/sofa',
           'Living Room',
@@ -760,7 +751,7 @@ describe('Migration 0010: Household Items', () => {
 
       expect(row.name).toBe('Leather Sofa');
       expect(row.category).toBe('furniture');
-      expect(row.status).toBe('ordered');
+      expect(row.status).toBe('purchased');
       expect(row.quantity).toBe(2);
       expect(row.room).toBe('Living Room');
       expect(row.vendor_id).toBe('vendor-full');

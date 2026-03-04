@@ -39,7 +39,7 @@ function makeHI(overrides: Partial<TimelineHouseholdItem> = {}): TimelineHouseho
     id: 'hi-1',
     name: 'Kitchen Cabinet Delivery',
     category: 'appliances',
-    status: 'not_ordered',
+    status: 'planned',
     expectedDeliveryDate: '2024-08-15',
     earliestDeliveryDate: '2024-08-10',
     latestDeliveryDate: '2024-08-20',

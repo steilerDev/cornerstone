@@ -122,10 +122,10 @@ describe('householdItemsApi', () => {
         json: async () => mockResponse,
       } as Response);
 
-      await listHouseholdItems({ status: 'delivered' });
+      await listHouseholdItems({ status: 'arrived' });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        '/api/household-items?status=delivered',
+        '/api/household-items?status=arrived',
         expect.any(Object),
       );
     });
@@ -240,7 +240,7 @@ describe('householdItemsApi', () => {
         page: 2,
         pageSize: 50,
         category: 'appliances',
-        status: 'ordered',
+        status: 'purchased',
         q: 'refrigerator',
         sortBy: 'order_date',
         sortOrder: 'desc',
@@ -250,7 +250,7 @@ describe('householdItemsApi', () => {
       expect(callUrl).toContain('page=2');
       expect(callUrl).toContain('pageSize=50');
       expect(callUrl).toContain('category=appliances');
-      expect(callUrl).toContain('status=ordered');
+      expect(callUrl).toContain('status=purchased');
       expect(callUrl).toContain('q=refrigerator');
       expect(callUrl).toContain('sortBy=order_date');
       expect(callUrl).toContain('sortOrder=desc');
@@ -264,7 +264,7 @@ describe('householdItemsApi', () => {
             name: 'Coffee table',
             description: 'Wooden coffee table',
             category: 'furniture',
-            status: 'delivered',
+            status: 'arrived',
             vendor: { id: 'vendor-1', name: 'Furniture Plus', specialty: 'Furniture' },
             room: 'living room',
             quantity: 1,
@@ -316,7 +316,7 @@ describe('householdItemsApi', () => {
         name: 'Sofa',
         description: 'Leather sofa',
         category: 'furniture',
-        status: 'not_ordered',
+        status: 'planned',
         vendor: null,
         room: 'living room',
         quantity: 1,
@@ -354,7 +354,7 @@ describe('householdItemsApi', () => {
         name: 'Dining table',
         description: 'Oak dining table',
         category: 'furniture',
-        status: 'delivered',
+        status: 'arrived',
         vendor: { id: 'vendor-1', name: 'Furniture Plus', specialty: 'Furniture' },
         room: 'dining room',
         quantity: 1,
@@ -385,7 +385,7 @@ describe('householdItemsApi', () => {
 
       expect(result).toEqual(mockResponse);
       expect(result.name).toBe('Dining table');
-      expect(result.status).toBe('delivered');
+      expect(result.status).toBe('arrived');
     });
 
     it('throws error when household item not found', async () => {
@@ -406,7 +406,7 @@ describe('householdItemsApi', () => {
         name: 'New item',
         description: null,
         category: 'furniture',
-        status: 'not_ordered',
+        status: 'planned',
         vendor: null,
         room: null,
         quantity: 1,
@@ -452,7 +452,7 @@ describe('householdItemsApi', () => {
         name: 'Bed frame',
         description: 'Queen size bed frame',
         category: 'furniture',
-        status: 'not_ordered',
+        status: 'planned',
         vendor: null,
         room: 'bedroom',
         quantity: 1,
@@ -507,7 +507,7 @@ describe('householdItemsApi', () => {
         name: 'Updated name',
         description: null,
         category: 'furniture',
-        status: 'ordered',
+        status: 'purchased',
         vendor: null,
         room: null,
         quantity: 1,
@@ -534,7 +534,7 @@ describe('householdItemsApi', () => {
         json: async () => ({ householdItem: mockResponse }),
       } as Response);
 
-      const updateData = { name: 'Updated name', status: 'ordered' as const };
+      const updateData = { name: 'Updated name', status: 'purchased' as const };
       await updateHouseholdItem('hi-1', updateData);
 
       expect(mockFetch).toHaveBeenCalledWith(
@@ -552,7 +552,7 @@ describe('householdItemsApi', () => {
         name: 'Updated item',
         description: 'Updated description',
         category: 'appliances',
-        status: 'delivered',
+        status: 'arrived',
         vendor: { id: 'vendor-2', name: 'Appliance Store', specialty: 'Appliances' },
         room: 'kitchen',
         quantity: 1,
@@ -579,10 +579,10 @@ describe('householdItemsApi', () => {
         json: async () => ({ householdItem: mockResponse }),
       } as Response);
 
-      const result = await updateHouseholdItem('hi-1', { status: 'delivered' });
+      const result = await updateHouseholdItem('hi-1', { status: 'arrived' });
 
       expect(result).toEqual(mockResponse);
-      expect(result.status).toBe('delivered');
+      expect(result.status).toBe('arrived');
     });
 
     it('throws error when household item not found', async () => {

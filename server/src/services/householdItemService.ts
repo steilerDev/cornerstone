@@ -366,7 +366,7 @@ export function createHouseholdItem(
       name: data.name.trim(),
       description: data.description ?? null,
       category: data.category ?? 'other',
-      status: data.status ?? 'not_ordered',
+      status: data.status ?? 'planned',
       vendorId: data.vendorId ?? null,
       url: data.url ?? null,
       room: data.room ?? null,

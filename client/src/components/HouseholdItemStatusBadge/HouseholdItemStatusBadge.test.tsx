@@ -6,67 +6,67 @@ import { render, screen } from '@testing-library/react';
 import { HouseholdItemStatusBadge } from './HouseholdItemStatusBadge.js';
 
 describe('HouseholdItemStatusBadge', () => {
-  it('renders "Not Ordered" text for not_ordered status', () => {
-    render(<HouseholdItemStatusBadge status="not_ordered" />);
+  it('renders "Planned" text for planned status', () => {
+    render(<HouseholdItemStatusBadge status="planned" />);
 
-    expect(screen.getByText('Not Ordered')).toBeInTheDocument();
+    expect(screen.getByText('Planned')).toBeInTheDocument();
   });
 
-  it('renders "Ordered" text for ordered status', () => {
-    render(<HouseholdItemStatusBadge status="ordered" />);
+  it('renders "Purchased" text for purchased status', () => {
+    render(<HouseholdItemStatusBadge status="purchased" />);
 
-    expect(screen.getByText('Ordered')).toBeInTheDocument();
+    expect(screen.getByText('Purchased')).toBeInTheDocument();
   });
 
-  it('renders "In Transit" text for in_transit status', () => {
-    render(<HouseholdItemStatusBadge status="in_transit" />);
+  it('renders "Scheduled" text for scheduled status', () => {
+    render(<HouseholdItemStatusBadge status="scheduled" />);
 
-    expect(screen.getByText('In Transit')).toBeInTheDocument();
+    expect(screen.getByText('Scheduled')).toBeInTheDocument();
   });
 
-  it('renders "Delivered" text for delivered status', () => {
-    render(<HouseholdItemStatusBadge status="delivered" />);
+  it('renders "Arrived" text for arrived status', () => {
+    render(<HouseholdItemStatusBadge status="arrived" />);
 
-    expect(screen.getByText('Delivered')).toBeInTheDocument();
+    expect(screen.getByText('Arrived')).toBeInTheDocument();
   });
 
   it('applies badge CSS class', () => {
-    const { container } = render(<HouseholdItemStatusBadge status="not_ordered" />);
+    const { container } = render(<HouseholdItemStatusBadge status="planned" />);
 
     const badge = container.querySelector('span');
     expect(badge).toHaveClass('badge');
   });
 
-  it('applies not_ordered CSS class for not_ordered status', () => {
-    const { container } = render(<HouseholdItemStatusBadge status="not_ordered" />);
+  it('applies planned CSS class for planned status', () => {
+    const { container } = render(<HouseholdItemStatusBadge status="planned" />);
 
     const badge = container.querySelector('span');
-    expect(badge).toHaveClass('not_ordered');
+    expect(badge).toHaveClass('planned');
   });
 
-  it('applies ordered CSS class for ordered status', () => {
-    const { container } = render(<HouseholdItemStatusBadge status="ordered" />);
+  it('applies purchased CSS class for purchased status', () => {
+    const { container } = render(<HouseholdItemStatusBadge status="purchased" />);
 
     const badge = container.querySelector('span');
-    expect(badge).toHaveClass('ordered');
+    expect(badge).toHaveClass('purchased');
   });
 
-  it('applies in_transit CSS class for in_transit status', () => {
-    const { container } = render(<HouseholdItemStatusBadge status="in_transit" />);
+  it('applies scheduled CSS class for scheduled status', () => {
+    const { container } = render(<HouseholdItemStatusBadge status="scheduled" />);
 
     const badge = container.querySelector('span');
-    expect(badge).toHaveClass('in_transit');
+    expect(badge).toHaveClass('scheduled');
   });
 
-  it('applies delivered CSS class for delivered status', () => {
-    const { container } = render(<HouseholdItemStatusBadge status="delivered" />);
+  it('applies arrived CSS class for arrived status', () => {
+    const { container } = render(<HouseholdItemStatusBadge status="arrived" />);
 
     const badge = container.querySelector('span');
-    expect(badge).toHaveClass('delivered');
+    expect(badge).toHaveClass('arrived');
   });
 
   it('renders as a span element', () => {
-    const { container } = render(<HouseholdItemStatusBadge status="not_ordered" />);
+    const { container } = render(<HouseholdItemStatusBadge status="planned" />);
 
     const badge = container.querySelector('span');
     expect(badge).toBeInTheDocument();

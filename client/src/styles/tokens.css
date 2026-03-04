@@ -214,21 +214,21 @@
   --color-user-inactive-bg: var(--color-red-100);
   --color-user-inactive-text: var(--color-red-700);
 
-  /* HI Status: Not Ordered (gray) */
-  --color-hi-status-not-ordered-bg: var(--color-gray-200);
-  --color-hi-status-not-ordered-text: var(--color-gray-700);
+  /* HI Status: Planned (gray) */
+  --color-hi-status-planned-bg: var(--color-gray-200);
+  --color-hi-status-planned-text: var(--color-gray-700);
 
-  /* HI Status: Ordered (blue) */
-  --color-hi-status-ordered-bg: var(--color-blue-100);
-  --color-hi-status-ordered-text: var(--color-blue-800);
+  /* HI Status: Purchased (blue) */
+  --color-hi-status-purchased-bg: var(--color-blue-100);
+  --color-hi-status-purchased-text: var(--color-blue-800);
 
-  /* HI Status: In Transit (amber) */
-  --color-hi-status-in-transit-bg: var(--color-amber-100);
-  --color-hi-status-in-transit-text: var(--color-amber-800);
+  /* HI Status: Scheduled (amber) */
+  --color-hi-status-scheduled-bg: var(--color-amber-100);
+  --color-hi-status-scheduled-text: var(--color-amber-800);
 
-  /* HI Status: Delivered (green) */
-  --color-hi-status-delivered-bg: var(--color-green-100);
-  --color-hi-status-delivered-text: var(--color-green-900);
+  /* HI Status: Arrived (green) */
+  --color-hi-status-arrived-bg: var(--color-green-100);
+  --color-hi-status-arrived-text: var(--color-green-900);
 
   /* ============================================================
    * LAYER 2 — SHADOWS
@@ -373,9 +373,9 @@
   --color-gantt-hi-fill: var(--color-amber-100);
   --color-gantt-hi-stroke: var(--color-amber-800);
 
-  /* Circle marker — delivered (green) */
-  --color-gantt-hi-delivered-fill: var(--color-green-100);
-  --color-gantt-hi-delivered-stroke: var(--color-green-600);
+  /* Circle marker — arrived (green) */
+  --color-gantt-hi-arrived-fill: var(--color-green-100);
+  --color-gantt-hi-arrived-stroke: var(--color-green-600);
 
   /* Hover glow effect */
   --color-gantt-hi-hover-glow: rgba(245, 158, 11, 0.25);
@@ -563,14 +563,14 @@
   --color-user-inactive-text: var(--color-red-300);
 
   /* --- Household item status badges --- */
-  --color-hi-status-not-ordered-bg: var(--color-slate-500);
-  --color-hi-status-not-ordered-text: var(--color-slate-100);
-  --color-hi-status-ordered-bg: rgba(59, 130, 246, 0.2);
-  --color-hi-status-ordered-text: var(--color-blue-300);
-  --color-hi-status-in-transit-bg: rgba(245, 158, 11, 0.2);
-  --color-hi-status-in-transit-text: var(--color-amber-300);
-  --color-hi-status-delivered-bg: rgba(16, 185, 129, 0.15);
-  --color-hi-status-delivered-text: var(--color-emerald-200);
+  --color-hi-status-planned-bg: var(--color-slate-500);
+  --color-hi-status-planned-text: var(--color-slate-100);
+  --color-hi-status-purchased-bg: rgba(59, 130, 246, 0.2);
+  --color-hi-status-purchased-text: var(--color-blue-300);
+  --color-hi-status-scheduled-bg: rgba(245, 158, 11, 0.2);
+  --color-hi-status-scheduled-text: var(--color-amber-300);
+  --color-hi-status-arrived-bg: rgba(16, 185, 129, 0.15);
+  --color-hi-status-arrived-text: var(--color-emerald-200);
 
   /* --- Shadows (deeper/darker in dark mode) --- */
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
@@ -619,8 +619,8 @@
   /* Household item circle markers */
   --color-gantt-hi-fill: rgba(245, 158, 11, 0.2);
   --color-gantt-hi-stroke: var(--color-amber-300);
-  --color-gantt-hi-delivered-fill: rgba(16, 185, 129, 0.15);
-  --color-gantt-hi-delivered-stroke: var(--color-emerald-400);
+  --color-gantt-hi-arrived-fill: rgba(16, 185, 129, 0.15);
+  --color-gantt-hi-arrived-stroke: var(--color-emerald-400);
   --color-gantt-hi-hover-glow: rgba(245, 158, 11, 0.3);
 
   /* --- Milestones --- */

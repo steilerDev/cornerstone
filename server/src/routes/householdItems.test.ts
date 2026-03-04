@@ -114,7 +114,7 @@ describe('Household Item Routes', () => {
       expect(item.name).toBe('Living Room Sofa');
       expect(item.description).toBeNull();
       expect(item.category).toBe('other');
-      expect(item.status).toBe('not_ordered');
+      expect(item.status).toBe('planned');
       expect(item.quantity).toBe(1);
       expect(item.vendor).toBeNull();
       expect(item.room).toBeNull();
@@ -147,7 +147,7 @@ describe('Household Item Routes', () => {
         name: 'King Bed Frame',
         description: 'Solid oak king bed frame',
         category: 'furniture',
-        status: 'ordered',
+        status: 'purchased',
         url: 'https://ikea.com/bed',
         room: 'Bedroom',
         quantity: 1,
@@ -172,7 +172,7 @@ describe('Household Item Routes', () => {
       expect(item.name).toBe('King Bed Frame');
       expect(item.description).toBe('Solid oak king bed frame');
       expect(item.category).toBe('furniture');
-      expect(item.status).toBe('ordered');
+      expect(item.status).toBe('purchased');
       expect(item.url).toBe('https://ikea.com/bed');
       expect(item.room).toBe('Bedroom');
       expect(item.quantity).toBe(1);
@@ -562,17 +562,17 @@ describe('Household Item Routes', () => {
       );
       householdItemService.createHouseholdItem(app.db, userId, {
         name: 'Item A',
-        status: 'not_ordered',
+        status: 'planned',
       });
       householdItemService.createHouseholdItem(app.db, userId, {
         name: 'Item B',
-        status: 'delivered',
+        status: 'arrived',
       });
 
-      // When: Filtering by delivered
+      // When: Filtering by arrived
       const response = await app.inject({
         method: 'GET',
-        url: '/api/household-items?status=delivered',
+        url: '/api/household-items?status=arrived',
         headers: { cookie },
       });
 
@@ -813,7 +813,7 @@ describe('Household Item Routes', () => {
       );
       const created = householdItemService.createHouseholdItem(app.db, userId, {
         name: 'Original Name',
-        status: 'not_ordered',
+        status: 'planned',
       });
 
       // When: Updating status
@@ -821,14 +821,14 @@ describe('Household Item Routes', () => {
         method: 'PATCH',
         url: `/api/household-items/${created.id}`,
         headers: { cookie },
-        payload: { status: 'ordered' },
+        payload: { status: 'purchased' },
       });
 
       // Then: Returns 200 with updated item
       expect(response.statusCode).toBe(200);
       const item = (JSON.parse(response.body) as { householdItem: Record<string, unknown> })
         .householdItem;
-      expect(item.status).toBe('ordered');
+      expect(item.status).toBe('purchased');
       expect(item.name).toBe('Original Name');
     });
 
@@ -896,7 +896,7 @@ describe('Household Item Routes', () => {
         method: 'PATCH',
         url: '/api/household-items/non-existent-id',
         headers: { cookie },
-        payload: { status: 'ordered' },
+        payload: { status: 'purchased' },
       });
 
       // Then: Returns 404 NOT_FOUND
@@ -982,7 +982,7 @@ describe('Household Item Routes', () => {
       const response = await app.inject({
         method: 'PATCH',
         url: '/api/household-items/some-id',
-        payload: { status: 'ordered' },
+        payload: { status: 'purchased' },
       });
 
       // Then: Returns 401 UNAUTHORIZED

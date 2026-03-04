@@ -58,14 +58,14 @@ export function CalendarHouseholdItem({
     }
   }
 
-  const isDelivered = item.status === 'delivered';
+  const isArrived = item.status === 'arrived';
   const statusLabel = item.status.replace(/_/g, ' ');
 
   return (
     <div
       role="button"
       tabIndex={0}
-      className={`${styles.hiItem} ${isDelivered ? styles.delivered : styles.default}`}
+      className={`${styles.hiItem} ${isArrived ? styles.arrived : styles.default}`}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       onMouseEnter={(e: ReactMouseEvent<HTMLDivElement>) =>

@@ -115,7 +115,7 @@ function insertHouseholdItem(
       id,
       name: 'Test Household Item',
       category: 'furniture',
-      status: 'not_ordered',
+      status: 'planned',
       quantity: 1,
       createdAt: now,
       updatedAt: now,
@@ -395,7 +395,7 @@ describe('householdItemDepService', () => {
 
     it('calls autoReschedule after creating dep — delivery dates updated in DB', () => {
       const userId = insertUser(db);
-      const hiId = insertHouseholdItem(db, { status: 'not_ordered' });
+      const hiId = insertHouseholdItem(db, { status: 'planned' });
       const wiId = insertWorkItem(db, userId, { endDate: '2026-05-15' });
 
       // Before creating dep, earliest_delivery_date should be null
@@ -530,7 +530,7 @@ describe('householdItemDepService', () => {
       const hiId = insertHouseholdItem(db, {
         name: 'Custom Sofa',
         category: 'furniture',
-        status: 'ordered',
+        status: 'purchased',
         expectedDeliveryDate: '2026-06-01',
         earliestDeliveryDate: '2026-05-20',
         latestDeliveryDate: '2026-05-20',
@@ -551,7 +551,7 @@ describe('householdItemDepService', () => {
       expect(hi.id).toBe(hiId);
       expect(hi.name).toBe('Custom Sofa');
       expect(hi.category).toBe('furniture');
-      expect(hi.status).toBe('ordered');
+      expect(hi.status).toBe('purchased');
       expect(hi.expectedDeliveryDate).toBe('2026-06-01');
       expect(hi.earliestDeliveryDate).toBe('2026-05-20');
       expect(hi.latestDeliveryDate).toBe('2026-05-20');

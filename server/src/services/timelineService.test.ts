@@ -855,7 +855,7 @@ describe('getTimeline service', () => {
           id,
           name: 'Test Household Item',
           category: 'furniture',
-          status: 'not_ordered',
+          status: 'planned',
           createdAt: now,
           updatedAt: now,
           ...overrides,
@@ -925,7 +925,7 @@ describe('getTimeline service', () => {
       const hiId = insertHouseholdItem({
         name: 'Dining Table',
         category: 'furniture',
-        status: 'ordered',
+        status: 'purchased',
         expectedDeliveryDate: '2026-05-20',
         earliestDeliveryDate: '2026-05-10',
         latestDeliveryDate: '2026-06-01',
@@ -942,7 +942,7 @@ describe('getTimeline service', () => {
       expect(hi.id).toBe(hiId);
       expect(hi.name).toBe('Dining Table');
       expect(hi.category).toBe('furniture');
-      expect(hi.status).toBe('ordered');
+      expect(hi.status).toBe('purchased');
       expect(hi.expectedDeliveryDate).toBe('2026-05-20');
       expect(hi.earliestDeliveryDate).toBe('2026-05-10');
       expect(hi.latestDeliveryDate).toBe('2026-06-01');
@@ -1023,11 +1023,11 @@ describe('getTimeline service', () => {
 
     // ── isLate flag in timeline ──────────────────────────────────────────────
 
-    it('isLate is false for a delivered household item', () => {
+    it('isLate is false for an arrived household item', () => {
       const today = new Date().toISOString().slice(0, 10);
       const hiId = insertHouseholdItem({
         name: 'Delivered Table',
-        status: 'delivered',
+        status: 'arrived',
         earliestDeliveryDate: today,
         latestDeliveryDate: today,
         actualDeliveryDate: '2026-02-01',
@@ -1039,11 +1039,11 @@ describe('getTimeline service', () => {
       expect(hi!.isLate).toBe(false);
     });
 
-    it('isLate is true for not_ordered item when earliestDeliveryDate equals today', () => {
+    it('isLate is true for planned item when earliestDeliveryDate equals today', () => {
       const today = new Date().toISOString().slice(0, 10);
       const hiId = insertHouseholdItem({
         name: 'Late Item',
-        status: 'not_ordered',
+        status: 'planned',
         earliestDeliveryDate: today,
         latestDeliveryDate: null,
       });
@@ -1058,7 +1058,7 @@ describe('getTimeline service', () => {
       const today = new Date().toISOString().slice(0, 10);
       const hiId = insertHouseholdItem({
         name: 'Ordered Late',
-        status: 'ordered',
+        status: 'purchased',
         earliestDeliveryDate: today,
         latestDeliveryDate: null,
       });
@@ -1069,11 +1069,11 @@ describe('getTimeline service', () => {
       expect(hi!.isLate).toBe(true);
     });
 
-    it('isLate is true for in_transit item when latestDeliveryDate equals today', () => {
+    it('isLate is true for scheduled item when latestDeliveryDate equals today', () => {
       const today = new Date().toISOString().slice(0, 10);
       const hiId = insertHouseholdItem({
         name: 'In Transit Late',
-        status: 'in_transit',
+        status: 'scheduled',
         earliestDeliveryDate: '2026-01-01',
         latestDeliveryDate: today,
       });
@@ -1084,11 +1084,11 @@ describe('getTimeline service', () => {
       expect(hi!.isLate).toBe(true);
     });
 
-    it('isLate is false for not_ordered item when earliestDeliveryDate is in the future', () => {
+    it('isLate is false for planned item when earliestDeliveryDate is in the future', () => {
       const futureDateStr = '2099-12-31';
       const hiId = insertHouseholdItem({
         name: 'Future Item',
-        status: 'not_ordered',
+        status: 'planned',
         earliestDeliveryDate: futureDateStr,
         latestDeliveryDate: null,
       });

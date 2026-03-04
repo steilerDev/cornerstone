@@ -534,10 +534,10 @@ export const householdItems = sqliteTable(
       .notNull()
       .default('other'),
     status: text('status', {
-      enum: ['not_ordered', 'ordered', 'in_transit', 'delivered'],
+      enum: ['planned', 'purchased', 'scheduled', 'arrived'],
     })
       .notNull()
-      .default('not_ordered'),
+      .default('planned'),
     vendorId: text('vendor_id').references(() => vendors.id, { onDelete: 'set null' }),
     url: text('url'),
     room: text('room'),

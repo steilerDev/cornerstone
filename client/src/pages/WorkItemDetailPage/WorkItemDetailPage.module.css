@@ -1511,25 +1511,25 @@
   border: 1px solid var(--color-border);
 }
 
-.householdItemStatusBadge[data-status='delivered'] {
+.householdItemStatusBadge[data-status='arrived'] {
   background: var(--color-success-bg);
   color: var(--color-success);
   border-color: var(--color-success);
 }
 
-.householdItemStatusBadge[data-status='ordered'] {
-  background: var(--color-hi-status-ordered-bg);
-  color: var(--color-hi-status-ordered-text);
-  border-color: var(--color-hi-status-ordered-text);
+.householdItemStatusBadge[data-status='purchased'] {
+  background: var(--color-hi-status-purchased-bg);
+  color: var(--color-hi-status-purchased-text);
+  border-color: var(--color-hi-status-purchased-text);
 }
 
-.householdItemStatusBadge[data-status='in_transit'] {
-  background: var(--color-hi-status-in-transit-bg);
-  color: var(--color-hi-status-in-transit-text);
-  border-color: var(--color-hi-status-in-transit-text);
+.householdItemStatusBadge[data-status='scheduled'] {
+  background: var(--color-hi-status-scheduled-bg);
+  color: var(--color-hi-status-scheduled-text);
+  border-color: var(--color-hi-status-scheduled-text);
 }
 
-.householdItemStatusBadge[data-status='not_ordered'] {
+.householdItemStatusBadge[data-status='planned'] {
   background: var(--color-bg-tertiary);
   color: var(--color-text-secondary);
   border-color: var(--color-border);

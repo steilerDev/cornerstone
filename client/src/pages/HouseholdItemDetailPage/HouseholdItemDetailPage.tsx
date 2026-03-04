@@ -733,20 +733,20 @@ export function HouseholdItemDetailPage() {
           </div>
           <div className={styles.deliveryProgressContainer}>
             <ol className={styles.deliveryProgress} aria-label="Delivery progress">
-              {(['not_ordered', 'ordered', 'in_transit', 'delivered'] as const).map(
+              {(['planned', 'purchased', 'scheduled', 'arrived'] as const).map(
                 (stepStatus, index) => {
                   const stepLabels = {
-                    not_ordered: 'Not Ordered',
-                    ordered: 'Ordered',
-                    in_transit: 'In Transit',
-                    delivered: 'Delivered',
+                    planned: 'Planned',
+                    purchased: 'Purchased',
+                    scheduled: 'Scheduled',
+                    arrived: 'Arrived',
                   };
 
                   const statusOrder = {
-                    not_ordered: 0,
-                    ordered: 1,
-                    in_transit: 2,
-                    delivered: 3,
+                    planned: 0,
+                    purchased: 1,
+                    scheduled: 2,
+                    arrived: 3,
                   };
 
                   const currentStatusIndex = statusOrder[item.status];
@@ -817,7 +817,7 @@ export function HouseholdItemDetailPage() {
                 {item.earliestDeliveryDate ? formatDate(item.earliestDeliveryDate) : '—'}
               </span>
               {item.earliestDeliveryDate &&
-                item.status !== 'delivered' &&
+                item.status !== 'arrived' &&
                 item.earliestDeliveryDate === new Date().toISOString().slice(0, 10) && (
                   <span className={styles.lateChip}>Floored to today</span>
                 )}

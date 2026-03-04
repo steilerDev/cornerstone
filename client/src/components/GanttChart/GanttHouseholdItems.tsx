@@ -23,8 +23,8 @@ const HIT_RADIUS = 16;
 export interface HouseholdItemColors {
   fill: string;
   stroke: string;
-  deliveredFill: string;
-  deliveredStroke: string;
+  arrivedFill: string;
+  arrivedStroke: string;
   hoverGlow: string;
 }
 
@@ -73,9 +73,9 @@ export const GanttHouseholdItems = memo(function GanttHouseholdItems({
       data-testid="gantt-hi-layer"
     >
       {householdItems.map((hi) => {
-        const isDelivered = hi.status === 'delivered';
-        const fill = isDelivered ? colors.deliveredFill : colors.fill;
-        const stroke = isDelivered ? colors.deliveredStroke : colors.stroke;
+        const isDelivered = hi.status === 'arrived';
+        const fill = isDelivered ? colors.arrivedFill : colors.fill;
+        const stroke = isDelivered ? colors.arrivedStroke : colors.stroke;
         const ariaLabel = `Household item: ${hi.name}, ${hi.status}, delivery ${hi.earliestDeliveryDate ?? 'unknown'}`;
 
         const rowIndex = hiRowIndices.get(hi.id) ?? 0;
