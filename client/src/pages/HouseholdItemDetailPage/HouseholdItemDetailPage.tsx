@@ -860,16 +860,11 @@ export function HouseholdItemDetailPage() {
                       {dep.predecessorType === 'work_item' ? 'Work Item' : 'Milestone'}
                     </span>
                     {dep.predecessorType === 'work_item' ? (
-                      <Link
-                        to={`/work-items/${dep.predecessorId}`}
-                        className={styles.depPredLink}
-                      >
+                      <Link to={`/work-items/${dep.predecessorId}`} className={styles.depPredLink}>
                         {dep.predecessor.title}
                       </Link>
                     ) : (
-                      <span className={styles.depPredLabel}>
-                        {dep.predecessor.title}
-                      </span>
+                      <span className={styles.depPredLabel}>{dep.predecessor.title}</span>
                     )}
                     <button
                       type="button"

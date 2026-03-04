@@ -1461,9 +1461,7 @@ describe('HouseholdItemDetailPage', () => {
       expect(screen.getByText('Foundation Complete')).toBeInTheDocument();
 
       // But it should NOT be a clickable link
-      expect(
-        screen.queryByRole('link', { name: 'Foundation Complete' }),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'Foundation Complete' })).not.toBeInTheDocument();
     });
 
     it('work item dependency is rendered as a clickable link', async () => {
@@ -1529,9 +1527,7 @@ describe('HouseholdItemDetailPage', () => {
 
       // Milestone should be plain text (no link)
       expect(screen.getByText('Walls Complete')).toBeInTheDocument();
-      expect(
-        screen.queryByRole('link', { name: 'Walls Complete' }),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'Walls Complete' })).not.toBeInTheDocument();
 
       // Work item should be a link
       const workItemLink = screen.getByRole('link', { name: 'Paint Walls' });
