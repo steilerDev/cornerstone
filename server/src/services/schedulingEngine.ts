@@ -676,11 +676,27 @@ export function autoReschedule(db: DbType): number {
   const allDependencies =
     allWorkItems.length > 0 ? db.select().from(workItemDependencies).all() : [];
 
-  // ── 3. Milestone dependency expansion ───────────────────────────────────────
+  // ── 3. Load milestones for completed-date checking ────────────────────────────
+  //
+  // Load milestone data early so we can check completedAt in the milestone
+  // dependency expansion below.
+
+  const allMilestones = db.select().from(milestones).all();
+
+  // Map milestone IDs to milestones for quick lookup
+  const milestoneMap = new Map<number, typeof milestones.$inferSelect>();
+  for (const milestone of allMilestones) {
+    milestoneMap.set(milestone.id, milestone);
+  }
+
+  // ── 4. Milestone dependency expansion ───────────────────────────────────────
   //
   // For each row in work_item_milestone_deps (WI depends on milestone M),
   // find all work items contributing to M (via milestone_work_items).
-  // Generate synthetic finish-to-start deps from each contributor to the dependent WI.
+  // If the milestone is completed, create a virtual zero-duration work item
+  // with the completion date, then add a synthetic FS dep from the virtual WI.
+  // If not completed, generate synthetic finish-to-start deps from each
+  // contributor to the dependent WI.
 
   const allMilestoneDeps = db.select().from(workItemMilestoneDeps).all();
   const allMilestoneLinks = db.select().from(milestoneWorkItems).all();
@@ -695,34 +711,70 @@ export function autoReschedule(db: DbType): number {
 
   const syntheticDeps: SchedulingDependency[] = [];
 
+  // Virtual work item IDs for completed milestone placeholders
+  const milestoneVirtualWIs: SchedulingWorkItem[] = [];
+
   for (const milestoneDep of allMilestoneDeps) {
-    const contributingIds = milestoneContributorsMap.get(milestoneDep.milestoneId) ?? [];
-    for (const contributorId of contributingIds) {
-      // Avoid self-references (should not occur, but guard defensively)
-      if (contributorId !== milestoneDep.workItemId) {
-        syntheticDeps.push({
-          predecessorId: contributorId,
-          successorId: milestoneDep.workItemId,
-          dependencyType: 'finish_to_start',
-          leadLagDays: 0,
+    const milestone = milestoneMap.get(milestoneDep.milestoneId);
+
+    if (milestone?.completedAt) {
+      // Completed milestone: inject a virtual zero-duration work item
+      // with actualEndDate = completedAt (truncated to YYYY-MM-DD),
+      // then add a synthetic FS dep from the virtual WI to the dependent WI.
+      const virtualId = `__milestone_${milestoneDep.milestoneId}`;
+      // Only create the virtual WI once per milestone
+      if (!milestoneVirtualWIs.some((v) => v.id === virtualId)) {
+        const completedDate = milestone.completedAt.slice(0, 10);
+        milestoneVirtualWIs.push({
+          id: virtualId,
+          status: 'completed',
+          startDate: completedDate,
+          endDate: completedDate,
+          actualStartDate: completedDate,
+          actualEndDate: completedDate,
+          durationDays: 0,
+          startAfter: null,
+          startBefore: null,
         });
+      }
+      syntheticDeps.push({
+        predecessorId: virtualId,
+        successorId: milestoneDep.workItemId,
+        dependencyType: 'finish_to_start',
+        leadLagDays: 0,
+      });
+    } else {
+      // Not completed: use existing contributor-based synthetic deps
+      const contributingIds = milestoneContributorsMap.get(milestoneDep.milestoneId) ?? [];
+      for (const contributorId of contributingIds) {
+        if (contributorId !== milestoneDep.workItemId) {
+          syntheticDeps.push({
+            predecessorId: contributorId,
+            successorId: milestoneDep.workItemId,
+            dependencyType: 'finish_to_start',
+            leadLagDays: 0,
+          });
+        }
       }
     }
   }
 
-  // ── 4. Build combined dependency list for the engine ────────────────────────
+  // ── 5. Build combined dependency list for the engine ────────────────────────
 
-  const engineWorkItems: SchedulingWorkItem[] = allWorkItems.map((wi) => ({
-    id: wi.id,
-    status: wi.status,
-    startDate: wi.startDate,
-    endDate: wi.endDate,
-    actualStartDate: wi.actualStartDate,
-    actualEndDate: wi.actualEndDate,
-    durationDays: wi.durationDays,
-    startAfter: wi.startAfter,
-    startBefore: wi.startBefore,
-  }));
+  const engineWorkItems: SchedulingWorkItem[] = [
+    ...allWorkItems.map((wi) => ({
+      id: wi.id,
+      status: wi.status,
+      startDate: wi.startDate,
+      endDate: wi.endDate,
+      actualStartDate: wi.actualStartDate,
+      actualEndDate: wi.actualEndDate,
+      durationDays: wi.durationDays,
+      startAfter: wi.startAfter,
+      startBefore: wi.startBefore,
+    })),
+    ...milestoneVirtualWIs,
+  ];
 
   const realDeps: SchedulingDependency[] = allDependencies.map((dep) => ({
     predecessorId: dep.predecessorId,
@@ -735,7 +787,7 @@ export function autoReschedule(db: DbType): number {
 
   const today = new Date().toISOString().slice(0, 10);
 
-  // ── 5. Run the CPM scheduler ─────────────────────────────────────────────────
+  // ── 6. Run the CPM scheduler ─────────────────────────────────────────────────
 
   const result = schedule({
     mode: 'full',
@@ -750,7 +802,7 @@ export function autoReschedule(db: DbType): number {
     return 0;
   }
 
-  // ── 6. Apply changed dates back to the database ──────────────────────────────
+  // ── 7. Apply changed dates back to the database ──────────────────────────────
 
   // Build a map of current startDate/endDate by workItemId for comparison
   const currentDatesMap = new Map<string, { startDate: string | null; endDate: string | null }>();
@@ -784,20 +836,14 @@ export function autoReschedule(db: DbType): number {
     }
   }
 
-  // ── 7. Compute household item delivery dates ──────────────────────────────────
+  // ── 8. Compute household item delivery dates ──────────────────────────────────
   //
   // Build CPM nodes for household items using work item end dates.
   // HIs are zero-duration terminal nodes.
+  // Note: milestoneMap was already loaded in section 3; reuse it here.
 
   const allHouseholdItems = db.select().from(householdItems).all();
   const allHIDeps = db.select().from(householdItemDeps).all();
-  const allMilestones = db.select().from(milestones).all();
-
-  // Map milestone IDs to milestones for quick lookup
-  const milestoneMap = new Map<number, typeof milestones.$inferSelect>();
-  for (const milestone of allMilestones) {
-    milestoneMap.set(milestone.id, milestone);
-  }
 
   // Build the scheduled result map for quick lookup of work item end dates
   const scheduledMap = new Map<string, (typeof result.scheduledItems)[0]>();
@@ -805,7 +851,7 @@ export function autoReschedule(db: DbType): number {
     scheduledMap.set(scheduled.workItemId, scheduled);
   }
 
-  // ── 8. Compute delivery dates for household items ─────────────────────────────
+  // ── 9. Compute delivery dates for household items ─────────────────────────────
 
   const hiDeliveryDates = new Map<
     string,
@@ -889,7 +935,7 @@ export function autoReschedule(db: DbType): number {
     // Since HIs are zero-duration, EF = ES
     let ef = es;
 
-    // ── 9. Apply floor rules ──────────────────────────────────────────────────────
+    // ── 10. Apply floor rules ─────────────────────────────────────────────────────
 
     let isLate = false;
 
@@ -918,7 +964,7 @@ export function autoReschedule(db: DbType): number {
     hiDeliveryDates.set(hi.id, { earliest: es, latest: ef, isLate });
   }
 
-  // ── 10. Write HI delivery dates back to database ────────────────────────────────
+  // ── 11. Write HI delivery dates back to database ────────────────────────────────
 
   for (const [hiId, dates] of hiDeliveryDates) {
     const current = allHouseholdItems.find((hi) => hi.id === hiId);
