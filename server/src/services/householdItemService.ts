@@ -459,6 +459,12 @@ export function updateHouseholdItem(
   // Build update data
   const updateData: Partial<typeof householdItems.$inferInsert> = {};
 
+  // Derive actualDeliveryDate: auto-set to today if status → 'arrived' and date not already set
+  let resolvedActualDeliveryDate: string | null | undefined = undefined;
+  if (data.status === 'arrived' && !('actualDeliveryDate' in data) && !item.actualDeliveryDate) {
+    resolvedActualDeliveryDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  }
+
   if ('name' in data) {
     if (!data.name || data.name.trim().length === 0) {
       throw new ValidationError('Name cannot be empty');
@@ -508,6 +514,8 @@ export function updateHouseholdItem(
 
   if ('actualDeliveryDate' in data) {
     updateData.actualDeliveryDate = data.actualDeliveryDate ?? null;
+  } else if (resolvedActualDeliveryDate !== undefined) {
+    updateData.actualDeliveryDate = resolvedActualDeliveryDate;
   }
 
   // Always update updatedAt

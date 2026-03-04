@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
@@ -22,6 +22,7 @@ import type * as InvoicesApiTypes from '../../lib/invoicesApi.js';
 import type { HouseholdItemDepDetail } from '@cornerstone/shared';
 
 const mockGetHouseholdItem = jest.fn<typeof HouseholdItemsApiTypes.getHouseholdItem>();
+const mockUpdateHouseholdItem = jest.fn<typeof HouseholdItemsApiTypes.updateHouseholdItem>();
 const mockDeleteHouseholdItem = jest.fn<typeof HouseholdItemsApiTypes.deleteHouseholdItem>();
 const mockShowToast = jest.fn();
 const mockNavigate = jest.fn();
@@ -55,7 +56,7 @@ class MockApiClientError extends Error {
 jest.unstable_mockModule('../../lib/householdItemsApi.js', () => ({
   createHouseholdItem: jest.fn<typeof HouseholdItemsApiTypes.createHouseholdItem>(),
   getHouseholdItem: mockGetHouseholdItem,
-  updateHouseholdItem: jest.fn<typeof HouseholdItemsApiTypes.updateHouseholdItem>(),
+  updateHouseholdItem: mockUpdateHouseholdItem,
   listHouseholdItems: jest.fn<typeof HouseholdItemsApiTypes.listHouseholdItems>(),
   deleteHouseholdItem: mockDeleteHouseholdItem,
 }));
@@ -246,6 +247,7 @@ describe('HouseholdItemDetailPage', () => {
 
   beforeEach(async () => {
     mockGetHouseholdItem.mockReset();
+    mockUpdateHouseholdItem.mockReset();
     mockDeleteHouseholdItem.mockReset();
     mockShowToast.mockReset();
     mockNavigate.mockReset();
@@ -973,6 +975,125 @@ describe('HouseholdItemDetailPage', () => {
     });
   });
 
+  describe('inline status selector', () => {
+    it('renders the status select with correct current value', async () => {
+      const user = userEvent.setup();
+      mockGetHouseholdItem.mockResolvedValue(makeItem({ status: 'purchased' }));
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
+      });
+
+      const statusSelect = screen.getByRole('combobox', { name: /purchase status/i });
+      expect(statusSelect).toHaveValue('purchased');
+    });
+
+    it('status dropdown has all four options', async () => {
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
+      });
+
+      const statusSelect = screen.getByRole('combobox', { name: /purchase status/i });
+
+      // Check that all four options are present
+      const options = Array.from(statusSelect.querySelectorAll('option')).map((o) => o.value);
+      expect(options).toContain('planned');
+      expect(options).toContain('purchased');
+      expect(options).toContain('scheduled');
+      expect(options).toContain('arrived');
+    });
+
+    it('selecting a new status calls updateHouseholdItem', async () => {
+      const user = userEvent.setup();
+      mockGetHouseholdItem.mockResolvedValue(makeItem({ status: 'purchased' }));
+      mockUpdateHouseholdItem.mockResolvedValue(
+        makeItem({ status: 'arrived', actualDeliveryDate: '2026-03-04' }),
+      );
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
+      });
+
+      const statusSelect = screen.getByRole('combobox', { name: /purchase status/i });
+      await user.selectOptions(statusSelect, 'arrived');
+
+      await waitFor(() => {
+        expect(mockUpdateHouseholdItem).toHaveBeenCalledWith('item-1', { status: 'arrived' });
+      });
+    });
+
+    it('shows success toast on successful status change', async () => {
+      const user = userEvent.setup();
+      mockGetHouseholdItem.mockResolvedValue(makeItem({ status: 'purchased' }));
+      mockUpdateHouseholdItem.mockResolvedValue(
+        makeItem({ status: 'scheduled', actualDeliveryDate: null }),
+      );
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
+      });
+
+      const statusSelect = screen.getByRole('combobox', { name: /purchase status/i });
+      await user.selectOptions(statusSelect, 'scheduled');
+
+      await waitFor(() => {
+        expect(mockShowToast).toHaveBeenCalledWith('success', 'Status updated');
+      });
+    });
+
+    it('shows inline error on API failure', async () => {
+      const user = userEvent.setup();
+      mockGetHouseholdItem.mockResolvedValue(makeItem({ status: 'purchased' }));
+      mockUpdateHouseholdItem.mockRejectedValue(new Error('Network error'));
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
+      });
+
+      const statusSelect = screen.getByRole('combobox', { name: /purchase status/i });
+      await user.selectOptions(statusSelect, 'arrived');
+
+      await waitFor(() => {
+        expect(screen.getByText(/failed to update status/i)).toBeInTheDocument();
+      });
+    });
+
+    it('updates rendered item state from API response after status change', async () => {
+      const user = userEvent.setup();
+      mockGetHouseholdItem.mockResolvedValue(makeItem({ status: 'purchased' }));
+      mockUpdateHouseholdItem.mockResolvedValue(
+        makeItem({ status: 'arrived', actualDeliveryDate: '2026-03-04' }),
+      );
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
+      });
+
+      const statusSelect = screen.getByRole('combobox', { name: /purchase status/i });
+      await user.selectOptions(statusSelect, 'arrived');
+
+      await waitFor(() => {
+        expect(statusSelect).toHaveValue('arrived');
+        // Actual Delivery date should reflect auto-set value from API response
+        expect(screen.getByText('Mar 4, 2026')).toBeInTheDocument();
+      });
+    });
+  });
+
   describe('dependency predecessors display', () => {
     // Note: migration 0012 replaced the "linked work items" section with a
     // Dependencies section showing work_item and milestone predecessors.
@@ -1035,104 +1156,9 @@ describe('HouseholdItemDetailPage', () => {
     });
   });
 
-  describe('delivery progress indicator', () => {
-    it('renders delivery progress with accessible list semantics', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      const progressList = screen.getByRole('list', { name: /delivery progress/i });
-      expect(progressList).toBeInTheDocument();
-
-      const steps = within(progressList).getAllByRole('listitem');
-      expect(steps).toHaveLength(4);
-    });
-
-    it('shows correct progress for "ordered" status', async () => {
-      mockGetHouseholdItem.mockResolvedValue(
-        makeItem({ status: 'purchased' as HouseholdItemStatus }),
-      );
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      // All steps should be visible
-      expect(screen.getAllByText('Planned').length).toBeGreaterThan(0);
-      // Use getAllByText for Ordered since it appears in multiple places
-      expect(screen.getAllByText('Purchased').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('Scheduled').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('Arrived').length).toBeGreaterThan(0);
-    });
-
-    it('shows all steps completed for "delivered" status', async () => {
-      mockGetHouseholdItem.mockResolvedValue(
-        makeItem({
-          status: 'arrived' as HouseholdItemStatus,
-          actualDeliveryDate: '2026-03-10',
-        }),
-      );
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      // All steps should be shown: Planned, Purchased, Scheduled, Arrived
-      expect(screen.getAllByText('Planned').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('Purchased').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('Scheduled').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('Arrived').length).toBeGreaterThan(0);
-    });
-
-    it('shows all steps for "planned" status', async () => {
-      mockGetHouseholdItem.mockResolvedValue(
-        makeItem({
-          status: 'planned' as HouseholdItemStatus,
-          orderDate: null,
-          targetDeliveryDate: null,
-        }),
-      );
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      // All step labels should be visible
-      expect(screen.getAllByText('Planned').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('Purchased').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('Scheduled').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('Arrived').length).toBeGreaterThan(0);
-    });
-
-    it('shows all steps for "scheduled" status', async () => {
-      mockGetHouseholdItem.mockResolvedValue(
-        makeItem({
-          status: 'scheduled' as HouseholdItemStatus,
-        }),
-      );
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      expect(screen.getAllByText('Planned').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('Purchased').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('Scheduled').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('Arrived').length).toBeGreaterThan(0);
-    });
-  });
+  // Note: The decorative progress stepper (<ol>) was replaced by an interactive
+  // status <select> dropdown. Tests for the new selector are in the
+  // 'inline status selector' describe block above.
 
   describe('Documents section', () => {
     it('renders LinkedDocumentsSection with entityType="household_item"', async () => {
