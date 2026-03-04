@@ -77,6 +77,7 @@ See `review-history.md` for detailed findings per PR.
 | #401 | EPIC-04 Story 4.6 — Household Items Budget Integration                            | COMMENTED (2 informational)                                       | 2026-03-03 |
 | #414 | EPIC-04 Story 4.9 — Invoice Linking for Household Item Budget Lines               | COMMENTED (2 informational)                                       | 2026-03-03 |
 | #416 | EPIC-04 Story 4.10 — HI Timeline Dependencies & Delivery Date Scheduling          | COMMENTED (2 informational)                                       | 2026-03-03 |
+| #451 | Bug fix #449 — HI Timeline Navigation (frontend-only Gantt interaction)           | APPROVED (no findings)                                            | 2026-03-04 |
 
 ## Known Open Recommendations (Low Priority)
 
@@ -128,3 +129,4 @@ These have been noted in previous reviews. **GitHub Issue #315** tracks items 1-
 - **household_item_deps polymorphic FK pattern (PR #416)**: predecessor_id has NO FK constraint (intentional — references either work_items or milestones). Referential integrity enforced at service layer via ensureWorkItemExists/ensureMilestoneExists. DB-level CHECK constrains predecessor_type and dependency_type enums. Composite PK prevents duplicate deps. This is the accepted pattern for polymorphic refs in this codebase.
 - **HI dependency cycle detection (PR #416)**: DFS with MAX_ITERATIONS=10000 guard. HIs are correctly identified as terminal sinks — cycles are structurally impossible in current model. Logic complete for future extensibility.
 - **`predecessorType` enum-validated in DELETE params** (PR #416): Explicitly included in deleteHouseholdItemDepSchema — closes the enum bypass pattern noted in earlier reviews. Service layer casts to typed union after route validation.
+- **Household item timeline navigation (PR #451)**: Frontend-only click handlers for household item circles and sidebar rows in Gantt chart. Route path `/household-items/{id}` is hardcoded with dynamic ID from API-sourced TimelineResponse. Follows established two-tap touch pattern (hover → show tooltip → navigate). Navigation state `{ from: 'timeline' }` is hardcoded literal matching work item pattern.
