@@ -845,11 +845,32 @@ export function autoReschedule(db: DbType): number {
           }
         }
       } else if (dep.predecessorType === 'milestone') {
-        // Look up milestone target date
+        // Determine effective milestone finish date using priority:
+        // 1. completedAt (actual) → truncate to YYYY-MM-DD
+        // 2. Projected: max scheduledEndDate of contributing work items
+        // 3. Fallback: targetDate
         const milestoneId = parseInt(dep.predecessorId, 10);
         const milestone = milestoneMap.get(milestoneId);
         if (milestone) {
-          predEF = milestone.targetDate;
+          if (milestone.completedAt) {
+            // Priority 1: milestone has been completed — use actual date
+            predEF = milestone.completedAt.slice(0, 10);
+          } else {
+            // Priority 2: compute projected date from contributing work items
+            const contributorIds = milestoneContributorsMap.get(milestoneId) ?? [];
+            let projectedDate: string | null = null;
+            for (const contributorId of contributorIds) {
+              const scheduled = scheduledMap.get(contributorId);
+              if (scheduled?.scheduledEndDate) {
+                projectedDate =
+                  projectedDate === null
+                    ? scheduled.scheduledEndDate
+                    : maxDate(projectedDate, scheduled.scheduledEndDate);
+              }
+            }
+            // Priority 3: fall back to targetDate if no projected date available
+            predEF = projectedDate ?? milestone.targetDate;
+          }
         }
       }
 
