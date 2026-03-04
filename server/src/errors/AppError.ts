@@ -117,3 +117,13 @@ export class CircularDependencyError extends AppError {
     this.name = 'CircularDependencyError';
   }
 }
+
+export class MutuallyExclusiveBudgetLinkError extends AppError {
+  constructor(
+    message = 'An invoice can only be linked to one budget line (work item or household item, not both)',
+    details?: Record<string, unknown>,
+  ) {
+    super('MUTUALLY_EXCLUSIVE_BUDGET_LINK', 400, message, details);
+    this.name = 'MutuallyExclusiveBudgetLinkError';
+  }
+}

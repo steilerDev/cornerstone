@@ -1,13 +1,18 @@
 import { forwardRef, useRef, useCallback } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
-import type { TimelineWorkItem, TimelineMilestone } from '@cornerstone/shared';
+import type {
+  TimelineWorkItem,
+  TimelineMilestone,
+  TimelineHouseholdItem,
+} from '@cornerstone/shared';
 import { ROW_HEIGHT, HEADER_HEIGHT } from './ganttUtils.js';
 import styles from './GanttSidebar.module.css';
 
 /** Discriminated union for interleaved sidebar rows. */
 export type UnifiedRow =
   | { kind: 'workItem'; item: TimelineWorkItem }
-  | { kind: 'milestone'; milestone: TimelineMilestone };
+  | { kind: 'milestone'; milestone: TimelineMilestone }
+  | { kind: 'householdItem'; item: TimelineHouseholdItem };
 
 export interface GanttSidebarProps {
   items: TimelineWorkItem[];
@@ -119,7 +124,7 @@ export const GanttSidebar = forwardRef<HTMLDivElement, GanttSidebarProps>(functi
                     </span>
                   </div>
                 );
-              } else {
+              } else if (row.kind === 'milestone') {
                 const milestone = row.milestone;
                 return (
                   <div
@@ -143,6 +148,34 @@ export const GanttSidebar = forwardRef<HTMLDivElement, GanttSidebarProps>(functi
                     </svg>
                     <span className={styles.sidebarMilestoneLabel} title={milestone.title}>
                       {milestone.title}
+                    </span>
+                  </div>
+                );
+              } else {
+                // householdItem
+                const hi = row.item;
+                return (
+                  <div
+                    key={`hi-${hi.id}`}
+                    className={`${styles.sidebarRow} ${styles.sidebarHouseholdItemRow} ${isEven ? styles.sidebarRowEven : styles.sidebarRowOdd}`}
+                    style={{ height: ROW_HEIGHT }}
+                    role="listitem"
+                    aria-label={`Household item: ${hi.name}`}
+                    data-testid={`gantt-sidebar-hi-${hi.id}`}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 10 10"
+                      width="8"
+                      height="8"
+                      aria-hidden="true"
+                      className={styles.householdItemCircleIcon}
+                      style={{ flexShrink: 0 }}
+                    >
+                      <circle cx="5" cy="5" r="4" fill="currentColor" />
+                    </svg>
+                    <span className={styles.sidebarHouseholdItemLabel} title={hi.name}>
+                      {hi.name}
                     </span>
                   </div>
                 );

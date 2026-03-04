@@ -49,7 +49,7 @@ const makePagination = (page = 1, totalPages = 1, totalItems = 2) => ({
 });
 
 const makeHook = (overrides: Partial<UsePaperlessResult> = {}): UsePaperlessResult => ({
-  status: { configured: true, reachable: true, error: null, paperlessUrl: null },
+  status: { configured: true, reachable: true, error: null, paperlessUrl: null, filterTag: null },
   documents: [makeDoc(1), makeDoc(2)],
   tags: [],
   pagination: makePagination(),
@@ -81,7 +81,13 @@ describe('DocumentBrowser', () => {
     it('renders not configured state when configured=false', () => {
       mockUsePaperless.mockReturnValue(
         makeHook({
-          status: { configured: false, reachable: false, error: null, paperlessUrl: null },
+          status: {
+            configured: false,
+            reachable: false,
+            error: null,
+            paperlessUrl: null,
+            filterTag: null,
+          },
         }),
       );
       render(<DocumentBrowser />);
@@ -93,7 +99,13 @@ describe('DocumentBrowser', () => {
     it('renders unreachable state when configured=true but reachable=false', () => {
       mockUsePaperless.mockReturnValue(
         makeHook({
-          status: { configured: true, reachable: false, error: null, paperlessUrl: null },
+          status: {
+            configured: true,
+            reachable: false,
+            error: null,
+            paperlessUrl: null,
+            filterTag: null,
+          },
         }),
       );
       render(<DocumentBrowser />);
@@ -105,7 +117,13 @@ describe('DocumentBrowser', () => {
       const refresh = jest.fn();
       mockUsePaperless.mockReturnValue(
         makeHook({
-          status: { configured: true, reachable: false, error: null, paperlessUrl: null },
+          status: {
+            configured: true,
+            reachable: false,
+            error: null,
+            paperlessUrl: null,
+            filterTag: null,
+          },
           refresh,
         }),
       );
@@ -346,6 +364,7 @@ describe('DocumentBrowser', () => {
             reachable: true,
             error: null,
             paperlessUrl: 'https://paperless.example.com',
+            filterTag: null,
           },
         }),
       );
@@ -366,12 +385,65 @@ describe('DocumentBrowser', () => {
             reachable: true,
             error: null,
             paperlessUrl: null,
+            filterTag: null,
           },
         }),
       );
       render(<DocumentBrowser mode="page" />);
       fireEvent.click(screen.getByRole('button', { name: /Document: Document 1/i }));
       expect(screen.queryByRole('link', { name: /View in Paperless/i })).not.toBeInTheDocument();
+    });
+  });
+
+  describe('filter tag banner', () => {
+    it('does not render filter banner when filterTag is null', () => {
+      mockUsePaperless.mockReturnValue(
+        makeHook({
+          status: {
+            configured: true,
+            reachable: true,
+            error: null,
+            paperlessUrl: null,
+            filterTag: null,
+          },
+        }),
+      );
+      render(<DocumentBrowser />);
+      expect(screen.queryByRole('note')).not.toBeInTheDocument();
+    });
+
+    it('renders filter banner with role="note" when filterTag is set', () => {
+      mockUsePaperless.mockReturnValue(
+        makeHook({
+          status: {
+            configured: true,
+            reachable: true,
+            error: null,
+            paperlessUrl: null,
+            filterTag: 'invoice',
+          },
+        }),
+      );
+      render(<DocumentBrowser />);
+      expect(screen.getByRole('note')).toBeInTheDocument();
+      expect(screen.getByText(/invoice/i)).toBeInTheDocument();
+    });
+
+    it('renders filter banner with different tag name', () => {
+      mockUsePaperless.mockReturnValue(
+        makeHook({
+          status: {
+            configured: true,
+            reachable: true,
+            error: null,
+            paperlessUrl: null,
+            filterTag: 'contract',
+          },
+        }),
+      );
+      render(<DocumentBrowser />);
+      expect(screen.getByRole('note')).toBeInTheDocument();
+      expect(screen.getByText(/contract/i)).toBeInTheDocument();
     });
   });
 

@@ -111,6 +111,16 @@ export function DocumentBrowser({ mode = 'page', onSelect }: DocumentBrowserProp
         />
       </div>
 
+      {/* Server-side filter tag indicator */}
+      {hook.status.filterTag && (
+        <div className={styles.filterBanner} role="note" aria-label="Active document filter">
+          <span className={styles.filterBannerText}>
+            Showing only documents tagged{' '}
+            <span className={styles.filterBannerTag}>{hook.status.filterTag}</span>
+          </span>
+        </div>
+      )}
+
       {/* Tag filter strip */}
       {hook.tags.length > 0 && (
         <div className={styles.tagStrip} role="group" aria-label="Filter by tag">

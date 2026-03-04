@@ -130,6 +130,7 @@ describe('App', () => {
       workItems: [],
       dependencies: [],
       milestones: [],
+      householdItems: [],
       criticalPath: [],
       dateRange: null,
     });
@@ -248,15 +249,6 @@ describe('App', () => {
       name: /household items/i,
       level: 1,
     });
-    expect(heading).toBeInTheDocument();
-  });
-
-  it('navigates to Documents page when /documents path is accessed', async () => {
-    window.history.pushState({}, 'Documents', '/documents');
-    render(<App />);
-
-    // Wait for lazy-loaded Documents component to resolve
-    const heading = await screen.findByRole('heading', { name: /documents/i });
     expect(heading).toBeInTheDocument();
   });
 

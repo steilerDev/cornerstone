@@ -102,6 +102,8 @@ describe('HouseholdItemCreatePage', () => {
     orderDate: null,
     expectedDeliveryDate: null,
     actualDeliveryDate: null,
+    earliestDeliveryDate: null,
+    latestDeliveryDate: null,
     tagIds: [],
     budgetLineCount: 0,
     totalPlannedAmount: 0,
@@ -110,7 +112,7 @@ describe('HouseholdItemCreatePage', () => {
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-01T00:00:00Z',
     tags: [],
-    workItems: [],
+    dependencies: [],
     subsidies: [],
   };
 
@@ -127,7 +129,7 @@ describe('HouseholdItemCreatePage', () => {
     mockFetchTags.mockResolvedValue({ tags: mockTags });
     mockFetchVendors.mockResolvedValue({
       vendors: mockVendors,
-      pagination: { page: 1, pageSize: 200, totalItems: 2, totalPages: 1 },
+      pagination: { page: 1, pageSize: 100, totalItems: 2, totalPages: 1 },
     });
   });
 

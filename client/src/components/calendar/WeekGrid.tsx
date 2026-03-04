@@ -11,13 +11,19 @@
  */
 
 import { useMemo } from 'react';
-import type { TimelineWorkItem, TimelineMilestone } from '@cornerstone/shared';
+import type {
+  TimelineWorkItem,
+  TimelineMilestone,
+  TimelineHouseholdItem,
+} from '@cornerstone/shared';
 import { CalendarItem, LANE_HEIGHT_FULL } from './CalendarItem.js';
 import { CalendarMilestone } from './CalendarMilestone.js';
+import { CalendarHouseholdItem } from './CalendarHouseholdItem.js';
 import {
   getWeekDates,
   getItemsForDay,
   getMilestonesForDay,
+  getHouseholdItemsForDay,
   isItemStart,
   isItemEnd,
   allocateLanes,
@@ -38,6 +44,7 @@ export interface WeekGridProps {
   weekDate: Date;
   workItems: TimelineWorkItem[];
   milestones: TimelineMilestone[];
+  householdItems?: TimelineHouseholdItem[];
   onMilestoneClick?: (milestoneId: number) => void;
   /** The item ID currently being hovered (for cross-cell highlight). */
   hoveredItemId?: string | null;
@@ -63,6 +70,7 @@ export function WeekGrid({
   weekDate,
   workItems,
   milestones,
+  householdItems = [],
   onMilestoneClick,
   hoveredItemId = null,
   onItemMouseEnter,
@@ -194,10 +202,39 @@ export function WeekGrid({
                 </div>
               ))}
 
+              {/* Household items — stacked after milestones */}
+              {getHouseholdItemsForDay(day.dateStr, householdItems).map((hi, hiIdx) => (
+                <div
+                  key={`hi-${hi.id}`}
+                  style={{
+                    position: 'absolute',
+                    top:
+                      milestoneTopOffset +
+                      dayMilestones.length * LANE_HEIGHT_FULL +
+                      hiIdx * LANE_HEIGHT_FULL,
+                    left: 0,
+                    right: 0,
+                    padding: '0 var(--spacing-2)',
+                  }}
+                >
+                  <CalendarHouseholdItem
+                    item={hi}
+                    onMouseEnter={onItemMouseEnter}
+                    onMouseLeave={onItemMouseLeave}
+                    onMouseMove={onItemMouseMove}
+                    isTouchDevice={isTouchDevice}
+                    activeTouchId={activeTouchId}
+                    onTouchTap={onTouchTap}
+                  />
+                </div>
+              ))}
+
               {/* Empty day placeholder */}
-              {dayItems.length === 0 && dayMilestones.length === 0 && (
-                <div className={styles.emptyDay} aria-hidden="true" />
-              )}
+              {dayItems.length === 0 &&
+                dayMilestones.length === 0 &&
+                getHouseholdItemsForDay(day.dateStr, householdItems).length === 0 && (
+                  <div className={styles.emptyDay} aria-hidden="true" />
+                )}
             </div>
           );
         })}

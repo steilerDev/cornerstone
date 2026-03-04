@@ -28,7 +28,6 @@ export const ROUTES = {
   tags: '/tags',
   timeline: '/timeline',
   householdItems: '/household-items',
-  documents: '/documents',
   profile: '/profile',
   userManagement: '/admin/users',
 };

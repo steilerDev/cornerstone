@@ -271,6 +271,8 @@ describe('householdItemsApi', () => {
             orderDate: '2026-01-01',
             expectedDeliveryDate: '2026-01-10',
             actualDeliveryDate: '2026-01-09',
+            earliestDeliveryDate: '2026-01-10',
+            latestDeliveryDate: '2026-01-15',
             url: null,
             tagIds: [],
             budgetLineCount: 0,
@@ -321,6 +323,8 @@ describe('householdItemsApi', () => {
         orderDate: null,
         expectedDeliveryDate: null,
         actualDeliveryDate: null,
+        earliestDeliveryDate: null,
+        latestDeliveryDate: null,
         url: null,
         tagIds: [],
         budgetLineCount: 0,
@@ -330,7 +334,7 @@ describe('householdItemsApi', () => {
         createdAt: '2026-01-01T00:00:00.000Z',
         updatedAt: '2026-01-01T00:00:00.000Z',
         tags: [],
-        workItems: [],
+        dependencies: [],
         subsidies: [],
       };
 
@@ -357,6 +361,8 @@ describe('householdItemsApi', () => {
         orderDate: '2026-01-01',
         expectedDeliveryDate: '2026-01-10',
         actualDeliveryDate: '2026-01-09',
+        earliestDeliveryDate: '2026-01-08',
+        latestDeliveryDate: '2026-01-15',
         url: 'https://example.com/dining-table',
         tagIds: ['tag-1'],
         budgetLineCount: 1,
@@ -366,7 +372,7 @@ describe('householdItemsApi', () => {
         createdAt: '2026-01-01T00:00:00.000Z',
         updatedAt: '2026-01-09T00:00:00.000Z',
         tags: [{ id: 'tag-1', name: 'Essential', color: '#FF0000' }],
-        workItems: [],
+        dependencies: [],
         subsidies: [],
       };
 
@@ -407,6 +413,8 @@ describe('householdItemsApi', () => {
         orderDate: null,
         expectedDeliveryDate: null,
         actualDeliveryDate: null,
+        earliestDeliveryDate: null,
+        latestDeliveryDate: null,
         url: null,
         tagIds: [],
         budgetLineCount: 0,
@@ -416,7 +424,7 @@ describe('householdItemsApi', () => {
         createdAt: '2026-01-01T00:00:00.000Z',
         updatedAt: '2026-01-01T00:00:00.000Z',
         tags: [],
-        workItems: [],
+        dependencies: [],
         subsidies: [],
       };
 
@@ -451,6 +459,8 @@ describe('householdItemsApi', () => {
         orderDate: null,
         expectedDeliveryDate: null,
         actualDeliveryDate: null,
+        earliestDeliveryDate: null,
+        latestDeliveryDate: null,
         url: 'https://example.com/bed',
         tagIds: [],
         budgetLineCount: 0,
@@ -460,7 +470,7 @@ describe('householdItemsApi', () => {
         createdAt: '2026-01-01T00:00:00.000Z',
         updatedAt: '2026-01-01T00:00:00.000Z',
         tags: [],
-        workItems: [],
+        dependencies: [],
         subsidies: [],
       };
 
@@ -504,6 +514,8 @@ describe('householdItemsApi', () => {
         orderDate: null,
         expectedDeliveryDate: null,
         actualDeliveryDate: null,
+        earliestDeliveryDate: null,
+        latestDeliveryDate: null,
         url: null,
         tagIds: [],
         budgetLineCount: 0,
@@ -513,7 +525,7 @@ describe('householdItemsApi', () => {
         createdAt: '2026-01-01T00:00:00.000Z',
         updatedAt: '2026-01-02T00:00:00.000Z',
         tags: [],
-        workItems: [],
+        dependencies: [],
         subsidies: [],
       };
 
@@ -547,6 +559,8 @@ describe('householdItemsApi', () => {
         orderDate: '2026-01-01',
         expectedDeliveryDate: '2026-01-15',
         actualDeliveryDate: '2026-01-15',
+        earliestDeliveryDate: '2026-01-14',
+        latestDeliveryDate: '2026-01-20',
         url: null,
         tagIds: [],
         budgetLineCount: 0,
@@ -556,7 +570,7 @@ describe('householdItemsApi', () => {
         createdAt: '2026-01-01T00:00:00.000Z',
         updatedAt: '2026-01-15T10:00:00.000Z',
         tags: [],
-        workItems: [],
+        dependencies: [],
         subsidies: [],
       };
 

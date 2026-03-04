@@ -7,6 +7,11 @@
 import type { WorkItemStatus, UserSummary } from './workItem.js';
 import type { DependencyType } from './dependency.js';
 import type { TagResponse } from './tag.js';
+import type {
+  HouseholdItemCategory,
+  HouseholdItemStatus,
+  HouseholdItemDepRef,
+} from './householdItem.js';
 
 /**
  * A work item entry in the timeline response.
@@ -64,6 +69,25 @@ export interface TimelineMilestone {
 }
 
 /**
+ * A household item entry in the timeline response.
+ * Household items are zero-duration CPM nodes scheduled as a result of work item/milestone dependencies.
+ */
+export interface TimelineHouseholdItem {
+  id: string;
+  name: string;
+  category: HouseholdItemCategory;
+  status: HouseholdItemStatus;
+  expectedDeliveryDate: string | null;
+  earliestDeliveryDate: string | null;
+  latestDeliveryDate: string | null;
+  actualDeliveryDate: string | null;
+  /** True when the scheduler floored earliestDeliveryDate to today. */
+  isLate: boolean;
+  /** References to work item/milestone predecessors. */
+  dependencyIds: HouseholdItemDepRef[];
+}
+
+/**
  * The date range spanned by all returned work items.
  * Null when no work items have dates set.
  */
@@ -81,6 +105,7 @@ export interface TimelineResponse {
   workItems: TimelineWorkItem[];
   dependencies: TimelineDependency[];
   milestones: TimelineMilestone[];
+  householdItems: TimelineHouseholdItem[];
   /** Work item IDs on the critical path (computed over the full dataset). */
   criticalPath: string[];
   /** Date range computed from the returned work items. Null when no work items have dates. */

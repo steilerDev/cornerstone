@@ -64,12 +64,12 @@ describe('Sidebar', () => {
     onClose: mockOnClose,
   });
 
-  it('renders all 9 navigation links plus 1 logo link plus 1 GitHub footer link', () => {
+  it('renders all 8 navigation links plus 1 logo link plus 1 GitHub footer link', () => {
     renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
 
     const links = screen.getAllByRole('link');
-    // 9 nav links + 1 logo link (Go to dashboard) + 1 GitHub link in the footer
-    expect(links).toHaveLength(11);
+    // 8 nav links + 1 logo link (Go to dashboard) + 1 GitHub link in the footer
+    expect(links).toHaveLength(10);
   });
 
   it('logo link navigates to dashboard (/) and has aria-label', () => {
@@ -101,7 +101,6 @@ describe('Sidebar', () => {
       'href',
       '/household-items',
     );
-    expect(screen.getByRole('link', { name: /documents/i })).toHaveAttribute('href', '/documents');
   });
 
   it('dashboard link is active at exact / path only (end prop)', () => {
@@ -160,15 +159,6 @@ describe('Sidebar', () => {
 
     const householdItemsLink = screen.getByRole('link', { name: /household items/i });
     expect(householdItemsLink).toHaveClass('active');
-  });
-
-  it('documents link is active at /documents', () => {
-    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />, {
-      initialEntries: ['/documents'],
-    });
-
-    const documentsLink = screen.getByRole('link', { name: /documents/i });
-    expect(documentsLink).toHaveClass('active');
   });
 
   it('only one link is active at a time', () => {
@@ -264,16 +254,6 @@ describe('Sidebar', () => {
     expect(mockOnClose).toHaveBeenCalledTimes(1);
   });
 
-  it('clicking a nav link calls onClose (documents)', async () => {
-    const user = userEvent.setup();
-    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
-
-    const documentsLink = screen.getByRole('link', { name: /documents/i });
-    await user.click(documentsLink);
-
-    expect(mockOnClose).toHaveBeenCalledTimes(1);
-  });
-
   it('user management link has correct href attribute', () => {
     renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
 
@@ -364,8 +344,8 @@ describe('Sidebar', () => {
     const links = screen.getAllByRole('link');
     const buttons = screen.getAllByRole('button');
 
-    // 9 nav links + 1 logo link (Go to dashboard) + 1 GitHub link in the footer
-    expect(links).toHaveLength(11);
+    // 8 nav links + 1 logo link (Go to dashboard) + 1 GitHub link in the footer
+    expect(links).toHaveLength(10);
     // 3 buttons: close button + theme toggle + logout button
     expect(buttons).toHaveLength(3);
     expect(buttons[0]).toHaveAttribute('aria-label', 'Close menu');

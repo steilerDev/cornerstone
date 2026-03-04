@@ -63,7 +63,7 @@ export function HouseholdItemCreatePage() {
       try {
         const [tagsResponse, vendorsResponse] = await Promise.all([
           fetchTags(),
-          fetchVendors({ pageSize: 200 }),
+          fetchVendors({ pageSize: 100 }),
         ]);
         setAvailableTags(tagsResponse.tags);
         setVendors(vendorsResponse.vendors);

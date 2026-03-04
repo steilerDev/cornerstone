@@ -156,52 +156,55 @@ Key misses to watch for in list-page PRs:
 - `z-index: 1000` → `var(--z-modal)`; `z-index: 10` → `var(--z-dropdown)`
 - Tablet breakpoint upper bound should be `1023px` not `1024px` to avoid overlap with desktop
 
-## Story 4.7 — Work Item Linking Spec (Issue #393)
+## Stories 4.7–4.9 Key Patterns (see story-4-9-invoice-linking-hi.md for full spec)
 
-- HI Detail page: "Linked Work Items" full-width card between Subsidies and Metadata cards
-- WI Detail page: "Linked Household Items" full-width belt before Documents section
-- Linking is initiated from the HI side only — WI side is read-only (no "Add Link" button there)
-- Unlink on HI Detail page requires NO modal confirmation (action is reversible) — toast only
-- WorkItemPicker component (`client/src/components/WorkItemPicker/`) reused for searchable add
-- Category badge on WI Detail: `--color-role-member-bg` / `--color-role-member-text` (neutral gray)
-- HI purchase status badge: use existing `<HouseholdItemStatusBadge>` component
-- WI status badge: use existing `<StatusBadge>` component
-- srOnly live region announces "Work item linked/unlinked: {title}"
-- HI page section title: `--font-size-xl` (20px) to match other `.cardTitle` headings on that page
-- WI page section title: `--font-size-lg` (18px) to match `.sectionTitle` on that page
-- Both pages use existing `.linkedItem` / `.subsidyItem` row patterns (bg-secondary, border, radius-md)
-- WI Detail `.section` uses `border: 1px solid var(--color-border)` — NOT `box-shadow: var(--shadow-sm)`
+- HI Detail: section cards use `border: 1px solid var(--color-border)` NOT `box-shadow: var(--shadow-sm)` for `.section`
+- HI page card titles: `--font-size-xl` (20px); WI page section titles: `--font-size-lg` (18px)
+- WorkItemPicker reused for searchable add; `<HouseholdItemStatusBadge>` reused for HI status
+- srOnly live region announces link/unlink actions
+- `--spacing-xs` / `--spacing-sm` are NOT valid tokens — use `--spacing-1` through `--spacing-16`
+- `--color-warning-bg` does NOT exist; for warning bg use `--color-hi-status-in-transit-bg`
+- RECURRING BUG: `outline: 2px solid var(--color-primary)` on focus-visible — always use `box-shadow: var(--shadow-focus)` (flagged PRs #402, #414)
 
-## Story 4.8 — Household Items Responsive & Accessibility Polish (Issue #394)
+## PR #399 Review Findings — HI Create & Edit Forms (APPROVED)
 
-- Dark mode contrast bug: `--color-hi-status-not-ordered-text` dark = `var(--color-slate-200)` (#94a3b8) is ~3.8:1 on `--color-slate-500` — FAILS WCAG AA; fix to `var(--color-slate-100)` (#e2e8f0) for ~5.0:1
-- `HouseholdItemsPage` modal: missing `aria-labelledby`, focus trap, `aria-live` result count announcer, ↑↓ arrow-key menu navigation
-- Create/Edit form pages: missing `aria-required`, `aria-invalid`, `aria-describedby`; `prefers-reduced-motion` guard; `min-height: 44px` on mobile buttons
-- `HouseholdItemDetailPage.module.css`: `.backLink`/`.infoLink` use `outline: 2px solid var(--color-primary)` — must use `box-shadow: var(--shadow-focus)` to match system
-- `HouseholdItemDetailPage.module.css`: duplicate `@media (max-width: 767px)` block at line 756 — merge into line 612 block
-- Collapsible filter panel (new): `aria-expanded` + `aria-controls` on toggle button; `role="search"` on panel; `display: none` for collapsed state; `min-height: 44px`, full-width on mobile
-- `menuButton` (⋮): needs `min-width: 44px; min-height: 44px` at mobile breakpoint
+Model implementation — tokens used comprehensively. See `story-4-9-invoice-linking-hi.md` for HI domain patterns.
 
-## PR #402 Review Findings — Work Item Linking (Story 4.7, REQUEST CHANGES)
+## Story 4.9 — Invoice Linking for HI Budget Lines (Issue #413)
 
-Key token mistakes to watch for in future reviews:
+See `story-4-9-invoice-linking-hi.md`. Spec: entity type toggle (`role="group"` + `role="radio"`), "Linked To" column in invoice list table (hidden at tablet). No new tokens needed.
 
-- `--spacing-xs` and `--spacing-sm` are NOT valid tokens — no aliased shorthand exists; use `--spacing-1` through `--spacing-16`
-- `--color-warning-bg` does NOT exist — only `--color-warning` (orange-400) is defined; for warning bg use `--color-hi-status-in-transit-bg`
-- Existing `<HouseholdItemStatusBadge>` component should be reused rather than building custom status badge CSS from scratch
-- Class used in TSX (`sectionHeading`) but CSS only defines `sectionTitle` — silently applies no styles, not an error
-- `outline: 2px solid var(--color-primary)` on focus-visible — must use `box-shadow: var(--shadow-focus)` (the project standard)
-- `border-radius: 1rem` → `var(--radius-full)`, `font-weight: 500` → `var(--font-weight-medium)`, `padding: 0.125rem` → `var(--spacing-0-5)`
+## PR #414 Review Findings — Invoice Linking for HI (COMMENT)
 
-## PR #399 Review Findings — Household Item Create & Edit Forms (APPROVED)
+- `outline: 2px solid var(--color-primary)` on `invoiceLink:focus-visible` — recurring mistake; always use `box-shadow: var(--shadow-focus)`
+- Inline `Intl.NumberFormat('en-US', { currency: 'USD' })` in budget line dropdown — always use `formatCurrency()` from formatters.ts (EUR, not USD)
+- Badge `padding: 2px 6px` hardcoded — use `var(--spacing-0-5) var(--spacing-1-5)`
+- Spec entity type toggle not implemented (used plain separator div instead) — flag as spec deviation
+- "Linked To" table column omitted from invoice list page — functional omission
 
-Model implementation with excellent token usage:
+## Story 4.10 — HI Timeline Dependencies (Issue #415)
 
-- Both Create and Edit pages use tokens comprehensively (spacing, colors, typography, radius, transitions)
-- All interactive states properly defined: `:focus-visible`, hover, active, disabled — with semantic tokens
-- `prefers-reduced-motion` guard guards all transitions
-- Dark mode: all color values use Layer 2 semantic tokens (no hardcoded hex)
-- Responsive: mobile breakpoint `767px` (note: project convention is `768px`, both equivalent)
-- Form validation with error states uses `var(--color-danger)` and error-specific shadow tokens
-- Clean CSS Modules with semantic class names
-- **Improvement over WorkItemCreatePage**: Uses tokens (`var(--spacing-8)`) instead of hardcoded values (`2rem`)
+- HI Gantt visual: amber circle marker (r=7px), NOT a bar or diamond — zero-duration node
+- 5 new Gantt tokens: `--color-gantt-hi-fill`, `--color-gantt-hi-stroke`, `--color-gantt-hi-delivered-fill`, `--color-gantt-hi-delivered-stroke`, `--color-gantt-hi-hover-glow` (both layers in tokens.css)
+- Amber fills reference existing palette: `var(--color-amber-100)` / `var(--color-amber-800)` / `var(--color-amber-300)` (already in Layer 1)
+- Calendar HI badge: pill shape, reuses `--color-hi-status-in-transit-*` and `--color-hi-status-delivered-*` (NO new calendar tokens)
+- Dependency row: reuses `budgetLineItem` / `subsidyItem` pattern from HouseholdItemDetailPage.module.css
+- "Floored to today" late indicator: `--color-hi-status-in-transit-bg` / `--color-hi-status-in-transit-text` (amber)
+- Add Dependency modal: 36rem max-width (wider than standard 28rem), entity type toggle = `role="radiogroup"`
+- HI tooltip kind: `kind: 'household-item'` extending GanttTooltipData discriminated union
+- GanttSidebar UnifiedRow gains `kind: 'householdItem'` variant
+- HI rows appear AFTER work items, sorted by earliestDeliveryDate (same principle as milestones by targetDate)
+- `srAnnouncement` live region: "Dependency added: [name]" / "Dependency removed: [name]"
+- `HouseholdItemDetailPage.module.css` `prefers-reduced-motion` block must be extended to cover new dep section elements
+
+## PR #416 Review Findings — HI Timeline Dependencies (Story 4.10)
+
+Key misses to watch for in Gantt/detail-page dependency PRs:
+
+- `--color-primary-text` (white in light mode) used on `--color-primary-bg` (light blue) chip — contrast failure; always use `var(--color-primary)` for text on `--color-primary-bg` tinted chips
+- `depSearchOptionSelected` same mistake — selected state bg is `--color-primary-bg`, text must be `var(--color-primary)` not `--color-primary-text`
+- `role="dialog"` modal with no focus trap and no initial focus — `autoFocus` on first input is the minimum acceptable fix
+- `role="listbox"` + `role="option"` requires arrow-key keyboard navigation; without it use `role="list"` + `role="button"` items instead
+- Tooltip HI status badge hardcoded amber color regardless of delivered state — status-conditional token selection required
+- "Floored to today" heuristic: spec uses `isLate` flag from scheduling engine; date-string equality to today is a fragile approximation
+- `showToast()` alone is insufficient for spec-required `aria-live="polite"` srAnnouncement — toast is visual, not reliable for screen-reader-only users

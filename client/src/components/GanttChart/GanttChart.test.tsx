@@ -89,6 +89,7 @@ function makeTimeline(overrides: Partial<TimelineResponse> = {}): TimelineRespon
       },
     ],
     milestones: [],
+    householdItems: [],
     criticalPath: [],
     dateRange: {
       earliest: '2024-07-01',

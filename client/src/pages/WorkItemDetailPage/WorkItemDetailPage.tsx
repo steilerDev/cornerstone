@@ -2350,15 +2350,13 @@ export default function WorkItemDetailPage() {
       {/* Linked Household Items section */}
       <div className={styles.section}>
         <h2 className={styles.sectionTitle}>
-          Linked Household Items
+          Dependent Household Items
           {linkedHouseholdItems.length > 0 && (
             <span className={styles.countBadge}>{linkedHouseholdItems.length}</span>
           )}
         </h2>
         {linkedHouseholdItems.length === 0 ? (
-          <p className={styles.emptyText}>
-            No household items linked. Link household items from their detail pages.
-          </p>
+          <p className={styles.emptyText}>No household items depend on this work item.</p>
         ) : (
           <ul className={styles.householdItemLinkList}>
             {linkedHouseholdItems.map((hi) => (
@@ -2372,11 +2370,15 @@ export default function WorkItemDetailPage() {
                 <span className={styles.householdItemStatusBadge} data-status={hi.status}>
                   {HOUSEHOLD_ITEM_STATUS_LABELS[hi.status]}
                 </span>
-                {hi.expectedDeliveryDate && (
+                {hi.earliestDeliveryDate && hi.latestDeliveryDate ? (
                   <span className={styles.householdItemDeliveryDate}>
-                    Expected: {formatDate(hi.expectedDeliveryDate)}
+                    {formatDate(hi.earliestDeliveryDate)} – {formatDate(hi.latestDeliveryDate)}
                   </span>
-                )}
+                ) : hi.expectedDeliveryDate ? (
+                  <span className={styles.householdItemDeliveryDate}>
+                    {formatDate(hi.expectedDeliveryDate)}
+                  </span>
+                ) : null}
               </li>
             ))}
           </ul>

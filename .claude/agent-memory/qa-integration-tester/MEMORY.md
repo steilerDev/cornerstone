@@ -32,6 +32,17 @@ The `tags` table (migration 0002) only has: `id, name, color, created_at` — NO
 
 - Do NOT cast `mockGet.mock.calls[0] as [string]` — TypeScript strict mode rejects empty arrays cast to tuple. Use `expect(mockGet).not.toHaveBeenCalledWith(expect.stringContaining(...))` pattern instead.
 
+## Story #415 HI Timeline Deps (2026-03-03, PR #416)
+
+See `story-415-household-item-timeline-deps.md` for full details. Key learnings:
+
+- **SVG `className` in jsdom**: Returns `SVGAnimatedString`, NOT a string. Use `element.getAttribute('class') ?? ''`.
+- **`autoReschedule()` early return guard**: Returns early when no work items exist, skipping HI delivery dates.
+  Milestone-dep tests need a dummy work item: `insertWorkItem(db, userId, { endDate: '2026-01-01' })`.
+- **ConflictError**: always uses `'CONFLICT'` as error.code (not `'DUPLICATE_DEPENDENCY'` — that's in details).
+- **Bug #417**: `fetchLinkedHouseholdItems` calls wrong URL → breaks WorkItemDetailPage → E2E smoke test failure.
+- **Typed mock pattern**: `jest.fn<typeof ApiTypes.method>()` in factory; `mockFn.mockResolvedValue()` in `beforeEach`.
+
 ## Story #390 Household Item Create & Edit Forms (2026-03-03)
 
 - `Vendor` interface (shared/types/vendor.ts) has many required nullable fields: `phone`, `email`, `address`, `notes`, `createdBy`, `createdAt`, `updatedAt`. In vendor mock arrays, always include all fields or TypeScript strict-mode will reject.

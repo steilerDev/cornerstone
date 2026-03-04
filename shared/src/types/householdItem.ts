@@ -12,12 +12,14 @@ import type { SubsidyApplicationStatus } from './subsidyProgram.js';
 import type { UserSummary } from './workItem.js';
 
 /**
- * Budget summary for a household item.
- * Aggregates budget information including planned costs, actual costs (always 0), and subsidy reductions.
+ * Budget aggregates for a household item.
+ * Aggregates budget information including planned costs, actual costs from invoices, and subsidy reductions.
+ * Used internally to compute the budget summary embedded in household item responses.
+ * (The invoice context uses HouseholdItemBudgetSummary to represent a single linked budget line.)
  */
-export interface HouseholdItemBudgetSummary {
+export interface HouseholdItemBudgetAggregate {
   totalPlanned: number; // Sum of plannedAmount from all budget lines
-  totalActual: number; // Always 0 for household items (no invoices)
+  totalActual: number; // Sum of invoice amounts linked to this household item's budget lines
   subsidyReduction: number; // Sum of subsidy reductions applied
   netCost: number; // totalPlanned - subsidyReduction
 }
@@ -50,15 +52,55 @@ export interface HouseholdItemVendorSummary {
 }
 
 /**
- * Work item summary shape used in household item detail responses.
+ * Household item dependency predecessor type.
  */
-export interface HouseholdItemWorkItemSummary {
+export type HouseholdItemDepPredecessorType = 'work_item' | 'milestone';
+
+/**
+ * A single dependency reference (used in TimelineHouseholdItem.dependencyIds).
+ */
+export interface HouseholdItemDepRef {
+  predecessorType: HouseholdItemDepPredecessorType;
+  predecessorId: string;
+}
+
+/**
+ * Predecessor summary embedded in dependency detail responses.
+ */
+export interface HouseholdItemDepPredecessorSummary {
   id: string;
-  title: string;
-  status: string;
-  startDate: string | null;
-  endDate: string | null;
-  assignedUser: { id: string; displayName: string; email: string } | null;
+  title: string; // work item title or milestone title
+  status: string | null; // work item status (null for milestones)
+  endDate: string | null; // work item endDate or milestone targetDate
+}
+
+/**
+ * A single dependency row (detail shape for GET /api/household-items/:id/dependencies).
+ */
+export interface HouseholdItemDepDetail {
+  householdItemId: string;
+  predecessorType: HouseholdItemDepPredecessorType;
+  predecessorId: string;
+  dependencyType: 'finish_to_start' | 'start_to_start' | 'finish_to_finish' | 'start_to_finish';
+  leadLagDays: number;
+  predecessor: HouseholdItemDepPredecessorSummary;
+}
+
+/**
+ * Response shape for GET /api/household-items/:id/dependencies.
+ */
+export interface HouseholdItemDepsResponse {
+  dependencies: HouseholdItemDepDetail[];
+}
+
+/**
+ * Request body for POST /api/household-items/:id/dependencies.
+ */
+export interface CreateHouseholdItemDepRequest {
+  predecessorType: HouseholdItemDepPredecessorType;
+  predecessorId: string;
+  dependencyType?: 'finish_to_start' | 'start_to_start' | 'finish_to_finish' | 'start_to_finish';
+  leadLagDays?: number;
 }
 
 /**
@@ -70,6 +112,8 @@ export interface WorkItemLinkedHouseholdItemSummary {
   category: HouseholdItemCategory;
   status: HouseholdItemStatus;
   expectedDeliveryDate: string | null;
+  earliestDeliveryDate: string | null;
+  latestDeliveryDate: string | null;
 }
 
 /**
@@ -119,11 +163,13 @@ export interface HouseholdItemSummary {
   orderDate: string | null;
   expectedDeliveryDate: string | null;
   actualDeliveryDate: string | null;
+  earliestDeliveryDate: string | null;
+  latestDeliveryDate: string | null;
   url: string | null;
   tagIds: string[];
   budgetLineCount: number;
   totalPlannedAmount: number;
-  budgetSummary: HouseholdItemBudgetSummary;
+  budgetSummary: HouseholdItemBudgetAggregate;
   createdBy: UserSummary | null;
   createdAt: string;
   updatedAt: string;
@@ -134,7 +180,7 @@ export interface HouseholdItemSummary {
  */
 export interface HouseholdItemDetail extends HouseholdItemSummary {
   tags: TagResponse[];
-  workItems: HouseholdItemWorkItemSummary[];
+  dependencies: HouseholdItemDepDetail[];
   subsidies: HouseholdItemSubsidySummary[];
 }
 

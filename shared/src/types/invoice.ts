@@ -28,6 +28,20 @@ export interface WorkItemBudgetSummary {
 }
 
 /**
+ * Summary of the household item budget line linked to an invoice.
+ * Returned as part of the Invoice response to allow the client to
+ * pre-populate the "Link to Household Item" dropdown in the edit modal.
+ */
+export interface HouseholdItemBudgetSummary {
+  id: string;
+  householdItemId: string;
+  householdItemName: string;
+  description: string | null;
+  plannedAmount: number;
+  confidence: string;
+}
+
+/**
  * Invoice entity as returned by the API.
  */
 export interface Invoice {
@@ -38,6 +52,10 @@ export interface Invoice {
   workItemBudgetId: string | null;
   /** Enriched budget line + work item details when workItemBudgetId is set. */
   workItemBudget: WorkItemBudgetSummary | null;
+  /** Optional link to the household item budget line this invoice was issued against. */
+  householdItemBudgetId: string | null;
+  /** Enriched budget line + household item details when householdItemBudgetId is set. */
+  householdItemBudget: HouseholdItemBudgetSummary | null;
   invoiceNumber: string | null;
   amount: number;
   date: string;
@@ -60,6 +78,7 @@ export interface CreateInvoiceRequest {
   status?: InvoiceStatus;
   notes?: string | null;
   workItemBudgetId?: string | null;
+  householdItemBudgetId?: string | null;
 }
 
 /**
@@ -74,6 +93,7 @@ export interface UpdateInvoiceRequest {
   status?: InvoiceStatus;
   notes?: string | null;
   workItemBudgetId?: string | null;
+  householdItemBudgetId?: string | null;
 }
 
 /**
