@@ -112,9 +112,7 @@ function insertMilestoneWorkItem(
   milestoneId: number,
   workItemId: string,
 ) {
-  db.insert(schema.milestoneWorkItems)
-    .values({ milestoneId, workItemId })
-    .run();
+  db.insert(schema.milestoneWorkItems).values({ milestoneId, workItemId }).run();
 }
 
 function insertWorkItemMilestoneDep(
@@ -122,9 +120,7 @@ function insertWorkItemMilestoneDep(
   workItemId: string,
   milestoneId: number,
 ) {
-  db.insert(schema.workItemMilestoneDeps)
-    .values({ workItemId, milestoneId })
-    .run();
+  db.insert(schema.workItemMilestoneDeps).values({ workItemId, milestoneId }).run();
 }
 
 function getWorkItemDates(
@@ -220,7 +216,7 @@ describe('autoReschedule — work item milestone dependency (completed milestone
     });
   });
 
-  describe('AC 4: completedAt earlier than contributors\' scheduled dates', () => {
+  describe("AC 4: completedAt earlier than contributors' scheduled dates", () => {
     it('should use completedAt even when contributors finish later', () => {
       // Given: A milestone with completedAt = '2030-02-01T00:00:00.000Z', targetDate = '2030-06-01'
       //        WI-A (contributor) linked to milestone, endDate = '2030-08-01'
