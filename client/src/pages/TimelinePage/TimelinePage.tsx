@@ -348,6 +348,13 @@ export function TimelinePage() {
     [navigate],
   );
 
+  const handleHouseholdItemClick = useCallback(
+    (id: string) => {
+      void navigate(`/household-items/${id}`, { state: { from: 'timeline' } });
+    },
+    [navigate],
+  );
+
   // ---- Filtered data arrays for display ----
   const filteredWorkItems = activeEntities.has('work-items') ? (data?.workItems ?? []) : [];
   const filteredMilestones = activeEntities.has('milestones') ? (data?.milestones ?? []) : [];
@@ -683,7 +690,7 @@ export function TimelinePage() {
                 setSelectedMilestoneId(milestoneId);
                 setShowMilestonePanel(true);
               }}
-              onHouseholdItemClick={(hiId) => navigate(`/household-items/${hiId}`)}
+              onHouseholdItemClick={handleHouseholdItemClick}
               onCtrlScroll={(delta) => adjustColumnWidth(delta > 0 ? 1 : -1)}
             />
           )}

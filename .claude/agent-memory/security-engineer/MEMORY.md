@@ -77,6 +77,8 @@ See `review-history.md` for detailed findings per PR.
 | #401 | EPIC-04 Story 4.6 — Household Items Budget Integration                            | COMMENTED (2 informational)                                       | 2026-03-03 |
 | #414 | EPIC-04 Story 4.9 — Invoice Linking for Household Item Budget Lines               | COMMENTED (2 informational)                                       | 2026-03-03 |
 | #416 | EPIC-04 Story 4.10 — HI Timeline Dependencies & Delivery Date Scheduling          | COMMENTED (2 informational)                                       | 2026-03-03 |
+| #442 | fix #441 — HI milestone scheduling (completedAt/projected/targetDate priority)    | COMMENTED (no findings)                                           | 2026-03-04 |
+| #448 | fix #447 — WI milestone scheduling (completed milestone uses completedAt date)    | COMMENTED (no findings)                                           | 2026-03-04 |
 
 ## Known Open Recommendations (Low Priority)
 
