@@ -220,6 +220,65 @@
   }
 }
 
+/* ---- Entity filter toggle ---- */
+
+.entityFilterToggle {
+  display: inline-flex;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.entityFilterButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1-5);
+  padding: var(--spacing-1-5) var(--spacing-3);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  background: var(--color-bg-primary);
+  border: none;
+  border-right: 1px solid var(--color-border-strong);
+  cursor: pointer;
+  transition: var(--transition-button-border);
+  min-height: 36px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.entityFilterButton:last-child {
+  border-right: none;
+}
+
+.entityFilterButton:hover:not(.entityFilterButtonActive):not(:disabled) {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.entityFilterButtonActive {
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+  font-weight: var(--font-weight-semibold);
+}
+
+.entityFilterButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.entityFilterButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  position: relative;
+  z-index: 1;
+}
+
+.entityFilterLabel {
+  /* visible by default; hidden on mobile */
+}
+
 /* ---- View toggle button group (Gantt / Calendar) ---- */
 
 .viewToggle {
@@ -389,6 +448,10 @@
   .toolbarButton {
     min-height: 44px;
   }
+
+  .entityFilterButton {
+    min-height: 44px;
+  }
 }
 
 /* Mobile: toolbar becomes full-width row */
@@ -427,6 +490,15 @@
 
   /* Hide view button text labels on mobile — show icons only */
   .viewButtonLabel {
+    display: none;
+  }
+
+  .entityFilterButton {
+    min-height: 44px;
+    padding: var(--spacing-2) var(--spacing-2);
+  }
+
+  .entityFilterLabel {
     display: none;
   }
 }

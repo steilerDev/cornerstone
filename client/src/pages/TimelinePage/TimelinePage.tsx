@@ -115,8 +115,98 @@ function CalendarIcon() {
 }
 
 // ---------------------------------------------------------------------------
-// Constants
+// Entity filter icons
 // ---------------------------------------------------------------------------
+
+function WorkItemsIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 20 20"
+      width="16"
+      height="16"
+      fill="none"
+      aria-hidden="true"
+      style={{ display: 'block' }}
+    >
+      <rect x="3" y="4" width="14" height="3" rx="1" fill="currentColor" opacity="0.3" />
+      <rect x="3" y="9" width="10" height="3" rx="1" fill="currentColor" />
+      <rect x="3" y="14" width="12" height="3" rx="1" fill="currentColor" opacity="0.6" />
+    </svg>
+  );
+}
+
+function MilestonesIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 12 12"
+      width="16"
+      height="16"
+      fill="none"
+      aria-hidden="true"
+      style={{ display: 'block' }}
+    >
+      <polygon points="6,0 12,6 6,12 0,6" stroke="currentColor" strokeWidth="1.5" fill="none" />
+    </svg>
+  );
+}
+
+function HouseholdItemsIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 20 20"
+      width="16"
+      height="16"
+      fill="none"
+      aria-hidden="true"
+      style={{ display: 'block' }}
+    >
+      <path
+        d="M3 9L10 3l7 6v8a1 1 0 01-1 1H4a1 1 0 01-1-1V9z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+        fill="none"
+      />
+      <rect
+        x="7"
+        y="12"
+        width="6"
+        height="5"
+        rx="0.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        fill="none"
+      />
+    </svg>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Types & Constants
+// ---------------------------------------------------------------------------
+
+type EntityType = 'work-items' | 'milestones' | 'household-items';
+
+const ALL_ENTITY_TYPES: EntityType[] = ['work-items', 'milestones', 'household-items'];
+
+const FILTER_PARAM = 'filter';
+
+/** Parse the `?filter=` URL param into a Set of active entity types. */
+export function parseFilterParam(raw: string | null): ReadonlySet<EntityType> {
+  if (raw === null) return new Set(ALL_ENTITY_TYPES);
+  const parts = raw
+    .split(',')
+    .filter((p): p is EntityType => (ALL_ENTITY_TYPES as string[]).includes(p));
+  return parts.length > 0 ? new Set(parts) : new Set(ALL_ENTITY_TYPES);
+}
+
+/** Serialize the active set back to a URL param string. */
+export function serializeFilterParam(active: ReadonlySet<EntityType>): string {
+  return ALL_ENTITY_TYPES.filter((t) => active.has(t)).join(',');
+}
 
 const ZOOM_OPTIONS: { value: ZoomLevel; label: string }[] = [
   { value: 'day', label: 'Day' },
@@ -196,6 +286,28 @@ export function TimelinePage() {
   const isAtMinZoom = columnWidth <= COLUMN_WIDTH_MIN[zoom];
   const isAtMaxZoom = columnWidth >= COLUMN_WIDTH_MAX[zoom];
 
+  // ---- Entity type filter ----
+  const activeEntities: ReadonlySet<EntityType> = parseFilterParam(searchParams.get(FILTER_PARAM));
+
+  function toggleEntity(type: EntityType) {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        const current = parseFilterParam(prev.get(FILTER_PARAM));
+        if (current.has(type) && current.size === 1) return prev;
+        const updated = new Set(current);
+        if (updated.has(type)) {
+          updated.delete(type);
+        } else {
+          updated.add(type);
+        }
+        next.set(FILTER_PARAM, serializeFilterParam(updated));
+        return next;
+      },
+      { replace: true },
+    );
+  }
+
   // ---- View toggle: gantt (default) or calendar ----
   const rawView = searchParams.get('view');
   const activeView: 'gantt' | 'calendar' = rawView === 'calendar' ? 'calendar' : 'gantt';
@@ -235,6 +347,13 @@ export function TimelinePage() {
     },
     [navigate],
   );
+
+  // ---- Filtered data arrays for display ----
+  const filteredWorkItems = activeEntities.has('work-items') ? (data?.workItems ?? []) : [];
+  const filteredMilestones = activeEntities.has('milestones') ? (data?.milestones ?? []) : [];
+  const filteredHouseholdItems = activeEntities.has('household-items')
+    ? (data?.householdItems ?? [])
+    : [];
 
   const hasWorkItemsWithDates =
     data !== null &&
@@ -276,6 +395,53 @@ export function TimelinePage() {
             </svg>
             <span>Milestones</span>
           </button>
+
+          {/* Entity filter toggle — shown in both views */}
+          <div
+            className={styles.entityFilterToggle}
+            role="group"
+            aria-label="Entity filter"
+            data-testid="entity-filter-group"
+          >
+            {(
+              [
+                { type: 'work-items' as EntityType, label: 'Work Items', Icon: WorkItemsIcon },
+                { type: 'milestones' as EntityType, label: 'Milestones', Icon: MilestonesIcon },
+                {
+                  type: 'household-items' as EntityType,
+                  label: 'Household Items',
+                  Icon: HouseholdItemsIcon,
+                },
+              ] as const
+            ).map(({ type, label, Icon }) => {
+              const isActive = activeEntities.has(type);
+              const isLastActive = isActive && activeEntities.size === 1;
+              return (
+                <button
+                  key={type}
+                  type="button"
+                  className={`${styles.entityFilterButton} ${
+                    isActive ? styles.entityFilterButtonActive : ''
+                  }`}
+                  aria-pressed={isActive}
+                  aria-label={`${label}: ${isActive ? 'shown' : 'hidden'}`}
+                  title={
+                    isLastActive
+                      ? `${label} (cannot hide last type)`
+                      : isActive
+                        ? `Hide ${label}`
+                        : `Show ${label}`
+                  }
+                  onClick={() => toggleEntity(type)}
+                  disabled={isLastActive}
+                  data-testid={`entity-filter-${type}`}
+                >
+                  <Icon />
+                  <span className={styles.entityFilterLabel}>{label}</span>
+                </button>
+              );
+            })}
+          </div>
 
           {/* Gantt-specific controls: arrows toggle + zoom level + column zoom */}
           {activeView === 'gantt' && (
@@ -502,7 +668,12 @@ export function TimelinePage() {
           data.workItems.length > 0 &&
           activeView === 'gantt' && (
             <GanttChart
-              data={data}
+              data={{
+                ...data,
+                workItems: filteredWorkItems,
+                milestones: filteredMilestones,
+                householdItems: filteredHouseholdItems,
+              }}
               zoom={zoom}
               columnWidth={columnWidth}
               onItemClick={handleItemClick}
@@ -520,9 +691,9 @@ export function TimelinePage() {
         {/* Calendar view (data loaded, calendar view selected) */}
         {!isLoading && error === null && data !== null && activeView === 'calendar' && (
           <CalendarView
-            workItems={data.workItems}
-            milestones={data.milestones}
-            householdItems={data.householdItems}
+            workItems={filteredWorkItems}
+            milestones={filteredMilestones}
+            householdItems={filteredHouseholdItems}
             dependencies={data.dependencies}
             onMilestoneClick={(milestoneId) => {
               setSelectedMilestoneId(milestoneId);
