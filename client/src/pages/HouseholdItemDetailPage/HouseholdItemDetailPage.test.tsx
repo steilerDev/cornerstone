@@ -1433,4 +1433,106 @@ describe('HouseholdItemDetailPage', () => {
       });
     });
   });
+
+  describe('dependency rendering (milestone vs work item)', () => {
+    it('milestone dependency is rendered as plain text, not a link', async () => {
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+      mockFetchHouseholdItemDeps.mockResolvedValue([
+        {
+          householdItemId: 'item-1',
+          predecessorType: 'milestone',
+          predecessorId: 'milestone-42',
+          predecessor: {
+            id: 'milestone-42',
+            title: 'Foundation Complete',
+            status: null,
+            endDate: '2026-05-15',
+          },
+        } as HouseholdItemDepDetail,
+      ]);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
+      });
+
+      // Milestone name should be visible in the DOM
+      expect(screen.getByText('Foundation Complete')).toBeInTheDocument();
+
+      // But it should NOT be a clickable link
+      expect(screen.queryByRole('link', { name: 'Foundation Complete' })).not.toBeInTheDocument();
+    });
+
+    it('work item dependency is rendered as a clickable link', async () => {
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+      mockFetchHouseholdItemDeps.mockResolvedValue([
+        {
+          householdItemId: 'item-1',
+          predecessorType: 'work_item',
+          predecessorId: 'wi-install-123',
+          predecessor: {
+            id: 'wi-install-123',
+            title: 'Install Foundation',
+            status: 'in_progress',
+            endDate: '2026-05-10',
+          },
+        } as HouseholdItemDepDetail,
+      ]);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
+      });
+
+      // Work item should be a clickable link
+      const link = screen.getByRole('link', { name: 'Install Foundation' });
+      expect(link).toBeInTheDocument();
+      expect(link).toHaveAttribute('href', '/work-items/wi-install-123');
+    });
+
+    it('mixed dependencies: milestone is plain text, work item is link', async () => {
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+      mockFetchHouseholdItemDeps.mockResolvedValue([
+        {
+          householdItemId: 'item-1',
+          predecessorType: 'milestone',
+          predecessorId: 'ms-1',
+          predecessor: {
+            id: 'ms-1',
+            title: 'Walls Complete',
+            status: null,
+            endDate: '2026-04-20',
+          },
+        } as HouseholdItemDepDetail,
+        {
+          householdItemId: 'item-1',
+          predecessorType: 'work_item',
+          predecessorId: 'wi-paint',
+          predecessor: {
+            id: 'wi-paint',
+            title: 'Paint Walls',
+            status: 'completed',
+            endDate: '2026-04-25',
+          },
+        } as HouseholdItemDepDetail,
+      ]);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
+      });
+
+      // Milestone should be plain text (no link)
+      expect(screen.getByText('Walls Complete')).toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'Walls Complete' })).not.toBeInTheDocument();
+
+      // Work item should be a link
+      const workItemLink = screen.getByRole('link', { name: 'Paint Walls' });
+      expect(workItemLink).toBeInTheDocument();
+      expect(workItemLink).toHaveAttribute('href', '/work-items/wi-paint');
+    });
+  });
 });
