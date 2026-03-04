@@ -590,16 +590,7 @@ describe('Migration 0010: Household Items', () => {
           `INSERT INTO household_items (id, name, category, status, quantity, vendor_id, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         )
-        .run(
-          'item-vendor-setnull',
-          'Test Item',
-          'other',
-          'planned',
-          1,
-          'vendor-setnull',
-          now,
-          now,
-        );
+        .run('item-vendor-setnull', 'Test Item', 'other', 'planned', 1, 'vendor-setnull', now, now);
 
       // Verify vendor_id is set
       const before = sqlite
