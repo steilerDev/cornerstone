@@ -26,8 +26,8 @@ import type { ChartRange } from './ganttUtils.js';
 const COLORS: HouseholdItemColors = {
   fill: '#F59E0B',
   stroke: '#B45309',
-  deliveredFill: '#22C55E',
-  deliveredStroke: '#15803D',
+  arrivedFill: '#22C55E',
+  arrivedStroke: '#15803D',
   hoverGlow: 'rgba(245,158,11,0.3)',
 };
 
@@ -190,10 +190,10 @@ describe('GanttHouseholdItems', () => {
     });
   });
 
-  // ── Delivered vs non-delivered color ──────────────────────────────────────
+  // ── Arrived vs non-arrived color ──────────────────────────────────────
 
   describe('color scheme based on status', () => {
-    it('delivered HI circle uses deliveredFill color', () => {
+    it('arrived HI circle uses arrivedFill color', () => {
       renderHouseholdItems({
         householdItems: [HI_DELIVERED],
         hiRowIndices: new Map([['hi-2', 0]]),
@@ -202,7 +202,7 @@ describe('GanttHouseholdItems', () => {
       // The main filled circle is the 3rd circle element (hit area + glow + main)
       const circles = circle.querySelectorAll('circle');
       const mainCircle = circles[circles.length - 1];
-      expect(mainCircle.getAttribute('fill')).toBe(COLORS.deliveredFill);
+      expect(mainCircle.getAttribute('fill')).toBe(COLORS.arrivedFill);
     });
 
     it('non-delivered HI circle uses default fill color', () => {
