@@ -99,20 +99,9 @@ export function HouseholdItemsPage() {
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Mobile filter panel state
-  const [filtersOpen, setFiltersOpen] = useState(false);
+  // Delete confirmation and modal state
   const deleteTriggerRef = useRef<HTMLButtonElement | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
-
-  // Calculate active filter count
-  const activeFilterCount = useMemo(() => {
-    let count = 0;
-    if (categoryFilter) count++;
-    if (statusFilter) count++;
-    if (roomFilter) count++;
-    if (vendorFilter) count++;
-    return count;
-  }, [categoryFilter, statusFilter, roomFilter, vendorFilter]);
 
   // Load vendors on mount
   useEffect(() => {
@@ -472,21 +461,11 @@ export function HouseholdItemsPage() {
           />
         </div>
 
-        <button
-          type="button"
-          className={styles.filterToggle}
-          aria-expanded={filtersOpen}
-          aria-controls="hi-filter-panel"
-          onClick={() => setFiltersOpen((prev) => !prev)}
-        >
-          Filters{activeFilterCount > 0 ? ` (${activeFilterCount} active)` : ''}
-        </button>
-
         <div
           id="hi-filter-panel"
           role="search"
           aria-label="Household item filters"
-          className={filtersOpen ? styles.filterPanel : styles.filterPanelHidden}
+          className={styles.filterPanel}
         >
           <div className={styles.filtersRow}>
             <div className={styles.filter}>
