@@ -159,7 +159,7 @@ describe('Migration 0012: Household Item Deps', () => {
           `INSERT INTO household_items (id, name, category, status, quantity, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, ?)`,
         )
-        .run('item-null-dates', 'Test', 'other', 'not_ordered', 1, now, now);
+        .run('item-null-dates', 'Test', 'other', 'planned', 1, now, now);
 
       const row = sqlite
         .prepare(
@@ -185,7 +185,7 @@ describe('Migration 0012: Household Item Deps', () => {
           'item-with-dates',
           'Test',
           'other',
-          'not_ordered',
+          'planned',
           1,
           '2026-05-10',
           '2026-06-01',

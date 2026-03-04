@@ -128,13 +128,13 @@ describe('CalendarHouseholdItem', () => {
       expect(button.getAttribute('aria-label')).toContain('Dining Table');
     });
 
-    it('aria-label includes the status (with underscores replaced by spaces)', () => {
+    it('aria-label includes the status', () => {
       renderHI({ item: makeHouseholdItem({ status: 'planned' }) });
       const button = screen.getByRole('button');
-      expect(button.getAttribute('aria-label')).toContain('not ordered');
+      expect(button.getAttribute('aria-label')).toContain('planned');
     });
 
-    it('aria-label includes ordered status', () => {
+    it('aria-label includes purchased status', () => {
       renderHI({ item: makeHouseholdItem({ status: 'purchased' }) });
       const button = screen.getByRole('button');
       expect(button.getAttribute('aria-label')).toContain('purchased');

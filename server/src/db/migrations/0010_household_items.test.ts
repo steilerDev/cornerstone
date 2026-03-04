@@ -254,7 +254,7 @@ describe('Migration 0010: Household Items', () => {
             `INSERT INTO household_items (id, name, category, status, quantity, created_at, updated_at)
              VALUES (?, ?, ?, ?, ?, ?, ?)`,
           )
-          .run('item-bad-cat', 'Test Item', 'invalid_category', 'not_ordered', 1, now, now);
+          .run('item-bad-cat', 'Test Item', 'invalid_category', 'planned', 1, now, now);
       } catch (err) {
         error = err as Error;
       }
