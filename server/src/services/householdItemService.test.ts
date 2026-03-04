@@ -383,8 +383,6 @@ describe('Household Item Service', () => {
           householdItemId: created.id,
           predecessorType: 'work_item',
           predecessorId: workItemId,
-          dependencyType: 'finish_to_start',
-          leadLagDays: 0,
         })
         .run();
 
@@ -692,8 +690,6 @@ describe('Household Item Service', () => {
           householdItemId: item.id,
           predecessorType: 'work_item',
           predecessorId: workItemId,
-          dependencyType: 'finish_to_start',
-          leadLagDays: 0,
         })
         .run();
 

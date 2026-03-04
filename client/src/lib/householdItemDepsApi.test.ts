@@ -51,8 +51,6 @@ describe('householdItemDepsApi', () => {
         householdItemId: 'hi-123',
         predecessorType: 'work_item',
         predecessorId: 'wi-456',
-        dependencyType: 'finish_to_start',
-        leadLagDays: 0,
         predecessor: {
           id: 'wi-456',
           title: 'Foundation Work',
@@ -79,8 +77,6 @@ describe('householdItemDepsApi', () => {
         householdItemId: 'hi-123',
         predecessorType: 'milestone',
         predecessorId: '42',
-        dependencyType: 'finish_to_start',
-        leadLagDays: 0,
         predecessor: {
           id: '42',
           title: 'Frame Complete',
@@ -107,16 +103,12 @@ describe('householdItemDepsApi', () => {
           householdItemId: 'hi-123',
           predecessorType: 'work_item',
           predecessorId: 'wi-1',
-          dependencyType: 'finish_to_start',
-          leadLagDays: 0,
           predecessor: { id: 'wi-1', title: 'Work A', status: 'not_started', endDate: null },
         },
         {
           householdItemId: 'hi-123',
           predecessorType: 'milestone',
           predecessorId: '10',
-          dependencyType: 'start_to_start',
-          leadLagDays: 5,
           predecessor: { id: '10', title: 'Phase 1 Done', status: null, endDate: '2026-03-31' },
         },
       ];
@@ -131,7 +123,6 @@ describe('householdItemDepsApi', () => {
       expect(result).toHaveLength(2);
       expect(result[0].predecessorType).toBe('work_item');
       expect(result[1].predecessorType).toBe('milestone');
-      expect(result[1].leadLagDays).toBe(5);
     });
 
     it('throws error when household item not found (404)', async () => {
@@ -163,8 +154,6 @@ describe('householdItemDepsApi', () => {
         householdItemId: 'hi-123',
         predecessorType: 'work_item',
         predecessorId: 'wi-456',
-        dependencyType: 'finish_to_start',
-        leadLagDays: 0,
         predecessor: { id: 'wi-456', title: 'Foundation', status: 'not_started', endDate: null },
       };
 
@@ -192,8 +181,6 @@ describe('householdItemDepsApi', () => {
         householdItemId: 'hi-123',
         predecessorType: 'work_item',
         predecessorId: 'wi-456',
-        dependencyType: 'finish_to_start',
-        leadLagDays: 0,
         predecessor: { id: 'wi-456', title: 'Foundation', status: 'not_started', endDate: null },
       };
 
@@ -206,8 +193,6 @@ describe('householdItemDepsApi', () => {
       const requestData = {
         predecessorType: 'work_item' as const,
         predecessorId: 'wi-456',
-        dependencyType: 'finish_to_start' as const,
-        leadLagDays: 0,
       };
 
       await createHouseholdItemDep('hi-123', requestData);
@@ -219,7 +204,6 @@ describe('householdItemDepsApi', () => {
       expect(body.predecessorType).toBe('work_item');
       expect(body.predecessorId).toBe('wi-456');
       expect(body.dependencyType).toBe('finish_to_start');
-      expect(body.leadLagDays).toBe(0);
     });
 
     it('sends correct request body for milestone dependency with lead lag', async () => {
@@ -227,8 +211,6 @@ describe('householdItemDepsApi', () => {
         householdItemId: 'hi-456',
         predecessorType: 'milestone',
         predecessorId: '42',
-        dependencyType: 'start_to_start',
-        leadLagDays: 7,
         predecessor: { id: '42', title: 'Frame Done', status: null, endDate: '2026-04-15' },
       };
 
@@ -241,8 +223,6 @@ describe('householdItemDepsApi', () => {
       await createHouseholdItemDep('hi-456', {
         predecessorType: 'milestone',
         predecessorId: '42',
-        dependencyType: 'start_to_start',
-        leadLagDays: 7,
       });
 
       const callArgs = mockFetch.mock.calls[0];
@@ -252,7 +232,6 @@ describe('householdItemDepsApi', () => {
       expect(body.predecessorType).toBe('milestone');
       expect(body.predecessorId).toBe('42');
       expect(body.dependencyType).toBe('start_to_start');
-      expect(body.leadLagDays).toBe(7);
     });
 
     it('returns the created HouseholdItemDepDetail', async () => {
@@ -260,8 +239,6 @@ describe('householdItemDepsApi', () => {
         householdItemId: 'hi-123',
         predecessorType: 'work_item',
         predecessorId: 'wi-789',
-        dependencyType: 'finish_to_start',
-        leadLagDays: 3,
         predecessor: {
           id: 'wi-789',
           title: 'Flooring',
@@ -279,11 +256,9 @@ describe('householdItemDepsApi', () => {
       const result = await createHouseholdItemDep('hi-123', {
         predecessorType: 'work_item',
         predecessorId: 'wi-789',
-        leadLagDays: 3,
       });
 
       expect(result).toEqual(mockDep);
-      expect(result.leadLagDays).toBe(3);
       expect(result.predecessor.endDate).toBe('2026-06-30');
     });
 

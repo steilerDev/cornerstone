@@ -151,12 +151,6 @@ function insertHIDep(
       householdItemId,
       predecessorType,
       predecessorId,
-      dependencyType: (options.dependencyType ?? 'finish_to_start') as
-        | 'finish_to_start'
-        | 'start_to_start'
-        | 'finish_to_finish'
-        | 'start_to_finish',
-      leadLagDays: options.leadLagDays ?? 0,
     })
     .run();
 }

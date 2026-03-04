@@ -647,9 +647,11 @@ export const householdItemBudgets = sqliteTable(
 );
 
 /**
- * Household item dependencies table - full dependency model for household item delivery scheduling.
+ * Household item dependencies table - contributor links for household item delivery scheduling.
  * Household items can depend on work items or milestones.
+ * All dependencies are treated as finish-to-start with zero lead/lag days (HIs are zero-duration terminal nodes).
  * EPIC-09: Story 9.1 — Household Item Timeline Dependencies
+ * FIX-430: Simplified to remove unnecessary CPM columns
  */
 export const householdItemDeps = sqliteTable(
   'household_item_deps',
@@ -661,12 +663,6 @@ export const householdItemDeps = sqliteTable(
       enum: ['work_item', 'milestone'],
     }).notNull(),
     predecessorId: text('predecessor_id').notNull(),
-    dependencyType: text('dependency_type', {
-      enum: ['finish_to_start', 'start_to_start', 'finish_to_finish', 'start_to_finish'],
-    })
-      .notNull()
-      .default('finish_to_start'),
-    leadLagDays: integer('lead_lag_days').notNull().default(0),
   },
   (table) => ({
     pk: primaryKey({
