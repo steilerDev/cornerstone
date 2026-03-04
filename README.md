@@ -2,9 +2,9 @@
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="logo/logo_dark.svg" />
-    <source media="(prefers-color-scheme: light)" srcset="logo/logo_light.svg" />
-    <img src="logo/logo_light.svg" alt="Cornerstone" width="400" />
+    <source media="(prefers-color-scheme: dark)" srcset="https://cornerstone.steiler.dev/img/logo-full-dark.svg" />
+    <source media="(prefers-color-scheme: light)" srcset="https://cornerstone.steiler.dev/img/logo-full.svg" />
+    <img src="https://cornerstone.steiler.dev/img/logo-full.svg" alt="Cornerstone" width="400" />
   </picture>
 </p>
 
