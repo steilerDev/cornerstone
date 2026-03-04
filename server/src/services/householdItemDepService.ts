@@ -294,7 +294,7 @@ export function listDependentHouseholdItemsForWorkItem(
     name: row.householdItem.name,
     category: row.householdItem.category as HouseholdItemCategory,
     status: row.householdItem.status as HouseholdItemStatus,
-    expectedDeliveryDate: row.householdItem.expectedDeliveryDate,
+    targetDeliveryDate: row.householdItem.targetDeliveryDate,
     earliestDeliveryDate: row.householdItem.earliestDeliveryDate,
     latestDeliveryDate: row.householdItem.latestDeliveryDate,
   }));

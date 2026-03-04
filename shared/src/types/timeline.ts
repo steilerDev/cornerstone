@@ -77,11 +77,11 @@ export interface TimelineHouseholdItem {
   name: string;
   category: HouseholdItemCategory;
   status: HouseholdItemStatus;
-  expectedDeliveryDate: string | null;
+  targetDeliveryDate: string | null;
   earliestDeliveryDate: string | null;
   latestDeliveryDate: string | null;
   actualDeliveryDate: string | null;
-  /** True when the scheduler floored earliestDeliveryDate to today. */
+  /** True when the scheduler floored targetDeliveryDate to today. */
   isLate: boolean;
   /** References to work item/milestone predecessors. */
   dependencyIds: HouseholdItemDepRef[];

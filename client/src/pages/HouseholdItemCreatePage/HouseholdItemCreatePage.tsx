@@ -44,7 +44,8 @@ export function HouseholdItemCreatePage() {
   const [url, setUrl] = useState('');
   const [room, setRoom] = useState('');
   const [orderDate, setOrderDate] = useState('');
-  const [expectedDeliveryDate, setExpectedDeliveryDate] = useState('');
+  const [earliestDeliveryDate, setEarliestDeliveryDate] = useState('');
+  const [latestDeliveryDate, setLatestDeliveryDate] = useState('');
   const [actualDeliveryDate, setActualDeliveryDate] = useState('');
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
 
@@ -99,6 +100,11 @@ export function HouseholdItemCreatePage() {
       errors.deliveryDates = 'Actual delivery date must be after or equal to order date';
     }
 
+    if (earliestDeliveryDate && latestDeliveryDate && earliestDeliveryDate > latestDeliveryDate) {
+      errors.deliveryWindow =
+        'Earliest delivery date must be before or equal to latest delivery date';
+    }
+
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -124,7 +130,8 @@ export function HouseholdItemCreatePage() {
         url: url.trim() || null,
         room: room.trim() || null,
         orderDate: orderDate || null,
-        expectedDeliveryDate: expectedDeliveryDate || null,
+        earliestDeliveryDate: earliestDeliveryDate || undefined,
+        latestDeliveryDate: latestDeliveryDate || undefined,
         actualDeliveryDate: actualDeliveryDate || null,
         tagIds: selectedTagIds,
       });
@@ -332,19 +339,48 @@ export function HouseholdItemCreatePage() {
           </div>
 
           <div className={styles.formGroup}>
-            <label htmlFor="expectedDeliveryDate" className={styles.label}>
-              Expected Delivery
+            <label htmlFor="earliestDeliveryDate" className={styles.label}>
+              Earliest Delivery
             </label>
             <input
               type="date"
-              id="expectedDeliveryDate"
-              className={styles.input}
-              value={expectedDeliveryDate}
-              onChange={(e) => setExpectedDeliveryDate(e.target.value)}
+              id="earliestDeliveryDate"
+              className={`${styles.input} ${validationErrors.deliveryWindow ? styles.inputError : ''}`}
+              value={earliestDeliveryDate}
+              onChange={(e) => setEarliestDeliveryDate(e.target.value)}
               disabled={isSubmitting}
+              aria-invalid={!!validationErrors.deliveryWindow}
+              aria-describedby={
+                validationErrors.deliveryWindow ? 'hi-create-delivery-window-error' : undefined
+              }
             />
           </div>
 
+          <div className={styles.formGroup}>
+            <label htmlFor="latestDeliveryDate" className={styles.label}>
+              Latest Delivery
+            </label>
+            <input
+              type="date"
+              id="latestDeliveryDate"
+              className={`${styles.input} ${validationErrors.deliveryWindow ? styles.inputError : ''}`}
+              value={latestDeliveryDate}
+              onChange={(e) => setLatestDeliveryDate(e.target.value)}
+              disabled={isSubmitting}
+              aria-invalid={!!validationErrors.deliveryWindow}
+              aria-describedby={
+                validationErrors.deliveryWindow ? 'hi-create-delivery-window-error' : undefined
+              }
+            />
+            {validationErrors.deliveryWindow && (
+              <div id="hi-create-delivery-window-error" className={styles.errorText} role="alert">
+                {validationErrors.deliveryWindow}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className={styles.formRow}>
           <div className={styles.formGroup}>
             <label htmlFor="actualDeliveryDate" className={styles.label}>
               Actual Delivery

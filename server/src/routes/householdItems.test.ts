@@ -120,7 +120,7 @@ describe('Household Item Routes', () => {
       expect(item.room).toBeNull();
       expect(item.url).toBeNull();
       expect(item.orderDate).toBeNull();
-      expect(item.expectedDeliveryDate).toBeNull();
+      expect(item.targetDeliveryDate).toBeNull();
       expect(item.actualDeliveryDate).toBeNull();
       expect(item.tagIds).toEqual([]);
       expect(item.tags).toEqual([]);
@@ -152,7 +152,8 @@ describe('Household Item Routes', () => {
         room: 'Bedroom',
         quantity: 1,
         orderDate: '2026-03-01',
-        expectedDeliveryDate: '2026-04-01',
+        earliestDeliveryDate: '2026-04-01',
+        latestDeliveryDate: '2026-04-30',
         tagIds: [tagId],
       };
 
@@ -177,7 +178,8 @@ describe('Household Item Routes', () => {
       expect(item.room).toBe('Bedroom');
       expect(item.quantity).toBe(1);
       expect(item.orderDate).toBe('2026-03-01');
-      expect(item.expectedDeliveryDate).toBe('2026-04-01');
+      expect(item.earliestDeliveryDate).toBe('2026-04-01');
+      expect(item.latestDeliveryDate).toBe('2026-04-30');
       expect(item.tagIds as string[]).toHaveLength(1);
       expect((item.tags as unknown[])?.length).toBe(1);
     });
@@ -402,7 +404,7 @@ describe('Household Item Routes', () => {
         payload: {
           name: 'Test Item',
           orderDate: '2026-03-01',
-          expectedDeliveryDate: '2026-04-01',
+          earliestDeliveryDate: '2026-04-01',
         },
       });
 
@@ -411,7 +413,9 @@ describe('Household Item Routes', () => {
       const item = (JSON.parse(response.body) as { householdItem: Record<string, unknown> })
         .householdItem;
       expect(item).toHaveProperty('orderDate');
-      expect(item).toHaveProperty('expectedDeliveryDate');
+      expect(item).toHaveProperty('earliestDeliveryDate');
+      expect(item).toHaveProperty('latestDeliveryDate');
+      expect(item).toHaveProperty('targetDeliveryDate');
       expect(item).toHaveProperty('actualDeliveryDate');
       expect(item).toHaveProperty('budgetLineCount');
       expect(item).toHaveProperty('totalPlannedAmount');

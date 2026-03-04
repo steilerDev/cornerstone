@@ -104,6 +104,14 @@ function computeDateRange(
         latest = item.latestDeliveryDate;
       }
     }
+    if (item.targetDeliveryDate) {
+      if (!earliest || item.targetDeliveryDate < earliest) {
+        earliest = item.targetDeliveryDate;
+      }
+      if (!latest || item.targetDeliveryDate > latest) {
+        latest = item.targetDeliveryDate;
+      }
+    }
   }
 
   if (!earliest && !latest) {
@@ -327,6 +335,7 @@ export function getTimeline(db: DbType): TimelineResponse {
       or(
         isNotNull(householdItems.earliestDeliveryDate),
         isNotNull(householdItems.latestDeliveryDate),
+        isNotNull(householdItems.targetDeliveryDate),
       ),
     )
     .all();
@@ -349,31 +358,9 @@ export function getTimeline(db: DbType): TimelineResponse {
     hiDepRefMap.set(dep.householdItemId, existing);
   }
 
-  // ── 7b. Compute isLate for each household item ────────────────────────────────
-  // NOTE: isLate is a heuristic approximation — it flags items whose earliest
-  // delivery date equals today AND whose status suggests they should have been
-  // scheduled earlier. The scheduling engine computes precise isLate values
-  // during auto-reschedule, but that value is not persisted. This heuristic
-  // may produce false positives (items genuinely scheduled for today) but
-  // is the best approximation without an additional DB column.
+  // ── 7b. Map household items to timeline representation ────────────────────────────────
 
   const timelineHouseholdItems: TimelineHouseholdItem[] = hiWithDates.map((hi) => {
-    let isLate = false;
-
-    // isLate heuristic: if status is planned/purchased and earliest is today or later
-    // relative to when it was scheduled, or if status is scheduled and latest was floored.
-    // For simplicity, check if earliest/latest is today and status suggests it should be later.
-    if (
-      (hi.status === 'planned' || hi.status === 'purchased') &&
-      hi.earliestDeliveryDate === today
-    ) {
-      // Could be late if it was supposed to be earlier, but we can't tell from DB alone.
-      // Mark as potentially late if earliest = today and status suggests ordering/transit.
-      isLate = true;
-    } else if (hi.status === 'scheduled' && hi.latestDeliveryDate === today) {
-      isLate = true;
-    }
-
     const dependencyIds = hiDepRefMap.get(hi.id) ?? [];
 
     return {
@@ -381,11 +368,11 @@ export function getTimeline(db: DbType): TimelineResponse {
       name: hi.name,
       category: hi.category as HouseholdItemCategory,
       status: hi.status as HouseholdItemStatus,
-      expectedDeliveryDate: hi.expectedDeliveryDate,
+      targetDeliveryDate: hi.targetDeliveryDate,
       earliestDeliveryDate: hi.earliestDeliveryDate,
       latestDeliveryDate: hi.latestDeliveryDate,
       actualDeliveryDate: hi.actualDeliveryDate,
-      isLate,
+      isLate: hi.isLate,
       dependencyIds,
     };
   });

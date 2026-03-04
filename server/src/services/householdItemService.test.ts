@@ -114,7 +114,7 @@ describe('Household Item Service', () => {
       expect(result.room).toBeNull();
       expect(result.url).toBeNull();
       expect(result.orderDate).toBeNull();
-      expect(result.expectedDeliveryDate).toBeNull();
+      expect(result.targetDeliveryDate).toBeNull();
       expect(result.actualDeliveryDate).toBeNull();
       expect(result.earliestDeliveryDate).toBeNull();
       expect(result.latestDeliveryDate).toBeNull();
@@ -146,7 +146,8 @@ describe('Household Item Service', () => {
         room: 'Bedroom',
         quantity: 1,
         orderDate: '2026-03-01',
-        expectedDeliveryDate: '2026-04-01',
+        earliestDeliveryDate: '2026-04-01',
+        latestDeliveryDate: '2026-04-30',
         actualDeliveryDate: null,
         tagIds: [tagId1, tagId2],
       };
@@ -165,7 +166,8 @@ describe('Household Item Service', () => {
       expect(result.room).toBe('Bedroom');
       expect(result.quantity).toBe(1);
       expect(result.orderDate).toBe('2026-03-01');
-      expect(result.expectedDeliveryDate).toBe('2026-04-01');
+      expect(result.earliestDeliveryDate).toBe('2026-04-01');
+      expect(result.latestDeliveryDate).toBe('2026-04-30');
       expect(result.actualDeliveryDate).toBeNull();
       expect(result.tagIds).toHaveLength(2);
       expect(result.tags).toHaveLength(2);
@@ -571,21 +573,23 @@ describe('Household Item Service', () => {
       expect(updated.quantity).toBe(2);
     });
 
-    it('can update delivery dates', () => {
+    it('can update delivery date constraints', () => {
       // Given: An existing item
       const userId = createTestUser('user@example.com', 'Test User');
       const item = householdItemService.createHouseholdItem(db, userId, { name: 'Fridge' });
 
-      // When: Setting delivery dates
+      // When: Setting delivery date constraints and actual date
       const updated = householdItemService.updateHouseholdItem(db, item.id, {
         orderDate: '2026-03-10',
-        expectedDeliveryDate: '2026-04-15',
+        earliestDeliveryDate: '2026-04-10',
+        latestDeliveryDate: '2026-04-20',
         actualDeliveryDate: '2026-04-12',
       });
 
       // Then: Dates are set correctly
       expect(updated.orderDate).toBe('2026-03-10');
-      expect(updated.expectedDeliveryDate).toBe('2026-04-15');
+      expect(updated.earliestDeliveryDate).toBe('2026-04-10');
+      expect(updated.latestDeliveryDate).toBe('2026-04-20');
       expect(updated.actualDeliveryDate).toBe('2026-04-12');
     });
 

@@ -39,7 +39,8 @@ const createHouseholdItemSchema = {
       room: { type: ['string', 'null'], maxLength: 200 },
       quantity: { type: 'integer', minimum: 1 },
       orderDate: { type: ['string', 'null'], format: 'date' },
-      expectedDeliveryDate: { type: ['string', 'null'], format: 'date' },
+      earliestDeliveryDate: { type: ['string', 'null'], format: 'date' },
+      latestDeliveryDate: { type: ['string', 'null'], format: 'date' },
       actualDeliveryDate: { type: ['string', 'null'], format: 'date' },
       tagIds: {
         type: 'array',
@@ -87,7 +88,7 @@ const listHouseholdItemsSchema = {
           'status',
           'room',
           'order_date',
-          'expected_delivery_date',
+          'target_delivery_date',
           'created_at',
           'updated_at',
         ],
@@ -127,7 +128,8 @@ const updateHouseholdItemSchema = {
       room: { type: ['string', 'null'], maxLength: 200 },
       quantity: { type: 'integer', minimum: 1 },
       orderDate: { type: ['string', 'null'], format: 'date' },
-      expectedDeliveryDate: { type: ['string', 'null'], format: 'date' },
+      earliestDeliveryDate: { type: ['string', 'null'], format: 'date' },
+      latestDeliveryDate: { type: ['string', 'null'], format: 'date' },
       actualDeliveryDate: { type: ['string', 'null'], format: 'date' },
       tagIds: {
         type: 'array',

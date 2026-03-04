@@ -206,5 +206,25 @@ Key misses to watch for in Gantt/detail-page dependency PRs:
 - `role="dialog"` modal with no focus trap and no initial focus — `autoFocus` on first input is the minimum acceptable fix
 - `role="listbox"` + `role="option"` requires arrow-key keyboard navigation; without it use `role="list"` + `role="button"` items instead
 - Tooltip HI status badge hardcoded amber color regardless of delivered state — status-conditional token selection required
-- "Floored to today" heuristic: spec uses `isLate` flag from scheduling engine; date-string equality to today is a fragile approximation
+- "Floored to today" heuristic: spec uses `isLate` flag from scheduling engine; date-string equality to today is a fragile approximation (PR #457 correctly switched to `isLate`)
 - `showToast()` alone is insufficient for spec-required `aria-live="polite"` srAnnouncement — toast is visual, not reliable for screen-reader-only users
+
+## HI Status Token Naming — CRITICAL CORRECTION
+
+MEMORY.md previously referenced `--color-hi-status-in-transit-*` tokens. These DO NOT EXIST in tokens.css.
+Correct amber tokens for "in transit / late / floored" states:
+
+- `--color-hi-status-scheduled-bg` (light: `--color-amber-100`, dark: `rgba(245,158,11,0.2)`)
+- `--color-hi-status-scheduled-text` (light: `--color-amber-800`, dark: `--color-amber-300`)
+
+Broken usages as of PR #457 (pre-existing, need cleanup):
+
+- `HouseholdItemDetailPage.module.css` `.lateChip` lines 1228–1229: uses `in-transit` tokens
+- `GanttTooltip.module.css` `.detailValueFloored` line 320: uses `in-transit` token
+
+## PR #457 Review Findings — HI Delivery Date Redesign
+
+- `--color-hi-status-in-transit-*` used in lateChip — non-existent tokens (HIGH)
+- modalOverlay uses `rgba(0,0,0,0.5)` and `z-index:1000` instead of `var(--color-overlay)` and `var(--z-modal)` (MEDIUM, pre-existing)
+- `--color-danger-active` used for errorBanner text instead of `--color-danger-text-on-light` (LOW, pre-existing inconsistency)
+- "Target Delivery (computed)" — parenthetical "(computed)" is dev-oriented language in a user-facing label (LOW)

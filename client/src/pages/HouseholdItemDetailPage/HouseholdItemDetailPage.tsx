@@ -782,9 +782,9 @@ export function HouseholdItemDetailPage() {
               </dd>
             </div>
             <div className={styles.infoRow}>
-              <dt className={styles.infoLabel}>Expected Delivery</dt>
+              <dt className={styles.infoLabel}>Target Delivery (computed)</dt>
               <dd className={styles.infoValue}>
-                {item.expectedDeliveryDate ? formatDate(item.expectedDeliveryDate) : '\u2014'}
+                {item.targetDeliveryDate ? formatDate(item.targetDeliveryDate) : '\u2014'}
               </dd>
             </div>
             <div className={styles.infoRow}>
@@ -816,17 +816,15 @@ export function HouseholdItemDetailPage() {
               <span className={styles.deliveryValue}>
                 {item.earliestDeliveryDate ? formatDate(item.earliestDeliveryDate) : '—'}
               </span>
-              {item.earliestDeliveryDate &&
-                item.status !== 'arrived' &&
-                item.earliestDeliveryDate === new Date().toISOString().slice(0, 10) && (
-                  <span className={styles.lateChip}>Floored to today</span>
-                )}
+              {item.isLate && item.status !== 'arrived' && (
+                <span className={styles.lateChip}>Floored to today</span>
+              )}
             </div>
-            {item.expectedDeliveryDate && (
+            {item.targetDeliveryDate && (
               <div className={styles.deliveryDateColCenter}>
-                <span className={styles.deliveryLabelSm}>Expected</span>
+                <span className={styles.deliveryLabelSm}>Target</span>
                 <span className={styles.deliveryValueSm}>
-                  {formatDate(item.expectedDeliveryDate)}
+                  {formatDate(item.targetDeliveryDate)}
                 </span>
               </div>
             )}

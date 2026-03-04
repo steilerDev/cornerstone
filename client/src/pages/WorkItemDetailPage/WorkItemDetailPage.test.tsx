@@ -742,7 +742,7 @@ describe('WorkItemDetailPage', () => {
           name: 'Leather Sofa',
           category: 'furniture' as const,
           status: 'planned' as const,
-          expectedDeliveryDate: null,
+          targetDeliveryDate: null,
           earliestDeliveryDate: '2026-05-15',
           latestDeliveryDate: '2026-06-01',
         },
@@ -768,7 +768,7 @@ describe('WorkItemDetailPage', () => {
           name: 'Dining Table',
           category: 'furniture' as const,
           status: 'purchased' as const,
-          expectedDeliveryDate: '2026-06-01',
+          targetDeliveryDate: '2026-06-01',
           earliestDeliveryDate: '2026-05-20',
           latestDeliveryDate: '2026-06-10',
         },
@@ -792,14 +792,14 @@ describe('WorkItemDetailPage', () => {
       expect(dateRangeEl).toBeInTheDocument();
     });
 
-    it('falls back to expectedDeliveryDate when no scheduling window dates', async () => {
+    it('falls back to targetDeliveryDate when no scheduling window dates', async () => {
       mockFetchLinkedHouseholdItems.mockResolvedValue([
         {
           id: 'hi-3',
           name: 'Lamp',
           category: 'decor' as const,
           status: 'planned' as const,
-          expectedDeliveryDate: '2026-04-15',
+          targetDeliveryDate: '2026-04-15',
           earliestDeliveryDate: null,
           latestDeliveryDate: null,
         },
@@ -817,7 +817,7 @@ describe('WorkItemDetailPage', () => {
         expect(screen.getByText('Lamp')).toBeInTheDocument();
       });
 
-      // Should fall back to rendering expectedDeliveryDate (no "–" separator)
+      // Should fall back to rendering targetDeliveryDate (no "–" separator)
       // The text contains the formatted expected date without a range separator
       expect(screen.queryByText(/–/)).not.toBeInTheDocument();
     });
@@ -829,7 +829,7 @@ describe('WorkItemDetailPage', () => {
           name: 'Sofa',
           category: 'furniture' as const,
           status: 'planned' as const,
-          expectedDeliveryDate: null,
+          targetDeliveryDate: null,
           earliestDeliveryDate: '2026-05-15',
           latestDeliveryDate: '2026-06-01',
         },
@@ -838,7 +838,7 @@ describe('WorkItemDetailPage', () => {
           name: 'Chair',
           category: 'furniture' as const,
           status: 'purchased' as const,
-          expectedDeliveryDate: null,
+          targetDeliveryDate: null,
           earliestDeliveryDate: '2026-06-10',
           latestDeliveryDate: '2026-07-01',
         },
@@ -866,7 +866,7 @@ describe('WorkItemDetailPage', () => {
           name: 'Fridge',
           category: 'appliances' as const,
           status: 'purchased' as const,
-          expectedDeliveryDate: null,
+          targetDeliveryDate: null,
           earliestDeliveryDate: '2026-04-01',
           latestDeliveryDate: '2026-04-15',
         },

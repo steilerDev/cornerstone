@@ -543,10 +543,11 @@ export const householdItems = sqliteTable(
     room: text('room'),
     quantity: integer('quantity').notNull().default(1),
     orderDate: text('order_date'),
-    expectedDeliveryDate: text('expected_delivery_date'),
     actualDeliveryDate: text('actual_delivery_date'),
     earliestDeliveryDate: text('earliest_delivery_date'),
     latestDeliveryDate: text('latest_delivery_date'),
+    targetDeliveryDate: text('target_delivery_date'),
+    isLate: integer('is_late', { mode: 'boolean' }).notNull().default(false),
     createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
@@ -557,6 +558,7 @@ export const householdItems = sqliteTable(
     roomIdx: index('idx_household_items_room').on(table.room),
     vendorIdIdx: index('idx_household_items_vendor_id').on(table.vendorId),
     createdAtIdx: index('idx_household_items_created_at').on(table.createdAt),
+    targetDeliveryIdx: index('idx_household_items_target_delivery').on(table.targetDeliveryDate),
   }),
 );
 

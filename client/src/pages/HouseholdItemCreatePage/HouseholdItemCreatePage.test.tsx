@@ -100,10 +100,11 @@ describe('HouseholdItemCreatePage', () => {
     room: null,
     quantity: 1,
     orderDate: null,
-    expectedDeliveryDate: null,
+    targetDeliveryDate: null,
     actualDeliveryDate: null,
     earliestDeliveryDate: null,
     latestDeliveryDate: null,
+    isLate: false,
     tagIds: [],
     budgetLineCount: 0,
     totalPlannedAmount: 0,
@@ -180,7 +181,8 @@ describe('HouseholdItemCreatePage', () => {
       expect(screen.getByLabelText(/^room/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/quantity/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/order date/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/expected delivery/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/earliest delivery/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/latest delivery/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/actual delivery/i)).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /create item/i })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();

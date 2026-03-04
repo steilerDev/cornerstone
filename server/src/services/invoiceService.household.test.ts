@@ -77,7 +77,8 @@ describe('Invoice Service - Household Item Budget Linking', () => {
       name,
       vendorId: undefined,
       tagIds: [],
-      expectedDeliveryDate: undefined,
+      earliestDeliveryDate: undefined,
+      latestDeliveryDate: undefined,
     });
     return result.id;
   }
