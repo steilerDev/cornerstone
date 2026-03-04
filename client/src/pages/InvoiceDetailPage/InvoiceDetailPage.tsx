@@ -9,10 +9,10 @@ import type {
 import { fetchInvoiceById, updateInvoice, deleteInvoice } from '../../lib/invoicesApi.js';
 import { fetchWorkItemBudgets } from '../../lib/workItemBudgetsApi.js';
 import { fetchHouseholdItemBudgets } from '../../lib/householdItemBudgetsApi.js';
-import { listHouseholdItems } from '../../lib/householdItemsApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { formatDate, formatCurrency } from '../../lib/formatters.js';
 import { WorkItemPicker } from '../../components/WorkItemPicker/WorkItemPicker.js';
+import { HouseholdItemPicker } from '../../components/HouseholdItemPicker/HouseholdItemPicker.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
 import styles from './InvoiceDetailPage.module.css';
 
@@ -70,9 +70,6 @@ export function InvoiceDetailPage() {
   // Budget lines for the selected work item
   const [budgetLines, setBudgetLines] = useState<WorkItemBudgetLine[]>([]);
   const [budgetLinesLoading, setBudgetLinesLoading] = useState(false);
-  const [allHouseholdItems, setAllHouseholdItems] = useState<Array<{ id: string; name: string }>>(
-    [],
-  );
   const [householdItemBudgetLines, setHouseholdItemBudgetLines] = useState<
     HouseholdItemBudgetLine[]
   >([]);
@@ -81,11 +78,6 @@ export function InvoiceDetailPage() {
   useEffect(() => {
     if (!id) return;
     void loadInvoice();
-    void listHouseholdItems({ pageSize: 100 }).then((res) =>
-      setAllHouseholdItems(
-        res.items.map((hi: { id: string; name: string }) => ({ id: hi.id, name: hi.name })),
-      ),
-    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
@@ -549,14 +541,10 @@ export function InvoiceDetailPage() {
               <div className={styles.separator}>— or —</div>
 
               <div className={styles.field}>
-                <label htmlFor="edit-household-item" className={styles.label}>
-                  Link to Household Item
-                </label>
-                <select
-                  id="edit-household-item"
+                <span className={styles.label}>Link to Household Item</span>
+                <HouseholdItemPicker
                   value={editForm.selectedHouseholdItemId}
-                  onChange={(e) => {
-                    const householdItemId = e.target.value;
+                  onChange={(householdItemId) => {
                     setHouseholdItemBudgetLinkTouched(true);
                     setBudgetLinkTouched(true);
                     setEditForm({
@@ -569,29 +557,19 @@ export function InvoiceDetailPage() {
                     if (householdItemId) {
                       setHouseholdItemBudgetLinesLoading(true);
                       void fetchHouseholdItemBudgets(householdItemId)
-                        .then((lines) => {
-                          setHouseholdItemBudgetLines(lines);
-                        })
-                        .catch(() => {
-                          setHouseholdItemBudgetLines([]);
-                        })
-                        .finally(() => {
-                          setHouseholdItemBudgetLinesLoading(false);
-                        });
+                        .then((lines) => setHouseholdItemBudgetLines(lines))
+                        .catch(() => setHouseholdItemBudgetLines([]))
+                        .finally(() => setHouseholdItemBudgetLinesLoading(false));
                     } else {
                       setHouseholdItemBudgetLines([]);
                     }
                   }}
-                  className={styles.select}
+                  excludeIds={[]}
                   disabled={isUpdating}
-                >
-                  <option value="">None</option>
-                  {allHouseholdItems.map((hi) => (
-                    <option key={hi.id} value={hi.id}>
-                      {hi.name}
-                    </option>
-                  ))}
-                </select>
+                  placeholder="Search household items..."
+                  showItemsOnFocus
+                  initialTitle={invoice.householdItemBudget?.householdItemName ?? undefined}
+                />
               </div>
 
               {editForm.selectedHouseholdItemId && (

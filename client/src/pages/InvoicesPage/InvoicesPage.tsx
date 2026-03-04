@@ -9,16 +9,12 @@ import type {
 import { fetchAllInvoices, createInvoice } from '../../lib/invoicesApi.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
 import { fetchWorkItemBudgets } from '../../lib/workItemBudgetsApi.js';
-import { listWorkItems } from '../../lib/workItemsApi.js';
-import { listHouseholdItems } from '../../lib/householdItemsApi.js';
 import { fetchHouseholdItemBudgets } from '../../lib/householdItemBudgetsApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
-import type {
-  WorkItemSummary,
-  WorkItemBudgetLine,
-  HouseholdItemBudgetLine,
-} from '@cornerstone/shared';
+import { WorkItemPicker } from '../../components/WorkItemPicker/WorkItemPicker.js';
+import { HouseholdItemPicker } from '../../components/HouseholdItemPicker/HouseholdItemPicker.js';
+import type { WorkItemBudgetLine, HouseholdItemBudgetLine } from '@cornerstone/shared';
 import { formatDate, formatCurrency } from '../../lib/formatters.js';
 import styles from './InvoicesPage.module.css';
 
@@ -92,12 +88,8 @@ export function InvoicesPage() {
   const [createForm, setCreateForm] = useState<InvoiceFormState>(EMPTY_FORM);
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState('');
-  const [workItems, setWorkItems] = useState<WorkItemSummary[]>([]);
   const [budgetLines, setBudgetLines] = useState<WorkItemBudgetLine[]>([]);
   const [budgetLinesLoading, setBudgetLinesLoading] = useState(false);
-  const [allHouseholdItems, setAllHouseholdItems] = useState<Array<{ id: string; name: string }>>(
-    [],
-  );
   const [householdItemBudgetLines, setHouseholdItemBudgetLines] = useState<
     HouseholdItemBudgetLine[]
   >([]);
@@ -110,12 +102,6 @@ export function InvoicesPage() {
   useEffect(() => {
     void fetchVendors({ pageSize: 100 }).then((res) =>
       setVendors(res.vendors.map((v) => ({ id: v.id, name: v.name }))),
-    );
-    void listWorkItems({ pageSize: 100 }).then((res) => setWorkItems(res.items));
-    void listHouseholdItems({ pageSize: 100 }).then((res) =>
-      setAllHouseholdItems(
-        res.items.map((hi: { id: string; name: string }) => ({ id: hi.id, name: hi.name })),
-      ),
     );
   }, []);
 
@@ -780,14 +766,10 @@ export function InvoicesPage() {
               </div>
 
               <div className={styles.field}>
-                <label htmlFor="create-work-item" className={styles.label}>
-                  Link to Work Item
-                </label>
-                <select
-                  id="create-work-item"
+                <span className={styles.label}>Link to Work Item</span>
+                <WorkItemPicker
                   value={createForm.selectedWorkItemId}
-                  onChange={(e) => {
-                    const workItemId = e.target.value;
+                  onChange={(workItemId) => {
                     setCreateForm({
                       ...createForm,
                       selectedWorkItemId: workItemId,
@@ -798,29 +780,18 @@ export function InvoicesPage() {
                     if (workItemId) {
                       setBudgetLinesLoading(true);
                       void fetchWorkItemBudgets(workItemId)
-                        .then((lines) => {
-                          setBudgetLines(lines);
-                        })
-                        .catch(() => {
-                          setBudgetLines([]);
-                        })
-                        .finally(() => {
-                          setBudgetLinesLoading(false);
-                        });
+                        .then((lines) => setBudgetLines(lines))
+                        .catch(() => setBudgetLines([]))
+                        .finally(() => setBudgetLinesLoading(false));
                     } else {
                       setBudgetLines([]);
                     }
                   }}
-                  className={styles.select}
+                  excludeIds={[]}
                   disabled={isCreating}
-                >
-                  <option value="">None</option>
-                  {workItems.map((wi) => (
-                    <option key={wi.id} value={wi.id}>
-                      {wi.title}
-                    </option>
-                  ))}
-                </select>
+                  placeholder="Search work items..."
+                  showItemsOnFocus
+                />
               </div>
 
               {createForm.selectedWorkItemId && (
@@ -850,14 +821,10 @@ export function InvoicesPage() {
               <div className={styles.separator}>— or —</div>
 
               <div className={styles.field}>
-                <label htmlFor="create-household-item" className={styles.label}>
-                  Link to Household Item
-                </label>
-                <select
-                  id="create-household-item"
+                <span className={styles.label}>Link to Household Item</span>
+                <HouseholdItemPicker
                   value={createForm.selectedHouseholdItemId}
-                  onChange={(e) => {
-                    const householdItemId = e.target.value;
+                  onChange={(householdItemId) => {
                     setCreateForm({
                       ...createForm,
                       selectedHouseholdItemId: householdItemId,
@@ -868,29 +835,18 @@ export function InvoicesPage() {
                     if (householdItemId) {
                       setHouseholdItemBudgetLinesLoading(true);
                       void fetchHouseholdItemBudgets(householdItemId)
-                        .then((lines) => {
-                          setHouseholdItemBudgetLines(lines);
-                        })
-                        .catch(() => {
-                          setHouseholdItemBudgetLines([]);
-                        })
-                        .finally(() => {
-                          setHouseholdItemBudgetLinesLoading(false);
-                        });
+                        .then((lines) => setHouseholdItemBudgetLines(lines))
+                        .catch(() => setHouseholdItemBudgetLines([]))
+                        .finally(() => setHouseholdItemBudgetLinesLoading(false));
                     } else {
                       setHouseholdItemBudgetLines([]);
                     }
                   }}
-                  className={styles.select}
+                  excludeIds={[]}
                   disabled={isCreating}
-                >
-                  <option value="">None</option>
-                  {allHouseholdItems.map((hi) => (
-                    <option key={hi.id} value={hi.id}>
-                      {hi.name}
-                    </option>
-                  ))}
-                </select>
+                  placeholder="Search household items..."
+                  showItemsOnFocus
+                />
               </div>
 
               {createForm.selectedHouseholdItemId && (
