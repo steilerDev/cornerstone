@@ -12,6 +12,9 @@ import type * as HouseholdItemsApiTypes from './lib/householdItemsApi.js';
 import type * as VendorsApiTypes from './lib/vendorsApi.js';
 import type * as TagsApiTypes from './lib/tagsApi.js';
 import type * as UsersApiTypes from './lib/usersApi.js';
+import type * as InvoicesApiTypes from './lib/invoicesApi.js';
+import type * as WorkItemBudgetsApiTypes from './lib/workItemBudgetsApi.js';
+import type * as HouseholdItemBudgetsApiTypes from './lib/householdItemBudgetsApi.js';
 import type * as AppTypes from './App.js';
 
 const mockGetAuthMe = jest.fn<typeof AuthApiTypes.getAuthMe>();
@@ -118,6 +121,37 @@ jest.unstable_mockModule('./lib/usersApi.js', () => ({
   deactivateUser: jest.fn<typeof UsersApiTypes.deactivateUser>(),
 }));
 
+// InvoicesPage calls fetchAllInvoices and createInvoice on mount.
+const mockFetchAllInvoices = jest.fn<typeof InvoicesApiTypes.fetchAllInvoices>();
+jest.unstable_mockModule('./lib/invoicesApi.js', () => ({
+  fetchAllInvoices: mockFetchAllInvoices,
+  createInvoice: jest.fn<typeof InvoicesApiTypes.createInvoice>(),
+  fetchInvoices: jest.fn<typeof InvoicesApiTypes.fetchInvoices>(),
+  updateInvoice: jest.fn<typeof InvoicesApiTypes.updateInvoice>(),
+  deleteInvoice: jest.fn<typeof InvoicesApiTypes.deleteInvoice>(),
+  fetchInvoiceById: jest.fn<typeof InvoicesApiTypes.fetchInvoiceById>(),
+}));
+
+const mockFetchWorkItemBudgets = jest.fn<typeof WorkItemBudgetsApiTypes.fetchWorkItemBudgets>();
+jest.unstable_mockModule('./lib/workItemBudgetsApi.js', () => ({
+  fetchWorkItemBudgets: mockFetchWorkItemBudgets,
+  createWorkItemBudget: jest.fn<typeof WorkItemBudgetsApiTypes.createWorkItemBudget>(),
+  updateWorkItemBudget: jest.fn<typeof WorkItemBudgetsApiTypes.updateWorkItemBudget>(),
+  deleteWorkItemBudget: jest.fn<typeof WorkItemBudgetsApiTypes.deleteWorkItemBudget>(),
+}));
+
+const mockFetchHouseholdItemBudgets =
+  jest.fn<typeof HouseholdItemBudgetsApiTypes.fetchHouseholdItemBudgets>();
+jest.unstable_mockModule('./lib/householdItemBudgetsApi.js', () => ({
+  fetchHouseholdItemBudgets: mockFetchHouseholdItemBudgets,
+  createHouseholdItemBudget:
+    jest.fn<typeof HouseholdItemBudgetsApiTypes.createHouseholdItemBudget>(),
+  updateHouseholdItemBudget:
+    jest.fn<typeof HouseholdItemBudgetsApiTypes.updateHouseholdItemBudget>(),
+  deleteHouseholdItemBudget:
+    jest.fn<typeof HouseholdItemBudgetsApiTypes.deleteHouseholdItemBudget>(),
+}));
+
 describe('App', () => {
   // Dynamic imports
   let App: typeof AppTypes.App;
@@ -144,6 +178,9 @@ describe('App', () => {
     mockFetchVendors.mockReset();
     mockFetchTags.mockReset();
     mockListUsers.mockReset();
+    mockFetchAllInvoices.mockReset();
+    mockFetchWorkItemBudgets.mockReset();
+    mockFetchHouseholdItemBudgets.mockReset();
 
     // Default: budget categories returns empty list
     mockFetchBudgetCategories.mockResolvedValue({ categories: [] });
@@ -185,6 +222,19 @@ describe('App', () => {
 
     // Default: users returns empty list (used by WorkItemsPage assigned-to filter)
     mockListUsers.mockResolvedValue({ users: [] });
+
+    // Default: invoices returns empty data (used by InvoicesPage)
+    mockFetchAllInvoices.mockResolvedValue({
+      invoices: [],
+      pagination: { page: 1, pageSize: 25, totalItems: 0, totalPages: 0 },
+      summary: {
+        pending: { count: 0, totalAmount: 0 },
+        paid: { count: 0, totalAmount: 0 },
+        claimed: { count: 0, totalAmount: 0 },
+      },
+    });
+    mockFetchWorkItemBudgets.mockResolvedValue([]);
+    mockFetchHouseholdItemBudgets.mockResolvedValue([]);
 
     // Default: authenticated user (no setup required)
     mockGetAuthMe.mockResolvedValue({
@@ -281,6 +331,15 @@ describe('App', () => {
       name: /household items/i,
       level: 1,
     });
+    expect(heading).toBeInTheDocument();
+  });
+
+  it('navigates to Invoices page when /invoices path is accessed', async () => {
+    window.history.pushState({}, 'Invoices', '/invoices');
+    render(<App />);
+
+    // Wait for lazy-loaded Invoices component to resolve
+    const heading = await screen.findByRole('heading', { name: /^invoices$/i, level: 1 });
     expect(heading).toBeInTheDocument();
   });
 

@@ -210,7 +210,7 @@ export function InvoiceDetailPage() {
     setDeleteError('');
     try {
       await deleteInvoice(invoice.vendorId, invoice.id);
-      navigate('/budget/invoices');
+      navigate('/invoices');
     } catch (err) {
       if (err instanceof ApiClientError) {
         setDeleteError(err.error.message);
@@ -240,7 +240,7 @@ export function InvoiceDetailPage() {
             <button
               type="button"
               className={styles.secondaryButton}
-              onClick={() => navigate('/budget/invoices')}
+              onClick={() => navigate('/invoices')}
             >
               Back to Invoices
             </button>
@@ -258,7 +258,7 @@ export function InvoiceDetailPage() {
       <div className={styles.content}>
         {/* Breadcrumb */}
         <div className={styles.breadcrumb}>
-          <Link to="/budget/invoices" className={styles.backLink}>
+          <Link to="/invoices" className={styles.backLink}>
             Invoices
           </Link>
           <span className={styles.breadcrumbSeparator} aria-hidden="true">

@@ -11,7 +11,6 @@ import { fetchVendors } from '../../lib/vendorsApi.js';
 import { fetchWorkItemBudgets } from '../../lib/workItemBudgetsApi.js';
 import { fetchHouseholdItemBudgets } from '../../lib/householdItemBudgetsApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
-import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
 import { WorkItemPicker } from '../../components/WorkItemPicker/WorkItemPicker.js';
 import { HouseholdItemPicker } from '../../components/HouseholdItemPicker/HouseholdItemPicker.js';
 import type { WorkItemBudgetLine, HouseholdItemBudgetLine } from '@cornerstone/shared';
@@ -238,9 +237,8 @@ export function InvoicesPage() {
       <div className={styles.container}>
         <div className={styles.content}>
           <div className={styles.pageHeader}>
-            <h1 className={styles.pageTitle}>Budget</h1>
+            <h1 className={styles.pageTitle}>Invoices</h1>
           </div>
-          <BudgetSubNav />
           <div className={styles.loading}>Loading invoices...</div>
         </div>
       </div>
@@ -251,10 +249,8 @@ export function InvoicesPage() {
     <div className={styles.container}>
       <div className={styles.content}>
         <div className={styles.pageHeader}>
-          <h1 className={styles.pageTitle}>Budget</h1>
+          <h1 className={styles.pageTitle}>Invoices</h1>
         </div>
-
-        <BudgetSubNav />
 
         {/* Summary cards */}
         <div className={styles.summaryGrid}>
@@ -498,15 +494,12 @@ export function InvoicesPage() {
                       <td>{formatDate(invoice.date)}</td>
                       <td className={styles.invoiceNumberCell}>
                         {invoice.invoiceNumber ? (
-                          <Link
-                            to={`/budget/invoices/${invoice.id}`}
-                            className={styles.invoiceLink}
-                          >
+                          <Link to={`/invoices/${invoice.id}`} className={styles.invoiceLink}>
                             {invoice.invoiceNumber}
                           </Link>
                         ) : (
                           <Link
-                            to={`/budget/invoices/${invoice.id}`}
+                            to={`/invoices/${invoice.id}`}
                             className={`${styles.invoiceLink} ${styles.invoiceLinkNoNumber}`}
                           >
                             &mdash;
@@ -538,7 +531,7 @@ export function InvoicesPage() {
                         </span>
                       </td>
                       <td className={styles.actionsCell}>
-                        <Link to={`/budget/invoices/${invoice.id}`} className={styles.viewButton}>
+                        <Link to={`/invoices/${invoice.id}`} className={styles.viewButton}>
                           View
                         </Link>
                       </td>
@@ -554,10 +547,7 @@ export function InvoicesPage() {
                 <div key={invoice.id} className={styles.card}>
                   <div className={styles.cardTop}>
                     <div className={styles.cardLeft}>
-                      <Link
-                        to={`/budget/invoices/${invoice.id}`}
-                        className={styles.cardInvoiceNumber}
-                      >
+                      <Link to={`/invoices/${invoice.id}`} className={styles.cardInvoiceNumber}>
                         {invoice.invoiceNumber ? `#${invoice.invoiceNumber}` : 'No Number'}
                       </Link>
                       <Link
@@ -579,7 +569,7 @@ export function InvoicesPage() {
                     )}
                   </div>
                   <div className={styles.cardActions}>
-                    <Link to={`/budget/invoices/${invoice.id}`} className={styles.viewButton}>
+                    <Link to={`/invoices/${invoice.id}`} className={styles.viewButton}>
                       View Details
                     </Link>
                   </div>
