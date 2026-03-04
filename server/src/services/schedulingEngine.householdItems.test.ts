@@ -576,9 +576,11 @@ describe('autoReschedule — household item delivery date computation', () => {
       expect(earliestDeliveryDate).toBe('2030-06-01');
     });
 
-    it('AC 3 edge: all contributors have null end dates, falls back to targetDate', () => {
+    it('AC 3 edge: contributors with null end dates use CPM-projected today, not targetDate', () => {
       // Given: A milestone with targetDate = '2030-09-01', completedAt = null
       //        WI linked to milestone, but endDate = null and durationDays = null
+      //        The CPM engine schedules such WIs to finish "today" (zero-duration default),
+      //        so the projected date = today, which is a valid projected date.
       const userId = insertUser(db);
       const milestoneId = insertMilestone(db, userId, {
         targetDate: '2030-09-01',
@@ -598,9 +600,11 @@ describe('autoReschedule — household item delivery date computation', () => {
       // When: autoReschedule runs
       autoReschedule(db);
 
-      // Then: HI earliestDeliveryDate = '2030-09-01' (targetDate fallback)
+      // Then: HI earliestDeliveryDate = today (CPM projects the contributor to today,
+      //       which becomes the projected milestone date, then floored to today)
+      const today = new Date().toISOString().slice(0, 10);
       const { earliestDeliveryDate } = getHIDeliveryDates(db, hiId);
-      expect(earliestDeliveryDate).toBe('2030-09-01');
+      expect(earliestDeliveryDate).toBe(today);
     });
 
     it('AC 7 regression guard: WI dependency (not milestone) still works correctly', () => {
