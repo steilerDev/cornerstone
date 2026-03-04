@@ -203,10 +203,9 @@ describe('householdItemDepsApi', () => {
 
       expect(body.predecessorType).toBe('work_item');
       expect(body.predecessorId).toBe('wi-456');
-      expect(body.dependencyType).toBe('finish_to_start');
     });
 
-    it('sends correct request body for milestone dependency with lead lag', async () => {
+    it('sends correct request body for milestone dependency', async () => {
       const mockDep: HouseholdItemDepDetail = {
         householdItemId: 'hi-456',
         predecessorType: 'milestone',
@@ -231,7 +230,6 @@ describe('householdItemDepsApi', () => {
 
       expect(body.predecessorType).toBe('milestone');
       expect(body.predecessorId).toBe('42');
-      expect(body.dependencyType).toBe('start_to_start');
     });
 
     it('returns the created HouseholdItemDepDetail', async () => {

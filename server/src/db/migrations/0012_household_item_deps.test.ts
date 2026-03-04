@@ -216,7 +216,7 @@ describe('Migration 0012: Household Item Deps', () => {
       expect(table!.name).toBe('household_item_deps');
     });
 
-    it('has all required columns', () => {
+    it('has all required columns (dependency_type and lead_lag_days dropped by 0013)', () => {
       const columns = sqlite.prepare("PRAGMA table_info('household_item_deps')").all() as Array<{
         name: string;
         type: string;
@@ -229,8 +229,9 @@ describe('Migration 0012: Household Item Deps', () => {
       expect(colMap.has('household_item_id')).toBe(true);
       expect(colMap.has('predecessor_type')).toBe(true);
       expect(colMap.has('predecessor_id')).toBe(true);
-      expect(colMap.has('dependency_type')).toBe(true);
-      expect(colMap.has('lead_lag_days')).toBe(true);
+      // dependency_type and lead_lag_days were dropped by migration 0013
+      expect(colMap.has('dependency_type')).toBe(false);
+      expect(colMap.has('lead_lag_days')).toBe(false);
     });
 
     it('household_item_id, predecessor_type, predecessor_id are NOT NULL', () => {
@@ -246,26 +247,15 @@ describe('Migration 0012: Household Item Deps', () => {
       expect(colMap.get('predecessor_id')?.notnull).toBe(1);
     });
 
-    it('dependency_type defaults to finish_to_start', () => {
+    it('dependency_type and lead_lag_days columns were removed by migration 0013', () => {
       const columns = sqlite.prepare("PRAGMA table_info('household_item_deps')").all() as Array<{
         name: string;
         dflt_value: string | null;
       }>;
 
-      const col = columns.find((c) => c.name === 'dependency_type');
-      expect(col).toBeDefined();
-      expect(col!.dflt_value).toBe("'finish_to_start'");
-    });
-
-    it('lead_lag_days defaults to 0', () => {
-      const columns = sqlite.prepare("PRAGMA table_info('household_item_deps')").all() as Array<{
-        name: string;
-        dflt_value: string | null;
-      }>;
-
-      const col = columns.find((c) => c.name === 'lead_lag_days');
-      expect(col).toBeDefined();
-      expect(col!.dflt_value).toBe('0');
+      const colNames = columns.map((c) => c.name);
+      expect(colNames).not.toContain('dependency_type');
+      expect(colNames).not.toContain('lead_lag_days');
     });
   });
 
@@ -380,46 +370,8 @@ describe('Migration 0012: Household Item Deps', () => {
   });
 
   // ── 6. dependency_type CHECK constraint ──────────────────────────────────
-
-  describe('dependency_type CHECK constraint', () => {
-    const validTypes = ['finish_to_start', 'start_to_start', 'finish_to_finish', 'start_to_finish'];
-
-    it.each(validTypes)('accepts valid dependency_type: %s', (depType) => {
-      const hiId = `item-deptype-${depType}`;
-      const wiId = `wi-deptype-${depType}`;
-      insertHouseholdItem(sqlite, hiId);
-      insertWorkItem(sqlite, wiId);
-
-      expect(() => {
-        sqlite
-          .prepare(
-            `INSERT INTO household_item_deps (household_item_id, predecessor_type, predecessor_id, dependency_type)
-             VALUES (?, ?, ?, ?)`,
-          )
-          .run(hiId, 'work_item', wiId, depType);
-      }).not.toThrow();
-    });
-
-    it('rejects invalid dependency_type value', () => {
-      insertHouseholdItem(sqlite, 'item-deptype-bad');
-      insertWorkItem(sqlite, 'wi-deptype-bad');
-
-      let error: Error | undefined;
-      try {
-        sqlite
-          .prepare(
-            `INSERT INTO household_item_deps (household_item_id, predecessor_type, predecessor_id, dependency_type)
-             VALUES (?, ?, ?, ?)`,
-          )
-          .run('item-deptype-bad', 'work_item', 'wi-deptype-bad', 'unknown_type');
-      } catch (err) {
-        error = err as Error;
-      }
-
-      expect(error).toBeDefined();
-      expect(error!.message).toMatch(/CHECK constraint failed/);
-    });
-  });
+  // NOTE: dependency_type column was dropped by migration 0013 (simplify HI deps).
+  // These constraints no longer apply — all HI deps are implicitly FS with 0 lag.
 
   // ── 7. CASCADE on household item delete ───────────────────────────────────
 
@@ -480,10 +432,10 @@ describe('Migration 0012: Household Item Deps', () => {
 
       sqlite
         .prepare(
-          `INSERT INTO household_item_deps (household_item_id, predecessor_type, predecessor_id, dependency_type, lead_lag_days)
-           VALUES (?, ?, ?, ?, ?)`,
+          `INSERT INTO household_item_deps (household_item_id, predecessor_type, predecessor_id)
+           VALUES (?, ?, ?)`,
         )
-        .run('item-query-test', 'work_item', 'wi-query-test', 'finish_to_start', 0);
+        .run('item-query-test', 'work_item', 'wi-query-test');
 
       const rows = sqlite
         .prepare(`SELECT * FROM household_item_deps WHERE household_item_id = ?`)
@@ -491,16 +443,12 @@ describe('Migration 0012: Household Item Deps', () => {
         household_item_id: string;
         predecessor_type: string;
         predecessor_id: string;
-        dependency_type: string;
-        lead_lag_days: number;
       }>;
 
       expect(rows).toHaveLength(1);
       expect(rows[0].household_item_id).toBe('item-query-test');
       expect(rows[0].predecessor_type).toBe('work_item');
       expect(rows[0].predecessor_id).toBe('wi-query-test');
-      expect(rows[0].dependency_type).toBe('finish_to_start');
-      expect(rows[0].lead_lag_days).toBe(0);
     });
   });
 
@@ -559,16 +507,16 @@ describe('Migration 0012: Household Item Deps', () => {
   // ── 11. Full dep row insert and read ──────────────────────────────────────
 
   describe('full dependency row insertion', () => {
-    it('inserts and reads a milestone dependency with custom type and lead_lag_days', () => {
+    it('inserts and reads a milestone dependency', () => {
       insertHouseholdItem(sqlite, 'item-ms-dep');
       insertMilestone(sqlite, 3001, 'Frame Complete');
 
       sqlite
         .prepare(
-          `INSERT INTO household_item_deps (household_item_id, predecessor_type, predecessor_id, dependency_type, lead_lag_days)
-           VALUES (?, ?, ?, ?, ?)`,
+          `INSERT INTO household_item_deps (household_item_id, predecessor_type, predecessor_id)
+           VALUES (?, ?, ?)`,
         )
-        .run('item-ms-dep', 'milestone', '3001', 'start_to_start', 5);
+        .run('item-ms-dep', 'milestone', '3001');
 
       const row = sqlite
         .prepare(`SELECT * FROM household_item_deps WHERE household_item_id = ?`)
@@ -576,15 +524,11 @@ describe('Migration 0012: Household Item Deps', () => {
         household_item_id: string;
         predecessor_type: string;
         predecessor_id: string;
-        dependency_type: string;
-        lead_lag_days: number;
       };
 
       expect(row.household_item_id).toBe('item-ms-dep');
       expect(row.predecessor_type).toBe('milestone');
       expect(row.predecessor_id).toBe('3001');
-      expect(row.dependency_type).toBe('start_to_start');
-      expect(row.lead_lag_days).toBe(5);
     });
 
     it('inserts multiple deps for same household item', () => {

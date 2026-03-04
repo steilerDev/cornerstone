@@ -514,11 +514,10 @@ describe('Migration 0010: Household Items', () => {
       insertWorkItem(sqlite, 'wi-cascade-dep-1');
       sqlite
         .prepare(
-          `INSERT INTO household_item_deps (household_item_id, predecessor_type, predecessor_id,
-            dependency_type, lead_lag_days)
-           VALUES (?, ?, ?, ?, ?)`,
+          `INSERT INTO household_item_deps (household_item_id, predecessor_type, predecessor_id)
+           VALUES (?, ?, ?)`,
         )
-        .run('item-cascade-dep', 'work_item', 'wi-cascade-dep-1', 'finish_to_start', 0);
+        .run('item-cascade-dep', 'work_item', 'wi-cascade-dep-1');
 
       sqlite.prepare('DELETE FROM household_items WHERE id = ?').run('item-cascade-dep');
 
@@ -566,11 +565,10 @@ describe('Migration 0010: Household Items', () => {
       insertWorkItem(sqlite, 'wi-dep-cascade');
       sqlite
         .prepare(
-          `INSERT INTO household_item_deps (household_item_id, predecessor_type, predecessor_id,
-            dependency_type, lead_lag_days)
-           VALUES (?, ?, ?, ?, ?)`,
+          `INSERT INTO household_item_deps (household_item_id, predecessor_type, predecessor_id)
+           VALUES (?, ?, ?)`,
         )
-        .run('item-hi-dep-cascade', 'work_item', 'wi-dep-cascade', 'finish_to_start', 0);
+        .run('item-hi-dep-cascade', 'work_item', 'wi-dep-cascade');
 
       sqlite.prepare('DELETE FROM household_items WHERE id = ?').run('item-hi-dep-cascade');
 

@@ -1247,16 +1247,12 @@ describe('Household Item Routes', () => {
           householdItemId: string;
           predecessorType: string;
           predecessorId: string;
-          dependencyType: string;
-          leadLagDays: number;
           predecessor: { id: string; title: string };
         }>;
       };
       expect(body.dependencies).toHaveLength(1);
       expect(body.dependencies[0].predecessorType).toBe('work_item');
       expect(body.dependencies[0].predecessorId).toBe(workItem.id);
-      expect(body.dependencies[0].dependencyType).toBe('finish_to_start');
-      expect(body.dependencies[0].leadLagDays).toBe(0);
       expect(body.dependencies[0].predecessor.title).toBe('Foundation Work');
     });
 
@@ -1306,16 +1302,12 @@ describe('Household Item Routes', () => {
           householdItemId: string;
           predecessorType: string;
           predecessorId: string;
-          dependencyType: string;
-          leadLagDays: number;
           predecessor: { id: string; title: string };
         };
       };
       expect(body.dependency.householdItemId).toBe(item.id);
       expect(body.dependency.predecessorType).toBe('work_item');
       expect(body.dependency.predecessorId).toBe(workItem.id);
-      expect(body.dependency.dependencyType).toBe('finish_to_start');
-      expect(body.dependency.leadLagDays).toBe(0);
       expect(body.dependency.predecessor.id).toBe(workItem.id);
       expect(body.dependency.predecessor.title).toBe('Framing Work');
     });
@@ -1359,7 +1351,7 @@ describe('Household Item Routes', () => {
       expect(body.dependency.predecessor.title).toBe('Framing Complete');
     });
 
-    it('returns 201 with custom dependencyType and leadLagDays', async () => {
+    it('returns 201 and silently ignores dependencyType and leadLagDays if sent', async () => {
       // Given: Authenticated user, work item, and household item
       const { userId, cookie } = await createUserWithSession(
         'user@example.com',
@@ -1369,7 +1361,7 @@ describe('Household Item Routes', () => {
       const workItem = workItemService.createWorkItem(app.db, userId, { title: 'Electrical' });
       const item = householdItemService.createHouseholdItem(app.db, userId, { name: 'Chandelier' });
 
-      // When: Creating a dependency with custom type and lag
+      // When: Creating a dependency with extra fields (backwards compat)
       const response = await app.inject({
         method: 'POST',
         url: `/api/household-items/${item.id}/dependencies`,
@@ -1382,13 +1374,13 @@ describe('Household Item Routes', () => {
         },
       });
 
-      // Then: Returns 201 with custom fields
+      // Then: Returns 201 — extra fields are silently ignored
       expect(response.statusCode).toBe(201);
       const body = JSON.parse(response.body) as {
-        dependency: { dependencyType: string; leadLagDays: number };
+        dependency: { predecessorType: string; predecessorId: string };
       };
-      expect(body.dependency.dependencyType).toBe('start_to_start');
-      expect(body.dependency.leadLagDays).toBe(14);
+      expect(body.dependency.predecessorType).toBe('work_item');
+      expect(body.dependency.predecessorId).toBe(workItem.id);
     });
 
     it('returns 400 for missing required fields (predecessorType)', async () => {
