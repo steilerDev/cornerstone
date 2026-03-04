@@ -269,6 +269,22 @@ describe('HouseholdItemsPage', () => {
         expect(screen.getByRole('button', { name: /toggle sort order/i })).toBeInTheDocument();
       });
     });
+
+    it('filter controls are always visible without a toggle button', async () => {
+      mockListHouseholdItems.mockResolvedValueOnce(listResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        // Verify no filter toggle button exists
+        expect(screen.queryByRole('button', { name: /filters/i })).not.toBeInTheDocument();
+      });
+
+      // Verify filter panel is always visible
+      await waitFor(() => {
+        expect(screen.getByRole('search', { name: /household item filters/i })).toBeInTheDocument();
+      });
+    });
   });
 
   describe('Pagination', () => {
@@ -296,61 +312,7 @@ describe('HouseholdItemsPage', () => {
     });
   });
 
-  describe('Accessibility - Filter toggle and panel', () => {
-    it('renders filter toggle button with correct ARIA attributes', async () => {
-      renderPage();
-
-      await waitFor(() => {
-        const filterButton = screen.getByRole('button', { name: /filters/i });
-        expect(filterButton).toHaveAttribute('aria-expanded', 'false');
-        expect(filterButton).toHaveAttribute('aria-controls', 'hi-filter-panel');
-      });
-    });
-
-    it('displays active filter count in toggle text', async () => {
-      const user = userEvent.setup();
-      mockListHouseholdItems.mockResolvedValueOnce(listResponse);
-
-      renderPage();
-
-      // Wait for the initial render and find the category filter
-      await waitFor(() => {
-        expect(screen.getByLabelText(/category:/i)).toBeInTheDocument();
-      });
-
-      // Change the category filter
-      const categorySelect = screen.getByLabelText(/category:/i);
-      await user.selectOptions(categorySelect, 'furniture');
-
-      // Check that toggle shows active count
-      await waitFor(() => {
-        const filterButton = screen.getByRole('button', { name: /filters.*1 active/i });
-        expect(filterButton).toBeInTheDocument();
-      });
-    });
-
-    it('toggles filter panel aria-expanded state on button click', async () => {
-      const user = userEvent.setup();
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByLabelText(/category:/i)).toBeInTheDocument();
-      });
-
-      const filterButton = screen.getByRole('button', { name: /filters/i });
-      expect(filterButton).toHaveAttribute('aria-expanded', 'false');
-
-      // Click to expand
-      await user.click(filterButton);
-
-      expect(filterButton).toHaveAttribute('aria-expanded', 'true');
-
-      // Click to collapse
-      await user.click(filterButton);
-
-      expect(filterButton).toHaveAttribute('aria-expanded', 'false');
-    });
-
+  describe('Accessibility - Filter panel', () => {
     it('filter panel has correct ARIA attributes', async () => {
       renderPage();
 
