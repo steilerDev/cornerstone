@@ -859,24 +859,18 @@ export function HouseholdItemDetailPage() {
                       {dep.predecessorType === 'milestone' && <MilestoneIconSvg />}
                       {dep.predecessorType === 'work_item' ? 'Work Item' : 'Milestone'}
                     </span>
-                    <Link
-                      to={
-                        dep.predecessorType === 'work_item'
-                          ? `/work-items/${dep.predecessorId}`
-                          : '#'
-                      }
-                      onClick={
-                        dep.predecessorType === 'milestone'
-                          ? (e) => {
-                              e.preventDefault();
-                              // TODO: open milestone panel via useMilestones hook
-                            }
-                          : undefined
-                      }
-                      className={styles.depPredLink}
-                    >
-                      {dep.predecessor.title}
-                    </Link>
+                    {dep.predecessorType === 'work_item' ? (
+                      <Link
+                        to={`/work-items/${dep.predecessorId}`}
+                        className={styles.depPredLink}
+                      >
+                        {dep.predecessor.title}
+                      </Link>
+                    ) : (
+                      <span className={styles.depPredLabel}>
+                        {dep.predecessor.title}
+                      </span>
+                    )}
                     <button
                       type="button"
                       className={styles.unlinkButton}
