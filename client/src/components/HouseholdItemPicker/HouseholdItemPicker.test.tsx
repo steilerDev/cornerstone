@@ -389,7 +389,9 @@ describe('HouseholdItemPicker', () => {
       );
 
       // Should show search input again
-      expect(screen.getByPlaceholderText('Search household items...')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText('Search household items...')).toBeInTheDocument();
+      });
     });
   });
 });
