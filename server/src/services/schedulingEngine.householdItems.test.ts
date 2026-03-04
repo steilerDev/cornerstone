@@ -458,4 +458,164 @@ describe('autoReschedule — household item delivery date computation', () => {
       expect(dates2.earliestDeliveryDate).toBe('2030-07-01');
     });
   });
+
+  // ─── Milestone effective date priority (bug #441) ────────────────────────────
+
+  describe('milestone effective date priority (bug #441)', () => {
+    it('AC 1: when milestone has completedAt set, uses date portion only (not targetDate)', () => {
+      // Given: A milestone with completedAt = '2030-01-15T14:30:00.000Z' and targetDate = '2030-06-01'
+      const userId = insertUser(db);
+      const milestoneId = insertMilestone(db, userId, {
+        targetDate: '2030-06-01',
+        completedAt: '2030-01-15T14:30:00.000Z',
+        isCompleted: true,
+      });
+      const hiId = insertHouseholdItem(db, { status: 'not_ordered' });
+      insertHIDep(db, hiId, 'milestone', milestoneId.toString());
+
+      // When: autoReschedule runs
+      autoReschedule(db);
+
+      // Then: HI earliestDeliveryDate = '2030-01-15' (completedAt truncated, not targetDate)
+      const { earliestDeliveryDate } = getHIDeliveryDates(db, hiId);
+      expect(earliestDeliveryDate).toBe('2030-01-15');
+    });
+
+    it('AC 2: when milestone not completed and has contributing WIs, uses projected date (max WI end)', () => {
+      // Given: A milestone with targetDate = '2030-06-01', completedAt = null
+      //        WI-A linked to milestone, endDate = '2030-05-01'
+      //        WI-B linked to milestone, endDate = '2030-07-15'
+      //        HI depends on the milestone
+      const userId = insertUser(db);
+      const milestoneId = insertMilestone(db, userId, {
+        targetDate: '2030-06-01',
+        completedAt: null,
+        isCompleted: false,
+      });
+      const wiA = insertWorkItem(db, userId, { endDate: '2030-05-01' });
+      const wiB = insertWorkItem(db, userId, { endDate: '2030-07-15' });
+
+      // Link both work items as contributors to the milestone
+      db.insert(schema.milestoneWorkItems).values({ milestoneId, workItemId: wiA }).run();
+      db.insert(schema.milestoneWorkItems).values({ milestoneId, workItemId: wiB }).run();
+
+      const hiId = insertHouseholdItem(db, { status: 'not_ordered' });
+      insertHIDep(db, hiId, 'milestone', milestoneId.toString());
+
+      // When: autoReschedule runs
+      autoReschedule(db);
+
+      // Then: HI earliestDeliveryDate = '2030-07-15' (max of contributor end dates)
+      const { earliestDeliveryDate } = getHIDeliveryDates(db, hiId);
+      expect(earliestDeliveryDate).toBe('2030-07-15');
+    });
+
+    it('AC 3: when milestone not completed and has no contributors, falls back to targetDate', () => {
+      // Given: A milestone with targetDate = '2030-08-01', completedAt = null
+      //        No entries in milestone_work_items for this milestone
+      const userId = insertUser(db);
+      const milestoneId = insertMilestone(db, userId, {
+        targetDate: '2030-08-01',
+        completedAt: null,
+        isCompleted: false,
+      });
+      const hiId = insertHouseholdItem(db, { status: 'not_ordered' });
+      insertHIDep(db, hiId, 'milestone', milestoneId.toString());
+
+      // When: autoReschedule runs
+      autoReschedule(db);
+
+      // Then: HI earliestDeliveryDate = '2030-08-01' (targetDate fallback)
+      const { earliestDeliveryDate } = getHIDeliveryDates(db, hiId);
+      expect(earliestDeliveryDate).toBe('2030-08-01');
+    });
+
+    it('AC 4: milestone running late (projected > targetDate), uses projected date', () => {
+      // Given: A milestone with targetDate = '2030-04-01', completedAt = null
+      //        WI linked to milestone, endDate = '2030-07-01' (later than targetDate)
+      const userId = insertUser(db);
+      const milestoneId = insertMilestone(db, userId, {
+        targetDate: '2030-04-01',
+        completedAt: null,
+        isCompleted: false,
+      });
+      const wi = insertWorkItem(db, userId, { endDate: '2030-07-01' });
+      db.insert(schema.milestoneWorkItems).values({ milestoneId, workItemId: wi }).run();
+
+      const hiId = insertHouseholdItem(db, { status: 'not_ordered' });
+      insertHIDep(db, hiId, 'milestone', milestoneId.toString());
+
+      // When: autoReschedule runs
+      autoReschedule(db);
+
+      // Then: HI earliestDeliveryDate = '2030-07-01' (projected, not targetDate)
+      const { earliestDeliveryDate } = getHIDeliveryDates(db, hiId);
+      expect(earliestDeliveryDate).toBe('2030-07-01');
+    });
+
+    it('AC 5: milestone ahead of schedule (projected < targetDate), uses projected date', () => {
+      // Given: A milestone with targetDate = '2030-10-01', completedAt = null
+      //        WI linked to milestone, endDate = '2030-06-01' (earlier than targetDate)
+      const userId = insertUser(db);
+      const milestoneId = insertMilestone(db, userId, {
+        targetDate: '2030-10-01',
+        completedAt: null,
+        isCompleted: false,
+      });
+      const wi = insertWorkItem(db, userId, { endDate: '2030-06-01' });
+      db.insert(schema.milestoneWorkItems).values({ milestoneId, workItemId: wi }).run();
+
+      const hiId = insertHouseholdItem(db, { status: 'not_ordered' });
+      insertHIDep(db, hiId, 'milestone', milestoneId.toString());
+
+      // When: autoReschedule runs
+      autoReschedule(db);
+
+      // Then: HI earliestDeliveryDate = '2030-06-01' (projected, not targetDate)
+      const { earliestDeliveryDate } = getHIDeliveryDates(db, hiId);
+      expect(earliestDeliveryDate).toBe('2030-06-01');
+    });
+
+    it('AC 3 edge: all contributors have null end dates, falls back to targetDate', () => {
+      // Given: A milestone with targetDate = '2030-09-01', completedAt = null
+      //        WI linked to milestone, but endDate = null and durationDays = null
+      const userId = insertUser(db);
+      const milestoneId = insertMilestone(db, userId, {
+        targetDate: '2030-09-01',
+        completedAt: null,
+        isCompleted: false,
+      });
+      const wi = insertWorkItem(db, userId, {
+        startDate: null,
+        endDate: null,
+        durationDays: null,
+      });
+      db.insert(schema.milestoneWorkItems).values({ milestoneId, workItemId: wi }).run();
+
+      const hiId = insertHouseholdItem(db, { status: 'not_ordered' });
+      insertHIDep(db, hiId, 'milestone', milestoneId.toString());
+
+      // When: autoReschedule runs
+      autoReschedule(db);
+
+      // Then: HI earliestDeliveryDate = '2030-09-01' (targetDate fallback)
+      const { earliestDeliveryDate } = getHIDeliveryDates(db, hiId);
+      expect(earliestDeliveryDate).toBe('2030-09-01');
+    });
+
+    it('AC 7 regression guard: WI dependency (not milestone) still works correctly', () => {
+      // Given: WI with endDate = '2030-03-01', HI depending on that WI (not milestone)
+      const userId = insertUser(db);
+      const wi = insertWorkItem(db, userId, { endDate: '2030-03-01' });
+      const hiId = insertHouseholdItem(db, { status: 'not_ordered' });
+      insertHIDep(db, hiId, 'work_item', wi);
+
+      // When: autoReschedule runs
+      autoReschedule(db);
+
+      // Then: HI earliestDeliveryDate = '2030-03-01' (WI scheduling unaffected)
+      const { earliestDeliveryDate } = getHIDeliveryDates(db, hiId);
+      expect(earliestDeliveryDate).toBe('2030-03-01');
+    });
+  });
 });
