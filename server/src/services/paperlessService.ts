@@ -36,6 +36,16 @@ const PAPERLESS_COLOR_MAP: Record<number, string> = {
   7: '#fdbf6f',
 };
 
+// ─── Filter tag cache ────────────────────────────────────────────────────────
+
+let resolvedFilterTagId: number | null = null;
+let resolvedFilterTagName: string | null = null;
+
+export function _resetFilterTagCache(): void {
+  resolvedFilterTagId = null;
+  resolvedFilterTagName = null;
+}
+
 // ─── Raw Paperless-ngx API shapes ────────────────────────────────────────────
 
 interface RawPaperlessTag {
@@ -268,18 +278,69 @@ function sanitizeErrorMessage(message: string): string {
 }
 
 /**
+ * Resolve a Paperless-ngx filter tag name to its ID.
+ * Results are cached module-level to avoid repeated lookups.
+ * Returns null if the tag is not found or if an error occurs.
+ */
+async function resolveFilterTagId(
+  baseUrl: string,
+  token: string,
+  tagName: string,
+): Promise<number | null> {
+  if (resolvedFilterTagName === tagName && resolvedFilterTagId !== null) {
+    return resolvedFilterTagId;
+  }
+  try {
+    const data = await fetchPaperless<{ count: number; results: RawPaperlessTag[] }>(
+      baseUrl,
+      token,
+      '/api/tags/?page_size=1000',
+    );
+    const match = data.results.find((t) => t.name.toLowerCase() === tagName.toLowerCase());
+    if (!match) {
+      console.warn(
+        `[paperlessService] PAPERLESS_FILTER_TAG="${tagName}" not found in Paperless-ngx. All documents will be shown.`,
+      );
+      resolvedFilterTagId = null;
+      resolvedFilterTagName = tagName;
+      return null;
+    }
+    resolvedFilterTagId = match.id;
+    resolvedFilterTagName = tagName;
+    return match.id;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Check the connectivity status of the Paperless-ngx integration.
  * Performs a lightweight probe request to verify reachability.
  */
-export async function getStatus(baseUrl: string, token: string): Promise<PaperlessStatusResponse> {
+export async function getStatus(
+  baseUrl: string,
+  token: string,
+  filterTagName?: string,
+): Promise<PaperlessStatusResponse> {
   try {
     await fetchPaperless<{ count: number }>(baseUrl, token, '/api/documents/?page_size=1');
     // paperlessUrl is always overridden by the route handler with fastify.config.paperlessUrl
-    return { configured: true, reachable: true, error: null, paperlessUrl: null };
+    let filterTag: string | null = null;
+    if (filterTagName) {
+      const tagId = await resolveFilterTagId(baseUrl, token, filterTagName);
+      filterTag = tagId !== null ? filterTagName : null;
+    }
+    return { configured: true, reachable: true, error: null, paperlessUrl: null, filterTag };
   } catch (err) {
     const rawMessage = err instanceof Error ? err.message : String(err);
     const message = sanitizeErrorMessage(rawMessage);
-    return { configured: true, reachable: false, error: message, paperlessUrl: null };
+    return {
+      configured: true,
+      reachable: false,
+      error: message,
+      paperlessUrl: null,
+      filterTag: null,
+    };
   }
 }
 
@@ -291,6 +352,7 @@ export async function listDocuments(
   baseUrl: string,
   token: string,
   query: PaperlessDocumentListQuery,
+  filterTagName?: string | null,
 ): Promise<PaperlessDocumentListResponse> {
   const page = Math.max(1, query.page ?? 1);
   const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 25));
@@ -303,7 +365,18 @@ export async function listDocuments(
   if (query.query) {
     params.set('query', query.query);
   }
-  if (query.tags) {
+
+  // Handle tag filtering: merge filter tag with client-specified tags
+  if (filterTagName) {
+    const filterTagId = await resolveFilterTagId(baseUrl, token, filterTagName);
+    if (filterTagId != null) {
+      const clientTagIds = query.tags ? query.tags.split(',').map((s) => s.trim()) : [];
+      const allTagIds = Array.from(new Set([...clientTagIds, String(filterTagId)]));
+      params.set('tags__id__in', allTagIds.join(','));
+    } else if (query.tags) {
+      params.set('tags__id__in', query.tags);
+    }
+  } else if (query.tags) {
     params.set('tags__id__in', query.tags);
   }
   if (query.correspondent !== undefined) {

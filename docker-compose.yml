@@ -12,6 +12,7 @@ services:
     #   - PAPERLESS_URL=http://paperless:8000          # Internal URL used by the server for API calls
     #   - PAPERLESS_API_TOKEN=your-paperless-api-token
     #   - PAPERLESS_EXTERNAL_URL=https://paperless.example.com  # Optional: browser-accessible URL for "View in Paperless-ngx" links
+    #   - PAPERLESS_FILTER_TAG=cornerstone                      # Optional: only show documents with this Paperless-ngx tag
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/health').then(r=>{if(!r.ok)throw r.status}).catch(()=>process.exit(1))"]

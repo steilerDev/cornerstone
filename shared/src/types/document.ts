@@ -140,6 +140,8 @@ export interface PaperlessStatusResponse {
    * Used by the frontend to construct "View in Paperless-ngx" links.
    */
   paperlessUrl: string | null;
+  /** The filter tag name when PAPERLESS_FILTER_TAG is configured and the tag exists. null when not set or not found. */
+  filterTag: string | null;
 }
 
 // ─── Document Link Types ─────────────────────────────────────────────────────

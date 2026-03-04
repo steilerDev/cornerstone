@@ -81,6 +81,7 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
             reachable: false,
             error: 'Failed to check status',
             paperlessUrl: null,
+            filterTag: null,
           });
         }
       }

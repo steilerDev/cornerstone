@@ -61,6 +61,7 @@ export function usePaperless(): UsePaperlessResult {
             reachable: false,
             error: 'Failed to check status',
             paperlessUrl: null,
+            filterTag: null,
           });
         }
       }
