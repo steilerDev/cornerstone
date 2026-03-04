@@ -10,6 +10,8 @@ import type * as TimelineApiTypes from './lib/timelineApi.js';
 import type * as WorkItemsApiTypes from './lib/workItemsApi.js';
 import type * as HouseholdItemsApiTypes from './lib/householdItemsApi.js';
 import type * as VendorsApiTypes from './lib/vendorsApi.js';
+import type * as TagsApiTypes from './lib/tagsApi.js';
+import type * as UsersApiTypes from './lib/usersApi.js';
 import type * as AppTypes from './App.js';
 
 const mockGetAuthMe = jest.fn<typeof AuthApiTypes.getAuthMe>();
@@ -94,6 +96,28 @@ jest.unstable_mockModule('./lib/vendorsApi.js', () => ({
   deleteVendor: jest.fn<typeof VendorsApiTypes.deleteVendor>(),
 }));
 
+// WorkItemsPage calls fetchTags on mount for the tag filter dropdown.
+// Mock to prevent fetch calls in the jsdom test environment.
+const mockFetchTags = jest.fn<typeof TagsApiTypes.fetchTags>();
+jest.unstable_mockModule('./lib/tagsApi.js', () => ({
+  fetchTags: mockFetchTags,
+  createTag: jest.fn<typeof TagsApiTypes.createTag>(),
+  updateTag: jest.fn<typeof TagsApiTypes.updateTag>(),
+  deleteTag: jest.fn<typeof TagsApiTypes.deleteTag>(),
+}));
+
+// WorkItemsPage calls listUsers on mount for the assigned-to filter dropdown.
+// Mock to prevent fetch calls in the jsdom test environment.
+const mockListUsers = jest.fn<typeof UsersApiTypes.listUsers>();
+jest.unstable_mockModule('./lib/usersApi.js', () => ({
+  listUsers: mockListUsers,
+  getProfile: jest.fn<typeof UsersApiTypes.getProfile>(),
+  updateProfile: jest.fn<typeof UsersApiTypes.updateProfile>(),
+  changePassword: jest.fn<typeof UsersApiTypes.changePassword>(),
+  adminUpdateUser: jest.fn<typeof UsersApiTypes.adminUpdateUser>(),
+  deactivateUser: jest.fn<typeof UsersApiTypes.deactivateUser>(),
+}));
+
 describe('App', () => {
   // Dynamic imports
   let App: typeof AppTypes.App;
@@ -118,6 +142,8 @@ describe('App', () => {
     mockListWorkItems.mockReset();
     mockListHouseholdItems.mockReset();
     mockFetchVendors.mockReset();
+    mockFetchTags.mockReset();
+    mockListUsers.mockReset();
 
     // Default: budget categories returns empty list
     mockFetchBudgetCategories.mockResolvedValue({ categories: [] });
@@ -153,6 +179,12 @@ describe('App', () => {
       vendors: [],
       pagination: { page: 1, pageSize: 25, totalItems: 0, totalPages: 0 },
     });
+
+    // Default: tags returns empty list (used by WorkItemsPage tag filter)
+    mockFetchTags.mockResolvedValue({ tags: [] });
+
+    // Default: users returns empty list (used by WorkItemsPage assigned-to filter)
+    mockListUsers.mockResolvedValue({ users: [] });
 
     // Default: authenticated user (no setup required)
     mockGetAuthMe.mockResolvedValue({
