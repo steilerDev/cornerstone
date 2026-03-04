@@ -1253,10 +1253,7 @@ export function HouseholdItemDetailPage() {
                         <ul className={styles.invoiceList}>
                           {budgetLineInvoices[line.id].map((inv) => (
                             <li key={inv.id} className={styles.invoiceListItem}>
-                              <Link
-                                to={`/budget/invoices/${inv.id}`}
-                                className={styles.invoiceLink}
-                              >
+                              <Link to={`/invoices/${inv.id}`} className={styles.invoiceLink}>
                                 {inv.invoiceNumber ? `#${inv.invoiceNumber}` : 'Invoice'}
                               </Link>
                               <span className={styles.invoiceAmount}>

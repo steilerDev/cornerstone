@@ -77,11 +77,11 @@ export function App() {
                     <Route path="categories" element={<BudgetCategoriesPage />} />
                     <Route path="vendors" element={<VendorsPage />} />
                     <Route path="vendors/:id" element={<VendorDetailPage />} />
-                    <Route path="invoices" element={<InvoicesPage />} />
-                    <Route path="invoices/:id" element={<InvoiceDetailPage />} />
                     <Route path="sources" element={<BudgetSourcesPage />} />
                     <Route path="subsidies" element={<SubsidyProgramsPage />} />
                   </Route>
+                  <Route path="invoices" element={<InvoicesPage />} />
+                  <Route path="invoices/:id" element={<InvoiceDetailPage />} />
                   <Route path="timeline" element={<TimelinePage />} />
                   <Route path="household-items" element={<HouseholdItemsPage />} />
                   <Route path="household-items/new" element={<HouseholdItemCreatePage />} />
