@@ -1,4 +1,6 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
+import { useAuth } from './AuthContext.js';
+import { getPreferences, upsertPreference } from '../lib/preferencesApi.js';
 
 export type ThemePreference = 'light' | 'dark' | 'system';
 export type ResolvedTheme = 'light' | 'dark';
@@ -43,12 +45,61 @@ interface ThemeProviderProps {
 }
 
 export function ThemeProvider({ children }: ThemeProviderProps) {
+  const { user } = useAuth();
+  const serverPreferenceLoaded = useRef(false);
+
   // Read localStorage once, derive both initial states from the single value.
   const initialPreference = readStoredPreference();
   const [theme, setThemeState] = useState<ThemePreference>(initialPreference);
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() =>
     resolveTheme(initialPreference),
   );
+
+  // Load server preferences when user authenticates
+  useEffect(() => {
+    if (!user) {
+      serverPreferenceLoaded.current = false;
+      return;
+    }
+
+    if (serverPreferenceLoaded.current) return;
+
+    const loadServerPreferences = async () => {
+      try {
+        const response = await getPreferences();
+        const themePreference = response.preferences.find((p) => p.key === 'theme');
+
+        if (themePreference) {
+          // Server has a theme preference — use it
+          const serverTheme = themePreference.value as ThemePreference;
+          setThemeState(serverTheme);
+          setResolvedTheme(resolveTheme(serverTheme));
+          try {
+            localStorage.setItem(STORAGE_KEY, serverTheme);
+          } catch {
+            // Ignore storage errors
+          }
+        } else {
+          // Server has no theme preference
+          const localStoredPreference = readStoredPreference();
+          if (localStoredPreference !== 'system') {
+            // Migrate non-default local preference to server
+            try {
+              await upsertPreference({ key: 'theme', value: localStoredPreference });
+            } catch {
+              // Non-fatal — continue using local preference
+            }
+          }
+        }
+      } catch {
+        // Non-fatal — continue using local preference
+      } finally {
+        serverPreferenceLoaded.current = true;
+      }
+    };
+
+    void loadServerPreferences();
+  }, [user]);
 
   // Apply the resolved theme to <html data-theme="..."> and set color-scheme
   // so the browser renders native widgets (date inputs, selects, scrollbars)
@@ -72,15 +123,27 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     return () => mq.removeEventListener('change', handleChange);
   }, [theme]);
 
-  const setTheme = useCallback((preference: ThemePreference) => {
-    try {
-      localStorage.setItem(STORAGE_KEY, preference);
-    } catch {
-      // Ignore storage errors
-    }
-    setThemeState(preference);
-    setResolvedTheme(resolveTheme(preference));
-  }, []);
+  const setTheme = useCallback(
+    (preference: ThemePreference) => {
+      try {
+        localStorage.setItem(STORAGE_KEY, preference);
+      } catch {
+        // Ignore storage errors
+      }
+      setThemeState(preference);
+      setResolvedTheme(resolveTheme(preference));
+
+      // Fire-and-forget server sync if user is authenticated
+      if (user) {
+        try {
+          void upsertPreference({ key: 'theme', value: preference });
+        } catch {
+          // Non-fatal — continue using local preference
+        }
+      }
+    },
+    [user],
+  );
 
   return (
     <ThemeContext.Provider value={{ theme, resolvedTheme, setTheme }}>

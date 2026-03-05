@@ -42,9 +42,9 @@ const NotFoundPage = lazy(() => import('./pages/NotFoundPage/NotFoundPage'));
 export function App() {
   return (
     <BrowserRouter>
-      <ThemeProvider>
-        <ToastProvider>
-          <AuthProvider>
+      <AuthProvider>
+        <ThemeProvider>
+          <ToastProvider>
             <Routes>
               {/* Auth routes (no AppShell wrapper) */}
               <Route
@@ -96,9 +96,9 @@ export function App() {
             </Routes>
             {/* Toast notifications — rendered as a portal to document.body */}
             <ToastList />
-          </AuthProvider>
-        </ToastProvider>
-      </ThemeProvider>
+          </ToastProvider>
+        </ThemeProvider>
+      </AuthProvider>
     </BrowserRouter>
   );
 }
