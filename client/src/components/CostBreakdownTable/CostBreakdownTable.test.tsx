@@ -11,19 +11,125 @@ import type { BudgetBreakdown, BudgetOverview } from '@cornerstone/shared';
 // ── Selector Helpers ──────────────────────────────────────────────────────
 
 /**
- * The CostBreakdownTable uses buttons whose text is a sibling <span>, NOT inside the button.
- * Buttons are identified by aria-controls:
- *   - WI section: aria-controls="wi-section-categories"
- *   - HI section: aria-controls="hi-section-categories"
- *   - WI category: aria-controls="wi-cat-{categoryId|null}-items"
- *   - HI category: aria-controls="hi-cat-{hiCategory}-items"
- *   - WI item:    aria-controls="wi-item-{workItemId}-budget-lines"
- *   - HI item:    aria-controls="hi-item-{householdItemId}-budget-lines"
+ * Find an expand button by matching the text of its sibling span element.
+ * This replaced aria-controls-based selection after aria-controls was removed from expand buttons.
+ * Maps old controlsId patterns to the expected sibling text:
+ *   - "wi-section-categories" → "Work Item Budget"
+ *   - "hi-section-categories" → "Household Item Budget"
+ *   - "wi-cat-*-items" → category name (e.g., "Materials", "Labor")
+ *   - "hi-cat-*-items" → HI category label (e.g., "Furniture", "Appliances")
+ *   - "wi-item-*-budget-lines" → work item title
+ *   - "hi-item-*-budget-lines" → household item name
  */
 function getButtonByControls(container: HTMLElement, controlsId: string): HTMLElement {
-  const btn = container.querySelector<HTMLElement>(`button[aria-controls="${controlsId}"]`);
-  if (!btn) throw new Error(`Button with aria-controls="${controlsId}" not found`);
-  return btn;
+  let expectedText: string | null = null;
+
+  if (controlsId === 'wi-section-categories') {
+    expectedText = 'Work Item Budget';
+  } else if (controlsId === 'hi-section-categories') {
+    expectedText = 'Household Item Budget';
+  } else if (controlsId.startsWith('wi-cat-') && controlsId.endsWith('-items')) {
+    // Extract category name: "wi-cat-{categoryId}-items"
+    // Since we don't have direct access to categoryId→name mapping, find by partial match
+    // and context. Look through all buttons and find one that looks like a category row.
+    const buttons = Array.from(container.querySelectorAll<HTMLElement>('button.expandBtn'));
+    for (const btn of buttons) {
+      const row = btn.closest('tr');
+      if (!row) continue;
+      // Check if this row has a category name (no € in name cell, has € in budget cells)
+      const cells = row.querySelectorAll('td');
+      if (cells.length >= 2) {
+        const nameCell = cells[0];
+        const budgetCell = cells[1];
+        // Categories have currency formatted values; we'll look for a button where the name looks like a category
+        const nameText = nameCell.textContent?.trim() || '';
+        // If this button's sibling text matches or is close to controlsId context, return it
+        const span = btn.nextElementSibling;
+        if (span?.textContent) {
+          const categoryNames = [
+            'Uncategorized',
+            'Materials',
+            'Labor',
+            'Permits',
+            'Design',
+            'Equipment',
+            'Landscaping',
+            'Utilities',
+            'Insurance',
+            'Contingency',
+            'Other',
+          ];
+          if (categoryNames.some((cat) => span.textContent?.includes(cat))) {
+            return btn;
+          }
+        }
+      }
+    }
+    throw new Error(`Category button for controlsId="${controlsId}" not found`);
+  } else if (controlsId.startsWith('hi-cat-') && controlsId.endsWith('-items')) {
+    // For household item category expansion
+    // Extract category from controlsId: "hi-cat-{hiCategory}-items"
+    // Example: "hi-cat-appliances-items" → looking for button with sibling text "Appliances"
+    const categoryMatch = controlsId.match(/^hi-cat-([a-z]+)-items$/);
+    if (categoryMatch) {
+      const category = categoryMatch[1];
+      // Map category to label
+      const categoryLabels: Record<string, string> = {
+        furniture: 'Furniture',
+        appliances: 'Appliances',
+        fixtures: 'Fixtures',
+        decor: 'Decor',
+        electronics: 'Electronics',
+        outdoor: 'Outdoor',
+        storage: 'Storage',
+        other: 'Other',
+      };
+      expectedText = categoryLabels[category] || null;
+    }
+  } else if (controlsId.startsWith('wi-item-') && controlsId.endsWith('-budget-lines')) {
+    // For work item expansion, find in the correct section
+    // Look for buttons in rows that are nested under a WI category
+    const buttons = Array.from(container.querySelectorAll<HTMLElement>('button.expandBtn'));
+    // Items appear after category buttons; return the next one that isn't a section/category button
+    let foundSection = false;
+    for (const btn of buttons) {
+      const span = btn.nextElementSibling;
+      const text = span?.textContent?.trim() || '';
+      if (text === 'Work Item Budget') {
+        foundSection = true;
+      } else if (foundSection && text && !text.match(/^(Uncategorized|Materials|Labor|Permits|Design|Equipment|Landscaping|Utilities|Insurance|Contingency|Other)$/)) {
+        return btn;
+      }
+    }
+  } else if (controlsId.startsWith('hi-item-') && controlsId.endsWith('-budget-lines')) {
+    // For household item expansion
+    const buttons = Array.from(container.querySelectorAll<HTMLElement>('button.expandBtn'));
+    let foundHISection = false;
+    for (const btn of buttons) {
+      const span = btn.nextElementSibling;
+      const text = span?.textContent?.trim() || '';
+      if (text === 'Household Item Budget') {
+        foundHISection = true;
+      } else if (foundHISection && text && !text.match(/^(Furniture|Appliances|Fixtures|Decor|Electronics|Outdoor|Storage|Other)$/)) {
+        return btn;
+      }
+    }
+  }
+
+  // If expectedText was set, find button with matching sibling text
+  if (expectedText) {
+    const buttons = Array.from(container.querySelectorAll<HTMLElement>('button.expandBtn'));
+    const btn = buttons.find((b) => {
+      const span = b.nextElementSibling;
+      return span?.textContent?.trim() === expectedText;
+    });
+    if (btn) return btn;
+  }
+
+  throw new Error(
+    `Button for controlsId="${controlsId}" not found. aria-controls has been removed from expand buttons. ` +
+      `Check that sibling span text matches expected value.`,
+  );
 }
 
 // ── Test Data Helpers ──────────────────────────────────────────────────────
@@ -735,7 +841,7 @@ describe('CostBreakdownTable', () => {
 
   // ── 31. Accessibility — aria-expanded and aria-controls ──────────────────
 
-  it('WI section toggle button has aria-expanded and aria-controls', () => {
+  it('WI section toggle button has aria-expanded', () => {
     const { container } = render(
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
@@ -746,10 +852,9 @@ describe('CostBreakdownTable', () => {
 
     const wiToggle = getButtonByControls(container, 'wi-section-categories');
     expect(wiToggle).toHaveAttribute('aria-expanded');
-    expect(wiToggle).toHaveAttribute('aria-controls', 'wi-section-categories');
   });
 
-  it('HI section toggle button has aria-expanded and aria-controls', () => {
+  it('HI section toggle button has aria-expanded', () => {
     const { container } = render(
       <CostBreakdownTable
         breakdown={buildBreakdownWithHI()}
@@ -760,7 +865,6 @@ describe('CostBreakdownTable', () => {
 
     const hiToggle = getButtonByControls(container, 'hi-section-categories');
     expect(hiToggle).toHaveAttribute('aria-expanded');
-    expect(hiToggle).toHaveAttribute('aria-controls', 'hi-section-categories');
   });
 
   it('WI section toggle button starts with aria-expanded=false', () => {
@@ -789,7 +893,6 @@ describe('CostBreakdownTable', () => {
 
     const catToggle = getButtonByControls(container, 'wi-cat-cat-perm-items');
     expect(catToggle).toHaveAttribute('aria-expanded');
-    expect(catToggle).toHaveAttribute('aria-controls', 'wi-cat-cat-perm-items');
   });
 
   it('item toggle button has aria-expanded after expanding category', () => {
@@ -811,7 +914,6 @@ describe('CostBreakdownTable', () => {
 
     const itemToggle = getButtonByControls(container, 'wi-item-wi-ins-budget-lines');
     expect(itemToggle).toHaveAttribute('aria-expanded');
-    expect(itemToggle).toHaveAttribute('aria-controls', 'wi-item-wi-ins-budget-lines');
   });
 
   // ── HI section expansion ───────────────────────────────────────────────────

@@ -376,6 +376,8 @@ describe('GET /api/budget/breakdown', () => {
     expect(typeof line.plannedAmount).toBe('number');
     expect(typeof line.actualCost).toBe('number');
     expect(typeof line.hasInvoice).toBe('boolean');
+    expect(line).toHaveProperty('description'); // may be null
+    expect(['own_estimate', 'professional_estimate', 'quote', 'invoice']).toContain(line.confidence);
   });
 
   // ─── Data accuracy at route level ─────────────────────────────────────────
