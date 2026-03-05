@@ -369,7 +369,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
 
   // Build work item categories with items
   const wiCategories: BreakdownWorkItemCategory[] = [];
-  let wiTotals: BreakdownTotals = {
+  const wiTotals: BreakdownTotals = {
     projectedMin: 0,
     projectedMax: 0,
     actualCost: 0,
@@ -525,7 +525,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
 
   // Build household item categories with items (only include categories with items)
   const hiCategories: BreakdownHouseholdItemCategory[] = [];
-  let hiTotals: BreakdownTotals = {
+  const hiTotals: BreakdownTotals = {
     projectedMin: 0,
     projectedMax: 0,
     actualCost: 0,
