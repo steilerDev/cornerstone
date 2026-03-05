@@ -246,3 +246,11 @@ export type {
   HouseholdItemSubsidyPaybackEntry,
   HouseholdItemSubsidyPaybackResponse,
 } from './types/householdItemBudget.js';
+
+// User Preferences
+export type {
+  PreferenceKey,
+  UserPreference,
+  UpsertPreferenceRequest,
+  UserPreferencesResponse,
+} from './types/userPreference.js';
