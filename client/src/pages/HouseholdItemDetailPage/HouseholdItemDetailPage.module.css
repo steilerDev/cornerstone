@@ -1497,3 +1497,92 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* ============================================================
+ * Schedule & Constraints Sections
+ * ============================================================ */
+
+.section {
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-6);
+}
+
+.sectionTitle {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0 0 var(--spacing-4) 0;
+}
+
+.sectionTitleNoMargin {
+  margin-bottom: 0;
+}
+
+.sectionDescription {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin: calc(-1 * var(--spacing-2)) 0 var(--spacing-4) 0;
+  line-height: 1.5;
+}
+
+.propertyGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-4);
+}
+
+.property {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.propertyLabel {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-muted);
+}
+
+.propertyValue {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  padding: var(--spacing-2-5) 0;
+}
+
+.constraintSubsection {
+  margin-top: var(--spacing-5);
+  padding-top: var(--spacing-5);
+  border-top: 1px solid var(--color-border);
+}
+
+.constraintSubsectionFirst {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.subsectionTitle {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  margin: 0 0 var(--spacing-3) 0;
+}
+
+.subsectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.subsectionHeader .subsectionTitle {
+  margin-bottom: 0;
+}
+
+.budgetSummaryValueMuted {
+  composes: budgetSummaryValue;
+  font-weight: var(--font-weight-normal);
+  color: var(--color-text-muted);
+  text-decoration: line-through;
+}

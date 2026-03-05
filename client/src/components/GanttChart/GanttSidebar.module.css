@@ -103,7 +103,7 @@
 
 /* Household item rows — appear after milestones, visually distinct */
 .sidebarHouseholdItemRow {
-  cursor: default;
+  cursor: pointer;
   gap: var(--spacing-2);
 }
 
