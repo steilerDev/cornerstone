@@ -818,9 +818,7 @@ export function HouseholdItemDetailPage() {
 
         {/* Constraints section */}
         <section className={styles.section}>
-          <h2 className={styles.sectionTitle} style={{ marginBottom: 0 }}>
-            Constraints
-          </h2>
+          <h2 className={`${styles.sectionTitle} ${styles.sectionTitleNoMargin}`}>Constraints</h2>
 
           {/* Delivery Window subsection */}
           <div className={`${styles.constraintSubsection} ${styles.constraintSubsectionFirst}`}>
@@ -854,17 +852,16 @@ export function HouseholdItemDetailPage() {
 
           {/* Dependencies subsection */}
           <div className={styles.constraintSubsection}>
-            <h3 className={styles.subsectionTitle}>
-              Dependencies
+            <div className={styles.subsectionHeader}>
+              <h3 className={styles.subsectionTitle}>Dependencies</h3>
               <button
                 type="button"
                 className={styles.button}
                 onClick={() => void handleOpenAddDepModal()}
-                style={{ float: 'right', marginTop: '-0.25rem' }}
               >
                 Add Dependency
               </button>
-            </h3>
+            </div>
 
             {/* Dependency list */}
             {dependencies.length === 0 ? (

@@ -1516,6 +1516,10 @@
   margin: 0 0 var(--spacing-4) 0;
 }
 
+.sectionTitleNoMargin {
+  margin-bottom: 0;
+}
+
 .sectionDescription {
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
@@ -1566,8 +1570,18 @@
   margin: 0 0 var(--spacing-3) 0;
 }
 
+.subsectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.subsectionHeader .subsectionTitle {
+  margin-bottom: 0;
+}
+
 .budgetSummaryValueMuted {
-  font-size: var(--font-size-base);
+  composes: budgetSummaryValue;
   font-weight: var(--font-weight-normal);
   color: var(--color-text-muted);
   text-decoration: line-through;
