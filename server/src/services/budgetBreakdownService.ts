@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { CONFIDENCE_MARGINS, type HouseholdItemCategory } from '@cornerstone/shared';
+import { CONFIDENCE_MARGINS, type HouseholdItemCategory, type ConfidenceLevel } from '@cornerstone/shared';
 import type {
   BudgetBreakdown,
   BreakdownWorkItemCategory,
@@ -297,8 +297,9 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
     plannedAmount: number,
     confidence: string,
     actualCost: number,
+    hasInvoice: boolean,
   ): { min: number; max: number } {
-    if (actualCost > 0) {
+    if (hasInvoice) {
       return { min: actualCost, max: actualCost };
     }
     const margin =
@@ -401,9 +402,9 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
           id: line.budgetLineId,
           description: line.description,
           plannedAmount: line.plannedAmount,
-          confidence: line.confidence as any,
+          confidence: line.confidence as ConfidenceLevel,
           actualCost,
-          hasInvoice: actualCost > 0,
+          hasInvoice: wiLineInvoiceMap.has(line.budgetLineId),
         };
       });
 
@@ -417,6 +418,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
           budgetLine.plannedAmount,
           budgetLine.confidence,
           budgetLine.actualCost,
+          budgetLine.hasInvoice,
         );
         itemMin += min;
         itemMax += max;
@@ -551,9 +553,9 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
           id: line.budgetLineId,
           description: line.description,
           plannedAmount: line.plannedAmount,
-          confidence: line.confidence as any,
+          confidence: line.confidence as ConfidenceLevel,
           actualCost,
-          hasInvoice: actualCost > 0,
+          hasInvoice: hiLineInvoiceMap.has(line.budgetLineId),
         };
       });
 
@@ -567,6 +569,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
           budgetLine.plannedAmount,
           budgetLine.confidence,
           budgetLine.actualCost,
+          budgetLine.hasInvoice,
         );
         itemMin += min;
         itemMax += max;
