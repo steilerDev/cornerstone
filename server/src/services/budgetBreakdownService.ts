@@ -1,7 +1,11 @@
 import { sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { CONFIDENCE_MARGINS, type HouseholdItemCategory, type ConfidenceLevel } from '@cornerstone/shared';
+import {
+  CONFIDENCE_MARGINS,
+  type HouseholdItemCategory,
+  type ConfidenceLevel,
+} from '@cornerstone/shared';
 import type {
   BudgetBreakdown,
   BreakdownWorkItemCategory,

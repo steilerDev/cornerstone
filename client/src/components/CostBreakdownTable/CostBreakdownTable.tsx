@@ -44,6 +44,7 @@ function ConfidenceBadge({ confidence }: { confidence: ConfidenceLevel }) {
 
 /**
  * Renders a cost value based on costDisplay mode.
+ * Note: For 'projected' mode, uses neutral color (not valuePositive) per accessibility requirements.
  */
 function CostDisplay({
   costDisplay,
@@ -68,7 +69,7 @@ function CostDisplay({
 
   if (costDisplay === 'projected') {
     return (
-      <span className={isPositive ? styles.valuePositive : styles.valueNegative}>
+      <span>
         {formatCurrency(projectedMin)} – {formatCurrency(projectedMax)}
       </span>
     );
@@ -78,7 +79,7 @@ function CostDisplay({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-0-5)' }}>
       <span className={styles.valuePositive}>Actual: {formatCurrency(actualCost)}</span>
-      <span className={styles.valuePositive}>
+      <span>
         Projected: {formatCurrency(projectedMin)} – {formatCurrency(projectedMax)}
       </span>
     </div>
@@ -140,6 +141,7 @@ function WorkItemRow({
               type="button"
               className={styles.expandBtn}
               aria-expanded={itemExpanded}
+              aria-label={`Expand ${item.title}`}
               onClick={() => onToggle(key)}
             >
               <ChevronSvg
@@ -198,6 +200,7 @@ function WorkItemCategorySection({
               type="button"
               className={styles.expandBtn}
               aria-expanded={isExpanded}
+              aria-label={`Expand ${category.categoryName}`}
               onClick={() => onToggle(key)}
             >
               <ChevronSvg className={`${styles.chevron} ${isExpanded ? styles.chevronOpen : ''}`} />
@@ -208,7 +211,9 @@ function WorkItemCategorySection({
         <td className={styles.colBudget}>
           {formatCurrency(category.projectedMin)} – {formatCurrency(category.projectedMax)}
         </td>
-        <td className={styles.colPayback}>{formatCurrency(category.subsidyPayback)}</td>
+        <td className={styles.colPayback}>
+          {category.subsidyPayback === 0 ? '—' : formatCurrency(category.subsidyPayback)}
+        </td>
         <td className={styles.colRemaining} />
       </tr>
 
@@ -233,7 +238,9 @@ function WorkItemCategorySection({
             <td className={styles.colBudget}>
               {formatCurrency(category.projectedMin)} – {formatCurrency(category.projectedMax)}
             </td>
-            <td className={styles.colPayback}>{formatCurrency(category.subsidyPayback)}</td>
+            <td className={styles.colPayback}>
+              {category.subsidyPayback === 0 ? '—' : formatCurrency(category.subsidyPayback)}
+            </td>
             <td className={styles.colRemaining} />
           </tr>
         </>
@@ -265,6 +272,7 @@ function HouseholdItemRow({
               type="button"
               className={styles.expandBtn}
               aria-expanded={itemExpanded}
+              aria-label={`Expand ${item.name}`}
               onClick={() => onToggle(key)}
             >
               <ChevronSvg
@@ -324,6 +332,7 @@ function HouseholdItemCategorySection({
               type="button"
               className={styles.expandBtn}
               aria-expanded={isExpanded}
+              aria-label={`Expand ${categoryLabel}`}
               onClick={() => onToggle(key)}
             >
               <ChevronSvg className={`${styles.chevron} ${isExpanded ? styles.chevronOpen : ''}`} />
@@ -334,7 +343,9 @@ function HouseholdItemCategorySection({
         <td className={styles.colBudget}>
           {formatCurrency(category.projectedMin)} – {formatCurrency(category.projectedMax)}
         </td>
-        <td className={styles.colPayback}>{formatCurrency(category.subsidyPayback)}</td>
+        <td className={styles.colPayback}>
+          {category.subsidyPayback === 0 ? '—' : formatCurrency(category.subsidyPayback)}
+        </td>
         <td className={styles.colRemaining} />
       </tr>
 
@@ -359,7 +370,9 @@ function HouseholdItemCategorySection({
             <td className={styles.colBudget}>
               {formatCurrency(category.projectedMin)} – {formatCurrency(category.projectedMax)}
             </td>
-            <td className={styles.colPayback}>{formatCurrency(category.subsidyPayback)}</td>
+            <td className={styles.colPayback}>
+              {category.subsidyPayback === 0 ? '—' : formatCurrency(category.subsidyPayback)}
+            </td>
             <td className={styles.colRemaining} />
           </tr>
         </>
@@ -476,6 +489,9 @@ export function CostBreakdownTable({
 
       <div className={styles.tableWrapper}>
         <table className={styles.table}>
+          <caption className={styles.srOnly}>
+            Budget cost breakdown by category and item
+          </caption>
           <thead>
             <tr>
               <th scope="col" className={styles.colName}>
@@ -516,6 +532,7 @@ export function CostBreakdownTable({
                         type="button"
                         className={styles.expandBtn}
                         aria-expanded={wiSectionExpanded}
+                        aria-label="Expand work item budget categories"
                         onClick={() => toggle(wiSectionKey)}
                       >
                         <ChevronSvg
@@ -558,6 +575,7 @@ export function CostBreakdownTable({
                         type="button"
                         className={styles.expandBtn}
                         aria-expanded={hiSectionExpanded}
+                        aria-label="Expand household item budget categories"
                         onClick={() => toggle(hiSectionKey)}
                       >
                         <ChevronSvg

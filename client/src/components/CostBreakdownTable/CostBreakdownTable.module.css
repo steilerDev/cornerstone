@@ -72,7 +72,7 @@
 
 .rowLevel0 td {
   background: var(--color-bg-primary);
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-xl);
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
   padding: var(--spacing-3) var(--spacing-3);
@@ -88,6 +88,10 @@
   color: var(--color-text-secondary);
   padding: var(--spacing-2) var(--spacing-3);
   border-bottom: 1px solid var(--color-border);
+}
+
+.rowLevel1:hover td {
+  background: var(--color-bg-hover);
 }
 
 .cellLevel1Name {
@@ -106,6 +110,10 @@
   border-bottom: 1px solid var(--color-border);
 }
 
+.rowLevel2:hover td {
+  background: var(--color-bg-hover);
+}
+
 .cellLevel2Name {
   padding-left: var(--spacing-14);
 }
@@ -119,6 +127,10 @@
   color: var(--color-text-muted);
   padding: var(--spacing-2) var(--spacing-3);
   border-bottom: 1px solid var(--color-border);
+}
+
+.rowLevel3:hover td {
+  background: var(--color-bg-hover);
 }
 
 .cellLevel3Name {
@@ -144,7 +156,7 @@
 /* ---- Chevron button ---- */
 
 .chevron {
-  transition: transform 150ms ease;
+  transition: transform var(--transition-normal);
   flex-shrink: 0;
   width: 16px;
   height: 16px;
@@ -231,6 +243,20 @@
   font-size: var(--font-size-sm);
 }
 
+/* ---- Screen reader only ---- */
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* ---- Responsive: mobile (max 767px) ---- */
 
 @media (max-width: 767px) {
@@ -289,6 +315,7 @@
   .expandBtn {
     width: 20px;
     height: 20px;
-    min-width: 20px;
+    min-width: 44px;
+    min-height: 44px;
   }
 }

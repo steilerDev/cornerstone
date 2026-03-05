@@ -79,6 +79,7 @@ See `review-history.md` for detailed findings per PR.
 | #416 | EPIC-04 Story 4.10 — HI Timeline Dependencies & Delivery Date Scheduling          | COMMENTED (2 informational)                                       | 2026-03-03 |
 | #451 | Bug fix #449 — HI Timeline Navigation (frontend-only Gantt interaction)           | APPROVED (no findings)                                            | 2026-03-04 |
 | #460 | Bug fix #458 — Inline status selector with auto-set delivery date                 | APPROVED (no findings)                                            | 2026-03-04 |
+| #466 | EPIC-05 Story 5.13 — Budget Breakdown Table (`GET /api/budget/breakdown`)         | COMMENTED (2 informational: no route schema, unbounded SELECT)    | 2026-03-05 |
 
 ## Known Open Recommendations (Low Priority)
 

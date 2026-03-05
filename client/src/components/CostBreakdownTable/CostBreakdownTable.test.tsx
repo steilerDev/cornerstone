@@ -97,7 +97,13 @@ function getButtonByControls(container: HTMLElement, controlsId: string): HTMLEl
       const text = span?.textContent?.trim() || '';
       if (text === 'Work Item Budget') {
         foundSection = true;
-      } else if (foundSection && text && !text.match(/^(Uncategorized|Materials|Labor|Permits|Design|Equipment|Landscaping|Utilities|Insurance|Contingency|Other)$/)) {
+      } else if (
+        foundSection &&
+        text &&
+        !text.match(
+          /^(Uncategorized|Materials|Labor|Permits|Design|Equipment|Landscaping|Utilities|Insurance|Contingency|Other)$/,
+        )
+      ) {
         return btn;
       }
     }
@@ -110,7 +116,11 @@ function getButtonByControls(container: HTMLElement, controlsId: string): HTMLEl
       const text = span?.textContent?.trim() || '';
       if (text === 'Household Item Budget') {
         foundHISection = true;
-      } else if (foundHISection && text && !text.match(/^(Furniture|Appliances|Fixtures|Decor|Electronics|Outdoor|Storage|Other)$/)) {
+      } else if (
+        foundHISection &&
+        text &&
+        !text.match(/^(Furniture|Appliances|Fixtures|Decor|Electronics|Outdoor|Storage|Other)$/)
+      ) {
         return btn;
       }
     }
@@ -158,7 +168,12 @@ function buildOverview(availableFunds = 100000): BudgetOverview {
     remainingVsMinPlannedWithPayback: 0,
     remainingVsMaxPlannedWithPayback: 0,
     categorySummaries: [],
-    subsidySummary: { totalReductions: 0, activeSubsidyCount: 0, minTotalPayback: 0, maxTotalPayback: 0 },
+    subsidySummary: {
+      totalReductions: 0,
+      activeSubsidyCount: 0,
+      minTotalPayback: 0,
+      maxTotalPayback: 0,
+    },
   };
 }
 
@@ -181,18 +196,20 @@ function buildEmptyBreakdown(): BudgetBreakdown {
 /**
  * Build a breakdown with one WI category containing one item.
  */
-function buildBreakdownWithWI(opts: {
-  categoryId?: string | null;
-  categoryName?: string;
-  costDisplay?: 'actual' | 'projected' | 'mixed';
-  projectedMin?: number;
-  projectedMax?: number;
-  actualCost?: number;
-  subsidyPayback?: number;
-  itemTitle?: string;
-  workItemId?: string;
-  description?: string | null;
-} = {}): BudgetBreakdown {
+function buildBreakdownWithWI(
+  opts: {
+    categoryId?: string | null;
+    categoryName?: string;
+    costDisplay?: 'actual' | 'projected' | 'mixed';
+    projectedMin?: number;
+    projectedMax?: number;
+    actualCost?: number;
+    subsidyPayback?: number;
+    itemTitle?: string;
+    workItemId?: string;
+    description?: string | null;
+  } = {},
+): BudgetBreakdown {
   const categoryId = opts.categoryId !== undefined ? opts.categoryId : 'cat-1';
   const categoryName = opts.categoryName ?? 'Materials';
   const costDisplay = opts.costDisplay ?? 'projected';
@@ -249,16 +266,26 @@ function buildBreakdownWithWI(opts: {
 /**
  * Build a breakdown with one HI category containing one item.
  */
-function buildBreakdownWithHI(opts: {
-  hiCategory?: 'furniture' | 'appliances' | 'fixtures' | 'decor' | 'electronics' | 'outdoor' | 'storage' | 'other';
-  projectedMin?: number;
-  projectedMax?: number;
-  actualCost?: number;
-  subsidyPayback?: number;
-  costDisplay?: 'actual' | 'projected' | 'mixed';
-  itemName?: string;
-  householdItemId?: string;
-} = {}): BudgetBreakdown {
+function buildBreakdownWithHI(
+  opts: {
+    hiCategory?:
+      | 'furniture'
+      | 'appliances'
+      | 'fixtures'
+      | 'decor'
+      | 'electronics'
+      | 'outdoor'
+      | 'storage'
+      | 'other';
+    projectedMin?: number;
+    projectedMax?: number;
+    actualCost?: number;
+    subsidyPayback?: number;
+    costDisplay?: 'actual' | 'projected' | 'mixed';
+    itemName?: string;
+    householdItemId?: string;
+  } = {},
+): BudgetBreakdown {
   const hiCategory = opts.hiCategory ?? 'furniture';
   const projectedMin = opts.projectedMin ?? 400;
   const projectedMax = opts.projectedMax ?? 600;

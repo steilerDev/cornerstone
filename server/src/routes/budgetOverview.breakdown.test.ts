@@ -60,17 +60,25 @@ describe('GET /api/budget/breakdown', () => {
   /**
    * Insert a work item with a budget line into the app's database.
    */
-  function insertWorkItem(opts: {
-    plannedAmount?: number;
-    confidence?: 'own_estimate' | 'professional_estimate' | 'quote' | 'invoice';
-    budgetCategoryId?: string | null;
-    actualCost?: number;
-  } = {}): { workItemId: string; budgetLineId: string } {
+  function insertWorkItem(
+    opts: {
+      plannedAmount?: number;
+      confidence?: 'own_estimate' | 'professional_estimate' | 'quote' | 'invoice';
+      budgetCategoryId?: string | null;
+      actualCost?: number;
+    } = {},
+  ): { workItemId: string; budgetLineId: string } {
     const id = `wi-bd-${idCounter++}`;
     const now = new Date().toISOString();
     app.db
       .insert(schema.workItems)
-      .values({ id, title: `Breakdown WI ${id}`, status: 'not_started', createdAt: now, updatedAt: now })
+      .values({
+        id,
+        title: `Breakdown WI ${id}`,
+        status: 'not_started',
+        createdAt: now,
+        updatedAt: now,
+      })
       .run();
 
     const budgetId = `bud-bd-${idCounter++}`;
@@ -116,11 +124,21 @@ describe('GET /api/budget/breakdown', () => {
   /**
    * Insert a household item with a budget line into the app's database.
    */
-  function insertHouseholdItem(opts: {
-    category?: 'furniture' | 'appliances' | 'fixtures' | 'decor' | 'electronics' | 'outdoor' | 'storage' | 'other';
-    plannedAmount?: number;
-    confidence?: 'own_estimate' | 'professional_estimate' | 'quote' | 'invoice';
-  } = {}): { householdItemId: string; budgetLineId: string } {
+  function insertHouseholdItem(
+    opts: {
+      category?:
+        | 'furniture'
+        | 'appliances'
+        | 'fixtures'
+        | 'decor'
+        | 'electronics'
+        | 'outdoor'
+        | 'storage'
+        | 'other';
+      plannedAmount?: number;
+      confidence?: 'own_estimate' | 'professional_estimate' | 'quote' | 'invoice';
+    } = {},
+  ): { householdItemId: string; budgetLineId: string } {
     const id = `hi-bd-${idCounter++}`;
     const now = new Date().toISOString();
     app.db
@@ -333,7 +351,11 @@ describe('GET /api/budget/breakdown', () => {
   });
 
   it('each WI item entry has the required fields', async () => {
-    const { cookie } = await createUserWithSession('itemfields@example.com', 'ItemFields User', 'password');
+    const { cookie } = await createUserWithSession(
+      'itemfields@example.com',
+      'ItemFields User',
+      'password',
+    );
 
     insertWorkItem({ plannedAmount: 5000, confidence: 'quote' });
 
@@ -358,7 +380,11 @@ describe('GET /api/budget/breakdown', () => {
   });
 
   it('each budget line entry has the required fields', async () => {
-    const { cookie } = await createUserWithSession('linefields@example.com', 'LineFields User', 'password');
+    const { cookie } = await createUserWithSession(
+      'linefields@example.com',
+      'LineFields User',
+      'password',
+    );
 
     insertWorkItem({ plannedAmount: 3000, confidence: 'professional_estimate' });
 
@@ -377,7 +403,9 @@ describe('GET /api/budget/breakdown', () => {
     expect(typeof line.actualCost).toBe('number');
     expect(typeof line.hasInvoice).toBe('boolean');
     expect(line).toHaveProperty('description'); // may be null
-    expect(['own_estimate', 'professional_estimate', 'quote', 'invoice']).toContain(line.confidence);
+    expect(['own_estimate', 'professional_estimate', 'quote', 'invoice']).toContain(
+      line.confidence,
+    );
   });
 
   // ─── Data accuracy at route level ─────────────────────────────────────────

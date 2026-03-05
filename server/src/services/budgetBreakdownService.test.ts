@@ -67,14 +67,16 @@ describe('getBudgetBreakdown', () => {
    * Insert a work item with an optional budget line.
    * Returns { workItemId, budgetLineId }.
    */
-  function insertWorkItem(opts: {
-    title?: string;
-    plannedAmount?: number;
-    confidence?: 'own_estimate' | 'professional_estimate' | 'quote' | 'invoice';
-    budgetCategoryId?: string | null;
-    actualCost?: number; // creates a paid invoice linked to this budget line
-    noBudgetLine?: boolean; // create WI without any budget lines
-  } = {}): { workItemId: string; budgetLineId: string | null } {
+  function insertWorkItem(
+    opts: {
+      title?: string;
+      plannedAmount?: number;
+      confidence?: 'own_estimate' | 'professional_estimate' | 'quote' | 'invoice';
+      budgetCategoryId?: string | null;
+      actualCost?: number; // creates a paid invoice linked to this budget line
+      noBudgetLine?: boolean; // create WI without any budget lines
+    } = {},
+  ): { workItemId: string; budgetLineId: string | null } {
     const id = `wi-test-${idCounter++}`;
     const now = new Date().toISOString();
     db.insert(schema.workItems)
@@ -180,15 +182,25 @@ describe('getBudgetBreakdown', () => {
    * Insert a household item with an optional budget line.
    * Returns { householdItemId, budgetLineId }.
    */
-  function insertHouseholdItem(opts: {
-    name?: string;
-    category?: 'furniture' | 'appliances' | 'fixtures' | 'decor' | 'electronics' | 'outdoor' | 'storage' | 'other';
-    plannedAmount?: number;
-    confidence?: 'own_estimate' | 'professional_estimate' | 'quote' | 'invoice';
-    budgetCategoryId?: string | null;
-    actualCost?: number;
-    noBudgetLine?: boolean;
-  } = {}): { householdItemId: string; budgetLineId: string | null } {
+  function insertHouseholdItem(
+    opts: {
+      name?: string;
+      category?:
+        | 'furniture'
+        | 'appliances'
+        | 'fixtures'
+        | 'decor'
+        | 'electronics'
+        | 'outdoor'
+        | 'storage'
+        | 'other';
+      plannedAmount?: number;
+      confidence?: 'own_estimate' | 'professional_estimate' | 'quote' | 'invoice';
+      budgetCategoryId?: string | null;
+      actualCost?: number;
+      noBudgetLine?: boolean;
+    } = {},
+  ): { householdItemId: string; budgetLineId: string | null } {
     const id = `hi-test-${idCounter++}`;
     const now = new Date().toISOString();
     db.insert(schema.householdItems)
@@ -735,7 +747,11 @@ describe('getBudgetBreakdown', () => {
 
     it('hiTotals.projectedMax equals sum of all HI category projectedMax values', () => {
       insertHouseholdItem({ category: 'furniture', plannedAmount: 800, confidence: 'quote' });
-      insertHouseholdItem({ category: 'electronics', plannedAmount: 400, confidence: 'own_estimate' });
+      insertHouseholdItem({
+        category: 'electronics',
+        plannedAmount: 400,
+        confidence: 'own_estimate',
+      });
 
       const result = getBudgetBreakdown(db);
 
@@ -809,7 +825,13 @@ describe('getBudgetBreakdown', () => {
       const budgetId = `bud-desc-${idCounter++}`;
       const now = new Date().toISOString();
       db.insert(schema.workItems)
-        .values({ id, title: 'Described Work Item', status: 'not_started', createdAt: now, updatedAt: now })
+        .values({
+          id,
+          title: 'Described Work Item',
+          status: 'not_started',
+          createdAt: now,
+          updatedAt: now,
+        })
         .run();
       db.insert(schema.workItemBudgets)
         .values({
