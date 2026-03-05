@@ -88,18 +88,11 @@ function CostDisplay({
 /**
  * Renders a single budget line row (Level 3).
  */
-function BudgetLineRow({
-  line,
-  onToggle,
-  isExpanded,
-}: {
-  line: BreakdownBudgetLine;
-  onToggle: (key: string) => void;
-  isExpanded: boolean;
-}) {
+function BudgetLineRow({ line }: { line: BreakdownBudgetLine }) {
   const key = `line-${line.id}`;
-  const costMin = line.plannedAmount;
-  const costMax = line.plannedAmount * (1 + CONFIDENCE_MARGINS[line.confidence]);
+  const margin = CONFIDENCE_MARGINS[line.confidence];
+  const costMin = line.plannedAmount * (1 - margin);
+  const costMax = line.plannedAmount * (1 + margin);
 
   return (
     <tr className={styles.rowLevel3} key={key}>
@@ -147,7 +140,6 @@ function WorkItemRow({
               type="button"
               className={styles.expandBtn}
               aria-expanded={itemExpanded}
-              aria-controls={`${key}-budget-lines`}
               onClick={() => onToggle(key)}
             >
               <ChevronSvg
@@ -172,11 +164,11 @@ function WorkItemRow({
       </tr>
 
       {itemExpanded && (
-        <tbody id={`${key}-budget-lines`}>
+        <>
           {item.budgetLines.map((line) => (
-            <BudgetLineRow key={line.id} line={line} onToggle={() => {}} isExpanded={false} />
+            <BudgetLineRow key={line.id} line={line} />
           ))}
-        </tbody>
+        </>
       )}
     </>
   );
@@ -206,7 +198,6 @@ function WorkItemCategorySection({
               type="button"
               className={styles.expandBtn}
               aria-expanded={isExpanded}
-              aria-controls={`${key}-items`}
               onClick={() => onToggle(key)}
             >
               <ChevronSvg className={`${styles.chevron} ${isExpanded ? styles.chevronOpen : ''}`} />
@@ -222,7 +213,7 @@ function WorkItemCategorySection({
       </tr>
 
       {isExpanded && (
-        <tbody id={`${key}-items`}>
+        <>
           {category.items.map((item) => (
             <WorkItemRow
               key={item.workItemId}
@@ -245,7 +236,7 @@ function WorkItemCategorySection({
             <td className={styles.colPayback}>{formatCurrency(category.subsidyPayback)}</td>
             <td className={styles.colRemaining} />
           </tr>
-        </tbody>
+        </>
       )}
     </>
   );
@@ -274,7 +265,6 @@ function HouseholdItemRow({
               type="button"
               className={styles.expandBtn}
               aria-expanded={itemExpanded}
-              aria-controls={`${key}-budget-lines`}
               onClick={() => onToggle(key)}
             >
               <ChevronSvg
@@ -299,11 +289,11 @@ function HouseholdItemRow({
       </tr>
 
       {itemExpanded && (
-        <tbody id={`${key}-budget-lines`}>
+        <>
           {item.budgetLines.map((line) => (
-            <BudgetLineRow key={line.id} line={line} onToggle={() => {}} isExpanded={false} />
+            <BudgetLineRow key={line.id} line={line} />
           ))}
-        </tbody>
+        </>
       )}
     </>
   );
@@ -334,7 +324,6 @@ function HouseholdItemCategorySection({
               type="button"
               className={styles.expandBtn}
               aria-expanded={isExpanded}
-              aria-controls={`${key}-items`}
               onClick={() => onToggle(key)}
             >
               <ChevronSvg className={`${styles.chevron} ${isExpanded ? styles.chevronOpen : ''}`} />
@@ -350,7 +339,7 @@ function HouseholdItemCategorySection({
       </tr>
 
       {isExpanded && (
-        <tbody id={`${key}-items`}>
+        <>
           {category.items.map((item) => (
             <HouseholdItemRow
               key={item.householdItemId}
@@ -373,7 +362,7 @@ function HouseholdItemCategorySection({
             <td className={styles.colPayback}>{formatCurrency(category.subsidyPayback)}</td>
             <td className={styles.colRemaining} />
           </tr>
-        </tbody>
+        </>
       )}
     </>
   );
@@ -527,7 +516,6 @@ export function CostBreakdownTable({
                         type="button"
                         className={styles.expandBtn}
                         aria-expanded={wiSectionExpanded}
-                        aria-controls={`${wiSectionKey}-categories`}
                         onClick={() => toggle(wiSectionKey)}
                       >
                         <ChevronSvg
@@ -546,7 +534,7 @@ export function CostBreakdownTable({
                 </tr>
 
                 {wiSectionExpanded && (
-                  <tbody id={`${wiSectionKey}-categories`}>
+                  <>
                     {visibleWICategories.map((category) => (
                       <WorkItemCategorySection
                         key={category.categoryId ?? '__uncategorized__'}
@@ -555,7 +543,7 @@ export function CostBreakdownTable({
                         onToggle={toggle}
                       />
                     ))}
-                  </tbody>
+                  </>
                 )}
               </>
             )}
@@ -570,7 +558,6 @@ export function CostBreakdownTable({
                         type="button"
                         className={styles.expandBtn}
                         aria-expanded={hiSectionExpanded}
-                        aria-controls={`${hiSectionKey}-categories`}
                         onClick={() => toggle(hiSectionKey)}
                       >
                         <ChevronSvg
@@ -589,7 +576,7 @@ export function CostBreakdownTable({
                 </tr>
 
                 {hiSectionExpanded && (
-                  <tbody id={`${hiSectionKey}-categories`}>
+                  <>
                     {breakdown.householdItems.categories.map((category) => (
                       <HouseholdItemCategorySection
                         key={category.hiCategory}
@@ -598,7 +585,7 @@ export function CostBreakdownTable({
                         onToggle={toggle}
                       />
                     ))}
-                  </tbody>
+                  </>
                 )}
               </>
             )}
