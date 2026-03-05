@@ -1505,51 +1505,51 @@
 .section {
   background: var(--color-bg-primary);
   border: 1px solid var(--color-border);
-  border-radius: 0.5rem;
-  padding: 1.5rem;
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-6);
 }
 
 .sectionTitle {
-  font-size: 1.125rem;
-  font-weight: 600;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
-  margin: 0 0 1rem 0;
+  margin: 0 0 var(--spacing-4) 0;
 }
 
 .sectionDescription {
-  font-size: 0.8125rem;
+  font-size: var(--font-size-xs);
   color: var(--color-text-muted);
-  margin: -0.5rem 0 1rem 0;
+  margin: calc(-1 * var(--spacing-2)) 0 var(--spacing-4) 0;
   line-height: 1.5;
 }
 
 .propertyGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
+  gap: var(--spacing-4);
 }
 
 .property {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--spacing-2);
 }
 
 .propertyLabel {
-  font-size: 0.875rem;
-  font-weight: 500;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
   color: var(--color-text-muted);
 }
 
 .propertyValue {
-  font-size: 0.875rem;
+  font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
-  padding: 0.625rem 0;
+  padding: var(--spacing-2-5) 0;
 }
 
 .constraintSubsection {
-  margin-top: 1.25rem;
-  padding-top: 1.25rem;
+  margin-top: var(--spacing-5);
+  padding-top: var(--spacing-5);
   border-top: 1px solid var(--color-border);
 }
 
@@ -1560,15 +1560,15 @@
 }
 
 .subsectionTitle {
-  font-size: 0.9375rem;
-  font-weight: 600;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-secondary);
-  margin: 0 0 0.75rem 0;
+  margin: 0 0 var(--spacing-3) 0;
 }
 
 .budgetSummaryValueMuted {
   font-size: var(--font-size-base);
-  font-weight: 400;
+  font-weight: var(--font-weight-normal);
   color: var(--color-text-muted);
   text-decoration: line-through;
 }

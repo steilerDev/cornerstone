@@ -10,6 +10,7 @@ Worktrees have no `node_modules`. To run tests from a worktree:
 1. Create symlinks: `ln -sf /main/node_modules /worktree/node_modules` and `ln -sf /main/server/node_modules /worktree/server/node_modules`
 2. Run from the WORKTREE directory: `node --experimental-vm-modules /main/node_modules/.bin/jest "path/to/test.ts" --no-coverage`
 3. **This worktree already has node_modules** — node_modules are present in the worktree directly. Run jest directly without symlink step.
+4. **SIGILL (exit 132) crash**: In sandbox environments, Jest may crash with SIGILL when spawning worker processes (due to CPU instruction set incompatibility). If `--maxWorkers=1` still crashes, tests cannot be run locally — commit and rely on CI. The pre-commit hook will also show SIGILL errors but still creates the commit.
 
 ## EPIC-04 Worktree @cornerstone/shared Symlink Fix
 

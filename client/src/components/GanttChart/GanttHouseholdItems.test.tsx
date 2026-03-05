@@ -243,6 +243,24 @@ describe('GanttHouseholdItems', () => {
       // actualDeliveryDate takes priority in aria-label (targetDeliveryDate is null for HI_DELIVERED)
       expect(ariaLabel).toContain('2026-04-18');
     });
+
+    it('aria-label uses actualDeliveryDate when both actual and target are set', () => {
+      const hiWithBothDates: TimelineHouseholdItem = {
+        ...HI_ORDERED,
+        id: 'hi-both',
+        targetDeliveryDate: '2026-06-01',
+        actualDeliveryDate: '2026-06-15',
+        status: 'arrived',
+      };
+      renderHouseholdItems({
+        householdItems: [hiWithBothDates],
+        hiRowIndices: new Map([['hi-both', 0]]),
+      });
+      const circle = screen.getByTestId('gantt-hi-circle');
+      const ariaLabel = circle.getAttribute('aria-label')!;
+      expect(ariaLabel).toContain('2026-06-15'); // actual takes priority
+      expect(ariaLabel).not.toContain('2026-06-01'); // target should not appear
+    });
   });
 
   // ── Arrived vs non-arrived color ──────────────────────────────────────
