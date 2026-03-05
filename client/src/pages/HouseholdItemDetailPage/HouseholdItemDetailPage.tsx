@@ -869,58 +869,61 @@ export function HouseholdItemDetailPage() {
                 No dependencies yet. Add a dependency to schedule this item.
               </p>
             ) : (
-            <ul role="list" className={styles.depList}>
-              {dependencies.map((dep) => {
-                const depKey = `${dep.predecessorType}:${dep.predecessorId}`;
-                return (
-                  <li key={depKey} role="listitem" className={styles.depRow}>
-                    <span
-                      className={
-                        dep.predecessorType === 'work_item'
-                          ? styles.predTypeWorkItem
-                          : styles.predTypeMilestone
-                      }
-                    >
-                      {dep.predecessorType === 'milestone' && <MilestoneIconSvg />}
-                      {dep.predecessorType === 'work_item' ? 'Work Item' : 'Milestone'}
-                    </span>
-                    {dep.predecessorType === 'work_item' ? (
-                      <Link to={`/work-items/${dep.predecessorId}`} className={styles.depPredLink}>
-                        {dep.predecessor.title}
-                      </Link>
-                    ) : (
-                      <span className={styles.depPredLabel}>{dep.predecessor.title}</span>
-                    )}
-                    <button
-                      type="button"
-                      className={styles.unlinkButton}
-                      onClick={() => setRemovingDepKey(depKey)}
-                      aria-label={`Remove dependency on ${dep.predecessor.title}`}
-                    >
-                      ×
-                    </button>
-                    {removingDepKey === depKey && (
-                      <>
-                        <button
-                          type="button"
-                          className={styles.deleteButton}
-                          onClick={() => void handleRemoveDep(dep)}
+              <ul role="list" className={styles.depList}>
+                {dependencies.map((dep) => {
+                  const depKey = `${dep.predecessorType}:${dep.predecessorId}`;
+                  return (
+                    <li key={depKey} role="listitem" className={styles.depRow}>
+                      <span
+                        className={
+                          dep.predecessorType === 'work_item'
+                            ? styles.predTypeWorkItem
+                            : styles.predTypeMilestone
+                        }
+                      >
+                        {dep.predecessorType === 'milestone' && <MilestoneIconSvg />}
+                        {dep.predecessorType === 'work_item' ? 'Work Item' : 'Milestone'}
+                      </span>
+                      {dep.predecessorType === 'work_item' ? (
+                        <Link
+                          to={`/work-items/${dep.predecessorId}`}
+                          className={styles.depPredLink}
                         >
-                          Confirm
-                        </button>
-                        <button
-                          type="button"
-                          className={styles.cancelButton}
-                          onClick={() => setRemovingDepKey(null)}
-                        >
-                          Cancel
-                        </button>
-                      </>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
+                          {dep.predecessor.title}
+                        </Link>
+                      ) : (
+                        <span className={styles.depPredLabel}>{dep.predecessor.title}</span>
+                      )}
+                      <button
+                        type="button"
+                        className={styles.unlinkButton}
+                        onClick={() => setRemovingDepKey(depKey)}
+                        aria-label={`Remove dependency on ${dep.predecessor.title}`}
+                      >
+                        ×
+                      </button>
+                      {removingDepKey === depKey && (
+                        <>
+                          <button
+                            type="button"
+                            className={styles.deleteButton}
+                            onClick={() => void handleRemoveDep(dep)}
+                          >
+                            Confirm
+                          </button>
+                          <button
+                            type="button"
+                            className={styles.cancelButton}
+                            onClick={() => setRemovingDepKey(null)}
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
             )}
           </div>
 

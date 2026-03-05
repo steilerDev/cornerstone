@@ -30,7 +30,11 @@ import {
   getItemColor,
   getContrastTextColor,
 } from './calendarUtils.js';
-import type { TimelineWorkItem, TimelineMilestone, TimelineHouseholdItem } from '@cornerstone/shared';
+import type {
+  TimelineWorkItem,
+  TimelineMilestone,
+  TimelineHouseholdItem,
+} from '@cornerstone/shared';
 
 // ---------------------------------------------------------------------------
 // Fixtures
