@@ -489,9 +489,7 @@ export function CostBreakdownTable({
 
       <div className={styles.tableWrapper}>
         <table className={styles.table}>
-          <caption className={styles.srOnly}>
-            Budget cost breakdown by category and item
-          </caption>
+          <caption className={styles.srOnly}>Budget cost breakdown by category and item</caption>
           <thead>
             <tr>
               <th scope="col" className={styles.colName}>
