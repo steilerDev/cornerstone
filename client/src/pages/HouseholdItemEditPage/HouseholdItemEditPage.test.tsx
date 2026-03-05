@@ -189,9 +189,6 @@ describe('HouseholdItemEditPage', () => {
       const categorySelect = screen.getByLabelText(/category/i) as HTMLSelectElement;
       expect(categorySelect.value).toBe('furniture');
 
-      const statusSelect = screen.getByLabelText(/purchase status/i) as HTMLSelectElement;
-      expect(statusSelect.value).toBe('purchased');
-
       const roomInput = screen.getByLabelText(/^room/i) as HTMLInputElement;
       expect(roomInput.value).toBe('Kitchen');
 
@@ -217,16 +214,71 @@ describe('HouseholdItemEditPage', () => {
       });
     });
 
-    it('pre-populates date fields with existing data', async () => {
+    // Story #467: Date and status fields moved to inline editing on the Detail page.
+    // The edit form should NOT contain these fields.
+    it('does NOT render Order Date input', async () => {
       renderPage();
 
       await waitFor(() => {
-        const orderDateInput = screen.getByLabelText(/order date/i) as HTMLInputElement;
-        expect(orderDateInput.value).toBe('2026-03-01');
+        expect(screen.getByLabelText(/^name/i)).toBeInTheDocument();
       });
 
-      const earliestDeliveryInput = screen.getByLabelText(/earliest delivery/i) as HTMLInputElement;
-      expect(earliestDeliveryInput.value).toBe('2026-04-15');
+      expect(screen.queryByLabelText(/order date/i)).not.toBeInTheDocument();
+    });
+
+    it('does NOT render Earliest Delivery input', async () => {
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/^name/i)).toBeInTheDocument();
+      });
+
+      expect(screen.queryByLabelText(/earliest delivery/i)).not.toBeInTheDocument();
+    });
+
+    it('does NOT render Latest Delivery input', async () => {
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/^name/i)).toBeInTheDocument();
+      });
+
+      expect(screen.queryByLabelText(/latest delivery/i)).not.toBeInTheDocument();
+    });
+
+    it('does NOT render Actual Delivery input', async () => {
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/^name/i)).toBeInTheDocument();
+      });
+
+      expect(screen.queryByLabelText(/actual delivery/i)).not.toBeInTheDocument();
+    });
+
+    it('does NOT render Purchase Status select', async () => {
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/^name/i)).toBeInTheDocument();
+      });
+
+      expect(screen.queryByLabelText(/purchase status/i)).not.toBeInTheDocument();
+    });
+
+    it('still renders core fields: Name, Description, Category, Vendor, URL, Room, Quantity', async () => {
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/^name/i)).toBeInTheDocument();
+      });
+
+      expect(screen.getByLabelText(/description/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/category/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/vendor/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/url/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/^room/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/quantity/i)).toBeInTheDocument();
     });
   });
 
@@ -284,29 +336,8 @@ describe('HouseholdItemEditPage', () => {
       expect(mockUpdateHouseholdItem).not.toHaveBeenCalled();
     });
 
-    it('shows validation error when actual delivery is before order date', async () => {
-      const user = userEvent.setup();
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByLabelText(/^name/i)).toBeInTheDocument();
-      });
-
-      // Set actual delivery before order date
-      const actualDeliveryInput = screen.getByLabelText(/actual delivery/i) as HTMLInputElement;
-      await user.type(actualDeliveryInput, '2026-02-01');
-
-      // Order date is already set to 2026-03-01 from the mock item
-      await user.click(screen.getByRole('button', { name: /save changes/i }));
-
-      await waitFor(() => {
-        expect(
-          screen.getByText(/actual delivery date must be after or equal to order date/i),
-        ).toBeInTheDocument();
-      });
-
-      expect(mockUpdateHouseholdItem).not.toHaveBeenCalled();
-    });
+    // Story #467: Date validation moved to inline editing on the Detail page.
+    // The edit form no longer has date fields, so this validation no longer applies here.
   });
 
   describe('form submission', () => {
@@ -432,6 +463,41 @@ describe('HouseholdItemEditPage', () => {
         ).toBeInTheDocument();
       });
     });
+
+    // Story #467: Edit form submit payload must NOT contain date or status fields.
+    it('PATCH payload contains only core fields — no date or status fields', async () => {
+      const user = userEvent.setup();
+      mockUpdateHouseholdItem.mockResolvedValue(mockUpdatedItem);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/^name/i)).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /save changes/i }));
+
+      await waitFor(() => {
+        expect(mockUpdateHouseholdItem).toHaveBeenCalledTimes(1);
+      });
+
+      const [, payload] = mockUpdateHouseholdItem.mock.calls[0] as [
+        string,
+        Record<string, unknown>,
+      ];
+
+      // Core fields must be present
+      expect(payload).toHaveProperty('name');
+      expect(payload).toHaveProperty('category');
+      expect(payload).toHaveProperty('quantity');
+
+      // Date and status fields must NOT be in the payload
+      expect(payload).not.toHaveProperty('orderDate');
+      expect(payload).not.toHaveProperty('earliestDeliveryDate');
+      expect(payload).not.toHaveProperty('latestDeliveryDate');
+      expect(payload).not.toHaveProperty('actualDeliveryDate');
+      expect(payload).not.toHaveProperty('status');
+    });
   });
 
   describe('item not found', () => {
@@ -515,14 +581,8 @@ describe('HouseholdItemEditPage', () => {
       });
     });
 
-    it('status select has aria-required="true"', async () => {
-      renderPage();
-
-      await waitFor(() => {
-        const statusSelect = screen.getByLabelText(/purchase status/i);
-        expect(statusSelect).toHaveAttribute('aria-required', 'true');
-      });
-    });
+    // Story #467: Purchase Status field moved to inline editing on the Detail page.
+    // The edit form no longer has a status select.
 
     it('quantity input has aria-required="true"', async () => {
       renderPage();

@@ -184,43 +184,20 @@ See `story-4-9-invoice-linking-hi.md`. Spec: entity type toggle (`role="group"` 
 
 ## Story 4.10 — HI Timeline Dependencies (Issue #415)
 
-- HI Gantt visual: amber circle marker (r=7px), NOT a bar or diamond — zero-duration node
-- 5 new Gantt tokens: `--color-gantt-hi-fill`, `--color-gantt-hi-stroke`, `--color-gantt-hi-delivered-fill`, `--color-gantt-hi-delivered-stroke`, `--color-gantt-hi-hover-glow` (both layers in tokens.css)
-- Amber fills reference existing palette: `var(--color-amber-100)` / `var(--color-amber-800)` / `var(--color-amber-300)` (already in Layer 1)
-- Calendar HI badge: pill shape, reuses `--color-hi-status-in-transit-*` and `--color-hi-status-delivered-*` (NO new calendar tokens)
-- Dependency row: reuses `budgetLineItem` / `subsidyItem` pattern from HouseholdItemDetailPage.module.css
-- "Floored to today" late indicator: `--color-hi-status-in-transit-bg` / `--color-hi-status-in-transit-text` (amber)
-- Add Dependency modal: 36rem max-width (wider than standard 28rem), entity type toggle = `role="radiogroup"`
-- HI tooltip kind: `kind: 'household-item'` extending GanttTooltipData discriminated union
-- GanttSidebar UnifiedRow gains `kind: 'householdItem'` variant
-- HI rows appear AFTER work items, sorted by earliestDeliveryDate (same principle as milestones by targetDate)
-- `srAnnouncement` live region: "Dependency added: [name]" / "Dependency removed: [name]"
-- `HouseholdItemDetailPage.module.css` `prefers-reduced-motion` block must be extended to cover new dep section elements
+See memory for key patterns. Amber tokens: `--color-hi-status-scheduled-bg/text` (NOT `in-transit`).
+HI Gantt: amber circle marker (r=7px). Add Dep modal: 36rem wide.
+`role="listbox"` requires arrow-key nav — use `role="list"` + `role="button"` items instead.
+`--color-primary-text` on `--color-primary-bg` chip = contrast failure; use `var(--color-primary)` for text.
 
-## PR #416 Review Findings — HI Timeline Dependencies (Story 4.10)
+## Story 4.11 — HI Detail Inline Edit (Issue #467)
 
-Key misses to watch for in Gantt/detail-page dependency PRs:
+See `story-4-11-hi-detail-inline-edit.md` for full spec.
 
-- `--color-primary-text` (white in light mode) used on `--color-primary-bg` (light blue) chip — contrast failure; always use `var(--color-primary)` for text on `--color-primary-bg` tinted chips
-- `depSearchOptionSelected` same mistake — selected state bg is `--color-primary-bg`, text must be `var(--color-primary)` not `--color-primary-text`
-- `role="dialog"` modal with no focus trap and no initial focus — `autoFocus` on first input is the minimum acceptable fix
-- `role="listbox"` + `role="option"` requires arrow-key keyboard navigation; without it use `role="list"` + `role="button"` items instead
-- Tooltip HI status badge hardcoded amber color regardless of delivered state — status-conditional token selection required
-- "Floored to today" heuristic: spec uses `isLate` flag from scheduling engine; date-string equality to today is a fragile approximation (PR #457 correctly switched to `isLate`)
-- `showToast()` alone is insufficient for spec-required `aria-live="polite"` srAnnouncement — toast is visual, not reliable for screen-reader-only users
-
-## HI Status Token Naming — CRITICAL CORRECTION
-
-MEMORY.md previously referenced `--color-hi-status-in-transit-*` tokens. These DO NOT EXIST in tokens.css.
-Correct amber tokens for "in transit / late / floored" states:
-
-- `--color-hi-status-scheduled-bg` (light: `--color-amber-100`, dark: `rgba(245,158,11,0.2)`)
-- `--color-hi-status-scheduled-text` (light: `--color-amber-800`, dark: `--color-amber-300`)
-
-Broken usages as of PR #457 (pre-existing, need cleanup):
-
-- `HouseholdItemDetailPage.module.css` `.lateChip` lines 1228–1229: uses `in-transit` tokens
-- `GanttTooltip.module.css` `.detailValueFloored` line 320: uses `in-transit` token
+- 3 sections: Details → Dates & Delivery → Dependencies (all `.section` border-variant)
+- Strikethrough target date: `.scheduleTargetStrikethrough` + `aria-label="Target date: [date]"` (screen readers don't read text-decoration)
+- AutosaveIndicator CSS must be LOCAL COPY in HouseholdItemDetailPage.module.css
+- Re-fetch required after saving `actualDeliveryDate` and `earliestDeliveryDate`
+- Edit page scope: remove orderDate/earliestDeliveryDate/latestDeliveryDate/actualDeliveryDate/status
 
 ## PR #457 Review Findings — HI Delivery Date Redesign
 

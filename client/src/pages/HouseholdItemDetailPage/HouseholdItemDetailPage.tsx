@@ -29,6 +29,10 @@ import {
   updateHouseholdItem,
 } from '../../lib/householdItemsApi.js';
 import {
+  AutosaveIndicator,
+  type AutosaveState,
+} from '../../components/AutosaveIndicator/AutosaveIndicator.js';
+import {
   fetchHouseholdItemBudgets,
   createHouseholdItemBudget,
   updateHouseholdItemBudget,
@@ -165,13 +169,34 @@ export function HouseholdItemDetailPage() {
 
   // Inline error for budget/subsidy/dependency operations
   const [inlineError, setInlineError] = useState<string | null>(null);
+  const [dateInlineError, setDateInlineError] = useState<string | null>(null);
   const [isChangingStatus, setIsChangingStatus] = useState(false);
+
+  // Inline date editing state
+  const [localOrderDate, setLocalOrderDate] = useState<string>('');
+  const [localActualDeliveryDate, setLocalActualDeliveryDate] = useState<string>('');
+  const [localEarliestDeliveryDate, setLocalEarliestDeliveryDate] = useState<string>('');
+  const [localLatestDeliveryDate, setLocalLatestDeliveryDate] = useState<string>('');
+  const [autosaveOrderDate, setAutosaveOrderDate] = useState<AutosaveState>('idle');
+  const [autosaveActualDelivery, setAutosaveActualDelivery] = useState<AutosaveState>('idle');
+  const [autosaveEarliestDelivery, setAutosaveEarliestDelivery] = useState<AutosaveState>('idle');
+  const [autosaveLatestDelivery, setAutosaveLatestDelivery] = useState<AutosaveState>('idle');
+  const autosaveResetRefs = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   useEffect(() => {
     if (!id) return;
     void loadItem();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  useEffect(() => {
+    if (item) {
+      setLocalOrderDate(item.orderDate || '');
+      setLocalActualDeliveryDate(item.actualDeliveryDate || '');
+      setLocalEarliestDeliveryDate(item.earliestDeliveryDate || '');
+      setLocalLatestDeliveryDate(item.latestDeliveryDate || '');
+    }
+  }, [item?.id]);
 
   useEffect(() => {
     if (!showDeleteModal) return;
@@ -525,6 +550,91 @@ export function HouseholdItemDetailPage() {
     }
   };
 
+  function triggerAutosaveReset(setter: (v: AutosaveState) => void, key: string) {
+    if (autosaveResetRefs.current[key]) clearTimeout(autosaveResetRefs.current[key]);
+    autosaveResetRefs.current[key] = setTimeout(() => setter('idle'), 2000);
+  }
+
+  const handleOrderDateBlur = async () => {
+    if (!id || !item) return;
+    if (localOrderDate === (item.orderDate || '')) return;
+    setDateInlineError(null);
+    setAutosaveOrderDate('saving');
+    try {
+      const updated = await updateHouseholdItem(id, { orderDate: localOrderDate || null });
+      setItem(updated);
+      setAutosaveOrderDate('success');
+      triggerAutosaveReset(setAutosaveOrderDate, 'orderDate');
+    } catch {
+      setAutosaveOrderDate('error');
+      triggerAutosaveReset(setAutosaveOrderDate, 'orderDate');
+      setDateInlineError('Failed to update order date');
+    }
+  };
+
+  const handleActualDeliveryDateBlur = async () => {
+    if (!id || !item) return;
+    if (localActualDeliveryDate === (item.actualDeliveryDate || '')) return;
+    setDateInlineError(null);
+    setAutosaveActualDelivery('saving');
+    try {
+      await updateHouseholdItem(id, { actualDeliveryDate: localActualDeliveryDate || null });
+      const fresh = await getHouseholdItem(id);
+      setItem(fresh);
+      setLocalActualDeliveryDate(fresh.actualDeliveryDate || '');
+      setLocalOrderDate(fresh.orderDate || '');
+      setLocalEarliestDeliveryDate(fresh.earliestDeliveryDate || '');
+      setLocalLatestDeliveryDate(fresh.latestDeliveryDate || '');
+      setAutosaveActualDelivery('success');
+      triggerAutosaveReset(setAutosaveActualDelivery, 'actualDelivery');
+    } catch {
+      setAutosaveActualDelivery('error');
+      triggerAutosaveReset(setAutosaveActualDelivery, 'actualDelivery');
+      setDateInlineError('Failed to update actual delivery date');
+    }
+  };
+
+  const handleEarliestDeliveryDateBlur = async () => {
+    if (!id || !item) return;
+    if (localEarliestDeliveryDate === (item.earliestDeliveryDate || '')) return;
+    setDateInlineError(null);
+    setAutosaveEarliestDelivery('saving');
+    try {
+      await updateHouseholdItem(id, { earliestDeliveryDate: localEarliestDeliveryDate || null });
+      const fresh = await getHouseholdItem(id);
+      setItem(fresh);
+      setLocalActualDeliveryDate(fresh.actualDeliveryDate || '');
+      setLocalOrderDate(fresh.orderDate || '');
+      setLocalEarliestDeliveryDate(fresh.earliestDeliveryDate || '');
+      setLocalLatestDeliveryDate(fresh.latestDeliveryDate || '');
+      setAutosaveEarliestDelivery('success');
+      triggerAutosaveReset(setAutosaveEarliestDelivery, 'earliestDelivery');
+    } catch {
+      setAutosaveEarliestDelivery('error');
+      triggerAutosaveReset(setAutosaveEarliestDelivery, 'earliestDelivery');
+      setDateInlineError('Failed to update earliest delivery date');
+    }
+  };
+
+  const handleLatestDeliveryDateBlur = async () => {
+    if (!id || !item) return;
+    if (localLatestDeliveryDate === (item.latestDeliveryDate || '')) return;
+    setDateInlineError(null);
+    setAutosaveLatestDelivery('saving');
+    try {
+      const updated = await updateHouseholdItem(id, {
+        latestDeliveryDate: localLatestDeliveryDate || null,
+      });
+      setItem(updated);
+      setAutosaveLatestDelivery('success');
+      triggerAutosaveReset(setAutosaveLatestDelivery, 'latestDelivery');
+    } catch {
+      setAutosaveLatestDelivery('error');
+      triggerAutosaveReset(setAutosaveLatestDelivery, 'latestDelivery');
+      setDateInlineError('Failed to update latest delivery date');
+    }
+  };
+
   const handleStatusChange = async (newStatus: HouseholdItemStatus) => {
     if (!id || !item) return;
     setIsChangingStatus(true);
@@ -753,6 +863,31 @@ export function HouseholdItemDetailPage() {
           <div className={styles.cardHeader}>
             <h2 className={styles.cardTitle}>Dates & Delivery</h2>
           </div>
+          {dateInlineError && (
+            <div
+              className={styles.errorMessage}
+              role="alert"
+              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+            >
+              <span>{dateInlineError}</span>
+              <button
+                type="button"
+                onClick={() => setDateInlineError(null)}
+                aria-label="Close error message"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '1.5rem',
+                  padding: '0 0 0 var(--spacing-4)',
+                  flexShrink: 0,
+                  color: 'inherit',
+                }}
+              >
+                ×
+              </button>
+            </div>
+          )}
           {/* Inline status selector */}
           <div className={styles.statusSection}>
             <label htmlFor="hi-status-select" className={styles.infoLabel}>
@@ -773,159 +908,302 @@ export function HouseholdItemDetailPage() {
             </select>
           </div>
           <dl className={styles.infoList}>
+            {/* Schedule row showing target or actual date */}
             <div className={styles.infoRow}>
-              <dt className={styles.infoLabel}>Order Date</dt>
+              <dt className={styles.infoLabel}>
+                {item.actualDeliveryDate ? 'Actual Date' : 'Target Date'}
+              </dt>
               <dd className={styles.infoValue}>
-                {item.orderDate ? formatDate(item.orderDate) : '\u2014'}
+                {item.actualDeliveryDate ? (
+                  <span
+                    aria-label={`Actual delivery: ${formatDate(item.actualDeliveryDate)}, target was ${item.targetDeliveryDate ? formatDate(item.targetDeliveryDate) : 'not set'}`}
+                  >
+                    {formatDate(item.actualDeliveryDate)}{' '}
+                    {item.targetDeliveryDate && (
+                      <span className={styles.targetStrikethrough}>
+                        {formatDate(item.targetDeliveryDate)}
+                      </span>
+                    )}
+                  </span>
+                ) : item.targetDeliveryDate ? (
+                  formatDate(item.targetDeliveryDate)
+                ) : (
+                  '\u2014'
+                )}
               </dd>
             </div>
+
+            {/* Order Date - inline editable */}
             <div className={styles.infoRow}>
-              <dt className={styles.infoLabel}>Target Delivery (computed)</dt>
+              <dt className={styles.infoLabel}>
+                <label htmlFor="hi-order-date">Order Date</label>
+              </dt>
               <dd className={styles.infoValue}>
-                {item.targetDeliveryDate ? formatDate(item.targetDeliveryDate) : '\u2014'}
+                <div className={styles.inlineFieldWrapper}>
+                  <input
+                    type="date"
+                    id="hi-order-date"
+                    className={styles.propertyInput}
+                    value={localOrderDate}
+                    onChange={(e) => setLocalOrderDate(e.target.value)}
+                    onBlur={() => void handleOrderDateBlur()}
+                    aria-label="Order date"
+                  />
+                  {localOrderDate && (
+                    <button
+                      type="button"
+                      className={styles.clearDateButton}
+                      aria-label="Clear order date"
+                      onClick={() => {
+                        setLocalOrderDate('');
+                        if (item?.orderDate) {
+                          setAutosaveOrderDate('saving');
+                          void updateHouseholdItem(id!, { orderDate: null })
+                            .then((updated) => {
+                              setItem(updated);
+                              setAutosaveOrderDate('success');
+                              triggerAutosaveReset(setAutosaveOrderDate, 'orderDate');
+                            })
+                            .catch(() => {
+                              setAutosaveOrderDate('error');
+                              triggerAutosaveReset(setAutosaveOrderDate, 'orderDate');
+                            });
+                        }
+                      }}
+                    >
+                      ×
+                    </button>
+                  )}
+                  <AutosaveIndicator state={autosaveOrderDate} />
+                </div>
               </dd>
             </div>
+
+            {/* Actual Delivery Date - inline editable */}
             <div className={styles.infoRow}>
-              <dt className={styles.infoLabel}>Actual Delivery</dt>
+              <dt className={styles.infoLabel}>
+                <label htmlFor="hi-actual-delivery">Actual Delivery</label>
+              </dt>
               <dd className={styles.infoValue}>
-                {item.actualDeliveryDate ? formatDate(item.actualDeliveryDate) : '\u2014'}
+                <div className={styles.inlineFieldWrapper}>
+                  <input
+                    type="date"
+                    id="hi-actual-delivery"
+                    className={styles.propertyInput}
+                    value={localActualDeliveryDate}
+                    onChange={(e) => setLocalActualDeliveryDate(e.target.value)}
+                    onBlur={() => void handleActualDeliveryDateBlur()}
+                    aria-label="Actual delivery date"
+                  />
+                  {localActualDeliveryDate && (
+                    <button
+                      type="button"
+                      className={styles.clearDateButton}
+                      aria-label="Clear actual delivery date"
+                      onClick={() => {
+                        setLocalActualDeliveryDate('');
+                        if (item?.actualDeliveryDate) {
+                          setAutosaveActualDelivery('saving');
+                          void updateHouseholdItem(id!, { actualDeliveryDate: null })
+                            .then(async () => {
+                              const fresh = await getHouseholdItem(id!);
+                              setItem(fresh);
+                              setLocalActualDeliveryDate(fresh.actualDeliveryDate || '');
+                              setLocalOrderDate(fresh.orderDate || '');
+                              setLocalEarliestDeliveryDate(fresh.earliestDeliveryDate || '');
+                              setLocalLatestDeliveryDate(fresh.latestDeliveryDate || '');
+                              setAutosaveActualDelivery('success');
+                              triggerAutosaveReset(setAutosaveActualDelivery, 'actualDelivery');
+                            })
+                            .catch(() => {
+                              setAutosaveActualDelivery('error');
+                              triggerAutosaveReset(setAutosaveActualDelivery, 'actualDelivery');
+                            });
+                        }
+                      }}
+                    >
+                      ×
+                    </button>
+                  )}
+                  <AutosaveIndicator state={autosaveActualDelivery} />
+                </div>
+              </dd>
+            </div>
+
+            {/* Earliest Delivery Date - inline editable */}
+            <div className={styles.infoRow}>
+              <dt className={styles.infoLabel}>
+                <label htmlFor="hi-earliest-delivery">Earliest Delivery</label>
+                {item.isLate && item.status !== 'arrived' && (
+                  <span className={styles.lateChip}>Late</span>
+                )}
+              </dt>
+              <dd className={styles.infoValue}>
+                <div className={styles.inlineFieldWrapper}>
+                  <input
+                    type="date"
+                    id="hi-earliest-delivery"
+                    className={styles.propertyInput}
+                    value={localEarliestDeliveryDate}
+                    onChange={(e) => setLocalEarliestDeliveryDate(e.target.value)}
+                    onBlur={() => void handleEarliestDeliveryDateBlur()}
+                    aria-label="Earliest delivery date"
+                  />
+                  {localEarliestDeliveryDate && (
+                    <button
+                      type="button"
+                      className={styles.clearDateButton}
+                      aria-label="Clear earliest delivery date"
+                      onClick={() => {
+                        setLocalEarliestDeliveryDate('');
+                        if (item?.earliestDeliveryDate) {
+                          setAutosaveEarliestDelivery('saving');
+                          void updateHouseholdItem(id!, { earliestDeliveryDate: null })
+                            .then(async () => {
+                              const fresh = await getHouseholdItem(id!);
+                              setItem(fresh);
+                              setLocalActualDeliveryDate(fresh.actualDeliveryDate || '');
+                              setLocalOrderDate(fresh.orderDate || '');
+                              setLocalEarliestDeliveryDate(fresh.earliestDeliveryDate || '');
+                              setLocalLatestDeliveryDate(fresh.latestDeliveryDate || '');
+                              setAutosaveEarliestDelivery('success');
+                              triggerAutosaveReset(setAutosaveEarliestDelivery, 'earliestDelivery');
+                            })
+                            .catch(() => {
+                              setAutosaveEarliestDelivery('error');
+                              triggerAutosaveReset(setAutosaveEarliestDelivery, 'earliestDelivery');
+                            });
+                        }
+                      }}
+                    >
+                      ×
+                    </button>
+                  )}
+                  <AutosaveIndicator state={autosaveEarliestDelivery} />
+                </div>
+              </dd>
+            </div>
+
+            {/* Latest Delivery Date - inline editable */}
+            <div className={styles.infoRow}>
+              <dt className={styles.infoLabel}>
+                <label htmlFor="hi-latest-delivery">Latest Delivery</label>
+              </dt>
+              <dd className={styles.infoValue}>
+                <div className={styles.inlineFieldWrapper}>
+                  <input
+                    type="date"
+                    id="hi-latest-delivery"
+                    className={styles.propertyInput}
+                    value={localLatestDeliveryDate}
+                    onChange={(e) => setLocalLatestDeliveryDate(e.target.value)}
+                    onBlur={() => void handleLatestDeliveryDateBlur()}
+                    aria-label="Latest delivery date"
+                  />
+                  {localLatestDeliveryDate && (
+                    <button
+                      type="button"
+                      className={styles.clearDateButton}
+                      aria-label="Clear latest delivery date"
+                      onClick={() => {
+                        setLocalLatestDeliveryDate('');
+                        if (item?.latestDeliveryDate) {
+                          setAutosaveLatestDelivery('saving');
+                          void updateHouseholdItem(id!, { latestDeliveryDate: null })
+                            .then((updated) => {
+                              setItem(updated);
+                              setAutosaveLatestDelivery('success');
+                              triggerAutosaveReset(setAutosaveLatestDelivery, 'latestDelivery');
+                            })
+                            .catch(() => {
+                              setAutosaveLatestDelivery('error');
+                              triggerAutosaveReset(setAutosaveLatestDelivery, 'latestDelivery');
+                            });
+                        }
+                      }}
+                    >
+                      ×
+                    </button>
+                  )}
+                  <AutosaveIndicator state={autosaveLatestDelivery} />
+                </div>
               </dd>
             </div>
           </dl>
         </section>
 
-        {/* Schedule section */}
-        <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>Schedule</h2>
-          <p className={styles.sectionDescription}>
-            Delivery dates are computed from dependencies.
-          </p>
-          <div className={styles.propertyGrid}>
-            <div className={styles.property}>
-              <span className={styles.propertyLabel}>Target Delivery Date</span>
-              <span className={styles.propertyValue}>
-                {item.targetDeliveryDate ? formatDate(item.targetDeliveryDate) : 'Not scheduled'}
-              </span>
-            </div>
-            <div className={styles.property}>
-              <span className={styles.propertyLabel}>Actual Delivery Date</span>
-              <span className={styles.propertyValue}>
-                {item.actualDeliveryDate ? formatDate(item.actualDeliveryDate) : '—'}
-              </span>
-            </div>
-          </div>
-        </section>
-
-        {/* Constraints section */}
-        <section className={styles.section}>
-          <h2 className={`${styles.sectionTitle} ${styles.sectionTitleNoMargin}`}>Constraints</h2>
-
-          {/* Delivery Window subsection */}
-          <div className={`${styles.constraintSubsection} ${styles.constraintSubsectionFirst}`}>
-            <h3 className={styles.subsectionTitle}>Delivery Window</h3>
-            <div className={styles.deliverySummaryRow}>
-              <div className={styles.deliveryDateCol}>
-                <span className={styles.deliveryLabel}>Earliest delivery</span>
-                <span className={styles.deliveryValue}>
-                  {item.earliestDeliveryDate ? formatDate(item.earliestDeliveryDate) : '—'}
-                </span>
-                {item.isLate && item.status !== 'arrived' && (
-                  <span className={styles.lateChip}>Floored to today</span>
-                )}
-              </div>
-              {item.targetDeliveryDate && (
-                <div className={styles.deliveryDateColCenter}>
-                  <span className={styles.deliveryLabelSm}>Target</span>
-                  <span className={styles.deliveryValueSm}>
-                    {formatDate(item.targetDeliveryDate)}
-                  </span>
-                </div>
-              )}
-              <div className={styles.deliveryDateCol}>
-                <span className={styles.deliveryLabel}>Latest delivery</span>
-                <span className={styles.deliveryValue}>
-                  {item.latestDeliveryDate ? formatDate(item.latestDeliveryDate) : '—'}
-                </span>
-              </div>
-            </div>
+        {/* Dependencies card */}
+        <section className={styles.card}>
+          <div className={styles.cardHeader}>
+            <h2 className={styles.cardTitle}>Dependencies</h2>
+            <button
+              type="button"
+              className={styles.button}
+              onClick={() => void handleOpenAddDepModal()}
+            >
+              Add Dependency
+            </button>
           </div>
 
-          {/* Dependencies subsection */}
-          <div className={styles.constraintSubsection}>
-            <div className={styles.subsectionHeader}>
-              <h3 className={styles.subsectionTitle}>Dependencies</h3>
-              <button
-                type="button"
-                className={styles.button}
-                onClick={() => void handleOpenAddDepModal()}
-              >
-                Add Dependency
-              </button>
-            </div>
-
-            {/* Dependency list */}
-            {dependencies.length === 0 ? (
-              <p className={styles.emptyState}>
-                No dependencies yet. Add a dependency to schedule this item.
-              </p>
-            ) : (
-              <ul role="list" className={styles.depList}>
-                {dependencies.map((dep) => {
-                  const depKey = `${dep.predecessorType}:${dep.predecessorId}`;
-                  return (
-                    <li key={depKey} role="listitem" className={styles.depRow}>
-                      <span
-                        className={
-                          dep.predecessorType === 'work_item'
-                            ? styles.predTypeWorkItem
-                            : styles.predTypeMilestone
-                        }
-                      >
-                        {dep.predecessorType === 'milestone' && <MilestoneIconSvg />}
-                        {dep.predecessorType === 'work_item' ? 'Work Item' : 'Milestone'}
-                      </span>
-                      {dep.predecessorType === 'work_item' ? (
-                        <Link
-                          to={`/work-items/${dep.predecessorId}`}
-                          className={styles.depPredLink}
+          {/* Dependency list */}
+          {dependencies.length === 0 ? (
+            <p className={styles.emptyState}>
+              No dependencies yet. Add a dependency to schedule this item.
+            </p>
+          ) : (
+            <ul role="list" className={styles.depList}>
+              {dependencies.map((dep) => {
+                const depKey = `${dep.predecessorType}:${dep.predecessorId}`;
+                return (
+                  <li key={depKey} role="listitem" className={styles.depRow}>
+                    <span
+                      className={
+                        dep.predecessorType === 'work_item'
+                          ? styles.predTypeWorkItem
+                          : styles.predTypeMilestone
+                      }
+                    >
+                      {dep.predecessorType === 'milestone' && <MilestoneIconSvg />}
+                      {dep.predecessorType === 'work_item' ? 'Work Item' : 'Milestone'}
+                    </span>
+                    {dep.predecessorType === 'work_item' ? (
+                      <Link to={`/work-items/${dep.predecessorId}`} className={styles.depPredLink}>
+                        {dep.predecessor.title}
+                      </Link>
+                    ) : (
+                      <span className={styles.depPredLabel}>{dep.predecessor.title}</span>
+                    )}
+                    <button
+                      type="button"
+                      className={styles.unlinkButton}
+                      onClick={() => setRemovingDepKey(depKey)}
+                      aria-label={`Remove dependency on ${dep.predecessor.title}`}
+                    >
+                      ×
+                    </button>
+                    {removingDepKey === depKey && (
+                      <>
+                        <button
+                          type="button"
+                          className={styles.deleteButton}
+                          onClick={() => void handleRemoveDep(dep)}
                         >
-                          {dep.predecessor.title}
-                        </Link>
-                      ) : (
-                        <span className={styles.depPredLabel}>{dep.predecessor.title}</span>
-                      )}
-                      <button
-                        type="button"
-                        className={styles.unlinkButton}
-                        onClick={() => setRemovingDepKey(depKey)}
-                        aria-label={`Remove dependency on ${dep.predecessor.title}`}
-                      >
-                        ×
-                      </button>
-                      {removingDepKey === depKey && (
-                        <>
-                          <button
-                            type="button"
-                            className={styles.deleteButton}
-                            onClick={() => void handleRemoveDep(dep)}
-                          >
-                            Confirm
-                          </button>
-                          <button
-                            type="button"
-                            className={styles.cancelButton}
-                            onClick={() => setRemovingDepKey(null)}
-                          >
-                            Cancel
-                          </button>
-                        </>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
+                          Confirm
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.cancelButton}
+                          onClick={() => setRemovingDepKey(null)}
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
 
           {/* Add Dependency modal */}
           {showAddDepModal && (
