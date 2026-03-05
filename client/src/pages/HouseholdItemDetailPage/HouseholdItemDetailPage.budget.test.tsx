@@ -844,6 +844,114 @@ describe('HouseholdItemDetailPage — budget line rendering (bug #436)', () => {
     });
   });
 
+  // ─── Scenario 6: Planned range de-emphasis when all lines are invoiced (issue #462) ─
+
+  describe('Scenario 6: planned range de-emphasis (allLinesInvoiced)', () => {
+    it('planned range span has budgetSummaryValueMuted class when all budget lines have invoices', async () => {
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+      // All lines are invoiced: allLinesInvoiced = true
+      mockFetchHouseholdItemBudgets.mockResolvedValue([
+        makeBudgetLine({
+          id: 'bl-1',
+          plannedAmount: 500,
+          confidence: 'invoice',
+          confidenceMargin: 0,
+          invoiceCount: 1,
+          actualCost: 480,
+        }),
+        makeBudgetLine({
+          id: 'bl-2',
+          plannedAmount: 300,
+          confidence: 'invoice',
+          confidenceMargin: 0,
+          invoiceCount: 1,
+          actualCost: 290,
+        }),
+      ]);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
+      });
+
+      // "Total Planned:" should be present (0% margin lines, min === max)
+      expect(screen.getByText('Total Planned:')).toBeInTheDocument();
+
+      // The planned amount value should use the muted class
+      const totalPlannedAmount = screen.getByText('€800.00');
+      expect(totalPlannedAmount.className).toContain('budgetSummaryValueMuted');
+    });
+
+    it('planned range span has budgetSummaryValue class when only some lines have invoices', async () => {
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+      // Mixed: one invoiced, one not — allLinesInvoiced = false
+      mockFetchHouseholdItemBudgets.mockResolvedValue([
+        makeBudgetLine({
+          id: 'bl-1',
+          plannedAmount: 500,
+          confidence: 'own_estimate',
+          confidenceMargin: 0.2,
+          invoiceCount: 1,
+          actualCost: 480,
+        }),
+        makeBudgetLine({
+          id: 'bl-2',
+          plannedAmount: 300,
+          confidence: 'own_estimate',
+          confidenceMargin: 0.2,
+          invoiceCount: 0,
+          actualCost: 0,
+        }),
+      ]);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
+      });
+
+      // "Planned Range:" should be present (20% margin)
+      expect(screen.getByText('Planned Range:')).toBeInTheDocument();
+
+      // The planned range value should NOT use the muted class — normal emphasis
+      // totalMin = 500*0.8 + 300*0.8 = 400 + 240 = 640
+      // totalMax = 500*1.2 + 300*1.2 = 600 + 360 = 960
+      const rangeEl = screen.getByText(/€640.00.*€960.00/);
+      expect(rangeEl.className).toContain('budgetSummaryValue');
+      expect(rangeEl.className).not.toContain('budgetSummaryValueMuted');
+    });
+
+    it('planned range span has budgetSummaryValue class when no lines have invoices', async () => {
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+      // No invoices at all: allLinesInvoiced = false
+      mockFetchHouseholdItemBudgets.mockResolvedValue([
+        makeBudgetLine({
+          id: 'bl-1',
+          plannedAmount: 500,
+          confidence: 'own_estimate',
+          confidenceMargin: 0.2,
+          invoiceCount: 0,
+          actualCost: 0,
+        }),
+      ]);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('Planned Range:')).toBeInTheDocument();
+
+      // Normal emphasis — not muted
+      // totalMin = 500*0.8 = 400, totalMax = 500*1.2 = 600
+      const rangeEl = screen.getByText(/€400.00.*€600.00/);
+      expect(rangeEl.className).toContain('budgetSummaryValue');
+      expect(rangeEl.className).not.toContain('budgetSummaryValueMuted');
+    });
+  });
+
   // ─── Edge cases ───────────────────────────────────────────────────────────────
 
   describe('edge cases', () => {

@@ -1561,4 +1561,109 @@ describe('HouseholdItemDetailPage', () => {
       expect(workItemLink).toHaveAttribute('href', '/work-items/wi-paint');
     });
   });
+
+  // ── Schedule section (issue #462) ─────────────────────────────────────────
+
+  describe('Schedule section', () => {
+    it('renders the Schedule section heading', async () => {
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
+      });
+
+      expect(screen.getByRole('heading', { name: 'Schedule' })).toBeInTheDocument();
+    });
+
+    it('renders Target Delivery Date label', async () => {
+      mockGetHouseholdItem.mockResolvedValue(makeItem({ targetDeliveryDate: '2026-03-01' }));
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('Target Delivery Date')).toBeInTheDocument();
+    });
+
+    it('renders Actual Delivery Date label', async () => {
+      mockGetHouseholdItem.mockResolvedValue(makeItem({ actualDeliveryDate: '2026-03-05' }));
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('Actual Delivery Date')).toBeInTheDocument();
+    });
+
+    it('shows "Not scheduled" when targetDeliveryDate is null', async () => {
+      mockGetHouseholdItem.mockResolvedValue(makeItem({ targetDeliveryDate: null }));
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('Not scheduled')).toBeInTheDocument();
+    });
+
+    it('shows formatted date when targetDeliveryDate is set', async () => {
+      mockGetHouseholdItem.mockResolvedValue(makeItem({ targetDeliveryDate: '2026-03-01' }));
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
+      });
+
+      // "Not scheduled" should NOT appear when targetDeliveryDate is provided
+      expect(screen.queryByText('Not scheduled')).not.toBeInTheDocument();
+    });
+  });
+
+  // ── Constraints section (issue #462) ─────────────────────────────────────
+
+  describe('Constraints section', () => {
+    it('renders the Constraints section heading', async () => {
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
+      });
+
+      expect(screen.getByRole('heading', { name: 'Constraints' })).toBeInTheDocument();
+    });
+
+    it('renders Delivery Window subsection heading', async () => {
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
+      });
+
+      expect(screen.getByRole('heading', { name: 'Delivery Window' })).toBeInTheDocument();
+    });
+
+    it('renders Dependencies subsection heading', async () => {
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
+      });
+
+      expect(screen.getByRole('heading', { name: /Dependencies/i })).toBeInTheDocument();
+    });
+  });
 });

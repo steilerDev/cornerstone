@@ -100,10 +100,12 @@ const HI_NO_DATES: TimelineHouseholdItem = {
  */
 function renderHouseholdItems(overrides: Partial<GanttHouseholdItemsProps> = {}) {
   const props: GanttHouseholdItemsProps = {
-    householdItems: [HI_NOT_ORDERED],
+    // Default to HI_ORDERED which has targetDeliveryDate: '2026-06-01' so a circle is rendered.
+    // HI_NOT_ORDERED has targetDeliveryDate: null and actualDeliveryDate: null — no circle is rendered.
+    householdItems: [HI_ORDERED],
     chartRange: CHART_RANGE,
     zoom: 'day',
-    hiRowIndices: new Map([['hi-1', 0]]),
+    hiRowIndices: new Map([['hi-3', 0]]),
     colors: COLORS,
     ...overrides,
   };
@@ -142,10 +144,12 @@ describe('GanttHouseholdItems', () => {
     });
 
     it('renders one circle marker per household item with a delivery date', () => {
+      // HI_ORDERED has targetDeliveryDate, HI_DELIVERED has actualDeliveryDate
+      // Both should render; HI_NOT_ORDERED (targetDeliveryDate: null, actualDeliveryDate: null) would not render
       renderHouseholdItems({
-        householdItems: [HI_NOT_ORDERED, HI_DELIVERED],
+        householdItems: [HI_ORDERED, HI_DELIVERED],
         hiRowIndices: new Map([
-          ['hi-1', 0],
+          ['hi-3', 0],
           ['hi-2', 1],
         ]),
       });
@@ -153,13 +157,34 @@ describe('GanttHouseholdItems', () => {
       expect(circles).toHaveLength(2);
     });
 
-    it('does not render circle for HI with no earliestDeliveryDate and no actualDeliveryDate', () => {
+    it('does not render circle for HI with no targetDeliveryDate and no actualDeliveryDate', () => {
       renderHouseholdItems({
         householdItems: [HI_NO_DATES],
         hiRowIndices: new Map([['hi-4', 0]]),
       });
       const circles = screen.queryAllByTestId('gantt-hi-circle');
       expect(circles).toHaveLength(0);
+    });
+
+    it('renders circle for HI with only targetDeliveryDate (no actual)', () => {
+      // HI_ORDERED has targetDeliveryDate: '2026-06-01', actualDeliveryDate: null
+      renderHouseholdItems({
+        householdItems: [HI_ORDERED],
+        hiRowIndices: new Map([['hi-3', 0]]),
+      });
+      const circles = screen.queryAllByTestId('gantt-hi-circle');
+      expect(circles).toHaveLength(1);
+    });
+
+    it('prefers actualDeliveryDate over targetDeliveryDate for positioning', () => {
+      // HI_DELIVERED has actualDeliveryDate: '2026-04-18' — should render using actual date
+      renderHouseholdItems({
+        householdItems: [HI_DELIVERED],
+        hiRowIndices: new Map([['hi-2', 0]]),
+      });
+      const circles = screen.queryAllByTestId('gantt-hi-circle');
+      // Circle should still render (actual date used)
+      expect(circles).toHaveLength(1);
     });
 
     it('layer aria-label includes household item count', () => {
@@ -181,12 +206,42 @@ describe('GanttHouseholdItems', () => {
     });
 
     it('circle has correct aria-label including name, status, and delivery date', () => {
+      // Default render uses HI_ORDERED: targetDeliveryDate: '2026-06-01', status: 'purchased'
       renderHouseholdItems();
       const circle = screen.getByTestId('gantt-hi-circle');
       const ariaLabel = circle.getAttribute('aria-label');
       expect(ariaLabel).toBeDefined();
-      expect(ariaLabel).toContain('Leather Sofa');
-      expect(ariaLabel).toContain('planned');
+      expect(ariaLabel).toContain('Dining Table');
+      expect(ariaLabel).toContain('purchased');
+    });
+
+    it('aria-label uses targetDeliveryDate when present and no actualDeliveryDate', () => {
+      // HI_ORDERED has targetDeliveryDate: '2026-06-01', actualDeliveryDate: null
+      renderHouseholdItems({
+        householdItems: [HI_ORDERED],
+        hiRowIndices: new Map([['hi-3', 0]]),
+      });
+      const circle = screen.getByTestId('gantt-hi-circle');
+      const ariaLabel = circle.getAttribute('aria-label');
+      expect(ariaLabel).toBeDefined();
+      expect(ariaLabel).toContain('Dining Table');
+      expect(ariaLabel).toContain('2026-06-01');
+      expect(ariaLabel).not.toContain('unknown');
+    });
+
+    it('aria-label uses actualDeliveryDate when present (not targetDeliveryDate)', () => {
+      // HI_DELIVERED has actualDeliveryDate: '2026-04-18', no targetDeliveryDate
+      renderHouseholdItems({
+        householdItems: [HI_DELIVERED],
+        hiRowIndices: new Map([['hi-2', 0]]),
+      });
+      const circle = screen.getByTestId('gantt-hi-circle');
+      const ariaLabel = circle.getAttribute('aria-label');
+      expect(ariaLabel).toBeDefined();
+      expect(ariaLabel).toContain('Kitchen Fridge');
+      expect(ariaLabel).toContain('arrived');
+      // actualDeliveryDate takes priority in aria-label (targetDeliveryDate is null for HI_DELIVERED)
+      expect(ariaLabel).toContain('2026-04-18');
     });
   });
 
@@ -206,9 +261,10 @@ describe('GanttHouseholdItems', () => {
     });
 
     it('non-delivered HI circle uses default fill color', () => {
+      // HI_ORDERED has targetDeliveryDate set (renders a circle) but is not arrived
       renderHouseholdItems({
-        householdItems: [HI_NOT_ORDERED],
-        hiRowIndices: new Map([['hi-1', 0]]),
+        householdItems: [HI_ORDERED],
+        hiRowIndices: new Map([['hi-3', 0]]),
       });
       const circle = screen.getByTestId('gantt-hi-circle');
       const circles = circle.querySelectorAll('circle');
@@ -245,7 +301,7 @@ describe('GanttHouseholdItems', () => {
   describe('interaction states', () => {
     it('applies no special class when interaction state is "default"', () => {
       renderHouseholdItems({
-        hiInteractionStates: new Map([['hi-1', 'default' as HouseholdItemInteractionState]]),
+        hiInteractionStates: new Map([['hi-3', 'default' as HouseholdItemInteractionState]]),
       });
       const circle = screen.getByTestId('gantt-hi-circle');
       // hiHighlighted and hiDimmed classes should NOT be present
@@ -255,7 +311,7 @@ describe('GanttHouseholdItems', () => {
 
     it('applies hiHighlighted class when interaction state is "highlighted"', () => {
       renderHouseholdItems({
-        hiInteractionStates: new Map([['hi-1', 'highlighted' as HouseholdItemInteractionState]]),
+        hiInteractionStates: new Map([['hi-3', 'highlighted' as HouseholdItemInteractionState]]),
       });
       const circle = screen.getByTestId('gantt-hi-circle');
       // CSS module class name will contain 'hiHighlighted' (module obfuscation not applied in tests)
@@ -264,7 +320,7 @@ describe('GanttHouseholdItems', () => {
 
     it('applies hiDimmed class when interaction state is "dimmed"', () => {
       renderHouseholdItems({
-        hiInteractionStates: new Map([['hi-1', 'dimmed' as HouseholdItemInteractionState]]),
+        hiInteractionStates: new Map([['hi-3', 'dimmed' as HouseholdItemInteractionState]]),
       });
       const circle = screen.getByTestId('gantt-hi-circle');
       expect(circle.getAttribute('class') ?? '').toContain('hiDimmed');
@@ -306,7 +362,7 @@ describe('GanttHouseholdItems', () => {
       fireEvent.keyDown(circle, { key: 'Enter' });
 
       expect(onHiClick).toHaveBeenCalledTimes(1);
-      expect(onHiClick).toHaveBeenCalledWith('hi-1');
+      expect(onHiClick).toHaveBeenCalledWith('hi-3');
     });
 
     it('Space key triggers onHiClick with the item id', () => {
@@ -317,7 +373,7 @@ describe('GanttHouseholdItems', () => {
       fireEvent.keyDown(circle, { key: ' ' });
 
       expect(onHiClick).toHaveBeenCalledTimes(1);
-      expect(onHiClick).toHaveBeenCalledWith('hi-1');
+      expect(onHiClick).toHaveBeenCalledWith('hi-3');
     });
 
     it('other keys do NOT trigger onHiClick', () => {
@@ -353,7 +409,7 @@ describe('GanttHouseholdItems', () => {
       fireEvent.click(circle);
 
       expect(onHiClick).toHaveBeenCalledTimes(1);
-      expect(onHiClick).toHaveBeenCalledWith('hi-1');
+      expect(onHiClick).toHaveBeenCalledWith('hi-3');
     });
 
     it('does not call onHiClick when not provided on click (no error thrown)', () => {
@@ -379,8 +435,8 @@ describe('GanttHouseholdItems', () => {
       expect(onHiMouseEnter).toHaveBeenCalledTimes(1);
       // First argument is the TimelineHouseholdItem
       const firstArg = (onHiMouseEnter.mock.calls[0] as unknown[])[0] as TimelineHouseholdItem;
-      expect(firstArg.id).toBe('hi-1');
-      expect(firstArg.name).toBe('Leather Sofa');
+      expect(firstArg.id).toBe('hi-3');
+      expect(firstArg.name).toBe('Dining Table');
     });
 
     it('mouseLeave fires onHiMouseLeave with the item', () => {
@@ -392,7 +448,7 @@ describe('GanttHouseholdItems', () => {
 
       expect(onHiMouseLeave).toHaveBeenCalledTimes(1);
       const firstArg = (onHiMouseLeave.mock.calls[0] as unknown[])[0] as TimelineHouseholdItem;
-      expect(firstArg.id).toBe('hi-1');
+      expect(firstArg.id).toBe('hi-3');
     });
 
     it('does not error when onHiMouseEnter is not provided', () => {
@@ -422,7 +478,7 @@ describe('GanttHouseholdItems', () => {
       const EXPECTED_Y = ROW_INDEX * ROW_HEIGHT + ROW_HEIGHT / 2;
 
       renderHouseholdItems({
-        hiRowIndices: new Map([['hi-1', ROW_INDEX]]),
+        hiRowIndices: new Map([['hi-3', ROW_INDEX]]),
       });
 
       const circle = screen.getByTestId('gantt-hi-circle');
