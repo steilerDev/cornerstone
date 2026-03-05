@@ -1089,7 +1089,8 @@ describe('HouseholdItemDetailPage', () => {
       await waitFor(() => {
         expect(statusSelect).toHaveValue('arrived');
         // Actual Delivery date should reflect auto-set value from API response
-        expect(screen.getByText('Mar 4, 2026')).toBeInTheDocument();
+        // Date appears in both "Dates & Delivery" card and "Schedule" section
+        expect(screen.getAllByText('Mar 4, 2026').length).toBeGreaterThanOrEqual(1);
       });
     });
   });
