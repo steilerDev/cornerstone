@@ -695,3 +695,28 @@ export const householdItemSubsidies = sqliteTable(
     ),
   }),
 );
+
+// ─── EPIC-09: User Preferences ────────────────────────────────────────────────
+
+/**
+ * User preferences table - stores per-user key-value preferences for features
+ * like theme selection, dashboard card visibility, and other UI settings.
+ * EPIC-09 Story 9.3: User Preferences Infrastructure.
+ */
+export const userPreferences = sqliteTable(
+  'user_preferences',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    key: text('key').notNull(),
+    value: text('value').notNull(),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => ({
+    uniqueUserKey: uniqueIndex('idx_user_preferences_unique').on(table.userId, table.key),
+    userIdIdx: index('idx_user_preferences_user_id').on(table.userId),
+  }),
+);

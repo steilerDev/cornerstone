@@ -24,14 +24,13 @@
 
 - DB: snake_case | TS vars: camelCase | TS types: PascalCase | Files: camelCase.ts (React: PascalCase.tsx) | API: kebab-case | Env: UPPER_SNAKE_CASE
 
-## Migrations (12 total)
+## Migrations (16 total)
 
 - 0001-0009: Auth, work items, budget, milestones, deps, actual dates, document_links
-- 0010: household_items + 5 supporting tables (EPIC-04)
-- 0011: household_item_budget_id FK + index on invoices (EPIC-04)
-- 0012: household_item_deps + delivery date columns, drops household_item_work_items (PR #416, in review)
+- 0010-0015: household_items + supporting tables, deps, delivery date redesign (EPIC-04)
+- 0016: user_preferences (EPIC-09)
 
-## ADRs (ADR-001 through ADR-016)
+## ADRs (ADR-001 through ADR-017)
 
 - ADR-001-009: Tech stack + error handling
 - ADR-010: Auth (sessions + OIDC + scrypt)
@@ -41,6 +40,7 @@
 - ADR-014: Scheduling engine (server-side CPM)
 - ADR-015: Paperless-ngx integration (proxy + polymorphic links)
 - ADR-016: Household items (separate entity with parallel structure)
+- ADR-017: Chart library (Recharts 3.7.0 -- SVG, pure JS, React-native API)
 
 ## EPIC Status
 
@@ -49,12 +49,13 @@
 - EPIC-05 Budget: Complete (promoted to main, v1.9.0)
 - EPIC-06 Timeline/Gantt: Complete (promoted to main, v1.10.0)
 - EPIC-08 Documents: Complete (promoted to main, v1.11.0)
-- EPIC-04 Household Items: In progress. Schema (PR #396), CRUD API (PR #397), Budget (PR #401), Work Item Linking (PR #402), Invoice Linking (PR #414 -- request changes)
+- EPIC-04 Household Items: In progress
+- EPIC-09 Dashboard: Architecture done (migration 0016, ADR-017, API contract for preferences)
 
 ## GitHub Wiki
 
 - Wiki is git submodule at `wiki/`. Sync: `git submodule update --init wiki && git -C wiki pull origin master`
-- ADR-001 through ADR-016, Architecture, Schema, API-Contract, Home, ADR-Index, Style-Guide, Security-Audit
+- ADR-001 through ADR-017, Architecture, Schema, API-Contract, Home, ADR-Index, Style-Guide, Security-Audit
 - **Always push wiki before creating PR** -- submodule ref must be committed in feature branch
 
 ### Wiki Update Discipline (CRITICAL)

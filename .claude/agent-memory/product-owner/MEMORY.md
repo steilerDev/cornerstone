@@ -1,12 +1,13 @@
 # Product Owner Agent Memory
 
-## Backlog State (as of 2026-03-02)
+## Backlog State (as of 2026-03-05)
 
-- 12 epics, 75+ user stories across all epics
+- 12 epics, 85+ user stories across all epics
 - Sprint 1 COMPLETE: EPIC-01, EPIC-02, EPIC-11
 - Sprint 2 COMPLETE: EPIC-03, EPIC-12
 - Sprint 3 COMPLETE: EPIC-05 (v1.9.0), EPIC-06 (v1.10.0)
-- Sprint 4 IN PROGRESS: EPIC-08 COMPLETE (v1.11.0), EPIC-04 stories created (#387-#394)
+- Sprint 4 IN PROGRESS: EPIC-08 COMPLETE (v1.11.0), EPIC-04 stories created (#387-#394, #413, #415)
+- Sprint 5 PLANNED: EPIC-09 stories created (#470-#478, 9 stories)
 - Security hygiene backlog: Issue #315 (rate limiting, headers, lockout, etc.)
 - GitHub Projects board: "Cornerstone Backlog" (project #4, owner steilerDev)
 
@@ -31,7 +32,7 @@
 - EPIC-06 (#6): Gantt/Timeline [Must, Sprint 3] -- depends on 02, 03
 - EPIC-07 (#7): Reporting [Should, Sprint 5] -- depends on 05, 08
 - EPIC-08 (#8): Paperless-ngx [Must, Sprint 4] -- depends on 02, 03, 04, 05
-- EPIC-09 (#9): Dashboard [Should, Sprint 5] -- depends on 02, 03, 05
+- EPIC-09 (#9): Dashboard [Should, Sprint 5] -- depends on 02, 03, 05, 06. 9 stories (#470-#478)
 - EPIC-10 (#10): UX Polish [Could, Sprint 5] -- depends on all
 - EPIC-11 (#12): CI/CD Infrastructure [Must, Sprint 1] -- depends on EPIC-02
 - EPIC-12 (#115): Design System Bootstrap [Must, Sprint 2] -- depends on EPIC-02, blocks EPIC-10
@@ -66,6 +67,13 @@ Story 8.6 (#359, EPIC-08) linked as sub-issue, blocked by #391 (detail page).
 Story 4.5 (#391): PR #400 reviewed REQUEST CHANGES. AC #11 fail: vendor/URL rows hidden when null instead of showing "--". AC #6 (Notes section) is N/A -- household_item_notes is a separate table requiring its own CRUD API (like work_item_notes), no endpoints exist yet. Need follow-up story for household item notes CRUD.
 Story 4.6 (#392): PR #401 re-reviewed APPROVED (round 2). Both blocking issues from round 1 fixed: (1) budgetSummary added to GET detail response via getBudgetSummary()/getTotalSubsidyReduction() in householdItemService.ts, (2) confidence margin display uses Math.round(CONFIDENCE_MARGINS[...] \* 100). Also fixed: EPIC-09->EPIC-04 comments in app.ts, focus-visible/reduced-motion/aria-labels/touch targets per UX review. AC #4 subsidy API uses POST/DELETE per-item (non-blocking deviation from PUT replace-all).
 Story 4.7 (#393): PR #402 reviewed REQUEST CHANGES (round 1). 9/10 ACs pass. AC #3 FAIL: linked work item start/end dates rendered as raw ISO strings on HouseholdItemDetailPage (line 734) instead of using formatDate(). WorkItemDetailPage correctly uses formatDate() for delivery dates. Fix: apply formatDate() to workItem.startDate/endDate. Test authorship correct (qa-integration-tester). 57 tests total.
+
+## EPIC-09 Stories (Dashboard) — PLANNED
+
+9 stories created (#470-#478). See [epic-09-planning.md](epic-09-planning.md) for full details.
+Story 9.1 (#470) set to Todo (no deps). Stories 9.2-9.9 in Backlog.
+Dependency chain: 9.1 → 9.2 → {9.3→9.4, 9.5→9.6, 9.7, 9.8} → 9.9.
+Key: user_preferences table, parallel data fetching, chart library (pure JS), mini Gantt SVG.
 
 ## EPIC-05 — COMPLETE (v1.9.0, promoted)
 

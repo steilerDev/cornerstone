@@ -2,7 +2,9 @@ import type { FastifyInstance } from 'fastify';
 import { AppError, UnauthorizedError, ForbiddenError, NotFoundError } from '../errors/AppError.js';
 import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
+import * as userPreferenceService from '../services/userPreferenceService.js';
 import { requireRole } from '../plugins/auth.js';
+import type { PreferenceKey, UpsertPreferenceRequest } from '@cornerstone/shared';
 
 // JSON schema for PATCH /api/users/me (update display name)
 const updateDisplayNameSchema = {
@@ -57,6 +59,34 @@ const adminUpdateUserSchema = {
     required: ['id'],
     properties: {
       id: { type: 'string' },
+    },
+  },
+};
+
+// JSON schema for PATCH /api/users/me/preferences (upsert preference)
+const upsertPreferenceSchema = {
+  body: {
+    type: 'object',
+    required: ['key', 'value'],
+    properties: {
+      key: {
+        type: 'string',
+        enum: ['dashboard.hiddenCards', 'theme'],
+        maxLength: 100,
+      },
+      value: { type: 'string', maxLength: 4096 },
+    },
+    additionalProperties: false,
+  },
+};
+
+// JSON schema for DELETE /api/users/me/preferences/:key
+const deletePreferenceSchema = {
+  params: {
+    type: 'object',
+    required: ['key'],
+    properties: {
+      key: { type: 'string' },
     },
   },
 };
@@ -136,6 +166,80 @@ export default async function userRoutes(fastify: FastifyInstance) {
 
     return reply.status(204).send();
   });
+
+  /**
+   * GET /api/users/me/preferences
+   *
+   * Retrieves all preferences for the current user.
+   * Returns empty array if user has no preferences.
+   * Requires authentication.
+   */
+  fastify.get('/me/preferences', async (request, reply) => {
+    if (!request.user) {
+      throw new UnauthorizedError('Authentication required');
+    }
+
+    const preferences = userPreferenceService.listPreferences(fastify.db, request.user.id);
+
+    return reply.status(200).send({ preferences });
+  });
+
+  /**
+   * PATCH /api/users/me/preferences
+   *
+   * Creates or updates a user preference (upsert).
+   * If the preference already exists for this key, it is updated.
+   * Otherwise, a new preference is created.
+   * Requires authentication.
+   */
+  fastify.patch(
+    '/me/preferences',
+    { schema: upsertPreferenceSchema },
+    async (request, reply) => {
+      if (!request.user) {
+        throw new UnauthorizedError('Authentication required');
+      }
+
+      const { key, value } = request.body as UpsertPreferenceRequest;
+
+      const preference = userPreferenceService.upsertPreference(
+        fastify.db,
+        request.user.id,
+        key as PreferenceKey,
+        value,
+      );
+
+      return reply.status(200).send(preference);
+    },
+  );
+
+  /**
+   * DELETE /api/users/me/preferences/:key
+   *
+   * Deletes a user preference by key.
+   * Returns 404 NOT FOUND if the preference does not exist.
+   * Returns 204 NO CONTENT on successful deletion.
+   * Requires authentication.
+   */
+  fastify.delete(
+    '/me/preferences/:key',
+    { schema: deletePreferenceSchema },
+    async (request, reply) => {
+      if (!request.user) {
+        throw new UnauthorizedError('Authentication required');
+      }
+
+      const { key } = request.params as { key: string };
+
+      userPreferenceService.deletePreference(
+        fastify.db,
+        request.user.id,
+        key as PreferenceKey,
+      );
+
+      return reply.status(204).send();
+    },
+  );
 
   /**
    * GET /api/users
