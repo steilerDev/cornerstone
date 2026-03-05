@@ -76,12 +76,12 @@ export const GanttHouseholdItems = memo(function GanttHouseholdItems({
         const isDelivered = hi.status === 'arrived';
         const fill = isDelivered ? colors.arrivedFill : colors.fill;
         const stroke = isDelivered ? colors.arrivedStroke : colors.stroke;
-        const ariaLabel = `Household item: ${hi.name}, ${hi.status}, delivery ${hi.earliestDeliveryDate ?? 'unknown'}`;
+        const ariaLabel = `Household item: ${hi.name}, ${hi.status}, delivery ${hi.targetDeliveryDate ?? hi.actualDeliveryDate ?? 'unknown'}`;
 
         const rowIndex = hiRowIndices.get(hi.id) ?? 0;
         const y = rowIndex * ROW_HEIGHT + ROW_HEIGHT / 2;
 
-        const dateStr = hi.actualDeliveryDate ?? hi.earliestDeliveryDate;
+        const dateStr = hi.actualDeliveryDate ?? hi.targetDeliveryDate;
         if (!dateStr) return null;
 
         const x = dateToX(toUtcMidnight(dateStr), chartRange, zoom, columnWidth);

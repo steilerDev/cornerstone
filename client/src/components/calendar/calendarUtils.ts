@@ -434,27 +434,19 @@ export function formatDateForAria(dateStr: string): string {
 /**
  * Returns household items that should appear on the given date.
  * A household item is shown on a date if:
- *   - It has an actualDeliveryDate matching the date (priority 1)
- *   - Otherwise, if it has an earliestDeliveryDate matching the date (priority 2)
- *   - Otherwise, if it has a targetDeliveryDate matching the date (priority 3)
+ *   - It has an actualDeliveryDate matching the date (shown ONLY on that date)
+ *   - Otherwise, if it has a targetDeliveryDate matching the date
  */
 export function getHouseholdItemsForDay(
   dateStr: string,
   items: TimelineHouseholdItem[],
 ): TimelineHouseholdItem[] {
   return items.filter((item) => {
-    // Actual delivery date takes priority
-    if (item.actualDeliveryDate && item.actualDeliveryDate === dateStr) {
-      return true;
+    // Actual delivery date takes priority (exclusive)
+    if (item.actualDeliveryDate) {
+      return item.actualDeliveryDate === dateStr;
     }
-    // Then check earliest delivery date
-    if (item.earliestDeliveryDate && item.earliestDeliveryDate === dateStr) {
-      return true;
-    }
-    // Finally check target delivery date
-    if (item.targetDeliveryDate && item.targetDeliveryDate === dateStr) {
-      return true;
-    }
-    return false;
+    // Otherwise check target delivery date
+    return item.targetDeliveryDate === dateStr;
   });
 }

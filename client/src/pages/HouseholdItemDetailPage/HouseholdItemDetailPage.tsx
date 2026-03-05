@@ -643,6 +643,7 @@ export function HouseholdItemDetailPage() {
   const hasPlannedRange = Math.abs(totalMaxPlanned - totalMinPlanned) > 0.01;
   // Check if any budget lines have invoiced amounts
   const hasInvoicedLines = budgetLines.some((b) => b.invoiceCount > 0);
+  const allLinesInvoiced = budgetLines.length > 0 && budgetLines.every((b) => b.invoiceCount > 0);
 
   return (
     <div className={styles.container}>
@@ -793,52 +794,84 @@ export function HouseholdItemDetailPage() {
           </dl>
         </section>
 
-        {/* Dependencies card */}
-        <section className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h2 className={styles.cardTitle}>Dependencies</h2>
-            <button
-              type="button"
-              className={styles.button}
-              onClick={() => void handleOpenAddDepModal()}
-            >
-              Add Dependency
-            </button>
-          </div>
-
-          {/* Delivery date summary row */}
-          <div className={styles.deliverySummaryRow}>
-            <div className={styles.deliveryDateCol}>
-              <span className={styles.deliveryLabel}>Earliest delivery</span>
-              <span className={styles.deliveryValue}>
-                {item.earliestDeliveryDate ? formatDate(item.earliestDeliveryDate) : '—'}
+        {/* Schedule section */}
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>Schedule</h2>
+          <p className={styles.sectionDescription}>
+            Delivery dates are computed from dependencies.
+          </p>
+          <div className={styles.propertyGrid}>
+            <div className={styles.property}>
+              <span className={styles.propertyLabel}>Target Delivery Date</span>
+              <span className={styles.propertyValue}>
+                {item.targetDeliveryDate ? formatDate(item.targetDeliveryDate) : 'Not scheduled'}
               </span>
-              {item.isLate && item.status !== 'arrived' && (
-                <span className={styles.lateChip}>Floored to today</span>
-              )}
             </div>
-            {item.targetDeliveryDate && (
-              <div className={styles.deliveryDateColCenter}>
-                <span className={styles.deliveryLabelSm}>Target</span>
-                <span className={styles.deliveryValueSm}>
-                  {formatDate(item.targetDeliveryDate)}
+            <div className={styles.property}>
+              <span className={styles.propertyLabel}>Actual Delivery Date</span>
+              <span className={styles.propertyValue}>
+                {item.actualDeliveryDate ? formatDate(item.actualDeliveryDate) : '—'}
+              </span>
+            </div>
+          </div>
+        </section>
+
+        {/* Constraints section */}
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle} style={{ marginBottom: 0 }}>
+            Constraints
+          </h2>
+
+          {/* Delivery Window subsection */}
+          <div className={`${styles.constraintSubsection} ${styles.constraintSubsectionFirst}`}>
+            <h3 className={styles.subsectionTitle}>Delivery Window</h3>
+            <div className={styles.deliverySummaryRow}>
+              <div className={styles.deliveryDateCol}>
+                <span className={styles.deliveryLabel}>Earliest delivery</span>
+                <span className={styles.deliveryValue}>
+                  {item.earliestDeliveryDate ? formatDate(item.earliestDeliveryDate) : '—'}
+                </span>
+                {item.isLate && item.status !== 'arrived' && (
+                  <span className={styles.lateChip}>Floored to today</span>
+                )}
+              </div>
+              {item.targetDeliveryDate && (
+                <div className={styles.deliveryDateColCenter}>
+                  <span className={styles.deliveryLabelSm}>Target</span>
+                  <span className={styles.deliveryValueSm}>
+                    {formatDate(item.targetDeliveryDate)}
+                  </span>
+                </div>
+              )}
+              <div className={styles.deliveryDateCol}>
+                <span className={styles.deliveryLabel}>Latest delivery</span>
+                <span className={styles.deliveryValue}>
+                  {item.latestDeliveryDate ? formatDate(item.latestDeliveryDate) : '—'}
                 </span>
               </div>
-            )}
-            <div className={styles.deliveryDateCol}>
-              <span className={styles.deliveryLabel}>Latest delivery</span>
-              <span className={styles.deliveryValue}>
-                {item.latestDeliveryDate ? formatDate(item.latestDeliveryDate) : '—'}
-              </span>
             </div>
           </div>
 
-          {/* Dependency list */}
-          {dependencies.length === 0 ? (
-            <p className={styles.emptyState}>
-              No dependencies yet. Add a dependency to schedule this item.
-            </p>
-          ) : (
+          {/* Dependencies subsection */}
+          <div className={styles.constraintSubsection}>
+            <h3 className={styles.subsectionTitle}>
+              Dependencies
+              <button
+                type="button"
+                className={styles.button}
+                onClick={() => void handleOpenAddDepModal()}
+                style={{ float: 'right', marginTop: '-0.25rem' }}
+              >
+                Add Dependency
+              </button>
+            </h3>
+
+            {/* Dependency list */}
+            {dependencies.length === 0 ? (
+              <p className={styles.emptyState}>
+                No dependencies yet. Add a dependency to schedule this item.
+              </p>
+            ) : (
             <ul role="list" className={styles.depList}>
               {dependencies.map((dep) => {
                 const depKey = `${dep.predecessorType}:${dep.predecessorId}`;
@@ -891,7 +924,8 @@ export function HouseholdItemDetailPage() {
                 );
               })}
             </ul>
-          )}
+            )}
+          </div>
 
           {/* Add Dependency modal */}
           {showAddDepModal && (
@@ -1317,7 +1351,13 @@ export function HouseholdItemDetailPage() {
                 <span className={styles.budgetSummaryLabel}>
                   {hasPlannedRange ? 'Planned Range:' : 'Total Planned:'}
                 </span>
-                <span className={styles.budgetSummaryValue}>
+                <span
+                  className={
+                    hasInvoicedLines && allLinesInvoiced
+                      ? styles.budgetSummaryValueMuted
+                      : styles.budgetSummaryValue
+                  }
+                >
                   {hasPlannedRange
                     ? `${formatCurrency(totalMinPlanned)} – ${formatCurrency(totalMaxPlanned)}`
                     : formatCurrency(totalPlanned)}
