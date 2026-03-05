@@ -118,14 +118,14 @@ Created 11 issues (#328-#338) from user feedback:
 
 ### Three-Phase Validation (per CLAUDE.md)
 
-1. **Planning Phase**: uat-validator drafts scenarios → qa-integration-tester reviews for testability → user approves
+1. **Planning Phase**: product-owner drafts UAT scenarios → qa-integration-tester reviews for testability → user approves
 2. **Development Phase**: developers implement → qa-integration-tester writes all tests (95%+ coverage target)
 3. **Validation Phase**: product-owner reviews PR → checks all ACs + UAT alignment + test coverage
 
 ### PO Review Checklist
 
 - Verify ALL acceptance criteria from the story are met (line-by-line check)
-- Verify UAT scenarios are addressed (cross-reference uat-validator comment on issue)
+- Verify UAT scenarios are addressed (cross-reference product-owner UAT comment on issue)
 - Verify qa-integration-tester wrote the tests (check commit author, not developer)
 - Verify 95%+ test coverage on new/modified code (run coverage or review test files)
 - Verify all agent responsibilities fulfilled (QA wrote tests, architect reviewed, UAT scenarios exist)
@@ -143,7 +143,7 @@ Created 11 issues (#328-#338) from user feedback:
 
 - **Missing keyboard focus indicators** — always check for :focus or :focus-visible styles (WCAG 2.1 AA requirement)
 - **Test authorship** — verify qa-integration-tester wrote tests, not developer (Co-Authored-By trailer in commit)
-- **Incomplete UAT coverage** — check if all scenarios from uat-validator are addressed in implementation
+- **Incomplete UAT coverage** — check if all scenarios from product-owner UAT are addressed in implementation
 - **Dependency pinning** — always check new deps use exact versions (no `^` or `~`). Found caret range on css-minimizer-webpack-plugin in PR #49 and @fastify/cookie in PR #57. This is a recurring issue.
 - **Scope creep in CLAUDE.md** — process/convention changes should be separate PRs, not bundled with feature work
 - **Schema migrations with sessions table** — it's correct to include `sessions` table in the same migration as `users` if both are part of the same auth infrastructure (avoids fragmented migrations). Verified in PR #55.
@@ -175,7 +175,7 @@ Created 11 issues (#328-#338) from user feedback:
 - **computeUsedAmount placeholder pattern** — Story 5.4 (PR #153): `computeUsedAmount` returns 0 until Story 5.6 adds budget_source_id FK to work_items. This is an ACCEPTED pattern for cross-story dependencies — document with TODO (Story 6) comment and the AC is considered CONDITIONAL PASS. The delete protection is similarly a placeholder and will be wired up in Story 5.6.
 - **Frontend totalAmount validation boundary** — PR #153: Frontend allows totalAmount = 0 (min={0}, checks `< 0`), but backend uses `exclusiveMinimum: 0`. Server rejects 0 with 400. Flag for refinement so client-side validation is consistent with server.
 - **statusExhausted badge semantic color** — PR #153: "Exhausted" status badge uses gray (`--color-status-not-started-bg`) instead of yellow/amber. Semantically "exhausted" should signal warning. Flag for UX review.
-- **E2E test gate is MANDATORY** — PR #157 (Story #148) had all 7 ACs met and 99 unit/integration tests passing, but CI showed "E2E Tests: SKIPPED". This is a BLOCKING issue per CLAUDE.md. When UAT scenarios are marked "Automated (E2E)", Playwright test coverage is mandatory before PO can approve. Requested changes and asked e2e-test-engineer to write tests in e2e/tests/budget/.
+- **E2E test gate is MANDATORY** — PR #157 (Story #148) had all 7 ACs met and 99 unit/integration tests passing, but CI showed "E2E Tests: SKIPPED". This is a BLOCKING issue per CLAUDE.md. When UAT scenarios are marked "Automated (E2E)", Playwright test coverage is mandatory before PO can approve. Requested changes and asked qa-integration-tester to write tests in e2e/tests/budget/.
 - **Conditional row rendering vs placeholder pattern** — PR #400 (Story 4.5): Vendor and URL rows used `{item.vendor && (...)}` which hides the entire row when null. AC #11 requires "--" placeholder for all optional fields. This is the same pattern as the VendorDetailPage Notes row issue from PR #151. ALWAYS check that optional field rows render unconditionally with ternary: `{item.field ? <value> : '\u2014'}`.
 - **CONFIDENCE_MARGINS display: fraction vs percentage** — PR #401 (Story 4.6): `CONFIDENCE_MARGINS` values are decimal fractions (0.2 = 20%). The WorkItemDetailPage correctly uses `Math.round(CONFIDENCE_MARGINS[...] * 100)` to display "20%". HouseholdItemDetailPage displayed raw value "0.2%". When reusing shared constants, verify the display conversion matches the established pattern.
 - **Raw date string rendering** — PR #402 (Story 4.7): HouseholdItemDetailPage displayed `workItem.startDate` and `workItem.endDate` as raw ISO strings instead of using `formatDate()`. The same PR correctly used `formatDate()` on WorkItemDetailPage for `hi.expectedDeliveryDate`. ALWAYS verify that date fields from API responses are passed through `formatDate()` before rendering. This is the 3rd occurrence of a "raw value display" bug (after CONFIDENCE_MARGINS and the initial expectedDeliveryDate fix in commit ccb50f7).

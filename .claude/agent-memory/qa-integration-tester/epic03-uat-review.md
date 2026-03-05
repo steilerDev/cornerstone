@@ -13,7 +13,7 @@ Reviewed 366 UAT scenarios across 8 stories (#87-#94). 95%+ automatable via unit
 - Validation rules → unit tests
 - Database constraints → integration tests with temp DB
 
-### 🔵 E2E-Testable (Playwright, owned by e2e-test-engineer)
+### 🔵 E2E-Testable (Playwright, owned by qa-integration-tester)
 
 - UI interactions (forms, dropdowns, modals)
 - Browser-level keyboard shortcuts
@@ -76,7 +76,7 @@ Standard targets for EPIC-03:
 - Algorithms (cycle detection)
 - Client-side hooks (unit tests with `@testing-library/react`)
 
-### E2E Tests (e2e-test-engineer responsibility)
+### E2E Tests (qa-integration-tester responsibility)
 
 - Browser-level UI interactions
 - Forms, dropdowns, modals, date pickers
