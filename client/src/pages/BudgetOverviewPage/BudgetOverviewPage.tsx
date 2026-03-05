@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import type { BudgetOverview, CategoryBudgetSummary } from '@cornerstone/shared';
-import { fetchBudgetOverview } from '../../lib/budgetOverviewApi.js';
+import type { BudgetOverview, BudgetBreakdown, CategoryBudgetSummary } from '@cornerstone/shared';
+import { fetchBudgetOverview, fetchBudgetBreakdown } from '../../lib/budgetOverviewApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { formatCurrency } from '../../lib/formatters.js';
 import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
@@ -8,6 +8,7 @@ import { BudgetBar } from '../../components/BudgetBar/BudgetBar.js';
 import type { BudgetBarSegment } from '../../components/BudgetBar/BudgetBar.js';
 import { BudgetHealthIndicator } from '../../components/BudgetHealthIndicator/BudgetHealthIndicator.js';
 import { Tooltip } from '../../components/Tooltip/Tooltip.js';
+import { CostBreakdownTable } from '../../components/CostBreakdownTable/CostBreakdownTable.js';
 import styles from './BudgetOverviewPage.module.css';
 
 // ---- Helpers ----
@@ -294,6 +295,10 @@ export function BudgetOverviewPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
 
+  // Breakdown state
+  const [breakdown, setBreakdown] = useState<BudgetBreakdown | null>(null);
+  const [isBreakdownLoading, setIsBreakdownLoading] = useState(false);
+
   // Category filter state — set once overview loads
   const [selectedCategories, setSelectedCategories] = useState<Set<string | null>>(new Set());
 
@@ -319,6 +324,17 @@ export function BudgetOverviewPage() {
       setOverview(data);
       // Initialise filter — all selected
       setSelectedCategories(new Set(data.categorySummaries.map((c) => c.categoryId)));
+
+      // Fetch breakdown data (non-critical, so silent failure)
+      setIsBreakdownLoading(true);
+      try {
+        const bd = await fetchBudgetBreakdown();
+        setBreakdown(bd);
+      } catch {
+        // breakdown is non-critical; silently fail and show empty state if it fails
+      } finally {
+        setIsBreakdownLoading(false);
+      }
     } catch (err) {
       if (err instanceof ApiClientError) {
         setError(err.error.message);
@@ -665,6 +681,24 @@ export function BudgetOverviewPage() {
             </div>
           )}
         </section>
+
+        {/* Cost Breakdown Table */}
+        {overview &&
+          (isBreakdownLoading ? (
+            <div
+              className={styles.breakdownLoading}
+              role="status"
+              aria-label="Loading cost breakdown"
+            >
+              <p>Loading cost breakdown…</p>
+            </div>
+          ) : breakdown ? (
+            <CostBreakdownTable
+              breakdown={breakdown}
+              overview={overview}
+              selectedCategories={selectedCategories}
+            />
+          ) : null)}
       </div>
     </div>
   );

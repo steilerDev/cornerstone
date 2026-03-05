@@ -11,9 +11,11 @@ import type { BudgetOverview } from '@cornerstone/shared';
 
 // Mock the API module BEFORE importing the component
 const mockFetchBudgetOverview = jest.fn<typeof BudgetOverviewApiTypes.fetchBudgetOverview>();
+const mockFetchBudgetBreakdown = jest.fn<typeof BudgetOverviewApiTypes.fetchBudgetBreakdown>();
 
 jest.unstable_mockModule('../../lib/budgetOverviewApi.js', () => ({
   fetchBudgetOverview: mockFetchBudgetOverview,
+  fetchBudgetBreakdown: mockFetchBudgetBreakdown,
 }));
 
 describe('BudgetOverviewPage', () => {
@@ -113,6 +115,17 @@ describe('BudgetOverviewPage', () => {
       BudgetOverviewPage = module.default;
     }
     mockFetchBudgetOverview.mockReset();
+    mockFetchBudgetBreakdown.mockReset();
+    mockFetchBudgetBreakdown.mockResolvedValue({
+      workItems: {
+        categories: [],
+        totals: { projectedMin: 0, projectedMax: 0, actualCost: 0, subsidyPayback: 0 },
+      },
+      householdItems: {
+        categories: [],
+        totals: { projectedMin: 0, projectedMax: 0, actualCost: 0, subsidyPayback: 0 },
+      },
+    });
   });
 
   function renderPage() {

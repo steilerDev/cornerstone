@@ -135,6 +135,19 @@ export type {
   BudgetOverviewResponse,
 } from './types/budgetOverview.js';
 
+// Budget Breakdown
+export type {
+  CostDisplay,
+  BreakdownBudgetLine,
+  BreakdownWorkItem,
+  BreakdownWorkItemCategory,
+  BreakdownHouseholdItem,
+  BreakdownHouseholdItemCategory,
+  BreakdownTotals,
+  BudgetBreakdown,
+  BudgetBreakdownResponse,
+} from './types/budgetBreakdown.js';
+
 // Work Item Budgets
 export type {
   ConfidenceLevel,

@@ -1,0 +1,321 @@
+/* ============================================================
+ * CostBreakdownTable — CSS Module
+ * ============================================================ */
+
+.breakdownCard {
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--spacing-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.breakdownTitle {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0;
+}
+
+.tableWrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table {
+  width: 100%;
+  min-width: 600px;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Header ---- */
+
+.table th {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: var(--spacing-2) var(--spacing-3);
+  border-bottom: 1px solid var(--color-border-strong);
+  text-align: left;
+}
+
+/* ---- Columns ---- */
+
+.colName {
+  min-width: 200px;
+}
+
+.colBudget {
+  text-align: right;
+  min-width: 160px;
+}
+
+.colPayback {
+  text-align: right;
+  min-width: 100px;
+}
+
+.colRemaining {
+  text-align: right;
+  min-width: 120px;
+}
+
+/* ---- Level 0: Summary row ---- */
+
+.rowLevel0 td {
+  background: var(--color-bg-primary);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  padding: var(--spacing-3) var(--spacing-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* ---- Level 1: Category rows ---- */
+
+.rowLevel1 td {
+  background: var(--color-bg-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  padding: var(--spacing-2) var(--spacing-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.rowLevel1:hover td {
+  background: var(--color-bg-hover);
+}
+
+.cellLevel1Name {
+  padding-left: var(--spacing-8);
+  border-left: 3px solid var(--color-border-strong);
+}
+
+/* ---- Level 2: Item rows ---- */
+
+.rowLevel2 td {
+  background: var(--color-bg-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-normal);
+  color: var(--color-text-body);
+  padding: var(--spacing-2) var(--spacing-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.rowLevel2:hover td {
+  background: var(--color-bg-hover);
+}
+
+.cellLevel2Name {
+  padding-left: var(--spacing-14);
+}
+
+/* ---- Level 3: Budget line rows ---- */
+
+.rowLevel3 td {
+  background: var(--color-bg-tertiary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-normal);
+  color: var(--color-text-muted);
+  padding: var(--spacing-2) var(--spacing-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.rowLevel3:hover td {
+  background: var(--color-bg-hover);
+}
+
+.cellLevel3Name {
+  padding-left: var(--spacing-20);
+}
+
+/* ---- Sum rows ---- */
+
+.rowSum td {
+  background: var(--color-bg-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  padding: var(--spacing-2) var(--spacing-3);
+  border-top: 2px solid var(--color-border-strong);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.cellSumName {
+  padding-left: var(--spacing-8);
+}
+
+/* ---- Chevron button ---- */
+
+.chevron {
+  transition: transform var(--transition-normal);
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  display: block;
+  stroke: currentColor;
+}
+
+.chevronOpen {
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron {
+    transition: none;
+  }
+}
+
+.expandBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    background-color var(--transition-fast),
+    color var(--transition-fast);
+  padding: 0;
+}
+
+.expandBtn:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-secondary);
+}
+
+.expandBtn:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+/* ---- Name cell content wrapper ---- */
+
+.nameContent {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+/* ---- Value colors ---- */
+
+.valuePositive {
+  color: var(--color-success-text-on-light);
+}
+
+.valueNegative {
+  color: var(--color-danger-text-on-light);
+}
+
+/* ---- Confidence badge ---- */
+
+.confidenceBadge {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  padding: var(--spacing-0-5) var(--spacing-2);
+  font-size: var(--font-size-xs);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ---- Empty state ---- */
+
+.emptyState {
+  text-align: center;
+  padding: var(--spacing-8);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+/* ---- Screen reader only ---- */
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---- Responsive: mobile (max 767px) ---- */
+
+@media (max-width: 767px) {
+  .breakdownCard {
+    padding: var(--spacing-4);
+    gap: var(--spacing-3);
+  }
+
+  .breakdownTitle {
+    font-size: var(--font-size-lg);
+  }
+
+  .table th {
+    padding: var(--spacing-2) var(--spacing-2);
+    font-size: var(--font-size-2xs);
+  }
+
+  .colName {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+  }
+
+  /* Sticky column backgrounds must match their row level */
+  .rowLevel0 .colName {
+    background: var(--color-bg-primary);
+  }
+
+  .rowLevel1 .colName {
+    background: var(--color-bg-secondary);
+  }
+
+  .rowLevel2 .colName {
+    background: var(--color-bg-primary);
+  }
+
+  .rowLevel3 .colName {
+    background: var(--color-bg-tertiary);
+  }
+
+  .rowSum .colName {
+    background: var(--color-bg-secondary);
+  }
+
+  .table td {
+    padding: var(--spacing-1-5) var(--spacing-2);
+  }
+
+  .colBudget,
+  .colPayback,
+  .colRemaining {
+    min-width: auto;
+    font-size: var(--font-size-xs);
+  }
+
+  .expandBtn {
+    width: 20px;
+    height: 20px;
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
