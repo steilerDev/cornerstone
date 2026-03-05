@@ -86,7 +86,7 @@ If no refinement items exist, skip to step 5.
 
 ### 5. E2E Validation
 
-Launch the **e2e-test-engineer** agent to:
+Launch the **qa-integration-tester** agent to:
 
 - Confirm all existing Playwright E2E tests pass
 - Verify every approved UAT scenario (from story issues) has E2E coverage
@@ -98,12 +98,12 @@ This approval is **required** before proceeding to manual UAT validation.
 
 ### 6. UAT Validation
 
-Launch the **uat-validator** agent to:
+Launch the **product-owner** agent to produce UAT scenarios, then the orchestrator coordinates validation:
 
 - Produce a UAT Validation Report covering all stories in the epic
 - Provide step-by-step manual validation instructions to the user
 
-**AUTO_MODE override**: If AUTO_MODE is active (set by `/epic-run`), treat E2E pass + uat-validator report as sufficient validation. Post the UAT report as a comment on the epic issue and proceed to step 7 without waiting for user walkthrough.
+**AUTO_MODE override**: If AUTO_MODE is active (set by `/epic-run`), treat E2E pass + qa-integration-tester report as sufficient validation. Post the UAT report as a comment on the epic issue and proceed to step 7 without waiting for user walkthrough.
 
 **Interactive mode** (default): Present the report to the user. The user walks through each scenario:
 

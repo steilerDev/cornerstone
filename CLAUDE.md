@@ -10,7 +10,7 @@ Cornerstone is a web-based home building project management application designed
 
 ## Agent Team
 
-This project uses a team of 11 specialized Claude Code agents defined in `.claude/agents/`:
+This project uses a team of 9 specialized Claude Code agents defined in `.claude/agents/`:
 
 | Agent                   | Role                                                                                                                                    |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
@@ -20,10 +20,8 @@ This project uses a team of 11 specialized Claude Code agents defined in `.claud
 | `dev-team-lead`         | Spec-writer, reviewer, and committer (Sonnet): decomposes work into implementation specs, reviews agent output, commits and monitors CI |
 | `backend-developer`     | API endpoints, business logic, auth, database operations (Haiku, launched by orchestrator with dev-team-lead specs)                     |
 | `frontend-developer`    | UI components, pages, interactions, API client (Haiku, launched by orchestrator with dev-team-lead specs)                               |
-| `qa-integration-tester` | Unit test coverage (95%+ target), integration tests, performance testing, bug reports                                                   |
-| `e2e-test-engineer`     | Playwright E2E browser tests, test container infrastructure, UAT scenario coverage                                                      |
+| `qa-integration-tester` | Unit test coverage (95%+ target), integration tests, Playwright E2E browser tests, performance testing, bug reports                     |
 | `security-engineer`     | Security audits, vulnerability reports, remediation guidance                                                                            |
-| `uat-validator`         | UAT scenarios, manual validation steps, user sign-off per epic                                                                          |
 | `docs-writer`           | Documentation site (`docs/`), lean README.md, user-facing guides after UAT approval                                                     |
 
 ## GitHub Tools Strategy
@@ -77,11 +75,9 @@ The GitHub Projects board uses 4 statuses: Backlog, Todo, In Progress, Done. All
 - **Implementation specs** → `dev-team-lead` agent (produces specs, reviews code, commits)
 - **Backend code** → `backend-developer` agent (Haiku, launched by orchestrator with dev-team-lead specs)
 - **Frontend code** → `frontend-developer` agent (Haiku, launched by orchestrator with dev-team-lead specs)
-- **Unit/integration tests** → `qa-integration-tester` agent (launched by orchestrator with dev-team-lead specs)
+- **Unit/integration/E2E tests** → `qa-integration-tester` agent (launched by orchestrator with dev-team-lead specs)
 - **Visual specs, design tokens, brand assets, CSS files** → `ux-designer` agent
 - **Schema/API design, ADRs, wiki** → `product-architect` agent
-- **E2E tests** → `e2e-test-engineer` agent
-- **UAT scenarios** → `uat-validator` agent
 - **Story definitions** → `product-owner` agent
 - **Security reviews** → `security-engineer` agent
 - **User-facing documentation** (docs site + README) → `docs-writer` agent
@@ -106,7 +102,7 @@ The orchestrator uses four skills to drive work. Each skill contains the full op
 | `/epic-start` | Plan approval       | Wait for user         | Post plan to epic issue, auto-proceed              |
 | `/develop`    | Bug spec approval   | Wait for user         | Auto-approve PO spec, create issue immediately     |
 | `/develop`    | PR merge approval   | Wait for user         | Auto-merge after CI green + all reviewers approved |
-| `/epic-close` | UAT validation      | User walkthrough      | E2E pass + uat-validator report = sufficient       |
+| `/epic-close` | UAT validation      | User walkthrough      | E2E pass + qa-integration-tester report = sufficient |
 | `/epic-close` | Promotion to `main` | **Wait for user**     | **Wait for user (ALWAYS)** — never auto-approved   |
 
 ## Acceptance & Validation
@@ -120,7 +116,7 @@ Every epic follows a two-phase validation lifecycle. **Development phase** (`/de
 - **Iterate until right** — failed validation triggers a fix-and-revalidate loop
 - **Acceptance criteria live on GitHub Issues** — stored on story issues, summarized on promotion PRs
 - **Security review required** — the `security-engineer` must review every story PR
-- **Test agents own all tests** — `qa-integration-tester` owns unit + integration tests; `e2e-test-engineer` owns Playwright E2E tests. Developer agents do not write tests.
+- **Test agents own all tests** — `qa-integration-tester` owns unit, integration, and Playwright E2E tests. Developer agents do not write tests.
 - **Flat delegation model** — the orchestrator launches all agents directly. The `dev-team-lead` produces implementation specs, reviews agent output, and handles commits/CI. The orchestrator routes specs to `backend-developer`, `frontend-developer`, and `qa-integration-tester`.
 
 ## Git & Commit Conventions
@@ -214,7 +210,7 @@ Cornerstone uses a two-tier release model:
 
 ### Branch Protection
 
-Both `main` and `beta` require PRs with passing `Quality Gates` and `Docker` status checks. Force pushes and deletions are blocked on both branches.
+Both `main` and `beta` require PRs with passing `Quality Gates`, `Docker`, and `Merge E2E Reports` status checks. Force pushes and deletions are blocked on both branches.
 
 ## Tech Stack
 

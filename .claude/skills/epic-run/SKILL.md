@@ -32,7 +32,7 @@ This skill activates **AUTO_MODE** for the session. When AUTO_MODE is active:
 | Phase 1 | Plan approval       | Post plan to epic issue, auto-proceed              |
 | Phase 2 | Bug spec approval   | Auto-approve PO spec, create issue immediately     |
 | Phase 2 | PR merge approval   | Auto-merge after CI green + all reviewers approved |
-| Phase 3 | UAT validation      | E2E pass + uat-validator report = sufficient       |
+| Phase 3 | UAT validation      | E2E pass + qa-integration-tester report = sufficient |
 | Phase 3 | Promotion to `main` | **WAIT for user (ALWAYS)** — never auto-approved   |
 
 ## Error Handling: Retry-Then-Pause
@@ -336,7 +336,7 @@ Review all story PRs for non-blocking review comments. If refinement items exist
 
 ### 3.4 E2E Validation
 
-Launch the **e2e-test-engineer** agent to:
+Launch the **qa-integration-tester** agent to:
 
 - Confirm all existing Playwright E2E tests pass
 - Verify every UAT scenario has E2E coverage
@@ -346,9 +346,9 @@ Launch the **e2e-test-engineer** agent to:
 
 ### 3.5 UAT Validation (AUTO_MODE)
 
-Launch the **uat-validator** agent to produce a UAT Validation Report.
+Launch the **product-owner** agent to produce UAT scenarios, then the orchestrator coordinates validation and produces a UAT Validation Report.
 
-**AUTO_MODE**: E2E pass + uat-validator report = sufficient. Do NOT wait for user walkthrough. Post the UAT report as a comment on the epic issue and proceed.
+**AUTO_MODE**: E2E pass + qa-integration-tester report = sufficient. Do NOT wait for user walkthrough. Post the UAT report as a comment on the epic issue and proceed.
 
 ### 3.6 Documentation
 
@@ -391,7 +391,7 @@ gh pr create --base main --head beta --title "release: promote epic #<epic-numbe
 <Paste metrics report from step 3.2>
 
 ## UAT Validation
-All UAT scenarios passed (AUTO_MODE: E2E + uat-validator report).
+All UAT scenarios passed (AUTO_MODE: E2E + qa-integration-tester report).
 See validation report in comments.
 
 ## Review Summary
