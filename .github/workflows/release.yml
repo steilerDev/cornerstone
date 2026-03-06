@@ -266,40 +266,35 @@ jobs:
       needs.release.outputs.new-release-published == 'true' &&
       needs.release.outputs.is-prerelease == 'false'
 
-    permissions:
-      contents: write
-      pull-requests: write
-
     steps:
+      - name: Generate app token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.BOT_APP_ID }}
+          private-key: ${{ secrets.BOT_PRIVATE_KEY }}
+
       - name: Checkout
         uses: actions/checkout@v6
         with:
+          ref: beta
           fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
 
-      - name: Create merge-back PR
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Merge main into beta
         run: |
           VERSION="${{ needs.release.outputs.new-release-version }}"
 
           # Skip if beta already has the release tag
           if git merge-base --is-ancestor "v${VERSION}" origin/beta 2>/dev/null; then
-            echo "v${VERSION} is already an ancestor of beta"
+            echo "v${VERSION} is already an ancestor of beta — skipping"
             exit 0
           fi
 
-          # Skip if a merge-back PR already exists
-          EXISTING=$(gh pr list --base beta --head main --state open --json number --jq '.[0].number // empty')
-          if [ -n "$EXISTING" ]; then
-            echo "Merge-back PR #${EXISTING} already exists"
-            exit 0
-          fi
-
-          gh pr create \
-            --base beta \
-            --head main \
-            --title "chore: merge main (v${VERSION}) back into beta" \
-            --body "Syncs the v${VERSION} release tag from main into beta so semantic-release correctly bumps to the next version."
+          git config user.name "cornerstone-bot[bot]"
+          git config user.email "${{ steps.app-token.outputs.app-slug }}[bot]@users.noreply.github.com"
+          git merge origin/main --no-edit -m "chore: merge main (v${VERSION}) back into beta"
+          git push origin beta
 
   # ---------------------------------------------------------------------------
   # Job 5: Push README.md to DockerHub
