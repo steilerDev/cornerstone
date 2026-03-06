@@ -1,13 +1,14 @@
 /**
- * Page Object Model for the Budget Categories page (/budget/categories)
+ * Page Object Model for the Budget Categories tab on the Manage page (/manage?tab=budget-categories)
  *
+ * Note: /budget/categories now redirects to /manage?tab=budget-categories.
  * The page uses an inline create form (toggled by "Add Category" button),
  * a list of categories with inline edit forms, and a delete confirmation modal.
  */
 
 import type { Page, Locator } from '@playwright/test';
 
-export const BUDGET_CATEGORIES_ROUTE = '/budget/categories';
+export const BUDGET_CATEGORIES_ROUTE = '/manage?tab=budget-categories';
 
 export interface CreateCategoryData {
   name: string;
@@ -63,8 +64,8 @@ export class BudgetCategoriesPage {
   constructor(page: Page) {
     this.page = page;
 
-    // Page header
-    this.heading = page.getByRole('heading', { level: 1, name: 'Budget', exact: true });
+    // Page header — ManagePage renders <h1>Manage</h1>
+    this.heading = page.getByRole('heading', { level: 1, name: 'Manage', exact: true });
     this.addCategoryButton = page.getByRole('button', { name: 'Add Category', exact: true });
 
     // Global banners — scoped to first role="alert" outside the form/modal for each type

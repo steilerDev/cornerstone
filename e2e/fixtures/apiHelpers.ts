@@ -145,7 +145,7 @@ export async function createHouseholdItemViaApi(
   },
 ): Promise<string> {
   const response = await page.request.post(API.householdItems, {
-    data: { category: 'other', status: 'planned', ...data },
+    data: { category: 'hic-other', status: 'planned', ...data },
   });
   expect(response.ok()).toBeTruthy();
   const body = (await response.json()) as { householdItem: { id: string } };

@@ -131,7 +131,7 @@ test.describe('Create with all fields (Scenario 5)', { tag: '@responsive' }, () 
       await createPage.fillForm({
         name,
         description: 'A comfortable sofa for the living room',
-        category: 'furniture',
+        category: 'hic-furniture',
         status: 'planned',
         quantity: '2',
         room: 'Living Room',

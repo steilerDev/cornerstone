@@ -833,13 +833,14 @@ test.describe('Page structure and accessibility', { tag: '@responsive' }, () => 
     await expect(categoriesPage.addCategoryButton).toBeDisabled();
   });
 
-  test('Page URL is /budget/categories', async ({ page }) => {
+  test('Page URL is /manage?tab=budget-categories', async ({ page }) => {
     const categoriesPage = new BudgetCategoriesPage(page);
 
     await categoriesPage.goto();
 
-    await page.waitForURL('/budget/categories');
-    expect(page.url()).toContain('/budget/categories');
+    await page.waitForURL('**/manage?tab=budget-categories');
+    expect(page.url()).toContain('/manage');
+    expect(page.url()).toContain('tab=budget-categories');
   });
 
   test('Navigating to /budget redirects to /budget/overview', async ({ page }) => {
@@ -953,7 +954,7 @@ test.describe('Dark mode rendering (Scenario 10)', { tag: '@responsive' }, () =>
     const categoriesPage = new BudgetCategoriesPage(page);
 
     // Enable dark mode via the data-theme attribute (matches ThemeContext implementation)
-    await page.goto('/budget/categories');
+    await page.goto('/manage?tab=budget-categories');
     await page.evaluate(() => {
       document.documentElement.setAttribute('data-theme', 'dark');
     });
@@ -981,7 +982,7 @@ test.describe('Dark mode rendering (Scenario 10)', { tag: '@responsive' }, () =>
   test('Create form is usable in dark mode', async ({ page }) => {
     const categoriesPage = new BudgetCategoriesPage(page);
 
-    await page.goto('/budget/categories');
+    await page.goto('/manage?tab=budget-categories');
     await page.evaluate(() => {
       document.documentElement.setAttribute('data-theme', 'dark');
     });
@@ -1006,7 +1007,7 @@ test.describe('Dark mode rendering (Scenario 10)', { tag: '@responsive' }, () =>
     try {
       createdId = await createCategoryViaApi(page, categoryName, 992);
 
-      await page.goto('/budget/categories');
+      await page.goto('/manage?tab=budget-categories');
       await page.evaluate(() => {
         document.documentElement.setAttribute('data-theme', 'dark');
       });

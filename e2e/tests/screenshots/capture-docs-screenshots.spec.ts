@@ -234,7 +234,7 @@ test.describe('Documentation screenshots', () => {
   });
 
   test('Tags page', async ({ page }) => {
-    await page.goto(`${baseUrl}/tags`);
+    await page.goto(`${baseUrl}/manage`);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(500);
 
