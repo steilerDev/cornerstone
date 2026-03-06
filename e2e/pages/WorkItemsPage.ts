@@ -166,8 +166,11 @@ export class WorkItemsPage {
    * attempt to read titles or interact with list items.
    */
   async search(query: string): Promise<void> {
+    // Explicit 10s timeout overrides global actionTimeout (5s): debounce + API
+    // round-trip can exceed 5s on slow CI runners.
     const responsePromise = this.page.waitForResponse(
       (resp) => resp.url().includes('/api/work-items') && resp.status() === 200,
+      { timeout: 10000 },
     );
     await this.searchInput.fill(query);
     await responsePromise;
@@ -184,6 +187,7 @@ export class WorkItemsPage {
   async clearSearch(): Promise<void> {
     const responsePromise = this.page.waitForResponse(
       (resp) => resp.url().includes('/api/work-items') && resp.status() === 200,
+      { timeout: 10000 },
     );
     await this.searchInput.clear();
     await responsePromise;

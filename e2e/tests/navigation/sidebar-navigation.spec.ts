@@ -53,27 +53,21 @@ test.describe('Sidebar Navigation', { tag: '@responsive' }, () => {
     await page.goto(ROUTES.workItems);
 
     // Then: Work Items link should be active.
-    // Use an explicit timeout on toPass() — the default (5s) can be too short
-    // on slow CI workers while React Router updates aria-current after navigation.
-    await expect(async () => {
-      const isActive = await appShell.isNavLinkActive('Work Items');
-      expect(isActive).toBe(true);
-    }).toPass({ timeout: 15000 });
+    // Use expect().toHaveAttribute() directly — Playwright auto-retries within expect.timeout
+    // (7s desktop / 15s WebKit). The toPass() pattern consumed the entire test timeout (15s)
+    // as its retry window and caused the test to time out on slow CI runners.
+    const workItemsLink = appShell.nav.getByRole('link', { name: 'Work Items' });
+    await expect(workItemsLink).toHaveAttribute('aria-current', 'page');
 
     // When: User navigates to Budget
     await page.goto(ROUTES.budget);
 
     // Then: Budget link should be active
-    await expect(async () => {
-      const isActive = await appShell.isNavLinkActive('Budget');
-      expect(isActive).toBe(true);
-    }).toPass({ timeout: 15000 });
+    const budgetLink = appShell.nav.getByRole('link', { name: 'Budget' });
+    await expect(budgetLink).toHaveAttribute('aria-current', 'page');
 
-    // And: Work Items link should not be active
-    await expect(async () => {
-      const isActive = await appShell.isNavLinkActive('Work Items');
-      expect(isActive).toBe(false);
-    }).toPass({ timeout: 15000 });
+    // And: Work Items link should not be active (aria-current absent or not 'page')
+    await expect(workItemsLink).not.toHaveAttribute('aria-current', 'page');
   });
 
   test('All nav links rendered and visible', async ({ page }) => {
