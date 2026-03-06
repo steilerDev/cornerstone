@@ -33,7 +33,15 @@
   font-weight: var(--font-weight-medium);
   color: var(--color-text-secondary);
   cursor: pointer;
-  transition: all var(--transition-normal);
+  transition:
+    color var(--transition-normal),
+    border-color var(--transition-normal);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab {
+    transition: none;
+  }
 }
 
 .tab:hover {

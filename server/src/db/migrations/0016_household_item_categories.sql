@@ -49,7 +49,7 @@ INSERT INTO budget_categories (id, name, description, color, sort_order, created
   ('bc-household-items', 'Household Items', 'Furniture, appliances, and other household purchases', '#8B5CF6', 10, datetime('now'), datetime('now'));
 
 -- Migrate ALL existing household_item_budgets to bc-household-items
-UPDATE household_item_budgets SET budget_category_id = 'bc-household-items' WHERE budget_category_id IS NULL;
+UPDATE household_item_budgets SET budget_category_id = 'bc-household-items';
 
 -- Indexes
 CREATE INDEX idx_household_item_categories_sort_order ON household_item_categories(sort_order);

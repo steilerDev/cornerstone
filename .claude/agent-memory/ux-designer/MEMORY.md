@@ -199,17 +199,12 @@ See `story-4-11-hi-detail-inline-edit.md` for full spec.
 - Re-fetch required after saving `actualDeliveryDate` and `earliestDeliveryDate`
 - Edit page scope: remove orderDate/earliestDeliveryDate/latestDeliveryDate/actualDeliveryDate/status
 
-## PR #457 Review Findings — HI Delivery Date Redesign
+## PR #516 Review Findings — Unified Manage Page (Tags + Categories)
 
-- `--color-hi-status-in-transit-*` used in lateChip — non-existent tokens (HIGH)
-- modalOverlay uses `rgba(0,0,0,0.5)` and `z-index:1000` instead of `var(--color-overlay)` and `var(--z-modal)` (MEDIUM, pre-existing)
-- `--color-danger-active` used for errorBanner text instead of `--color-danger-text-on-light` (LOW, pre-existing inconsistency)
-- "Target Delivery (computed)" — parenthetical "(computed)" is dev-oriented language in a user-facing label (LOW)
-
-## PR #460 Review Findings — HI Inline Status Selector (APPROVED)
-
-Token adherence exemplary. PR correctly uses tokens throughout (unlike WorkItemDetailPage `.statusSelect` which has hardcoded values):
-
-- WorkItemDetailPage.module.css `.statusSelect` (lines 172–187) uses `0.625rem`, `0.375rem`, `0.875rem`, `0.15s` (hardcoded)
-- PR #460 HI version uses `var(--spacing-2-5)`, `var(--radius-md)`, `var(--font-size-sm)`, `var(--transition-normal)` (correct)
-- **Action**: Fix WorkItemDetailPage `.statusSelect` to use tokens for consistency (future refactor task)
+- **CRITICAL**: Tags tab button `id="tabs-tab"` should be `id="tags-tab"` — mismatch breaks `aria-labelledby` on tabpanel
+- **MEDIUM**: WAI-ARIA tablist requires arrow-key nav (ArrowLeft/Right/Home/End) + roving tabindex (`tabIndex={isActive ? 0 : -1}`) — never just onClick
+- **MEDIUM**: `transition: all` on `.tab` — always use explicit property list; add `prefers-reduced-motion` guard
+- **LOW**: Buttons hand-rolled instead of `composes:` from `shared.module.css` (btnPrimary, btnPrimaryCompact, btnSecondaryCompact, btnDanger, btnConfirmDelete)
+- **LOW**: `cancelButton:hover` background = rest state background (should be `var(--color-bg-hover)`) — fixed by composing from shared
+- **LOW**: Tablet breakpoint `max-width: 1024px` → must be `1023px` (recurring)
+- Token adherence in CSS: all colors/spacing/shadows correctly use `var(--token)` — no hex literals in CSS

@@ -1572,17 +1572,41 @@ export default function ManagePage() {
     setSearchParams({ tab: newTab }, { replace: true });
   };
 
+  const handleTabKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const tabs = ['tags', 'budget-categories', 'hi-categories'];
+    const currentIndex = tabs.indexOf(tab);
+    let newIndex = currentIndex;
+
+    if (e.key === 'ArrowRight') {
+      newIndex = (currentIndex + 1) % tabs.length;
+      e.preventDefault();
+    } else if (e.key === 'ArrowLeft') {
+      newIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+      e.preventDefault();
+    } else {
+      return;
+    }
+
+    const newTab = tabs[newIndex];
+    setSearchParams({ tab: newTab }, { replace: true });
+    // Focus the new tab button
+    setTimeout(() => {
+      document.getElementById(`${newTab}-tab`)?.focus();
+    }, 0);
+  };
+
   return (
     <div className={styles.container}>
       <div className={styles.content}>
         <h1 className={styles.pageTitle}>Manage</h1>
 
-        <div role="tablist" className={styles.tabList}>
+        <div role="tablist" className={styles.tabList} onKeyDown={handleTabKeyDown}>
           <button
             role="tab"
             aria-selected={tab === 'tags'}
             aria-controls="tags-panel"
-            id="tabs-tab"
+            id="tags-tab"
+            tabIndex={tab === 'tags' ? 0 : -1}
             onClick={() => handleTabChange('tags')}
             className={`${styles.tab} ${tab === 'tags' ? styles.tabActive : ''}`}
           >
@@ -1593,6 +1617,7 @@ export default function ManagePage() {
             aria-selected={tab === 'budget-categories'}
             aria-controls="budget-categories-panel"
             id="budget-categories-tab"
+            tabIndex={tab === 'budget-categories' ? 0 : -1}
             onClick={() => handleTabChange('budget-categories')}
             className={`${styles.tab} ${tab === 'budget-categories' ? styles.tabActive : ''}`}
           >
@@ -1603,6 +1628,7 @@ export default function ManagePage() {
             aria-selected={tab === 'hi-categories'}
             aria-controls="hi-categories-panel"
             id="hi-categories-tab"
+            tabIndex={tab === 'hi-categories' ? 0 : -1}
             onClick={() => handleTabChange('hi-categories')}
             className={`${styles.tab} ${tab === 'hi-categories' ? styles.tabActive : ''}`}
           >
