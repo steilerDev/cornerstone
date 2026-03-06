@@ -1,6 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import type { BudgetOverview, BudgetBreakdown, CategoryBudgetSummary } from '@cornerstone/shared';
+import type {
+  BudgetOverview,
+  BudgetBreakdown,
+  CategoryBudgetSummary,
+  BudgetSource,
+} from '@cornerstone/shared';
 import { fetchBudgetOverview, fetchBudgetBreakdown } from '../../lib/budgetOverviewApi.js';
+import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { formatCurrency } from '../../lib/formatters.js';
 import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
@@ -299,6 +305,9 @@ export function BudgetOverviewPage() {
   const [breakdown, setBreakdown] = useState<BudgetBreakdown | null>(null);
   const [isBreakdownLoading, setIsBreakdownLoading] = useState(false);
 
+  // Budget sources state
+  const [budgetSources, setBudgetSources] = useState<BudgetSource[]>([]);
+
   // Category filter state — set once overview loads
   const [selectedCategories, setSelectedCategories] = useState<Set<string | null>>(new Set());
 
@@ -334,6 +343,14 @@ export function BudgetOverviewPage() {
         // breakdown is non-critical; silently fail and show empty state if it fails
       } finally {
         setIsBreakdownLoading(false);
+      }
+
+      // Fetch budget sources (non-critical, so silent failure)
+      try {
+        const sourcesData = await fetchBudgetSources();
+        setBudgetSources(sourcesData.budgetSources);
+      } catch {
+        // sources is non-critical; silently fail
       }
     } catch (err) {
       if (err instanceof ApiClientError) {
@@ -421,9 +438,6 @@ export function BudgetOverviewPage() {
   const filteredRemainingVsProjectedMin = overview.availableFunds - filtered.projectedMin;
   const filteredRemainingVsProjectedMax = overview.availableFunds - filtered.projectedMax;
 
-  // BudgetHealthIndicator uses filtered projected max
-  const healthRemainingVsProjectedMax = filteredRemainingVsProjectedMax;
-
   // Bar segments
   const segments: BudgetBarSegment[] = [
     {
@@ -466,6 +480,17 @@ export function BudgetOverviewPage() {
 
   // Payback visibility flag
   const hasPayback = overview.subsidySummary.maxTotalPayback > 0;
+
+  // Determine remaining values for health indicator
+  const remainingMin = hasPayback
+    ? overview.remainingVsMinPlannedWithPayback
+    : overview.remainingVsMinPlanned;
+  const remainingMax = hasPayback
+    ? overview.remainingVsMaxPlannedWithPayback
+    : overview.remainingVsMaxPlanned;
+
+  // BudgetHealthIndicator uses payback-adjusted remaining vs max projected
+  const healthRemainingVsProjectedMax = remainingMax;
 
   // Remaining perspectives detail items (uses filtered where sensible)
   const remainingDetailItems: RemainingDetail[] = [
@@ -542,7 +567,7 @@ export function BudgetOverviewPage() {
           </div>
 
           {/* Key metrics row */}
-          <div className={styles.metricsRow}>
+          <div className={`${styles.metricsRow} ${hasPayback ? styles.metricsRowWithPayback : ''}`}>
             {/* Available Funds */}
             <div className={styles.metricGroup}>
               <span className={styles.metricLabel}>Available Funds</span>
@@ -572,23 +597,15 @@ export function BudgetOverviewPage() {
                   onClick={() => setRemainingDetailOpen((v) => !v)}
                 >
                   <span
-                    className={
-                      filteredRemainingVsProjectedMin >= 0
-                        ? styles.metricPositive
-                        : styles.metricNegative
-                    }
+                    className={remainingMin >= 0 ? styles.metricPositive : styles.metricNegative}
                   >
-                    {formatShort(filteredRemainingVsProjectedMin)}
+                    {formatShort(remainingMin)}
                   </span>
                   <span className={styles.metricRangeSep}>&ndash;</span>
                   <span
-                    className={
-                      filteredRemainingVsProjectedMax >= 0
-                        ? styles.metricPositive
-                        : styles.metricNegative
-                    }
+                    className={remainingMax >= 0 ? styles.metricPositive : styles.metricNegative}
                   >
-                    {formatShort(filteredRemainingVsProjectedMax)}
+                    {formatShort(remainingMax)}
                   </span>
                   <span className={styles.metricHint} aria-hidden="true">
                     &#9432;
@@ -604,6 +621,29 @@ export function BudgetOverviewPage() {
                 <RemainingDetailPanel items={remainingDetailItems} />
               </div>
             </div>
+
+            {/* Expected Payback (only when hasPayback) */}
+            {hasPayback && (
+              <div className={styles.metricGroup}>
+                <span className={styles.metricLabel}>Expected Payback</span>
+                <span
+                  className={`${styles.metricValue} ${styles.metricPaybackValue}`}
+                  aria-live="polite"
+                  aria-atomic="true"
+                >
+                  <span className={styles.metricRange}>
+                    {formatShort(overview.subsidySummary.minTotalPayback)}
+                    {overview.subsidySummary.minTotalPayback !==
+                    overview.subsidySummary.maxTotalPayback ? (
+                      <>
+                        <span className={styles.metricRangeSep}>&ndash;</span>
+                        {formatShort(overview.subsidySummary.maxTotalPayback)}
+                      </>
+                    ) : null}
+                  </span>
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Stacked bar */}
@@ -641,35 +681,6 @@ export function BudgetOverviewPage() {
             />
           </div>
 
-          {/* Footer row */}
-          <div className={styles.heroFooter}>
-            {hasPayback && (
-              <span
-                className={`${styles.footerItem} ${styles.footerItemPayback}`}
-                aria-live="polite"
-                aria-atomic="true"
-                aria-label={
-                  overview.subsidySummary.minTotalPayback ===
-                  overview.subsidySummary.maxTotalPayback
-                    ? `Expected payback: ${formatCurrency(overview.subsidySummary.minTotalPayback)}`
-                    : `Expected payback: ${formatCurrency(overview.subsidySummary.minTotalPayback)} to ${formatCurrency(overview.subsidySummary.maxTotalPayback)}`
-                }
-              >
-                Expected payback:{' '}
-                <strong>
-                  {formatCurrency(overview.subsidySummary.minTotalPayback)}
-                  {overview.subsidySummary.minTotalPayback !==
-                  overview.subsidySummary.maxTotalPayback
-                    ? ` \u2013 ${formatCurrency(overview.subsidySummary.maxTotalPayback)}`
-                    : ''}
-                </strong>
-              </span>
-            )}
-            <span className={styles.footerItem}>
-              Sources: <strong>{overview.sourceCount}</strong>
-            </span>
-          </div>
-
           {/* Category filter */}
           {overview.categorySummaries.length > 0 && (
             <div className={styles.categoryFilterRow}>
@@ -697,6 +708,7 @@ export function BudgetOverviewPage() {
               breakdown={breakdown}
               overview={overview}
               selectedCategories={selectedCategories}
+              budgetSources={budgetSources}
             />
           ) : null)}
       </div>

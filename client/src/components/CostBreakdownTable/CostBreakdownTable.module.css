@@ -22,6 +22,55 @@
   margin: 0;
 }
 
+/* ---- Perspective Toggle (Segmented Control) ---- */
+
+.perspectiveToggle {
+  display: inline-flex;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  align-self: flex-start;
+}
+
+.perspectiveSegment {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-1-5) var(--spacing-3);
+  background: none;
+  border: none;
+  border-right: 1px solid var(--color-border-strong);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition:
+    background-color var(--transition-fast),
+    color var(--transition-fast);
+  min-width: 52px;
+  min-height: 44px;
+}
+
+.perspectiveSegment:last-child {
+  border-right: none;
+}
+
+.perspectiveSegment:hover:not(.perspectiveSegmentActive) {
+  background: var(--color-bg-secondary);
+}
+
+.perspectiveSegment:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  position: relative;
+  z-index: 1;
+}
+
+.perspectiveSegmentActive {
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+}
+
 .tableWrapper {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -153,6 +202,42 @@
   padding-left: var(--spacing-8);
 }
 
+/* ---- Row highlighting for actual/mixed cost ---- */
+
+.rowActual td {
+  background: var(--color-success-badge-bg);
+}
+
+.rowActual .colName {
+  border-left: 3px solid var(--color-success);
+}
+
+.rowMixed td {
+  background: color-mix(in srgb, var(--color-success-badge-bg) 50%, var(--color-bg-primary));
+}
+
+.rowMixed .colName {
+  border-left: 3px solid var(--color-success);
+}
+
+/* ---- Source detail sub-rows ---- */
+
+.rowSourceDetail td {
+  background: var(--color-bg-secondary);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  padding: var(--spacing-2) var(--spacing-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.rowSourceDetail .colName {
+  border-left: 3px solid var(--color-primary-bg-hover);
+}
+
+.nameIndented {
+  padding-left: var(--spacing-8);
+}
+
 /* ---- Chevron button ---- */
 
 .chevron {
@@ -170,6 +255,10 @@
 
 @media (prefers-reduced-motion: reduce) {
   .chevron {
+    transition: none;
+  }
+
+  .perspectiveSegment {
     transition: none;
   }
 }
@@ -232,6 +321,14 @@
   font-size: var(--font-size-xs);
   white-space: nowrap;
   flex-shrink: 0;
+}
+
+/* ---- Cost mixed display wrapper ---- */
+
+.costMixedWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-0-5);
 }
 
 /* ---- Empty state ---- */
@@ -313,8 +410,6 @@
   }
 
   .expandBtn {
-    width: 20px;
-    height: 20px;
     min-width: 44px;
     min-height: 44px;
   }
