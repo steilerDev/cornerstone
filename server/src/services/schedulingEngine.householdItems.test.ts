@@ -307,6 +307,22 @@ describe('autoReschedule — household item delivery date computation', () => {
       expect(actualDeliveryDate).toBe('2026-02-20');
     });
 
+    it('HI with no dependencies but earliestDeliveryDate uses it as target date', () => {
+      // Given: A HI with NO dependencies but with earliestDeliveryDate set
+      insertUser(db);
+      const hiId = insertHouseholdItem(db, {
+        status: 'planned',
+        earliestDeliveryDate: '2030-09-15',
+      });
+      // No insertHIDep — this HI has zero dependencies
+
+      autoReschedule(db);
+
+      // Then: target = earliestDeliveryDate (not null!)
+      const { targetDeliveryDate } = getHIDeliveryDates(db, hiId);
+      expect(targetDeliveryDate).toBe('2030-09-15');
+    });
+
     it('HI earliestDeliveryDate constraint overrides CPM date when later', () => {
       // Given: A HI with earliestDeliveryDate constraint far in the future, WI ends earlier
       const userId = insertUser(db);

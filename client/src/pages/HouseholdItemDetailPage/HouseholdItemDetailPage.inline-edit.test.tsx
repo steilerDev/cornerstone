@@ -759,7 +759,7 @@ describe('HouseholdItemDetailPage — inline date editing (Story #467)', () => {
       expect(screen.queryByRole('heading', { name: 'Constraints' })).not.toBeInTheDocument();
     });
 
-    it('renders a "Dates & Delivery" section with inline date inputs', async () => {
+    it('renders a "Dates & Delivery" section with order and actual date inputs', async () => {
       mockGetHouseholdItem.mockResolvedValue(makeItem());
 
       renderPage();
@@ -767,9 +767,20 @@ describe('HouseholdItemDetailPage — inline date editing (Story #467)', () => {
 
       expect(screen.getByRole('heading', { name: 'Dates & Delivery' })).toBeInTheDocument();
 
-      // All four inline date inputs should be present
+      // Order and actual delivery date inputs in Dates & Delivery section
       expect(screen.getByLabelText('Order date')).toBeInTheDocument();
       expect(screen.getByLabelText('Actual delivery date')).toBeInTheDocument();
+    });
+
+    it('renders earliest and latest delivery dates in the Dependencies section', async () => {
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+
+      renderPage();
+      await waitForPageLoad();
+
+      expect(screen.getByRole('heading', { name: 'Dependencies' })).toBeInTheDocument();
+
+      // Earliest and latest delivery dates are constraints in the Dependencies section
       expect(screen.getByLabelText('Earliest delivery date')).toBeInTheDocument();
       expect(screen.getByLabelText('Latest delivery date')).toBeInTheDocument();
     });

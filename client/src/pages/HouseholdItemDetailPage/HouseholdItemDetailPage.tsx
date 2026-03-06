@@ -1029,8 +1029,24 @@ export function HouseholdItemDetailPage() {
                 </div>
               </dd>
             </div>
+          </dl>
+        </section>
 
-            {/* Earliest Delivery Date - inline editable */}
+        {/* Dependencies card */}
+        <section className={styles.card}>
+          <div className={styles.cardHeader}>
+            <h2 className={styles.cardTitle}>Dependencies</h2>
+            <button
+              type="button"
+              className={styles.button}
+              onClick={() => void handleOpenAddDepModal()}
+            >
+              Add Dependency
+            </button>
+          </div>
+
+          {/* Earliest & Latest Delivery Date - inline editable constraints */}
+          <dl className={styles.infoList}>
             <div className={styles.infoRow}>
               <dt className={styles.infoLabel}>
                 <label htmlFor="hi-earliest-delivery">Earliest Delivery</label>
@@ -1084,7 +1100,6 @@ export function HouseholdItemDetailPage() {
               </dd>
             </div>
 
-            {/* Latest Delivery Date - inline editable */}
             <div className={styles.infoRow}>
               <dt className={styles.infoLabel}>
                 <label htmlFor="hi-latest-delivery">Latest Delivery</label>
@@ -1130,20 +1145,6 @@ export function HouseholdItemDetailPage() {
               </dd>
             </div>
           </dl>
-        </section>
-
-        {/* Dependencies card */}
-        <section className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h2 className={styles.cardTitle}>Dependencies</h2>
-            <button
-              type="button"
-              className={styles.button}
-              onClick={() => void handleOpenAddDepModal()}
-            >
-              Add Dependency
-            </button>
-          </div>
 
           {/* Dependency list */}
           {dependencies.length === 0 ? (

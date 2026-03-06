@@ -859,8 +859,8 @@ export function autoReschedule(db: DbType): number {
     // Find all dependencies for this HI
     const hiDeps = allHIDeps.filter((dep) => dep.householdItemId === hi.id);
 
-    if (hiDeps.length === 0) {
-      // No dependencies — HI is unconstrained
+    if (hiDeps.length === 0 && !hi.earliestDeliveryDate) {
+      // No dependencies and no earliest delivery constraint — HI is unconstrained
       hiDeliveryDates.set(hi.id, { targetDate: null, isLate: false });
       continue;
     }
