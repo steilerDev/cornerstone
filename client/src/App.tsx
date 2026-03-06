@@ -14,9 +14,6 @@ const WorkItemsPage = lazy(() => import('./pages/WorkItemsPage/WorkItemsPage'));
 const WorkItemCreatePage = lazy(() => import('./pages/WorkItemCreatePage/WorkItemCreatePage'));
 const WorkItemDetailPage = lazy(() => import('./pages/WorkItemDetailPage/WorkItemDetailPage'));
 const BudgetOverviewPage = lazy(() => import('./pages/BudgetOverviewPage/BudgetOverviewPage'));
-const BudgetCategoriesPage = lazy(
-  () => import('./pages/BudgetCategoriesPage/BudgetCategoriesPage'),
-);
 const VendorsPage = lazy(() => import('./pages/VendorsPage/VendorsPage'));
 const VendorDetailPage = lazy(() => import('./pages/VendorDetailPage/VendorDetailPage'));
 const BudgetSourcesPage = lazy(() => import('./pages/BudgetSourcesPage/BudgetSourcesPage'));
@@ -32,7 +29,7 @@ const HouseholdItemDetailPage = lazy(
 const HouseholdItemEditPage = lazy(
   () => import('./pages/HouseholdItemEditPage/HouseholdItemEditPage'),
 );
-const TagManagementPage = lazy(() => import('./pages/TagManagementPage/TagManagementPage'));
+const ManagePage = lazy(() => import('./pages/ManagePage/ManagePage.js'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage/ProfilePage'));
 const UserManagementPage = lazy(() => import('./pages/UserManagementPage/UserManagementPage'));
 const InvoicesPage = lazy(() => import('./pages/InvoicesPage/InvoicesPage'));
@@ -74,7 +71,10 @@ export function App() {
                   <Route path="budget">
                     <Route index element={<Navigate to="overview" replace />} />
                     <Route path="overview" element={<BudgetOverviewPage />} />
-                    <Route path="categories" element={<BudgetCategoriesPage />} />
+                    <Route
+                      path="categories"
+                      element={<Navigate to="/manage?tab=budget-categories" replace />}
+                    />
                     <Route path="vendors" element={<VendorsPage />} />
                     <Route path="vendors/:id" element={<VendorDetailPage />} />
                     <Route path="sources" element={<BudgetSourcesPage />} />
@@ -87,7 +87,8 @@ export function App() {
                   <Route path="household-items/new" element={<HouseholdItemCreatePage />} />
                   <Route path="household-items/:id" element={<HouseholdItemDetailPage />} />
                   <Route path="household-items/:id/edit" element={<HouseholdItemEditPage />} />
-                  <Route path="tags" element={<TagManagementPage />} />
+                  <Route path="manage" element={<ManagePage />} />
+                  <Route path="tags" element={<Navigate to="/manage" replace />} />
                   <Route path="profile" element={<ProfilePage />} />
                   <Route path="admin/users" element={<UserManagementPage />} />
                   <Route path="*" element={<NotFoundPage />} />

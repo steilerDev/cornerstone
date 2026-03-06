@@ -1,23 +1,17 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import type { TagResponse, HouseholdItemCategory } from '@cornerstone/shared';
+import type {
+  TagResponse,
+  HouseholdItemCategory,
+  HouseholdItemCategoryEntity,
+} from '@cornerstone/shared';
 import { getHouseholdItem, updateHouseholdItem } from '../../lib/householdItemsApi.js';
 import { fetchTags, createTag } from '../../lib/tagsApi.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
+import { fetchHouseholdItemCategories } from '../../lib/householdItemCategoriesApi.js';
 import { TagPicker } from '../../components/TagPicker/TagPicker.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
 import styles from './HouseholdItemEditPage.module.css';
-
-const CATEGORIES: Array<{ value: HouseholdItemCategory; label: string }> = [
-  { value: 'furniture', label: 'Furniture' },
-  { value: 'appliances', label: 'Appliances' },
-  { value: 'fixtures', label: 'Fixtures' },
-  { value: 'decor', label: 'Decor' },
-  { value: 'electronics', label: 'Electronics' },
-  { value: 'outdoor', label: 'Outdoor' },
-  { value: 'storage', label: 'Storage' },
-  { value: 'other', label: 'Other' },
-];
 
 interface Vendor {
   id: string;
@@ -40,6 +34,7 @@ export function HouseholdItemEditPage() {
 
   const [availableTags, setAvailableTags] = useState<TagResponse[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [categories, setCategories] = useState<HouseholdItemCategoryEntity[]>([]);
 
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -47,19 +42,21 @@ export function HouseholdItemEditPage() {
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [notFound, setNotFound] = useState(false);
 
-  // Load item data, tags, and vendors on mount
+  // Load item data, tags, vendors, and categories on mount
   useEffect(() => {
     async function loadData() {
       setIsLoadingData(true);
       try {
-        const [tagsResponse, vendorsResponse, item] = await Promise.all([
+        const [tagsResponse, vendorsResponse, categoriesResponse, item] = await Promise.all([
           fetchTags(),
           fetchVendors({ pageSize: 100 }),
+          fetchHouseholdItemCategories(),
           getHouseholdItem(id!),
         ]);
 
         setAvailableTags(tagsResponse.tags);
         setVendors(vendorsResponse.vendors);
+        setCategories(categoriesResponse.categories);
 
         // Populate form with item data
         setName(item.name);
@@ -240,9 +237,9 @@ export function HouseholdItemEditPage() {
               disabled={isSubmitting}
               aria-required="true"
             >
-              {CATEGORIES.map((cat) => (
-                <option key={cat.value} value={cat.value}>
-                  {cat.label}
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.name}
                 </option>
               ))}
             </select>

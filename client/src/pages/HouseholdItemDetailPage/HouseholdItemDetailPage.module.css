@@ -812,6 +812,12 @@
   opacity: 0.6;
 }
 
+.formStaticValue {
+  padding: var(--spacing-2-5) var(--spacing-3);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+}
+
 .budgetFormActions {
   display: flex;
   gap: var(--spacing-2);

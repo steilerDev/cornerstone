@@ -10,15 +10,6 @@
   gap: var(--spacing-6);
 }
 
-/* ---- Page header ---- */
-
-.pageHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--spacing-4);
-}
-
 .pageTitle {
   font-size: var(--font-size-4xl);
   font-weight: var(--font-weight-bold);
@@ -26,54 +17,44 @@
   margin: 0;
 }
 
-/* ---- Section header (below sub-nav) ---- */
-
-.sectionHeader {
+.tabList {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--spacing-4);
-}
-
-.sectionTitle {
-  font-size: var(--font-size-2xl);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-primary);
-  margin: 0;
-}
-
-/* ---- Banners ---- */
-
-.successBanner {
-  background-color: var(--color-success-bg);
-  border: 1px solid var(--color-success-border);
-  border-radius: var(--radius-md);
-  color: var(--color-success-text-on-light);
-  padding: var(--spacing-3);
-  font-size: var(--font-size-sm);
-}
-
-.errorBanner {
-  background-color: var(--color-danger-bg);
-  border: 1px solid var(--color-danger-border);
-  border-radius: var(--radius-md);
-  color: var(--color-danger-active);
-  padding: var(--spacing-3);
-  font-size: var(--font-size-sm);
+  gap: var(--spacing-2);
+  border-bottom: 1px solid var(--color-border);
   margin-bottom: var(--spacing-4);
 }
 
-/* ---- Loading / full-page error ---- */
-
-.loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 400px;
-  font-size: var(--font-size-base);
-  color: var(--color-text-muted);
+.tab {
+  padding: var(--spacing-3) var(--spacing-4);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-normal);
 }
 
+.tab:hover {
+  color: var(--color-text-primary);
+}
+
+.tabActive {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+
+.tabPanel {
+  display: contents;
+}
+
+/* ---- Loading ---- */
+.loading {
+  composes: loading from '../../styles/shared.module.css';
+}
+
+/* ---- Error card ---- */
 .errorCard {
   background: var(--color-bg-primary);
   border-radius: var(--radius-lg);
@@ -89,13 +70,19 @@
   margin: 0 0 var(--spacing-4) 0;
 }
 
-/* ---- Card ---- */
+/* ---- Banners ---- */
+.successBanner {
+  composes: bannerSuccess from '../../styles/shared.module.css';
+}
 
+.errorBanner {
+  composes: bannerError from '../../styles/shared.module.css';
+  margin-bottom: var(--spacing-4);
+}
+
+/* ---- Card ---- */
 .card {
-  background: var(--color-bg-primary);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-  padding: var(--spacing-6);
+  composes: card from '../../styles/shared.module.css';
 }
 
 .cardTitle {
@@ -112,7 +99,6 @@
 }
 
 /* ---- Form ---- */
-
 .form {
   display: flex;
   flex-direction: column;
@@ -132,12 +118,12 @@
 }
 
 .field {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: var(--spacing-1);
 }
 
-/* Name field stretches to fill available space */
 .fieldGrow {
   flex: 1;
   display: flex;
@@ -145,7 +131,6 @@
   gap: var(--spacing-1);
 }
 
-/* Color field is fixed width */
 .fieldFixed {
   flex-shrink: 0;
   display: flex;
@@ -153,7 +138,6 @@
   gap: var(--spacing-1);
 }
 
-/* Sort order field is narrower */
 .fieldNarrow {
   width: 7rem;
   flex-shrink: 0;
@@ -198,7 +182,6 @@
 }
 
 /* ---- Color picker ---- */
-
 .colorWrapper {
   display: flex;
   align-items: center;
@@ -221,7 +204,6 @@
   opacity: 0.6;
 }
 
-/* 12 px color swatch shown next to the picker for a preview */
 .colorSwatch {
   display: inline-block;
   width: 1.25rem;
@@ -232,7 +214,6 @@
 }
 
 /* ---- Form actions row ---- */
-
 .formActions {
   display: flex;
   gap: var(--spacing-3);
@@ -240,7 +221,6 @@
 }
 
 /* ---- Buttons ---- */
-
 .button {
   padding: var(--spacing-2-5) var(--spacing-4);
   background-color: var(--color-primary);
@@ -373,15 +353,14 @@
   cursor: not-allowed;
 }
 
-/* ---- Categories list ---- */
-
-.categoriesList {
+/* ---- Lists ---- */
+.itemsList {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-3);
 }
 
-.categoryRow {
+.itemRow {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -391,11 +370,11 @@
   transition: background-color var(--transition-normal);
 }
 
-.categoryRow:hover {
+.itemRow:hover {
   background-color: var(--color-bg-secondary);
 }
 
-.categoryInfo {
+.itemInfo {
   display: flex;
   align-items: center;
   gap: var(--spacing-3);
@@ -403,8 +382,7 @@
   min-width: 0;
 }
 
-/* 12px color circle swatch in the list */
-.categorySwatch {
+.itemSwatch {
   display: inline-block;
   width: 0.75rem;
   height: 0.75rem;
@@ -413,7 +391,7 @@
   flex-shrink: 0;
 }
 
-.categoryDetails {
+.itemDetails {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-0-5);
@@ -421,7 +399,7 @@
   min-width: 0;
 }
 
-.categoryName {
+.itemName {
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
   color: var(--color-text-primary);
@@ -430,7 +408,7 @@
   text-overflow: ellipsis;
 }
 
-.categoryDescription {
+.itemDescription {
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
   white-space: nowrap;
@@ -438,14 +416,14 @@
   text-overflow: ellipsis;
 }
 
-.categorySortOrder {
+.itemSortOrder {
   font-size: var(--font-size-xs);
   color: var(--color-text-placeholder);
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
 }
 
-.categoryActions {
+.itemActions {
   display: flex;
   gap: var(--spacing-2);
   flex-shrink: 0;
@@ -453,7 +431,6 @@
 }
 
 /* ---- Edit form inside list row ---- */
-
 .editForm {
   flex: 1;
   display: flex;
@@ -467,7 +444,6 @@
 }
 
 /* ---- Empty state ---- */
-
 .emptyState {
   padding: var(--spacing-8);
   text-align: center;
@@ -476,7 +452,6 @@
 }
 
 /* ---- Modal ---- */
-
 .modal {
   position: fixed;
   top: 0;
@@ -560,9 +535,7 @@
   cursor: not-allowed;
 }
 
-/* ============================================================
- * RESPONSIVE — Mobile (max 767px)
- * ============================================================ */
+/* ---- Responsive ---- */
 
 @media (max-width: 767px) {
   .container {
@@ -577,19 +550,6 @@
     padding: var(--spacing-4);
   }
 
-  /* Stack page header and section header vertically on mobile */
-  .pageHeader,
-  .sectionHeader {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .button {
-    width: 100%;
-    text-align: center;
-  }
-
-  /* Stack form fields vertically on mobile */
   .formRow,
   .editFormRow {
     flex-direction: column;
@@ -598,6 +558,11 @@
 
   .fieldNarrow {
     width: 100%;
+  }
+
+  .button {
+    width: 100%;
+    text-align: center;
   }
 
   .formActions {
@@ -610,14 +575,13 @@
     text-align: center;
   }
 
-  /* Category row becomes a column on mobile */
-  .categoryRow {
+  .itemRow {
     flex-direction: column;
     align-items: stretch;
     gap: var(--spacing-3);
   }
 
-  .categoryActions {
+  .itemActions {
     margin-left: 0;
     justify-content: stretch;
   }
@@ -636,7 +600,6 @@
     width: 100%;
   }
 
-  /* Modal actions */
   .modalActions {
     flex-direction: column-reverse;
   }
@@ -647,16 +610,11 @@
   }
 }
 
-/* ============================================================
- * RESPONSIVE — Tablet (768px – 1024px)
- * ============================================================ */
-
 @media (min-width: 768px) and (max-width: 1024px) {
   .container {
     padding: var(--spacing-6);
   }
 
-  /* Touch-friendly minimum heights */
   .button,
   .saveButton,
   .cancelButton,

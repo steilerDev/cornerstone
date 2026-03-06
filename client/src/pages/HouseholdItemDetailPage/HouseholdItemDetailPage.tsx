@@ -46,7 +46,6 @@ import {
   createHouseholdItemDep,
   deleteHouseholdItemDep,
 } from '../../lib/householdItemDepsApi.js';
-import { fetchBudgetCategories } from '../../lib/budgetCategoriesApi.js';
 import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
 import { fetchSubsidyPrograms } from '../../lib/subsidyProgramsApi.js';
@@ -83,7 +82,6 @@ interface BudgetLineFormState {
   description: string;
   plannedAmount: string;
   confidence: ConfidenceLevel;
-  budgetCategoryId: string;
   budgetSourceId: string;
   vendorId: string;
 }
@@ -92,7 +90,6 @@ const EMPTY_BUDGET_FORM: BudgetLineFormState = {
   description: '',
   plannedAmount: '',
   confidence: 'own_estimate',
-  budgetCategoryId: '',
   budgetSourceId: '',
   vendorId: '',
 };
@@ -119,7 +116,6 @@ export function HouseholdItemDetailPage() {
 
   // Budget lines state
   const [budgetLines, setBudgetLines] = useState<HouseholdItemBudgetLine[]>([]);
-  const [budgetCategories, setBudgetCategories] = useState<BudgetCategory[]>([]);
   const [budgetSources, setBudgetSources] = useState<BudgetSource[]>([]);
   const [allVendors, setAllVendors] = useState<Vendor[]>([]);
   const [budgetLineInvoices, setBudgetLineInvoices] = useState<Record<string, Invoice[]>>({});
@@ -275,21 +271,20 @@ export function HouseholdItemDetailPage() {
 
   const loadBudgetData = async (itemId: string) => {
     try {
-      const [budgets, subsidies, payback, categories, sources, vendors, programs, depsData] =
-        await Promise.all([
+      const [budgets, subsidies, payback, sources, vendors, programs, depsData] = await Promise.all(
+        [
           fetchHouseholdItemBudgets(itemId),
           fetchHouseholdItemSubsidies(itemId),
           fetchHouseholdItemSubsidyPayback(itemId),
-          fetchBudgetCategories(),
           fetchBudgetSources(),
           fetchVendors({ pageSize: 100 }),
           fetchSubsidyPrograms(),
           fetchHouseholdItemDeps(itemId),
-        ]);
+        ],
+      );
       setBudgetLines(budgets);
       setLinkedSubsidies(subsidies);
       setSubsidyPayback(payback);
-      setBudgetCategories(categories.categories);
       setBudgetSources(sources.budgetSources);
       setAllVendors(vendors.vendors);
       setAllSubsidyPrograms(programs.subsidyPrograms);
@@ -426,7 +421,6 @@ export function HouseholdItemDetailPage() {
       description: line.description ?? '',
       plannedAmount: String(line.plannedAmount),
       confidence: line.confidence,
-      budgetCategoryId: line.budgetCategory?.id ?? '',
       budgetSourceId: line.budgetSource?.id ?? '',
       vendorId: line.vendor?.id ?? '',
     });
@@ -458,7 +452,6 @@ export function HouseholdItemDetailPage() {
       description: budgetForm.description.trim() || null,
       plannedAmount,
       confidence: budgetForm.confidence,
-      budgetCategoryId: budgetForm.budgetCategoryId || null,
       budgetSourceId: budgetForm.budgetSourceId || null,
       vendorId: budgetForm.vendorId || null,
     };
@@ -1399,25 +1392,8 @@ export function HouseholdItemDetailPage() {
               </div>
 
               <div className={styles.budgetFormField}>
-                <label htmlFor="budget-category" className={styles.formLabel}>
-                  Budget Category
-                </label>
-                <select
-                  id="budget-category"
-                  value={budgetForm.budgetCategoryId}
-                  onChange={(e) =>
-                    setBudgetForm({ ...budgetForm, budgetCategoryId: e.target.value })
-                  }
-                  className={styles.formSelect}
-                  disabled={isSavingBudget}
-                >
-                  <option value="">— Select Category —</option>
-                  {budgetCategories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </option>
-                  ))}
-                </select>
+                <label className={styles.formLabel}>Category</label>
+                <div className={styles.formStaticValue}>Household Items</div>
               </div>
 
               <div className={styles.budgetFormField}>
