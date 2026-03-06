@@ -64,48 +64,62 @@ export class BudgetCategoriesPage {
   constructor(page: Page) {
     this.page = page;
 
+    // The budget-categories tab panel — all category-specific locators are scoped here
+    // to avoid matching identical CSS classes used in the other tab panels (tags, hi-categories)
+    const tabPanel = page.locator('#budget-categories-panel');
+
     // Page header — ManagePage renders <h1>Manage</h1>
     this.heading = page.getByRole('heading', { level: 1, name: 'Manage', exact: true });
-    this.addCategoryButton = page.getByRole('button', { name: 'Add Category', exact: true });
+    // "Add Category" appears in both BudgetCategoriesTab and HouseholdItemCategoriesTab;
+    // scope to the budget-categories tab panel to avoid ambiguity
+    this.addCategoryButton = tabPanel.getByRole('button', { name: 'Add Category', exact: true });
 
-    // Global banners — scoped to first role="alert" outside the form/modal for each type
-    // The page renders a single success banner and a single error banner in the main content area
-    this.successBanner = page.locator(`.content > [role="alert"]`).first();
-    this.errorBanner = page.locator('[role="alert"]').filter({ hasText: /error|failed|failed/i });
+    // Banners — inside the budget-categories tab panel
+    this.successBanner = tabPanel
+      .locator('[role="alert"]')
+      .filter({ hasText: /successfully/i })
+      .first();
+    this.errorBanner = tabPanel
+      .locator('[role="alert"]')
+      .filter({ hasText: /error|failed/i })
+      .first();
 
-    // Create form — inside the section with heading "New Budget Category"
-    this.createFormSection = page
+    // Create form — inside the section with heading "New Budget Category" (scoped to tab panel)
+    this.createFormSection = tabPanel
       .getByRole('heading', { level: 2, name: 'New Budget Category', exact: true })
       .locator('..');
-    this.createFormHeading = page.getByRole('heading', {
+    this.createFormHeading = tabPanel.getByRole('heading', {
       level: 2,
       name: 'New Budget Category',
       exact: true,
     });
+    // Input IDs are unique across the page (only one category form is active at a time)
     this.createNameInput = page.locator('#categoryName');
     this.createDescriptionInput = page.locator('#categoryDescription');
     this.createColorInput = page.locator('#categoryColor');
     this.createSortOrderInput = page.locator('#categorySortOrder');
-    this.createSubmitButton = page.getByRole('button', { name: /Create Category|Creating\.\.\./ });
-    this.createCancelButton = page
-      .getByRole('button', { name: 'Cancel', exact: true })
-      .filter({ has: page.locator(':scope') })
-      .first();
-    this.createErrorBanner = page
+    this.createSubmitButton = tabPanel.getByRole('button', {
+      name: /Create Category|Creating\.\.\./,
+    });
+    this.createCancelButton = tabPanel.getByRole('button', { name: 'Cancel', exact: true }).first();
+    this.createErrorBanner = tabPanel
       .getByRole('heading', { level: 2, name: 'New Budget Category', exact: true })
       .locator('..')
       .locator('[role="alert"]');
 
-    // Categories list section — inside the section with heading "Categories (N)"
-    // Use the count pattern to distinguish from the bare "Categories" sub-nav heading
-    this.categoriesSection = page
+    // Categories list section — ManagePage uses h2 "Categories (N)" (same pattern)
+    // Scoped to the tab panel; note ManagePage uses "itemsList" not "categoriesList"
+    this.categoriesSection = tabPanel
       .getByRole('heading', { level: 2, name: /^Categories \(/ })
       .locator('..');
-    this.categoriesListHeading = page.getByRole('heading', { level: 2, name: /^Categories \(/ });
-    this.categoriesList = page.locator('[class*="categoriesList"]');
-    this.emptyState = page.getByText(/No budget categories yet/);
+    this.categoriesListHeading = tabPanel.getByRole('heading', {
+      level: 2,
+      name: /^Categories \(/,
+    });
+    this.categoriesList = tabPanel.locator('[class*="itemsList"]');
+    this.emptyState = tabPanel.getByText(/No budget categories yet/);
 
-    // Delete confirmation modal
+    // Delete confirmation modal — rendered at root level (outside the tab panel)
     this.deleteModal = page.getByRole('dialog', { name: 'Delete Category' });
     this.deleteModalTitle = page.locator('#delete-modal-title');
     this.deleteModalText = this.deleteModal.locator('p').first();
@@ -154,9 +168,11 @@ export class BudgetCategoriesPage {
   /**
    * Get all category row locators from the categories list.
    * Each row contains the category's display info and action buttons.
+   * Scoped to the budget-categories panel to avoid matching tag/hi-category rows.
    */
   async getCategoryRows(): Promise<Locator[]> {
-    return await this.page.locator('[class*="categoryRow"]').all();
+    const tabPanel = this.page.locator('#budget-categories-panel');
+    return await tabPanel.locator('[class*="itemRow"]').all();
   }
 
   /**
@@ -164,16 +180,17 @@ export class BudgetCategoriesPage {
    * Returns null if not found.
    */
   async getCategoryRow(name: string): Promise<Locator | null> {
+    const tabPanel = this.page.locator('#budget-categories-panel');
     // Wait for at least one row to be visible before searching
     try {
-      await this.page.locator('[class*="categoryRow"]').first().waitFor({ state: 'visible' });
+      await tabPanel.locator('[class*="itemRow"]').first().waitFor({ state: 'visible' });
     } catch {
       return null;
     }
     const rows = await this.getCategoryRows();
     for (const row of rows) {
-      const nameEl = row.locator('[class*="categoryName"]');
-      // Skip rows that are in edit mode (no visible categoryName element)
+      const nameEl = row.locator('[class*="itemName"]');
+      // Skip rows that are in edit mode (no visible itemName element)
       const count = await nameEl.count();
       if (count === 0) continue;
       const rowText = await nameEl.textContent();
@@ -188,7 +205,8 @@ export class BudgetCategoriesPage {
    * Get names of all categories currently visible in the list, in display order.
    */
   async getCategoryNames(): Promise<string[]> {
-    const nameLocators = await this.page.locator('[class*="categoryName"]').all();
+    const tabPanel = this.page.locator('#budget-categories-panel');
+    const nameLocators = await tabPanel.locator('[class*="itemName"]').all();
     const names: string[] = [];
     for (const loc of nameLocators) {
       const text = await loc.textContent();
@@ -359,9 +377,10 @@ export class BudgetCategoriesPage {
    * Wait for the category list to be loaded (at least one row visible).
    */
   async waitForCategoriesLoaded(): Promise<void> {
+    const tabPanel = this.page.locator('#budget-categories-panel');
     // Either there's at least one row, or the empty state is visible
     await Promise.race([
-      this.page.locator('[class*="categoryRow"]').first().waitFor({ state: 'visible' }),
+      tabPanel.locator('[class*="itemRow"]').first().waitFor({ state: 'visible' }),
       this.emptyState.waitFor({ state: 'visible' }),
     ]);
   }
@@ -372,7 +391,8 @@ export class BudgetCategoriesPage {
   async getCategorySwatchColor(categoryName: string): Promise<string | null> {
     const row = await this.getCategoryRow(categoryName);
     if (!row) return null;
-    const swatch = row.locator('[class*="categorySwatch"]');
+    // ManagePage uses "itemSwatch" class (was "categorySwatch")
+    const swatch = row.locator('[class*="itemSwatch"]');
     return await swatch.evaluate((el) => {
       return (el as HTMLElement).style.backgroundColor;
     });
@@ -384,7 +404,8 @@ export class BudgetCategoriesPage {
   async getCategorySortOrder(categoryName: string): Promise<string | null> {
     const row = await this.getCategoryRow(categoryName);
     if (!row) return null;
-    const sortOrderEl = row.locator('[class*="categorySortOrder"]');
+    // ManagePage uses "itemSortOrder" class (was "categorySortOrder")
+    const sortOrderEl = row.locator('[class*="itemSortOrder"]');
     const text = await sortOrderEl.textContent();
     // Text is rendered as "#N" — strip the "#" prefix
     return text?.replace('#', '').trim() ?? null;
@@ -396,7 +417,8 @@ export class BudgetCategoriesPage {
   async getCategoryDescription(categoryName: string): Promise<string | null> {
     const row = await this.getCategoryRow(categoryName);
     if (!row) return null;
-    const descEl = row.locator('[class*="categoryDescription"]');
+    // ManagePage uses "itemDescription" class (was "categoryDescription")
+    const descEl = row.locator('[class*="itemDescription"]');
     const isVisible = await descEl.isVisible();
     if (!isVisible) return null;
     return await descEl.textContent();
