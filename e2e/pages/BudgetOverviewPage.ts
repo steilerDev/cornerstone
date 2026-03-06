@@ -61,11 +61,10 @@ export class BudgetOverviewPage {
     });
     this.retryButton = this.errorCard.getByRole('button', { name: 'Retry', exact: true });
 
-    // Empty state: class `.emptyState` rendered when no budget data exists.
-    // Use div[class*="emptyState"] to avoid matching child elements
-    // (.emptyStateTitle, .emptyStateDescription) which also contain "emptyState" in
-    // their class names and would cause a strict mode violation.
-    this.emptyState = page.locator('div[class*="emptyState"]');
+    // Empty state: the outermost container with a CSS-module class beginning "emptyState".
+    // Use .first() to avoid strict mode: there can be a second div (e.g. chart empty state)
+    // whose class also starts with "emptyState", causing "resolved to 2 elements" errors.
+    this.emptyState = page.locator('div[class*="emptyState"]').first();
 
     // Budget Health Hero card: <section aria-labelledby="budget-health-heading">
     this.heroCard = page.locator('[aria-labelledby="budget-health-heading"]');
