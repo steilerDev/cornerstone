@@ -26,6 +26,7 @@ import {
 } from '../db/schema.js';
 import { deleteLinksForEntity } from './documentLinkService.js';
 import { listDeps } from './householdItemDepService.js';
+import { autoReschedule } from './schedulingEngine.js';
 import type {
   HouseholdItemDetail,
   HouseholdItemSummary,
@@ -528,6 +529,17 @@ export function updateHouseholdItem(
   if ('tagIds' in data) {
     const tagIds = data.tagIds ?? [];
     replaceHouseholdItemTags(db, id, tagIds);
+  }
+
+  // Trigger auto-reschedule when any scheduling-relevant field changed.
+  const schedulingFieldChanged =
+    'earliestDeliveryDate' in data ||
+    'latestDeliveryDate' in data ||
+    'actualDeliveryDate' in data ||
+    'status' in data;
+
+  if (schedulingFieldChanged) {
+    autoReschedule(db);
   }
 
   // Fetch and return the updated item
