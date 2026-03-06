@@ -730,47 +730,8 @@ export function CostBreakdownTable({
             </tr>
           </thead>
 
-          <tbody>
-            {/* Available Funds row (expandable when sources exist) */}
-            <tr className={styles.rowLevel0}>
-              <td className={styles.colName}>
-                <div className={styles.nameContent}>
-                  {budgetSources.length > 0 && (
-                    <button
-                      type="button"
-                      className={styles.expandBtn}
-                      aria-expanded={availFundsExpanded}
-                      aria-label="Expand available funds sources"
-                      onClick={() => toggle(availFundsKey)}
-                    >
-                      <ChevronSvg
-                        className={`${styles.chevron} ${availFundsExpanded ? styles.chevronOpen : ''}`}
-                      />
-                    </button>
-                  )}
-                  <span>Available funds</span>
-                </div>
-              </td>
-              <td className={styles.colBudget} colSpan={3}>
-                {formatCurrency(overview.availableFunds)}
-              </td>
-            </tr>
-
-            {/* Budget source sub-rows */}
-            {availFundsExpanded &&
-              budgetSources.map((source) => (
-                <tr key={source.id} className={styles.rowSourceDetail}>
-                  <td className={styles.colName}>
-                    <div className={`${styles.nameContent} ${styles.nameIndented}`}>
-                      <span>{source.name}</span>
-                    </div>
-                  </td>
-                  <td className={styles.colBudget} colSpan={3}>
-                    {formatCurrency(source.totalAmount)}
-                  </td>
-                </tr>
-              ))}
-
+          {/* ===== COST SECTION (with column tints) ===== */}
+          <tbody className={styles.costSection}>
             {/* Work Item Budget row (expandable) */}
             {visibleWICategories.length > 0 && (
               <>
@@ -916,12 +877,71 @@ export function CostBreakdownTable({
                 )}
               </>
             )}
+          </tbody>
 
-            {/* Sum row (not expandable, colored) */}
+          {/* ===== SUMMARY SECTION (no column tints) ===== */}
+          <tbody>
+            {/* Cost Sum row */}
             <tr className={styles.rowLevel0}>
               <td className={styles.colName}>
                 <div className={styles.nameContent}>
-                  <span>Sum</span>
+                  <span>Cost Sum</span>
+                </div>
+              </td>
+              <td className={styles.colBudget}>{formatCost(totalRawProjected)}</td>
+              <td className={styles.colPayback}>
+                {maxTotalPayback > 0 ? formatPayback(resolvedTotalPayback) : '—'}
+              </td>
+              <td className={styles.colRemaining}>
+                {renderNet(totalRawProjected, resolvedTotalPayback, styles)}
+              </td>
+            </tr>
+
+            {/* Available Funds row (expandable when sources exist) */}
+            <tr className={styles.rowLevel0}>
+              <td className={styles.colName}>
+                <div className={styles.nameContent}>
+                  {budgetSources.length > 0 && (
+                    <button
+                      type="button"
+                      className={styles.expandBtn}
+                      aria-expanded={availFundsExpanded}
+                      aria-label="Expand available funds sources"
+                      onClick={() => toggle(availFundsKey)}
+                    >
+                      <ChevronSvg
+                        className={`${styles.chevron} ${availFundsExpanded ? styles.chevronOpen : ''}`}
+                      />
+                    </button>
+                  )}
+                  <span>Available funds</span>
+                </div>
+              </td>
+              <td className={styles.colBudget} colSpan={3}>
+                {formatCurrency(overview.availableFunds)}
+              </td>
+            </tr>
+
+            {/* Budget source sub-rows */}
+            {availFundsExpanded &&
+              budgetSources.map((source) => (
+                <tr key={source.id} className={styles.rowSourceDetail}>
+                  <td className={styles.colName}>
+                    <div className={`${styles.nameContent} ${styles.nameIndented}`}>
+                      <span>{source.name}</span>
+                    </div>
+                  </td>
+                  <td className={styles.colBudget} colSpan={3}>
+                    {formatCurrency(source.totalAmount)}
+                  </td>
+                </tr>
+              ))}
+
+            {/* Remaining Budget row */}
+            <tr className={styles.rowLevel0}>
+              <td className={styles.colName}>
+                <div className={styles.nameContent}>
+                  <span>Remaining</span>
                 </div>
               </td>
               <td className={styles.colBudget}>

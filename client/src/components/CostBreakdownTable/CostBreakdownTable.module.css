@@ -118,14 +118,13 @@
 }
 
 /* ---- Column tints (layered on top of row backgrounds) ---- */
+/* Only apply to cost section (work items + household items) */
 
-td.colBudget,
-th.colBudget {
+.costSection td.colBudget {
   box-shadow: inset 0 0 0 9999px color-mix(in srgb, var(--color-danger) 5%, transparent);
 }
 
-td.colPayback,
-th.colPayback {
+.costSection td.colPayback {
   box-shadow: inset 0 0 0 9999px color-mix(in srgb, var(--color-success) 5%, transparent);
 }
 
