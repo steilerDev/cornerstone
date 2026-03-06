@@ -10,7 +10,6 @@ concurrency:
 
 permissions:
   contents: write
-  pull-requests: write
 
 jobs:
   auto-fix:
@@ -42,21 +41,11 @@ jobs:
           else
             echo "has_changes=true" >> "$GITHUB_OUTPUT"
           fi
-      - name: Create fix PR
+      - name: Push fixes to beta
         if: steps.changes.outputs.has_changes == 'true'
         run: |
-          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
-          BRANCH="auto-fix/lint-format-${SHORT_SHA}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout -b "$BRANCH"
           git add -A
           git commit -m "style: auto-fix lint and format"
-          git push origin "$BRANCH"
-          gh pr create \
-            --base beta \
-            --head "$BRANCH" \
-            --title "style: auto-fix lint and format" \
-            --body "Automated lint, format, and audit fixes triggered by $(git log -1 --format='%h %s' ${{ github.sha }})."
-        env:
-          GH_TOKEN: ${{ github.token }}
+          git push origin beta
