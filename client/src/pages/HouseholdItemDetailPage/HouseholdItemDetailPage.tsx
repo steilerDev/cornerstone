@@ -1,10 +1,9 @@
-import { useState, useEffect, useRef, useMemo, type FormEvent } from 'react';
+import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import type {
   HouseholdItemDetail,
   HouseholdItemStatus,
   HouseholdItemCategory,
-  WorkItemStatus,
   HouseholdItemBudgetLine,
   ConfidenceLevel,
   CreateHouseholdItemBudgetRequest,
@@ -18,9 +17,7 @@ import type {
   Invoice,
   HouseholdItemDepDetail,
   HouseholdItemDepPredecessorType,
-  CreateHouseholdItemDepRequest,
   MilestoneSummary,
-  DependencyType,
 } from '@cornerstone/shared';
 import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
 import {
@@ -59,7 +56,6 @@ import { fetchInvoices } from '../../lib/invoicesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { formatDate, formatCurrency } from '../../lib/formatters.js';
 import { HouseholdItemStatusBadge } from '../../components/HouseholdItemStatusBadge/HouseholdItemStatusBadge.js';
-import { StatusBadge } from '../../components/StatusBadge/StatusBadge.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
 import styles from './HouseholdItemDetailPage.module.css';
@@ -80,12 +76,6 @@ const CONFIDENCE_LABELS: Record<ConfidenceLevel, string> = {
   professional_estimate: 'Professional Estimate',
   quote: 'Quote',
   invoice: 'Invoice',
-};
-
-const WORK_ITEM_STATUS_LABELS: Record<string, string> = {
-  not_started: 'Not Started',
-  in_progress: 'In Progress',
-  completed: 'Completed',
 };
 
 /** Budget line form state used for both create and edit. */
@@ -196,6 +186,7 @@ export function HouseholdItemDetailPage() {
       setLocalEarliestDeliveryDate(item.earliestDeliveryDate || '');
       setLocalLatestDeliveryDate(item.latestDeliveryDate || '');
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item?.id]);
 
   useEffect(() => {
@@ -248,12 +239,13 @@ export function HouseholdItemDetailPage() {
   }, [showAddDepModal]);
 
   // Load invoices for budget lines whenever the item or budget lines change
+  const budgetLineIdString = budgetLines.map((bl) => bl.id).join(',');
   useEffect(() => {
     if (item?.vendor && budgetLines.length > 0) {
       const budgetLineIds = budgetLines.map((bl) => bl.id);
       void loadBudgetLineInvoices(item.vendor.id, budgetLineIds);
     }
-  }, [item?.vendor?.id, budgetLines.map((bl) => bl.id).join(',')]);
+  }, [item?.vendor, budgetLines, budgetLineIdString]);
 
   const loadItem = async () => {
     if (!id) return;
@@ -402,7 +394,7 @@ export function HouseholdItemDetailPage() {
       setItem(newItem);
       setRemovingDepKey(null);
       showToast('success', 'Dependency removed');
-    } catch (err) {
+    } catch {
       showToast('error', 'Failed to remove dependency');
     }
   };

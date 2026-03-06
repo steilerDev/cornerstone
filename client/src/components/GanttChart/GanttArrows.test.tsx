@@ -15,7 +15,7 @@
  *   - tabIndex controlled by the visible prop
  *   - Rendering returns null when no arrows are computable
  */
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { describe, it, expect, jest } from '@jest/globals';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { GanttArrows } from './GanttArrows.js';
 import type { GanttArrowsProps, ArrowColors } from './GanttArrows.js';

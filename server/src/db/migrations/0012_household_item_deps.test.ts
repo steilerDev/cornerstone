@@ -36,17 +36,6 @@ describe('Migration 0012: Household Item Deps', () => {
    */
 
   /**
-   * Insert a minimal user row required by FK constraints.
-   */
-  function insertUser(db: Database.Database, id: string) {
-    const now = new Date().toISOString();
-    db.prepare(
-      `INSERT INTO users (id, email, display_name, role, auth_provider, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    ).run(id, `${id}@example.com`, `User ${id}`, 'member', 'local', now, now);
-  }
-
-  /**
    * Insert a minimal work item row required by FK constraints.
    */
   function insertWorkItem(db: Database.Database, id: string) {

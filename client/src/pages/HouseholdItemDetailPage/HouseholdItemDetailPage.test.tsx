@@ -11,10 +11,8 @@ import type {
   HouseholdItemDetail,
   HouseholdItemStatus,
   HouseholdItemCategory,
-  WorkItemSummary,
 } from '@cornerstone/shared';
 import type React from 'react';
-import type * as HouseholdItemWorkItemsApiTypes from '../../lib/householdItemWorkItemsApi.js';
 import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
 import type * as HouseholdItemDepsApiTypes from '../../lib/householdItemDepsApi.js';
 import type * as MilestonesApiTypes from '../../lib/milestonesApi.js';
@@ -33,12 +31,19 @@ const mockCreateHouseholdItemDep =
   jest.fn<typeof HouseholdItemDepsApiTypes.createHouseholdItemDep>();
 const mockDeleteHouseholdItemDep =
   jest.fn<typeof HouseholdItemDepsApiTypes.deleteHouseholdItemDep>();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockFetchHouseholdItemBudgets = jest.fn() as any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockFetchBudgetCategories = jest.fn() as any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockFetchBudgetSources = jest.fn() as any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockFetchVendors = jest.fn() as any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockFetchSubsidyPrograms = jest.fn() as any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockFetchHouseholdItemSubsidies = jest.fn() as any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockFetchHouseholdItemSubsidyPayback = jest.fn() as any;
 
 // Mock ApiClientError for error scenarios
@@ -223,24 +228,6 @@ describe('HouseholdItemDetailPage', () => {
       ],
       dependencies: [],
       subsidies: [],
-      ...overrides,
-    };
-  }
-
-  function makeWorkItem(overrides: Partial<WorkItemSummary> = {}): WorkItemSummary {
-    return {
-      id: 'wi-1',
-      title: 'Work Item',
-      status: 'not_started' as const,
-      startDate: null,
-      endDate: null,
-      actualStartDate: null,
-      actualEndDate: null,
-      durationDays: null,
-      assignedUser: null,
-      tags: [],
-      createdAt: '2026-01-01T00:00:00.000Z',
-      updatedAt: '2026-01-01T00:00:00.000Z',
       ...overrides,
     };
   }
@@ -977,7 +964,7 @@ describe('HouseholdItemDetailPage', () => {
 
   describe('inline status selector', () => {
     it('renders the status select with correct current value', async () => {
-      const user = userEvent.setup();
+      const _user = userEvent.setup();
       mockGetHouseholdItem.mockResolvedValue(makeItem({ status: 'purchased' }));
 
       renderPage();

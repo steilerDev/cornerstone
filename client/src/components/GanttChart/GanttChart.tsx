@@ -391,7 +391,7 @@ export function GanttChart({
     });
 
     return all;
-  }, [sortedWorkItems, data.milestones, data.householdItems]);
+  }, [sortedWorkItems, data]);
 
   // Derive work item row indices and milestone row indices from the unified row list
   const workItemRowIndices = useMemo(() => {

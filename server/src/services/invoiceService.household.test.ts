@@ -8,15 +8,12 @@ import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import type { ConfidenceLevel } from '@cornerstone/shared';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
 import * as invoiceService from './invoiceService.js';
 import * as householdItemService from './householdItemService.js';
-import {
-  ValidationError,
-  NotFoundError,
-  MutuallyExclusiveBudgetLinkError,
-} from '../errors/AppError.js';
+import { ValidationError, MutuallyExclusiveBudgetLinkError } from '../errors/AppError.js';
 
 describe('Invoice Service - Household Item Budget Linking', () => {
   let sqlite: Database.Database;
@@ -97,7 +94,7 @@ describe('Invoice Service - Household Item Budget Linking', () => {
         householdItemId,
         description: null,
         plannedAmount,
-        confidence: confidence as any,
+        confidence: confidence as ConfidenceLevel,
         budgetCategoryId: null,
         createdAt: now,
         updatedAt: now,

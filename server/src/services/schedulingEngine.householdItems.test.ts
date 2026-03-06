@@ -443,7 +443,7 @@ describe('autoReschedule — household item delivery date computation', () => {
       insertHIDep(db, hiId, 'work_item', wiId);
 
       // When: autoReschedule runs
-      const count = autoReschedule(db);
+      const _count = autoReschedule(db);
 
       // Then: updatedCount might be 0 if the date matches (or 1 if there's a rounding difference)
       // The key point is the target delivery date remains correct

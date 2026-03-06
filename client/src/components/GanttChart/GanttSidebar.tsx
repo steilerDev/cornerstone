@@ -37,7 +37,7 @@ export interface GanttSidebarProps {
  * - Enter/Space: activate (navigate to work item detail)
  */
 export const GanttSidebar = forwardRef<HTMLDivElement, GanttSidebarProps>(function GanttSidebar(
-  { items, milestones = [], unifiedRows, onItemClick, onHouseholdItemClick },
+  { items, _milestones = [], unifiedRows, onItemClick, onHouseholdItemClick },
   ref,
 ) {
   // Ref for the rows container to query row elements

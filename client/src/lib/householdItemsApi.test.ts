@@ -6,11 +6,7 @@ import {
   updateHouseholdItem,
   deleteHouseholdItem,
 } from './householdItemsApi.js';
-import type {
-  HouseholdItemListResponse,
-  HouseholdItemDetail,
-  HouseholdItemSummary,
-} from '@cornerstone/shared';
+import type { HouseholdItemListResponse, HouseholdItemDetail } from '@cornerstone/shared';
 
 describe('householdItemsApi', () => {
   let mockFetch: jest.MockedFunction<typeof globalThis.fetch>;

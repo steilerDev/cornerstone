@@ -1,6 +1,6 @@
 /** @jest-environment jsdom */
 // Tests for Logo component — Bug #318 fix verification.
-import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, cleanup } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import type * as ThemeContextTypes from '../../contexts/ThemeContext.js';

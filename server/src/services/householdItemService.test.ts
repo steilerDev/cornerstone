@@ -1058,7 +1058,7 @@ describe('Household Item Service', () => {
       // Given: An item with tags
       const userId = createTestUser('user@example.com', 'Test User');
       const tagId = createTestTag('Garden');
-      const item = householdItemService.createHouseholdItem(db, userId, {
+      const _item = householdItemService.createHouseholdItem(db, userId, {
         name: 'Patio Table',
         tagIds: [tagId],
       });
@@ -1073,7 +1073,7 @@ describe('Household Item Service', () => {
     it('returns summary with earliestDeliveryDate and latestDeliveryDate fields', () => {
       // Given: An item
       const userId = createTestUser('user@example.com', 'Test User');
-      const item = householdItemService.createHouseholdItem(db, userId, {
+      const _item = householdItemService.createHouseholdItem(db, userId, {
         name: 'Patio Table',
       });
 

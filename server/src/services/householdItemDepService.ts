@@ -10,7 +10,7 @@
 import { eq, and } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { householdItemDeps, householdItems, workItems, milestones, users } from '../db/schema.js';
+import { householdItemDeps, householdItems, workItems, milestones } from '../db/schema.js';
 import type {
   HouseholdItemDepDetail,
   HouseholdItemDepPredecessorSummary,
@@ -112,10 +112,10 @@ function getMilestonePredecessor(
  * @returns false (cycles are impossible)
  */
 function detectCycle(
-  db: DbType,
-  householdItemId: string,
-  predecessorId: string,
-  predecessorType: 'work_item' | 'milestone',
+  _db: DbType,
+  _householdItemId: string,
+  _predecessorId: string,
+  _predecessorType: 'work_item' | 'milestone',
 ): boolean {
   // Household items are terminal nodes in the dependency graph — they can depend
   // on work items and milestones, but nothing depends on them. Cycles are
