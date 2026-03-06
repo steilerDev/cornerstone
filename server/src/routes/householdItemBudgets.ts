@@ -30,6 +30,7 @@ const budgetParamsSchema = {
 };
 
 // JSON schema for POST /api/household-items/:householdItemId/budgets
+// Note: budgetCategoryId is auto-assigned to 'bc-household-items'; it cannot be provided by users
 const createBudgetSchema = {
   body: {
     type: 'object',
@@ -41,7 +42,6 @@ const createBudgetSchema = {
         type: 'string',
         enum: ['own_estimate', 'professional_estimate', 'quote', 'invoice'],
       },
-      budgetCategoryId: { type: ['string', 'null'] },
       budgetSourceId: { type: ['string', 'null'] },
       vendorId: { type: ['string', 'null'] },
     },
@@ -57,6 +57,7 @@ const createBudgetSchema = {
 };
 
 // JSON schema for PATCH /api/household-items/:householdItemId/budgets/:budgetId
+// Note: budgetCategoryId is always 'bc-household-items'; it cannot be changed
 const updateBudgetSchema = {
   body: {
     type: 'object',
@@ -68,7 +69,6 @@ const updateBudgetSchema = {
         type: 'string',
         enum: ['own_estimate', 'professional_estimate', 'quote', 'invoice'],
       },
-      budgetCategoryId: { type: ['string', 'null'] },
       budgetSourceId: { type: ['string', 'null'] },
       vendorId: { type: ['string', 'null'] },
     },

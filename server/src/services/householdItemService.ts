@@ -15,6 +15,7 @@ import type * as schemaTypes from '../db/schema.js';
 import {
   householdItems,
   householdItemTags,
+  householdItemCategories,
   tags,
   users,
   vendors,
@@ -243,7 +244,7 @@ export function toHouseholdItemSummary(
     id: item.id,
     name: item.name,
     description: item.description,
-    category: item.category as HouseholdItemCategory,
+    category: item.categoryId as HouseholdItemCategory,
     status: item.status as HouseholdItemStatus,
     vendor: toVendorSummary(vendor),
     room: item.room,
@@ -318,6 +319,21 @@ function validateVendorId(db: DbType, vendorId: string): void {
 }
 
 /**
+ * Validate that household item category ID exists.
+ * Throws ValidationError if category does not exist.
+ */
+function validateHouseholdItemCategoryId(db: DbType, categoryId: string): void {
+  const category = db
+    .select()
+    .from(householdItemCategories)
+    .where(eq(householdItemCategories.id, categoryId))
+    .get();
+  if (!category) {
+    throw new ValidationError(`Household item category not found: ${categoryId}`);
+  }
+}
+
+/**
  * Replace all tags for a household item (set-semantics).
  * Deletes existing associations not in the new set, inserts new ones.
  */
@@ -359,6 +375,10 @@ export function createHouseholdItem(
     validateTagIds(db, tagIds);
   }
 
+  // Validate optional category ID if provided, default to 'hic-other'
+  const categoryId = data.category ?? 'hic-other';
+  validateHouseholdItemCategoryId(db, categoryId);
+
   // Cross-field validation: if both earliest and latest are provided, earliest <= latest
   if (data.earliestDeliveryDate && data.latestDeliveryDate) {
     if (data.earliestDeliveryDate > data.latestDeliveryDate) {
@@ -376,7 +396,7 @@ export function createHouseholdItem(
       id,
       name: data.name.trim(),
       description: data.description ?? null,
-      category: data.category ?? 'other',
+      categoryId,
       status: data.status ?? 'planned',
       vendorId: data.vendorId ?? null,
       url: data.url ?? null,
@@ -436,6 +456,11 @@ export function updateHouseholdItem(
     validateVendorId(db, data.vendorId);
   }
 
+  // Validate category if provided
+  if ('category' in data) {
+    validateHouseholdItemCategoryId(db, data.category);
+  }
+
   // Validate tags if provided
   if ('tagIds' in data) {
     const tagIds = data.tagIds ?? [];
@@ -478,7 +503,7 @@ export function updateHouseholdItem(
   }
 
   if ('category' in data) {
-    updateData.category = data.category;
+    updateData.categoryId = data.category;
   }
 
   if ('status' in data) {
@@ -579,7 +604,7 @@ export function listHouseholdItems(
   const conditions = [];
 
   if (query.category) {
-    conditions.push(eq(householdItems.category, query.category));
+    conditions.push(eq(householdItems.categoryId, query.category));
   }
 
   if (query.status) {
@@ -631,7 +656,7 @@ export function listHouseholdItems(
     sortBy === 'name'
       ? householdItems.name
       : sortBy === 'category'
-        ? householdItems.category
+        ? householdItems.categoryId
         : sortBy === 'status'
           ? householdItems.status
           : sortBy === 'room'
