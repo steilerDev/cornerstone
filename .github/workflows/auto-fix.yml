@@ -50,5 +50,5 @@ jobs:
           git config user.name "cornerstone-bot[bot]"
           git config user.email "${{ steps.app-token.outputs.app-slug }}[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "style: auto-fix lint and format"
+          git commit -m "style: auto-fix lint and format [skip ci]"
           git push origin beta
