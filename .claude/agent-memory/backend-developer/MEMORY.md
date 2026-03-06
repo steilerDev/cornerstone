@@ -310,7 +310,7 @@ The sandbox has strict limitations for git operations in worktrees:
    ALTDIR=/tmp/git-obj-$$; mkdir -p $ALTDIR
    printf "$ALTDIR\n" >> /path/to/.git/objects/info/alternates
    # Stage: GIT_OBJECT_DIRECTORY=$ALTDIR GIT_ALTERNATE_OBJECT_DIRECTORIES=/path/.git/objects git add <files>
-   # Commit: GIT_OBJECT_DIRECTORY=$ALTDIR GIT_ALTERNATE_OBJECT_DIRECTORIES=/path/.git/objects git commit --no-verify -m "..."
+   # Commit: GIT_OBJECT_DIRECTORY=$ALTDIR GIT_ALTERNATE_OBJECT_DIRECTORIES=/path/.git/objects git commit -m "..."
    # Verify: GIT_ALTERNATE_OBJECT_DIRECTORIES=$ALTDIR git log --oneline -3
    # If branch ref detaches, manually: echo "SHA" > .git/refs/heads/branch-name
    # Push: GIT_ALTERNATE_OBJECT_DIRECTORIES=$ALTDIR git push "https://USER:TOKEN@github.com/..." branch:branch
@@ -326,9 +326,5 @@ The sandbox has strict limitations for git operations in worktrees:
 
 ## Pre-commit Hook Architecture
 
-- `.husky/pre-commit`: runs `npx lint-staged && npm run typecheck && npm audit --omit=dev --audit-level=low`
-- `.lintstagedrc.js`: configures per-file-type commands
-- `scripts/check-dep-pinning.sh`: validates `dependencies`/`devDependencies` use exact pins (no ^/~)
-  - Uses `node --input-type=module` inline script to parse JSON (avoids jq dependency)
-  - Ignores `peerDependencies` and workspace cross-references (`*`, `workspace:*`)
-  - Triggered by `**/package.json` lint-staged glob
+- `.husky/pre-commit`: runs `npm run typecheck` (typecheck only — lint, format, and audit are handled by CI auto-fix workflow)
+- Lint, format, and `npm audit fix` run automatically on `beta` via `.github/workflows/auto-fix.yml`

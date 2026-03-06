@@ -128,18 +128,17 @@ All commits follow [Conventional Commits](https://www.conventionalcommits.org/):
 - **Breaking changes**: Use `!` suffix or `BREAKING CHANGE:` footer
 - Every completed task gets its own commit with a meaningful description
 - **Link commits to issues**: When a commit resolves work tracked in a GitHub Issue, include `Fixes #<issue-number>` in the commit message body (one per line for multiple issues). Note: `Fixes #N` only auto-closes issues when the commit reaches `main` (not `beta`).
-- **Always commit, push to a feature branch, and create a PR after work is complete.** The pre-commit hook automatically runs all quality gates (selective lint/format/tests on staged files + full typecheck/build/audit). Just commit — the hook validates. If the hook fails, fix the issues and commit again. Do not leave work uncommitted or unpushed. Never push directly to `main` or `beta`.
+- **Always commit, push to a feature branch, and create a PR after work is complete.** The pre-commit hook runs typecheck automatically. Lint, format, and audit fixes are handled by the CI auto-fix bot on `beta`. Just commit — the hook validates types. If the hook fails, fix the type errors and commit again. Do not leave work uncommitted or unpushed. Never push directly to `main` or `beta`.
 
 ### Local Validation Policy
 
-**Do NOT run `npm test`, `npm run lint`, `npm run typecheck`, or `npm run build` manually.** The pre-commit hook runs all quality gates automatically:
+**Do NOT run `npm test`, `npm run lint`, `npm run typecheck`, or `npm run build` manually.** The pre-commit hook runs typecheck automatically. Lint, format, and audit issues are handled by the CI auto-fix bot (`.github/workflows/auto-fix.yml`), which runs on every push to `beta` and creates a fix PR if needed.
 
-- Selective lint + format + related tests on staged files (via lint-staged)
-- Full typecheck across all workspaces
-- Full build (shared → client → server)
-- Dependency security audit
+- Pre-commit hook: `npm run typecheck` (full typecheck across all workspaces)
+- CI auto-fix bot: `npm run lint:fix` + `npm run format` + `npm audit fix` (runs on `beta` push, creates PR if changes needed)
+- CI Quality Gates: typecheck + test + build (runs on every PR)
 
-To validate your work: **stage and commit**. If the hook fails, fix the issues and commit again. After pushing, **always wait for CI to go green** (`gh pr checks <pr-number> --watch`) before proceeding to the next step.
+To validate your work: **stage and commit**. If the hook fails, fix the type errors and commit again. After pushing, **always wait for CI to go green** (`gh pr checks <pr-number> --watch`) before proceeding to the next step.
 
 The only exception is the QA agent running a specific test file it just wrote (e.g., `npx jest path/to/new.test.ts`) to verify correctness before committing — but never `npm test` (the full suite).
 
