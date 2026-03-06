@@ -626,7 +626,11 @@ export function BudgetOverviewPage() {
             {hasPayback && (
               <div className={styles.metricGroup}>
                 <span className={styles.metricLabel}>Expected Payback</span>
-                <span className={`${styles.metricValue} ${styles.metricPaybackValue}`}>
+                <span
+                  className={`${styles.metricValue} ${styles.metricPaybackValue}`}
+                  aria-live="polite"
+                  aria-atomic="true"
+                >
                   <span className={styles.metricRange}>
                     {formatShort(overview.subsidySummary.minTotalPayback)}
                     {overview.subsidySummary.minTotalPayback !==

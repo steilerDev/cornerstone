@@ -48,6 +48,7 @@
     background-color var(--transition-fast),
     color var(--transition-fast);
   min-width: 52px;
+  min-height: 44px;
 }
 
 .perspectiveSegment:last-child {
@@ -254,6 +255,10 @@
 
 @media (prefers-reduced-motion: reduce) {
   .chevron {
+    transition: none;
+  }
+
+  .perspectiveSegment {
     transition: none;
   }
 }
