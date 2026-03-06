@@ -113,3 +113,30 @@ export async function createMilestoneViaApi(
 export async function deleteMilestoneViaApi(page: Page, id: number): Promise<void> {
   await page.request.delete(`${API.milestones}/${id}`);
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Household Items
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function createHouseholdItemViaApi(
+  page: Page,
+  data: {
+    name: string;
+    category?: string;
+    status?: string;
+    room?: string;
+    quantity?: number;
+    [key: string]: unknown;
+  },
+): Promise<string> {
+  const response = await page.request.post(API.householdItems, {
+    data: { category: 'other', status: 'planned', ...data },
+  });
+  expect(response.ok()).toBeTruthy();
+  const body = (await response.json()) as { householdItem: { id: string } };
+  return body.householdItem.id;
+}
+
+export async function deleteHouseholdItemViaApi(page: Page, id: string): Promise<void> {
+  await page.request.delete(`${API.householdItems}/${id}`);
+}
