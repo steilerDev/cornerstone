@@ -47,10 +47,16 @@ export class HouseholdItemDetailPage {
     // h1 heading — the item name (editable)
     this.heading = page.getByRole('heading', { level: 1 });
 
-    // Back link is a <Link> in the breadcrumb with text "Household Items"
+    // Back link is a <Link> in the breadcrumb with text "Household Items".
     // NOTE: The AppShell sidebar also has a "Household Items" nav link.
-    // Use first() to get the breadcrumb link, not the sidebar nav link.
-    this.backLink = page.getByRole('link', { name: 'Household Items', exact: true }).first();
+    // On mobile/tablet, the sidebar is off-screen, so .first() resolves to the
+    // sidebar nav link (outside viewport) and the click times out.
+    // Scope to the breadcrumb container (class*="breadcrumb") to always get the
+    // correct in-page breadcrumb link regardless of viewport.
+    this.backLink = page.locator('[class*="breadcrumb"]').getByRole('link', {
+      name: 'Household Items',
+      exact: true,
+    });
 
     // Edit button — located in the pageActions area; class="editButton"
     // Multiple "Edit" buttons may exist (budget line edit). Use first() to get the page-level one.
