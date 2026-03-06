@@ -2015,8 +2015,9 @@ describe('CostBreakdownTable', () => {
     // At least one Net cell should have non-empty textContent
     const nonEmptyNetCells = Array.from(netCells).filter((td) => td.textContent?.trim() !== '');
     expect(nonEmptyNetCells.length).toBeGreaterThan(0);
-    // The item row Net value = €900.00
-    expect(screen.getAllByText('€900.00').length).toBeGreaterThanOrEqual(1);
+    // The item row Net value: avg raw cost = 1000, min payback = 80, max payback = 100
+    // Net range: (1000-100) – (1000-80) = €900.00 – €920.00
+    expect(container.textContent).toContain('€900.00 – €920.00');
   });
 
   // Scenario 17: "Sum" label appears; "Remaining" is gone

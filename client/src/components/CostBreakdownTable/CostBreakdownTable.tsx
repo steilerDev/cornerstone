@@ -90,15 +90,36 @@ function renderPayback(
 }
 
 /**
- * Renders net value (cost - payback) with proper coloring
+ * Renders net value (cost - payback).
+ * At item/category level, uses neutral text color (still an expense).
+ * At sum level, uses green/red coloring (surplus vs deficit).
  */
-function renderNet(rawCost: number, payback: number, cssStyles: typeof styles): React.ReactNode {
-  const net = rawCost - payback;
-  return (
-    <span className={net >= 0 ? cssStyles.valuePositive : cssStyles.valueNegative}>
-      {formatCurrency(net)}
-    </span>
-  );
+function renderNet(
+  rawCost: number,
+  minPayback: number,
+  maxPayback: number,
+  cssStyles: typeof styles,
+  colored: boolean = false,
+): React.ReactNode {
+  const hasRange = Math.abs(maxPayback - minPayback) >= 0.001;
+  if (hasRange && !colored) {
+    const netMax = rawCost - minPayback;
+    const netMin = rawCost - maxPayback;
+    return (
+      <span>
+        {formatCurrency(netMin)} – {formatCurrency(netMax)}
+      </span>
+    );
+  }
+  const net = rawCost - maxPayback;
+  if (colored) {
+    return (
+      <span className={net >= 0 ? cssStyles.valuePositive : cssStyles.valueNegative}>
+        {formatCurrency(net)}
+      </span>
+    );
+  }
+  return <span>{formatCurrency(net)}</span>;
 }
 
 /**
@@ -242,7 +263,11 @@ function BudgetLineRow({
         )}
       </td>
       <td className={styles.colPayback}>—</td>
-      <td className={styles.colRemaining} />
+      <td className={styles.colRemaining}>
+        <span>
+          {line.hasInvoice ? formatCurrency(line.actualCost) : formatCurrency(perspectiveValue)}
+        </span>
+      </td>
     </tr>
   );
 }
@@ -303,7 +328,7 @@ function WorkItemRow({
           {renderPayback(item.minSubsidyPayback, item.subsidyPayback, styles)}
         </td>
         <td className={styles.colRemaining}>
-          {renderNet(resolvedRawCost, item.subsidyPayback, styles)}
+          {renderNet(resolvedRawCost, item.minSubsidyPayback, item.subsidyPayback, styles)}
         </td>
       </tr>
 
@@ -362,7 +387,7 @@ function WorkItemCategorySection({
           {renderPayback(category.minSubsidyPayback, category.subsidyPayback, styles)}
         </td>
         <td className={styles.colRemaining}>
-          {renderNet(resolvedRawCost, category.subsidyPayback, styles)}
+          {renderNet(resolvedRawCost, category.minSubsidyPayback, category.subsidyPayback, styles)}
         </td>
       </tr>
 
@@ -390,7 +415,12 @@ function WorkItemCategorySection({
               {renderPayback(category.minSubsidyPayback, category.subsidyPayback, styles)}
             </td>
             <td className={styles.colRemaining}>
-              {renderNet(resolvedRawCost, category.subsidyPayback, styles)}
+              {renderNet(
+                resolvedRawCost,
+                category.minSubsidyPayback,
+                category.subsidyPayback,
+                styles,
+              )}
             </td>
           </tr>
         </>
@@ -455,7 +485,7 @@ function HouseholdItemRow({
           {renderPayback(item.minSubsidyPayback, item.subsidyPayback, styles)}
         </td>
         <td className={styles.colRemaining}>
-          {renderNet(resolvedRawCost, item.subsidyPayback, styles)}
+          {renderNet(resolvedRawCost, item.minSubsidyPayback, item.subsidyPayback, styles)}
         </td>
       </tr>
 
@@ -515,7 +545,7 @@ function HouseholdItemCategorySection({
           {renderPayback(category.minSubsidyPayback, category.subsidyPayback, styles)}
         </td>
         <td className={styles.colRemaining}>
-          {renderNet(resolvedRawCost, category.subsidyPayback, styles)}
+          {renderNet(resolvedRawCost, category.minSubsidyPayback, category.subsidyPayback, styles)}
         </td>
       </tr>
 
@@ -543,7 +573,12 @@ function HouseholdItemCategorySection({
               {renderPayback(category.minSubsidyPayback, category.subsidyPayback, styles)}
             </td>
             <td className={styles.colRemaining}>
-              {renderNet(resolvedRawCost, category.subsidyPayback, styles)}
+              {renderNet(
+                resolvedRawCost,
+                category.minSubsidyPayback,
+                category.subsidyPayback,
+                styles,
+              )}
             </td>
           </tr>
         </>
@@ -792,6 +827,7 @@ export function CostBreakdownTable({
                         wiTotals.rawProjectedMax,
                         perspective,
                       ),
+                      wiTotals.minSubsidyPayback,
                       wiTotals.subsidyPayback,
                       styles,
                     )}
@@ -853,6 +889,7 @@ export function CostBreakdownTable({
                         hiTotals.rawProjectedMax,
                         perspective,
                       ),
+                      hiTotals.minSubsidyPayback,
                       hiTotals.subsidyPayback,
                       styles,
                     )}
