@@ -38,11 +38,35 @@ The `tags` table (migration 0002) only has: `id, name, color, created_at` — NO
 See `story-415-household-item-timeline-deps.md` for full details. Key learnings:
 
 - **SVG `className` in jsdom**: Returns `SVGAnimatedString`, NOT a string. Use `element.getAttribute('class') ?? ''`.
-- **`autoReschedule()` early return guard**: Returns early when no work items exist, skipping HI delivery dates.
-  Milestone-dep tests need a dummy work item: `insertWorkItem(db, userId, { endDate: '2026-01-01' })`.
+- **`autoReschedule()` does NOT have an early return when no work items exist** — it continues to process
+  HI delivery dates even when `allWorkItems.length === 0`. The guard on line 677 only skips fetching
+  `workItemDependencies`, not the HI delivery date computation. Tests can create HIs with only
+  `earliestDeliveryDate` (no work item dep) and still get a computed `targetDeliveryDate`.
 - **ConflictError**: always uses `'CONFLICT'` as error.code (not `'DUPLICATE_DEPENDENCY'` — that's in details).
 - **Bug #417**: `fetchLinkedHouseholdItems` calls wrong URL → breaks WorkItemDetailPage → E2E smoke test failure.
 - **Typed mock pattern**: `jest.fn<typeof ApiTypes.method>()` in factory; `mockFn.mockResolvedValue()` in `beforeEach`.
+
+## Bug #482: HI Schedule Not Recalculated on Constraint Change (2026-03-06)
+
+Test file: `server/src/services/householdItemService.reschedule.test.ts` (10 tests).
+
+Key learnings on `autoReschedule` HI delivery date logic:
+
+- **`createHouseholdItem` does NOT call autoReschedule** — `targetDeliveryDate` is always `null` after creation.
+  A subsequent `updateHouseholdItem` with any scheduling field triggers the first reschedule.
+- **`isLate` for HIs is rarely true**: The CPM `maxES` defaults to `today`, so `earliestDeliveryDate` in
+  the past is a no-op (it's already covered by the floor). `isLate` only fires when `targetDate < today`
+  BEFORE the floor is applied — which can't happen when `maxES = today` is the starting point.
+  A WI dep also can't produce `predEF < today` because WIs are floored to today by CPM too.
+- **`status: 'planned'` + past `earliestDeliveryDate` → `targetDeliveryDate = TODAY, isLate = false`**
+  (not isLate=true as one might expect — see above).
+- **`actualDeliveryDate` overrides CPM**: When set, `targetDeliveryDate` becomes `actualDeliveryDate`
+  regardless of any constraint or dep date. `isLate` is always false when `actualDeliveryDate` is set.
+- **Worktree @cornerstone/shared fix needed**: When worktree adds fields to shared types, the
+  `node_modules/@cornerstone/shared` symlink points to the main repo's shared (which symlinks to
+  `../../shared` from the main `node_modules`). Fix: `rm node_modules/@cornerstone/shared &&
+ln -s /absolute/worktree/shared node_modules/@cornerstone/shared`, then rebuild with
+  `node_modules/.bin/tsc -p shared/tsconfig.json`.
 
 ## Story #390 Household Item Create & Edit Forms (2026-03-03)
 
