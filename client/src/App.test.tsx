@@ -15,6 +15,7 @@ import type * as UsersApiTypes from './lib/usersApi.js';
 import type * as InvoicesApiTypes from './lib/invoicesApi.js';
 import type * as WorkItemBudgetsApiTypes from './lib/workItemBudgetsApi.js';
 import type * as HouseholdItemBudgetsApiTypes from './lib/householdItemBudgetsApi.js';
+import type * as HouseholdItemCategoriesApiTypes from './lib/householdItemCategoriesApi.js';
 import type * as AppTypes from './App.js';
 
 const mockGetAuthMe = jest.fn<typeof AuthApiTypes.getAuthMe>();
@@ -152,6 +153,20 @@ jest.unstable_mockModule('./lib/householdItemBudgetsApi.js', () => ({
     jest.fn<typeof HouseholdItemBudgetsApiTypes.deleteHouseholdItemBudget>(),
 }));
 
+// ManagePage calls fetchHouseholdItemCategories on mount.
+// Mock to prevent fetch calls in the jsdom test environment.
+const mockFetchHouseholdItemCategories =
+  jest.fn<typeof HouseholdItemCategoriesApiTypes.fetchHouseholdItemCategories>();
+jest.unstable_mockModule('./lib/householdItemCategoriesApi.js', () => ({
+  fetchHouseholdItemCategories: mockFetchHouseholdItemCategories,
+  createHouseholdItemCategory:
+    jest.fn<typeof HouseholdItemCategoriesApiTypes.createHouseholdItemCategory>(),
+  updateHouseholdItemCategory:
+    jest.fn<typeof HouseholdItemCategoriesApiTypes.updateHouseholdItemCategory>(),
+  deleteHouseholdItemCategory:
+    jest.fn<typeof HouseholdItemCategoriesApiTypes.deleteHouseholdItemCategory>(),
+}));
+
 describe('App', () => {
   // Dynamic imports
   let App: typeof AppTypes.App;
@@ -181,6 +196,7 @@ describe('App', () => {
     mockFetchAllInvoices.mockReset();
     mockFetchWorkItemBudgets.mockReset();
     mockFetchHouseholdItemBudgets.mockReset();
+    mockFetchHouseholdItemCategories.mockReset();
 
     // Default: budget categories returns empty list
     mockFetchBudgetCategories.mockResolvedValue({ categories: [] });
@@ -235,6 +251,7 @@ describe('App', () => {
     });
     mockFetchWorkItemBudgets.mockResolvedValue([]);
     mockFetchHouseholdItemBudgets.mockResolvedValue([]);
+    mockFetchHouseholdItemCategories.mockResolvedValue({ categories: [] });
 
     // Default: authenticated user (no setup required)
     mockGetAuthMe.mockResolvedValue({
@@ -300,13 +317,13 @@ describe('App', () => {
     expect(heading).toBeInTheDocument();
   });
 
-  it('navigates to Budget Categories page when /budget/categories path is accessed', async () => {
+  it('navigates to Manage page when /budget/categories path is accessed (redirect)', async () => {
     window.history.pushState({}, 'Budget Categories', '/budget/categories');
     render(<App />);
 
-    // Wait for lazy-loaded BudgetCategories component to resolve
-    // h1 now says "Budget" (shared across all budget pages); h2 says "Categories"
-    const heading = await screen.findByRole('heading', { name: /^budget$/i, level: 1 });
+    // /budget/categories now redirects to /manage?tab=budget-categories
+    // ManagePage renders an h1 heading of "Manage"
+    const heading = await screen.findByRole('heading', { name: /^manage$/i, level: 1 });
     expect(heading).toBeInTheDocument();
   });
 

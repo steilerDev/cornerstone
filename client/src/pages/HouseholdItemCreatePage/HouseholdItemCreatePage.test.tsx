@@ -8,6 +8,7 @@ import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
 import type * as TagsApiTypes from '../../lib/tagsApi.js';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
+import type * as HouseholdItemCategoriesApiTypes from '../../lib/householdItemCategoriesApi.js';
 import type * as HouseholdItemCreatePageTypes from './HouseholdItemCreatePage.js';
 import type React from 'react';
 
@@ -15,6 +16,8 @@ const mockCreateHouseholdItem = jest.fn<typeof HouseholdItemsApiTypes.createHous
 const mockFetchTags = jest.fn<typeof TagsApiTypes.fetchTags>();
 const mockCreateTag = jest.fn<typeof TagsApiTypes.createTag>();
 const mockFetchVendors = jest.fn<typeof VendorsApiTypes.fetchVendors>();
+const mockFetchHouseholdItemCategories =
+  jest.fn<typeof HouseholdItemCategoriesApiTypes.fetchHouseholdItemCategories>();
 
 // Mock only API modules — do NOT mock react-router-dom (causes OOM)
 jest.unstable_mockModule('../../lib/householdItemsApi.js', () => ({
@@ -36,6 +39,14 @@ jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   createVendor: jest.fn(),
   updateVendor: jest.fn(),
   deleteVendor: jest.fn(),
+}));
+
+// HouseholdItemCreatePage calls fetchHouseholdItemCategories to populate the category dropdown.
+jest.unstable_mockModule('../../lib/householdItemCategoriesApi.js', () => ({
+  fetchHouseholdItemCategories: mockFetchHouseholdItemCategories,
+  createHouseholdItemCategory: jest.fn(),
+  updateHouseholdItemCategory: jest.fn(),
+  deleteHouseholdItemCategory: jest.fn(),
 }));
 
 // Mock useToast so HouseholdItemCreatePage can render without a ToastProvider wrapper.
@@ -122,6 +133,7 @@ describe('HouseholdItemCreatePage', () => {
     mockFetchTags.mockReset();
     mockCreateTag.mockReset();
     mockFetchVendors.mockReset();
+    mockFetchHouseholdItemCategories.mockReset();
 
     if (!HouseholdItemCreatePageModule) {
       HouseholdItemCreatePageModule = await import('./HouseholdItemCreatePage.js');
@@ -131,6 +143,26 @@ describe('HouseholdItemCreatePage', () => {
     mockFetchVendors.mockResolvedValue({
       vendors: mockVendors,
       pagination: { page: 1, pageSize: 100, totalItems: 2, totalPages: 1 },
+    });
+    mockFetchHouseholdItemCategories.mockResolvedValue({
+      categories: [
+        {
+          id: 'hic-furniture',
+          name: 'Furniture',
+          color: '#8B5CF6',
+          sortOrder: 0,
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
+        },
+        {
+          id: 'hic-appliances',
+          name: 'Appliances',
+          color: '#EC4899',
+          sortOrder: 1,
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
+        },
+      ],
     });
   });
 
