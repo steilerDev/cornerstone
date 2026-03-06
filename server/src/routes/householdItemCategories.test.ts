@@ -19,10 +19,6 @@ import { householdItemCategories, householdItems } from '../db/schema.js';
  *
  * Tests that insert categories use unique names like "Custom HIC *" to avoid conflicts.
  * Tests that check empty/count behavior account for the 8 seeded records.
- *
- * NOTE: These tests are currently blocked by Bug #511 (migration 0016 contains
- * invalid SQLite syntax `ALTER TABLE MODIFY`) and Bug #512 (householdItemDepService.ts
- * references removed column 'category'). Unskip after both bugs are fixed.
  */
 
 type HICListResponse = { categories: HouseholdItemCategoryEntity[] };

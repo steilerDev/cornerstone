@@ -654,7 +654,7 @@ describe('getBudgetBreakdown', () => {
       const result = getBudgetBreakdown(db);
 
       expect(result.householdItems.categories).toHaveLength(1);
-      expect(result.householdItems.categories[0].hiCategory).toBe('hic-furniture');
+      expect(result.householdItems.categories[0].hiCategory).toBe('Furniture');
       expect(result.householdItems.categories[0].items).toHaveLength(1);
       expect(result.householdItems.categories[0].items[0].name).toBe('Sofa');
     });
@@ -705,11 +705,11 @@ describe('getBudgetBreakdown', () => {
       const result = getBudgetBreakdown(db);
 
       const categories = result.householdItems.categories.map((c) => c.hiCategory);
-      expect(categories).toContain('hic-furniture');
-      expect(categories).toContain('hic-electronics');
+      expect(categories).toContain('Furniture');
+      expect(categories).toContain('Electronics');
       // Other categories not present (no items)
-      expect(categories).not.toContain('hic-appliances');
-      expect(categories).not.toContain('hic-fixtures');
+      expect(categories).not.toContain('Appliances');
+      expect(categories).not.toContain('Fixtures');
     });
 
     it('categories are in the canonical HI_CATEGORY_ORDER', () => {
@@ -721,10 +721,10 @@ describe('getBudgetBreakdown', () => {
       const result = getBudgetBreakdown(db);
 
       const categories = result.householdItems.categories.map((c) => c.hiCategory);
-      // hic-furniture comes before hic-appliances comes before hic-other in HI_CATEGORY_ORDER
-      const idxFurniture = categories.indexOf('hic-furniture');
-      const idxAppliances = categories.indexOf('hic-appliances');
-      const idxOther = categories.indexOf('hic-other');
+      // Furniture (sort_order=0) comes before Appliances (sort_order=1) comes before Other (sort_order=7)
+      const idxFurniture = categories.indexOf('Furniture');
+      const idxAppliances = categories.indexOf('Appliances');
+      const idxOther = categories.indexOf('Other');
       expect(idxFurniture).toBeLessThan(idxAppliances);
       expect(idxAppliances).toBeLessThan(idxOther);
     });

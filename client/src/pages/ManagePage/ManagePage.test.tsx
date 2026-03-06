@@ -278,6 +278,152 @@ describe('ManagePage', () => {
       });
       expect(screen.getByRole('heading', { name: 'Delete Tag' })).toBeInTheDocument();
     });
+
+    it('successfully creates a new tag', async () => {
+      const user = userEvent.setup();
+      const newTag: TagResponse = {
+        id: 'tag-3',
+        name: 'HVAC',
+        color: '#22C55E',
+        createdAt: '2026-03-06T00:00:00.000Z',
+      };
+      mockCreateTag.mockResolvedValue(newTag);
+
+      renderManagePage('/manage');
+
+      await waitFor(() => {
+        expect(screen.getByText('Create New Tag')).toBeInTheDocument();
+      });
+
+      const nameInput = screen.getByRole('textbox', { name: 'Tag Name' });
+      await user.type(nameInput, 'HVAC');
+
+      await user.click(screen.getByRole('button', { name: 'Create Tag' }));
+
+      await waitFor(() => {
+        expect(mockCreateTag).toHaveBeenCalledWith(expect.objectContaining({ name: 'HVAC' }));
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('Tag "HVAC" created successfully')).toBeInTheDocument();
+      });
+    });
+
+    it('shows validation error when creating a tag with empty name', async () => {
+      renderManagePage('/manage');
+
+      await waitFor(() => {
+        expect(screen.getByText('Create New Tag')).toBeInTheDocument();
+      });
+
+      // Create Tag button is disabled when name is empty
+      const createButton = screen.getByRole('button', { name: 'Create Tag' });
+      expect(createButton).toBeDisabled();
+    });
+
+    it('shows edit form when Edit button is clicked for a tag', async () => {
+      const user = userEvent.setup();
+      renderManagePage('/manage');
+
+      await waitFor(() => {
+        expect(screen.getByText('Electrical')).toBeInTheDocument();
+      });
+
+      const editButtons = screen.getAllByRole('button', { name: 'Edit' });
+      await user.click(editButtons[0]);
+
+      // Edit form should appear with current values
+      expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
+    });
+
+    it('cancels edit and returns to view mode', async () => {
+      const user = userEvent.setup();
+      renderManagePage('/manage');
+
+      await waitFor(() => {
+        expect(screen.getByText('Electrical')).toBeInTheDocument();
+      });
+
+      const editButtons = screen.getAllByRole('button', { name: 'Edit' });
+      await user.click(editButtons[0]);
+
+      await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+      // Back to normal view — Edit buttons visible again
+      await waitFor(() => {
+        expect(screen.getAllByRole('button', { name: 'Edit' })).toHaveLength(2);
+      });
+    });
+
+    it('successfully updates a tag', async () => {
+      const user = userEvent.setup();
+      const updatedTag: TagResponse = {
+        id: 'tag-1',
+        name: 'Electrical Updated',
+        color: '#F59E0B',
+        createdAt: '2026-01-01T00:00:00.000Z',
+      };
+      mockUpdateTag.mockResolvedValue(updatedTag);
+
+      renderManagePage('/manage');
+
+      await waitFor(() => {
+        expect(screen.getByText('Electrical')).toBeInTheDocument();
+      });
+
+      const editButtons = screen.getAllByRole('button', { name: 'Edit' });
+      await user.click(editButtons[0]);
+
+      // Clear the current name and type a new one
+      const nameInputs = screen.getAllByRole('textbox');
+      // The inline edit input (no label) — clear and retype
+      await user.clear(nameInputs[nameInputs.length - 1]);
+      await user.type(nameInputs[nameInputs.length - 1], 'Electrical Updated');
+
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+
+      await waitFor(() => {
+        expect(mockUpdateTag).toHaveBeenCalledWith(
+          'tag-1',
+          expect.objectContaining({ name: 'Electrical Updated' }),
+        );
+      });
+
+      await waitFor(() => {
+        expect(
+          screen.getByText('Tag "Electrical Updated" updated successfully'),
+        ).toBeInTheDocument();
+      });
+    });
+
+    it('successfully deletes a tag after confirming in modal', async () => {
+      const user = userEvent.setup();
+      mockDeleteTag.mockResolvedValue(undefined);
+
+      renderManagePage('/manage');
+
+      await waitFor(() => {
+        expect(screen.getByText('Electrical')).toBeInTheDocument();
+      });
+
+      const deleteButtons = screen.getAllByRole('button', { name: 'Delete' });
+      await user.click(deleteButtons[0]);
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: 'Delete Tag' }));
+
+      await waitFor(() => {
+        expect(mockDeleteTag).toHaveBeenCalledWith('tag-1');
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText(/Tag "Electrical" deleted successfully/)).toBeInTheDocument();
+      });
+    });
   });
 
   // ─── Budget Categories tab content ────────────────────────────────────────
@@ -357,6 +503,173 @@ describe('ManagePage', () => {
         expect(mockFetchBudgetCategories).toHaveBeenCalledTimes(1);
       });
     });
+
+    it('successfully creates a new budget category', async () => {
+      const user = userEvent.setup();
+      const newCat: BudgetCategory = {
+        id: 'bc-new',
+        name: 'Permits',
+        description: null,
+        color: '#22C55E',
+        sortOrder: 2,
+        createdAt: '2026-03-06T00:00:00.000Z',
+        updatedAt: '2026-03-06T00:00:00.000Z',
+      };
+      mockCreateBudgetCategory.mockResolvedValue(newCat);
+
+      renderManagePage('/manage?tab=budget-categories');
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Add Category' })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: 'Add Category' }));
+
+      const nameInput = screen.getByRole('textbox', { name: /Name/i });
+      await user.type(nameInput, 'Permits');
+
+      await user.click(screen.getByRole('button', { name: 'Create Category' }));
+
+      await waitFor(() => {
+        expect(mockCreateBudgetCategory).toHaveBeenCalledWith(
+          expect.objectContaining({ name: 'Permits' }),
+        );
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('Category "Permits" created successfully')).toBeInTheDocument();
+      });
+    });
+
+    it('shows edit form when Edit is clicked for a budget category', async () => {
+      const user = userEvent.setup();
+      renderManagePage('/manage?tab=budget-categories');
+
+      await waitFor(() => {
+        expect(screen.getByText('Materials')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: 'Edit Materials' }));
+
+      expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
+    });
+
+    it('cancels edit of budget category and returns to view mode', async () => {
+      const user = userEvent.setup();
+      renderManagePage('/manage?tab=budget-categories');
+
+      await waitFor(() => {
+        expect(screen.getByText('Materials')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: 'Edit Materials' }));
+      await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Edit Materials' })).toBeInTheDocument();
+      });
+    });
+
+    it('successfully updates a budget category', async () => {
+      const user = userEvent.setup();
+      const updated: BudgetCategory = {
+        id: 'bc-1',
+        name: 'Materials Updated',
+        description: 'Building materials',
+        color: '#FF5733',
+        sortOrder: 0,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-03-06T00:00:00.000Z',
+      };
+      mockUpdateBudgetCategory.mockResolvedValue(updated);
+
+      renderManagePage('/manage?tab=budget-categories');
+
+      await waitFor(() => {
+        expect(screen.getByText('Materials')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: 'Edit Materials' }));
+
+      const nameInput = screen.getByRole('textbox', { name: /Name/i });
+      await user.clear(nameInput);
+      await user.type(nameInput, 'Materials Updated');
+
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+
+      await waitFor(() => {
+        expect(mockUpdateBudgetCategory).toHaveBeenCalledWith(
+          'bc-1',
+          expect.objectContaining({ name: 'Materials Updated' }),
+        );
+      });
+
+      await waitFor(() => {
+        expect(
+          screen.getByText('Category "Materials Updated" updated successfully'),
+        ).toBeInTheDocument();
+      });
+    });
+
+    it('successfully deletes a budget category after confirming in modal', async () => {
+      const user = userEvent.setup();
+      mockDeleteBudgetCategory.mockResolvedValue(undefined);
+
+      renderManagePage('/manage?tab=budget-categories');
+
+      await waitFor(() => {
+        expect(screen.getByText('Materials')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: 'Delete Materials' }));
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: 'Delete Category' }));
+
+      await waitFor(() => {
+        expect(mockDeleteBudgetCategory).toHaveBeenCalledWith('bc-1');
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText(/Category "Materials" deleted successfully/)).toBeInTheDocument();
+      });
+    });
+
+    it('shows in-use error when deleting a budget category referenced by budget entries', async () => {
+      const user = userEvent.setup();
+      mockDeleteBudgetCategory.mockRejectedValue(
+        new ApiClientError(409, {
+          code: 'CATEGORY_IN_USE',
+          message: 'Category is in use',
+        }),
+      );
+
+      renderManagePage('/manage?tab=budget-categories');
+
+      await waitFor(() => {
+        expect(screen.getByText('Materials')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: 'Delete Materials' }));
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: 'Delete Category' }));
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(
+            /This category cannot be deleted because it is currently in use by one or more budget entries/,
+          ),
+        ).toBeInTheDocument();
+      });
+    });
   });
 
   // ─── Household Item Categories tab content ─────────────────────────────────
@@ -434,6 +747,76 @@ describe('ManagePage', () => {
       renderManagePage('/manage?tab=hi-categories');
       await waitFor(() => {
         expect(mockFetchHICCategories).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('shows edit form when Edit is clicked for a HI category', async () => {
+      const user = userEvent.setup();
+      renderManagePage('/manage?tab=hi-categories');
+
+      await waitFor(() => {
+        expect(screen.getByText('Furniture')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: 'Edit Furniture' }));
+
+      expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
+    });
+
+    it('cancels edit of HI category and returns to view mode', async () => {
+      const user = userEvent.setup();
+      renderManagePage('/manage?tab=hi-categories');
+
+      await waitFor(() => {
+        expect(screen.getByText('Furniture')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: 'Edit Furniture' }));
+      await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Edit Furniture' })).toBeInTheDocument();
+      });
+    });
+
+    it('successfully updates a HI category', async () => {
+      const user = userEvent.setup();
+      const updated: HouseholdItemCategoryEntity = {
+        id: 'hic-1',
+        name: 'Furniture Updated',
+        color: '#8B5CF6',
+        sortOrder: 0,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-03-06T00:00:00.000Z',
+      };
+      mockUpdateHICCategory.mockResolvedValue(updated);
+
+      renderManagePage('/manage?tab=hi-categories');
+
+      await waitFor(() => {
+        expect(screen.getByText('Furniture')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: 'Edit Furniture' }));
+
+      const nameInput = screen.getByRole('textbox', { name: /Name/i });
+      await user.clear(nameInput);
+      await user.type(nameInput, 'Furniture Updated');
+
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+
+      await waitFor(() => {
+        expect(mockUpdateHICCategory).toHaveBeenCalledWith(
+          'hic-1',
+          expect.objectContaining({ name: 'Furniture Updated' }),
+        );
+      });
+
+      await waitFor(() => {
+        expect(
+          screen.getByText('Category "Furniture Updated" updated successfully'),
+        ).toBeInTheDocument();
       });
     });
 
