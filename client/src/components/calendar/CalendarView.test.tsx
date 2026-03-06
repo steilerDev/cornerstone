@@ -53,6 +53,7 @@ function makeMilestone(id: number, targetDate: string): TimelineMilestone {
     color: null,
     workItemIds: [],
     projectedDate: null,
+    isCritical: false,
   };
 }
 

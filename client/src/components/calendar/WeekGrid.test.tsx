@@ -49,6 +49,7 @@ function makeMilestone(id: number, targetDate: string, title = `M${id}`): Timeli
     color: null,
     workItemIds: [],
     projectedDate: null,
+    isCritical: false,
   };
 }
 

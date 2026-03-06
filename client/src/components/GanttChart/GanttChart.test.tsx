@@ -112,6 +112,7 @@ function makeTimelineWithMilestones(): TimelineResponse {
         color: null,
         workItemIds: ['wi-1'],
         projectedDate: null,
+        isCritical: false,
       },
     ],
   };
@@ -560,6 +561,7 @@ describe('AC-7: Milestone hover — linked arrows highlighted', () => {
           color: null,
           workItemIds: ['wi-1'], // only wi-1 is linked
           projectedDate: null,
+          isCritical: false,
         },
       ],
     };
