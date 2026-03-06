@@ -215,8 +215,10 @@ test.describe('404 state (Scenario 6)', { tag: '@responsive' }, () => {
   test('Navigating to edit page for non-existent item shows not-found state', async ({ page }) => {
     await page.goto('/household-items/non-existent-id-edit-000/edit');
 
-    // The edit page renders a not-found state when the item doesn't exist
-    const notFoundText = page.getByText(/not found|doesn't exist|has been removed/i);
+    // The edit page renders a not-found state when the item doesn't exist.
+    // Use .first() to avoid strict mode violation: the page renders both a heading
+    // and a description element that match the pattern.
+    const notFoundText = page.getByText(/not found|doesn't exist|has been removed/i).first();
     await expect(notFoundText).toBeVisible({ timeout: 10000 });
   });
 });

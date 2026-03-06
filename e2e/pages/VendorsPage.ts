@@ -94,8 +94,9 @@ export class VendorsPage {
       .filter({ hasText: /failed|error/i })
       .first();
 
-    // Empty state
-    this.emptyState = page.locator('[class*="emptyState"]');
+    // Empty state — use .first() to avoid strict mode: child elements such as
+    // emptyStateTitle/emptyStateDescription also contain "emptyState" in their class names.
+    this.emptyState = page.locator('[class*="emptyState"]').first();
     this.emptyStateHeading = this.emptyState.getByRole('heading');
 
     // Table (desktop)

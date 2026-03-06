@@ -93,7 +93,9 @@ export class TagManagementPage {
 
     // Existing tags section
     this.existingTagsHeading = page.getByRole('heading', { level: 2, name: /Existing Tags/ });
-    this.emptyState = page.locator('[class*="emptyState"]');
+    // Use .first() to avoid strict mode: child elements (emptyStateTitle,
+    // emptyStateDescription) also contain "emptyState" in their class names.
+    this.emptyState = page.locator('[class*="emptyState"]').first();
     this.tagsList = page.locator('[class*="tagsList"]');
 
     // Delete modal — the modal has role="dialog" aria-modal="true" but no aria-labelledby.
