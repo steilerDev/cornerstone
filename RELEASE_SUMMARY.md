@@ -1,20 +1,16 @@
 ## What's New
 
-Cornerstone now integrates with Paperless-ngx for document management. Browse your entire document archive from within Cornerstone, and link invoices, contracts, permits, and receipts directly to work items and vendor invoices -- keeping all project-related documents one click away.
+Cornerstone now supports household item management -- track furniture, appliances, fixtures, and other purchases alongside your construction work items. Each household item integrates with the existing budget system, timeline, document linking, and vendor invoices, giving you a complete view of both construction work and home furnishing purchases.
 
 ### Highlights
 
-- **Document Browser** -- A dedicated page to search, filter by tags, and browse all documents in your Paperless-ngx instance, with thumbnail previews, pagination, and a detail panel showing document metadata and content excerpts
-- **Document Linking** -- Attach Paperless-ngx documents to work items and vendor invoices with a picker modal, view linked documents as thumbnail cards, and open them directly in Paperless-ngx
-- **Secure Proxy Architecture** -- All Paperless-ngx communication is proxied through the Cornerstone backend, keeping your API token server-side and simplifying network configuration
-- **Graceful Degradation** -- Clear status messages when Paperless-ngx is not configured or unreachable, with retry functionality and preserved link records even when the connection is temporarily unavailable
-- **Responsive & Accessible** -- Full keyboard navigation, ARIA roles, focus management, screen reader announcements, and a responsive layout that works on desktop, tablet, and mobile
-
-### Configuration
-
-To enable the integration, set two environment variables and restart Cornerstone:
-
-```
-PAPERLESS_URL=https://paperless.example.com
-PAPERLESS_API_TOKEN=your-api-token-here
-```
+- **Household Item Management** -- Create and manage household items with categories (furniture, appliances, fixtures, decor, electronics, outdoor, storage), purchase lifecycle statuses (planned, purchased, scheduled, arrived), room assignments, quantities, vendor references, and product URLs
+- **Budget Integration** -- Add budget lines to household items with confidence levels, budget categories, and financing sources -- household item costs appear in the project-wide budget overview alongside work item costs
+- **Work Item Linking** -- Link household items to construction work items for installation coordination, ensuring items arrive when the related construction phase is ready
+- **Delivery Scheduling & Timeline Dependencies** -- Track order dates and delivery windows, add dependencies on work items and milestones so delivery dates integrate with the Gantt chart and scheduling engine
+- **Invoice Linking** -- Link vendor invoices to household item budget lines to track actual costs and transition estimates to real amounts
+- **Document Linking** -- Attach Paperless-ngx documents (product specs, receipts, warranties) directly to household items
+- **Subsidy Support** -- Apply subsidy programs to household item costs for budget reductions
+- **Tags, Notes & Search** -- Organize items with color-coded tags, add timestamped notes, and search/filter/sort across all household items
+- **Responsive & Accessible** -- Full keyboard navigation, screen reader support, and a responsive layout with table view on desktop and card view on mobile
+- **Cost Breakdown Improvements** -- The budget overview cost breakdown table now includes a perspective toggle, column tints for visual clarity, and sum/remaining rows for quick financial summaries
