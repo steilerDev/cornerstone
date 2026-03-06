@@ -118,6 +118,11 @@ test.describe('Empty state — no items (Scenario 3)', { tag: '@responsive' }, (
 // Scenario 4: Filter empty state when search matches nothing
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Empty state — filter no match (Scenario 4)', { tag: '@responsive' }, () => {
+  // Extend timeout: search() uses a 50s waitForResponse because the shared
+  // SQLite test container gets heavily loaded when all 16 CI shards run in
+  // parallel (32 concurrent browser contexts). Desktop default timeout (15s)
+  // is too short; tablet/mobile already have 60s via playwright.config.ts.
+  test.describe.configure({ timeout: 60_000 });
   test('Filter empty state shown when search matches no household items', async ({
     page,
     testPrefix,
@@ -157,6 +162,9 @@ test.describe(
   'Item appears in list after API creation (Scenario 5)',
   { tag: '@responsive' },
   () => {
+    // Extend timeout: search() uses a 50s waitForResponse (see Scenario 4).
+    test.describe.configure({ timeout: 60_000 });
+
     test('Household item created via API appears in the list', async ({ page, testPrefix }) => {
       const listPage = new HouseholdItemsPage(page);
       let createdId: string | null = null;
@@ -216,6 +224,9 @@ test.describe(
 // Scenario 6: Search filters the list
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Search filters (Scenario 6)', { tag: '@responsive' }, () => {
+  // Extend timeout: search() uses a 50s waitForResponse (see Scenario 4).
+  test.describe.configure({ timeout: 60_000 });
+
   test('Search by name filters list to matching items only', async ({ page, testPrefix }) => {
     const listPage = new HouseholdItemsPage(page);
     const created: string[] = [];
@@ -246,6 +257,9 @@ test.describe('Search filters (Scenario 6)', { tag: '@responsive' }, () => {
 // Scenario 7: Category filter narrows results
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Category filter (Scenario 7)', { tag: '@responsive' }, () => {
+  // Extend timeout: search() uses a 50s waitForResponse (see Scenario 4).
+  test.describe.configure({ timeout: 60_000 });
+
   test('Category filter narrows list to items in selected category', async ({
     page,
     testPrefix,
@@ -272,6 +286,7 @@ test.describe('Category filter (Scenario 7)', { tag: '@responsive' }, () => {
       // Select 'furniture' category
       const filterResponsePromise = page.waitForResponse(
         (resp) => resp.url().includes('/api/household-items') && resp.status() === 200,
+        { timeout: 50000 },
       );
       await listPage.categoryFilter.selectOption('furniture');
       await filterResponsePromise;
@@ -292,6 +307,9 @@ test.describe('Category filter (Scenario 7)', { tag: '@responsive' }, () => {
 // Scenario 8: Status filter narrows results
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Status filter (Scenario 8)', { tag: '@responsive' }, () => {
+  // Extend timeout: search() uses a 50s waitForResponse (see Scenario 4).
+  test.describe.configure({ timeout: 60_000 });
+
   test('Status filter narrows list to items with selected status', async ({ page, testPrefix }) => {
     const listPage = new HouseholdItemsPage(page);
     const created: string[] = [];
@@ -311,6 +329,7 @@ test.describe('Status filter (Scenario 8)', { tag: '@responsive' }, () => {
 
       const filterResponsePromise = page.waitForResponse(
         (resp) => resp.url().includes('/api/household-items') && resp.status() === 200,
+        { timeout: 50000 },
       );
       await listPage.statusFilter.selectOption('planned');
       await filterResponsePromise;
@@ -331,6 +350,9 @@ test.describe('Status filter (Scenario 8)', { tag: '@responsive' }, () => {
 // Scenario 9: Status badge rendered correctly
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Status badge rendering (Scenario 9)', { tag: '@responsive' }, () => {
+  // Extend timeout: search() uses a 50s waitForResponse (see Scenario 4).
+  test.describe.configure({ timeout: 60_000 });
+
   test('Status badges render for planned, purchased, scheduled, arrived items', async ({
     page,
     testPrefix,
@@ -371,6 +393,9 @@ test.describe('Status badge rendering (Scenario 9)', { tag: '@responsive' }, () 
 // Scenario 10: Delete modal — confirm removes item
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Delete modal — confirm (Scenario 10)', { tag: '@responsive' }, () => {
+  // Extend timeout: search() uses a 50s waitForResponse (see Scenario 4).
+  test.describe.configure({ timeout: 60_000 });
+
   test('Confirming delete removes the household item from the list', async ({
     page,
     testPrefix,
@@ -397,6 +422,7 @@ test.describe('Delete modal — confirm (Scenario 10)', { tag: '@responsive' }, 
 
     const listRefreshPromise = page.waitForResponse(
       (resp) => resp.url().includes('/api/household-items') && resp.status() === 200,
+      { timeout: 50000 },
     );
     await listPage.confirmDelete();
     await listRefreshPromise;
@@ -412,6 +438,9 @@ test.describe('Delete modal — confirm (Scenario 10)', { tag: '@responsive' }, 
 // Scenario 11: Delete modal — cancel leaves item
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Delete modal — cancel (Scenario 11)', { tag: '@responsive' }, () => {
+  // Extend timeout: search() uses a 50s waitForResponse (see Scenario 4).
+  test.describe.configure({ timeout: 60_000 });
+
   test('Cancelling delete modal leaves the household item in the list', async ({
     page,
     testPrefix,
