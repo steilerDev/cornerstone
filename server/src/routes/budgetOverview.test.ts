@@ -276,8 +276,8 @@ describe('Budget Overview Routes', () => {
       expect(overview.remainingVsProjectedMax).toBe(0);
       expect(overview.remainingVsActualCost).toBe(0);
       expect(overview.remainingVsActualPaid).toBe(0);
-      // 10 seeded categories
-      expect(overview.categorySummaries).toHaveLength(10);
+      // 11 seeded categories (migration 0016 added 'bc-household-items')
+      expect(overview.categorySummaries).toHaveLength(11);
       expect(overview.sourceCount).toBe(0);
       expect(overview.subsidySummary.activeSubsidyCount).toBe(0);
     });

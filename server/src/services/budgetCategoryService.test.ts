@@ -14,9 +14,9 @@ import {
 import type { CreateBudgetCategoryRequest, UpdateBudgetCategoryRequest } from '@cornerstone/shared';
 
 /**
- * NOTE: The migration seeds 10 default budget categories:
+ * NOTE: The migration seeds 11 default budget categories:
  * Materials, Labor, Permits, Design, Equipment, Landscaping,
- * Utilities, Insurance, Contingency, Other.
+ * Utilities, Insurance, Contingency, Other, Household Items (added by migration 0016).
  *
  * Tests use distinct names to avoid UNIQUE constraint violations.
  * Test-specific names use a prefix like "Test Cat" or "Custom Cat"
@@ -27,8 +27,8 @@ describe('Budget Category Service', () => {
   let sqlite: Database.Database;
   let db: BetterSQLite3Database<typeof schema>;
 
-  /** Number of categories seeded by migration */
-  const SEEDED_CATEGORY_COUNT = 10;
+  /** Number of categories seeded by migration (migration 0016 added 'bc-household-items') */
+  const SEEDED_CATEGORY_COUNT = 11;
 
   /**
    * Creates a fresh in-memory database with migrations applied.
@@ -116,8 +116,8 @@ describe('Budget Category Service', () => {
   // ─── listBudgetCategories() ────────────────────────────────────────────────
 
   describe('listBudgetCategories()', () => {
-    it('returns the 10 seeded default categories after migration', () => {
-      // Migration seeds 10 default categories
+    it('returns the 11 seeded default categories after migration', () => {
+      // Migration seeds 11 default categories (migration 0016 added 'bc-household-items')
       const result = budgetCategoryService.listBudgetCategories(db);
       expect(result).toHaveLength(SEEDED_CATEGORY_COUNT);
     });

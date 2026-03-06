@@ -1,7 +1,7 @@
 # QA & Integration Tester — Agent Memory (Index)
 
 > Detailed notes live in topic files. This index links to them.
-> See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`
+> See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`
 
 ## Running Tests from a Worktree (Critical Pattern)
 
