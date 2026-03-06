@@ -25,6 +25,7 @@ function makeMilestone(overrides: Partial<TimelineMilestone> = {}): TimelineMile
     color: null,
     workItemIds: [],
     projectedDate: null,
+    isCritical: false,
     ...overrides,
   };
 }

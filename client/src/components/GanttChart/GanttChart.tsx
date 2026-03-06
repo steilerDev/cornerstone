@@ -468,6 +468,19 @@ export function GanttChart({
     [data.criticalPath, highlightCriticalPath],
   );
 
+  // Set of critical path milestone IDs for O(1) lookups.
+  // When highlighting is disabled, use an empty set so milestones render as default.
+  const criticalMilestoneIds = useMemo(() => {
+    if (!highlightCriticalPath) return new Set<number>();
+    const ids = new Set<number>();
+    for (const m of data.milestones) {
+      if (m.isCritical) {
+        ids.add(m.id);
+      }
+    }
+    return ids;
+  }, [data.milestones, highlightCriticalPath]);
+
   // Map from work item ID to BarRect — used by GanttArrows for path computation
   const barRects = useMemo<ReadonlyMap<string, BarRect>>(() => {
     const map = new Map<string, BarRect>();
@@ -1239,6 +1252,8 @@ export function GanttChart({
                     setTooltipData(null);
                   }, TOOLTIP_HIDE_DELAY);
                 }}
+                criticalMilestoneIds={criticalMilestoneIds}
+                criticalBorderColor={colors.criticalBorder}
                 onMilestoneClick={onMilestoneClick}
               />
             )}

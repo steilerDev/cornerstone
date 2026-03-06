@@ -66,6 +66,8 @@ export interface TimelineMilestone {
   workItemIds: string[];
   /** Computed: latest end date among linked work items, or null if no linked items have dates. */
   projectedDate: string | null;
+  /** True when this milestone is on the critical path. */
+  isCritical: boolean;
 }
 
 /**

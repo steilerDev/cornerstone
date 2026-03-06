@@ -812,6 +812,180 @@ describe('getTimeline service', () => {
     });
   });
 
+  // ─── isCritical propagation to TimelineMilestone ────────────────────────────
+
+  describe('isCritical propagation to milestones', () => {
+    it('isCritical is true for a milestone whose CPM node appears in the critical path', () => {
+      const userId = insertUser(db);
+      const msId = insertMilestone(db, userId, { title: 'Critical MS', targetDate: '2026-04-01' });
+
+      // Mock the schedule engine to return milestone:msId on the critical path
+      mockSchedule.mockReturnValue({
+        scheduledItems: [],
+        criticalPath: [`milestone:${msId}`],
+        warnings: [],
+      });
+
+      const result = getTimeline(db);
+
+      const ms = result.milestones.find((m) => m.id === msId);
+      expect(ms).toBeDefined();
+      expect(ms!.isCritical).toBe(true);
+    });
+
+    it('isCritical is false for a milestone not in the critical path', () => {
+      const userId = insertUser(db);
+      const msId = insertMilestone(db, userId, { title: 'Non-Critical MS', targetDate: '2026-04-01' });
+
+      // Critical path does not include this milestone
+      mockSchedule.mockReturnValue({
+        scheduledItems: [],
+        criticalPath: ['some-other-work-item-id'],
+        warnings: [],
+      });
+
+      const result = getTimeline(db);
+
+      const ms = result.milestones.find((m) => m.id === msId);
+      expect(ms).toBeDefined();
+      expect(ms!.isCritical).toBe(false);
+    });
+
+    it('isCritical is false when the critical path is empty', () => {
+      const userId = insertUser(db);
+      const msId = insertMilestone(db, userId, { title: 'MS Empty Path' });
+
+      mockSchedule.mockReturnValue({
+        scheduledItems: [],
+        criticalPath: [],
+        warnings: [],
+      });
+
+      const result = getTimeline(db);
+
+      const ms = result.milestones.find((m) => m.id === msId);
+      expect(ms).toBeDefined();
+      expect(ms!.isCritical).toBe(false);
+    });
+
+    it('correctly marks multiple milestones as critical or non-critical independently', () => {
+      const userId = insertUser(db);
+      const msIdA = insertMilestone(db, userId, { title: 'Critical MS A' });
+      const msIdB = insertMilestone(db, userId, { title: 'Non-Critical MS B' });
+      const msIdC = insertMilestone(db, userId, { title: 'Critical MS C' });
+
+      mockSchedule.mockReturnValue({
+        scheduledItems: [],
+        criticalPath: [`milestone:${msIdA}`, `milestone:${msIdC}`],
+        warnings: [],
+      });
+
+      const result = getTimeline(db);
+
+      const msA = result.milestones.find((m) => m.id === msIdA);
+      const msB = result.milestones.find((m) => m.id === msIdB);
+      const msC = result.milestones.find((m) => m.id === msIdC);
+
+      expect(msA!.isCritical).toBe(true);
+      expect(msB!.isCritical).toBe(false);
+      expect(msC!.isCritical).toBe(true);
+    });
+
+    it('isCritical is false for all milestones when a cycle is detected', () => {
+      const userId = insertUser(db);
+      const msId = insertMilestone(db, userId, { title: 'MS during cycle' });
+
+      // Simulate cycle detection — engine returns cycleNodes
+      mockSchedule.mockReturnValue({
+        scheduledItems: [],
+        criticalPath: [`milestone:${msId}`], // would be critical if no cycle
+        warnings: [],
+        cycleNodes: ['wi-a', 'wi-b'],
+      });
+
+      const result = getTimeline(db);
+
+      const ms = result.milestones.find((m) => m.id === msId);
+      expect(ms).toBeDefined();
+      // When a cycle is detected, criticalMilestoneIds is not populated → isCritical false
+      expect(ms!.isCritical).toBe(false);
+    });
+
+    it('every milestone has the isCritical field present (not undefined)', () => {
+      const userId = insertUser(db);
+      insertMilestone(db, userId, { title: 'MS 1' });
+      insertMilestone(db, userId, { title: 'MS 2' });
+
+      mockSchedule.mockReturnValue({
+        scheduledItems: [],
+        criticalPath: [],
+        warnings: [],
+      });
+
+      const result = getTimeline(db);
+
+      for (const ms of result.milestones) {
+        expect(ms).toHaveProperty('isCritical');
+        expect(typeof ms.isCritical).toBe('boolean');
+      }
+    });
+  });
+
+  // ─── criticalPath array excludes milestone: entries ──────────────────────────
+
+  describe('criticalPath in response excludes milestone: entries', () => {
+    it('filters out milestone: prefixed IDs from the returned criticalPath', () => {
+      const userId = insertUser(db);
+      const wiId = insertWorkItem(db, userId, { startDate: '2026-03-01', durationDays: 5 });
+      const msId = insertMilestone(db, userId, { title: 'MS on path' });
+
+      // Engine returns both a work item and a milestone node on the critical path
+      mockSchedule.mockReturnValue({
+        scheduledItems: [],
+        criticalPath: [wiId, `milestone:${msId}`],
+        warnings: [],
+      });
+
+      const result = getTimeline(db);
+
+      // criticalPath returned to caller must NOT contain milestone: entries
+      expect(result.criticalPath).toContain(wiId);
+      expect(result.criticalPath).not.toContain(`milestone:${msId}`);
+    });
+
+    it('returns empty criticalPath when engine only has milestone nodes on the path', () => {
+      const userId = insertUser(db);
+      const msId = insertMilestone(db, userId, { title: 'Only milestone on path' });
+
+      mockSchedule.mockReturnValue({
+        scheduledItems: [],
+        criticalPath: [`milestone:${msId}`],
+        warnings: [],
+      });
+
+      const result = getTimeline(db);
+
+      expect(result.criticalPath).toEqual([]);
+    });
+
+    it('preserves work item IDs in criticalPath when mixed with milestone IDs', () => {
+      const userId = insertUser(db);
+      const wiA = insertWorkItem(db, userId, { startDate: '2026-03-01', durationDays: 5 });
+      const wiB = insertWorkItem(db, userId, { startDate: '2026-04-01', durationDays: 3 });
+      const msId = insertMilestone(db, userId, { title: 'Intermediate MS' });
+
+      mockSchedule.mockReturnValue({
+        scheduledItems: [],
+        criticalPath: [wiA, `milestone:${msId}`, wiB],
+        warnings: [],
+      });
+
+      const result = getTimeline(db);
+
+      expect(result.criticalPath).toEqual([wiA, wiB]);
+    });
+  });
+
   // ─── SchedulingWorkItem fields passed to engine ─────────────────────────────
 
   describe('engine input shapes', () => {
