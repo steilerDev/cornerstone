@@ -1642,10 +1642,10 @@ describe('HouseholdItemDetailPage', () => {
     });
   });
 
-  // ── Constraints section (issue #462) ─────────────────────────────────────
+  // ── Dependencies section (Story #467 — replaces Constraints section from issue #462) ──────
 
-  describe('Constraints section', () => {
-    it('renders the Constraints section heading', async () => {
+  describe('Dependencies section', () => {
+    it('renders the Dependencies section heading', async () => {
       mockGetHouseholdItem.mockResolvedValue(makeItem());
 
       renderPage();
@@ -1654,10 +1654,11 @@ describe('HouseholdItemDetailPage', () => {
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      expect(screen.getByRole('heading', { name: 'Constraints' })).toBeInTheDocument();
+      // Story #467 replaced "Constraints" with a unified "Dependencies" card
+      expect(screen.getByRole('heading', { name: 'Dependencies' })).toBeInTheDocument();
     });
 
-    it('renders Delivery Window subsection heading', async () => {
+    it('does NOT render the old Constraints or Delivery Window headings', async () => {
       mockGetHouseholdItem.mockResolvedValue(makeItem());
 
       renderPage();
@@ -1666,19 +1667,8 @@ describe('HouseholdItemDetailPage', () => {
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      expect(screen.getByRole('heading', { name: 'Delivery Window' })).toBeInTheDocument();
-    });
-
-    it('renders Dependencies subsection heading', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      expect(screen.getByRole('heading', { name: /Dependencies/i })).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'Constraints' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'Delivery Window' })).not.toBeInTheDocument();
     });
   });
 });

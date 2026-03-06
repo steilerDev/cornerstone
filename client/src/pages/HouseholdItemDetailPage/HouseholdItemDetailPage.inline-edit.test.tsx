@@ -311,8 +311,15 @@ describe('HouseholdItemDetailPage — inline date editing (Story #467)', () => {
   // ─── Helper: wait for the page to finish loading ───────────────────────────
 
   async function waitForPageLoad() {
+    // Wait for loading to finish AND item to render.
+    // The heading confirms item is set and at least one render cycle with data has completed.
     await waitFor(() => {
       expect(screen.queryByText('Loading household item...')).not.toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
+    });
+    // Allow one more microtask tick for useEffect([item?.id]) that initializes local date state
+    await waitFor(() => {
+      expect(screen.getByLabelText('Order date')).toBeInTheDocument();
     });
   }
 
@@ -399,6 +406,10 @@ describe('HouseholdItemDetailPage — inline date editing (Story #467)', () => {
       await waitForPageLoad();
 
       const orderDateInput = screen.getByLabelText('Order date') as HTMLInputElement;
+      // Wait for useEffect to initialize local state from item
+      await waitFor(() => {
+        expect(orderDateInput.value).toBe('2026-02-15');
+      });
       // Focus then blur without changing
       fireEvent.focus(orderDateInput);
       fireEvent.blur(orderDateInput);
@@ -543,7 +554,8 @@ describe('HouseholdItemDetailPage — inline date editing (Story #467)', () => {
       renderPage();
       await waitForPageLoad();
 
-      const clearOrderDateBtn = screen.getByRole('button', { name: 'Clear order date' });
+      // Wait for local state to initialize (clear button only shows when localOrderDate is set)
+      const clearOrderDateBtn = await screen.findByRole('button', { name: 'Clear order date' });
       fireEvent.click(clearOrderDateBtn);
 
       await waitFor(() => {
@@ -562,7 +574,7 @@ describe('HouseholdItemDetailPage — inline date editing (Story #467)', () => {
 
       const initialCallCount = mockGetHouseholdItem.mock.calls.length;
 
-      const clearOrderDateBtn = screen.getByRole('button', { name: 'Clear order date' });
+      const clearOrderDateBtn = await screen.findByRole('button', { name: 'Clear order date' });
       fireEvent.click(clearOrderDateBtn);
 
       await waitFor(() => {
@@ -581,7 +593,9 @@ describe('HouseholdItemDetailPage — inline date editing (Story #467)', () => {
       renderPage();
       await waitForPageLoad();
 
-      const clearActualBtn = screen.getByRole('button', { name: 'Clear actual delivery date' });
+      const clearActualBtn = await screen.findByRole('button', {
+        name: 'Clear actual delivery date',
+      });
       fireEvent.click(clearActualBtn);
 
       await waitFor(() => {
@@ -605,7 +619,9 @@ describe('HouseholdItemDetailPage — inline date editing (Story #467)', () => {
       renderPage();
       await waitForPageLoad();
 
-      const clearEarliestBtn = screen.getByRole('button', { name: 'Clear earliest delivery date' });
+      const clearEarliestBtn = await screen.findByRole('button', {
+        name: 'Clear earliest delivery date',
+      });
       fireEvent.click(clearEarliestBtn);
 
       await waitFor(() => {
@@ -631,7 +647,9 @@ describe('HouseholdItemDetailPage — inline date editing (Story #467)', () => {
 
       const initialCallCount = mockGetHouseholdItem.mock.calls.length;
 
-      const clearLatestBtn = screen.getByRole('button', { name: 'Clear latest delivery date' });
+      const clearLatestBtn = await screen.findByRole('button', {
+        name: 'Clear latest delivery date',
+      });
       fireEvent.click(clearLatestBtn);
 
       await waitFor(() => {
@@ -826,8 +844,10 @@ describe('HouseholdItemDetailPage — inline date editing (Story #467)', () => {
       renderPage();
       await waitForPageLoad();
 
-      const orderDateInput = screen.getByLabelText('Order date') as HTMLInputElement;
-      expect(orderDateInput.value).toBe('2026-02-15');
+      await waitFor(() => {
+        const orderDateInput = screen.getByLabelText('Order date') as HTMLInputElement;
+        expect(orderDateInput.value).toBe('2026-02-15');
+      });
     });
 
     it('actual delivery input shows the item actualDeliveryDate value after load', async () => {
@@ -836,8 +856,10 @@ describe('HouseholdItemDetailPage — inline date editing (Story #467)', () => {
       renderPage();
       await waitForPageLoad();
 
-      const actualInput = screen.getByLabelText('Actual delivery date') as HTMLInputElement;
-      expect(actualInput.value).toBe('2026-03-05');
+      await waitFor(() => {
+        const actualInput = screen.getByLabelText('Actual delivery date') as HTMLInputElement;
+        expect(actualInput.value).toBe('2026-03-05');
+      });
     });
 
     it('earliest delivery input shows the item earliestDeliveryDate value after load', async () => {
@@ -846,8 +868,10 @@ describe('HouseholdItemDetailPage — inline date editing (Story #467)', () => {
       renderPage();
       await waitForPageLoad();
 
-      const earliestInput = screen.getByLabelText('Earliest delivery date') as HTMLInputElement;
-      expect(earliestInput.value).toBe('2026-03-01');
+      await waitFor(() => {
+        const earliestInput = screen.getByLabelText('Earliest delivery date') as HTMLInputElement;
+        expect(earliestInput.value).toBe('2026-03-01');
+      });
     });
 
     it('latest delivery input shows the item latestDeliveryDate value after load', async () => {
@@ -856,8 +880,10 @@ describe('HouseholdItemDetailPage — inline date editing (Story #467)', () => {
       renderPage();
       await waitForPageLoad();
 
-      const latestInput = screen.getByLabelText('Latest delivery date') as HTMLInputElement;
-      expect(latestInput.value).toBe('2026-03-10');
+      await waitFor(() => {
+        const latestInput = screen.getByLabelText('Latest delivery date') as HTMLInputElement;
+        expect(latestInput.value).toBe('2026-03-10');
+      });
     });
 
     it('order date input is empty when item has no orderDate', async () => {
@@ -880,7 +906,8 @@ describe('HouseholdItemDetailPage — inline date editing (Story #467)', () => {
       renderPage();
       await waitForPageLoad();
 
-      expect(screen.getByRole('button', { name: 'Clear order date' })).toBeInTheDocument();
+      // findByRole waits for useEffect to initialize local state, which shows the clear button
+      expect(await screen.findByRole('button', { name: 'Clear order date' })).toBeInTheDocument();
     });
 
     it('does NOT show "Clear order date" button when orderDate is null', async () => {
@@ -899,7 +926,7 @@ describe('HouseholdItemDetailPage — inline date editing (Story #467)', () => {
       await waitForPageLoad();
 
       expect(
-        screen.getByRole('button', { name: 'Clear actual delivery date' }),
+        await screen.findByRole('button', { name: 'Clear actual delivery date' }),
       ).toBeInTheDocument();
     });
 
@@ -910,7 +937,7 @@ describe('HouseholdItemDetailPage — inline date editing (Story #467)', () => {
       await waitForPageLoad();
 
       expect(
-        screen.getByRole('button', { name: 'Clear earliest delivery date' }),
+        await screen.findByRole('button', { name: 'Clear earliest delivery date' }),
       ).toBeInTheDocument();
     });
 
@@ -921,7 +948,7 @@ describe('HouseholdItemDetailPage — inline date editing (Story #467)', () => {
       await waitForPageLoad();
 
       expect(
-        screen.getByRole('button', { name: 'Clear latest delivery date' }),
+        await screen.findByRole('button', { name: 'Clear latest delivery date' }),
       ).toBeInTheDocument();
     });
   });
