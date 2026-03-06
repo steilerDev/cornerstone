@@ -40,6 +40,8 @@ UPDATE household_items SET category_id = 'hic-other'       WHERE category = 'oth
 UPDATE household_items SET category_id = 'hic-other' WHERE category_id IS NULL;
 
 -- Drop old category column (SQLite 3.35.0+ supports DROP COLUMN)
+-- Must drop the index first since SQLite cannot drop a column that has an index
+DROP INDEX IF EXISTS idx_household_items_category;
 ALTER TABLE household_items DROP COLUMN category;
 
 -- Seed "Household Items" budget category

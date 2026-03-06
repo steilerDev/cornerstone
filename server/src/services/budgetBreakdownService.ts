@@ -19,14 +19,14 @@ import type {
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
 const HI_CATEGORY_ORDER: HouseholdItemCategory[] = [
-  'furniture',
-  'appliances',
-  'fixtures',
-  'decor',
-  'electronics',
-  'outdoor',
-  'storage',
-  'other',
+  'hic-furniture',
+  'hic-appliances',
+  'hic-fixtures',
+  'hic-decor',
+  'hic-electronics',
+  'hic-outdoor',
+  'hic-storage',
+  'hic-other',
 ];
 
 /**
@@ -106,7 +106,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
     sql`SELECT
       hi.id                     AS householdItemId,
       hi.name                   AS itemName,
-      hi.category               AS hiCategory,
+      hi.category_id            AS hiCategory,
       hib.id                    AS budgetLineId,
       hib.description           AS description,
       hib.planned_amount        AS plannedAmount,
@@ -114,7 +114,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
       hib.budget_category_id    AS budgetCategoryId
     FROM household_items hi
     INNER JOIN household_item_budgets hib ON hib.household_item_id = hi.id
-    ORDER BY hi.category ASC, hi.name ASC`,
+    ORDER BY hi.category_id ASC, hi.name ASC`,
   );
 
   // ── 4. Query D: Invoice aggregates per HI budget line ────────────────────
