@@ -338,6 +338,7 @@ The sandbox has strict limitations for git operations in worktrees:
 **Solution**: Model milestones as zero-duration CPM nodes with ID prefix `milestone:<id>`. The scheduler naturally includes them in critical path calculations.
 
 **Changes** (PR #487):
+
 - `shared/src/types/timeline.ts`: Add `isCritical?: boolean` to `TimelineMilestone`
 - `server/src/services/schedulingEngine.ts`:
   - Replace synthetic WI→WI expansion with milestone CPM nodes

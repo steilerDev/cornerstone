@@ -21,7 +21,11 @@ import { eq } from 'drizzle-orm';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
 import { schedule, autoReschedule } from './schedulingEngine.js';
-import type { SchedulingWorkItem, SchedulingDependency, ScheduleParams } from './schedulingEngine.js';
+import type {
+  SchedulingWorkItem,
+  SchedulingDependency,
+  ScheduleParams,
+} from './schedulingEngine.js';
 
 // ─── Pure schedule() helpers ──────────────────────────────────────────────────
 
@@ -183,10 +187,7 @@ describe('milestone as CPM nodes (pure schedule())', () => {
       const milestoneNode = makeItem('milestone:1', 0);
       const wiB = makeItem('wi-b', 5);
 
-      const deps = [
-        makeDep('wi-a', 'milestone:1'),
-        makeDep('milestone:1', 'wi-b'),
-      ];
+      const deps = [makeDep('wi-a', 'milestone:1'), makeDep('milestone:1', 'wi-b')];
 
       const result = schedule(fullParams([wiA, milestoneNode, wiB], deps));
 
@@ -199,10 +200,7 @@ describe('milestone as CPM nodes (pure schedule())', () => {
       const milestoneNode = makeItem('milestone:1', 0);
       const wiB = makeItem('wi-b', 5);
 
-      const deps = [
-        makeDep('wi-a', 'milestone:1'),
-        makeDep('milestone:1', 'wi-b'),
-      ];
+      const deps = [makeDep('wi-a', 'milestone:1'), makeDep('milestone:1', 'wi-b')];
 
       const result = schedule(fullParams([wiA, milestoneNode, wiB], deps));
 
@@ -217,15 +215,10 @@ describe('milestone as CPM nodes (pure schedule())', () => {
       const milestoneNode = makeItem('milestone:1', 0);
       const wiB = makeItem('wi-b', 5);
 
-      const deps = [
-        makeDep('wi-a', 'milestone:1'),
-        makeDep('milestone:1', 'wi-b'),
-      ];
+      const deps = [makeDep('wi-a', 'milestone:1'), makeDep('milestone:1', 'wi-b')];
 
       const result = schedule(fullParams([wiA, milestoneNode, wiB], deps));
-      const milestoneScheduled = result.scheduledItems.find(
-        (s) => s.workItemId === 'milestone:1',
-      );
+      const milestoneScheduled = result.scheduledItems.find((s) => s.workItemId === 'milestone:1');
 
       expect(milestoneScheduled).toBeDefined();
       expect(milestoneScheduled!.scheduledStartDate).toBe(milestoneScheduled!.scheduledEndDate);
@@ -298,9 +291,7 @@ describe('milestone as CPM nodes (pure schedule())', () => {
 
       const result = schedule(fullParams([wiA, milestoneNode, wiB, wiC], deps));
 
-      const milestoneScheduled = result.scheduledItems.find(
-        (s) => s.workItemId === 'milestone:1',
-      );
+      const milestoneScheduled = result.scheduledItems.find((s) => s.workItemId === 'milestone:1');
       expect(milestoneScheduled).toBeDefined();
       expect(milestoneScheduled!.totalFloat).toBeGreaterThan(0);
       expect(milestoneScheduled!.isCritical).toBe(false);
@@ -326,9 +317,7 @@ describe('milestone as CPM nodes (pure schedule())', () => {
       const result = schedule(fullParams([milestoneNode, wiB], deps, '2026-03-01'));
 
       // Milestone's scheduled dates should reflect the actual completion date
-      const milestoneScheduled = result.scheduledItems.find(
-        (s) => s.workItemId === 'milestone:1',
-      );
+      const milestoneScheduled = result.scheduledItems.find((s) => s.workItemId === 'milestone:1');
       expect(milestoneScheduled).toBeDefined();
       expect(milestoneScheduled!.scheduledStartDate).toBe(completedDate);
       expect(milestoneScheduled!.scheduledEndDate).toBe(completedDate);
@@ -371,9 +360,7 @@ describe('milestone as CPM nodes (pure schedule())', () => {
 
       const result = schedule(fullParams([milestoneNode], [], '2026-03-01'));
 
-      const milestoneScheduled = result.scheduledItems.find(
-        (s) => s.workItemId === 'milestone:1',
-      );
+      const milestoneScheduled = result.scheduledItems.find((s) => s.workItemId === 'milestone:1');
       expect(milestoneScheduled).toBeDefined();
       expect(milestoneScheduled!.scheduledStartDate).toBe(completedDate);
       expect(milestoneScheduled!.scheduledEndDate).toBe(completedDate);
@@ -405,9 +392,7 @@ describe('milestone as CPM nodes (pure schedule())', () => {
 
       const result = schedule(fullParams([wiA, wiB, milestoneNode, wiC], deps));
 
-      const milestoneScheduled = result.scheduledItems.find(
-        (s) => s.workItemId === 'milestone:1',
-      );
+      const milestoneScheduled = result.scheduledItems.find((s) => s.workItemId === 'milestone:1');
       const wiCScheduled = result.scheduledItems.find((s) => s.workItemId === 'wi-c');
 
       expect(milestoneScheduled).toBeDefined();
@@ -427,15 +412,10 @@ describe('milestone as CPM nodes (pure schedule())', () => {
       const milestoneNodeSingle = makeItem('milestone:1', 0);
       const wiC = makeItem('wi-c', 3);
 
-      const deps = [
-        makeDep('wi-a', 'milestone:1'),
-        makeDep('milestone:1', 'wi-c'),
-      ];
+      const deps = [makeDep('wi-a', 'milestone:1'), makeDep('milestone:1', 'wi-c')];
 
       const result = schedule(fullParams([wiA, milestoneNodeSingle, wiC], deps));
-      const milestoneScheduled = result.scheduledItems.find(
-        (s) => s.workItemId === 'milestone:1',
-      );
+      const milestoneScheduled = result.scheduledItems.find((s) => s.workItemId === 'milestone:1');
 
       // With only WI-A (5 days), milestone is at 2026-01-06
       expect(milestoneScheduled!.scheduledStartDate).toBe('2026-01-06');
@@ -446,15 +426,10 @@ describe('milestone as CPM nodes (pure schedule())', () => {
       const wiB = makeItem('wi-b', 7);
       const milestoneNode = makeItem('milestone:1', 0);
 
-      const deps = [
-        makeDep('wi-a', 'milestone:1'),
-        makeDep('wi-b', 'milestone:1'),
-      ];
+      const deps = [makeDep('wi-a', 'milestone:1'), makeDep('wi-b', 'milestone:1')];
 
       const result = schedule(fullParams([wiA, wiB, milestoneNode], deps));
-      const milestoneScheduled = result.scheduledItems.find(
-        (s) => s.workItemId === 'milestone:1',
-      );
+      const milestoneScheduled = result.scheduledItems.find((s) => s.workItemId === 'milestone:1');
 
       expect(milestoneScheduled).toBeDefined();
       expect(milestoneScheduled!.scheduledStartDate).toBe(milestoneScheduled!.scheduledEndDate);

@@ -835,7 +835,10 @@ describe('getTimeline service', () => {
 
     it('isCritical is false for a milestone not in the critical path', () => {
       const userId = insertUser(db);
-      const msId = insertMilestone(db, userId, { title: 'Non-Critical MS', targetDate: '2026-04-01' });
+      const msId = insertMilestone(db, userId, {
+        title: 'Non-Critical MS',
+        targetDate: '2026-04-01',
+      });
 
       // Critical path does not include this milestone
       mockSchedule.mockReturnValue({
