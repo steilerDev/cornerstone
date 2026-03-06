@@ -90,8 +90,9 @@ export class WorkItemsPage {
     this.prevPageButton = page.getByLabel('Previous page');
     this.nextPageButton = page.getByLabel('Next page');
 
-    // Empty state
-    this.emptyState = page.locator('[class*="emptyState"]');
+    // Empty state — use .first() to avoid strict mode: child elements such as
+    // emptyStateTitle/emptyStateDescription also contain "emptyState" in their class names.
+    this.emptyState = page.locator('[class*="emptyState"]').first();
 
     // Error banner (outside modal)
     this.errorBanner = page.locator('[role="alert"][class*="errorBanner"]');

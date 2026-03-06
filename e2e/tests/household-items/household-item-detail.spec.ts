@@ -258,8 +258,10 @@ test.describe('404 / error state (Scenario 8)', { tag: '@responsive' }, () => {
     await page.goto('/household-items/non-existent-id-000');
 
     // The page should either show a not-found message or redirect
-    // The HouseholdItemDetailPage shows "not found" text when item doesn't exist
-    const notFoundText = page.getByText(/not found|doesn't exist|has been removed/i);
+    // The HouseholdItemDetailPage shows "not found" text when item doesn't exist.
+    // Use .first() to avoid strict mode violation: the page renders both a heading
+    // and a description element that match the pattern.
+    const notFoundText = page.getByText(/not found|doesn't exist|has been removed/i).first();
     await expect(notFoundText).toBeVisible({ timeout: 10000 });
   });
 });

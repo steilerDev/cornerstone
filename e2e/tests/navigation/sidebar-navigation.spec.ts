@@ -52,11 +52,13 @@ test.describe('Sidebar Navigation', { tag: '@responsive' }, () => {
     // Given: User navigates to Work Items page
     await page.goto(ROUTES.workItems);
 
-    // Then: Work Items link should be active
+    // Then: Work Items link should be active.
+    // Use an explicit timeout on toPass() — the default (5s) can be too short
+    // on slow CI workers while React Router updates aria-current after navigation.
     await expect(async () => {
       const isActive = await appShell.isNavLinkActive('Work Items');
       expect(isActive).toBe(true);
-    }).toPass();
+    }).toPass({ timeout: 15000 });
 
     // When: User navigates to Budget
     await page.goto(ROUTES.budget);
@@ -65,13 +67,13 @@ test.describe('Sidebar Navigation', { tag: '@responsive' }, () => {
     await expect(async () => {
       const isActive = await appShell.isNavLinkActive('Budget');
       expect(isActive).toBe(true);
-    }).toPass();
+    }).toPass({ timeout: 15000 });
 
     // And: Work Items link should not be active
     await expect(async () => {
       const isActive = await appShell.isNavLinkActive('Work Items');
       expect(isActive).toBe(false);
-    }).toPass();
+    }).toPass({ timeout: 15000 });
   });
 
   test('All nav links rendered and visible', async ({ page }) => {
