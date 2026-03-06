@@ -60,33 +60,10 @@ function formatCost(amount: number): string {
 }
 
 /**
- * Formats payback with explicit plus sign
+ * Formats payback as currency value (no sign prefix)
  */
 function formatPayback(amount: number): string {
-  return `+${formatCurrency(amount)}`;
-}
-
-/**
- * Renders payback value or range with proper styling
- */
-function renderPayback(
-  minPayback: number,
-  maxPayback: number,
-  cssStyles: typeof styles,
-): React.ReactNode {
-  if (maxPayback === 0) {
-    return '—';
-  }
-
-  if (Math.abs(minPayback - maxPayback) < 0.001) {
-    return <span className={cssStyles.valuePositive}>{formatPayback(maxPayback)}</span>;
-  }
-
-  return (
-    <span className={cssStyles.valuePositive}>
-      {formatPayback(minPayback)} – {formatPayback(maxPayback)}
-    </span>
-  );
+  return formatCurrency(amount);
 }
 
 /**
@@ -96,22 +73,11 @@ function renderPayback(
  */
 function renderNet(
   rawCost: number,
-  minPayback: number,
-  maxPayback: number,
+  payback: number,
   cssStyles: typeof styles,
   colored: boolean = false,
 ): React.ReactNode {
-  const hasRange = Math.abs(maxPayback - minPayback) >= 0.001;
-  if (hasRange && !colored) {
-    const netMax = rawCost - minPayback;
-    const netMin = rawCost - maxPayback;
-    return (
-      <span>
-        {formatCurrency(netMin)} – {formatCurrency(netMax)}
-      </span>
-    );
-  }
-  const net = rawCost - maxPayback;
+  const net = rawCost - payback;
   if (colored) {
     return (
       <span className={net >= 0 ? cssStyles.valuePositive : cssStyles.valueNegative}>
@@ -247,6 +213,8 @@ function BudgetLineRow({
   const perspectiveValue = resolveProjected(costMin, costMax, perspective);
   const rowClassName = `${styles.rowLevel3}${line.hasInvoice ? ` ${styles.rowActual}` : ''}`;
 
+  const resolvedRawCost = line.hasInvoice ? line.actualCost : perspectiveValue;
+
   return (
     <tr className={rowClassName} key={key}>
       <td className={styles.colName}>
@@ -257,16 +225,14 @@ function BudgetLineRow({
       </td>
       <td className={styles.colBudget}>
         {line.hasInvoice ? (
-          <span>Actual: {formatCurrency(line.actualCost)}</span>
+          <span>{formatCost(line.actualCost)}</span>
         ) : (
-          <span>{formatCurrency(perspectiveValue)}</span>
+          <span>{formatCost(perspectiveValue)}</span>
         )}
       </td>
       <td className={styles.colPayback}>—</td>
       <td className={styles.colRemaining}>
-        <span>
-          {line.hasInvoice ? formatCurrency(line.actualCost) : formatCurrency(perspectiveValue)}
-        </span>
+        <span>{formatCurrency(resolvedRawCost)}</span>
       </td>
     </tr>
   );
@@ -294,7 +260,15 @@ function WorkItemRow({
     rowClassName = `${styles.rowLevel2} ${styles.rowMixed}`;
   }
 
-  const resolvedRawCost = resolveProjected(item.rawProjectedMin, item.rawProjectedMax, perspective);
+  const resolvedRawCost =
+    item.costDisplay === 'actual'
+      ? item.actualCost
+      : resolveProjected(item.rawProjectedMin, item.rawProjectedMax, perspective);
+  const resolvedPayback = resolveProjected(
+    item.minSubsidyPayback,
+    item.subsidyPayback,
+    perspective,
+  );
 
   return (
     <>
@@ -319,16 +293,16 @@ function WorkItemRow({
         </td>
         <td className={styles.colBudget}>
           {item.costDisplay === 'actual' ? (
-            <span>Actual: {formatCurrency(item.actualCost)}</span>
+            <span>{formatCost(item.actualCost)}</span>
           ) : (
             <span>{formatCost(resolvedRawCost)}</span>
           )}
         </td>
         <td className={styles.colPayback}>
-          {renderPayback(item.minSubsidyPayback, item.subsidyPayback, styles)}
+          {item.subsidyPayback > 0 ? formatPayback(resolvedPayback) : '—'}
         </td>
         <td className={styles.colRemaining}>
-          {renderNet(resolvedRawCost, item.minSubsidyPayback, item.subsidyPayback, styles)}
+          {renderNet(resolvedRawCost, resolvedPayback, styles)}
         </td>
       </tr>
 
@@ -364,6 +338,11 @@ function WorkItemCategorySection({
     category.rawProjectedMax,
     perspective,
   );
+  const resolvedPayback = resolveProjected(
+    category.minSubsidyPayback,
+    category.subsidyPayback,
+    perspective,
+  );
 
   return (
     <>
@@ -384,10 +363,10 @@ function WorkItemCategorySection({
         </td>
         <td className={styles.colBudget}>{formatCost(resolvedRawCost)}</td>
         <td className={styles.colPayback}>
-          {renderPayback(category.minSubsidyPayback, category.subsidyPayback, styles)}
+          {category.subsidyPayback > 0 ? formatPayback(resolvedPayback) : '—'}
         </td>
         <td className={styles.colRemaining}>
-          {renderNet(resolvedRawCost, category.minSubsidyPayback, category.subsidyPayback, styles)}
+          {renderNet(resolvedRawCost, resolvedPayback, styles)}
         </td>
       </tr>
 
@@ -412,15 +391,10 @@ function WorkItemCategorySection({
             </td>
             <td className={styles.colBudget}>{formatCost(resolvedRawCost)}</td>
             <td className={styles.colPayback}>
-              {renderPayback(category.minSubsidyPayback, category.subsidyPayback, styles)}
+              {category.subsidyPayback > 0 ? formatPayback(resolvedPayback) : '—'}
             </td>
             <td className={styles.colRemaining}>
-              {renderNet(
-                resolvedRawCost,
-                category.minSubsidyPayback,
-                category.subsidyPayback,
-                styles,
-              )}
+              {renderNet(resolvedRawCost, resolvedPayback, styles)}
             </td>
           </tr>
         </>
@@ -451,7 +425,15 @@ function HouseholdItemRow({
     rowClassName = `${styles.rowLevel2} ${styles.rowMixed}`;
   }
 
-  const resolvedRawCost = resolveProjected(item.rawProjectedMin, item.rawProjectedMax, perspective);
+  const resolvedRawCost =
+    item.costDisplay === 'actual'
+      ? item.actualCost
+      : resolveProjected(item.rawProjectedMin, item.rawProjectedMax, perspective);
+  const resolvedPayback = resolveProjected(
+    item.minSubsidyPayback,
+    item.subsidyPayback,
+    perspective,
+  );
 
   return (
     <>
@@ -476,16 +458,16 @@ function HouseholdItemRow({
         </td>
         <td className={styles.colBudget}>
           {item.costDisplay === 'actual' ? (
-            <span>Actual: {formatCurrency(item.actualCost)}</span>
+            <span>{formatCost(item.actualCost)}</span>
           ) : (
             <span>{formatCost(resolvedRawCost)}</span>
           )}
         </td>
         <td className={styles.colPayback}>
-          {renderPayback(item.minSubsidyPayback, item.subsidyPayback, styles)}
+          {item.subsidyPayback > 0 ? formatPayback(resolvedPayback) : '—'}
         </td>
         <td className={styles.colRemaining}>
-          {renderNet(resolvedRawCost, item.minSubsidyPayback, item.subsidyPayback, styles)}
+          {renderNet(resolvedRawCost, resolvedPayback, styles)}
         </td>
       </tr>
 
@@ -522,6 +504,11 @@ function HouseholdItemCategorySection({
     category.rawProjectedMax,
     perspective,
   );
+  const resolvedPayback = resolveProjected(
+    category.minSubsidyPayback,
+    category.subsidyPayback,
+    perspective,
+  );
 
   return (
     <>
@@ -542,10 +529,10 @@ function HouseholdItemCategorySection({
         </td>
         <td className={styles.colBudget}>{formatCost(resolvedRawCost)}</td>
         <td className={styles.colPayback}>
-          {renderPayback(category.minSubsidyPayback, category.subsidyPayback, styles)}
+          {category.subsidyPayback > 0 ? formatPayback(resolvedPayback) : '—'}
         </td>
         <td className={styles.colRemaining}>
-          {renderNet(resolvedRawCost, category.minSubsidyPayback, category.subsidyPayback, styles)}
+          {renderNet(resolvedRawCost, resolvedPayback, styles)}
         </td>
       </tr>
 
@@ -570,15 +557,10 @@ function HouseholdItemCategorySection({
             </td>
             <td className={styles.colBudget}>{formatCost(resolvedRawCost)}</td>
             <td className={styles.colPayback}>
-              {renderPayback(category.minSubsidyPayback, category.subsidyPayback, styles)}
+              {category.subsidyPayback > 0 ? formatPayback(resolvedPayback) : '—'}
             </td>
             <td className={styles.colRemaining}>
-              {renderNet(
-                resolvedRawCost,
-                category.minSubsidyPayback,
-                category.subsidyPayback,
-                styles,
-              )}
+              {renderNet(resolvedRawCost, resolvedPayback, styles)}
             </td>
           </tr>
         </>
@@ -681,8 +663,9 @@ export function CostBreakdownTable({
   /**
    * Total payback from all sources (min and max).
    */
-  const totalPayback = wiTotals.subsidyPayback + hiTotals.subsidyPayback;
+  const maxTotalPayback = wiTotals.subsidyPayback + hiTotals.subsidyPayback;
   const minTotalPayback = wiTotals.minSubsidyPayback + hiTotals.minSubsidyPayback;
+  const resolvedTotalPayback = resolveProjected(minTotalPayback, maxTotalPayback, perspective);
 
   /**
    * Total raw projected cost (perspective-dependent).
@@ -694,9 +677,9 @@ export function CostBreakdownTable({
   );
 
   /**
-   * Sum = availableFunds - totalRawProjected + totalPayback.
+   * Sum = availableFunds - totalRawProjected + resolvedTotalPayback.
    */
-  const sum = overview.availableFunds - totalRawProjected + totalPayback;
+  const sum = overview.availableFunds - totalRawProjected + resolvedTotalPayback;
 
   // Empty state
   const hasData = visibleWICategories.length > 0 || breakdown.householdItems.categories.length > 0;
@@ -818,7 +801,15 @@ export function CostBreakdownTable({
                     )}
                   </td>
                   <td className={styles.colPayback}>
-                    {renderPayback(wiTotals.minSubsidyPayback, wiTotals.subsidyPayback, styles)}
+                    {wiTotals.subsidyPayback > 0
+                      ? formatPayback(
+                          resolveProjected(
+                            wiTotals.minSubsidyPayback,
+                            wiTotals.subsidyPayback,
+                            perspective,
+                          ),
+                        )
+                      : '—'}
                   </td>
                   <td className={styles.colRemaining}>
                     {renderNet(
@@ -827,8 +818,11 @@ export function CostBreakdownTable({
                         wiTotals.rawProjectedMax,
                         perspective,
                       ),
-                      wiTotals.minSubsidyPayback,
-                      wiTotals.subsidyPayback,
+                      resolveProjected(
+                        wiTotals.minSubsidyPayback,
+                        wiTotals.subsidyPayback,
+                        perspective,
+                      ),
                       styles,
                     )}
                   </td>
@@ -880,7 +874,15 @@ export function CostBreakdownTable({
                     )}
                   </td>
                   <td className={styles.colPayback}>
-                    {renderPayback(hiTotals.minSubsidyPayback, hiTotals.subsidyPayback, styles)}
+                    {hiTotals.subsidyPayback > 0
+                      ? formatPayback(
+                          resolveProjected(
+                            hiTotals.minSubsidyPayback,
+                            hiTotals.subsidyPayback,
+                            perspective,
+                          ),
+                        )
+                      : '—'}
                   </td>
                   <td className={styles.colRemaining}>
                     {renderNet(
@@ -889,8 +891,11 @@ export function CostBreakdownTable({
                         hiTotals.rawProjectedMax,
                         perspective,
                       ),
-                      hiTotals.minSubsidyPayback,
-                      hiTotals.subsidyPayback,
+                      resolveProjected(
+                        hiTotals.minSubsidyPayback,
+                        hiTotals.subsidyPayback,
+                        perspective,
+                      ),
                       styles,
                     )}
                   </td>
@@ -931,7 +936,7 @@ export function CostBreakdownTable({
                 </span>
               </td>
               <td className={styles.colPayback}>
-                {renderPayback(minTotalPayback, totalPayback, styles)}
+                {maxTotalPayback > 0 ? formatPayback(resolvedTotalPayback) : '—'}
               </td>
               <td className={styles.colRemaining}>
                 <span className={sum >= 0 ? styles.valuePositive : styles.valueNegative}>

@@ -117,6 +117,18 @@
   min-width: 120px;
 }
 
+/* ---- Column tints (layered on top of row backgrounds) ---- */
+
+td.colBudget,
+th.colBudget {
+  box-shadow: inset 0 0 0 9999px color-mix(in srgb, var(--color-danger) 5%, transparent);
+}
+
+td.colPayback,
+th.colPayback {
+  box-shadow: inset 0 0 0 9999px color-mix(in srgb, var(--color-success) 5%, transparent);
+}
+
 /* ---- Level 0: Summary row ---- */
 
 .rowLevel0 td {

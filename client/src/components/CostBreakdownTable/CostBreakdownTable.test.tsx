@@ -659,7 +659,7 @@ describe('CostBreakdownTable', () => {
 
   // ── 21. costDisplay: 'actual' ──────────────────────────────────────────
 
-  it('shows "Actual:" prefix in item row for costDisplay=actual', () => {
+  it('shows formatted cost in item row for costDisplay=actual (no "Actual:" label)', () => {
     const { container } = renderWithRouter(
       buildBreakdownWithWI({
         costDisplay: 'actual',
@@ -675,8 +675,9 @@ describe('CostBreakdownTable', () => {
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
     fireEvent.click(getButtonByControls(container, 'wi-cat-cat-mat-items'));
 
-    // The item row should display "Actual: €950.00"
-    expect(screen.getByText(/Actual:/)).toBeInTheDocument();
+    // The item row Cost column shows "-€950.00" (formatCost) without "Actual:" label
+    expect(screen.getAllByText('-€950.00').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText(/Actual:/)).not.toBeInTheDocument();
   });
 
   // ── 22. costDisplay: 'projected' ─────────────────────────────────────────
@@ -771,8 +772,8 @@ describe('CostBreakdownTable', () => {
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
     fireEvent.click(getButtonByControls(container, 'wi-cat-cat-land-items'));
 
-    // Payback column shows "+€120.00" with explicit plus sign (category row and item row)
-    const currencyElements = screen.getAllByText('+€120.00');
+    // Payback column shows "€120.00" (no plus prefix) for both category row and item row
+    const currencyElements = screen.getAllByText('€120.00');
     expect(currencyElements.length).toBeGreaterThanOrEqual(1);
   });
 
@@ -1486,7 +1487,7 @@ describe('CostBreakdownTable', () => {
     expect(minButton).toHaveAttribute('aria-checked', 'false');
   });
 
-  // Scenario 6: Actual-cost items show actualCost regardless of perspective
+  // Scenario 6: Actual-cost items show actualCost regardless of perspective (no "Actual:" label)
   it('actual-cost items show actualCost value regardless of which perspective is active', () => {
     const { container } = renderWithRouter(
       buildBreakdownWithWI({
@@ -1506,13 +1507,13 @@ describe('CostBreakdownTable', () => {
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
     fireEvent.click(getButtonByControls(container, 'wi-cat-cat-equip-actual-items'));
 
-    // Actual cost always shows with "Actual:" prefix
-    expect(screen.getByText(/Actual:/)).toBeInTheDocument();
-    expect(screen.getAllByText(/€750\.00/).length).toBeGreaterThanOrEqual(1);
+    // Actual cost shows "-€750.00" (formatCost), no "Actual:" label
+    expect(screen.getAllByText('-€750.00').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText(/Actual:/)).not.toBeInTheDocument();
 
-    // Switch to Avg — still shows actual
+    // Switch to Avg — still shows same actual cost
     fireEvent.click(screen.getByRole('radio', { name: 'Avg' }));
-    expect(screen.getByText(/Actual:/)).toBeInTheDocument();
+    expect(screen.getAllByText('-€750.00').length).toBeGreaterThanOrEqual(1);
   });
 
   // ── Row Highlighting (Scenarios 10–13) ────────────────────────────────────
@@ -1707,12 +1708,12 @@ describe('CostBreakdownTable', () => {
   // Sum Net  = availableFunds - totalRawProjected + totalPayback (from breakdown totals)
 
   // Scenario 18: Sum Net for default Avg perspective
-  // Sum Net uses full subsidyPayback (max), NOT averaged. Only rawProjected is perspective-averaged.
-  it('Sum Net = availableFunds - avgRawProjected + subsidyPayback for default Avg perspective', () => {
+  // Sum Net uses perspective-resolved payback: resolveProjected(minPayback, maxPayback, perspective)
+  it('Sum Net = availableFunds - avgRawProjected + resolvedPayback for default Avg perspective', () => {
     // availableFunds=10000
     // rawProjectedMin=3000, rawProjectedMax=5000 → avgRaw=4000
-    // subsidyPayback=1200 (full max, not averaged)
-    // Sum Net = 10000 - 4000 + 1200 = 7200
+    // minSubsidyPayback=800, subsidyPayback=1200 → avgPayback=resolveProjected(800,1200,'avg')=1000
+    // Sum Net = 10000 - 4000 + 1000 = 7000
     render(
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI({
@@ -1729,8 +1730,8 @@ describe('CostBreakdownTable', () => {
       />,
     );
 
-    // Default perspective is Avg: Sum Net = 10000 - 4000 + 1200 = 7200
-    expect(screen.getByText('€7,200.00')).toBeInTheDocument();
+    // Default perspective is Avg: Sum Net = 10000 - 4000 + 1000 = 7000
+    expect(screen.getByText('€7,000.00')).toBeInTheDocument();
   });
 
   // Scenario 19: Max perspective uses subsidyPayback (max) and rawProjectedMax
@@ -1761,11 +1762,11 @@ describe('CostBreakdownTable', () => {
     expect(screen.getByText('€14,000.00')).toBeInTheDocument();
   });
 
-  // Scenario 20: Min perspective uses rawProjectedMin; Sum Net still uses full subsidyPayback
-  it('Min perspective: Sum Net = availableFunds - rawProjectedMin + subsidyPayback', () => {
+  // Scenario 20: Min perspective uses rawProjectedMin and minSubsidyPayback for Sum Net
+  it('Min perspective: Sum Net = availableFunds - rawProjectedMin + minSubsidyPayback', () => {
     // availableFunds=20000
-    // rawProjectedMin=5000; subsidyPayback=2000 (full max, not min)
-    // Sum Net (Min) = 20000 - 5000 + 2000 = 17000
+    // rawProjectedMin=5000; minSubsidyPayback=1000 → resolveProjected(1000, 2000, 'min') = 1000
+    // Sum Net (Min) = 20000 - 5000 + 1000 = 16000
     render(
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI({
@@ -1784,16 +1785,16 @@ describe('CostBreakdownTable', () => {
 
     fireEvent.click(screen.getByRole('radio', { name: 'Min' }));
 
-    // Sum Net (Min) = 20000 - 5000 + 2000 = 17000
-    expect(screen.getByText('€17,000.00')).toBeInTheDocument();
+    // Sum Net (Min) = 20000 - 5000 + 1000 = 16000
+    expect(screen.getByText('€16,000.00')).toBeInTheDocument();
   });
 
-  // Scenario 21: Avg perspective averages rawProjected; Sum Net uses full subsidyPayback (not averaged)
-  it('Avg perspective averages rawProjected but uses full subsidyPayback for Sum Net', () => {
+  // Scenario 21: Avg perspective averages both rawProjected and payback for Sum Net
+  it('Avg perspective averages both rawProjected and payback for Sum Net', () => {
     // availableFunds=20000
-    // rawProjectedMin=5000, rawProjectedMax=8000 → avgRaw=6500
-    // subsidyPayback=2000 (full max payback used in sum, not averaged)
-    // Sum Net (Avg) = 20000 - 6500 + 2000 = 15500
+    // rawProjectedMin=5000, rawProjectedMax=8000 → avgRaw=resolveProjected(5000,8000,'avg')=6500
+    // minSubsidyPayback=1000, subsidyPayback=2000 → avgPayback=resolveProjected(1000,2000,'avg')=1500
+    // Sum Net (Avg) = 20000 - 6500 + 1500 = 15000
     render(
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI({
@@ -1811,8 +1812,8 @@ describe('CostBreakdownTable', () => {
     );
 
     // Avg is default — no need to click
-    // Sum Net (Avg) = 20000 - 6500 + 2000 = 15500
-    expect(screen.getByText('€15,500.00')).toBeInTheDocument();
+    // Sum Net (Avg) = 20000 - 6500 + 1500 = 15000
+    expect(screen.getByText('€15,000.00')).toBeInTheDocument();
   });
 
   // ── New Scenarios (Issue #493) ─────────────────────────────────────────────
@@ -1851,12 +1852,12 @@ describe('CostBreakdownTable', () => {
     expect(screen.getByRole('radio', { name: 'Max' })).toHaveAttribute('aria-checked', 'false');
   });
 
-  // Scenario 10: Payback column is not affected by perspective switch
-  it('payback column shows same value regardless of perspective', () => {
+  // Scenario 10: Payback column IS affected by perspective switch (uses resolveProjected)
+  it('payback column changes with perspective when min !== max', () => {
     const { container } = renderWithRouter(
       buildBreakdownWithWI({
-        subsidyPayback: 200,
-        minSubsidyPayback: 200,
+        subsidyPayback: 300,
+        minSubsidyPayback: 100,
         projectedMin: 800,
         projectedMax: 1200,
         rawProjectedMin: 800,
@@ -1871,18 +1872,18 @@ describe('CostBreakdownTable', () => {
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
     fireEvent.click(getButtonByControls(container, 'wi-cat-cat-payback-persp-items'));
 
-    // Check payback in Avg (default) — since min=max=200, shows +€200.00
-    const paybackAvg = screen.getAllByText('+€200.00');
+    // Avg (default): resolveProjected(100, 300, 'avg') = 200 → €200.00
+    const paybackAvg = screen.getAllByText('€200.00');
     expect(paybackAvg.length).toBeGreaterThanOrEqual(1);
 
-    // Switch to Min — payback must still be +€200.00
+    // Switch to Min: resolveProjected(100, 300, 'min') = 100 → €100.00
     fireEvent.click(screen.getByRole('radio', { name: 'Min' }));
-    const paybackMin = screen.getAllByText('+€200.00');
+    const paybackMin = screen.getAllByText('€100.00');
     expect(paybackMin.length).toBeGreaterThanOrEqual(1);
 
-    // Switch to Max — payback must still be +€200.00
+    // Switch to Max: resolveProjected(100, 300, 'max') = 300 → €300.00
     fireEvent.click(screen.getByRole('radio', { name: 'Max' }));
-    const paybackMax = screen.getAllByText('+€200.00');
+    const paybackMax = screen.getAllByText('€300.00');
     expect(paybackMax.length).toBeGreaterThanOrEqual(1);
   });
 
@@ -1948,8 +1949,8 @@ describe('CostBreakdownTable', () => {
     expect(costElements.length).toBeGreaterThanOrEqual(1);
   });
 
-  // Scenario 14: Payback column shows "+€" prefix when min === max (single value)
-  it('Payback column shows "+€" prefix as single value when min equals max', () => {
+  // Scenario 14: Payback column shows currency value without "+" prefix
+  it('Payback column shows currency value without "+" prefix when min equals max', () => {
     const { container } = renderWithRouter(
       buildBreakdownWithWI({
         subsidyPayback: 150,
@@ -1963,15 +1964,15 @@ describe('CostBreakdownTable', () => {
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
     fireEvent.click(getButtonByControls(container, 'wi-cat-cat-payback-single-items'));
 
-    // min === max → single value with "+" prefix: "+€150.00"
-    const singlePayback = screen.getAllByText('+€150.00');
+    // min === max → resolveProjected returns 150 regardless of perspective → "€150.00" (no "+" prefix)
+    const singlePayback = screen.getAllByText('€150.00');
     expect(singlePayback.length).toBeGreaterThanOrEqual(1);
-    // No "–" separator (range format) should appear in this context
-    expect(screen.queryByText(/\+€150\.00 – \+€/)).not.toBeInTheDocument();
+    // No "+" prefix should appear
+    expect(screen.queryByText(/\+€/)).not.toBeInTheDocument();
   });
 
-  // Scenario 15: Payback column shows range when min !== max
-  it('Payback column shows range format when minSubsidyPayback differs from subsidyPayback', () => {
+  // Scenario 15: Payback column shows perspective-resolved single value when min !== max
+  it('Payback column shows perspective-resolved single value when minSubsidyPayback differs from subsidyPayback', () => {
     const { container } = renderWithRouter(
       buildBreakdownWithWI({
         subsidyPayback: 120,
@@ -1985,12 +1986,25 @@ describe('CostBreakdownTable', () => {
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
     fireEvent.click(getButtonByControls(container, 'wi-cat-cat-payback-range-items'));
 
-    // min=80 ≠ max=120 → range: "+€80.00 – +€120.00"
-    expect(container.textContent).toContain('+€80.00 – +€120.00');
+    // Avg (default): resolveProjected(80, 120, 'avg') = 100 → "€100.00"
+    const avgPayback = screen.getAllByText('€100.00');
+    expect(avgPayback.length).toBeGreaterThanOrEqual(1);
+    // No range separator "–" should appear in payback column
+    expect(container.textContent).not.toContain('+€80.00 – +€120.00');
+
+    // Switch to Min: resolveProjected(80, 120, 'min') = 80 → "€80.00"
+    fireEvent.click(screen.getByRole('radio', { name: 'Min' }));
+    const minPayback = screen.getAllByText('€80.00');
+    expect(minPayback.length).toBeGreaterThanOrEqual(1);
+
+    // Switch to Max: resolveProjected(80, 120, 'max') = 120 → "€120.00"
+    fireEvent.click(screen.getByRole('radio', { name: 'Max' }));
+    const maxPayback = screen.getAllByText('€120.00');
+    expect(maxPayback.length).toBeGreaterThanOrEqual(1);
   });
 
-  // Scenario 16: Net column is not empty on item rows
-  it('Net column renders a non-empty value on item rows', () => {
+  // Scenario 16: Net column renders a single perspective-resolved value on item rows
+  it('Net column renders a single perspective-resolved value on item rows', () => {
     const { container } = renderWithRouter(
       buildBreakdownWithWI({
         costDisplay: 'projected',
@@ -2010,14 +2024,15 @@ describe('CostBreakdownTable', () => {
     fireEvent.click(getButtonByControls(container, 'wi-cat-cat-net-col-items'));
 
     // The Net cell (colRemaining) for the item row must contain some currency value.
-    // Avg rawCost = (800+1200)/2 = 1000; subsidyPayback=100; net = 1000 - 100 = 900
+    // Avg rawCost = resolveProjected(800, 1200, 'avg') = 1000
+    // Avg payback = resolveProjected(80, 100, 'avg') = 90
+    // Net (Avg) = 1000 - 90 = 910 → "€910.00"
     const netCells = container.querySelectorAll('td.colRemaining');
-    // At least one Net cell should have non-empty textContent
     const nonEmptyNetCells = Array.from(netCells).filter((td) => td.textContent?.trim() !== '');
     expect(nonEmptyNetCells.length).toBeGreaterThan(0);
-    // The item row Net value: avg raw cost = 1000, min payback = 80, max payback = 100
-    // Net range: (1000-100) – (1000-80) = €900.00 – €920.00
-    expect(container.textContent).toContain('€900.00 – €920.00');
+    // No range format — single value only
+    expect(container.textContent).not.toContain('€900.00 – €920.00');
+    expect(container.textContent).toContain('€910.00');
   });
 
   // Scenario 17: "Sum" label appears; "Remaining" is gone
@@ -2059,11 +2074,12 @@ describe('CostBreakdownTable', () => {
     expect(elements.length).toBeGreaterThanOrEqual(1);
   });
 
-  // Scenario 19: Sum row Net = Sum Cost + subsidyPayback (full max, not averaged)
-  it('Sum row Net = availableFunds - avgRawProjected + subsidyPayback', () => {
+  // Scenario 19: Sum row Net = availableFunds - avgRawProjected + resolvedPayback
+  it('Sum row Net = availableFunds - avgRawProjected + resolvedPayback (perspective-aware)', () => {
     // availableFunds=10000, rawProjectedMin=3000, rawProjectedMax=5000
-    // Avg raw = (3000+5000)/2 = 4000; subsidyPayback=200 (full max value)
-    // Sum Net = 10000 - 4000 + 200 = 6200
+    // Avg raw = resolveProjected(3000, 5000, 'avg') = 4000
+    // minSubsidyPayback=100, subsidyPayback=200 → avgPayback=resolveProjected(100,200,'avg')=150
+    // Sum Net = 10000 - 4000 + 150 = 6150
     render(
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI({
@@ -2080,7 +2096,7 @@ describe('CostBreakdownTable', () => {
       />,
     );
 
-    // Sum Net = 10000 - 4000 + 200 = 6200
-    expect(screen.getByText('€6,200.00')).toBeInTheDocument();
+    // Sum Net = 10000 - 4000 + 150 = 6150
+    expect(screen.getByText('€6,150.00')).toBeInTheDocument();
   });
 });
