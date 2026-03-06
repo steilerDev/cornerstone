@@ -212,6 +212,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
       budgetCategoryId: string | null;
     }>,
     invoiceMap: Map<string, number>,
+    useMinMargin: boolean = false,
   ): number {
     const linkedSubsidyIds = entitySubsidyMap.get(entityId);
     if (!linkedSubsidyIds || linkedSubsidyIds.size === 0) {
@@ -230,9 +231,11 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
       const margin =
         CONFIDENCE_MARGINS[line.confidence as keyof typeof CONFIDENCE_MARGINS] ??
         CONFIDENCE_MARGINS.own_estimate;
+      // Use min margin if useMinMargin=true, max margin otherwise
+      const multiplier = useMinMargin ? 1 - margin : 1 + margin;
       return {
         budgetCategoryId: line.budgetCategoryId,
-        amount: line.plannedAmount * (1 + margin), // Use max amount for payback calculation
+        amount: line.plannedAmount * multiplier,
       };
     });
 
@@ -367,6 +370,9 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
     projectedMax: 0,
     actualCost: 0,
     subsidyPayback: 0,
+    rawProjectedMin: 0,
+    rawProjectedMax: 0,
+    minSubsidyPayback: 0,
   };
 
   const wiCategoryArray = Array.from(wiGroups.values()).sort((a, b) => {
@@ -386,6 +392,9 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
     let categoryMax = 0;
     let categoryActual = 0;
     let categoryPayback = 0;
+    let categoryRawMin = 0;
+    let categoryRawMax = 0;
+    let categoryMinPayback = 0;
 
     for (const itemData of itemsInCategory) {
       // Build budget lines for this work item
@@ -418,6 +427,10 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
         itemActual += budgetLine.actualCost;
       }
 
+      // Store raw (pre-subsidy) projected costs
+      const itemRawMin = itemMin;
+      const itemRawMax = itemMax;
+
       // Apply subsidy reduction to this item
       const itemSubsidyPayback = computeEntitySubsidyPayback(
         itemData.workItemId,
@@ -428,6 +441,19 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
           budgetCategoryId: line.budgetCategoryId,
         })),
         wiLineInvoiceMap,
+        false, // Use max margin (existing behavior)
+      );
+
+      const itemMinSubsidyPayback = computeEntitySubsidyPayback(
+        itemData.workItemId,
+        itemData.lines.map((line) => ({
+          id: line.budgetLineId,
+          plannedAmount: line.plannedAmount,
+          confidence: line.confidence,
+          budgetCategoryId: line.budgetCategoryId,
+        })),
+        wiLineInvoiceMap,
+        true, // Use min margin
       );
 
       // Apply subsidy reduction to item totals
@@ -444,6 +470,9 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
         projectedMax: adjustedMax,
         actualCost: itemActual,
         subsidyPayback: itemSubsidyPayback,
+        rawProjectedMin: itemRawMin,
+        rawProjectedMax: itemRawMax,
+        minSubsidyPayback: itemMinSubsidyPayback,
         costDisplay,
         budgetLines: itemBudgetLines,
       };
@@ -453,6 +482,9 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
       categoryMax += adjustedMax;
       categoryActual += itemActual;
       categoryPayback += itemSubsidyPayback;
+      categoryRawMin += itemRawMin;
+      categoryRawMax += itemRawMax;
+      categoryMinPayback += itemMinSubsidyPayback;
     }
 
     const category: BreakdownWorkItemCategory = {
@@ -463,6 +495,9 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
       projectedMax: categoryMax,
       actualCost: categoryActual,
       subsidyPayback: categoryPayback,
+      rawProjectedMin: categoryRawMin,
+      rawProjectedMax: categoryRawMax,
+      minSubsidyPayback: categoryMinPayback,
       items: categoryItems,
     };
 
@@ -471,6 +506,9 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
     wiTotals.projectedMax += categoryMax;
     wiTotals.actualCost += categoryActual;
     wiTotals.subsidyPayback += categoryPayback;
+    wiTotals.rawProjectedMin += categoryRawMin;
+    wiTotals.rawProjectedMax += categoryRawMax;
+    wiTotals.minSubsidyPayback += categoryMinPayback;
   }
 
   // ── Build Household Items Breakdown ────────────────────────────────────────
@@ -523,6 +561,9 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
     projectedMax: 0,
     actualCost: 0,
     subsidyPayback: 0,
+    rawProjectedMin: 0,
+    rawProjectedMax: 0,
+    minSubsidyPayback: 0,
   };
 
   for (const category of HI_CATEGORY_ORDER) {
@@ -537,6 +578,9 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
     let categoryMax = 0;
     let categoryActual = 0;
     let categoryPayback = 0;
+    let categoryRawMin = 0;
+    let categoryRawMax = 0;
+    let categoryMinPayback = 0;
 
     for (const itemData of itemsInCategory) {
       // Build budget lines for this household item
@@ -569,6 +613,10 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
         itemActual += budgetLine.actualCost;
       }
 
+      // Store raw (pre-subsidy) projected costs
+      const itemRawMin = itemMin;
+      const itemRawMax = itemMax;
+
       // Apply subsidy reduction to this item
       const itemSubsidyPayback = computeEntitySubsidyPayback(
         itemData.householdItemId,
@@ -579,6 +627,19 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
           budgetCategoryId: line.budgetCategoryId,
         })),
         hiLineInvoiceMap,
+        false, // Use max margin (existing behavior)
+      );
+
+      const itemMinSubsidyPayback = computeEntitySubsidyPayback(
+        itemData.householdItemId,
+        itemData.lines.map((line) => ({
+          id: line.budgetLineId,
+          plannedAmount: line.plannedAmount,
+          confidence: line.confidence,
+          budgetCategoryId: line.budgetCategoryId,
+        })),
+        hiLineInvoiceMap,
+        true, // Use min margin
       );
 
       // Apply subsidy reduction to item totals
@@ -595,6 +656,9 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
         projectedMax: adjustedMax,
         actualCost: itemActual,
         subsidyPayback: itemSubsidyPayback,
+        rawProjectedMin: itemRawMin,
+        rawProjectedMax: itemRawMax,
+        minSubsidyPayback: itemMinSubsidyPayback,
         costDisplay,
         budgetLines: itemBudgetLines,
       };
@@ -604,6 +668,9 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
       categoryMax += adjustedMax;
       categoryActual += itemActual;
       categoryPayback += itemSubsidyPayback;
+      categoryRawMin += itemRawMin;
+      categoryRawMax += itemRawMax;
+      categoryMinPayback += itemMinSubsidyPayback;
     }
 
     const hiCategory: BreakdownHouseholdItemCategory = {
@@ -612,6 +679,9 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
       projectedMax: categoryMax,
       actualCost: categoryActual,
       subsidyPayback: categoryPayback,
+      rawProjectedMin: categoryRawMin,
+      rawProjectedMax: categoryRawMax,
+      minSubsidyPayback: categoryMinPayback,
       items: categoryItems,
     };
 
@@ -620,6 +690,9 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
     hiTotals.projectedMax += categoryMax;
     hiTotals.actualCost += categoryActual;
     hiTotals.subsidyPayback += categoryPayback;
+    hiTotals.rawProjectedMin += categoryRawMin;
+    hiTotals.rawProjectedMax += categoryRawMax;
+    hiTotals.minSubsidyPayback += categoryMinPayback;
   }
 
   return {

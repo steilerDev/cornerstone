@@ -117,6 +117,24 @@
   min-width: 120px;
 }
 
+/* ---- Column tints (layered on top of row backgrounds) ---- */
+/* Only apply to cost section (work items + household items) */
+
+.costSection td.colBudget {
+  box-shadow: inset 0 0 0 9999px color-mix(in srgb, var(--color-danger) 5%, transparent);
+}
+
+.costSection td.colPayback {
+  box-shadow: inset 0 0 0 9999px color-mix(in srgb, var(--color-success) 5%, transparent);
+}
+
+/* ---- Summary rows (Sum + Remaining) — stronger borders ---- */
+
+.rowSummary td {
+  border-top: 2px solid var(--color-border-strong);
+  border-bottom: 2px solid var(--color-border-strong);
+}
+
 /* ---- Level 0: Summary row ---- */
 
 .rowLevel0 td {
@@ -300,6 +318,27 @@
   gap: var(--spacing-2);
 }
 
+/* ---- Name link styling ---- */
+
+.nameLink {
+  color: var(--color-primary);
+  text-decoration: none;
+  font-size: inherit;
+  font-weight: inherit;
+  transition: color var(--transition-fast);
+}
+
+.nameLink:hover {
+  text-decoration: underline;
+  color: var(--color-primary-hover);
+}
+
+.nameLink:focus-visible {
+  outline: none;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-focus);
+}
+
 /* ---- Value colors ---- */
 
 .valuePositive {
@@ -412,5 +451,11 @@
   .expandBtn {
     min-width: 44px;
     min-height: 44px;
+  }
+
+  .nameLink {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
   }
 }

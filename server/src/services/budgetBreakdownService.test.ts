@@ -817,6 +817,287 @@ describe('getBudgetBreakdown', () => {
     });
   });
 
+  // ── 14. rawProjectedMin/Max and minSubsidyPayback fields ─────────────────
+
+  describe('rawProjectedMin and rawProjectedMax (gross projected cost, pre-subsidy)', () => {
+    it('rawProjectedMin equals gross projectedMin before subsidy deduction', () => {
+      // own_estimate, planned=1000 → gross min = 800, gross max = 1200
+      // subsidy 10% → payback = 1200 * 0.1 = 120
+      // adjustedMin = 800 - 120 = 680, but rawProjectedMin stays 800
+      const { workItemId } = insertWorkItem({
+        plannedAmount: 1000,
+        confidence: 'own_estimate',
+      });
+      const subsidyId = insertSubsidyProgram({
+        reductionType: 'percentage',
+        reductionValue: 10,
+      });
+      linkWorkItemSubsidy(workItemId, subsidyId);
+
+      const result = getBudgetBreakdown(db);
+
+      const item = result.workItems.categories[0].items[0];
+      // projectedMin is subsidy-adjusted (680), rawProjectedMin is gross (800)
+      expect(item.rawProjectedMin).toBeCloseTo(800, 5);
+      expect(item.rawProjectedMax).toBeCloseTo(1200, 5);
+      expect(item.projectedMin).toBeCloseTo(680, 5);
+      expect(item.projectedMax).toBeCloseTo(1080, 5);
+    });
+
+    it('rawProjectedMin equals projectedMin when no subsidy is linked', () => {
+      insertWorkItem({ plannedAmount: 1000, confidence: 'own_estimate' });
+
+      const result = getBudgetBreakdown(db);
+
+      const item = result.workItems.categories[0].items[0];
+      // No subsidy → raw and adjusted values are identical
+      expect(item.rawProjectedMin).toBeCloseTo(item.projectedMin, 5);
+      expect(item.rawProjectedMax).toBeCloseTo(item.projectedMax, 5);
+    });
+
+    it('rawProjectedMin/Max equals actualCost for fully-invoiced item', () => {
+      // invoice confidence with actualCost: gross projected = actualCost (no margin)
+      insertWorkItem({ plannedAmount: 1000, confidence: 'invoice', actualCost: 950 });
+
+      const result = getBudgetBreakdown(db);
+
+      const item = result.workItems.categories[0].items[0];
+      expect(item.rawProjectedMin).toBeCloseTo(950, 5);
+      expect(item.rawProjectedMax).toBeCloseTo(950, 5);
+    });
+
+    it('category rawProjectedMin/Max aggregates correctly across items', () => {
+      const catId = insertBudgetCategory('RawCat');
+      // Item A: own_estimate, planned=1000 → raw min=800, raw max=1200
+      // Item B: quote, planned=2000 → raw min=1900, raw max=2100
+      const { workItemId: idA } = insertWorkItem({
+        plannedAmount: 1000,
+        confidence: 'own_estimate',
+        budgetCategoryId: catId,
+      });
+      const { workItemId: idB } = insertWorkItem({
+        plannedAmount: 2000,
+        confidence: 'quote',
+        budgetCategoryId: catId,
+      });
+      // Link subsidy to A to separate raw vs adjusted
+      const subsidyId = insertSubsidyProgram({
+        reductionType: 'percentage',
+        reductionValue: 10,
+      });
+      linkWorkItemSubsidy(idA, subsidyId);
+
+      const result = getBudgetBreakdown(db);
+
+      const cat = result.workItems.categories.find((c) => c.categoryId === catId)!;
+      // Item A raw min=800, Item B raw min=1900 → category raw min=2700
+      expect(cat.rawProjectedMin).toBeCloseTo(800 + 1900, 5);
+      expect(cat.rawProjectedMax).toBeCloseTo(1200 + 2100, 5);
+    });
+
+    it('wiTotals.rawProjectedMin/Max equals sum of category raw fields', () => {
+      const catA = insertBudgetCategory('RawTotA');
+      const catB = insertBudgetCategory('RawTotB');
+      insertWorkItem({ plannedAmount: 1000, confidence: 'own_estimate', budgetCategoryId: catA });
+      insertWorkItem({ plannedAmount: 2000, confidence: 'quote', budgetCategoryId: catB });
+
+      const result = getBudgetBreakdown(db);
+
+      const sumRawMin = result.workItems.categories.reduce((acc, c) => acc + c.rawProjectedMin, 0);
+      const sumRawMax = result.workItems.categories.reduce((acc, c) => acc + c.rawProjectedMax, 0);
+      expect(result.workItems.totals.rawProjectedMin).toBeCloseTo(sumRawMin, 5);
+      expect(result.workItems.totals.rawProjectedMax).toBeCloseTo(sumRawMax, 5);
+    });
+
+    it('HI item exposes rawProjectedMin/Max correctly', () => {
+      // quote, planned=1200 → gross min=1140, gross max=1260
+      const { householdItemId } = insertHouseholdItem({
+        category: 'appliances',
+        plannedAmount: 1200,
+        confidence: 'quote',
+      });
+      const subsidyId = insertSubsidyProgram({
+        reductionType: 'percentage',
+        reductionValue: 20,
+      });
+      linkHouseholdItemSubsidy(householdItemId, subsidyId);
+
+      const result = getBudgetBreakdown(db);
+
+      const item = result.householdItems.categories[0].items[0];
+      expect(item.rawProjectedMin).toBeCloseTo(1200 * 0.95, 5);
+      expect(item.rawProjectedMax).toBeCloseTo(1200 * 1.05, 5);
+      // adjusted values are reduced by subsidy payback
+      expect(item.projectedMin).toBeLessThan(item.rawProjectedMin);
+    });
+  });
+
+  describe('minSubsidyPayback (uses min-margin amounts for non-invoiced lines)', () => {
+    it('minSubsidyPayback uses min-margin (1-margin) for non-invoiced lines', () => {
+      // own_estimate margin=0.2: min-margin amount = 1000 * 0.8 = 800
+      // subsidy 10% → minSubsidyPayback = 800 * 0.1 = 80
+      // max-margin amount = 1000 * 1.2 = 1200 → subsidyPayback = 1200 * 0.1 = 120
+      const { workItemId } = insertWorkItem({
+        plannedAmount: 1000,
+        confidence: 'own_estimate',
+      });
+      const subsidyId = insertSubsidyProgram({
+        reductionType: 'percentage',
+        reductionValue: 10,
+      });
+      linkWorkItemSubsidy(workItemId, subsidyId);
+
+      const result = getBudgetBreakdown(db);
+
+      const item = result.workItems.categories[0].items[0];
+      expect(item.minSubsidyPayback).toBeCloseTo(80, 5);
+      expect(item.subsidyPayback).toBeCloseTo(120, 5);
+    });
+
+    it('minSubsidyPayback === subsidyPayback for fully-invoiced item', () => {
+      // When all lines are invoiced, both min and max payback use actualCost
+      const { workItemId } = insertWorkItem({
+        plannedAmount: 1000,
+        confidence: 'invoice',
+        actualCost: 900,
+      });
+      const subsidyId = insertSubsidyProgram({
+        reductionType: 'percentage',
+        reductionValue: 15,
+      });
+      linkWorkItemSubsidy(workItemId, subsidyId);
+
+      const result = getBudgetBreakdown(db);
+
+      const item = result.workItems.categories[0].items[0];
+      // Both use actualCost=900 → payback = 900 * 0.15 = 135
+      expect(item.minSubsidyPayback).toBeCloseTo(135, 5);
+      expect(item.subsidyPayback).toBeCloseTo(135, 5);
+      expect(item.minSubsidyPayback).toBeCloseTo(item.subsidyPayback, 5);
+    });
+
+    it('minSubsidyPayback === 0 when no subsidy is linked', () => {
+      insertWorkItem({ plannedAmount: 1000, confidence: 'own_estimate' });
+
+      const result = getBudgetBreakdown(db);
+
+      const item = result.workItems.categories[0].items[0];
+      expect(item.minSubsidyPayback).toBe(0);
+    });
+
+    it('minSubsidyPayback for HI items uses min-margin correctly', () => {
+      // own_estimate margin=0.2: min-margin amount = 1000 * 0.8 = 800
+      // subsidy 10% → minSubsidyPayback = 800 * 0.1 = 80
+      const { householdItemId } = insertHouseholdItem({
+        category: 'furniture',
+        plannedAmount: 1000,
+        confidence: 'own_estimate',
+      });
+      const subsidyId = insertSubsidyProgram({
+        reductionType: 'percentage',
+        reductionValue: 10,
+      });
+      linkHouseholdItemSubsidy(householdItemId, subsidyId);
+
+      const result = getBudgetBreakdown(db);
+
+      const item = result.householdItems.categories[0].items[0];
+      expect(item.minSubsidyPayback).toBeCloseTo(80, 5);
+    });
+
+    it('category minSubsidyPayback aggregates item minSubsidyPaybacks', () => {
+      const catId = insertBudgetCategory('MinPaybackCat');
+      // Item A: own_estimate 1000, 10% subsidy → min payback = 800*0.1 = 80
+      // Item B: own_estimate 2000, 10% subsidy → min payback = 1600*0.1 = 160
+      const { workItemId: idA } = insertWorkItem({
+        plannedAmount: 1000,
+        confidence: 'own_estimate',
+        budgetCategoryId: catId,
+      });
+      const { workItemId: idB } = insertWorkItem({
+        plannedAmount: 2000,
+        confidence: 'own_estimate',
+        budgetCategoryId: catId,
+      });
+      const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
+      linkWorkItemSubsidy(idA, subsidyId);
+      linkWorkItemSubsidy(idB, subsidyId);
+
+      const result = getBudgetBreakdown(db);
+
+      const cat = result.workItems.categories.find((c) => c.categoryId === catId)!;
+      expect(cat.minSubsidyPayback).toBeCloseTo(80 + 160, 5);
+    });
+
+    it('wiTotals.minSubsidyPayback equals sum of category minSubsidyPayback values', () => {
+      const catA = insertBudgetCategory('MinTotA');
+      const catB = insertBudgetCategory('MinTotB');
+      const { workItemId: idA } = insertWorkItem({
+        plannedAmount: 1000,
+        confidence: 'own_estimate',
+        budgetCategoryId: catA,
+      });
+      const { workItemId: idB } = insertWorkItem({
+        plannedAmount: 2000,
+        confidence: 'own_estimate',
+        budgetCategoryId: catB,
+      });
+      const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
+      linkWorkItemSubsidy(idA, subsidyId);
+      linkWorkItemSubsidy(idB, subsidyId);
+
+      const result = getBudgetBreakdown(db);
+
+      const sumMinPayback = result.workItems.categories.reduce(
+        (acc, c) => acc + c.minSubsidyPayback,
+        0,
+      );
+      expect(result.workItems.totals.minSubsidyPayback).toBeCloseTo(sumMinPayback, 5);
+    });
+
+    it('BreakdownTotals includes rawProjectedMin/Max and minSubsidyPayback as category sums', () => {
+      const catA = insertBudgetCategory('TotFieldsA');
+      const catB = insertBudgetCategory('TotFieldsB');
+      const { workItemId: idA } = insertWorkItem({
+        plannedAmount: 500,
+        confidence: 'own_estimate',
+        budgetCategoryId: catA,
+      });
+      const { workItemId: idB } = insertWorkItem({
+        plannedAmount: 800,
+        confidence: 'quote',
+        budgetCategoryId: catB,
+      });
+      const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
+      linkWorkItemSubsidy(idA, subsidyId);
+      linkWorkItemSubsidy(idB, subsidyId);
+
+      const result = getBudgetBreakdown(db);
+
+      const totals = result.workItems.totals;
+      const sumRawMin = result.workItems.categories.reduce((acc, c) => acc + c.rawProjectedMin, 0);
+      const sumRawMax = result.workItems.categories.reduce((acc, c) => acc + c.rawProjectedMax, 0);
+      const sumMinPayback = result.workItems.categories.reduce(
+        (acc, c) => acc + c.minSubsidyPayback,
+        0,
+      );
+      expect(totals.rawProjectedMin).toBeCloseTo(sumRawMin, 5);
+      expect(totals.rawProjectedMax).toBeCloseTo(sumRawMax, 5);
+      expect(totals.minSubsidyPayback).toBeCloseTo(sumMinPayback, 5);
+    });
+
+    it('empty database returns zero rawProjectedMin/Max and minSubsidyPayback in totals', () => {
+      const result = getBudgetBreakdown(db);
+
+      expect(result.workItems.totals.rawProjectedMin).toBe(0);
+      expect(result.workItems.totals.rawProjectedMax).toBe(0);
+      expect(result.workItems.totals.minSubsidyPayback).toBe(0);
+      expect(result.householdItems.totals.rawProjectedMin).toBe(0);
+      expect(result.householdItems.totals.rawProjectedMax).toBe(0);
+      expect(result.householdItems.totals.minSubsidyPayback).toBe(0);
+    });
+  });
+
   // ── 14. Budget line description field ─────────────────────────────────────
 
   describe('budget line description field', () => {
