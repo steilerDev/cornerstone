@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import type {
   BudgetBreakdown,
   BudgetOverview,
@@ -9,15 +9,19 @@ import type {
   BreakdownHouseholdItem,
   ConfidenceLevel,
   HouseholdItemCategory,
+  BudgetSource,
 } from '@cornerstone/shared';
 import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
 import { formatCurrency } from '../../lib/formatters.js';
 import styles from './CostBreakdownTable.module.css';
 
+type CostPerspective = 'min' | 'max' | 'avg';
+
 interface CostBreakdownTableProps {
   breakdown: BudgetBreakdown;
   overview: BudgetOverview;
   selectedCategories: Set<string | null>;
+  budgetSources: BudgetSource[];
 }
 
 /**
@@ -33,6 +37,73 @@ const HI_CATEGORY_LABELS: Record<HouseholdItemCategory, string> = {
   storage: 'Storage',
   other: 'Other',
 };
+
+/**
+ * Resolves projected cost based on perspective.
+ */
+function resolveProjected(
+  projectedMin: number,
+  projectedMax: number,
+  perspective: CostPerspective,
+): number {
+  if (perspective === 'min') return projectedMin;
+  if (perspective === 'max') return projectedMax;
+  return (projectedMin + projectedMax) / 2;
+}
+
+/**
+ * Segmented control for cost perspective toggle (min/max/avg).
+ */
+function PerspectiveToggle({
+  value,
+  onChange,
+}: {
+  value: CostPerspective;
+  onChange: (v: CostPerspective) => void;
+}) {
+  const options: { value: CostPerspective; label: string }[] = [
+    { value: 'min', label: 'Min' },
+    { value: 'max', label: 'Max' },
+    { value: 'avg', label: 'Avg' },
+  ];
+  const groupRef = useRef<HTMLDivElement>(null);
+
+  function handleKeyDown(e: React.KeyboardEvent, current: CostPerspective) {
+    const idx = options.findIndex((o) => o.value === current);
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      const next = options[(idx + 1) % options.length];
+      onChange(next.value);
+      const buttons = groupRef.current?.querySelectorAll<HTMLButtonElement>('[role="radio"]');
+      buttons?.[(idx + 1) % options.length]?.focus();
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const prev = options[(idx - 1 + options.length) % options.length];
+      onChange(prev.value);
+      const buttons = groupRef.current?.querySelectorAll<HTMLButtonElement>('[role="radio"]');
+      buttons?.[(idx - 1 + options.length) % options.length]?.focus();
+    }
+  }
+
+  return (
+    <div ref={groupRef} className={styles.perspectiveToggle} role="radiogroup" aria-label="Cost perspective">
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          type="button"
+          role="radio"
+          aria-checked={value === opt.value}
+          className={`${styles.perspectiveSegment} ${value === opt.value ? styles.perspectiveSegmentActive : ''}`}
+          tabIndex={value === opt.value ? 0 : -1}
+          onClick={() => onChange(opt.value)}
+          onKeyDown={(e) => handleKeyDown(e, opt.value)}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 /**
  * Renders a confidence badge (e.g., "own_estimate") for a budget line.
@@ -51,13 +122,16 @@ function CostDisplay({
   projectedMin,
   projectedMax,
   actualCost,
+  perspective,
 }: {
   costDisplay: 'actual' | 'projected' | 'mixed';
   projectedMin: number;
   projectedMax: number;
   actualCost: number;
+  perspective: CostPerspective;
 }) {
   const isPositive = actualCost >= 0 && projectedMax >= 0;
+  const perspectiveValue = resolveProjected(projectedMin, projectedMax, perspective);
 
   if (costDisplay === 'actual') {
     return (
@@ -70,17 +144,17 @@ function CostDisplay({
   if (costDisplay === 'projected') {
     return (
       <span>
-        {formatCurrency(projectedMin)} – {formatCurrency(projectedMax)}
+        {formatCurrency(perspectiveValue)}
       </span>
     );
   }
 
   // mixed
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-0-5)' }}>
+    <div className={styles.costMixedWrapper}>
       <span className={styles.valuePositive}>Actual: {formatCurrency(actualCost)}</span>
       <span>
-        Projected: {formatCurrency(projectedMin)} – {formatCurrency(projectedMax)}
+        Projected: {formatCurrency(perspectiveValue)}
       </span>
     </div>
   );
@@ -89,14 +163,22 @@ function CostDisplay({
 /**
  * Renders a single budget line row (Level 3).
  */
-function BudgetLineRow({ line }: { line: BreakdownBudgetLine }) {
+function BudgetLineRow({
+  line,
+  perspective,
+}: {
+  line: BreakdownBudgetLine;
+  perspective: CostPerspective;
+}) {
   const key = `line-${line.id}`;
   const margin = CONFIDENCE_MARGINS[line.confidence];
   const costMin = line.plannedAmount * (1 - margin);
   const costMax = line.plannedAmount * (1 + margin);
+  const perspectiveValue = resolveProjected(costMin, costMax, perspective);
+  const rowClassName = `${styles.rowLevel3}${line.hasInvoice ? ` ${styles.rowActual}` : ''}`;
 
   return (
-    <tr className={styles.rowLevel3} key={key}>
+    <tr className={rowClassName} key={key}>
       <td className={styles.colName}>
         <div className={styles.nameContent}>
           <span>{line.description || 'Untitled'}</span>
@@ -108,7 +190,7 @@ function BudgetLineRow({ line }: { line: BreakdownBudgetLine }) {
           <span>Actual: {formatCurrency(line.actualCost)}</span>
         ) : (
           <span>
-            {formatCurrency(costMin)} – {formatCurrency(costMax)}
+            {formatCurrency(perspectiveValue)}
           </span>
         )}
       </td>
@@ -125,16 +207,24 @@ function WorkItemRow({
   item,
   expanded: itemExpanded,
   onToggle,
+  perspective,
 }: {
   item: BreakdownWorkItem;
   expanded: boolean;
   onToggle: (key: string) => void;
+  perspective: CostPerspective;
 }) {
   const key = `wi-item-${item.workItemId}`;
+  let rowClassName = styles.rowLevel2;
+  if (item.costDisplay === 'actual') {
+    rowClassName = `${styles.rowLevel2} ${styles.rowActual}`;
+  } else if (item.costDisplay === 'mixed') {
+    rowClassName = `${styles.rowLevel2} ${styles.rowMixed}`;
+  }
 
   return (
     <>
-      <tr className={styles.rowLevel2} key={key}>
+      <tr className={rowClassName} key={key}>
         <td className={styles.colName}>
           <div className={styles.nameContent}>
             <button
@@ -157,6 +247,7 @@ function WorkItemRow({
             projectedMin={item.projectedMin}
             projectedMax={item.projectedMax}
             actualCost={item.actualCost}
+            perspective={perspective}
           />
         </td>
         <td className={styles.colPayback}>
@@ -168,7 +259,7 @@ function WorkItemRow({
       {itemExpanded && (
         <>
           {item.budgetLines.map((line) => (
-            <BudgetLineRow key={line.id} line={line} />
+            <BudgetLineRow key={line.id} line={line} perspective={perspective} />
           ))}
         </>
       )}
@@ -183,10 +274,12 @@ function WorkItemCategorySection({
   category,
   expandedKeys,
   onToggle,
+  perspective,
 }: {
   category: BreakdownWorkItemCategory;
   expandedKeys: Set<string>;
   onToggle: (key: string) => void;
+  perspective: CostPerspective;
 }) {
   const key = `wi-cat-${category.categoryId ?? 'null'}`;
   const isExpanded = expandedKeys.has(key);
@@ -209,7 +302,7 @@ function WorkItemCategorySection({
           </div>
         </td>
         <td className={styles.colBudget}>
-          {formatCurrency(category.projectedMin)} – {formatCurrency(category.projectedMax)}
+          {formatCurrency(resolveProjected(category.projectedMin, category.projectedMax, perspective))}
         </td>
         <td className={styles.colPayback}>
           {category.subsidyPayback === 0 ? '—' : formatCurrency(category.subsidyPayback)}
@@ -225,6 +318,7 @@ function WorkItemCategorySection({
               item={item}
               expanded={expandedKeys.has(`wi-item-${item.workItemId}`)}
               onToggle={onToggle}
+              perspective={perspective}
             />
           ))}
 
@@ -236,7 +330,7 @@ function WorkItemCategorySection({
               </div>
             </td>
             <td className={styles.colBudget}>
-              {formatCurrency(category.projectedMin)} – {formatCurrency(category.projectedMax)}
+              {formatCurrency(resolveProjected(category.projectedMin, category.projectedMax, perspective))}
             </td>
             <td className={styles.colPayback}>
               {category.subsidyPayback === 0 ? '—' : formatCurrency(category.subsidyPayback)}
@@ -256,16 +350,24 @@ function HouseholdItemRow({
   item,
   expanded: itemExpanded,
   onToggle,
+  perspective,
 }: {
   item: BreakdownHouseholdItem;
   expanded: boolean;
   onToggle: (key: string) => void;
+  perspective: CostPerspective;
 }) {
   const key = `hi-item-${item.householdItemId}`;
+  let rowClassName = styles.rowLevel2;
+  if (item.costDisplay === 'actual') {
+    rowClassName = `${styles.rowLevel2} ${styles.rowActual}`;
+  } else if (item.costDisplay === 'mixed') {
+    rowClassName = `${styles.rowLevel2} ${styles.rowMixed}`;
+  }
 
   return (
     <>
-      <tr className={styles.rowLevel2} key={key}>
+      <tr className={rowClassName} key={key}>
         <td className={styles.colName}>
           <div className={styles.nameContent}>
             <button
@@ -288,6 +390,7 @@ function HouseholdItemRow({
             projectedMin={item.projectedMin}
             projectedMax={item.projectedMax}
             actualCost={item.actualCost}
+            perspective={perspective}
           />
         </td>
         <td className={styles.colPayback}>
@@ -299,7 +402,7 @@ function HouseholdItemRow({
       {itemExpanded && (
         <>
           {item.budgetLines.map((line) => (
-            <BudgetLineRow key={line.id} line={line} />
+            <BudgetLineRow key={line.id} line={line} perspective={perspective} />
           ))}
         </>
       )}
@@ -314,10 +417,12 @@ function HouseholdItemCategorySection({
   category,
   expandedKeys,
   onToggle,
+  perspective,
 }: {
   category: BreakdownHouseholdItemCategory;
   expandedKeys: Set<string>;
   onToggle: (key: string) => void;
+  perspective: CostPerspective;
 }) {
   const key = `hi-cat-${category.hiCategory}`;
   const isExpanded = expandedKeys.has(key);
@@ -341,7 +446,7 @@ function HouseholdItemCategorySection({
           </div>
         </td>
         <td className={styles.colBudget}>
-          {formatCurrency(category.projectedMin)} – {formatCurrency(category.projectedMax)}
+          {formatCurrency(resolveProjected(category.projectedMin, category.projectedMax, perspective))}
         </td>
         <td className={styles.colPayback}>
           {category.subsidyPayback === 0 ? '—' : formatCurrency(category.subsidyPayback)}
@@ -357,6 +462,7 @@ function HouseholdItemCategorySection({
               item={item}
               expanded={expandedKeys.has(`hi-item-${item.householdItemId}`)}
               onToggle={onToggle}
+              perspective={perspective}
             />
           ))}
 
@@ -368,7 +474,7 @@ function HouseholdItemCategorySection({
               </div>
             </td>
             <td className={styles.colBudget}>
-              {formatCurrency(category.projectedMin)} – {formatCurrency(category.projectedMax)}
+              {formatCurrency(resolveProjected(category.projectedMin, category.projectedMax, perspective))}
             </td>
             <td className={styles.colPayback}>
               {category.subsidyPayback === 0 ? '—' : formatCurrency(category.subsidyPayback)}
@@ -411,8 +517,10 @@ export function CostBreakdownTable({
   breakdown,
   overview,
   selectedCategories,
+  budgetSources,
 }: CostBreakdownTableProps) {
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
+  const [perspective, setPerspective] = useState<CostPerspective>('max');
 
   const toggle = (key: string) => {
     const next = new Set(expandedKeys);
@@ -457,10 +565,24 @@ export function CostBreakdownTable({
   const hiTotals = breakdown.householdItems.totals;
 
   /**
-   * Remaining = availableFunds - (WI projectedMax + HI projectedMax).
-   * Use pessimistic view (max) as per the spec.
+   * Compute payback for the current perspective.
    */
-  const remaining = overview.availableFunds - (wiTotals.projectedMax + hiTotals.projectedMax);
+  const paybackForPerspective = resolveProjected(
+    overview.subsidySummary.minTotalPayback,
+    overview.subsidySummary.maxTotalPayback,
+    perspective,
+  );
+
+  /**
+   * Remaining = availableFunds + payback - (WI projected + HI projected).
+   * Use the perspective-resolved projected totals.
+   */
+  const totalProjected = resolveProjected(
+    wiTotals.projectedMin + hiTotals.projectedMin,
+    wiTotals.projectedMax + hiTotals.projectedMax,
+    perspective,
+  );
+  const remaining = overview.availableFunds + paybackForPerspective - totalProjected;
 
   // Empty state
   const hasData = visibleWICategories.length > 0 || breakdown.householdItems.categories.length > 0;
@@ -478,14 +600,18 @@ export function CostBreakdownTable({
 
   const wiSectionKey = 'wi-section';
   const hiSectionKey = 'hi-section';
+  const availFundsKey = 'avail-funds';
   const wiSectionExpanded = expandedKeys.has(wiSectionKey);
   const hiSectionExpanded = expandedKeys.has(hiSectionKey);
+  const availFundsExpanded = expandedKeys.has(availFundsKey);
 
   return (
     <section className={styles.breakdownCard} aria-labelledby="breakdown-heading">
       <h2 id="breakdown-heading" className={styles.breakdownTitle}>
         Cost Breakdown
       </h2>
+
+      <PerspectiveToggle value={perspective} onChange={setPerspective} />
 
       <div className={styles.tableWrapper}>
         <table className={styles.table}>
@@ -496,29 +622,57 @@ export function CostBreakdownTable({
                 Name
               </th>
               <th scope="col" className={styles.colBudget}>
-                Budget
+                Cost
               </th>
               <th scope="col" className={styles.colPayback}>
                 Payback
               </th>
               <th scope="col" className={styles.colRemaining}>
-                Remaining
+                Net
               </th>
             </tr>
           </thead>
 
           <tbody>
-            {/* Sources row (not expandable) */}
+            {/* Available Funds row (expandable when sources exist) */}
             <tr className={styles.rowLevel0}>
               <td className={styles.colName}>
                 <div className={styles.nameContent}>
-                  <span>Available Funds</span>
+                  {budgetSources.length > 0 && (
+                    <button
+                      type="button"
+                      className={styles.expandBtn}
+                      aria-expanded={availFundsExpanded}
+                      aria-label="Expand available funds sources"
+                      onClick={() => toggle(availFundsKey)}
+                    >
+                      <ChevronSvg
+                        className={`${styles.chevron} ${availFundsExpanded ? styles.chevronOpen : ''}`}
+                      />
+                    </button>
+                  )}
+                  <span>Available funds</span>
                 </div>
               </td>
-              <td className={styles.colBudget}>{formatCurrency(overview.availableFunds)}</td>
-              <td className={styles.colPayback}>—</td>
-              <td className={styles.colRemaining}>—</td>
+              <td className={styles.colBudget} colSpan={3}>
+                {formatCurrency(overview.availableFunds)}
+              </td>
             </tr>
+
+            {/* Budget source sub-rows */}
+            {availFundsExpanded &&
+              budgetSources.map((source) => (
+                <tr key={source.id} className={styles.rowSourceDetail}>
+                  <td className={styles.colName}>
+                    <div className={`${styles.nameContent} ${styles.nameIndented}`}>
+                      <span>{source.name}</span>
+                    </div>
+                  </td>
+                  <td className={styles.colBudget} colSpan={3}>
+                    {formatCurrency(source.totalAmount)}
+                  </td>
+                </tr>
+              ))}
 
             {/* Work Item Budget row (expandable) */}
             {visibleWICategories.length > 0 && (
@@ -537,12 +691,11 @@ export function CostBreakdownTable({
                           className={`${styles.chevron} ${wiSectionExpanded ? styles.chevronOpen : ''}`}
                         />
                       </button>
-                      <span>Work Item Budget</span>
+                      <span>Work items</span>
                     </div>
                   </td>
                   <td className={styles.colBudget}>
-                    {formatCurrency(wiTotals.projectedMin)} –{' '}
-                    {formatCurrency(wiTotals.projectedMax)}
+                    {formatCurrency(resolveProjected(wiTotals.projectedMin, wiTotals.projectedMax, perspective))}
                   </td>
                   <td className={styles.colPayback}>{formatCurrency(wiTotals.subsidyPayback)}</td>
                   <td className={styles.colRemaining}>—</td>
@@ -556,6 +709,7 @@ export function CostBreakdownTable({
                         category={category}
                         expandedKeys={expandedKeys}
                         onToggle={toggle}
+                        perspective={perspective}
                       />
                     ))}
                   </>
@@ -580,12 +734,11 @@ export function CostBreakdownTable({
                           className={`${styles.chevron} ${hiSectionExpanded ? styles.chevronOpen : ''}`}
                         />
                       </button>
-                      <span>Household Item Budget</span>
+                      <span>Household items</span>
                     </div>
                   </td>
                   <td className={styles.colBudget}>
-                    {formatCurrency(hiTotals.projectedMin)} –{' '}
-                    {formatCurrency(hiTotals.projectedMax)}
+                    {formatCurrency(resolveProjected(hiTotals.projectedMin, hiTotals.projectedMax, perspective))}
                   </td>
                   <td className={styles.colPayback}>{formatCurrency(hiTotals.subsidyPayback)}</td>
                   <td className={styles.colRemaining}>—</td>
@@ -599,6 +752,7 @@ export function CostBreakdownTable({
                         category={category}
                         expandedKeys={expandedKeys}
                         onToggle={toggle}
+                        perspective={perspective}
                       />
                     ))}
                   </>
@@ -614,12 +768,16 @@ export function CostBreakdownTable({
                 </div>
               </td>
               <td className={styles.colBudget}>
+                <span>—</span>
+              </td>
+              <td className={styles.colPayback}>
+                {paybackForPerspective === 0 ? '—' : formatCurrency(paybackForPerspective)}
+              </td>
+              <td className={styles.colRemaining}>
                 <span className={remaining >= 0 ? styles.valuePositive : styles.valueNegative}>
                   {formatCurrency(remaining)}
                 </span>
               </td>
-              <td className={styles.colPayback}>—</td>
-              <td className={styles.colRemaining}>—</td>
             </tr>
           </tbody>
         </table>

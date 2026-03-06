@@ -659,6 +659,20 @@ For components that call fetch internally (WorkItemSelector, MilestonePanel):
 - Check mode toggle toolbar has exactly 2 buttons (Month + Week)
 - `calendarSize` URL param should be silently ignored (grid renders normally)
 
+## Story #480 Budget Overview Refinement — CostBreakdownTable + BudgetOverviewPage (2026-03-06)
+
+Key learnings from updating these two test files:
+
+- **`budgetSources` prop is now required** on `CostBreakdownTable`. All existing test renders needed `budgetSources={[]}` added. When updating tests for a prop change, grep ALL render calls in the file — missing one causes TS errors.
+- **CSS module class selectors with identity-obj-proxy**: `container.querySelectorAll('.rowActual')` works because identity-obj-proxy returns the class name as-is. `[class*="metricRangeSep"]` also works for substring matching.
+- **`formatShort()` rounding**: `(7500/1000).toFixed(0)` rounds to `"8"` → displays as `€8K`, NOT `€7K`. Always verify rounding manually for test assertions against `formatShort`.
+- **`role="radio"` in radiogroup**: PerspectiveToggle uses `role="radio"` on buttons (not native `<input type="radio">`). Select with `screen.getByRole('radio', { name: 'Min' })`.
+- **Multiple API mocks**: When a page calls `fetchBudgetSources` from `budgetSourcesApi.js` (separate module), mock it with a SECOND `jest.unstable_mockModule()` call. Include all 5 exports (not just `fetchBudgetSources`) to avoid import errors.
+- **Level-0 row label changes**: Component now uses lowercase: `"Available funds"`, `"Work items"`, `"Household items"` (not `"Available Funds"`, `"Work Item Budget"`, `"Household Item Budget"`). Column headers: `"Cost"` (not `"Budget"`), `"Net"` (not `"Remaining"`). Always re-read the component source before writing assertions.
+- **Available Funds expand button aria-label**: `"Expand available funds sources"` — query with `/expand available funds/i`.
+- **Tsc validates test files without running them**: `node_modules/.bin/tsc --noEmit --project client/tsconfig.json 2>&1 | grep "TestFile"` — useful when Jest crashes (SIGILL/TypeScript version mismatch in sandbox).
+- **TypeScript version mismatch**: Main repo node_modules has TypeScript incompatible with Node.js v24 in this sandbox (SyntaxError on load). Tests cannot be run locally; commit and rely on CI.
+
 ## Story 4.7 Work Item Linking Tests (2026-03-03)
 
 **57 comprehensive tests committed: 15 service + 20 route integration + 22 API client**

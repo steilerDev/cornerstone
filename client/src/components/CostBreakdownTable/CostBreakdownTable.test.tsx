@@ -4,7 +4,7 @@
 import { describe, it, expect } from '@jest/globals';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { CostBreakdownTable } from './CostBreakdownTable.js';
-import type { BudgetBreakdown, BudgetOverview } from '@cornerstone/shared';
+import type { BudgetBreakdown, BudgetOverview, BudgetSource } from '@cornerstone/shared';
 
 // CSS modules mocked via identity-obj-proxy
 
@@ -14,8 +14,9 @@ import type { BudgetBreakdown, BudgetOverview } from '@cornerstone/shared';
  * Find an expand button by matching the text of its sibling span element.
  * This replaced aria-controls-based selection after aria-controls was removed from expand buttons.
  * Maps old controlsId patterns to the expected sibling text:
- *   - "wi-section-categories" → "Work Item Budget"
- *   - "hi-section-categories" → "Household Item Budget"
+ *   - "wi-section-categories" → "Work items"
+ *   - "hi-section-categories" → "Household items"
+ *   - "avail-funds" → "Available funds"
  *   - "wi-cat-*-items" → category name (e.g., "Materials", "Labor")
  *   - "hi-cat-*-items" → HI category label (e.g., "Furniture", "Appliances")
  *   - "wi-item-*-budget-lines" → work item title
@@ -25,9 +26,11 @@ function getButtonByControls(container: HTMLElement, controlsId: string): HTMLEl
   let expectedText: string | null = null;
 
   if (controlsId === 'wi-section-categories') {
-    expectedText = 'Work Item Budget';
+    expectedText = 'Work items';
   } else if (controlsId === 'hi-section-categories') {
-    expectedText = 'Household Item Budget';
+    expectedText = 'Household items';
+  } else if (controlsId === 'avail-funds') {
+    expectedText = 'Available funds';
   } else if (controlsId.startsWith('wi-cat-') && controlsId.endsWith('-items')) {
     // Extract category name: "wi-cat-{categoryId}-items"
     // Since we don't have direct access to categoryId→name mapping, find by partial match
@@ -39,10 +42,7 @@ function getButtonByControls(container: HTMLElement, controlsId: string): HTMLEl
       // Check if this row has a category name (no € in name cell, has € in budget cells)
       const cells = row.querySelectorAll('td');
       if (cells.length >= 2) {
-        const nameCell = cells[0];
-        const budgetCell = cells[1];
         // Categories have currency formatted values; we'll look for a button where the name looks like a category
-        const nameText = nameCell.textContent?.trim() || '';
         // If this button's sibling text matches or is close to controlsId context, return it
         const span = btn.nextElementSibling;
         if (span?.textContent) {
@@ -58,6 +58,9 @@ function getButtonByControls(container: HTMLElement, controlsId: string): HTMLEl
             'Insurance',
             'Contingency',
             'Other',
+            'CategoryA',
+            'CategoryB',
+            'CategoryX',
           ];
           if (categoryNames.some((cat) => span.textContent?.includes(cat))) {
             return btn;
@@ -95,13 +98,13 @@ function getButtonByControls(container: HTMLElement, controlsId: string): HTMLEl
     for (const btn of buttons) {
       const span = btn.nextElementSibling;
       const text = span?.textContent?.trim() || '';
-      if (text === 'Work Item Budget') {
+      if (text === 'Work items') {
         foundSection = true;
       } else if (
         foundSection &&
         text &&
         !text.match(
-          /^(Uncategorized|Materials|Labor|Permits|Design|Equipment|Landscaping|Utilities|Insurance|Contingency|Other)$/,
+          /^(Uncategorized|Materials|Labor|Permits|Design|Equipment|Landscaping|Utilities|Insurance|Contingency|Other|CategoryA|CategoryB|CategoryX)$/,
         )
       ) {
         return btn;
@@ -114,7 +117,7 @@ function getButtonByControls(container: HTMLElement, controlsId: string): HTMLEl
     for (const btn of buttons) {
       const span = btn.nextElementSibling;
       const text = span?.textContent?.trim() || '';
-      if (text === 'Household Item Budget') {
+      if (text === 'Household items') {
         foundHISection = true;
       } else if (
         foundHISection &&
@@ -147,7 +150,13 @@ function getButtonByControls(container: HTMLElement, controlsId: string): HTMLEl
 /**
  * Build a minimal BudgetOverview for tests.
  */
-function buildOverview(availableFunds = 100000): BudgetOverview {
+function buildOverview(
+  availableFunds = 100000,
+  opts: {
+    minTotalPayback?: number;
+    maxTotalPayback?: number;
+  } = {},
+): BudgetOverview {
   return {
     availableFunds,
     sourceCount: 1,
@@ -171,8 +180,8 @@ function buildOverview(availableFunds = 100000): BudgetOverview {
     subsidySummary: {
       totalReductions: 0,
       activeSubsidyCount: 0,
-      minTotalPayback: 0,
-      maxTotalPayback: 0,
+      minTotalPayback: opts.minTotalPayback ?? 0,
+      maxTotalPayback: opts.maxTotalPayback ?? 0,
     },
   };
 }
@@ -208,6 +217,7 @@ function buildBreakdownWithWI(
     itemTitle?: string;
     workItemId?: string;
     description?: string | null;
+    hasInvoice?: boolean;
   } = {},
 ): BudgetBreakdown {
   const categoryId = opts.categoryId !== undefined ? opts.categoryId : 'cat-1';
@@ -219,6 +229,7 @@ function buildBreakdownWithWI(
   const subsidyPayback = opts.subsidyPayback ?? 0;
   const itemTitle = opts.itemTitle ?? 'Foundation Work';
   const workItemId = opts.workItemId ?? 'wi-1';
+  const hasInvoice = opts.hasInvoice ?? (actualCost > 0);
 
   return {
     workItems: {
@@ -247,7 +258,7 @@ function buildBreakdownWithWI(
                   plannedAmount: 1000,
                   confidence: 'own_estimate',
                   actualCost,
-                  hasInvoice: actualCost > 0,
+                  hasInvoice,
                 },
               ],
             },
@@ -335,6 +346,30 @@ function buildBreakdownWithHI(
   };
 }
 
+/**
+ * Build a minimal BudgetSource for tests.
+ */
+function buildBudgetSource(opts: { id?: string; name?: string; totalAmount?: number } = {}): BudgetSource {
+  return {
+    id: opts.id ?? 'src-1',
+    name: opts.name ?? 'Bank Loan',
+    sourceType: 'bank_loan',
+    totalAmount: opts.totalAmount ?? 80000,
+    usedAmount: 0,
+    availableAmount: opts.totalAmount ?? 80000,
+    claimedAmount: 0,
+    unclaimedAmount: 0,
+    actualAvailableAmount: opts.totalAmount ?? 80000,
+    interestRate: null,
+    terms: null,
+    notes: null,
+    status: 'active',
+    createdBy: null,
+    createdAt: '2025-01-01T00:00:00.000Z',
+    updatedAt: '2025-01-01T00:00:00.000Z',
+  };
+}
+
 // ── Tests ──────────────────────────────────────────────────────────────────
 
 describe('CostBreakdownTable', () => {
@@ -346,6 +381,7 @@ describe('CostBreakdownTable', () => {
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
         selectedCategories={new Set()}
+        budgetSources={[]}
       />,
     );
 
@@ -354,16 +390,17 @@ describe('CostBreakdownTable', () => {
 
   // ── 16. Summary rows show totals ──────────────────────────────────────────
 
-  it('shows Available Funds row with formatted currency value', () => {
+  it('shows Available funds row with formatted currency value', () => {
     render(
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI({ projectedMin: 800, projectedMax: 1200 })}
         overview={buildOverview(50000)}
         selectedCategories={new Set()}
+        budgetSources={[]}
       />,
     );
 
-    expect(screen.getByText('Available Funds')).toBeInTheDocument();
+    expect(screen.getByText('Available funds')).toBeInTheDocument();
     expect(screen.getByText('€50,000.00')).toBeInTheDocument();
   });
 
@@ -373,37 +410,39 @@ describe('CostBreakdownTable', () => {
         breakdown={buildBreakdownWithWI({ projectedMin: 800, projectedMax: 1200 })}
         overview={buildOverview(100000)}
         selectedCategories={new Set()}
+        budgetSources={[]}
       />,
     );
 
-    // There is a 'Remaining' span (inside the row) and a 'Remaining' column header.
-    // Use getAllByText to handle multiple matches and assert at least one exists.
+    // 'Remaining' appears as a row label AND as a column header — both are valid.
     const remainingElements = screen.getAllByText('Remaining');
     expect(remainingElements.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('shows Work Item Budget label in summary', () => {
+  it('shows Work items label in summary', () => {
     render(
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
         selectedCategories={new Set()}
+        budgetSources={[]}
       />,
     );
 
-    expect(screen.getByText('Work Item Budget')).toBeInTheDocument();
+    expect(screen.getByText('Work items')).toBeInTheDocument();
   });
 
-  it('shows Household Item Budget label in summary', () => {
+  it('shows Household items label in summary', () => {
     render(
       <CostBreakdownTable
         breakdown={buildBreakdownWithHI()}
         overview={buildOverview()}
         selectedCategories={new Set()}
+        budgetSources={[]}
       />,
     );
 
-    expect(screen.getByText('Household Item Budget')).toBeInTheDocument();
+    expect(screen.getByText('Household items')).toBeInTheDocument();
   });
 
   // ── 17. WI section collapsed by default ─────────────────────────────────
@@ -414,6 +453,7 @@ describe('CostBreakdownTable', () => {
         breakdown={buildBreakdownWithWI({ categoryName: 'Materials' })}
         overview={buildOverview()}
         selectedCategories={new Set()}
+        budgetSources={[]}
       />,
     );
 
@@ -429,6 +469,7 @@ describe('CostBreakdownTable', () => {
         breakdown={buildBreakdownWithWI({ categoryName: 'Labor', categoryId: 'cat-labor' })}
         overview={buildOverview()}
         selectedCategories={new Set()}
+        budgetSources={[]}
       />,
     );
 
@@ -443,6 +484,7 @@ describe('CostBreakdownTable', () => {
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
         selectedCategories={new Set()}
+        budgetSources={[]}
       />,
     );
 
@@ -467,6 +509,7 @@ describe('CostBreakdownTable', () => {
         })}
         overview={buildOverview()}
         selectedCategories={new Set()}
+        budgetSources={[]}
       />,
     );
 
@@ -493,6 +536,7 @@ describe('CostBreakdownTable', () => {
         })}
         overview={buildOverview()}
         selectedCategories={new Set()}
+        budgetSources={[]}
       />,
     );
 
@@ -516,6 +560,7 @@ describe('CostBreakdownTable', () => {
         })}
         overview={buildOverview()}
         selectedCategories={new Set()}
+        budgetSources={[]}
       />,
     );
 
@@ -541,6 +586,7 @@ describe('CostBreakdownTable', () => {
         })}
         overview={buildOverview()}
         selectedCategories={new Set()}
+        budgetSources={[]}
       />,
     );
 
@@ -565,6 +611,7 @@ describe('CostBreakdownTable', () => {
         })}
         overview={buildOverview()}
         selectedCategories={new Set()}
+        budgetSources={[]}
       />,
     );
 
@@ -592,6 +639,7 @@ describe('CostBreakdownTable', () => {
         })}
         overview={buildOverview()}
         selectedCategories={new Set()}
+        budgetSources={[]}
       />,
     );
 
@@ -617,6 +665,7 @@ describe('CostBreakdownTable', () => {
         })}
         overview={buildOverview()}
         selectedCategories={new Set()}
+        budgetSources={[]}
       />,
     );
 
@@ -640,6 +689,7 @@ describe('CostBreakdownTable', () => {
         })}
         overview={buildOverview()}
         selectedCategories={new Set()}
+        budgetSources={[]}
       />,
     );
 
@@ -692,6 +742,7 @@ describe('CostBreakdownTable', () => {
         breakdown={breakdown}
         overview={buildOverview()}
         selectedCategories={new Set([catId])}
+        budgetSources={[]}
       />,
     );
 
@@ -740,6 +791,7 @@ describe('CostBreakdownTable', () => {
         breakdown={breakdown}
         overview={buildOverview()}
         selectedCategories={new Set()}
+        budgetSources={[]}
       />,
     );
 
@@ -789,11 +841,12 @@ describe('CostBreakdownTable', () => {
         overview={buildOverview()}
         // Filter to a category that doesn't exist — hides WI section but not HI
         selectedCategories={new Set(['cat-nonexistent'])}
+        budgetSources={[]}
       />,
     );
 
     // HI section should still be visible
-    expect(screen.getByText('Household Item Budget')).toBeInTheDocument();
+    expect(screen.getByText('Household items')).toBeInTheDocument();
   });
 
   // ── 28. Remaining value positive → valuePositive CSS class ───────────────
@@ -805,6 +858,7 @@ describe('CostBreakdownTable', () => {
         breakdown={buildBreakdownWithWI({ projectedMax: 1200 })}
         overview={buildOverview(100000)}
         selectedCategories={new Set()}
+        budgetSources={[]}
       />,
     );
 
@@ -821,6 +875,7 @@ describe('CostBreakdownTable', () => {
         breakdown={buildBreakdownWithWI({ projectedMax: 50000 })}
         overview={buildOverview(100)}
         selectedCategories={new Set()}
+        budgetSources={[]}
       />,
     );
 
@@ -836,6 +891,7 @@ describe('CostBreakdownTable', () => {
         breakdown={buildEmptyBreakdown()}
         overview={buildOverview()}
         selectedCategories={new Set()}
+        budgetSources={[]}
       />,
     );
 
@@ -848,6 +904,7 @@ describe('CostBreakdownTable', () => {
         breakdown={buildEmptyBreakdown()}
         overview={buildOverview()}
         selectedCategories={new Set()}
+        budgetSources={[]}
       />,
     );
 
@@ -860,6 +917,7 @@ describe('CostBreakdownTable', () => {
         breakdown={buildEmptyBreakdown()}
         overview={buildOverview()}
         selectedCategories={new Set()}
+        budgetSources={[]}
       />,
     );
 
@@ -874,6 +932,7 @@ describe('CostBreakdownTable', () => {
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
         selectedCategories={new Set()}
+        budgetSources={[]}
       />,
     );
 
@@ -887,6 +946,7 @@ describe('CostBreakdownTable', () => {
         breakdown={buildBreakdownWithHI()}
         overview={buildOverview()}
         selectedCategories={new Set()}
+        budgetSources={[]}
       />,
     );
 
@@ -900,6 +960,7 @@ describe('CostBreakdownTable', () => {
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
         selectedCategories={new Set()}
+        budgetSources={[]}
       />,
     );
 
@@ -913,6 +974,7 @@ describe('CostBreakdownTable', () => {
         breakdown={buildBreakdownWithWI({ categoryName: 'Permits', categoryId: 'cat-perm' })}
         overview={buildOverview()}
         selectedCategories={new Set()}
+        budgetSources={[]}
       />,
     );
 
@@ -933,6 +995,7 @@ describe('CostBreakdownTable', () => {
         })}
         overview={buildOverview()}
         selectedCategories={new Set()}
+        budgetSources={[]}
       />,
     );
 
@@ -951,6 +1014,7 @@ describe('CostBreakdownTable', () => {
         breakdown={buildBreakdownWithHI({ hiCategory: 'electronics' })}
         overview={buildOverview()}
         selectedCategories={new Set()}
+        budgetSources={[]}
       />,
     );
 
@@ -970,6 +1034,7 @@ describe('CostBreakdownTable', () => {
         })}
         overview={buildOverview()}
         selectedCategories={new Set()}
+        budgetSources={[]}
       />,
     );
 
@@ -987,6 +1052,7 @@ describe('CostBreakdownTable', () => {
         breakdown={buildBreakdownWithWI({ categoryName: 'Contingency', categoryId: 'cat-cont' })}
         overview={buildOverview()}
         selectedCategories={new Set()}
+        budgetSources={[]}
       />,
     );
 
@@ -1001,21 +1067,100 @@ describe('CostBreakdownTable', () => {
     expect(screen.queryByText('Contingency')).not.toBeInTheDocument();
   });
 
-  // ── Table structure ────────────────────────────────────────────────────────
+  // ── Table structure — Column Headers ──────────────────────────────────────
 
-  it('renders table column headers: Name, Budget, Payback, Remaining', () => {
+  // Scenario 7: Cost column header says "Cost" (not "Budget")
+  it('renders "Cost" as the cost column header (not "Budget")', () => {
     render(
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
         selectedCategories={new Set()}
+        budgetSources={[]}
+      />,
+    );
+
+    expect(screen.getByRole('columnheader', { name: /^cost$/i })).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: /^budget$/i })).not.toBeInTheDocument();
+  });
+
+  // Scenario 8: Net column header says "Net" (not "Remaining")
+  it('renders "Net" as the net column header (not "Remaining")', () => {
+    render(
+      <CostBreakdownTable
+        breakdown={buildBreakdownWithWI()}
+        overview={buildOverview()}
+        selectedCategories={new Set()}
+        budgetSources={[]}
+      />,
+    );
+
+    expect(screen.getByRole('columnheader', { name: /^net$/i })).toBeInTheDocument();
+  });
+
+  it('renders table column headers: Name, Cost, Payback, Net', () => {
+    render(
+      <CostBreakdownTable
+        breakdown={buildBreakdownWithWI()}
+        overview={buildOverview()}
+        selectedCategories={new Set()}
+        budgetSources={[]}
       />,
     );
 
     expect(screen.getByRole('columnheader', { name: /name/i })).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: /budget/i })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: /^cost$/i })).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: /payback/i })).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: /remaining/i })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: /^net$/i })).toBeInTheDocument();
+  });
+
+  // ── Level-0 Row Names (Scenario 9) ────────────────────────────────────────
+
+  it('level-0 rows are labeled "Available funds", "Work items", "Household items", "Remaining"', () => {
+    const breakdown: BudgetBreakdown = {
+      workItems: {
+        categories: [
+          {
+            categoryId: 'cat-1',
+            categoryName: 'Materials',
+            categoryColor: null,
+            projectedMin: 500,
+            projectedMax: 700,
+            actualCost: 0,
+            subsidyPayback: 0,
+            items: [],
+          },
+        ],
+        totals: { projectedMin: 500, projectedMax: 700, actualCost: 0, subsidyPayback: 0 },
+      },
+      householdItems: {
+        categories: [
+          {
+            hiCategory: 'furniture',
+            projectedMin: 200,
+            projectedMax: 300,
+            actualCost: 0,
+            subsidyPayback: 0,
+            items: [],
+          },
+        ],
+        totals: { projectedMin: 200, projectedMax: 300, actualCost: 0, subsidyPayback: 0 },
+      },
+    };
+
+    render(
+      <CostBreakdownTable
+        breakdown={breakdown}
+        overview={buildOverview(100000)}
+        selectedCategories={new Set()}
+        budgetSources={[]}
+      />,
+    );
+
+    expect(screen.getByText('Available funds')).toBeInTheDocument();
+    expect(screen.getByText('Work items')).toBeInTheDocument();
+    expect(screen.getByText('Household items')).toBeInTheDocument();
+    expect(screen.getByText('Remaining')).toBeInTheDocument();
   });
 
   // ── Category sum row visibility ────────────────────────────────────────────
@@ -1026,6 +1171,7 @@ describe('CostBreakdownTable', () => {
         breakdown={buildBreakdownWithWI({ categoryName: 'Contingency', categoryId: 'cat-cont2' })}
         overview={buildOverview()}
         selectedCategories={new Set()}
+        budgetSources={[]}
       />,
     );
 
@@ -1041,6 +1187,7 @@ describe('CostBreakdownTable', () => {
         breakdown={buildBreakdownWithHI({ hiCategory: 'storage', householdItemId: 'hi-stor' })}
         overview={buildOverview()}
         selectedCategories={new Set()}
+        budgetSources={[]}
       />,
     );
 
@@ -1058,11 +1205,447 @@ describe('CostBreakdownTable', () => {
         breakdown={buildBreakdownWithWI({ categoryId: null, categoryName: 'Uncategorized' })}
         overview={buildOverview()}
         selectedCategories={new Set()}
+        budgetSources={[]}
       />,
     );
 
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
 
     expect(screen.getByText('Uncategorized')).toBeInTheDocument();
+  });
+
+  // ── Perspective Toggle (Scenarios 1–6) ────────────────────────────────────
+
+  // Scenario 1: "Max" is active by default
+  it('renders with "Max" segment active by default (aria-checked="true")', () => {
+    render(
+      <CostBreakdownTable
+        breakdown={buildBreakdownWithWI()}
+        overview={buildOverview()}
+        selectedCategories={new Set()}
+        budgetSources={[]}
+      />,
+    );
+
+    const maxButton = screen.getByRole('radio', { name: 'Max' });
+    expect(maxButton).toHaveAttribute('aria-checked', 'true');
+
+    const minButton = screen.getByRole('radio', { name: 'Min' });
+    expect(minButton).toHaveAttribute('aria-checked', 'false');
+
+    const avgButton = screen.getByRole('radio', { name: 'Avg' });
+    expect(avgButton).toHaveAttribute('aria-checked', 'false');
+  });
+
+  // Scenario 2: Clicking "Min" activates Min, shows projectedMin value for projected items
+  it('clicking Min activates Min segment and shows projectedMin value for projected items', () => {
+    const { container } = render(
+      <CostBreakdownTable
+        breakdown={buildBreakdownWithWI({
+          costDisplay: 'projected',
+          projectedMin: 600,
+          projectedMax: 1000,
+          categoryName: 'Labor',
+          categoryId: 'cat-lab-min',
+        })}
+        overview={buildOverview()}
+        selectedCategories={new Set()}
+        budgetSources={[]}
+      />,
+    );
+
+    // Switch to Min
+    fireEvent.click(screen.getByRole('radio', { name: 'Min' }));
+
+    expect(screen.getByRole('radio', { name: 'Min' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: 'Max' })).toHaveAttribute('aria-checked', 'false');
+
+    // Expand WI section and category to see item row
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-lab-min-items'));
+
+    // projectedMin=600 should appear (not projectedMax=1000)
+    expect(screen.getAllByText(/€600\.00/).length).toBeGreaterThanOrEqual(1);
+  });
+
+  // Scenario 3: Clicking "Avg" shows (projectedMin + projectedMax) / 2
+  it('clicking Avg shows average of projectedMin and projectedMax for projected items', () => {
+    const { container } = render(
+      <CostBreakdownTable
+        breakdown={buildBreakdownWithWI({
+          costDisplay: 'projected',
+          projectedMin: 800,
+          projectedMax: 1200,
+          categoryName: 'Permits',
+          categoryId: 'cat-perm-avg',
+        })}
+        overview={buildOverview()}
+        selectedCategories={new Set()}
+        budgetSources={[]}
+      />,
+    );
+
+    // Switch to Avg — average of 800 and 1200 = 1000
+    fireEvent.click(screen.getByRole('radio', { name: 'Avg' }));
+
+    expect(screen.getByRole('radio', { name: 'Avg' })).toHaveAttribute('aria-checked', 'true');
+
+    // Expand WI section and category to see item row
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-perm-avg-items'));
+
+    // Average value €1,000.00
+    expect(screen.getAllByText(/€1,000\.00/).length).toBeGreaterThanOrEqual(1);
+  });
+
+  // Scenario 4: ArrowRight from "Min" focuses and activates "Max"
+  it('ArrowRight keydown from Min activates Max', () => {
+    render(
+      <CostBreakdownTable
+        breakdown={buildBreakdownWithWI()}
+        overview={buildOverview()}
+        selectedCategories={new Set()}
+        budgetSources={[]}
+      />,
+    );
+
+    // First set focus to Min by clicking it
+    const minButton = screen.getByRole('radio', { name: 'Min' });
+    fireEvent.click(minButton);
+    expect(minButton).toHaveAttribute('aria-checked', 'true');
+
+    // ArrowRight from Min → Max
+    fireEvent.keyDown(minButton, { key: 'ArrowRight' });
+
+    expect(screen.getByRole('radio', { name: 'Max' })).toHaveAttribute('aria-checked', 'true');
+    expect(minButton).toHaveAttribute('aria-checked', 'false');
+  });
+
+  // Scenario 5: ArrowLeft from "Min" wraps around to "Avg"
+  it('ArrowLeft keydown from Min wraps around to activate Avg', () => {
+    render(
+      <CostBreakdownTable
+        breakdown={buildBreakdownWithWI()}
+        overview={buildOverview()}
+        selectedCategories={new Set()}
+        budgetSources={[]}
+      />,
+    );
+
+    const minButton = screen.getByRole('radio', { name: 'Min' });
+    fireEvent.click(minButton);
+    expect(minButton).toHaveAttribute('aria-checked', 'true');
+
+    // ArrowLeft from Min (index 0) wraps to Avg (last, index 2)
+    fireEvent.keyDown(minButton, { key: 'ArrowLeft' });
+
+    expect(screen.getByRole('radio', { name: 'Avg' })).toHaveAttribute('aria-checked', 'true');
+    expect(minButton).toHaveAttribute('aria-checked', 'false');
+  });
+
+  // Scenario 6: Actual-cost items show actualCost regardless of perspective
+  it('actual-cost items show actualCost value regardless of which perspective is active', () => {
+    const { container } = render(
+      <CostBreakdownTable
+        breakdown={buildBreakdownWithWI({
+          costDisplay: 'actual',
+          actualCost: 750,
+          projectedMin: 750,
+          projectedMax: 750,
+          categoryName: 'Equipment',
+          categoryId: 'cat-equip-actual',
+        })}
+        overview={buildOverview()}
+        selectedCategories={new Set()}
+        budgetSources={[]}
+      />,
+    );
+
+    // Switch to Min perspective
+    fireEvent.click(screen.getByRole('radio', { name: 'Min' }));
+
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-equip-actual-items'));
+
+    // Actual cost always shows with "Actual:" prefix
+    expect(screen.getByText(/Actual:/)).toBeInTheDocument();
+    expect(screen.getAllByText(/€750\.00/).length).toBeGreaterThanOrEqual(1);
+
+    // Switch to Avg — still shows actual
+    fireEvent.click(screen.getByRole('radio', { name: 'Avg' }));
+    expect(screen.getByText(/Actual:/)).toBeInTheDocument();
+  });
+
+  // ── Row Highlighting (Scenarios 10–13) ────────────────────────────────────
+
+  // Scenario 10: costDisplay === 'actual' → rowActual CSS class on <tr>
+  it('work item with costDisplay=actual has rowActual CSS class on its row', () => {
+    const { container } = render(
+      <CostBreakdownTable
+        breakdown={buildBreakdownWithWI({
+          costDisplay: 'actual',
+          actualCost: 500,
+          projectedMin: 500,
+          projectedMax: 500,
+          categoryName: 'Insurance',
+          categoryId: 'cat-ins-actual',
+          workItemId: 'wi-actual-row',
+        })}
+        overview={buildOverview()}
+        selectedCategories={new Set()}
+        budgetSources={[]}
+      />,
+    );
+
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-ins-actual-items'));
+
+    // The work item row (level 2) should have rowActual class
+    const actualRows = container.querySelectorAll('.rowActual');
+    expect(actualRows.length).toBeGreaterThan(0);
+  });
+
+  // Scenario 11: costDisplay === 'mixed' → rowMixed CSS class on <tr>
+  it('work item with costDisplay=mixed has rowMixed CSS class on its row', () => {
+    const { container } = render(
+      <CostBreakdownTable
+        breakdown={buildBreakdownWithWI({
+          costDisplay: 'mixed',
+          actualCost: 300,
+          projectedMin: 600,
+          projectedMax: 900,
+          categoryName: 'Design',
+          categoryId: 'cat-des-mixed',
+          workItemId: 'wi-mixed-row',
+        })}
+        overview={buildOverview()}
+        selectedCategories={new Set()}
+        budgetSources={[]}
+      />,
+    );
+
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-des-mixed-items'));
+
+    const mixedRows = container.querySelectorAll('.rowMixed');
+    expect(mixedRows.length).toBeGreaterThan(0);
+  });
+
+  // Scenario 12: costDisplay === 'projected' → neither rowActual nor rowMixed
+  it('work item with costDisplay=projected has neither rowActual nor rowMixed', () => {
+    const { container } = render(
+      <CostBreakdownTable
+        breakdown={buildBreakdownWithWI({
+          costDisplay: 'projected',
+          projectedMin: 400,
+          projectedMax: 600,
+          categoryName: 'Utilities',
+          categoryId: 'cat-util-proj',
+          workItemId: 'wi-proj-row',
+        })}
+        overview={buildOverview()}
+        selectedCategories={new Set()}
+        budgetSources={[]}
+      />,
+    );
+
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-util-proj-items'));
+
+    // The level-2 item rows should not have rowActual or rowMixed
+    const level2Rows = container.querySelectorAll('.rowLevel2');
+    expect(level2Rows.length).toBeGreaterThan(0);
+    level2Rows.forEach((row) => {
+      const cls = row.getAttribute('class') ?? '';
+      expect(cls).not.toContain('rowActual');
+      expect(cls).not.toContain('rowMixed');
+    });
+  });
+
+  // Scenario 13: budget line with hasInvoice===true → rowActual CSS class
+  it('budget line with hasInvoice=true has rowActual CSS class', () => {
+    const { container } = render(
+      <CostBreakdownTable
+        breakdown={buildBreakdownWithWI({
+          costDisplay: 'actual',
+          actualCost: 400,
+          projectedMin: 400,
+          projectedMax: 400,
+          hasInvoice: true,
+          categoryName: 'Labor',
+          categoryId: 'cat-lab-inv',
+          workItemId: 'wi-inv',
+          description: 'Labour invoice',
+        })}
+        overview={buildOverview()}
+        selectedCategories={new Set()}
+        budgetSources={[]}
+      />,
+    );
+
+    // Expand to budget line level
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-lab-inv-items'));
+    fireEvent.click(getButtonByControls(container, 'wi-item-wi-inv-budget-lines'));
+
+    // Budget line row (level 3) with hasInvoice should have rowActual
+    const actualRows = container.querySelectorAll('.rowActual');
+    expect(actualRows.length).toBeGreaterThan(0);
+  });
+
+  // ── Available Funds Expansion (Scenarios 14–17) ───────────────────────────
+
+  // Scenario 14: no budgetSources → no expand button on Available Funds
+  it('Available Funds row has no expand button when budgetSources is empty', () => {
+    render(
+      <CostBreakdownTable
+        breakdown={buildBreakdownWithWI()}
+        overview={buildOverview(100000)}
+        selectedCategories={new Set()}
+        budgetSources={[]}
+      />,
+    );
+
+    // The expand button for Available funds has a specific aria-label
+    expect(
+      screen.queryByRole('button', { name: /expand available funds/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  // Scenario 15: budgetSources has entries → expand button present, starts collapsed
+  it('Available Funds row has an expand button with aria-expanded=false when sources exist', () => {
+    render(
+      <CostBreakdownTable
+        breakdown={buildBreakdownWithWI()}
+        overview={buildOverview(100000)}
+        selectedCategories={new Set()}
+        budgetSources={[buildBudgetSource({ id: 'src-1', name: 'Bank Loan', totalAmount: 80000 })]}
+      />,
+    );
+
+    const expandBtn = screen.getByRole('button', { name: /expand available funds/i });
+    expect(expandBtn).toBeInTheDocument();
+    expect(expandBtn).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  // Scenario 16: clicking expand shows one sub-row per source with name and totalAmount
+  it('clicking Available Funds expand shows source sub-rows with name and totalAmount', () => {
+    render(
+      <CostBreakdownTable
+        breakdown={buildBreakdownWithWI()}
+        overview={buildOverview(130000)}
+        selectedCategories={new Set()}
+        budgetSources={[
+          buildBudgetSource({ id: 'src-1', name: 'Savings Account', totalAmount: 50000 }),
+          buildBudgetSource({ id: 'src-2', name: 'Bank Loan', totalAmount: 80000 }),
+        ]}
+      />,
+    );
+
+    const expandBtn = screen.getByRole('button', { name: /expand available funds/i });
+    fireEvent.click(expandBtn);
+
+    // Sub-rows should show source names
+    expect(screen.getByText('Savings Account')).toBeInTheDocument();
+    expect(screen.getByText('Bank Loan')).toBeInTheDocument();
+
+    // And their totalAmount values as currency
+    expect(screen.getByText('€50,000.00')).toBeInTheDocument();
+    expect(screen.getByText('€80,000.00')).toBeInTheDocument();
+  });
+
+  // Scenario 17: clicking expand again collapses source rows
+  it('clicking Available Funds expand again collapses source sub-rows', () => {
+    render(
+      <CostBreakdownTable
+        breakdown={buildBreakdownWithWI()}
+        overview={buildOverview(100000)}
+        selectedCategories={new Set()}
+        budgetSources={[buildBudgetSource({ id: 'src-1', name: 'Credit Line', totalAmount: 60000 })]}
+      />,
+    );
+
+    const expandBtn = screen.getByRole('button', { name: /expand available funds/i });
+
+    // Expand
+    fireEvent.click(expandBtn);
+    expect(screen.getByText('Credit Line')).toBeInTheDocument();
+
+    // Collapse
+    fireEvent.click(expandBtn);
+    expect(screen.queryByText('Credit Line')).not.toBeInTheDocument();
+  });
+
+  // ── Remaining Calculation (Scenarios 18–21) ───────────────────────────────
+
+  // Scenario 18: Remaining net = availableFunds + payback - totalProjected
+  it('remaining net = availableFunds + payback - totalProjected for active perspective', () => {
+    // availableFunds=10000, maxTotalPayback=1000, projectedMax=4000
+    // remaining (Max) = 10000 + 1000 - 4000 = 7000
+    render(
+      <CostBreakdownTable
+        breakdown={buildBreakdownWithWI({ projectedMin: 3000, projectedMax: 4000 })}
+        overview={buildOverview(10000, { minTotalPayback: 800, maxTotalPayback: 1000 })}
+        selectedCategories={new Set()}
+        budgetSources={[]}
+      />,
+    );
+
+    // Default perspective is Max: 10000 + 1000 - 4000 = 7000
+    expect(screen.getByText('€7,000.00')).toBeInTheDocument();
+  });
+
+  // Scenario 19: Max perspective uses maxTotalPayback and projectedMax
+  it('Max perspective uses maxTotalPayback and projectedMax totals', () => {
+    // availableFunds=20000, maxTotalPayback=2000, projectedMax=8000
+    // remaining = 20000 + 2000 - 8000 = 14000
+    render(
+      <CostBreakdownTable
+        breakdown={buildBreakdownWithWI({ projectedMin: 5000, projectedMax: 8000 })}
+        overview={buildOverview(20000, { minTotalPayback: 1000, maxTotalPayback: 2000 })}
+        selectedCategories={new Set()}
+        budgetSources={[]}
+      />,
+    );
+
+    // Max is default
+    expect(screen.getByText('€14,000.00')).toBeInTheDocument();
+  });
+
+  // Scenario 20: Min perspective uses minTotalPayback and projectedMin
+  it('Min perspective uses minTotalPayback and projectedMin totals', () => {
+    // availableFunds=20000, minTotalPayback=1000, projectedMin=5000
+    // remaining (Min) = 20000 + 1000 - 5000 = 16000
+    render(
+      <CostBreakdownTable
+        breakdown={buildBreakdownWithWI({ projectedMin: 5000, projectedMax: 8000 })}
+        overview={buildOverview(20000, { minTotalPayback: 1000, maxTotalPayback: 2000 })}
+        selectedCategories={new Set()}
+        budgetSources={[]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Min' }));
+
+    expect(screen.getByText('€16,000.00')).toBeInTheDocument();
+  });
+
+  // Scenario 21: Avg perspective uses average of payback range and average of projected range
+  it('Avg perspective uses average of payback range and average of projected range', () => {
+    // availableFunds=20000, minTotalPayback=1000, maxTotalPayback=2000 → avgPayback=1500
+    // projectedMin=5000, projectedMax=8000 → avgProjected=6500
+    // remaining (Avg) = 20000 + 1500 - 6500 = 15000
+    render(
+      <CostBreakdownTable
+        breakdown={buildBreakdownWithWI({ projectedMin: 5000, projectedMax: 8000 })}
+        overview={buildOverview(20000, { minTotalPayback: 1000, maxTotalPayback: 2000 })}
+        selectedCategories={new Set()}
+        budgetSources={[]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Avg' }));
+
+    expect(screen.getByText('€15,000.00')).toBeInTheDocument();
   });
 });
