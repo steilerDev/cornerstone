@@ -29,17 +29,6 @@ const HI_CATEGORY_ORDER: HouseholdItemCategory[] = [
   'other',
 ];
 
-const HI_CATEGORY_NAMES: Record<HouseholdItemCategory, string> = {
-  furniture: 'Furniture',
-  appliances: 'Appliances',
-  fixtures: 'Fixtures',
-  decor: 'Decor',
-  electronics: 'Electronics',
-  outdoor: 'Outdoor',
-  storage: 'Storage',
-  other: 'Other',
-};
-
 /**
  * Get detailed budget breakdown by item and budget line.
  * Expands both work items and household items into per-line details.

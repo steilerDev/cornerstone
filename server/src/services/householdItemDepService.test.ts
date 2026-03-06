@@ -257,7 +257,7 @@ describe('householdItemDepService', () => {
       expect(predIds).toContain(wiId1);
       expect(predIds).toContain(wiId2);
 
-      const dep2 = result.find((d) => d.predecessorId === wiId2)!;
+      const _dep2 = result.find((d) => d.predecessorId === wiId2)!;
     });
   });
 
@@ -307,13 +307,13 @@ describe('householdItemDepService', () => {
       const hiId = insertHouseholdItem(db);
       const wiId = insertWorkItem(db, userId);
 
-      const result = householdItemDepService.createDep(db, hiId, {
+      const _result = householdItemDepService.createDep(db, hiId, {
         predecessorType: 'work_item',
         predecessorId: wiId,
       });
 
       // Verify persisted to DB
-      const deps = householdItemDepService.listDeps(db, hiId);
+      const _deps = householdItemDepService.listDeps(db, hiId);
     });
 
     it('throws NotFoundError when household item does not exist', () => {
@@ -400,7 +400,7 @@ describe('householdItemDepService', () => {
       const wiId = insertWorkItem(db, userId, { endDate: '2026-05-15' });
 
       // Before creating dep, earliest_delivery_date should be null
-      const before = db
+      const _before = db
         .select()
         .from(schema.householdItems)
         .where(

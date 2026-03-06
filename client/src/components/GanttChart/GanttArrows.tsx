@@ -1,9 +1,5 @@
 import { memo, useCallback, useMemo, useState } from 'react';
-import type {
-  TimelineDependency,
-  DependencyType,
-  TimelineHouseholdItem,
-} from '@cornerstone/shared';
+import type { TimelineDependency, DependencyType } from '@cornerstone/shared';
 import {
   computeArrowPath,
   computeArrowhead,

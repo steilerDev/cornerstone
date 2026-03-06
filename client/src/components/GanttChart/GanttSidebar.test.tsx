@@ -547,7 +547,9 @@ describe('GanttSidebar — household item rows', () => {
 
   it('HI row circle icon is aria-hidden', () => {
     const hi = makeHI({ id: 'hi-1' });
-    const { container } = render(<GanttSidebar items={[]} unifiedRows={[makeHIRow(hi)]} />);
+    const { container: _container } = render(
+      <GanttSidebar items={[]} unifiedRows={[makeHIRow(hi)]} />,
+    );
     const hiRow = screen.getByTestId('gantt-sidebar-hi-hi-1');
     const svg = hiRow.querySelector('svg');
     expect(svg).toHaveAttribute('aria-hidden', 'true');
@@ -555,7 +557,9 @@ describe('GanttSidebar — household item rows', () => {
 
   it('HI row renders circle SVG icon', () => {
     const hi = makeHI({ id: 'hi-1' });
-    const { container } = render(<GanttSidebar items={[]} unifiedRows={[makeHIRow(hi)]} />);
+    const { container: _container } = render(
+      <GanttSidebar items={[]} unifiedRows={[makeHIRow(hi)]} />,
+    );
     const hiRow = screen.getByTestId('gantt-sidebar-hi-hi-1');
     const circle = hiRow.querySelector('circle');
     expect(circle).toBeInTheDocument();
@@ -566,7 +570,9 @@ describe('GanttSidebar — household item rows', () => {
 
   it('HI row label has title attribute for overflow tooltip', () => {
     const hi = makeHI({ id: 'hi-1', name: 'Very Long Household Item Name That Might Overflow' });
-    const { container } = render(<GanttSidebar items={[]} unifiedRows={[makeHIRow(hi)]} />);
+    const { container: _container } = render(
+      <GanttSidebar items={[]} unifiedRows={[makeHIRow(hi)]} />,
+    );
     const hiRow = screen.getByTestId('gantt-sidebar-hi-hi-1');
     const label = hiRow.querySelector('span');
     expect(label).toHaveAttribute('title', 'Very Long Household Item Name That Might Overflow');

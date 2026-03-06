@@ -9,7 +9,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import { eq, sql, and, or, desc, asc, inArray } from 'drizzle-orm';
+import { eq, sql, and, or, desc, asc } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import {
@@ -19,7 +19,6 @@ import {
   users,
   vendors,
   householdItemBudgets,
-  householdItemDeps,
   householdItemSubsidies,
   subsidyPrograms,
   invoices,
@@ -33,7 +32,8 @@ import type {
   HouseholdItemVendorSummary,
   UserSummary,
   TagResponse,
-  HouseholdItemDepDetail,
+  HouseholdItemCategory,
+  HouseholdItemStatus,
   HouseholdItemSubsidySummary,
   HouseholdItemBudgetAggregate,
   CreateHouseholdItemRequest,
@@ -243,8 +243,8 @@ export function toHouseholdItemSummary(
     id: item.id,
     name: item.name,
     description: item.description,
-    category: item.category as any,
-    status: item.status as any,
+    category: item.category as HouseholdItemCategory,
+    status: item.status as HouseholdItemStatus,
     vendor: toVendorSummary(vendor),
     room: item.room,
     quantity: item.quantity,

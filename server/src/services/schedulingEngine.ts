@@ -594,15 +594,25 @@ export function schedule(params: ScheduleParams): ScheduleResult {
 
   // ─── 5. Backward pass: compute LS and LF ─────────────────────────────────────
 
+  // Compute project finish date: maximum EF across all terminal nodes
+  let projectEnd = '0000-01-01';
+  for (const id of topoOrder) {
+    const succs = successorDepsOf.get(id)!;
+    if (succs.length === 0) {
+      const node = nodes.get(id)!;
+      projectEnd = maxDate(projectEnd, node.ef);
+    }
+  }
+
   // Traverse in reverse topological order
   for (const id of [...topoOrder].reverse()) {
     const node = nodes.get(id)!;
     const succs = successorDepsOf.get(id)!;
 
     if (succs.length === 0) {
-      // Terminal node (no successors): LF = EF (project completion constraint)
-      node.lf = node.ef;
-      node.ls = node.es;
+      // Terminal node: use shared project finish date so only the longest path has zero float
+      node.lf = projectEnd;
+      node.ls = addDays(projectEnd, -node.duration);
     } else {
       // LF = min of all successor-derived LF constraints
       let minLf = '9999-12-31'; // Sentinel: latest possible date

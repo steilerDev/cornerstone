@@ -13,8 +13,6 @@ import type {
   HouseholdItemCategory,
   HouseholdItemStatus,
   HouseholdItemVendorSummary,
-  HouseholdItemDepRef,
-  HouseholdItemDepDetail,
   WorkItemLinkedHouseholdItemSummary,
   HouseholdItemSubsidySummary,
   HouseholdItem,

@@ -640,7 +640,6 @@ export function GanttTooltip({
   onHiNavigate,
 }: GanttTooltipProps) {
   // Compute tooltip x/y, flipping to avoid viewport overflow
-  const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1280;
   const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
 
   // For work-item tooltips with dependencies, estimate height dynamically

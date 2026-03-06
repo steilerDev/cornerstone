@@ -34,6 +34,7 @@ export function CalendarHouseholdItem({
   onMouseLeave,
   onMouseMove,
   isTouchDevice = false,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   activeTouchId = null,
   onTouchTap,
 }: CalendarHouseholdItemProps) {

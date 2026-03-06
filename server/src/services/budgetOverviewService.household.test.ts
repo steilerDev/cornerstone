@@ -272,7 +272,7 @@ describe('Budget Overview Service - Household Item Invoice Aggregation', () => {
 
       expect(categories.length).toBeGreaterThan(0);
       const categoryId = categories[0].id;
-      const categoryName = categories[0].name;
+      const _categoryName = categories[0].name;
 
       const budgetId = createTestHouseholdItemBudget(householdItemId, 5000, categoryId);
       const vendorId = createTestVendor('Appliance Vendor');
