@@ -300,6 +300,27 @@
   gap: var(--spacing-2);
 }
 
+/* ---- Name link styling ---- */
+
+.nameLink {
+  color: var(--color-primary);
+  text-decoration: none;
+  font-size: inherit;
+  font-weight: inherit;
+  transition: color var(--transition-fast);
+}
+
+.nameLink:hover {
+  text-decoration: underline;
+  color: var(--color-primary-hover);
+}
+
+.nameLink:focus-visible {
+  outline: none;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-focus);
+}
+
 /* ---- Value colors ---- */
 
 .valuePositive {
@@ -412,5 +433,11 @@
   .expandBtn {
     min-width: 44px;
     min-height: 44px;
+  }
+
+  .nameLink {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
   }
 }
