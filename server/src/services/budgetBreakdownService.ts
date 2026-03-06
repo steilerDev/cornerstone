@@ -1,11 +1,7 @@
 import { sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import {
-  CONFIDENCE_MARGINS,
-  type HouseholdItemCategory,
-  type ConfidenceLevel,
-} from '@cornerstone/shared';
+import { CONFIDENCE_MARGINS, type ConfidenceLevel } from '@cornerstone/shared';
 import type {
   BudgetBreakdown,
   BreakdownWorkItemCategory,
@@ -18,23 +14,12 @@ import type {
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
-const HI_CATEGORY_ORDER: HouseholdItemCategory[] = [
-  'hic-furniture',
-  'hic-appliances',
-  'hic-fixtures',
-  'hic-decor',
-  'hic-electronics',
-  'hic-outdoor',
-  'hic-storage',
-  'hic-other',
-];
-
 /**
  * Get detailed budget breakdown by item and budget line.
  * Expands both work items and household items into per-line details.
  *
  * Groups work items by budget category (with 'Uncategorized' for null category).
- * Groups household items by HouseholdItemCategory enum.
+ * Groups household items by household item category (with flexible, user-defined categories).
  *
  * For each item:
  * - If all budget lines are invoiced: costDisplay='actual', show actualCost only
@@ -96,7 +81,10 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
   const hiLineRows = db.all<{
     householdItemId: string;
     itemName: string;
-    hiCategory: HouseholdItemCategory;
+    hiCategoryId: string;
+    hiCategoryName: string;
+    hiCategoryColor: string | null;
+    hiCategorySortOrder: number;
     budgetLineId: string;
     description: string | null;
     plannedAmount: number;
@@ -106,7 +94,10 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
     sql`SELECT
       hi.id                     AS householdItemId,
       hi.name                   AS itemName,
-      hi.category_id            AS hiCategory,
+      hi.category_id            AS hiCategoryId,
+      hic.name                  AS hiCategoryName,
+      hic.color                 AS hiCategoryColor,
+      hic.sort_order            AS hiCategorySortOrder,
       hib.id                    AS budgetLineId,
       hib.description           AS description,
       hib.planned_amount        AS plannedAmount,
@@ -114,7 +105,8 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
       hib.budget_category_id    AS budgetCategoryId
     FROM household_items hi
     INNER JOIN household_item_budgets hib ON hib.household_item_id = hi.id
-    ORDER BY hi.category_id ASC, hi.name ASC`,
+    INNER JOIN household_item_categories hic ON hi.category_id = hic.id
+    ORDER BY hic.sort_order ASC, hic.name ASC, hi.name ASC`,
   );
 
   // ── 4. Query D: Invoice aggregates per HI budget line ────────────────────
@@ -515,19 +507,26 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
 
   // Group HI lines by category
   interface HIGroup {
-    category: HouseholdItemCategory;
+    categoryId: string;
+    categoryName: string;
+    categoryColor: string | null;
+    categorySortOrder: number;
     lines: typeof hiLineRows;
   }
 
-  const hiGroups = new Map<HouseholdItemCategory, HIGroup>();
+  const hiGroups = new Map<string, HIGroup>();
   for (const line of hiLineRows) {
-    if (!hiGroups.has(line.hiCategory)) {
-      hiGroups.set(line.hiCategory, {
-        category: line.hiCategory,
+    const categoryKey = line.hiCategoryId;
+    if (!hiGroups.has(categoryKey)) {
+      hiGroups.set(categoryKey, {
+        categoryId: line.hiCategoryId,
+        categoryName: line.hiCategoryName,
+        categoryColor: line.hiCategoryColor,
+        categorySortOrder: line.hiCategorySortOrder,
         lines: [],
       });
     }
-    hiGroups.get(line.hiCategory)!.lines.push(line);
+    hiGroups.get(categoryKey)!.lines.push(line);
   }
 
   // Build per-household-item data within each category
@@ -537,8 +536,8 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
     lines: typeof hiLineRows;
   }
 
-  const hiItemsByCategory = new Map<HouseholdItemCategory, HIItemData[]>();
-  for (const [category, group] of hiGroups) {
+  const hiItemsByCategory = new Map<string, HIItemData[]>();
+  for (const [categoryKey, group] of hiGroups) {
     const itemsInCategory = new Map<string, HIItemData>();
     for (const line of group.lines) {
       const itemKey = line.householdItemId;
@@ -551,7 +550,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
       }
       itemsInCategory.get(itemKey)!.lines.push(line);
     }
-    hiItemsByCategory.set(category, Array.from(itemsInCategory.values()));
+    hiItemsByCategory.set(categoryKey, Array.from(itemsInCategory.values()));
   }
 
   // Build household item categories with items (only include categories with items)
@@ -566,12 +565,17 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
     minSubsidyPayback: 0,
   };
 
-  for (const category of HI_CATEGORY_ORDER) {
-    if (!hiGroups.has(category)) {
-      continue; // Skip categories with no items
+  // Sort groups by sort_order, then by name
+  const hiCategoryArray = Array.from(hiGroups.values()).sort((a, b) => {
+    if (a.categorySortOrder !== b.categorySortOrder) {
+      return a.categorySortOrder - b.categorySortOrder;
     }
+    return a.categoryName.localeCompare(b.categoryName);
+  });
 
-    const itemsInCategory = hiItemsByCategory.get(category) || [];
+  for (const group of hiCategoryArray) {
+    const categoryKey = group.categoryId;
+    const itemsInCategory = hiItemsByCategory.get(categoryKey) || [];
 
     const categoryItems: BreakdownHouseholdItem[] = [];
     let categoryMin = 0;
@@ -674,7 +678,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
     }
 
     const hiCategory: BreakdownHouseholdItemCategory = {
-      hiCategory: category,
+      hiCategory: group.categoryName,
       projectedMin: categoryMin,
       projectedMax: categoryMax,
       actualCost: categoryActual,
