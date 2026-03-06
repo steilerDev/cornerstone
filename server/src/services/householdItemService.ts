@@ -457,7 +457,7 @@ export function updateHouseholdItem(
   }
 
   // Validate category if provided
-  if ('category' in data) {
+  if ('category' in data && data.category) {
     validateHouseholdItemCategoryId(db, data.category);
   }
 

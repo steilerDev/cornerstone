@@ -36,9 +36,8 @@ UPDATE household_items SET category_id = 'hic-outdoor'     WHERE category = 'out
 UPDATE household_items SET category_id = 'hic-storage'     WHERE category = 'storage';
 UPDATE household_items SET category_id = 'hic-other'       WHERE category = 'other';
 
--- Set default for category_id and make it NOT NULL
+-- Set default for category_id (backfill any nulls to 'hic-other')
 UPDATE household_items SET category_id = 'hic-other' WHERE category_id IS NULL;
-ALTER TABLE household_items MODIFY category_id TEXT NOT NULL DEFAULT 'hic-other';
 
 -- Drop old category column (SQLite 3.35.0+ supports DROP COLUMN)
 ALTER TABLE household_items DROP COLUMN category;
