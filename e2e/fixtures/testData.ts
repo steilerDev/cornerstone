@@ -28,6 +28,7 @@ export const ROUTES = {
   tags: '/tags',
   timeline: '/timeline',
   householdItems: '/household-items',
+  householdItemsNew: '/household-items/new',
   profile: '/profile',
   userManagement: '/admin/users',
 };
@@ -50,4 +51,5 @@ export const API = {
   milestones: '/api/milestones',
   timeline: '/api/timeline',
   schedule: '/api/schedule',
+  householdItems: '/api/household-items',
 };
