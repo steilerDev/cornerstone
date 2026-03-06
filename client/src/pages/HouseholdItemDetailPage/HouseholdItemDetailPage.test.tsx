@@ -1265,7 +1265,7 @@ describe('HouseholdItemDetailPage', () => {
       ).toBeInTheDocument();
     });
 
-    it('shows earliestDeliveryDate label in delivery summary row', async () => {
+    it('shows earliestDeliveryDate label in Dependencies card', async () => {
       mockGetHouseholdItem.mockResolvedValue(makeItem({ earliestDeliveryDate: '2026-03-01' }));
 
       renderPage();
@@ -1274,10 +1274,11 @@ describe('HouseholdItemDetailPage', () => {
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      expect(screen.getByText('Earliest delivery')).toBeInTheDocument();
+      // "Earliest Delivery" is an inline date input label in the Dependencies card
+      expect(screen.getByLabelText('Earliest delivery date')).toBeInTheDocument();
     });
 
-    it('shows latestDeliveryDate label in delivery summary row', async () => {
+    it('shows latestDeliveryDate label in Dependencies card', async () => {
       mockGetHouseholdItem.mockResolvedValue(makeItem({ latestDeliveryDate: '2026-03-10' }));
 
       renderPage();
@@ -1286,10 +1287,11 @@ describe('HouseholdItemDetailPage', () => {
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      expect(screen.getByText('Latest delivery')).toBeInTheDocument();
+      // "Latest Delivery" is an inline date input label in the Dependencies card
+      expect(screen.getByLabelText('Latest delivery date')).toBeInTheDocument();
     });
 
-    it('shows "Floored to today" chip when item is planned and isLate is true', async () => {
+    it('shows "Late" chip near Earliest Delivery when item is planned and isLate is true', async () => {
       mockGetHouseholdItem.mockResolvedValue(
         makeItem({
           status: 'planned',
@@ -1303,7 +1305,8 @@ describe('HouseholdItemDetailPage', () => {
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      expect(screen.getByText('Floored to today')).toBeInTheDocument();
+      // In Story #467, the chip now shows "Late" (not "Floored to today") and is in the Dependencies card
+      expect(screen.getByText('Late')).toBeInTheDocument();
     });
 
     it('does NOT show "Floored to today" chip when item is delivered', async () => {
@@ -1563,10 +1566,10 @@ describe('HouseholdItemDetailPage', () => {
     });
   });
 
-  // ── Schedule section (issue #462) ─────────────────────────────────────────
+  // ── Dates & Delivery section (Story #467 — replaces Schedule section from issue #462) ──────
 
-  describe('Schedule section', () => {
-    it('renders the Schedule section heading', async () => {
+  describe('Dates & Delivery section', () => {
+    it('renders the "Dates & Delivery" section heading', async () => {
       mockGetHouseholdItem.mockResolvedValue(makeItem());
 
       renderPage();
@@ -1575,11 +1578,14 @@ describe('HouseholdItemDetailPage', () => {
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      expect(screen.getByRole('heading', { name: 'Schedule' })).toBeInTheDocument();
+      // Story #467 replaced the "Schedule" section with "Dates & Delivery"
+      expect(screen.getByRole('heading', { name: 'Dates & Delivery' })).toBeInTheDocument();
     });
 
-    it('renders Target Delivery Date label', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem({ targetDeliveryDate: '2026-03-01' }));
+    it('renders "Target Date" label when no actual delivery date', async () => {
+      mockGetHouseholdItem.mockResolvedValue(
+        makeItem({ targetDeliveryDate: '2026-03-01', actualDeliveryDate: null }),
+      );
 
       renderPage();
 
@@ -1587,10 +1593,11 @@ describe('HouseholdItemDetailPage', () => {
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      expect(screen.getByText('Target Delivery Date')).toBeInTheDocument();
+      // In Story #467, label is "Target Date" (not "Target Delivery Date")
+      expect(screen.getByText('Target Date')).toBeInTheDocument();
     });
 
-    it('renders Actual Delivery Date label', async () => {
+    it('renders "Actual Date" label when actualDeliveryDate is set', async () => {
       mockGetHouseholdItem.mockResolvedValue(makeItem({ actualDeliveryDate: '2026-03-05' }));
 
       renderPage();
@@ -1599,11 +1606,14 @@ describe('HouseholdItemDetailPage', () => {
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      expect(screen.getByText('Actual Delivery Date')).toBeInTheDocument();
+      // In Story #467, label is "Actual Date" (not "Actual Delivery Date")
+      expect(screen.getByText('Actual Date')).toBeInTheDocument();
     });
 
-    it('shows "Not scheduled" when targetDeliveryDate is null', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem({ targetDeliveryDate: null }));
+    it('shows em-dash when targetDeliveryDate is null', async () => {
+      mockGetHouseholdItem.mockResolvedValue(
+        makeItem({ targetDeliveryDate: null, actualDeliveryDate: null }),
+      );
 
       renderPage();
 
@@ -1611,11 +1621,15 @@ describe('HouseholdItemDetailPage', () => {
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      expect(screen.getByText('Not scheduled')).toBeInTheDocument();
+      // In Story #467, no target date shows em-dash (not "Not scheduled")
+      const dashValues = screen.getAllByText('\u2014');
+      expect(dashValues.length).toBeGreaterThan(0);
     });
 
     it('shows formatted date when targetDeliveryDate is set', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem({ targetDeliveryDate: '2026-03-01' }));
+      mockGetHouseholdItem.mockResolvedValue(
+        makeItem({ targetDeliveryDate: '2026-03-01', actualDeliveryDate: null }),
+      );
 
       renderPage();
 
@@ -1623,15 +1637,15 @@ describe('HouseholdItemDetailPage', () => {
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      // "Not scheduled" should NOT appear when targetDeliveryDate is provided
+      // "Not scheduled" text should NOT appear in the new design
       expect(screen.queryByText('Not scheduled')).not.toBeInTheDocument();
     });
   });
 
-  // ── Constraints section (issue #462) ─────────────────────────────────────
+  // ── Dependencies section (Story #467 — replaces Constraints section from issue #462) ──────
 
-  describe('Constraints section', () => {
-    it('renders the Constraints section heading', async () => {
+  describe('Dependencies section', () => {
+    it('renders the Dependencies section heading', async () => {
       mockGetHouseholdItem.mockResolvedValue(makeItem());
 
       renderPage();
@@ -1640,10 +1654,11 @@ describe('HouseholdItemDetailPage', () => {
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      expect(screen.getByRole('heading', { name: 'Constraints' })).toBeInTheDocument();
+      // Story #467 replaced "Constraints" with a unified "Dependencies" card
+      expect(screen.getByRole('heading', { name: 'Dependencies' })).toBeInTheDocument();
     });
 
-    it('renders Delivery Window subsection heading', async () => {
+    it('does NOT render the old Constraints or Delivery Window headings', async () => {
       mockGetHouseholdItem.mockResolvedValue(makeItem());
 
       renderPage();
@@ -1652,19 +1667,8 @@ describe('HouseholdItemDetailPage', () => {
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      expect(screen.getByRole('heading', { name: 'Delivery Window' })).toBeInTheDocument();
-    });
-
-    it('renders Dependencies subsection heading', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      expect(screen.getByRole('heading', { name: /Dependencies/i })).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'Constraints' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'Delivery Window' })).not.toBeInTheDocument();
     });
   });
 });

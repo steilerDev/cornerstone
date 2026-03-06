@@ -27,13 +27,13 @@ This skill activates **AUTO_MODE** for the session. When AUTO_MODE is active:
 - The **only mandatory human gate** is promotion from `beta` → `main` (Phase 3, Step 8)
 - Progress updates are posted as comments on the epic GitHub Issue
 
-| Phase   | Gate                | AUTO_MODE Behavior                                 |
-| ------- | ------------------- | -------------------------------------------------- |
-| Phase 1 | Plan approval       | Post plan to epic issue, auto-proceed              |
-| Phase 2 | Bug spec approval   | Auto-approve PO spec, create issue immediately     |
-| Phase 2 | PR merge approval   | Auto-merge after CI green + all reviewers approved |
+| Phase   | Gate                | AUTO_MODE Behavior                                   |
+| ------- | ------------------- | ---------------------------------------------------- |
+| Phase 1 | Plan approval       | Post plan to epic issue, auto-proceed                |
+| Phase 2 | Bug spec approval   | Auto-approve PO spec, create issue immediately       |
+| Phase 2 | PR merge approval   | Auto-merge after CI green + all reviewers approved   |
 | Phase 3 | UAT validation      | E2E pass + qa-integration-tester report = sufficient |
-| Phase 3 | Promotion to `main` | **WAIT for user (ALWAYS)** — never auto-approved   |
+| Phase 3 | Promotion to `main` | **WAIT for user (ALWAYS)** — never auto-approved     |
 
 ## Error Handling: Retry-Then-Pause
 

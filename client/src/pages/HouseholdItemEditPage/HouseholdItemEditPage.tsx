@@ -1,6 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import type { TagResponse, HouseholdItemCategory, HouseholdItemStatus } from '@cornerstone/shared';
+import type { TagResponse, HouseholdItemCategory } from '@cornerstone/shared';
 import { getHouseholdItem, updateHouseholdItem } from '../../lib/householdItemsApi.js';
 import { fetchTags, createTag } from '../../lib/tagsApi.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
@@ -19,13 +19,6 @@ const CATEGORIES: Array<{ value: HouseholdItemCategory; label: string }> = [
   { value: 'other', label: 'Other' },
 ];
 
-const STATUSES: Array<{ value: HouseholdItemStatus; label: string }> = [
-  { value: 'planned', label: 'Planned' },
-  { value: 'purchased', label: 'Purchased' },
-  { value: 'scheduled', label: 'Scheduled' },
-  { value: 'arrived', label: 'Arrived' },
-];
-
 interface Vendor {
   id: string;
   name: string;
@@ -39,15 +32,10 @@ export function HouseholdItemEditPage() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<HouseholdItemCategory>('other');
-  const [status, setStatus] = useState<HouseholdItemStatus>('planned');
   const [quantity, setQuantity] = useState(1);
   const [vendorId, setVendorId] = useState('');
   const [url, setUrl] = useState('');
   const [room, setRoom] = useState('');
-  const [orderDate, setOrderDate] = useState('');
-  const [earliestDeliveryDate, setEarliestDeliveryDate] = useState('');
-  const [latestDeliveryDate, setLatestDeliveryDate] = useState('');
-  const [actualDeliveryDate, setActualDeliveryDate] = useState('');
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
 
   const [availableTags, setAvailableTags] = useState<TagResponse[]>([]);
@@ -77,15 +65,10 @@ export function HouseholdItemEditPage() {
         setName(item.name);
         setDescription(item.description || '');
         setCategory(item.category);
-        setStatus(item.status);
         setQuantity(item.quantity);
         setVendorId(item.vendor?.id ?? '');
         setUrl(item.url || '');
         setRoom(item.room || '');
-        setOrderDate(item.orderDate || '');
-        setEarliestDeliveryDate(item.earliestDeliveryDate || '');
-        setLatestDeliveryDate(item.latestDeliveryDate || '');
-        setActualDeliveryDate(item.actualDeliveryDate || '');
         setSelectedTagIds(item.tagIds);
       } catch (err) {
         console.error('Failed to load data:', err);
@@ -126,15 +109,6 @@ export function HouseholdItemEditPage() {
       errors.quantity = 'Quantity must be at least 1';
     }
 
-    if (actualDeliveryDate && orderDate && actualDeliveryDate < orderDate) {
-      errors.deliveryDates = 'Actual delivery date must be after or equal to order date';
-    }
-
-    if (earliestDeliveryDate && latestDeliveryDate && earliestDeliveryDate > latestDeliveryDate) {
-      errors.deliveryWindow =
-        'Earliest delivery date must be before or equal to latest delivery date';
-    }
-
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -154,15 +128,10 @@ export function HouseholdItemEditPage() {
         name: name.trim(),
         description: description.trim() || null,
         category,
-        status,
         quantity,
         vendorId: vendorId || null,
         url: url.trim() || null,
         room: room.trim() || null,
-        orderDate: orderDate || null,
-        earliestDeliveryDate: earliestDeliveryDate || null,
-        latestDeliveryDate: latestDeliveryDate || null,
-        actualDeliveryDate: actualDeliveryDate || null,
         tagIds: selectedTagIds,
       });
 
@@ -280,26 +249,6 @@ export function HouseholdItemEditPage() {
           </div>
 
           <div className={styles.formGroup}>
-            <label htmlFor="status" className={styles.label}>
-              Purchase Status
-            </label>
-            <select
-              id="status"
-              className={styles.select}
-              value={status}
-              onChange={(e) => setStatus(e.target.value as HouseholdItemStatus)}
-              disabled={isSubmitting}
-              aria-required="true"
-            >
-              {STATUSES.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className={styles.formGroup}>
             <label htmlFor="quantity" className={styles.label}>
               Quantity
             </label>
@@ -371,88 +320,6 @@ export function HouseholdItemEditPage() {
             disabled={isSubmitting}
             placeholder="e.g., Kitchen, Bedroom"
           />
-        </div>
-
-        <div className={styles.formRow}>
-          <div className={styles.formGroup}>
-            <label htmlFor="orderDate" className={styles.label}>
-              Order Date
-            </label>
-            <input
-              type="date"
-              id="orderDate"
-              className={styles.input}
-              value={orderDate}
-              onChange={(e) => setOrderDate(e.target.value)}
-              disabled={isSubmitting}
-            />
-          </div>
-
-          <div className={styles.formGroup}>
-            <label htmlFor="earliestDeliveryDate" className={styles.label}>
-              Earliest Delivery
-            </label>
-            <input
-              type="date"
-              id="earliestDeliveryDate"
-              className={`${styles.input} ${validationErrors.deliveryWindow ? styles.inputError : ''}`}
-              value={earliestDeliveryDate}
-              onChange={(e) => setEarliestDeliveryDate(e.target.value)}
-              disabled={isSubmitting}
-              aria-invalid={!!validationErrors.deliveryWindow}
-              aria-describedby={
-                validationErrors.deliveryWindow ? 'hi-edit-delivery-window-error' : undefined
-              }
-            />
-          </div>
-
-          <div className={styles.formGroup}>
-            <label htmlFor="latestDeliveryDate" className={styles.label}>
-              Latest Delivery
-            </label>
-            <input
-              type="date"
-              id="latestDeliveryDate"
-              className={`${styles.input} ${validationErrors.deliveryWindow ? styles.inputError : ''}`}
-              value={latestDeliveryDate}
-              onChange={(e) => setLatestDeliveryDate(e.target.value)}
-              disabled={isSubmitting}
-              aria-invalid={!!validationErrors.deliveryWindow}
-              aria-describedby={
-                validationErrors.deliveryWindow ? 'hi-edit-delivery-window-error' : undefined
-              }
-            />
-            {validationErrors.deliveryWindow && (
-              <div id="hi-edit-delivery-window-error" className={styles.errorText} role="alert">
-                {validationErrors.deliveryWindow}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className={styles.formRow}>
-          <div className={styles.formGroup}>
-            <label htmlFor="actualDeliveryDate" className={styles.label}>
-              Actual Delivery
-            </label>
-            <input
-              type="date"
-              id="actualDeliveryDate"
-              className={`${styles.input} ${validationErrors.deliveryDates ? styles.inputError : ''}`}
-              value={actualDeliveryDate}
-              onChange={(e) => setActualDeliveryDate(e.target.value)}
-              disabled={isSubmitting}
-              aria-invalid={!!validationErrors.deliveryDates}
-              aria-describedby={
-                validationErrors.deliveryDates ? 'hi-edit-delivery-error' : undefined
-              }
-            />
-            {validationErrors.deliveryDates && (
-              <div id="hi-edit-delivery-error" className={styles.errorText} role="alert">
-                {validationErrors.deliveryDates}
-              </div>
-            )}
-          </div>
         </div>
 
         <div className={styles.formGroup}>
