@@ -33,8 +33,8 @@ jobs:
           echo "e2e=$(check '^e2e/')" >> "$GITHUB_OUTPUT"
           echo "ci=$(check '^\.github/workflows/')" >> "$GITHUB_OUTPUT"
 
-  quality-gates:
-    name: Quality Gates
+  static-analysis:
+    name: Static Analysis
     runs-on: ubuntu-latest
     needs: [detect-changes]
     if: needs.detect-changes.outputs.app == 'true' || needs.detect-changes.outputs.ci == 'true'
@@ -58,17 +58,55 @@ jobs:
       - name: Format check
         run: npm run format:check
 
-      - name: Type check
-        run: npm run typecheck
-
-      - name: Test
-        run: npm test
-
-      - name: Build
-        run: npm run build
-
       - name: Security audit
         run: npm audit --omit=dev --audit-level=low
+
+  test:
+    name: Test (Shard ${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
+    runs-on: ubuntu-latest
+    needs: [detect-changes]
+    if: needs.detect-changes.outputs.app == 'true' || needs.detect-changes.outputs.ci == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        shardIndex: [1, 2, 3]
+        shardTotal: [3]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build shared package
+        run: npm run build -w shared
+
+      - name: Run tests (shard ${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
+        run: node --experimental-vm-modules node_modules/.bin/jest --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
+
+  quality-gates:
+    name: Quality Gates
+    runs-on: ubuntu-latest
+    needs: [static-analysis, test]
+    if: ${{ !cancelled() }}
+    steps:
+      - name: Check results
+        run: |
+          if [ "${{ needs.static-analysis.result }}" != "success" ] && [ "${{ needs.static-analysis.result }}" != "skipped" ]; then
+            echo "Static analysis failed"
+            exit 1
+          fi
+          if [ "${{ needs.test.result }}" != "success" ] && [ "${{ needs.test.result }}" != "skipped" ]; then
+            echo "Tests failed"
+            exit 1
+          fi
 
   docker:
     name: Docker
@@ -87,8 +125,18 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Build image
-        run: docker build --build-arg APP_VERSION=pr-${{ github.event.pull_request.number }} -t cornerstone:e2e .
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: cornerstone:e2e
+          build-args: APP_VERSION=pr-${{ github.event.pull_request.number }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Save image
         run: docker save cornerstone:e2e -o cornerstone-e2e.tar
