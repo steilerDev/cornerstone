@@ -676,10 +676,10 @@ export function autoReschedule(db: DbType): number {
   const allDependencies =
     allWorkItems.length > 0 ? db.select().from(workItemDependencies).all() : [];
 
-  // ── 3. Load milestones for completed-date checking ────────────────────────────
+  // ── 3. Load milestones and their links ──────────────────────────────────────
   //
-  // Load milestone data early so we can check completedAt in the milestone
-  // dependency expansion below.
+  // Load milestone data and contributor/dependent links so we can model milestones
+  // as zero-duration CPM nodes.
 
   const allMilestones = db.select().from(milestones).all();
 
@@ -689,14 +689,11 @@ export function autoReschedule(db: DbType): number {
     milestoneMap.set(milestone.id, milestone);
   }
 
-  // ── 4. Milestone dependency expansion ───────────────────────────────────────
+  // ── 4. Milestone modeled as CPM nodes ───────────────────────────────────────
   //
-  // For each row in work_item_milestone_deps (WI depends on milestone M),
-  // find all work items contributing to M (via milestone_work_items).
-  // If the milestone is completed, create a virtual zero-duration work item
-  // with the completion date, then add a synthetic FS dep from the virtual WI.
-  // If not completed, generate synthetic finish-to-start deps from each
-  // contributor to the dependent WI.
+  // For each milestone that has contributors (in milestone_work_items) or
+  // dependents (in work_item_milestone_deps), create a zero-duration CPM node
+  // with ID `milestone:<id>`.
 
   const allMilestoneDeps = db.select().from(workItemMilestoneDeps).all();
   const allMilestoneLinks = db.select().from(milestoneWorkItems).all();
@@ -709,53 +706,66 @@ export function autoReschedule(db: DbType): number {
     milestoneContributorsMap.set(link.milestoneId, existing);
   }
 
-  const syntheticDeps: SchedulingDependency[] = [];
+  // Build milestoneId → dependent workItemIds map
+  const milestoneDependentsMap = new Map<number, string[]>();
+  for (const dep of allMilestoneDeps) {
+    const existing = milestoneDependentsMap.get(dep.milestoneId) ?? [];
+    existing.push(dep.workItemId);
+    milestoneDependentsMap.set(dep.milestoneId, existing);
+  }
 
-  // Virtual work item IDs for completed milestone placeholders
+  // Identify milestones that should become CPM nodes (have contributors or dependents)
+  const milestoneIdsWithLinks = new Set<number>();
+  for (const milestoneId of milestoneContributorsMap.keys()) {
+    milestoneIdsWithLinks.add(milestoneId);
+  }
+  for (const milestoneId of milestoneDependentsMap.keys()) {
+    milestoneIdsWithLinks.add(milestoneId);
+  }
+
+  const syntheticDeps: SchedulingDependency[] = [];
   const milestoneVirtualWIs: SchedulingWorkItem[] = [];
 
-  for (const milestoneDep of allMilestoneDeps) {
-    const milestone = milestoneMap.get(milestoneDep.milestoneId);
+  for (const milestoneId of milestoneIdsWithLinks) {
+    const milestone = milestoneMap.get(milestoneId);
+    if (!milestone) continue;
 
-    if (milestone?.completedAt) {
-      // Completed milestone: inject a virtual zero-duration work item
-      // with actualEndDate = completedAt (truncated to YYYY-MM-DD),
-      // then add a synthetic FS dep from the virtual WI to the dependent WI.
-      const virtualId = `__milestone_${milestoneDep.milestoneId}`;
-      // Only create the virtual WI once per milestone
-      if (!milestoneVirtualWIs.some((v) => v.id === virtualId)) {
-        const completedDate = milestone.completedAt.slice(0, 10);
-        milestoneVirtualWIs.push({
-          id: virtualId,
-          status: 'completed',
-          startDate: completedDate,
-          endDate: completedDate,
-          actualStartDate: completedDate,
-          actualEndDate: completedDate,
-          durationDays: 0,
-          startAfter: null,
-          startBefore: null,
-        });
-      }
+    // Create a zero-duration CPM node for this milestone
+    const milestoneNodeId = `milestone:${milestoneId}`;
+    const completedDate = milestone.completedAt ? milestone.completedAt.slice(0, 10) : null;
+
+    milestoneVirtualWIs.push({
+      id: milestoneNodeId,
+      status: milestone.completedAt ? 'completed' : 'not_started',
+      startDate: completedDate ?? milestone.targetDate,
+      endDate: completedDate ?? milestone.targetDate,
+      actualStartDate: completedDate ?? null,
+      actualEndDate: completedDate ?? null,
+      durationDays: 0,
+      startAfter: null,
+      startBefore: null,
+    });
+
+    // Create FS deps from each contributor to the milestone
+    const contributors = milestoneContributorsMap.get(milestoneId) ?? [];
+    for (const contributorId of contributors) {
       syntheticDeps.push({
-        predecessorId: virtualId,
-        successorId: milestoneDep.workItemId,
+        predecessorId: contributorId,
+        successorId: milestoneNodeId,
         dependencyType: 'finish_to_start',
         leadLagDays: 0,
       });
-    } else {
-      // Not completed: use existing contributor-based synthetic deps
-      const contributingIds = milestoneContributorsMap.get(milestoneDep.milestoneId) ?? [];
-      for (const contributorId of contributingIds) {
-        if (contributorId !== milestoneDep.workItemId) {
-          syntheticDeps.push({
-            predecessorId: contributorId,
-            successorId: milestoneDep.workItemId,
-            dependencyType: 'finish_to_start',
-            leadLagDays: 0,
-          });
-        }
-      }
+    }
+
+    // Create FS deps from the milestone to each dependent
+    const dependents = milestoneDependentsMap.get(milestoneId) ?? [];
+    for (const dependentId of dependents) {
+      syntheticDeps.push({
+        predecessorId: milestoneNodeId,
+        successorId: dependentId,
+        dependencyType: 'finish_to_start',
+        leadLagDays: 0,
+      });
     }
   }
 
@@ -803,6 +813,9 @@ export function autoReschedule(db: DbType): number {
   }
 
   // ── 7. Apply changed dates back to the database ──────────────────────────────
+  //
+  // Skip milestone nodes (IDs starting with "milestone:") — they are virtual CPM
+  // nodes only and should never be written to the database.
 
   // Build a map of current startDate/endDate by workItemId for comparison
   const currentDatesMap = new Map<string, { startDate: string | null; endDate: string | null }>();
@@ -814,6 +827,11 @@ export function autoReschedule(db: DbType): number {
   const now = new Date().toISOString();
 
   for (const scheduled of result.scheduledItems) {
+    // Skip milestone nodes
+    if (scheduled.workItemId.startsWith('milestone:')) {
+      continue;
+    }
+
     const current = currentDatesMap.get(scheduled.workItemId);
     if (!current) continue;
 
