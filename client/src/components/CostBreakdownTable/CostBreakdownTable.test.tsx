@@ -501,7 +501,7 @@ describe('CostBreakdownTable', () => {
     expect(screen.getByText('€50,000.00')).toBeInTheDocument();
   });
 
-  it('shows Cost Sum and Remaining labels in bottom totals rows', () => {
+  it('shows Sum and Remaining labels in bottom totals rows', () => {
     render(
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI({ projectedMin: 800, projectedMax: 1200 })}
@@ -511,8 +511,8 @@ describe('CostBreakdownTable', () => {
       />,
     );
 
-    // The bottom totals section has a 'Cost Sum' row and a 'Remaining' row.
-    expect(screen.getByText('Cost Sum')).toBeInTheDocument();
+    // The bottom totals section has a 'Sum' row and a 'Remaining' row.
+    expect(screen.getByText('Sum')).toBeInTheDocument();
     expect(screen.getByText('Remaining')).toBeInTheDocument();
   });
 
@@ -1249,7 +1249,7 @@ describe('CostBreakdownTable', () => {
 
   // ── Level-0 Row Names (Scenario 9) ────────────────────────────────────────
 
-  it('level-0 rows are labeled "Work items", "Household items", "Cost Sum", "Available funds", "Remaining"', () => {
+  it('level-0 rows are labeled "Work items", "Household items", "Sum", "Available funds", "Remaining"', () => {
     const breakdown: BudgetBreakdown = {
       workItems: {
         categories: [
@@ -1314,7 +1314,7 @@ describe('CostBreakdownTable', () => {
 
     expect(screen.getByText('Work items')).toBeInTheDocument();
     expect(screen.getByText('Household items')).toBeInTheDocument();
-    expect(screen.getByText('Cost Sum')).toBeInTheDocument();
+    expect(screen.getByText('Sum')).toBeInTheDocument();
     expect(screen.getByText('Available funds')).toBeInTheDocument();
     expect(screen.getByText('Remaining')).toBeInTheDocument();
   });
@@ -1702,7 +1702,7 @@ describe('CostBreakdownTable', () => {
   });
 
   // ── Remaining Row Calculation (Scenarios 18–21) ──────────────────────────
-  // Note: these values now appear in the Remaining row (not Cost Sum row).
+  // Note: these values now appear in the Remaining row (not Sum row).
   // Remaining Cost = availableFunds - totalRawProjected
   // Remaining Net  = availableFunds - totalRawProjected + totalPayback (from breakdown totals)
 
@@ -2034,8 +2034,8 @@ describe('CostBreakdownTable', () => {
     expect(container.textContent).toContain('€910.00');
   });
 
-  // Scenario 17: "Cost Sum" label appears AND "Remaining" row also appears
-  it('"Cost Sum" label appears in summary section and "Remaining" row is also present', () => {
+  // Scenario 17: "Sum" label appears AND "Remaining" row also appears
+  it('"Sum" label appears in summary section and "Remaining" row is also present', () => {
     render(
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
@@ -2045,15 +2045,15 @@ describe('CostBreakdownTable', () => {
       />,
     );
 
-    expect(screen.getByText('Cost Sum')).toBeInTheDocument();
+    expect(screen.getByText('Sum')).toBeInTheDocument();
     expect(screen.getByText('Remaining')).toBeInTheDocument();
   });
 
-  // Scenario 18: Cost Sum row Cost = -totalRawProjected (Avg default)
-  it('Cost Sum row Cost column = negative totalRawProjected for Avg perspective', () => {
+  // Scenario 18: Sum row Cost = -totalRawProjected (Avg default)
+  it('Sum row Cost column = negative totalRawProjected for Avg perspective', () => {
     // availableFunds=10000, rawProjectedMin=3000, rawProjectedMax=5000
     // Avg raw = (3000+5000)/2 = 4000
-    // Cost Sum Cost = -€4,000.00 (formatCost of totalRawProjected)
+    // Sum Cost = -€4,000.00 (formatCost of totalRawProjected)
     // Remaining Cost = 10000 - 4000 = 6000 → €6,000.00
     render(
       <CostBreakdownTable
@@ -2069,18 +2069,18 @@ describe('CostBreakdownTable', () => {
       />,
     );
 
-    // Cost Sum row Cost column shows "-€4,000.00" (negative raw projected cost)
+    // Sum row Cost column shows "-€4,000.00" (negative raw projected cost)
     expect(screen.getAllByText('-€4,000.00').length).toBeGreaterThanOrEqual(1);
     // Remaining row Cost column shows "€6,000.00" (availableFunds - totalRawProjected)
     expect(screen.getAllByText('€6,000.00').length).toBeGreaterThanOrEqual(1);
   });
 
-  // Scenario 19: Cost Sum Net and Remaining Net (perspective-aware)
-  it('Cost Sum Net = totalRawProjected - resolvedPayback; Remaining Net = availableFunds - totalRawProjected + resolvedPayback', () => {
+  // Scenario 19: Sum Net and Remaining Net (perspective-aware)
+  it('Sum Net = totalRawProjected - resolvedPayback; Remaining Net = availableFunds - totalRawProjected + resolvedPayback', () => {
     // availableFunds=10000, rawProjectedMin=3000, rawProjectedMax=5000
     // Avg raw = resolveProjected(3000, 5000, 'avg') = 4000
     // minSubsidyPayback=100, subsidyPayback=200 → avgPayback=resolveProjected(100,200,'avg')=150
-    // Cost Sum Net = 4000 - 150 = 3850 → "€3,850.00"
+    // Sum Net = 4000 - 150 = 3850 → "€3,850.00"
     // Remaining Net = 10000 - 4000 + 150 = 6150 → "€6,150.00"
     render(
       <CostBreakdownTable
@@ -2098,8 +2098,8 @@ describe('CostBreakdownTable', () => {
       />,
     );
 
-    // Cost Sum Net = totalRawProjected - resolvedPayback = 4000 - 150 = 3850
-    // (may appear multiple times across section rows and Cost Sum row)
+    // Sum Net = totalRawProjected - resolvedPayback = 4000 - 150 = 3850
+    // (may appear multiple times across section rows and Sum row)
     expect(screen.getAllByText('€3,850.00').length).toBeGreaterThanOrEqual(1);
     // Remaining Net = availableFunds - totalRawProjected + resolvedPayback = 10000 - 4000 + 150 = 6150
     expect(screen.getByText('€6,150.00')).toBeInTheDocument();

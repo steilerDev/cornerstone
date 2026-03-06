@@ -881,16 +881,24 @@ export function CostBreakdownTable({
 
           {/* ===== SUMMARY SECTION (no column tints) ===== */}
           <tbody>
-            {/* Cost Sum row */}
-            <tr className={styles.rowLevel0}>
+            {/* Sum row */}
+            <tr className={`${styles.rowLevel0} ${styles.rowSummary}`}>
               <td className={styles.colName}>
                 <div className={styles.nameContent}>
-                  <span>Cost Sum</span>
+                  <span>Sum</span>
                 </div>
               </td>
-              <td className={styles.colBudget}>{formatCost(totalRawProjected)}</td>
+              <td className={styles.colBudget}>
+                <span className={styles.valueNegative}>{formatCost(totalRawProjected)}</span>
+              </td>
               <td className={styles.colPayback}>
-                {maxTotalPayback > 0 ? formatPayback(resolvedTotalPayback) : '—'}
+                {maxTotalPayback > 0 ? (
+                  <span className={styles.valuePositive}>
+                    {formatPayback(resolvedTotalPayback)}
+                  </span>
+                ) : (
+                  '—'
+                )}
               </td>
               <td className={styles.colRemaining}>
                 {renderNet(totalRawProjected, resolvedTotalPayback, styles)}
@@ -938,7 +946,7 @@ export function CostBreakdownTable({
               ))}
 
             {/* Remaining Budget row */}
-            <tr className={styles.rowLevel0}>
+            <tr className={`${styles.rowLevel0} ${styles.rowSummary}`}>
               <td className={styles.colName}>
                 <div className={styles.nameContent}>
                   <span>Remaining</span>
@@ -955,9 +963,7 @@ export function CostBreakdownTable({
                   {formatCurrency(overview.availableFunds - totalRawProjected)}
                 </span>
               </td>
-              <td className={styles.colPayback}>
-                {maxTotalPayback > 0 ? formatPayback(resolvedTotalPayback) : '—'}
-              </td>
+              <td className={styles.colPayback} />
               <td className={styles.colRemaining}>
                 <span className={sum >= 0 ? styles.valuePositive : styles.valueNegative}>
                   {formatCurrency(sum)}
