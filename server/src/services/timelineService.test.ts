@@ -1031,7 +1031,7 @@ describe('getTimeline service', () => {
         .values({
           id,
           name: 'Test Household Item',
-          category: 'furniture',
+          categoryId: 'hic-furniture',
           status: 'planned',
           createdAt: now,
           updatedAt: now,
@@ -1101,7 +1101,7 @@ describe('getTimeline service', () => {
 
       const hiId = insertHouseholdItem({
         name: 'Dining Table',
-        category: 'furniture',
+        categoryId: 'hic-furniture',
         status: 'purchased',
         targetDeliveryDate: '2026-05-20',
         earliestDeliveryDate: '2026-05-10',

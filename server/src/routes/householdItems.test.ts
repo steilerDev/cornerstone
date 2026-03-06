@@ -146,7 +146,7 @@ describe('Household Item Routes', () => {
       const body = {
         name: 'King Bed Frame',
         description: 'Solid oak king bed frame',
-        category: 'furniture',
+        category: 'hic-furniture',
         status: 'purchased',
         url: 'https://ikea.com/bed',
         room: 'Bedroom',
@@ -172,7 +172,7 @@ describe('Household Item Routes', () => {
 
       expect(item.name).toBe('King Bed Frame');
       expect(item.description).toBe('Solid oak king bed frame');
-      expect(item.category).toBe('furniture');
+      expect(item.category).toBe('hic-furniture');
       expect(item.status).toBe('purchased');
       expect(item.url).toBe('https://ikea.com/bed');
       expect(item.room).toBe('Bedroom');
@@ -536,17 +536,17 @@ describe('Household Item Routes', () => {
       );
       householdItemService.createHouseholdItem(app.db, userId, {
         name: 'Sofa',
-        category: 'furniture',
+        category: 'hic-furniture',
       });
       householdItemService.createHouseholdItem(app.db, userId, {
         name: 'Dishwasher',
-        category: 'appliances',
+        category: 'hic-appliances',
       });
 
       // When: Filtering by category
       const response = await app.inject({
         method: 'GET',
-        url: '/api/household-items?category=appliances',
+        url: '/api/household-items?category=hic-appliances',
         headers: { cookie },
       });
 
@@ -697,7 +697,7 @@ describe('Household Item Routes', () => {
       );
       const created = householdItemService.createHouseholdItem(app.db, userId, {
         name: 'Bookshelf',
-        category: 'storage',
+        category: 'hic-storage',
       });
 
       // When: Getting by ID
@@ -713,7 +713,7 @@ describe('Household Item Routes', () => {
       const item = parsed.householdItem;
       expect(item.id).toBe(created.id);
       expect(item.name).toBe('Bookshelf');
-      expect(item.category).toBe('storage');
+      expect(item.category).toBe('hic-storage');
       expect(item).toHaveProperty('tags');
       expect(item).toHaveProperty('dependencies');
       expect(item).toHaveProperty('subsidies');

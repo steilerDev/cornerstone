@@ -56,7 +56,7 @@ describe('Migration 0010: Household Items', () => {
     const defaults = {
       id,
       name: `Item ${id}`,
-      category: 'other',
+      category_id: 'hic-other',
       status: 'planned',
       quantity: 1,
       created_at: now,
@@ -64,8 +64,8 @@ describe('Migration 0010: Household Items', () => {
     };
     const row = { ...defaults, ...overrides };
     db.prepare(
-      `INSERT INTO household_items (id, name, category, status, quantity, created_at, updated_at)
-       VALUES (@id, @name, @category, @status, @quantity, @created_at, @updated_at)`,
+      `INSERT INTO household_items (id, name, category_id, status, quantity, created_at, updated_at)
+       VALUES (@id, @name, @category_id, @status, @quantity, @created_at, @updated_at)`,
     ).run(row);
   }
 
@@ -117,7 +117,7 @@ describe('Migration 0010: Household Items', () => {
       expect(names).toContain('0010_household_items.sql');
     });
 
-    it('creates all 6 household item tables', () => {
+    it('creates all household item tables (including categories from migration 0016)', () => {
       const tables = sqlite
         .prepare(
           `SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'household_item%'`,
@@ -126,8 +126,10 @@ describe('Migration 0010: Household Items', () => {
 
       const tableNames = tables.map((t) => t.name).sort();
       // Note: migration 0012 replaces household_item_work_items with household_item_deps
+      // Note: migration 0016 adds household_item_categories
       expect(tableNames).toEqual([
         'household_item_budgets',
+        'household_item_categories',
         'household_item_deps',
         'household_item_notes',
         'household_item_subsidies',
@@ -156,7 +158,8 @@ describe('Migration 0010: Household Items', () => {
 
       // Required NOT NULL columns
       expect(colMap.get('name')?.notnull).toBe(1);
-      expect(colMap.get('category')?.notnull).toBe(1);
+      // category column was replaced by category_id FK in migration 0016
+      expect(colMap.get('category_id')).toBeDefined();
       expect(colMap.get('status')?.notnull).toBe(1);
       expect(colMap.get('quantity')?.notnull).toBe(1);
       expect(colMap.get('created_at')?.notnull).toBe(1);
@@ -171,12 +174,13 @@ describe('Migration 0010: Household Items', () => {
       expect(colMap.get('actual_delivery_date')?.notnull).toBe(0);
       expect(colMap.get('created_by')?.notnull).toBe(0);
 
-      // All expected columns are present (expected_delivery_date removed in 0015)
+      // All expected columns are present
+      // (expected_delivery_date removed in 0015; category removed in 0016, replaced by category_id)
       const expectedColumns = [
         'id',
         'name',
         'description',
-        'category',
+        'category_id',
         'status',
         'vendor_id',
         'url',
@@ -212,52 +216,56 @@ describe('Migration 0010: Household Items', () => {
     });
   });
 
-  // ── 3. Category CHECK constraint ──────────────────────────────────────────
+  // ── 3. Category FK constraint (migration 0016 replaced old enum CHECK) ─────
+  //
+  // Migration 0016 dropped the 'category' TEXT column with CHECK constraint and
+  // replaced it with 'category_id' TEXT FK referencing 'household_item_categories'.
+  // Migration 0016 also seeds 8 default category rows (hic-furniture, hic-appliances, etc.)
 
-  describe('category CHECK constraint', () => {
-    const validCategories = [
-      'furniture',
-      'appliances',
-      'fixtures',
-      'decor',
-      'electronics',
-      'outdoor',
-      'storage',
-      'other',
+  describe('category_id FK constraint (added by migration 0016)', () => {
+    const validCategoryIds = [
+      'hic-furniture',
+      'hic-appliances',
+      'hic-fixtures',
+      'hic-decor',
+      'hic-electronics',
+      'hic-outdoor',
+      'hic-storage',
+      'hic-other',
     ];
 
-    it.each(validCategories)('accepts valid category: %s', (category) => {
+    it.each(validCategoryIds)('accepts seeded category_id: %s', (categoryId) => {
       const now = new Date().toISOString();
       expect(() => {
         sqlite
           .prepare(
-            `INSERT INTO household_items (id, name, category, status, quantity, created_at, updated_at)
+            `INSERT INTO household_items (id, name, category_id, status, quantity, created_at, updated_at)
              VALUES (?, ?, ?, ?, ?, ?, ?)`,
           )
-          .run(`item-${category}`, `Test ${category}`, category, 'planned', 1, now, now);
+          .run(`item-${categoryId}`, `Test ${categoryId}`, categoryId, 'planned', 1, now, now);
       }).not.toThrow();
 
       const row = sqlite
-        .prepare('SELECT category FROM household_items WHERE id = ?')
-        .get(`item-${category}`) as { category: string };
-      expect(row.category).toBe(category);
+        .prepare('SELECT category_id FROM household_items WHERE id = ?')
+        .get(`item-${categoryId}`) as { category_id: string };
+      expect(row.category_id).toBe(categoryId);
     });
 
-    it('rejects invalid category value', () => {
+    it('rejects invalid category_id (FK constraint violation)', () => {
       const now = new Date().toISOString();
       let error: Error | undefined;
       try {
         sqlite
           .prepare(
-            `INSERT INTO household_items (id, name, category, status, quantity, created_at, updated_at)
+            `INSERT INTO household_items (id, name, category_id, status, quantity, created_at, updated_at)
              VALUES (?, ?, ?, ?, ?, ?, ?)`,
           )
-          .run('item-bad-cat', 'Test Item', 'invalid_category', 'planned', 1, now, now);
+          .run('item-bad-cat', 'Test Item', 'non-existent-category', 'planned', 1, now, now);
       } catch (err) {
         error = err as Error;
       }
       expect(error).toBeDefined();
-      expect(error?.message).toMatch(/CHECK constraint failed/);
+      expect(error?.message).toMatch(/FOREIGN KEY constraint failed/);
     });
   });
 
@@ -271,10 +279,10 @@ describe('Migration 0010: Household Items', () => {
       expect(() => {
         sqlite
           .prepare(
-            `INSERT INTO household_items (id, name, category, status, quantity, created_at, updated_at)
+            `INSERT INTO household_items (id, name, category_id, status, quantity, created_at, updated_at)
              VALUES (?, ?, ?, ?, ?, ?, ?)`,
           )
-          .run(`item-${status}`, `Test ${status}`, 'other', status, 1, now, now);
+          .run(`item-${status}`, `Test ${status}`, 'hic-other', status, 1, now, now);
       }).not.toThrow();
     });
 
@@ -284,10 +292,10 @@ describe('Migration 0010: Household Items', () => {
       try {
         sqlite
           .prepare(
-            `INSERT INTO household_items (id, name, category, status, quantity, created_at, updated_at)
+            `INSERT INTO household_items (id, name, category_id, status, quantity, created_at, updated_at)
              VALUES (?, ?, ?, ?, ?, ?, ?)`,
           )
-          .run('item-bad-status', 'Test Item', 'other', 'unknown_status', 1, now, now);
+          .run('item-bad-status', 'Test Item', 'hic-other', 'unknown_status', 1, now, now);
       } catch (err) {
         error = err as Error;
       }
@@ -304,10 +312,10 @@ describe('Migration 0010: Household Items', () => {
       expect(() => {
         sqlite
           .prepare(
-            `INSERT INTO household_items (id, name, category, status, quantity, created_at, updated_at)
+            `INSERT INTO household_items (id, name, category_id, status, quantity, created_at, updated_at)
              VALUES (?, ?, ?, ?, ?, ?, ?)`,
           )
-          .run('item-qty-1', 'Test Item', 'other', 'planned', 1, now, now);
+          .run('item-qty-1', 'Test Item', 'hic-other', 'planned', 1, now, now);
       }).not.toThrow();
     });
 
@@ -316,10 +324,10 @@ describe('Migration 0010: Household Items', () => {
       expect(() => {
         sqlite
           .prepare(
-            `INSERT INTO household_items (id, name, category, status, quantity, created_at, updated_at)
+            `INSERT INTO household_items (id, name, category_id, status, quantity, created_at, updated_at)
              VALUES (?, ?, ?, ?, ?, ?, ?)`,
           )
-          .run('item-qty-5', 'Test Item', 'other', 'planned', 5, now, now);
+          .run('item-qty-5', 'Test Item', 'hic-other', 'planned', 5, now, now);
       }).not.toThrow();
     });
 
@@ -329,10 +337,10 @@ describe('Migration 0010: Household Items', () => {
       try {
         sqlite
           .prepare(
-            `INSERT INTO household_items (id, name, category, status, quantity, created_at, updated_at)
+            `INSERT INTO household_items (id, name, category_id, status, quantity, created_at, updated_at)
              VALUES (?, ?, ?, ?, ?, ?, ?)`,
           )
-          .run('item-qty-0', 'Test Item', 'other', 'planned', 0, now, now);
+          .run('item-qty-0', 'Test Item', 'hic-other', 'planned', 0, now, now);
       } catch (err) {
         error = err as Error;
       }
@@ -346,10 +354,10 @@ describe('Migration 0010: Household Items', () => {
       try {
         sqlite
           .prepare(
-            `INSERT INTO household_items (id, name, category, status, quantity, created_at, updated_at)
+            `INSERT INTO household_items (id, name, category_id, status, quantity, created_at, updated_at)
              VALUES (?, ?, ?, ?, ?, ?, ?)`,
           )
-          .run('item-qty-neg', 'Test Item', 'other', 'planned', -1, now, now);
+          .run('item-qty-neg', 'Test Item', 'hic-other', 'planned', -1, now, now);
       } catch (err) {
         error = err as Error;
       }
@@ -585,10 +593,19 @@ describe('Migration 0010: Household Items', () => {
       const now = new Date().toISOString();
       sqlite
         .prepare(
-          `INSERT INTO household_items (id, name, category, status, quantity, vendor_id, created_at, updated_at)
+          `INSERT INTO household_items (id, name, category_id, status, quantity, vendor_id, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         )
-        .run('item-vendor-setnull', 'Test Item', 'other', 'planned', 1, 'vendor-setnull', now, now);
+        .run(
+          'item-vendor-setnull',
+          'Test Item',
+          'hic-other',
+          'planned',
+          1,
+          'vendor-setnull',
+          now,
+          now,
+        );
 
       // Verify vendor_id is set
       const before = sqlite
@@ -615,10 +632,10 @@ describe('Migration 0010: Household Items', () => {
       const now = new Date().toISOString();
       sqlite
         .prepare(
-          `INSERT INTO household_items (id, name, category, status, quantity, created_by, created_at, updated_at)
+          `INSERT INTO household_items (id, name, category_id, status, quantity, created_by, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         )
-        .run('item-user-setnull', 'Test Item', 'other', 'planned', 1, 'user-setnull', now, now);
+        .run('item-user-setnull', 'Test Item', 'hic-other', 'planned', 1, 'user-setnull', now, now);
 
       // Verify created_by is set
       const before = sqlite
@@ -646,7 +663,8 @@ describe('Migration 0010: Household Items', () => {
         .all() as Array<{ name: string }>;
 
       const indexNames = indexes.map((i) => i.name);
-      expect(indexNames).toContain('idx_household_items_category');
+      // migration 0016 replaced idx_household_items_category with idx_household_items_category_id
+      expect(indexNames).toContain('idx_household_items_category_id');
       expect(indexNames).toContain('idx_household_items_status');
       expect(indexNames).toContain('idx_household_items_room');
       expect(indexNames).toContain('idx_household_items_vendor_id');
@@ -720,7 +738,7 @@ describe('Migration 0010: Household Items', () => {
       sqlite
         .prepare(
           `INSERT INTO household_items
-             (id, name, description, category, status, vendor_id, url, room, quantity,
+             (id, name, description, category_id, status, vendor_id, url, room, quantity,
               order_date, actual_delivery_date, created_by,
               created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -729,7 +747,7 @@ describe('Migration 0010: Household Items', () => {
           'item-full',
           'Leather Sofa',
           'A beautiful 3-seat leather sofa',
-          'furniture',
+          'hic-furniture',
           'purchased',
           'vendor-full',
           'https://example.com/sofa',
@@ -747,7 +765,7 @@ describe('Migration 0010: Household Items', () => {
         .get('item-full') as Record<string, unknown>;
 
       expect(row.name).toBe('Leather Sofa');
-      expect(row.category).toBe('furniture');
+      expect(row.category_id).toBe('hic-furniture');
       expect(row.status).toBe('purchased');
       expect(row.quantity).toBe(2);
       expect(row.room).toBe('Living Room');
