@@ -3,10 +3,33 @@
  */
 import { describe, it, expect } from '@jest/globals';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { CostBreakdownTable } from './CostBreakdownTable.js';
 import type { BudgetBreakdown, BudgetOverview, BudgetSource } from '@cornerstone/shared';
 
 // CSS modules mocked via identity-obj-proxy
+
+/**
+ * Render CostBreakdownTable inside a MemoryRouter.
+ * Required for tests that expand to item rows (which contain <Link> elements).
+ */
+function renderWithRouter(
+  breakdown: BudgetBreakdown,
+  overview: BudgetOverview,
+  selectedCategories = new Set<string | null>(),
+  budgetSources: BudgetSource[] = [],
+) {
+  return render(
+    <MemoryRouter>
+      <CostBreakdownTable
+        breakdown={breakdown}
+        overview={overview}
+        selectedCategories={selectedCategories}
+        budgetSources={budgetSources}
+      />
+    </MemoryRouter>,
+  );
+}
 
 // ── Selector Helpers ──────────────────────────────────────────────────────
 
@@ -193,11 +216,27 @@ function buildEmptyBreakdown(): BudgetBreakdown {
   return {
     workItems: {
       categories: [],
-      totals: { projectedMin: 0, projectedMax: 0, actualCost: 0, subsidyPayback: 0 },
+      totals: {
+        projectedMin: 0,
+        projectedMax: 0,
+        actualCost: 0,
+        subsidyPayback: 0,
+        rawProjectedMin: 0,
+        rawProjectedMax: 0,
+        minSubsidyPayback: 0,
+      },
     },
     householdItems: {
       categories: [],
-      totals: { projectedMin: 0, projectedMax: 0, actualCost: 0, subsidyPayback: 0 },
+      totals: {
+        projectedMin: 0,
+        projectedMax: 0,
+        actualCost: 0,
+        subsidyPayback: 0,
+        rawProjectedMin: 0,
+        rawProjectedMax: 0,
+        minSubsidyPayback: 0,
+      },
     },
   };
 }
@@ -214,6 +253,9 @@ function buildBreakdownWithWI(
     projectedMax?: number;
     actualCost?: number;
     subsidyPayback?: number;
+    minSubsidyPayback?: number;
+    rawProjectedMin?: number;
+    rawProjectedMax?: number;
     itemTitle?: string;
     workItemId?: string;
     description?: string | null;
@@ -227,6 +269,9 @@ function buildBreakdownWithWI(
   const projectedMax = opts.projectedMax ?? 1200;
   const actualCost = opts.actualCost ?? 0;
   const subsidyPayback = opts.subsidyPayback ?? 0;
+  const minSubsidyPayback = opts.minSubsidyPayback ?? 0;
+  const rawProjectedMin = opts.rawProjectedMin ?? projectedMin;
+  const rawProjectedMax = opts.rawProjectedMax ?? projectedMax;
   const itemTitle = opts.itemTitle ?? 'Foundation Work';
   const workItemId = opts.workItemId ?? 'wi-1';
   const hasInvoice = opts.hasInvoice ?? actualCost > 0;
@@ -242,6 +287,9 @@ function buildBreakdownWithWI(
           projectedMax,
           actualCost,
           subsidyPayback,
+          rawProjectedMin,
+          rawProjectedMax,
+          minSubsidyPayback,
           items: [
             {
               workItemId,
@@ -250,6 +298,9 @@ function buildBreakdownWithWI(
               projectedMax,
               actualCost,
               subsidyPayback,
+              rawProjectedMin,
+              rawProjectedMax,
+              minSubsidyPayback,
               costDisplay,
               budgetLines: [
                 {
@@ -265,11 +316,27 @@ function buildBreakdownWithWI(
           ],
         },
       ],
-      totals: { projectedMin, projectedMax, actualCost, subsidyPayback },
+      totals: {
+        projectedMin,
+        projectedMax,
+        actualCost,
+        subsidyPayback,
+        rawProjectedMin,
+        rawProjectedMax,
+        minSubsidyPayback,
+      },
     },
     householdItems: {
       categories: [],
-      totals: { projectedMin: 0, projectedMax: 0, actualCost: 0, subsidyPayback: 0 },
+      totals: {
+        projectedMin: 0,
+        projectedMax: 0,
+        actualCost: 0,
+        subsidyPayback: 0,
+        rawProjectedMin: 0,
+        rawProjectedMax: 0,
+        minSubsidyPayback: 0,
+      },
     },
   };
 }
@@ -292,6 +359,9 @@ function buildBreakdownWithHI(
     projectedMax?: number;
     actualCost?: number;
     subsidyPayback?: number;
+    minSubsidyPayback?: number;
+    rawProjectedMin?: number;
+    rawProjectedMax?: number;
     costDisplay?: 'actual' | 'projected' | 'mixed';
     itemName?: string;
     householdItemId?: string;
@@ -302,13 +372,24 @@ function buildBreakdownWithHI(
   const projectedMax = opts.projectedMax ?? 600;
   const actualCost = opts.actualCost ?? 0;
   const subsidyPayback = opts.subsidyPayback ?? 0;
+  const minSubsidyPayback = opts.minSubsidyPayback ?? 0;
+  const rawProjectedMin = opts.rawProjectedMin ?? projectedMin;
+  const rawProjectedMax = opts.rawProjectedMax ?? projectedMax;
   const costDisplay = opts.costDisplay ?? 'projected';
   const householdItemId = opts.householdItemId ?? 'hi-1';
 
   return {
     workItems: {
       categories: [],
-      totals: { projectedMin: 0, projectedMax: 0, actualCost: 0, subsidyPayback: 0 },
+      totals: {
+        projectedMin: 0,
+        projectedMax: 0,
+        actualCost: 0,
+        subsidyPayback: 0,
+        rawProjectedMin: 0,
+        rawProjectedMax: 0,
+        minSubsidyPayback: 0,
+      },
     },
     householdItems: {
       categories: [
@@ -318,6 +399,9 @@ function buildBreakdownWithHI(
           projectedMax,
           actualCost,
           subsidyPayback,
+          rawProjectedMin,
+          rawProjectedMax,
+          minSubsidyPayback,
           items: [
             {
               householdItemId,
@@ -326,6 +410,9 @@ function buildBreakdownWithHI(
               projectedMax,
               actualCost,
               subsidyPayback,
+              rawProjectedMin,
+              rawProjectedMax,
+              minSubsidyPayback,
               costDisplay,
               budgetLines: [
                 {
@@ -341,7 +428,15 @@ function buildBreakdownWithHI(
           ],
         },
       ],
-      totals: { projectedMin, projectedMax, actualCost, subsidyPayback },
+      totals: {
+        projectedMin,
+        projectedMax,
+        actualCost,
+        subsidyPayback,
+        rawProjectedMin,
+        rawProjectedMax,
+        minSubsidyPayback,
+      },
     },
   };
 }
@@ -406,7 +501,7 @@ describe('CostBreakdownTable', () => {
     expect(screen.getByText('€50,000.00')).toBeInTheDocument();
   });
 
-  it('shows Remaining label in table row', () => {
+  it('shows Sum label in bottom totals row (not Remaining)', () => {
     render(
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI({ projectedMin: 800, projectedMax: 1200 })}
@@ -416,9 +511,10 @@ describe('CostBreakdownTable', () => {
       />,
     );
 
-    // 'Remaining' appears as a row label AND as a column header — both are valid.
-    const remainingElements = screen.getAllByText('Remaining');
-    expect(remainingElements.length).toBeGreaterThanOrEqual(1);
+    // The bottom totals row uses the label 'Sum'.
+    expect(screen.getByText('Sum')).toBeInTheDocument();
+    // 'Remaining' must NOT appear as a row label (it was replaced by 'Sum').
+    expect(screen.queryByText('Remaining')).not.toBeInTheDocument();
   });
 
   it('shows Work items label in summary', () => {
@@ -501,18 +597,14 @@ describe('CostBreakdownTable', () => {
   // ── 19. Category row expand — item rows appear ───────────────────────────
 
   it('shows item rows after expanding the WI section then a category', () => {
-    const { container } = render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI({
-          categoryName: 'Permits',
-          categoryId: 'cat-permits',
-          itemTitle: 'City Permit',
-          workItemId: 'wi-permit',
-        })}
-        overview={buildOverview()}
-        selectedCategories={new Set()}
-        budgetSources={[]}
-      />,
+    const { container } = renderWithRouter(
+      buildBreakdownWithWI({
+        categoryName: 'Permits',
+        categoryId: 'cat-permits',
+        itemTitle: 'City Permit',
+        workItemId: 'wi-permit',
+      }),
+      buildOverview(),
     );
 
     // Expand WI section
@@ -527,19 +619,15 @@ describe('CostBreakdownTable', () => {
   // ── 20. Item row expand — budget line rows appear ────────────────────────
 
   it('shows budget line rows after expanding to item level', () => {
-    const { container } = render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI({
-          categoryName: 'Equipment',
-          categoryId: 'cat-equip',
-          itemTitle: 'Crane Rental',
-          workItemId: 'wi-crane',
-          description: 'Tower crane for 3 weeks',
-        })}
-        overview={buildOverview()}
-        selectedCategories={new Set()}
-        budgetSources={[]}
-      />,
+    const { container } = renderWithRouter(
+      buildBreakdownWithWI({
+        categoryName: 'Equipment',
+        categoryId: 'cat-equip',
+        itemTitle: 'Crane Rental',
+        workItemId: 'wi-crane',
+        description: 'Tower crane for 3 weeks',
+      }),
+      buildOverview(),
     );
 
     // Expand WI section → category → item
@@ -551,19 +639,15 @@ describe('CostBreakdownTable', () => {
   });
 
   it('shows "Untitled" for budget lines without a description', () => {
-    const { container } = render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI({
-          categoryName: 'Design',
-          categoryId: 'cat-design',
-          itemTitle: 'Architect Fee',
-          workItemId: 'wi-arch',
-          description: null,
-        })}
-        overview={buildOverview()}
-        selectedCategories={new Set()}
-        budgetSources={[]}
-      />,
+    const { container } = renderWithRouter(
+      buildBreakdownWithWI({
+        categoryName: 'Design',
+        categoryId: 'cat-design',
+        itemTitle: 'Architect Fee',
+        workItemId: 'wi-arch',
+        description: null,
+      }),
+      buildOverview(),
     );
 
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
@@ -576,20 +660,16 @@ describe('CostBreakdownTable', () => {
   // ── 21. costDisplay: 'actual' ──────────────────────────────────────────
 
   it('shows "Actual:" prefix in item row for costDisplay=actual', () => {
-    const { container } = render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI({
-          costDisplay: 'actual',
-          actualCost: 950,
-          projectedMin: 950,
-          projectedMax: 950,
-          categoryName: 'Materials',
-          categoryId: 'cat-mat',
-        })}
-        overview={buildOverview()}
-        selectedCategories={new Set()}
-        budgetSources={[]}
-      />,
+    const { container } = renderWithRouter(
+      buildBreakdownWithWI({
+        costDisplay: 'actual',
+        actualCost: 950,
+        projectedMin: 950,
+        projectedMax: 950,
+        categoryName: 'Materials',
+        categoryId: 'cat-mat',
+      }),
+      buildOverview(),
     );
 
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
@@ -601,74 +681,70 @@ describe('CostBreakdownTable', () => {
 
   // ── 22. costDisplay: 'projected' ─────────────────────────────────────────
 
-  it('shows range format in item row for costDisplay=projected', () => {
-    const { container } = render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI({
-          costDisplay: 'projected',
-          projectedMin: 800,
-          projectedMax: 1200,
-          categoryName: 'Materials',
-          categoryId: 'cat-mat2',
-        })}
-        overview={buildOverview()}
-        selectedCategories={new Set()}
-        budgetSources={[]}
-      />,
+  it('shows projected cost in item row using default Avg perspective', () => {
+    const { container } = renderWithRouter(
+      buildBreakdownWithWI({
+        costDisplay: 'projected',
+        projectedMin: 800,
+        projectedMax: 1200,
+        rawProjectedMin: 800,
+        rawProjectedMax: 1200,
+        categoryName: 'Materials',
+        categoryId: 'cat-mat2',
+      }),
+      buildOverview(),
     );
 
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
     fireEvent.click(getButtonByControls(container, 'wi-cat-cat-mat2-items'));
 
-    // The component uses a perspective toggle (default "max"). For projectedMin=800, projectedMax=1200,
-    // the default "max" perspective shows €1,200.00 as a single value (not a range).
-    // Both the category row and the item row should show €1,200.00.
-    expect(screen.getAllByText(/€1,200\.00/).length).toBeGreaterThanOrEqual(1);
+    // Default perspective is "Avg": (800 + 1200) / 2 = 1000.
+    // The Cost column shows -€1,000.00 for the item row (raw cost with minus prefix).
+    expect(screen.getAllByText(/€1,000\.00/).length).toBeGreaterThanOrEqual(1);
   });
 
   // ── 23. costDisplay: 'mixed' ─────────────────────────────────────────────
+  // For mixed mode, the item row shows the projected cost value (same column as projected),
+  // and the row has the rowMixed CSS class. The component does not show separate Actual/Projected
+  // labels in the Cost column for mixed items — only for actual mode shows 'Actual:' label.
 
-  it('shows both Actual and Projected labels in item row for costDisplay=mixed', () => {
-    const { container } = render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI({
-          costDisplay: 'mixed',
-          actualCost: 500,
-          projectedMin: 900,
-          projectedMax: 1300,
-          categoryName: 'Labor',
-          categoryId: 'cat-labor2',
-        })}
-        overview={buildOverview()}
-        selectedCategories={new Set()}
-        budgetSources={[]}
-      />,
+  it('shows projected cost value in item row for costDisplay=mixed (rowMixed class applied)', () => {
+    const { container } = renderWithRouter(
+      buildBreakdownWithWI({
+        costDisplay: 'mixed',
+        actualCost: 500,
+        projectedMin: 900,
+        projectedMax: 1300,
+        rawProjectedMin: 900,
+        rawProjectedMax: 1300,
+        categoryName: 'Labor',
+        categoryId: 'cat-labor2',
+      }),
+      buildOverview(),
     );
 
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
     fireEvent.click(getButtonByControls(container, 'wi-cat-cat-labor2-items'));
 
-    const actualLines = screen.getAllByText(/Actual:/);
-    expect(actualLines.length).toBeGreaterThanOrEqual(1);
+    // Default perspective is Avg: (900 + 1300) / 2 = 1100
+    const projectedAvg = screen.getAllByText(/€1,100\.00/);
+    expect(projectedAvg.length).toBeGreaterThanOrEqual(1);
 
-    const projectedLines = screen.getAllByText(/Projected:/);
-    expect(projectedLines.length).toBeGreaterThanOrEqual(1);
+    // Item row must have rowMixed CSS class (visual indicator for mixed state)
+    const mixedRows = container.querySelectorAll('tr.rowMixed');
+    expect(mixedRows.length).toBeGreaterThanOrEqual(1);
   });
 
   // ── 24. Zero subsidy payback → "—" ───────────────────────────────────────
 
   it('renders "—" in Payback column for item with zero subsidyPayback', () => {
-    const { container } = render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI({
-          subsidyPayback: 0,
-          categoryName: 'Utilities',
-          categoryId: 'cat-util',
-        })}
-        overview={buildOverview()}
-        selectedCategories={new Set()}
-        budgetSources={[]}
-      />,
+    const { container } = renderWithRouter(
+      buildBreakdownWithWI({
+        subsidyPayback: 0,
+        categoryName: 'Utilities',
+        categoryId: 'cat-util',
+      }),
+      buildOverview(),
     );
 
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
@@ -682,24 +758,21 @@ describe('CostBreakdownTable', () => {
   // ── 25. Non-zero subsidy payback → currency value ────────────────────────
 
   it('renders formatted currency value for non-zero subsidyPayback on item row', () => {
-    const { container } = render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI({
-          subsidyPayback: 120,
-          categoryName: 'Landscaping',
-          categoryId: 'cat-land',
-        })}
-        overview={buildOverview()}
-        selectedCategories={new Set()}
-        budgetSources={[]}
-      />,
+    const { container } = renderWithRouter(
+      buildBreakdownWithWI({
+        subsidyPayback: 120,
+        minSubsidyPayback: 120, // same as max → renders single value, not a range
+        categoryName: 'Landscaping',
+        categoryId: 'cat-land',
+      }),
+      buildOverview(),
     );
 
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
     fireEvent.click(getButtonByControls(container, 'wi-cat-cat-land-items'));
 
-    // Multiple instances of €120.00 appear (category row and item row)
-    const currencyElements = screen.getAllByText('€120.00');
+    // Payback column shows "+€120.00" with explicit plus sign (category row and item row)
+    const currencyElements = screen.getAllByText('+€120.00');
     expect(currencyElements.length).toBeGreaterThanOrEqual(1);
   });
 
@@ -718,6 +791,9 @@ describe('CostBreakdownTable', () => {
             projectedMax: 1200,
             actualCost: 0,
             subsidyPayback: 0,
+            rawProjectedMin: 800,
+            rawProjectedMax: 1200,
+            minSubsidyPayback: 0,
             items: [],
           },
           {
@@ -728,14 +804,33 @@ describe('CostBreakdownTable', () => {
             projectedMax: 1500,
             actualCost: 0,
             subsidyPayback: 0,
+            rawProjectedMin: 1000,
+            rawProjectedMax: 1500,
+            minSubsidyPayback: 0,
             items: [],
           },
         ],
-        totals: { projectedMin: 1800, projectedMax: 2700, actualCost: 0, subsidyPayback: 0 },
+        totals: {
+          projectedMin: 1800,
+          projectedMax: 2700,
+          actualCost: 0,
+          subsidyPayback: 0,
+          rawProjectedMin: 1800,
+          rawProjectedMax: 2700,
+          minSubsidyPayback: 0,
+        },
       },
       householdItems: {
         categories: [],
-        totals: { projectedMin: 0, projectedMax: 0, actualCost: 0, subsidyPayback: 0 },
+        totals: {
+          projectedMin: 0,
+          projectedMax: 0,
+          actualCost: 0,
+          subsidyPayback: 0,
+          rawProjectedMin: 0,
+          rawProjectedMax: 0,
+          minSubsidyPayback: 0,
+        },
       },
     };
 
@@ -767,6 +862,9 @@ describe('CostBreakdownTable', () => {
             projectedMax: 200,
             actualCost: 0,
             subsidyPayback: 0,
+            rawProjectedMin: 100,
+            rawProjectedMax: 200,
+            minSubsidyPayback: 0,
             items: [],
           },
           {
@@ -777,14 +875,33 @@ describe('CostBreakdownTable', () => {
             projectedMax: 400,
             actualCost: 0,
             subsidyPayback: 0,
+            rawProjectedMin: 300,
+            rawProjectedMax: 400,
+            minSubsidyPayback: 0,
             items: [],
           },
         ],
-        totals: { projectedMin: 400, projectedMax: 600, actualCost: 0, subsidyPayback: 0 },
+        totals: {
+          projectedMin: 400,
+          projectedMax: 600,
+          actualCost: 0,
+          subsidyPayback: 0,
+          rawProjectedMin: 400,
+          rawProjectedMax: 600,
+          minSubsidyPayback: 0,
+        },
       },
       householdItems: {
         categories: [],
-        totals: { projectedMin: 0, projectedMax: 0, actualCost: 0, subsidyPayback: 0 },
+        totals: {
+          projectedMin: 0,
+          projectedMax: 0,
+          actualCost: 0,
+          subsidyPayback: 0,
+          rawProjectedMin: 0,
+          rawProjectedMax: 0,
+          minSubsidyPayback: 0,
+        },
       },
     };
 
@@ -817,10 +934,21 @@ describe('CostBreakdownTable', () => {
             projectedMax: 200,
             actualCost: 0,
             subsidyPayback: 0,
+            rawProjectedMin: 100,
+            rawProjectedMax: 200,
+            minSubsidyPayback: 0,
             items: [],
           },
         ],
-        totals: { projectedMin: 100, projectedMax: 200, actualCost: 0, subsidyPayback: 0 },
+        totals: {
+          projectedMin: 100,
+          projectedMax: 200,
+          actualCost: 0,
+          subsidyPayback: 0,
+          rawProjectedMin: 100,
+          rawProjectedMax: 200,
+          minSubsidyPayback: 0,
+        },
       },
       householdItems: {
         categories: [
@@ -830,10 +958,21 @@ describe('CostBreakdownTable', () => {
             projectedMax: 500,
             actualCost: 0,
             subsidyPayback: 0,
+            rawProjectedMin: 300,
+            rawProjectedMax: 500,
+            minSubsidyPayback: 0,
             items: [],
           },
         ],
-        totals: { projectedMin: 300, projectedMax: 500, actualCost: 0, subsidyPayback: 0 },
+        totals: {
+          projectedMin: 300,
+          projectedMax: 500,
+          actualCost: 0,
+          subsidyPayback: 0,
+          rawProjectedMin: 300,
+          rawProjectedMax: 500,
+          minSubsidyPayback: 0,
+        },
       },
     };
 
@@ -987,18 +1126,14 @@ describe('CostBreakdownTable', () => {
   });
 
   it('item toggle button has aria-expanded after expanding category', () => {
-    const { container } = render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI({
-          categoryName: 'Insurance',
-          categoryId: 'cat-ins',
-          itemTitle: 'Home Insurance',
-          workItemId: 'wi-ins',
-        })}
-        overview={buildOverview()}
-        selectedCategories={new Set()}
-        budgetSources={[]}
-      />,
+    const { container } = renderWithRouter(
+      buildBreakdownWithWI({
+        categoryName: 'Insurance',
+        categoryId: 'cat-ins',
+        itemTitle: 'Home Insurance',
+        workItemId: 'wi-ins',
+      }),
+      buildOverview(),
     );
 
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
@@ -1027,17 +1162,13 @@ describe('CostBreakdownTable', () => {
   });
 
   it('shows HI item name after expanding HI category', () => {
-    const { container } = render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithHI({
-          hiCategory: 'appliances',
-          itemName: 'Dishwasher',
-          householdItemId: 'hi-dishwasher',
-        })}
-        overview={buildOverview()}
-        selectedCategories={new Set()}
-        budgetSources={[]}
-      />,
+    const { container } = renderWithRouter(
+      buildBreakdownWithHI({
+        hiCategory: 'appliances',
+        itemName: 'Dishwasher',
+        householdItemId: 'hi-dishwasher',
+      }),
+      buildOverview(),
     );
 
     fireEvent.click(getButtonByControls(container, 'hi-section-categories'));
@@ -1118,7 +1249,7 @@ describe('CostBreakdownTable', () => {
 
   // ── Level-0 Row Names (Scenario 9) ────────────────────────────────────────
 
-  it('level-0 rows are labeled "Available funds", "Work items", "Household items", "Remaining"', () => {
+  it('level-0 rows are labeled "Available funds", "Work items", "Household items", "Sum"', () => {
     const breakdown: BudgetBreakdown = {
       workItems: {
         categories: [
@@ -1130,10 +1261,21 @@ describe('CostBreakdownTable', () => {
             projectedMax: 700,
             actualCost: 0,
             subsidyPayback: 0,
+            rawProjectedMin: 500,
+            rawProjectedMax: 700,
+            minSubsidyPayback: 0,
             items: [],
           },
         ],
-        totals: { projectedMin: 500, projectedMax: 700, actualCost: 0, subsidyPayback: 0 },
+        totals: {
+          projectedMin: 500,
+          projectedMax: 700,
+          actualCost: 0,
+          subsidyPayback: 0,
+          rawProjectedMin: 500,
+          rawProjectedMax: 700,
+          minSubsidyPayback: 0,
+        },
       },
       householdItems: {
         categories: [
@@ -1143,10 +1285,21 @@ describe('CostBreakdownTable', () => {
             projectedMax: 300,
             actualCost: 0,
             subsidyPayback: 0,
+            rawProjectedMin: 200,
+            rawProjectedMax: 300,
+            minSubsidyPayback: 0,
             items: [],
           },
         ],
-        totals: { projectedMin: 200, projectedMax: 300, actualCost: 0, subsidyPayback: 0 },
+        totals: {
+          projectedMin: 200,
+          projectedMax: 300,
+          actualCost: 0,
+          subsidyPayback: 0,
+          rawProjectedMin: 200,
+          rawProjectedMax: 300,
+          minSubsidyPayback: 0,
+        },
       },
     };
 
@@ -1162,19 +1315,16 @@ describe('CostBreakdownTable', () => {
     expect(screen.getByText('Available funds')).toBeInTheDocument();
     expect(screen.getByText('Work items')).toBeInTheDocument();
     expect(screen.getByText('Household items')).toBeInTheDocument();
-    expect(screen.getByText('Remaining')).toBeInTheDocument();
+    expect(screen.getByText('Sum')).toBeInTheDocument();
+    expect(screen.queryByText('Remaining')).not.toBeInTheDocument();
   });
 
   // ── Category sum row visibility ────────────────────────────────────────────
 
   it('shows sum row for expanded WI category', () => {
-    const { container } = render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI({ categoryName: 'Contingency', categoryId: 'cat-cont2' })}
-        overview={buildOverview()}
-        selectedCategories={new Set()}
-        budgetSources={[]}
-      />,
+    const { container } = renderWithRouter(
+      buildBreakdownWithWI({ categoryName: 'Contingency', categoryId: 'cat-cont2' }),
+      buildOverview(),
     );
 
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
@@ -1184,13 +1334,9 @@ describe('CostBreakdownTable', () => {
   });
 
   it('shows sum row for expanded HI category', () => {
-    const { container } = render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithHI({ hiCategory: 'storage', householdItemId: 'hi-stor' })}
-        overview={buildOverview()}
-        selectedCategories={new Set()}
-        budgetSources={[]}
-      />,
+    const { container } = renderWithRouter(
+      buildBreakdownWithHI({ hiCategory: 'storage', householdItemId: 'hi-stor' }),
+      buildOverview(),
     );
 
     fireEvent.click(getButtonByControls(container, 'hi-section-categories'));
@@ -1218,8 +1364,8 @@ describe('CostBreakdownTable', () => {
 
   // ── Perspective Toggle (Scenarios 1–6) ────────────────────────────────────
 
-  // Scenario 1: "Max" is active by default
-  it('renders with "Max" segment active by default (aria-checked="true")', () => {
+  // Scenario 1: "Avg" is active by default
+  it('renders with "Avg" segment active by default (aria-checked="true")', () => {
     render(
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
@@ -1229,31 +1375,29 @@ describe('CostBreakdownTable', () => {
       />,
     );
 
-    const maxButton = screen.getByRole('radio', { name: 'Max' });
-    expect(maxButton).toHaveAttribute('aria-checked', 'true');
+    const avgButton = screen.getByRole('radio', { name: 'Avg' });
+    expect(avgButton).toHaveAttribute('aria-checked', 'true');
 
     const minButton = screen.getByRole('radio', { name: 'Min' });
     expect(minButton).toHaveAttribute('aria-checked', 'false');
 
-    const avgButton = screen.getByRole('radio', { name: 'Avg' });
-    expect(avgButton).toHaveAttribute('aria-checked', 'false');
+    const maxButton = screen.getByRole('radio', { name: 'Max' });
+    expect(maxButton).toHaveAttribute('aria-checked', 'false');
   });
 
   // Scenario 2: Clicking "Min" activates Min, shows projectedMin value for projected items
   it('clicking Min activates Min segment and shows projectedMin value for projected items', () => {
-    const { container } = render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI({
-          costDisplay: 'projected',
-          projectedMin: 600,
-          projectedMax: 1000,
-          categoryName: 'Labor',
-          categoryId: 'cat-lab-min',
-        })}
-        overview={buildOverview()}
-        selectedCategories={new Set()}
-        budgetSources={[]}
-      />,
+    const { container } = renderWithRouter(
+      buildBreakdownWithWI({
+        costDisplay: 'projected',
+        projectedMin: 600,
+        projectedMax: 1000,
+        rawProjectedMin: 600,
+        rawProjectedMax: 1000,
+        categoryName: 'Labor',
+        categoryId: 'cat-lab-min',
+      }),
+      buildOverview(),
     );
 
     // Switch to Min
@@ -1272,19 +1416,15 @@ describe('CostBreakdownTable', () => {
 
   // Scenario 3: Clicking "Avg" shows (projectedMin + projectedMax) / 2
   it('clicking Avg shows average of projectedMin and projectedMax for projected items', () => {
-    const { container } = render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI({
-          costDisplay: 'projected',
-          projectedMin: 800,
-          projectedMax: 1200,
-          categoryName: 'Permits',
-          categoryId: 'cat-perm-avg',
-        })}
-        overview={buildOverview()}
-        selectedCategories={new Set()}
-        budgetSources={[]}
-      />,
+    const { container } = renderWithRouter(
+      buildBreakdownWithWI({
+        costDisplay: 'projected',
+        projectedMin: 800,
+        projectedMax: 1200,
+        categoryName: 'Permits',
+        categoryId: 'cat-perm-avg',
+      }),
+      buildOverview(),
     );
 
     // Switch to Avg — average of 800 and 1200 = 1000
@@ -1300,8 +1440,9 @@ describe('CostBreakdownTable', () => {
     expect(screen.getAllByText(/€1,000\.00/).length).toBeGreaterThanOrEqual(1);
   });
 
-  // Scenario 4: ArrowRight from "Min" focuses and activates "Max"
-  it('ArrowRight keydown from Min activates Max', () => {
+  // Scenario 4: ArrowRight from "Min" activates next option in order (Avg)
+  // Toggle order is: Min (0), Avg (1), Max (2)
+  it('ArrowRight keydown from Min activates Avg (next in order)', () => {
     render(
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
@@ -1316,15 +1457,15 @@ describe('CostBreakdownTable', () => {
     fireEvent.click(minButton);
     expect(minButton).toHaveAttribute('aria-checked', 'true');
 
-    // ArrowRight from Min → Max
+    // ArrowRight from Min (index 0) → Avg (index 1)
     fireEvent.keyDown(minButton, { key: 'ArrowRight' });
 
-    expect(screen.getByRole('radio', { name: 'Max' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: 'Avg' })).toHaveAttribute('aria-checked', 'true');
     expect(minButton).toHaveAttribute('aria-checked', 'false');
   });
 
-  // Scenario 5: ArrowLeft from "Min" wraps around to "Avg"
-  it('ArrowLeft keydown from Min wraps around to activate Avg', () => {
+  // Scenario 5: ArrowLeft from "Min" wraps around to last option (Max)
+  it('ArrowLeft keydown from Min wraps around to activate Max (last in order)', () => {
     render(
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
@@ -1338,29 +1479,25 @@ describe('CostBreakdownTable', () => {
     fireEvent.click(minButton);
     expect(minButton).toHaveAttribute('aria-checked', 'true');
 
-    // ArrowLeft from Min (index 0) wraps to Avg (last, index 2)
+    // ArrowLeft from Min (index 0) wraps to Max (last, index 2)
     fireEvent.keyDown(minButton, { key: 'ArrowLeft' });
 
-    expect(screen.getByRole('radio', { name: 'Avg' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: 'Max' })).toHaveAttribute('aria-checked', 'true');
     expect(minButton).toHaveAttribute('aria-checked', 'false');
   });
 
   // Scenario 6: Actual-cost items show actualCost regardless of perspective
   it('actual-cost items show actualCost value regardless of which perspective is active', () => {
-    const { container } = render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI({
-          costDisplay: 'actual',
-          actualCost: 750,
-          projectedMin: 750,
-          projectedMax: 750,
-          categoryName: 'Equipment',
-          categoryId: 'cat-equip-actual',
-        })}
-        overview={buildOverview()}
-        selectedCategories={new Set()}
-        budgetSources={[]}
-      />,
+    const { container } = renderWithRouter(
+      buildBreakdownWithWI({
+        costDisplay: 'actual',
+        actualCost: 750,
+        projectedMin: 750,
+        projectedMax: 750,
+        categoryName: 'Equipment',
+        categoryId: 'cat-equip-actual',
+      }),
+      buildOverview(),
     );
 
     // Switch to Min perspective
@@ -1382,21 +1519,17 @@ describe('CostBreakdownTable', () => {
 
   // Scenario 10: costDisplay === 'actual' → rowActual CSS class on <tr>
   it('work item with costDisplay=actual has rowActual CSS class on its row', () => {
-    const { container } = render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI({
-          costDisplay: 'actual',
-          actualCost: 500,
-          projectedMin: 500,
-          projectedMax: 500,
-          categoryName: 'Insurance',
-          categoryId: 'cat-ins-actual',
-          workItemId: 'wi-actual-row',
-        })}
-        overview={buildOverview()}
-        selectedCategories={new Set()}
-        budgetSources={[]}
-      />,
+    const { container } = renderWithRouter(
+      buildBreakdownWithWI({
+        costDisplay: 'actual',
+        actualCost: 500,
+        projectedMin: 500,
+        projectedMax: 500,
+        categoryName: 'Insurance',
+        categoryId: 'cat-ins-actual',
+        workItemId: 'wi-actual-row',
+      }),
+      buildOverview(),
     );
 
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
@@ -1409,21 +1542,17 @@ describe('CostBreakdownTable', () => {
 
   // Scenario 11: costDisplay === 'mixed' → rowMixed CSS class on <tr>
   it('work item with costDisplay=mixed has rowMixed CSS class on its row', () => {
-    const { container } = render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI({
-          costDisplay: 'mixed',
-          actualCost: 300,
-          projectedMin: 600,
-          projectedMax: 900,
-          categoryName: 'Design',
-          categoryId: 'cat-des-mixed',
-          workItemId: 'wi-mixed-row',
-        })}
-        overview={buildOverview()}
-        selectedCategories={new Set()}
-        budgetSources={[]}
-      />,
+    const { container } = renderWithRouter(
+      buildBreakdownWithWI({
+        costDisplay: 'mixed',
+        actualCost: 300,
+        projectedMin: 600,
+        projectedMax: 900,
+        categoryName: 'Design',
+        categoryId: 'cat-des-mixed',
+        workItemId: 'wi-mixed-row',
+      }),
+      buildOverview(),
     );
 
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
@@ -1435,20 +1564,16 @@ describe('CostBreakdownTable', () => {
 
   // Scenario 12: costDisplay === 'projected' → neither rowActual nor rowMixed
   it('work item with costDisplay=projected has neither rowActual nor rowMixed', () => {
-    const { container } = render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI({
-          costDisplay: 'projected',
-          projectedMin: 400,
-          projectedMax: 600,
-          categoryName: 'Utilities',
-          categoryId: 'cat-util-proj',
-          workItemId: 'wi-proj-row',
-        })}
-        overview={buildOverview()}
-        selectedCategories={new Set()}
-        budgetSources={[]}
-      />,
+    const { container } = renderWithRouter(
+      buildBreakdownWithWI({
+        costDisplay: 'projected',
+        projectedMin: 400,
+        projectedMax: 600,
+        categoryName: 'Utilities',
+        categoryId: 'cat-util-proj',
+        workItemId: 'wi-proj-row',
+      }),
+      buildOverview(),
     );
 
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
@@ -1466,23 +1591,19 @@ describe('CostBreakdownTable', () => {
 
   // Scenario 13: budget line with hasInvoice===true → rowActual CSS class
   it('budget line with hasInvoice=true has rowActual CSS class', () => {
-    const { container } = render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI({
-          costDisplay: 'actual',
-          actualCost: 400,
-          projectedMin: 400,
-          projectedMax: 400,
-          hasInvoice: true,
-          categoryName: 'Labor',
-          categoryId: 'cat-lab-inv',
-          workItemId: 'wi-inv',
-          description: 'Labour invoice',
-        })}
-        overview={buildOverview()}
-        selectedCategories={new Set()}
-        budgetSources={[]}
-      />,
+    const { container } = renderWithRouter(
+      buildBreakdownWithWI({
+        costDisplay: 'actual',
+        actualCost: 400,
+        projectedMin: 400,
+        projectedMax: 400,
+        hasInvoice: true,
+        categoryName: 'Labor',
+        categoryId: 'cat-lab-inv',
+        workItemId: 'wi-inv',
+        description: 'Labour invoice',
+      }),
+      buildOverview(),
     );
 
     // Expand to budget line level
@@ -1580,50 +1701,82 @@ describe('CostBreakdownTable', () => {
     expect(screen.queryByText('Credit Line')).not.toBeInTheDocument();
   });
 
-  // ── Remaining Calculation (Scenarios 18–21) ───────────────────────────────
+  // ── Sum Row Calculation (Scenarios 18–21) ────────────────────────────────
+  // Note: the Sum row uses breakdown totals for payback (not overview.subsidySummary).
+  // Sum Cost = availableFunds - totalRawProjected
+  // Sum Net  = availableFunds - totalRawProjected + totalPayback (from breakdown totals)
 
-  // Scenario 18: Remaining net = availableFunds + payback - totalProjected
-  it('remaining net = availableFunds + payback - totalProjected for active perspective', () => {
-    // availableFunds=10000, maxTotalPayback=1000, projectedMax=4000
-    // remaining (Max) = 10000 + 1000 - 4000 = 7000
+  // Scenario 18: Sum Net for default Avg perspective
+  // Sum Net uses full subsidyPayback (max), NOT averaged. Only rawProjected is perspective-averaged.
+  it('Sum Net = availableFunds - avgRawProjected + subsidyPayback for default Avg perspective', () => {
+    // availableFunds=10000
+    // rawProjectedMin=3000, rawProjectedMax=5000 → avgRaw=4000
+    // subsidyPayback=1200 (full max, not averaged)
+    // Sum Net = 10000 - 4000 + 1200 = 7200
     render(
       <CostBreakdownTable
-        breakdown={buildBreakdownWithWI({ projectedMin: 3000, projectedMax: 4000 })}
-        overview={buildOverview(10000, { minTotalPayback: 800, maxTotalPayback: 1000 })}
+        breakdown={buildBreakdownWithWI({
+          projectedMin: 3000,
+          projectedMax: 5000,
+          rawProjectedMin: 3000,
+          rawProjectedMax: 5000,
+          subsidyPayback: 1200,
+          minSubsidyPayback: 800,
+        })}
+        overview={buildOverview(10000)}
         selectedCategories={new Set()}
         budgetSources={[]}
       />,
     );
 
-    // Default perspective is Max: 10000 + 1000 - 4000 = 7000
-    expect(screen.getByText('€7,000.00')).toBeInTheDocument();
+    // Default perspective is Avg: Sum Net = 10000 - 4000 + 1200 = 7200
+    expect(screen.getByText('€7,200.00')).toBeInTheDocument();
   });
 
-  // Scenario 19: Max perspective uses maxTotalPayback and projectedMax
-  it('Max perspective uses maxTotalPayback and projectedMax totals', () => {
-    // availableFunds=20000, maxTotalPayback=2000, projectedMax=8000
-    // remaining = 20000 + 2000 - 8000 = 14000
+  // Scenario 19: Max perspective uses subsidyPayback (max) and rawProjectedMax
+  it('Max perspective uses subsidyPayback and rawProjectedMax for Sum Net', () => {
+    // availableFunds=20000
+    // rawProjectedMax=8000, subsidyPayback=2000
+    // Sum Net (Max) = 20000 - 8000 + 2000 = 14000
     render(
       <CostBreakdownTable
-        breakdown={buildBreakdownWithWI({ projectedMin: 5000, projectedMax: 8000 })}
-        overview={buildOverview(20000, { minTotalPayback: 1000, maxTotalPayback: 2000 })}
+        breakdown={buildBreakdownWithWI({
+          projectedMin: 5000,
+          projectedMax: 8000,
+          rawProjectedMin: 5000,
+          rawProjectedMax: 8000,
+          subsidyPayback: 2000,
+          minSubsidyPayback: 1000,
+        })}
+        overview={buildOverview(20000)}
         selectedCategories={new Set()}
         budgetSources={[]}
       />,
     );
 
-    // Max is default
+    // Switch to Max perspective
+    fireEvent.click(screen.getByRole('radio', { name: 'Max' }));
+
+    // Sum Net (Max) = 20000 - 8000 + 2000 = 14000
     expect(screen.getByText('€14,000.00')).toBeInTheDocument();
   });
 
-  // Scenario 20: Min perspective uses minTotalPayback and projectedMin
-  it('Min perspective uses minTotalPayback and projectedMin totals', () => {
-    // availableFunds=20000, minTotalPayback=1000, projectedMin=5000
-    // remaining (Min) = 20000 + 1000 - 5000 = 16000
+  // Scenario 20: Min perspective uses rawProjectedMin; Sum Net still uses full subsidyPayback
+  it('Min perspective: Sum Net = availableFunds - rawProjectedMin + subsidyPayback', () => {
+    // availableFunds=20000
+    // rawProjectedMin=5000; subsidyPayback=2000 (full max, not min)
+    // Sum Net (Min) = 20000 - 5000 + 2000 = 17000
     render(
       <CostBreakdownTable
-        breakdown={buildBreakdownWithWI({ projectedMin: 5000, projectedMax: 8000 })}
-        overview={buildOverview(20000, { minTotalPayback: 1000, maxTotalPayback: 2000 })}
+        breakdown={buildBreakdownWithWI({
+          projectedMin: 5000,
+          projectedMax: 8000,
+          rawProjectedMin: 5000,
+          rawProjectedMax: 8000,
+          subsidyPayback: 2000,
+          minSubsidyPayback: 1000,
+        })}
+        overview={buildOverview(20000)}
         selectedCategories={new Set()}
         budgetSources={[]}
       />,
@@ -1631,25 +1784,302 @@ describe('CostBreakdownTable', () => {
 
     fireEvent.click(screen.getByRole('radio', { name: 'Min' }));
 
-    expect(screen.getByText('€16,000.00')).toBeInTheDocument();
+    // Sum Net (Min) = 20000 - 5000 + 2000 = 17000
+    expect(screen.getByText('€17,000.00')).toBeInTheDocument();
   });
 
-  // Scenario 21: Avg perspective uses average of payback range and average of projected range
-  it('Avg perspective uses average of payback range and average of projected range', () => {
-    // availableFunds=20000, minTotalPayback=1000, maxTotalPayback=2000 → avgPayback=1500
-    // projectedMin=5000, projectedMax=8000 → avgProjected=6500
-    // remaining (Avg) = 20000 + 1500 - 6500 = 15000
+  // Scenario 21: Avg perspective averages rawProjected; Sum Net uses full subsidyPayback (not averaged)
+  it('Avg perspective averages rawProjected but uses full subsidyPayback for Sum Net', () => {
+    // availableFunds=20000
+    // rawProjectedMin=5000, rawProjectedMax=8000 → avgRaw=6500
+    // subsidyPayback=2000 (full max payback used in sum, not averaged)
+    // Sum Net (Avg) = 20000 - 6500 + 2000 = 15500
     render(
       <CostBreakdownTable
-        breakdown={buildBreakdownWithWI({ projectedMin: 5000, projectedMax: 8000 })}
-        overview={buildOverview(20000, { minTotalPayback: 1000, maxTotalPayback: 2000 })}
+        breakdown={buildBreakdownWithWI({
+          projectedMin: 5000,
+          projectedMax: 8000,
+          rawProjectedMin: 5000,
+          rawProjectedMax: 8000,
+          subsidyPayback: 2000,
+          minSubsidyPayback: 1000,
+        })}
+        overview={buildOverview(20000)}
         selectedCategories={new Set()}
         budgetSources={[]}
       />,
     );
 
-    fireEvent.click(screen.getByRole('radio', { name: 'Avg' }));
+    // Avg is default — no need to click
+    // Sum Net (Avg) = 20000 - 6500 + 2000 = 15500
+    expect(screen.getByText('€15,500.00')).toBeInTheDocument();
+  });
 
-    expect(screen.getByText('€15,000.00')).toBeInTheDocument();
+  // ── New Scenarios (Issue #493) ─────────────────────────────────────────────
+
+  // Scenario 8: Toggle order — Min first, Avg second, Max third
+  it('perspective toggle renders buttons in order: Min, Avg, Max', () => {
+    render(
+      <CostBreakdownTable
+        breakdown={buildBreakdownWithWI()}
+        overview={buildOverview()}
+        selectedCategories={new Set()}
+        budgetSources={[]}
+      />,
+    );
+
+    const radioButtons = screen.getAllByRole('radio');
+    expect(radioButtons).toHaveLength(3);
+    expect(radioButtons[0]).toHaveAccessibleName('Min');
+    expect(radioButtons[1]).toHaveAccessibleName('Avg');
+    expect(radioButtons[2]).toHaveAccessibleName('Max');
+  });
+
+  // Scenario 9: Default perspective is "Avg" (aria-checked="true")
+  it('default perspective is Avg with aria-checked="true"', () => {
+    render(
+      <CostBreakdownTable
+        breakdown={buildBreakdownWithWI()}
+        overview={buildOverview()}
+        selectedCategories={new Set()}
+        budgetSources={[]}
+      />,
+    );
+
+    expect(screen.getByRole('radio', { name: 'Avg' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: 'Min' })).toHaveAttribute('aria-checked', 'false');
+    expect(screen.getByRole('radio', { name: 'Max' })).toHaveAttribute('aria-checked', 'false');
+  });
+
+  // Scenario 10: Payback column is not affected by perspective switch
+  it('payback column shows same value regardless of perspective', () => {
+    const { container } = renderWithRouter(
+      buildBreakdownWithWI({
+        subsidyPayback: 200,
+        minSubsidyPayback: 200,
+        projectedMin: 800,
+        projectedMax: 1200,
+        rawProjectedMin: 800,
+        rawProjectedMax: 1200,
+        categoryName: 'Materials',
+        categoryId: 'cat-payback-persp',
+      }),
+      buildOverview(),
+    );
+
+    // Expand to see item row
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-payback-persp-items'));
+
+    // Check payback in Avg (default) — since min=max=200, shows +€200.00
+    const paybackAvg = screen.getAllByText('+€200.00');
+    expect(paybackAvg.length).toBeGreaterThanOrEqual(1);
+
+    // Switch to Min — payback must still be +€200.00
+    fireEvent.click(screen.getByRole('radio', { name: 'Min' }));
+    const paybackMin = screen.getAllByText('+€200.00');
+    expect(paybackMin.length).toBeGreaterThanOrEqual(1);
+
+    // Switch to Max — payback must still be +€200.00
+    fireEvent.click(screen.getByRole('radio', { name: 'Max' }));
+    const paybackMax = screen.getAllByText('+€200.00');
+    expect(paybackMax.length).toBeGreaterThanOrEqual(1);
+  });
+
+  // Scenario 11: Work item name is a link with correct href
+  it('work item name in item row is an anchor link to /work-items/{workItemId}', () => {
+    const { container } = renderWithRouter(
+      buildBreakdownWithWI({
+        workItemId: 'wi-link-test',
+        itemTitle: 'Plumbing Work',
+        categoryName: 'Materials',
+        categoryId: 'cat-wi-link',
+      }),
+      buildOverview(),
+    );
+
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-wi-link-items'));
+
+    const link = screen.getByRole('link', { name: 'Plumbing Work' });
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute('href', '/work-items/wi-link-test');
+  });
+
+  // Scenario 12: Household item name is a link with correct href
+  it('household item name in item row is an anchor link to /household-items/{householdItemId}', () => {
+    const { container } = renderWithRouter(
+      buildBreakdownWithHI({
+        hiCategory: 'fixtures',
+        householdItemId: 'hi-link-test',
+        itemName: 'Bathroom Sink',
+      }),
+      buildOverview(),
+    );
+
+    fireEvent.click(getButtonByControls(container, 'hi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'hi-cat-fixtures-items'));
+
+    const link = screen.getByRole('link', { name: 'Bathroom Sink' });
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute('href', '/household-items/hi-link-test');
+  });
+
+  // Scenario 13: Cost column shows "-€" prefix for projected items
+  it('Cost column shows negative "-€" prefix for projected work item', () => {
+    const { container } = renderWithRouter(
+      buildBreakdownWithWI({
+        costDisplay: 'projected',
+        projectedMin: 1000,
+        projectedMax: 1000,
+        rawProjectedMin: 1000,
+        rawProjectedMax: 1000,
+        categoryName: 'Materials',
+        categoryId: 'cat-cost-prefix',
+      }),
+      buildOverview(),
+    );
+
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-cost-prefix-items'));
+
+    // The cost column for item rows shows "-€1,000.00" with explicit minus sign
+    const costElements = screen.getAllByText('-€1,000.00');
+    expect(costElements.length).toBeGreaterThanOrEqual(1);
+  });
+
+  // Scenario 14: Payback column shows "+€" prefix when min === max (single value)
+  it('Payback column shows "+€" prefix as single value when min equals max', () => {
+    const { container } = renderWithRouter(
+      buildBreakdownWithWI({
+        subsidyPayback: 150,
+        minSubsidyPayback: 150,
+        categoryName: 'Labor',
+        categoryId: 'cat-payback-single',
+      }),
+      buildOverview(),
+    );
+
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-payback-single-items'));
+
+    // min === max → single value with "+" prefix: "+€150.00"
+    const singlePayback = screen.getAllByText('+€150.00');
+    expect(singlePayback.length).toBeGreaterThanOrEqual(1);
+    // No "–" separator (range format) should appear in this context
+    expect(screen.queryByText(/\+€150\.00 – \+€/)).not.toBeInTheDocument();
+  });
+
+  // Scenario 15: Payback column shows range when min !== max
+  it('Payback column shows range format when minSubsidyPayback differs from subsidyPayback', () => {
+    const { container } = renderWithRouter(
+      buildBreakdownWithWI({
+        subsidyPayback: 120,
+        minSubsidyPayback: 80,
+        categoryName: 'Design',
+        categoryId: 'cat-payback-range',
+      }),
+      buildOverview(),
+    );
+
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-payback-range-items'));
+
+    // min=80 ≠ max=120 → range: "+€80.00 – +€120.00"
+    expect(container.textContent).toContain('+€80.00 – +€120.00');
+  });
+
+  // Scenario 16: Net column is not empty on item rows
+  it('Net column renders a non-empty value on item rows', () => {
+    const { container } = renderWithRouter(
+      buildBreakdownWithWI({
+        costDisplay: 'projected',
+        projectedMin: 800,
+        projectedMax: 1200,
+        rawProjectedMin: 800,
+        rawProjectedMax: 1200,
+        subsidyPayback: 100,
+        minSubsidyPayback: 80,
+        categoryName: 'Permits',
+        categoryId: 'cat-net-col',
+      }),
+      buildOverview(),
+    );
+
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-net-col-items'));
+
+    // The Net cell (colRemaining) for the item row must contain some currency value.
+    // Avg rawCost = (800+1200)/2 = 1000; subsidyPayback=100; net = 1000 - 100 = 900
+    const netCells = container.querySelectorAll('td.colRemaining');
+    // At least one Net cell should have non-empty textContent
+    const nonEmptyNetCells = Array.from(netCells).filter((td) => td.textContent?.trim() !== '');
+    expect(nonEmptyNetCells.length).toBeGreaterThan(0);
+    // The item row Net value = €900.00
+    expect(screen.getAllByText('€900.00').length).toBeGreaterThanOrEqual(1);
+  });
+
+  // Scenario 17: "Sum" label appears; "Remaining" is gone
+  it('"Sum" label appears in bottom row and "Remaining" does not', () => {
+    render(
+      <CostBreakdownTable
+        breakdown={buildBreakdownWithWI()}
+        overview={buildOverview()}
+        selectedCategories={new Set()}
+        budgetSources={[]}
+      />,
+    );
+
+    expect(screen.getByText('Sum')).toBeInTheDocument();
+    expect(screen.queryByText('Remaining')).not.toBeInTheDocument();
+  });
+
+  // Scenario 18: Sum row Cost = availableFunds − totalRawProjected (Avg default)
+  it('Sum row Cost column = availableFunds - totalRawProjected for Avg perspective', () => {
+    // availableFunds=10000, rawProjectedMin=3000, rawProjectedMax=5000
+    // Avg raw = (3000+5000)/2 = 4000; Sum Cost = 10000 - 4000 = 6000
+    render(
+      <CostBreakdownTable
+        breakdown={buildBreakdownWithWI({
+          projectedMin: 3000,
+          projectedMax: 5000,
+          rawProjectedMin: 3000,
+          rawProjectedMax: 5000,
+        })}
+        overview={buildOverview(10000)}
+        selectedCategories={new Set()}
+        budgetSources={[]}
+      />,
+    );
+
+    // Sum Cost = 10000 - 4000 = 6000 — appears in the Sum row's Cost cell
+    // (Note: with no subsidyPayback, Net also equals 6000, so multiple elements may match)
+    const elements = screen.getAllByText('€6,000.00');
+    expect(elements.length).toBeGreaterThanOrEqual(1);
+  });
+
+  // Scenario 19: Sum row Net = Sum Cost + subsidyPayback (full max, not averaged)
+  it('Sum row Net = availableFunds - avgRawProjected + subsidyPayback', () => {
+    // availableFunds=10000, rawProjectedMin=3000, rawProjectedMax=5000
+    // Avg raw = (3000+5000)/2 = 4000; subsidyPayback=200 (full max value)
+    // Sum Net = 10000 - 4000 + 200 = 6200
+    render(
+      <CostBreakdownTable
+        breakdown={buildBreakdownWithWI({
+          projectedMin: 3000,
+          projectedMax: 5000,
+          rawProjectedMin: 3000,
+          rawProjectedMax: 5000,
+          subsidyPayback: 200,
+          minSubsidyPayback: 100,
+        })}
+        overview={buildOverview(10000)}
+        selectedCategories={new Set()}
+        budgetSources={[]}
+      />,
+    );
+
+    // Sum Net = 10000 - 4000 + 200 = 6200
+    expect(screen.getByText('€6,200.00')).toBeInTheDocument();
   });
 });

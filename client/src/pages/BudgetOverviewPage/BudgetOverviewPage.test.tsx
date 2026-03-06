@@ -153,11 +153,27 @@ describe('BudgetOverviewPage', () => {
   const emptyBreakdown = {
     workItems: {
       categories: [],
-      totals: { projectedMin: 0, projectedMax: 0, actualCost: 0, subsidyPayback: 0 },
+      totals: {
+        projectedMin: 0,
+        projectedMax: 0,
+        actualCost: 0,
+        subsidyPayback: 0,
+        rawProjectedMin: 0,
+        rawProjectedMax: 0,
+        minSubsidyPayback: 0,
+      },
     },
     householdItems: {
       categories: [],
-      totals: { projectedMin: 0, projectedMax: 0, actualCost: 0, subsidyPayback: 0 },
+      totals: {
+        projectedMin: 0,
+        projectedMax: 0,
+        actualCost: 0,
+        subsidyPayback: 0,
+        rawProjectedMin: 0,
+        rawProjectedMax: 0,
+        minSubsidyPayback: 0,
+      },
     },
   };
 
@@ -1044,14 +1060,33 @@ describe('BudgetOverviewPage', () => {
               projectedMax: 8000,
               actualCost: 0,
               subsidyPayback: 0,
+              rawProjectedMin: 5000,
+              rawProjectedMax: 8000,
+              minSubsidyPayback: 0,
               items: [],
             },
           ],
-          totals: { projectedMin: 5000, projectedMax: 8000, actualCost: 0, subsidyPayback: 0 },
+          totals: {
+            projectedMin: 5000,
+            projectedMax: 8000,
+            actualCost: 0,
+            subsidyPayback: 0,
+            rawProjectedMin: 5000,
+            rawProjectedMax: 8000,
+            minSubsidyPayback: 0,
+          },
         },
         householdItems: {
           categories: [],
-          totals: { projectedMin: 0, projectedMax: 0, actualCost: 0, subsidyPayback: 0 },
+          totals: {
+            projectedMin: 0,
+            projectedMax: 0,
+            actualCost: 0,
+            subsidyPayback: 0,
+            rawProjectedMin: 0,
+            rawProjectedMax: 0,
+            minSubsidyPayback: 0,
+          },
         },
       });
 
