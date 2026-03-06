@@ -119,8 +119,10 @@ export class BudgetCategoriesPage {
 
   async goto(): Promise<void> {
     await this.page.goto(BUDGET_CATEGORIES_ROUTE);
-    // Wait for the page heading to appear (data loaded)
+    // Wait for the page heading to appear, then wait for the tab content
+    // (the "Add Category" button is always rendered once the tab has mounted)
     await this.heading.waitFor({ state: 'visible' });
+    await this.addCategoryButton.waitFor({ state: 'visible' });
   }
 
   /**
