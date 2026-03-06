@@ -38,6 +38,9 @@ export interface BreakdownWorkItem {
   projectedMax: number;
   actualCost: number;
   subsidyPayback: number;
+  rawProjectedMin: number;
+  rawProjectedMax: number;
+  minSubsidyPayback: number;
   costDisplay: CostDisplay;
   budgetLines: BreakdownBudgetLine[];
 }
@@ -54,6 +57,9 @@ export interface BreakdownWorkItemCategory {
   projectedMax: number;
   actualCost: number;
   subsidyPayback: number;
+  rawProjectedMin: number;
+  rawProjectedMax: number;
+  minSubsidyPayback: number;
   items: BreakdownWorkItem[];
 }
 
@@ -67,6 +73,9 @@ export interface BreakdownHouseholdItem {
   projectedMax: number;
   actualCost: number;
   subsidyPayback: number;
+  rawProjectedMin: number;
+  rawProjectedMax: number;
+  minSubsidyPayback: number;
   costDisplay: CostDisplay;
   budgetLines: BreakdownBudgetLine[];
 }
@@ -81,6 +90,9 @@ export interface BreakdownHouseholdItemCategory {
   projectedMax: number;
   actualCost: number;
   subsidyPayback: number;
+  rawProjectedMin: number;
+  rawProjectedMax: number;
+  minSubsidyPayback: number;
   items: BreakdownHouseholdItem[];
 }
 
@@ -92,6 +104,9 @@ export interface BreakdownTotals {
   projectedMax: number;
   actualCost: number;
   subsidyPayback: number;
+  rawProjectedMin: number;
+  rawProjectedMax: number;
+  minSubsidyPayback: number;
 }
 
 /**
