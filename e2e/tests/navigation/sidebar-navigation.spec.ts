@@ -59,12 +59,16 @@ test.describe('Sidebar Navigation', { tag: '@responsive' }, () => {
     const workItemsLink = appShell.nav.getByRole('link', { name: 'Work Items' });
     await expect(workItemsLink).toHaveAttribute('aria-current', 'page');
 
-    // When: User navigates to Budget
-    await page.goto(ROUTES.budget);
+    // When: User navigates to Household Items
+    // NOTE: The Budget NavLink has the `end` prop (only active at exactly "/budget"),
+    // so navigating to ROUTES.budget (/budget/overview) never activates the Budget link.
+    // Use Household Items instead — its NavLink has no `end` prop and activates for all
+    // /household-items/* routes.
+    await page.goto(ROUTES.householdItems);
 
-    // Then: Budget link should be active
-    const budgetLink = appShell.nav.getByRole('link', { name: 'Budget' });
-    await expect(budgetLink).toHaveAttribute('aria-current', 'page');
+    // Then: Household Items link should be active
+    const householdItemsLink = appShell.nav.getByRole('link', { name: 'Household Items' });
+    await expect(householdItemsLink).toHaveAttribute('aria-current', 'page');
 
     // And: Work Items link should not be active (aria-current absent or not 'page')
     await expect(workItemsLink).not.toHaveAttribute('aria-current', 'page');

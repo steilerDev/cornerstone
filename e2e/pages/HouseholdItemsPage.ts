@@ -167,13 +167,14 @@ export class HouseholdItemsPage {
    * The response listener is registered BEFORE the fill to avoid a race with
    * the 300ms debounce.
    *
-   * An explicit 10s timeout overrides the global actionTimeout (5s) because
-   * the debounce + API round-trip can exceed 5s on slow CI runners.
+   * An explicit 25s timeout is used because debounce (300ms) + API round-trip
+   * can exceed 10s on heavily-loaded CI runners, especially for WebKit
+   * (tablet/mobile) where the browser itself is slower.
    */
   async search(query: string): Promise<void> {
     const responsePromise = this.page.waitForResponse(
       (resp) => resp.url().includes('/api/household-items') && resp.status() === 200,
-      { timeout: 10000 },
+      { timeout: 25000 },
     );
     await this.searchInput.fill(query);
     await responsePromise;
@@ -182,12 +183,12 @@ export class HouseholdItemsPage {
 
   /**
    * Clear the search input and wait for the API response and DOM to update.
-   * An explicit 10s timeout overrides the global actionTimeout (5s).
+   * An explicit 25s timeout is used for the same reason as search().
    */
   async clearSearch(): Promise<void> {
     const responsePromise = this.page.waitForResponse(
       (resp) => resp.url().includes('/api/household-items') && resp.status() === 200,
-      { timeout: 10000 },
+      { timeout: 25000 },
     );
     await this.searchInput.clear();
     await responsePromise;
