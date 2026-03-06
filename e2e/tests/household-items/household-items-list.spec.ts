@@ -118,10 +118,9 @@ test.describe('Empty state — no items (Scenario 3)', { tag: '@responsive' }, (
 // Scenario 4: Filter empty state when search matches nothing
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Empty state — filter no match (Scenario 4)', { tag: '@responsive' }, () => {
-  // Extend timeout: search() uses a 50s waitForResponse because the shared
-  // SQLite test container gets heavily loaded when all 16 CI shards run in
-  // parallel (32 concurrent browser contexts). Desktop default timeout (15s)
-  // is too short; tablet/mobile already have 60s via playwright.config.ts.
+  // Extend test timeout: multi-step test (create → navigate → search → assert
+  // → delete) takes longer than the desktop default 15s, especially on mobile
+  // WebKit under full CI shard load.
   test.describe.configure({ timeout: 60_000 });
   test('Filter empty state shown when search matches no household items', async ({
     page,
@@ -162,7 +161,8 @@ test.describe(
   'Item appears in list after API creation (Scenario 5)',
   { tag: '@responsive' },
   () => {
-    // Extend timeout: search() uses a 50s waitForResponse (see Scenario 4).
+    // Extend test timeout: multi-step test (create → navigate → search → assert
+    // → delete) takes longer than the desktop default 15s on mobile WebKit.
     test.describe.configure({ timeout: 60_000 });
 
     test('Household item created via API appears in the list', async ({ page, testPrefix }) => {
@@ -224,7 +224,8 @@ test.describe(
 // Scenario 6: Search filters the list
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Search filters (Scenario 6)', { tag: '@responsive' }, () => {
-  // Extend timeout: search() uses a 50s waitForResponse (see Scenario 4).
+  // Extend test timeout: these tests create real API data, search/filter, and
+  // delete — multi-step flows that take longer on mobile WebKit under CI load.
   test.describe.configure({ timeout: 60_000 });
 
   test('Search by name filters list to matching items only', async ({ page, testPrefix }) => {
@@ -257,7 +258,8 @@ test.describe('Search filters (Scenario 6)', { tag: '@responsive' }, () => {
 // Scenario 7: Category filter narrows results
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Category filter (Scenario 7)', { tag: '@responsive' }, () => {
-  // Extend timeout: search() uses a 50s waitForResponse (see Scenario 4).
+  // Extend test timeout: these tests create real API data, search/filter, and
+  // delete — multi-step flows that take longer on mobile WebKit under CI load.
   test.describe.configure({ timeout: 60_000 });
 
   test('Category filter narrows list to items in selected category', async ({
@@ -283,13 +285,13 @@ test.describe('Category filter (Scenario 7)', { tag: '@responsive' }, () => {
       // First search to narrow to our prefix, then apply category filter
       await listPage.search(`${testPrefix} HI Cat`);
 
-      // Select 'furniture' category
-      const filterResponsePromise = page.waitForResponse(
-        (resp) => resp.url().includes('/api/household-items') && resp.status() === 200,
-        { timeout: 50000 },
-      );
+      // Select 'furniture' category — wait for URL then networkidle (avoids
+      // server-dependent waitForResponse which times out under CI load).
       await listPage.categoryFilter.selectOption('furniture');
-      await filterResponsePromise;
+      await page.waitForURL((url) => url.searchParams.get('category') === 'furniture', {
+        timeout: 10000,
+      });
+      await page.waitForLoadState('networkidle', { timeout: 55000 });
       await listPage.waitForLoaded();
 
       const names = await listPage.getItemNames();
@@ -307,7 +309,8 @@ test.describe('Category filter (Scenario 7)', { tag: '@responsive' }, () => {
 // Scenario 8: Status filter narrows results
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Status filter (Scenario 8)', { tag: '@responsive' }, () => {
-  // Extend timeout: search() uses a 50s waitForResponse (see Scenario 4).
+  // Extend test timeout: these tests create real API data, search/filter, and
+  // delete — multi-step flows that take longer on mobile WebKit under CI load.
   test.describe.configure({ timeout: 60_000 });
 
   test('Status filter narrows list to items with selected status', async ({ page, testPrefix }) => {
@@ -327,12 +330,13 @@ test.describe('Status filter (Scenario 8)', { tag: '@responsive' }, () => {
 
       await listPage.search(`${testPrefix} HI Status`);
 
-      const filterResponsePromise = page.waitForResponse(
-        (resp) => resp.url().includes('/api/household-items') && resp.status() === 200,
-        { timeout: 50000 },
-      );
+      // Select 'planned' status — wait for URL then networkidle (avoids
+      // server-dependent waitForResponse which times out under CI load).
       await listPage.statusFilter.selectOption('planned');
-      await filterResponsePromise;
+      await page.waitForURL((url) => url.searchParams.get('status') === 'planned', {
+        timeout: 10000,
+      });
+      await page.waitForLoadState('networkidle', { timeout: 55000 });
       await listPage.waitForLoaded();
 
       const names = await listPage.getItemNames();
@@ -350,7 +354,8 @@ test.describe('Status filter (Scenario 8)', { tag: '@responsive' }, () => {
 // Scenario 9: Status badge rendered correctly
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Status badge rendering (Scenario 9)', { tag: '@responsive' }, () => {
-  // Extend timeout: search() uses a 50s waitForResponse (see Scenario 4).
+  // Extend test timeout: these tests create real API data, search/filter, and
+  // delete — multi-step flows that take longer on mobile WebKit under CI load.
   test.describe.configure({ timeout: 60_000 });
 
   test('Status badges render for planned, purchased, scheduled, arrived items', async ({
@@ -393,7 +398,8 @@ test.describe('Status badge rendering (Scenario 9)', { tag: '@responsive' }, () 
 // Scenario 10: Delete modal — confirm removes item
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Delete modal — confirm (Scenario 10)', { tag: '@responsive' }, () => {
-  // Extend timeout: search() uses a 50s waitForResponse (see Scenario 4).
+  // Extend test timeout: these tests create real API data, search/filter, and
+  // delete — multi-step flows that take longer on mobile WebKit under CI load.
   test.describe.configure({ timeout: 60_000 });
 
   test('Confirming delete removes the household item from the list', async ({
@@ -420,12 +426,11 @@ test.describe('Delete modal — confirm (Scenario 10)', { tag: '@responsive' }, 
     const modalText = await listPage.deleteModal.textContent();
     expect(modalText).toContain(name);
 
-    const listRefreshPromise = page.waitForResponse(
-      (resp) => resp.url().includes('/api/household-items') && resp.status() === 200,
-      { timeout: 50000 },
-    );
     await listPage.confirmDelete();
-    await listRefreshPromise;
+    // Wait for the delete + list refresh requests to complete (networkidle
+    // avoids server-dependent waitForResponse which times out under CI load).
+    await page.waitForLoadState('networkidle', { timeout: 55000 });
+    await listPage.waitForLoaded();
 
     const namesAfter = await listPage.getItemNames();
     expect(namesAfter).not.toContain(name);
@@ -438,7 +443,8 @@ test.describe('Delete modal — confirm (Scenario 10)', { tag: '@responsive' }, 
 // Scenario 11: Delete modal — cancel leaves item
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Delete modal — cancel (Scenario 11)', { tag: '@responsive' }, () => {
-  // Extend timeout: search() uses a 50s waitForResponse (see Scenario 4).
+  // Extend test timeout: these tests create real API data, search/filter, and
+  // delete — multi-step flows that take longer on mobile WebKit under CI load.
   test.describe.configure({ timeout: 60_000 });
 
   test('Cancelling delete modal leaves the household item in the list', async ({

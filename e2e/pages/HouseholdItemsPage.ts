@@ -163,37 +163,45 @@ export class HouseholdItemsPage {
   }
 
   /**
-   * Type a search query and wait for the API response and DOM to update.
-   * The response listener is registered BEFORE the fill to avoid a race with
-   * the 300ms debounce.
+   * Type a search query and wait for the DOM to reflect the results.
    *
-   * An explicit 50s timeout is used because debounce (300ms) + API round-trip
-   * can exceed 25s on heavily-loaded CI runners when all 16 shards run
-   * concurrently (each with 2 workers = 32 browser contexts against one
-   * SQLite container). Tests that call this method must extend their test
-   * timeout to 60s so the waitForResponse can run to completion.
+   * Strategy:
+   * 1. Fill the input.
+   * 2. Wait for URL to update to ?q=<query> — confirms the 300ms debounce
+   *    fired and React set the URL param (client-side, no server needed).
+   * 3. Wait for network idle — server response arrives and React updates DOM.
+   * 4. Wait for DOM to show rows/cards/empty-state.
+   *
+   * This avoids waitForResponse() which times out under heavy CI load (all
+   * 16 shards × 2 workers = 32 concurrent contexts against one SQLite
+   * container can block the server for >50s on writes, starving reads).
+   * networkidle (500ms of no requests) provides a server-agnostic signal that
+   * the fetch completed without hardcoding a specific timeout.
    */
   async search(query: string): Promise<void> {
-    const responsePromise = this.page.waitForResponse(
-      (resp) => resp.url().includes('/api/household-items') && resp.status() === 200,
-      { timeout: 50000 },
-    );
     await this.searchInput.fill(query);
-    await responsePromise;
+    // Step 2: wait for URL to update (debounce complete, React state updated)
+    await this.page.waitForURL((url) => url.searchParams.get('q') === query, {
+      timeout: 5000,
+    });
+    // Step 3: wait for server response (network goes idle after fetch completes)
+    await this.page.waitForLoadState('networkidle', { timeout: 55000 });
+    // Step 4: wait for DOM update
     await this.waitForLoaded();
   }
 
   /**
-   * Clear the search input and wait for the API response and DOM to update.
-   * An explicit 50s timeout is used for the same reason as search().
+   * Clear the search input and wait for the DOM to reflect unfiltered results.
    */
   async clearSearch(): Promise<void> {
-    const responsePromise = this.page.waitForResponse(
-      (resp) => resp.url().includes('/api/household-items') && resp.status() === 200,
-      { timeout: 50000 },
-    );
     await this.searchInput.clear();
-    await responsePromise;
+    // Wait for URL ?q param to clear (debounce complete, React state updated)
+    await this.page.waitForURL(
+      (url) => !url.searchParams.has('q') || url.searchParams.get('q') === '',
+      { timeout: 5000 },
+    );
+    // Wait for server response then DOM update
+    await this.page.waitForLoadState('networkidle', { timeout: 55000 });
     await this.waitForLoaded();
   }
 
@@ -234,6 +242,8 @@ export class HouseholdItemsPage {
 
   /**
    * Confirm the deletion in the delete modal.
+   * Uses an explicit 30s timeout for the DELETE response to handle server
+   * load on CI runners (all 16 shards × 2 workers concurrent).
    */
   async confirmDelete(): Promise<void> {
     const deleteResponsePromise = this.page.waitForResponse(
@@ -241,6 +251,7 @@ export class HouseholdItemsPage {
         resp.url().includes('/api/household-items') &&
         resp.request().method() === 'DELETE' &&
         resp.status() === 204,
+      { timeout: 30000 },
     );
     await this.deleteConfirmButton.click();
     await deleteResponsePromise;
