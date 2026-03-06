@@ -498,14 +498,6 @@ NODE_PATH=/path/to/cornerstone/server/node_modules:/path/to/cornerstone/client/n
 
 ## Story 6.2 (Scheduling Engine CPM, #248) — Key Patterns (2026-02-24)
 
-### ARM64 Prettier Fix Workflow
-
-- `npx prettier --check <file>` works on ARM64 (unlike Jest/ESLint)
-- Run BEFORE every `git commit --no-verify` to catch formatting issues early
-- Prettier COLLAPSES arrays/objects to single line if they fit within 100 chars
-  → Don't manually expand `[makeItem('A', 5), makeItem('B', 3, { key: 'val' })]` — 89 chars fits on one line
-- Two-line diagnosis: "warn: file.ts" only — use `npx prettier --write <file>` then `git diff` to see what changed
-
 ### CPM Engine Behavior
 
 - `today` floor ONLY for predecessor-less items (line 408-410 of schedulingEngine.ts)
