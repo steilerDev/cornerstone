@@ -18,6 +18,7 @@ import type {
   HouseholdItemDepDetail,
   HouseholdItemDepPredecessorType,
   MilestoneSummary,
+  HouseholdItemCategoryEntity,
 } from '@cornerstone/shared';
 import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
 import {
@@ -52,23 +53,13 @@ import { fetchSubsidyPrograms } from '../../lib/subsidyProgramsApi.js';
 import { listWorkItems } from '../../lib/workItemsApi.js';
 import { listMilestones } from '../../lib/milestonesApi.js';
 import { fetchInvoices } from '../../lib/invoicesApi.js';
+import { fetchHouseholdItemCategories } from '../../lib/householdItemCategoriesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { formatDate, formatCurrency } from '../../lib/formatters.js';
 import { HouseholdItemStatusBadge } from '../../components/HouseholdItemStatusBadge/HouseholdItemStatusBadge.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
 import styles from './HouseholdItemDetailPage.module.css';
-
-const CATEGORY_LABELS: Record<HouseholdItemCategory, string> = {
-  furniture: 'Furniture',
-  appliances: 'Appliances',
-  fixtures: 'Fixtures',
-  decor: 'Decor',
-  electronics: 'Electronics',
-  outdoor: 'Outdoor',
-  storage: 'Storage',
-  other: 'Other',
-};
 
 const CONFIDENCE_LABELS: Record<ConfidenceLevel, string> = {
   own_estimate: 'Own Estimate',
@@ -119,6 +110,7 @@ export function HouseholdItemDetailPage() {
   const [budgetSources, setBudgetSources] = useState<BudgetSource[]>([]);
   const [allVendors, setAllVendors] = useState<Vendor[]>([]);
   const [budgetLineInvoices, setBudgetLineInvoices] = useState<Record<string, Invoice[]>>({});
+  const [categories, setCategories] = useState<HouseholdItemCategoryEntity[]>([]);
 
   // Budget line form state
   const [showBudgetForm, setShowBudgetForm] = useState(false);
@@ -271,8 +263,8 @@ export function HouseholdItemDetailPage() {
 
   const loadBudgetData = async (itemId: string) => {
     try {
-      const [budgets, subsidies, payback, sources, vendors, programs, depsData] = await Promise.all(
-        [
+      const [budgets, subsidies, payback, sources, vendors, programs, depsData, categoriesData] =
+        await Promise.all([
           fetchHouseholdItemBudgets(itemId),
           fetchHouseholdItemSubsidies(itemId),
           fetchHouseholdItemSubsidyPayback(itemId),
@@ -280,8 +272,8 @@ export function HouseholdItemDetailPage() {
           fetchVendors({ pageSize: 100 }),
           fetchSubsidyPrograms(),
           fetchHouseholdItemDeps(itemId),
-        ],
-      );
+          fetchHouseholdItemCategories(),
+        ]);
       setBudgetLines(budgets);
       setLinkedSubsidies(subsidies);
       setSubsidyPayback(payback);
@@ -289,6 +281,7 @@ export function HouseholdItemDetailPage() {
       setAllVendors(vendors.vendors);
       setAllSubsidyPrograms(programs.subsidyPrograms);
       setDependencies(depsData);
+      setCategories(categoriesData.categories);
     } catch (err) {
       // Non-critical — budget data failure shouldn't block the page
       console.error('Failed to load budget data:', err);
@@ -759,7 +752,9 @@ export function HouseholdItemDetailPage() {
           <div className={styles.pageHeading}>
             <h1 className={styles.pageTitle}>{item.name}</h1>
             <div className={styles.headerBadges}>
-              <span className={styles.categoryBadge}>{CATEGORY_LABELS[item.category]}</span>
+              <span className={styles.categoryBadge}>
+                {categories.find((c) => c.id === item.category)?.name ?? item.category}
+              </span>
               <HouseholdItemStatusBadge status={item.status} />
             </div>
           </div>

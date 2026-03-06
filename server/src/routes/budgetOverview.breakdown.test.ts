@@ -9,10 +9,7 @@ import type { FastifyInstance } from 'fastify';
 import type { BudgetBreakdownResponse } from '@cornerstone/shared';
 import * as schema from '../db/schema.js';
 
-// TODO: Unskip after Bug #514 is fixed
-// Bug #514: budgetBreakdownService.ts still references dropped hi.category column after migration 0016
-// All calls to GET /api/budget/breakdown will fail with "no such column: hi.category".
-describe.skip('GET /api/budget/breakdown', () => {
+describe('GET /api/budget/breakdown', () => {
   let app: FastifyInstance;
   let tempDir: string;
   let originalEnv: NodeJS.ProcessEnv;
@@ -448,7 +445,7 @@ describe.skip('GET /api/budget/breakdown', () => {
     const { breakdown } = response.json<BudgetBreakdownResponse>();
 
     expect(breakdown.householdItems.categories).toHaveLength(1);
-    expect(breakdown.householdItems.categories[0].hiCategory).toBe('appliances');
+    expect(breakdown.householdItems.categories[0].hiCategory).toBe('hic-appliances');
     expect(breakdown.householdItems.categories[0].items[0].costDisplay).toBe('projected');
   });
 });

@@ -107,7 +107,7 @@ describe('Household Item Service', () => {
       expect(result.id).toBeDefined();
       expect(result.name).toBe('Living Room Sofa');
       expect(result.description).toBeNull();
-      expect(result.category).toBe('other');
+      expect(result.category).toBe('hic-other');
       expect(result.status).toBe('planned');
       expect(result.quantity).toBe(1);
       expect(result.vendor).toBeNull();

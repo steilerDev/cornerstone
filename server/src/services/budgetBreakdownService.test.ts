@@ -7,10 +7,7 @@ import * as schema from '../db/schema.js';
 import { getBudgetBreakdown } from './budgetBreakdownService.js';
 import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
 
-// TODO: Unskip after Bug #514 is fixed
-// Bug #514: budgetBreakdownService.ts still references dropped hi.category column after migration 0016
-// The service's raw SQL uses `hi.category` which no longer exists — throws at runtime.
-describe.skip('getBudgetBreakdown', () => {
+describe('getBudgetBreakdown', () => {
   let sqlite: Database.Database;
   let db: BetterSQLite3Database<typeof schema>;
 

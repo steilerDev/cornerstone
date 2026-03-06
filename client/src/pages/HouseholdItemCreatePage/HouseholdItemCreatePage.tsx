@@ -32,7 +32,7 @@ export function HouseholdItemCreatePage() {
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState<HouseholdItemCategory>('other');
+  const [category, setCategory] = useState<HouseholdItemCategory>('' as HouseholdItemCategory);
   const [status, setStatus] = useState<HouseholdItemStatus>('planned');
   const [quantity, setQuantity] = useState(1);
   const [vendorId, setVendorId] = useState('');
@@ -66,7 +66,7 @@ export function HouseholdItemCreatePage() {
         setAvailableTags(tagsResponse.tags);
         setVendors(vendorsResponse.vendors);
         setCategories(categoriesResponse.categories);
-        // Set default category to first one from API, or fall back to empty string
+        // Set default category to first one from API for better UX
         if (categoriesResponse.categories.length > 0) {
           setCategory(categoriesResponse.categories[0].id as HouseholdItemCategory);
         }
@@ -92,6 +92,10 @@ export function HouseholdItemCreatePage() {
 
     if (!name.trim()) {
       errors.name = 'Name is required';
+    }
+
+    if (!category) {
+      errors.category = 'Category is required';
     }
 
     if (quantity < 1) {
@@ -217,18 +221,26 @@ export function HouseholdItemCreatePage() {
             </label>
             <select
               id="category"
-              className={styles.select}
+              className={`${styles.select} ${validationErrors.category ? styles.selectError : ''}`}
               value={category}
               onChange={(e) => setCategory(e.target.value as HouseholdItemCategory)}
               disabled={isSubmitting}
               aria-required="true"
+              aria-invalid={!!validationErrors.category}
+              aria-describedby={validationErrors.category ? 'hi-create-category-error' : undefined}
             >
+              <option value="">— Select Category —</option>
               {categories.map((cat) => (
                 <option key={cat.id} value={cat.id}>
                   {cat.name}
                 </option>
               ))}
             </select>
+            {validationErrors.category && (
+              <div id="hi-create-category-error" className={styles.errorText} role="alert">
+                {validationErrors.category}
+              </div>
+            )}
           </div>
 
           <div className={styles.formGroup}>

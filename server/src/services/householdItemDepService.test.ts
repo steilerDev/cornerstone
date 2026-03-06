@@ -551,7 +551,7 @@ describe('householdItemDepService', () => {
       const hi = result[0];
       expect(hi.id).toBe(hiId);
       expect(hi.name).toBe('Custom Sofa');
-      expect(hi.category).toBe('furniture');
+      expect(hi.category).toBe('hic-furniture');
       expect(hi.status).toBe('purchased');
       expect(hi.targetDeliveryDate).toBe('2026-06-01');
       expect(hi.earliestDeliveryDate).toBe('2026-05-20');

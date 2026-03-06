@@ -25,7 +25,7 @@ export function HouseholdItemEditPage() {
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState<HouseholdItemCategory>('other');
+  const [category, setCategory] = useState<HouseholdItemCategory>('' as HouseholdItemCategory);
   const [quantity, setQuantity] = useState(1);
   const [vendorId, setVendorId] = useState('');
   const [url, setUrl] = useState('');
@@ -100,6 +100,10 @@ export function HouseholdItemEditPage() {
 
     if (!name.trim()) {
       errors.name = 'Name is required';
+    }
+
+    if (!category) {
+      errors.category = 'Category is required';
     }
 
     if (quantity < 1) {
@@ -231,18 +235,26 @@ export function HouseholdItemEditPage() {
             </label>
             <select
               id="category"
-              className={styles.select}
+              className={`${styles.select} ${validationErrors.category ? styles.selectError : ''}`}
               value={category}
               onChange={(e) => setCategory(e.target.value as HouseholdItemCategory)}
               disabled={isSubmitting}
               aria-required="true"
+              aria-invalid={!!validationErrors.category}
+              aria-describedby={validationErrors.category ? 'hi-edit-category-error' : undefined}
             >
+              <option value="">— Select Category —</option>
               {categories.map((cat) => (
                 <option key={cat.id} value={cat.id}>
                   {cat.name}
                 </option>
               ))}
             </select>
+            {validationErrors.category && (
+              <div id="hi-edit-category-error" className={styles.errorText} role="alert">
+                {validationErrors.category}
+              </div>
+            )}
           </div>
 
           <div className={styles.formGroup}>

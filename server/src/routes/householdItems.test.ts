@@ -113,7 +113,7 @@ describe('Household Item Routes', () => {
       expect(item.id).toBeDefined();
       expect(item.name).toBe('Living Room Sofa');
       expect(item.description).toBeNull();
-      expect(item.category).toBe('other');
+      expect(item.category).toBe('hic-other');
       expect(item.status).toBe('planned');
       expect(item.quantity).toBe(1);
       expect(item.vendor).toBeNull();
@@ -611,21 +611,23 @@ describe('Household Item Routes', () => {
       expect(body.items[0].name).toBe('Coffee Table');
     });
 
-    it('returns 400 when category query param is invalid', async () => {
+    it('returns 200 with empty list when category query param is unknown (no enum validation)', async () => {
       // Given: Authenticated user
       const { cookie } = await createUserWithSession('user@example.com', 'User', 'password');
 
-      // When: Using invalid category
+      // When: Using a non-existent category ID
+      // After migration 0016, category is a free-form string validated against the DB.
+      // An unknown category ID simply returns an empty list rather than a 400.
       const response = await app.inject({
         method: 'GET',
         url: '/api/household-items?category=invalid_category',
         headers: { cookie },
       });
 
-      // Then: Returns 400
-      expect(response.statusCode).toBe(400);
-      const error = JSON.parse(response.body) as ApiErrorResponse;
-      expect(error.error.code).toBe('VALIDATION_ERROR');
+      // Then: Returns 200 with empty results (no items match this unknown category ID)
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body) as { items: unknown[] };
+      expect(body.items).toHaveLength(0);
     });
 
     it('returns 400 when sortBy is invalid', async () => {
