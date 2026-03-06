@@ -1,5 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import type { BudgetOverview, BudgetBreakdown, CategoryBudgetSummary, BudgetSource } from '@cornerstone/shared';
+import type {
+  BudgetOverview,
+  BudgetBreakdown,
+  CategoryBudgetSummary,
+  BudgetSource,
+} from '@cornerstone/shared';
 import { fetchBudgetOverview, fetchBudgetBreakdown } from '../../lib/budgetOverviewApi.js';
 import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
@@ -592,21 +597,13 @@ export function BudgetOverviewPage() {
                   onClick={() => setRemainingDetailOpen((v) => !v)}
                 >
                   <span
-                    className={
-                      remainingMin >= 0
-                        ? styles.metricPositive
-                        : styles.metricNegative
-                    }
+                    className={remainingMin >= 0 ? styles.metricPositive : styles.metricNegative}
                   >
                     {formatShort(remainingMin)}
                   </span>
                   <span className={styles.metricRangeSep}>&ndash;</span>
                   <span
-                    className={
-                      remainingMax >= 0
-                        ? styles.metricPositive
-                        : styles.metricNegative
-                    }
+                    className={remainingMax >= 0 ? styles.metricPositive : styles.metricNegative}
                   >
                     {formatShort(remainingMax)}
                   </span>
@@ -679,7 +676,6 @@ export function BudgetOverviewPage() {
               availableFunds={overview.availableFunds}
             />
           </div>
-
 
           {/* Category filter */}
           {overview.categorySummaries.length > 0 && (

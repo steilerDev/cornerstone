@@ -122,11 +122,13 @@ describe('BudgetOverviewPage', () => {
   /**
    * Build a minimal BudgetSource for tests.
    */
-  function buildBudgetSource(opts: {
-    id?: string;
-    name?: string;
-    totalAmount?: number;
-  } = {}): BudgetSource {
+  function buildBudgetSource(
+    opts: {
+      id?: string;
+      name?: string;
+      totalAmount?: number;
+    } = {},
+  ): BudgetSource {
     return {
       id: opts.id ?? 'src-1',
       name: opts.name ?? 'Bank Loan',
@@ -340,24 +342,35 @@ describe('BudgetOverviewPage', () => {
     });
 
     it('renders a BudgetHealthIndicator badge (role="status")', async () => {
-      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
+      // Use an overview with remainingVsMaxPlanned=40000 → margin 20% > 10% → On Budget
+      // (component passes remainingVsMaxPlanned as remainingVsProjectedMax to BudgetHealthIndicator
+      // when hasPayback=false)
+      const onBudgetOverview: BudgetOverview = {
+        ...richOverview,
+        remainingVsMaxPlanned: 40000,
+        remainingVsMaxPlannedWithPayback: 40000,
+      };
+      mockFetchBudgetOverview.mockResolvedValueOnce(onBudgetOverview);
       renderPage();
 
       // The health badge has role="status"; the loading indicator also had it but is gone now
       await waitFor(() => {
         const statusEl = screen.getByRole('status');
         expect(statusEl).toBeInTheDocument();
-        // richOverview: remaining vs projected max = 40000, availableFunds = 200000 → margin 20% → On Budget
+        // remainingVsMaxPlanned=40000, availableFunds=200000 → margin 20% → On Budget
         expect(statusEl).toHaveTextContent(/on budget/i);
       });
     });
 
     it('shows "Over Budget" when remaining vs projected max is negative', async () => {
+      // Component uses remainingVsMaxPlanned (or WithPayback when hasPayback) for health indicator.
+      // Set both to negative to trigger "Over Budget" status.
       const overBudgetOverview: BudgetOverview = {
         ...richOverview,
         availableFunds: 100000,
         projectedMax: 150000, // exceeds available
-        remainingVsProjectedMax: -50000,
+        remainingVsMaxPlanned: -50000, // negative → Over Budget
+        remainingVsMaxPlannedWithPayback: -50000,
       };
       mockFetchBudgetOverview.mockResolvedValueOnce(overBudgetOverview);
       renderPage();
@@ -368,11 +381,14 @@ describe('BudgetOverviewPage', () => {
     });
 
     it('shows "At Risk" when margin <= 10%', async () => {
+      // Component uses remainingVsMaxPlanned for health indicator when hasPayback=false.
+      // margin = remainingVsMaxPlanned / availableFunds = 5000 / 100000 = 5% → At Risk
       const atRiskOverview: BudgetOverview = {
         ...richOverview,
         availableFunds: 100000,
-        projectedMax: 95000, // margin = 5000/100000 = 5% → At Risk
-        remainingVsProjectedMax: 5000,
+        projectedMax: 95000,
+        remainingVsMaxPlanned: 5000, // margin = 5000/100000 = 5% → At Risk
+        remainingVsMaxPlannedWithPayback: 5000,
       };
       mockFetchBudgetOverview.mockResolvedValueOnce(atRiskOverview);
       renderPage();
@@ -434,15 +450,16 @@ describe('BudgetOverviewPage', () => {
       });
     });
 
-    it('shows remaining range values (vs projected min and max)', async () => {
+    it('shows remaining range values (vs min planned and max planned)', async () => {
       mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
       renderPage();
 
-      // remainingVsProjectedMin = 60000 → €60K, remainingVsProjectedMax = 40000 → €40K
+      // Component uses remainingVsMinPlanned and remainingVsMaxPlanned when hasPayback=false.
+      // richOverview: remainingVsMinPlanned=80000 → €80K, remainingVsMaxPlanned=20000 → €20K
       // These values may appear in multiple elements (tooltip + mobile panel)
       await waitFor(() => {
-        expect(screen.getAllByText(/€60K/).length).toBeGreaterThan(0);
-        expect(screen.getAllByText(/€40K/).length).toBeGreaterThan(0);
+        expect(screen.getAllByText(/€80K/).length).toBeGreaterThan(0);
+        expect(screen.getAllByText(/€20K/).length).toBeGreaterThan(0);
       });
     });
   });
@@ -1048,9 +1065,7 @@ describe('BudgetOverviewPage', () => {
       // CostBreakdownTable should be visible with the "Available funds" expand button
       // (only appears when budgetSources.length > 0)
       await waitFor(() => {
-        expect(
-          screen.getByRole('button', { name: /expand available funds/i }),
-        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /expand available funds/i })).toBeInTheDocument();
       });
     });
   });

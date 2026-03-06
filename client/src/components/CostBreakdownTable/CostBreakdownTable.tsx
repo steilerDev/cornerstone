@@ -86,7 +86,12 @@ function PerspectiveToggle({
   }
 
   return (
-    <div ref={groupRef} className={styles.perspectiveToggle} role="radiogroup" aria-label="Cost perspective">
+    <div
+      ref={groupRef}
+      className={styles.perspectiveToggle}
+      role="radiogroup"
+      aria-label="Cost perspective"
+    >
       {options.map((opt) => (
         <button
           key={opt.value}
@@ -142,20 +147,14 @@ function CostDisplay({
   }
 
   if (costDisplay === 'projected') {
-    return (
-      <span>
-        {formatCurrency(perspectiveValue)}
-      </span>
-    );
+    return <span>{formatCurrency(perspectiveValue)}</span>;
   }
 
   // mixed
   return (
     <div className={styles.costMixedWrapper}>
       <span className={styles.valuePositive}>Actual: {formatCurrency(actualCost)}</span>
-      <span>
-        Projected: {formatCurrency(perspectiveValue)}
-      </span>
+      <span>Projected: {formatCurrency(perspectiveValue)}</span>
     </div>
   );
 }
@@ -189,9 +188,7 @@ function BudgetLineRow({
         {line.hasInvoice ? (
           <span>Actual: {formatCurrency(line.actualCost)}</span>
         ) : (
-          <span>
-            {formatCurrency(perspectiveValue)}
-          </span>
+          <span>{formatCurrency(perspectiveValue)}</span>
         )}
       </td>
       <td className={styles.colPayback}>—</td>
@@ -302,7 +299,9 @@ function WorkItemCategorySection({
           </div>
         </td>
         <td className={styles.colBudget}>
-          {formatCurrency(resolveProjected(category.projectedMin, category.projectedMax, perspective))}
+          {formatCurrency(
+            resolveProjected(category.projectedMin, category.projectedMax, perspective),
+          )}
         </td>
         <td className={styles.colPayback}>
           {category.subsidyPayback === 0 ? '—' : formatCurrency(category.subsidyPayback)}
@@ -330,7 +329,9 @@ function WorkItemCategorySection({
               </div>
             </td>
             <td className={styles.colBudget}>
-              {formatCurrency(resolveProjected(category.projectedMin, category.projectedMax, perspective))}
+              {formatCurrency(
+                resolveProjected(category.projectedMin, category.projectedMax, perspective),
+              )}
             </td>
             <td className={styles.colPayback}>
               {category.subsidyPayback === 0 ? '—' : formatCurrency(category.subsidyPayback)}
@@ -446,7 +447,9 @@ function HouseholdItemCategorySection({
           </div>
         </td>
         <td className={styles.colBudget}>
-          {formatCurrency(resolveProjected(category.projectedMin, category.projectedMax, perspective))}
+          {formatCurrency(
+            resolveProjected(category.projectedMin, category.projectedMax, perspective),
+          )}
         </td>
         <td className={styles.colPayback}>
           {category.subsidyPayback === 0 ? '—' : formatCurrency(category.subsidyPayback)}
@@ -474,7 +477,9 @@ function HouseholdItemCategorySection({
               </div>
             </td>
             <td className={styles.colBudget}>
-              {formatCurrency(resolveProjected(category.projectedMin, category.projectedMax, perspective))}
+              {formatCurrency(
+                resolveProjected(category.projectedMin, category.projectedMax, perspective),
+              )}
             </td>
             <td className={styles.colPayback}>
               {category.subsidyPayback === 0 ? '—' : formatCurrency(category.subsidyPayback)}
@@ -695,7 +700,9 @@ export function CostBreakdownTable({
                     </div>
                   </td>
                   <td className={styles.colBudget}>
-                    {formatCurrency(resolveProjected(wiTotals.projectedMin, wiTotals.projectedMax, perspective))}
+                    {formatCurrency(
+                      resolveProjected(wiTotals.projectedMin, wiTotals.projectedMax, perspective),
+                    )}
                   </td>
                   <td className={styles.colPayback}>{formatCurrency(wiTotals.subsidyPayback)}</td>
                   <td className={styles.colRemaining}>—</td>
@@ -738,7 +745,9 @@ export function CostBreakdownTable({
                     </div>
                   </td>
                   <td className={styles.colBudget}>
-                    {formatCurrency(resolveProjected(hiTotals.projectedMin, hiTotals.projectedMax, perspective))}
+                    {formatCurrency(
+                      resolveProjected(hiTotals.projectedMin, hiTotals.projectedMax, perspective),
+                    )}
                   </td>
                   <td className={styles.colPayback}>{formatCurrency(hiTotals.subsidyPayback)}</td>
                   <td className={styles.colRemaining}>—</td>

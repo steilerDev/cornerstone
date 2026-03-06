@@ -229,7 +229,7 @@ function buildBreakdownWithWI(
   const subsidyPayback = opts.subsidyPayback ?? 0;
   const itemTitle = opts.itemTitle ?? 'Foundation Work';
   const workItemId = opts.workItemId ?? 'wi-1';
-  const hasInvoice = opts.hasInvoice ?? (actualCost > 0);
+  const hasInvoice = opts.hasInvoice ?? actualCost > 0;
 
   return {
     workItems: {
@@ -349,7 +349,9 @@ function buildBreakdownWithHI(
 /**
  * Build a minimal BudgetSource for tests.
  */
-function buildBudgetSource(opts: { id?: string; name?: string; totalAmount?: number } = {}): BudgetSource {
+function buildBudgetSource(
+  opts: { id?: string; name?: string; totalAmount?: number } = {},
+): BudgetSource {
   return {
     id: opts.id ?? 'src-1',
     name: opts.name ?? 'Bank Loan',
@@ -618,9 +620,9 @@ describe('CostBreakdownTable', () => {
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
     fireEvent.click(getButtonByControls(container, 'wi-cat-cat-mat2-items'));
 
-    // The item row CostDisplay renders a span with the range text
-    // The category row also renders the range. Check using a partial text matcher.
-    expect(screen.getAllByText(/€800\.00/).length).toBeGreaterThanOrEqual(1);
+    // The component uses a perspective toggle (default "max"). For projectedMin=800, projectedMax=1200,
+    // the default "max" perspective shows €1,200.00 as a single value (not a range).
+    // Both the category row and the item row should show €1,200.00.
     expect(screen.getAllByText(/€1,200\.00/).length).toBeGreaterThanOrEqual(1);
   });
 
@@ -1561,7 +1563,9 @@ describe('CostBreakdownTable', () => {
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview(100000)}
         selectedCategories={new Set()}
-        budgetSources={[buildBudgetSource({ id: 'src-1', name: 'Credit Line', totalAmount: 60000 })]}
+        budgetSources={[
+          buildBudgetSource({ id: 'src-1', name: 'Credit Line', totalAmount: 60000 }),
+        ]}
       />,
     );
 
