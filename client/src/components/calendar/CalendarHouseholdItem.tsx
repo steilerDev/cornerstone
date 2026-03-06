@@ -34,7 +34,8 @@ export function CalendarHouseholdItem({
   onMouseLeave,
   onMouseMove,
   isTouchDevice = false,
-  _activeTouchId = null,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  activeTouchId = null,
   onTouchTap,
 }: CalendarHouseholdItemProps) {
   const navigate = useNavigate();
