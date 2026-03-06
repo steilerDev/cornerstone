@@ -8,20 +8,22 @@ concurrency:
   group: auto-fix-beta
   cancel-in-progress: true
 
-permissions:
-  contents: write
-  pull-requests: write
-
 jobs:
   auto-fix:
     name: Auto Fix Lint & Format
     runs-on: ubuntu-latest
-    if: github.actor != 'github-actions[bot]'
+    if: github.actor != 'cornerstone-bot[bot]'
     steps:
+      - name: Generate app token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.BOT_APP_ID }}
+          private-key: ${{ secrets.BOT_PRIVATE_KEY }}
       - uses: actions/checkout@v6
         with:
           ref: beta
-          token: ${{ github.token }}
+          token: ${{ steps.app-token.outputs.token }}
       - uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
@@ -42,21 +44,11 @@ jobs:
           else
             echo "has_changes=true" >> "$GITHUB_OUTPUT"
           fi
-      - name: Create fix PR
+      - name: Push fixes to beta
         if: steps.changes.outputs.has_changes == 'true'
         run: |
-          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
-          BRANCH="auto-fix/lint-format-${SHORT_SHA}"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout -b "$BRANCH"
+          git config user.name "cornerstone-bot[bot]"
+          git config user.email "${{ steps.app-token.outputs.app-slug }}[bot]@users.noreply.github.com"
           git add -A
           git commit -m "style: auto-fix lint and format"
-          git push origin "$BRANCH"
-          gh pr create \
-            --base beta \
-            --head "$BRANCH" \
-            --title "style: auto-fix lint and format" \
-            --body "Automated lint, format, and audit fixes triggered by $(git log -1 --format='%h %s' ${{ github.sha }})."
-        env:
-          GH_TOKEN: ${{ github.token }}
+          git push origin beta
