@@ -328,3 +328,26 @@ The sandbox has strict limitations for git operations in worktrees:
 
 - `.husky/pre-commit`: runs `npm run typecheck` (typecheck only — lint, format, and audit are handled by CI auto-fix workflow)
 - Lint, format, and `npm audit fix` run automatically on `beta` via `.github/workflows/auto-fix.yml`
+
+## Bug #484 Fix — Milestones on Critical Path
+
+**Issue**: Milestones never appeared on the critical path, even when they sat on the longest path through the project.
+
+**Root cause**: Milestone dependency expansion in `autoReschedule()` created synthetic WI→WI dependencies but did NOT add milestones as CPM nodes. The CPM graph never saw the milestones, so they couldn't be marked as critical.
+
+**Solution**: Model milestones as zero-duration CPM nodes with ID prefix `milestone:<id>`. The scheduler naturally includes them in critical path calculations.
+
+**Changes** (PR #487):
+- `shared/src/types/timeline.ts`: Add `isCritical?: boolean` to `TimelineMilestone`
+- `server/src/services/schedulingEngine.ts`:
+  - Replace synthetic WI→WI expansion with milestone CPM nodes
+  - Create one node per milestone with contributors or dependents (ID = `milestone:<id>`, zero duration)
+  - Create FS deps: contributor→milestone and milestone→dependent
+  - Skip writing milestone nodes back to DB (section 7: filter IDs starting with `milestone:`)
+- `server/src/services/timelineService.ts`:
+  - Add milestone CPM nodes to `getTimeline()` schedule call
+  - Extract critical milestone IDs from CPM result
+  - Filter `milestone:` entries from returned `criticalPath` array (API only returns WI IDs)
+  - Propagate `isCritical` field to each milestone in response
+
+Key insight: The CPM engine already handles zero-duration nodes correctly. By giving milestones their own nodes (instead of expanding them away), the critical path calculation naturally identifies them.

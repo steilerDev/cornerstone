@@ -68,6 +68,10 @@ export interface GanttMilestonesProps {
    * When null/undefined, no arrow hover is active and all milestones render normally.
    */
   milestoneInteractionStates?: ReadonlyMap<number, MilestoneInteractionState>;
+  /** Set of milestone IDs on the critical path. */
+  criticalMilestoneIds?: ReadonlySet<number>;
+  /** Border color for critical path milestones. */
+  criticalBorderColor?: string;
   /** Called when a diamond is hovered (for tooltip). Passes milestone and mouse coords. */
   onMilestoneMouseEnter?: (
     milestone: TimelineMilestone,
@@ -104,6 +108,10 @@ interface DiamondMarkerProps {
   isGhost?: boolean;
   /** Visual interaction state when an arrow is hovered. */
   interactionState?: MilestoneInteractionState;
+  /** When true, renders with thicker stroke using the critical border color. */
+  isCritical?: boolean;
+  /** Border color for critical path styling. */
+  criticalBorderColor?: string;
   /**
    * Callback on keyboard focus — triggers the same highlight/dim and tooltip
    * behavior as mouse enter. Passes the focus event for positioning.
@@ -125,6 +133,8 @@ const DiamondMarker = memo(function DiamondMarker({
   onClick,
   isGhost = false,
   interactionState = 'default',
+  isCritical = false,
+  criticalBorderColor,
   onFocus,
   onBlur,
 }: DiamondMarkerProps) {
@@ -214,8 +224,8 @@ const DiamondMarker = memo(function DiamondMarker({
       <polygon
         points={points}
         fill={fill}
-        stroke={stroke}
-        strokeWidth={2}
+        stroke={isCritical && criticalBorderColor ? criticalBorderColor : stroke}
+        strokeWidth={isCritical && !isGhost ? 3 : 2}
         className={styles.diamondPolygon}
       />
 
@@ -250,6 +260,8 @@ export const GanttMilestones = memo(function GanttMilestones({
   colors,
   columnWidth,
   milestoneInteractionStates,
+  criticalMilestoneIds,
+  criticalBorderColor,
   onMilestoneMouseEnter,
   onMilestoneMouseLeave,
   onMilestoneMouseMove,
@@ -267,7 +279,8 @@ export const GanttMilestones = memo(function GanttMilestones({
         const status = computeMilestoneStatus(milestone);
         const statusLabel =
           status === 'completed' ? 'completed' : status === 'late' ? 'late' : 'incomplete';
-        const ariaLabel = `Milestone: ${milestone.title}, ${statusLabel}, target date ${milestone.targetDate}`;
+        const isCriticalMilestone = criticalMilestoneIds?.has(milestone.id) ?? false;
+        const ariaLabel = `Milestone: ${milestone.title}, ${statusLabel}${isCriticalMilestone ? ', critical path' : ''}, target date ${milestone.targetDate}`;
 
         // Row index from the unified sorted list
         const milestoneRowIndex = milestoneRowIndices.get(milestone.id) ?? 0;
@@ -324,6 +337,8 @@ export const GanttMilestones = memo(function GanttMilestones({
                 label={`${milestone.title} planned date`}
                 colors={colors}
                 isGhost
+                isCritical={isCriticalMilestone}
+                criticalBorderColor={criticalBorderColor}
                 onMouseEnter={() => {}}
                 onMouseLeave={() => {}}
                 onMouseMove={() => {}}
@@ -339,6 +354,8 @@ export const GanttMilestones = memo(function GanttMilestones({
               label={ariaLabel}
               colors={colors}
               interactionState={interactionState}
+              isCritical={isCriticalMilestone}
+              criticalBorderColor={criticalBorderColor}
               onMouseEnter={(e) => onMilestoneMouseEnter?.(milestone, e)}
               onMouseLeave={() => onMilestoneMouseLeave?.(milestone)}
               onMouseMove={(e) => onMilestoneMouseMove?.(e)}

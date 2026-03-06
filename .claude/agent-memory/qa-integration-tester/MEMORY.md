@@ -689,6 +689,41 @@ Key learnings from updating these two test files:
 - **Tsc validates test files without running them**: `node_modules/.bin/tsc --noEmit --project client/tsconfig.json 2>&1 | grep "TestFile"` — useful when Jest crashes (SIGILL/TypeScript version mismatch in sandbox).
 - **TypeScript version mismatch**: Main repo node_modules has TypeScript incompatible with Node.js v24 in this sandbox (SyntaxError on load). Tests cannot be run locally; commit and rely on CI.
 
+## Bug #484 Milestone CPM Tests (fix/484-milestone-critical-path, 2026-03-06)
+
+### CPM float math for milestone non-critical scenario
+
+A milestone has positive float (NOT critical) ONLY when there is a longer sibling path
+**downstream** of it that converges to the same shared terminal node. Correct test pattern:
+
+```
+wi-a (1d) → milestone:1 (0d) → wi-c (2d)   [path total: 3d]
+wi-a (1d) → wi-b (10d) → wi-c (2d)          [path total: 13d — longer path]
+```
+
+Both paths converge on `wi-c`. Backward pass: `wi-c` LS = day11 (from wi-b path).
+`milestone:1` LF = LS of `wi-c` = day11. float = day11 - day1 = 10 days → NOT critical.
+
+**Anti-pattern**: Two independent terminal nodes (no shared successor) each have 0 float
+independently — so the milestone IS critical even with a longer sibling path that doesn't
+share the same terminal. Always ensure paths converge to a shared terminal node.
+
+### New test files added
+
+- `server/src/services/schedulingEngine.milestoneCpm.test.ts` — 15 tests (pure `schedule()` + `autoReschedule` DB writes)
+- `server/src/services/timelineService.test.ts` — 9 new tests in existing file (isCritical propagation, criticalPath filtering)
+- `client/src/components/GanttChart/GanttMilestones.test.tsx` — 20 new tests in existing file (strokeWidth, ghost diamond, aria-label)
+
+### Critical milestone aria-label pattern
+
+`GanttMilestones.tsx` builds: `Milestone: ${title}, ${statusLabel}${isCritical ? ', critical path' : ''}, target date ${date}`
+Test: `expect(label.toLowerCase()).toContain('critical path')` for critical; `.not.toContain` for non-critical.
+
+### Ghost diamond never inherits critical strokeWidth
+
+Ghost polygon always has `strokeWidth={1.5}` and `strokeDasharray` regardless of `isCritical`.
+The active diamond (last polygon in group for late milestones) gets `strokeWidth={3}` when critical.
+
 ## Story 4.7 Work Item Linking Tests (2026-03-03)
 
 **57 comprehensive tests committed: 15 service + 20 route integration + 22 API client**

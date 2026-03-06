@@ -49,6 +49,7 @@ const MILESTONE_INCOMPLETE: TimelineMilestone = {
   color: null,
   workItemIds: ['wi-1', 'wi-2'],
   projectedDate: null,
+  isCritical: false,
 };
 
 const MILESTONE_COMPLETE: TimelineMilestone = {
@@ -60,6 +61,7 @@ const MILESTONE_COMPLETE: TimelineMilestone = {
   color: '#EF4444',
   workItemIds: [],
   projectedDate: null,
+  isCritical: false,
 };
 
 // projectedDate after targetDate → late
@@ -72,6 +74,7 @@ const MILESTONE_LATE: TimelineMilestone = {
   color: null,
   workItemIds: ['wi-3'],
   projectedDate: '2024-09-01', // projected > target → late
+  isCritical: false,
 };
 
 // ---------------------------------------------------------------------------
@@ -708,6 +711,41 @@ describe('critical path milestone styling', () => {
       // Normal incomplete milestone uses incompleteStroke, not criticalBorderColor
       expect(activePoly?.getAttribute('stroke')).toBe(COLORS.incompleteStroke);
       expect(activePoly?.getAttribute('stroke')).not.toBe(CRITICAL_BORDER_COLOR);
+    });
+
+    it('milestone in criticalMilestoneIds but with criticalBorderColor omitted falls back to status stroke color', () => {
+      // DiamondMarker fallback: isCritical && criticalBorderColor ? criticalBorderColor : stroke
+      // When criticalBorderColor is not provided, the normal status stroke is used even for a
+      // milestone whose id is in criticalMilestoneIds.
+      renderMilestones({
+        milestones: [MILESTONE_CRITICAL],
+        milestoneRowIndices: new Map([[MILESTONE_CRITICAL.id, 0]]),
+        criticalMilestoneIds: new Set([MILESTONE_CRITICAL.id]),
+        // criticalBorderColor intentionally omitted
+      });
+      const layer = screen.getByTestId('gantt-milestones-layer');
+      const polygons = layer.querySelectorAll('polygon');
+      const activePoly = polygons[polygons.length - 1];
+      // Without criticalBorderColor the fallback is the normal incompleteStroke — not undefined
+      expect(activePoly?.getAttribute('stroke')).toBe(COLORS.incompleteStroke);
+      expect(activePoly?.getAttribute('stroke')).toBeTruthy();
+    });
+
+    it('milestone with isCritical:true in data but empty criticalMilestoneIds set renders with strokeWidth 2', () => {
+      // criticalMilestoneIds (the prop) controls rendering, not the data field isCritical.
+      // Passing an empty set means no milestone is treated as critical, regardless of the
+      // TimelineMilestone.isCritical field value.
+      renderMilestones({
+        milestones: [MILESTONE_CRITICAL], // isCritical: true on the data object
+        milestoneRowIndices: new Map([[MILESTONE_CRITICAL.id, 0]]),
+        criticalMilestoneIds: new Set<number>(), // empty — milestone id NOT in the set
+        criticalBorderColor: CRITICAL_BORDER_COLOR,
+      });
+      const layer = screen.getByTestId('gantt-milestones-layer');
+      const polygons = layer.querySelectorAll('polygon');
+      const activePoly = polygons[polygons.length - 1];
+      // The prop controls rendering; empty set → strokeWidth 2 (non-critical styling)
+      expect(activePoly?.getAttribute('stroke-width')).toBe('2');
     });
   });
 
