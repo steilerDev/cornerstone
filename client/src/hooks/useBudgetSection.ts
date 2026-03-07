@@ -41,14 +41,9 @@ export interface UseBudgetSectionOptions<T extends BaseBudgetLine> {
   reloadSubsidyPayback(): Promise<void>;
 
   /**
-   * Callback to reload linked subsidies on subsidy unlink
+   * Callback to reload linked subsidies after subsidy operations (link/unlink)
    */
   reloadLinkedSubsidies(): Promise<void>;
-
-  /**
-   * Callback to reload linked subsidies after subsidy link (different from unlink for flexibility)
-   */
-  reloadLinkedSubsidiesOnLink(): Promise<void>;
 
   /**
    * Convert a budget line to form state. Maps entity-specific fields to BudgetLineFormState.
@@ -71,7 +66,7 @@ export interface UseBudgetSectionOptions<T extends BaseBudgetLine> {
  * Return value from useBudgetSection hook.
  * Provides all state and handlers for budget line and subsidy linking UI.
  */
-export interface UseBudgetSectionReturn {
+export interface UseBudgetSectionReturn<T extends BaseBudgetLine = BaseBudgetLine> {
   // Budget line form state
   showBudgetForm: boolean;
   budgetForm: BudgetLineFormState;
@@ -86,17 +81,18 @@ export interface UseBudgetSectionReturn {
 
   // Budget line form handlers
   openAddBudgetForm(): void;
-  openEditBudgetForm(line: any): void;
+  openEditBudgetForm(line: T): void;
   closeBudgetForm(): void;
   handleSaveBudgetLine(event: FormEvent): Promise<void>;
   handleDeleteBudgetLine(budgetId: string): void;
   confirmDeleteBudgetLine(): Promise<void>;
-  setBudgetForm(updates: Partial<BudgetLineFormState> | BudgetLineFormState): void;
+  setBudgetFormPartial(updates: Partial<BudgetLineFormState>): void;
+  setBudgetForm(state: BudgetLineFormState): void;
   setDeletingBudgetId(id: string | null): void;
 
   // Subsidy linking handlers
   handleLinkSubsidy(): Promise<void>;
-  handleUnlinkSubsidy(subsidyProgramId: string): Promise<void>;
+  handleUnlinkSubsidy(): Promise<void>;
   setSelectedSubsidyId(id: string): void;
 }
 
@@ -109,13 +105,12 @@ export interface UseBudgetSectionReturn {
  */
 export function useBudgetSection<T extends BaseBudgetLine>(
   options: UseBudgetSectionOptions<T>,
-): UseBudgetSectionReturn {
+): UseBudgetSectionReturn<T> {
   const {
     api,
     reloadBudgetLines,
     reloadSubsidyPayback,
     reloadLinkedSubsidies,
-    reloadLinkedSubsidiesOnLink,
     toFormState,
     toPayload,
     entityId,
@@ -218,15 +213,14 @@ export function useBudgetSection<T extends BaseBudgetLine>(
     }
   };
 
-  // Helper to update form with partial updates (used by form inputs)
-  const setFormPartial = (updates: Partial<BudgetLineFormState> | BudgetLineFormState) => {
-    if ('plannedAmount' in updates && !('description' in updates)) {
-      // Partial update: merge with existing
-      setBudgetForm((prev) => ({ ...prev, ...updates }));
-    } else {
-      // Full replacement
-      setBudgetForm(updates as BudgetLineFormState);
-    }
+  // Helper to update form with partial updates (merges with existing state)
+  const setBudgetFormPartial = (updates: Partial<BudgetLineFormState>) => {
+    setBudgetForm((prev) => ({ ...prev, ...updates }));
+  };
+
+  // Helper to replace entire form state
+  const setBudgetFormFull = (state: BudgetLineFormState) => {
+    setBudgetForm(state);
   };
 
   // ─── Subsidy linking handlers ──────────────────────────────────────────
@@ -237,7 +231,7 @@ export function useBudgetSection<T extends BaseBudgetLine>(
     setIsLinkingSubsidy(true);
 
     try {
-      await reloadLinkedSubsidiesOnLink();
+      await reloadLinkedSubsidies();
       setSelectedSubsidyId('');
     } catch (err) {
       setIsLinkingSubsidy(false);
@@ -247,7 +241,7 @@ export function useBudgetSection<T extends BaseBudgetLine>(
     }
   };
 
-  const handleUnlinkSubsidy = async (subsidyProgramId: string) => {
+  const handleUnlinkSubsidy = async () => {
     try {
       await reloadLinkedSubsidies();
     } catch (err) {
@@ -275,7 +269,8 @@ export function useBudgetSection<T extends BaseBudgetLine>(
     handleSaveBudgetLine,
     handleDeleteBudgetLine,
     confirmDeleteBudgetLine,
-    setBudgetForm: setFormPartial,
+    setBudgetFormPartial,
+    setBudgetForm: setBudgetFormFull,
     setDeletingBudgetId,
 
     // Subsidy handlers

@@ -13,7 +13,6 @@ import type {
   Vendor,
   SubsidyProgram,
   WorkItemBudgetLine,
-  ConfidenceLevel,
   CreateWorkItemBudgetRequest,
   WorkItemMilestones,
   MilestoneSummary,
@@ -21,8 +20,8 @@ import type {
   WorkItemLinkedHouseholdItemSummary,
   HouseholdItemCategory,
   HouseholdItemStatus,
+  ConfidenceLevel,
 } from '@cornerstone/shared';
-import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
 import {
   getWorkItem,
   updateWorkItem,
@@ -75,7 +74,7 @@ import { formatDate, formatCurrency } from '../../lib/formatters.js';
 import { AutosaveIndicator } from '../../components/AutosaveIndicator/AutosaveIndicator.js';
 import type { AutosaveState } from '../../components/AutosaveIndicator/AutosaveIndicator.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
-import { CONFIDENCE_LABELS, computeBudgetTotals } from '../../lib/budgetConstants.js';
+import { CONFIDENCE_LABELS, CONFIDENCE_MARGINS, computeBudgetTotals } from '../../lib/budgetConstants.js';
 import { useBudgetSection, type BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 import styles from './WorkItemDetailPage.module.css';
 
@@ -184,6 +183,37 @@ export default function WorkItemDetailPage() {
 
   const [inlineError, setInlineError] = useState<string | null>(null);
 
+  // Shared reload functions for budget-related data
+  const reloadBudgetLines = async () => {
+    if (!id) return;
+    try {
+      const data = await fetchWorkItemBudgets(id);
+      setBudgetLines(data);
+    } catch (err) {
+      console.error('Failed to reload budget lines:', err);
+    }
+  };
+
+  const reloadLinkedSubsidies = async () => {
+    if (!id) return;
+    try {
+      const data = await fetchWorkItemSubsidies(id);
+      setLinkedSubsidies(data);
+    } catch (err) {
+      console.error('Failed to reload linked subsidies:', err);
+    }
+  };
+
+  const reloadSubsidyPayback = async () => {
+    if (!id) return;
+    try {
+      const data = await fetchWorkItemSubsidyPayback(id);
+      setSubsidyPayback(data);
+    } catch (err) {
+      console.error('Failed to reload subsidy payback:', err);
+    }
+  };
+
   // Budget section hook
   const budgetSection = useBudgetSection<WorkItemBudgetLine>({
     api: {
@@ -192,42 +222,9 @@ export default function WorkItemDetailPage() {
       updateBudget: updateWorkItemBudget,
       deleteBudget: deleteWorkItemBudget,
     },
-    reloadBudgetLines: async () => {
-      if (!id) return;
-      try {
-        const data = await fetchWorkItemBudgets(id);
-        setBudgetLines(data);
-      } catch (err) {
-        console.error('Failed to reload budget lines:', err);
-      }
-    },
-    reloadSubsidyPayback: async () => {
-      if (!id) return;
-      try {
-        const data = await fetchWorkItemSubsidyPayback(id);
-        setSubsidyPayback(data);
-      } catch (err) {
-        console.error('Failed to reload subsidy payback:', err);
-      }
-    },
-    reloadLinkedSubsidies: async () => {
-      if (!id) return;
-      try {
-        const data = await fetchWorkItemSubsidies(id);
-        setLinkedSubsidies(data);
-      } catch (err) {
-        console.error('Failed to reload linked subsidies:', err);
-      }
-    },
-    reloadLinkedSubsidiesOnLink: async () => {
-      if (!id) return;
-      try {
-        const data = await fetchWorkItemSubsidies(id);
-        setLinkedSubsidies(data);
-      } catch (err) {
-        console.error('Failed to reload linked subsidies:', err);
-      }
-    },
+    reloadBudgetLines,
+    reloadSubsidyPayback,
+    reloadLinkedSubsidies,
     toFormState: (line: WorkItemBudgetLine): BudgetLineFormState => ({
       description: line.description ?? '',
       plannedAmount: String(line.plannedAmount),
@@ -417,36 +414,6 @@ export default function WorkItemDetailPage() {
     }
   };
 
-  const reloadBudgetLines = async () => {
-    if (!id) return;
-    try {
-      const data = await fetchWorkItemBudgets(id);
-      setBudgetLines(data);
-    } catch (err) {
-      console.error('Failed to reload budget lines:', err);
-    }
-  };
-
-  const reloadLinkedSubsidies = async () => {
-    if (!id) return;
-    try {
-      const data = await fetchWorkItemSubsidies(id);
-      setLinkedSubsidies(data);
-    } catch (err) {
-      console.error('Failed to reload linked subsidies:', err);
-    }
-  };
-
-  const reloadSubsidyPayback = async () => {
-    if (!id) return;
-    try {
-      const data = await fetchWorkItemSubsidyPayback(id);
-      setSubsidyPayback(data);
-    } catch (err) {
-      console.error('Failed to reload subsidy payback:', err);
-    }
-  };
-
   const reloadWorkItemMilestones = async () => {
     if (!id) return;
     try {
@@ -476,7 +443,7 @@ export default function WorkItemDetailPage() {
     deletingBudgetId,
     selectedSubsidyId,
     isLinkingSubsidy,
-    setBudgetForm,
+    setBudgetFormPartial,
     setDeletingBudgetId,
     setSelectedSubsidyId,
   } = budgetSection;
@@ -516,7 +483,7 @@ export default function WorkItemDetailPage() {
     setInlineError(null);
     try {
       await unlinkWorkItemSubsidy(id, subsidyProgramId);
-      await hookHandleUnlinkSubsidy(subsidyProgramId);
+      await hookHandleUnlinkSubsidy();
       await reloadSubsidyPayback();
     } catch (err) {
       setInlineError('Failed to unlink subsidy program');
@@ -1579,7 +1546,7 @@ export default function WorkItemDetailPage() {
                         className={styles.propertyInput}
                         value={budgetForm.plannedAmount}
                         onChange={(e) =>
-                          setBudgetForm({ ...budgetForm, plannedAmount: e.target.value })
+                          setBudgetFormPartial({ plannedAmount: e.target.value })
                         }
                         min="0"
                         step="0.01"
@@ -1597,8 +1564,7 @@ export default function WorkItemDetailPage() {
                         className={styles.propertySelect}
                         value={budgetForm.confidence}
                         onChange={(e) =>
-                          setBudgetForm({
-                            ...budgetForm,
+                          setBudgetFormPartial({
                             confidence: e.target.value as ConfidenceLevel,
                           })
                         }
@@ -1621,7 +1587,7 @@ export default function WorkItemDetailPage() {
                       className={styles.propertyInput}
                       value={budgetForm.description}
                       onChange={(e) =>
-                        setBudgetForm({ ...budgetForm, description: e.target.value })
+                        setBudgetFormPartial({ description: e.target.value })
                       }
                       placeholder="Optional description"
                       disabled={isSavingBudget}
@@ -1637,7 +1603,7 @@ export default function WorkItemDetailPage() {
                         className={styles.propertySelect}
                         value={budgetForm.budgetCategoryId}
                         onChange={(e) =>
-                          setBudgetForm({ ...budgetForm, budgetCategoryId: e.target.value })
+                          setBudgetFormPartial({ budgetCategoryId: e.target.value })
                         }
                         disabled={isSavingBudget}
                       >
@@ -1658,7 +1624,7 @@ export default function WorkItemDetailPage() {
                         className={styles.propertySelect}
                         value={budgetForm.budgetSourceId}
                         onChange={(e) =>
-                          setBudgetForm({ ...budgetForm, budgetSourceId: e.target.value })
+                          setBudgetFormPartial({ budgetSourceId: e.target.value })
                         }
                         disabled={isSavingBudget}
                       >
@@ -1678,7 +1644,7 @@ export default function WorkItemDetailPage() {
                         id="budget-vendor"
                         className={styles.propertySelect}
                         value={budgetForm.vendorId}
-                        onChange={(e) => setBudgetForm({ ...budgetForm, vendorId: e.target.value })}
+                        onChange={(e) => setBudgetFormPartial({ vendorId: e.target.value })}
                         disabled={isSavingBudget}
                       >
                         <option value="">None</option>

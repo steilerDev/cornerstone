@@ -34,7 +34,6 @@ const mockDeleteBudget = jest.fn<() => Promise<void>>();
 const mockReloadBudgetLines = jest.fn<() => Promise<void>>();
 const mockReloadSubsidyPayback = jest.fn<() => Promise<void>>();
 const mockReloadLinkedSubsidies = jest.fn<() => Promise<void>>();
-const mockReloadLinkedSubsidiesOnLink = jest.fn<() => Promise<void>>();
 const mockToFormState = jest.fn<
   (line: TestBudgetLine) => import('../hooks/useBudgetSection.js').BudgetLineFormState
 >();
@@ -54,7 +53,6 @@ beforeEach(async () => {
   mockReloadBudgetLines.mockReset().mockResolvedValue(undefined);
   mockReloadSubsidyPayback.mockReset().mockResolvedValue(undefined);
   mockReloadLinkedSubsidies.mockReset().mockResolvedValue(undefined);
-  mockReloadLinkedSubsidiesOnLink.mockReset().mockResolvedValue(undefined);
   mockToFormState.mockReset().mockReturnValue({
     description: 'Mocked',
     plannedAmount: '1000',
@@ -89,7 +87,6 @@ function makeOptions(
     reloadBudgetLines: mockReloadBudgetLines,
     reloadSubsidyPayback: mockReloadSubsidyPayback,
     reloadLinkedSubsidies: mockReloadLinkedSubsidies,
-    reloadLinkedSubsidiesOnLink: mockReloadLinkedSubsidiesOnLink,
     toFormState:
       mockToFormState as Parameters<typeof useBudgetSection<TestBudgetLine>>[0]['toFormState'],
     toPayload:
@@ -337,23 +334,38 @@ describe('closeBudgetForm', () => {
   });
 });
 
-// ─── setBudgetForm ────────────────────────────────────────────────────────────
+// ─── setBudgetFormPartial ─────────────────────────────────────────────────────
 
-describe('setBudgetForm', () => {
-  it('merges partial updates when plannedAmount is present but description is absent', () => {
-    // The internal setFormPartial logic: when 'plannedAmount' in updates AND !('description' in updates) → merge
+describe('setBudgetFormPartial', () => {
+  it('merges partial updates into existing form state', () => {
     const { result } = renderHook(() => useBudgetSection(makeOptions()));
 
     act(() => {
-      result.current.setBudgetForm({ plannedAmount: '5000' });
+      result.current.setBudgetFormPartial({ plannedAmount: '5000' });
     });
 
-    // After partial merge: plannedAmount updated, description stays at ''
+    // plannedAmount updated, description stays at default ''
     expect(result.current.budgetForm.plannedAmount).toBe('5000');
     expect(result.current.budgetForm.description).toBe('');
   });
 
-  it('replaces the entire form state when a full BudgetLineFormState is provided', () => {
+  it('can update confidence alone via partial merge', () => {
+    const { result } = renderHook(() => useBudgetSection(makeOptions()));
+
+    act(() => {
+      result.current.setBudgetFormPartial({ confidence: 'quote' });
+    });
+
+    expect(result.current.budgetForm.confidence).toBe('quote');
+    // Other fields unchanged
+    expect(result.current.budgetForm.plannedAmount).toBe('');
+  });
+});
+
+// ─── setBudgetForm ────────────────────────────────────────────────────────────
+
+describe('setBudgetForm', () => {
+  it('replaces the entire form state', () => {
     const { result } = renderHook(() => useBudgetSection(makeOptions()));
 
     const newState = {
@@ -370,18 +382,6 @@ describe('setBudgetForm', () => {
     });
 
     expect(result.current.budgetForm).toEqual(newState);
-  });
-
-  it('can update confidence alone via partial merge path', () => {
-    const { result } = renderHook(() => useBudgetSection(makeOptions()));
-
-    act(() => {
-      result.current.setBudgetForm({ plannedAmount: '1000', confidence: 'quote' });
-    });
-
-    // Both plannedAmount and confidence present but no description → merge path
-    expect(result.current.budgetForm.confidence).toBe('quote');
-    expect(result.current.budgetForm.plannedAmount).toBe('1000');
   });
 });
 
@@ -896,10 +896,10 @@ describe('handleLinkSubsidy', () => {
       await result.current.handleLinkSubsidy();
     });
 
-    expect(mockReloadLinkedSubsidiesOnLink).not.toHaveBeenCalled();
+    expect(mockReloadLinkedSubsidies).not.toHaveBeenCalled();
   });
 
-  it('calls reloadLinkedSubsidiesOnLink when selectedSubsidyId is set', async () => {
+  it('calls reloadLinkedSubsidies when selectedSubsidyId is set', async () => {
     const { result } = renderHook(() => useBudgetSection(makeOptions()));
 
     act(() => {
@@ -910,7 +910,7 @@ describe('handleLinkSubsidy', () => {
       await result.current.handleLinkSubsidy();
     });
 
-    expect(mockReloadLinkedSubsidiesOnLink).toHaveBeenCalled();
+    expect(mockReloadLinkedSubsidies).toHaveBeenCalled();
   });
 
   it('clears selectedSubsidyId on success', async () => {
@@ -941,8 +941,8 @@ describe('handleLinkSubsidy', () => {
     expect(result.current.isLinkingSubsidy).toBe(false);
   });
 
-  it('re-throws and resets isLinkingSubsidy when reloadLinkedSubsidiesOnLink fails', async () => {
-    mockReloadLinkedSubsidiesOnLink.mockRejectedValueOnce(new Error('Link failed'));
+  it('re-throws and resets isLinkingSubsidy when reloadLinkedSubsidies fails', async () => {
+    mockReloadLinkedSubsidies.mockRejectedValueOnce(new Error('Link failed'));
 
     const { result } = renderHook(() => useBudgetSection(makeOptions()));
 
@@ -971,7 +971,7 @@ describe('handleUnlinkSubsidy', () => {
     const { result } = renderHook(() => useBudgetSection(makeOptions()));
 
     await act(async () => {
-      await result.current.handleUnlinkSubsidy('sp-1');
+      await result.current.handleUnlinkSubsidy();
     });
 
     expect(mockReloadLinkedSubsidies).toHaveBeenCalled();
@@ -982,7 +982,7 @@ describe('handleUnlinkSubsidy', () => {
 
     await expect(
       act(async () => {
-        await result.current.handleUnlinkSubsidy('sp-1');
+        await result.current.handleUnlinkSubsidy();
       }),
     ).resolves.toBeUndefined();
   });
@@ -995,7 +995,7 @@ describe('handleUnlinkSubsidy', () => {
     let thrownError: unknown;
     await act(async () => {
       try {
-        await result.current.handleUnlinkSubsidy('sp-1');
+        await result.current.handleUnlinkSubsidy();
       } catch (err) {
         thrownError = err;
       }

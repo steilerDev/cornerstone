@@ -19,7 +19,6 @@ import type {
   MilestoneSummary,
   HouseholdItemCategoryEntity,
 } from '@cornerstone/shared';
-import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
 import {
   getHouseholdItem,
   deleteHouseholdItem,
@@ -58,7 +57,7 @@ import { formatDate, formatCurrency } from '../../lib/formatters.js';
 import { HouseholdItemStatusBadge } from '../../components/HouseholdItemStatusBadge/HouseholdItemStatusBadge.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
-import { CONFIDENCE_LABELS, computeBudgetTotals } from '../../lib/budgetConstants.js';
+import { CONFIDENCE_LABELS, CONFIDENCE_MARGINS, computeBudgetTotals } from '../../lib/budgetConstants.js';
 import { useBudgetSection, type BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 import styles from './HouseholdItemDetailPage.module.css';
 
@@ -128,6 +127,37 @@ export function HouseholdItemDetailPage() {
   const [autosaveLatestDelivery, setAutosaveLatestDelivery] = useState<AutosaveState>('idle');
   const autosaveResetRefs = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
+  // Shared reload functions for budget-related data
+  const reloadBudgetLines = async () => {
+    if (!id) return;
+    try {
+      const data = await fetchHouseholdItemBudgets(id);
+      setBudgetLines(data);
+    } catch (err) {
+      console.error('Failed to reload budget lines:', err);
+    }
+  };
+
+  const reloadLinkedSubsidies = async () => {
+    if (!id) return;
+    try {
+      const data = await fetchHouseholdItemSubsidies(id);
+      setLinkedSubsidies(data);
+    } catch (err) {
+      console.error('Failed to reload linked subsidies:', err);
+    }
+  };
+
+  const reloadSubsidyPayback = async () => {
+    if (!id) return;
+    try {
+      const data = await fetchHouseholdItemSubsidyPayback(id);
+      setSubsidyPayback(data);
+    } catch (err) {
+      console.error('Failed to reload subsidy payback:', err);
+    }
+  };
+
   // Budget section hook
   const budgetSection = useBudgetSection<HouseholdItemBudgetLine>({
     api: {
@@ -136,42 +166,9 @@ export function HouseholdItemDetailPage() {
       updateBudget: updateHouseholdItemBudget,
       deleteBudget: deleteHouseholdItemBudget,
     },
-    reloadBudgetLines: async () => {
-      if (!id) return;
-      try {
-        const data = await fetchHouseholdItemBudgets(id);
-        setBudgetLines(data);
-      } catch (err) {
-        console.error('Failed to reload budget lines:', err);
-      }
-    },
-    reloadSubsidyPayback: async () => {
-      if (!id) return;
-      try {
-        const data = await fetchHouseholdItemSubsidyPayback(id);
-        setSubsidyPayback(data);
-      } catch (err) {
-        console.error('Failed to reload subsidy payback:', err);
-      }
-    },
-    reloadLinkedSubsidies: async () => {
-      if (!id) return;
-      try {
-        const data = await fetchHouseholdItemSubsidies(id);
-        setLinkedSubsidies(data);
-      } catch (err) {
-        console.error('Failed to reload linked subsidies:', err);
-      }
-    },
-    reloadLinkedSubsidiesOnLink: async () => {
-      if (!id) return;
-      try {
-        const data = await fetchHouseholdItemSubsidies(id);
-        setLinkedSubsidies(data);
-      } catch (err) {
-        console.error('Failed to reload linked subsidies:', err);
-      }
-    },
+    reloadBudgetLines,
+    reloadSubsidyPayback,
+    reloadLinkedSubsidies,
     toFormState: (line: HouseholdItemBudgetLine): BudgetLineFormState => ({
       description: line.description ?? '',
       plannedAmount: String(line.plannedAmount),
@@ -317,16 +314,6 @@ export function HouseholdItemDetailPage() {
     }
   };
 
-  const reloadBudgetLines = async () => {
-    if (!id) return;
-    try {
-      const data = await fetchHouseholdItemBudgets(id);
-      setBudgetLines(data);
-    } catch (err) {
-      console.error('Failed to reload budget lines:', err);
-    }
-  };
-
   const loadBudgetLineInvoices = async (vendorId: string, budgetLineIds: string[]) => {
     try {
       const allVendorInvoices = await fetchInvoices(vendorId);
@@ -340,26 +327,6 @@ export function HouseholdItemDetailPage() {
       setBudgetLineInvoices(grouped);
     } catch {
       // Silently fail — invoices are supplementary
-    }
-  };
-
-  const reloadLinkedSubsidies = async () => {
-    if (!id) return;
-    try {
-      const data = await fetchHouseholdItemSubsidies(id);
-      setLinkedSubsidies(data);
-    } catch (err) {
-      console.error('Failed to reload linked subsidies:', err);
-    }
-  };
-
-  const reloadSubsidyPayback = async () => {
-    if (!id) return;
-    try {
-      const data = await fetchHouseholdItemSubsidyPayback(id);
-      setSubsidyPayback(data);
-    } catch (err) {
-      console.error('Failed to reload subsidy payback:', err);
     }
   };
 
@@ -447,7 +414,7 @@ export function HouseholdItemDetailPage() {
     deletingBudgetId,
     selectedSubsidyId,
     isLinkingSubsidy,
-    setBudgetForm,
+    setBudgetFormPartial,
     setDeletingBudgetId,
     setSelectedSubsidyId,
   } = budgetSection;
@@ -487,7 +454,7 @@ export function HouseholdItemDetailPage() {
     setInlineError(null);
     try {
       await unlinkHouseholdItemSubsidy(id, subsidyProgramId);
-      await hookHandleUnlinkSubsidy(subsidyProgramId);
+      await hookHandleUnlinkSubsidy();
       await reloadSubsidyPayback();
     } catch (err) {
       setInlineError('Failed to unlink subsidy program');
@@ -1294,7 +1261,7 @@ export function HouseholdItemDetailPage() {
                   id="budget-description"
                   type="text"
                   value={budgetForm.description}
-                  onChange={(e) => setBudgetForm({ ...budgetForm, description: e.target.value })}
+                  onChange={(e) => setBudgetFormPartial({ description: e.target.value })}
                   placeholder="e.g., Kitchen appliance"
                   className={styles.formInput}
                   disabled={isSavingBudget}
@@ -1309,7 +1276,7 @@ export function HouseholdItemDetailPage() {
                   id="budget-amount"
                   type="number"
                   value={budgetForm.plannedAmount}
-                  onChange={(e) => setBudgetForm({ ...budgetForm, plannedAmount: e.target.value })}
+                  onChange={(e) => setBudgetFormPartial({ plannedAmount: e.target.value })}
                   placeholder="0.00"
                   step="0.01"
                   min="0"
@@ -1327,7 +1294,7 @@ export function HouseholdItemDetailPage() {
                   id="budget-confidence"
                   value={budgetForm.confidence}
                   onChange={(e) =>
-                    setBudgetForm({ ...budgetForm, confidence: e.target.value as ConfidenceLevel })
+                    setBudgetFormPartial({ confidence: e.target.value as ConfidenceLevel })
                   }
                   className={styles.formSelect}
                   disabled={isSavingBudget}
@@ -1354,7 +1321,7 @@ export function HouseholdItemDetailPage() {
                 <select
                   id="budget-source"
                   value={budgetForm.budgetSourceId}
-                  onChange={(e) => setBudgetForm({ ...budgetForm, budgetSourceId: e.target.value })}
+                  onChange={(e) => setBudgetFormPartial({ budgetSourceId: e.target.value })}
                   className={styles.formSelect}
                   disabled={isSavingBudget}
                 >
@@ -1374,7 +1341,7 @@ export function HouseholdItemDetailPage() {
                 <select
                   id="budget-vendor"
                   value={budgetForm.vendorId}
-                  onChange={(e) => setBudgetForm({ ...budgetForm, vendorId: e.target.value })}
+                  onChange={(e) => setBudgetFormPartial({ vendorId: e.target.value })}
                   className={styles.formSelect}
                   disabled={isSavingBudget}
                 >
