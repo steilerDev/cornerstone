@@ -275,7 +275,9 @@
   background-color: var(--color-bg-tertiary);
   border: 2px solid var(--color-border-strong);
   margin-bottom: var(--spacing-2);
-  transition: background-color var(--transition-normal), border-color var(--transition-normal);
+  transition:
+    background-color var(--transition-normal),
+    border-color var(--transition-normal);
   flex-shrink: 0;
 }
 

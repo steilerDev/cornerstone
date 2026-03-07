@@ -363,9 +363,7 @@ describe('WorkItemDetailPage — UI Harmonization (Story #501)', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(
-          screen.getByRole('heading', { name: /work item not found/i }),
-        ).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /work item not found/i })).toBeInTheDocument();
       });
     });
 
@@ -375,9 +373,7 @@ describe('WorkItemDetailPage — UI Harmonization (Story #501)', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(
-          screen.getByRole('button', { name: /back to work items/i }),
-        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /back to work items/i })).toBeInTheDocument();
       });
     });
 
@@ -447,9 +443,7 @@ describe('WorkItemDetailPage — UI Harmonization (Story #501)', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(
-          screen.getByRole('button', { name: /back to work items/i }),
-        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /back to work items/i })).toBeInTheDocument();
       });
     });
   });

@@ -1059,7 +1059,9 @@ export default function WorkItemDetailPage() {
   if (isLoading) {
     return (
       <div className={styles.container}>
-        <div className={styles.loading} role="status">Loading work item...</div>
+        <div className={styles.loading} role="status">
+          Loading work item...
+        </div>
       </div>
     );
   }
@@ -1097,11 +1099,7 @@ export default function WorkItemDetailPage() {
             >
               Back to Work Items
             </button>
-            <button
-              type="button"
-              className={styles.backButton}
-              onClick={() => navigate(0)}
-            >
+            <button type="button" className={styles.backButton} onClick={() => navigate(0)}>
               Retry
             </button>
           </div>
@@ -1566,7 +1564,11 @@ export default function WorkItemDetailPage() {
             </form>
 
             <div className={styles.notesList}>
-              {notes.length === 0 && <div className={styles.emptyState}>No notes yet. Use the form above to add one.</div>}
+              {notes.length === 0 && (
+                <div className={styles.emptyState}>
+                  No notes yet. Use the form above to add one.
+                </div>
+              )}
               {notes.map((note) => (
                 <div key={note.id} className={styles.noteItem}>
                   <div className={styles.noteHeader}>
@@ -1652,7 +1654,9 @@ export default function WorkItemDetailPage() {
             </form>
 
             <div className={styles.subtasksList}>
-              {subtasks.length === 0 && <div className={styles.emptyState}>No subtasks yet. Add one above.</div>}
+              {subtasks.length === 0 && (
+                <div className={styles.emptyState}>No subtasks yet. Add one above.</div>
+              )}
               {subtasks.map((subtask, index) => (
                 <div key={subtask.id} className={styles.subtaskItem}>
                   <input

@@ -576,7 +576,9 @@
   border-radius: 0.25rem;
   font-size: 0.875rem;
   cursor: pointer;
-  transition: background-color var(--transition-normal), border-color var(--transition-normal);
+  transition:
+    background-color var(--transition-normal),
+    border-color var(--transition-normal);
 }
 
 .moveButton:hover:not(:disabled) {
@@ -1197,7 +1199,10 @@
   padding: 0.125rem 0.5rem;
   text-decoration: none;
   cursor: pointer;
-  transition: background-color var(--transition-normal), color var(--transition-normal), border-color var(--transition-normal);
+  transition:
+    background-color var(--transition-normal),
+    color var(--transition-normal),
+    border-color var(--transition-normal);
   /* button reset */
   font-family: inherit;
   line-height: inherit;

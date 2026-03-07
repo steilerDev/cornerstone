@@ -529,7 +529,9 @@ describe('WorkItemDetailPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText('No notes yet. Use the form above to add one.')).toBeInTheDocument();
+        expect(
+          screen.getByText('No notes yet. Use the form above to add one.'),
+        ).toBeInTheDocument();
       });
     });
 
