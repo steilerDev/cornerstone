@@ -1,0 +1,163 @@
+.card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+  padding: var(--spacing-3);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  transition: background-color var(--transition-normal);
+}
+
+.card:hover {
+  background: var(--color-bg-tertiary);
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.topRow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-2);
+  flex-wrap: wrap;
+}
+
+.amount {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.confidence {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-medium);
+}
+
+.margin {
+  color: var(--color-text-placeholder);
+  font-weight: var(--font-weight-normal);
+}
+
+.amountInvoiced {
+  color: var(--color-success-text-on-light);
+}
+
+.invoicedLabel {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-success-text-on-light);
+}
+
+.plannedSecondary {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-placeholder);
+  font-weight: var(--font-weight-normal);
+}
+
+.description {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-1);
+  margin-top: var(--spacing-1);
+}
+
+.metaItem {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  padding: var(--spacing-0-5) var(--spacing-2);
+  white-space: nowrap;
+}
+
+.actions {
+  display: flex;
+  gap: var(--spacing-1);
+  flex-shrink: 0;
+}
+
+.editButton,
+.deleteButton,
+.deleteConfirmButton,
+.cancelDeleteButton {
+  padding: var(--spacing-2) var(--spacing-3);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+}
+
+.editButton {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+}
+
+.editButton:hover {
+  background: var(--color-bg-primary);
+  border-color: var(--color-border-strong);
+}
+
+.deleteButton {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+}
+
+.deleteButton:hover {
+  background: var(--color-overlay-delete);
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+.deleteConfirmButton {
+  background: var(--color-danger);
+  color: white;
+  border: 1px solid var(--color-danger);
+}
+
+.deleteConfirmButton:hover {
+  background: var(--color-danger-active);
+  border-color: var(--color-danger-active);
+}
+
+.cancelDeleteButton {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+}
+
+.cancelDeleteButton:hover {
+  background: var(--color-bg-primary);
+  border-color: var(--color-border-strong);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .editButton,
+  .deleteButton,
+  .deleteConfirmButton,
+  .cancelDeleteButton {
+    transition: none;
+  }
+}

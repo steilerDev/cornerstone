@@ -1,17 +1,18 @@
-import { get, post, patch, del } from './apiClient.js';
+import { createBudgetApi } from './budgetApiFactory.js';
 import type {
   WorkItemBudgetLine,
   CreateWorkItemBudgetRequest,
   UpdateWorkItemBudgetRequest,
 } from '@cornerstone/shared';
 
+// Create the typed API using the factory
+const api = createBudgetApi<WorkItemBudgetLine>('work-items');
+
 /**
  * Fetches all budget lines for a given work item.
  */
 export function fetchWorkItemBudgets(workItemId: string): Promise<WorkItemBudgetLine[]> {
-  return get<{ budgets: WorkItemBudgetLine[] }>(`/work-items/${workItemId}/budgets`).then(
-    (r) => r.budgets,
-  );
+  return api.fetchBudgets(workItemId);
 }
 
 /**
@@ -21,9 +22,7 @@ export function createWorkItemBudget(
   workItemId: string,
   data: CreateWorkItemBudgetRequest,
 ): Promise<WorkItemBudgetLine> {
-  return post<{ budget: WorkItemBudgetLine }>(`/work-items/${workItemId}/budgets`, data).then(
-    (r) => r.budget,
-  );
+  return api.createBudget(workItemId, data);
 }
 
 /**
@@ -34,15 +33,12 @@ export function updateWorkItemBudget(
   budgetId: string,
   data: UpdateWorkItemBudgetRequest,
 ): Promise<WorkItemBudgetLine> {
-  return patch<{ budget: WorkItemBudgetLine }>(
-    `/work-items/${workItemId}/budgets/${budgetId}`,
-    data,
-  ).then((r) => r.budget);
+  return api.updateBudget(workItemId, budgetId, data);
 }
 
 /**
  * Deletes a budget line for a work item.
  */
 export function deleteWorkItemBudget(workItemId: string, budgetId: string): Promise<void> {
-  return del<void>(`/work-items/${workItemId}/budgets/${budgetId}`);
+  return api.deleteBudget(workItemId, budgetId);
 }
