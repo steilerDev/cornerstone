@@ -191,6 +191,13 @@ export default function WorkItemDetailPage() {
 
   const [inlineError, setInlineError] = useState<string | null>(null);
 
+  // Auto-scroll to top when error appears
+  useEffect(() => {
+    if (error) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [error]);
+
   // Shared reload functions for budget-related data
   const reloadBudgetLines = async () => {
     if (!id) return;

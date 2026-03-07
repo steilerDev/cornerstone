@@ -301,6 +301,13 @@ export function BudgetOverviewPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
 
+  // Auto-scroll to top when error appears
+  useEffect(() => {
+    if (error) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [error]);
+
   // Breakdown state
   const [breakdown, setBreakdown] = useState<BudgetBreakdown | null>(null);
   const [isBreakdownLoading, setIsBreakdownLoading] = useState(false);
