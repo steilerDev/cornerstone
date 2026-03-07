@@ -303,9 +303,7 @@ describe('subsidyPaybackServiceFactory — createSubsidyPaybackService()', () =>
         reductionValue: 20,
         applicationStatus: 'rejected',
       });
-      db.insert(schema.workItemSubsidies)
-        .values({ workItemId, subsidyProgramId: subsidyId })
-        .run();
+      db.insert(schema.workItemSubsidies).values({ workItemId, subsidyProgramId: subsidyId }).run();
 
       const result = getPayback(db, workItemId) as Record<string, unknown>;
 
@@ -322,9 +320,7 @@ describe('subsidyPaybackServiceFactory — createSubsidyPaybackService()', () =>
       const getPayback = createSubsidyPaybackService(workItemConfig);
       const workItemId = insertWorkItem();
       const subsidyId = insertSubsidyProgram({ reductionType: 'fixed', reductionValue: 100 });
-      db.insert(schema.workItemSubsidies)
-        .values({ workItemId, subsidyProgramId: subsidyId })
-        .run();
+      db.insert(schema.workItemSubsidies).values({ workItemId, subsidyProgramId: subsidyId }).run();
 
       const result = getPayback(db, workItemId) as Record<string, unknown>;
 
@@ -353,7 +349,11 @@ describe('subsidyPaybackServiceFactory — createSubsidyPaybackService()', () =>
     it('applies confidence margin even when no invoice records exist for the entity', () => {
       const getPayback = createSubsidyPaybackService(householdItemConfig);
       const hiId = insertHouseholdItem();
-      insertHiBudgetLine({ householdItemId: hiId, plannedAmount: 1000, confidence: 'own_estimate' });
+      insertHiBudgetLine({
+        householdItemId: hiId,
+        plannedAmount: 1000,
+        confidence: 'own_estimate',
+      });
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
       db.insert(schema.householdItemSubsidies)
         .values({ householdItemId: hiId, subsidyProgramId: subsidyId })
@@ -433,9 +433,7 @@ describe('subsidyPaybackServiceFactory — createSubsidyPaybackService()', () =>
       insertInvoice(budgetLineId, 800); // actual cost = 800
 
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
-      db.insert(schema.workItemSubsidies)
-        .values({ workItemId, subsidyProgramId: subsidyId })
-        .run();
+      db.insert(schema.workItemSubsidies).values({ workItemId, subsidyProgramId: subsidyId }).run();
 
       const result = getPayback(db, workItemId) as Record<string, unknown>;
 
@@ -449,9 +447,7 @@ describe('subsidyPaybackServiceFactory — createSubsidyPaybackService()', () =>
       const workItemId = insertWorkItem();
       insertWiBudgetLine({ workItemId, plannedAmount: 1000, confidence: 'own_estimate' });
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
-      db.insert(schema.workItemSubsidies)
-        .values({ workItemId, subsidyProgramId: subsidyId })
-        .run();
+      db.insert(schema.workItemSubsidies).values({ workItemId, subsidyProgramId: subsidyId }).run();
 
       const result = getPayback(db, workItemId) as Record<string, unknown>;
 
@@ -472,9 +468,7 @@ describe('subsidyPaybackServiceFactory — createSubsidyPaybackService()', () =>
       insertInvoice(budgetLineId, 400); // total: 1000
 
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
-      db.insert(schema.workItemSubsidies)
-        .values({ workItemId, subsidyProgramId: subsidyId })
-        .run();
+      db.insert(schema.workItemSubsidies).values({ workItemId, subsidyProgramId: subsidyId }).run();
 
       const result = getPayback(db, workItemId) as Record<string, unknown>;
 
@@ -491,9 +485,7 @@ describe('subsidyPaybackServiceFactory — createSubsidyPaybackService()', () =>
       const getPayback = createSubsidyPaybackService(workItemConfig);
       const workItemId = insertWorkItem();
       const subsidyId = insertSubsidyProgram({ reductionType: 'fixed', reductionValue: 5000 });
-      db.insert(schema.workItemSubsidies)
-        .values({ workItemId, subsidyProgramId: subsidyId })
-        .run();
+      db.insert(schema.workItemSubsidies).values({ workItemId, subsidyProgramId: subsidyId }).run();
 
       const result = getPayback(db, workItemId) as {
         minTotalPayback: number;
@@ -560,12 +552,8 @@ describe('subsidyPaybackServiceFactory — createSubsidyPaybackService()', () =>
         reductionValue: 50,
         applicationStatus: 'rejected',
       });
-      db.insert(schema.workItemSubsidies)
-        .values({ workItemId, subsidyProgramId: approved })
-        .run();
-      db.insert(schema.workItemSubsidies)
-        .values({ workItemId, subsidyProgramId: rejected })
-        .run();
+      db.insert(schema.workItemSubsidies).values({ workItemId, subsidyProgramId: approved }).run();
+      db.insert(schema.workItemSubsidies).values({ workItemId, subsidyProgramId: rejected }).run();
 
       const result = getPayback(db, workItemId) as {
         subsidies: unknown[];

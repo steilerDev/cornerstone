@@ -126,9 +126,7 @@ describe('householdItemSubsidyPaybackService', () => {
   }
 
   function linkSubsidyToHouseholdItem(householdItemId: string, subsidyProgramId: string) {
-    db.insert(schema.householdItemSubsidies)
-      .values({ householdItemId, subsidyProgramId })
-      .run();
+    db.insert(schema.householdItemSubsidies).values({ householdItemId, subsidyProgramId }).run();
   }
 
   function linkCategoryToSubsidy(subsidyProgramId: string, budgetCategoryId: string) {
@@ -434,7 +432,11 @@ describe('householdItemSubsidyPaybackService', () => {
 
     it('returns fixed amount regardless of budget line amounts', () => {
       const hiId = insertHouseholdItem();
-      insertBudgetLine({ householdItemId: hiId, plannedAmount: 100000, confidence: 'own_estimate' });
+      insertBudgetLine({
+        householdItemId: hiId,
+        plannedAmount: 100000,
+        confidence: 'own_estimate',
+      });
       const subsidyId = insertSubsidyProgram({ reductionType: 'fixed', reductionValue: 3000 });
       linkSubsidyToHouseholdItem(hiId, subsidyId);
 

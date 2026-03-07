@@ -234,10 +234,7 @@ describe('householdItemSubsidyService', () => {
 
       householdItemSubsidyService.linkSubsidyToHouseholdItem(db, householdItemId, subsidyId);
 
-      const listed = householdItemSubsidyService.listHouseholdItemSubsidies(
-        db,
-        householdItemId,
-      );
+      const listed = householdItemSubsidyService.listHouseholdItemSubsidies(db, householdItemId);
       expect(listed).toHaveLength(1);
       expect(listed[0].id).toBe(subsidyId);
     });
@@ -292,19 +289,11 @@ describe('householdItemSubsidyService', () => {
       const subsidyId = insertTestSubsidyProgram('Some Subsidy');
 
       expect(() => {
-        householdItemSubsidyService.linkSubsidyToHouseholdItem(
-          db,
-          'non-existent-hi',
-          subsidyId,
-        );
+        householdItemSubsidyService.linkSubsidyToHouseholdItem(db, 'non-existent-hi', subsidyId);
       }).toThrow(NotFoundError);
 
       expect(() => {
-        householdItemSubsidyService.linkSubsidyToHouseholdItem(
-          db,
-          'non-existent-hi',
-          subsidyId,
-        );
+        householdItemSubsidyService.linkSubsidyToHouseholdItem(db, 'non-existent-hi', subsidyId);
       }).toThrow('Household item not found');
     });
 
@@ -398,19 +387,11 @@ describe('householdItemSubsidyService', () => {
       const subsidyId = insertTestSubsidyProgram('Unlinked Subsidy');
 
       expect(() => {
-        householdItemSubsidyService.unlinkSubsidyFromHouseholdItem(
-          db,
-          householdItemId,
-          subsidyId,
-        );
+        householdItemSubsidyService.unlinkSubsidyFromHouseholdItem(db, householdItemId, subsidyId);
       }).toThrow(NotFoundError);
 
       expect(() => {
-        householdItemSubsidyService.unlinkSubsidyFromHouseholdItem(
-          db,
-          householdItemId,
-          subsidyId,
-        );
+        householdItemSubsidyService.unlinkSubsidyFromHouseholdItem(db, householdItemId, subsidyId);
       }).toThrow('Subsidy program is not linked to this household item');
     });
 

@@ -81,7 +81,11 @@ function toSubsidyProgram(db: DbType, row: typeof subsidyPrograms.$inferSelect):
 
 export function createSubsidyService(config: SubsidyServiceConfig): SubsidyService {
   function assertEntityExists(db: DbType, entityId: string): void {
-    const item = db.select().from(config.entityTable).where(eq(config.entityIdColumn, entityId)).get();
+    const item = db
+      .select()
+      .from(config.entityTable)
+      .where(eq(config.entityIdColumn, entityId))
+      .get();
     if (!item) {
       throw new NotFoundError(`${config.entityLabel} not found`);
     }
@@ -125,7 +129,9 @@ export function createSubsidyService(config: SubsidyServiceConfig): SubsidyServi
       .get();
 
     if (existing) {
-      throw new ConflictError(`Subsidy program is already linked to this ${config.entityLabel.toLowerCase()}`);
+      throw new ConflictError(
+        `Subsidy program is already linked to this ${config.entityLabel.toLowerCase()}`,
+      );
     }
 
     const insertValues = config.makeInsertValues(entityId, subsidyProgramId);
@@ -149,7 +155,9 @@ export function createSubsidyService(config: SubsidyServiceConfig): SubsidyServi
       .get();
 
     if (!existing) {
-      throw new NotFoundError(`Subsidy program is not linked to this ${config.entityLabel.toLowerCase()}`);
+      throw new NotFoundError(
+        `Subsidy program is not linked to this ${config.entityLabel.toLowerCase()}`,
+      );
     }
 
     db.delete(config.junctionTable)

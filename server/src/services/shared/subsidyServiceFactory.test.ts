@@ -29,7 +29,10 @@ function makeHouseholdItemService(db: BetterSQLite3Database<typeof schema>) {
     junctionEntityIdColumn: schema.householdItemSubsidies.householdItemId,
     junctionSubsidyProgramIdColumn: schema.householdItemSubsidies.subsidyProgramId,
     entityLabel: 'Household item',
-    makeInsertValues: (householdItemId, subsidyProgramId) => ({ householdItemId, subsidyProgramId }),
+    makeInsertValues: (householdItemId, subsidyProgramId) => ({
+      householdItemId,
+      subsidyProgramId,
+    }),
   });
 }
 
@@ -551,9 +554,7 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
       db.insert(schema.subsidyProgramCategories)
         .values({ subsidyProgramId: subsidyId, budgetCategoryId: categories[0].id })
         .run();
-      db.insert(schema.workItemSubsidies)
-        .values({ workItemId, subsidyProgramId: subsidyId })
-        .run();
+      db.insert(schema.workItemSubsidies).values({ workItemId, subsidyProgramId: subsidyId }).run();
 
       const result = service.list(db, workItemId);
 
@@ -565,9 +566,7 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
       const service = makeWorkItemService(db);
       const workItemId = insertWorkItem();
       const subsidyId = insertSubsidyProgram('Uncategorized Subsidy');
-      db.insert(schema.workItemSubsidies)
-        .values({ workItemId, subsidyProgramId: subsidyId })
-        .run();
+      db.insert(schema.workItemSubsidies).values({ workItemId, subsidyProgramId: subsidyId }).run();
 
       const result = service.list(db, workItemId);
 
