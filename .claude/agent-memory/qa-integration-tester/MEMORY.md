@@ -3,6 +3,13 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`
 
+## Story #497 Subsidy & Payback Service Factories (2026-03-07)
+
+- **householdItems requires `categoryId`** (NOT NULL FK after migration 0016). Use `categoryId: 'hic-furniture'` in direct DB inserts — seeded by migration 0016.
+- **subsidyPaybackServiceFactory uses raw SQL** (not Drizzle ORM). Configured with plain table/column string names from migrations. `supportsInvoices: false` means HI budget lines always use confidence margins — never actual invoice cost.
+- **ConflictError message for HI**: `'Subsidy program is already linked to this household item'` (lowercase, matches `config.entityLabel.toLowerCase()`).
+- Test files: `shared/subsidyServiceFactory.test.ts` (29), `shared/subsidyPaybackServiceFactory.test.ts` (23), `householdItemSubsidyService.test.ts` (21), `householdItemSubsidyPaybackService.test.ts` (24) — all passing.
+
 ## Running Tests from a Worktree (Critical Pattern)
 
 Worktrees have no `node_modules`. To run tests from a worktree:
