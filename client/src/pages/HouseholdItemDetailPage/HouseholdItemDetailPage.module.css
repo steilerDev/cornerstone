@@ -645,6 +645,10 @@
     padding: var(--spacing-4);
   }
 
+  .propertyGrid {
+    grid-template-columns: 1fr;
+  }
+
   /* Info rows stack */
   .infoRow {
     flex-direction: column;
@@ -1007,30 +1011,173 @@
 }
 
 .budgetSummary {
-  margin-top: var(--spacing-3);
-  padding: var(--spacing-3);
-  background-color: var(--color-bg-secondary);
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: 0.375rem;
 }
 
-.budgetSummaryRow {
+/* Section header with inline action */
+.sectionHeader {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: var(--spacing-4);
+  justify-content: space-between;
+  margin-bottom: 1rem;
 }
 
-.budgetSummaryLabel {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
+.sectionHeader .sectionTitle {
+  margin: 0;
+}
+
+.section {
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+}
+
+.sectionTitle {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0 0 1rem 0;
+}
+
+.addButton {
+  padding: 0.625rem 1rem;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition-button);
+  border: none;
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+}
+
+.addButton:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+.addButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.propertyGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.property {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.propertyLabel {
+  font-size: 0.875rem;
+  font-weight: 500;
   color: var(--color-text-muted);
 }
 
-.budgetSummaryValue {
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-semibold);
+.budgetValue {
+  font-size: 0.9375rem;
+  font-weight: 500;
   color: var(--color-text-primary);
+}
+
+.budgetValueHighlighted {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--color-success-text-on-light);
+}
+
+.budgetValueMuted {
+  color: var(--color-text-muted);
+  font-weight: 400;
+  text-decoration: line-through;
+}
+
+.budgetSubsection {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.subsectionTitle {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin: 0 0 0.75rem 0;
+}
+
+/* Subsidy payback row — shown when non-rejected subsidies are linked */
+.subsidyPaybackRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-3) var(--spacing-4);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-3);
+}
+
+.subsidyPaybackRowActive {
+  background: var(--color-success-bg);
+  border: 1px solid var(--color-success-border);
+}
+
+.subsidyPaybackRowZero {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+}
+
+.subsidyPaybackLabel {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.subsidyPaybackAmount {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+  margin-left: auto;
+}
+
+.subsidyPaybackRowActive .subsidyPaybackAmount {
+  color: var(--color-success-text-on-light);
+}
+
+.subsidyPaybackRowZero .subsidyPaybackAmount {
+  color: var(--color-text-muted);
+}
+
+.subsidyPaybackChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-1-5);
+  width: 100%;
+  margin-top: var(--spacing-1);
+}
+
+.subsidyPaybackChip {
+  display: inline-block;
+  padding: var(--spacing-0-5) var(--spacing-2);
+  border-radius: var(--radius-full, 9999px);
+  font-size: var(--font-size-xs);
+  background: var(--color-success-badge-bg);
+  color: var(--color-success-badge-text);
+  border: 1px solid var(--color-success-border);
+}
+
+.subsidyPaybackRowZero .subsidyPaybackChip {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-muted);
+  border-color: var(--color-border);
 }
 
 /* Subsidy section */
