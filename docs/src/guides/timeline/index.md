@@ -25,9 +25,7 @@ Work items that have **start and end dates** appear on both the Gantt chart and 
 
 The **scheduling engine** uses the Critical Path Method (CPM) to calculate optimal dates for your work items, respecting all dependency relationships and constraints. When you trigger auto-schedule, it adjusts dates for not-started items to ensure dependencies are satisfied.
 
-:::info Screenshot needed
-A screenshot of the timeline page showing the Gantt chart view will be added on the next stable release.
-:::
+![Timeline Gantt chart view](/img/screenshots/timeline-gantt-light.png)
 
 ## Next Steps
 

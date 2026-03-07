@@ -59,17 +59,13 @@ The household items list page provides:
 
 All filter and sort settings are synced to the URL, so your view is bookmarkable and shareable.
 
-:::info Screenshot needed
-A screenshot of the household items list page will be added on the next stable release.
-:::
+![Household items list page](/img/screenshots/household-items-list-light.png)
 
 ## Detail View
 
 Click any household item to see its full detail page with all fields, budget lines, notes, dependencies, linked work items, linked documents, and applied subsidies. Fields can be edited inline by clicking on them.
 
-:::info Screenshot needed
-A screenshot of the household item detail page will be added on the next stable release.
-:::
+![Household item detail page](/img/screenshots/household-item-detail-light.png)
 
 ## Next Steps
 

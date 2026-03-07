@@ -40,6 +40,4 @@ From the categories page you can:
 Deleting a category will fail if any budget lines are still assigned to it. Reassign or remove those budget lines first.
 :::
 
-:::info Screenshot needed
-A screenshot of the budget categories page will be added here.
-:::
+![Budget categories page](/img/screenshots/budget-categories-light.png)

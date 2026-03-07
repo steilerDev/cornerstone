@@ -26,9 +26,7 @@ When a vendor submits an **invoice**, you link invoice line items to the relevan
 
 **Subsidies** reduce the total amount needed from financing sources, applied per budget category.
 
-:::info Screenshot needed
-A screenshot of the budget overview dashboard will be added here.
-:::
+![Budget overview dashboard](/img/screenshots/budget-overview-light.png)
 
 ## Next Steps
 

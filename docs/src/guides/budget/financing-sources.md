@@ -41,6 +41,4 @@ From the financing sources page you can:
 Deleting a financing source will fail if any budget lines reference it. Reassign or remove those budget lines first.
 :::
 
-:::info Screenshot needed
-A screenshot of the financing sources page will be added here.
-:::
+![Financing sources page](/img/screenshots/budget-sources-light.png)

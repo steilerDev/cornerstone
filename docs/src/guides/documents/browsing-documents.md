@@ -16,8 +16,8 @@ Documents are displayed as cards in a responsive grid. Each card shows:
 - **Date** -- When the document was created
 - **Tags** -- Paperless-ngx tags displayed as colored chips
 
-:::info Screenshot needed
-A screenshot of the document grid will be added on the next stable release.
+:::note
+Screenshots for the documents feature require a connected Paperless-ngx instance and will be added in a future release.
 :::
 
 ## Searching
