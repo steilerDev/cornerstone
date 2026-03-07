@@ -166,21 +166,29 @@ export class HouseholdItemsPage {
    * Type a search query and wait for the DOM to reflect the results.
    *
    * Strategy:
-   * 1. Fill the search input (triggers 300ms debounce).
-   * 2. Wait for the URL to update to ?q=<query> — confirms debounce fired.
-   * 3. Wait for network to settle (all fetches complete).
-   * 4. Wait for DOM to show rows/cards/empty-state.
+   * 1. Register a waitForResponse listener BEFORE filling the input so the
+   *    response cannot be missed regardless of timing.
+   * 2. Fill the input (triggers 300ms debounce).
+   * 3. Wait for URL to update to ?q=<query> — confirms debounce fired.
+   * 4. Await the API response (proves server has answered).
+   * 5. Wait for DOM to show rows/cards/empty-state.
    *
-   * Callers should wrap assertions in expect.toPass() for retry resilience
-   * under CI load, since networkidle may occasionally resolve before React
-   * re-renders with the new data.
+   * The response predicate uses a simple string include check (not URL
+   * parsing) to avoid any encoding mismatches.
    */
   async search(query: string): Promise<void> {
+    const responsePromise = this.page.waitForResponse(
+      (resp) =>
+        resp.url().includes('/api/household-items') &&
+        resp.request().method() === 'GET' &&
+        resp.status() === 200,
+      { timeout: 55000 },
+    );
     await this.searchInput.fill(query);
     await this.page.waitForURL((url) => url.searchParams.get('q') === query, {
       timeout: 10000,
     });
-    await this.page.waitForLoadState('networkidle', { timeout: 55000 });
+    await responsePromise;
     await this.waitForLoaded();
   }
 
@@ -188,12 +196,19 @@ export class HouseholdItemsPage {
    * Clear the search input and wait for the DOM to reflect unfiltered results.
    */
   async clearSearch(): Promise<void> {
+    const responsePromise = this.page.waitForResponse(
+      (resp) =>
+        resp.url().includes('/api/household-items') &&
+        resp.request().method() === 'GET' &&
+        resp.status() === 200,
+      { timeout: 55000 },
+    );
     await this.searchInput.clear();
     await this.page.waitForURL(
       (url) => !url.searchParams.has('q') || url.searchParams.get('q') === '',
       { timeout: 10000 },
     );
-    await this.page.waitForLoadState('networkidle', { timeout: 55000 });
+    await responsePromise;
     await this.waitForLoaded();
   }
 

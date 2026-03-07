@@ -101,11 +101,15 @@ test.describe('Create with name only — happy path (Scenario 4)', { tag: '@resp
         expect(page.url()).not.toContain('/new');
         expect(createdId).toBeTruthy();
 
-        // Detail page heading should show the item name
-        const heading = page.getByRole('heading', { level: 1 });
-        await expect(heading).toBeVisible();
-        const headingText = await heading.textContent();
-        expect(headingText?.trim()).toContain(name);
+        // Detail page heading should show the item name — wrap in toPass()
+        // because on mobile WebKit the URL may change before React renders
+        // the detail page component.
+        await expect(async () => {
+          const heading = page.getByRole('heading', { level: 1 });
+          await expect(heading).toBeVisible();
+          const headingText = await heading.textContent();
+          expect(headingText?.trim()).toContain(name);
+        }).toPass({ timeout: 15000 });
       } finally {
         if (createdId) await deleteHouseholdItemViaApi(page, createdId);
       }
