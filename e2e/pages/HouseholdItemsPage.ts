@@ -179,13 +179,22 @@ export class HouseholdItemsPage {
    * causing waitForLoaded() to see stale DOM.
    */
   async search(query: string): Promise<void> {
-    // Step 1: register response listener BEFORE the fill so we never miss it
-    const encodedQuery = encodeURIComponent(query);
+    // Step 1: register response listener BEFORE the fill so we never miss it.
+    // Use URL parsing instead of string matching because URLSearchParams
+    // encodes spaces as '+' while encodeURIComponent uses '%20'.
     const responsePromise = this.page.waitForResponse(
-      (resp) =>
-        resp.url().includes('/api/household-items') &&
-        resp.url().includes(`q=${encodedQuery}`) &&
-        resp.request().method() === 'GET',
+      (resp) => {
+        try {
+          const url = new URL(resp.url());
+          return (
+            url.pathname.includes('/api/household-items') &&
+            url.searchParams.get('q') === query &&
+            resp.request().method() === 'GET'
+          );
+        } catch {
+          return false;
+        }
+      },
       { timeout: 55000 },
     );
     // Step 2: fill the search input (triggers 300ms debounce)
@@ -204,12 +213,21 @@ export class HouseholdItemsPage {
    * Clear the search input and wait for the DOM to reflect unfiltered results.
    */
   async clearSearch(): Promise<void> {
-    // Register response listener BEFORE clearing so we never miss the refetch
+    // Register response listener BEFORE clearing so we never miss the refetch.
+    // Use URL parsing for consistent parameter matching.
     const responsePromise = this.page.waitForResponse(
-      (resp) =>
-        resp.url().includes('/api/household-items') &&
-        !resp.url().includes('q=') &&
-        resp.request().method() === 'GET',
+      (resp) => {
+        try {
+          const url = new URL(resp.url());
+          return (
+            url.pathname.includes('/api/household-items') &&
+            !url.searchParams.has('q') &&
+            resp.request().method() === 'GET'
+          );
+        } catch {
+          return false;
+        }
+      },
       { timeout: 55000 },
     );
     await this.searchInput.clear();
