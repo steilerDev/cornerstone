@@ -1285,6 +1285,9 @@ export function GanttChart({
                 }}
                 criticalMilestoneIds={criticalMilestoneIds}
                 criticalBorderColor={colors.criticalBorder}
+                criticalConnectorColor={
+                  highlightCriticalPath ? colors.arrowCritical : undefined
+                }
                 onMilestoneClick={onMilestoneClick}
               />
             )}
