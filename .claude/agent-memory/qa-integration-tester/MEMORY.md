@@ -3,6 +3,17 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`
 
+## Story #498 Generic Budget Service Factory (2026-03-07)
+
+- **Test files**: `shared/budgetServiceFactory.test.ts` (65 tests), `routes/workItemBudgets.test.ts` (24 tests) — all passing.
+- **Jest binary for worktree**: `node --experimental-vm-modules /Users/franksteiler/Documents/Sandboxes/cornerstone/node_modules/.bin/jest "path/to/test.ts" --no-coverage --maxWorkers=1 --rootDir /path/to/worktree`
+- **`createInvoice` signature**: `(db, vendorId, data, userId)` — vendorId is a separate positional arg, NOT inside the data object.
+- **HI budget category**: always `bc-household-items` (forced by `buildInsertValues`; `budgetCategoryId` in request is stripped via destructuring before calling `service.create`).
+- **WI budget lines include `invoices: []` field**; HI budget lines do NOT have an `invoices` field at all (confirmed by `(result as any).invoices === undefined`).
+- **HI `blockDeleteOnInvoices: false`**: deleting an HI budget line with linked invoices succeeds — the invoice FK is `onDelete: 'set null'` so the budget line is removed and the invoice's `householdItemBudgetId` becomes null.
+- **`updateHouseholdItemBudget` strips `budgetCategoryId` from update** (same destructure pattern as create) so bc-household-items can never be overridden via PATCH.
+- **Factory isolation test**: create WI budget line, then list HI budgets — confirms configs are truly independent.
+
 ## Story #497 Subsidy & Payback Service Factories (2026-03-07)
 
 - **householdItems requires `categoryId`** (NOT NULL FK after migration 0016). Use `categoryId: 'hic-furniture'` in direct DB inserts — seeded by migration 0016.

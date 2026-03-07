@@ -1,137 +1,42 @@
-import { randomUUID } from 'node:crypto';
-import { eq, and, sql, inArray } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import {
-  householdItems,
-  householdItemBudgets,
-  budgetCategories,
-  budgetSources,
-  vendors,
-  users,
-  invoices,
-} from '../db/schema.js';
-import {
-  toUserSummary,
-  toBudgetCategory,
-  toBudgetSourceSummary,
-  toVendorSummary,
-} from './shared/converters.js';
-import {
-  validateConfidence,
-  validateDescription,
-  validateBudgetCategoryId,
-  validateBudgetSourceId,
-  validateVendorId,
-} from './shared/validators.js';
+import { householdItems, householdItemBudgets } from '../db/schema.js';
+import { createBudgetService } from './shared/budgetServiceFactory.js';
+import type { ResolvedBudgetRelations } from './shared/budgetServiceFactory.js';
 import type {
   HouseholdItemBudgetLine,
-  BudgetCategory,
-  BudgetSourceSummary,
-  VendorSummary,
-  UserSummary,
-  ConfidenceLevel,
   CreateHouseholdItemBudgetRequest,
   UpdateHouseholdItemBudgetRequest,
 } from '@cornerstone/shared';
-import { CONFIDENCE_MARGINS as confidenceMargins } from '@cornerstone/shared';
-import { NotFoundError, ValidationError } from '../errors/AppError.js';
+import { NotFoundError } from '../errors/AppError.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
-/**
- * Get total actual amount from invoices linked to a household item budget line.
- */
-function getActualCostForBudget(db: DbType, budgetId: string): number {
-  const result = db
-    .select({ total: sql<number>`COALESCE(SUM(${invoices.amount}), 0)` })
-    .from(invoices)
-    .where(eq(invoices.householdItemBudgetId, budgetId))
-    .get();
-  return result?.total ?? 0;
-}
-
-/**
- * Get total actual paid amount from invoices linked to a household item budget line
- * (invoices with status 'paid' or 'claimed').
- */
-function getActualCostPaidForBudget(db: DbType, budgetId: string): number {
-  const result = db
-    .select({ total: sql<number>`COALESCE(SUM(${invoices.amount}), 0)` })
-    .from(invoices)
-    .where(
-      and(
-        eq(invoices.householdItemBudgetId, budgetId),
-        inArray(invoices.status, ['paid', 'claimed']),
-      ),
-    )
-    .get();
-  return result?.total ?? 0;
-}
-
-/**
- * Get count of invoices linked to a household item budget line.
- */
-function getInvoiceCountForBudget(db: DbType, budgetId: string): number {
-  const result = db
-    .select({ count: sql<number>`COUNT(*)` })
-    .from(invoices)
-    .where(eq(invoices.householdItemBudgetId, budgetId))
-    .get();
-  return result?.count ?? 0;
-}
-
-/**
- * Convert a database household_item_budgets row to HouseholdItemBudgetLine API shape.
- * Joins all related entities (category, source, vendor, createdBy).
- * Computes actualCost, actualCostPaid, and invoiceCount from linked invoices.
- */
 function toHouseholdItemBudgetLine(
-  db: DbType,
+  _db: DbType,
   row: typeof householdItemBudgets.$inferSelect,
+  rel: ResolvedBudgetRelations,
 ): HouseholdItemBudgetLine {
-  const confidence = row.confidence as ConfidenceLevel;
-
-  // Resolve related entities
-  const category = row.budgetCategoryId
-    ? db.select().from(budgetCategories).where(eq(budgetCategories.id, row.budgetCategoryId)).get()
-    : null;
-
-  const source = row.budgetSourceId
-    ? db.select().from(budgetSources).where(eq(budgetSources.id, row.budgetSourceId)).get()
-    : null;
-
-  const vendor = row.vendorId
-    ? db.select().from(vendors).where(eq(vendors.id, row.vendorId)).get()
-    : null;
-
-  const createdByUser = row.createdBy
-    ? db.select().from(users).where(eq(users.id, row.createdBy)).get()
-    : null;
-
   return {
     id: row.id,
     householdItemId: row.householdItemId,
     description: row.description,
     plannedAmount: row.plannedAmount,
-    confidence,
-    confidenceMargin: confidenceMargins[confidence],
-    budgetCategory: toBudgetCategory(category),
-    budgetSource: toBudgetSourceSummary(source),
-    vendor: toVendorSummary(vendor),
-    actualCost: getActualCostForBudget(db, row.id),
-    actualCostPaid: getActualCostPaidForBudget(db, row.id),
-    invoiceCount: getInvoiceCountForBudget(db, row.id),
-    createdBy: toUserSummary(createdByUser),
+    confidence: rel.confidence,
+    confidenceMargin: rel.confidenceMargin,
+    budgetCategory: rel.budgetCategory,
+    budgetSource: rel.budgetSource,
+    vendor: rel.vendor,
+    actualCost: rel.actualCost,
+    actualCostPaid: rel.actualCostPaid,
+    invoiceCount: rel.invoiceCount,
+    createdBy: rel.createdBy,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
 }
 
-/**
- * Assert that a household item exists.
- * @throws NotFoundError if household item does not exist
- */
 function assertHouseholdItemExists(db: DbType, householdItemId: string): void {
   const item = db.select().from(householdItems).where(eq(householdItems.id, householdItemId)).get();
   if (!item) {
@@ -139,207 +44,67 @@ function assertHouseholdItemExists(db: DbType, householdItemId: string): void {
   }
 }
 
-/**
- * List all budget lines for a household item, ordered by creation time ascending.
- * @throws NotFoundError if household item does not exist
- */
+function buildInsertValues(
+  _db: DbType,
+  householdItemId: string,
+  userId: string,
+  data: CreateHouseholdItemBudgetRequest,
+): Record<string, any> {
+  return {
+    householdItemId,
+    description: data.description ?? null,
+    plannedAmount: data.plannedAmount,
+    confidence: data.confidence ?? 'own_estimate',
+    budgetCategoryId: 'bc-household-items',
+    budgetSourceId: data.budgetSourceId ?? null,
+    vendorId: data.vendorId ?? null,
+    createdBy: userId,
+  };
+}
+
+const service = createBudgetService({
+  budgetTable: householdItemBudgets,
+  budgetEntityIdColumn: 'householdItemId',
+  invoiceHandler: {
+    budgetIdColumn: 'household_item_budget_id',
+    blockDeleteOnInvoices: false,
+  },
+  toLine: toHouseholdItemBudgetLine,
+  buildInsertValues,
+  assertEntityExists: assertHouseholdItemExists,
+});
+
 export function listHouseholdItemBudgets(
   db: DbType,
   householdItemId: string,
 ): HouseholdItemBudgetLine[] {
-  assertHouseholdItemExists(db, householdItemId);
-
-  const rows = db
-    .select()
-    .from(householdItemBudgets)
-    .where(eq(householdItemBudgets.householdItemId, householdItemId))
-    .orderBy(householdItemBudgets.createdAt)
-    .all();
-
-  return rows.map((row) => toHouseholdItemBudgetLine(db, row));
+  return service.list(db, householdItemId);
 }
 
-/**
- * Create a new budget line for a household item.
- * Budget category is automatically set to 'bc-household-items'; any user-supplied budgetCategoryId is ignored.
- * @throws NotFoundError if household item does not exist
- * @throws ValidationError if any field is invalid
- */
 export function createHouseholdItemBudget(
   db: DbType,
   householdItemId: string,
   userId: string,
   data: CreateHouseholdItemBudgetRequest,
 ): HouseholdItemBudgetLine {
-  assertHouseholdItemExists(db, householdItemId);
-
-  // Validate plannedAmount
-  if (data.plannedAmount === undefined || data.plannedAmount === null) {
-    throw new ValidationError('plannedAmount is required');
-  }
-  if (data.plannedAmount < 0) {
-    throw new ValidationError('plannedAmount must be >= 0');
-  }
-
-  // Validate description
-  validateDescription(data.description);
-
-  // Validate confidence if provided
-  if (data.confidence !== undefined) {
-    validateConfidence(data.confidence);
-  }
-
-  // Validate FK references (budgetCategoryId is auto-assigned, so don't validate user input)
-  if (data.budgetSourceId) {
-    validateBudgetSourceId(db, data.budgetSourceId);
-  }
-  if (data.vendorId) {
-    validateVendorId(db, data.vendorId);
-  }
-
-  const id = randomUUID();
-  const now = new Date().toISOString();
-  // Force budgetCategoryId to 'bc-household-items'; ignore any user-supplied value
-  const effectiveBudgetCategoryId = 'bc-household-items';
-
-  db.insert(householdItemBudgets)
-    .values({
-      id,
-      householdItemId,
-      description: data.description ?? null,
-      plannedAmount: data.plannedAmount,
-      confidence: data.confidence ?? 'own_estimate',
-      budgetCategoryId: effectiveBudgetCategoryId,
-      budgetSourceId: data.budgetSourceId ?? null,
-      vendorId: data.vendorId ?? null,
-      createdBy: userId,
-      createdAt: now,
-      updatedAt: now,
-    })
-    .run();
-
-  const row = db.select().from(householdItemBudgets).where(eq(householdItemBudgets.id, id)).get()!;
-  return toHouseholdItemBudgetLine(db, row);
+  const { budgetCategoryId: _ignored, ...safeData } = data;
+  return service.create(db, householdItemId, userId, safeData);
 }
 
-/**
- * Update a budget line.
- * All fields are optional; only provided fields are updated.
- * Budget category is always 'bc-household-items'; any user-supplied budgetCategoryId is ignored.
- * @throws NotFoundError if household item or budget line does not exist, or if budget line
- *   does not belong to the given household item
- * @throws ValidationError if any provided field is invalid
- */
 export function updateHouseholdItemBudget(
   db: DbType,
   householdItemId: string,
   budgetId: string,
   data: UpdateHouseholdItemBudgetRequest,
 ): HouseholdItemBudgetLine {
-  assertHouseholdItemExists(db, householdItemId);
-
-  // Fetch the budget line and verify ownership
-  const existing = db
-    .select()
-    .from(householdItemBudgets)
-    .where(
-      and(
-        eq(householdItemBudgets.id, budgetId),
-        eq(householdItemBudgets.householdItemId, householdItemId),
-      ),
-    )
-    .get();
-
-  if (!existing) {
-    throw new NotFoundError('Budget line not found');
-  }
-
-  const updates: Partial<typeof householdItemBudgets.$inferInsert> = {};
-
-  // description (nullable — null clears it)
-  if ('description' in data) {
-    validateDescription(data.description);
-    updates.description = data.description ?? null;
-  }
-
-  // plannedAmount
-  if ('plannedAmount' in data) {
-    if (data.plannedAmount === undefined || data.plannedAmount === null) {
-      throw new ValidationError('plannedAmount cannot be null');
-    }
-    if (data.plannedAmount < 0) {
-      throw new ValidationError('plannedAmount must be >= 0');
-    }
-    updates.plannedAmount = data.plannedAmount;
-  }
-
-  // confidence
-  if ('confidence' in data) {
-    if (data.confidence === undefined) {
-      throw new ValidationError('confidence cannot be undefined if key is provided');
-    }
-    validateConfidence(data.confidence);
-    updates.confidence = data.confidence;
-  }
-
-  // budgetCategoryId is always 'bc-household-items'; ignore any user-supplied value
-  // (no update to budgetCategoryId is applied)
-
-  // budgetSourceId (nullable — null clears it)
-  if ('budgetSourceId' in data) {
-    if (data.budgetSourceId) {
-      validateBudgetSourceId(db, data.budgetSourceId);
-    }
-    updates.budgetSourceId = data.budgetSourceId ?? null;
-  }
-
-  // vendorId (nullable — null clears it)
-  if ('vendorId' in data) {
-    if (data.vendorId) {
-      validateVendorId(db, data.vendorId);
-    }
-    updates.vendorId = data.vendorId ?? null;
-  }
-
-  updates.updatedAt = new Date().toISOString();
-
-  db.update(householdItemBudgets).set(updates).where(eq(householdItemBudgets.id, budgetId)).run();
-
-  const updated = db
-    .select()
-    .from(householdItemBudgets)
-    .where(eq(householdItemBudgets.id, budgetId))
-    .get()!;
-  return toHouseholdItemBudgetLine(db, updated);
+  const { budgetCategoryId: _ignored, ...safeData } = data;
+  return service.update(db, householdItemId, budgetId, safeData);
 }
 
-/**
- * Delete a budget line.
- * @throws NotFoundError if household item or budget line does not exist, or if budget line
- *   does not belong to the given household item
- */
 export function deleteHouseholdItemBudget(
   db: DbType,
   householdItemId: string,
   budgetId: string,
 ): void {
-  assertHouseholdItemExists(db, householdItemId);
-
-  // Fetch and verify ownership
-  const existing = db
-    .select()
-    .from(householdItemBudgets)
-    .where(
-      and(
-        eq(householdItemBudgets.id, budgetId),
-        eq(householdItemBudgets.householdItemId, householdItemId),
-      ),
-    )
-    .get();
-
-  if (!existing) {
-    throw new NotFoundError('Budget line not found');
-  }
-
-  db.delete(householdItemBudgets).where(eq(householdItemBudgets.id, budgetId)).run();
+  return service.delete(db, householdItemId, budgetId);
 }
