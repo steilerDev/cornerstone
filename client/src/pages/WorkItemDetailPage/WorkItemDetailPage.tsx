@@ -1063,7 +1063,7 @@ export default function WorkItemDetailPage() {
   if (is404) {
     return (
       <div className={styles.container}>
-        <div className={styles.errorCard}>
+        <div className={styles.errorCard} role="alert">
           <h2 className={styles.errorTitle}>Work Item Not Found</h2>
           <div className={styles.errorActions}>
             <button
@@ -1082,8 +1082,8 @@ export default function WorkItemDetailPage() {
   if (error || !workItem) {
     return (
       <div className={styles.container}>
-        <div className={styles.errorCard}>
-          <h2 className={styles.errorTitle}>Failed to Load Work Item</h2>
+        <div className={styles.errorCard} role="alert">
+          <h2 className={styles.errorTitle}>Error</h2>
           <p>{error || 'An error occurred while loading the work item.'}</p>
           <div className={styles.errorActions}>
             <button
