@@ -9,7 +9,6 @@ import type {
   BreakdownHouseholdItemCategory,
   BreakdownHouseholdItem,
   ConfidenceLevel,
-  HouseholdItemCategory,
   BudgetSource,
 } from '@cornerstone/shared';
 import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
@@ -24,20 +23,6 @@ interface CostBreakdownTableProps {
   selectedCategories: Set<string | null>;
   budgetSources: BudgetSource[];
 }
-
-/**
- * Human-readable label for household item category.
- */
-const HI_CATEGORY_LABELS: Record<HouseholdItemCategory, string> = {
-  furniture: 'Furniture',
-  appliances: 'Appliances',
-  fixtures: 'Fixtures',
-  decor: 'Decor',
-  electronics: 'Electronics',
-  outdoor: 'Outdoor',
-  storage: 'Storage',
-  other: 'Other',
-};
 
 /**
  * Resolves projected cost based on perspective.
@@ -498,7 +483,6 @@ function HouseholdItemCategorySection({
 }) {
   const key = `hi-cat-${category.hiCategory}`;
   const isExpanded = expandedKeys.has(key);
-  const categoryLabel = HI_CATEGORY_LABELS[category.hiCategory];
   const resolvedRawCost = resolveProjected(
     category.rawProjectedMin,
     category.rawProjectedMax,
@@ -519,12 +503,12 @@ function HouseholdItemCategorySection({
               type="button"
               className={styles.expandBtn}
               aria-expanded={isExpanded}
-              aria-label={`Expand ${categoryLabel}`}
+              aria-label={`Expand ${category.hiCategory}`}
               onClick={() => onToggle(key)}
             >
               <ChevronSvg className={`${styles.chevron} ${isExpanded ? styles.chevronOpen : ''}`} />
             </button>
-            <span>{categoryLabel}</span>
+            <span>{category.hiCategory}</span>
           </div>
         </td>
         <td className={styles.colBudget}>{formatCost(resolvedRawCost)}</td>
@@ -552,7 +536,7 @@ function HouseholdItemCategorySection({
           <tr className={styles.rowSum} key={`${key}-sum`}>
             <td className={`${styles.colName} ${styles.cellSumName}`}>
               <div className={styles.nameContent}>
-                <span>Total {categoryLabel}</span>
+                <span>Total {category.hiCategory}</span>
               </div>
             </td>
             <td className={styles.colBudget}>{formatCost(resolvedRawCost)}</td>
