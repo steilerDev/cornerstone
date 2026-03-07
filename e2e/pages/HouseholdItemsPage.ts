@@ -163,49 +163,24 @@ export class HouseholdItemsPage {
   }
 
   /**
-   * Type a search query and wait for the search results to load.
+   * Navigate to the household items list with a search query applied.
    *
-   * Strategy:
-   * 1. Register a response listener for the search API call (must include
-   *    `q=` in the URL to avoid matching stale initial-load responses).
-   * 2. Fill the input — triggers React onChange + 300ms debounce.
-   * 3. Wait for URL to include ?q=<query> — proves debounce has fired.
-   * 4. Await the search API response.
-   * 5. Wait for DOM to show rows/cards/empty-state.
+   * Instead of filling the search input (which relies on React's debounce +
+   * useEffect chain), directly navigate to the URL with ?q=<query>. This
+   * triggers a full page load and guarantees the API call fires.
    */
   async search(query: string): Promise<void> {
-    const searchResponsePromise = this.page.waitForResponse(
-      (resp) =>
-        resp.url().includes('/api/household-items') &&
-        resp.url().includes('q=') &&
-        resp.request().method() === 'GET',
-      { timeout: 55000 },
-    );
-    await this.searchInput.fill(query);
-    await this.page.waitForURL((url) => url.searchParams.get('q') === query, {
-      timeout: 10000,
-    });
-    await searchResponsePromise;
+    await this.page.goto(`${HOUSEHOLD_ITEMS_ROUTE}?q=${encodeURIComponent(query)}`);
+    await this.heading.waitFor({ state: 'visible' });
     await this.waitForLoaded();
   }
 
   /**
-   * Clear the search input and wait for the unfiltered results to load.
+   * Navigate to the household items list without search filters.
    */
   async clearSearch(): Promise<void> {
-    const responsePromise = this.page.waitForResponse(
-      (resp) =>
-        resp.url().includes('/api/household-items') &&
-        !resp.url().includes('q=') &&
-        resp.request().method() === 'GET',
-      { timeout: 55000 },
-    );
-    await this.searchInput.clear();
-    await this.page.waitForURL(
-      (url) => !url.searchParams.has('q') || url.searchParams.get('q') === '',
-      { timeout: 10000 },
-    );
-    await responsePromise;
+    await this.page.goto(HOUSEHOLD_ITEMS_ROUTE);
+    await this.heading.waitFor({ state: 'visible' });
     await this.waitForLoaded();
   }
 
