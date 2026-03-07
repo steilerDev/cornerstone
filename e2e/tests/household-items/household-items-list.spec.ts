@@ -287,11 +287,21 @@ test.describe('Category filter (Scenario 7)', { tag: '@responsive' }, () => {
 
       // Select 'furniture' category — register response listener BEFORE the
       // action to avoid the networkidle race (can resolve before fetch starts).
+      // Use URL parsing for consistent parameter matching (URLSearchParams
+      // encodes spaces as '+', not '%20').
       const categoryResponsePromise = page.waitForResponse(
-        (resp) =>
-          resp.url().includes('/api/household-items') &&
-          resp.url().includes('category=furniture') &&
-          resp.request().method() === 'GET',
+        (resp) => {
+          try {
+            const url = new URL(resp.url());
+            return (
+              url.pathname.includes('/api/household-items') &&
+              url.searchParams.get('category') === 'furniture' &&
+              resp.request().method() === 'GET'
+            );
+          } catch {
+            return false;
+          }
+        },
         { timeout: 55000 },
       );
       await listPage.categoryFilter.selectOption('furniture');
@@ -339,11 +349,20 @@ test.describe('Status filter (Scenario 8)', { tag: '@responsive' }, () => {
 
       // Select 'planned' status — register response listener BEFORE the
       // action to avoid the networkidle race (can resolve before fetch starts).
+      // Use URL parsing for consistent parameter matching.
       const statusResponsePromise = page.waitForResponse(
-        (resp) =>
-          resp.url().includes('/api/household-items') &&
-          resp.url().includes('status=planned') &&
-          resp.request().method() === 'GET',
+        (resp) => {
+          try {
+            const url = new URL(resp.url());
+            return (
+              url.pathname.includes('/api/household-items') &&
+              url.searchParams.get('status') === 'planned' &&
+              resp.request().method() === 'GET'
+            );
+          } catch {
+            return false;
+          }
+        },
         { timeout: 55000 },
       );
       await listPage.statusFilter.selectOption('planned');
