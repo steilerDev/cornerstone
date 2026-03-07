@@ -8,8 +8,9 @@
 - Site config: `docs/docusaurus.config.js`
 - Site URL: `https://cornerstone.steiler.dev/` with baseUrl `/`
 - `routeBasePath: '/'` -- docs served at root
-- `onBrokenLinks: 'throw'` -- build fails on broken links
-- `onBrokenMarkdownImages` defaults to `warn` (not configured)
+- `onBrokenLinks: 'throw'`, `onBrokenMarkdownLinks: 'throw'`, `onBrokenAnchors: 'throw'`
+- `markdown.hooks.onBrokenMarkdownImages: 'warn'` -- screenshots don't exist until stable release
+- Note: `onBrokenMarkdownImages` is NOT a top-level config key in Docusaurus 3.9.2; it must go under `markdown.hooks`
 - React 18.3.1 pinned in docs workspace (Docusaurus 3.9.2 incompatible with React 19.x)
 - `blog: false`
 
@@ -18,10 +19,10 @@
 - `npm run docs:build` may fail in worktrees due to node_modules corruption (jiti/babel.js, regenerate.js)
 - Workaround: try building from the base project directory instead of the worktree
 - Clean `npm install` in worktree may not fix it -- sandbox filesystem corruption persists
-- Pre-existing broken screenshot image refs in `work-items/index.md` and `work-items/tags.md`
-- These will resolve when screenshots are captured during stable release
+- Broken screenshot image refs exist across many guide pages (16+ refs) -- all resolve when screenshots are captured during stable release
+- Fixed via `markdown.hooks.onBrokenMarkdownImages: 'warn'` in docusaurus.config.js
 
-## Existing Pages (as of EPIC-06 completion)
+## Existing Pages (as of EPIC-14)
 
 - `intro.md` -- Landing page (slug: /)
 - `roadmap.md` -- Feature roadmap checklist
@@ -29,7 +30,9 @@
 - `guides/work-items/` -- index, creating-work-items, tags, notes-and-subtasks, dependencies, keyboard-shortcuts
 - `guides/users/` -- index, oidc-setup, admin-panel
 - `guides/budget/` -- index, categories, financing-sources, work-item-budgets, vendors-and-invoices, subsidies, budget-overview
-- `guides/timeline/` -- index, gantt-chart, milestones, calendar-view (added EPIC-06)
+- `guides/timeline/` -- index, gantt-chart, milestones, calendar-view
+- `guides/documents/` -- index, setup, browsing-documents, linking-documents
+- `guides/household-items/` -- index, creating-editing-items, budget-and-invoices, work-item-linking, delivery-and-dependencies
 - `guides/appearance/` -- dark-mode
 - `development/` -- index, tech-stack, agentic/overview, agentic/agent-team, agentic/workflow, agentic/setup
 
@@ -44,7 +47,9 @@
 - Double dashes `--` used instead of em dashes in all existing content
 - Footer links in `docusaurus.config.js` should be updated when major features are added
 
-## Roadmap State (post EPIC-06)
+## Roadmap State (post EPIC-14)
 
-Completed: EPIC-02, EPIC-11, EPIC-01, EPIC-03, EPIC-12, EPIC-05, EPIC-06
-Planned: EPIC-04, EPIC-07, EPIC-08, EPIC-09, EPIC-10
+Completed: EPIC-02, EPIC-11(#12), EPIC-01, EPIC-03, EPIC-12(#115), EPIC-05, EPIC-06, EPIC-08, EPIC-04, EPIC-07, EPIC-10, EPIC-11(#444 tags), EPIC-12(#445 refinement), EPIC-14(#495)
+Planned: EPIC-09(#9 dashboard), EPIC-13(#446 construction diary)
+
+Note: EPIC-11 and EPIC-12 each have two issues -- original (#12/#115) and new (#444/#445). Both pairs are completed.
