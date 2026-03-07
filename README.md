@@ -70,9 +70,13 @@ Open `http://localhost:3000` -- the setup wizard will guide you through creating
 - [x] **EPIC-06**: Timeline and Gantt Chart
 - [x] **EPIC-08**: Paperless-ngx Integration
 - [x] **EPIC-04**: Household Items
-- [ ] **EPIC-07**: Reporting and Export
+- [x] **EPIC-07**: Reporting and Export
+- [x] **EPIC-10**: UX Polish and Accessibility
+- [x] **EPIC-11**: Unified Tag and Category System
+- [x] **EPIC-12**: Codebase Refinement and Consistency
+- [x] **EPIC-14**: Cross-Entity Code Deduplication
 - [ ] **EPIC-09**: Dashboard and Overview
-- [ ] **EPIC-10**: UX Polish and Accessibility
+- [ ] **EPIC-13**: Construction Diary
 
 Track live progress on the [GitHub Projects board](https://github.com/users/steilerDev/projects/4).
 
