@@ -11,6 +11,14 @@ import {
   users,
   invoices,
 } from '../db/schema.js';
+import { toUserSummary, toBudgetCategory, toBudgetSourceSummary, toVendorSummary } from './shared/converters.js';
+import {
+  validateConfidence,
+  validateDescription,
+  validateBudgetCategoryId,
+  validateBudgetSourceId,
+  validateVendorId,
+} from './shared/validators.js';
 import type {
   HouseholdItemBudgetLine,
   BudgetCategory,
@@ -25,75 +33,6 @@ import { CONFIDENCE_MARGINS as confidenceMargins } from '@cornerstone/shared';
 import { NotFoundError, ValidationError } from '../errors/AppError.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
-
-/** Valid confidence level values */
-const VALID_CONFIDENCE_LEVELS: ConfidenceLevel[] = [
-  'own_estimate',
-  'professional_estimate',
-  'quote',
-  'invoice',
-];
-
-/** Maximum description length */
-const MAX_DESCRIPTION_LENGTH = 500;
-
-/**
- * Convert a database user row to UserSummary shape.
- */
-function toUserSummary(user: typeof users.$inferSelect | null | undefined): UserSummary | null {
-  if (!user) return null;
-  return {
-    id: user.id,
-    displayName: user.displayName,
-    email: user.email,
-  };
-}
-
-/**
- * Convert a database budget category row to BudgetCategory shape.
- */
-function toBudgetCategory(
-  category: typeof budgetCategories.$inferSelect | null | undefined,
-): BudgetCategory | null {
-  if (!category) return null;
-  return {
-    id: category.id,
-    name: category.name,
-    description: category.description,
-    color: category.color,
-    sortOrder: category.sortOrder,
-    createdAt: category.createdAt,
-    updatedAt: category.updatedAt,
-  };
-}
-
-/**
- * Convert a database budget source row to BudgetSourceSummary shape.
- */
-function toBudgetSourceSummary(
-  source: typeof budgetSources.$inferSelect | null | undefined,
-): BudgetSourceSummary | null {
-  if (!source) return null;
-  return {
-    id: source.id,
-    name: source.name,
-    sourceType: source.sourceType,
-  };
-}
-
-/**
- * Convert a database vendor row to VendorSummary shape.
- */
-function toVendorSummary(
-  vendor: typeof vendors.$inferSelect | null | undefined,
-): VendorSummary | null {
-  if (!vendor) return null;
-  return {
-    id: vendor.id,
-    name: vendor.name,
-    specialty: vendor.specialty,
-  };
-}
 
 /**
  * Get total actual amount from invoices linked to a household item budget line.
@@ -195,62 +134,6 @@ function assertHouseholdItemExists(db: DbType, householdItemId: string): void {
   }
 }
 
-/**
- * Validate the description field.
- * @throws ValidationError if description exceeds max length
- */
-function validateDescription(description: string | null | undefined): void {
-  if (description && description.length > MAX_DESCRIPTION_LENGTH) {
-    throw new ValidationError(`Description must not exceed ${MAX_DESCRIPTION_LENGTH} characters`);
-  }
-}
-
-/**
- * Validate that a confidence level value is valid.
- * @throws ValidationError if invalid
- */
-function validateConfidence(confidence: string): void {
-  if (!VALID_CONFIDENCE_LEVELS.includes(confidence as ConfidenceLevel)) {
-    throw new ValidationError(`confidence must be one of: ${VALID_CONFIDENCE_LEVELS.join(', ')}`);
-  }
-}
-
-/**
- * Validate that a budget category ID exists.
- * @throws ValidationError if not found
- */
-function validateBudgetCategoryId(db: DbType, budgetCategoryId: string): void {
-  const cat = db
-    .select()
-    .from(budgetCategories)
-    .where(eq(budgetCategories.id, budgetCategoryId))
-    .get();
-  if (!cat) {
-    throw new ValidationError(`Budget category not found: ${budgetCategoryId}`);
-  }
-}
-
-/**
- * Validate that a budget source ID exists.
- * @throws ValidationError if not found
- */
-function validateBudgetSourceId(db: DbType, budgetSourceId: string): void {
-  const source = db.select().from(budgetSources).where(eq(budgetSources.id, budgetSourceId)).get();
-  if (!source) {
-    throw new ValidationError(`Budget source not found: ${budgetSourceId}`);
-  }
-}
-
-/**
- * Validate that a vendor ID exists.
- * @throws ValidationError if not found
- */
-function validateVendorId(db: DbType, vendorId: string): void {
-  const vendor = db.select().from(vendors).where(eq(vendors.id, vendorId)).get();
-  if (!vendor) {
-    throw new ValidationError(`Vendor not found: ${vendorId}`);
-  }
-}
 
 /**
  * List all budget lines for a household item, ordered by creation time ascending.
