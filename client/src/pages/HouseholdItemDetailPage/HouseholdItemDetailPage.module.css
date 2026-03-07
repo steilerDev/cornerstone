@@ -1736,7 +1736,7 @@
 }
 
 .budgetSummaryValueMuted {
-  composes: budgetSummaryValue;
+  font-size: var(--font-size-base);
   font-weight: var(--font-weight-normal);
   color: var(--color-text-muted);
   text-decoration: line-through;
