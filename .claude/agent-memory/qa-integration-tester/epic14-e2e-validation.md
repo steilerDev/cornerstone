@@ -1,7 +1,9 @@
 # EPIC-14 E2E Validation Notes (2026-03-07)
 
 ## EPIC-14 Summary
+
 Refactoring epic (no new features). 5 PRs merged to beta:
+
 - PR #534: `subsidyServiceFactory` + `subsidyPaybackServiceFactory` (server)
 - PR #535: `budgetServiceFactory` (server)
 - PR #536: Shared base types in `shared/src/types/budget.ts`
@@ -73,6 +75,7 @@ const budgetSection = page
 
 The HI detail page uses a `getByRole('heading', { name: /budget/i, level: 2 })` pattern
 (no section wrapper like WI). Use the button directly on the page:
+
 ```typescript
 const addButton = page.getByRole('button', { name: /add budget line|add line/i }).first();
 ```
@@ -85,6 +88,7 @@ of what is sent in the request. The form renders a static category label instead
 ## TypeScript Check for E2E Tests
 
 Pre-existing type errors exist in:
+
 - `e2e/containers/cornerstoneContainer.ts` (testcontainers API mismatch)
 - `e2e/containers/setup.ts` (same)
 - `e2e/tests/screenshots/capture-docs-screenshots.spec.ts` (Playwright API mismatch)
