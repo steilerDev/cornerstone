@@ -115,6 +115,16 @@ export type {
   BudgetSourceResponse,
 } from './types/budgetSource.js';
 
+// Shared Budget Base Types
+export type {
+  BaseBudgetLine,
+  CreateBudgetLineRequest,
+  UpdateBudgetLineRequest,
+  SubsidyPaybackEntry,
+  BudgetAggregate,
+  BudgetSummary,
+} from './types/budget.js';
+
 // Subsidy Programs
 export type {
   SubsidyProgram,
