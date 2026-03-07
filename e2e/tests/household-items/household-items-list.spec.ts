@@ -285,13 +285,20 @@ test.describe('Category filter (Scenario 7)', { tag: '@responsive' }, () => {
       // First search to narrow to our prefix, then apply category filter
       await listPage.search(`${testPrefix} HI Cat`);
 
-      // Select 'furniture' category — wait for URL then networkidle (avoids
-      // server-dependent waitForResponse which times out under CI load).
+      // Select 'furniture' category — register response listener BEFORE the
+      // action to avoid the networkidle race (can resolve before fetch starts).
+      const categoryResponsePromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/household-items') &&
+          resp.url().includes('category=furniture') &&
+          resp.request().method() === 'GET',
+        { timeout: 55000 },
+      );
       await listPage.categoryFilter.selectOption('furniture');
       await page.waitForURL((url) => url.searchParams.get('category') === 'furniture', {
         timeout: 10000,
       });
-      await page.waitForLoadState('networkidle', { timeout: 55000 });
+      await categoryResponsePromise;
       await listPage.waitForLoaded();
 
       const names = await listPage.getItemNames();
@@ -330,13 +337,20 @@ test.describe('Status filter (Scenario 8)', { tag: '@responsive' }, () => {
 
       await listPage.search(`${testPrefix} HI Status`);
 
-      // Select 'planned' status — wait for URL then networkidle (avoids
-      // server-dependent waitForResponse which times out under CI load).
+      // Select 'planned' status — register response listener BEFORE the
+      // action to avoid the networkidle race (can resolve before fetch starts).
+      const statusResponsePromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/household-items') &&
+          resp.url().includes('status=planned') &&
+          resp.request().method() === 'GET',
+        { timeout: 55000 },
+      );
       await listPage.statusFilter.selectOption('planned');
       await page.waitForURL((url) => url.searchParams.get('status') === 'planned', {
         timeout: 10000,
       });
-      await page.waitForLoadState('networkidle', { timeout: 55000 });
+      await statusResponsePromise;
       await listPage.waitForLoaded();
 
       const names = await listPage.getItemNames();
@@ -427,9 +441,8 @@ test.describe('Delete modal — confirm (Scenario 10)', { tag: '@responsive' }, 
     expect(modalText).toContain(name);
 
     await listPage.confirmDelete();
-    // Wait for the delete + list refresh requests to complete (networkidle
-    // avoids server-dependent waitForResponse which times out under CI load).
-    await page.waitForLoadState('networkidle', { timeout: 55000 });
+    // confirmDelete() already waits for the DELETE response and modal close.
+    // Wait briefly for React to re-render the updated list.
     await listPage.waitForLoaded();
 
     const namesAfter = await listPage.getItemNames();
