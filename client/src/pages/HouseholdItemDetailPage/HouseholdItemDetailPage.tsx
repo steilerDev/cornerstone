@@ -1322,29 +1322,52 @@ export function HouseholdItemDetailPage() {
           {/* Budget summary */}
           {budgetLines.length > 0 && (
             <div className={styles.budgetSummary}>
-              {hasInvoicedLines && (
-                <div className={styles.budgetSummaryRow}>
-                  <span className={styles.budgetSummaryLabel}>Total Actual Cost:</span>
-                  <span className={styles.budgetSummaryValue}>
-                    {formatCurrency(totalActualCost)}
-                  </span>
-                </div>
-              )}
-              <div className={styles.budgetSummaryRow}>
-                <span className={styles.budgetSummaryLabel}>
-                  {hasPlannedRange ? 'Planned Range:' : 'Total Planned:'}
-                </span>
-                <span
-                  className={
-                    hasInvoicedLines && allLinesInvoiced
-                      ? styles.budgetSummaryValueMuted
-                      : styles.budgetSummaryValue
-                  }
-                >
-                  {hasPlannedRange
-                    ? `${formatCurrency(totalMinPlanned)} – ${formatCurrency(totalMaxPlanned)}`
-                    : formatCurrency(totalPlanned)}
-                </span>
+              <div className={styles.propertyGrid}>
+                {totalActualCost > 0 ? (
+                  <>
+                    <div className={styles.property}>
+                      <span className={styles.propertyLabel}>Total Actual Cost</span>
+                      <span className={styles.budgetValueHighlighted}>
+                        {formatCurrency(totalActualCost)}
+                      </span>
+                    </div>
+                    <div className={styles.property}>
+                      <span className={styles.propertyLabel}>Planned Range</span>
+                      <span className={styles.budgetValueMuted}>
+                        {hasPlannedRange
+                          ? `${formatCurrency(totalMinPlanned)} – ${formatCurrency(totalMaxPlanned)}`
+                          : formatCurrency(totalPlanned)}
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <div className={styles.property}>
+                    <span className={styles.propertyLabel}>Planned Range</span>
+                    <span className={styles.budgetValue}>
+                      {hasPlannedRange
+                        ? `${formatCurrency(totalMinPlanned)} – ${formatCurrency(totalMaxPlanned)}`
+                        : formatCurrency(totalPlanned)}
+                    </span>
+                  </div>
+                )}
+                {subsidyPayback !== null && subsidyPayback.maxTotalPayback > 0 && (
+                  <div className={styles.property}>
+                    <span className={styles.propertyLabel}>Expected Subsidy Payback</span>
+                    <span className={styles.budgetValueHighlighted}>
+                      {subsidyPayback.minTotalPayback === subsidyPayback.maxTotalPayback
+                        ? formatCurrency(subsidyPayback.minTotalPayback)
+                        : `${formatCurrency(subsidyPayback.minTotalPayback)} – ${formatCurrency(subsidyPayback.maxTotalPayback)}`}
+                    </span>
+                  </div>
+                )}
+                {subsidyPayback !== null && subsidyPayback.maxTotalPayback > 0 && (
+                  <div className={styles.property}>
+                    <span className={styles.propertyLabel}>Net Cost</span>
+                    <span className={styles.budgetValueHighlighted}>
+                      {formatCurrency(totalActualCost - subsidyPayback.maxTotalPayback)}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1366,17 +1389,7 @@ export function HouseholdItemDetailPage() {
             onLinkSubsidy={handleLinkSubsidy}
             onUnlinkSubsidy={handleUnlinkSubsidy}
             isLinking={isLinkingSubsidy}
-          >
-            {/* Subsidy payback summary (HI-specific) */}
-            {subsidyPayback && subsidyPayback.maxTotalPayback > 0 && (
-              <div className={styles.subsidyPaybackSummary}>
-                <p className={styles.subsidyPaybackText}>
-                  Estimated Subsidy Reduction: {formatCurrency(subsidyPayback.minTotalPayback)}–
-                  {formatCurrency(subsidyPayback.maxTotalPayback)}
-                </p>
-              </div>
-            )}
-          </SubsidyLinkSection>
+          />
         </section>
 
         {/* Documents section */}

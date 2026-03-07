@@ -362,6 +362,19 @@
   flex-shrink: 0;
 }
 
+/* ---- Invoiced badge ---- */
+
+.invoicedBadge {
+  background: var(--color-success-badge-bg);
+  color: var(--color-success-badge-text);
+  border: 1px solid var(--color-success-border);
+  border-radius: var(--radius-full);
+  padding: var(--spacing-0-5) var(--spacing-2);
+  font-size: var(--font-size-xs);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 /* ---- Cost mixed display wrapper ---- */
 
 .costMixedWrapper {

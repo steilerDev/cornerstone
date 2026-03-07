@@ -622,16 +622,16 @@ export function GanttChart({
   // ---------------------------------------------------------------------------
 
   /**
-   * For each item (work item or milestone), pre-computes the set of connected
-   * entity IDs (work item string IDs + "milestone:<id>" encoded strings) and
-   * the set of arrow keys for connected dependency arrows.
+   * For each item (work item, milestone, or household item), pre-computes the set of connected
+   * entity IDs and the set of arrow keys for connected dependency arrows.
    *
-   * This allows O(1) lookup when a bar/milestone is hovered without iterating
+   * This allows O(1) lookup when a bar/milestone/HI is hovered without iterating
    * over all dependencies on every render.
    *
    * Entity IDs encoding:
-   *   - Work items:  plain string ID
-   *   - Milestones:  "milestone:<id>"
+   *   - Work items:     plain string ID
+   *   - Milestones:     "milestone:<id>"
+   *   - Household items: "hi:<id>"
    */
   const itemDependencyLookup = useMemo<
     ReadonlyMap<
@@ -730,6 +730,37 @@ export function GanttChart({
       }
     }
 
+    // Household item dependency arrows: work item/milestone → HI delivery date
+    for (const hi of data.householdItems ?? []) {
+      if (!hi.dependencyIds?.length) continue;
+      const hiKey = `hi:${hi.id}`;
+
+      for (const dep of hi.dependencyIds) {
+        let predId = '';
+        let arrowKey = '';
+
+        if (dep.predecessorType === 'work_item') {
+          predId = dep.predecessorId;
+          arrowKey = `hi-dep-wi-${predId}-${hi.id}`;
+        } else if (dep.predecessorType === 'milestone') {
+          predId = `milestone:${dep.predecessorId}`;
+          arrowKey = `hi-dep-ms-${dep.predecessorId}-${hi.id}`;
+        }
+
+        if (!predId) continue;
+
+        // For the predecessor (WI or milestone): HI is connected; arrow is connected
+        const predEntry = getOrCreate(predId);
+        predEntry.connectedEntityIds.add(hiKey);
+        predEntry.arrowKeys.add(arrowKey);
+
+        // For the HI: predecessor is connected; arrow is connected
+        const hiEntry = getOrCreate(hiKey);
+        hiEntry.connectedEntityIds.add(predId);
+        hiEntry.arrowKeys.add(arrowKey);
+      }
+    }
+
     return lookup as ReadonlyMap<
       string,
       {
@@ -738,7 +769,7 @@ export function GanttChart({
         tooltipDeps: ReadonlyArray<GanttTooltipDependencyEntry>;
       }
     >;
-  }, [data.dependencies, data.milestones, data.workItems, workItemMap]);
+  }, [data.dependencies, data.milestones, data.workItems, data.householdItems, workItemMap]);
 
   // ---------------------------------------------------------------------------
   // Arrow hover interaction state — per-bar and per-milestone visual states

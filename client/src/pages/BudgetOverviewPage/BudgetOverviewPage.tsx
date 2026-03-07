@@ -324,6 +324,13 @@ export function BudgetOverviewPage() {
     void loadOverview();
   }, []);
 
+  // Auto-scroll to top when error appears
+  useEffect(() => {
+    if (error) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [error]);
+
   const loadOverview = async () => {
     setIsLoading(true);
     setError('');
@@ -707,7 +714,7 @@ export function BudgetOverviewPage() {
             <CostBreakdownTable
               breakdown={breakdown}
               overview={overview}
-              selectedCategories={selectedCategories}
+              selectedCategories={new Set(breakdown.workItems.categories.map((c) => c.categoryId))}
               budgetSources={budgetSources}
             />
           ) : null)}

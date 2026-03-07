@@ -211,7 +211,7 @@ function BudgetLineRow({
   const costMin = line.plannedAmount * (1 - margin);
   const costMax = line.plannedAmount * (1 + margin);
   const perspectiveValue = resolveProjected(costMin, costMax, perspective);
-  const rowClassName = `${styles.rowLevel3}${line.hasInvoice ? ` ${styles.rowActual}` : ''}`;
+  const rowClassName = `${styles.rowLevel3}`;
 
   const resolvedRawCost = line.hasInvoice ? line.actualCost : perspectiveValue;
 
@@ -220,7 +220,11 @@ function BudgetLineRow({
       <td className={styles.colName}>
         <div className={styles.nameContent}>
           <span>{line.description || 'Untitled'}</span>
-          <ConfidenceBadge confidence={line.confidence} />
+          {line.hasInvoice ? (
+            <span className={styles.invoicedBadge}>Invoiced</span>
+          ) : (
+            <ConfidenceBadge confidence={line.confidence} />
+          )}
         </div>
       </td>
       <td className={styles.colBudget}>
