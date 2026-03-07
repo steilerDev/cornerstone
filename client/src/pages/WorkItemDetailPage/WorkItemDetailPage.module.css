@@ -7,13 +7,35 @@
 .loading,
 .error {
   text-align: center;
-  padding: 3rem;
+  padding: var(--spacing-12);
   color: var(--color-text-muted);
-  font-size: 1rem;
+  font-size: var(--font-size-base);
 }
 
 .error {
   color: var(--color-danger);
+}
+
+.errorCard {
+  background: var(--color-bg-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--spacing-8);
+  text-align: center;
+}
+
+.errorTitle {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-danger);
+  margin: 0 0 var(--spacing-4) 0;
+}
+
+.errorActions {
+  display: flex;
+  gap: var(--spacing-3);
+  justify-content: center;
+  margin-top: var(--spacing-4);
 }
 
 .errorBanner {
@@ -68,7 +90,7 @@
   font-size: 0.875rem;
   color: var(--color-text-secondary);
   cursor: pointer;
-  transition: all 0.15s;
+  transition: var(--transition-button-border);
 }
 
 .backButton:hover:not(:disabled) {
@@ -92,7 +114,7 @@
   font-size: 0.875rem;
   color: var(--color-text-muted);
   cursor: pointer;
-  transition: all 0.15s;
+  transition: var(--transition-button-border);
   opacity: 0.7;
 }
 
@@ -153,7 +175,7 @@
   background-color: var(--color-bg-primary);
 }
 
-.titleInput:focus {
+.titleInput:focus-visible {
   outline: none;
   box-shadow: var(--shadow-focus-subtle);
 }
@@ -180,7 +202,7 @@
   transition: border-color 0.15s;
 }
 
-.statusSelect:focus {
+.statusSelect:focus-visible {
   outline: none;
   border-color: var(--color-primary);
   box-shadow: var(--shadow-focus-subtle);
@@ -253,7 +275,7 @@
   background-color: var(--color-bg-primary);
 }
 
-.descriptionTextarea:focus {
+.descriptionTextarea:focus-visible {
   outline: none;
   box-shadow: var(--shadow-focus-subtle);
 }
@@ -316,8 +338,8 @@
   transition: border-color 0.15s;
 }
 
-.propertyInput:focus,
-.propertySelect:focus {
+.propertyInput:focus-visible,
+.propertySelect:focus-visible {
   outline: none;
   border-color: var(--color-primary);
   box-shadow: var(--shadow-focus-subtle);
@@ -345,7 +367,7 @@
   padding: 0 var(--spacing-1);
   font-size: var(--font-size-base);
   line-height: 1;
-  color: var(--color-text-tertiary);
+  color: var(--color-text-muted);
   cursor: pointer;
   border-radius: var(--radius-sm);
   transition: color 0.1s;
@@ -367,7 +389,7 @@
 }
 
 .autosaveSaving {
-  color: var(--color-text-tertiary);
+  color: var(--color-text-muted);
 }
 
 .autosaveSuccess {
@@ -382,12 +404,12 @@
 
 [data-theme='dark'] .autosaveSuccess {
   color: var(--color-emerald-300);
-  background: rgba(16, 185, 129, 0.15);
+  background: var(--color-success-badge-bg);
 }
 
 [data-theme='dark'] .autosaveError {
   color: var(--color-red-400);
-  background: rgba(239, 68, 68, 0.15);
+  background: var(--color-danger-bg);
 }
 
 /* Notes */
@@ -409,7 +431,7 @@
   background-color: var(--color-bg-primary);
 }
 
-.noteTextarea:focus {
+.noteTextarea:focus-visible {
   outline: none;
   border-color: var(--color-primary);
   box-shadow: var(--shadow-focus-subtle);
@@ -483,7 +505,7 @@
   background-color: var(--color-bg-primary);
 }
 
-.subtaskInput:focus {
+.subtaskInput:focus-visible {
   outline: none;
   border-color: var(--color-primary);
   box-shadow: var(--shadow-focus-subtle);
@@ -554,7 +576,7 @@
   border-radius: 0.25rem;
   font-size: 0.875rem;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: background-color var(--transition-normal), border-color var(--transition-normal);
 }
 
 .moveButton:hover:not(:disabled) {
@@ -670,7 +692,7 @@
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: var(--transition-button);
   border: none;
 }
 
@@ -729,10 +751,10 @@
 }
 
 .emptyState {
-  padding: 1.5rem;
+  padding: var(--spacing-6);
   text-align: center;
-  color: var(--color-text-placeholder);
-  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
   font-style: italic;
 }
 
@@ -764,7 +786,7 @@
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: background-color var(--transition-normal);
 }
 
 .deleteWorkItemButton:hover {
@@ -778,7 +800,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 1000;
+  z-index: var(--z-modal);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -830,7 +852,7 @@
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: var(--transition-button);
   border: none;
 }
 
@@ -1027,7 +1049,9 @@
   cursor: pointer;
   padding: 0.125rem 0.375rem;
   border-radius: 0.25rem;
-  transition: all 0.15s;
+  transition:
+    color var(--transition-fast),
+    background-color var(--transition-fast);
 }
 
 .unlinkButton:hover {
@@ -1054,7 +1078,7 @@
   transition: border-color 0.15s;
 }
 
-.linkPickerSelect:focus {
+.linkPickerSelect:focus-visible {
   outline: none;
   border-color: var(--color-primary);
   box-shadow: var(--shadow-focus-subtle);
@@ -1173,7 +1197,7 @@
   padding: 0.125rem 0.5rem;
   text-decoration: none;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: background-color var(--transition-normal), color var(--transition-normal), border-color var(--transition-normal);
   /* button reset */
   font-family: inherit;
   line-height: inherit;
@@ -1274,8 +1298,8 @@
 }
 
 .invoicePopoverStatus_pending {
-  background: var(--color-status-not-started-bg, #f3f4f6);
-  color: var(--color-status-not-started-text, #6b7280);
+  background: var(--color-status-not-started-bg);
+  color: var(--color-status-not-started-text);
 }
 
 .invoicePopoverStatus_paid {
@@ -1486,8 +1510,8 @@
 }
 
 .householdItemLinkName:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: var(--shadow-focus);
   border-radius: var(--radius-sm);
 }
 

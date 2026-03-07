@@ -149,6 +149,7 @@ export default function WorkItemDetailPage() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [is404, setIs404] = useState(false);
 
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState('');
@@ -283,6 +284,7 @@ export default function WorkItemDetailPage() {
     async function loadData() {
       setIsLoading(true);
       setError(null);
+      setIs404(false);
 
       try {
         const [
@@ -346,7 +348,7 @@ export default function WorkItemDetailPage() {
         setLinkedHouseholdItems(linkedHouseholdItemsData);
       } catch (err: unknown) {
         if ((err as { statusCode?: number })?.statusCode === 404) {
-          setError('Work item not found');
+          setIs404(true);
         } else {
           setError('Failed to load work item. Please try again.');
         }
@@ -1053,7 +1055,26 @@ export default function WorkItemDetailPage() {
   if (isLoading) {
     return (
       <div className={styles.container}>
-        <div className={styles.loading}>Loading work item...</div>
+        <div className={styles.loading} role="status">Loading work item...</div>
+      </div>
+    );
+  }
+
+  if (is404) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.errorCard}>
+          <h2 className={styles.errorTitle}>Work Item Not Found</h2>
+          <div className={styles.errorActions}>
+            <button
+              type="button"
+              className={styles.backButton}
+              onClick={() => navigate('/work-items')}
+            >
+              Back to Work Items
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -1061,15 +1082,25 @@ export default function WorkItemDetailPage() {
   if (error || !workItem) {
     return (
       <div className={styles.container}>
-        <div className={styles.error}>
-          {error || 'Work item not found'}
-          <button
-            type="button"
-            className={styles.backButton}
-            onClick={() => navigate('/work-items')}
-          >
-            Back to Work Items
-          </button>
+        <div className={styles.errorCard}>
+          <h2 className={styles.errorTitle}>Failed to Load Work Item</h2>
+          <p>{error || 'An error occurred while loading the work item.'}</p>
+          <div className={styles.errorActions}>
+            <button
+              type="button"
+              className={styles.backButton}
+              onClick={() => navigate('/work-items')}
+            >
+              Back to Work Items
+            </button>
+            <button
+              type="button"
+              className={styles.backButton}
+              onClick={() => navigate(0)}
+            >
+              Retry
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -1533,7 +1564,7 @@ export default function WorkItemDetailPage() {
             </form>
 
             <div className={styles.notesList}>
-              {notes.length === 0 && <div className={styles.emptyState}>No notes yet</div>}
+              {notes.length === 0 && <div className={styles.emptyState}>No notes yet. Use the form above to add one.</div>}
               {notes.map((note) => (
                 <div key={note.id} className={styles.noteItem}>
                   <div className={styles.noteHeader}>
@@ -1619,7 +1650,7 @@ export default function WorkItemDetailPage() {
             </form>
 
             <div className={styles.subtasksList}>
-              {subtasks.length === 0 && <div className={styles.emptyState}>No subtasks yet</div>}
+              {subtasks.length === 0 && <div className={styles.emptyState}>No subtasks yet. Add one above.</div>}
               {subtasks.map((subtask, index) => (
                 <div key={subtask.id} className={styles.subtaskItem}>
                   <input
