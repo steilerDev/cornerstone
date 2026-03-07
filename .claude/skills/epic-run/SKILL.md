@@ -27,13 +27,13 @@ This skill activates **AUTO_MODE** for the session. When AUTO_MODE is active:
 - The **only mandatory human gate** is promotion from `beta` → `main` (Phase 3, Step 8)
 - Progress updates are posted as comments on the epic GitHub Issue
 
-| Phase   | Gate                | AUTO_MODE Behavior                                   |
-| ------- | ------------------- | ---------------------------------------------------- |
-| Phase 1 | Plan approval       | Post plan to epic issue, auto-proceed                |
-| Phase 2 | Bug spec approval   | Auto-approve PO spec, create issue immediately       |
-| Phase 2 | PR merge approval   | Auto-merge after CI green + all reviewers approved   |
-| Phase 3 | UAT validation      | E2E pass + e2e-test-engineer report = sufficient     |
-| Phase 3 | Promotion to `main` | **WAIT for user (ALWAYS)** — never auto-approved     |
+| Phase   | Gate                | AUTO_MODE Behavior                                 |
+| ------- | ------------------- | -------------------------------------------------- |
+| Phase 1 | Plan approval       | Post plan to epic issue, auto-proceed              |
+| Phase 2 | Bug spec approval   | Auto-approve PO spec, create issue immediately     |
+| Phase 2 | PR merge approval   | Auto-merge after CI green + all reviewers approved |
+| Phase 3 | UAT validation      | E2E pass + e2e-test-engineer report = sufficient   |
+| Phase 3 | Promotion to `main` | **WAIT for user (ALWAYS)** — never auto-approved   |
 
 ## Error Handling: Retry-Then-Pause
 
@@ -196,6 +196,7 @@ Follow the same multi-phase flow as `/develop` step 6:
 **2.5c. Frontend Implementation**: If frontend spec present, launch **frontend-developer** (Haiku) — in parallel with 2.5b if `Execution Order: parallel`, otherwise sequentially after 2.5b.
 
 **2.5d. QA + E2E Testing**: Launch both test agents in parallel:
+
 - **qa-integration-tester** with the `## QA Spec` section + list of files changed
 - **e2e-test-engineer** (skip if no `## E2E Spec` section) with the `## E2E Spec` section + list of files changed
 

@@ -183,11 +183,11 @@ No two agents should touch the same file. If shared types in `shared/` are neede
 
 These prevent parallel agent conflicts:
 
-| Agent                   | Owns                                                  |
-| ----------------------- | ----------------------------------------------------- |
-| `backend-developer`     | `server/`, `shared/src/types/`, `shared/src/index.ts` |
-| `frontend-developer`    | `client/`                                             |
-| `qa-integration-tester` | `*.test.ts`, `*.test.tsx` (co-located with source)    |
+| Agent                   | Owns                                                           |
+| ----------------------- | -------------------------------------------------------------- |
+| `backend-developer`     | `server/`, `shared/src/types/`, `shared/src/index.ts`          |
+| `frontend-developer`    | `client/`                                                      |
+| `qa-integration-tester` | `*.test.ts`, `*.test.tsx` (co-located with source)             |
 | `e2e-test-engineer`     | `e2e/tests/`, `e2e/pages/`, `e2e/fixtures/`, `e2e/containers/` |
 
 If a file needs changes from multiple agents, split the work so each agent touches different files, or serialize the work.

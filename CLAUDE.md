@@ -99,13 +99,13 @@ The orchestrator uses four skills to drive work. Each skill contains the full op
 
 `/epic-run` activates **AUTO_MODE** for the session. When AUTO_MODE is active, intermediate user approval gates are auto-approved. The existing skills (`/epic-start`, `/develop`, `/epic-close`) each contain `AUTO_MODE override` blocks that describe the alternate behavior. AUTO_MODE is never active when skills are invoked directly — only when chained by `/epic-run`.
 
-| Skill         | Gate                | Interactive (default) | AUTO_MODE                                            |
-| ------------- | ------------------- | --------------------- | ---------------------------------------------------- |
-| `/epic-start` | Plan approval       | Wait for user         | Post plan to epic issue, auto-proceed                |
-| `/develop`    | Bug spec approval   | Wait for user         | Auto-approve PO spec, create issue immediately       |
-| `/develop`    | PR merge approval   | Wait for user         | Auto-merge after CI green + all reviewers approved   |
-| `/epic-close` | UAT validation      | User walkthrough      | E2E pass + e2e-test-engineer report = sufficient     |
-| `/epic-close` | Promotion to `main` | **Wait for user**     | **Wait for user (ALWAYS)** — never auto-approved     |
+| Skill         | Gate                | Interactive (default) | AUTO_MODE                                          |
+| ------------- | ------------------- | --------------------- | -------------------------------------------------- |
+| `/epic-start` | Plan approval       | Wait for user         | Post plan to epic issue, auto-proceed              |
+| `/develop`    | Bug spec approval   | Wait for user         | Auto-approve PO spec, create issue immediately     |
+| `/develop`    | PR merge approval   | Wait for user         | Auto-merge after CI green + all reviewers approved |
+| `/epic-close` | UAT validation      | User walkthrough      | E2E pass + e2e-test-engineer report = sufficient   |
+| `/epic-close` | Promotion to `main` | **Wait for user**     | **Wait for user (ALWAYS)** — never auto-approved   |
 
 ## Acceptance & Validation
 
