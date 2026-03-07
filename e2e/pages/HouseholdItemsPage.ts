@@ -163,53 +163,29 @@ export class HouseholdItemsPage {
   }
 
   /**
-   * Type a search query and wait for the DOM to reflect the results.
+   * Type a search query and wait for the URL to reflect the query.
    *
-   * Strategy:
-   * 1. Register a waitForResponse listener BEFORE filling the input so the
-   *    response cannot be missed regardless of timing.
-   * 2. Fill the input (triggers 300ms debounce).
-   * 3. Wait for URL to update to ?q=<query> — confirms debounce fired.
-   * 4. Await the API response (proves server has answered).
-   * 5. Wait for DOM to show rows/cards/empty-state.
-   *
-   * The response predicate uses a simple string include check (not URL
-   * parsing) to avoid any encoding mismatches.
+   * After filling the input, we wait for the URL to include ?q=<query> which
+   * proves the 300ms debounce has fired and React will trigger the data fetch.
+   * Callers should wrap DOM assertions in `expect.toPass()` to handle the
+   * asynchronous gap between URL change and React re-render.
    */
   async search(query: string): Promise<void> {
-    const responsePromise = this.page.waitForResponse(
-      (resp) =>
-        resp.url().includes('/api/household-items') &&
-        resp.request().method() === 'GET' &&
-        resp.status() === 200,
-      { timeout: 55000 },
-    );
     await this.searchInput.fill(query);
     await this.page.waitForURL((url) => url.searchParams.get('q') === query, {
       timeout: 10000,
     });
-    await responsePromise;
-    await this.waitForLoaded();
   }
 
   /**
-   * Clear the search input and wait for the DOM to reflect unfiltered results.
+   * Clear the search input and wait for the URL to reflect the cleared state.
    */
   async clearSearch(): Promise<void> {
-    const responsePromise = this.page.waitForResponse(
-      (resp) =>
-        resp.url().includes('/api/household-items') &&
-        resp.request().method() === 'GET' &&
-        resp.status() === 200,
-      { timeout: 55000 },
-    );
     await this.searchInput.clear();
     await this.page.waitForURL(
       (url) => !url.searchParams.has('q') || url.searchParams.get('q') === '',
       { timeout: 10000 },
     );
-    await responsePromise;
-    await this.waitForLoaded();
   }
 
   /**
