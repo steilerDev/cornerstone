@@ -164,10 +164,19 @@ export class HouseholdItemCreatePage {
         resp.url().includes('/api/household-items') &&
         resp.request().method() === 'POST' &&
         resp.status() === 201,
+      { timeout: 30000 },
     );
     await this.submitButton.click();
     await responsePromise;
-    await this.page.waitForURL('**/household-items/**');
+    // Wait for navigation to the detail page — exclude /new to avoid
+    // resolving immediately on the create page URL.
+    await this.page.waitForURL(
+      (url) => {
+        const path = url.pathname;
+        return path.startsWith('/household-items/') && !path.endsWith('/new');
+      },
+      { timeout: 30000 },
+    );
     // Extract the ID from the URL path
     const url = this.page.url();
     const match = url.match(/\/household-items\/([^/]+)$/);

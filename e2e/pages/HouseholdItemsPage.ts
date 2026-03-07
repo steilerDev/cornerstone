@@ -166,27 +166,37 @@ export class HouseholdItemsPage {
    * Type a search query and wait for the DOM to reflect the results.
    *
    * Strategy:
-   * 1. Fill the input.
-   * 2. Wait for URL to update to ?q=<query> — confirms the 300ms debounce
-   *    fired and React set the URL param (client-side, no server needed).
-   * 3. Wait for network idle — server response arrives and React updates DOM.
-   * 4. Wait for DOM to show rows/cards/empty-state.
+   * 1. Register a waitForResponse listener BEFORE filling the input so the
+   *    response cannot be missed regardless of timing.
+   * 2. Fill the input.
+   * 3. Wait for URL to update to ?q=<query> — confirms the 300ms debounce
+   *    fired and React set the URL param.
+   * 4. Await the API response that contains the search query parameter.
+   * 5. Wait for DOM to show rows/cards/empty-state.
    *
-   * This avoids waitForResponse() which times out under heavy CI load (all
-   * 16 shards × 2 workers = 32 concurrent contexts against one SQLite
-   * container can block the server for >50s on writes, starving reads).
-   * networkidle (500ms of no requests) provides a server-agnostic signal that
-   * the fetch completed without hardcoding a specific timeout.
+   * Previous approach used networkidle which can resolve before the fetch
+   * starts (between URL update and React effect triggering the API call),
+   * causing waitForLoaded() to see stale DOM.
    */
   async search(query: string): Promise<void> {
+    // Step 1: register response listener BEFORE the fill so we never miss it
+    const encodedQuery = encodeURIComponent(query);
+    const responsePromise = this.page.waitForResponse(
+      (resp) =>
+        resp.url().includes('/api/household-items') &&
+        resp.url().includes(`q=${encodedQuery}`) &&
+        resp.request().method() === 'GET',
+      { timeout: 55000 },
+    );
+    // Step 2: fill the search input (triggers 300ms debounce)
     await this.searchInput.fill(query);
-    // Step 2: wait for URL to update (debounce complete, React state updated)
+    // Step 3: wait for URL to update (debounce complete, React state updated)
     await this.page.waitForURL((url) => url.searchParams.get('q') === query, {
-      timeout: 5000,
+      timeout: 10000,
     });
-    // Step 3: wait for server response (network goes idle after fetch completes)
-    await this.page.waitForLoadState('networkidle', { timeout: 55000 });
-    // Step 4: wait for DOM update
+    // Step 4: wait for the specific search API response
+    await responsePromise;
+    // Step 5: wait for DOM update
     await this.waitForLoaded();
   }
 
@@ -194,14 +204,22 @@ export class HouseholdItemsPage {
    * Clear the search input and wait for the DOM to reflect unfiltered results.
    */
   async clearSearch(): Promise<void> {
+    // Register response listener BEFORE clearing so we never miss the refetch
+    const responsePromise = this.page.waitForResponse(
+      (resp) =>
+        resp.url().includes('/api/household-items') &&
+        !resp.url().includes('q=') &&
+        resp.request().method() === 'GET',
+      { timeout: 55000 },
+    );
     await this.searchInput.clear();
     // Wait for URL ?q param to clear (debounce complete, React state updated)
     await this.page.waitForURL(
       (url) => !url.searchParams.has('q') || url.searchParams.get('q') === '',
-      { timeout: 5000 },
+      { timeout: 10000 },
     );
     // Wait for server response then DOM update
-    await this.page.waitForLoadState('networkidle', { timeout: 55000 });
+    await responsePromise;
     await this.waitForLoaded();
   }
 

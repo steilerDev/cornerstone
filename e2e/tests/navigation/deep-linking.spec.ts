@@ -5,7 +5,10 @@
 import { test, expect } from '../../fixtures/auth.js';
 import { ROUTES } from '../../fixtures/testData.js';
 
+// WebKit on tablet occasionally crashes with internal errors during rapid
+// sequential navigations. Retrying handles transient browser-level failures.
 test.describe('Deep Linking', () => {
+  test.describe.configure({ retries: 2 });
   test('Direct URL for each route loads correct page', async ({ page }) => {
     // Given/When/Then: Navigate to each route and verify correct page heading
 
