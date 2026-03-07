@@ -25,6 +25,4 @@ From the tag management page you can:
 - **Edit** a tag's name or color
 - **Delete** a tag (this removes it from all work items that use it)
 
-:::info Screenshot needed
-A screenshot of the tag management interface will be added on the next stable release.
-:::
+![Tag management page](/img/screenshots/tags-light.png)
