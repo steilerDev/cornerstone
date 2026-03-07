@@ -542,9 +542,7 @@ test.describe('Documentation screenshots', () => {
   test('Budget categories', async ({ page }) => {
     await page.goto(`${baseUrl}${ROUTES.budgetCategories}`);
     await page.waitForLoadState('networkidle');
-    await expect(
-      page.getByRole('heading', { level: 1, name: /budget categories/i }),
-    ).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: /budget categories/i })).toBeVisible();
     await page.waitForTimeout(500);
 
     for (const theme of ['light', 'dark'] as const) {
@@ -557,9 +555,7 @@ test.describe('Documentation screenshots', () => {
   test('Budget financing sources', async ({ page }) => {
     await page.goto(`${baseUrl}${ROUTES.budgetSources}`);
     await page.waitForLoadState('networkidle');
-    await expect(
-      page.getByRole('heading', { level: 1, name: /financing sources/i }),
-    ).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: /financing sources/i })).toBeVisible();
     await page.waitForTimeout(500);
 
     for (const theme of ['light', 'dark'] as const) {
@@ -714,9 +710,7 @@ test.describe('Documentation screenshots', () => {
   test('Household items list', async ({ page }) => {
     await page.goto(`${baseUrl}${ROUTES.householdItems}`);
     await page.waitForLoadState('networkidle');
-    await expect(
-      page.getByRole('heading', { level: 1, name: /household items/i }),
-    ).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: /household items/i })).toBeVisible();
     await page.waitForTimeout(500);
 
     for (const theme of ['light', 'dark'] as const) {
