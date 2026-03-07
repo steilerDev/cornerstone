@@ -86,11 +86,11 @@ test.describe('Default categories (Scenario 1 & 2)', { tag: '@responsive' }, () 
     expect(materialsRow).not.toBeNull();
     if (materialsRow) {
       // Color swatch element should be present
-      const swatch = materialsRow.locator('[class*="categorySwatch"]');
+      const swatch = materialsRow.locator('[class*="colorSwatch"]');
       await expect(swatch).toBeVisible();
 
       // Sort order indicator should be present
-      const sortOrder = materialsRow.locator('[class*="categorySortOrder"]');
+      const sortOrder = materialsRow.locator('[class*="itemSortOrder"]');
       await expect(sortOrder).toBeVisible();
     }
   });
@@ -213,7 +213,7 @@ test.describe('Create category — happy path (Scenario 3)', { tag: '@responsive
     const rows = await categoriesPage.getCategoryRows();
     let createdId: string | null = null;
     for (const row of rows) {
-      const nameEl = row.locator('[class*="categoryName"]');
+      const nameEl = row.locator('[class*="itemName"]');
       const rowText = await nameEl.textContent();
       if (rowText?.trim() === categoryName) {
         // Get the delete button aria-label to find the category
@@ -801,13 +801,13 @@ test.describe('Empty state (Scenario 18)', { tag: '@responsive' }, () => {
 // Page structure and navigation
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Page structure and accessibility', { tag: '@responsive' }, () => {
-  test('Page has correct h1 heading "Budget"', async ({ page }) => {
+  test('Page has correct h1 heading "Manage"', async ({ page }) => {
     const categoriesPage = new BudgetCategoriesPage(page);
 
     await categoriesPage.goto();
 
     await expect(categoriesPage.heading).toBeVisible();
-    await expect(categoriesPage.heading).toHaveText('Budget');
+    await expect(categoriesPage.heading).toHaveText('Manage');
 
     // Verify the correct sub-page loaded via the h2 section heading
     const sectionHeading = page.getByRole('heading', { level: 2, name: /^Categories \(/ });
@@ -897,7 +897,7 @@ test.describe('Responsive layout (Scenario 9)', { tag: '@responsive' }, () => {
 
     // The first row (Materials) has Edit and Delete buttons
     const firstRow = rows[0];
-    const firstNameEl = firstRow.locator('[class*="categoryName"]');
+    const firstNameEl = firstRow.locator('[class*="itemName"]');
     const firstName = (await firstNameEl.textContent())?.trim() ?? '';
 
     if (firstName) {
@@ -1075,7 +1075,7 @@ test.describe('Color field (Scenario 17)', { tag: '@responsive' }, () => {
       expect(row).not.toBeNull();
 
       if (row) {
-        const swatch = row.locator('[class*="categorySwatch"]');
+        const swatch = row.locator('[class*="colorSwatch"]');
         await expect(swatch).toBeVisible();
         // The swatch should have a non-transparent background color
         const bgColor = await swatch.evaluate((el) => (el as HTMLElement).style.backgroundColor);

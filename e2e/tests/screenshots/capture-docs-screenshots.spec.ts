@@ -63,8 +63,8 @@ async function seedWorkItems(request: Parameters<typeof test>[2], baseUrl: strin
       // Tag already created by another parallel worker — look it up by name
       const listRes = await request.get(`${baseUrl}/api/tags`);
       if (listRes.ok()) {
-        const listBody = (await listRes.json()) as Array<{ id: number; name: string }>;
-        const existing = listBody.find((t) => t.name === tag.name);
+        const listBody = (await listRes.json()) as { tags: Array<{ id: number; name: string }> };
+        const existing = listBody.tags.find((t) => t.name === tag.name);
         if (existing) {
           tagIds.push(existing.id);
         }
@@ -529,7 +529,7 @@ test.describe('Documentation screenshots', () => {
   test('Budget overview', async ({ page }) => {
     await page.goto(`${baseUrl}${ROUTES.budget}`);
     await page.waitForLoadState('networkidle');
-    await expect(page.getByRole('heading', { level: 1, name: /budget overview/i })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: /budget/i })).toBeVisible();
     await page.waitForTimeout(500);
 
     for (const theme of ['light', 'dark'] as const) {
@@ -542,7 +542,7 @@ test.describe('Documentation screenshots', () => {
   test('Budget categories', async ({ page }) => {
     await page.goto(`${baseUrl}${ROUTES.budgetCategories}`);
     await page.waitForLoadState('networkidle');
-    await expect(page.getByRole('heading', { level: 1, name: /budget categories/i })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: /manage/i })).toBeVisible();
     await page.waitForTimeout(500);
 
     for (const theme of ['light', 'dark'] as const) {
@@ -555,7 +555,7 @@ test.describe('Documentation screenshots', () => {
   test('Budget financing sources', async ({ page }) => {
     await page.goto(`${baseUrl}${ROUTES.budgetSources}`);
     await page.waitForLoadState('networkidle');
-    await expect(page.getByRole('heading', { level: 1, name: /financing sources/i })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: /budget/i })).toBeVisible();
     await page.waitForTimeout(500);
 
     for (const theme of ['light', 'dark'] as const) {
@@ -568,7 +568,7 @@ test.describe('Documentation screenshots', () => {
   test('Budget subsidies', async ({ page }) => {
     await page.goto(`${baseUrl}${ROUTES.budgetSubsidies}`);
     await page.waitForLoadState('networkidle');
-    await expect(page.getByRole('heading', { level: 1, name: /subsidies/i })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: /budget/i })).toBeVisible();
     await page.waitForTimeout(500);
 
     for (const theme of ['light', 'dark'] as const) {
