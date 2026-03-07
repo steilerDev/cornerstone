@@ -9,6 +9,7 @@ import {
   budgetCategories,
   users,
 } from '../db/schema.js';
+import { toUserSummary, toBudgetCategory } from './shared/converters.js';
 import type {
   SubsidyProgram,
   SubsidyReductionType,
@@ -19,33 +20,6 @@ import type {
 import { NotFoundError, ConflictError } from '../errors/AppError.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
-
-/**
- * Convert database user row to UserSummary shape.
- */
-function toUserSummary(user: typeof users.$inferSelect | null | undefined): UserSummary | null {
-  if (!user) return null;
-  return {
-    id: user.id,
-    displayName: user.displayName,
-    email: user.email,
-  };
-}
-
-/**
- * Convert database budget category row to BudgetCategory shape.
- */
-function toBudgetCategory(row: typeof budgetCategories.$inferSelect): BudgetCategory {
-  return {
-    id: row.id,
-    name: row.name,
-    description: row.description ?? null,
-    color: row.color ?? null,
-    sortOrder: row.sortOrder,
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
-  };
-}
 
 /**
  * Load applicable categories for a given subsidy program.
@@ -67,7 +41,7 @@ function loadApplicableCategories(db: DbType, subsidyProgramId: string): BudgetC
     .orderBy(asc(budgetCategories.sortOrder), asc(budgetCategories.name))
     .all();
 
-  return categories.map(toBudgetCategory);
+  return categories.map((row) => toBudgetCategory(row)!);
 }
 
 /**

@@ -27,10 +27,11 @@ import {
 import { deleteLinksForEntity } from './documentLinkService.js';
 import { listDeps } from './householdItemDepService.js';
 import { autoReschedule } from './schedulingEngine.js';
+import { toUserSummary, toTagResponse, toVendorSummary } from './shared/converters.js';
+import { validateTagIds, validateVendorId } from './shared/validators.js';
 import type {
   HouseholdItemDetail,
   HouseholdItemSummary,
-  HouseholdItemVendorSummary,
   UserSummary,
   TagResponse,
   HouseholdItemCategory,
@@ -46,42 +47,6 @@ import { NotFoundError, ValidationError } from '../errors/AppError.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
-/**
- * Convert database user row to UserSummary shape.
- */
-function toUserSummary(user: typeof users.$inferSelect | null): UserSummary | null {
-  if (!user) return null;
-  return {
-    id: user.id,
-    displayName: user.displayName,
-    email: user.email,
-  };
-}
-
-/**
- * Convert database tag row to TagResponse shape.
- */
-function toTagResponse(tag: typeof tags.$inferSelect): TagResponse {
-  return {
-    id: tag.id,
-    name: tag.name,
-    color: tag.color,
-  };
-}
-
-/**
- * Convert database vendor row to HouseholdItemVendorSummary shape.
- */
-function toVendorSummary(
-  vendor: typeof vendors.$inferSelect | null,
-): HouseholdItemVendorSummary | null {
-  if (!vendor) return null;
-  return {
-    id: vendor.id,
-    name: vendor.name,
-    specialty: vendor.specialty,
-  };
-}
 
 /**
  * Fetch tags for a household item.
@@ -294,29 +259,6 @@ function findHouseholdItemById(db: DbType, id: string): typeof householdItems.$i
   return db.select().from(householdItems).where(eq(householdItems.id, id)).get() ?? null;
 }
 
-/**
- * Validate that all tag IDs exist.
- * Throws ValidationError if any tag does not exist.
- */
-function validateTagIds(db: DbType, tagIds: string[]): void {
-  for (const tagId of tagIds) {
-    const tag = db.select().from(tags).where(eq(tags.id, tagId)).get();
-    if (!tag) {
-      throw new ValidationError(`Tag not found: ${tagId}`);
-    }
-  }
-}
-
-/**
- * Validate that vendor ID exists (if provided).
- * Throws ValidationError if vendor does not exist.
- */
-function validateVendorId(db: DbType, vendorId: string): void {
-  const vendor = db.select().from(vendors).where(eq(vendors.id, vendorId)).get();
-  if (!vendor) {
-    throw new ValidationError(`Vendor not found: ${vendorId}`);
-  }
-}
 
 /**
  * Validate that household item category ID exists.
