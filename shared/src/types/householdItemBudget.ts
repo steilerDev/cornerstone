@@ -8,60 +8,31 @@
  * like actualCost and invoiceCount are hardcoded to 0.
  */
 
-import type { BudgetCategory } from './budgetCategory.js';
-import type { UserSummary } from './workItem.js';
-import type { ConfidenceLevel, BudgetSourceSummary, VendorSummary } from './workItemBudget.js';
+import type {
+  BaseBudgetLine,
+  CreateBudgetLineRequest,
+  UpdateBudgetLineRequest,
+  SubsidyPaybackEntry,
+} from './budget.js';
 
 /**
  * A single budget line for a household item, including computed aggregate fields.
  * Unlike work items, household items have no invoices, so actualCost and invoiceCount are always 0.
  */
-export interface HouseholdItemBudgetLine {
-  id: string;
+export interface HouseholdItemBudgetLine extends BaseBudgetLine {
   householdItemId: string;
-  description: string | null;
-  plannedAmount: number;
-  confidence: ConfidenceLevel;
-  /** Computed: margin factor from CONFIDENCE_MARGINS for the confidence level */
-  confidenceMargin: number;
-  budgetCategory: BudgetCategory | null;
-  budgetSource: BudgetSourceSummary | null;
-  vendor: VendorSummary | null;
-  /** Computed: sum of invoice amounts linked to this budget line */
-  actualCost: number;
-  /** Computed: sum of paid invoice amounts linked to this budget line */
-  actualCostPaid: number;
-  /** Computed: count of invoices linked to this budget line */
-  invoiceCount: number;
-  createdBy: UserSummary | null;
-  createdAt: string;
-  updatedAt: string;
 }
 
 /**
  * Request body for creating a new household item budget line.
  */
-export interface CreateHouseholdItemBudgetRequest {
-  description?: string | null;
-  plannedAmount: number;
-  confidence?: ConfidenceLevel;
-  budgetCategoryId?: string | null;
-  budgetSourceId?: string | null;
-  vendorId?: string | null;
-}
+export type CreateHouseholdItemBudgetRequest = CreateBudgetLineRequest;
 
 /**
  * Request body for updating a household item budget line.
  * All fields are optional; at least one must be provided.
  */
-export interface UpdateHouseholdItemBudgetRequest {
-  description?: string | null;
-  plannedAmount?: number;
-  confidence?: ConfidenceLevel;
-  budgetCategoryId?: string | null;
-  budgetSourceId?: string | null;
-  vendorId?: string | null;
-}
+export type UpdateHouseholdItemBudgetRequest = UpdateBudgetLineRequest;
 
 /**
  * Response for GET /api/household-items/:householdItemId/budgets.
@@ -80,14 +51,7 @@ export interface HouseholdItemBudgetResponse {
 /**
  * Entry in a household item subsidy payback response.
  */
-export interface HouseholdItemSubsidyPaybackEntry {
-  subsidyProgramId: string;
-  name: string;
-  reductionType: 'percentage' | 'fixed';
-  reductionValue: number;
-  minPayback: number;
-  maxPayback: number;
-}
+export type HouseholdItemSubsidyPaybackEntry = SubsidyPaybackEntry;
 
 /**
  * Response for GET /api/household-items/:householdItemId/subsidy-payback.

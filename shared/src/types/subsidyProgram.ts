@@ -6,6 +6,7 @@
 
 import type { BudgetCategory } from './budgetCategory.js';
 import type { UserSummary } from './workItem.js';
+import type { SubsidyPaybackEntry } from './budget.js';
 
 /**
  * The type of cost reduction applied by a subsidy program.
@@ -92,16 +93,7 @@ export interface SubsidyProgramResponse {
  * min and max reflect the confidence margin range for non-invoiced budget lines.
  * For fixed subsidies and fully-invoiced lines, minPayback === maxPayback.
  */
-export interface WorkItemSubsidyPaybackEntry {
-  subsidyProgramId: string;
-  name: string;
-  reductionType: SubsidyReductionType;
-  reductionValue: number;
-  /** Minimum expected payback (lower bound based on confidence margins). */
-  minPayback: number;
-  /** Maximum expected payback (upper bound based on confidence margins). */
-  maxPayback: number;
-}
+export type WorkItemSubsidyPaybackEntry = SubsidyPaybackEntry;
 
 /**
  * Response for GET /api/work-items/:workItemId/subsidy-payback
