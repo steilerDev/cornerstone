@@ -162,7 +162,7 @@ Launch the **dev-team-lead** in `[MODE: spec]` with:
 - UX visual spec reference (if posted in step 3)
 - Branch name
 
-The dev-team-lead returns a structured spec document with `## Backend Spec`, `## Frontend Spec`, and `## QA Spec` sections. Store the full spec — you will pass sections to implementation agents and the full spec to review.
+The dev-team-lead returns a structured spec document with `## Backend Spec`, `## Frontend Spec`, `## QA Spec`, and `## E2E Spec` sections. Store the full spec — you will pass sections to implementation agents and the full spec to review.
 
 #### 6b. Backend Implementation (if backend spec present)
 
@@ -177,11 +177,18 @@ Check the `Execution Order` field in the spec metadata:
 
 Launch **frontend-developer** (Haiku) with the `## Frontend Spec` section from the spec document.
 
-#### 6d. QA Testing
+#### 6d. QA + E2E Testing
 
-After implementation agents complete, launch **qa-integration-tester** with:
+After implementation agents complete, launch both test agents in parallel:
+
+**qa-integration-tester** with:
 
 - The `## QA Spec` section from the spec document
+- List of files created/modified by the backend and frontend agents
+
+**e2e-test-engineer** (skip if no `## E2E Spec` section in the spec) with:
+
+- The `## E2E Spec` section from the spec document
 - List of files created/modified by the backend and frontend agents
 
 #### 6e. Code Review
@@ -189,7 +196,7 @@ After implementation agents complete, launch **qa-integration-tester** with:
 Launch the **dev-team-lead** in `[MODE: review]` with:
 
 - The original full spec document
-- List of all files changed by implementation agents (from 6b, 6c, 6d)
+- List of all files changed by implementation and test agents (from 6b, 6c, 6d)
 - Any error output or concerns reported by implementation agents
 
 **If `VERDICT: APPROVED`** → proceed to step 6g
@@ -204,7 +211,8 @@ Track `internalFixCount` (starts at 0). For each iteration:
 2. Re-launch the appropriate agent(s) with targeted fix specs:
    - Backend fixes → **backend-developer** (Haiku)
    - Frontend fixes → **frontend-developer** (Haiku)
-   - Test fixes → **qa-integration-tester**
+   - Unit/integration test fixes → **qa-integration-tester**
+   - E2E test fixes → **e2e-test-engineer**
 3. After fixes complete, re-launch **dev-team-lead** in `[MODE: review]` with updated file list
 4. Increment `internalFixCount`
 5. If `VERDICT: APPROVED` → proceed to step 6g
@@ -215,7 +223,7 @@ Track `internalFixCount` (starts at 0). For each iteration:
 
 Launch the **dev-team-lead** in `[MODE: commit]` with:
 
-- Contributing agents list: list every agent that was launched in steps 6b-6d (and 6f if applicable). Include `backend-developer`, `frontend-developer`, and/or `qa-integration-tester` as appropriate.
+- Contributing agents list: list every agent that was launched in steps 6b-6d (and 6f if applicable). Include `backend-developer`, `frontend-developer`, `qa-integration-tester`, and/or `e2e-test-engineer` as appropriate.
 - Issue number(s) for `Fixes #N` lines
 - Branch name
 
@@ -235,6 +243,7 @@ If production files were changed (`git diff --name-only origin/beta..HEAD | grep
 
 - Files under `server/` or `shared/` → must have `Co-Authored-By: Claude backend-developer (Haiku`
 - Files under `client/` → must have `Co-Authored-By: Claude frontend-developer (Haiku`
+- Files under `e2e/` → must have `Co-Authored-By: Claude e2e-test-engineer (Sonnet`
 
 If trailers are missing, the dev-team-lead missed an agent in the contributing list. Re-launch `[MODE: commit]` with the corrected list.
 
@@ -322,7 +331,8 @@ If any reviewer identifies blocking issues:
 3. Route fix specs to the appropriate implementation agent(s):
    - Backend fixes → **backend-developer** (Haiku)
    - Frontend fixes → **frontend-developer** (Haiku)
-   - Test fixes → **qa-integration-tester**
+   - Unit/integration test fixes → **qa-integration-tester**
+   - E2E test fixes → **e2e-test-engineer**
 4. After fixes, launch **dev-team-lead** in `[MODE: review]` to verify the fixes
 5. Launch **dev-team-lead** in `[MODE: commit]` to commit, push, and watch CI
 6. Run **trailer verification** (same as step 6h)
