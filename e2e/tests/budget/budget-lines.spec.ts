@@ -305,7 +305,10 @@ test.describe('Work Item — Edit budget line (Scenario 2)', { tag: '@responsive
 // Scenario 3: Work Item — Delete a budget line
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Work Item — Delete budget line (Scenario 3)', { tag: '@responsive' }, () => {
-  test('Deleting a budget line removes it from the budget section', async ({ page, testPrefix }) => {
+  test('Deleting a budget line removes it from the budget section', async ({
+    page,
+    testPrefix,
+  }) => {
     let workItemId: string | null = null;
 
     try {
@@ -367,7 +370,9 @@ test.describe('Work Item — Delete budget line (Scenario 3)', { tag: '@responsi
       const budgetSection = page
         .locator('section')
         .filter({ has: page.getByRole('heading', { level: 2, name: 'Budget', exact: true }) });
-      await expect(budgetSection.getByText(/750/, { exact: false })).toBeVisible({ timeout: 10000 });
+      await expect(budgetSection.getByText(/750/, { exact: false })).toBeVisible({
+        timeout: 10000,
+      });
 
       const deleteButton = budgetSection.getByRole('button', { name: /^Delete$/i }).first();
       await deleteButton.click();
@@ -501,10 +506,9 @@ test.describe('Work Item — Unlink subsidy program (Scenario 5)', { tag: '@resp
       });
 
       // Link the subsidy via API so we start with it already linked
-      const linkResponse = await page.request.post(
-        `${API.workItems}/${workItemId}/subsidies`,
-        { data: { subsidyProgramId: subsidyId } },
-      );
+      const linkResponse = await page.request.post(`${API.workItems}/${workItemId}/subsidies`, {
+        data: { subsidyProgramId: subsidyId },
+      });
       expect(linkResponse.ok()).toBeTruthy();
 
       await gotoWorkItemAndWaitForBudget(page, workItemId);
@@ -707,7 +711,9 @@ test.describe(
           .filter({ has: page.getByRole('heading', { level: 2, name: 'Budget', exact: true }) });
 
         // SubsidyLinkSection renders "No subsidies linked" when linkedSubsidies is empty
-        await expect(budgetSection.getByText('No subsidies linked')).toBeVisible({ timeout: 10000 });
+        await expect(budgetSection.getByText('No subsidies linked')).toBeVisible({
+          timeout: 10000,
+        });
       } finally {
         if (workItemId) await deleteWorkItemViaApi(page, workItemId);
       }
