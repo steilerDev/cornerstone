@@ -86,7 +86,7 @@ test.describe('Default categories (Scenario 1 & 2)', { tag: '@responsive' }, () 
     expect(materialsRow).not.toBeNull();
     if (materialsRow) {
       // Color swatch element should be present
-      const swatch = materialsRow.locator('[class*="colorSwatch"]');
+      const swatch = materialsRow.locator('[class*="itemSwatch"]');
       await expect(swatch).toBeVisible();
 
       // Sort order indicator should be present
@@ -1075,7 +1075,7 @@ test.describe('Color field (Scenario 17)', { tag: '@responsive' }, () => {
       expect(row).not.toBeNull();
 
       if (row) {
-        const swatch = row.locator('[class*="colorSwatch"]');
+        const swatch = row.locator('[class*="itemSwatch"]');
         await expect(swatch).toBeVisible();
         // The swatch should have a non-transparent background color
         const bgColor = await swatch.evaluate((el) => (el as HTMLElement).style.backgroundColor);
