@@ -47,7 +47,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         </NavLink>
         <NavLink
           to="/budget"
-          end
           className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
           onClick={onClose}
         >

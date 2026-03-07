@@ -95,6 +95,15 @@ export function HouseholdItemsPage() {
   const deleteTriggerRef = useRef<HTMLButtonElement | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
+  // Category name lookup map
+  const categoryNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const cat of categories) {
+      map.set(cat.id, cat.name);
+    }
+    return map;
+  }, [categories]);
+
   // Load vendors and categories on mount
   useEffect(() => {
     const loadData = async () => {
@@ -708,7 +717,7 @@ export function HouseholdItemsPage() {
                     onClick={() => handleRowClick(item.id)}
                   >
                     <td className={styles.titleCell}>{item.name}</td>
-                    <td>{item.category.charAt(0).toUpperCase() + item.category.slice(1)}</td>
+                    <td>{categoryNameMap.get(item.category) ?? item.category}</td>
                     <td>
                       <HouseholdItemStatusBadge status={item.status} />
                     </td>
@@ -842,7 +851,7 @@ export function HouseholdItemsPage() {
                 <div className={styles.cardBody}>
                   <div className={styles.cardRow}>
                     <span className={styles.cardLabel}>Category:</span>
-                    <span>{item.category.charAt(0).toUpperCase() + item.category.slice(1)}</span>
+                    <span>{categoryNameMap.get(item.category) ?? item.category}</span>
                   </div>
                   <div className={styles.cardRow}>
                     <span className={styles.cardLabel}>Status:</span>
