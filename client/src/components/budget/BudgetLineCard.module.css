@@ -132,7 +132,7 @@
 
 .deleteConfirmButton {
   background: var(--color-danger);
-  color: white;
+  color: var(--color-danger-text);
   border: 1px solid var(--color-danger);
 }
 
@@ -150,6 +150,15 @@
 .cancelDeleteButton:hover {
   background: var(--color-bg-primary);
   border-color: var(--color-border-strong);
+}
+
+@media (max-width: 1023px) {
+  .editButton,
+  .deleteButton,
+  .deleteConfirmButton,
+  .cancelDeleteButton {
+    min-height: 44px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -134,6 +134,13 @@
   cursor: not-allowed;
 }
 
+@media (max-width: 1023px) {
+  .unlinkButton {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .linkedItem,
   .unlinkButton,
