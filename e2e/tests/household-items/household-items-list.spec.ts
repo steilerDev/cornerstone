@@ -293,12 +293,20 @@ test.describe('Category filter (Scenario 7)', { tag: '@responsive' }, () => {
       // First search to narrow to our prefix, then apply category filter
       await listPage.search(`${testPrefix} HI Cat`);
 
-      // Select 'furniture' category
+      // Select 'furniture' category — register response listener BEFORE the
+      // action so we never miss the API response.
+      const categoryResponsePromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/household-items') &&
+          resp.request().method() === 'GET' &&
+          resp.status() === 200,
+        { timeout: 55000 },
+      );
       await listPage.categoryFilter.selectOption('furniture');
       await page.waitForURL((url) => url.searchParams.get('category') === 'furniture', {
         timeout: 10000,
       });
-      await page.waitForLoadState('networkidle', { timeout: 55000 });
+      await categoryResponsePromise;
       await listPage.waitForLoaded();
 
       await expect(async () => {
@@ -339,12 +347,20 @@ test.describe('Status filter (Scenario 8)', { tag: '@responsive' }, () => {
 
       await listPage.search(`${testPrefix} HI Status`);
 
-      // Select 'planned' status
+      // Select 'planned' status — register response listener BEFORE the
+      // action so we never miss the API response.
+      const statusResponsePromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/household-items') &&
+          resp.request().method() === 'GET' &&
+          resp.status() === 200,
+        { timeout: 55000 },
+      );
       await listPage.statusFilter.selectOption('planned');
       await page.waitForURL((url) => url.searchParams.get('status') === 'planned', {
         timeout: 10000,
       });
-      await page.waitForLoadState('networkidle', { timeout: 55000 });
+      await statusResponsePromise;
       await listPage.waitForLoaded();
 
       await expect(async () => {
