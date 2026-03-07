@@ -123,6 +123,13 @@ export function HouseholdItemDetailPage() {
   const [dateInlineError, setDateInlineError] = useState<string | null>(null);
   const [isChangingStatus, setIsChangingStatus] = useState(false);
 
+  // Auto-scroll to top when error appears
+  useEffect(() => {
+    if (error) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [error]);
+
   // Inline date editing state
   const [localOrderDate, setLocalOrderDate] = useState<string>('');
   const [localActualDeliveryDate, setLocalActualDeliveryDate] = useState<string>('');

@@ -61,6 +61,13 @@ function TagsTab() {
   const [deletingTagId, setDeletingTagId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Auto-scroll to top when error appears
+  useEffect(() => {
+    if (error) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [error]);
+
   useEffect(() => {
     loadTags();
   }, []);
