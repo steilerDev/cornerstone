@@ -360,7 +360,13 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
               </button>
             </div>
             <div className={styles.pickerBody}>
-              <DocumentBrowser mode="modal" onSelect={handleDocumentSelect} />
+              <DocumentBrowser
+                mode="modal"
+                onSelect={handleDocumentSelect}
+                linkedDocumentIds={hook.links
+                  .map((link) => link.document?.id)
+                  .filter((id): id is number => id !== undefined)}
+              />
             </div>
           </div>
         </div>
