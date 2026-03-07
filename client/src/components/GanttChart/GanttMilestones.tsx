@@ -72,6 +72,8 @@ export interface GanttMilestonesProps {
   criticalMilestoneIds?: ReadonlySet<number>;
   /** Border color for critical path milestones. */
   criticalBorderColor?: string;
+  /** Stroke color for critical path connectors (late milestone dashed lines). */
+  criticalConnectorColor?: string;
   /** Called when a diamond is hovered (for tooltip). Passes milestone and mouse coords. */
   onMilestoneMouseEnter?: (
     milestone: TimelineMilestone,
@@ -262,6 +264,7 @@ export const GanttMilestones = memo(function GanttMilestones({
   milestoneInteractionStates,
   criticalMilestoneIds,
   criticalBorderColor,
+  criticalConnectorColor,
   onMilestoneMouseEnter,
   onMilestoneMouseLeave,
   onMilestoneMouseMove,
@@ -320,8 +323,12 @@ export const GanttMilestones = memo(function GanttMilestones({
                 y1={y}
                 x2={projectedX}
                 y2={y}
-                stroke={colors.lateStroke}
-                strokeWidth={1.5}
+                stroke={
+                  isCriticalMilestone && criticalConnectorColor
+                    ? criticalConnectorColor
+                    : colors.lateStroke
+                }
+                strokeWidth={isCriticalMilestone ? 2 : 1.5}
                 strokeDasharray="4 3"
                 strokeOpacity={interactionState === 'dimmed' ? 0.2 : 0.6}
                 aria-hidden="true"
