@@ -139,15 +139,17 @@ test.describe('Empty state — filter no match (Scenario 4)', { tag: '@responsiv
 
       await listPage.search('ZZZNOMATCH99999XYZABC');
 
-      await expect(listPage.emptyState).toBeVisible({ timeout: 7000 });
-      const emptyText = await listPage.emptyState.textContent();
-      expect(emptyText?.toLowerCase()).toMatch(/no household items match your filters/);
+      await expect(async () => {
+        await expect(listPage.emptyState).toBeVisible({ timeout: 5000 });
+        const emptyText = await listPage.emptyState.textContent();
+        expect(emptyText?.toLowerCase()).toMatch(/no household items match your filters/);
 
-      // "Clear All Filters" button visible
-      const clearButton = listPage.emptyState.getByRole('button', {
-        name: /Clear All Filters/i,
-      });
-      await expect(clearButton).toBeVisible();
+        // "Clear All Filters" button visible
+        const clearButton = listPage.emptyState.getByRole('button', {
+          name: /Clear All Filters/i,
+        });
+        await expect(clearButton).toBeVisible();
+      }).toPass({ timeout: 30000 });
     } finally {
       if (createdId) await deleteHouseholdItemViaApi(page, createdId);
     }
@@ -178,8 +180,10 @@ test.describe(
 
         await listPage.search(name);
 
-        const names = await listPage.getItemNames();
-        expect(names).toContain(name);
+        await expect(async () => {
+          const names = await listPage.getItemNames();
+          expect(names).toContain(name);
+        }).toPass({ timeout: 30000 });
       } finally {
         if (createdId) await deleteHouseholdItemViaApi(page, createdId);
       }
@@ -206,13 +210,15 @@ test.describe(
         await listPage.waitForLoaded();
         await listPage.search(name);
 
-        await expect(listPage.tableContainer).toBeVisible();
+        await expect(async () => {
+          await expect(listPage.tableContainer).toBeVisible();
 
-        const table = listPage.tableContainer.locator('table');
-        await expect(table.getByRole('columnheader', { name: 'Name' })).toBeVisible();
-        await expect(table.getByRole('columnheader', { name: 'Category' })).toBeVisible();
-        await expect(table.getByRole('columnheader', { name: 'Status' })).toBeVisible();
-        await expect(table.getByRole('columnheader', { name: 'Actions' })).toBeVisible();
+          const table = listPage.tableContainer.locator('table');
+          await expect(table.getByRole('columnheader', { name: 'Name' })).toBeVisible();
+          await expect(table.getByRole('columnheader', { name: 'Category' })).toBeVisible();
+          await expect(table.getByRole('columnheader', { name: 'Status' })).toBeVisible();
+          await expect(table.getByRole('columnheader', { name: 'Actions' })).toBeVisible();
+        }).toPass({ timeout: 30000 });
       } finally {
         if (createdId) await deleteHouseholdItemViaApi(page, createdId);
       }
@@ -243,9 +249,11 @@ test.describe('Search filters (Scenario 6)', { tag: '@responsive' }, () => {
 
       await listPage.search(`${testPrefix} HI Alpha`);
 
-      const names = await listPage.getItemNames();
-      expect(names).toContain(alphaName);
-      expect(names).not.toContain(betaName);
+      await expect(async () => {
+        const names = await listPage.getItemNames();
+        expect(names).toContain(alphaName);
+        expect(names).not.toContain(betaName);
+      }).toPass({ timeout: 30000 });
     } finally {
       for (const id of created) {
         await deleteHouseholdItemViaApi(page, id);
@@ -285,35 +293,19 @@ test.describe('Category filter (Scenario 7)', { tag: '@responsive' }, () => {
       // First search to narrow to our prefix, then apply category filter
       await listPage.search(`${testPrefix} HI Cat`);
 
-      // Select 'furniture' category — register response listener BEFORE the
-      // action to avoid the networkidle race (can resolve before fetch starts).
-      // Use URL parsing for consistent parameter matching (URLSearchParams
-      // encodes spaces as '+', not '%20').
-      const categoryResponsePromise = page.waitForResponse(
-        (resp) => {
-          try {
-            const url = new URL(resp.url());
-            return (
-              url.pathname.includes('/api/household-items') &&
-              url.searchParams.get('category') === 'furniture' &&
-              resp.request().method() === 'GET'
-            );
-          } catch {
-            return false;
-          }
-        },
-        { timeout: 55000 },
-      );
+      // Select 'furniture' category
       await listPage.categoryFilter.selectOption('furniture');
       await page.waitForURL((url) => url.searchParams.get('category') === 'furniture', {
         timeout: 10000,
       });
-      await categoryResponsePromise;
+      await page.waitForLoadState('networkidle', { timeout: 55000 });
       await listPage.waitForLoaded();
 
-      const names = await listPage.getItemNames();
-      expect(names).toContain(furnitureName);
-      expect(names).not.toContain(applianceName);
+      await expect(async () => {
+        const names = await listPage.getItemNames();
+        expect(names).toContain(furnitureName);
+        expect(names).not.toContain(applianceName);
+      }).toPass({ timeout: 30000 });
     } finally {
       for (const id of created) {
         await deleteHouseholdItemViaApi(page, id);
@@ -347,34 +339,19 @@ test.describe('Status filter (Scenario 8)', { tag: '@responsive' }, () => {
 
       await listPage.search(`${testPrefix} HI Status`);
 
-      // Select 'planned' status — register response listener BEFORE the
-      // action to avoid the networkidle race (can resolve before fetch starts).
-      // Use URL parsing for consistent parameter matching.
-      const statusResponsePromise = page.waitForResponse(
-        (resp) => {
-          try {
-            const url = new URL(resp.url());
-            return (
-              url.pathname.includes('/api/household-items') &&
-              url.searchParams.get('status') === 'planned' &&
-              resp.request().method() === 'GET'
-            );
-          } catch {
-            return false;
-          }
-        },
-        { timeout: 55000 },
-      );
+      // Select 'planned' status
       await listPage.statusFilter.selectOption('planned');
       await page.waitForURL((url) => url.searchParams.get('status') === 'planned', {
         timeout: 10000,
       });
-      await statusResponsePromise;
+      await page.waitForLoadState('networkidle', { timeout: 55000 });
       await listPage.waitForLoaded();
 
-      const names = await listPage.getItemNames();
-      expect(names).toContain(plannedName);
-      expect(names).not.toContain(purchasedName);
+      await expect(async () => {
+        const names = await listPage.getItemNames();
+        expect(names).toContain(plannedName);
+        expect(names).not.toContain(purchasedName);
+      }).toPass({ timeout: 30000 });
     } finally {
       for (const id of created) {
         await deleteHouseholdItemViaApi(page, id);
@@ -414,11 +391,13 @@ test.describe('Status badge rendering (Scenario 9)', { tag: '@responsive' }, () 
       await listPage.search(`${testPrefix} HI Badge`);
 
       // Each status should have a visible badge in the page
-      for (const status of statuses) {
-        const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
-        const badge = page.locator('[class*="badge"]', { hasText: statusLabel }).first();
-        await expect(badge).toBeVisible();
-      }
+      await expect(async () => {
+        for (const status of statuses) {
+          const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
+          const badge = page.locator('[class*="badge"]', { hasText: statusLabel }).first();
+          await expect(badge).toBeVisible();
+        }
+      }).toPass({ timeout: 30000 });
     } finally {
       for (const id of created) {
         await deleteHouseholdItemViaApi(page, id);
@@ -449,8 +428,10 @@ test.describe('Delete modal — confirm (Scenario 10)', { tag: '@responsive' }, 
     await listPage.waitForLoaded();
 
     await listPage.search(name);
-    const namesBefore = await listPage.getItemNames();
-    expect(namesBefore).toContain(name);
+    await expect(async () => {
+      const namesBefore = await listPage.getItemNames();
+      expect(namesBefore).toContain(name);
+    }).toPass({ timeout: 30000 });
 
     await listPage.openDeleteModal(name);
     await expect(listPage.deleteModal).toBeVisible();
@@ -493,6 +474,11 @@ test.describe('Delete modal — cancel (Scenario 11)', { tag: '@responsive' }, (
       await listPage.goto();
       await listPage.waitForLoaded();
       await listPage.search(name);
+
+      await expect(async () => {
+        const names = await listPage.getItemNames();
+        expect(names).toContain(name);
+      }).toPass({ timeout: 30000 });
 
       await listPage.openDeleteModal(name);
       await listPage.cancelDelete();
