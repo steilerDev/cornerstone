@@ -47,6 +47,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         </NavLink>
         <NavLink
           to="/budget"
+          end
           className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
           onClick={onClose}
         >
@@ -67,11 +68,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           Household Items
         </NavLink>
         <NavLink
-          to="/documents"
+          to="/invoices"
           className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
           onClick={onClose}
         >
-          Documents
+          Invoices
         </NavLink>
         <NavLink
           to="/tags"

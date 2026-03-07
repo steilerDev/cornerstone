@@ -11,7 +11,6 @@
     "docs"
   ],
   "scripts": {
-    "prepare": "husky || true",
     "dev": "concurrently -n server,client -c blue,green \"npm run dev -w server\" \"npm run dev -w client\"",
     "dev:server": "npm run dev -w server",
     "dev:client": "npm run dev -w client",
@@ -48,21 +47,19 @@
     "@testing-library/user-event": "14.6.1",
     "@types/jest": "30.0.0",
     "concurrently": "9.2.1",
-    "conventional-changelog-conventionalcommits": "9.1.0",
+    "conventional-changelog-conventionalcommits": "9.2.0",
     "eslint": "9.39.2",
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-react": "7.37.5",
     "eslint-plugin-react-hooks": "7.0.1",
-    "husky": "9.1.7",
     "identity-obj-proxy": "3.0.0",
     "jest": "30.2.0",
     "jest-environment-jsdom": "30.2.0",
-    "lint-staged": "16.2.7",
     "prettier": "3.8.1",
     "semantic-release": "25.0.3",
     "ts-jest": "29.4.6",
     "typescript": "5.9.3",
-    "typescript-eslint": "8.55.0"
+    "typescript-eslint": "8.56.1"
   },
   "overrides": {
     "minimatch@>=10.0.0 <10.2.3": "10.2.4"

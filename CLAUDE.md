@@ -10,7 +10,7 @@ Cornerstone is a web-based home building project management application designed
 
 ## Agent Team
 
-This project uses a team of 11 specialized Claude Code agents defined in `.claude/agents/`:
+This project uses a team of 9 specialized Claude Code agents defined in `.claude/agents/`:
 
 | Agent                   | Role                                                                                                                                    |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
@@ -20,10 +20,8 @@ This project uses a team of 11 specialized Claude Code agents defined in `.claud
 | `dev-team-lead`         | Spec-writer, reviewer, and committer (Sonnet): decomposes work into implementation specs, reviews agent output, commits and monitors CI |
 | `backend-developer`     | API endpoints, business logic, auth, database operations (Haiku, launched by orchestrator with dev-team-lead specs)                     |
 | `frontend-developer`    | UI components, pages, interactions, API client (Haiku, launched by orchestrator with dev-team-lead specs)                               |
-| `qa-integration-tester` | Unit test coverage (95%+ target), integration tests, performance testing, bug reports                                                   |
-| `e2e-test-engineer`     | Playwright E2E browser tests, test container infrastructure, UAT scenario coverage                                                      |
+| `qa-integration-tester` | Unit test coverage (95%+ target), integration tests, Playwright E2E browser tests, performance testing, bug reports                     |
 | `security-engineer`     | Security audits, vulnerability reports, remediation guidance                                                                            |
-| `uat-validator`         | UAT scenarios, manual validation steps, user sign-off per epic                                                                          |
 | `docs-writer`           | Documentation site (`docs/`), lean README.md, user-facing guides after UAT approval                                                     |
 
 ## GitHub Tools Strategy
@@ -77,11 +75,9 @@ The GitHub Projects board uses 4 statuses: Backlog, Todo, In Progress, Done. All
 - **Implementation specs** → `dev-team-lead` agent (produces specs, reviews code, commits)
 - **Backend code** → `backend-developer` agent (Haiku, launched by orchestrator with dev-team-lead specs)
 - **Frontend code** → `frontend-developer` agent (Haiku, launched by orchestrator with dev-team-lead specs)
-- **Unit/integration tests** → `qa-integration-tester` agent (launched by orchestrator with dev-team-lead specs)
+- **Unit/integration/E2E tests** → `qa-integration-tester` agent (launched by orchestrator with dev-team-lead specs)
 - **Visual specs, design tokens, brand assets, CSS files** → `ux-designer` agent
 - **Schema/API design, ADRs, wiki** → `product-architect` agent
-- **E2E tests** → `e2e-test-engineer` agent
-- **UAT scenarios** → `uat-validator` agent
 - **Story definitions** → `product-owner` agent
 - **Security reviews** → `security-engineer` agent
 - **User-facing documentation** (docs site + README) → `docs-writer` agent
@@ -101,13 +97,13 @@ The orchestrator uses four skills to drive work. Each skill contains the full op
 
 `/epic-run` activates **AUTO_MODE** for the session. When AUTO_MODE is active, intermediate user approval gates are auto-approved. The existing skills (`/epic-start`, `/develop`, `/epic-close`) each contain `AUTO_MODE override` blocks that describe the alternate behavior. AUTO_MODE is never active when skills are invoked directly — only when chained by `/epic-run`.
 
-| Skill         | Gate                | Interactive (default) | AUTO_MODE                                          |
-| ------------- | ------------------- | --------------------- | -------------------------------------------------- |
-| `/epic-start` | Plan approval       | Wait for user         | Post plan to epic issue, auto-proceed              |
-| `/develop`    | Bug spec approval   | Wait for user         | Auto-approve PO spec, create issue immediately     |
-| `/develop`    | PR merge approval   | Wait for user         | Auto-merge after CI green + all reviewers approved |
-| `/epic-close` | UAT validation      | User walkthrough      | E2E pass + uat-validator report = sufficient       |
-| `/epic-close` | Promotion to `main` | **Wait for user**     | **Wait for user (ALWAYS)** — never auto-approved   |
+| Skill         | Gate                | Interactive (default) | AUTO_MODE                                            |
+| ------------- | ------------------- | --------------------- | ---------------------------------------------------- |
+| `/epic-start` | Plan approval       | Wait for user         | Post plan to epic issue, auto-proceed                |
+| `/develop`    | Bug spec approval   | Wait for user         | Auto-approve PO spec, create issue immediately       |
+| `/develop`    | PR merge approval   | Wait for user         | Auto-merge after CI green + all reviewers approved   |
+| `/epic-close` | UAT validation      | User walkthrough      | E2E pass + qa-integration-tester report = sufficient |
+| `/epic-close` | Promotion to `main` | **Wait for user**     | **Wait for user (ALWAYS)** — never auto-approved     |
 
 ## Acceptance & Validation
 
@@ -120,7 +116,7 @@ Every epic follows a two-phase validation lifecycle. **Development phase** (`/de
 - **Iterate until right** — failed validation triggers a fix-and-revalidate loop
 - **Acceptance criteria live on GitHub Issues** — stored on story issues, summarized on promotion PRs
 - **Security review required** — the `security-engineer` must review every story PR
-- **Test agents own all tests** — `qa-integration-tester` owns unit + integration tests; `e2e-test-engineer` owns Playwright E2E tests. Developer agents do not write tests.
+- **Test agents own all tests** — `qa-integration-tester` owns unit, integration, and Playwright E2E tests. Developer agents do not write tests.
 - **Flat delegation model** — the orchestrator launches all agents directly. The `dev-team-lead` produces implementation specs, reviews agent output, and handles commits/CI. The orchestrator routes specs to `backend-developer`, `frontend-developer`, and `qa-integration-tester`.
 
 ## Git & Commit Conventions
@@ -132,20 +128,27 @@ All commits follow [Conventional Commits](https://www.conventionalcommits.org/):
 - **Breaking changes**: Use `!` suffix or `BREAKING CHANGE:` footer
 - Every completed task gets its own commit with a meaningful description
 - **Link commits to issues**: When a commit resolves work tracked in a GitHub Issue, include `Fixes #<issue-number>` in the commit message body (one per line for multiple issues). Note: `Fixes #N` only auto-closes issues when the commit reaches `main` (not `beta`).
-- **Always commit, push to a feature branch, and create a PR after work is complete.** The pre-commit hook automatically runs all quality gates (selective lint/format/tests on staged files + full typecheck/build/audit). Just commit — the hook validates. If the hook fails, fix the issues and commit again. Do not leave work uncommitted or unpushed. Never push directly to `main` or `beta`.
+- **Always commit, push to a feature branch, and create a PR after work is complete.** The pre-commit hook runs typecheck automatically. Lint, format, and audit fixes are handled by the CI auto-fix bot on `beta`. Just commit — the hook validates types. If the hook fails, fix the type errors and commit again. Do not leave work uncommitted or unpushed. Never push directly to `main` or `beta`.
 
 ### Local Validation Policy
 
-**Do NOT run `npm test`, `npm run lint`, `npm run typecheck`, or `npm run build` manually.** The pre-commit hook runs all quality gates automatically:
+**Do NOT run `npm test`, `npm run lint`, `npm run typecheck`, or `npm run build` manually.** The pre-commit hook runs typecheck automatically. Lint, format, and audit issues are handled by the CI auto-fix bot (`.github/workflows/auto-fix.yml`), which runs on every push to `beta` and creates a fix PR if needed.
 
-- Selective lint + format + related tests on staged files (via lint-staged)
-- Full typecheck across all workspaces
-- Full build (shared → client → server)
-- Dependency security audit
+- Pre-commit hook: `npm run typecheck` (full typecheck across all workspaces)
+- CI auto-fix bot: `npm run lint:fix` + `npm run format` + `npm audit fix` (runs on `beta` push, creates PR if changes needed)
+- CI Quality Gates: typecheck + test + build (runs on every PR)
 
-To validate your work: **stage and commit**. If the hook fails, fix the issues and commit again. After pushing, **always wait for CI to go green** (`gh pr checks <pr-number> --watch`) before proceeding to the next step.
+To validate your work: **stage and commit**. If the hook fails, fix the type errors and commit again. After pushing, **always wait for CI to go green** (`gh pr checks <pr-number> --watch`) before proceeding to the next step.
 
 The only exception is the QA agent running a specific test file it just wrote (e.g., `npx jest path/to/new.test.ts`) to verify correctness before committing — but never `npm test` (the full suite).
+
+### Sandbox Test Execution Constraints
+
+The sandbox environment is resource-constrained. When running tests locally:
+
+- **Never run the full test suite** (`npm test`) — only run tightly scoped, specific test files (e.g., `npx jest path/to/specific.test.ts`)
+- **Always use a single worker** — pass `--maxWorkers=1` to Jest for any local test execution
+- Rely on the pre-commit hook and CI for full suite validation
 
 ### Agent Attribution
 
@@ -206,7 +209,7 @@ Cornerstone uses a two-tier release model:
 
 ### Branch Protection
 
-Both `main` and `beta` require PRs with passing `Quality Gates` and `Docker` status checks. Force pushes and deletions are blocked on both branches.
+Both `main` and `beta` require PRs with passing `Quality Gates`, `Docker`, and `Merge E2E Reports` status checks. Force pushes and deletions are blocked on both branches.
 
 ## Tech Stack
 
@@ -381,16 +384,18 @@ Hand-written SQL files in `server/src/db/migrations/` with a numeric prefix (e.g
 
 ### Environment Variables
 
-| Variable              | Default                    | Description                                   |
-| --------------------- | -------------------------- | --------------------------------------------- |
-| `PORT`                | `3000`                     | Server port                                   |
-| `HOST`                | `0.0.0.0`                  | Server bind address                           |
-| `DATABASE_URL`        | `/app/data/cornerstone.db` | SQLite database path                          |
-| `LOG_LEVEL`           | `info`                     | Log level (trace/debug/info/warn/error/fatal) |
-| `NODE_ENV`            | `production`               | Environment                                   |
-| `CLIENT_DEV_PORT`     | `5173`                     | Webpack dev server port (development only)    |
-| `PAPERLESS_URL`       | (none)                     | Paperless-ngx instance base URL               |
-| `PAPERLESS_API_TOKEN` | (none)                     | Paperless-ngx API authentication token        |
+| Variable                 | Default                    | Description                                                                         |
+| ------------------------ | -------------------------- | ----------------------------------------------------------------------------------- |
+| `PORT`                   | `3000`                     | Server port                                                                         |
+| `HOST`                   | `0.0.0.0`                  | Server bind address                                                                 |
+| `DATABASE_URL`           | `/app/data/cornerstone.db` | SQLite database path                                                                |
+| `LOG_LEVEL`              | `info`                     | Log level (trace/debug/info/warn/error/fatal)                                       |
+| `NODE_ENV`               | `production`               | Environment                                                                         |
+| `CLIENT_DEV_PORT`        | `5173`                     | Webpack dev server port (development only)                                          |
+| `PAPERLESS_URL`          | (none)                     | Paperless-ngx instance base URL                                                     |
+| `PAPERLESS_API_TOKEN`    | (none)                     | Paperless-ngx API authentication token                                              |
+| `PAPERLESS_EXTERNAL_URL` | (none)                     | Browser-facing URL for Paperless-ngx links (falls back to `PAPERLESS_URL` if unset) |
+| `PAPERLESS_FILTER_TAG`   | (none)                     | Tag name for automatic document pre-filtering                                       |
 
 Production images use Docker Hardened Images (DHI). See `Dockerfile` and `docker-compose.yml` for build/deploy details.
 

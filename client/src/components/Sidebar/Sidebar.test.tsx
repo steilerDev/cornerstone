@@ -101,7 +101,6 @@ describe('Sidebar', () => {
       'href',
       '/household-items',
     );
-    expect(screen.getByRole('link', { name: /documents/i })).toHaveAttribute('href', '/documents');
   });
 
   it('dashboard link is active at exact / path only (end prop)', () => {
@@ -160,15 +159,6 @@ describe('Sidebar', () => {
 
     const householdItemsLink = screen.getByRole('link', { name: /household items/i });
     expect(householdItemsLink).toHaveClass('active');
-  });
-
-  it('documents link is active at /documents', () => {
-    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />, {
-      initialEntries: ['/documents'],
-    });
-
-    const documentsLink = screen.getByRole('link', { name: /documents/i });
-    expect(documentsLink).toHaveClass('active');
   });
 
   it('only one link is active at a time', () => {
@@ -260,16 +250,6 @@ describe('Sidebar', () => {
 
     const householdItemsLink = screen.getByRole('link', { name: /household items/i });
     await user.click(householdItemsLink);
-
-    expect(mockOnClose).toHaveBeenCalledTimes(1);
-  });
-
-  it('clicking a nav link calls onClose (documents)', async () => {
-    const user = userEvent.setup();
-    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
-
-    const documentsLink = screen.getByRole('link', { name: /documents/i });
-    await user.click(documentsLink);
 
     expect(mockOnClose).toHaveBeenCalledTimes(1);
   });

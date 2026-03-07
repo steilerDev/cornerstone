@@ -297,8 +297,8 @@ test.describe(
         ids = await createVendorAndInvoiceViaApi(page, testPrefix);
 
         // When: Navigating to the invoice detail page
-        // Invoice detail route: /budget/invoices/:id
-        await page.goto(`/budget/invoices/${ids.invoiceId}`);
+        // Invoice detail route: /invoices/:id
+        await page.goto(`/invoices/${ids.invoiceId}`);
 
         // Then: The "Documents" section heading should be visible
         const documentsHeading = page.getByRole('heading', {
@@ -322,7 +322,7 @@ test.describe(
         ids = await createVendorAndInvoiceViaApi(page, testPrefix);
 
         // When: Navigating to the invoice detail page
-        await page.goto(`/budget/invoices/${ids.invoiceId}`);
+        await page.goto(`/invoices/${ids.invoiceId}`);
         await page
           .getByRole('heading', { level: 2, name: 'Documents', exact: true })
           .waitFor({ state: 'visible' });
@@ -346,7 +346,7 @@ test.describe(
         ids = await createVendorAndInvoiceViaApi(page, testPrefix);
 
         // When: Navigating to the invoice detail page
-        await page.goto(`/budget/invoices/${ids.invoiceId}`);
+        await page.goto(`/invoices/${ids.invoiceId}`);
         await page
           .getByRole('heading', { level: 2, name: 'Documents', exact: true })
           .waitFor({ state: 'visible' });
@@ -369,7 +369,7 @@ test.describe(
         ids = await createVendorAndInvoiceViaApi(page, testPrefix);
 
         // When: Navigating to the invoice detail page
-        await page.goto(`/budget/invoices/${ids.invoiceId}`);
+        await page.goto(`/invoices/${ids.invoiceId}`);
         const documentsHeading = page.getByRole('heading', {
           level: 2,
           name: 'Documents',

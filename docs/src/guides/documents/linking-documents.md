@@ -5,13 +5,14 @@ title: Linking Documents
 
 # Linking Documents
 
-You can link Paperless-ngx documents to **work items** and **vendor invoices** so that related documents -- contracts, receipts, permits, plans -- are always accessible from the entity they belong to.
+You can link Paperless-ngx documents to **work items**, **household items**, and **vendor invoices** so that related documents -- contracts, receipts, permits, plans, warranties -- are always accessible from the entity they belong to.
 
 ## Where Documents Appear
 
 A **Documents** section appears on:
 
 - **Work item detail pages** -- Link contracts, permits, receipts, and plans to the work item they relate to
+- **Household item detail pages** -- Link product specs, receipts, warranties, and delivery confirmations to household items
 - **Invoice detail pages** -- Link invoice PDFs and supporting documents to vendor invoices
 
 Each section shows the number of linked documents as a badge next to the heading.

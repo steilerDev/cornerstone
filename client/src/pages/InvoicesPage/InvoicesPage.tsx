@@ -9,21 +9,13 @@ import type {
 import { fetchAllInvoices, createInvoice } from '../../lib/invoicesApi.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
 import { fetchWorkItemBudgets } from '../../lib/workItemBudgetsApi.js';
-import { listWorkItems } from '../../lib/workItemsApi.js';
+import { fetchHouseholdItemBudgets } from '../../lib/householdItemBudgetsApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
-import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
-import type { WorkItemSummary, WorkItemBudgetLine } from '@cornerstone/shared';
-import { formatDate } from '../../lib/formatters.js';
+import { WorkItemPicker } from '../../components/WorkItemPicker/WorkItemPicker.js';
+import { HouseholdItemPicker } from '../../components/HouseholdItemPicker/HouseholdItemPicker.js';
+import type { WorkItemBudgetLine, HouseholdItemBudgetLine } from '@cornerstone/shared';
+import { formatDate, formatCurrency } from '../../lib/formatters.js';
 import styles from './InvoicesPage.module.css';
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
-}
 
 const STATUS_LABELS: Record<InvoiceStatus, string> = {
   pending: 'Pending',
@@ -41,6 +33,8 @@ interface InvoiceFormState {
   notes: string;
   selectedWorkItemId: string;
   workItemBudgetId: string;
+  selectedHouseholdItemId: string;
+  householdItemBudgetId: string;
 }
 
 const EMPTY_FORM: InvoiceFormState = {
@@ -53,6 +47,8 @@ const EMPTY_FORM: InvoiceFormState = {
   notes: '',
   selectedWorkItemId: '',
   workItemBudgetId: '',
+  selectedHouseholdItemId: '',
+  householdItemBudgetId: '',
 };
 
 export function InvoicesPage() {
@@ -91,9 +87,12 @@ export function InvoicesPage() {
   const [createForm, setCreateForm] = useState<InvoiceFormState>(EMPTY_FORM);
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState('');
-  const [workItems, setWorkItems] = useState<WorkItemSummary[]>([]);
   const [budgetLines, setBudgetLines] = useState<WorkItemBudgetLine[]>([]);
   const [budgetLinesLoading, setBudgetLinesLoading] = useState(false);
+  const [householdItemBudgetLines, setHouseholdItemBudgetLines] = useState<
+    HouseholdItemBudgetLine[]
+  >([]);
+  const [householdItemBudgetLinesLoading, setHouseholdItemBudgetLinesLoading] = useState(false);
 
   useEffect(() => {
     if (urlPage !== currentPage) setCurrentPage(urlPage);
@@ -103,7 +102,6 @@ export function InvoicesPage() {
     void fetchVendors({ pageSize: 100 }).then((res) =>
       setVendors(res.vendors.map((v) => ({ id: v.id, name: v.name }))),
     );
-    void listWorkItems({ pageSize: 100 }).then((res) => setWorkItems(res.items));
   }, []);
 
   useEffect(() => {
@@ -216,6 +214,7 @@ export function InvoicesPage() {
         status: createForm.status,
         notes: createForm.notes.trim() || null,
         workItemBudgetId: createForm.workItemBudgetId || null,
+        householdItemBudgetId: createForm.householdItemBudgetId || null,
       };
       await createInvoice(createForm.vendorId, data);
       setShowCreateModal(false);
@@ -238,9 +237,8 @@ export function InvoicesPage() {
       <div className={styles.container}>
         <div className={styles.content}>
           <div className={styles.pageHeader}>
-            <h1 className={styles.pageTitle}>Budget</h1>
+            <h1 className={styles.pageTitle}>Invoices</h1>
           </div>
-          <BudgetSubNav />
           <div className={styles.loading}>Loading invoices...</div>
         </div>
       </div>
@@ -251,10 +249,8 @@ export function InvoicesPage() {
     <div className={styles.container}>
       <div className={styles.content}>
         <div className={styles.pageHeader}>
-          <h1 className={styles.pageTitle}>Budget</h1>
+          <h1 className={styles.pageTitle}>Invoices</h1>
         </div>
-
-        <BudgetSubNav />
 
         {/* Summary cards */}
         <div className={styles.summaryGrid}>
@@ -462,6 +458,7 @@ export function InvoicesPage() {
                     >
                       Amount{renderSortIcon('amount')}
                     </th>
+                    <th>Linked To</th>
                     <th
                       className={styles.sortableHeader}
                       onClick={() => handleSortChange('due_date')}
@@ -497,15 +494,12 @@ export function InvoicesPage() {
                       <td>{formatDate(invoice.date)}</td>
                       <td className={styles.invoiceNumberCell}>
                         {invoice.invoiceNumber ? (
-                          <Link
-                            to={`/budget/invoices/${invoice.id}`}
-                            className={styles.invoiceLink}
-                          >
+                          <Link to={`/invoices/${invoice.id}`} className={styles.invoiceLink}>
                             {invoice.invoiceNumber}
                           </Link>
                         ) : (
                           <Link
-                            to={`/budget/invoices/${invoice.id}`}
+                            to={`/invoices/${invoice.id}`}
                             className={`${styles.invoiceLink} ${styles.invoiceLinkNoNumber}`}
                           >
                             &mdash;
@@ -521,6 +515,13 @@ export function InvoicesPage() {
                         </Link>
                       </td>
                       <td className={styles.amountCell}>{formatCurrency(invoice.amount)}</td>
+                      <td>
+                        {invoice.workItemBudget
+                          ? invoice.workItemBudget.workItemTitle
+                          : invoice.householdItemBudget
+                            ? invoice.householdItemBudget.householdItemName
+                            : '—'}
+                      </td>
                       <td>{invoice.dueDate ? formatDate(invoice.dueDate) : '\u2014'}</td>
                       <td>
                         <span
@@ -530,7 +531,7 @@ export function InvoicesPage() {
                         </span>
                       </td>
                       <td className={styles.actionsCell}>
-                        <Link to={`/budget/invoices/${invoice.id}`} className={styles.viewButton}>
+                        <Link to={`/invoices/${invoice.id}`} className={styles.viewButton}>
                           View
                         </Link>
                       </td>
@@ -546,10 +547,7 @@ export function InvoicesPage() {
                 <div key={invoice.id} className={styles.card}>
                   <div className={styles.cardTop}>
                     <div className={styles.cardLeft}>
-                      <Link
-                        to={`/budget/invoices/${invoice.id}`}
-                        className={styles.cardInvoiceNumber}
-                      >
+                      <Link to={`/invoices/${invoice.id}`} className={styles.cardInvoiceNumber}>
                         {invoice.invoiceNumber ? `#${invoice.invoiceNumber}` : 'No Number'}
                       </Link>
                       <Link
@@ -571,7 +569,7 @@ export function InvoicesPage() {
                     )}
                   </div>
                   <div className={styles.cardActions}>
-                    <Link to={`/budget/invoices/${invoice.id}`} className={styles.viewButton}>
+                    <Link to={`/invoices/${invoice.id}`} className={styles.viewButton}>
                       View Details
                     </Link>
                   </div>
@@ -758,45 +756,32 @@ export function InvoicesPage() {
               </div>
 
               <div className={styles.field}>
-                <label htmlFor="create-work-item" className={styles.label}>
-                  Link to Work Item
-                </label>
-                <select
-                  id="create-work-item"
+                <span className={styles.label}>Link to Work Item</span>
+                <WorkItemPicker
                   value={createForm.selectedWorkItemId}
-                  onChange={(e) => {
-                    const workItemId = e.target.value;
+                  onChange={(workItemId) => {
                     setCreateForm({
                       ...createForm,
                       selectedWorkItemId: workItemId,
                       workItemBudgetId: '',
+                      selectedHouseholdItemId: '',
+                      householdItemBudgetId: '',
                     });
                     if (workItemId) {
                       setBudgetLinesLoading(true);
                       void fetchWorkItemBudgets(workItemId)
-                        .then((lines) => {
-                          setBudgetLines(lines);
-                        })
-                        .catch(() => {
-                          setBudgetLines([]);
-                        })
-                        .finally(() => {
-                          setBudgetLinesLoading(false);
-                        });
+                        .then((lines) => setBudgetLines(lines))
+                        .catch(() => setBudgetLines([]))
+                        .finally(() => setBudgetLinesLoading(false));
                     } else {
                       setBudgetLines([]);
                     }
                   }}
-                  className={styles.select}
+                  excludeIds={[]}
                   disabled={isCreating}
-                >
-                  <option value="">None</option>
-                  {workItems.map((wi) => (
-                    <option key={wi.id} value={wi.id}>
-                      {wi.title}
-                    </option>
-                  ))}
-                </select>
+                  placeholder="Search work items..."
+                  showItemsOnFocus
+                />
               </div>
 
               {createForm.selectedWorkItemId && (
@@ -816,8 +801,62 @@ export function InvoicesPage() {
                     <option value="">None</option>
                     {budgetLines.map((bl) => (
                       <option key={bl.id} value={bl.id}>
-                        {bl.description ||
-                          `${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(bl.plannedAmount)} (${bl.confidence})`}
+                        {bl.description || `${formatCurrency(bl.plannedAmount)} (${bl.confidence})`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className={styles.separator}>— or —</div>
+
+              <div className={styles.field}>
+                <span className={styles.label}>Link to Household Item</span>
+                <HouseholdItemPicker
+                  value={createForm.selectedHouseholdItemId}
+                  onChange={(householdItemId) => {
+                    setCreateForm({
+                      ...createForm,
+                      selectedHouseholdItemId: householdItemId,
+                      householdItemBudgetId: '',
+                      selectedWorkItemId: '',
+                      workItemBudgetId: '',
+                    });
+                    if (householdItemId) {
+                      setHouseholdItemBudgetLinesLoading(true);
+                      void fetchHouseholdItemBudgets(householdItemId)
+                        .then((lines) => setHouseholdItemBudgetLines(lines))
+                        .catch(() => setHouseholdItemBudgetLines([]))
+                        .finally(() => setHouseholdItemBudgetLinesLoading(false));
+                    } else {
+                      setHouseholdItemBudgetLines([]);
+                    }
+                  }}
+                  excludeIds={[]}
+                  disabled={isCreating}
+                  placeholder="Search household items..."
+                  showItemsOnFocus
+                />
+              </div>
+
+              {createForm.selectedHouseholdItemId && (
+                <div className={styles.field}>
+                  <label htmlFor="create-household-budget-line" className={styles.label}>
+                    Budget Line
+                  </label>
+                  <select
+                    id="create-household-budget-line"
+                    value={createForm.householdItemBudgetId}
+                    onChange={(e) =>
+                      setCreateForm({ ...createForm, householdItemBudgetId: e.target.value })
+                    }
+                    className={styles.select}
+                    disabled={isCreating || householdItemBudgetLinesLoading}
+                  >
+                    <option value="">None</option>
+                    {householdItemBudgetLines.map((bl) => (
+                      <option key={bl.id} value={bl.id}>
+                        {bl.description || `${formatCurrency(bl.plannedAmount)} (${bl.confidence})`}
                       </option>
                     ))}
                   </select>

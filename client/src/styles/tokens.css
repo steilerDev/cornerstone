@@ -87,6 +87,11 @@
   --color-orange-300: #fdba74;
   --color-orange-400: #fb923c;
 
+  /* Amber scale — household item scheduled status */
+  --color-amber-100: #fef3c7;
+  --color-amber-300: #fcd34d;
+  --color-amber-800: #92400e;
+
   /* Emerald scale — dark mode success variants */
   --color-emerald-400: #34d399;
   --color-emerald-300: #6ee7b7;
@@ -208,6 +213,22 @@
   /* User status badge: Inactive */
   --color-user-inactive-bg: var(--color-red-100);
   --color-user-inactive-text: var(--color-red-700);
+
+  /* HI Status: Planned (gray) */
+  --color-hi-status-planned-bg: var(--color-gray-200);
+  --color-hi-status-planned-text: var(--color-gray-700);
+
+  /* HI Status: Purchased (blue) */
+  --color-hi-status-purchased-bg: var(--color-blue-100);
+  --color-hi-status-purchased-text: var(--color-blue-800);
+
+  /* HI Status: Scheduled (amber) */
+  --color-hi-status-scheduled-bg: var(--color-amber-100);
+  --color-hi-status-scheduled-text: var(--color-amber-800);
+
+  /* HI Status: Arrived (green) */
+  --color-hi-status-arrived-bg: var(--color-green-100);
+  --color-hi-status-arrived-text: var(--color-green-900);
 
   /* ============================================================
    * LAYER 2 — SHADOWS
@@ -343,6 +364,21 @@
 
   /* Critical path bar border overlay */
   --color-gantt-bar-critical-border: var(--color-orange-400);
+
+  /* ============================================================
+   * LAYER 1-B — HOUSEHOLD ITEM GANTT TOKENS
+   * ============================================================ */
+
+  /* Circle marker — pending delivery (amber) */
+  --color-gantt-hi-fill: var(--color-amber-100);
+  --color-gantt-hi-stroke: var(--color-amber-800);
+
+  /* Circle marker — arrived (green) */
+  --color-gantt-hi-arrived-fill: var(--color-green-100);
+  --color-gantt-hi-arrived-stroke: var(--color-green-600);
+
+  /* Hover glow effect */
+  --color-gantt-hi-hover-glow: rgba(245, 158, 11, 0.25);
 
   /* ============================================================
    * LAYER 2 — MILESTONE TOKENS
@@ -526,6 +562,16 @@
   --color-user-inactive-bg: rgba(239, 68, 68, 0.15);
   --color-user-inactive-text: var(--color-red-300);
 
+  /* --- Household item status badges --- */
+  --color-hi-status-planned-bg: var(--color-slate-500);
+  --color-hi-status-planned-text: var(--color-slate-100);
+  --color-hi-status-purchased-bg: rgba(59, 130, 246, 0.2);
+  --color-hi-status-purchased-text: var(--color-blue-300);
+  --color-hi-status-scheduled-bg: rgba(245, 158, 11, 0.2);
+  --color-hi-status-scheduled-text: var(--color-amber-300);
+  --color-hi-status-arrived-bg: rgba(16, 185, 129, 0.15);
+  --color-hi-status-arrived-text: var(--color-emerald-200);
+
   /* --- Shadows (deeper/darker in dark mode) --- */
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.3);
@@ -569,6 +615,13 @@
 
   /* Critical path bar accent stripe (warmer orange in dark mode) */
   --color-gantt-bar-critical-border: var(--color-orange-300);
+
+  /* Household item circle markers */
+  --color-gantt-hi-fill: rgba(245, 158, 11, 0.2);
+  --color-gantt-hi-stroke: var(--color-amber-300);
+  --color-gantt-hi-arrived-fill: rgba(16, 185, 129, 0.15);
+  --color-gantt-hi-arrived-stroke: var(--color-emerald-400);
+  --color-gantt-hi-hover-glow: rgba(245, 158, 11, 0.3);
 
   /* --- Milestones --- */
   --color-milestone-incomplete-fill: transparent;

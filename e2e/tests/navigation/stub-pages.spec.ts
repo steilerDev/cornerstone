@@ -1,5 +1,5 @@
 /**
- * Smoke tests for stub pages — Dashboard, Household Items
+ * Smoke tests for stub pages — Dashboard
  *
  * These pages are placeholder implementations that will be expanded in future
  * epics.  The tests here verify that:
@@ -12,13 +12,14 @@
  *
  * NOTE: Timeline has graduated to a full feature page (EPIC-06). Its smoke
  * test now lives in e2e/tests/timeline/timeline-gantt.spec.ts.
- * NOTE: Documents has graduated to a full feature page (EPIC-08). Its tests
- * now live in e2e/tests/documents/documents-browser.spec.ts.
+ * NOTE: Documents page was removed (standalone browser unnecessary). Document
+ * linking tests remain in e2e/tests/documents/documents-linked-sections.spec.ts.
+ * NOTE: Household Items has graduated to a full feature page (EPIC-04). Its
+ * tests now live in e2e/tests/household-items/.
  */
 
 import { test, expect } from '../../fixtures/auth.js';
 import { DashboardPage } from '../../pages/DashboardPage.js';
-import { HouseholdItemsPage } from '../../pages/HouseholdItemsPage.js';
 
 test.describe('Stub pages — smoke tests', { tag: '@responsive' }, () => {
   test('Dashboard page loads with heading', { tag: '@smoke' }, async ({ page }) => {
@@ -27,13 +28,5 @@ test.describe('Stub pages — smoke tests', { tag: '@responsive' }, () => {
     await expect(dashboard.heading).toBeVisible();
     await expect(dashboard.heading).toHaveText('Dashboard');
     await expect(dashboard.description).toBeVisible();
-  });
-
-  test('Household Items page loads with heading', async ({ page }) => {
-    const householdItems = new HouseholdItemsPage(page);
-    await householdItems.goto();
-    await expect(householdItems.heading).toBeVisible();
-    await expect(householdItems.heading).toHaveText('Household Items');
-    await expect(householdItems.description).toBeVisible();
   });
 });

@@ -3,13 +3,14 @@
  *
  * Unit tests for GanttSidebar — fixed left panel with work item titles.
  * Tests item rendering, muted state for undated items, click/keyboard interactions,
- * and accessibility attributes.
+ * and accessibility attributes. Issue #449: Household item rows.
  */
 import { jest, describe, it, expect, beforeAll, afterAll } from '@jest/globals';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { GanttSidebar } from './GanttSidebar.js';
+import type { UnifiedRow } from './GanttSidebar.js';
 import { ROW_HEIGHT, HEADER_HEIGHT } from './ganttUtils.js';
-import type { TimelineWorkItem } from '@cornerstone/shared';
+import type { TimelineWorkItem, TimelineHouseholdItem } from '@cornerstone/shared';
 
 // CSS modules mocked via identity-obj-proxy
 
@@ -30,6 +31,28 @@ function makeItem(overrides: Partial<TimelineWorkItem> = {}): TimelineWorkItem {
     tags: [],
     ...overrides,
   };
+}
+
+// Minimal TimelineHouseholdItem factory
+function makeHI(overrides: Partial<TimelineHouseholdItem> = {}): TimelineHouseholdItem {
+  return {
+    id: 'hi-1',
+    name: 'Kitchen Cabinet Delivery',
+    category: 'appliances',
+    status: 'planned',
+    targetDeliveryDate: '2024-08-15',
+    earliestDeliveryDate: '2024-08-10',
+    latestDeliveryDate: '2024-08-20',
+    actualDeliveryDate: null,
+    isLate: false,
+    dependencyIds: [],
+    ...overrides,
+  };
+}
+
+// Helper to create a unified row for a household item
+function makeHIRow(hi: TimelineHouseholdItem): UnifiedRow {
+  return { kind: 'householdItem', item: hi };
 }
 
 describe('GanttSidebar', () => {
@@ -383,5 +406,175 @@ describe('GanttSidebar', () => {
     render(<GanttSidebar items={[makeItem()]} ref={ref} />);
     expect(ref.current).not.toBeNull();
     expect(ref.current).toBeInstanceOf(HTMLDivElement);
+  });
+});
+
+// ── Household item sidebar rows (Issue #449) ───────────────────────────────
+
+describe('GanttSidebar — household item rows', () => {
+  it('renders HI sidebar row with correct data-testid', () => {
+    const hi = makeHI({ id: 'hi-kitchen' });
+    render(<GanttSidebar items={[]} unifiedRows={[makeHIRow(hi)]} />);
+    expect(screen.getByTestId('gantt-sidebar-hi-hi-kitchen')).toBeInTheDocument();
+  });
+
+  it('HI row has role="listitem"', () => {
+    const hi = makeHI({ id: 'hi-1' });
+    render(<GanttSidebar items={[]} unifiedRows={[makeHIRow(hi)]} />);
+    const row = screen.getByTestId('gantt-sidebar-hi-hi-1');
+    expect(row).toHaveAttribute('role', 'listitem');
+  });
+
+  it('HI row has correct aria-label', () => {
+    const hi = makeHI({ id: 'hi-1', name: 'Flooring Material' });
+    render(<GanttSidebar items={[]} unifiedRows={[makeHIRow(hi)]} />);
+    const row = screen.getByTestId('gantt-sidebar-hi-hi-1');
+    expect(row).toHaveAttribute('aria-label', 'Household item: Flooring Material');
+  });
+
+  it('HI row is keyboard-focusable (tabIndex=0) — Issue #449', () => {
+    const hi = makeHI({ id: 'hi-focus' });
+    render(<GanttSidebar items={[]} unifiedRows={[makeHIRow(hi)]} />);
+    const row = screen.getByTestId('gantt-sidebar-hi-hi-focus');
+    expect(row).toHaveAttribute('tabIndex', '0');
+  });
+
+  it('HI row has data-gantt-sidebar-row attribute at its index', () => {
+    const wi = makeItem({ id: 'wi-1' });
+    const hi = makeHI({ id: 'hi-1' });
+    const unifiedRows = [
+      { kind: 'workItem' as const, item: wi },
+      { kind: 'householdItem' as const, item: hi },
+    ];
+    render(<GanttSidebar items={[]} unifiedRows={unifiedRows} />);
+    const hiRow = screen.getByTestId('gantt-sidebar-hi-hi-1');
+    expect(hiRow).toHaveAttribute('data-gantt-sidebar-row', '1');
+  });
+
+  it('calls onHouseholdItemClick when HI row is clicked — Issue #449', () => {
+    const handleHIClick = jest.fn<(id: string) => void>();
+    const hi = makeHI({ id: 'hi-click' });
+    render(
+      <GanttSidebar
+        items={[]}
+        unifiedRows={[makeHIRow(hi)]}
+        onHouseholdItemClick={handleHIClick}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId('gantt-sidebar-hi-hi-click'));
+
+    expect(handleHIClick).toHaveBeenCalledTimes(1);
+    expect(handleHIClick).toHaveBeenCalledWith('hi-click');
+  });
+
+  it('does not throw when onHouseholdItemClick is not provided and HI row is clicked', () => {
+    const hi = makeHI({ id: 'hi-nohandler' });
+    render(<GanttSidebar items={[]} unifiedRows={[makeHIRow(hi)]} />);
+    expect(() => {
+      fireEvent.click(screen.getByTestId('gantt-sidebar-hi-hi-nohandler'));
+    }).not.toThrow();
+  });
+
+  it('Enter key calls onHouseholdItemClick on HI row — Issue #449', () => {
+    const handleHIClick = jest.fn<(id: string) => void>();
+    const hi = makeHI({ id: 'hi-enter' });
+    render(
+      <GanttSidebar
+        items={[]}
+        unifiedRows={[makeHIRow(hi)]}
+        onHouseholdItemClick={handleHIClick}
+      />,
+    );
+
+    fireEvent.keyDown(screen.getByTestId('gantt-sidebar-hi-hi-enter'), { key: 'Enter' });
+
+    expect(handleHIClick).toHaveBeenCalledWith('hi-enter');
+  });
+
+  it('Space key calls onHouseholdItemClick on HI row — Issue #449', () => {
+    const handleHIClick = jest.fn<(id: string) => void>();
+    const hi = makeHI({ id: 'hi-space' });
+    render(
+      <GanttSidebar
+        items={[]}
+        unifiedRows={[makeHIRow(hi)]}
+        onHouseholdItemClick={handleHIClick}
+      />,
+    );
+
+    fireEvent.keyDown(screen.getByTestId('gantt-sidebar-hi-hi-space'), { key: ' ' });
+
+    expect(handleHIClick).toHaveBeenCalledWith('hi-space');
+  });
+
+  it('other keys do not trigger onHouseholdItemClick on HI row', () => {
+    const handleHIClick = jest.fn<(id: string) => void>();
+    const hi = makeHI({ id: 'hi-key' });
+    render(
+      <GanttSidebar
+        items={[]}
+        unifiedRows={[makeHIRow(hi)]}
+        onHouseholdItemClick={handleHIClick}
+      />,
+    );
+
+    const row = screen.getByTestId('gantt-sidebar-hi-hi-key');
+    fireEvent.keyDown(row, { key: 'Tab' });
+    fireEvent.keyDown(row, { key: 'Escape' });
+    fireEvent.keyDown(row, { key: 'ArrowDown' }); // This should move focus, not activate
+
+    expect(handleHIClick).not.toHaveBeenCalled();
+  });
+
+  it('ArrowDown from work item row moves focus to HI row — Issue #449', () => {
+    const wi = makeItem({ id: 'wi-1' });
+    const hi = makeHI({ id: 'hi-1' });
+    const unifiedRows = [
+      { kind: 'workItem' as const, item: wi },
+      { kind: 'householdItem' as const, item: hi },
+    ];
+    render(<GanttSidebar items={[]} unifiedRows={unifiedRows} />);
+
+    const wiRow = screen.getByTestId('gantt-sidebar-row-wi-1');
+    const hiRow = screen.getByTestId('gantt-sidebar-hi-hi-1');
+
+    wiRow.focus();
+    fireEvent.keyDown(wiRow, { key: 'ArrowDown' });
+
+    expect(document.activeElement).toBe(hiRow);
+  });
+
+  it('HI row circle icon is aria-hidden', () => {
+    const hi = makeHI({ id: 'hi-1' });
+    const { container: _container } = render(
+      <GanttSidebar items={[]} unifiedRows={[makeHIRow(hi)]} />,
+    );
+    const hiRow = screen.getByTestId('gantt-sidebar-hi-hi-1');
+    const svg = hiRow.querySelector('svg');
+    expect(svg).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('HI row renders circle SVG icon', () => {
+    const hi = makeHI({ id: 'hi-1' });
+    const { container: _container } = render(
+      <GanttSidebar items={[]} unifiedRows={[makeHIRow(hi)]} />,
+    );
+    const hiRow = screen.getByTestId('gantt-sidebar-hi-hi-1');
+    const circle = hiRow.querySelector('circle');
+    expect(circle).toBeInTheDocument();
+    expect(circle).toHaveAttribute('cx', '5');
+    expect(circle).toHaveAttribute('cy', '5');
+    expect(circle).toHaveAttribute('r', '4');
+  });
+
+  it('HI row label has title attribute for overflow tooltip', () => {
+    const hi = makeHI({ id: 'hi-1', name: 'Very Long Household Item Name That Might Overflow' });
+    const { container: _container } = render(
+      <GanttSidebar items={[]} unifiedRows={[makeHIRow(hi)]} />,
+    );
+    const hiRow = screen.getByTestId('gantt-sidebar-hi-hi-1');
+    const label = hiRow.querySelector('span');
+    expect(label).toHaveAttribute('title', 'Very Long Household Item Name That Might Overflow');
   });
 });

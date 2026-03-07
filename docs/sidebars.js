@@ -65,6 +65,17 @@ const sidebars = {
         'guides/documents/linking-documents',
       ],
     },
+    {
+      type: 'category',
+      label: 'Household Items',
+      link: { type: 'doc', id: 'guides/household-items/index' },
+      items: [
+        'guides/household-items/creating-editing-items',
+        'guides/household-items/budget-and-invoices',
+        'guides/household-items/work-item-linking',
+        'guides/household-items/delivery-and-dependencies',
+      ],
+    },
     'guides/appearance/dark-mode',
     'roadmap',
   ],

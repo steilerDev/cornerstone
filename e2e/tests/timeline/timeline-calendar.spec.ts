@@ -269,6 +269,10 @@ test.describe('Week grid renders (Scenario 7)', () => {
     await timelinePage.gotoCalendar();
     await timelinePage.calendarWeekButton.click();
 
+    // Wait for the label to switch from month format ("March 2026") to week
+    // format ("Mar 1–7, 2026") before capturing it — the click is async and
+    // React state update may lag behind the click action.
+    await expect(timelinePage.calendarPeriodLabel).not.toHaveText(/^\w+ \d{4}$/);
     const currentWeekLabel = await timelinePage.getCalendarPeriodLabel();
 
     // Navigate forward

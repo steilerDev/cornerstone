@@ -93,6 +93,7 @@ export type {
   Invoice,
   InvoiceStatus,
   WorkItemBudgetSummary,
+  HouseholdItemBudgetSummary,
   CreateInvoiceRequest,
   UpdateInvoiceRequest,
   InvoiceListResponse,
@@ -134,6 +135,19 @@ export type {
   BudgetOverviewResponse,
 } from './types/budgetOverview.js';
 
+// Budget Breakdown
+export type {
+  CostDisplay,
+  BreakdownBudgetLine,
+  BreakdownWorkItem,
+  BreakdownWorkItemCategory,
+  BreakdownHouseholdItem,
+  BreakdownHouseholdItemCategory,
+  BreakdownTotals,
+  BudgetBreakdown,
+  BudgetBreakdownResponse,
+} from './types/budgetBreakdown.js';
+
 // Work Item Budgets
 export type {
   ConfidenceLevel,
@@ -174,6 +188,7 @@ export type {
   TimelineWorkItem,
   TimelineDependency,
   TimelineMilestone,
+  TimelineHouseholdItem,
   TimelineDateRange,
   TimelineResponse,
 } from './types/timeline.js';
@@ -196,3 +211,38 @@ export type {
   DocumentLinkResponse,
   DocumentLinkListResponse,
 } from './types/document.js';
+
+// Household Items
+export type {
+  HouseholdItemCategory,
+  HouseholdItemStatus,
+  HouseholdItemVendorSummary,
+  HouseholdItemDepPredecessorType,
+  HouseholdItemDepRef,
+  HouseholdItemDepPredecessorSummary,
+  HouseholdItemDepDetail,
+  HouseholdItemDepsResponse,
+  CreateHouseholdItemDepRequest,
+  WorkItemLinkedHouseholdItemSummary,
+  HouseholdItemSubsidySummary,
+  HouseholdItem,
+  HouseholdItemSummary,
+  HouseholdItemDetail,
+  HouseholdItemBudgetAggregate,
+  CreateHouseholdItemRequest,
+  UpdateHouseholdItemRequest,
+  HouseholdItemListQuery,
+  HouseholdItemListResponse,
+  HouseholdItemResponse,
+} from './types/householdItem.js';
+
+// Household Item Budgets
+export type {
+  HouseholdItemBudgetLine,
+  CreateHouseholdItemBudgetRequest,
+  UpdateHouseholdItemBudgetRequest,
+  HouseholdItemBudgetListResponse,
+  HouseholdItemBudgetResponse,
+  HouseholdItemSubsidyPaybackEntry,
+  HouseholdItemSubsidyPaybackResponse,
+} from './types/householdItemBudget.js';

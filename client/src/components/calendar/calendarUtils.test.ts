@@ -16,6 +16,7 @@ import {
   getWeekDates,
   getItemsForDay,
   getMilestonesForDay,
+  getHouseholdItemsForDay,
   isItemStart,
   isItemEnd,
   prevMonth,
@@ -29,7 +30,11 @@ import {
   getItemColor,
   getContrastTextColor,
 } from './calendarUtils.js';
-import type { TimelineWorkItem, TimelineMilestone } from '@cornerstone/shared';
+import type {
+  TimelineWorkItem,
+  TimelineMilestone,
+  TimelineHouseholdItem,
+} from '@cornerstone/shared';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -67,6 +72,7 @@ function makeMilestone(id: number, targetDate: string, isCompleted = false): Tim
     color: null,
     workItemIds: [],
     projectedDate: null,
+    isCritical: false,
   };
 }
 
@@ -538,6 +544,101 @@ describe('getMilestonesForDay', () => {
     // Ensure there is no fuzzy matching
     const m = makeMilestone(1, '2024-03-05');
     expect(getMilestonesForDay('2024-03-5', [m])).toHaveLength(0); // leading zero missing
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getHouseholdItemsForDay
+// ---------------------------------------------------------------------------
+
+function makeHouseholdItem(
+  id: string,
+  overrides: Partial<TimelineHouseholdItem> = {},
+): TimelineHouseholdItem {
+  return {
+    id,
+    name: `HI ${id}`,
+    category: 'furniture',
+    status: 'planned',
+    targetDeliveryDate: null,
+    earliestDeliveryDate: null,
+    latestDeliveryDate: null,
+    actualDeliveryDate: null,
+    isLate: false,
+    dependencyIds: [],
+    ...overrides,
+  };
+}
+
+describe('getHouseholdItemsForDay', () => {
+  it('returns empty array when items list is empty', () => {
+    expect(getHouseholdItemsForDay('2026-06-15', [])).toEqual([]);
+  });
+
+  it('returns item when actualDeliveryDate matches', () => {
+    const item = makeHouseholdItem('hi-1', { actualDeliveryDate: '2026-06-15' });
+    expect(getHouseholdItemsForDay('2026-06-15', [item])).toContain(item);
+  });
+
+  it('returns item when targetDeliveryDate matches and no actualDeliveryDate', () => {
+    const item = makeHouseholdItem('hi-1', { targetDeliveryDate: '2026-06-15' });
+    expect(getHouseholdItemsForDay('2026-06-15', [item])).toContain(item);
+  });
+
+  it('does not return item when only earliestDeliveryDate matches (regression test)', () => {
+    // earliestDeliveryDate is no longer used for calendar placement — only actual and target
+    const item = makeHouseholdItem('hi-1', {
+      earliestDeliveryDate: '2026-06-15',
+      targetDeliveryDate: null,
+      actualDeliveryDate: null,
+    });
+    expect(getHouseholdItemsForDay('2026-06-15', [item])).toHaveLength(0);
+  });
+
+  it('shows item on actualDeliveryDate when both actual and target are set', () => {
+    // actualDeliveryDate is exclusive (takes priority)
+    const item = makeHouseholdItem('hi-1', {
+      targetDeliveryDate: '2026-06-01',
+      actualDeliveryDate: '2026-06-15',
+    });
+    expect(getHouseholdItemsForDay('2026-06-15', [item])).toContain(item);
+  });
+
+  it('does not show item on targetDeliveryDate when actualDeliveryDate is set', () => {
+    // If item has actualDeliveryDate, it should only appear on that date, NOT on targetDeliveryDate
+    const item = makeHouseholdItem('hi-1', {
+      targetDeliveryDate: '2026-06-01',
+      actualDeliveryDate: '2026-06-15',
+    });
+    expect(getHouseholdItemsForDay('2026-06-01', [item])).toHaveLength(0);
+  });
+
+  it('excludes item when neither date matches', () => {
+    const item = makeHouseholdItem('hi-1', {
+      targetDeliveryDate: '2026-06-20',
+      actualDeliveryDate: null,
+    });
+    expect(getHouseholdItemsForDay('2026-06-15', [item])).toHaveLength(0);
+  });
+
+  it('excludes item with no dates at all', () => {
+    const item = makeHouseholdItem('hi-1', {
+      targetDeliveryDate: null,
+      earliestDeliveryDate: null,
+      actualDeliveryDate: null,
+    });
+    expect(getHouseholdItemsForDay('2026-06-15', [item])).toHaveLength(0);
+  });
+
+  it('returns multiple items on the same date', () => {
+    const item1 = makeHouseholdItem('hi-1', { targetDeliveryDate: '2026-06-15' });
+    const item2 = makeHouseholdItem('hi-2', { actualDeliveryDate: '2026-06-15' });
+    const item3 = makeHouseholdItem('hi-3', { targetDeliveryDate: '2026-06-20' });
+    const result = getHouseholdItemsForDay('2026-06-15', [item1, item2, item3]);
+    expect(result).toHaveLength(2);
+    expect(result).toContain(item1);
+    expect(result).toContain(item2);
+    expect(result).not.toContain(item3);
   });
 });
 

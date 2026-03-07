@@ -127,3 +127,89 @@ Key observations for future a11y polishing PRs:
 - `0.625rem` (10px) — no font-size token; nearest is `var(--font-size-xs)` = 12px
 - `2.5rem` (40px) — no font-size token; nearest is `var(--font-size-4xl)` = 32px (or keep literal)
 - `1.75rem` (28px) — no token; falls between `--font-size-2xl` (24px) and `--font-size-3xl` (30px)
+
+## Story 4.3 — Household Items List Page (Issue #389)
+
+- New amber badge tokens required: `--color-status-in-transit-bg` + `--color-status-in-transit-text` (Layer 2 + Layer 3 in tokens.css)
+- Status badge token mapping: Not Ordered→not-started, Ordered→in-progress, In Transit→in-transit (new), Delivered→completed
+- Category badge: use `--color-role-member-bg` / `--color-role-member-text` (neutral gray pill)
+- Table vs card breakpoint: `< 768px` shows cards, `>= 768px` shows table (matches WorkItemsPage)
+- Tablet (768–1024px): hide "Expected Delivery" and "Room" columns
+- Cost formatting: German locale (`de-DE`, EUR) — consistent with WorkItemDetailPage
+- Sidebar already has "Household Items" nav link — no sidebar changes needed
+- WorkItemsPage.module.css has many hardcoded values — do NOT copy them; spec must use tokens
+- Empty state split: "no items exist" (icon + CTA) vs "filtered empty" (text + clear filters link, no icon)
+- `prefers-reduced-motion`: wrap all transitions in a media query guard in the CSS module
+
+## PR #398 Review Findings — Household Items List Page
+
+Key misses to watch for in list-page PRs:
+
+- Entire CSS module used hardcoded literals for spacing/font/radius/transition — every value must use tokens
+- New token family amber in-transit: Layer 2 `:root` used `#fef3c7` and `#92400e` directly — must be Layer 1 palette refs; need `--color-amber-100`, `--color-amber-800`, `--color-amber-300` added to Layer 1
+- Layer 3 dark mode in-transit text `#fcd34d` also hardcoded — use `var(--color-amber-300)`
+- Buttons (primaryButton, secondaryButton, cancelButton, confirmDeleteButton) fully duplicated from shared.module.css — use `composes:` instead
+- modal/modalBackdrop/modalContent/modalActions/loading/emptyState also duplicated from shared.module.css
+- `secondaryButton:hover` used `var(--color-border)` as background (border token, not bg token) — should be `var(--color-bg-hover)`; same bug exists in WorkItemsPage
+- Sortable `<th>` elements need keyboard support + `aria-sort` attribute on active column
+- Action menu button `aria-label="Actions menu"` too generic — must include item name
+- `z-index: 1000` → `var(--z-modal)`; `z-index: 10` → `var(--z-dropdown)`
+- Tablet breakpoint upper bound should be `1023px` not `1024px` to avoid overlap with desktop
+
+## Stories 4.7–4.9 Key Patterns (see story-4-9-invoice-linking-hi.md for full spec)
+
+- HI Detail: section cards use `border: 1px solid var(--color-border)` NOT `box-shadow: var(--shadow-sm)` for `.section`
+- HI page card titles: `--font-size-xl` (20px); WI page section titles: `--font-size-lg` (18px)
+- WorkItemPicker reused for searchable add; `<HouseholdItemStatusBadge>` reused for HI status
+- srOnly live region announces link/unlink actions
+- `--spacing-xs` / `--spacing-sm` are NOT valid tokens — use `--spacing-1` through `--spacing-16`
+- `--color-warning-bg` does NOT exist; for warning bg use `--color-hi-status-in-transit-bg`
+- RECURRING BUG: `outline: 2px solid var(--color-primary)` on focus-visible — always use `box-shadow: var(--shadow-focus)` (flagged PRs #402, #414)
+
+## PR #399 Review Findings — HI Create & Edit Forms (APPROVED)
+
+Model implementation — tokens used comprehensively. See `story-4-9-invoice-linking-hi.md` for HI domain patterns.
+
+## Story 4.9 — Invoice Linking for HI Budget Lines (Issue #413)
+
+See `story-4-9-invoice-linking-hi.md`. Spec: entity type toggle (`role="group"` + `role="radio"`), "Linked To" column in invoice list table (hidden at tablet). No new tokens needed.
+
+## PR #414 Review Findings — Invoice Linking for HI (COMMENT)
+
+- `outline: 2px solid var(--color-primary)` on `invoiceLink:focus-visible` — recurring mistake; always use `box-shadow: var(--shadow-focus)`
+- Inline `Intl.NumberFormat('en-US', { currency: 'USD' })` in budget line dropdown — always use `formatCurrency()` from formatters.ts (EUR, not USD)
+- Badge `padding: 2px 6px` hardcoded — use `var(--spacing-0-5) var(--spacing-1-5)`
+- Spec entity type toggle not implemented (used plain separator div instead) — flag as spec deviation
+- "Linked To" table column omitted from invoice list page — functional omission
+
+## Story 4.10 — HI Timeline Dependencies (Issue #415)
+
+See memory for key patterns. Amber tokens: `--color-hi-status-scheduled-bg/text` (NOT `in-transit`).
+HI Gantt: amber circle marker (r=7px). Add Dep modal: 36rem wide.
+`role="listbox"` requires arrow-key nav — use `role="list"` + `role="button"` items instead.
+`--color-primary-text` on `--color-primary-bg` chip = contrast failure; use `var(--color-primary)` for text.
+
+## Story 4.11 — HI Detail Inline Edit (Issue #467)
+
+See `story-4-11-hi-detail-inline-edit.md` for full spec.
+
+- 3 sections: Details → Dates & Delivery → Dependencies (all `.section` border-variant)
+- Strikethrough target date: `.scheduleTargetStrikethrough` + `aria-label="Target date: [date]"` (screen readers don't read text-decoration)
+- AutosaveIndicator CSS must be LOCAL COPY in HouseholdItemDetailPage.module.css
+- Re-fetch required after saving `actualDeliveryDate` and `earliestDeliveryDate`
+- Edit page scope: remove orderDate/earliestDeliveryDate/latestDeliveryDate/actualDeliveryDate/status
+
+## PR #457 Review Findings — HI Delivery Date Redesign
+
+- `--color-hi-status-in-transit-*` used in lateChip — non-existent tokens (HIGH)
+- modalOverlay uses `rgba(0,0,0,0.5)` and `z-index:1000` instead of `var(--color-overlay)` and `var(--z-modal)` (MEDIUM, pre-existing)
+- `--color-danger-active` used for errorBanner text instead of `--color-danger-text-on-light` (LOW, pre-existing inconsistency)
+- "Target Delivery (computed)" — parenthetical "(computed)" is dev-oriented language in a user-facing label (LOW)
+
+## PR #460 Review Findings — HI Inline Status Selector (APPROVED)
+
+Token adherence exemplary. PR correctly uses tokens throughout (unlike WorkItemDetailPage `.statusSelect` which has hardcoded values):
+
+- WorkItemDetailPage.module.css `.statusSelect` (lines 172–187) uses `0.625rem`, `0.375rem`, `0.875rem`, `0.15s` (hardcoded)
+- PR #460 HI version uses `var(--spacing-2-5)`, `var(--radius-md)`, `var(--font-size-sm)`, `var(--transition-normal)` (correct)
+- **Action**: Fix WorkItemDetailPage `.statusSelect` to use tokens for consistency (future refactor task)

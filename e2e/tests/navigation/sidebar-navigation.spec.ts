@@ -36,9 +36,6 @@ test.describe('Sidebar Navigation', { tag: '@responsive' }, () => {
     await clickNav('Household Items');
     await expect(page).toHaveURL(new RegExp(`${ROUTES.householdItems}(\\?.*)?$`));
 
-    await clickNav('Documents');
-    await expect(page).toHaveURL(new RegExp(`${ROUTES.documents}(\\?.*)?$`));
-
     await clickNav('Profile');
     await expect(page).toHaveURL(new RegExp(`${ROUTES.profile}(\\?.*)?$`));
 
@@ -55,26 +52,26 @@ test.describe('Sidebar Navigation', { tag: '@responsive' }, () => {
     // Given: User navigates to Work Items page
     await page.goto(ROUTES.workItems);
 
-    // Then: Work Items link should be active
-    await expect(async () => {
-      const isActive = await appShell.isNavLinkActive('Work Items');
-      expect(isActive).toBe(true);
-    }).toPass();
+    // Then: Work Items link should be active.
+    // Use expect().toHaveAttribute() directly — Playwright auto-retries within expect.timeout
+    // (7s desktop / 15s WebKit). The toPass() pattern consumed the entire test timeout (15s)
+    // as its retry window and caused the test to time out on slow CI runners.
+    const workItemsLink = appShell.nav.getByRole('link', { name: 'Work Items' });
+    await expect(workItemsLink).toHaveAttribute('aria-current', 'page');
 
-    // When: User navigates to Budget
-    await page.goto(ROUTES.budget);
+    // When: User navigates to Household Items
+    // NOTE: The Budget NavLink has the `end` prop (only active at exactly "/budget"),
+    // so navigating to ROUTES.budget (/budget/overview) never activates the Budget link.
+    // Use Household Items instead — its NavLink has no `end` prop and activates for all
+    // /household-items/* routes.
+    await page.goto(ROUTES.householdItems);
 
-    // Then: Budget link should be active
-    await expect(async () => {
-      const isActive = await appShell.isNavLinkActive('Budget');
-      expect(isActive).toBe(true);
-    }).toPass();
+    // Then: Household Items link should be active
+    const householdItemsLink = appShell.nav.getByRole('link', { name: 'Household Items' });
+    await expect(householdItemsLink).toHaveAttribute('aria-current', 'page');
 
-    // And: Work Items link should not be active
-    await expect(async () => {
-      const isActive = await appShell.isNavLinkActive('Work Items');
-      expect(isActive).toBe(false);
-    }).toPass();
+    // And: Work Items link should not be active (aria-current absent or not 'page')
+    await expect(workItemsLink).not.toHaveAttribute('aria-current', 'page');
   });
 
   test('All nav links rendered and visible', async ({ page }) => {
@@ -96,7 +93,6 @@ test.describe('Sidebar Navigation', { tag: '@responsive' }, () => {
       'Budget',
       'Timeline',
       'Household Items',
-      'Documents',
       'Profile',
       'User Management',
     ];

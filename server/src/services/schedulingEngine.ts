@@ -18,6 +18,9 @@ import {
   workItemDependencies,
   workItemMilestoneDeps,
   milestoneWorkItems,
+  householdItems,
+  householdItemDeps,
+  milestones,
 } from '../db/schema.js';
 import type { ScheduleResponse, ScheduleWarning } from '@cornerstone/shared';
 
@@ -591,15 +594,25 @@ export function schedule(params: ScheduleParams): ScheduleResult {
 
   // ─── 5. Backward pass: compute LS and LF ─────────────────────────────────────
 
+  // Compute project finish date: maximum EF across all terminal nodes
+  let projectEnd = '0000-01-01';
+  for (const id of topoOrder) {
+    const succs = successorDepsOf.get(id)!;
+    if (succs.length === 0) {
+      const node = nodes.get(id)!;
+      projectEnd = maxDate(projectEnd, node.ef);
+    }
+  }
+
   // Traverse in reverse topological order
   for (const id of [...topoOrder].reverse()) {
     const node = nodes.get(id)!;
     const succs = successorDepsOf.get(id)!;
 
     if (succs.length === 0) {
-      // Terminal node (no successors): LF = EF (project completion constraint)
-      node.lf = node.ef;
-      node.ls = node.es;
+      // Terminal node: use shared project finish date so only the longest path has zero float
+      node.lf = projectEnd;
+      node.ls = addDays(projectEnd, -node.duration);
     } else {
       // LF = min of all successor-derived LF constraints
       let minLf = '9999-12-31'; // Sentinel: latest possible date
@@ -668,19 +681,29 @@ export function autoReschedule(db: DbType): number {
 
   const allWorkItems = db.select().from(workItems).all();
 
-  if (allWorkItems.length === 0) {
-    return 0;
-  }
-
   // ── 2. Fetch real dependencies ───────────────────────────────────────────────
 
-  const allDependencies = db.select().from(workItemDependencies).all();
+  const allDependencies =
+    allWorkItems.length > 0 ? db.select().from(workItemDependencies).all() : [];
 
-  // ── 3. Milestone dependency expansion ───────────────────────────────────────
+  // ── 3. Load milestones and their links ──────────────────────────────────────
   //
-  // For each row in work_item_milestone_deps (WI depends on milestone M),
-  // find all work items contributing to M (via milestone_work_items).
-  // Generate synthetic finish-to-start deps from each contributor to the dependent WI.
+  // Load milestone data and contributor/dependent links so we can model milestones
+  // as zero-duration CPM nodes.
+
+  const allMilestones = db.select().from(milestones).all();
+
+  // Map milestone IDs to milestones for quick lookup
+  const milestoneMap = new Map<number, typeof milestones.$inferSelect>();
+  for (const milestone of allMilestones) {
+    milestoneMap.set(milestone.id, milestone);
+  }
+
+  // ── 4. Milestone modeled as CPM nodes ───────────────────────────────────────
+  //
+  // For each milestone that has contributors (in milestone_work_items) or
+  // dependents (in work_item_milestone_deps), create a zero-duration CPM node
+  // with ID `milestone:<id>`.
 
   const allMilestoneDeps = db.select().from(workItemMilestoneDeps).all();
   const allMilestoneLinks = db.select().from(milestoneWorkItems).all();
@@ -693,36 +716,85 @@ export function autoReschedule(db: DbType): number {
     milestoneContributorsMap.set(link.milestoneId, existing);
   }
 
-  const syntheticDeps: SchedulingDependency[] = [];
+  // Build milestoneId → dependent workItemIds map
+  const milestoneDependentsMap = new Map<number, string[]>();
+  for (const dep of allMilestoneDeps) {
+    const existing = milestoneDependentsMap.get(dep.milestoneId) ?? [];
+    existing.push(dep.workItemId);
+    milestoneDependentsMap.set(dep.milestoneId, existing);
+  }
 
-  for (const milestoneDep of allMilestoneDeps) {
-    const contributingIds = milestoneContributorsMap.get(milestoneDep.milestoneId) ?? [];
-    for (const contributorId of contributingIds) {
-      // Avoid self-references (should not occur, but guard defensively)
-      if (contributorId !== milestoneDep.workItemId) {
-        syntheticDeps.push({
-          predecessorId: contributorId,
-          successorId: milestoneDep.workItemId,
-          dependencyType: 'finish_to_start',
-          leadLagDays: 0,
-        });
-      }
+  // Identify milestones that should become CPM nodes (have contributors or dependents)
+  const milestoneIdsWithLinks = new Set<number>();
+  for (const milestoneId of milestoneContributorsMap.keys()) {
+    milestoneIdsWithLinks.add(milestoneId);
+  }
+  for (const milestoneId of milestoneDependentsMap.keys()) {
+    milestoneIdsWithLinks.add(milestoneId);
+  }
+
+  const syntheticDeps: SchedulingDependency[] = [];
+  const milestoneVirtualWIs: SchedulingWorkItem[] = [];
+
+  for (const milestoneId of milestoneIdsWithLinks) {
+    const milestone = milestoneMap.get(milestoneId);
+    if (!milestone) continue;
+
+    // Create a zero-duration CPM node for this milestone
+    const milestoneNodeId = `milestone:${milestoneId}`;
+    const completedDate = milestone.completedAt ? milestone.completedAt.slice(0, 10) : null;
+
+    milestoneVirtualWIs.push({
+      id: milestoneNodeId,
+      status: milestone.completedAt ? 'completed' : 'not_started',
+      startDate: completedDate ?? milestone.targetDate,
+      endDate: completedDate ?? milestone.targetDate,
+      actualStartDate: completedDate ?? null,
+      actualEndDate: completedDate ?? null,
+      durationDays: 0,
+      startAfter: null,
+      startBefore: null,
+    });
+
+    // Create FS deps from each contributor to the milestone
+    const contributors = milestoneContributorsMap.get(milestoneId) ?? [];
+    for (const contributorId of contributors) {
+      syntheticDeps.push({
+        predecessorId: contributorId,
+        successorId: milestoneNodeId,
+        dependencyType: 'finish_to_start',
+        leadLagDays: 0,
+      });
+    }
+
+    // Create FS deps from the milestone to each dependent
+    const dependents = milestoneDependentsMap.get(milestoneId) ?? [];
+    for (const dependentId of dependents) {
+      syntheticDeps.push({
+        predecessorId: milestoneNodeId,
+        successorId: dependentId,
+        dependencyType: 'finish_to_start',
+        leadLagDays: 0,
+      });
     }
   }
 
-  // ── 4. Build combined dependency list for the engine ────────────────────────
+  // ── 5. Build combined dependency list for the engine ────────────────────────
 
-  const engineWorkItems: SchedulingWorkItem[] = allWorkItems.map((wi) => ({
-    id: wi.id,
-    status: wi.status,
-    startDate: wi.startDate,
-    endDate: wi.endDate,
-    actualStartDate: wi.actualStartDate,
-    actualEndDate: wi.actualEndDate,
-    durationDays: wi.durationDays,
-    startAfter: wi.startAfter,
-    startBefore: wi.startBefore,
-  }));
+  const engineWorkItems: SchedulingWorkItem[] = [
+    ...allWorkItems.map((wi) => ({
+      id: wi.id,
+      status: wi.status,
+      startDate: wi.startDate,
+      endDate: wi.endDate,
+      actualStartDate: wi.actualStartDate,
+      actualEndDate: wi.actualEndDate,
+      durationDays: wi.durationDays,
+      startAfter: wi.startAfter,
+      startBefore: wi.startBefore,
+    })),
+    ...milestoneVirtualWIs,
+  ];
 
   const realDeps: SchedulingDependency[] = allDependencies.map((dep) => ({
     predecessorId: dep.predecessorId,
@@ -735,7 +807,7 @@ export function autoReschedule(db: DbType): number {
 
   const today = new Date().toISOString().slice(0, 10);
 
-  // ── 5. Run the CPM scheduler ─────────────────────────────────────────────────
+  // ── 6. Run the CPM scheduler ─────────────────────────────────────────────────
 
   const result = schedule({
     mode: 'full',
@@ -750,7 +822,10 @@ export function autoReschedule(db: DbType): number {
     return 0;
   }
 
-  // ── 6. Apply changed dates back to the database ──────────────────────────────
+  // ── 7. Apply changed dates back to the database ──────────────────────────────
+  //
+  // Skip milestone nodes (IDs starting with "milestone:") — they are virtual CPM
+  // nodes only and should never be written to the database.
 
   // Build a map of current startDate/endDate by workItemId for comparison
   const currentDatesMap = new Map<string, { startDate: string | null; endDate: string | null }>();
@@ -762,6 +837,11 @@ export function autoReschedule(db: DbType): number {
   const now = new Date().toISOString();
 
   for (const scheduled of result.scheduledItems) {
+    // Skip milestone nodes
+    if (scheduled.workItemId.startsWith('milestone:')) {
+      continue;
+    }
+
     const current = currentDatesMap.get(scheduled.workItemId);
     if (!current) continue;
 
@@ -779,6 +859,152 @@ export function autoReschedule(db: DbType): number {
           updatedAt: now,
         })
         .where(eq(workItems.id, scheduled.workItemId))
+        .run();
+      updatedCount++;
+    }
+  }
+
+  // ── 8. Compute household item delivery dates ──────────────────────────────────
+  //
+  // Build CPM nodes for household items using work item end dates.
+  // HIs are zero-duration terminal nodes.
+  // Note: milestoneMap was already loaded in section 3; reuse it here.
+
+  const allHouseholdItems = db.select().from(householdItems).all();
+  const allHIDeps = db.select().from(householdItemDeps).all();
+
+  // Build the scheduled result map for quick lookup of work item end dates
+  const scheduledMap = new Map<string, (typeof result.scheduledItems)[0]>();
+  for (const scheduled of result.scheduledItems) {
+    scheduledMap.set(scheduled.workItemId, scheduled);
+  }
+
+  // ── 9. Compute delivery dates for household items ─────────────────────────────
+
+  const hiDeliveryDates = new Map<string, { targetDate: string | null; isLate: boolean }>();
+
+  for (const hi of allHouseholdItems) {
+    // Find all dependencies for this HI
+    const hiDeps = allHIDeps.filter((dep) => dep.householdItemId === hi.id);
+
+    if (hiDeps.length === 0 && !hi.earliestDeliveryDate) {
+      // No dependencies and no earliest delivery constraint — HI is unconstrained
+      hiDeliveryDates.set(hi.id, { targetDate: null, isLate: false });
+      continue;
+    }
+
+    // Compute ES (earliest start): max of all predecessor finish times + lead/lag
+    let maxES = today; // Default to today if no predecessors
+
+    for (const dep of hiDeps) {
+      let predEF = today;
+
+      if (dep.predecessorType === 'work_item') {
+        // Look up the work item's end date from the scheduled result
+        const scheduled = scheduledMap.get(dep.predecessorId);
+        if (scheduled) {
+          predEF = scheduled.scheduledEndDate;
+        } else {
+          // Work item not in scheduled results (shouldn't happen, but fallback)
+          const wiRow = db
+            .select()
+            .from(workItems)
+            .where(eq(workItems.id, dep.predecessorId))
+            .get();
+          if (wiRow && wiRow.endDate) {
+            predEF = wiRow.endDate;
+          }
+        }
+      } else if (dep.predecessorType === 'milestone') {
+        // Determine effective milestone finish date using priority:
+        // 1. completedAt (actual) → truncate to YYYY-MM-DD
+        // 2. Projected: max scheduledEndDate of contributing work items
+        // 3. Fallback: targetDate
+        const milestoneId = parseInt(dep.predecessorId, 10);
+        const milestone = milestoneMap.get(milestoneId);
+        if (milestone) {
+          if (milestone.completedAt) {
+            // Priority 1: milestone has been completed — use actual date
+            predEF = milestone.completedAt.slice(0, 10);
+          } else {
+            // Priority 2: compute projected date from contributing work items
+            const contributorIds = milestoneContributorsMap.get(milestoneId) ?? [];
+            let projectedDate: string | null = null;
+            for (const contributorId of contributorIds) {
+              const scheduled = scheduledMap.get(contributorId);
+              if (scheduled?.scheduledEndDate) {
+                projectedDate =
+                  projectedDate === null
+                    ? scheduled.scheduledEndDate
+                    : maxDate(projectedDate, scheduled.scheduledEndDate);
+              }
+            }
+            // Priority 3: fall back to targetDate if no projected date available
+            predEF = projectedDate ?? milestone.targetDate;
+          }
+        }
+      }
+
+      // All HI dependencies are finish-to-start with zero lag (HIs are zero-duration terminal nodes)
+      const depES = predEF;
+
+      maxES = maxDate(maxES, depES);
+    }
+
+    // Apply earliestDeliveryDate constraint (user-editable): ES >= earliestDeliveryDate if set
+    let es = maxES;
+    if (hi.earliestDeliveryDate) {
+      es = maxDate(es, hi.earliestDeliveryDate);
+    }
+
+    // Since HIs are zero-duration, EF = ES
+    let targetDate = es; // Start with the computed earliest date
+
+    // ── 10. Apply floor rules ─────────────────────────────────────────────────────
+
+    let isLate = false;
+
+    if (hi.actualDeliveryDate) {
+      // Actual date overrides CPM — use it directly
+      targetDate = hi.actualDeliveryDate;
+    } else if (hi.status === 'planned' || hi.status === 'purchased') {
+      // Floor to today; mark as late if floored
+      const targetBeforeFloor = targetDate;
+      targetDate = maxDate(targetDate, today);
+      if (targetDate !== targetBeforeFloor) {
+        isLate = true;
+      }
+    } else if (hi.status === 'scheduled') {
+      // Floor to today; mark as late if floored
+      const targetBeforeFloor = targetDate;
+      targetDate = maxDate(targetDate, today);
+      if (targetDate !== targetBeforeFloor) {
+        isLate = true;
+      }
+    }
+
+    hiDeliveryDates.set(hi.id, { targetDate, isLate });
+  }
+
+  // ── 11. Write HI target delivery dates back to database ────────────────────────────────
+  // Note: scheduler does NOT write to earliestDeliveryDate or latestDeliveryDate.
+  // Those are now user-editable constraints. Only targetDeliveryDate and isLate are computed by scheduler.
+
+  for (const [hiId, dates] of hiDeliveryDates) {
+    const current = allHouseholdItems.find((hi) => hi.id === hiId);
+    if (!current) continue;
+
+    const targetDateChanged = dates.targetDate !== current.targetDeliveryDate;
+    const isLateChanged = dates.isLate !== current.isLate;
+
+    if (targetDateChanged || isLateChanged) {
+      db.update(householdItems)
+        .set({
+          targetDeliveryDate: dates.targetDate,
+          isLate: dates.isLate,
+          updatedAt: now,
+        })
+        .where(eq(householdItems.id, hiId))
         .run();
       updatedCount++;
     }

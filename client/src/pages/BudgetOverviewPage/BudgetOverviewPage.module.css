@@ -134,12 +134,20 @@
   margin: 0;
 }
 
-/* ---- Key metrics row: 3-column grid (desktop) ---- */
+/* ---- Key metrics row: 3-column grid (desktop), 4-column with payback ---- */
 
 .metricsRow {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: var(--spacing-4);
+}
+
+.metricsRowWithPayback {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.metricPaybackValue {
+  color: var(--color-success-text-on-light);
 }
 
 .metricGroup {
@@ -403,6 +411,19 @@
   gap: var(--spacing-3);
 }
 
+/* ---- Breakdown loading state ---- */
+
+.breakdownLoading {
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--spacing-8);
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
 /* ---- Category filter dropdown ---- */
 
 .categoryFilter {
@@ -548,6 +569,10 @@
 
   .categoryOption {
     min-height: 44px;
+  }
+
+  .metricsRowWithPayback {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 

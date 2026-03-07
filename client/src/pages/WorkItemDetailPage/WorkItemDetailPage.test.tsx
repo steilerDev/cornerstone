@@ -19,6 +19,7 @@ import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as SubsidyProgramsApiTypes from '../../lib/subsidyProgramsApi.js';
 import type * as MilestonesApiTypes from '../../lib/milestonesApi.js';
 import type * as WorkItemMilestonesApiTypes from '../../lib/workItemMilestonesApi.js';
+import type * as HouseholdItemWorkItemsApiTypes from '../../lib/householdItemWorkItemsApi.js';
 import type * as WorkItemDetailPageTypes from './WorkItemDetailPage.js';
 
 // Module-scope mocks
@@ -64,6 +65,8 @@ const mockRemoveRequiredMilestone =
 const mockAddLinkedMilestone = jest.fn<typeof WorkItemMilestonesApiTypes.addLinkedMilestone>();
 const mockRemoveLinkedMilestone =
   jest.fn<typeof WorkItemMilestonesApiTypes.removeLinkedMilestone>();
+const mockFetchLinkedHouseholdItems =
+  jest.fn<typeof HouseholdItemWorkItemsApiTypes.fetchLinkedHouseholdItems>();
 
 // Mock AuthContext
 jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
@@ -155,6 +158,10 @@ jest.unstable_mockModule('../../lib/workItemMilestonesApi.js', () => ({
   removeLinkedMilestone: mockRemoveLinkedMilestone,
 }));
 
+jest.unstable_mockModule('../../lib/householdItemWorkItemsApi.js', () => ({
+  fetchLinkedHouseholdItems: mockFetchLinkedHouseholdItems,
+}));
+
 describe('WorkItemDetailPage', () => {
   let WorkItemDetailPageModule: typeof WorkItemDetailPageTypes;
 
@@ -240,6 +247,7 @@ describe('WorkItemDetailPage', () => {
     mockRemoveRequiredMilestone.mockReset();
     mockAddLinkedMilestone.mockReset();
     mockRemoveLinkedMilestone.mockReset();
+    mockFetchLinkedHouseholdItems.mockReset();
 
     if (!WorkItemDetailPageModule) {
       WorkItemDetailPageModule = await import('./WorkItemDetailPage.js');
@@ -285,6 +293,8 @@ describe('WorkItemDetailPage', () => {
     // Milestone-related defaults
     mockListMilestones.mockResolvedValue([]);
     mockGetWorkItemMilestones.mockResolvedValue({ required: [], linked: [] });
+    // Household item work items defaults
+    mockFetchLinkedHouseholdItems.mockResolvedValue([]);
   });
 
   function renderPage(id = 'work-1') {
@@ -692,6 +702,190 @@ describe('WorkItemDetailPage', () => {
         screen.queryByRole('button', { name: /this item depends on/i }),
       ).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /this item blocks/i })).not.toBeInTheDocument();
+    });
+  });
+
+  // ── Linked/Dependent Household Items section (Story #415) ──────────────────
+
+  describe('Linked Household Items section', () => {
+    it('renders "Dependent Household Items" section heading', async () => {
+      renderPage();
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole('heading', { name: 'Test Work Item', level: 1 }),
+        ).toBeInTheDocument();
+      });
+
+      // Section heading appears on the page
+      expect(screen.getByText('Dependent Household Items')).toBeInTheDocument();
+    });
+
+    it('shows empty state text when no household items are linked', async () => {
+      mockFetchLinkedHouseholdItems.mockResolvedValue([]);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole('heading', { name: 'Test Work Item', level: 1 }),
+        ).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('No household items depend on this work item.')).toBeInTheDocument();
+    });
+
+    it('renders linked household items when data is present', async () => {
+      mockFetchLinkedHouseholdItems.mockResolvedValue([
+        {
+          id: 'hi-1',
+          name: 'Leather Sofa',
+          category: 'furniture' as const,
+          status: 'planned' as const,
+          targetDeliveryDate: null,
+          earliestDeliveryDate: '2026-05-15',
+          latestDeliveryDate: '2026-06-01',
+        },
+      ]);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole('heading', { name: 'Test Work Item', level: 1 }),
+        ).toBeInTheDocument();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('Leather Sofa')).toBeInTheDocument();
+      });
+    });
+
+    it('shows earliestDeliveryDate and latestDeliveryDate as a date range', async () => {
+      mockFetchLinkedHouseholdItems.mockResolvedValue([
+        {
+          id: 'hi-2',
+          name: 'Dining Table',
+          category: 'furniture' as const,
+          status: 'purchased' as const,
+          targetDeliveryDate: '2026-06-01',
+          earliestDeliveryDate: '2026-05-20',
+          latestDeliveryDate: '2026-06-10',
+        },
+      ]);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole('heading', { name: 'Test Work Item', level: 1 }),
+        ).toBeInTheDocument();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('Dining Table')).toBeInTheDocument();
+      });
+
+      // The date range should be rendered (e.g., "May 20, 2026 – Jun 10, 2026")
+      // We check for the "–" separator that indicates a range
+      const dateRangeEl = screen.getByText(/–/);
+      expect(dateRangeEl).toBeInTheDocument();
+    });
+
+    it('falls back to targetDeliveryDate when no scheduling window dates', async () => {
+      mockFetchLinkedHouseholdItems.mockResolvedValue([
+        {
+          id: 'hi-3',
+          name: 'Lamp',
+          category: 'decor' as const,
+          status: 'planned' as const,
+          targetDeliveryDate: '2026-04-15',
+          earliestDeliveryDate: null,
+          latestDeliveryDate: null,
+        },
+      ]);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole('heading', { name: 'Test Work Item', level: 1 }),
+        ).toBeInTheDocument();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('Lamp')).toBeInTheDocument();
+      });
+
+      // Should fall back to rendering targetDeliveryDate (no "–" separator)
+      // The text contains the formatted expected date without a range separator
+      expect(screen.queryByText(/–/)).not.toBeInTheDocument();
+    });
+
+    it('renders multiple linked household items', async () => {
+      mockFetchLinkedHouseholdItems.mockResolvedValue([
+        {
+          id: 'hi-a',
+          name: 'Sofa',
+          category: 'furniture' as const,
+          status: 'planned' as const,
+          targetDeliveryDate: null,
+          earliestDeliveryDate: '2026-05-15',
+          latestDeliveryDate: '2026-06-01',
+        },
+        {
+          id: 'hi-b',
+          name: 'Chair',
+          category: 'furniture' as const,
+          status: 'purchased' as const,
+          targetDeliveryDate: null,
+          earliestDeliveryDate: '2026-06-10',
+          latestDeliveryDate: '2026-07-01',
+        },
+      ]);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole('heading', { name: 'Test Work Item', level: 1 }),
+        ).toBeInTheDocument();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('Sofa')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('Chair')).toBeInTheDocument();
+    });
+
+    it('shows count badge in section heading when items exist', async () => {
+      mockFetchLinkedHouseholdItems.mockResolvedValue([
+        {
+          id: 'hi-count',
+          name: 'Fridge',
+          category: 'appliances' as const,
+          status: 'purchased' as const,
+          targetDeliveryDate: null,
+          earliestDeliveryDate: '2026-04-01',
+          latestDeliveryDate: '2026-04-15',
+        },
+      ]);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole('heading', { name: 'Test Work Item', level: 1 }),
+        ).toBeInTheDocument();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('Fridge')).toBeInTheDocument();
+      });
+
+      // Count badge "1" should be visible in the heading area
+      expect(screen.getByText('1')).toBeInTheDocument();
     });
   });
 });

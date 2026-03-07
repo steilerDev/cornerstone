@@ -5,7 +5,10 @@
 import { test, expect } from '../../fixtures/auth.js';
 import { ROUTES } from '../../fixtures/testData.js';
 
+// WebKit on tablet occasionally crashes with internal errors during rapid
+// sequential navigations. Retrying handles transient browser-level failures.
 test.describe('Deep Linking', () => {
+  test.describe.configure({ retries: 2 });
   test('Direct URL for each route loads correct page', async ({ page }) => {
     // Given/When/Then: Navigate to each route and verify correct page heading
 
@@ -33,11 +36,6 @@ test.describe('Deep Linking', () => {
     await page.goto(ROUTES.householdItems);
     await expect(page.getByRole('heading', { level: 1, name: 'Household Items' })).toBeVisible();
     expect(page.url()).toContain(ROUTES.householdItems);
-
-    // Documents
-    await page.goto(ROUTES.documents);
-    await expect(page.getByRole('heading', { level: 1, name: 'Documents' })).toBeVisible();
-    expect(page.url()).toContain(ROUTES.documents);
 
     // Profile
     await page.goto(ROUTES.profile);

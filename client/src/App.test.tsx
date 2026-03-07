@@ -8,6 +8,13 @@ import type * as BudgetCategoriesApiTypes from './lib/budgetCategoriesApi.js';
 import type * as MilestonesApiTypes from './lib/milestonesApi.js';
 import type * as TimelineApiTypes from './lib/timelineApi.js';
 import type * as WorkItemsApiTypes from './lib/workItemsApi.js';
+import type * as HouseholdItemsApiTypes from './lib/householdItemsApi.js';
+import type * as VendorsApiTypes from './lib/vendorsApi.js';
+import type * as TagsApiTypes from './lib/tagsApi.js';
+import type * as UsersApiTypes from './lib/usersApi.js';
+import type * as InvoicesApiTypes from './lib/invoicesApi.js';
+import type * as WorkItemBudgetsApiTypes from './lib/workItemBudgetsApi.js';
+import type * as HouseholdItemBudgetsApiTypes from './lib/householdItemBudgetsApi.js';
 import type * as AppTypes from './App.js';
 
 const mockGetAuthMe = jest.fn<typeof AuthApiTypes.getAuthMe>();
@@ -72,6 +79,79 @@ jest.unstable_mockModule('./lib/workItemsApi.js', () => ({
   unlinkWorkItemSubsidy: jest.fn<typeof WorkItemsApiTypes.unlinkWorkItemSubsidy>(),
 }));
 
+// HouseholdItemsPage calls listHouseholdItems and fetchVendors on mount.
+// Mock to prevent fetch calls in the jsdom test environment.
+const mockListHouseholdItems = jest.fn<typeof HouseholdItemsApiTypes.listHouseholdItems>();
+jest.unstable_mockModule('./lib/householdItemsApi.js', () => ({
+  listHouseholdItems: mockListHouseholdItems,
+  getHouseholdItem: jest.fn<typeof HouseholdItemsApiTypes.getHouseholdItem>(),
+  createHouseholdItem: jest.fn<typeof HouseholdItemsApiTypes.createHouseholdItem>(),
+  updateHouseholdItem: jest.fn<typeof HouseholdItemsApiTypes.updateHouseholdItem>(),
+  deleteHouseholdItem: jest.fn<typeof HouseholdItemsApiTypes.deleteHouseholdItem>(),
+}));
+
+const mockFetchVendors = jest.fn<typeof VendorsApiTypes.fetchVendors>();
+jest.unstable_mockModule('./lib/vendorsApi.js', () => ({
+  fetchVendors: mockFetchVendors,
+  fetchVendor: jest.fn<typeof VendorsApiTypes.fetchVendor>(),
+  createVendor: jest.fn<typeof VendorsApiTypes.createVendor>(),
+  updateVendor: jest.fn<typeof VendorsApiTypes.updateVendor>(),
+  deleteVendor: jest.fn<typeof VendorsApiTypes.deleteVendor>(),
+}));
+
+// WorkItemsPage calls fetchTags on mount for the tag filter dropdown.
+// Mock to prevent fetch calls in the jsdom test environment.
+const mockFetchTags = jest.fn<typeof TagsApiTypes.fetchTags>();
+jest.unstable_mockModule('./lib/tagsApi.js', () => ({
+  fetchTags: mockFetchTags,
+  createTag: jest.fn<typeof TagsApiTypes.createTag>(),
+  updateTag: jest.fn<typeof TagsApiTypes.updateTag>(),
+  deleteTag: jest.fn<typeof TagsApiTypes.deleteTag>(),
+}));
+
+// WorkItemsPage calls listUsers on mount for the assigned-to filter dropdown.
+// Mock to prevent fetch calls in the jsdom test environment.
+const mockListUsers = jest.fn<typeof UsersApiTypes.listUsers>();
+jest.unstable_mockModule('./lib/usersApi.js', () => ({
+  listUsers: mockListUsers,
+  getProfile: jest.fn<typeof UsersApiTypes.getProfile>(),
+  updateProfile: jest.fn<typeof UsersApiTypes.updateProfile>(),
+  changePassword: jest.fn<typeof UsersApiTypes.changePassword>(),
+  adminUpdateUser: jest.fn<typeof UsersApiTypes.adminUpdateUser>(),
+  deactivateUser: jest.fn<typeof UsersApiTypes.deactivateUser>(),
+}));
+
+// InvoicesPage calls fetchAllInvoices and createInvoice on mount.
+const mockFetchAllInvoices = jest.fn<typeof InvoicesApiTypes.fetchAllInvoices>();
+jest.unstable_mockModule('./lib/invoicesApi.js', () => ({
+  fetchAllInvoices: mockFetchAllInvoices,
+  createInvoice: jest.fn<typeof InvoicesApiTypes.createInvoice>(),
+  fetchInvoices: jest.fn<typeof InvoicesApiTypes.fetchInvoices>(),
+  updateInvoice: jest.fn<typeof InvoicesApiTypes.updateInvoice>(),
+  deleteInvoice: jest.fn<typeof InvoicesApiTypes.deleteInvoice>(),
+  fetchInvoiceById: jest.fn<typeof InvoicesApiTypes.fetchInvoiceById>(),
+}));
+
+const mockFetchWorkItemBudgets = jest.fn<typeof WorkItemBudgetsApiTypes.fetchWorkItemBudgets>();
+jest.unstable_mockModule('./lib/workItemBudgetsApi.js', () => ({
+  fetchWorkItemBudgets: mockFetchWorkItemBudgets,
+  createWorkItemBudget: jest.fn<typeof WorkItemBudgetsApiTypes.createWorkItemBudget>(),
+  updateWorkItemBudget: jest.fn<typeof WorkItemBudgetsApiTypes.updateWorkItemBudget>(),
+  deleteWorkItemBudget: jest.fn<typeof WorkItemBudgetsApiTypes.deleteWorkItemBudget>(),
+}));
+
+const mockFetchHouseholdItemBudgets =
+  jest.fn<typeof HouseholdItemBudgetsApiTypes.fetchHouseholdItemBudgets>();
+jest.unstable_mockModule('./lib/householdItemBudgetsApi.js', () => ({
+  fetchHouseholdItemBudgets: mockFetchHouseholdItemBudgets,
+  createHouseholdItemBudget:
+    jest.fn<typeof HouseholdItemBudgetsApiTypes.createHouseholdItemBudget>(),
+  updateHouseholdItemBudget:
+    jest.fn<typeof HouseholdItemBudgetsApiTypes.updateHouseholdItemBudget>(),
+  deleteHouseholdItemBudget:
+    jest.fn<typeof HouseholdItemBudgetsApiTypes.deleteHouseholdItemBudget>(),
+}));
+
 describe('App', () => {
   // Dynamic imports
   let App: typeof AppTypes.App;
@@ -94,6 +174,13 @@ describe('App', () => {
     mockListMilestones.mockReset();
     mockGetTimeline.mockReset();
     mockListWorkItems.mockReset();
+    mockListHouseholdItems.mockReset();
+    mockFetchVendors.mockReset();
+    mockFetchTags.mockReset();
+    mockListUsers.mockReset();
+    mockFetchAllInvoices.mockReset();
+    mockFetchWorkItemBudgets.mockReset();
+    mockFetchHouseholdItemBudgets.mockReset();
 
     // Default: budget categories returns empty list
     mockFetchBudgetCategories.mockResolvedValue({ categories: [] });
@@ -106,6 +193,7 @@ describe('App', () => {
       workItems: [],
       dependencies: [],
       milestones: [],
+      householdItems: [],
       criticalPath: [],
       dateRange: null,
     });
@@ -116,6 +204,37 @@ describe('App', () => {
       items: [],
       pagination: { page: 1, pageSize: 20, totalItems: 0, totalPages: 0 },
     });
+
+    // Default: household items returns empty paginated list (used by HouseholdItemsPage)
+    mockListHouseholdItems.mockResolvedValue({
+      items: [],
+      pagination: { page: 1, pageSize: 25, totalItems: 0, totalPages: 0 },
+    });
+
+    // Default: vendors returns empty list (used by HouseholdItemsPage vendor filter)
+    mockFetchVendors.mockResolvedValue({
+      vendors: [],
+      pagination: { page: 1, pageSize: 25, totalItems: 0, totalPages: 0 },
+    });
+
+    // Default: tags returns empty list (used by WorkItemsPage tag filter)
+    mockFetchTags.mockResolvedValue({ tags: [] });
+
+    // Default: users returns empty list (used by WorkItemsPage assigned-to filter)
+    mockListUsers.mockResolvedValue({ users: [] });
+
+    // Default: invoices returns empty data (used by InvoicesPage)
+    mockFetchAllInvoices.mockResolvedValue({
+      invoices: [],
+      pagination: { page: 1, pageSize: 25, totalItems: 0, totalPages: 0 },
+      summary: {
+        pending: { count: 0, totalAmount: 0 },
+        paid: { count: 0, totalAmount: 0 },
+        claimed: { count: 0, totalAmount: 0 },
+      },
+    });
+    mockFetchWorkItemBudgets.mockResolvedValue([]);
+    mockFetchHouseholdItemBudgets.mockResolvedValue([]);
 
     // Default: authenticated user (no setup required)
     mockGetAuthMe.mockResolvedValue({
@@ -206,17 +325,21 @@ describe('App', () => {
     window.history.pushState({}, 'Household Items', '/household-items');
     render(<App />);
 
-    // Wait for lazy-loaded HouseholdItems component to resolve
-    const heading = await screen.findByRole('heading', { name: /household items/i });
+    // Wait for lazy-loaded HouseholdItems component to resolve.
+    // Use level: 1 to match the page title h1 (not the h2 empty state "No household items yet").
+    const heading = await screen.findByRole('heading', {
+      name: /household items/i,
+      level: 1,
+    });
     expect(heading).toBeInTheDocument();
   });
 
-  it('navigates to Documents page when /documents path is accessed', async () => {
-    window.history.pushState({}, 'Documents', '/documents');
+  it('navigates to Invoices page when /invoices path is accessed', async () => {
+    window.history.pushState({}, 'Invoices', '/invoices');
     render(<App />);
 
-    // Wait for lazy-loaded Documents component to resolve
-    const heading = await screen.findByRole('heading', { name: /documents/i });
+    // Wait for lazy-loaded Invoices component to resolve
+    const heading = await screen.findByRole('heading', { name: /^invoices$/i, level: 1 });
     expect(heading).toBeInTheDocument();
   });
 

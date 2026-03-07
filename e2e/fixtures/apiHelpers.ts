@@ -42,9 +42,24 @@ export async function createTagViaApi(
   data: { name: string; color?: string },
 ): Promise<string> {
   const response = await page.request.post(API.tags, { data });
+  if (response.ok()) {
+    const body = (await response.json()) as { id: string; name: string; color: string | null };
+    return body.id;
+  }
+  // On 409 (tag name already exists due to parallel shard workers), fall back
+  // to fetching all tags and finding the pre-existing one by name.
+  if (response.status() === 409) {
+    const listResponse = await page.request.get(API.tags);
+    expect(listResponse.ok()).toBeTruthy();
+    const tags = (await listResponse.json()) as Array<{ id: string; name: string }>;
+    const existing = tags.find((t) => t.name === data.name);
+    expect(existing).toBeDefined();
+    return existing!.id;
+  }
+  // Unexpected failure — surface the error
   expect(response.ok()).toBeTruthy();
-  const body = (await response.json()) as { id: string; name: string; color: string | null };
-  return body.id;
+  // This line is unreachable but satisfies TypeScript
+  return '';
 }
 
 export async function deleteTagViaApi(page: Page, id: string): Promise<void> {
@@ -112,4 +127,31 @@ export async function createMilestoneViaApi(
 
 export async function deleteMilestoneViaApi(page: Page, id: number): Promise<void> {
   await page.request.delete(`${API.milestones}/${id}`);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Household Items
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function createHouseholdItemViaApi(
+  page: Page,
+  data: {
+    name: string;
+    category?: string;
+    status?: string;
+    room?: string;
+    quantity?: number;
+    [key: string]: unknown;
+  },
+): Promise<string> {
+  const response = await page.request.post(API.householdItems, {
+    data: { category: 'other', status: 'planned', ...data },
+  });
+  expect(response.ok()).toBeTruthy();
+  const body = (await response.json()) as { householdItem: { id: string } };
+  return body.householdItem.id;
+}
+
+export async function deleteHouseholdItemViaApi(page: Page, id: string): Promise<void> {
+  await page.request.delete(`${API.householdItems}/${id}`);
 }

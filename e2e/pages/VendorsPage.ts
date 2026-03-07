@@ -94,8 +94,9 @@ export class VendorsPage {
       .filter({ hasText: /failed|error/i })
       .first();
 
-    // Empty state
-    this.emptyState = page.locator('[class*="emptyState"]');
+    // Empty state — use .first() to avoid strict mode: child elements such as
+    // emptyStateTitle/emptyStateDescription also contain "emptyState" in their class names.
+    this.emptyState = page.locator('[class*="emptyState"]').first();
     this.emptyStateHeading = this.emptyState.getByRole('heading');
 
     // Table (desktop)
@@ -277,22 +278,30 @@ export class VendorsPage {
 
   /**
    * Type into the search field and wait for the debounced API response.
+   * Register the response listener BEFORE fill to avoid a race with the debounce.
+   * Explicit 10s timeout overrides global actionTimeout (5s) for slow CI runners.
    */
   async search(query: string): Promise<void> {
-    await this.searchInput.fill(query);
-    await this.page.waitForResponse(
+    const responsePromise = this.page.waitForResponse(
       (resp) => resp.url().includes('/api/vendors') && resp.status() === 200,
+      { timeout: 10000 },
     );
+    await this.searchInput.fill(query);
+    await responsePromise;
   }
 
   /**
    * Clear the search input and wait for the debounced API response.
+   * Register the response listener BEFORE clear to avoid a race with the debounce.
+   * Explicit 10s timeout overrides global actionTimeout (5s) for slow CI runners.
    */
   async clearSearch(): Promise<void> {
-    await this.searchInput.clear();
-    await this.page.waitForResponse(
+    const responsePromise = this.page.waitForResponse(
       (resp) => resp.url().includes('/api/vendors') && resp.status() === 200,
+      { timeout: 10000 },
     );
+    await this.searchInput.clear();
+    await responsePromise;
   }
 
   /**

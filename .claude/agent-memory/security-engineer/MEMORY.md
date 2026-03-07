@@ -70,6 +70,16 @@ See `review-history.md` for detailed findings per PR.
 | #308 | EPIC-07 Actual dates, delay tracking, blocked-status removal                      | COMMENTED (no blocking findings)                                  | 2026-02-26 |
 | #316 | Retro improvements — dep pinning, shared CSS, formatDate, invoiceService refactor | COMMENTED (1 low finding: heredoc path injection in shell script) | 2026-02-27 |
 | #320 | Bug fixes #318 (login logo) + #319 (scheduling engine rules/isLate)               | COMMENTED (no findings)                                           | 2026-02-27 |
+| #396 | EPIC-04 Story 4.1 — Household Items Schema & Migration                            | COMMENTED (2 informational)                                       | 2026-03-02 |
+| #397 | EPIC-04 Story 4.2 — Household Items CRUD API                                      | COMMENTED (2 informational)                                       | 2026-03-02 |
+| #398 | EPIC-04 Story 4.3 — Household Items List Page (frontend)                          | COMMENTED (no findings)                                           | 2026-03-03 |
+| #400 | EPIC-04 Story #391 — Household Item Detail Page                                   | COMMENTED (1 low: javascript: URL protocol not validated)         | 2026-03-03 |
+| #401 | EPIC-04 Story 4.6 — Household Items Budget Integration                            | COMMENTED (2 informational)                                       | 2026-03-03 |
+| #414 | EPIC-04 Story 4.9 — Invoice Linking for Household Item Budget Lines               | COMMENTED (2 informational)                                       | 2026-03-03 |
+| #416 | EPIC-04 Story 4.10 — HI Timeline Dependencies & Delivery Date Scheduling          | COMMENTED (2 informational)                                       | 2026-03-03 |
+| #451 | Bug fix #449 — HI Timeline Navigation (frontend-only Gantt interaction)           | APPROVED (no findings)                                            | 2026-03-04 |
+| #460 | Bug fix #458 — Inline status selector with auto-set delivery date                 | APPROVED (no findings)                                            | 2026-03-04 |
+| #466 | EPIC-05 Story 5.13 — Budget Breakdown Table (`GET /api/budget/breakdown`)         | COMMENTED (2 informational: no route schema, unbounded SELECT)    | 2026-03-05 |
 
 ## Known Open Recommendations (Low Priority)
 
@@ -92,6 +102,8 @@ These have been noted in previous reviews. **GitHub Issue #315** tracks items 1-
 15. **anchorWorkItemId schema lacks minLength: 1** (Informational): schedule.ts schema — empty string caught by handler not schema (PR #248)
 16. **workItemIds schema lacks maxItems/maxLength** (Informational): milestones.ts createMilestoneSchema — array and items have no size bounds; N+1 DB loop in milestoneService (PR #263)
 17. **actualStartDate/actualEndDate cross-field ordering** (Informational): workItems.ts — no validation that actualEndDate >= actualStartDate at schema or service layer; same gap as existing startDate/endDate pair (PR #308)
+18. **leadLagDays no magnitude bound on HI dep endpoints** (Informational): householdItems.ts createHouseholdItemDepSchema — mirrors finding #13 for WI deps (PR #416)
+19. **GET /api/work-items/:id/dependent-household-items no work item existence check** (Informational): workItems.ts handler — returns 200+empty array for non-existent WI IDs instead of 404; listDependentHouseholdItemsForWorkItem service also lacks assertWorkItemExists guard (PR #416)
 
 ## Key Architecture Patterns (Security-Relevant)
 
@@ -114,3 +126,9 @@ These have been noted in previous reviews. **GitHub Issue #315** tracks items 1-
 - **Actual dates (PR #308)**: `actualStartDate` and `actualEndDate` added to work_items. Auto-populated on status transitions (not_started→in_progress sets actualStartDate; in_progress→completed sets actualEndDate; not_started→completed sets both). Both fields use `format: 'date'` schema validation. No cross-field ordering validation — open informational finding #17.
 - **Category color rendering**: Always via React style object `{ backgroundColor: color }`, never string interpolation — CSS injection impossible
 - **Scheduling engine (PR #248)**: Pure function, O(V+E) Kahn's algorithm — no DoS risk at construction project scale. Cycle detection as byproduct of Kahn's. Unbounded SELECT of all work items/deps is acceptable at target scale. Drizzle ORM throughout. POST /api/schedule is read-only (no DB writes).
+- **household_items.url field (PR #396, #400)**: Stores user-provided retailer URLs — stored as text only, never fetched server-side. Frontend renders with rel="noopener noreferrer" (correct). However, no protocol allowlist — `javascript:` URIs accepted. Low finding in PR #400. Fix: validate `new URL(url).protocol` is `http:` or `https:` before rendering as href, OR add `^https?://` regex to server-side schema.
+- **EPIC-04 household_items schema (PR #396)**: migration 0010, 6 tables. planned_amount >= 0 CHECK correctly included (unlike PR #187 gap on work_item_budgets). sortBy in HouseholdItemListQuery uses snake_case literals — API implementation must whitelist before use in ORDER BY clause.
+- **household_item_deps polymorphic FK pattern (PR #416)**: predecessor_id has NO FK constraint (intentional — references either work_items or milestones). Referential integrity enforced at service layer via ensureWorkItemExists/ensureMilestoneExists. DB-level CHECK constrains predecessor_type and dependency_type enums. Composite PK prevents duplicate deps. This is the accepted pattern for polymorphic refs in this codebase.
+- **HI dependency cycle detection (PR #416)**: DFS with MAX_ITERATIONS=10000 guard. HIs are correctly identified as terminal sinks — cycles are structurally impossible in current model. Logic complete for future extensibility.
+- **`predecessorType` enum-validated in DELETE params** (PR #416): Explicitly included in deleteHouseholdItemDepSchema — closes the enum bypass pattern noted in earlier reviews. Service layer casts to typed union after route validation.
+- **Household item timeline navigation (PR #451)**: Frontend-only click handlers for household item circles and sidebar rows in Gantt chart. Route path `/household-items/{id}` is hardcoded with dynamic ID from API-sourced TimelineResponse. Follows established two-tap touch pattern (hover → show tooltip → navigate). Navigation state `{ from: 'timeline' }` is hardcoded literal matching work item pattern.

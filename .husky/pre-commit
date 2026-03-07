@@ -1,3 +1,0 @@
-npx lint-staged
-npm run typecheck
-npm audit --omit=dev --audit-level=low

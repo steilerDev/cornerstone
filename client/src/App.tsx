@@ -23,7 +23,15 @@ const BudgetSourcesPage = lazy(() => import('./pages/BudgetSourcesPage/BudgetSou
 const SubsidyProgramsPage = lazy(() => import('./pages/SubsidyProgramsPage/SubsidyProgramsPage'));
 const TimelinePage = lazy(() => import('./pages/TimelinePage/TimelinePage'));
 const HouseholdItemsPage = lazy(() => import('./pages/HouseholdItemsPage/HouseholdItemsPage'));
-const DocumentsPage = lazy(() => import('./pages/DocumentsPage/DocumentsPage'));
+const HouseholdItemCreatePage = lazy(
+  () => import('./pages/HouseholdItemCreatePage/HouseholdItemCreatePage'),
+);
+const HouseholdItemDetailPage = lazy(
+  () => import('./pages/HouseholdItemDetailPage/HouseholdItemDetailPage'),
+);
+const HouseholdItemEditPage = lazy(
+  () => import('./pages/HouseholdItemEditPage/HouseholdItemEditPage'),
+);
 const TagManagementPage = lazy(() => import('./pages/TagManagementPage/TagManagementPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage/ProfilePage'));
 const UserManagementPage = lazy(() => import('./pages/UserManagementPage/UserManagementPage'));
@@ -69,14 +77,16 @@ export function App() {
                     <Route path="categories" element={<BudgetCategoriesPage />} />
                     <Route path="vendors" element={<VendorsPage />} />
                     <Route path="vendors/:id" element={<VendorDetailPage />} />
-                    <Route path="invoices" element={<InvoicesPage />} />
-                    <Route path="invoices/:id" element={<InvoiceDetailPage />} />
                     <Route path="sources" element={<BudgetSourcesPage />} />
                     <Route path="subsidies" element={<SubsidyProgramsPage />} />
                   </Route>
+                  <Route path="invoices" element={<InvoicesPage />} />
+                  <Route path="invoices/:id" element={<InvoiceDetailPage />} />
                   <Route path="timeline" element={<TimelinePage />} />
                   <Route path="household-items" element={<HouseholdItemsPage />} />
-                  <Route path="documents" element={<DocumentsPage />} />
+                  <Route path="household-items/new" element={<HouseholdItemCreatePage />} />
+                  <Route path="household-items/:id" element={<HouseholdItemDetailPage />} />
+                  <Route path="household-items/:id/edit" element={<HouseholdItemEditPage />} />
                   <Route path="tags" element={<TagManagementPage />} />
                   <Route path="profile" element={<ProfilePage />} />
                   <Route path="admin/users" element={<UserManagementPage />} />

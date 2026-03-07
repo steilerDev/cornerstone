@@ -1,12 +1,12 @@
 # Product Owner Agent Memory
 
-## Backlog State (as of 2026-03-01)
+## Backlog State (as of 2026-03-02)
 
-- 12 epics, 60+ user stories across all epics
+- 12 epics, 75+ user stories across all epics
 - Sprint 1 COMPLETE: EPIC-01, EPIC-02, EPIC-11
 - Sprint 2 COMPLETE: EPIC-03, EPIC-12
 - Sprint 3 COMPLETE: EPIC-05 (v1.9.0), EPIC-06 (v1.10.0)
-- Sprint 4 PLANNING: EPIC-08 stories created (#354-#360), EPIC-04 not yet decomposed
+- Sprint 4 IN PROGRESS: EPIC-08 COMPLETE (v1.11.0), EPIC-04 stories created (#387-#394)
 - Security hygiene backlog: Issue #315 (rate limiting, headers, lockout, etc.)
 - GitHub Projects board: "Cornerstone Backlog" (project #4, owner steilerDev)
 
@@ -19,6 +19,7 @@
 - EPIC-12 (#115): Design System Bootstrap -- CLOSED 2026-02-18, promoted with EPIC-03 via PR #110
 - EPIC-05 (#5): Budget Management -- CLOSED (v1.9.0), all 12 stories
 - EPIC-06 (#6): Timeline & Gantt -- CLOSED (v1.10.0), all 9 stories
+- EPIC-08 (#8): Paperless-ngx Document Integration -- CLOSED (v1.11.0), all 6 stories
 
 ## Epic Quick Reference
 
@@ -50,13 +51,22 @@ All 8 stories merged to beta. Promotion PR #110 (beta -> main) merged. See [epic
 
 All 9 stories + refinement + E2E tests + UAT fixes merged and promoted to main.
 
-## EPIC-08 Stories (Paperless-ngx Document Integration) — IN PROGRESS
+## EPIC-08 — COMPLETE (v1.11.0, promoted 2026-03-02)
 
-7 stories created (#354-#360). See [epic-08-planning.md](epic-08-planning.md) for full details.
-Story 8.1 (#354): ACCEPTED (PR #362, round 2 review). All 12 ACs passed.
+All 6 stories merged and promoted to main. Story 8.6 (#359) remains open, blocked by EPIC-04. See [epic-08-planning.md](epic-08-planning.md).
 
-- Acceptance criteria text corrected post-review: PAPERLESS_TOKEN -> PAPERLESS_API_TOKEN, removed version from status, /thumbnail -> /thumb
-  Remaining stories in Backlog. Story 8.6 blocked by EPIC-04.
+## EPIC-04 Stories (Household Items & Furniture) — IN PROGRESS
+
+11 stories created (#387-#394, #413, #415, #467). See [epic-04-planning.md](epic-04-planning.md) for full details.
+Story 4.11 (#467): Inline date and dependency editing on HI Detail Page. Restructures page into Details / Dates & Delivery / Dependencies sections. Inline autosave for order date, actual delivery, earliest/latest delivery dates. Edit page reduced to details-only. Blocked by #391 (Story 4.5).
+Story 4.10 (#415): PR #416 reviewed APPROVED. All 11 ACs pass. Replaces `household_item_work_items` with `household_item_deps` table (migration 0012). Scheduling engine models HIs as zero-duration CPM nodes. CRUD API on `/api/household-items/:id/dependencies`. Gantt renders circle markers (amber pending, green delivered). Calendar shows HI delivery events. WorkItemDetailPage renamed to "Dependent Household Items". Two non-blocking: AC #5 says 400 for circular deps but 409 is consistent with existing `CircularDependencyError`; AC #6 timeline query filters only on delivery dates not deps-without-dates.
+Story 4.9 (#413): PR #414 reviewed REQUEST CHANGES (round 1). 7/10 ACs pass. AC #3 PARTIAL FAIL: error code is generic `VALIDATION_ERROR` instead of `MUTUALLY_EXCLUSIVE_BUDGET_LINK`. AC #6 PARTIAL FAIL: invoice date not rendered in HI detail budget line invoices section. AC #9 FAIL: no "Linked To" column in invoices list table, no changes to VendorDetailPage. Migration 0011, types well-structured (HouseholdItemBudgetSummary for invoices, HouseholdItemBudgetAggregate for HI detail). Budget overview UNION ALL correctly aggregates both WI and HI invoices.
+Story 4.1 (#387): PR #396 reviewed APPROVED. Architect refined schema: flat planned_cost/actual_cost/notes replaced by household_item_budgets/household_item_notes tables (mirrors EPIC-05 pattern). Extra columns: url, quantity. Category enum expanded to 8 values. 6 tables total in migration 0010. Document link cascade is application-layer (Story 4.2).
+Story 4.2 (#388): PR #397 reviewed APPROVED. 5 CRUD endpoints, 90 tests (46 service + 44 route). Search uses `q` param (consistent with work items). Vendor summary includes `specialty` (superset of AC). documentLinkService updated to validate household_item entity type.
+Story 8.6 (#359, EPIC-08) linked as sub-issue, blocked by #391 (detail page).
+Story 4.5 (#391): PR #400 reviewed REQUEST CHANGES. AC #11 fail: vendor/URL rows hidden when null instead of showing "--". AC #6 (Notes section) is N/A -- household_item_notes is a separate table requiring its own CRUD API (like work_item_notes), no endpoints exist yet. Need follow-up story for household item notes CRUD.
+Story 4.6 (#392): PR #401 re-reviewed APPROVED (round 2). Both blocking issues from round 1 fixed: (1) budgetSummary added to GET detail response via getBudgetSummary()/getTotalSubsidyReduction() in householdItemService.ts, (2) confidence margin display uses Math.round(CONFIDENCE_MARGINS[...] \* 100). Also fixed: EPIC-09->EPIC-04 comments in app.ts, focus-visible/reduced-motion/aria-labels/touch targets per UX review. AC #4 subsidy API uses POST/DELETE per-item (non-blocking deviation from PUT replace-all).
+Story 4.7 (#393): PR #402 reviewed REQUEST CHANGES (round 1). 9/10 ACs pass. AC #3 FAIL: linked work item start/end dates rendered as raw ISO strings on HouseholdItemDetailPage (line 734) instead of using formatDate(). WorkItemDetailPage correctly uses formatDate() for delivery dates. Fix: apply formatDate() to workItem.startDate/endDate. Test authorship correct (qa-integration-tester). 57 tests total.
 
 ## EPIC-05 — COMPLETE (v1.9.0, promoted)
 
@@ -109,14 +119,14 @@ Created 11 issues (#328-#338) from user feedback:
 
 ### Three-Phase Validation (per CLAUDE.md)
 
-1. **Planning Phase**: uat-validator drafts scenarios → qa-integration-tester reviews for testability → user approves
+1. **Planning Phase**: product-owner drafts UAT scenarios → qa-integration-tester reviews for testability → user approves
 2. **Development Phase**: developers implement → qa-integration-tester writes all tests (95%+ coverage target)
 3. **Validation Phase**: product-owner reviews PR → checks all ACs + UAT alignment + test coverage
 
 ### PO Review Checklist
 
 - Verify ALL acceptance criteria from the story are met (line-by-line check)
-- Verify UAT scenarios are addressed (cross-reference uat-validator comment on issue)
+- Verify UAT scenarios are addressed (cross-reference product-owner UAT comment on issue)
 - Verify qa-integration-tester wrote the tests (check commit author, not developer)
 - Verify 95%+ test coverage on new/modified code (run coverage or review test files)
 - Verify all agent responsibilities fulfilled (QA wrote tests, architect reviewed, UAT scenarios exist)
@@ -134,7 +144,7 @@ Created 11 issues (#328-#338) from user feedback:
 
 - **Missing keyboard focus indicators** — always check for :focus or :focus-visible styles (WCAG 2.1 AA requirement)
 - **Test authorship** — verify qa-integration-tester wrote tests, not developer (Co-Authored-By trailer in commit)
-- **Incomplete UAT coverage** — check if all scenarios from uat-validator are addressed in implementation
+- **Incomplete UAT coverage** — check if all scenarios from product-owner UAT are addressed in implementation
 - **Dependency pinning** — always check new deps use exact versions (no `^` or `~`). Found caret range on css-minimizer-webpack-plugin in PR #49 and @fastify/cookie in PR #57. This is a recurring issue.
 - **Scope creep in CLAUDE.md** — process/convention changes should be separate PRs, not bundled with feature work
 - **Schema migrations with sessions table** — it's correct to include `sessions` table in the same migration as `users` if both are part of the same auth infrastructure (avoids fragmented migrations). Verified in PR #55.
@@ -166,7 +176,13 @@ Created 11 issues (#328-#338) from user feedback:
 - **computeUsedAmount placeholder pattern** — Story 5.4 (PR #153): `computeUsedAmount` returns 0 until Story 5.6 adds budget_source_id FK to work_items. This is an ACCEPTED pattern for cross-story dependencies — document with TODO (Story 6) comment and the AC is considered CONDITIONAL PASS. The delete protection is similarly a placeholder and will be wired up in Story 5.6.
 - **Frontend totalAmount validation boundary** — PR #153: Frontend allows totalAmount = 0 (min={0}, checks `< 0`), but backend uses `exclusiveMinimum: 0`. Server rejects 0 with 400. Flag for refinement so client-side validation is consistent with server.
 - **statusExhausted badge semantic color** — PR #153: "Exhausted" status badge uses gray (`--color-status-not-started-bg`) instead of yellow/amber. Semantically "exhausted" should signal warning. Flag for UX review.
-- **E2E test gate is MANDATORY** — PR #157 (Story #148) had all 7 ACs met and 99 unit/integration tests passing, but CI showed "E2E Tests: SKIPPED". This is a BLOCKING issue per CLAUDE.md. When UAT scenarios are marked "Automated (E2E)", Playwright test coverage is mandatory before PO can approve. Requested changes and asked e2e-test-engineer to write tests in e2e/tests/budget/.
+- **E2E test gate is MANDATORY** — PR #157 (Story #148) had all 7 ACs met and 99 unit/integration tests passing, but CI showed "E2E Tests: SKIPPED". This is a BLOCKING issue per CLAUDE.md. When UAT scenarios are marked "Automated (E2E)", Playwright test coverage is mandatory before PO can approve. Requested changes and asked qa-integration-tester to write tests in e2e/tests/budget/.
+- **Conditional row rendering vs placeholder pattern** — PR #400 (Story 4.5): Vendor and URL rows used `{item.vendor && (...)}` which hides the entire row when null. AC #11 requires "--" placeholder for all optional fields. This is the same pattern as the VendorDetailPage Notes row issue from PR #151. ALWAYS check that optional field rows render unconditionally with ternary: `{item.field ? <value> : '\u2014'}`.
+- **CONFIDENCE_MARGINS display: fraction vs percentage** — PR #401 (Story 4.6): `CONFIDENCE_MARGINS` values are decimal fractions (0.2 = 20%). The WorkItemDetailPage correctly uses `Math.round(CONFIDENCE_MARGINS[...] * 100)` to display "20%". HouseholdItemDetailPage displayed raw value "0.2%". When reusing shared constants, verify the display conversion matches the established pattern.
+- **Raw date string rendering** — PR #402 (Story 4.7): HouseholdItemDetailPage displayed `workItem.startDate` and `workItem.endDate` as raw ISO strings instead of using `formatDate()`. The same PR correctly used `formatDate()` on WorkItemDetailPage for `hi.expectedDeliveryDate`. ALWAYS verify that date fields from API responses are passed through `formatDate()` before rendering. This is the 3rd occurrence of a "raw value display" bug (after CONFIDENCE_MARGINS and the initial expectedDeliveryDate fix in commit ccb50f7).
+- **Missing date field in invoice display** — PR #414 (Story 4.9): HI detail page budget section shows invoice number, amount, status badge, and link — but omits the invoice date. AC #6 explicitly lists "date" as a required field. This is the 4th occurrence of a missing display field.
+- **Specific error codes in ACs** — PR #414 (Story 4.9): AC #3 specifies `MUTUALLY_EXCLUSIVE_BUDGET_LINK` error code but `ValidationError` class always returns `VALIDATION_ERROR`. When ACs specify a custom error code, verify the implementation uses `AppError` with that specific code, not a subclass with a generic code.
+- **Missing list/table column for cross-entity links** — PR #414 (Story 4.9): AC #9 requires invoices list and vendor detail to show HI name when invoice is linked to HI budget. The create/edit forms were updated but the display table was not. When ACs specify display changes on list pages, verify the table/card rendering in addition to forms.
 
 ### Chore/Maintenance PR Patterns
 

@@ -15,7 +15,6 @@ jobs:
     outputs:
       app: ${{ steps.filter.outputs.app }}
       e2e: ${{ steps.filter.outputs.e2e }}
-      ci: ${{ steps.filter.outputs.ci }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -31,13 +30,12 @@ jobs:
 
           echo "app=$(check '^(shared|server|client)/|^(package\.json|package-lock\.json|tsconfig\.base\.json|eslint\.config\.js|\.prettierrc|jest\.config\.ts|Dockerfile|\.nvmrc)$')" >> "$GITHUB_OUTPUT"
           echo "e2e=$(check '^e2e/')" >> "$GITHUB_OUTPUT"
-          echo "ci=$(check '^\.github/workflows/')" >> "$GITHUB_OUTPUT"
 
-  quality-gates:
-    name: Quality Gates
+  static-analysis:
+    name: Static Analysis
     runs-on: ubuntu-latest
     needs: [detect-changes]
-    if: needs.detect-changes.outputs.app == 'true' || needs.detect-changes.outputs.ci == 'true'
+    if: needs.detect-changes.outputs.app == 'true'
 
     steps:
       - name: Checkout
@@ -52,29 +50,78 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Lint
-        run: npm run lint
-
-      - name: Format check
-        run: npm run format:check
-
       - name: Type check
         run: npm run typecheck
-
-      - name: Test
-        run: npm test
 
       - name: Build
         run: npm run build
 
-      - name: Security audit
-        run: npm audit --omit=dev --audit-level=low
+  test:
+    name: Test (Shard ${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
+    runs-on: ubuntu-latest
+    needs: [detect-changes]
+    if: needs.detect-changes.outputs.app == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        shardIndex: [1, 2, 3]
+        shardTotal: [3]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build shared package
+        run: npm run build -w shared
+
+      - name: Run tests (shard ${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
+        run: node --experimental-vm-modules node_modules/.bin/jest --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
+
+  quality-gates:
+    name: Quality Gates
+    runs-on: ubuntu-latest
+    needs: [static-analysis, test, docker, e2e-warmup, e2e-smoke, e2e, e2e-merge-reports]
+    if: ${{ !cancelled() }}
+    steps:
+      - name: Check results
+        run: |
+          failed=0
+          for job in static-analysis test docker e2e-warmup e2e-smoke e2e e2e-merge-reports; do
+            result="${{ needs.static-analysis.result }}"
+            case "$job" in
+              static-analysis) result="${{ needs.static-analysis.result }}" ;;
+              test) result="${{ needs.test.result }}" ;;
+              docker) result="${{ needs.docker.result }}" ;;
+              e2e-warmup) result="${{ needs.e2e-warmup.result }}" ;;
+              e2e-smoke) result="${{ needs.e2e-smoke.result }}" ;;
+              e2e) result="${{ needs.e2e.result }}" ;;
+              e2e-merge-reports) result="${{ needs.e2e-merge-reports.result }}" ;;
+            esac
+            if [ "$result" != "success" ] && [ "$result" != "skipped" ]; then
+              echo "❌ $job: $result"
+              failed=1
+            else
+              echo "✅ $job: $result"
+            fi
+          done
+          if [ "$failed" = "1" ]; then
+            exit 1
+          fi
 
   docker:
     name: Docker
     runs-on: ubuntu-latest
     needs: [detect-changes]
-    if: needs.detect-changes.outputs.app == 'true' || needs.detect-changes.outputs.e2e == 'true' || needs.detect-changes.outputs.ci == 'true'
+    if: needs.detect-changes.outputs.app == 'true' || needs.detect-changes.outputs.e2e == 'true'
 
     steps:
       - name: Checkout
@@ -84,17 +131,27 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: dhi.io
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          username: ${{ vars.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Build image
-        run: docker build --build-arg APP_VERSION=pr-${{ github.event.pull_request.number }} -t cornerstone:e2e .
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: cornerstone:e2e
+          build-args: APP_VERSION=pr-${{ github.event.pull_request.number }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Save image
         run: docker save cornerstone:e2e -o cornerstone-e2e.tar
 
       - name: Upload image artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: cornerstone-docker-image
           path: cornerstone-e2e.tar
@@ -104,7 +161,7 @@ jobs:
     name: E2E Cache Warmup
     runs-on: ubuntu-latest
     needs: [detect-changes]
-    if: needs.detect-changes.outputs.app == 'true' || needs.detect-changes.outputs.e2e == 'true' || needs.detect-changes.outputs.ci == 'true'
+    if: needs.detect-changes.outputs.app == 'true' || needs.detect-changes.outputs.e2e == 'true'
     outputs:
       playwright-version: ${{ steps.playwright-version.outputs.version }}
 
@@ -129,7 +186,7 @@ jobs:
       # --- Restore caches ---
       - name: Restore browser cache
         id: browser-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: ~/.cache/ms-playwright
           key: playwright-v3-${{ steps.playwright-version.outputs.version }}-${{ runner.os }}
@@ -139,7 +196,7 @@ jobs:
 
       - name: Restore apt cache
         id: apt-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: /var/cache/apt/archives
           key: apt-v3-playwright-${{ steps.playwright-version.outputs.version }}-${{ runner.os }}
@@ -152,7 +209,7 @@ jobs:
 
       - name: Save browser cache
         if: steps.browser-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: ~/.cache/ms-playwright
           key: playwright-v3-${{ steps.playwright-version.outputs.version }}-${{ runner.os }}
@@ -189,7 +246,7 @@ jobs:
 
       - name: Save apt cache
         if: steps.apt-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: /var/cache/apt/archives
           key: apt-v3-playwright-${{ steps.playwright-version.outputs.version }}-${{ runner.os }}
@@ -197,12 +254,12 @@ jobs:
   docker-pr-release:
     name: Docker PR Release
     runs-on: ubuntu-latest
-    needs: [detect-changes, quality-gates, docker, e2e-smoke]
-    if: "github.base_ref != 'main' && github.event.pull_request.head.repo.full_name == github.repository && (needs.detect-changes.outputs.app == 'true' || needs.detect-changes.outputs.e2e == 'true' || needs.detect-changes.outputs.ci == 'true')"
+    needs: [detect-changes, quality-gates]
+    if: "!cancelled() && needs.quality-gates.result == 'success' && github.base_ref != 'main' && github.event.pull_request.head.repo.full_name == github.repository && (needs.detect-changes.outputs.app == 'true' || needs.detect-changes.outputs.e2e == 'true')"
 
     steps:
       - name: Download image artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: cornerstone-docker-image
 
@@ -212,7 +269,7 @@ jobs:
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          username: ${{ vars.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Tag and push PR image
@@ -224,7 +281,7 @@ jobs:
     name: E2E Smoke Tests
     runs-on: ubuntu-latest
     needs: [detect-changes, docker, e2e-warmup]
-    if: needs.detect-changes.outputs.app == 'true' || needs.detect-changes.outputs.e2e == 'true' || needs.detect-changes.outputs.ci == 'true'
+    if: needs.detect-changes.outputs.app == 'true' || needs.detect-changes.outputs.e2e == 'true'
     timeout-minutes: 15
 
     steps:
@@ -232,7 +289,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Download image artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: cornerstone-docker-image
 
@@ -249,7 +306,7 @@ jobs:
         run: npm ci -w e2e
 
       - name: Restore browser cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: ~/.cache/ms-playwright
           key: playwright-v3-${{ needs.e2e-warmup.outputs.playwright-version }}-${{ runner.os }}
@@ -258,7 +315,7 @@ jobs:
         run: sudo chown -R $(id -u):$(id -g) /var/cache/apt/archives
 
       - name: Restore apt cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: /var/cache/apt/archives
           key: apt-v3-playwright-${{ needs.e2e-warmup.outputs.playwright-version }}-${{ runner.os }}
@@ -283,7 +340,7 @@ jobs:
 
       - name: Upload test results
         if: ${{ always() }}
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-smoke-results
           path: |
@@ -296,7 +353,7 @@ jobs:
     name: E2E Tests (Shard ${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
     runs-on: ubuntu-latest
     needs: [detect-changes, docker, e2e-warmup]
-    if: "github.base_ref == 'main' && (needs.detect-changes.outputs.app == 'true' || needs.detect-changes.outputs.e2e == 'true' || needs.detect-changes.outputs.ci == 'true')"
+    if: "github.base_ref == 'main' && (needs.detect-changes.outputs.app == 'true' || needs.detect-changes.outputs.e2e == 'true')"
     timeout-minutes: 15
     strategy:
       fail-fast: false
@@ -312,7 +369,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Download image artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: cornerstone-docker-image
 
@@ -329,7 +386,7 @@ jobs:
         run: npm ci -w e2e
 
       - name: Restore browser cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: ~/.cache/ms-playwright
           key: playwright-v3-${{ needs.e2e-warmup.outputs.playwright-version }}-${{ runner.os }}
@@ -338,7 +395,7 @@ jobs:
         run: sudo chown -R $(id -u):$(id -g) /var/cache/apt/archives
 
       - name: Restore apt cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: /var/cache/apt/archives
           key: apt-v3-playwright-${{ needs.e2e-warmup.outputs.playwright-version }}-${{ runner.os }}
@@ -363,7 +420,7 @@ jobs:
 
       - name: Upload blob report
         if: ${{ always() }}
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-blob-report-${{ matrix.shardIndex }}
           path: e2e/blob-report/
@@ -371,7 +428,7 @@ jobs:
 
       - name: Upload test output
         if: ${{ always() }}
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-test-output-${{ matrix.shardIndex }}
           path: |
@@ -399,7 +456,7 @@ jobs:
         run: npm ci -w e2e
 
       - name: Download blob reports
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: e2e-blob-report-*
           path: e2e/all-blob-reports
@@ -409,7 +466,7 @@ jobs:
         run: npm run test:e2e:merge-reports
 
       - name: Upload merged report
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-test-results
           path: e2e/playwright-report/

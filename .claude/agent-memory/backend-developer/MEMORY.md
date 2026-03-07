@@ -4,8 +4,7 @@
 
 **The backend-developer MUST NEVER write test files.** This rule has no exceptions.
 
-- `qa-integration-tester` owns **all** unit tests, integration tests, and service tests
-- `e2e-test-engineer` owns **all** Playwright E2E tests
+- `qa-integration-tester` owns **all** unit tests, integration tests, service tests, and Playwright E2E tests
 - Developer agents implement production code only — never `*.test.ts` files
 - Violating this rule causes BLOCKING PR rejection (as happened in PR #152)
 - If you find yourself writing a test file, stop and delegate to the QA agent instead
@@ -84,6 +83,7 @@ The `npm audit` vulnerabilities are pre-existing (in dev/tooling deps — eslint
 - Story #146 (EPIC-05): subsidy program management — branch feat/146-subsidy-programs
 - Story #147 (EPIC-05): work item budget props + vendor/subsidy linking — branch feat/147-work-item-budget-props
 - Story #148 (EPIC-05): budget overview dashboard aggregation — branch feat/148-budget-overview-dashboard
+- Story #393 (EPIC-04 Story 4.7): work item ↔ household item linking — PR #402
 
 ## Shared Type Changes Break Client Tests
 
@@ -310,7 +310,7 @@ The sandbox has strict limitations for git operations in worktrees:
    ALTDIR=/tmp/git-obj-$$; mkdir -p $ALTDIR
    printf "$ALTDIR\n" >> /path/to/.git/objects/info/alternates
    # Stage: GIT_OBJECT_DIRECTORY=$ALTDIR GIT_ALTERNATE_OBJECT_DIRECTORIES=/path/.git/objects git add <files>
-   # Commit: GIT_OBJECT_DIRECTORY=$ALTDIR GIT_ALTERNATE_OBJECT_DIRECTORIES=/path/.git/objects git commit --no-verify -m "..."
+   # Commit: GIT_OBJECT_DIRECTORY=$ALTDIR GIT_ALTERNATE_OBJECT_DIRECTORIES=/path/.git/objects git commit -m "..."
    # Verify: GIT_ALTERNATE_OBJECT_DIRECTORIES=$ALTDIR git log --oneline -3
    # If branch ref detaches, manually: echo "SHA" > .git/refs/heads/branch-name
    # Push: GIT_ALTERNATE_OBJECT_DIRECTORIES=$ALTDIR git push "https://USER:TOKEN@github.com/..." branch:branch
@@ -326,9 +326,29 @@ The sandbox has strict limitations for git operations in worktrees:
 
 ## Pre-commit Hook Architecture
 
-- `.husky/pre-commit`: runs `npx lint-staged && npm run typecheck && npm audit --omit=dev --audit-level=low`
-- `.lintstagedrc.js`: configures per-file-type commands
-- `scripts/check-dep-pinning.sh`: validates `dependencies`/`devDependencies` use exact pins (no ^/~)
-  - Uses `node --input-type=module` inline script to parse JSON (avoids jq dependency)
-  - Ignores `peerDependencies` and workspace cross-references (`*`, `workspace:*`)
-  - Triggered by `**/package.json` lint-staged glob
+- `.husky/pre-commit`: runs `npm run typecheck` (typecheck only — lint, format, and audit are handled by CI auto-fix workflow)
+- Lint, format, and `npm audit fix` run automatically on `beta` via `.github/workflows/auto-fix.yml`
+
+## Bug #484 Fix — Milestones on Critical Path
+
+**Issue**: Milestones never appeared on the critical path, even when they sat on the longest path through the project.
+
+**Root cause**: Milestone dependency expansion in `autoReschedule()` created synthetic WI→WI dependencies but did NOT add milestones as CPM nodes. The CPM graph never saw the milestones, so they couldn't be marked as critical.
+
+**Solution**: Model milestones as zero-duration CPM nodes with ID prefix `milestone:<id>`. The scheduler naturally includes them in critical path calculations.
+
+**Changes** (PR #487):
+
+- `shared/src/types/timeline.ts`: Add `isCritical?: boolean` to `TimelineMilestone`
+- `server/src/services/schedulingEngine.ts`:
+  - Replace synthetic WI→WI expansion with milestone CPM nodes
+  - Create one node per milestone with contributors or dependents (ID = `milestone:<id>`, zero duration)
+  - Create FS deps: contributor→milestone and milestone→dependent
+  - Skip writing milestone nodes back to DB (section 7: filter IDs starting with `milestone:`)
+- `server/src/services/timelineService.ts`:
+  - Add milestone CPM nodes to `getTimeline()` schedule call
+  - Extract critical milestone IDs from CPM result
+  - Filter `milestone:` entries from returned `criticalPath` array (API only returns WI IDs)
+  - Propagate `isCritical` field to each milestone in response
+
+Key insight: The CPM engine already handles zero-duration nodes correctly. By giving milestones their own nodes (instead of expanding them away), the critical path calculation naturally identifies them.

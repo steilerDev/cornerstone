@@ -49,12 +49,26 @@ async function seedWorkItems(request: Parameters<typeof test>[2], baseUrl: strin
     { name: 'Exterior', color: '#10b981' },
   ];
 
+  // Create tags sequentially to avoid 409 conflicts when multiple parallel
+  // shard workers run this beforeAll concurrently against the same container.
+  // On 409 (tag name already exists), fall back to fetching all tags and
+  // finding the pre-existing one by name so work items can still reference it.
   const tagIds: number[] = [];
   for (const tag of tags) {
     const res = await request.post(`${baseUrl}/api/tags`, { data: tag });
     if (res.ok()) {
       const body = (await res.json()) as { id: number };
       tagIds.push(body.id);
+    } else if (res.status() === 409) {
+      // Tag already created by another parallel worker — look it up by name
+      const listRes = await request.get(`${baseUrl}/api/tags`);
+      if (listRes.ok()) {
+        const listBody = (await listRes.json()) as Array<{ id: number; name: string }>;
+        const existing = listBody.find((t) => t.name === tag.name);
+        if (existing) {
+          tagIds.push(existing.id);
+        }
+      }
     }
   }
 
@@ -167,8 +181,10 @@ test.describe('Documentation screenshots', () => {
     await page.goto(`${baseUrl}${ROUTES.workItems}`);
     await page.waitForLoadState('networkidle');
 
-    // Ensure list is populated before screenshotting
-    await expect(page.getByRole('heading', { name: /work items/i })).toBeVisible();
+    // Ensure list is populated before screenshotting.
+    // Use level: 1 to target only the page h1, not the sidebar nav link which
+    // also matches /work items/i and would cause a strict-mode violation.
+    await expect(page.getByRole('heading', { level: 1, name: /work items/i })).toBeVisible();
     await page.waitForTimeout(500);
 
     for (const theme of ['light', 'dark'] as const) {

@@ -1,5 +1,19 @@
 # cornerstone
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://cornerstone.steiler.dev/img/logo-full-dark.svg" />
+    <source media="(prefers-color-scheme: light)" srcset="https://cornerstone.steiler.dev/img/logo-full.svg" />
+    <img src="https://cornerstone.steiler.dev/img/logo-full.svg" alt="Cornerstone" width="400" />
+  </picture>
+</p>
+
+[![GitHub Release](https://img.shields.io/github/v/release/steilerDev/cornerstone?label=release)](https://github.com/steilerDev/cornerstone/releases/latest)
+[![CI](https://img.shields.io/github/actions/workflow/status/steilerDev/cornerstone/ci.yml?branch=main&label=CI)](https://github.com/steilerDev/cornerstone/actions/workflows/ci.yml)
+[![Docker Image](https://img.shields.io/docker/v/steilerdev/cornerstone?label=Docker&sort=semver)](https://hub.docker.com/r/steilerdev/cornerstone)
+
+A self-hosted home building project management tool for homeowners. Track work items, manage dependencies, organize with tags, and collaborate with your household -- all from a single Docker container backed by SQLite. No external database or cloud service required.
+
 > [!NOTE]
 > This project is completely written using an Agentic Developmen Workflow with Claude Code and [Docker Sandbox VMs](https://docs.docker.com/ai/sandboxes/get-started/).
 >
@@ -18,20 +32,6 @@
 > - Running coding agents on your host is dangerous! They can (and will) go wild and perform tasks that you would have never thought of and they are clever in bypassing restrictions. An [isolated environment](https://docs.docker.com/ai/sandboxes/) is crucial to provide agents with clear restrictions and reduce the blast radius in case something goes wrong - Coding Agent Governance will be a critical capability moving forward!
 > - In order to follow a policy, it needs correct enforcement - nicely asking an agent to follow it will not always work: Make sure your CI, Repository and Deployment process have enforced quality gates with no way for the agent to bypass them .
 
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="logo/logo_dark.svg" />
-    <source media="(prefers-color-scheme: light)" srcset="logo/logo_light.svg" />
-    <img src="logo/logo_light.svg" alt="Cornerstone" width="400" />
-  </picture>
-</p>
-
-[![GitHub Release](https://img.shields.io/github/v/release/steilerDev/cornerstone?label=release)](https://github.com/steilerDev/cornerstone/releases/latest)
-[![CI](https://img.shields.io/github/actions/workflow/status/steilerDev/cornerstone/ci.yml?branch=main&label=CI)](https://github.com/steilerDev/cornerstone/actions/workflows/ci.yml)
-[![Docker Image](https://img.shields.io/docker/v/steilerdev/cornerstone?label=Docker&sort=semver)](https://hub.docker.com/r/steilerdev/cornerstone)
-
-A self-hosted home building project management tool for homeowners. Track work items, manage dependencies, organize with tags, and collaborate with your household -- all from a single Docker container backed by SQLite. No external database or cloud service required.
-
 **[Full documentation →](https://steilerDev.github.io/cornerstone/)**
 
 ## Features
@@ -40,7 +40,8 @@ A self-hosted home building project management tool for homeowners. Track work i
 - **Budget Management** -- Budget categories, financing sources, vendor invoices, subsidies, overview dashboard with projections
 - **Timeline & Gantt Chart** -- Interactive Gantt chart with dependency arrows, critical path, zoom controls, milestones, and CPM-based auto-scheduling
 - **Calendar View** -- Monthly and weekly calendar grids with work items and milestones
-- **Document Integration** -- Browse and link documents from Paperless-ngx to work items and invoices
+- **Household Items** -- Track furniture, appliances, and fixtures with categories, delivery scheduling, budget integration, and work item linking
+- **Document Integration** -- Browse and link documents from Paperless-ngx to work items, household items, and invoices
 - **Authentication** -- Local accounts with setup wizard, OIDC single sign-on
 - **User Management** -- Admin and Member roles, admin panel
 - **Dark Mode** -- Light, Dark, or System theme
@@ -68,7 +69,7 @@ Open `http://localhost:3000` -- the setup wizard will guide you through creating
 - [x] **EPIC-05**: Budget Management
 - [x] **EPIC-06**: Timeline and Gantt Chart
 - [x] **EPIC-08**: Paperless-ngx Integration
-- [ ] **EPIC-04**: Household Items
+- [x] **EPIC-04**: Household Items
 - [ ] **EPIC-07**: Reporting and Export
 - [ ] **EPIC-09**: Dashboard and Overview
 - [ ] **EPIC-10**: UX Polish and Accessibility

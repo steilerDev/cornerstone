@@ -322,6 +322,10 @@ export const invoices = sqliteTable(
     workItemBudgetId: text('work_item_budget_id').references(() => workItemBudgets.id, {
       onDelete: 'set null',
     }),
+    householdItemBudgetId: text('household_item_budget_id').references(
+      () => householdItemBudgets.id,
+      { onDelete: 'set null' },
+    ),
     createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
@@ -331,6 +335,9 @@ export const invoices = sqliteTable(
     statusIdx: index('idx_invoices_status').on(table.status),
     dateIdx: index('idx_invoices_date').on(table.date),
     workItemBudgetIdIdx: index('idx_invoices_work_item_budget_id').on(table.workItemBudgetId),
+    householdItemBudgetIdIdx: index('idx_invoices_household_item_budget_id').on(
+      table.householdItemBudgetId,
+    ),
   }),
 );
 
@@ -496,5 +503,195 @@ export const documentLinks = sqliteTable(
     ),
     entityIdx: index('idx_document_links_entity').on(table.entityType, table.entityId),
     paperlessDocIdx: index('idx_document_links_paperless_doc').on(table.paperlessDocumentId),
+  }),
+);
+
+// ─── EPIC-04: Household Items & Furniture Management ───────────────────────
+
+/**
+ * Household items table - stores furniture, appliances, and other items for purchase.
+ * Tracks ordering status, delivery, and optional vendor association.
+ * EPIC-04: Central entity for household item management.
+ */
+export const householdItems = sqliteTable(
+  'household_items',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    description: text('description'),
+    category: text('category', {
+      enum: [
+        'furniture',
+        'appliances',
+        'fixtures',
+        'decor',
+        'electronics',
+        'outdoor',
+        'storage',
+        'other',
+      ],
+    })
+      .notNull()
+      .default('other'),
+    status: text('status', {
+      enum: ['planned', 'purchased', 'scheduled', 'arrived'],
+    })
+      .notNull()
+      .default('planned'),
+    vendorId: text('vendor_id').references(() => vendors.id, { onDelete: 'set null' }),
+    url: text('url'),
+    room: text('room'),
+    quantity: integer('quantity').notNull().default(1),
+    orderDate: text('order_date'),
+    actualDeliveryDate: text('actual_delivery_date'),
+    earliestDeliveryDate: text('earliest_delivery_date'),
+    latestDeliveryDate: text('latest_delivery_date'),
+    targetDeliveryDate: text('target_delivery_date'),
+    isLate: integer('is_late', { mode: 'boolean' }).notNull().default(false),
+    createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => ({
+    categoryIdx: index('idx_household_items_category').on(table.category),
+    statusIdx: index('idx_household_items_status').on(table.status),
+    roomIdx: index('idx_household_items_room').on(table.room),
+    vendorIdIdx: index('idx_household_items_vendor_id').on(table.vendorId),
+    createdAtIdx: index('idx_household_items_created_at').on(table.createdAt),
+    targetDeliveryIdx: index('idx_household_items_target_delivery').on(table.targetDeliveryDate),
+  }),
+);
+
+/**
+ * Household item tags junction table - many-to-many relationship between household items and tags.
+ */
+export const householdItemTags = sqliteTable(
+  'household_item_tags',
+  {
+    householdItemId: text('household_item_id')
+      .notNull()
+      .references(() => householdItems.id, { onDelete: 'cascade' }),
+    tagId: text('tag_id')
+      .notNull()
+      .references(() => tags.id, { onDelete: 'cascade' }),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.householdItemId, table.tagId] }),
+    tagIdIdx: index('idx_household_item_tags_tag_id').on(table.tagId),
+  }),
+);
+
+/**
+ * Household item notes table - stores notes/comments on household items.
+ * Notes are ordered by creation time descending (newest first).
+ */
+export const householdItemNotes = sqliteTable(
+  'household_item_notes',
+  {
+    id: text('id').primaryKey(),
+    householdItemId: text('household_item_id')
+      .notNull()
+      .references(() => householdItems.id, { onDelete: 'cascade' }),
+    content: text('content').notNull(),
+    createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => ({
+    householdItemIdIdx: index('idx_household_item_notes_household_item_id').on(
+      table.householdItemId,
+    ),
+  }),
+);
+
+/**
+ * Household item budget lines table - tracks individual budget estimates/allocations for household items.
+ * Mirrors the work_item_budgets structure for consistency.
+ * Each line can reference a vendor, budget category, and budget source.
+ */
+export const householdItemBudgets = sqliteTable(
+  'household_item_budgets',
+  {
+    id: text('id').primaryKey(),
+    householdItemId: text('household_item_id')
+      .notNull()
+      .references(() => householdItems.id, { onDelete: 'cascade' }),
+    description: text('description'),
+    plannedAmount: real('planned_amount').notNull().default(0),
+    confidence: text('confidence', {
+      enum: ['own_estimate', 'professional_estimate', 'quote', 'invoice'],
+    })
+      .notNull()
+      .default('own_estimate'),
+    budgetCategoryId: text('budget_category_id').references(() => budgetCategories.id, {
+      onDelete: 'set null',
+    }),
+    budgetSourceId: text('budget_source_id').references(() => budgetSources.id, {
+      onDelete: 'set null',
+    }),
+    vendorId: text('vendor_id').references(() => vendors.id, { onDelete: 'set null' }),
+    createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => ({
+    householdItemIdIdx: index('idx_household_item_budgets_household_item_id').on(
+      table.householdItemId,
+    ),
+    vendorIdIdx: index('idx_household_item_budgets_vendor_id').on(table.vendorId),
+    budgetCategoryIdIdx: index('idx_household_item_budgets_budget_category_id').on(
+      table.budgetCategoryId,
+    ),
+    budgetSourceIdIdx: index('idx_household_item_budgets_budget_source_id').on(
+      table.budgetSourceId,
+    ),
+  }),
+);
+
+/**
+ * Household item dependencies table - contributor links for household item delivery scheduling.
+ * Household items can depend on work items or milestones.
+ * All dependencies are treated as finish-to-start with zero lead/lag days (HIs are zero-duration terminal nodes).
+ * EPIC-09: Story 9.1 — Household Item Timeline Dependencies
+ * FIX-430: Simplified to remove unnecessary CPM columns
+ */
+export const householdItemDeps = sqliteTable(
+  'household_item_deps',
+  {
+    householdItemId: text('household_item_id')
+      .notNull()
+      .references(() => householdItems.id, { onDelete: 'cascade' }),
+    predecessorType: text('predecessor_type', {
+      enum: ['work_item', 'milestone'],
+    }).notNull(),
+    predecessorId: text('predecessor_id').notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({
+      columns: [table.householdItemId, table.predecessorType, table.predecessorId],
+    }),
+    predecessorIdx: index('idx_hi_deps_predecessor').on(table.predecessorType, table.predecessorId),
+  }),
+);
+
+/**
+ * Household item subsidies junction table - M:N relationship between household items and subsidy programs.
+ * Links household items to applicable subsidy programs for cost reduction.
+ */
+export const householdItemSubsidies = sqliteTable(
+  'household_item_subsidies',
+  {
+    householdItemId: text('household_item_id')
+      .notNull()
+      .references(() => householdItems.id, { onDelete: 'cascade' }),
+    subsidyProgramId: text('subsidy_program_id')
+      .notNull()
+      .references(() => subsidyPrograms.id, { onDelete: 'cascade' }),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.householdItemId, table.subsidyProgramId] }),
+    subsidyProgramIdIdx: index('idx_household_item_subsidies_subsidy_program_id').on(
+      table.subsidyProgramId,
+    ),
   }),
 );

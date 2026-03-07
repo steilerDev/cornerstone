@@ -37,7 +37,7 @@ Only subsidies with **Approved** or **Disbursed** status are applied to budget c
 
 ## How Subsidies Affect the Budget
 
-Subsidies reduce the total cost shown in the [Budget Overview](budget-overview). A subsidy applies to all budget lines in its linked category across all work items:
+Subsidies reduce the total cost shown in the [Budget Overview](budget-overview). A subsidy applies to all budget lines in its linked category across all work items and [household items](/guides/household-items):
 
 - **Percentage subsidy**: Reduces the category total by the specified percentage
 - **Fixed-amount subsidy**: Subtracts the flat amount from the category total

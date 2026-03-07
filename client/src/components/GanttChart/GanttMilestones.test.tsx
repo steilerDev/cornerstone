@@ -49,6 +49,7 @@ const MILESTONE_INCOMPLETE: TimelineMilestone = {
   color: null,
   workItemIds: ['wi-1', 'wi-2'],
   projectedDate: null,
+  isCritical: false,
 };
 
 const MILESTONE_COMPLETE: TimelineMilestone = {
@@ -60,6 +61,7 @@ const MILESTONE_COMPLETE: TimelineMilestone = {
   color: '#EF4444',
   workItemIds: [],
   projectedDate: null,
+  isCritical: false,
 };
 
 // projectedDate after targetDate → late
@@ -72,6 +74,7 @@ const MILESTONE_LATE: TimelineMilestone = {
   color: null,
   workItemIds: ['wi-3'],
   projectedDate: '2024-09-01', // projected > target → late
+  isCritical: false,
 };
 
 // ---------------------------------------------------------------------------
@@ -594,5 +597,296 @@ describe('MilestoneInteractionState CSS classes', () => {
     const layer = screen.getByTestId('gantt-milestones-layer');
     const line = layer.querySelector('line');
     expect(line?.getAttribute('stroke-opacity')).toBe('0.6');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Critical path milestone styling (Bug #484)
+// ---------------------------------------------------------------------------
+
+const CRITICAL_BORDER_COLOR = '#EF4444';
+
+const MILESTONE_CRITICAL: TimelineMilestone = {
+  id: 10,
+  title: 'Critical Milestone',
+  targetDate: '2024-08-01',
+  isCompleted: false,
+  completedAt: null,
+  color: null,
+  workItemIds: ['wi-10'],
+  projectedDate: null,
+  isCritical: true,
+};
+
+const MILESTONE_NON_CRITICAL: TimelineMilestone = {
+  id: 11,
+  title: 'Non-Critical Milestone',
+  targetDate: '2024-09-01',
+  isCompleted: false,
+  completedAt: null,
+  color: null,
+  workItemIds: ['wi-11'],
+  projectedDate: null,
+  isCritical: false,
+};
+
+const MILESTONE_LATE_CRITICAL: TimelineMilestone = {
+  id: 12,
+  title: 'Late Critical Milestone',
+  targetDate: '2024-07-01',
+  isCompleted: false,
+  completedAt: null,
+  color: null,
+  workItemIds: ['wi-12'],
+  projectedDate: '2024-09-01', // late
+  isCritical: true,
+};
+
+describe('critical path milestone styling', () => {
+  // ── strokeWidth ─────────────────────────────────────────────────────────────
+
+  describe('polygon strokeWidth', () => {
+    it('critical milestone diamond polygon has strokeWidth 3', () => {
+      renderMilestones({
+        milestones: [MILESTONE_CRITICAL],
+        milestoneRowIndices: new Map([[MILESTONE_CRITICAL.id, 0]]),
+        criticalMilestoneIds: new Set([MILESTONE_CRITICAL.id]),
+        criticalBorderColor: CRITICAL_BORDER_COLOR,
+      });
+      const layer = screen.getByTestId('gantt-milestones-layer');
+      // The active (non-ghost) polygon is the last polygon in the group
+      const polygons = layer.querySelectorAll('polygon');
+      const activePoly = polygons[polygons.length - 1];
+      expect(activePoly?.getAttribute('stroke-width')).toBe('3');
+    });
+
+    it('non-critical milestone diamond polygon has strokeWidth 2', () => {
+      renderMilestones({
+        milestones: [MILESTONE_NON_CRITICAL],
+        milestoneRowIndices: new Map([[MILESTONE_NON_CRITICAL.id, 0]]),
+        criticalMilestoneIds: new Set<number>(),
+        criticalBorderColor: CRITICAL_BORDER_COLOR,
+      });
+      const layer = screen.getByTestId('gantt-milestones-layer');
+      const polygons = layer.querySelectorAll('polygon');
+      const activePoly = polygons[polygons.length - 1];
+      expect(activePoly?.getAttribute('stroke-width')).toBe('2');
+    });
+
+    it('non-critical milestone has strokeWidth 2 when criticalMilestoneIds is omitted', () => {
+      renderMilestones({
+        milestones: [MILESTONE_NON_CRITICAL],
+        milestoneRowIndices: new Map([[MILESTONE_NON_CRITICAL.id, 0]]),
+        // No criticalMilestoneIds prop
+      });
+      const layer = screen.getByTestId('gantt-milestones-layer');
+      const polygons = layer.querySelectorAll('polygon');
+      const activePoly = polygons[polygons.length - 1];
+      expect(activePoly?.getAttribute('stroke-width')).toBe('2');
+    });
+
+    it('critical milestone uses criticalBorderColor as stroke', () => {
+      renderMilestones({
+        milestones: [MILESTONE_CRITICAL],
+        milestoneRowIndices: new Map([[MILESTONE_CRITICAL.id, 0]]),
+        criticalMilestoneIds: new Set([MILESTONE_CRITICAL.id]),
+        criticalBorderColor: CRITICAL_BORDER_COLOR,
+      });
+      const layer = screen.getByTestId('gantt-milestones-layer');
+      const polygons = layer.querySelectorAll('polygon');
+      const activePoly = polygons[polygons.length - 1];
+      expect(activePoly?.getAttribute('stroke')).toBe(CRITICAL_BORDER_COLOR);
+    });
+
+    it('non-critical milestone uses its status stroke color (not criticalBorderColor)', () => {
+      renderMilestones({
+        milestones: [MILESTONE_NON_CRITICAL],
+        milestoneRowIndices: new Map([[MILESTONE_NON_CRITICAL.id, 0]]),
+        criticalMilestoneIds: new Set<number>(),
+        criticalBorderColor: CRITICAL_BORDER_COLOR,
+      });
+      const layer = screen.getByTestId('gantt-milestones-layer');
+      const polygons = layer.querySelectorAll('polygon');
+      const activePoly = polygons[polygons.length - 1];
+      // Normal incomplete milestone uses incompleteStroke, not criticalBorderColor
+      expect(activePoly?.getAttribute('stroke')).toBe(COLORS.incompleteStroke);
+      expect(activePoly?.getAttribute('stroke')).not.toBe(CRITICAL_BORDER_COLOR);
+    });
+
+    it('milestone in criticalMilestoneIds but with criticalBorderColor omitted falls back to status stroke color', () => {
+      // DiamondMarker fallback: isCritical && criticalBorderColor ? criticalBorderColor : stroke
+      // When criticalBorderColor is not provided, the normal status stroke is used even for a
+      // milestone whose id is in criticalMilestoneIds.
+      renderMilestones({
+        milestones: [MILESTONE_CRITICAL],
+        milestoneRowIndices: new Map([[MILESTONE_CRITICAL.id, 0]]),
+        criticalMilestoneIds: new Set([MILESTONE_CRITICAL.id]),
+        // criticalBorderColor intentionally omitted
+      });
+      const layer = screen.getByTestId('gantt-milestones-layer');
+      const polygons = layer.querySelectorAll('polygon');
+      const activePoly = polygons[polygons.length - 1];
+      // Without criticalBorderColor the fallback is the normal incompleteStroke — not undefined
+      expect(activePoly?.getAttribute('stroke')).toBe(COLORS.incompleteStroke);
+      expect(activePoly?.getAttribute('stroke')).toBeTruthy();
+    });
+
+    it('milestone with isCritical:true in data but empty criticalMilestoneIds set renders with strokeWidth 2', () => {
+      // criticalMilestoneIds (the prop) controls rendering, not the data field isCritical.
+      // Passing an empty set means no milestone is treated as critical, regardless of the
+      // TimelineMilestone.isCritical field value.
+      renderMilestones({
+        milestones: [MILESTONE_CRITICAL], // isCritical: true on the data object
+        milestoneRowIndices: new Map([[MILESTONE_CRITICAL.id, 0]]),
+        criticalMilestoneIds: new Set<number>(), // empty — milestone id NOT in the set
+        criticalBorderColor: CRITICAL_BORDER_COLOR,
+      });
+      const layer = screen.getByTestId('gantt-milestones-layer');
+      const polygons = layer.querySelectorAll('polygon');
+      const activePoly = polygons[polygons.length - 1];
+      // The prop controls rendering; empty set → strokeWidth 2 (non-critical styling)
+      expect(activePoly?.getAttribute('stroke-width')).toBe('2');
+    });
+  });
+
+  // ── Ghost diamond never gets critical styling ─────────────────────────────
+
+  describe('ghost diamond never gets critical styling', () => {
+    it('late critical milestone ghost diamond has strokeWidth 1.5', () => {
+      renderMilestones({
+        milestones: [MILESTONE_LATE_CRITICAL],
+        milestoneRowIndices: new Map([[MILESTONE_LATE_CRITICAL.id, 0]]),
+        criticalMilestoneIds: new Set([MILESTONE_LATE_CRITICAL.id]),
+        criticalBorderColor: CRITICAL_BORDER_COLOR,
+      });
+      const layer = screen.getByTestId('gantt-milestones-layer');
+      const polygons = layer.querySelectorAll('polygon');
+      // Ghost is the first polygon rendered for late milestones
+      const ghostPoly = polygons[0];
+      expect(ghostPoly?.getAttribute('stroke-width')).toBe('1.5');
+    });
+
+    it('late critical milestone ghost diamond has strokeDasharray set', () => {
+      renderMilestones({
+        milestones: [MILESTONE_LATE_CRITICAL],
+        milestoneRowIndices: new Map([[MILESTONE_LATE_CRITICAL.id, 0]]),
+        criticalMilestoneIds: new Set([MILESTONE_LATE_CRITICAL.id]),
+        criticalBorderColor: CRITICAL_BORDER_COLOR,
+      });
+      const layer = screen.getByTestId('gantt-milestones-layer');
+      const polygons = layer.querySelectorAll('polygon');
+      const ghostPoly = polygons[0];
+      // Ghost polygon always has strokeDasharray to indicate planned-but-not-current position
+      expect(ghostPoly?.getAttribute('stroke-dasharray')).toBeTruthy();
+    });
+
+    it('late critical milestone active diamond has strokeWidth 3 (not 1.5)', () => {
+      renderMilestones({
+        milestones: [MILESTONE_LATE_CRITICAL],
+        milestoneRowIndices: new Map([[MILESTONE_LATE_CRITICAL.id, 0]]),
+        criticalMilestoneIds: new Set([MILESTONE_LATE_CRITICAL.id]),
+        criticalBorderColor: CRITICAL_BORDER_COLOR,
+      });
+      const layer = screen.getByTestId('gantt-milestones-layer');
+      const polygons = layer.querySelectorAll('polygon');
+      // Active diamond is the last polygon
+      const activePoly = polygons[polygons.length - 1];
+      expect(activePoly?.getAttribute('stroke-width')).toBe('3');
+    });
+  });
+
+  // ── aria-label for critical path ─────────────────────────────────────────
+
+  describe('aria-label critical path text', () => {
+    it('critical milestone aria-label contains "critical path"', () => {
+      renderMilestones({
+        milestones: [MILESTONE_CRITICAL],
+        milestoneRowIndices: new Map([[MILESTONE_CRITICAL.id, 0]]),
+        criticalMilestoneIds: new Set([MILESTONE_CRITICAL.id]),
+        criticalBorderColor: CRITICAL_BORDER_COLOR,
+      });
+      const diamond = screen.getByTestId('gantt-milestone-diamond');
+      const label = diamond.getAttribute('aria-label') ?? '';
+      expect(label.toLowerCase()).toContain('critical path');
+    });
+
+    it('non-critical milestone aria-label does NOT contain "critical path"', () => {
+      renderMilestones({
+        milestones: [MILESTONE_NON_CRITICAL],
+        milestoneRowIndices: new Map([[MILESTONE_NON_CRITICAL.id, 0]]),
+        criticalMilestoneIds: new Set<number>(),
+        criticalBorderColor: CRITICAL_BORDER_COLOR,
+      });
+      const diamond = screen.getByTestId('gantt-milestone-diamond');
+      const label = diamond.getAttribute('aria-label') ?? '';
+      expect(label.toLowerCase()).not.toContain('critical path');
+    });
+
+    it('milestone aria-label does not contain "critical path" when criticalMilestoneIds is omitted', () => {
+      renderMilestones({
+        milestones: [MILESTONE_INCOMPLETE],
+        // No criticalMilestoneIds prop
+      });
+      const diamond = screen.getByTestId('gantt-milestone-diamond');
+      const label = diamond.getAttribute('aria-label') ?? '';
+      expect(label.toLowerCase()).not.toContain('critical path');
+    });
+
+    it('critical milestone aria-label also contains the milestone title', () => {
+      renderMilestones({
+        milestones: [MILESTONE_CRITICAL],
+        milestoneRowIndices: new Map([[MILESTONE_CRITICAL.id, 0]]),
+        criticalMilestoneIds: new Set([MILESTONE_CRITICAL.id]),
+        criticalBorderColor: CRITICAL_BORDER_COLOR,
+      });
+      const diamond = screen.getByTestId('gantt-milestone-diamond');
+      const label = diamond.getAttribute('aria-label') ?? '';
+      expect(label).toContain('Critical Milestone');
+    });
+  });
+
+  // ── Mixed critical / non-critical milestones ─────────────────────────────
+
+  describe('mixed critical and non-critical in same render', () => {
+    it('independently applies critical styling to each milestone', () => {
+      renderMilestones({
+        milestones: [MILESTONE_CRITICAL, MILESTONE_NON_CRITICAL],
+        milestoneRowIndices: new Map([
+          [MILESTONE_CRITICAL.id, 0],
+          [MILESTONE_NON_CRITICAL.id, 1],
+        ]),
+        criticalMilestoneIds: new Set([MILESTONE_CRITICAL.id]),
+        criticalBorderColor: CRITICAL_BORDER_COLOR,
+      });
+
+      const diamonds = screen.getAllByTestId('gantt-milestone-diamond');
+      expect(diamonds).toHaveLength(2);
+
+      const criticalLabel = diamonds[0].getAttribute('aria-label') ?? '';
+      const nonCriticalLabel = diamonds[1].getAttribute('aria-label') ?? '';
+
+      expect(criticalLabel.toLowerCase()).toContain('critical path');
+      expect(nonCriticalLabel.toLowerCase()).not.toContain('critical path');
+    });
+
+    it('critical milestone polygon has strokeWidth 3, non-critical has strokeWidth 2', () => {
+      renderMilestones({
+        milestones: [MILESTONE_CRITICAL, MILESTONE_NON_CRITICAL],
+        milestoneRowIndices: new Map([
+          [MILESTONE_CRITICAL.id, 0],
+          [MILESTONE_NON_CRITICAL.id, 1],
+        ]),
+        criticalMilestoneIds: new Set([MILESTONE_CRITICAL.id]),
+        criticalBorderColor: CRITICAL_BORDER_COLOR,
+      });
+
+      const layer = screen.getByTestId('gantt-milestones-layer');
+      const polygons = layer.querySelectorAll('polygon');
+      // Each non-late milestone renders one polygon; 2 milestones → 2 polygons
+      expect(polygons).toHaveLength(2);
+
+      expect(polygons[0].getAttribute('stroke-width')).toBe('3'); // critical
+      expect(polygons[1].getAttribute('stroke-width')).toBe('2'); // non-critical
+    });
   });
 });

@@ -6,6 +6,7 @@
  * CPM logic from the service tests.
  *
  * EPIC-06 Story 6.3 — Timeline Data API
+ * EPIC-09 Story 9.1 — Household Item Timeline Dependencies (extended)
  */
 
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
@@ -811,6 +812,183 @@ describe('getTimeline service', () => {
     });
   });
 
+  // ─── isCritical propagation to TimelineMilestone ────────────────────────────
+
+  describe('isCritical propagation to milestones', () => {
+    it('isCritical is true for a milestone whose CPM node appears in the critical path', () => {
+      const userId = insertUser(db);
+      const msId = insertMilestone(db, userId, { title: 'Critical MS', targetDate: '2026-04-01' });
+
+      // Mock the schedule engine to return milestone:msId on the critical path
+      mockSchedule.mockReturnValue({
+        scheduledItems: [],
+        criticalPath: [`milestone:${msId}`],
+        warnings: [],
+      });
+
+      const result = getTimeline(db);
+
+      const ms = result.milestones.find((m) => m.id === msId);
+      expect(ms).toBeDefined();
+      expect(ms!.isCritical).toBe(true);
+    });
+
+    it('isCritical is false for a milestone not in the critical path', () => {
+      const userId = insertUser(db);
+      const msId = insertMilestone(db, userId, {
+        title: 'Non-Critical MS',
+        targetDate: '2026-04-01',
+      });
+
+      // Critical path does not include this milestone
+      mockSchedule.mockReturnValue({
+        scheduledItems: [],
+        criticalPath: ['some-other-work-item-id'],
+        warnings: [],
+      });
+
+      const result = getTimeline(db);
+
+      const ms = result.milestones.find((m) => m.id === msId);
+      expect(ms).toBeDefined();
+      expect(ms!.isCritical).toBe(false);
+    });
+
+    it('isCritical is false when the critical path is empty', () => {
+      const userId = insertUser(db);
+      const msId = insertMilestone(db, userId, { title: 'MS Empty Path' });
+
+      mockSchedule.mockReturnValue({
+        scheduledItems: [],
+        criticalPath: [],
+        warnings: [],
+      });
+
+      const result = getTimeline(db);
+
+      const ms = result.milestones.find((m) => m.id === msId);
+      expect(ms).toBeDefined();
+      expect(ms!.isCritical).toBe(false);
+    });
+
+    it('correctly marks multiple milestones as critical or non-critical independently', () => {
+      const userId = insertUser(db);
+      const msIdA = insertMilestone(db, userId, { title: 'Critical MS A' });
+      const msIdB = insertMilestone(db, userId, { title: 'Non-Critical MS B' });
+      const msIdC = insertMilestone(db, userId, { title: 'Critical MS C' });
+
+      mockSchedule.mockReturnValue({
+        scheduledItems: [],
+        criticalPath: [`milestone:${msIdA}`, `milestone:${msIdC}`],
+        warnings: [],
+      });
+
+      const result = getTimeline(db);
+
+      const msA = result.milestones.find((m) => m.id === msIdA);
+      const msB = result.milestones.find((m) => m.id === msIdB);
+      const msC = result.milestones.find((m) => m.id === msIdC);
+
+      expect(msA!.isCritical).toBe(true);
+      expect(msB!.isCritical).toBe(false);
+      expect(msC!.isCritical).toBe(true);
+    });
+
+    it('isCritical is false for all milestones when a cycle is detected', () => {
+      const userId = insertUser(db);
+      const msId = insertMilestone(db, userId, { title: 'MS during cycle' });
+
+      // Simulate cycle detection — engine returns cycleNodes
+      mockSchedule.mockReturnValue({
+        scheduledItems: [],
+        criticalPath: [`milestone:${msId}`], // would be critical if no cycle
+        warnings: [],
+        cycleNodes: ['wi-a', 'wi-b'],
+      });
+
+      const result = getTimeline(db);
+
+      const ms = result.milestones.find((m) => m.id === msId);
+      expect(ms).toBeDefined();
+      // When a cycle is detected, criticalMilestoneIds is not populated → isCritical false
+      expect(ms!.isCritical).toBe(false);
+    });
+
+    it('every milestone has the isCritical field present (not undefined)', () => {
+      const userId = insertUser(db);
+      insertMilestone(db, userId, { title: 'MS 1' });
+      insertMilestone(db, userId, { title: 'MS 2' });
+
+      mockSchedule.mockReturnValue({
+        scheduledItems: [],
+        criticalPath: [],
+        warnings: [],
+      });
+
+      const result = getTimeline(db);
+
+      for (const ms of result.milestones) {
+        expect(ms).toHaveProperty('isCritical');
+        expect(typeof ms.isCritical).toBe('boolean');
+      }
+    });
+  });
+
+  // ─── criticalPath array excludes milestone: entries ──────────────────────────
+
+  describe('criticalPath in response excludes milestone: entries', () => {
+    it('filters out milestone: prefixed IDs from the returned criticalPath', () => {
+      const userId = insertUser(db);
+      const wiId = insertWorkItem(db, userId, { startDate: '2026-03-01', durationDays: 5 });
+      const msId = insertMilestone(db, userId, { title: 'MS on path' });
+
+      // Engine returns both a work item and a milestone node on the critical path
+      mockSchedule.mockReturnValue({
+        scheduledItems: [],
+        criticalPath: [wiId, `milestone:${msId}`],
+        warnings: [],
+      });
+
+      const result = getTimeline(db);
+
+      // criticalPath returned to caller must NOT contain milestone: entries
+      expect(result.criticalPath).toContain(wiId);
+      expect(result.criticalPath).not.toContain(`milestone:${msId}`);
+    });
+
+    it('returns empty criticalPath when engine only has milestone nodes on the path', () => {
+      const userId = insertUser(db);
+      const msId = insertMilestone(db, userId, { title: 'Only milestone on path' });
+
+      mockSchedule.mockReturnValue({
+        scheduledItems: [],
+        criticalPath: [`milestone:${msId}`],
+        warnings: [],
+      });
+
+      const result = getTimeline(db);
+
+      expect(result.criticalPath).toEqual([]);
+    });
+
+    it('preserves work item IDs in criticalPath when mixed with milestone IDs', () => {
+      const userId = insertUser(db);
+      const wiA = insertWorkItem(db, userId, { startDate: '2026-03-01', durationDays: 5 });
+      const wiB = insertWorkItem(db, userId, { startDate: '2026-04-01', durationDays: 3 });
+      const msId = insertMilestone(db, userId, { title: 'Intermediate MS' });
+
+      mockSchedule.mockReturnValue({
+        scheduledItems: [],
+        criticalPath: [wiA, `milestone:${msId}`, wiB],
+        warnings: [],
+      });
+
+      const result = getTimeline(db);
+
+      expect(result.criticalPath).toEqual([wiA, wiB]);
+    });
+  });
+
   // ─── SchedulingWorkItem fields passed to engine ─────────────────────────────
 
   describe('engine input shapes', () => {
@@ -837,6 +1015,337 @@ describe('getTimeline service', () => {
       expect(engineWi.startAfter).toBe('2026-02-15');
       expect(engineWi.startBefore).toBe('2026-05-01');
       expect(engineWi.status).toBe('in_progress');
+    });
+  });
+
+  // ─── Household items in timeline response ────────────────────────────────────
+
+  describe('household items in timeline response', () => {
+    // Helper: insert a household item
+    function insertHouseholdItem(
+      overrides: Partial<typeof schema.householdItems.$inferInsert> = {},
+    ): string {
+      const id = makeId('hi');
+      const now = new Date().toISOString();
+      db.insert(schema.householdItems)
+        .values({
+          id,
+          name: 'Test Household Item',
+          category: 'furniture',
+          status: 'planned',
+          createdAt: now,
+          updatedAt: now,
+          ...overrides,
+        })
+        .run();
+      return id;
+    }
+
+    // Helper: insert a household item dependency
+    function insertHIDep(
+      householdItemId: string,
+      predecessorType: 'work_item' | 'milestone',
+      predecessorId: string,
+    ) {
+      db.insert(schema.householdItemDeps)
+        .values({ householdItemId, predecessorType, predecessorId })
+        .run();
+    }
+
+    it('returns empty householdItems array when no household items exist', () => {
+      const result = getTimeline(db);
+      expect(result.householdItems).toEqual([]);
+    });
+
+    it('returns empty householdItems array when HIs exist but have no delivery dates set', () => {
+      // HIs with no earliest/latest delivery dates are excluded from timeline
+      insertHouseholdItem({
+        name: 'No Dates HI',
+        earliestDeliveryDate: null,
+        latestDeliveryDate: null,
+      });
+
+      const result = getTimeline(db);
+      expect(result.householdItems).toEqual([]);
+    });
+
+    it('includes HIs that have earliestDeliveryDate set', () => {
+      const hiId = insertHouseholdItem({
+        name: 'Sofa',
+        earliestDeliveryDate: '2026-05-15',
+        latestDeliveryDate: null,
+      });
+
+      const result = getTimeline(db);
+
+      expect(result.householdItems).toHaveLength(1);
+      expect(result.householdItems[0].id).toBe(hiId);
+    });
+
+    it('includes HIs that have latestDeliveryDate set (but no earliest)', () => {
+      const hiId = insertHouseholdItem({
+        name: 'Fridge',
+        earliestDeliveryDate: null,
+        latestDeliveryDate: '2026-06-30',
+      });
+
+      const result = getTimeline(db);
+
+      expect(result.householdItems).toHaveLength(1);
+      expect(result.householdItems[0].id).toBe(hiId);
+    });
+
+    it('returns correct TimelineHouseholdItem field shape', () => {
+      const userId = insertUser(db);
+      const wiId = insertWorkItem(db, userId, { startDate: '2026-03-01', endDate: '2026-05-10' });
+
+      const hiId = insertHouseholdItem({
+        name: 'Dining Table',
+        category: 'furniture',
+        status: 'purchased',
+        targetDeliveryDate: '2026-05-20',
+        earliestDeliveryDate: '2026-05-10',
+        latestDeliveryDate: '2026-06-01',
+        actualDeliveryDate: null,
+      });
+
+      insertHIDep(hiId, 'work_item', wiId);
+
+      const result = getTimeline(db);
+
+      expect(result.householdItems).toHaveLength(1);
+      const hi = result.householdItems[0];
+
+      expect(hi.id).toBe(hiId);
+      expect(hi.name).toBe('Dining Table');
+      expect(hi.category).toBe('furniture');
+      expect(hi.status).toBe('purchased');
+      expect(hi.targetDeliveryDate).toBe('2026-05-20');
+      expect(hi.earliestDeliveryDate).toBe('2026-05-10');
+      expect(hi.latestDeliveryDate).toBe('2026-06-01');
+      expect(hi.actualDeliveryDate).toBeNull();
+      expect(typeof hi.isLate).toBe('boolean');
+      expect(Array.isArray(hi.dependencyIds)).toBe(true);
+    });
+
+    it('dependencyIds includes predecessor references with correct shape', () => {
+      const userId = insertUser(db);
+      const wiId = insertWorkItem(db, userId, { startDate: '2026-03-01', endDate: '2026-05-10' });
+      const msId = insertMilestone(db, userId, {
+        title: 'Frame Complete',
+        targetDate: '2026-04-30',
+      });
+
+      const hiId = insertHouseholdItem({
+        name: 'Sofa',
+        earliestDeliveryDate: '2026-05-10',
+      });
+
+      insertHIDep(hiId, 'work_item', wiId);
+      insertHIDep(hiId, 'milestone', msId.toString());
+
+      const result = getTimeline(db);
+
+      const hi = result.householdItems.find((h) => h.id === hiId);
+      expect(hi).toBeDefined();
+      expect(hi!.dependencyIds).toHaveLength(2);
+
+      const wiDep = hi!.dependencyIds.find((d) => d.predecessorType === 'work_item');
+      expect(wiDep).toBeDefined();
+      expect(wiDep!.predecessorId).toBe(wiId);
+
+      const msDep = hi!.dependencyIds.find((d) => d.predecessorType === 'milestone');
+      expect(msDep).toBeDefined();
+      expect(msDep!.predecessorId).toBe(msId.toString());
+    });
+
+    it('includes multiple household items in the response', () => {
+      const userId = insertUser(db);
+      const wiId = insertWorkItem(db, userId, { startDate: '2026-03-01', endDate: '2026-05-10' });
+
+      const hiA = insertHouseholdItem({ name: 'Sofa', earliestDeliveryDate: '2026-05-15' });
+      const hiB = insertHouseholdItem({ name: 'Chair', earliestDeliveryDate: '2026-06-01' });
+
+      insertHIDep(hiA, 'work_item', wiId);
+      insertHIDep(hiB, 'work_item', wiId);
+
+      const result = getTimeline(db);
+
+      expect(result.householdItems).toHaveLength(2);
+      const ids = result.householdItems.map((h) => h.id);
+      expect(ids).toContain(hiA);
+      expect(ids).toContain(hiB);
+    });
+
+    it('excludes HIs from householdItems array when they have no delivery dates (mixed scenario)', () => {
+      const userId = insertUser(db);
+      const wiId = insertWorkItem(db, userId, { startDate: '2026-03-01', endDate: '2026-05-10' });
+
+      // HI with dates — should appear
+      const hiWithDates = insertHouseholdItem({ name: 'Sofa', earliestDeliveryDate: '2026-05-15' });
+      insertHIDep(hiWithDates, 'work_item', wiId);
+
+      // HI without dates — should NOT appear in timeline
+      insertHouseholdItem({
+        name: 'No Date HI',
+        earliestDeliveryDate: null,
+        latestDeliveryDate: null,
+      });
+
+      const result = getTimeline(db);
+
+      expect(result.householdItems).toHaveLength(1);
+      expect(result.householdItems[0].id).toBe(hiWithDates);
+    });
+
+    // ── isLate flag in timeline ──────────────────────────────────────────────
+
+    it('isLate is false for an arrived household item', () => {
+      const today = new Date().toISOString().slice(0, 10);
+      const hiId = insertHouseholdItem({
+        name: 'Delivered Table',
+        status: 'arrived',
+        earliestDeliveryDate: today,
+        latestDeliveryDate: today,
+        actualDeliveryDate: '2026-02-01',
+      });
+
+      const result = getTimeline(db);
+      const hi = result.householdItems.find((h) => h.id === hiId);
+      expect(hi).toBeDefined();
+      expect(hi!.isLate).toBe(false);
+    });
+
+    it('isLate is true for planned item when earliestDeliveryDate equals today', () => {
+      const today = new Date().toISOString().slice(0, 10);
+      const hiId = insertHouseholdItem({
+        name: 'Late Item',
+        status: 'planned',
+        earliestDeliveryDate: today,
+        latestDeliveryDate: null,
+        isLate: true,
+      });
+
+      const result = getTimeline(db);
+      const hi = result.householdItems.find((h) => h.id === hiId);
+      expect(hi).toBeDefined();
+      expect(hi!.isLate).toBe(true);
+    });
+
+    it('isLate is true for ordered item when earliestDeliveryDate equals today', () => {
+      const today = new Date().toISOString().slice(0, 10);
+      const hiId = insertHouseholdItem({
+        name: 'Ordered Late',
+        status: 'purchased',
+        earliestDeliveryDate: today,
+        latestDeliveryDate: null,
+        isLate: true,
+      });
+
+      const result = getTimeline(db);
+      const hi = result.householdItems.find((h) => h.id === hiId);
+      expect(hi).toBeDefined();
+      expect(hi!.isLate).toBe(true);
+    });
+
+    it('isLate is true for scheduled item when latestDeliveryDate equals today', () => {
+      const today = new Date().toISOString().slice(0, 10);
+      const hiId = insertHouseholdItem({
+        name: 'In Transit Late',
+        status: 'scheduled',
+        earliestDeliveryDate: '2026-01-01',
+        latestDeliveryDate: today,
+        isLate: true,
+      });
+
+      const result = getTimeline(db);
+      const hi = result.householdItems.find((h) => h.id === hiId);
+      expect(hi).toBeDefined();
+      expect(hi!.isLate).toBe(true);
+    });
+
+    it('isLate is false for planned item when earliestDeliveryDate is in the future', () => {
+      const futureDateStr = '2099-12-31';
+      const hiId = insertHouseholdItem({
+        name: 'Future Item',
+        status: 'planned',
+        earliestDeliveryDate: futureDateStr,
+        latestDeliveryDate: null,
+      });
+
+      const result = getTimeline(db);
+      const hi = result.householdItems.find((h) => h.id === hiId);
+      expect(hi).toBeDefined();
+      expect(hi!.isLate).toBe(false);
+    });
+
+    // ── dateRange extends to household item delivery dates ───────────────────
+
+    it('dateRange includes HI earliestDeliveryDate when it is before earliest WI startDate', () => {
+      const userId = insertUser(db);
+      // WI with startDate in the future
+      insertWorkItem(db, userId, { startDate: '2026-05-01', endDate: '2026-07-31' });
+
+      // HI with earlier earliestDeliveryDate
+      insertHouseholdItem({
+        name: 'Early Delivery Item',
+        earliestDeliveryDate: '2026-02-01', // Earlier than WI startDate
+        latestDeliveryDate: null,
+      });
+
+      const result = getTimeline(db);
+
+      expect(result.dateRange).not.toBeNull();
+      expect(result.dateRange!.earliest).toBe('2026-02-01');
+    });
+
+    it('dateRange includes HI latestDeliveryDate when it extends beyond latest WI endDate', () => {
+      const userId = insertUser(db);
+      // WI with endDate in near future
+      insertWorkItem(db, userId, { startDate: '2026-03-01', endDate: '2026-05-31' });
+
+      // HI with later latestDeliveryDate
+      insertHouseholdItem({
+        name: 'Late Delivery Item',
+        earliestDeliveryDate: null,
+        latestDeliveryDate: '2026-09-30', // Later than WI endDate
+      });
+
+      const result = getTimeline(db);
+
+      expect(result.dateRange).not.toBeNull();
+      expect(result.dateRange!.latest).toBe('2026-09-30');
+    });
+
+    it('dateRange is determined by HI dates when no work items have dates', () => {
+      // No work items with dates
+      insertHouseholdItem({
+        name: 'Only HI',
+        earliestDeliveryDate: '2026-04-01',
+        latestDeliveryDate: '2026-06-30',
+      });
+
+      const result = getTimeline(db);
+
+      expect(result.dateRange).not.toBeNull();
+      expect(result.dateRange!.earliest).toBe('2026-04-01');
+      expect(result.dateRange!.latest).toBe('2026-06-30');
+    });
+
+    it('dateRange remains null when no work items OR household items have dates', () => {
+      const userId = insertUser(db);
+      // WI with no dates
+      insertWorkItem(db, userId, { title: 'Undated WI' });
+      // HI with no delivery dates
+      insertHouseholdItem({
+        name: 'No Date HI',
+        earliestDeliveryDate: null,
+        latestDeliveryDate: null,
+      });
+
+      const result = getTimeline(db);
+
+      expect(result.dateRange).toBeNull();
     });
   });
 });

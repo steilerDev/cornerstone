@@ -6,14 +6,26 @@ import { screen, waitFor, render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import type * as BudgetOverviewApiTypes from '../../lib/budgetOverviewApi.js';
+import type * as BudgetSourcesApiTypes from '../../lib/budgetSourcesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
-import type { BudgetOverview } from '@cornerstone/shared';
+import type { BudgetOverview, BudgetSource } from '@cornerstone/shared';
 
-// Mock the API module BEFORE importing the component
+// Mock the API modules BEFORE importing the component
 const mockFetchBudgetOverview = jest.fn<typeof BudgetOverviewApiTypes.fetchBudgetOverview>();
+const mockFetchBudgetBreakdown = jest.fn<typeof BudgetOverviewApiTypes.fetchBudgetBreakdown>();
+const mockFetchBudgetSources = jest.fn<typeof BudgetSourcesApiTypes.fetchBudgetSources>();
 
 jest.unstable_mockModule('../../lib/budgetOverviewApi.js', () => ({
   fetchBudgetOverview: mockFetchBudgetOverview,
+  fetchBudgetBreakdown: mockFetchBudgetBreakdown,
+}));
+
+jest.unstable_mockModule('../../lib/budgetSourcesApi.js', () => ({
+  fetchBudgetSources: mockFetchBudgetSources,
+  fetchBudgetSource: jest.fn(),
+  createBudgetSource: jest.fn(),
+  updateBudgetSource: jest.fn(),
+  deleteBudgetSource: jest.fn(),
 }));
 
 describe('BudgetOverviewPage', () => {
@@ -107,12 +119,78 @@ describe('BudgetOverviewPage', () => {
     },
   };
 
+  /**
+   * Build a minimal BudgetSource for tests.
+   */
+  function buildBudgetSource(
+    opts: {
+      id?: string;
+      name?: string;
+      totalAmount?: number;
+    } = {},
+  ): BudgetSource {
+    return {
+      id: opts.id ?? 'src-1',
+      name: opts.name ?? 'Bank Loan',
+      sourceType: 'bank_loan',
+      totalAmount: opts.totalAmount ?? 80000,
+      usedAmount: 0,
+      availableAmount: opts.totalAmount ?? 80000,
+      claimedAmount: 0,
+      unclaimedAmount: 0,
+      actualAvailableAmount: opts.totalAmount ?? 80000,
+      interestRate: null,
+      terms: null,
+      notes: null,
+      status: 'active',
+      createdBy: null,
+      createdAt: '2025-01-01T00:00:00.000Z',
+      updatedAt: '2025-01-01T00:00:00.000Z',
+    };
+  }
+
+  /** Empty breakdown returned by default in all tests */
+  const emptyBreakdown = {
+    workItems: {
+      categories: [],
+      totals: {
+        projectedMin: 0,
+        projectedMax: 0,
+        actualCost: 0,
+        subsidyPayback: 0,
+        rawProjectedMin: 0,
+        rawProjectedMax: 0,
+        minSubsidyPayback: 0,
+      },
+    },
+    householdItems: {
+      categories: [],
+      totals: {
+        projectedMin: 0,
+        projectedMax: 0,
+        actualCost: 0,
+        subsidyPayback: 0,
+        rawProjectedMin: 0,
+        rawProjectedMax: 0,
+        minSubsidyPayback: 0,
+      },
+    },
+  };
+
   beforeEach(async () => {
     if (!BudgetOverviewPage) {
       const module = await import('./BudgetOverviewPage.js');
       BudgetOverviewPage = module.default;
     }
     mockFetchBudgetOverview.mockReset();
+    mockFetchBudgetBreakdown.mockReset();
+    mockFetchBudgetSources.mockReset();
+
+    // Default: breakdown succeeds with empty data
+    mockFetchBudgetBreakdown.mockResolvedValue(emptyBreakdown);
+
+    // Default: sources succeeds with empty list
+    mockFetchBudgetSources.mockResolvedValue({ budgetSources: [] });
   });
 
   function renderPage() {
@@ -280,24 +358,35 @@ describe('BudgetOverviewPage', () => {
     });
 
     it('renders a BudgetHealthIndicator badge (role="status")', async () => {
-      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
+      // Use an overview with remainingVsMaxPlanned=40000 → margin 20% > 10% → On Budget
+      // (component passes remainingVsMaxPlanned as remainingVsProjectedMax to BudgetHealthIndicator
+      // when hasPayback=false)
+      const onBudgetOverview: BudgetOverview = {
+        ...richOverview,
+        remainingVsMaxPlanned: 40000,
+        remainingVsMaxPlannedWithPayback: 40000,
+      };
+      mockFetchBudgetOverview.mockResolvedValueOnce(onBudgetOverview);
       renderPage();
 
       // The health badge has role="status"; the loading indicator also had it but is gone now
       await waitFor(() => {
         const statusEl = screen.getByRole('status');
         expect(statusEl).toBeInTheDocument();
-        // richOverview: remaining vs projected max = 40000, availableFunds = 200000 → margin 20% → On Budget
+        // remainingVsMaxPlanned=40000, availableFunds=200000 → margin 20% → On Budget
         expect(statusEl).toHaveTextContent(/on budget/i);
       });
     });
 
     it('shows "Over Budget" when remaining vs projected max is negative', async () => {
+      // Component uses remainingVsMaxPlanned (or WithPayback when hasPayback) for health indicator.
+      // Set both to negative to trigger "Over Budget" status.
       const overBudgetOverview: BudgetOverview = {
         ...richOverview,
         availableFunds: 100000,
         projectedMax: 150000, // exceeds available
-        remainingVsProjectedMax: -50000,
+        remainingVsMaxPlanned: -50000, // negative → Over Budget
+        remainingVsMaxPlannedWithPayback: -50000,
       };
       mockFetchBudgetOverview.mockResolvedValueOnce(overBudgetOverview);
       renderPage();
@@ -308,11 +397,14 @@ describe('BudgetOverviewPage', () => {
     });
 
     it('shows "At Risk" when margin <= 10%', async () => {
+      // Component uses remainingVsMaxPlanned for health indicator when hasPayback=false.
+      // margin = remainingVsMaxPlanned / availableFunds = 5000 / 100000 = 5% → At Risk
       const atRiskOverview: BudgetOverview = {
         ...richOverview,
         availableFunds: 100000,
-        projectedMax: 95000, // margin = 5000/100000 = 5% → At Risk
-        remainingVsProjectedMax: 5000,
+        projectedMax: 95000,
+        remainingVsMaxPlanned: 5000, // margin = 5000/100000 = 5% → At Risk
+        remainingVsMaxPlannedWithPayback: 5000,
       };
       mockFetchBudgetOverview.mockResolvedValueOnce(atRiskOverview);
       renderPage();
@@ -374,15 +466,16 @@ describe('BudgetOverviewPage', () => {
       });
     });
 
-    it('shows remaining range values (vs projected min and max)', async () => {
+    it('shows remaining range values (vs min planned and max planned)', async () => {
       mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
       renderPage();
 
-      // remainingVsProjectedMin = 60000 → €60K, remainingVsProjectedMax = 40000 → €40K
+      // Component uses remainingVsMinPlanned and remainingVsMaxPlanned when hasPayback=false.
+      // richOverview: remainingVsMinPlanned=80000 → €80K, remainingVsMaxPlanned=20000 → €20K
       // These values may appear in multiple elements (tooltip + mobile panel)
       await waitFor(() => {
-        expect(screen.getAllByText(/€60K/).length).toBeGreaterThan(0);
-        expect(screen.getAllByText(/€40K/).length).toBeGreaterThan(0);
+        expect(screen.getAllByText(/€80K/).length).toBeGreaterThan(0);
+        expect(screen.getAllByText(/€20K/).length).toBeGreaterThan(0);
       });
     });
   });
@@ -454,57 +547,33 @@ describe('BudgetOverviewPage', () => {
     });
   });
 
-  // ─── Footer row ────────────────────────────────────────────────────────────
+  // ─── Footer cleanup (Scenarios 26–27) ──────────────────────────────────────
 
-  describe('hero card footer', () => {
-    it('shows subsidy total reductions in footer', async () => {
-      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
-      renderPage();
-
-      // richOverview: subsidySummary.totalReductions = 15000 → €15,000.00
-      await waitFor(() => {
-        expect(screen.getByText(/15,000\.00/)).toBeInTheDocument();
-      });
-    });
-
-    it('shows "3 programs" when activeSubsidyCount is 3', async () => {
+  describe('hero card footer cleanup', () => {
+    // Scenario 26: "Sources: N" text is NOT present
+    it('does not render "Sources: N" text in the page', async () => {
       mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText(/3 programs/i)).toBeInTheDocument();
+        // Wait for load to complete
+        expect(screen.queryByText(/loading budget overview/i)).not.toBeInTheDocument();
       });
+
+      expect(screen.queryByText(/sources:/i)).not.toBeInTheDocument();
     });
 
-    it('shows "1 program" (singular) when activeSubsidyCount is 1', async () => {
-      const oneProgramOverview: BudgetOverview = {
-        ...richOverview,
-        subsidySummary: {
-          totalReductions: 5000,
-          activeSubsidyCount: 1,
-          minTotalPayback: 0,
-          maxTotalPayback: 0,
-        },
-      };
-      mockFetchBudgetOverview.mockResolvedValueOnce(oneProgramOverview);
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText(/1 program/i)).toBeInTheDocument();
-      });
-    });
-
-    it('shows source count in footer', async () => {
+    // Scenario 27: Expected Payback span is not in the footer section (only in metrics row when hasPayback)
+    it('does not render Expected Payback in a footer section when payback is zero', async () => {
+      // richOverview has maxTotalPayback = 0 → payback metric should not appear at all
       mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
       renderPage();
 
-      // richOverview: sourceCount = 2
       await waitFor(() => {
-        expect(screen.getByText(/Sources:/i)).toBeInTheDocument();
-        // The "2" appears as a strong child of the Sources span
-        const sourcesText = screen.getByText(/Sources:/i);
-        expect(sourcesText.closest('span')!).toHaveTextContent('2');
+        expect(screen.queryByText(/loading budget overview/i)).not.toBeInTheDocument();
       });
+
+      expect(screen.queryByText(/expected payback/i)).not.toBeInTheDocument();
     });
   });
 
@@ -839,20 +908,24 @@ describe('BudgetOverviewPage', () => {
     });
   });
 
-  // ─── Subsidy payback display (#346) ────────────────────────────────────────
+  // ─── Expected Payback Metric (Scenarios 22–25) ─────────────────────────────
 
-  describe('subsidy payback footer display', () => {
-    it('does NOT show "Expected payback" when maxTotalPayback is 0', async () => {
-      // richOverview has maxTotalPayback = 0 → payback row should not appear
+  describe('Expected Payback metric', () => {
+    // Scenario 22: maxTotalPayback === 0 → metric group not rendered; metrics row has 3 columns
+    it('does NOT render Expected Payback metric group when maxTotalPayback is 0', async () => {
+      // richOverview has maxTotalPayback = 0 → payback metric group should not appear
       mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
       renderPage();
 
       await waitFor(() => {
-        expect(screen.queryByText(/expected payback/i)).not.toBeInTheDocument();
+        expect(screen.queryByText(/loading budget overview/i)).not.toBeInTheDocument();
       });
+
+      expect(screen.queryByText(/expected payback/i)).not.toBeInTheDocument();
     });
 
-    it('shows "Expected payback" footer item when maxTotalPayback > 0', async () => {
+    // Scenario 23: maxTotalPayback > 0 → metric rendered with green value
+    it('renders Expected Payback metric group with green value when maxTotalPayback > 0', async () => {
       const paybackOverview: BudgetOverview = {
         ...richOverview,
         subsidySummary: {
@@ -868,29 +941,15 @@ describe('BudgetOverviewPage', () => {
       await waitFor(() => {
         expect(screen.getByText(/expected payback/i)).toBeInTheDocument();
       });
+
+      // The payback value is styled with a positive/green class
+      // The metric group contains the label + value span with metricPaybackValue class
+      const paybackLabel = screen.getByText(/expected payback/i);
+      const metricGroup = paybackLabel.closest('div');
+      expect(metricGroup).not.toBeNull();
     });
 
-    it('shows a range when minTotalPayback != maxTotalPayback', async () => {
-      const paybackOverview: BudgetOverview = {
-        ...richOverview,
-        subsidySummary: {
-          totalReductions: 15000,
-          activeSubsidyCount: 3,
-          minTotalPayback: 5000,
-          maxTotalPayback: 7500,
-        },
-      };
-      mockFetchBudgetOverview.mockResolvedValueOnce(paybackOverview);
-      renderPage();
-
-      // Should show formatted range: €5K – €7K or €5,000 – €7,500
-      await waitFor(() => {
-        const paybackEl = screen.getByText(/expected payback/i);
-        // The payback element should contain a range (both values present in vicinity)
-        expect(paybackEl).toBeInTheDocument();
-      });
-    });
-
+    // Scenario 24: min === max → single value shown (no range dash)
     it('shows a single value when minTotalPayback === maxTotalPayback', async () => {
       const paybackOverview: BudgetOverview = {
         ...richOverview,
@@ -907,8 +966,227 @@ describe('BudgetOverviewPage', () => {
       await waitFor(() => {
         expect(screen.getByText(/expected payback/i)).toBeInTheDocument();
       });
+
+      // When min === max, no range dash should appear within the payback value
+      // We verify that the range separator "–" character does not appear in the payback group
+      const paybackLabel = screen.getByText(/expected payback/i);
+      const metricGroup = paybackLabel.closest('div');
+      expect(metricGroup).not.toBeNull();
+      // The dash separator element should not be rendered inside this group
+      const rangeSeps = metricGroup!.querySelectorAll('span[class*="metricRangeSep"]');
+      expect(rangeSeps.length).toBe(0);
     });
 
+    // Scenario 25: min !== max → range shown
+    it('shows a range when minTotalPayback !== maxTotalPayback', async () => {
+      const paybackOverview: BudgetOverview = {
+        ...richOverview,
+        subsidySummary: {
+          totalReductions: 15000,
+          activeSubsidyCount: 3,
+          minTotalPayback: 5000,
+          maxTotalPayback: 7500,
+        },
+      };
+      mockFetchBudgetOverview.mockResolvedValueOnce(paybackOverview);
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText(/expected payback/i)).toBeInTheDocument();
+      });
+
+      // Both min and max payback formatted values should be in the DOM.
+      // formatShort(5000) = "€5K", formatShort(7500) = "€8K" (rounds .toFixed(0))
+      await waitFor(() => {
+        expect(screen.getAllByText(/€5K/).length).toBeGreaterThan(0);
+        expect(screen.getAllByText(/€8K/).length).toBeGreaterThan(0);
+      });
+    });
+  });
+
+  // ─── Budget Sources Fetch (Scenarios 28–30) ────────────────────────────────
+
+  describe('budget sources fetch', () => {
+    // Scenario 28: fetchBudgetSources called once on page load
+    it('calls fetchBudgetSources once on page load', async () => {
+      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.queryByText(/loading budget overview/i)).not.toBeInTheDocument();
+      });
+
+      expect(mockFetchBudgetSources).toHaveBeenCalledTimes(1);
+    });
+
+    // Scenario 29: fetchBudgetSources rejection → page still renders
+    it('still renders the page when fetchBudgetSources rejects', async () => {
+      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
+      mockFetchBudgetSources.mockRejectedValueOnce(new Error('Sources unavailable'));
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: /^budget$/i, level: 1 })).toBeInTheDocument();
+      });
+
+      // Page is functional despite sources error — no error state shown
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    // Scenario 30: budgetSources prop on CostBreakdownTable matches fetchBudgetSources data
+    it('passes budgetSources returned by fetchBudgetSources to CostBreakdownTable', async () => {
+      const sources = [
+        buildBudgetSource({ id: 'src-1', name: 'Savings Account', totalAmount: 50000 }),
+        buildBudgetSource({ id: 'src-2', name: 'Bank Loan', totalAmount: 80000 }),
+      ];
+
+      const overviewWithData: BudgetOverview = {
+        ...richOverview,
+        availableFunds: 130000,
+      };
+
+      mockFetchBudgetOverview.mockResolvedValueOnce(overviewWithData);
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: sources });
+
+      // Provide a non-empty breakdown so the CostBreakdownTable renders
+      mockFetchBudgetBreakdown.mockResolvedValueOnce({
+        workItems: {
+          categories: [
+            {
+              categoryId: 'cat-1',
+              categoryName: 'Materials',
+              categoryColor: null,
+              projectedMin: 5000,
+              projectedMax: 8000,
+              actualCost: 0,
+              subsidyPayback: 0,
+              rawProjectedMin: 5000,
+              rawProjectedMax: 8000,
+              minSubsidyPayback: 0,
+              items: [],
+            },
+          ],
+          totals: {
+            projectedMin: 5000,
+            projectedMax: 8000,
+            actualCost: 0,
+            subsidyPayback: 0,
+            rawProjectedMin: 5000,
+            rawProjectedMax: 8000,
+            minSubsidyPayback: 0,
+          },
+        },
+        householdItems: {
+          categories: [],
+          totals: {
+            projectedMin: 0,
+            projectedMax: 0,
+            actualCost: 0,
+            subsidyPayback: 0,
+            rawProjectedMin: 0,
+            rawProjectedMax: 0,
+            minSubsidyPayback: 0,
+          },
+        },
+      });
+
+      renderPage();
+
+      // Wait for the page to load and breakdown to render
+      await waitFor(() => {
+        expect(screen.queryByText(/loading budget overview/i)).not.toBeInTheDocument();
+      });
+
+      // CostBreakdownTable should be visible with the "Available funds" expand button
+      // (only appears when budgetSources.length > 0)
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /expand available funds/i })).toBeInTheDocument();
+      });
+    });
+  });
+
+  // ─── Health Indicator — Payback-Adjusted Remaining (Scenarios 31–33) ────────
+
+  describe('health indicator payback-adjusted remaining', () => {
+    // Scenario 31: hasPayback true → health indicator receives payback-adjusted remaining
+    it('uses payback-adjusted remaining for health indicator when hasPayback is true', async () => {
+      // remainingVsMaxPlannedWithPayback = 25000 but remainingVsMaxPlanned = 20000
+      // When payback exists, we use the "WithPayback" value for health indicator
+      // margin = remainingVsMaxPlannedWithPayback / availableFunds = 25000 / 200000 = 12.5% > 10% → On Budget
+      const paybackOverview: BudgetOverview = {
+        ...richOverview,
+        remainingVsMinPlannedWithPayback: 85000,
+        remainingVsMaxPlannedWithPayback: 25000,
+        subsidySummary: {
+          totalReductions: 15000,
+          activeSubsidyCount: 3,
+          minTotalPayback: 5000,
+          maxTotalPayback: 5000,
+        },
+      };
+      mockFetchBudgetOverview.mockResolvedValueOnce(paybackOverview);
+      renderPage();
+
+      await waitFor(() => {
+        const statusEl = screen.getByRole('status');
+        expect(statusEl).toHaveTextContent(/on budget/i);
+      });
+    });
+
+    // Scenario 32: hasPayback false → health indicator receives filtered projected max remaining
+    it('uses remainingVsMaxPlanned for health indicator when hasPayback is false', async () => {
+      // richOverview has maxTotalPayback = 0 → hasPayback = false
+      // remainingVsMaxPlanned = 20000 → margin = 20000/200000 = 10% → At Risk (exactly 10%)
+      const noPaybackAtRisk: BudgetOverview = {
+        ...richOverview,
+        remainingVsMaxPlanned: 20000,
+        remainingVsMaxPlannedWithPayback: 20000,
+        subsidySummary: {
+          totalReductions: 0,
+          activeSubsidyCount: 0,
+          minTotalPayback: 0,
+          maxTotalPayback: 0,
+        },
+      };
+      mockFetchBudgetOverview.mockResolvedValueOnce(noPaybackAtRisk);
+      renderPage();
+
+      await waitFor(() => {
+        const statusEl = screen.getByRole('status');
+        // margin = 20000/200000 = 10% → exactly At Risk threshold
+        expect(statusEl).toHaveTextContent(/at risk/i);
+      });
+    });
+
+    // Scenario 33: Remaining metric in hero card displays payback-adjusted values when payback exists
+    it('Remaining metric shows payback-adjusted min/max when payback exists', async () => {
+      // remainingVsMinPlannedWithPayback=85000 → €85K, remainingVsMaxPlannedWithPayback=25000 → €25K
+      const paybackOverview: BudgetOverview = {
+        ...richOverview,
+        remainingVsMinPlannedWithPayback: 85000,
+        remainingVsMaxPlannedWithPayback: 25000,
+        subsidySummary: {
+          totalReductions: 15000,
+          activeSubsidyCount: 3,
+          minTotalPayback: 5000,
+          maxTotalPayback: 5000,
+        },
+      };
+      mockFetchBudgetOverview.mockResolvedValueOnce(paybackOverview);
+      renderPage();
+
+      await waitFor(() => {
+        // The Remaining metric button should show the payback-adjusted values
+        // €85K and €25K (formatted short notation)
+        expect(screen.getAllByText(/€85K/).length).toBeGreaterThan(0);
+        expect(screen.getAllByText(/€25K/).length).toBeGreaterThan(0);
+      });
+    });
+  });
+
+  // ─── Subsidy payback detail panel ─────────────────────────────────────────
+
+  describe('subsidy payback detail panel', () => {
     it('payback-adjusted rows appear in remaining detail panel when payback > 0', async () => {
       const paybackOverview: BudgetOverview = {
         ...richOverview,

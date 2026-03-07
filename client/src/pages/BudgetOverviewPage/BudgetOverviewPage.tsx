@@ -1,6 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import type { BudgetOverview, CategoryBudgetSummary } from '@cornerstone/shared';
-import { fetchBudgetOverview } from '../../lib/budgetOverviewApi.js';
+import type {
+  BudgetOverview,
+  BudgetBreakdown,
+  CategoryBudgetSummary,
+  BudgetSource,
+} from '@cornerstone/shared';
+import { fetchBudgetOverview, fetchBudgetBreakdown } from '../../lib/budgetOverviewApi.js';
+import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { formatCurrency } from '../../lib/formatters.js';
 import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
@@ -8,6 +14,7 @@ import { BudgetBar } from '../../components/BudgetBar/BudgetBar.js';
 import type { BudgetBarSegment } from '../../components/BudgetBar/BudgetBar.js';
 import { BudgetHealthIndicator } from '../../components/BudgetHealthIndicator/BudgetHealthIndicator.js';
 import { Tooltip } from '../../components/Tooltip/Tooltip.js';
+import { CostBreakdownTable } from '../../components/CostBreakdownTable/CostBreakdownTable.js';
 import styles from './BudgetOverviewPage.module.css';
 
 // ---- Helpers ----
@@ -294,6 +301,13 @@ export function BudgetOverviewPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
 
+  // Breakdown state
+  const [breakdown, setBreakdown] = useState<BudgetBreakdown | null>(null);
+  const [isBreakdownLoading, setIsBreakdownLoading] = useState(false);
+
+  // Budget sources state
+  const [budgetSources, setBudgetSources] = useState<BudgetSource[]>([]);
+
   // Category filter state — set once overview loads
   const [selectedCategories, setSelectedCategories] = useState<Set<string | null>>(new Set());
 
@@ -319,6 +333,25 @@ export function BudgetOverviewPage() {
       setOverview(data);
       // Initialise filter — all selected
       setSelectedCategories(new Set(data.categorySummaries.map((c) => c.categoryId)));
+
+      // Fetch breakdown data (non-critical, so silent failure)
+      setIsBreakdownLoading(true);
+      try {
+        const bd = await fetchBudgetBreakdown();
+        setBreakdown(bd);
+      } catch {
+        // breakdown is non-critical; silently fail and show empty state if it fails
+      } finally {
+        setIsBreakdownLoading(false);
+      }
+
+      // Fetch budget sources (non-critical, so silent failure)
+      try {
+        const sourcesData = await fetchBudgetSources();
+        setBudgetSources(sourcesData.budgetSources);
+      } catch {
+        // sources is non-critical; silently fail
+      }
     } catch (err) {
       if (err instanceof ApiClientError) {
         setError(err.error.message);
@@ -405,9 +438,6 @@ export function BudgetOverviewPage() {
   const filteredRemainingVsProjectedMin = overview.availableFunds - filtered.projectedMin;
   const filteredRemainingVsProjectedMax = overview.availableFunds - filtered.projectedMax;
 
-  // BudgetHealthIndicator uses filtered projected max
-  const healthRemainingVsProjectedMax = filteredRemainingVsProjectedMax;
-
   // Bar segments
   const segments: BudgetBarSegment[] = [
     {
@@ -450,6 +480,17 @@ export function BudgetOverviewPage() {
 
   // Payback visibility flag
   const hasPayback = overview.subsidySummary.maxTotalPayback > 0;
+
+  // Determine remaining values for health indicator
+  const remainingMin = hasPayback
+    ? overview.remainingVsMinPlannedWithPayback
+    : overview.remainingVsMinPlanned;
+  const remainingMax = hasPayback
+    ? overview.remainingVsMaxPlannedWithPayback
+    : overview.remainingVsMaxPlanned;
+
+  // BudgetHealthIndicator uses payback-adjusted remaining vs max projected
+  const healthRemainingVsProjectedMax = remainingMax;
 
   // Remaining perspectives detail items (uses filtered where sensible)
   const remainingDetailItems: RemainingDetail[] = [
@@ -526,7 +567,7 @@ export function BudgetOverviewPage() {
           </div>
 
           {/* Key metrics row */}
-          <div className={styles.metricsRow}>
+          <div className={`${styles.metricsRow} ${hasPayback ? styles.metricsRowWithPayback : ''}`}>
             {/* Available Funds */}
             <div className={styles.metricGroup}>
               <span className={styles.metricLabel}>Available Funds</span>
@@ -556,23 +597,15 @@ export function BudgetOverviewPage() {
                   onClick={() => setRemainingDetailOpen((v) => !v)}
                 >
                   <span
-                    className={
-                      filteredRemainingVsProjectedMin >= 0
-                        ? styles.metricPositive
-                        : styles.metricNegative
-                    }
+                    className={remainingMin >= 0 ? styles.metricPositive : styles.metricNegative}
                   >
-                    {formatShort(filteredRemainingVsProjectedMin)}
+                    {formatShort(remainingMin)}
                   </span>
                   <span className={styles.metricRangeSep}>&ndash;</span>
                   <span
-                    className={
-                      filteredRemainingVsProjectedMax >= 0
-                        ? styles.metricPositive
-                        : styles.metricNegative
-                    }
+                    className={remainingMax >= 0 ? styles.metricPositive : styles.metricNegative}
                   >
-                    {formatShort(filteredRemainingVsProjectedMax)}
+                    {formatShort(remainingMax)}
                   </span>
                   <span className={styles.metricHint} aria-hidden="true">
                     &#9432;
@@ -588,6 +621,29 @@ export function BudgetOverviewPage() {
                 <RemainingDetailPanel items={remainingDetailItems} />
               </div>
             </div>
+
+            {/* Expected Payback (only when hasPayback) */}
+            {hasPayback && (
+              <div className={styles.metricGroup}>
+                <span className={styles.metricLabel}>Expected Payback</span>
+                <span
+                  className={`${styles.metricValue} ${styles.metricPaybackValue}`}
+                  aria-live="polite"
+                  aria-atomic="true"
+                >
+                  <span className={styles.metricRange}>
+                    {formatShort(overview.subsidySummary.minTotalPayback)}
+                    {overview.subsidySummary.minTotalPayback !==
+                    overview.subsidySummary.maxTotalPayback ? (
+                      <>
+                        <span className={styles.metricRangeSep}>&ndash;</span>
+                        {formatShort(overview.subsidySummary.maxTotalPayback)}
+                      </>
+                    ) : null}
+                  </span>
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Stacked bar */}
@@ -625,42 +681,6 @@ export function BudgetOverviewPage() {
             />
           </div>
 
-          {/* Footer row */}
-          <div className={styles.heroFooter}>
-            <span className={styles.footerItem}>
-              Subsidies: <strong>{formatCurrency(overview.subsidySummary.totalReductions)}</strong>
-              {' ('}
-              {overview.subsidySummary.activeSubsidyCount}{' '}
-              {overview.subsidySummary.activeSubsidyCount === 1 ? 'program' : 'programs'}
-              {')'}
-            </span>
-            {hasPayback && (
-              <span
-                className={`${styles.footerItem} ${styles.footerItemPayback}`}
-                aria-live="polite"
-                aria-atomic="true"
-                aria-label={
-                  overview.subsidySummary.minTotalPayback ===
-                  overview.subsidySummary.maxTotalPayback
-                    ? `Expected payback: ${formatCurrency(overview.subsidySummary.minTotalPayback)}`
-                    : `Expected payback: ${formatCurrency(overview.subsidySummary.minTotalPayback)} to ${formatCurrency(overview.subsidySummary.maxTotalPayback)}`
-                }
-              >
-                Expected payback:{' '}
-                <strong>
-                  {formatCurrency(overview.subsidySummary.minTotalPayback)}
-                  {overview.subsidySummary.minTotalPayback !==
-                  overview.subsidySummary.maxTotalPayback
-                    ? ` \u2013 ${formatCurrency(overview.subsidySummary.maxTotalPayback)}`
-                    : ''}
-                </strong>
-              </span>
-            )}
-            <span className={styles.footerItem}>
-              Sources: <strong>{overview.sourceCount}</strong>
-            </span>
-          </div>
-
           {/* Category filter */}
           {overview.categorySummaries.length > 0 && (
             <div className={styles.categoryFilterRow}>
@@ -672,6 +692,25 @@ export function BudgetOverviewPage() {
             </div>
           )}
         </section>
+
+        {/* Cost Breakdown Table */}
+        {overview &&
+          (isBreakdownLoading ? (
+            <div
+              className={styles.breakdownLoading}
+              role="status"
+              aria-label="Loading cost breakdown"
+            >
+              <p>Loading cost breakdown…</p>
+            </div>
+          ) : breakdown ? (
+            <CostBreakdownTable
+              breakdown={breakdown}
+              overview={overview}
+              selectedCategories={selectedCategories}
+              budgetSources={budgetSources}
+            />
+          ) : null)}
       </div>
     </div>
   );

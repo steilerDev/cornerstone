@@ -19,7 +19,7 @@ import ThemedImage from '@theme/ThemedImage';
 
 # Cornerstone
 
-A self-hosted home building project management tool for homeowners. Track work items, budgets, timelines, and household item purchases from a single Docker container backed by SQLite -- no external database required.
+A self-hosted home building project management tool for homeowners. Track work items, budgets, timelines, household items, and documents from a single Docker container backed by SQLite -- no external database required.
 
 ## Who is Cornerstone for?
 
@@ -36,13 +36,14 @@ Cornerstone is designed for **homeowners managing a construction or renovation p
 - **Timeline & Gantt Chart** -- Interactive Gantt chart with dependency arrows, critical path highlighting, zoom controls, milestones, and automatic scheduling via the Critical Path Method
 - **Calendar View** -- Monthly and weekly calendar grids showing work items and milestones
 - **Milestones** -- Track major project checkpoints with target dates, projected completion, and late detection
+- **Household Items** -- Track furniture, appliances, and fixtures with categories, delivery scheduling, budget integration, work item linking, and timeline dependencies
 - **Authentication** -- Local accounts with first-run setup wizard, plus OIDC single sign-on for existing identity providers
 - **User Management** -- Admin and Member roles with a dedicated admin panel
 - **Document Integration** -- Browse, search, and link documents from a connected [Paperless-ngx](https://docs.paperless-ngx.com/) instance to work items and invoices
 - **Dark Mode** -- Light, Dark, or System theme with instant switching
 - **Design System** -- Consistent visual language with CSS custom property tokens
 
-See the [Roadmap](roadmap) for upcoming features like household item tracking and reporting.
+See the [Roadmap](roadmap) for upcoming features like reporting and dashboards.
 
 ## Quick Links
 
@@ -50,6 +51,7 @@ See the [Roadmap](roadmap) for upcoming features like household item tracking an
 - [Work Items Guide](guides/work-items) -- Learn how to manage your project tasks
 - [Budget Guide](guides/budget) -- Track costs, invoices, and financing sources
 - [Timeline Guide](guides/timeline) -- Gantt chart, calendar view, and milestones
+- [Household Items Guide](guides/household-items) -- Manage furniture, appliances, and fixture purchases
 - [Documents Guide](guides/documents) -- Paperless-ngx integration for document linking
 - [OIDC Setup](guides/users/oidc-setup) -- Connect your identity provider
 - [Development](development) -- How Cornerstone is built by an AI agent team

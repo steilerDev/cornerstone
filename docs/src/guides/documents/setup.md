@@ -11,10 +11,11 @@ To enable the document integration, configure two environment variables and rest
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `PAPERLESS_URL` | Yes | Base URL of your Paperless-ngx instance (e.g., `https://paperless.example.com`) |
+| `PAPERLESS_URL` | Yes | Base URL of your Paperless-ngx instance used by the server for API calls (e.g., `http://paperless:8000` in Docker) |
 | `PAPERLESS_API_TOKEN` | Yes | API authentication token from Paperless-ngx |
+| `PAPERLESS_EXTERNAL_URL` | No | Browser-facing URL for Cornerstone browser links to Paperless-ngx (e.g., `https://paperless.example.com`). If unset, falls back to `PAPERLESS_URL`. |
 
-Both variables must be set for the integration to activate. If either is missing, Cornerstone will show a "Not Configured" message on the Documents page and in the document linking sections.
+`PAPERLESS_URL` and `PAPERLESS_API_TOKEN` must be set for the integration to activate. If either is missing, Cornerstone will show a "Not Configured" message on the Documents page and in the document linking sections.
 
 ### Getting Your API Token
 
@@ -32,6 +33,21 @@ docker run -d \
   -v cornerstone-data:/app/data \
   -e PAPERLESS_URL=https://paperless.example.com \
   -e PAPERLESS_API_TOKEN=your-api-token-here \
+  -e PAPERLESS_EXTERNAL_URL=https://paperless.example.com \
+  steilerdev/cornerstone:latest
+```
+
+If Cornerstone and Paperless-ngx are on the same Docker network, you can use separate URLs:
+
+```bash
+docker run -d \
+  --name cornerstone \
+  -p 3000:3000 \
+  -v cornerstone-data:/app/data \
+  --network my-network \
+  -e PAPERLESS_URL=http://paperless:8000 \
+  -e PAPERLESS_API_TOKEN=your-api-token-here \
+  -e PAPERLESS_EXTERNAL_URL=https://paperless.example.com \
   steilerdev/cornerstone:latest
 ```
 
@@ -50,6 +66,7 @@ services:
     environment:
       PAPERLESS_URL: https://paperless.example.com
       PAPERLESS_API_TOKEN: your-api-token-here
+      PAPERLESS_EXTERNAL_URL: https://paperless.example.com
 ```
 
 Or set them in your `.env` file:
@@ -57,6 +74,33 @@ Or set them in your `.env` file:
 ```env
 PAPERLESS_URL=https://paperless.example.com
 PAPERLESS_API_TOKEN=your-api-token-here
+PAPERLESS_EXTERNAL_URL=https://paperless.example.com
+```
+
+For a Docker network setup where Cornerstone and Paperless-ngx are connected internally:
+
+```yaml
+services:
+  cornerstone:
+    image: steilerdev/cornerstone:latest
+    ports:
+      - '3000:3000'
+    volumes:
+      - cornerstone-data:/app/data
+    networks:
+      - internal
+    environment:
+      PAPERLESS_URL: http://paperless:8000
+      PAPERLESS_API_TOKEN: your-api-token-here
+      PAPERLESS_EXTERNAL_URL: https://paperless.example.com
+
+  paperless:
+    image: ghcr.io/paperless-ngx/paperless-ngx:latest
+    networks:
+      - internal
+
+networks:
+  internal:
 ```
 
 ## Network Requirements

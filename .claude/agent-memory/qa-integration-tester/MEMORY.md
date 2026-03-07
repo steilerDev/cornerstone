@@ -9,8 +9,73 @@ Worktrees have no `node_modules`. To run tests from a worktree:
 
 1. Create symlinks: `ln -sf /main/node_modules /worktree/node_modules` and `ln -sf /main/server/node_modules /worktree/server/node_modules`
 2. Run from the WORKTREE directory: `node --experimental-vm-modules /main/node_modules/.bin/jest "path/to/test.ts" --no-coverage`
+3. **This worktree already has node_modules** — node_modules are present in the worktree directly. Run jest directly without symlink step.
+4. **SIGILL (exit 132) crash**: In sandbox environments, Jest may crash with SIGILL when spawning worker processes (due to CPU instruction set incompatibility). If `--maxWorkers=1` still crashes, tests cannot be run locally — commit and rely on CI. The pre-commit hook will also show SIGILL errors but still creates the commit.
+
+## EPIC-04 Worktree @cornerstone/shared Symlink Fix
+
+When testing new stories that add types to `shared/`, the worktree's `node_modules/@cornerstone/shared` symlink resolves to the **main repo's shared** (not the worktree's). The main repo won't have the new types built yet.
+
+**Fix**: Update the symlink to point to the worktree's own shared directory:
+
+```bash
+rm node_modules/@cornerstone/shared
+ln -s /absolute/path/to/worktree/shared node_modules/@cornerstone/shared
+```
+
+Also rebuild the worktree's shared: `node_modules/.bin/tsc -p shared/tsconfig.json`
+
+Do NOT use `import type { Foo } from '@cornerstone/shared'` in test files if Foo is a newly added type — instead use `Parameters<typeof service.method>[N]` to derive types from the service function signatures.
+
+## Schema Quirk: tags table has NO updated_at
+
+The `tags` table (migration 0002) only has: `id, name, color, created_at` — NO `updated_at`. `TagResponse` also has no `updatedAt`. Do not include this field in test inserts or type assertions.
 
 - Do NOT cast `mockGet.mock.calls[0] as [string]` — TypeScript strict mode rejects empty arrays cast to tuple. Use `expect(mockGet).not.toHaveBeenCalledWith(expect.stringContaining(...))` pattern instead.
+
+## Story #415 HI Timeline Deps (2026-03-03, PR #416)
+
+See `story-415-household-item-timeline-deps.md` for full details. Key learnings:
+
+- **SVG `className` in jsdom**: Returns `SVGAnimatedString`, NOT a string. Use `element.getAttribute('class') ?? ''`.
+- **`autoReschedule()` does NOT have an early return when no work items exist** — it continues to process
+  HI delivery dates even when `allWorkItems.length === 0`. The guard on line 677 only skips fetching
+  `workItemDependencies`, not the HI delivery date computation. Tests can create HIs with only
+  `earliestDeliveryDate` (no work item dep) and still get a computed `targetDeliveryDate`.
+- **ConflictError**: always uses `'CONFLICT'` as error.code (not `'DUPLICATE_DEPENDENCY'` — that's in details).
+- **Bug #417**: `fetchLinkedHouseholdItems` calls wrong URL → breaks WorkItemDetailPage → E2E smoke test failure.
+- **Typed mock pattern**: `jest.fn<typeof ApiTypes.method>()` in factory; `mockFn.mockResolvedValue()` in `beforeEach`.
+
+## Bug #482: HI Schedule Not Recalculated on Constraint Change (2026-03-06)
+
+Test file: `server/src/services/householdItemService.reschedule.test.ts` (10 tests).
+
+Key learnings on `autoReschedule` HI delivery date logic:
+
+- **`createHouseholdItem` does NOT call autoReschedule** — `targetDeliveryDate` is always `null` after creation.
+  A subsequent `updateHouseholdItem` with any scheduling field triggers the first reschedule.
+- **`isLate` for HIs is rarely true**: The CPM `maxES` defaults to `today`, so `earliestDeliveryDate` in
+  the past is a no-op (it's already covered by the floor). `isLate` only fires when `targetDate < today`
+  BEFORE the floor is applied — which can't happen when `maxES = today` is the starting point.
+  A WI dep also can't produce `predEF < today` because WIs are floored to today by CPM too.
+- **`status: 'planned'` + past `earliestDeliveryDate` → `targetDeliveryDate = TODAY, isLate = false`**
+  (not isLate=true as one might expect — see above).
+- **`actualDeliveryDate` overrides CPM**: When set, `targetDeliveryDate` becomes `actualDeliveryDate`
+  regardless of any constraint or dep date. `isLate` is always false when `actualDeliveryDate` is set.
+- **Worktree @cornerstone/shared fix needed**: When worktree adds fields to shared types, the
+  `node_modules/@cornerstone/shared` symlink points to the main repo's shared (which symlinks to
+  `../../shared` from the main `node_modules`). Fix: `rm node_modules/@cornerstone/shared &&
+ln -s /absolute/worktree/shared node_modules/@cornerstone/shared`, then rebuild with
+  `node_modules/.bin/tsc -p shared/tsconfig.json`.
+
+## Story #390 Household Item Create & Edit Forms (2026-03-03)
+
+- `Vendor` interface (shared/types/vendor.ts) has many required nullable fields: `phone`, `email`, `address`, `notes`, `createdBy`, `createdAt`, `updatedAt`. In vendor mock arrays, always include all fields or TypeScript strict-mode will reject.
+- `HouseholdItemVendorSummary` (used in `HouseholdItemDetail.vendor`) only has `id`, `name`, `specialty` — safe to use directly.
+- `HouseholdItemEditPage` error check: component checks `err.message.includes('404')`, `'not found'`, `'Not found'` for 404 detection — test all three variants.
+- Submit button text: Create page uses "Create Item"; Edit page uses "Save Changes".
+- Back button text: Create page "Back to Household Items"; Edit page "Back to Item".
+- useToast mock pattern (same as TimelinePage): `jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({ ToastProvider: ..., useToast: () => ({ toasts: [], showToast: jest.fn(), dismissToast: jest.fn() }) }))`.
 
 ## Story #360 Document Responsive & A11y (2026-03-02)
 
@@ -433,14 +498,6 @@ NODE_PATH=/path/to/cornerstone/server/node_modules:/path/to/cornerstone/client/n
 
 ## Story 6.2 (Scheduling Engine CPM, #248) — Key Patterns (2026-02-24)
 
-### ARM64 Prettier Fix Workflow
-
-- `npx prettier --check <file>` works on ARM64 (unlike Jest/ESLint)
-- Run BEFORE every `git commit --no-verify` to catch formatting issues early
-- Prettier COLLAPSES arrays/objects to single line if they fit within 100 chars
-  → Don't manually expand `[makeItem('A', 5), makeItem('B', 3, { key: 'val' })]` — 89 chars fits on one line
-- Two-line diagnosis: "warn: file.ts" only — use `npx prettier --write <file>` then `git diff` to see what changed
-
 ### CPM Engine Behavior
 
 - `today` floor ONLY for predecessor-less items (line 408-410 of schedulingEngine.ts)
@@ -617,3 +674,73 @@ For components that call fetch internally (WorkItemSelector, MilestonePanel):
 - `screen.queryByRole('toolbar', { name: /column size/i })` should return null
 - Check mode toggle toolbar has exactly 2 buttons (Month + Week)
 - `calendarSize` URL param should be silently ignored (grid renders normally)
+
+## Story #480 Budget Overview Refinement — CostBreakdownTable + BudgetOverviewPage (2026-03-06)
+
+Key learnings from updating these two test files:
+
+- **`budgetSources` prop is now required** on `CostBreakdownTable`. All existing test renders needed `budgetSources={[]}` added. When updating tests for a prop change, grep ALL render calls in the file — missing one causes TS errors.
+- **CSS module class selectors with identity-obj-proxy**: `container.querySelectorAll('.rowActual')` works because identity-obj-proxy returns the class name as-is. `[class*="metricRangeSep"]` also works for substring matching.
+- **`formatShort()` rounding**: `(7500/1000).toFixed(0)` rounds to `"8"` → displays as `€8K`, NOT `€7K`. Always verify rounding manually for test assertions against `formatShort`.
+- **`role="radio"` in radiogroup**: PerspectiveToggle uses `role="radio"` on buttons (not native `<input type="radio">`). Select with `screen.getByRole('radio', { name: 'Min' })`.
+- **Multiple API mocks**: When a page calls `fetchBudgetSources` from `budgetSourcesApi.js` (separate module), mock it with a SECOND `jest.unstable_mockModule()` call. Include all 5 exports (not just `fetchBudgetSources`) to avoid import errors.
+- **Level-0 row label changes**: Component now uses lowercase: `"Available funds"`, `"Work items"`, `"Household items"` (not `"Available Funds"`, `"Work Item Budget"`, `"Household Item Budget"`). Column headers: `"Cost"` (not `"Budget"`), `"Net"` (not `"Remaining"`). Always re-read the component source before writing assertions.
+- **Available Funds expand button aria-label**: `"Expand available funds sources"` — query with `/expand available funds/i`.
+- **Tsc validates test files without running them**: `node_modules/.bin/tsc --noEmit --project client/tsconfig.json 2>&1 | grep "TestFile"` — useful when Jest crashes (SIGILL/TypeScript version mismatch in sandbox).
+- **TypeScript version mismatch**: Main repo node_modules has TypeScript incompatible with Node.js v24 in this sandbox (SyntaxError on load). Tests cannot be run locally; commit and rely on CI.
+
+## Bug #484 Milestone CPM Tests (fix/484-milestone-critical-path, 2026-03-06)
+
+### CPM float math for milestone non-critical scenario
+
+A milestone has positive float (NOT critical) ONLY when there is a longer sibling path
+**downstream** of it that converges to the same shared terminal node. Correct test pattern:
+
+```
+wi-a (1d) → milestone:1 (0d) → wi-c (2d)   [path total: 3d]
+wi-a (1d) → wi-b (10d) → wi-c (2d)          [path total: 13d — longer path]
+```
+
+Both paths converge on `wi-c`. Backward pass: `wi-c` LS = day11 (from wi-b path).
+`milestone:1` LF = LS of `wi-c` = day11. float = day11 - day1 = 10 days → NOT critical.
+
+**Anti-pattern**: Two independent terminal nodes (no shared successor) each have 0 float
+independently — so the milestone IS critical even with a longer sibling path that doesn't
+share the same terminal. Always ensure paths converge to a shared terminal node.
+
+### New test files added
+
+- `server/src/services/schedulingEngine.milestoneCpm.test.ts` — 15 tests (pure `schedule()` + `autoReschedule` DB writes)
+- `server/src/services/timelineService.test.ts` — 9 new tests in existing file (isCritical propagation, criticalPath filtering)
+- `client/src/components/GanttChart/GanttMilestones.test.tsx` — 20 new tests in existing file (strokeWidth, ghost diamond, aria-label)
+
+### Critical milestone aria-label pattern
+
+`GanttMilestones.tsx` builds: `Milestone: ${title}, ${statusLabel}${isCritical ? ', critical path' : ''}, target date ${date}`
+Test: `expect(label.toLowerCase()).toContain('critical path')` for critical; `.not.toContain` for non-critical.
+
+### Ghost diamond never inherits critical strokeWidth
+
+Ghost polygon always has `strokeWidth={1.5}` and `strokeDasharray` regardless of `isCritical`.
+The active diamond (last polygon in group for late milestones) gets `strokeWidth={3}` when critical.
+
+## Story 4.7 Work Item Linking Tests (2026-03-03)
+
+**57 comprehensive tests committed: 15 service + 20 route integration + 22 API client**
+
+Key learnings:
+
+- **HouseholdItemStatus enum**: valid values are `'not_ordered' | 'ordered' | 'in_transit' | 'delivered'`
+  (NOT `'not_started'` which is only for WorkItems). Always use correct status in tests.
+- **Household items schema fields**: `vendorId`, `url`, `room`, `quantity`, `orderDate`, `expectedDeliveryDate`, `actualDeliveryDate`
+  (NOT `vendor: null` or `cost: null`). Full insert example in service test.
+- **Drizzle ORM WHERE clauses**: must use `eq(schema.table.column, value)` (NOT column comparison)
+  and `and()` operator for multiple conditions. Never use lambda comparison `(t) => t.col === val`.
+- **Valid HouseholdItemCategory values**: `'furniture' | 'appliances' | 'fixtures' | 'decor' | 'electronics' | 'outdoor' | 'storage' | 'other'`
+  (NOT `'flooring'`). Reference tests check all 8 values.
+- **API client test patterns**: 4 functions (fetch linked, link, unlink both directions) use standard mock fetch pattern
+  with `jest.fn<typeof globalThis.fetch>()` and error assertions for all non-OK statuses.
+- **Route test patterns**: household item and work item route tests follow established pattern
+  (buildApp + temp-file SQLite + createUserWithSession + createTestWorkItem/HouseholdItem helpers).
+- **Test count**: 57 tests total, categorized as: 8 auth, 21 success path (201/204/200), 1 validation (400),
+  15 not found (404), 2 conflict (409), 5 error handling (500), 5 data shape validation.

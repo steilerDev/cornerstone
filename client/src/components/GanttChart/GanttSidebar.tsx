@@ -1,13 +1,18 @@
 import { forwardRef, useRef, useCallback } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
-import type { TimelineWorkItem, TimelineMilestone } from '@cornerstone/shared';
+import type {
+  TimelineWorkItem,
+  TimelineMilestone,
+  TimelineHouseholdItem,
+} from '@cornerstone/shared';
 import { ROW_HEIGHT, HEADER_HEIGHT } from './ganttUtils.js';
 import styles from './GanttSidebar.module.css';
 
 /** Discriminated union for interleaved sidebar rows. */
 export type UnifiedRow =
   | { kind: 'workItem'; item: TimelineWorkItem }
-  | { kind: 'milestone'; milestone: TimelineMilestone };
+  | { kind: 'milestone'; milestone: TimelineMilestone }
+  | { kind: 'householdItem'; item: TimelineHouseholdItem };
 
 export interface GanttSidebarProps {
   items: TimelineWorkItem[];
@@ -17,6 +22,8 @@ export interface GanttSidebarProps {
   unifiedRows?: UnifiedRow[];
   /** Called when user clicks a sidebar row — navigate to the work item. */
   onItemClick?: (id: string) => void;
+  /** Called when user clicks a household item sidebar row — navigate to the household item. */
+  onHouseholdItemClick?: (id: string) => void;
 }
 
 /**
@@ -30,7 +37,7 @@ export interface GanttSidebarProps {
  * - Enter/Space: activate (navigate to work item detail)
  */
 export const GanttSidebar = forwardRef<HTMLDivElement, GanttSidebarProps>(function GanttSidebar(
-  { items, milestones = [], unifiedRows, onItemClick },
+  { items, unifiedRows, onItemClick, onHouseholdItemClick },
   ref,
 ) {
   // Ref for the rows container to query row elements
@@ -56,11 +63,38 @@ export const GanttSidebar = forwardRef<HTMLDivElement, GanttSidebarProps>(functi
           const nextRow = rows[nextIdx];
           nextRow.focus();
           // Scroll the row into view within the sidebar
-          nextRow.scrollIntoView({ block: 'nearest' });
+          nextRow.scrollIntoView?.({ block: 'nearest' });
         }
       }
     },
     [onItemClick],
+  );
+
+  const handleHiKeyDown = useCallback(
+    (e: ReactKeyboardEvent<HTMLDivElement>, idx: number, hiId: string) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        onHouseholdItemClick?.(hiId);
+        return;
+      }
+
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        const container = rowsRef.current;
+        if (!container) return;
+
+        const rows = container.querySelectorAll<HTMLDivElement>('[data-gantt-sidebar-row]');
+        const nextIdx = e.key === 'ArrowDown' ? idx + 1 : idx - 1;
+
+        if (nextIdx >= 0 && nextIdx < rows.length) {
+          const nextRow = rows[nextIdx];
+          nextRow.focus();
+          // Scroll the row into view within the sidebar
+          nextRow.scrollIntoView?.({ block: 'nearest' });
+        }
+      }
+    },
+    [onHouseholdItemClick],
   );
 
   return (
@@ -119,7 +153,7 @@ export const GanttSidebar = forwardRef<HTMLDivElement, GanttSidebarProps>(functi
                     </span>
                   </div>
                 );
-              } else {
+              } else if (row.kind === 'milestone') {
                 const milestone = row.milestone;
                 return (
                   <div
@@ -143,6 +177,38 @@ export const GanttSidebar = forwardRef<HTMLDivElement, GanttSidebarProps>(functi
                     </svg>
                     <span className={styles.sidebarMilestoneLabel} title={milestone.title}>
                       {milestone.title}
+                    </span>
+                  </div>
+                );
+              } else {
+                // householdItem
+                const hi = row.item;
+                return (
+                  <div
+                    key={`hi-${hi.id}`}
+                    className={`${styles.sidebarRow} ${styles.sidebarHouseholdItemRow} ${isEven ? styles.sidebarRowEven : styles.sidebarRowOdd}`}
+                    style={{ height: ROW_HEIGHT }}
+                    role="listitem"
+                    tabIndex={0}
+                    onClick={() => onHouseholdItemClick?.(hi.id)}
+                    onKeyDown={(e) => handleHiKeyDown(e, idx, hi.id)}
+                    aria-label={`Household item: ${hi.name}`}
+                    data-testid={`gantt-sidebar-hi-${hi.id}`}
+                    data-gantt-sidebar-row={idx}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 10 10"
+                      width="8"
+                      height="8"
+                      aria-hidden="true"
+                      className={styles.householdItemCircleIcon}
+                      style={{ flexShrink: 0 }}
+                    >
+                      <circle cx="5" cy="5" r="4" fill="currentColor" />
+                    </svg>
+                    <span className={styles.sidebarHouseholdItemLabel} title={hi.name}>
+                      {hi.name}
                     </span>
                   </div>
                 );

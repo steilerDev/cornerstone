@@ -11,7 +11,12 @@
 
 import { useState, useCallback, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import type { TimelineWorkItem, TimelineMilestone, TimelineDependency } from '@cornerstone/shared';
+import type {
+  TimelineWorkItem,
+  TimelineMilestone,
+  TimelineDependency,
+  TimelineHouseholdItem,
+} from '@cornerstone/shared';
 import { useTouchTooltip } from '../../hooks/useTouchTooltip.js';
 import { MonthGrid } from './MonthGrid.js';
 import { WeekGrid } from './WeekGrid.js';
@@ -45,6 +50,7 @@ export type CalendarMode = 'month' | 'week';
 export interface CalendarViewProps {
   workItems: TimelineWorkItem[];
   milestones: TimelineMilestone[];
+  householdItems?: TimelineHouseholdItem[];
   /** Dependency edges — used to populate the tooltip Dependencies section. */
   dependencies?: TimelineDependency[];
   /** Called when user clicks a milestone diamond — opens the milestone panel. */
@@ -129,6 +135,7 @@ const TOOLTIP_ID = 'calendar-view-tooltip';
 export function CalendarView({
   workItems,
   milestones,
+  householdItems = [],
   dependencies = [],
   onMilestoneClick,
 }: CalendarViewProps) {
@@ -533,6 +540,7 @@ export function CalendarView({
             month={displayMonth}
             workItems={workItems}
             milestones={milestones}
+            householdItems={householdItems}
             onMilestoneClick={onMilestoneClick}
             hoveredItemId={hoveredItemId}
             onItemMouseEnter={handleWorkItemMouseEnter}
@@ -550,6 +558,7 @@ export function CalendarView({
             weekDate={weekDate}
             workItems={workItems}
             milestones={milestones}
+            householdItems={householdItems}
             onMilestoneClick={onMilestoneClick}
             hoveredItemId={hoveredItemId}
             onItemMouseEnter={handleWorkItemMouseEnter}

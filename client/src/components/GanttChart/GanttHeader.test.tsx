@@ -50,12 +50,12 @@ describe('GanttHeader', () => {
   });
 
   it('renders no cells when cells array is empty', () => {
-    const { container } = render(
+    render(
       <GanttHeader cells={[]} zoom="month" totalWidth={1000} todayX={null} todayColor="#ef4444" />,
     );
-    const header = screen.getByTestId('gantt-header');
+    const _header = screen.getByTestId('gantt-header');
     // Should only contain no header-cell divs
-    const cellDivs = container.querySelectorAll('.headerCell');
+    const cellDivs = document.querySelectorAll('.headerCell');
     expect(cellDivs).toHaveLength(0);
   });
 

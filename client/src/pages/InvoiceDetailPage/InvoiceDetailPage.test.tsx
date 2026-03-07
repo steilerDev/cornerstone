@@ -7,6 +7,7 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import type { Invoice } from '@cornerstone/shared';
 import type * as InvoicesApiTypes from '../../lib/invoicesApi.js';
 import type * as WorkItemBudgetsApiTypes from '../../lib/workItemBudgetsApi.js';
+import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
 import type * as InvoiceDetailPageTypes from './InvoiceDetailPage.js';
 
 // ─── Module-scope mock functions ──────────────────────────────────────────────
@@ -15,6 +16,7 @@ const mockFetchInvoiceById = jest.fn<typeof InvoicesApiTypes.fetchInvoiceById>()
 const mockUpdateInvoice = jest.fn<typeof InvoicesApiTypes.updateInvoice>();
 const mockDeleteInvoice = jest.fn<typeof InvoicesApiTypes.deleteInvoice>();
 const mockFetchWorkItemBudgets = jest.fn<typeof WorkItemBudgetsApiTypes.fetchWorkItemBudgets>();
+const mockListHouseholdItems = jest.fn<typeof HouseholdItemsApiTypes.listHouseholdItems>();
 
 // ─── Mock: invoicesApi ─────────────────────────────────────────────────────────
 
@@ -36,10 +38,26 @@ jest.unstable_mockModule('../../lib/workItemBudgetsApi.js', () => ({
   deleteWorkItemBudget: jest.fn(),
 }));
 
+// ─── Mock: householdItemsApi ───────────────────────────────────────────────
+
+jest.unstable_mockModule('../../lib/householdItemsApi.js', () => ({
+  listHouseholdItems: mockListHouseholdItems,
+  createHouseholdItem: jest.fn(),
+  getHouseholdItem: jest.fn(),
+  updateHouseholdItem: jest.fn(),
+  deleteHouseholdItem: jest.fn(),
+}));
+
 // ─── Mock: WorkItemPicker ──────────────────────────────────────────────────────
 
 jest.unstable_mockModule('../../components/WorkItemPicker/WorkItemPicker.js', () => ({
   WorkItemPicker: () => null,
+}));
+
+// ─── Mock: HouseholdItemPicker ─────────────────────────────────────────────────
+
+jest.unstable_mockModule('../../components/HouseholdItemPicker/HouseholdItemPicker.js', () => ({
+  HouseholdItemPicker: () => null,
 }));
 
 // ─── Mock: LinkedDocumentsSection stub ────────────────────────────────────────
@@ -100,6 +118,8 @@ const mockInvoice: Invoice = {
   vendorName: 'Acme Construction',
   workItemBudgetId: null,
   workItemBudget: null,
+  householdItemBudgetId: null,
+  householdItemBudget: null,
   invoiceNumber: 'INV-2026-001',
   amount: 1500.0,
   date: '2026-01-15',
@@ -122,10 +142,15 @@ beforeEach(async () => {
   mockUpdateInvoice.mockReset();
   mockDeleteInvoice.mockReset();
   mockFetchWorkItemBudgets.mockReset();
+  mockListHouseholdItems.mockReset();
 
   // Default: successful load
   mockFetchInvoiceById.mockResolvedValue(mockInvoice);
   mockFetchWorkItemBudgets.mockResolvedValue([]);
+  mockListHouseholdItems.mockResolvedValue({
+    items: [],
+    pagination: { page: 1, pageSize: 25, totalItems: 0, totalPages: 0 },
+  });
 
   // Deferred import after mock registration
   const module = (await import('./InvoiceDetailPage.js')) as typeof InvoiceDetailPageTypes;
@@ -140,10 +165,10 @@ afterEach(() => {
 
 function renderPage(id = MOCK_INVOICE_ID) {
   return render(
-    <MemoryRouter initialEntries={[`/budget/invoices/${id}`]}>
+    <MemoryRouter initialEntries={[`/invoices/${id}`]}>
       <Routes>
-        <Route path="/budget/invoices/:id" element={<InvoiceDetailPage />} />
-        <Route path="/budget/invoices" element={<div>Invoice List Page</div>} />
+        <Route path="/invoices/:id" element={<InvoiceDetailPage />} />
+        <Route path="/invoices" element={<div>Invoice List Page</div>} />
       </Routes>
     </MemoryRouter>,
   );
@@ -207,8 +232,8 @@ describe('InvoiceDetailPage', () => {
     it('renders the formatted amount', async () => {
       renderPage();
 
-      // Amount 1500 formatted as currency ($1,500.00)
-      await waitFor(() => expect(screen.getByText(/1,500/)).toBeInTheDocument());
+      // Amount 1500 formatted as currency (mock returns $1500.00)
+      await waitFor(() => expect(screen.getByText('$1500.00')).toBeInTheDocument());
     });
 
     it('renders the status badge', async () => {

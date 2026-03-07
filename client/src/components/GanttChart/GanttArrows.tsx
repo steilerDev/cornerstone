@@ -71,6 +71,20 @@ export interface GanttArrowsProps {
    */
   milestoneTitles?: ReadonlyMap<number, string>;
   /**
+   * Map from HI ID to its circle center position in SVG coordinates.
+   * Required to draw household item dependency arrows.
+   */
+  hiPoints?: ReadonlyMap<string, { x: number; y: number }>;
+  /**
+   * List of household items with their dependencies.
+   * Used to draw arrows from work items/milestones to HI delivery dates.
+   */
+  householdItems?: Array<{
+    id: string;
+    name: string;
+    dependencyIds: Array<{ predecessorType: 'work_item' | 'milestone'; predecessorId: string }>;
+  }>;
+  /**
    * Called when the user hovers or focuses an arrow.
    * Receives the set of connected entity IDs (work item string IDs and
    * milestone IDs encoded as `"milestone:<id>"`) and the human-readable
@@ -169,6 +183,8 @@ export const GanttArrows = memo(function GanttArrows({
   milestoneContributors,
   workItemRequiredMilestones,
   milestoneTitles,
+  hiPoints,
+  householdItems,
   onArrowHover,
   onArrowMouseMove,
   onArrowLeave,
@@ -356,8 +372,92 @@ export const GanttArrows = memo(function GanttArrows({
     return results;
   }, [criticalPathOrder, criticalPathSet, dependencies, barRects, workItemTitles]);
 
+  // Pre-compute household item dependency arrows from work items/milestones to HI circles
+  const hiArrows = useMemo(() => {
+    const results: Array<{
+      key: string;
+      arrowPath: ArrowPath;
+      description: string;
+      connectedIds: Set<string>;
+    }> = [];
+
+    if (!hiPoints || !householdItems) {
+      return results;
+    }
+
+    // Helper: create a BarRect for an HI circle (zero width, positioned at center)
+    const hiBarRect = (hiId: string): BarRect | null => {
+      const point = hiPoints!.get(hiId);
+      if (!point) return null;
+      // Compute row index from y position
+      const rowIndex = Math.round((point.y - ROW_HEIGHT / 2) / ROW_HEIGHT);
+      return { x: point.x, width: 0, rowIndex };
+    };
+
+    for (const hi of householdItems) {
+      const hiRect = hiBarRect(hi.id);
+      if (!hiRect) continue;
+
+      const hiName = hi.name ?? `Household Item ${hi.id}`;
+
+      // For each dependency (work item or milestone predecessor)
+      for (const dep of hi.dependencyIds) {
+        let predRect: BarRect | null = null;
+        let predTitle = '';
+        let arrowKey = '';
+
+        if (dep.predecessorType === 'work_item') {
+          predRect = barRects.get(dep.predecessorId) ?? null;
+          predTitle = workItemTitles.get(dep.predecessorId) ?? dep.predecessorId;
+          arrowKey = `hi-dep-wi-${dep.predecessorId}-${hi.id}`;
+        } else if (dep.predecessorType === 'milestone') {
+          // Create a BarRect for the milestone
+          const milestoneId = parseInt(dep.predecessorId, 10);
+          if (!isNaN(milestoneId)) {
+            const point = milestonePoints?.get(milestoneId);
+            if (point) {
+              const rowIndex = Math.round((point.y - ROW_HEIGHT / 2) / ROW_HEIGHT);
+              predRect = { x: point.x, width: 0, rowIndex };
+              predTitle = milestoneTitles?.get(milestoneId) ?? `Milestone ${milestoneId}`;
+              arrowKey = `hi-dep-ms-${milestoneId}-${hi.id}`;
+            }
+          }
+        }
+
+        if (!predRect) continue;
+
+        const arrowPath = computeArrowPath(predRect, hiRect, 'finish_to_start', 0);
+        const description =
+          dep.predecessorType === 'work_item'
+            ? `${predTitle} must be complete before ${hiName} is delivered`
+            : `${predTitle} must be complete before ${hiName} is delivered`;
+
+        // Connected IDs: the predecessor (WI or milestone-prefixed) and HI
+        const connectedIds = new Set<string>();
+        if (dep.predecessorType === 'work_item') {
+          connectedIds.add(dep.predecessorId);
+        } else {
+          connectedIds.add(`milestone:${dep.predecessorId}`);
+        }
+        connectedIds.add(`hi:${hi.id}`);
+
+        results.push({
+          key: arrowKey,
+          arrowPath,
+          description,
+          connectedIds,
+        });
+      }
+    }
+
+    return results;
+  }, [hiPoints, householdItems, barRects, milestonePoints, workItemTitles, milestoneTitles]);
+
   const hasArrows =
-    arrows.length > 0 || milestoneArrows.length > 0 || implicitCriticalConnections.length > 0;
+    arrows.length > 0 ||
+    milestoneArrows.length > 0 ||
+    implicitCriticalConnections.length > 0 ||
+    hiArrows.length > 0;
 
   if (!hasArrows) {
     return null;
@@ -582,6 +682,51 @@ export const GanttArrows = memo(function GanttArrows({
 
       {/* Milestone linkage arrows (same style as default work-item arrows) */}
       {milestoneArrows.map((a) => {
+        const arrowhead = computeArrowhead(
+          a.arrowPath.tipX,
+          a.arrowPath.tipY,
+          a.arrowPath.tipDirection,
+          ARROWHEAD_SIZE,
+        );
+        const { handleEnter, handleLeave, handleMove, handleFocus, handleBlur } = makeArrowHandlers(
+          a.key,
+          a.connectedIds,
+          a.description,
+        );
+        return (
+          <g
+            key={a.key}
+            className={arrowGroupClass(a.key)}
+            opacity={arrowBaseOpacity(false)}
+            role="graphics-symbol"
+            tabIndex={visible ? 0 : -1}
+            aria-label={a.description}
+            onMouseEnter={handleEnter}
+            onMouseLeave={handleLeave}
+            onMouseMove={handleMove}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
+          >
+            <path d={a.arrowPath.pathD} className={styles.arrowHitArea} aria-hidden="true" />
+            <path
+              d={a.arrowPath.pathD}
+              stroke={colors.defaultArrow}
+              strokeWidth={ARROW_STROKE_DEFAULT}
+              className={styles.arrowDefault}
+              aria-hidden="true"
+            />
+            <polygon
+              points={arrowhead}
+              fill={colors.defaultArrow}
+              className={styles.arrowheadDefault}
+              aria-hidden="true"
+            />
+          </g>
+        );
+      })}
+
+      {/* Household item dependency arrows (from work items/milestones to HI delivery markers) */}
+      {hiArrows.map((a) => {
         const arrowhead = computeArrowhead(
           a.arrowPath.tipX,
           a.arrowPath.tipY,

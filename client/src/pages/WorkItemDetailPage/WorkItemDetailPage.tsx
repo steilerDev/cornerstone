@@ -19,6 +19,9 @@ import type {
   WorkItemMilestones,
   MilestoneSummary,
   WorkItemSubsidyPaybackResponse,
+  WorkItemLinkedHouseholdItemSummary,
+  HouseholdItemCategory,
+  HouseholdItemStatus,
 } from '@cornerstone/shared';
 import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
 import {
@@ -59,6 +62,7 @@ import {
   addLinkedMilestone,
   removeLinkedMilestone,
 } from '../../lib/workItemMilestonesApi.js';
+import { fetchLinkedHouseholdItems } from '../../lib/householdItemWorkItemsApi.js';
 import { TagPicker } from '../../components/TagPicker/TagPicker.js';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
@@ -85,6 +89,24 @@ const CONFIDENCE_LABELS: Record<ConfidenceLevel, string> = {
   professional_estimate: 'Professional Estimate',
   quote: 'Quote',
   invoice: 'Invoice',
+};
+
+const HOUSEHOLD_ITEM_CATEGORY_LABELS: Record<HouseholdItemCategory, string> = {
+  furniture: 'Furniture',
+  appliances: 'Appliances',
+  fixtures: 'Fixtures',
+  decor: 'Decor',
+  electronics: 'Electronics',
+  outdoor: 'Outdoor',
+  storage: 'Storage',
+  other: 'Other',
+};
+
+const HOUSEHOLD_ITEM_STATUS_LABELS: Record<HouseholdItemStatus, string> = {
+  planned: 'Planned',
+  purchased: 'Purchased',
+  scheduled: 'Scheduled',
+  arrived: 'Arrived',
 };
 
 /** Budget line form state used for both create and edit. */
@@ -151,6 +173,11 @@ export default function WorkItemDetailPage() {
 
   // Subsidy payback state
   const [subsidyPayback, setSubsidyPayback] = useState<WorkItemSubsidyPaybackResponse | null>(null);
+
+  // Linked household items state
+  const [linkedHouseholdItems, setLinkedHouseholdItems] = useState<
+    WorkItemLinkedHouseholdItemSummary[]
+  >([]);
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -245,6 +272,7 @@ export default function WorkItemDetailPage() {
           workItemMilestonesData,
           allMilestonesData,
           subsidyPaybackData,
+          linkedHouseholdItemsData,
         ] = await Promise.all([
           getWorkItem(id!),
           listNotes(id!),
@@ -261,6 +289,7 @@ export default function WorkItemDetailPage() {
           getWorkItemMilestones(id!),
           listMilestones(),
           fetchWorkItemSubsidyPayback(id!),
+          fetchLinkedHouseholdItems(id!),
         ]);
 
         setWorkItem(workItemData);
@@ -285,6 +314,7 @@ export default function WorkItemDetailPage() {
         setWorkItemMilestones(workItemMilestonesData);
         setAllMilestones(allMilestonesData);
         setSubsidyPayback(subsidyPaybackData);
+        setLinkedHouseholdItems(linkedHouseholdItemsData);
       } catch (err: unknown) {
         if ((err as { statusCode?: number })?.statusCode === 404) {
           setError('Work item not found');
@@ -1519,7 +1549,7 @@ export default function WorkItemDetailPage() {
                               {line.invoices.map((inv) => (
                                 <Link
                                   key={inv.id}
-                                  to={`/budget/invoices/${inv.id}`}
+                                  to={`/invoices/${inv.id}`}
                                   className={styles.invoicePopoverItem}
                                   onClick={() => setInvoicePopoverBudgetId(null)}
                                 >
@@ -2315,6 +2345,44 @@ export default function WorkItemDetailPage() {
             </div>
           </section>
         </div>
+      </div>
+
+      {/* Linked Household Items section */}
+      <div className={styles.section}>
+        <h2 className={styles.sectionTitle}>
+          Dependent Household Items
+          {linkedHouseholdItems.length > 0 && (
+            <span className={styles.countBadge}>{linkedHouseholdItems.length}</span>
+          )}
+        </h2>
+        {linkedHouseholdItems.length === 0 ? (
+          <p className={styles.emptyText}>No household items depend on this work item.</p>
+        ) : (
+          <ul className={styles.householdItemLinkList}>
+            {linkedHouseholdItems.map((hi) => (
+              <li key={hi.id} className={styles.householdItemLinkRow}>
+                <Link to={`/household-items/${hi.id}`} className={styles.householdItemLinkName}>
+                  {hi.name}
+                </Link>
+                <span className={styles.householdItemCategoryBadge}>
+                  {HOUSEHOLD_ITEM_CATEGORY_LABELS[hi.category]}
+                </span>
+                <span className={styles.householdItemStatusBadge} data-status={hi.status}>
+                  {HOUSEHOLD_ITEM_STATUS_LABELS[hi.status]}
+                </span>
+                {hi.earliestDeliveryDate && hi.latestDeliveryDate ? (
+                  <span className={styles.householdItemDeliveryDate}>
+                    {formatDate(hi.earliestDeliveryDate)} – {formatDate(hi.latestDeliveryDate)}
+                  </span>
+                ) : hi.targetDeliveryDate ? (
+                  <span className={styles.householdItemDeliveryDate}>
+                    {formatDate(hi.targetDeliveryDate)}
+                  </span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       {/* Documents — full-width section, loads independently */}
