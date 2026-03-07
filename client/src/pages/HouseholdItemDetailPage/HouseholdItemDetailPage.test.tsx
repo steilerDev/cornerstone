@@ -1214,12 +1214,12 @@ describe('HouseholdItemDetailPage', () => {
       // Verify "Documents" heading exists
       expect(headingTexts).toContain('Documents');
 
-      // Verify Documents comes after Subsidies
-      const subsidiesIndex = headingTexts.findIndex((text) => text === 'Subsidies');
+      // Verify Documents comes after Budget (Subsidies is now an h3 inside Budget, not a standalone h2)
+      const budgetIndex = headingTexts.findIndex((text) => text === 'Budget');
       const documentsIndex = headingTexts.findIndex((text) => text === 'Documents');
-      expect(subsidiesIndex).toBeGreaterThan(-1);
+      expect(budgetIndex).toBeGreaterThan(-1);
       expect(documentsIndex).toBeGreaterThan(-1);
-      expect(documentsIndex).toBeGreaterThan(subsidiesIndex);
+      expect(documentsIndex).toBeGreaterThan(budgetIndex);
     });
 
     it('does not render LinkedDocumentsSection in loading state', async () => {
