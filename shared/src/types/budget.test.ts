@@ -30,10 +30,7 @@ import type {
   UpdateHouseholdItemBudgetRequest,
   HouseholdItemSubsidyPaybackEntry,
 } from './householdItemBudget.js';
-import type {
-  CreateWorkItemBudgetRequest,
-  UpdateWorkItemBudgetRequest,
-} from './workItemBudget.js';
+import type { CreateWorkItemBudgetRequest, UpdateWorkItemBudgetRequest } from './workItemBudget.js';
 import type { WorkItemSubsidyPaybackEntry } from './subsidyProgram.js';
 
 // ---------------------------------------------------------------------------
@@ -94,7 +91,9 @@ describe('CONFIDENCE_MARGINS constant', () => {
   });
 
   it('margins are in descending order from own_estimate to invoice', () => {
-    expect(CONFIDENCE_MARGINS.own_estimate).toBeGreaterThan(CONFIDENCE_MARGINS.professional_estimate);
+    expect(CONFIDENCE_MARGINS.own_estimate).toBeGreaterThan(
+      CONFIDENCE_MARGINS.professional_estimate,
+    );
     expect(CONFIDENCE_MARGINS.professional_estimate).toBeGreaterThan(CONFIDENCE_MARGINS.quote);
     expect(CONFIDENCE_MARGINS.quote).toBeGreaterThan(CONFIDENCE_MARGINS.invoice);
   });
@@ -148,8 +147,16 @@ describe('BudgetSourceSummary interface', () => {
   });
 
   it('accepts different sourceType strings', () => {
-    const saving: BudgetSourceSummary = { id: 'bs-002', name: 'Personal Savings', sourceType: 'savings' };
-    const grant: BudgetSourceSummary = { id: 'bs-003', name: 'Government Grant', sourceType: 'grant' };
+    const saving: BudgetSourceSummary = {
+      id: 'bs-002',
+      name: 'Personal Savings',
+      sourceType: 'savings',
+    };
+    const grant: BudgetSourceSummary = {
+      id: 'bs-003',
+      name: 'Government Grant',
+      sourceType: 'grant',
+    };
 
     expect(saving.sourceType).toBe('savings');
     expect(grant.sourceType).toBe('grant');
@@ -623,7 +630,12 @@ describe('BudgetSummary interface', () => {
 
     expect(summary.budgetLineCount).toBe(0);
     expect(summary.totalPlannedAmount).toBe(0);
-    expect(summary.budgetSummary).toEqual({ totalPlanned: 0, totalActual: 0, subsidyReduction: 0, netCost: 0 });
+    expect(summary.budgetSummary).toEqual({
+      totalPlanned: 0,
+      totalActual: 0,
+      subsidyReduction: 0,
+      netCost: 0,
+    });
   });
 });
 

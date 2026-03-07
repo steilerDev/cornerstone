@@ -16,7 +16,12 @@ export type {
 } from './budget.js';
 export { CONFIDENCE_MARGINS } from './budget.js';
 
-import type { BaseBudgetLine, InvoiceSummary, CreateBudgetLineRequest, UpdateBudgetLineRequest } from './budget.js';
+import type {
+  BaseBudgetLine,
+  InvoiceSummary,
+  CreateBudgetLineRequest,
+  UpdateBudgetLineRequest,
+} from './budget.js';
 
 /**
  * A single budget line for a work item, including computed aggregate fields
