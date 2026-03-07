@@ -59,6 +59,9 @@ import { useToast } from '../../components/Toast/ToastContext.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
 import { CONFIDENCE_LABELS, CONFIDENCE_MARGINS, computeBudgetTotals } from '../../lib/budgetConstants.js';
 import { useBudgetSection, type BudgetLineFormState } from '../../hooks/useBudgetSection.js';
+import { BudgetLineForm } from '../../components/budget/BudgetLineForm.js';
+import { BudgetLineCard } from '../../components/budget/BudgetLineCard.js';
+import { SubsidyLinkSection } from '../../components/budget/SubsidyLinkSection.js';
 import styles from './HouseholdItemDetailPage.module.css';
 
 export function HouseholdItemDetailPage() {
@@ -1252,128 +1255,19 @@ export function HouseholdItemDetailPage() {
 
           {/* Budget form */}
           {showBudgetForm && (
-            <form onSubmit={handleSaveBudgetLine} className={styles.budgetLineForm}>
-              <div className={styles.budgetFormField}>
-                <label htmlFor="budget-description" className={styles.formLabel}>
-                  Description
-                </label>
-                <input
-                  id="budget-description"
-                  type="text"
-                  value={budgetForm.description}
-                  onChange={(e) => setBudgetFormPartial({ description: e.target.value })}
-                  placeholder="e.g., Kitchen appliance"
-                  className={styles.formInput}
-                  disabled={isSavingBudget}
-                />
-              </div>
-
-              <div className={styles.budgetFormField}>
-                <label htmlFor="budget-amount" className={styles.formLabel}>
-                  Planned Amount *
-                </label>
-                <input
-                  id="budget-amount"
-                  type="number"
-                  value={budgetForm.plannedAmount}
-                  onChange={(e) => setBudgetFormPartial({ plannedAmount: e.target.value })}
-                  placeholder="0.00"
-                  step="0.01"
-                  min="0"
-                  className={styles.formInput}
-                  disabled={isSavingBudget}
-                  required
-                />
-              </div>
-
-              <div className={styles.budgetFormField}>
-                <label htmlFor="budget-confidence" className={styles.formLabel}>
-                  Confidence Level
-                </label>
-                <select
-                  id="budget-confidence"
-                  value={budgetForm.confidence}
-                  onChange={(e) =>
-                    setBudgetFormPartial({ confidence: e.target.value as ConfidenceLevel })
-                  }
-                  className={styles.formSelect}
-                  disabled={isSavingBudget}
-                >
-                  {(Object.entries(CONFIDENCE_LABELS) as Array<[ConfidenceLevel, string]>).map(
-                    ([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ),
-                  )}
-                </select>
-              </div>
-
-              <div className={styles.budgetFormField}>
-                <label className={styles.formLabel}>Category</label>
-                <div className={styles.formStaticValue}>Household Items</div>
-              </div>
-
-              <div className={styles.budgetFormField}>
-                <label htmlFor="budget-source" className={styles.formLabel}>
-                  Budget Source
-                </label>
-                <select
-                  id="budget-source"
-                  value={budgetForm.budgetSourceId}
-                  onChange={(e) => setBudgetFormPartial({ budgetSourceId: e.target.value })}
-                  className={styles.formSelect}
-                  disabled={isSavingBudget}
-                >
-                  <option value="">— Select Source —</option>
-                  {budgetSources.map((source) => (
-                    <option key={source.id} value={source.id}>
-                      {source.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className={styles.budgetFormField}>
-                <label htmlFor="budget-vendor" className={styles.formLabel}>
-                  Vendor
-                </label>
-                <select
-                  id="budget-vendor"
-                  value={budgetForm.vendorId}
-                  onChange={(e) => setBudgetFormPartial({ vendorId: e.target.value })}
-                  className={styles.formSelect}
-                  disabled={isSavingBudget}
-                >
-                  <option value="">— Select Vendor —</option>
-                  {allVendors.map((vendor) => (
-                    <option key={vendor.id} value={vendor.id}>
-                      {vendor.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {budgetFormError && (
-                <div className={styles.errorBanner} role="alert">
-                  {budgetFormError}
-                </div>
-              )}
-
-              <div className={styles.budgetFormActions}>
-                <button type="submit" className={styles.button} disabled={isSavingBudget}>
-                  {isSavingBudget ? 'Saving...' : editingBudgetId ? 'Update' : 'Add'}
-                </button>
-                <button
-                  type="button"
-                  className={styles.cancelButton}
-                  onClick={closeBudgetForm}
-                  disabled={isSavingBudget}
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
+            <BudgetLineForm
+              form={budgetForm}
+              onSubmit={handleSaveBudgetLine}
+              onFormChange={setBudgetFormPartial}
+              onCancel={closeBudgetForm}
+              error={budgetFormError}
+              isSaving={isSavingBudget}
+              isEditing={editingBudgetId !== null}
+              confidenceLabels={CONFIDENCE_LABELS}
+              budgetSources={budgetSources}
+              vendors={allVendors}
+              staticCategoryLabel="Household Items"
+            />
           )}
 
           {/* Budget lines list */}
@@ -1382,121 +1276,41 @@ export function HouseholdItemDetailPage() {
           ) : (
             <div className={styles.budgetLinesList}>
               {budgetLines.map((line) => (
-                <div key={line.id} className={styles.budgetLineItem}>
-                  <div className={styles.budgetLineMain}>
-                    <div className={styles.budgetLineTopRow}>
-                      {line.invoiceCount > 0 ? (
-                        <>
-                          <span
-                            className={`${styles.budgetLineAmount} ${styles.budgetLineAmountInvoiced}`}
-                          >
-                            {formatCurrency(line.actualCost)}
-                          </span>
-                          <span className={styles.budgetLineInvoicedLabel}>Invoiced Amount</span>
-                          <span className={styles.budgetLinePlannedSecondary}>
-                            (planned: {formatCurrency(line.plannedAmount)})
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <span className={styles.budgetLineAmount}>
-                            {formatCurrency(line.plannedAmount)}
-                          </span>
-                          <span className={styles.budgetLineConfidence}>
-                            {CONFIDENCE_LABELS[line.confidence]}
-                            {CONFIDENCE_MARGINS[line.confidence] > 0 && (
-                              <span className={styles.budgetLineMargin}>
-                                {' '}
-                                (+{Math.round(CONFIDENCE_MARGINS[line.confidence] * 100)}%)
-                              </span>
-                            )}
-                          </span>
-                        </>
-                      )}
+                <BudgetLineCard
+                  key={line.id}
+                  line={line}
+                  confidenceLabels={CONFIDENCE_LABELS}
+                  onEdit={() => openEditBudgetForm(line)}
+                  onDelete={() => handleDeleteBudgetLine(line.id)}
+                  isDeleting={deletingBudgetId === line.id}
+                  onConfirmDelete={handleConfirmDeleteBudgetLine}
+                  onCancelDelete={() => setDeletingBudgetId(null)}
+                >
+                  {/* Inline invoice list for household items (HI-specific) */}
+                  {budgetLineInvoices[line.id]?.length > 0 && (
+                    <div className={styles.budgetLineInvoices}>
+                      <h4 className={styles.budgetLineInvoicesTitle}>Linked Invoices</h4>
+                      <ul className={styles.invoiceList}>
+                        {budgetLineInvoices[line.id].map((inv) => (
+                          <li key={inv.id} className={styles.invoiceListItem}>
+                            <Link to={`/invoices/${inv.id}`} className={styles.invoiceLink}>
+                              {inv.invoiceNumber ? `#${inv.invoiceNumber}` : 'Invoice'}
+                            </Link>
+                            <span className={styles.invoiceAmount}>
+                              {formatCurrency(inv.amount)}
+                            </span>
+                            <span
+                              className={`${styles.invoiceStatusBadge} ${styles[`invoiceStatus_${inv.status}`]}`}
+                            >
+                              {inv.status.charAt(0).toUpperCase() + inv.status.slice(1)}
+                            </span>
+                            <span className={styles.invoiceDate}>{formatDate(inv.date)}</span>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
-                    {line.description && (
-                      <div className={styles.budgetLineDescription}>{line.description}</div>
-                    )}
-                    <div className={styles.budgetLineMeta}>
-                      {line.budgetCategory && (
-                        <span className={styles.budgetLineMetaItem}>
-                          {line.budgetCategory.name}
-                        </span>
-                      )}
-                      {line.budgetSource && (
-                        <span className={styles.budgetLineMetaItem}>{line.budgetSource.name}</span>
-                      )}
-                      {line.vendor && (
-                        <span className={styles.budgetLineMetaItem}>{line.vendor.name}</span>
-                      )}
-                    </div>
-                    {budgetLineInvoices[line.id]?.length > 0 && (
-                      <div className={styles.budgetLineInvoices}>
-                        <h4 className={styles.budgetLineInvoicesTitle}>Linked Invoices</h4>
-                        <ul className={styles.invoiceList}>
-                          {budgetLineInvoices[line.id].map((inv) => (
-                            <li key={inv.id} className={styles.invoiceListItem}>
-                              <Link to={`/invoices/${inv.id}`} className={styles.invoiceLink}>
-                                {inv.invoiceNumber ? `#${inv.invoiceNumber}` : 'Invoice'}
-                              </Link>
-                              <span className={styles.invoiceAmount}>
-                                {formatCurrency(inv.amount)}
-                              </span>
-                              <span
-                                className={`${styles.invoiceStatusBadge} ${styles[`invoiceStatus_${inv.status}`]}`}
-                              >
-                                {inv.status.charAt(0).toUpperCase() + inv.status.slice(1)}
-                              </span>
-                              <span className={styles.invoiceDate}>{formatDate(inv.date)}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                  <div className={styles.budgetLineActions}>
-                    {deletingBudgetId === line.id ? (
-                      <>
-                        <button
-                          type="button"
-                          className={styles.deleteButton}
-                          onClick={handleConfirmDeleteBudgetLine}
-                          disabled={false}
-                          title="Confirm delete"
-                        >
-                          Confirm
-                        </button>
-                        <button
-                          type="button"
-                          className={styles.cancelButton}
-                          onClick={() => setDeletingBudgetId(null)}
-                          title="Cancel delete"
-                        >
-                          Cancel
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          type="button"
-                          className={styles.editButton}
-                          onClick={() => openEditBudgetForm(line)}
-                          title="Edit budget line"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          className={styles.deleteButton}
-                          onClick={() => handleDeleteBudgetLine(line.id)}
-                          title="Delete budget line"
-                        >
-                          Delete
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
+                  )}
+                </BudgetLineCard>
               ))}
             </div>
           )}
@@ -1538,74 +1352,27 @@ export function HouseholdItemDetailPage() {
             <h2 className={styles.cardTitle}>Subsidies</h2>
           </div>
 
-          {/* Linked subsidies list */}
-          {linkedSubsidies.length > 0 && (
-            <div className={styles.subsidiesList}>
-              {linkedSubsidies.map((subsidy) => (
-                <div key={subsidy.id} className={styles.subsidyItem}>
-                  <div className={styles.subsidyInfo}>
-                    <div className={styles.subsidyName}>{subsidy.name}</div>
-                    <div className={styles.subsidyMeta}>
-                      {subsidy.reductionType === 'percentage' ? (
-                        <span className={styles.subsidyReduction}>−{subsidy.reductionValue}%</span>
-                      ) : (
-                        <span className={styles.subsidyReduction}>
-                          −{formatCurrency(subsidy.reductionValue)}
-                        </span>
-                      )}
-                      <span className={styles.subsidyStatus}>{subsidy.applicationStatus}</span>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    className={styles.unlinkButton}
-                    onClick={() => void handleUnlinkSubsidy(subsidy.id)}
-                    aria-label={`Unlink ${subsidy.name}`}
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Add subsidy row */}
-          <div className={styles.addSubsidyRow}>
-            <select
-              value={selectedSubsidyId}
-              onChange={(e) => setSelectedSubsidyId(e.target.value)}
-              className={styles.formSelect}
-              disabled={isLinkingSubsidy}
-              aria-label="Select subsidy program"
-            >
-              <option value="">— Link Subsidy Program —</option>
-              {allSubsidyPrograms
-                .filter((prog) => !linkedSubsidies.some((linked) => linked.id === prog.id))
-                .map((prog) => (
-                  <option key={prog.id} value={prog.id}>
-                    {prog.name}
-                  </option>
-                ))}
-            </select>
-            <button
-              type="button"
-              className={styles.button}
-              onClick={() => void handleLinkSubsidy()}
-              disabled={!selectedSubsidyId || isLinkingSubsidy}
-            >
-              {isLinkingSubsidy ? 'Linking...' : 'Add'}
-            </button>
-          </div>
-
-          {/* Subsidy payback summary */}
-          {subsidyPayback && subsidyPayback.maxTotalPayback > 0 && (
-            <div className={styles.subsidyPaybackSummary}>
-              <p className={styles.subsidyPaybackText}>
-                Estimated Subsidy Reduction: {formatCurrency(subsidyPayback.minTotalPayback)}–
-                {formatCurrency(subsidyPayback.maxTotalPayback)}
-              </p>
-            </div>
-          )}
+          <SubsidyLinkSection
+            linkedSubsidies={linkedSubsidies}
+            availableSubsidies={allSubsidyPrograms.filter(
+              (prog) => !linkedSubsidies.some((linked) => linked.id === prog.id),
+            )}
+            selectedSubsidyId={selectedSubsidyId}
+            onSelectSubsidy={setSelectedSubsidyId}
+            onLinkSubsidy={handleLinkSubsidy}
+            onUnlinkSubsidy={handleUnlinkSubsidy}
+            isLinking={isLinkingSubsidy}
+          >
+            {/* Subsidy payback summary (HI-specific) */}
+            {subsidyPayback && subsidyPayback.maxTotalPayback > 0 && (
+              <div className={styles.subsidyPaybackSummary}>
+                <p className={styles.subsidyPaybackText}>
+                  Estimated Subsidy Reduction: {formatCurrency(subsidyPayback.minTotalPayback)}–
+                  {formatCurrency(subsidyPayback.maxTotalPayback)}
+                </p>
+              </div>
+            )}
+          </SubsidyLinkSection>
         </section>
 
         {/* Documents section */}
