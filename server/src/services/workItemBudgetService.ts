@@ -1,62 +1,38 @@
 import { eq } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { workItems, workItemBudgets, budgetCategories, budgetSources, vendors, users } from '../db/schema.js';
-import {
-  toUserSummary,
-  toBudgetCategory,
-  toBudgetSourceSummary,
-  toVendorSummary,
-} from './shared/converters.js';
-import { createBudgetService, getLinkedInvoices, getInvoiceAggregates } from './shared/budgetServiceFactory.js';
+import { workItems, workItemBudgets } from '../db/schema.js';
+import { createBudgetService, getLinkedInvoices } from './shared/budgetServiceFactory.js';
+import type { ResolvedBudgetRelations } from './shared/budgetServiceFactory.js';
 import type {
   WorkItemBudgetLine,
-  ConfidenceLevel,
   CreateWorkItemBudgetRequest,
   UpdateWorkItemBudgetRequest,
 } from '@cornerstone/shared';
-import { CONFIDENCE_MARGINS as confidenceMargins } from '@cornerstone/shared';
 import { NotFoundError } from '../errors/AppError.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
-function toWorkItemBudgetLine(db: DbType, row: typeof workItemBudgets.$inferSelect): WorkItemBudgetLine {
-  const confidence = row.confidence as ConfidenceLevel;
-  const category = row.budgetCategoryId
-    ? db.select().from(budgetCategories).where(eq(budgetCategories.id, row.budgetCategoryId)).get()
-    : null;
-  const source = row.budgetSourceId
-    ? db.select().from(budgetSources).where(eq(budgetSources.id, row.budgetSourceId)).get()
-    : null;
-  const vendor = row.vendorId
-    ? db.select().from(vendors).where(eq(vendors.id, row.vendorId)).get()
-    : null;
-  const createdByUser = row.createdBy
-    ? db.select().from(users).where(eq(users.id, row.createdBy)).get()
-    : null;
-
-  const { actualCost, actualCostPaid, invoiceCount } = getInvoiceAggregates(
-    db,
-    row.id,
-    'work_item_budget_id',
-  );
-  const invoiceList = getLinkedInvoices(db, row.id, 'work_item_budget_id');
-
+function toWorkItemBudgetLine(
+  db: DbType,
+  row: typeof workItemBudgets.$inferSelect,
+  rel: ResolvedBudgetRelations,
+): WorkItemBudgetLine {
   return {
     id: row.id,
     workItemId: row.workItemId,
     description: row.description,
     plannedAmount: row.plannedAmount,
-    confidence,
-    confidenceMargin: confidenceMargins[confidence],
-    budgetCategory: toBudgetCategory(category),
-    budgetSource: toBudgetSourceSummary(source),
-    vendor: toVendorSummary(vendor),
-    actualCost,
-    actualCostPaid,
-    invoiceCount,
-    invoices: invoiceList,
-    createdBy: toUserSummary(createdByUser),
+    confidence: rel.confidence,
+    confidenceMargin: rel.confidenceMargin,
+    budgetCategory: rel.budgetCategory,
+    budgetSource: rel.budgetSource,
+    vendor: rel.vendor,
+    actualCost: rel.actualCost,
+    actualCostPaid: rel.actualCostPaid,
+    invoiceCount: rel.invoiceCount,
+    invoices: getLinkedInvoices(db, row.id, 'work_item_budget_id'),
+    createdBy: rel.createdBy,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -88,12 +64,8 @@ function buildInsertValues(
 }
 
 const service = createBudgetService({
-  entityTable: workItems,
   budgetTable: workItemBudgets,
   budgetEntityIdColumn: 'workItemId',
-  entityLabel: 'Work item',
-  budgetLabel: 'Budget line',
-  entityIdColumnName: 'workItemId',
   invoiceHandler: {
     budgetIdColumn: 'work_item_budget_id',
     blockDeleteOnInvoices: true,

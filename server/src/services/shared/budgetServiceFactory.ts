@@ -4,28 +4,85 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 import type * as schemaTypes from '../../db/schema.js';
 import {
+  budgetCategories,
+  budgetSources,
+  vendors,
+  users,
+} from '../../db/schema.js';
+import {
+  toUserSummary,
+  toBudgetCategory,
+  toBudgetSourceSummary,
+  toVendorSummary,
+} from './converters.js';
+import {
   validateConfidence,
   validateDescription,
   validateBudgetCategoryId,
   validateBudgetSourceId,
   validateVendorId,
 } from './validators.js';
+import { CONFIDENCE_MARGINS as confidenceMargins } from '@cornerstone/shared';
+import type { ConfidenceLevel } from '@cornerstone/shared';
 import { NotFoundError, ValidationError, BudgetLineInUseError } from '../../errors/AppError.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
+export interface ResolvedBudgetRelations {
+  confidence: ConfidenceLevel;
+  confidenceMargin: number;
+  budgetCategory: ReturnType<typeof toBudgetCategory>;
+  budgetSource: ReturnType<typeof toBudgetSourceSummary>;
+  vendor: ReturnType<typeof toVendorSummary>;
+  actualCost: number;
+  actualCostPaid: number;
+  invoiceCount: number;
+  createdBy: ReturnType<typeof toUserSummary>;
+}
+
+export function resolveRelations(
+  db: DbType,
+  row: { id: string; confidence: string; budgetCategoryId: string | null; budgetSourceId: string | null; vendorId: string | null; createdBy: string | null },
+  invoiceBudgetIdColumn?: string,
+): ResolvedBudgetRelations {
+  const confidence = row.confidence as ConfidenceLevel;
+  const category = row.budgetCategoryId
+    ? db.select().from(budgetCategories).where(eq(budgetCategories.id, row.budgetCategoryId)).get()
+    : null;
+  const source = row.budgetSourceId
+    ? db.select().from(budgetSources).where(eq(budgetSources.id, row.budgetSourceId)).get()
+    : null;
+  const vendor = row.vendorId
+    ? db.select().from(vendors).where(eq(vendors.id, row.vendorId)).get()
+    : null;
+  const createdByUser = row.createdBy
+    ? db.select().from(users).where(eq(users.id, row.createdBy)).get()
+    : null;
+  const { actualCost, actualCostPaid, invoiceCount } = invoiceBudgetIdColumn
+    ? getInvoiceAggregates(db, row.id, invoiceBudgetIdColumn)
+    : { actualCost: 0, actualCostPaid: 0, invoiceCount: 0 };
+
+  return {
+    confidence,
+    confidenceMargin: confidenceMargins[confidence],
+    budgetCategory: toBudgetCategory(category),
+    budgetSource: toBudgetSourceSummary(source),
+    vendor: toVendorSummary(vendor),
+    actualCost,
+    actualCostPaid,
+    invoiceCount,
+    createdBy: toUserSummary(createdByUser),
+  };
+}
+
 export interface BudgetServiceFactoryConfig<EntityRow, BudgetLine, CreateRequest, UpdateRequest> {
-  entityTable: SQLiteTable;
   budgetTable: SQLiteTable;
   budgetEntityIdColumn: string;
-  entityLabel: string;
-  budgetLabel: string;
-  entityIdColumnName: string;
   invoiceHandler?: {
     budgetIdColumn: string;
     blockDeleteOnInvoices: boolean;
   };
-  toLine: (db: DbType, row: any) => BudgetLine;
+  toLine: (db: DbType, row: any, relations: ResolvedBudgetRelations) => BudgetLine;
   buildInsertValues: (db: DbType, entityId: string, userId: string, data: CreateRequest) => Record<string, any>;
   assertEntityExists: (db: DbType, entityId: string) => void;
 }
@@ -48,11 +105,7 @@ export function getInvoiceAggregates(
     WHERE ${sql.raw(invoiceBudgetIdColumn)} = ${budgetId}`,
   );
 
-  return {
-    actualCost: row?.actualCost ?? 0,
-    actualCostPaid: row?.actualCostPaid ?? 0,
-    invoiceCount: row?.invoiceCount ?? 0,
-  };
+  return { actualCost: row?.actualCost ?? 0, actualCostPaid: row?.actualCostPaid ?? 0, invoiceCount: row?.invoiceCount ?? 0 };
 }
 
 export function getLinkedInvoices(
@@ -90,6 +143,13 @@ export function createBudgetService<EntityRow, BudgetLine, CreateRequest extends
   config: BudgetServiceFactoryConfig<EntityRow, BudgetLine, CreateRequest, UpdateRequest>,
 ) {
   const table = config.budgetTable as any;
+  const findBudgetLine = (db: DbType, entityId: string, budgetId: string) =>
+    db.select().from(config.budgetTable)
+      .where(and(eq(table.id, budgetId), eq(table[config.budgetEntityIdColumn], entityId)))
+      .get();
+  const toResult = (db: DbType, row: any): BudgetLine =>
+    config.toLine(db, row, resolveRelations(db, row as any, config.invoiceHandler?.budgetIdColumn));
+
   return {
     list(db: DbType, entityId: string): BudgetLine[] {
       config.assertEntityExists(db, entityId);
@@ -99,7 +159,7 @@ export function createBudgetService<EntityRow, BudgetLine, CreateRequest extends
         .where(eq(table[config.budgetEntityIdColumn], entityId))
         .orderBy(table.createdAt)
         .all();
-      return rows.map((row) => config.toLine(db, row));
+      return rows.map((row) => toResult(db, row));
     },
 
     create(db: DbType, entityId: string, userId: string, data: CreateRequest): BudgetLine {
@@ -137,23 +197,12 @@ export function createBudgetService<EntityRow, BudgetLine, CreateRequest extends
 
       db.insert(config.budgetTable).values(insertValues).run();
       const row = db.select().from(config.budgetTable).where(eq(table.id, id)).get()!;
-      return config.toLine(db, row);
+      return toResult(db, row);
     },
 
     update(db: DbType, entityId: string, budgetId: string, data: UpdateRequest): BudgetLine {
       config.assertEntityExists(db, entityId);
-
-      const existing = db
-        .select()
-        .from(config.budgetTable)
-        .where(
-          and(
-            eq(table.id, budgetId),
-            eq(table[config.budgetEntityIdColumn], entityId),
-          ),
-        )
-        .get();
-
+      const existing = findBudgetLine(db, entityId, budgetId);
       if (!existing) {
         throw new NotFoundError('Budget line not found');
       }
@@ -206,24 +255,12 @@ export function createBudgetService<EntityRow, BudgetLine, CreateRequest extends
 
       updates.updatedAt = new Date().toISOString();
       db.update(config.budgetTable).set(updates).where(eq(table.id, budgetId)).run();
-      const updated = db.select().from(config.budgetTable).where(eq(table.id, budgetId)).get()!;
-      return config.toLine(db, updated);
+      return toResult(db, db.select().from(config.budgetTable).where(eq(table.id, budgetId)).get()!);
     },
 
     delete(db: DbType, entityId: string, budgetId: string): void {
       config.assertEntityExists(db, entityId);
-
-      const existing = db
-        .select()
-        .from(config.budgetTable)
-        .where(
-          and(
-            eq(table.id, budgetId),
-            eq(table[config.budgetEntityIdColumn], entityId),
-          ),
-        )
-        .get();
-
+      const existing = findBudgetLine(db, entityId, budgetId);
       if (!existing) {
         throw new NotFoundError('Budget line not found');
       }

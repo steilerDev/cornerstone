@@ -1,63 +1,37 @@
 import { eq } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { householdItems, householdItemBudgets, budgetCategories, budgetSources, vendors, users } from '../db/schema.js';
-import {
-  toUserSummary,
-  toBudgetCategory,
-  toBudgetSourceSummary,
-  toVendorSummary,
-} from './shared/converters.js';
-import { createBudgetService, getInvoiceAggregates } from './shared/budgetServiceFactory.js';
+import { householdItems, householdItemBudgets } from '../db/schema.js';
+import { createBudgetService } from './shared/budgetServiceFactory.js';
+import type { ResolvedBudgetRelations } from './shared/budgetServiceFactory.js';
 import type {
   HouseholdItemBudgetLine,
-  ConfidenceLevel,
   CreateHouseholdItemBudgetRequest,
   UpdateHouseholdItemBudgetRequest,
 } from '@cornerstone/shared';
-import { CONFIDENCE_MARGINS as confidenceMargins } from '@cornerstone/shared';
 import { NotFoundError } from '../errors/AppError.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
 function toHouseholdItemBudgetLine(
-  db: DbType,
+  _db: DbType,
   row: typeof householdItemBudgets.$inferSelect,
+  rel: ResolvedBudgetRelations,
 ): HouseholdItemBudgetLine {
-  const confidence = row.confidence as ConfidenceLevel;
-  const category = row.budgetCategoryId
-    ? db.select().from(budgetCategories).where(eq(budgetCategories.id, row.budgetCategoryId)).get()
-    : null;
-  const source = row.budgetSourceId
-    ? db.select().from(budgetSources).where(eq(budgetSources.id, row.budgetSourceId)).get()
-    : null;
-  const vendor = row.vendorId
-    ? db.select().from(vendors).where(eq(vendors.id, row.vendorId)).get()
-    : null;
-  const createdByUser = row.createdBy
-    ? db.select().from(users).where(eq(users.id, row.createdBy)).get()
-    : null;
-
-  const { actualCost, actualCostPaid, invoiceCount } = getInvoiceAggregates(
-    db,
-    row.id,
-    'household_item_budget_id',
-  );
-
   return {
     id: row.id,
     householdItemId: row.householdItemId,
     description: row.description,
     plannedAmount: row.plannedAmount,
-    confidence,
-    confidenceMargin: confidenceMargins[confidence],
-    budgetCategory: toBudgetCategory(category),
-    budgetSource: toBudgetSourceSummary(source),
-    vendor: toVendorSummary(vendor),
-    actualCost,
-    actualCostPaid,
-    invoiceCount,
-    createdBy: toUserSummary(createdByUser),
+    confidence: rel.confidence,
+    confidenceMargin: rel.confidenceMargin,
+    budgetCategory: rel.budgetCategory,
+    budgetSource: rel.budgetSource,
+    vendor: rel.vendor,
+    actualCost: rel.actualCost,
+    actualCostPaid: rel.actualCostPaid,
+    invoiceCount: rel.invoiceCount,
+    createdBy: rel.createdBy,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -89,12 +63,8 @@ function buildInsertValues(
 }
 
 const service = createBudgetService({
-  entityTable: householdItems,
   budgetTable: householdItemBudgets,
   budgetEntityIdColumn: 'householdItemId',
-  entityLabel: 'Household item',
-  budgetLabel: 'Budget line',
-  entityIdColumnName: 'householdItemId',
   invoiceHandler: {
     budgetIdColumn: 'household_item_budget_id',
     blockDeleteOnInvoices: false,
