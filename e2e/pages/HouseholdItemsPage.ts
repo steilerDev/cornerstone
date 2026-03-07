@@ -163,29 +163,50 @@ export class HouseholdItemsPage {
   }
 
   /**
-   * Type a search query and wait for the URL to reflect the query.
+   * Type a search query and wait for the search results to load.
    *
-   * After filling the input, we wait for the URL to include ?q=<query> which
-   * proves the 300ms debounce has fired and React will trigger the data fetch.
-   * Callers should wrap DOM assertions in `expect.toPass()` to handle the
-   * asynchronous gap between URL change and React re-render.
+   * Strategy:
+   * 1. Register a response listener for the search API call (must include
+   *    `q=` in the URL to avoid matching stale initial-load responses).
+   * 2. Fill the input — triggers React onChange + 300ms debounce.
+   * 3. Wait for URL to include ?q=<query> — proves debounce has fired.
+   * 4. Await the search API response.
+   * 5. Wait for DOM to show rows/cards/empty-state.
    */
   async search(query: string): Promise<void> {
+    const searchResponsePromise = this.page.waitForResponse(
+      (resp) =>
+        resp.url().includes('/api/household-items') &&
+        resp.url().includes('q=') &&
+        resp.request().method() === 'GET',
+      { timeout: 55000 },
+    );
     await this.searchInput.fill(query);
     await this.page.waitForURL((url) => url.searchParams.get('q') === query, {
       timeout: 10000,
     });
+    await searchResponsePromise;
+    await this.waitForLoaded();
   }
 
   /**
-   * Clear the search input and wait for the URL to reflect the cleared state.
+   * Clear the search input and wait for the unfiltered results to load.
    */
   async clearSearch(): Promise<void> {
+    const responsePromise = this.page.waitForResponse(
+      (resp) =>
+        resp.url().includes('/api/household-items') &&
+        !resp.url().includes('q=') &&
+        resp.request().method() === 'GET',
+      { timeout: 55000 },
+    );
     await this.searchInput.clear();
     await this.page.waitForURL(
       (url) => !url.searchParams.has('q') || url.searchParams.get('q') === '',
       { timeout: 10000 },
     );
+    await responsePromise;
+    await this.waitForLoaded();
   }
 
   /**
