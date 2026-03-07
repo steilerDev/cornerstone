@@ -221,7 +221,6 @@ function validateDateConstraints(data: {
   }
 }
 
-
 /**
  * Validate that assigned user ID exists and is active.
  * Throws ValidationError if user does not exist or is deactivated.

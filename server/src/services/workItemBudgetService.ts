@@ -10,7 +10,12 @@ import {
   vendors,
   users,
 } from '../db/schema.js';
-import { toUserSummary, toBudgetCategory, toBudgetSourceSummary, toVendorSummary } from './shared/converters.js';
+import {
+  toUserSummary,
+  toBudgetCategory,
+  toBudgetSourceSummary,
+  toVendorSummary,
+} from './shared/converters.js';
 import {
   validateConfidence,
   validateDescription,
@@ -154,7 +159,6 @@ function assertWorkItemExists(db: DbType, workItemId: string): void {
     throw new NotFoundError('Work item not found');
   }
 }
-
 
 /**
  * List all budget lines for a work item, ordered by creation time ascending.

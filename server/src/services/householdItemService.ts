@@ -47,7 +47,6 @@ import { NotFoundError, ValidationError } from '../errors/AppError.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
-
 /**
  * Fetch tags for a household item.
  */
@@ -258,7 +257,6 @@ export function toHouseholdItemDetail(
 function findHouseholdItemById(db: DbType, id: string): typeof householdItems.$inferSelect | null {
   return db.select().from(householdItems).where(eq(householdItems.id, id)).get() ?? null;
 }
-
 
 /**
  * Validate that household item category ID exists.

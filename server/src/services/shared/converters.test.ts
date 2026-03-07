@@ -1,5 +1,5 @@
 import { describe, it, expect } from '@jest/globals';
-import * as schema from '../../db/schema.js';
+import type * as schema from '../../db/schema.js';
 import {
   toUserSummary,
   toBudgetCategory,
@@ -244,7 +244,7 @@ describe('toBudgetSourceSummary()', () => {
   });
 
   it('maps all valid sourceType values correctly', () => {
-    const sourceTypes: Array<typeof schema.budgetSources.$inferSelect['sourceType']> = [
+    const sourceTypes: Array<(typeof schema.budgetSources.$inferSelect)['sourceType']> = [
       'bank_loan',
       'credit_line',
       'savings',

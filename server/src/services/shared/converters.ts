@@ -5,8 +5,14 @@
  * They are extracted from duplicate implementations across multiple service files.
  */
 
-import { budgetCategories, budgetSources, tags, users, vendors } from '../../db/schema.js';
-import type { BudgetCategory, BudgetSourceSummary, TagResponse, UserSummary, VendorSummary } from '@cornerstone/shared';
+import type { budgetCategories, budgetSources, tags, users, vendors } from '../../db/schema.js';
+import type {
+  BudgetCategory,
+  BudgetSourceSummary,
+  TagResponse,
+  UserSummary,
+  VendorSummary,
+} from '@cornerstone/shared';
 
 /**
  * Convert a database user row to UserSummary shape.

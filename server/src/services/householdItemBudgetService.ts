@@ -11,7 +11,12 @@ import {
   users,
   invoices,
 } from '../db/schema.js';
-import { toUserSummary, toBudgetCategory, toBudgetSourceSummary, toVendorSummary } from './shared/converters.js';
+import {
+  toUserSummary,
+  toBudgetCategory,
+  toBudgetSourceSummary,
+  toVendorSummary,
+} from './shared/converters.js';
 import {
   validateConfidence,
   validateDescription,
@@ -133,7 +138,6 @@ function assertHouseholdItemExists(db: DbType, householdItemId: string): void {
     throw new NotFoundError('Household item not found');
   }
 }
-
 
 /**
  * List all budget lines for a household item, ordered by creation time ascending.
