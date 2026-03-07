@@ -167,7 +167,7 @@ export class WorkItemDetailPage {
 
     // Error states
     this.errorBanner = page.locator('[role="alert"][class*="errorBanner"]');
-    this.errorState = page.locator('[class*="error"]').filter({ has: page.getByRole('button') });
+    this.errorState = page.locator('[class*="errorCard"]');
   }
 
   /**
