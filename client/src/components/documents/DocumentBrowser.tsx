@@ -10,14 +10,21 @@ interface DocumentBrowserProps {
   mode?: 'page' | 'modal';
   /** When provided, clicking a card calls this instead of showing the detail panel. */
   onSelect?: (doc: PaperlessDocumentSearchResult) => void;
+  /** Paperless-ngx document IDs that are already linked (will be filtered when hideLinked is true). */
+  linkedDocumentIds?: number[];
 }
 
 const GRID_ID = 'document-grid';
 
-export function DocumentBrowser({ mode = 'page', onSelect }: DocumentBrowserProps) {
+export function DocumentBrowser({
+  mode = 'page',
+  onSelect,
+  linkedDocumentIds = [],
+}: DocumentBrowserProps) {
   const hook = usePaperless();
   const [selectedDoc, setSelectedDoc] = useState<PaperlessDocumentSearchResult | null>(null);
   const [searchInput, setSearchInput] = useState('');
+  const [hideLinked, setHideLinked] = useState(true);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Debounced search — intentionally omits hook.search from dep array to prevent infinite loop
@@ -48,6 +55,11 @@ export function DocumentBrowser({ mode = 'page', onSelect }: DocumentBrowserProp
   };
 
   const gridClass = mode === 'modal' ? styles.gridModal : styles.grid;
+
+  // Filter documents if hideLinked is enabled
+  const filteredDocuments = hideLinked
+    ? hook.documents.filter((doc) => !linkedDocumentIds.includes(doc.id))
+    : hook.documents;
 
   // Status: still checking
   if (hook.status === null) {
@@ -98,7 +110,7 @@ export function DocumentBrowser({ mode = 'page', onSelect }: DocumentBrowserProp
   // Normal browser rendering
   return (
     <div className={styles.browser}>
-      {/* Search bar */}
+      {/* Search bar and hide-linked toggle */}
       <div className={styles.searchRow}>
         <input
           type="search"
@@ -109,6 +121,17 @@ export function DocumentBrowser({ mode = 'page', onSelect }: DocumentBrowserProp
           aria-label="Search documents"
           aria-controls={GRID_ID}
         />
+        {linkedDocumentIds.length > 0 && (
+          <label className={styles.hideLinkedToggle}>
+            <input
+              type="checkbox"
+              checked={hideLinked}
+              onChange={(e) => setHideLinked(e.target.checked)}
+              className={styles.hideLinkedCheckbox}
+            />
+            <span className={styles.hideLinkedLabel}>Hide linked</span>
+          </label>
+        )}
       </div>
 
       {/* Server-side filter tag indicator */}
@@ -159,23 +182,26 @@ export function DocumentBrowser({ mode = 'page', onSelect }: DocumentBrowserProp
             Try Again
           </button>
         </div>
-      ) : hook.documents.length === 0 ? (
+      ) : filteredDocuments.length === 0 ? (
         <div className={styles.emptyState}>
           <p className={styles.emptyText}>
-            {hook.query || hook.selectedTags.length > 0
-              ? 'No documents match your search.'
-              : 'No documents found.'}
+            {hideLinked && linkedDocumentIds.length > 0
+              ? 'No additional documents available to link.'
+              : hook.query || hook.selectedTags.length > 0
+                ? 'No documents match your search.'
+                : 'No documents found.'}
           </p>
-          {(hook.query || hook.selectedTags.length > 0) && (
+          {(hook.query || hook.selectedTags.length > 0 || hideLinked) && (
             <button
               type="button"
               className={styles.retryButton}
               onClick={() => {
                 setSearchInput('');
                 hook.search('');
+                setHideLinked(false);
               }}
             >
-              Clear Search
+              Clear Filters
             </button>
           )}
         </div>
@@ -187,7 +213,7 @@ export function DocumentBrowser({ mode = 'page', onSelect }: DocumentBrowserProp
           aria-label="Documents"
           aria-busy="false"
         >
-          {hook.documents.map((doc) => (
+          {filteredDocuments.map((doc) => (
             <div key={doc.id} role="listitem">
               <DocumentCard
                 document={doc}
