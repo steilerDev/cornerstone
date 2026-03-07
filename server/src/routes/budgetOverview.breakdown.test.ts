@@ -127,14 +127,14 @@ describe('GET /api/budget/breakdown', () => {
   function insertHouseholdItem(
     opts: {
       category?:
-        | 'furniture'
-        | 'appliances'
-        | 'fixtures'
-        | 'decor'
-        | 'electronics'
-        | 'outdoor'
-        | 'storage'
-        | 'other';
+        | 'hic-furniture'
+        | 'hic-appliances'
+        | 'hic-fixtures'
+        | 'hic-decor'
+        | 'hic-electronics'
+        | 'hic-outdoor'
+        | 'hic-storage'
+        | 'hic-other';
       plannedAmount?: number;
       confidence?: 'own_estimate' | 'professional_estimate' | 'quote' | 'invoice';
     } = {},
@@ -146,7 +146,7 @@ describe('GET /api/budget/breakdown', () => {
       .values({
         id,
         name: `HI ${id}`,
-        category: opts.category ?? 'furniture',
+        categoryId: opts.category ?? 'hic-furniture',
         status: 'planned',
         quantity: 1,
         isLate: false,
@@ -433,7 +433,7 @@ describe('GET /api/budget/breakdown', () => {
   it('reflects actual HI data at route level', async () => {
     const { cookie } = await createUserWithSession('hidata@example.com', 'HiData User', 'password');
 
-    insertHouseholdItem({ category: 'appliances', plannedAmount: 600, confidence: 'quote' });
+    insertHouseholdItem({ category: 'hic-appliances', plannedAmount: 600, confidence: 'quote' });
 
     const response = await app.inject({
       method: 'GET',
@@ -445,7 +445,7 @@ describe('GET /api/budget/breakdown', () => {
     const { breakdown } = response.json<BudgetBreakdownResponse>();
 
     expect(breakdown.householdItems.categories).toHaveLength(1);
-    expect(breakdown.householdItems.categories[0].hiCategory).toBe('appliances');
+    expect(breakdown.householdItems.categories[0].hiCategory).toBe('Appliances');
     expect(breakdown.householdItems.categories[0].items[0].costDisplay).toBe('projected');
   });
 });

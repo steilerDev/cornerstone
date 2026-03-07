@@ -18,6 +18,7 @@ import type {
   HouseholdItemDepDetail,
   HouseholdItemDepPredecessorType,
   MilestoneSummary,
+  HouseholdItemCategoryEntity,
 } from '@cornerstone/shared';
 import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
 import {
@@ -46,30 +47,19 @@ import {
   createHouseholdItemDep,
   deleteHouseholdItemDep,
 } from '../../lib/householdItemDepsApi.js';
-import { fetchBudgetCategories } from '../../lib/budgetCategoriesApi.js';
 import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
 import { fetchSubsidyPrograms } from '../../lib/subsidyProgramsApi.js';
 import { listWorkItems } from '../../lib/workItemsApi.js';
 import { listMilestones } from '../../lib/milestonesApi.js';
 import { fetchInvoices } from '../../lib/invoicesApi.js';
+import { fetchHouseholdItemCategories } from '../../lib/householdItemCategoriesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { formatDate, formatCurrency } from '../../lib/formatters.js';
 import { HouseholdItemStatusBadge } from '../../components/HouseholdItemStatusBadge/HouseholdItemStatusBadge.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
 import styles from './HouseholdItemDetailPage.module.css';
-
-const CATEGORY_LABELS: Record<HouseholdItemCategory, string> = {
-  furniture: 'Furniture',
-  appliances: 'Appliances',
-  fixtures: 'Fixtures',
-  decor: 'Decor',
-  electronics: 'Electronics',
-  outdoor: 'Outdoor',
-  storage: 'Storage',
-  other: 'Other',
-};
 
 const CONFIDENCE_LABELS: Record<ConfidenceLevel, string> = {
   own_estimate: 'Own Estimate',
@@ -83,7 +73,6 @@ interface BudgetLineFormState {
   description: string;
   plannedAmount: string;
   confidence: ConfidenceLevel;
-  budgetCategoryId: string;
   budgetSourceId: string;
   vendorId: string;
 }
@@ -92,7 +81,6 @@ const EMPTY_BUDGET_FORM: BudgetLineFormState = {
   description: '',
   plannedAmount: '',
   confidence: 'own_estimate',
-  budgetCategoryId: '',
   budgetSourceId: '',
   vendorId: '',
 };
@@ -119,10 +107,10 @@ export function HouseholdItemDetailPage() {
 
   // Budget lines state
   const [budgetLines, setBudgetLines] = useState<HouseholdItemBudgetLine[]>([]);
-  const [budgetCategories, setBudgetCategories] = useState<BudgetCategory[]>([]);
   const [budgetSources, setBudgetSources] = useState<BudgetSource[]>([]);
   const [allVendors, setAllVendors] = useState<Vendor[]>([]);
   const [budgetLineInvoices, setBudgetLineInvoices] = useState<Record<string, Invoice[]>>({});
+  const [categories, setCategories] = useState<HouseholdItemCategoryEntity[]>([]);
 
   // Budget line form state
   const [showBudgetForm, setShowBudgetForm] = useState(false);
@@ -275,25 +263,25 @@ export function HouseholdItemDetailPage() {
 
   const loadBudgetData = async (itemId: string) => {
     try {
-      const [budgets, subsidies, payback, categories, sources, vendors, programs, depsData] =
+      const [budgets, subsidies, payback, sources, vendors, programs, depsData, categoriesData] =
         await Promise.all([
           fetchHouseholdItemBudgets(itemId),
           fetchHouseholdItemSubsidies(itemId),
           fetchHouseholdItemSubsidyPayback(itemId),
-          fetchBudgetCategories(),
           fetchBudgetSources(),
           fetchVendors({ pageSize: 100 }),
           fetchSubsidyPrograms(),
           fetchHouseholdItemDeps(itemId),
+          fetchHouseholdItemCategories(),
         ]);
       setBudgetLines(budgets);
       setLinkedSubsidies(subsidies);
       setSubsidyPayback(payback);
-      setBudgetCategories(categories.categories);
       setBudgetSources(sources.budgetSources);
       setAllVendors(vendors.vendors);
       setAllSubsidyPrograms(programs.subsidyPrograms);
       setDependencies(depsData);
+      setCategories(categoriesData.categories);
     } catch (err) {
       // Non-critical — budget data failure shouldn't block the page
       console.error('Failed to load budget data:', err);
@@ -426,7 +414,6 @@ export function HouseholdItemDetailPage() {
       description: line.description ?? '',
       plannedAmount: String(line.plannedAmount),
       confidence: line.confidence,
-      budgetCategoryId: line.budgetCategory?.id ?? '',
       budgetSourceId: line.budgetSource?.id ?? '',
       vendorId: line.vendor?.id ?? '',
     });
@@ -458,7 +445,6 @@ export function HouseholdItemDetailPage() {
       description: budgetForm.description.trim() || null,
       plannedAmount,
       confidence: budgetForm.confidence,
-      budgetCategoryId: budgetForm.budgetCategoryId || null,
       budgetSourceId: budgetForm.budgetSourceId || null,
       vendorId: budgetForm.vendorId || null,
     };
@@ -766,7 +752,9 @@ export function HouseholdItemDetailPage() {
           <div className={styles.pageHeading}>
             <h1 className={styles.pageTitle}>{item.name}</h1>
             <div className={styles.headerBadges}>
-              <span className={styles.categoryBadge}>{CATEGORY_LABELS[item.category]}</span>
+              <span className={styles.categoryBadge}>
+                {categories.find((c) => c.id === item.category)?.name ?? item.category}
+              </span>
               <HouseholdItemStatusBadge status={item.status} />
             </div>
           </div>
@@ -1399,25 +1387,8 @@ export function HouseholdItemDetailPage() {
               </div>
 
               <div className={styles.budgetFormField}>
-                <label htmlFor="budget-category" className={styles.formLabel}>
-                  Budget Category
-                </label>
-                <select
-                  id="budget-category"
-                  value={budgetForm.budgetCategoryId}
-                  onChange={(e) =>
-                    setBudgetForm({ ...budgetForm, budgetCategoryId: e.target.value })
-                  }
-                  className={styles.formSelect}
-                  disabled={isSavingBudget}
-                >
-                  <option value="">— Select Category —</option>
-                  {budgetCategories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </option>
-                  ))}
-                </select>
+                <label className={styles.formLabel}>Category</label>
+                <div className={styles.formStaticValue}>Household Items</div>
               </div>
 
               <div className={styles.budgetFormField}>

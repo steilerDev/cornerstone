@@ -833,13 +833,14 @@ test.describe('Page structure and accessibility', { tag: '@responsive' }, () => 
     await expect(categoriesPage.addCategoryButton).toBeDisabled();
   });
 
-  test('Page URL is /budget/categories', async ({ page }) => {
+  test('Page URL is /manage?tab=budget-categories', async ({ page }) => {
     const categoriesPage = new BudgetCategoriesPage(page);
 
     await categoriesPage.goto();
 
-    await page.waitForURL('/budget/categories');
-    expect(page.url()).toContain('/budget/categories');
+    await page.waitForURL('**/manage?tab=budget-categories');
+    expect(page.url()).toContain('/manage');
+    expect(page.url()).toContain('tab=budget-categories');
   });
 
   test('Navigating to /budget redirects to /budget/overview', async ({ page }) => {
@@ -953,13 +954,14 @@ test.describe('Dark mode rendering (Scenario 10)', { tag: '@responsive' }, () =>
     const categoriesPage = new BudgetCategoriesPage(page);
 
     // Enable dark mode via the data-theme attribute (matches ThemeContext implementation)
-    await page.goto('/budget/categories');
+    await page.goto('/manage?tab=budget-categories');
     await page.evaluate(() => {
       document.documentElement.setAttribute('data-theme', 'dark');
     });
 
-    // Wait for categories to load
+    // Wait for page heading and tab content to load
     await categoriesPage.heading.waitFor({ state: 'visible', timeout: 8000 });
+    await categoriesPage.addCategoryButton.waitFor({ state: 'visible', timeout: 8000 });
 
     // Then: The heading is visible (not hidden by theme issues)
     await expect(categoriesPage.heading).toBeVisible();
@@ -981,12 +983,13 @@ test.describe('Dark mode rendering (Scenario 10)', { tag: '@responsive' }, () =>
   test('Create form is usable in dark mode', async ({ page }) => {
     const categoriesPage = new BudgetCategoriesPage(page);
 
-    await page.goto('/budget/categories');
+    await page.goto('/manage?tab=budget-categories');
     await page.evaluate(() => {
       document.documentElement.setAttribute('data-theme', 'dark');
     });
 
     await categoriesPage.heading.waitFor({ state: 'visible', timeout: 8000 });
+    await categoriesPage.addCategoryButton.waitFor({ state: 'visible', timeout: 8000 });
     await categoriesPage.openCreateForm();
 
     // Form inputs should be visible in dark mode
@@ -1006,12 +1009,13 @@ test.describe('Dark mode rendering (Scenario 10)', { tag: '@responsive' }, () =>
     try {
       createdId = await createCategoryViaApi(page, categoryName, 992);
 
-      await page.goto('/budget/categories');
+      await page.goto('/manage?tab=budget-categories');
       await page.evaluate(() => {
         document.documentElement.setAttribute('data-theme', 'dark');
       });
 
       await categoriesPage.heading.waitFor({ state: 'visible', timeout: 8000 });
+      await categoriesPage.addCategoryButton.waitFor({ state: 'visible', timeout: 8000 });
 
       // Open delete modal in dark mode
       await categoriesPage.openDeleteModal(categoryName);

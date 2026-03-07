@@ -274,6 +274,7 @@ export function listHouseholdItemBudgets(
 
 /**
  * Create a new budget line for a household item.
+ * Budget category is automatically set to 'bc-household-items'; any user-supplied budgetCategoryId is ignored.
  * @throws NotFoundError if household item does not exist
  * @throws ValidationError if any field is invalid
  */
@@ -301,10 +302,7 @@ export function createHouseholdItemBudget(
     validateConfidence(data.confidence);
   }
 
-  // Validate FK references
-  if (data.budgetCategoryId) {
-    validateBudgetCategoryId(db, data.budgetCategoryId);
-  }
+  // Validate FK references (budgetCategoryId is auto-assigned, so don't validate user input)
   if (data.budgetSourceId) {
     validateBudgetSourceId(db, data.budgetSourceId);
   }
@@ -314,6 +312,8 @@ export function createHouseholdItemBudget(
 
   const id = randomUUID();
   const now = new Date().toISOString();
+  // Force budgetCategoryId to 'bc-household-items'; ignore any user-supplied value
+  const effectiveBudgetCategoryId = 'bc-household-items';
 
   db.insert(householdItemBudgets)
     .values({
@@ -322,7 +322,7 @@ export function createHouseholdItemBudget(
       description: data.description ?? null,
       plannedAmount: data.plannedAmount,
       confidence: data.confidence ?? 'own_estimate',
-      budgetCategoryId: data.budgetCategoryId ?? null,
+      budgetCategoryId: effectiveBudgetCategoryId,
       budgetSourceId: data.budgetSourceId ?? null,
       vendorId: data.vendorId ?? null,
       createdBy: userId,
@@ -338,6 +338,7 @@ export function createHouseholdItemBudget(
 /**
  * Update a budget line.
  * All fields are optional; only provided fields are updated.
+ * Budget category is always 'bc-household-items'; any user-supplied budgetCategoryId is ignored.
  * @throws NotFoundError if household item or budget line does not exist, or if budget line
  *   does not belong to the given household item
  * @throws ValidationError if any provided field is invalid
@@ -394,13 +395,8 @@ export function updateHouseholdItemBudget(
     updates.confidence = data.confidence;
   }
 
-  // budgetCategoryId (nullable — null clears it)
-  if ('budgetCategoryId' in data) {
-    if (data.budgetCategoryId) {
-      validateBudgetCategoryId(db, data.budgetCategoryId);
-    }
-    updates.budgetCategoryId = data.budgetCategoryId ?? null;
-  }
+  // budgetCategoryId is always 'bc-household-items'; ignore any user-supplied value
+  // (no update to budgetCategoryId is applied)
 
   // budgetSourceId (nullable — null clears it)
   if ('budgetSourceId' in data) {

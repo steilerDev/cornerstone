@@ -1,7 +1,7 @@
 # QA & Integration Tester — Agent Memory (Index)
 
 > Detailed notes live in topic files. This index links to them.
-> See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`
+> See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`
 
 ## Running Tests from a Worktree (Critical Pattern)
 
@@ -32,6 +32,35 @@ Do NOT use `import type { Foo } from '@cornerstone/shared'` in test files if Foo
 The `tags` table (migration 0002) only has: `id, name, color, created_at` — NO `updated_at`. `TagResponse` also has no `updatedAt`. Do not include this field in test inserts or type assertions.
 
 - Do NOT cast `mockGet.mock.calls[0] as [string]` — TypeScript strict mode rejects empty arrays cast to tuple. Use `expect(mockGet).not.toHaveBeenCalledWith(expect.stringContaining(...))` pattern instead.
+
+## Story #509 Unified Tags & Categories Management Page (2026-03-06)
+
+Bugs filed: **#511** (migration 0016 `ALTER TABLE MODIFY` invalid SQLite syntax) and **#512**
+(`householdItemDepService.ts:295` references removed column `category` → TS2551).
+Both bugs block ALL server-side tests that call `runMigrations()` on in-memory SQLite.
+
+**Migration fix**: Remove line 41 of `0016_household_item_categories.sql`
+(`ALTER TABLE household_items MODIFY category_id TEXT NOT NULL DEFAULT 'hic-other';`).
+SQLite does not support `ALTER TABLE MODIFY COLUMN` — that's MySQL syntax.
+
+**Client test pattern** (render helper inside describe): Move `renderManagePage()` helper
+inside the `describe` block where the `let ManagePage` variable is declared. Placing it
+at module scope gives TS error "Cannot find name 'ManagePage'".
+
+**Multiple elements for modals**: Modal heading + confirm button both have "Delete Tag" /
+"Delete Category" text. Use `getByRole('heading', { name: '...' })` instead of `getByText`.
+
+**ManagePage seeded HI categories**: Migration 0016 seeds 8 categories:
+Furniture, Appliances, Fixtures, Decor, Electronics, Outdoor, Storage, Other (IDs: hic-furniture etc.)
+
+**HIC entity has no description field** (unlike BudgetCategory which has `description`).
+
+**Test files created**:
+
+- `server/src/services/householdItemCategoryService.test.ts` (blocked by Bug #511)
+- `server/src/routes/householdItemCategories.test.ts` (blocked by Bugs #511, #512)
+- `client/src/lib/householdItemCategoriesApi.test.ts` (18 tests, all passing)
+- `client/src/pages/ManagePage/ManagePage.test.tsx` (38 tests, all passing)
 
 ## Story #415 HI Timeline Deps (2026-03-03, PR #416)
 

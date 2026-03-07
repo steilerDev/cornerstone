@@ -234,6 +234,9 @@ export type {
   HouseholdItemListQuery,
   HouseholdItemListResponse,
   HouseholdItemResponse,
+  HouseholdItemCategoryEntity,
+  CreateHouseholdItemCategoryRequest,
+  UpdateHouseholdItemCategoryRequest,
 } from './types/householdItem.js';
 
 // Household Item Budgets

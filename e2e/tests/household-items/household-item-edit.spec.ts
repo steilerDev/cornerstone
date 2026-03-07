@@ -71,7 +71,7 @@ test.describe('Form pre-population (Scenario 2)', { tag: '@responsive' }, () => 
     const name = `${testPrefix} HI Edit Pre-Population`;
 
     try {
-      createdId = await createHouseholdItemViaApi(page, { name, category: 'furniture' });
+      createdId = await createHouseholdItemViaApi(page, { name, category: 'hic-furniture' });
 
       await page.goto(`/household-items/${createdId}/edit`);
       await page.getByRole('heading', { level: 1, name: 'Edit Household Item' }).waitFor({
@@ -83,9 +83,9 @@ test.describe('Form pre-population (Scenario 2)', { tag: '@responsive' }, () => 
       const nameInput = page.locator('#name');
       await expect(nameInput).toHaveValue(name);
 
-      // The category select should be pre-selected to 'furniture'
+      // The category select should be pre-selected to 'hic-furniture'
       const categorySelect = page.locator('#category');
-      await expect(categorySelect).toHaveValue('furniture');
+      await expect(categorySelect).toHaveValue('hic-furniture');
     } finally {
       if (createdId) await deleteHouseholdItemViaApi(page, createdId);
     }

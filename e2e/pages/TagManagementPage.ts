@@ -1,8 +1,9 @@
 /**
- * Page Object Model for the Tag Management page (/tags)
+ * Page Object Model for the Manage page (/manage) — Tags tab
  *
+ * The /tags route now redirects to /manage (default tab: tags).
  * The page renders:
- * - An h1 "Tag Management" heading
+ * - An h1 "Manage" heading (the unified manage page)
  * - A success banner (role="alert") for successful operations
  * - An error banner (role="alert") for global errors (e.g., load failure, delete error)
  * - A "Create New Tag" card with name input, color input, preview row, and submit button
@@ -22,7 +23,7 @@
 
 import type { Page, Locator } from '@playwright/test';
 
-export const TAG_MANAGEMENT_ROUTE = '/tags';
+export const TAG_MANAGEMENT_ROUTE = '/manage';
 
 export class TagManagementPage {
   readonly page: Page;
@@ -55,8 +56,8 @@ export class TagManagementPage {
   constructor(page: Page) {
     this.page = page;
 
-    // Page heading
-    this.heading = page.getByRole('heading', { level: 1, name: 'Tag Management', exact: true });
+    // Page heading — ManagePage renders <h1>Manage</h1>
+    this.heading = page.getByRole('heading', { level: 1, name: 'Manage', exact: true });
 
     // Success banner — the top-level success alert that appears between h1 and the cards.
     // Filter by "successfully" to distinguish from create/update error banners.

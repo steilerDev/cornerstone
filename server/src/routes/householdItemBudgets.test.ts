@@ -228,7 +228,8 @@ describe('Household Item Budget Routes', () => {
         'password123',
       );
       const householdItem = createTestHouseholdItem('Item', userId);
-      const category = createTestBudgetCategory('HI Test Materials');
+      // Note: budgetCategoryId sent by the client is ignored by the service —
+      // the service always forces 'bc-household-items' as the category.
       const source = createTestBudgetSource('Savings', userId);
       const vendor = createTestVendor('Home Depot', userId);
 
@@ -240,7 +241,6 @@ describe('Household Item Budget Routes', () => {
           description: 'Wood flooring',
           plannedAmount: 1500,
           confidence: 'professional_estimate',
-          budgetCategoryId: category.id,
           budgetSourceId: source.id,
           vendorId: vendor.id,
         }),
@@ -253,7 +253,8 @@ describe('Household Item Budget Routes', () => {
       expect(body.budget.description).toBe('Wood flooring');
       expect(body.budget.plannedAmount).toBe(1500);
       expect(body.budget.confidence).toBe('professional_estimate');
-      expect(body.budget.budgetCategory?.id).toBe(category.id);
+      // Budget category is always auto-assigned to 'bc-household-items'
+      expect(body.budget.budgetCategory?.id).toBe('bc-household-items');
       expect(body.budget.budgetSource?.id).toBe(source.id);
       expect(body.budget.vendor?.id).toBe(vendor.id);
       expect(body.budget.actualCost).toBe(0);
@@ -283,7 +284,8 @@ describe('Household Item Budget Routes', () => {
       expect(body.budget.plannedAmount).toBe(250);
       expect(body.budget.description).toBeNull();
       expect(body.budget.confidence).toBe('own_estimate');
-      expect(body.budget.budgetCategory).toBeNull();
+      // budgetCategoryId is auto-assigned to 'bc-household-items' by the service
+      expect(body.budget.budgetCategory?.id).toBe('bc-household-items');
       expect(body.budget.budgetSource).toBeNull();
       expect(body.budget.vendor).toBeNull();
     });

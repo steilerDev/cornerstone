@@ -29,57 +29,58 @@ Verified across EPIC-01/02/03/05 — all confirmed STRONG:
 
 See `review-history.md` for detailed findings per PR.
 
-| PR   | Story                                                                             | Status                                                            | Date       |
-| ---- | --------------------------------------------------------------------------------- | ----------------------------------------------------------------- | ---------- |
-| #55  | #28 Schema                                                                        | APPROVED                                                          | 2026-02-16 |
-| #56  | #30 Local Auth                                                                    | APPROVED                                                          | 2026-02-16 |
-| #57  | #32 Sessions                                                                      | APPROVED w/ medium findings                                       | 2026-02-16 |
-| #60  | #37 RBAC                                                                          | APPROVED                                                          | 2026-02-16 |
-| #61  | #34 OIDC                                                                          | APPROVED                                                          | 2026-02-16 |
-| #62  | #36 User Profile                                                                  | APPROVED                                                          | 2026-02-16 |
-| #63  | #38 Admin Mgmt                                                                    | APPROVED                                                          | 2026-02-16 |
-| #69  | #68 Logout UI                                                                     | APPROVED                                                          | 2026-02-16 |
-| #82  | EPIC-01 Promo                                                                     | APPROVED                                                          | 2026-02-16 |
-| #97  | EPIC-03 Schema                                                                    | APPROVED                                                          | 2026-02-17 |
-| #98  | 3.2 Work Items CRUD                                                               | APPROVED                                                          | 2026-02-17 |
-| #101 | 3.3 Tag Mgmt                                                                      | APPROVED                                                          | 2026-02-17 |
-| #102 | 3.4 Notes/Subtasks                                                                | APPROVED w/ medium                                                | 2026-02-17 |
-| #103 | 3.7 Dependencies                                                                  | APPROVED w/ medium                                                | 2026-02-17 |
-| #104 | 3.5 Work Items List                                                               | APPROVED                                                          | 2026-02-17 |
-| #105 | 3.6 Work Item Detail                                                              | APPROVED                                                          | 2026-02-17 |
-| #106 | 3.8 Keyboard Shortcuts                                                            | APPROVED                                                          | 2026-02-17 |
-| #150 | #142 Budget Categories                                                            | APPROVED                                                          | 2026-02-20 |
-| #151 | #143 Vendor Mgmt                                                                  | APPROVED w/ low findings                                          | 2026-02-20 |
-| #152 | #144 Invoice Mgmt                                                                 | APPROVED w/ low findings                                          | 2026-02-20 |
-| #153 | #145 Budget Sources                                                               | APPROVED w/ low findings                                          | 2026-02-20 |
-| #157 | #148 Budget Overview                                                              | APPROVED                                                          | 2026-02-20 |
-| #158 | #149 Budget Sub-Nav                                                               | APPROVED                                                          | 2026-02-20 |
-| #187 | EPIC-05 Stories 5.9-5.12 Budget Rework                                            | APPROVED w/ low finding                                           | 2026-02-21 |
-| #193 | #186 5.12 Budget Frontend Rework                                                  | APPROVED w/ low findings                                          | 2026-02-22 |
-| #195 | Budget Hero Bar + Category Filter                                                 | APPROVED                                                          | 2026-02-22 |
-| #203 | Standalone Invoices View                                                          | APPROVED w/ informational                                         | 2026-02-23 |
-| #247 | EPIC-06 Milestones Backend                                                        | APPROVED w/ low/informational                                     | 2026-02-24 |
-| #248 | EPIC-06 Scheduling Engine (CPM)                                                   | APPROVED w/ informational                                         | 2026-02-24 |
-| #249 | EPIC-06 Timeline Data API                                                         | APPROVED                                                          | 2026-02-24 |
-| #250 | EPIC-06 Gantt Chart Core                                                          | APPROVED                                                          | 2026-02-24 |
-| #253 | EPIC-06 Gantt Interactive Features                                                | APPROVED                                                          | 2026-02-24 |
-| #254 | EPIC-06 Milestones Frontend — CRUD Panel & Diamond Markers                        | APPROVED                                                          | 2026-02-24 |
-| #263 | EPIC-06 UAT Fixes (projected dates, WorkItemSelector portal)                      | APPROVED w/ informational                                         | 2026-02-25 |
-| #267 | EPIC-06 UAT Feedback Fixes (column zoom, milestone rows, back-to-timeline nav)    | APPROVED (no findings)                                            | 2026-02-25 |
-| #306 | Gantt dependency highlighting on hover — frontend-only, Issue #295                | APPROVED (no findings)                                            | 2026-02-26 |
-| #308 | EPIC-07 Actual dates, delay tracking, blocked-status removal                      | COMMENTED (no blocking findings)                                  | 2026-02-26 |
-| #316 | Retro improvements — dep pinning, shared CSS, formatDate, invoiceService refactor | COMMENTED (1 low finding: heredoc path injection in shell script) | 2026-02-27 |
-| #320 | Bug fixes #318 (login logo) + #319 (scheduling engine rules/isLate)               | COMMENTED (no findings)                                           | 2026-02-27 |
-| #396 | EPIC-04 Story 4.1 — Household Items Schema & Migration                            | COMMENTED (2 informational)                                       | 2026-03-02 |
-| #397 | EPIC-04 Story 4.2 — Household Items CRUD API                                      | COMMENTED (2 informational)                                       | 2026-03-02 |
-| #398 | EPIC-04 Story 4.3 — Household Items List Page (frontend)                          | COMMENTED (no findings)                                           | 2026-03-03 |
-| #400 | EPIC-04 Story #391 — Household Item Detail Page                                   | COMMENTED (1 low: javascript: URL protocol not validated)         | 2026-03-03 |
-| #401 | EPIC-04 Story 4.6 — Household Items Budget Integration                            | COMMENTED (2 informational)                                       | 2026-03-03 |
-| #414 | EPIC-04 Story 4.9 — Invoice Linking for Household Item Budget Lines               | COMMENTED (2 informational)                                       | 2026-03-03 |
-| #416 | EPIC-04 Story 4.10 — HI Timeline Dependencies & Delivery Date Scheduling          | COMMENTED (2 informational)                                       | 2026-03-03 |
-| #451 | Bug fix #449 — HI Timeline Navigation (frontend-only Gantt interaction)           | APPROVED (no findings)                                            | 2026-03-04 |
-| #460 | Bug fix #458 — Inline status selector with auto-set delivery date                 | APPROVED (no findings)                                            | 2026-03-04 |
-| #466 | EPIC-05 Story 5.13 — Budget Breakdown Table (`GET /api/budget/breakdown`)         | COMMENTED (2 informational: no route schema, unbounded SELECT)    | 2026-03-05 |
+| PR   | Story                                                                             | Status                                                                                                                        | Date       |
+| ---- | --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| #55  | #28 Schema                                                                        | APPROVED                                                                                                                      | 2026-02-16 |
+| #56  | #30 Local Auth                                                                    | APPROVED                                                                                                                      | 2026-02-16 |
+| #57  | #32 Sessions                                                                      | APPROVED w/ medium findings                                                                                                   | 2026-02-16 |
+| #60  | #37 RBAC                                                                          | APPROVED                                                                                                                      | 2026-02-16 |
+| #61  | #34 OIDC                                                                          | APPROVED                                                                                                                      | 2026-02-16 |
+| #62  | #36 User Profile                                                                  | APPROVED                                                                                                                      | 2026-02-16 |
+| #63  | #38 Admin Mgmt                                                                    | APPROVED                                                                                                                      | 2026-02-16 |
+| #69  | #68 Logout UI                                                                     | APPROVED                                                                                                                      | 2026-02-16 |
+| #82  | EPIC-01 Promo                                                                     | APPROVED                                                                                                                      | 2026-02-16 |
+| #97  | EPIC-03 Schema                                                                    | APPROVED                                                                                                                      | 2026-02-17 |
+| #98  | 3.2 Work Items CRUD                                                               | APPROVED                                                                                                                      | 2026-02-17 |
+| #101 | 3.3 Tag Mgmt                                                                      | APPROVED                                                                                                                      | 2026-02-17 |
+| #102 | 3.4 Notes/Subtasks                                                                | APPROVED w/ medium                                                                                                            | 2026-02-17 |
+| #103 | 3.7 Dependencies                                                                  | APPROVED w/ medium                                                                                                            | 2026-02-17 |
+| #104 | 3.5 Work Items List                                                               | APPROVED                                                                                                                      | 2026-02-17 |
+| #105 | 3.6 Work Item Detail                                                              | APPROVED                                                                                                                      | 2026-02-17 |
+| #106 | 3.8 Keyboard Shortcuts                                                            | APPROVED                                                                                                                      | 2026-02-17 |
+| #150 | #142 Budget Categories                                                            | APPROVED                                                                                                                      | 2026-02-20 |
+| #151 | #143 Vendor Mgmt                                                                  | APPROVED w/ low findings                                                                                                      | 2026-02-20 |
+| #152 | #144 Invoice Mgmt                                                                 | APPROVED w/ low findings                                                                                                      | 2026-02-20 |
+| #153 | #145 Budget Sources                                                               | APPROVED w/ low findings                                                                                                      | 2026-02-20 |
+| #157 | #148 Budget Overview                                                              | APPROVED                                                                                                                      | 2026-02-20 |
+| #158 | #149 Budget Sub-Nav                                                               | APPROVED                                                                                                                      | 2026-02-20 |
+| #187 | EPIC-05 Stories 5.9-5.12 Budget Rework                                            | APPROVED w/ low finding                                                                                                       | 2026-02-21 |
+| #193 | #186 5.12 Budget Frontend Rework                                                  | APPROVED w/ low findings                                                                                                      | 2026-02-22 |
+| #195 | Budget Hero Bar + Category Filter                                                 | APPROVED                                                                                                                      | 2026-02-22 |
+| #203 | Standalone Invoices View                                                          | APPROVED w/ informational                                                                                                     | 2026-02-23 |
+| #247 | EPIC-06 Milestones Backend                                                        | APPROVED w/ low/informational                                                                                                 | 2026-02-24 |
+| #248 | EPIC-06 Scheduling Engine (CPM)                                                   | APPROVED w/ informational                                                                                                     | 2026-02-24 |
+| #249 | EPIC-06 Timeline Data API                                                         | APPROVED                                                                                                                      | 2026-02-24 |
+| #250 | EPIC-06 Gantt Chart Core                                                          | APPROVED                                                                                                                      | 2026-02-24 |
+| #253 | EPIC-06 Gantt Interactive Features                                                | APPROVED                                                                                                                      | 2026-02-24 |
+| #254 | EPIC-06 Milestones Frontend — CRUD Panel & Diamond Markers                        | APPROVED                                                                                                                      | 2026-02-24 |
+| #263 | EPIC-06 UAT Fixes (projected dates, WorkItemSelector portal)                      | APPROVED w/ informational                                                                                                     | 2026-02-25 |
+| #267 | EPIC-06 UAT Feedback Fixes (column zoom, milestone rows, back-to-timeline nav)    | APPROVED (no findings)                                                                                                        | 2026-02-25 |
+| #306 | Gantt dependency highlighting on hover — frontend-only, Issue #295                | APPROVED (no findings)                                                                                                        | 2026-02-26 |
+| #308 | EPIC-07 Actual dates, delay tracking, blocked-status removal                      | COMMENTED (no blocking findings)                                                                                              | 2026-02-26 |
+| #316 | Retro improvements — dep pinning, shared CSS, formatDate, invoiceService refactor | COMMENTED (1 low finding: heredoc path injection in shell script)                                                             | 2026-02-27 |
+| #320 | Bug fixes #318 (login logo) + #319 (scheduling engine rules/isLate)               | COMMENTED (no findings)                                                                                                       | 2026-02-27 |
+| #396 | EPIC-04 Story 4.1 — Household Items Schema & Migration                            | COMMENTED (2 informational)                                                                                                   | 2026-03-02 |
+| #397 | EPIC-04 Story 4.2 — Household Items CRUD API                                      | COMMENTED (2 informational)                                                                                                   | 2026-03-02 |
+| #398 | EPIC-04 Story 4.3 — Household Items List Page (frontend)                          | COMMENTED (no findings)                                                                                                       | 2026-03-03 |
+| #400 | EPIC-04 Story #391 — Household Item Detail Page                                   | COMMENTED (1 low: javascript: URL protocol not validated)                                                                     | 2026-03-03 |
+| #401 | EPIC-04 Story 4.6 — Household Items Budget Integration                            | COMMENTED (2 informational)                                                                                                   | 2026-03-03 |
+| #414 | EPIC-04 Story 4.9 — Invoice Linking for Household Item Budget Lines               | COMMENTED (2 informational)                                                                                                   | 2026-03-03 |
+| #416 | EPIC-04 Story 4.10 — HI Timeline Dependencies & Delivery Date Scheduling          | COMMENTED (2 informational)                                                                                                   | 2026-03-03 |
+| #451 | Bug fix #449 — HI Timeline Navigation (frontend-only Gantt interaction)           | APPROVED (no findings)                                                                                                        | 2026-03-04 |
+| #460 | Bug fix #458 — Inline status selector with auto-set delivery date                 | APPROVED (no findings)                                                                                                        | 2026-03-04 |
+| #466 | EPIC-05 Story 5.13 — Budget Breakdown Table (`GET /api/budget/breakdown`)         | COMMENTED (2 informational: no route schema, unbounded SELECT)                                                                | 2026-03-05 |
+| #516 | EPIC-09 Story #509 — Unified Tags & Categories Management Page                    | COMMENTED (3 informational: householdItemCount 409 details, no response schema on GET list, describe.skip on breakdown tests) | 2026-03-06 |
 
 ## Known Open Recommendations (Low Priority)
 

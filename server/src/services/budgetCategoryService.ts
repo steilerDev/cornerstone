@@ -2,7 +2,12 @@ import { randomUUID } from 'node:crypto';
 import { eq, asc, sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { budgetCategories, subsidyProgramCategories, workItemBudgets } from '../db/schema.js';
+import {
+  budgetCategories,
+  subsidyProgramCategories,
+  workItemBudgets,
+  householdItemBudgets,
+} from '../db/schema.js';
 import type {
   BudgetCategory,
   CreateBudgetCategoryRequest,
@@ -249,10 +254,19 @@ export function deleteBudgetCategory(db: DbType, id: string): void {
     .get();
   const budgetLineCount = budgetLineRef?.count ?? 0;
 
-  if (subsidyRefs.length > 0 || budgetLineCount > 0) {
+  // Check for household item budget references (budget_category_id FK on household_item_budgets)
+  const householdBudgetRef = db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(householdItemBudgets)
+    .where(eq(householdItemBudgets.budgetCategoryId, id))
+    .get();
+  const householdBudgetCount = householdBudgetRef?.count ?? 0;
+
+  if (subsidyRefs.length > 0 || budgetLineCount > 0 || householdBudgetCount > 0) {
     throw new CategoryInUseError('Budget category is in use and cannot be deleted', {
       subsidyProgramCount: subsidyRefs.length,
       budgetLineCount,
+      householdBudgetCount,
     });
   }
 

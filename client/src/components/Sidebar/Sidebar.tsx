@@ -75,11 +75,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           Invoices
         </NavLink>
         <NavLink
-          to="/tags"
+          to="/manage"
           className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
           onClick={onClose}
         >
-          Tags
+          Manage
         </NavLink>
         <div className={styles.navSeparator} />
         <NavLink

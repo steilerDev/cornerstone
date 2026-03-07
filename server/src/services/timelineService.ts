@@ -470,7 +470,7 @@ export function getTimeline(db: DbType): TimelineResponse {
     return {
       id: hi.id,
       name: hi.name,
-      category: hi.category as HouseholdItemCategory,
+      category: hi.categoryId as HouseholdItemCategory,
       status: hi.status as HouseholdItemStatus,
       targetDeliveryDate: hi.targetDeliveryDate,
       earliestDeliveryDate: hi.earliestDeliveryDate,

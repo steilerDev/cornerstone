@@ -1031,7 +1031,7 @@ describe('getTimeline service', () => {
         .values({
           id,
           name: 'Test Household Item',
-          category: 'furniture',
+          categoryId: 'hic-furniture',
           status: 'planned',
           createdAt: now,
           updatedAt: now,
@@ -1101,7 +1101,7 @@ describe('getTimeline service', () => {
 
       const hiId = insertHouseholdItem({
         name: 'Dining Table',
-        category: 'furniture',
+        categoryId: 'hic-furniture',
         status: 'purchased',
         targetDeliveryDate: '2026-05-20',
         earliestDeliveryDate: '2026-05-10',
@@ -1118,7 +1118,8 @@ describe('getTimeline service', () => {
 
       expect(hi.id).toBe(hiId);
       expect(hi.name).toBe('Dining Table');
-      expect(hi.category).toBe('furniture');
+      // category field contains the categoryId value after migration 0016
+      expect(hi.category).toBe('hic-furniture');
       expect(hi.status).toBe('purchased');
       expect(hi.targetDeliveryDate).toBe('2026-05-20');
       expect(hi.earliestDeliveryDate).toBe('2026-05-10');

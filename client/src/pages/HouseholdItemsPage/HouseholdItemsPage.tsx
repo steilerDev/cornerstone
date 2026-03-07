@@ -5,26 +5,17 @@ import type {
   HouseholdItemCategory,
   HouseholdItemStatus,
   Vendor,
+  HouseholdItemCategoryEntity,
 } from '@cornerstone/shared';
 import { listHouseholdItems, deleteHouseholdItem } from '../../lib/householdItemsApi.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
+import { fetchHouseholdItemCategories } from '../../lib/householdItemCategoriesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { HouseholdItemStatusBadge } from '../../components/HouseholdItemStatusBadge/HouseholdItemStatusBadge.js';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import { KeyboardShortcutsHelp } from '../../components/KeyboardShortcutsHelp/KeyboardShortcutsHelp.js';
 import { formatDate, formatCurrency } from '../../lib/formatters.js';
 import styles from './HouseholdItemsPage.module.css';
-
-const CATEGORY_OPTIONS: { value: HouseholdItemCategory; label: string }[] = [
-  { value: 'furniture', label: 'Furniture' },
-  { value: 'appliances', label: 'Appliances' },
-  { value: 'fixtures', label: 'Fixtures' },
-  { value: 'decor', label: 'Decor' },
-  { value: 'electronics', label: 'Electronics' },
-  { value: 'outdoor', label: 'Outdoor' },
-  { value: 'storage', label: 'Storage' },
-  { value: 'other', label: 'Other' },
-];
 
 const STATUS_OPTIONS: { value: HouseholdItemStatus; label: string }[] = [
   { value: 'planned', label: 'Planned' },
@@ -51,6 +42,7 @@ export function HouseholdItemsPage() {
   // Data state
   const [householdItems, setHouseholdItems] = useState<HouseholdItemSummary[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [categories, setCategories] = useState<HouseholdItemCategoryEntity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
 
@@ -103,17 +95,21 @@ export function HouseholdItemsPage() {
   const deleteTriggerRef = useRef<HTMLButtonElement | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
-  // Load vendors on mount
+  // Load vendors and categories on mount
   useEffect(() => {
-    const loadVendors = async () => {
+    const loadData = async () => {
       try {
-        const vendorsResponse = await fetchVendors();
+        const [vendorsResponse, categoriesResponse] = await Promise.all([
+          fetchVendors(),
+          fetchHouseholdItemCategories(),
+        ]);
         setVendors(vendorsResponse.vendors);
+        setCategories(categoriesResponse.categories);
       } catch (err) {
-        console.error('Failed to load vendors:', err);
+        console.error('Failed to load vendors or categories:', err);
       }
     };
-    loadVendors();
+    loadData();
   }, []);
 
   // Sync current page with URL
@@ -479,9 +475,9 @@ export function HouseholdItemsPage() {
                 className={styles.filterSelect}
               >
                 <option value="">All Categories</option>
-                {CATEGORY_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
+                {categories.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.name}
                   </option>
                 ))}
               </select>

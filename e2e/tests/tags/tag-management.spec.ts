@@ -1,8 +1,11 @@
 /**
- * E2E tests for Tag Management (/tags)
+ * E2E tests for Tag Management (/manage — Tags tab)
+ *
+ * Note: /tags now redirects to /manage (the unified Manage page).
+ * The Tags tab is the default tab so no ?tab= parameter is needed.
  *
  * UAT Scenarios covered:
- * 1.  Page loads with "Tag Management" heading
+ * 1.  Page loads with "Manage" heading
  * 2.  Create tag — happy path (name + color, appears in list, preview shown)
  * 3.  Create tag — name only (default color used, tag appears in list)
  * 4.  Create tag — validation (submit disabled when name empty)
@@ -55,15 +58,15 @@ async function deleteTagViaApi(page: Page, id: string): Promise<void> {
 // Scenario 1: Page loads with heading
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
-  test('Tag Management page loads with h1 heading', { tag: '@smoke' }, async ({ page }) => {
+  test('Manage page loads with h1 heading', { tag: '@smoke' }, async ({ page }) => {
     const tagsPage = new TagManagementPage(page);
 
-    // When: I navigate to the Tag Management page
+    // When: I navigate to the Manage page (Tags tab)
     await tagsPage.goto();
 
-    // Then: The h1 heading "Tag Management" is visible
+    // Then: The h1 heading "Manage" is visible
     await expect(tagsPage.heading).toBeVisible();
-    await expect(tagsPage.heading).toHaveText('Tag Management');
+    await expect(tagsPage.heading).toHaveText('Manage');
   });
 
   test('Create New Tag card is always visible on page load', async ({ page }) => {
@@ -684,7 +687,7 @@ test.describe('Empty state (Scenario 10)', { tag: '@responsive' }, () => {
 // Scenario 11: Responsive — no horizontal scroll on current viewport
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Responsive layout (Scenario 11)', { tag: '@responsive' }, () => {
-  test('Tag Management page renders without horizontal scroll on current viewport', async ({
+  test('Manage page (Tags tab) renders without horizontal scroll on current viewport', async ({
     page,
   }) => {
     const tagsPage = new TagManagementPage(page);
@@ -744,10 +747,10 @@ test.describe('Responsive layout (Scenario 11)', { tag: '@responsive' }, () => {
 // Scenario 12: Dark mode — page renders without layout breakage
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Dark mode rendering (Scenario 12)', { tag: '@responsive' }, () => {
-  test('Tag Management page renders correctly in dark mode', async ({ page }) => {
+  test('Manage page (Tags tab) renders correctly in dark mode', async ({ page }) => {
     const tagsPage = new TagManagementPage(page);
 
-    await page.goto('/tags');
+    await page.goto('/manage');
     // Activate dark mode before checking
     await page.evaluate(() => {
       document.documentElement.setAttribute('data-theme', 'dark');
@@ -778,7 +781,7 @@ test.describe('Dark mode rendering (Scenario 12)', { tag: '@responsive' }, () =>
     try {
       createdId = await createTagViaApi(page, { name: tagName });
 
-      await page.goto('/tags');
+      await page.goto('/manage');
       await page.evaluate(() => {
         document.documentElement.setAttribute('data-theme', 'dark');
       });
