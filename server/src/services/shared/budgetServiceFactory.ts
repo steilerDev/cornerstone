@@ -3,12 +3,7 @@ import { eq, and, sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 import type * as schemaTypes from '../../db/schema.js';
-import {
-  budgetCategories,
-  budgetSources,
-  vendors,
-  users,
-} from '../../db/schema.js';
+import { budgetCategories, budgetSources, vendors, users } from '../../db/schema.js';
 import {
   toUserSummary,
   toBudgetCategory,
@@ -42,7 +37,14 @@ export interface ResolvedBudgetRelations {
 
 export function resolveRelations(
   db: DbType,
-  row: { id: string; confidence: string; budgetCategoryId: string | null; budgetSourceId: string | null; vendorId: string | null; createdBy: string | null },
+  row: {
+    id: string;
+    confidence: string;
+    budgetCategoryId: string | null;
+    budgetSourceId: string | null;
+    vendorId: string | null;
+    createdBy: string | null;
+  },
   invoiceBudgetIdColumn?: string,
 ): ResolvedBudgetRelations {
   const confidence = row.confidence as ConfidenceLevel;
@@ -83,7 +85,12 @@ export interface BudgetServiceFactoryConfig<EntityRow, BudgetLine, CreateRequest
     blockDeleteOnInvoices: boolean;
   };
   toLine: (db: DbType, row: any, relations: ResolvedBudgetRelations) => BudgetLine;
-  buildInsertValues: (db: DbType, entityId: string, userId: string, data: CreateRequest) => Record<string, any>;
+  buildInsertValues: (
+    db: DbType,
+    entityId: string,
+    userId: string,
+    data: CreateRequest,
+  ) => Record<string, any>;
   assertEntityExists: (db: DbType, entityId: string) => void;
 }
 
@@ -105,14 +112,14 @@ export function getInvoiceAggregates(
     WHERE ${sql.raw(invoiceBudgetIdColumn)} = ${budgetId}`,
   );
 
-  return { actualCost: row?.actualCost ?? 0, actualCostPaid: row?.actualCostPaid ?? 0, invoiceCount: row?.invoiceCount ?? 0 };
+  return {
+    actualCost: row?.actualCost ?? 0,
+    actualCostPaid: row?.actualCostPaid ?? 0,
+    invoiceCount: row?.invoiceCount ?? 0,
+  };
 }
 
-export function getLinkedInvoices(
-  db: DbType,
-  budgetId: string,
-  invoiceBudgetIdColumn: string,
-) {
+export function getLinkedInvoices(db: DbType, budgetId: string, invoiceBudgetIdColumn: string) {
   const rows = db.all<{
     id: string;
     vendor_id: string;
@@ -139,12 +146,17 @@ export function getLinkedInvoices(
   }));
 }
 
-export function createBudgetService<EntityRow, BudgetLine, CreateRequest extends Record<string, any>, UpdateRequest extends Record<string, any>>(
-  config: BudgetServiceFactoryConfig<EntityRow, BudgetLine, CreateRequest, UpdateRequest>,
-) {
+export function createBudgetService<
+  EntityRow,
+  BudgetLine,
+  CreateRequest extends Record<string, any>,
+  UpdateRequest extends Record<string, any>,
+>(config: BudgetServiceFactoryConfig<EntityRow, BudgetLine, CreateRequest, UpdateRequest>) {
   const table = config.budgetTable as any;
   const findBudgetLine = (db: DbType, entityId: string, budgetId: string) =>
-    db.select().from(config.budgetTable)
+    db
+      .select()
+      .from(config.budgetTable)
       .where(and(eq(table.id, budgetId), eq(table[config.budgetEntityIdColumn], entityId)))
       .get();
   const toResult = (db: DbType, row: any): BudgetLine =>
@@ -255,7 +267,10 @@ export function createBudgetService<EntityRow, BudgetLine, CreateRequest extends
 
       updates.updatedAt = new Date().toISOString();
       db.update(config.budgetTable).set(updates).where(eq(table.id, budgetId)).run();
-      return toResult(db, db.select().from(config.budgetTable).where(eq(table.id, budgetId)).get()!);
+      return toResult(
+        db,
+        db.select().from(config.budgetTable).where(eq(table.id, budgetId)).get()!,
+      );
     },
 
     delete(db: DbType, entityId: string, budgetId: string): void {
