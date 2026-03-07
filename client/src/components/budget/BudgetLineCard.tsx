@@ -63,9 +63,7 @@ export function BudgetLineCard({
           {line.budgetCategory && (
             <span className={styles.metaItem}>{line.budgetCategory.name}</span>
           )}
-          {line.budgetSource && (
-            <span className={styles.metaItem}>{line.budgetSource.name}</span>
-          )}
+          {line.budgetSource && <span className={styles.metaItem}>{line.budgetSource.name}</span>}
           {line.vendor && <span className={styles.metaItem}>{line.vendor.name}</span>}
         </div>
 

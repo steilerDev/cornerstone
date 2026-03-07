@@ -51,9 +51,7 @@ export function SubsidyLinkSection({
         </div>
       )}
 
-      {linkedSubsidies.length === 0 && (
-        <div className={styles.emptyState}>No subsidies linked</div>
-      )}
+      {linkedSubsidies.length === 0 && <div className={styles.emptyState}>No subsidies linked</div>}
 
       {availableSubsidies.length > 0 && (
         <div className={styles.pickerRow}>

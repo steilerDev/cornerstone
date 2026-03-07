@@ -77,7 +77,11 @@ import { formatDate, formatCurrency } from '../../lib/formatters.js';
 import { AutosaveIndicator } from '../../components/AutosaveIndicator/AutosaveIndicator.js';
 import type { AutosaveState } from '../../components/AutosaveIndicator/AutosaveIndicator.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
-import { CONFIDENCE_LABELS, CONFIDENCE_MARGINS, computeBudgetTotals } from '../../lib/budgetConstants.js';
+import {
+  CONFIDENCE_LABELS,
+  CONFIDENCE_MARGINS,
+  computeBudgetTotals,
+} from '../../lib/budgetConstants.js';
 import { useBudgetSection, type BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 import styles from './WorkItemDetailPage.module.css';
 
@@ -1422,9 +1426,7 @@ export default function WorkItemDetailPage() {
                         type="button"
                         className={styles.budgetLineMetaLink}
                         onClick={() =>
-                          setInvoicePopoverBudgetId((prev) =>
-                            prev === line.id ? null : line.id,
-                          )
+                          setInvoicePopoverBudgetId((prev) => (prev === line.id ? null : line.id))
                         }
                         aria-expanded={invoicePopoverBudgetId === line.id}
                         aria-haspopup="true"

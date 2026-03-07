@@ -270,7 +270,9 @@ describe('createBudgetApi', () => {
         json: async () => ({ error: { code: 'NOT_FOUND', message: 'Budget line not found' } }),
       } as Response);
 
-      await expect(api.updateBudget('wi-123', 'nonexistent', { plannedAmount: 100 })).rejects.toThrow();
+      await expect(
+        api.updateBudget('wi-123', 'nonexistent', { plannedAmount: 100 }),
+      ).rejects.toThrow();
     });
   });
 

@@ -1,5 +1,10 @@
 import { useState, type FormEvent } from 'react';
-import type { BaseBudgetLine, ConfidenceLevel, CreateBudgetLineRequest, UpdateBudgetLineRequest } from '@cornerstone/shared';
+import type {
+  BaseBudgetLine,
+  ConfidenceLevel,
+  CreateBudgetLineRequest,
+  UpdateBudgetLineRequest,
+} from '@cornerstone/shared';
 
 /**
  * Form state for creating or editing a budget line.

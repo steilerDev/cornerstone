@@ -1,5 +1,9 @@
 import { get, post, patch, del } from './apiClient.js';
-import type { CreateBudgetLineRequest, UpdateBudgetLineRequest, BaseBudgetLine } from '@cornerstone/shared';
+import type {
+  CreateBudgetLineRequest,
+  UpdateBudgetLineRequest,
+  BaseBudgetLine,
+} from '@cornerstone/shared';
 
 /**
  * Generic budget CRUD operations parameterized by entity type.

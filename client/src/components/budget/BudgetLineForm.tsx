@@ -84,9 +84,7 @@ export function BudgetLineForm({
             id="budget-confidence"
             className={styles.select}
             value={form.confidence}
-            onChange={(e) =>
-              onFormChange({ confidence: e.target.value as ConfidenceLevel })
-            }
+            onChange={(e) => onFormChange({ confidence: e.target.value as ConfidenceLevel })}
             disabled={isSaving}
           >
             {Object.entries(confidenceLabels).map(([value, label]) => (

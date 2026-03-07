@@ -34,9 +34,8 @@ const mockDeleteBudget = jest.fn<() => Promise<void>>();
 const mockReloadBudgetLines = jest.fn<() => Promise<void>>();
 const mockReloadSubsidyPayback = jest.fn<() => Promise<void>>();
 const mockReloadLinkedSubsidies = jest.fn<() => Promise<void>>();
-const mockToFormState = jest.fn<
-  (line: TestBudgetLine) => import('../hooks/useBudgetSection.js').BudgetLineFormState
->();
+const mockToFormState =
+  jest.fn<(line: TestBudgetLine) => import('../hooks/useBudgetSection.js').BudgetLineFormState>();
 const mockToPayload = jest.fn<() => import('@cornerstone/shared').CreateBudgetLineRequest>();
 
 import type * as UseBudgetSectionModule from './useBudgetSection.js';
@@ -74,23 +73,21 @@ function makeOptions(
   return {
     api: {
       fetchBudgets: mockFetchBudgets,
-      createBudget:
-        mockCreateBudget as Parameters<
-          typeof useBudgetSection<TestBudgetLine>
-        >[0]['api']['createBudget'],
-      updateBudget:
-        mockUpdateBudget as Parameters<
-          typeof useBudgetSection<TestBudgetLine>
-        >[0]['api']['updateBudget'],
+      createBudget: mockCreateBudget as Parameters<
+        typeof useBudgetSection<TestBudgetLine>
+      >[0]['api']['createBudget'],
+      updateBudget: mockUpdateBudget as Parameters<
+        typeof useBudgetSection<TestBudgetLine>
+      >[0]['api']['updateBudget'],
       deleteBudget: mockDeleteBudget,
     },
     reloadBudgetLines: mockReloadBudgetLines,
     reloadSubsidyPayback: mockReloadSubsidyPayback,
     reloadLinkedSubsidies: mockReloadLinkedSubsidies,
-    toFormState:
-      mockToFormState as Parameters<typeof useBudgetSection<TestBudgetLine>>[0]['toFormState'],
-    toPayload:
-      mockToPayload as Parameters<typeof useBudgetSection<TestBudgetLine>>[0]['toPayload'],
+    toFormState: mockToFormState as Parameters<
+      typeof useBudgetSection<TestBudgetLine>
+    >[0]['toFormState'],
+    toPayload: mockToPayload as Parameters<typeof useBudgetSection<TestBudgetLine>>[0]['toPayload'],
     entityId: 'entity-1',
     ...overrides,
   };

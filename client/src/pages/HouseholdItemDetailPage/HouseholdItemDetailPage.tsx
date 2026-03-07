@@ -57,7 +57,11 @@ import { formatDate, formatCurrency } from '../../lib/formatters.js';
 import { HouseholdItemStatusBadge } from '../../components/HouseholdItemStatusBadge/HouseholdItemStatusBadge.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
-import { CONFIDENCE_LABELS, CONFIDENCE_MARGINS, computeBudgetTotals } from '../../lib/budgetConstants.js';
+import {
+  CONFIDENCE_LABELS,
+  CONFIDENCE_MARGINS,
+  computeBudgetTotals,
+} from '../../lib/budgetConstants.js';
 import { useBudgetSection, type BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 import { BudgetLineForm } from '../../components/budget/BudgetLineForm.js';
 import { BudgetLineCard } from '../../components/budget/BudgetLineCard.js';
