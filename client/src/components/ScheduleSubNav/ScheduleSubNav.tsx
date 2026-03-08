@@ -3,7 +3,15 @@ import styles from './ScheduleSubNav.module.css';
 
 function GanttIcon(): ReactNode {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" width="16" height="16" fill="none" aria-hidden="true" style={{ display: 'block' }}>
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 20 20"
+      width="16"
+      height="16"
+      fill="none"
+      aria-hidden="true"
+      style={{ display: 'block' }}
+    >
       <rect x="2" y="4" width="10" height="3" rx="1" fill="currentColor" />
       <rect x="5" y="9" width="8" height="3" rx="1" fill="currentColor" />
       <rect x="8" y="14" width="10" height="3" rx="1" fill="currentColor" />
@@ -13,10 +21,34 @@ function GanttIcon(): ReactNode {
 
 function CalendarIcon(): ReactNode {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" width="16" height="16" fill="none" aria-hidden="true" style={{ display: 'block' }}>
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 20 20"
+      width="16"
+      height="16"
+      fill="none"
+      aria-hidden="true"
+      style={{ display: 'block' }}
+    >
       <rect x="3" y="4" width="14" height="13" rx="2" stroke="currentColor" strokeWidth="1.5" />
-      <line x1="7" y1="2" x2="7" y2="6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      <line x1="13" y1="2" x2="13" y2="6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <line
+        x1="7"
+        y1="2"
+        x2="7"
+        y2="6"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+      <line
+        x1="13"
+        y1="2"
+        x2="13"
+        y2="6"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
       <line x1="3" y1="9" x2="17" y2="9" stroke="currentColor" strokeWidth="1.5" />
     </svg>
   );
