@@ -146,3 +146,18 @@ When using polymorphic FKs (no DB-level constraint), ALL services that delete th
 
 - `document_links` (entity_type/entity_id) -- cleanup in deleteWorkItem, deleteVendor
 - `household_item_deps` (predecessor_type/predecessor_id) -- **MISSING** cleanup in deleteWorkItem, deleteMilestone
+
+## PR #615: Invoice Budget-Line Linking UI (Story #606)
+
+**Verdict:** Request Changes (2 critical, 1 medium, 2 low)
+
+### Critical
+1. `@extend .td` in CSS -- Sass directive, invalid in plain CSS Modules. 5 occurrences in `InvoiceBudgetLinesSection.module.css`. Fix: use `composes: td;` or inline the padding property.
+2. Double-fire on WorkItemPicker -- both `onChange` and `onSelectItem` fire on selection, causing duplicate `handleSelectItem` calls (duplicate API requests). Fix: remove `onChange`, use only `onSelectItem`.
+
+### Medium
+3. `itemTitle: itemId` shows UUID in modal header instead of item name.
+
+### Low
+4. Client allows `itemizedAmount >= 0` but API requires `> 0`.
+5. `loadBudgetLines` not memoized -- eslint exhaustive-deps warning risk.
