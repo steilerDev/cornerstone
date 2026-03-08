@@ -191,16 +191,18 @@ function BudgetLineRow({
  */
 function WorkItemRow({
   item,
+  expandKey,
   expanded: itemExpanded,
   onToggle,
   perspective,
 }: {
   item: BreakdownWorkItem;
+  expandKey: string;
   expanded: boolean;
   onToggle: (key: string) => void;
   perspective: CostPerspective;
 }) {
-  const key = `wi-item-${item.workItemId}`;
+  const key = expandKey;
   const rowClassName = styles.rowLevel2;
 
   const resolvedRawCost =
@@ -318,31 +320,19 @@ function WorkItemCategorySection({
 
       {isExpanded && (
         <>
-          {category.items.map((item) => (
-            <WorkItemRow
-              key={item.workItemId}
-              item={item}
-              expanded={expandedKeys.has(`wi-item-${item.workItemId}`)}
-              onToggle={onToggle}
-              perspective={perspective}
-            />
-          ))}
-
-          {/* Sum row for this category */}
-          <tr className={styles.rowSum} key={`${key}-sum`}>
-            <td className={`${styles.colName} ${styles.cellSumName}`}>
-              <div className={styles.nameContent}>
-                <span>Total {category.categoryName}</span>
-              </div>
-            </td>
-            <td className={styles.colBudget}>{formatCost(resolvedRawCost)}</td>
-            <td className={styles.colPayback}>
-              {category.subsidyPayback > 0 ? formatPayback(resolvedPayback) : '—'}
-            </td>
-            <td className={styles.colRemaining}>
-              {renderNet(resolvedRawCost, resolvedPayback, styles)}
-            </td>
-          </tr>
+          {category.items.map((item) => {
+            const itemKey = `wi-cat-${category.categoryId ?? 'null'}-item-${item.workItemId}`;
+            return (
+              <WorkItemRow
+                key={item.workItemId}
+                item={item}
+                expandKey={itemKey}
+                expanded={expandedKeys.has(itemKey)}
+                onToggle={onToggle}
+                perspective={perspective}
+              />
+            );
+          })}
         </>
       )}
     </>
@@ -354,16 +344,18 @@ function WorkItemCategorySection({
  */
 function HouseholdItemRow({
   item,
+  expandKey,
   expanded: itemExpanded,
   onToggle,
   perspective,
 }: {
   item: BreakdownHouseholdItem;
+  expandKey: string;
   expanded: boolean;
   onToggle: (key: string) => void;
   perspective: CostPerspective;
 }) {
-  const key = `hi-item-${item.householdItemId}`;
+  const key = expandKey;
   const rowClassName = styles.rowLevel2;
 
   const resolvedRawCost =
@@ -481,31 +473,19 @@ function HouseholdItemCategorySection({
 
       {isExpanded && (
         <>
-          {category.items.map((item) => (
-            <HouseholdItemRow
-              key={item.householdItemId}
-              item={item}
-              expanded={expandedKeys.has(`hi-item-${item.householdItemId}`)}
-              onToggle={onToggle}
-              perspective={perspective}
-            />
-          ))}
-
-          {/* Sum row for this category */}
-          <tr className={styles.rowSum} key={`${key}-sum`}>
-            <td className={`${styles.colName} ${styles.cellSumName}`}>
-              <div className={styles.nameContent}>
-                <span>Total {category.hiCategory}</span>
-              </div>
-            </td>
-            <td className={styles.colBudget}>{formatCost(resolvedRawCost)}</td>
-            <td className={styles.colPayback}>
-              {category.subsidyPayback > 0 ? formatPayback(resolvedPayback) : '—'}
-            </td>
-            <td className={styles.colRemaining}>
-              {renderNet(resolvedRawCost, resolvedPayback, styles)}
-            </td>
-          </tr>
+          {category.items.map((item) => {
+            const itemKey = `hi-cat-${category.hiCategory}-item-${item.householdItemId}`;
+            return (
+              <HouseholdItemRow
+                key={item.householdItemId}
+                item={item}
+                expandKey={itemKey}
+                expanded={expandedKeys.has(itemKey)}
+                onToggle={onToggle}
+                perspective={perspective}
+              />
+            );
+          })}
         </>
       )}
     </>
