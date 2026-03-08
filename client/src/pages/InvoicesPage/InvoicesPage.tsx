@@ -8,12 +8,7 @@ import type {
 } from '@cornerstone/shared';
 import { fetchAllInvoices, createInvoice } from '../../lib/invoicesApi.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
-import { fetchWorkItemBudgets } from '../../lib/workItemBudgetsApi.js';
-import { fetchHouseholdItemBudgets } from '../../lib/householdItemBudgetsApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
-import { WorkItemPicker } from '../../components/WorkItemPicker/WorkItemPicker.js';
-import { HouseholdItemPicker } from '../../components/HouseholdItemPicker/HouseholdItemPicker.js';
-import type { WorkItemBudgetLine, HouseholdItemBudgetLine } from '@cornerstone/shared';
 import { formatDate, formatCurrency } from '../../lib/formatters.js';
 import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
 import styles from './InvoicesPage.module.css';
@@ -32,10 +27,6 @@ interface InvoiceFormState {
   dueDate: string;
   status: InvoiceStatus;
   notes: string;
-  selectedWorkItemId: string;
-  workItemBudgetId: string;
-  selectedHouseholdItemId: string;
-  householdItemBudgetId: string;
 }
 
 const EMPTY_FORM: InvoiceFormState = {
@@ -46,10 +37,6 @@ const EMPTY_FORM: InvoiceFormState = {
   dueDate: '',
   status: 'pending',
   notes: '',
-  selectedWorkItemId: '',
-  workItemBudgetId: '',
-  selectedHouseholdItemId: '',
-  householdItemBudgetId: '',
 };
 
 export function InvoicesPage() {
@@ -88,12 +75,6 @@ export function InvoicesPage() {
   const [createForm, setCreateForm] = useState<InvoiceFormState>(EMPTY_FORM);
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState('');
-  const [budgetLines, setBudgetLines] = useState<WorkItemBudgetLine[]>([]);
-  const [budgetLinesLoading, setBudgetLinesLoading] = useState(false);
-  const [householdItemBudgetLines, setHouseholdItemBudgetLines] = useState<
-    HouseholdItemBudgetLine[]
-  >([]);
-  const [householdItemBudgetLinesLoading, setHouseholdItemBudgetLinesLoading] = useState(false);
 
   useEffect(() => {
     if (urlPage !== currentPage) setCurrentPage(urlPage);
@@ -178,7 +159,6 @@ export function InvoicesPage() {
   const openCreateModal = () => {
     setCreateForm(EMPTY_FORM);
     setCreateError('');
-    setBudgetLines([]);
     setShowCreateModal(true);
   };
 
@@ -761,114 +741,6 @@ export function InvoicesPage() {
                   <option value="claimed">Claimed</option>
                 </select>
               </div>
-
-              <div className={styles.field}>
-                <span className={styles.label}>Link to Work Item</span>
-                <WorkItemPicker
-                  value={createForm.selectedWorkItemId}
-                  onChange={(workItemId) => {
-                    setCreateForm({
-                      ...createForm,
-                      selectedWorkItemId: workItemId,
-                      workItemBudgetId: '',
-                      selectedHouseholdItemId: '',
-                      householdItemBudgetId: '',
-                    });
-                    if (workItemId) {
-                      setBudgetLinesLoading(true);
-                      void fetchWorkItemBudgets(workItemId)
-                        .then((lines) => setBudgetLines(lines))
-                        .catch(() => setBudgetLines([]))
-                        .finally(() => setBudgetLinesLoading(false));
-                    } else {
-                      setBudgetLines([]);
-                    }
-                  }}
-                  excludeIds={[]}
-                  disabled={isCreating}
-                  placeholder="Search work items..."
-                  showItemsOnFocus
-                />
-              </div>
-
-              {createForm.selectedWorkItemId && (
-                <div className={styles.field}>
-                  <label htmlFor="create-budget-line" className={styles.label}>
-                    Budget Line
-                  </label>
-                  <select
-                    id="create-budget-line"
-                    value={createForm.workItemBudgetId}
-                    onChange={(e) =>
-                      setCreateForm({ ...createForm, workItemBudgetId: e.target.value })
-                    }
-                    className={styles.select}
-                    disabled={isCreating || budgetLinesLoading}
-                  >
-                    <option value="">None</option>
-                    {budgetLines.map((bl) => (
-                      <option key={bl.id} value={bl.id}>
-                        {bl.description || `${formatCurrency(bl.plannedAmount)} (${bl.confidence})`}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              <div className={styles.separator}>— or —</div>
-
-              <div className={styles.field}>
-                <span className={styles.label}>Link to Household Item</span>
-                <HouseholdItemPicker
-                  value={createForm.selectedHouseholdItemId}
-                  onChange={(householdItemId) => {
-                    setCreateForm({
-                      ...createForm,
-                      selectedHouseholdItemId: householdItemId,
-                      householdItemBudgetId: '',
-                      selectedWorkItemId: '',
-                      workItemBudgetId: '',
-                    });
-                    if (householdItemId) {
-                      setHouseholdItemBudgetLinesLoading(true);
-                      void fetchHouseholdItemBudgets(householdItemId)
-                        .then((lines) => setHouseholdItemBudgetLines(lines))
-                        .catch(() => setHouseholdItemBudgetLines([]))
-                        .finally(() => setHouseholdItemBudgetLinesLoading(false));
-                    } else {
-                      setHouseholdItemBudgetLines([]);
-                    }
-                  }}
-                  excludeIds={[]}
-                  disabled={isCreating}
-                  placeholder="Search household items..."
-                  showItemsOnFocus
-                />
-              </div>
-
-              {createForm.selectedHouseholdItemId && (
-                <div className={styles.field}>
-                  <label htmlFor="create-household-budget-line" className={styles.label}>
-                    Budget Line
-                  </label>
-                  <select
-                    id="create-household-budget-line"
-                    value={createForm.householdItemBudgetId}
-                    onChange={(e) =>
-                      setCreateForm({ ...createForm, householdItemBudgetId: e.target.value })
-                    }
-                    className={styles.select}
-                    disabled={isCreating || householdItemBudgetLinesLoading}
-                  >
-                    <option value="">None</option>
-                    {householdItemBudgetLines.map((bl) => (
-                      <option key={bl.id} value={bl.id}>
-                        {bl.description || `${formatCurrency(bl.plannedAmount)} (${bl.confidence})`}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
 
               <div className={styles.field}>
                 <label htmlFor="create-notes" className={styles.label}>
