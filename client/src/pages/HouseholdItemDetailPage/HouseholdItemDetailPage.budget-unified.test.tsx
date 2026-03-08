@@ -563,10 +563,10 @@ describe('HouseholdItemDetailPage — unified Budget section (issue #566)', () =
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      // Expected Cost = minPlanned - maxPayback to maxPlanned - minPayback
-      // min=400-120=280, max=600-100=500 → "€280.00 – €500.00"
+      // Expected Cost = minPlanned - minPayback to maxPlanned - maxPayback
+      // 400-100=300, 600-120=480 → "€300.00 – €480.00"
       expect(screen.getByText('Expected Cost')).toBeInTheDocument();
-      expect(screen.getByText(/€280.00.*€500.00/)).toBeInTheDocument();
+      expect(screen.getByText(/€300.00.*€480.00/)).toBeInTheDocument();
     });
 
     it('shows Expected Cost with net value when subsidies linked AND invoiced', async () => {

@@ -35,14 +35,15 @@ export function BudgetCostOverview({ budgetLines, subsidyPayback }: BudgetCostOv
     subsidyPayback.subsidies.length > 0 &&
     subsidyPayback.maxTotalPayback > 0;
 
-  // Expected Cost: when subsidies exist, cross-subtract for correct bounds
-  // expectedCostMin = minPlanned - maxPayback, expectedCostMax = maxPlanned - minPayback
-  const expectedCostMin = hasSubsidyPayback
-    ? totalMinPlanned - subsidyPayback!.maxTotalPayback
+  // Expected Cost = Planned Range - Expected Payback (straight subtraction)
+  const rawExpectedCostA = hasSubsidyPayback
+    ? totalMinPlanned - subsidyPayback!.minTotalPayback
     : totalMinPlanned;
-  const expectedCostMax = hasSubsidyPayback
-    ? totalMaxPlanned - subsidyPayback!.minTotalPayback
+  const rawExpectedCostB = hasSubsidyPayback
+    ? totalMaxPlanned - subsidyPayback!.maxTotalPayback
     : totalMaxPlanned;
+  const expectedCostMin = Math.min(rawExpectedCostA, rawExpectedCostB);
+  const expectedCostMax = Math.max(rawExpectedCostA, rawExpectedCostB);
 
   return (
     <div className={styles.budgetSummary}>
