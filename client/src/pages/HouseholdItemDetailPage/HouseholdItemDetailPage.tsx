@@ -1060,7 +1060,10 @@ export function HouseholdItemDetailPage() {
                       {dep.predecessorType === 'work_item' ? 'Work Item' : 'Milestone'}
                     </span>
                     {dep.predecessorType === 'work_item' ? (
-                      <Link to={`/project/work-items/${dep.predecessorId}`} className={styles.depPredLink}>
+                      <Link
+                        to={`/project/work-items/${dep.predecessorId}`}
+                        className={styles.depPredLink}
+                      >
                         {dep.predecessor.title}
                       </Link>
                     ) : (

@@ -299,8 +299,14 @@ describe('HouseholdItemDetailPage — inline date editing (Story #467)', () => {
     return render(
       <MemoryRouter initialEntries={[`/project/household-items/${itemId}`]}>
         <Routes>
-          <Route path="/project/household-items/:id" element={<HouseholdItemDetailPageModule.default />} />
-          <Route path="/project/household-items/:id/edit" element={<div>Household Item Edit</div>} />
+          <Route
+            path="/project/household-items/:id"
+            element={<HouseholdItemDetailPageModule.default />}
+          />
+          <Route
+            path="/project/household-items/:id/edit"
+            element={<div>Household Item Edit</div>}
+          />
           <Route path="/project/household-items" element={<div>Household Items List</div>} />
         </Routes>
         <LocationDisplay />

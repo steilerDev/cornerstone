@@ -118,7 +118,10 @@ export function App() {
                   </Route>
 
                   {/* Legacy redirects — preserve old bookmarks */}
-                  <Route path="work-items" element={<Navigate to="/project/work-items" replace />} />
+                  <Route
+                    path="work-items"
+                    element={<Navigate to="/project/work-items" replace />}
+                  />
                   <Route
                     path="work-items/new"
                     element={<Navigate to="/project/work-items/new" replace />}
@@ -144,7 +147,10 @@ export function App() {
                     element={<ParamRedirect to="/project/household-items/:id/edit" />}
                   />
                   <Route path="invoices" element={<Navigate to="/budget/invoices" replace />} />
-                  <Route path="invoices/:id" element={<ParamRedirect to="/budget/invoices/:id" />} />
+                  <Route
+                    path="invoices/:id"
+                    element={<ParamRedirect to="/budget/invoices/:id" />}
+                  />
                   <Route path="timeline" element={<Navigate to="/schedule" replace />} />
                   <Route path="manage" element={<Navigate to="/settings/manage" replace />} />
                   <Route path="tags" element={<Navigate to="/settings/manage" replace />} />

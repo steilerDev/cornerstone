@@ -94,10 +94,7 @@ describe('Sidebar', () => {
     expect(screen.getByRole('link', { name: /^project$/i })).toHaveAttribute('href', '/project');
     expect(screen.getByRole('link', { name: /^budget$/i })).toHaveAttribute('href', '/budget');
     expect(screen.getByRole('link', { name: /^schedule$/i })).toHaveAttribute('href', '/schedule');
-    expect(screen.getByRole('link', { name: /^settings$/i })).toHaveAttribute(
-      'href',
-      '/settings',
-    );
+    expect(screen.getByRole('link', { name: /^settings$/i })).toHaveAttribute('href', '/settings');
   });
 
   it('project link is active at /project', () => {

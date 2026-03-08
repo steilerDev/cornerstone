@@ -1934,7 +1934,10 @@ export default function WorkItemDetailPage() {
           <ul className={styles.householdItemLinkList}>
             {linkedHouseholdItems.map((hi) => (
               <li key={hi.id} className={styles.householdItemLinkRow}>
-                <Link to={`/project/household-items/${hi.id}`} className={styles.householdItemLinkName}>
+                <Link
+                  to={`/project/household-items/${hi.id}`}
+                  className={styles.householdItemLinkName}
+                >
                   {hi.name}
                 </Link>
                 <span className={styles.householdItemCategoryBadge}>

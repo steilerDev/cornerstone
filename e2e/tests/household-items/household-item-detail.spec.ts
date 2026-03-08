@@ -87,7 +87,10 @@ test.describe('Back breadcrumb navigation (Scenario 2)', { tag: '@responsive' },
 // Scenario 3: Edit button navigates to edit page
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Edit button navigation (Scenario 3)', { tag: '@responsive' }, () => {
-  test('"Edit" button navigates to /project/household-items/:id/edit', async ({ page, testPrefix }) => {
+  test('"Edit" button navigates to /project/household-items/:id/edit', async ({
+    page,
+    testPrefix,
+  }) => {
     const detailPage = new HouseholdItemDetailPage(page);
     let createdId: string | null = null;
 

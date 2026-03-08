@@ -384,7 +384,10 @@ function HouseholdItemRow({
                 className={`${styles.chevron} ${itemExpanded ? styles.chevronOpen : ''}`}
               />
             </button>
-            <Link to={`/project/household-items/${item.householdItemId}`} className={styles.nameLink}>
+            <Link
+              to={`/project/household-items/${item.householdItemId}`}
+              className={styles.nameLink}
+            >
               {item.name}
             </Link>
             {item.costDisplay === 'actual' && (

@@ -50,7 +50,9 @@ test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
 // Scenario 2: Back button navigates to /project/household-items
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Back button navigation (Scenario 2)', { tag: '@responsive' }, () => {
-  test('"← Back to Household Items" button navigates to /project/household-items', async ({ page }) => {
+  test('"← Back to Household Items" button navigates to /project/household-items', async ({
+    page,
+  }) => {
     const createPage = new HouseholdItemCreatePage(page);
 
     await createPage.goto();

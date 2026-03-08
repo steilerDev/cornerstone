@@ -170,7 +170,10 @@ describe('HouseholdItemCreatePage', () => {
     return render(
       <MemoryRouter initialEntries={['/project/household-items/new']}>
         <Routes>
-          <Route path="/project/household-items/new" element={<HouseholdItemCreatePageModule.default />} />
+          <Route
+            path="/project/household-items/new"
+            element={<HouseholdItemCreatePageModule.default />}
+          />
           <Route path="/project/household-items/:id" element={<div>Household Item Detail</div>} />
           <Route path="/project/household-items" element={<div>Household Items List</div>} />
         </Routes>

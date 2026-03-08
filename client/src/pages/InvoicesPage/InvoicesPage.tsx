@@ -499,7 +499,10 @@ export function InvoicesPage() {
                       <td>{formatDate(invoice.date)}</td>
                       <td className={styles.invoiceNumberCell}>
                         {invoice.invoiceNumber ? (
-                          <Link to={`/budget/invoices/${invoice.id}`} className={styles.invoiceLink}>
+                          <Link
+                            to={`/budget/invoices/${invoice.id}`}
+                            className={styles.invoiceLink}
+                          >
                             {invoice.invoiceNumber}
                           </Link>
                         ) : (
@@ -552,7 +555,10 @@ export function InvoicesPage() {
                 <div key={invoice.id} className={styles.card}>
                   <div className={styles.cardTop}>
                     <div className={styles.cardLeft}>
-                      <Link to={`/budget/invoices/${invoice.id}`} className={styles.cardInvoiceNumber}>
+                      <Link
+                        to={`/budget/invoices/${invoice.id}`}
+                        className={styles.cardInvoiceNumber}
+                      >
                         {invoice.invoiceNumber ? `#${invoice.invoiceNumber}` : 'No Number'}
                       </Link>
                       <Link
