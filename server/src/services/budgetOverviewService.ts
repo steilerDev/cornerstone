@@ -218,7 +218,9 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
         }
 
         // Determine cost basis: use invoice amount if available, otherwise planned amount
-        const costBasis = lineInvoiceMap.has(line.id) ? lineInvoiceMap.get(line.id)! : line.plannedAmount;
+        const costBasis = lineInvoiceMap.has(line.id)
+          ? lineInvoiceMap.get(line.id)!
+          : line.plannedAmount;
 
         // This subsidy applies to this line
         if (meta.reductionType === 'percentage') {
@@ -432,7 +434,9 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
       }
 
       // Determine cost basis: use invoice amount if available, otherwise planned amount
-      const costBasis = lineInvoiceMap.has(line.id) ? lineInvoiceMap.get(line.id)! : line.plannedAmount;
+      const costBasis = lineInvoiceMap.has(line.id)
+        ? lineInvoiceMap.get(line.id)!
+        : line.plannedAmount;
 
       if (meta.reductionType === 'percentage') {
         totalReductions += costBasis * (meta.reductionValue / 100);
