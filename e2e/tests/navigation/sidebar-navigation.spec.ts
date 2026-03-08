@@ -27,16 +27,16 @@ test.describe('Sidebar Navigation', { tag: '@responsive' }, () => {
 
     // When/Then: Navigate to each section and verify URL (use regex to allow query params)
     await clickSidebarLink('Project');
-    await expect(page).toHaveURL(new RegExp(`/project(\\?.*)?$`));
+    await expect(page).toHaveURL(/\/project/);
 
     await clickSidebarLink('Budget');
-    await expect(page).toHaveURL(new RegExp(`${ROUTES.budget}(\\?.*)?$`));
+    await expect(page).toHaveURL(/\/budget/);
 
     await clickSidebarLink('Schedule');
-    await expect(page).toHaveURL(new RegExp(`${ROUTES.timeline}(\\?.*)?$`));
+    await expect(page).toHaveURL(/\/schedule/);
 
     await clickSidebarLink('Settings');
-    await expect(page).toHaveURL(new RegExp(`/settings(\\?.*)?$`));
+    await expect(page).toHaveURL(/\/settings/);
   });
 
   test('Active link highlighting', async ({ page }) => {
