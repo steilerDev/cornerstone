@@ -875,7 +875,7 @@ describe('getBudgetBreakdown', () => {
         confidence: 'own_estimate',
         budgetCategoryId: catId,
       });
-      const { workItemId: idB } = insertWorkItem({
+      insertWorkItem({
         plannedAmount: 2000,
         confidence: 'quote',
         budgetCategoryId: catId,

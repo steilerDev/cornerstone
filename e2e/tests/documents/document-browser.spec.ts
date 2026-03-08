@@ -22,7 +22,6 @@
 
 import type { Page, Route } from '@playwright/test';
 import { test, expect } from '../../fixtures/auth.js';
-import { API } from '../../fixtures/testData.js';
 import { createWorkItemViaApi, deleteWorkItemViaApi } from '../../fixtures/apiHelpers.js';
 
 // ─── Mock data ──────────────────────────────────────────────────────────────
@@ -39,14 +38,6 @@ const MOCK_STATUS_UNREACHABLE = {
   configured: true,
   reachable: false,
   error: 'Connection refused',
-  paperlessUrl: null,
-  filterTag: null,
-};
-
-const MOCK_STATUS_NOT_CONFIGURED = {
-  configured: false,
-  reachable: false,
-  error: null,
   paperlessUrl: null,
   filterTag: null,
 };
