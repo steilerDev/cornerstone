@@ -8,10 +8,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as InvoicesApiTypes from '../../lib/invoicesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
-import type {
-  VendorDetail,
-  Invoice,
-} from '@cornerstone/shared';
+import type { VendorDetail, Invoice } from '@cornerstone/shared';
 
 // Mock the vendor API module BEFORE importing the component
 const mockFetchVendor = jest.fn<typeof VendorsApiTypes.fetchVendor>();
