@@ -149,20 +149,21 @@ export function DocumentBrowser({
         <div className={styles.tagStrip} role="group" aria-label="Filter by tag">
           {hook.tags.map((tag) => {
             const isChecked = hook.selectedTags.includes(tag.id);
+            const count = hook.tagCountMap.get(tag.id) ?? tag.documentCount;
             return (
               <span
                 key={tag.id}
                 className={`${styles.tagChip} ${isChecked ? styles.tagChipActive : ''}`}
                 role="checkbox"
                 aria-checked={isChecked}
-                aria-label={`Filter by tag: ${tag.name} (${tag.documentCount} documents)`}
+                aria-label={`Filter by tag: ${tag.name} (${count} documents)`}
                 tabIndex={0}
                 onClick={() => hook.toggleTag(tag.id)}
                 onKeyDown={(e) => handleTagKeyDown(e, tag.id)}
               >
                 {tag.name}
-                {tag.documentCount > 0 && (
-                  <span className={styles.tagCount}>{tag.documentCount}</span>
+                {count > 0 && (
+                  <span className={styles.tagCount}>{count}</span>
                 )}
               </span>
             );

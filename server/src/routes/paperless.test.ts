@@ -527,7 +527,7 @@ describe('Paperless Routes', () => {
       expect(response.statusCode).toBe(200);
       // Documents call is now at index 1 (after filter tag resolution at index 0)
       const docsCallUrl = (mockFetch.mock.calls[1] as [string, ...unknown[]])[0];
-      expect(docsCallUrl).toContain('tags__id__in=10');
+      expect(docsCallUrl).toContain('tags__id__all=10');
 
       delete process.env.PAPERLESS_FILTER_TAG;
     });
