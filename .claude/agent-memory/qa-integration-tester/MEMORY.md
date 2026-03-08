@@ -3,6 +3,18 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`
 
+## Story #606 Invoice Budget Lines UI Tests (2026-03-08)
+
+**Test files**: `invoiceBudgetLinesApi.test.ts` (26), `InvoiceBudgetLinesSection.test.tsx` (36), updated `InvoiceDetailPage.test.tsx` (18).
+
+**Key patterns**:
+- When stubbing a sibling component (same directory), use `jest.unstable_mockModule('./InvoiceBudgetLinesSection.js', ...)` (relative path with `.js` extension)
+- When a section component has cascading deps (api mocks, pickers), stub it in the parent page test rather than setting up all transitive mocks
+- **Backdrop click via CSS class**: `outerModal?.querySelector('.modalBackdrop')` reliably selects the backdrop div when there is no accessible role/label on it
+- **Multiple elements same text**: `plannedAmount` and `remainingAmount` can both be `$1000.00` — use distinct values in fixture to avoid `getByText` ambiguity
+- **`data-invoice-total` attribute**: Numbers become strings in HTML attributes; assert with `.toHaveAttribute('data-invoice-total', '1500')` (not `1500` as number)
+- **InvoiceDetailPage test cleanup**: Removed stale `workItemBudgetsApi` and `householdItemsApi` mocks after those deps moved into `InvoiceBudgetLinesSection` (now stubbed)
+
 ## Story #603 / Story 15.1 Test Fixes — Junction Table Model (2026-03-08)
 
 **Pattern**: When `invoice_budget_lines` uses partial UNIQUE index on `work_item_budget_id` and `household_item_budget_id`, each budget line can link to AT MOST ONE invoice. Any test that previously inserted multiple invoices for the same budget line violates this constraint.

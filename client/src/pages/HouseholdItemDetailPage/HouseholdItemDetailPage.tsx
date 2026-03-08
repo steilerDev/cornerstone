@@ -48,6 +48,10 @@ import { listWorkItems } from '../../lib/workItemsApi.js';
 import { listMilestones } from '../../lib/milestonesApi.js';
 import { fetchInvoices } from '../../lib/invoicesApi.js';
 import { fetchHouseholdItemCategories } from '../../lib/householdItemCategoriesApi.js';
+import {
+  createInvoiceBudgetLine,
+  deleteInvoiceBudgetLine,
+} from '../../lib/invoiceBudgetLinesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { formatDate, formatCurrency } from '../../lib/formatters.js';
 import { HouseholdItemStatusBadge } from '../../components/HouseholdItemStatusBadge/HouseholdItemStatusBadge.js';
@@ -55,6 +59,7 @@ import { useToast } from '../../components/Toast/ToastContext.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
 import { useBudgetSection, type BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 import { BudgetSection } from '../../components/budget/BudgetSection.js';
+import { InvoiceLinkModal } from '../../components/budget/InvoiceLinkModal.js';
 import { ProjectSubNav } from '../../components/ProjectSubNav/ProjectSubNav.js';
 import styles from './HouseholdItemDetailPage.module.css';
 
@@ -82,8 +87,12 @@ export function HouseholdItemDetailPage() {
   const [budgetLines, setBudgetLines] = useState<HouseholdItemBudgetLine[]>([]);
   const [budgetSources, setBudgetSources] = useState<BudgetSource[]>([]);
   const [allVendors, setAllVendors] = useState<Vendor[]>([]);
-  const [budgetLineInvoices, setBudgetLineInvoices] = useState<Record<string, Invoice[]>>({});
   const [categories, setCategories] = useState<HouseholdItemCategoryEntity[]>([]);
+
+  // Invoice linking state
+  const [showInvoiceLinkModal, setShowInvoiceLinkModal] = useState(false);
+  const [invoiceLinkingBudgetId, setInvoiceLinkingBudgetId] = useState<string | null>(null);
+  const [isUnlinkingInvoice, setIsUnlinkingInvoice] = useState<Record<string, boolean>>({});
 
   // Subsidy linking state (linked subsidies and programs stay as local state)
   const [linkedSubsidies, setLinkedSubsidies] = useState<SubsidyProgram[]>([]);
@@ -256,15 +265,6 @@ export function HouseholdItemDetailPage() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [showAddDepModal]);
 
-  // Load invoices for budget lines whenever the item or budget lines change
-  const budgetLineIdString = budgetLines.map((bl) => bl.id).join(',');
-  useEffect(() => {
-    if (item?.vendor && budgetLines.length > 0) {
-      const budgetLineIds = budgetLines.map((bl) => bl.id);
-      void loadBudgetLineInvoices(item.vendor.id, budgetLineIds);
-    }
-  }, [item?.vendor, budgetLines, budgetLineIdString]);
-
   const loadItem = async () => {
     if (!id) return;
     setIsLoading(true);
@@ -315,29 +315,6 @@ export function HouseholdItemDetailPage() {
     } catch (err) {
       // Non-critical — budget data failure shouldn't block the page
       console.error('Failed to load budget data:', err);
-    }
-  };
-
-  const loadBudgetLineInvoices = async (vendorId: string, budgetLineIds: string[]) => {
-    try {
-      const allVendorInvoices = await fetchInvoices(vendorId);
-      const grouped: Record<string, Invoice[]> = {};
-      for (const inv of allVendorInvoices) {
-        // Find if any budget line in this invoice matches the household item budget lines
-        for (const budgetLine of inv.budgetLines) {
-          if (
-            budgetLine.budgetLineType === 'household_item' &&
-            budgetLineIds.includes(budgetLine.budgetLineId)
-          ) {
-            if (!grouped[budgetLine.budgetLineId]) grouped[budgetLine.budgetLineId] = [];
-            grouped[budgetLine.budgetLineId].push(inv);
-            break; // Only add invoice once per budget line
-          }
-        }
-      }
-      setBudgetLineInvoices(grouped);
-    } catch {
-      // Silently fail — invoices are supplementary
     }
   };
 
@@ -456,6 +433,39 @@ export function HouseholdItemDetailPage() {
       setInlineError('Failed to unlink subsidy program');
       console.error('Failed to unlink subsidy:', err);
     }
+  };
+
+  // ─── Invoice linking handlers ────────────────────────────────────────────
+
+  const handleLinkInvoice = (budgetLineId: string) => {
+    setInvoiceLinkingBudgetId(budgetLineId);
+    setShowInvoiceLinkModal(true);
+  };
+
+  const handleUnlinkInvoice = async (budgetLineId: string, invoiceBudgetLineId: string) => {
+    const invoiceLink = budgetLines.find((line) => line.id === budgetLineId)?.invoiceLink;
+    if (!invoiceLink) return;
+
+    setIsUnlinkingInvoice((prev) => ({ ...prev, [invoiceBudgetLineId]: true }));
+    setInlineError(null);
+
+    try {
+      await deleteInvoiceBudgetLine(invoiceLink.invoiceId, invoiceBudgetLineId);
+      const fresh = await getHouseholdItem(id!);
+      setItem(fresh);
+      await reloadBudgetLines();
+    } catch (err) {
+      setInlineError('Failed to unlink budget line from invoice');
+      console.error('Failed to unlink invoice:', err);
+    } finally {
+      setIsUnlinkingInvoice((prev) => ({ ...prev, [invoiceBudgetLineId]: false }));
+    }
+  };
+
+  const handleInvoiceLinkSuccess = () => {
+    setShowInvoiceLinkModal(false);
+    setInvoiceLinkingBudgetId(null);
+    reloadBudgetLines();
   };
 
   function triggerAutosaveReset(setter: (v: AutosaveState) => void, key: string) {
@@ -1244,30 +1254,11 @@ export function HouseholdItemDetailPage() {
             onLinkSubsidy={handleLinkSubsidy}
             onUnlinkSubsidy={handleUnlinkSubsidy}
             onConfirmDeleteBudgetLine={handleConfirmDeleteBudgetLine}
+            budgetLineType="household_item"
+            onLinkInvoice={handleLinkInvoice}
+            onUnlinkInvoice={handleUnlinkInvoice}
+            isUnlinking={isUnlinkingInvoice}
             inlineError={inlineError}
-            renderBudgetLineChildren={(line) =>
-              budgetLineInvoices[line.id]?.length > 0 ? (
-                <div className={styles.budgetLineInvoices}>
-                  <h4 className={styles.budgetLineInvoicesTitle}>Linked Invoices</h4>
-                  <ul className={styles.invoiceList}>
-                    {budgetLineInvoices[line.id].map((inv) => (
-                      <li key={inv.id} className={styles.invoiceListItem}>
-                        <Link to={`/invoices/${inv.id}`} className={styles.invoiceLink}>
-                          {inv.invoiceNumber ? `#${inv.invoiceNumber}` : 'Invoice'}
-                        </Link>
-                        <span className={styles.invoiceAmount}>{formatCurrency(inv.amount)}</span>
-                        <span
-                          className={`${styles.invoiceStatusBadge} ${styles[`invoiceStatus_${inv.status}`]}`}
-                        >
-                          {inv.status.charAt(0).toUpperCase() + inv.status.slice(1)}
-                        </span>
-                        <span className={styles.invoiceDate}>{formatDate(inv.date)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null
-            }
           />
         </section>
 
@@ -1338,6 +1329,22 @@ export function HouseholdItemDetailPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Invoice link modal */}
+      {showInvoiceLinkModal && invoiceLinkingBudgetId && (
+        <InvoiceLinkModal
+          budgetLineId={invoiceLinkingBudgetId}
+          budgetLineType="household_item"
+          defaultAmount={
+            budgetLines.find((line) => line.id === invoiceLinkingBudgetId)?.plannedAmount || 0
+          }
+          onSuccess={handleInvoiceLinkSuccess}
+          onClose={() => {
+            setShowInvoiceLinkModal(false);
+            setInvoiceLinkingBudgetId(null);
+          }}
+        />
       )}
     </div>
   );

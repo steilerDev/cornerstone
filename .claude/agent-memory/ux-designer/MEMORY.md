@@ -201,10 +201,19 @@ See `story-4-11-hi-detail-inline-edit.md` for full spec.
 
 ## PR #516 Review Findings — Unified Manage Page (Tags + Categories)
 
-- **CRITICAL**: Tags tab button `id="tabs-tab"` should be `id="tags-tab"` — mismatch breaks `aria-labelledby` on tabpanel
-- **MEDIUM**: WAI-ARIA tablist requires arrow-key nav (ArrowLeft/Right/Home/End) + roving tabindex (`tabIndex={isActive ? 0 : -1}`) — never just onClick
-- **MEDIUM**: `transition: all` on `.tab` — always use explicit property list; add `prefers-reduced-motion` guard
-- **LOW**: Buttons hand-rolled instead of `composes:` from `shared.module.css` (btnPrimary, btnPrimaryCompact, btnSecondaryCompact, btnDanger, btnConfirmDelete)
-- **LOW**: `cancelButton:hover` background = rest state background (should be `var(--color-bg-hover)`) — fixed by composing from shared
-- **LOW**: Tablet breakpoint `max-width: 1024px` → must be `1023px` (recurring)
-- Token adherence in CSS: all colors/spacing/shadows correctly use `var(--token)` — no hex literals in CSS
+- WAI-ARIA tablist: arrow-key nav (ArrowLeft/Right/Home/End) + roving tabindex required
+- `transition: all` on tabs: always explicit property list + prefers-reduced-motion guard
+- Tablet breakpoint recurring: `max-width: 1024px` must be `1023px`
+
+## Story 15.4 — Invoice Budget Lines Section (Issue #606)
+
+Spec posted at https://github.com/steilerDev/cornerstone/issues/606#issuecomment-4020101918
+
+Key decisions:
+- Section placement: between Invoice Details card and LinkedDocumentsSection, full-width `.card`
+- Edit modal: old WI/HI pickers removed entirely; modal may shrink from `modalContentWide` (48rem) back to default 28rem
+- Remaining row: `var(--color-bg-secondary)` bg, `border-top: 2px solid var(--color-border-strong)` (double weight), italic label
+- Remaining color: `var(--color-text-primary)` (>0), `var(--color-success-text-on-light)` (=0), `var(--color-danger-text-on-light)` (<0)
+- HI vs WI entity type pill: use `var(--color-role-member-bg)` / `var(--color-role-member-text)` for "HI" discriminator chip
+- Picker modal: `min(640px, calc(100vw - 2rem))` — between default and wide
+- InvoiceDetailPage.module.css uses `box-shadow: var(--shadow-sm)` for cards (NOT `border: 1px solid`) — diverges from WorkItemDetailPage pattern

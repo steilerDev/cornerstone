@@ -81,6 +81,7 @@ jest.unstable_mockModule('../../lib/apiClient.js', () => ({
   ApiClientError: MockApiClientError,
   get: jest.fn(),
   post: jest.fn(),
+  put: jest.fn(),
   patch: jest.fn(),
   del: jest.fn(),
 }));
