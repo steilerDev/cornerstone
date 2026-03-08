@@ -67,6 +67,8 @@ export function InvoiceBudgetLinesSection({
   // Focus management
   const addButtonRef = useRef<HTMLButtonElement>(null);
   const pickerModalRef = useRef<HTMLDivElement>(null);
+  const remainingAmountRef = useRef<HTMLTableCellElement>(null);
+  const newLineRowRef = useRef<HTMLTableRowElement>(null);
 
   // Load budget lines on mount
   useEffect(() => {
@@ -185,9 +187,15 @@ export function InvoiceBudgetLinesSection({
       const response = await createInvoiceBudgetLine(invoiceId, createData);
 
       // Update state with new line and remaining amount
-      setBudgetLines([...budgetLines, response.budgetLine]);
+      const newBudgetLines = [...budgetLines, response.budgetLine];
+      setBudgetLines(newBudgetLines);
       setRemainingAmount(response.remainingAmount);
       closePicker();
+
+      // Focus the newly added row after a short delay
+      setTimeout(() => {
+        newLineRowRef.current?.focus();
+      }, 100);
     } catch (err) {
       let errorMsg = 'Failed to link budget line. Please try again.';
 
@@ -271,6 +279,7 @@ export function InvoiceBudgetLinesSection({
    */
   const handleDeleteLine = async (lineId: string) => {
     setIsDeleting(true);
+    const deletedIndex = budgetLines.findIndex((line) => line.id === lineId);
 
     try {
       await deleteInvoiceBudgetLine(invoiceId, lineId);
@@ -278,6 +287,21 @@ export function InvoiceBudgetLinesSection({
       // Re-fetch budget lines to get updated remaining amount
       await loadBudgetLines();
       setDeletingLineId(null);
+
+      // Focus management: move focus to the next row or the Add button
+      setTimeout(() => {
+        // If there are remaining lines, focus the next one; otherwise focus the Add button
+        if (budgetLines.length > 1) {
+          // Focus the next row if available, or the previous one
+          const focusIndex = deletedIndex < budgetLines.length - 1 ? deletedIndex : deletedIndex - 1;
+          const rows = document.querySelectorAll('[data-row-id]');
+          if (rows[focusIndex]) {
+            (rows[focusIndex] as HTMLElement).focus();
+          }
+        } else {
+          addButtonRef.current?.focus();
+        }
+      }, 50);
     } catch (err) {
       if (err instanceof ApiClientError) {
         setError(err.error.message);
@@ -368,8 +392,14 @@ export function InvoiceBudgetLinesSection({
               </tr>
             </thead>
             <tbody>
-              {budgetLines.map((line) => (
-                <tr key={line.id} className={styles.tr}>
+              {budgetLines.map((line, index) => (
+                <tr
+                  key={line.id}
+                  className={styles.tr}
+                  ref={index === budgetLines.length - 1 ? newLineRowRef : null}
+                  data-row-id={line.id}
+                  tabIndex={-1}
+                >
                   <td className={styles.tdDescription}>{line.budgetLineDescription || '\u2014'}</td>
                   <td className={styles.tdCategory}>{line.categoryName || '\u2014'}</td>
                   <td className={styles.tdPlanned}>{formatCurrency(line.plannedAmount)}</td>
@@ -444,7 +474,14 @@ export function InvoiceBudgetLinesSection({
                 <td colSpan={3} className={styles.tdRemainingLabel}>
                   Remaining
                 </td>
-                <td className={styles.tdRemaining}>{formatCurrency(remainingAmount)}</td>
+                <td
+                  ref={remainingAmountRef}
+                  className={styles.tdRemaining}
+                  aria-live="polite"
+                  aria-label={`Remaining amount: ${formatCurrency(remainingAmount)}`}
+                >
+                  {formatCurrency(remainingAmount)}
+                </td>
                 <td />
               </tr>
             </tbody>

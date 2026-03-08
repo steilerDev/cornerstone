@@ -76,9 +76,9 @@
   color: var(--color-text-primary);
 }
 
-.closeButton:focus {
-  outline: 2px solid var(--color-primary);
-  outline-offset: -1px;
+.closeButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
 }
 
 /* ─── Error Banner ───────────────────────────────────────────────────────── */
@@ -127,11 +127,11 @@
   transition: var(--transition-button);
 }
 
-.select:focus,
-.input:focus {
+.select:focus-visible,
+.input:focus-visible {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: inset 0 0 0 2px var(--color-primary-focus-subtle);
+  box-shadow: inset 0 0 0 2px var(--color-focus-ring-subtle);
 }
 
 .select:disabled,
@@ -144,9 +144,9 @@
   border-color: var(--color-danger-border);
 }
 
-.inputError:focus {
+.inputError:focus-visible {
   border-color: var(--color-danger-active);
-  box-shadow: inset 0 0 0 2px var(--color-danger-bg);
+  box-shadow: inset 0 0 0 2px var(--color-focus-ring-danger);
 }
 
 /* ─── Field Error ─────────────────────────────────────────────────────────── */
