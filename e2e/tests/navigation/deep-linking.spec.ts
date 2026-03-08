@@ -14,7 +14,7 @@ test.describe('Deep Linking', () => {
 
     // Project Overview (/ redirects to /project/overview)
     await page.goto(ROUTES.home);
-    await expect(page.getByRole('heading', { level: 1, name: 'Project Overview' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Overview' })).toBeVisible();
     expect(page.url()).toContain('/project/overview');
 
     // Work Items

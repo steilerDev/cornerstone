@@ -2,7 +2,7 @@
  * Page Object Model for the Project Overview page (/project/overview)
  *
  * The Project Overview is currently a stub page that renders:
- *   - An h1 "Project Overview"
+ *   - An h1 "Overview"
  *   - A <p> describing the planned overview functionality
  *
  * When the page gains real content (activity feed, budget summary, etc.)
@@ -24,7 +24,7 @@ export class DashboardPage {
 
     this.heading = page.getByRole('heading', {
       level: 1,
-      name: 'Project Overview',
+      name: 'Overview',
       exact: true,
     });
     // The description is a <p> with the CSS-module class "description".

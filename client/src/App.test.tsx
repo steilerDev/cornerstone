@@ -300,12 +300,12 @@ describe('App', () => {
     expect(main).toBeInTheDocument();
   });
 
-  it('shows Project Overview page at root path / (redirects to /project/overview)', async () => {
+  it('shows Overview page at root path / (redirects to /project/overview)', async () => {
     render(<App />);
 
     // Wait for lazy-loaded DashboardPage component to resolve
     // Root redirects to /project which redirects to /project/overview
-    const heading = await screen.findByRole('heading', { name: /project overview/i });
+    const heading = await screen.findByRole('heading', { name: /^overview$/i });
     expect(heading).toBeInTheDocument();
   });
 
