@@ -196,7 +196,7 @@ function BudgetLineRow({
   const costMin = line.plannedAmount * (1 - margin);
   const costMax = line.plannedAmount * (1 + margin);
   const perspectiveValue = resolveProjected(costMin, costMax, perspective);
-  const rowClassName = `${styles.rowLevel3}${line.hasInvoice ? ` ${styles.rowActual}` : ''}`;
+  const rowClassName = styles.rowLevel3;
 
   const resolvedRawCost = line.hasInvoice ? line.actualCost : perspectiveValue;
 
@@ -205,7 +205,11 @@ function BudgetLineRow({
       <td className={styles.colName}>
         <div className={styles.nameContent}>
           <span>{line.description || 'Untitled'}</span>
-          <ConfidenceBadge confidence={line.confidence} />
+          {line.hasInvoice ? (
+            <span className={styles.invoicedBadge}>invoiced</span>
+          ) : (
+            <ConfidenceBadge confidence={line.confidence} />
+          )}
         </div>
       </td>
       <td className={styles.colBudget}>
@@ -238,12 +242,7 @@ function WorkItemRow({
   perspective: CostPerspective;
 }) {
   const key = `wi-item-${item.workItemId}`;
-  let rowClassName = styles.rowLevel2;
-  if (item.costDisplay === 'actual') {
-    rowClassName = `${styles.rowLevel2} ${styles.rowActual}`;
-  } else if (item.costDisplay === 'mixed') {
-    rowClassName = `${styles.rowLevel2} ${styles.rowMixed}`;
-  }
+  const rowClassName = styles.rowLevel2;
 
   const resolvedRawCost =
     item.costDisplay === 'actual'
@@ -274,6 +273,9 @@ function WorkItemRow({
             <Link to={`/work-items/${item.workItemId}`} className={styles.nameLink}>
               {item.title}
             </Link>
+            {item.costDisplay === 'actual' && (
+              <span className={styles.invoicedBadge}>invoiced</span>
+            )}
           </div>
         </td>
         <td className={styles.colBudget}>
@@ -403,12 +405,7 @@ function HouseholdItemRow({
   perspective: CostPerspective;
 }) {
   const key = `hi-item-${item.householdItemId}`;
-  let rowClassName = styles.rowLevel2;
-  if (item.costDisplay === 'actual') {
-    rowClassName = `${styles.rowLevel2} ${styles.rowActual}`;
-  } else if (item.costDisplay === 'mixed') {
-    rowClassName = `${styles.rowLevel2} ${styles.rowMixed}`;
-  }
+  const rowClassName = styles.rowLevel2;
 
   const resolvedRawCost =
     item.costDisplay === 'actual'
@@ -439,6 +436,9 @@ function HouseholdItemRow({
             <Link to={`/household-items/${item.householdItemId}`} className={styles.nameLink}>
               {item.name}
             </Link>
+            {item.costDisplay === 'actual' && (
+              <span className={styles.invoicedBadge}>invoiced</span>
+            )}
           </div>
         </td>
         <td className={styles.colBudget}>
