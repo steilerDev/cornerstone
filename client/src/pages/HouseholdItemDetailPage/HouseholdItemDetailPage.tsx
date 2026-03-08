@@ -1406,9 +1406,7 @@ export function HouseholdItemDetailPage() {
                           <Link to={`/invoices/${inv.id}`} className={styles.invoiceLink}>
                             {inv.invoiceNumber ? `#${inv.invoiceNumber}` : 'Invoice'}
                           </Link>
-                          <span className={styles.invoiceAmount}>
-                            {formatCurrency(inv.amount)}
-                          </span>
+                          <span className={styles.invoiceAmount}>{formatCurrency(inv.amount)}</span>
                           <span
                             className={`${styles.invoiceStatusBadge} ${styles[`invoiceStatus_${inv.status}`]}`}
                           >

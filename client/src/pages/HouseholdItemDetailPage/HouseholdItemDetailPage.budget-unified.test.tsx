@@ -542,7 +542,12 @@ describe('HouseholdItemDetailPage — unified Budget section (issue #566)', () =
           minTotalPayback: 50,
           maxTotalPayback: 80,
           subsidies: [
-            makeSubsidyEntry({ subsidyProgramId: 'sp-1', name: 'Solar Subsidy', minPayback: 50, maxPayback: 80 }),
+            makeSubsidyEntry({
+              subsidyProgramId: 'sp-1',
+              name: 'Solar Subsidy',
+              minPayback: 50,
+              maxPayback: 80,
+            }),
           ],
         }),
       );
@@ -567,7 +572,12 @@ describe('HouseholdItemDetailPage — unified Budget section (issue #566)', () =
           minTotalPayback: 50,
           maxTotalPayback: 80,
           subsidies: [
-            makeSubsidyEntry({ subsidyProgramId: 'sp-1', name: 'Solar Subsidy', minPayback: 50, maxPayback: 80 }),
+            makeSubsidyEntry({
+              subsidyProgramId: 'sp-1',
+              name: 'Solar Subsidy',
+              minPayback: 50,
+              maxPayback: 80,
+            }),
           ],
         }),
       );
@@ -592,7 +602,12 @@ describe('HouseholdItemDetailPage — unified Budget section (issue #566)', () =
           minTotalPayback: 130,
           maxTotalPayback: 180,
           subsidies: [
-            makeSubsidyEntry({ subsidyProgramId: 'sp-1', name: 'Solar Subsidy', minPayback: 50, maxPayback: 80 }),
+            makeSubsidyEntry({
+              subsidyProgramId: 'sp-1',
+              name: 'Solar Subsidy',
+              minPayback: 50,
+              maxPayback: 80,
+            }),
             makeSubsidyEntry({
               subsidyProgramId: 'sp-2',
               name: 'Green Renovation Grant',
