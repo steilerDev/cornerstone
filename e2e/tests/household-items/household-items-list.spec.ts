@@ -1,5 +1,5 @@
 /**
- * E2E tests for the Household Items list page (/household-items)
+ * E2E tests for the Household Items list page (/project/household-items)
  *
  * EPIC-04 Stories covered:
  * - 4.3: List Page (filtering, sorting, status badges)
@@ -7,7 +7,7 @@
  *
  * Scenarios covered:
  * 1.  Page loads with h1 "Household Items"
- * 2.  "New Item" button navigates to /household-items/new
+ * 2.  "New Item" button navigates to /project/household-items/new
  * 3.  Empty state when no items exist (mocked)
  * 4.  Filter empty state when search matches nothing
  * 5.  Item created via API appears in the list
@@ -47,15 +47,15 @@ test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
     },
   );
 
-  test('Page URL is /household-items', async ({ page }) => {
+  test('Page URL is /project/household-items', async ({ page }) => {
     await page.goto(HOUSEHOLD_ITEMS_ROUTE);
-    await page.waitForURL('/household-items');
-    expect(page.url()).toContain('/household-items');
+    await page.waitForURL('/project/household-items');
+    expect(page.url()).toContain('/project/household-items');
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 2: "New Item" button navigates to /household-items/new
+// Scenario 2: "New Item" button navigates to /project/household-items/new
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('"New Item" navigation (Scenario 2)', { tag: '@responsive' }, () => {
   test('"New Item" button navigates to the create page', async ({ page }) => {
@@ -66,8 +66,8 @@ test.describe('"New Item" navigation (Scenario 2)', { tag: '@responsive' }, () =
 
     await listPage.newItemButton.click();
 
-    await page.waitForURL('**/household-items/new');
-    expect(page.url()).toContain('/household-items/new');
+    await page.waitForURL('**/project/household-items/new');
+    expect(page.url()).toContain('/project/household-items/new');
   });
 });
 
@@ -204,7 +204,7 @@ test.describe(
       const name = `${testPrefix} HI Table Columns Test`;
 
       try {
-        createdId = await createHouseholdItemViaApi(page, { name, category: 'furniture' });
+        createdId = await createHouseholdItemViaApi(page, { name, category: 'hic-furniture' });
 
         await listPage.goto();
         await listPage.waitForLoaded();
@@ -281,10 +281,10 @@ test.describe('Category filter (Scenario 7)', { tag: '@responsive' }, () => {
 
     try {
       created.push(
-        await createHouseholdItemViaApi(page, { name: furnitureName, category: 'furniture' }),
+        await createHouseholdItemViaApi(page, { name: furnitureName, category: 'hic-furniture' }),
       );
       created.push(
-        await createHouseholdItemViaApi(page, { name: applianceName, category: 'appliances' }),
+        await createHouseholdItemViaApi(page, { name: applianceName, category: 'hic-appliances' }),
       );
 
       await listPage.goto();
@@ -293,9 +293,9 @@ test.describe('Category filter (Scenario 7)', { tag: '@responsive' }, () => {
       // First search to narrow to our prefix, then apply category filter
       await listPage.search(`${testPrefix} HI Cat`);
 
-      // Select 'furniture' category and wait for URL to reflect it
-      await listPage.categoryFilter.selectOption('furniture');
-      await page.waitForURL((url) => url.searchParams.get('category') === 'furniture', {
+      // Select 'hic-furniture' category and wait for URL to reflect it
+      await listPage.categoryFilter.selectOption('hic-furniture');
+      await page.waitForURL((url) => url.searchParams.get('category') === 'hic-furniture', {
         timeout: 10000,
       });
 
@@ -501,7 +501,7 @@ test.describe('Pagination (Scenario 12)', { tag: '@responsive' }, () => {
         const items = Array.from({ length: 25 }, (_, i) => ({
           id: `mock-hi-${i}`,
           name: `Mock Household Item ${String(i + 1).padStart(2, '0')}`,
-          category: 'furniture',
+          category: 'hic-furniture',
           status: 'planned',
           room: null,
           vendor: null,

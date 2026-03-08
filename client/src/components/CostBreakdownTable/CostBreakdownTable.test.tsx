@@ -94,24 +94,10 @@ function getButtonByControls(container: HTMLElement, controlsId: string): HTMLEl
     throw new Error(`Category button for controlsId="${controlsId}" not found`);
   } else if (controlsId.startsWith('hi-cat-') && controlsId.endsWith('-items')) {
     // For household item category expansion
-    // Extract category from controlsId: "hi-cat-{hiCategory}-items"
-    // Example: "hi-cat-appliances-items" → looking for button with sibling text "Appliances"
-    const categoryMatch = controlsId.match(/^hi-cat-([a-z]+)-items$/);
-    if (categoryMatch) {
-      const category = categoryMatch[1];
-      // Map category to label
-      const categoryLabels: Record<string, string> = {
-        furniture: 'Furniture',
-        appliances: 'Appliances',
-        fixtures: 'Fixtures',
-        decor: 'Decor',
-        electronics: 'Electronics',
-        outdoor: 'Outdoor',
-        storage: 'Storage',
-        other: 'Other',
-      };
-      expectedText = categoryLabels[category] || null;
-    }
+    // Extract category name from controlsId: "hi-cat-{hiCategory}-items"
+    // The category name is used directly (user-defined string, not a legacy enum key)
+    const inner = controlsId.slice('hi-cat-'.length, -'-items'.length);
+    expectedText = inner || null;
   } else if (controlsId.startsWith('wi-item-') && controlsId.endsWith('-budget-lines')) {
     // For work item expansion, find in the correct section
     // Look for buttons in rows that are nested under a WI category
@@ -145,7 +131,8 @@ function getButtonByControls(container: HTMLElement, controlsId: string): HTMLEl
       } else if (
         foundHISection &&
         text &&
-        !text.match(/^(Furniture|Appliances|Fixtures|Decor|Electronics|Outdoor|Storage|Other)$/)
+        text !== 'Household items' &&
+        !text.startsWith('Total ')
       ) {
         return btn;
       }
@@ -346,15 +333,7 @@ function buildBreakdownWithWI(
  */
 function buildBreakdownWithHI(
   opts: {
-    hiCategory?:
-      | 'furniture'
-      | 'appliances'
-      | 'fixtures'
-      | 'decor'
-      | 'electronics'
-      | 'outdoor'
-      | 'storage'
-      | 'other';
+    hiCategory?: string;
     projectedMin?: number;
     projectedMax?: number;
     actualCost?: number;
@@ -367,7 +346,7 @@ function buildBreakdownWithHI(
     householdItemId?: string;
   } = {},
 ): BudgetBreakdown {
-  const hiCategory = opts.hiCategory ?? 'furniture';
+  const hiCategory = opts.hiCategory ?? 'Living Room';
   const projectedMin = opts.projectedMin ?? 400;
   const projectedMax = opts.projectedMax ?? 600;
   const actualCost = opts.actualCost ?? 0;
@@ -708,7 +687,7 @@ describe('CostBreakdownTable', () => {
   // and the row has the rowMixed CSS class. The component does not show separate Actual/Projected
   // labels in the Cost column for mixed items — only for actual mode shows 'Actual:' label.
 
-  it('shows projected cost value in item row for costDisplay=mixed (rowMixed class applied)', () => {
+  it('shows projected cost value in item row for costDisplay=mixed (no rowMixed class)', () => {
     const { container } = renderWithRouter(
       buildBreakdownWithWI({
         costDisplay: 'mixed',
@@ -730,9 +709,9 @@ describe('CostBreakdownTable', () => {
     const projectedAvg = screen.getAllByText(/€1,100\.00/);
     expect(projectedAvg.length).toBeGreaterThanOrEqual(1);
 
-    // Item row must have rowMixed CSS class (visual indicator for mixed state)
+    // rowMixed class is no longer applied to item rows (green tinting removed)
     const mixedRows = container.querySelectorAll('tr.rowMixed');
-    expect(mixedRows.length).toBeGreaterThanOrEqual(1);
+    expect(mixedRows.length).toBe(0);
   });
 
   // ── 24. Zero subsidy payback → "—" ───────────────────────────────────────
@@ -953,7 +932,7 @@ describe('CostBreakdownTable', () => {
       householdItems: {
         categories: [
           {
-            hiCategory: 'furniture',
+            hiCategory: 'Living Room',
             projectedMin: 300,
             projectedMax: 500,
             actualCost: 0,
@@ -1148,7 +1127,7 @@ describe('CostBreakdownTable', () => {
   it('shows HI category label after expanding HI section', () => {
     const { container } = render(
       <CostBreakdownTable
-        breakdown={buildBreakdownWithHI({ hiCategory: 'electronics' })}
+        breakdown={buildBreakdownWithHI({ hiCategory: 'Home Office' })}
         overview={buildOverview()}
         selectedCategories={new Set()}
         budgetSources={[]}
@@ -1157,14 +1136,14 @@ describe('CostBreakdownTable', () => {
 
     fireEvent.click(getButtonByControls(container, 'hi-section-categories'));
 
-    // "Electronics" is the label for the 'electronics' hiCategory
-    expect(screen.getByText('Electronics')).toBeInTheDocument();
+    // "Home Office" is the user-defined category name used directly as the display label
+    expect(screen.getByText('Home Office')).toBeInTheDocument();
   });
 
   it('shows HI item name after expanding HI category', () => {
     const { container } = renderWithRouter(
       buildBreakdownWithHI({
-        hiCategory: 'appliances',
+        hiCategory: 'Kitchen',
         itemName: 'Dishwasher',
         householdItemId: 'hi-dishwasher',
       }),
@@ -1172,7 +1151,7 @@ describe('CostBreakdownTable', () => {
     );
 
     fireEvent.click(getButtonByControls(container, 'hi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'hi-cat-appliances-items'));
+    fireEvent.click(getButtonByControls(container, 'hi-cat-Kitchen-items'));
 
     expect(screen.getByText('Dishwasher')).toBeInTheDocument();
   });
@@ -1280,7 +1259,7 @@ describe('CostBreakdownTable', () => {
       householdItems: {
         categories: [
           {
-            hiCategory: 'furniture',
+            hiCategory: 'Living Room',
             projectedMin: 200,
             projectedMax: 300,
             actualCost: 0,
@@ -1319,9 +1298,11 @@ describe('CostBreakdownTable', () => {
     expect(screen.getByText('Remaining')).toBeInTheDocument();
   });
 
-  // ── Category sum row visibility ────────────────────────────────────────────
+  // ── Category sum row visibility — Bug #585 fix ────────────────────────────
+  // After Bug #585 was fixed, the "Total {category}" sum row no longer renders.
+  // The category header row still shows the category name with cost values.
 
-  it('shows sum row for expanded WI category', () => {
+  it('does not show a sum row ("Total Contingency") after expanding a WI category (Bug #585)', () => {
     const { container } = renderWithRouter(
       buildBreakdownWithWI({ categoryName: 'Contingency', categoryId: 'cat-cont2' }),
       buildOverview(),
@@ -1330,19 +1311,25 @@ describe('CostBreakdownTable', () => {
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
     fireEvent.click(getButtonByControls(container, 'wi-cat-cat-cont2-items'));
 
-    expect(screen.getByText('Total Contingency')).toBeInTheDocument();
+    // Category header row still shows the category name
+    expect(screen.getByText('Contingency')).toBeInTheDocument();
+    // But no "Total Contingency" sum row should appear after the fix
+    expect(screen.queryByText('Total Contingency')).not.toBeInTheDocument();
   });
 
-  it('shows sum row for expanded HI category', () => {
+  it('does not show a sum row ("Total Garage") after expanding an HI category (Bug #585)', () => {
     const { container } = renderWithRouter(
-      buildBreakdownWithHI({ hiCategory: 'storage', householdItemId: 'hi-stor' }),
+      buildBreakdownWithHI({ hiCategory: 'Garage', householdItemId: 'hi-stor' }),
       buildOverview(),
     );
 
     fireEvent.click(getButtonByControls(container, 'hi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'hi-cat-storage-items'));
+    fireEvent.click(getButtonByControls(container, 'hi-cat-Garage-items'));
 
-    expect(screen.getByText('Total Storage')).toBeInTheDocument();
+    // Category header row still shows the category name
+    expect(screen.getByText('Garage')).toBeInTheDocument();
+    // But no "Total Garage" sum row should appear after the fix
+    expect(screen.queryByText('Total Garage')).not.toBeInTheDocument();
   });
 
   // ── Null category WI item ─────────────────────────────────────────────────
@@ -1517,8 +1504,9 @@ describe('CostBreakdownTable', () => {
 
   // ── Row Highlighting (Scenarios 10–13) ────────────────────────────────────
 
-  // Scenario 10: costDisplay === 'actual' → rowActual CSS class on <tr>
-  it('work item with costDisplay=actual has rowActual CSS class on its row', () => {
+  // Scenario 10: costDisplay === 'actual' → NO rowActual CSS class on <tr> (green tinting removed)
+  // Instead, an "invoiced" badge is shown next to the item title.
+  it('work item with costDisplay=actual does NOT have rowActual CSS class on its row', () => {
     const { container } = renderWithRouter(
       buildBreakdownWithWI({
         costDisplay: 'actual',
@@ -1535,13 +1523,16 @@ describe('CostBreakdownTable', () => {
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
     fireEvent.click(getButtonByControls(container, 'wi-cat-cat-ins-actual-items'));
 
-    // The work item row (level 2) should have rowActual class
-    const actualRows = container.querySelectorAll('.rowActual');
-    expect(actualRows.length).toBeGreaterThan(0);
+    // rowActual class is no longer applied to work item rows (green tinting removed)
+    const level2Rows = container.querySelectorAll('.rowLevel2');
+    expect(level2Rows.length).toBeGreaterThan(0);
+    level2Rows.forEach((row) => {
+      expect(row.getAttribute('class') ?? '').not.toContain('rowActual');
+    });
   });
 
-  // Scenario 11: costDisplay === 'mixed' → rowMixed CSS class on <tr>
-  it('work item with costDisplay=mixed has rowMixed CSS class on its row', () => {
+  // Scenario 11: costDisplay === 'mixed' → NO rowMixed CSS class on <tr> (green tinting removed)
+  it('work item with costDisplay=mixed does NOT have rowMixed CSS class on its row', () => {
     const { container } = renderWithRouter(
       buildBreakdownWithWI({
         costDisplay: 'mixed',
@@ -1558,8 +1549,9 @@ describe('CostBreakdownTable', () => {
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
     fireEvent.click(getButtonByControls(container, 'wi-cat-cat-des-mixed-items'));
 
+    // rowMixed class is no longer applied (green tinting removed)
     const mixedRows = container.querySelectorAll('.rowMixed');
-    expect(mixedRows.length).toBeGreaterThan(0);
+    expect(mixedRows.length).toBe(0);
   });
 
   // Scenario 12: costDisplay === 'projected' → neither rowActual nor rowMixed
@@ -1589,8 +1581,8 @@ describe('CostBreakdownTable', () => {
     });
   });
 
-  // Scenario 13: budget line with hasInvoice===true → rowActual CSS class
-  it('budget line with hasInvoice=true has rowActual CSS class', () => {
+  // Scenario 13: budget line with hasInvoice===true → "invoiced" badge shown, NO rowActual class
+  it('budget line with hasInvoice=true shows "invoiced" badge and does NOT have rowActual CSS class', () => {
     const { container } = renderWithRouter(
       buildBreakdownWithWI({
         costDisplay: 'actual',
@@ -1611,9 +1603,16 @@ describe('CostBreakdownTable', () => {
     fireEvent.click(getButtonByControls(container, 'wi-cat-cat-lab-inv-items'));
     fireEvent.click(getButtonByControls(container, 'wi-item-wi-inv-budget-lines'));
 
-    // Budget line row (level 3) with hasInvoice should have rowActual
-    const actualRows = container.querySelectorAll('.rowActual');
-    expect(actualRows.length).toBeGreaterThan(0);
+    // Budget line row (level 3) with hasInvoice shows "invoiced" badge (not rowActual class)
+    const invoicedBadges = container.querySelectorAll('.invoicedBadge');
+    expect(invoicedBadges.length).toBeGreaterThan(0);
+
+    // rowActual class is no longer applied to budget line rows (green tinting removed)
+    const level3Rows = container.querySelectorAll('.rowLevel3');
+    expect(level3Rows.length).toBeGreaterThan(0);
+    level3Rows.forEach((row) => {
+      expect(row.getAttribute('class') ?? '').not.toContain('rowActual');
+    });
   });
 
   // ── Available Funds Expansion (Scenarios 14–17) ───────────────────────────
@@ -1887,7 +1886,7 @@ describe('CostBreakdownTable', () => {
   });
 
   // Scenario 11: Work item name is a link with correct href
-  it('work item name in item row is an anchor link to /work-items/{workItemId}', () => {
+  it('work item name in item row is an anchor link to /project/work-items/{workItemId}', () => {
     const { container } = renderWithRouter(
       buildBreakdownWithWI({
         workItemId: 'wi-link-test',
@@ -1903,14 +1902,14 @@ describe('CostBreakdownTable', () => {
 
     const link = screen.getByRole('link', { name: 'Plumbing Work' });
     expect(link).toBeInTheDocument();
-    expect(link).toHaveAttribute('href', '/work-items/wi-link-test');
+    expect(link).toHaveAttribute('href', '/project/work-items/wi-link-test');
   });
 
   // Scenario 12: Household item name is a link with correct href
-  it('household item name in item row is an anchor link to /household-items/{householdItemId}', () => {
+  it('household item name in item row is an anchor link to /project/household-items/{householdItemId}', () => {
     const { container } = renderWithRouter(
       buildBreakdownWithHI({
-        hiCategory: 'fixtures',
+        hiCategory: 'Bathroom',
         householdItemId: 'hi-link-test',
         itemName: 'Bathroom Sink',
       }),
@@ -1918,11 +1917,11 @@ describe('CostBreakdownTable', () => {
     );
 
     fireEvent.click(getButtonByControls(container, 'hi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'hi-cat-fixtures-items'));
+    fireEvent.click(getButtonByControls(container, 'hi-cat-Bathroom-items'));
 
     const link = screen.getByRole('link', { name: 'Bathroom Sink' });
     expect(link).toBeInTheDocument();
-    expect(link).toHaveAttribute('href', '/household-items/hi-link-test');
+    expect(link).toHaveAttribute('href', '/project/household-items/hi-link-test');
   });
 
   // Scenario 13: Cost column shows "-€" prefix for projected items
@@ -2000,6 +1999,23 @@ describe('CostBreakdownTable', () => {
     fireEvent.click(screen.getByRole('radio', { name: 'Max' }));
     const maxPayback = screen.getAllByText('€120.00');
     expect(maxPayback.length).toBeGreaterThanOrEqual(1);
+  });
+
+  // Regression: user-defined HI category name is used directly as the display label
+  it('shows user-defined HI category name after expanding HI section', () => {
+    const { container } = render(
+      <MemoryRouter>
+        <CostBreakdownTable
+          breakdown={buildBreakdownWithHI({ hiCategory: 'Master Bedroom' })}
+          overview={buildOverview()}
+          selectedCategories={new Set<string | null>()}
+          budgetSources={[]}
+        />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(getButtonByControls(container, 'hi-section-categories'));
+    expect(screen.getByText('Master Bedroom')).toBeInTheDocument();
   });
 
   // Scenario 16: Net column renders a single perspective-resolved value on item rows
@@ -2150,5 +2166,550 @@ describe('CostBreakdownTable', () => {
     const negativeSpan = container.querySelector('.valueNegative');
     expect(negativeSpan).not.toBeNull();
     expect(screen.getByText('Remaining')).toBeInTheDocument();
+  });
+
+  // ── Invoiced Badge (Issue #575) ────────────────────────────────────────────
+
+  // Budget line: hasInvoice=true → "invoiced" badge; no confidence pill
+  it('budget line with hasInvoice=true shows "invoiced" badge text', () => {
+    const { container } = renderWithRouter(
+      buildBreakdownWithWI({
+        costDisplay: 'actual',
+        actualCost: 600,
+        projectedMin: 600,
+        projectedMax: 600,
+        hasInvoice: true,
+        categoryName: 'Materials',
+        categoryId: 'cat-inv-badge',
+        workItemId: 'wi-inv-badge',
+        description: 'Concrete supply',
+      }),
+      buildOverview(),
+    );
+
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-inv-badge-items'));
+    fireEvent.click(getButtonByControls(container, 'wi-item-wi-inv-badge-budget-lines'));
+
+    // Both the work item row (costDisplay=actual) and the budget line row (hasInvoice=true)
+    // show "invoiced" badges — verify at least one is present.
+    const invoicedBadges = screen.getAllByText('invoiced');
+    expect(invoicedBadges.length).toBeGreaterThanOrEqual(1);
+
+    // Confirm at least one badge appears in a level-3 budget line row
+    const level3Rows = container.querySelectorAll('.rowLevel3');
+    expect(level3Rows.length).toBeGreaterThan(0);
+    const level3HasInvoicedBadge = Array.from(level3Rows).some((row) =>
+      row.textContent?.includes('invoiced'),
+    );
+    expect(level3HasInvoicedBadge).toBe(true);
+  });
+
+  // Budget line: hasInvoice=true → confidence text NOT shown in name cell
+  it('budget line with hasInvoice=true does not show confidence text (e.g., "own estimate")', () => {
+    const { container } = renderWithRouter(
+      buildBreakdownWithWI({
+        costDisplay: 'actual',
+        actualCost: 700,
+        projectedMin: 700,
+        projectedMax: 700,
+        hasInvoice: true,
+        categoryName: 'Labor',
+        categoryId: 'cat-no-conf',
+        workItemId: 'wi-no-conf',
+        description: 'Electrician',
+      }),
+      buildOverview(),
+    );
+
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-no-conf-items'));
+    fireEvent.click(getButtonByControls(container, 'wi-item-wi-no-conf-budget-lines'));
+
+    // Confidence badge text "own estimate" must NOT appear when hasInvoice=true
+    expect(screen.queryByText('own estimate')).not.toBeInTheDocument();
+  });
+
+  // Budget line: hasInvoice=false → confidence pill is shown, no "invoiced" badge
+  it('budget line with hasInvoice=false shows confidence pill and no "invoiced" badge', () => {
+    const { container } = renderWithRouter(
+      buildBreakdownWithWI({
+        costDisplay: 'projected',
+        projectedMin: 800,
+        projectedMax: 1200,
+        hasInvoice: false,
+        categoryName: 'Design',
+        categoryId: 'cat-conf-pill',
+        workItemId: 'wi-conf-pill',
+        description: 'Architect plan',
+      }),
+      buildOverview(),
+    );
+
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-conf-pill-items'));
+    fireEvent.click(getButtonByControls(container, 'wi-item-wi-conf-pill-budget-lines'));
+
+    // Confidence level "own_estimate" renders as "own estimate" in ConfidenceBadge
+    expect(screen.getByText('own estimate')).toBeInTheDocument();
+    // "invoiced" badge must NOT appear
+    expect(screen.queryByText('invoiced')).not.toBeInTheDocument();
+  });
+
+  // Work item: costDisplay=actual → "invoiced" badge shown next to item title
+  it('work item with costDisplay=actual shows "invoiced" badge next to its title', () => {
+    const { container } = renderWithRouter(
+      buildBreakdownWithWI({
+        costDisplay: 'actual',
+        actualCost: 1200,
+        projectedMin: 1200,
+        projectedMax: 1200,
+        categoryName: 'Permits',
+        categoryId: 'cat-wi-inv-badge',
+        workItemId: 'wi-wi-inv-badge',
+        itemTitle: 'Building Permit',
+      }),
+      buildOverview(),
+    );
+
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-wi-inv-badge-items'));
+
+    // "invoiced" badge should appear in the work item row name cell
+    expect(screen.getByText('invoiced')).toBeInTheDocument();
+  });
+
+  // Work item: costDisplay=mixed → NO "invoiced" badge next to item title
+  it('work item with costDisplay=mixed does NOT show "invoiced" badge next to its title', () => {
+    const { container } = renderWithRouter(
+      buildBreakdownWithWI({
+        costDisplay: 'mixed',
+        actualCost: 400,
+        projectedMin: 800,
+        projectedMax: 1200,
+        rawProjectedMin: 800,
+        rawProjectedMax: 1200,
+        categoryName: 'Utilities',
+        categoryId: 'cat-wi-mixed-badge',
+        workItemId: 'wi-mixed-badge',
+        itemTitle: 'Plumbing Rough-in',
+      }),
+      buildOverview(),
+    );
+
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-wi-mixed-badge-items'));
+
+    // "invoiced" badge must NOT appear for partially invoiced (mixed) items
+    expect(screen.queryByText('invoiced')).not.toBeInTheDocument();
+  });
+
+  // Work item: costDisplay=projected → NO "invoiced" badge
+  it('work item with costDisplay=projected does NOT show "invoiced" badge', () => {
+    const { container } = renderWithRouter(
+      buildBreakdownWithWI({
+        costDisplay: 'projected',
+        projectedMin: 500,
+        projectedMax: 900,
+        categoryName: 'Equipment',
+        categoryId: 'cat-wi-proj-badge',
+        workItemId: 'wi-proj-badge',
+        itemTitle: 'Scaffolding Rental',
+      }),
+      buildOverview(),
+    );
+
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-wi-proj-badge-items'));
+
+    expect(screen.queryByText('invoiced')).not.toBeInTheDocument();
+  });
+
+  // Household item: costDisplay=actual → "invoiced" badge shown next to item name
+  it('household item with costDisplay=actual shows "invoiced" badge next to its name', () => {
+    const { container } = renderWithRouter(
+      buildBreakdownWithHI({
+        hiCategory: 'Kitchen',
+        costDisplay: 'actual',
+        actualCost: 2500,
+        rawProjectedMin: 2500,
+        rawProjectedMax: 2500,
+        householdItemId: 'hi-inv-badge',
+        itemName: 'Refrigerator',
+      }),
+      buildOverview(),
+    );
+
+    fireEvent.click(getButtonByControls(container, 'hi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'hi-cat-Kitchen-items'));
+
+    // "invoiced" badge should appear in the household item row name cell
+    expect(screen.getByText('invoiced')).toBeInTheDocument();
+  });
+
+  // Household item: costDisplay=mixed → NO "invoiced" badge
+  it('household item with costDisplay=mixed does NOT show "invoiced" badge', () => {
+    const { container } = renderWithRouter(
+      buildBreakdownWithHI({
+        hiCategory: 'Bedroom',
+        costDisplay: 'mixed',
+        actualCost: 300,
+        projectedMin: 600,
+        projectedMax: 900,
+        rawProjectedMin: 600,
+        rawProjectedMax: 900,
+        householdItemId: 'hi-mixed-badge',
+        itemName: 'Wardrobe',
+      }),
+      buildOverview(),
+    );
+
+    fireEvent.click(getButtonByControls(container, 'hi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'hi-cat-Bedroom-items'));
+
+    expect(screen.queryByText('invoiced')).not.toBeInTheDocument();
+  });
+
+  // No rowActual on level-3 rows regardless of hasInvoice (green tinting fully removed)
+  it('budget line rows never have rowActual class regardless of hasInvoice value', () => {
+    const { container } = renderWithRouter(
+      buildBreakdownWithWI({
+        costDisplay: 'actual',
+        actualCost: 850,
+        projectedMin: 850,
+        projectedMax: 850,
+        hasInvoice: true,
+        categoryName: 'Landscaping',
+        categoryId: 'cat-no-actual-cls',
+        workItemId: 'wi-no-actual-cls',
+        description: 'Garden irrigation',
+      }),
+      buildOverview(),
+    );
+
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-no-actual-cls-items'));
+    fireEvent.click(getButtonByControls(container, 'wi-item-wi-no-actual-cls-budget-lines'));
+
+    const level3Rows = container.querySelectorAll('.rowLevel3');
+    expect(level3Rows.length).toBeGreaterThan(0);
+    level3Rows.forEach((row) => {
+      expect(row.getAttribute('class') ?? '').not.toContain('rowActual');
+    });
+  });
+});
+
+// ── Bug #585 — Sum row not rendered after category expansion ─────────────────
+
+describe('Bug #585 — no "Total {category}" sum row after expand', () => {
+  it('expanding WI section and a WI category does not render a "Total {category}" sum row', () => {
+    const { container } = renderWithRouter(
+      buildBreakdownWithWI({
+        categoryName: 'Permits',
+        categoryId: 'cat-permits-585',
+        itemTitle: 'City Permit',
+        workItemId: 'wi-permit-585',
+      }),
+      buildOverview(),
+    );
+
+    // Expand WI section then the category
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-permits-585-items'));
+
+    // The category header row still shows the category name
+    expect(screen.getByText('Permits')).toBeInTheDocument();
+
+    // After the bug fix, no "Total Permits" sum row should appear
+    expect(screen.queryByText(/^Total /)).not.toBeInTheDocument();
+  });
+
+  it('expanding HI section and an HI category does not render a "Total {hiCategory}" sum row', () => {
+    const { container } = renderWithRouter(
+      buildBreakdownWithHI({
+        hiCategory: 'Appliances',
+        householdItemId: 'hi-appl-585',
+        itemName: 'Dishwasher',
+      }),
+      buildOverview(),
+    );
+
+    // Expand HI section then the category
+    fireEvent.click(getButtonByControls(container, 'hi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'hi-cat-Appliances-items'));
+
+    // The category header row still shows the category name
+    expect(screen.getByText('Appliances')).toBeInTheDocument();
+
+    // After the bug fix, no "Total Appliances" sum row should appear
+    expect(screen.queryByText(/^Total /)).not.toBeInTheDocument();
+  });
+});
+
+// ── Bug #586 — Independent expand state per category ─────────────────────────
+
+describe('Bug #586 — item expand state is independent per category', () => {
+  /**
+   * Build a breakdown with two WI categories that both contain the same workItemId.
+   * This is the scenario that triggered Bug #586: shared expand state via plain item key.
+   */
+  function buildBreakdownTwoWICategories(): BudgetBreakdown {
+    const sharedItem = {
+      workItemId: 'wi-shared',
+      title: 'Shared Work Item',
+      projectedMin: 500,
+      projectedMax: 700,
+      actualCost: 0,
+      subsidyPayback: 0,
+      rawProjectedMin: 500,
+      rawProjectedMax: 700,
+      minSubsidyPayback: 0,
+      costDisplay: 'projected' as const,
+      budgetLines: [
+        {
+          id: 'line-shared',
+          description: 'Shared budget line',
+          plannedAmount: 600,
+          confidence: 'own_estimate' as const,
+          actualCost: 0,
+          hasInvoice: false,
+        },
+      ],
+    };
+
+    const categoryBase = {
+      projectedMin: 500,
+      projectedMax: 700,
+      actualCost: 0,
+      subsidyPayback: 0,
+      rawProjectedMin: 500,
+      rawProjectedMax: 700,
+      minSubsidyPayback: 0,
+      categoryColor: null as null,
+    };
+
+    return {
+      workItems: {
+        categories: [
+          {
+            ...categoryBase,
+            categoryId: 'cat-alpha',
+            categoryName: 'Alpha',
+            items: [{ ...sharedItem }],
+          },
+          {
+            ...categoryBase,
+            categoryId: 'cat-beta',
+            categoryName: 'Beta',
+            items: [{ ...sharedItem }],
+          },
+        ],
+        totals: {
+          projectedMin: 1000,
+          projectedMax: 1400,
+          actualCost: 0,
+          subsidyPayback: 0,
+          rawProjectedMin: 1000,
+          rawProjectedMax: 1400,
+          minSubsidyPayback: 0,
+        },
+      },
+      householdItems: {
+        categories: [],
+        totals: {
+          projectedMin: 0,
+          projectedMax: 0,
+          actualCost: 0,
+          subsidyPayback: 0,
+          rawProjectedMin: 0,
+          rawProjectedMax: 0,
+          minSubsidyPayback: 0,
+        },
+      },
+    };
+  }
+
+  /**
+   * Build a breakdown with two HI categories that both contain the same householdItemId.
+   */
+  function buildBreakdownTwoHICategories(): BudgetBreakdown {
+    const sharedHIItem = {
+      householdItemId: 'hi-shared',
+      name: 'Shared HI Item',
+      projectedMin: 300,
+      projectedMax: 500,
+      actualCost: 0,
+      subsidyPayback: 0,
+      rawProjectedMin: 300,
+      rawProjectedMax: 500,
+      minSubsidyPayback: 0,
+      costDisplay: 'projected' as const,
+      budgetLines: [
+        {
+          id: 'hi-line-shared',
+          description: 'Shared HI budget line',
+          plannedAmount: 400,
+          confidence: 'own_estimate' as const,
+          actualCost: 0,
+          hasInvoice: false,
+        },
+      ],
+    };
+
+    const hiCategoryBase = {
+      projectedMin: 300,
+      projectedMax: 500,
+      actualCost: 0,
+      subsidyPayback: 0,
+      rawProjectedMin: 300,
+      rawProjectedMax: 500,
+      minSubsidyPayback: 0,
+    };
+
+    return {
+      workItems: {
+        categories: [],
+        totals: {
+          projectedMin: 0,
+          projectedMax: 0,
+          actualCost: 0,
+          subsidyPayback: 0,
+          rawProjectedMin: 0,
+          rawProjectedMax: 0,
+          minSubsidyPayback: 0,
+        },
+      },
+      householdItems: {
+        categories: [
+          {
+            ...hiCategoryBase,
+            hiCategory: 'Furniture',
+            items: [{ ...sharedHIItem }],
+          },
+          {
+            ...hiCategoryBase,
+            hiCategory: 'Appliances',
+            items: [{ ...sharedHIItem }],
+          },
+        ],
+        totals: {
+          projectedMin: 600,
+          projectedMax: 1000,
+          actualCost: 0,
+          subsidyPayback: 0,
+          rawProjectedMin: 600,
+          rawProjectedMax: 1000,
+          minSubsidyPayback: 0,
+        },
+      },
+    };
+  }
+
+  it('expanding item in cat-alpha does not auto-expand the same item in cat-beta (WI)', () => {
+    const { container } = renderWithRouter(buildBreakdownTwoWICategories(), buildOverview());
+
+    // Expand WI section
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+
+    // Expand cat-alpha by clicking the button whose sibling text is "Alpha"
+    const alphaBtn = Array.from(container.querySelectorAll<HTMLElement>('button.expandBtn')).find(
+      (btn) => btn.nextElementSibling?.textContent?.trim() === 'Alpha',
+    );
+    expect(alphaBtn).not.toBeNull();
+    fireEvent.click(alphaBtn!);
+
+    // The item "Shared Work Item" is now visible under Alpha; expand it
+    // The expand button has aria-label="Expand Shared Work Item"
+    const expandItemBtns = screen.getAllByRole('button', { name: /Expand Shared Work Item/ });
+    // Only one item row visible (Alpha is open, Beta is closed)
+    expect(expandItemBtns.length).toBeGreaterThanOrEqual(1);
+    fireEvent.click(expandItemBtns[0]);
+
+    // Budget line should be visible (item in alpha is expanded)
+    expect(screen.getByText('Shared budget line')).toBeInTheDocument();
+
+    // Now expand cat-beta
+    const betaBtn = Array.from(container.querySelectorAll<HTMLElement>('button.expandBtn')).find(
+      (btn) => btn.nextElementSibling?.textContent?.trim() === 'Beta',
+    );
+    expect(betaBtn).not.toBeNull();
+    fireEvent.click(betaBtn!);
+
+    // Beta is now expanded; the item row for "Shared Work Item" in Beta appears
+    // but the budget lines under Beta's item must NOT be auto-expanded
+    // There are now two expand buttons for "Shared Work Item" (one per category)
+    const allItemBtns = screen.getAllByRole('button', { name: /Expand Shared Work Item/ });
+    expect(allItemBtns.length).toBe(2);
+
+    // The second button (Beta's item) must not be expanded (aria-expanded="false")
+    expect(allItemBtns[1]).toHaveAttribute('aria-expanded', 'false');
+
+    // There must be exactly one budget line visible (from Alpha's expanded item, not Beta's)
+    const budgetLineCells = screen.getAllByText('Shared budget line');
+    expect(budgetLineCells).toHaveLength(1);
+  });
+
+  it('expanding item in Furniture does not auto-expand the same item in Appliances (HI)', () => {
+    const { container } = renderWithRouter(buildBreakdownTwoHICategories(), buildOverview());
+
+    // Expand HI section
+    fireEvent.click(getButtonByControls(container, 'hi-section-categories'));
+
+    // Expand "Furniture" category
+    fireEvent.click(getButtonByControls(container, 'hi-cat-Furniture-items'));
+
+    // Expand the item in Furniture
+    const itemBtnsAfterFurniture = screen.getAllByRole('button', { name: /Expand Shared HI Item/ });
+    expect(itemBtnsAfterFurniture.length).toBeGreaterThanOrEqual(1);
+    fireEvent.click(itemBtnsAfterFurniture[0]);
+
+    // Budget line under Furniture's item is now visible
+    expect(screen.getByText('Shared HI budget line')).toBeInTheDocument();
+
+    // Expand "Appliances" category
+    fireEvent.click(getButtonByControls(container, 'hi-cat-Appliances-items'));
+
+    // Now two item expand buttons exist (Furniture's and Appliances's)
+    const allItemBtns = screen.getAllByRole('button', { name: /Expand Shared HI Item/ });
+    expect(allItemBtns.length).toBe(2);
+
+    // The Appliances item (second button) must NOT be auto-expanded
+    expect(allItemBtns[1]).toHaveAttribute('aria-expanded', 'false');
+
+    // Only one budget line should be visible (from Furniture's expanded item)
+    const budgetLineCells = screen.getAllByText('Shared HI budget line');
+    expect(budgetLineCells).toHaveLength(1);
+  });
+
+  it('same item can be expanded independently in both categories simultaneously (WI)', () => {
+    const { container } = renderWithRouter(buildBreakdownTwoWICategories(), buildOverview());
+
+    // Expand WI section
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+
+    // Expand both categories
+    const alphaBtn = Array.from(container.querySelectorAll<HTMLElement>('button.expandBtn')).find(
+      (btn) => btn.nextElementSibling?.textContent?.trim() === 'Alpha',
+    );
+    fireEvent.click(alphaBtn!);
+    const betaBtn = Array.from(container.querySelectorAll<HTMLElement>('button.expandBtn')).find(
+      (btn) => btn.nextElementSibling?.textContent?.trim() === 'Beta',
+    );
+    fireEvent.click(betaBtn!);
+
+    // Both item rows are now visible; expand both
+    const allItemBtns = screen.getAllByRole('button', { name: /Expand Shared Work Item/ });
+    expect(allItemBtns.length).toBe(2);
+    fireEvent.click(allItemBtns[0]);
+    fireEvent.click(allItemBtns[1]);
+
+    // Both items should now be expanded; budget lines appear twice (once per category)
+    const budgetLineCells = screen.getAllByText('Shared budget line');
+    expect(budgetLineCells).toHaveLength(2);
+
+    // Both expand buttons should report aria-expanded="true"
+    const expandedBtns = screen.getAllByRole('button', { name: /Expand Shared Work Item/ });
+    expect(expandedBtns[0]).toHaveAttribute('aria-expanded', 'true');
+    expect(expandedBtns[1]).toHaveAttribute('aria-expanded', 'true');
   });
 });

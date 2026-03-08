@@ -15,6 +15,7 @@ import type * as UsersApiTypes from './lib/usersApi.js';
 import type * as InvoicesApiTypes from './lib/invoicesApi.js';
 import type * as WorkItemBudgetsApiTypes from './lib/workItemBudgetsApi.js';
 import type * as HouseholdItemBudgetsApiTypes from './lib/householdItemBudgetsApi.js';
+import type * as HouseholdItemCategoriesApiTypes from './lib/householdItemCategoriesApi.js';
 import type * as AppTypes from './App.js';
 
 const mockGetAuthMe = jest.fn<typeof AuthApiTypes.getAuthMe>();
@@ -152,6 +153,20 @@ jest.unstable_mockModule('./lib/householdItemBudgetsApi.js', () => ({
     jest.fn<typeof HouseholdItemBudgetsApiTypes.deleteHouseholdItemBudget>(),
 }));
 
+// ManagePage calls fetchHouseholdItemCategories on mount.
+// Mock to prevent fetch calls in the jsdom test environment.
+const mockFetchHouseholdItemCategories =
+  jest.fn<typeof HouseholdItemCategoriesApiTypes.fetchHouseholdItemCategories>();
+jest.unstable_mockModule('./lib/householdItemCategoriesApi.js', () => ({
+  fetchHouseholdItemCategories: mockFetchHouseholdItemCategories,
+  createHouseholdItemCategory:
+    jest.fn<typeof HouseholdItemCategoriesApiTypes.createHouseholdItemCategory>(),
+  updateHouseholdItemCategory:
+    jest.fn<typeof HouseholdItemCategoriesApiTypes.updateHouseholdItemCategory>(),
+  deleteHouseholdItemCategory:
+    jest.fn<typeof HouseholdItemCategoriesApiTypes.deleteHouseholdItemCategory>(),
+}));
+
 describe('App', () => {
   // Dynamic imports
   let App: typeof AppTypes.App;
@@ -181,6 +196,7 @@ describe('App', () => {
     mockFetchAllInvoices.mockReset();
     mockFetchWorkItemBudgets.mockReset();
     mockFetchHouseholdItemBudgets.mockReset();
+    mockFetchHouseholdItemCategories.mockReset();
 
     // Default: budget categories returns empty list
     mockFetchBudgetCategories.mockResolvedValue({ categories: [] });
@@ -235,6 +251,7 @@ describe('App', () => {
     });
     mockFetchWorkItemBudgets.mockResolvedValue([]);
     mockFetchHouseholdItemBudgets.mockResolvedValue([]);
+    mockFetchHouseholdItemCategories.mockResolvedValue({ categories: [] });
 
     // Default: authenticated user (no setup required)
     mockGetAuthMe.mockResolvedValue({
@@ -283,16 +300,17 @@ describe('App', () => {
     expect(main).toBeInTheDocument();
   });
 
-  it('shows Dashboard page at root path /', async () => {
+  it('shows Overview page at root path / (redirects to /project/overview)', async () => {
     render(<App />);
 
-    // Wait for lazy-loaded Dashboard component to resolve
-    const heading = await screen.findByRole('heading', { name: /dashboard/i });
+    // Wait for lazy-loaded DashboardPage component to resolve
+    // Root redirects to /project which redirects to /project/overview
+    const heading = await screen.findByRole('heading', { name: /^overview$/i });
     expect(heading).toBeInTheDocument();
   });
 
-  it('navigates to Work Items page when /work-items path is accessed', async () => {
-    window.history.pushState({}, 'Work Items', '/work-items');
+  it('navigates to Work Items page when /project/work-items path is accessed', async () => {
+    window.history.pushState({}, 'Work Items', '/project/work-items');
     render(<App />);
 
     // Wait for lazy-loaded WorkItems component to resolve
@@ -300,29 +318,34 @@ describe('App', () => {
     expect(heading).toBeInTheDocument();
   });
 
-  it('navigates to Budget Categories page when /budget/categories path is accessed', async () => {
+  it('navigates to Manage page when /budget/categories path is accessed (redirect)', async () => {
     window.history.pushState({}, 'Budget Categories', '/budget/categories');
     render(<App />);
 
-    // Wait for lazy-loaded BudgetCategories component to resolve
-    // h1 now says "Budget" (shared across all budget pages); h2 says "Categories"
-    const heading = await screen.findByRole('heading', { name: /^budget$/i, level: 1 });
+    // /budget/categories now redirects to /settings/manage?tab=budget-categories
+    // ManagePage renders an h1 heading of "Manage"
+    // Extended timeout: requires lazy-load of ManagePage after redirect from /budget/categories
+    const heading = await screen.findByRole(
+      'heading',
+      { name: /^manage$/i, level: 1 },
+      { timeout: 5000 },
+    );
     expect(heading).toBeInTheDocument();
   });
 
-  it('navigates to Timeline page when /timeline path is accessed', async () => {
-    window.history.pushState({}, 'Timeline', '/timeline');
+  it('navigates to Schedule page when /schedule path is accessed', async () => {
+    window.history.pushState({}, 'Schedule', '/schedule');
     render(<App />);
 
-    // Wait for lazy-loaded Timeline component to resolve.
+    // Wait for lazy-loaded TimelinePage component to resolve.
     // Use an extended timeout because TimelinePage has more static imports
     // (useMilestones, MilestonePanel) which makes the lazy load slower in CI.
-    const heading = await screen.findByRole('heading', { name: /timeline/i }, { timeout: 5000 });
+    const heading = await screen.findByRole('heading', { name: /schedule/i }, { timeout: 5000 });
     expect(heading).toBeInTheDocument();
   });
 
-  it('navigates to Household Items page when /household-items path is accessed', async () => {
-    window.history.pushState({}, 'Household Items', '/household-items');
+  it('navigates to Household Items page when /project/household-items path is accessed', async () => {
+    window.history.pushState({}, 'Household Items', '/project/household-items');
     render(<App />);
 
     // Wait for lazy-loaded HouseholdItems component to resolve.
@@ -334,8 +357,8 @@ describe('App', () => {
     expect(heading).toBeInTheDocument();
   });
 
-  it('navigates to Invoices page when /invoices path is accessed', async () => {
-    window.history.pushState({}, 'Invoices', '/invoices');
+  it('navigates to Invoices page when /budget/invoices path is accessed', async () => {
+    window.history.pushState({}, 'Invoices', '/budget/invoices');
     render(<App />);
 
     // Wait for lazy-loaded Invoices component to resolve

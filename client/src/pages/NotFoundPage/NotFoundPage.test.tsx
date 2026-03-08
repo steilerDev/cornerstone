@@ -17,11 +17,11 @@ describe('NotFoundPage', () => {
     ).toBeInTheDocument();
   });
 
-  it('contains link back to Dashboard', () => {
+  it('contains link back to Project Overview', () => {
     renderWithRouter(<NotFoundPage />);
 
-    const homeLink = screen.getByRole('link', { name: /go back to dashboard/i });
+    const homeLink = screen.getByRole('link', { name: /go back to project overview/i });
     expect(homeLink).toBeInTheDocument();
-    expect(homeLink).toHaveAttribute('href', '/');
+    expect(homeLink).toHaveAttribute('href', '/project');
   });
 });

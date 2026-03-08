@@ -4,7 +4,7 @@
 
 **The backend-developer MUST NEVER write test files.** This rule has no exceptions.
 
-- `qa-integration-tester` owns **all** unit tests, integration tests, service tests, and Playwright E2E tests
+- `qa-integration-tester` owns unit tests, integration tests, and service tests; `e2e-test-engineer` owns Playwright E2E tests
 - Developer agents implement production code only — never `*.test.ts` files
 - Violating this rule causes BLOCKING PR rejection (as happened in PR #152)
 - If you find yourself writing a test file, stop and delegate to the QA agent instead

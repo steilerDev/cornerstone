@@ -1,5 +1,5 @@
 /**
- * E2E tests for the Calendar view on the Timeline page (/timeline?view=calendar)
+ * E2E tests for the Calendar view on the Schedule page (/schedule?view=calendar)
  *
  * Scenarios covered:
  * 1.  Switch from Gantt to Calendar view and back

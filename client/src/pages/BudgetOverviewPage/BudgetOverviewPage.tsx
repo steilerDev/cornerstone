@@ -17,6 +17,9 @@ import { Tooltip } from '../../components/Tooltip/Tooltip.js';
 import { CostBreakdownTable } from '../../components/CostBreakdownTable/CostBreakdownTable.js';
 import styles from './BudgetOverviewPage.module.css';
 
+/** Stable empty set passed to CostBreakdownTable so it always shows all categories. */
+const emptyCategories = new Set<string | null>();
+
 // ---- Helpers ----
 
 function formatShort(value: number): string {
@@ -300,6 +303,13 @@ export function BudgetOverviewPage() {
   const [overview, setOverview] = useState<BudgetOverview | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
+
+  // Auto-scroll to top when error appears
+  useEffect(() => {
+    if (error) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [error]);
 
   // Breakdown state
   const [breakdown, setBreakdown] = useState<BudgetBreakdown | null>(null);
@@ -586,6 +596,29 @@ export function BudgetOverviewPage() {
               </span>
             </div>
 
+            {/* Expected Payback (only when hasPayback) */}
+            {hasPayback && (
+              <div className={styles.metricGroup}>
+                <span className={styles.metricLabel}>Expected Payback</span>
+                <span
+                  className={`${styles.metricValue} ${styles.metricPaybackValue}`}
+                  aria-live="polite"
+                  aria-atomic="true"
+                >
+                  <span className={styles.metricRange}>
+                    {formatShort(overview.subsidySummary.minTotalPayback)}
+                    {overview.subsidySummary.minTotalPayback !==
+                    overview.subsidySummary.maxTotalPayback ? (
+                      <>
+                        <span className={styles.metricRangeSep}>&ndash;</span>
+                        {formatShort(overview.subsidySummary.maxTotalPayback)}
+                      </>
+                    ) : null}
+                  </span>
+                </span>
+              </div>
+            )}
+
             {/* Remaining (best/worst) — with detail on hover/tap */}
             <div className={styles.metricGroup}>
               <span className={styles.metricLabel}>Remaining</span>
@@ -621,29 +654,6 @@ export function BudgetOverviewPage() {
                 <RemainingDetailPanel items={remainingDetailItems} />
               </div>
             </div>
-
-            {/* Expected Payback (only when hasPayback) */}
-            {hasPayback && (
-              <div className={styles.metricGroup}>
-                <span className={styles.metricLabel}>Expected Payback</span>
-                <span
-                  className={`${styles.metricValue} ${styles.metricPaybackValue}`}
-                  aria-live="polite"
-                  aria-atomic="true"
-                >
-                  <span className={styles.metricRange}>
-                    {formatShort(overview.subsidySummary.minTotalPayback)}
-                    {overview.subsidySummary.minTotalPayback !==
-                    overview.subsidySummary.maxTotalPayback ? (
-                      <>
-                        <span className={styles.metricRangeSep}>&ndash;</span>
-                        {formatShort(overview.subsidySummary.maxTotalPayback)}
-                      </>
-                    ) : null}
-                  </span>
-                </span>
-              </div>
-            )}
           </div>
 
           {/* Stacked bar */}
@@ -707,7 +717,7 @@ export function BudgetOverviewPage() {
             <CostBreakdownTable
               breakdown={breakdown}
               overview={overview}
-              selectedCategories={selectedCategories}
+              selectedCategories={emptyCategories}
               budgetSources={budgetSources}
             />
           ) : null)}

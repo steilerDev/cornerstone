@@ -115,7 +115,7 @@ describe('WorkItemsPage', () => {
 
   function renderPage() {
     return render(
-      <MemoryRouter initialEntries={['/work-items']}>
+      <MemoryRouter initialEntries={['/project/work-items']}>
         <WorkItemsPage />
       </MemoryRouter>,
     );

@@ -52,11 +52,14 @@ const makeStatus = (configured = true, reachable = true) => ({
   error: null,
 });
 
-const makeDoc = (id: number) => ({
+const makeDoc = (
+  id: number,
+  tags: { id: number; name: string; color: string | null; documentCount: number }[] = [],
+) => ({
   id,
   title: `Document ${id}`,
   content: 'Some content',
-  tags: [],
+  tags,
   created: '2025-01-15',
   added: null,
   modified: null,
@@ -291,6 +294,37 @@ describe('usePaperless', () => {
       await waitFor(() => expect(result.current.isLoading).toBe(false));
 
       expect(mockListPaperlessDocuments.mock.calls.length).toBeGreaterThan(callsBefore);
+    });
+  });
+
+  describe('tagCountMap', () => {
+    it('exposes tagCountMap computed from returned documents', async () => {
+      const docA = makeDoc(10, [
+        { id: 1, name: 'a', color: null, documentCount: 5 },
+        { id: 2, name: 'b', color: null, documentCount: 3 },
+      ]);
+      const docB = makeDoc(11, [
+        { id: 2, name: 'b', color: null, documentCount: 3 },
+        { id: 3, name: 'c', color: null, documentCount: 1 },
+      ]);
+      mockListPaperlessDocuments.mockResolvedValueOnce(makeDocsResponse([docA, docB]));
+
+      const { result } = renderHook(() => usePaperless());
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      expect(result.current.tagCountMap.get(1)).toBe(1);
+      expect(result.current.tagCountMap.get(2)).toBe(2);
+      expect(result.current.tagCountMap.get(3)).toBe(1);
+      expect(result.current.tagCountMap.get(99)).toBeUndefined();
+    });
+
+    it('tagCountMap is empty Map when not configured', async () => {
+      mockGetPaperlessStatus.mockResolvedValue(makeStatus(false, false));
+
+      const { result } = renderHook(() => usePaperless());
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      expect(result.current.tagCountMap.size).toBe(0);
     });
   });
 });

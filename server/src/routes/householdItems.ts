@@ -17,19 +17,7 @@ const createHouseholdItemSchema = {
     properties: {
       name: { type: 'string', minLength: 1, maxLength: 500 },
       description: { type: ['string', 'null'], maxLength: 5000 },
-      category: {
-        type: 'string',
-        enum: [
-          'furniture',
-          'appliances',
-          'fixtures',
-          'decor',
-          'electronics',
-          'outdoor',
-          'storage',
-          'other',
-        ],
-      },
+      category: { type: 'string', minLength: 1 },
       status: {
         type: 'string',
         enum: ['planned', 'purchased', 'scheduled', 'arrived'],
@@ -59,19 +47,7 @@ const listHouseholdItemsSchema = {
     properties: {
       page: { type: 'integer', minimum: 1 },
       pageSize: { type: 'integer', minimum: 1, maximum: 100 },
-      category: {
-        type: 'string',
-        enum: [
-          'furniture',
-          'appliances',
-          'fixtures',
-          'decor',
-          'electronics',
-          'outdoor',
-          'storage',
-          'other',
-        ],
-      },
+      category: { type: 'string' },
       status: {
         type: 'string',
         enum: ['planned', 'purchased', 'scheduled', 'arrived'],
@@ -106,19 +82,7 @@ const updateHouseholdItemSchema = {
     properties: {
       name: { type: 'string', minLength: 1, maxLength: 500 },
       description: { type: ['string', 'null'], maxLength: 5000 },
-      category: {
-        type: 'string',
-        enum: [
-          'furniture',
-          'appliances',
-          'fixtures',
-          'decor',
-          'electronics',
-          'outdoor',
-          'storage',
-          'other',
-        ],
-      },
+      category: { type: 'string', minLength: 1 },
       status: {
         type: 'string',
         enum: ['planned', 'purchased', 'scheduled', 'arrived'],

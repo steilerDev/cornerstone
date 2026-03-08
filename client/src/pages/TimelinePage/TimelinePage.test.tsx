@@ -77,9 +77,9 @@ describe('TimelinePage', () => {
     );
   }
 
-  it('renders Timeline heading', () => {
+  it('renders Schedule heading', () => {
     renderWithRouter();
-    expect(screen.getByRole('heading', { name: /timeline/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /schedule/i })).toBeInTheDocument();
   });
 
   it('renders zoom level toggle controls', () => {
@@ -208,7 +208,7 @@ describe('TimelinePage', () => {
     });
 
     it('disables the last-active button so the user cannot hide all entities', () => {
-      renderWithRouter(['/timeline?filter=milestones']);
+      renderWithRouter(['/schedule?filter=milestones']);
       const milestonesBtn = screen.getByTestId('entity-filter-milestones');
       const workItemsBtn = screen.getByTestId('entity-filter-work-items');
       const householdItemsBtn = screen.getByTestId('entity-filter-household-items');
@@ -219,7 +219,7 @@ describe('TimelinePage', () => {
     });
 
     it('restores an entity when its hidden button is clicked', () => {
-      renderWithRouter(['/timeline?filter=work-items']);
+      renderWithRouter(['/schedule?filter=work-items']);
       const milestonesBtn = screen.getByTestId('entity-filter-milestones');
 
       expect(milestonesBtn).toHaveAttribute('aria-pressed', 'false');
@@ -234,7 +234,7 @@ describe('TimelinePage', () => {
 
   describe('entity filter URL param initialisation', () => {
     it('shows only work items active when URL has ?filter=work-items', () => {
-      renderWithRouter(['/timeline?filter=work-items']);
+      renderWithRouter(['/schedule?filter=work-items']);
       expect(screen.getByTestId('entity-filter-work-items')).toHaveAttribute(
         'aria-pressed',
         'true',
@@ -250,7 +250,7 @@ describe('TimelinePage', () => {
     });
 
     it('falls back to all entities shown when URL has an invalid filter param', () => {
-      renderWithRouter(['/timeline?filter=invalid-value']);
+      renderWithRouter(['/schedule?filter=invalid-value']);
       expect(screen.getByTestId('entity-filter-work-items')).toHaveAttribute(
         'aria-pressed',
         'true',
@@ -272,8 +272,55 @@ describe('TimelinePage', () => {
 
   describe('entity filter in calendar view', () => {
     it('shows the entity filter group when the view is calendar', () => {
-      renderWithRouter(['/timeline?view=calendar']);
+      renderWithRouter(['/schedule?view=calendar']);
       expect(screen.getByRole('group', { name: /entity filter/i })).toBeInTheDocument();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // ScheduleSubNav integration
+  // ---------------------------------------------------------------------------
+
+  describe('ScheduleSubNav integration', () => {
+    it('renders the ScheduleSubNav with aria-label "Schedule view navigation"', () => {
+      renderWithRouter();
+      expect(
+        screen.getByRole('navigation', { name: /schedule view navigation/i }),
+      ).toBeInTheDocument();
+    });
+
+    it('shows Gantt tab as active (aria-pressed="true") by default', () => {
+      renderWithRouter();
+      expect(screen.getByTestId('schedule-view-gantt')).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByTestId('schedule-view-calendar')).toHaveAttribute('aria-pressed', 'false');
+    });
+
+    it('shows Calendar tab as active when URL has ?view=calendar', () => {
+      renderWithRouter(['/schedule?view=calendar']);
+      expect(screen.getByTestId('schedule-view-calendar')).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByTestId('schedule-view-gantt')).toHaveAttribute('aria-pressed', 'false');
+    });
+
+    it('switches to calendar view when Calendar tab is clicked', () => {
+      renderWithRouter();
+      // Gantt is active by default
+      expect(screen.getByTestId('schedule-view-gantt')).toHaveAttribute('aria-pressed', 'true');
+
+      fireEvent.click(screen.getByTestId('schedule-view-calendar'));
+
+      expect(screen.getByTestId('schedule-view-calendar')).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByTestId('schedule-view-gantt')).toHaveAttribute('aria-pressed', 'false');
+    });
+
+    it('switches back to gantt view when Gantt tab is clicked from calendar view', () => {
+      renderWithRouter(['/schedule?view=calendar']);
+      // Calendar is active
+      expect(screen.getByTestId('schedule-view-calendar')).toHaveAttribute('aria-pressed', 'true');
+
+      fireEvent.click(screen.getByTestId('schedule-view-gantt'));
+
+      expect(screen.getByTestId('schedule-view-gantt')).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByTestId('schedule-view-calendar')).toHaveAttribute('aria-pressed', 'false');
     });
   });
 });

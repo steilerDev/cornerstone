@@ -2,8 +2,8 @@
  * E2E tests for the LinkedDocumentsSection component — EPIC-08 (Stories 8.4, 8.5, 8.7)
  *
  * The LinkedDocumentsSection is embedded on:
- *   - Work Item detail page (/work-items/:id) — Story 8.4
- *   - Invoice detail page (/budget/vendors/:vendorId/invoices/:id) — Story 8.5
+ *   - Work Item detail page (/project/work-items/:id) — Story 8.4
+ *   - Invoice detail page (/budget/invoices/:id) — Story 8.5
  *
  * In the E2E environment, Paperless-ngx is NOT configured, so tests verify:
  * - The "Documents" section heading is present on both pages
@@ -252,7 +252,7 @@ test.describe(
           title: `${testPrefix} Doc Section Dark Mode Test`,
         });
 
-        await page.goto(`/work-items/${createdId}`);
+        await page.goto(`/project/work-items/${createdId}`);
         // Enable dark mode
         await page.evaluate(() => {
           document.documentElement.setAttribute('data-theme', 'dark');
@@ -297,8 +297,8 @@ test.describe(
         ids = await createVendorAndInvoiceViaApi(page, testPrefix);
 
         // When: Navigating to the invoice detail page
-        // Invoice detail route: /invoices/:id
-        await page.goto(`/invoices/${ids.invoiceId}`);
+        // Invoice detail route: /budget/invoices/:id
+        await page.goto(`/budget/invoices/${ids.invoiceId}`);
 
         // Then: The "Documents" section heading should be visible
         const documentsHeading = page.getByRole('heading', {
@@ -322,7 +322,7 @@ test.describe(
         ids = await createVendorAndInvoiceViaApi(page, testPrefix);
 
         // When: Navigating to the invoice detail page
-        await page.goto(`/invoices/${ids.invoiceId}`);
+        await page.goto(`/budget/invoices/${ids.invoiceId}`);
         await page
           .getByRole('heading', { level: 2, name: 'Documents', exact: true })
           .waitFor({ state: 'visible' });
@@ -346,7 +346,7 @@ test.describe(
         ids = await createVendorAndInvoiceViaApi(page, testPrefix);
 
         // When: Navigating to the invoice detail page
-        await page.goto(`/invoices/${ids.invoiceId}`);
+        await page.goto(`/budget/invoices/${ids.invoiceId}`);
         await page
           .getByRole('heading', { level: 2, name: 'Documents', exact: true })
           .waitFor({ state: 'visible' });
@@ -369,7 +369,7 @@ test.describe(
         ids = await createVendorAndInvoiceViaApi(page, testPrefix);
 
         // When: Navigating to the invoice detail page
-        await page.goto(`/invoices/${ids.invoiceId}`);
+        await page.goto(`/budget/invoices/${ids.invoiceId}`);
         const documentsHeading = page.getByRole('heading', {
           level: 2,
           name: 'Documents',

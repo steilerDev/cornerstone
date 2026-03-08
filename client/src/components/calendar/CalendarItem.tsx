@@ -117,7 +117,9 @@ export function CalendarItem({
   const navigate = useNavigate();
 
   function doNavigate() {
-    void navigate(`/work-items/${item.id}`, { state: { from: 'timeline', view: 'calendar' } });
+    void navigate(`/project/work-items/${item.id}`, {
+      state: { from: 'schedule', view: 'calendar' },
+    });
   }
 
   function handleClick() {

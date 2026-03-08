@@ -31,6 +31,11 @@ jest.unstable_mockModule('../../lib/apiClient.js', () => ({
   },
 }));
 
+// Mock SettingsSubNav to avoid transitive dependency issues
+jest.unstable_mockModule('../../components/SettingsSubNav/SettingsSubNav.js', () => ({
+  SettingsSubNav: () => null,
+}));
+
 describe('UserManagementPage', () => {
   let ApiClient: typeof ApiClientTypes;
   let UserManagementPage: typeof UserManagementPageTypes;

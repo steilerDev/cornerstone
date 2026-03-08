@@ -23,6 +23,11 @@ jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
   AuthProvider: ({ children }: { children: ReactNode }) => children,
 }));
 
+// Mock SettingsSubNav to avoid transitive dependency issues
+jest.unstable_mockModule('../../components/SettingsSubNav/SettingsSubNav.js', () => ({
+  SettingsSubNav: () => null,
+}));
+
 describe('ProfilePage', () => {
   let ProfilePage: typeof ProfilePageTypes.ProfilePage;
 

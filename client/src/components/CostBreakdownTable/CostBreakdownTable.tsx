@@ -9,7 +9,6 @@ import type {
   BreakdownHouseholdItemCategory,
   BreakdownHouseholdItem,
   ConfidenceLevel,
-  HouseholdItemCategory,
   BudgetSource,
 } from '@cornerstone/shared';
 import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
@@ -24,20 +23,6 @@ interface CostBreakdownTableProps {
   selectedCategories: Set<string | null>;
   budgetSources: BudgetSource[];
 }
-
-/**
- * Human-readable label for household item category.
- */
-const HI_CATEGORY_LABELS: Record<HouseholdItemCategory, string> = {
-  furniture: 'Furniture',
-  appliances: 'Appliances',
-  fixtures: 'Fixtures',
-  decor: 'Decor',
-  electronics: 'Electronics',
-  outdoor: 'Outdoor',
-  storage: 'Storage',
-  other: 'Other',
-};
 
 /**
  * Resolves projected cost based on perspective.
@@ -156,47 +141,6 @@ function ConfidenceBadge({ confidence }: { confidence: ConfidenceLevel }) {
 }
 
 /**
- * Renders a cost value based on costDisplay mode.
- * Note: For 'projected' mode, uses neutral color (not valuePositive) per accessibility requirements.
- */
-function CostDisplay({
-  costDisplay,
-  projectedMin,
-  projectedMax,
-  actualCost,
-  perspective,
-}: {
-  costDisplay: 'actual' | 'projected' | 'mixed';
-  projectedMin: number;
-  projectedMax: number;
-  actualCost: number;
-  perspective: CostPerspective;
-}) {
-  const isPositive = actualCost >= 0 && projectedMax >= 0;
-  const perspectiveValue = resolveProjected(projectedMin, projectedMax, perspective);
-
-  if (costDisplay === 'actual') {
-    return (
-      <span className={isPositive ? styles.valuePositive : styles.valueNegative}>
-        Actual: {formatCurrency(actualCost)}
-      </span>
-    );
-  }
-
-  if (costDisplay === 'projected') {
-    return <span>{formatCurrency(perspectiveValue)}</span>;
-  }
-
-  // mixed
-  return (
-    <div className={styles.costMixedWrapper}>
-      <span className={styles.valuePositive}>Actual: {formatCurrency(actualCost)}</span>
-      <span>Projected: {formatCurrency(perspectiveValue)}</span>
-    </div>
-  );
-}
-
-/**
  * Renders a single budget line row (Level 3).
  */
 function BudgetLineRow({
@@ -211,7 +155,7 @@ function BudgetLineRow({
   const costMin = line.plannedAmount * (1 - margin);
   const costMax = line.plannedAmount * (1 + margin);
   const perspectiveValue = resolveProjected(costMin, costMax, perspective);
-  const rowClassName = `${styles.rowLevel3}${line.hasInvoice ? ` ${styles.rowActual}` : ''}`;
+  const rowClassName = styles.rowLevel3;
 
   const resolvedRawCost = line.hasInvoice ? line.actualCost : perspectiveValue;
 
@@ -220,7 +164,11 @@ function BudgetLineRow({
       <td className={styles.colName}>
         <div className={styles.nameContent}>
           <span>{line.description || 'Untitled'}</span>
-          <ConfidenceBadge confidence={line.confidence} />
+          {line.hasInvoice ? (
+            <span className={styles.invoicedBadge}>invoiced</span>
+          ) : (
+            <ConfidenceBadge confidence={line.confidence} />
+          )}
         </div>
       </td>
       <td className={styles.colBudget}>
@@ -243,22 +191,19 @@ function BudgetLineRow({
  */
 function WorkItemRow({
   item,
+  expandKey,
   expanded: itemExpanded,
   onToggle,
   perspective,
 }: {
   item: BreakdownWorkItem;
+  expandKey: string;
   expanded: boolean;
   onToggle: (key: string) => void;
   perspective: CostPerspective;
 }) {
-  const key = `wi-item-${item.workItemId}`;
-  let rowClassName = styles.rowLevel2;
-  if (item.costDisplay === 'actual') {
-    rowClassName = `${styles.rowLevel2} ${styles.rowActual}`;
-  } else if (item.costDisplay === 'mixed') {
-    rowClassName = `${styles.rowLevel2} ${styles.rowMixed}`;
-  }
+  const key = expandKey;
+  const rowClassName = styles.rowLevel2;
 
   const resolvedRawCost =
     item.costDisplay === 'actual'
@@ -286,9 +231,12 @@ function WorkItemRow({
                 className={`${styles.chevron} ${itemExpanded ? styles.chevronOpen : ''}`}
               />
             </button>
-            <Link to={`/work-items/${item.workItemId}`} className={styles.nameLink}>
+            <Link to={`/project/work-items/${item.workItemId}`} className={styles.nameLink}>
               {item.title}
             </Link>
+            {item.costDisplay === 'actual' && (
+              <span className={styles.invoicedBadge}>invoiced</span>
+            )}
           </div>
         </td>
         <td className={styles.colBudget}>
@@ -372,31 +320,19 @@ function WorkItemCategorySection({
 
       {isExpanded && (
         <>
-          {category.items.map((item) => (
-            <WorkItemRow
-              key={item.workItemId}
-              item={item}
-              expanded={expandedKeys.has(`wi-item-${item.workItemId}`)}
-              onToggle={onToggle}
-              perspective={perspective}
-            />
-          ))}
-
-          {/* Sum row for this category */}
-          <tr className={styles.rowSum} key={`${key}-sum`}>
-            <td className={`${styles.colName} ${styles.cellSumName}`}>
-              <div className={styles.nameContent}>
-                <span>Total {category.categoryName}</span>
-              </div>
-            </td>
-            <td className={styles.colBudget}>{formatCost(resolvedRawCost)}</td>
-            <td className={styles.colPayback}>
-              {category.subsidyPayback > 0 ? formatPayback(resolvedPayback) : '—'}
-            </td>
-            <td className={styles.colRemaining}>
-              {renderNet(resolvedRawCost, resolvedPayback, styles)}
-            </td>
-          </tr>
+          {category.items.map((item) => {
+            const itemKey = `wi-cat-${category.categoryId ?? 'null'}-item-${item.workItemId}`;
+            return (
+              <WorkItemRow
+                key={item.workItemId}
+                item={item}
+                expandKey={itemKey}
+                expanded={expandedKeys.has(itemKey)}
+                onToggle={onToggle}
+                perspective={perspective}
+              />
+            );
+          })}
         </>
       )}
     </>
@@ -408,22 +344,19 @@ function WorkItemCategorySection({
  */
 function HouseholdItemRow({
   item,
+  expandKey,
   expanded: itemExpanded,
   onToggle,
   perspective,
 }: {
   item: BreakdownHouseholdItem;
+  expandKey: string;
   expanded: boolean;
   onToggle: (key: string) => void;
   perspective: CostPerspective;
 }) {
-  const key = `hi-item-${item.householdItemId}`;
-  let rowClassName = styles.rowLevel2;
-  if (item.costDisplay === 'actual') {
-    rowClassName = `${styles.rowLevel2} ${styles.rowActual}`;
-  } else if (item.costDisplay === 'mixed') {
-    rowClassName = `${styles.rowLevel2} ${styles.rowMixed}`;
-  }
+  const key = expandKey;
+  const rowClassName = styles.rowLevel2;
 
   const resolvedRawCost =
     item.costDisplay === 'actual'
@@ -451,9 +384,15 @@ function HouseholdItemRow({
                 className={`${styles.chevron} ${itemExpanded ? styles.chevronOpen : ''}`}
               />
             </button>
-            <Link to={`/household-items/${item.householdItemId}`} className={styles.nameLink}>
+            <Link
+              to={`/project/household-items/${item.householdItemId}`}
+              className={styles.nameLink}
+            >
               {item.name}
             </Link>
+            {item.costDisplay === 'actual' && (
+              <span className={styles.invoicedBadge}>invoiced</span>
+            )}
           </div>
         </td>
         <td className={styles.colBudget}>
@@ -498,7 +437,6 @@ function HouseholdItemCategorySection({
 }) {
   const key = `hi-cat-${category.hiCategory}`;
   const isExpanded = expandedKeys.has(key);
-  const categoryLabel = HI_CATEGORY_LABELS[category.hiCategory];
   const resolvedRawCost = resolveProjected(
     category.rawProjectedMin,
     category.rawProjectedMax,
@@ -519,12 +457,12 @@ function HouseholdItemCategorySection({
               type="button"
               className={styles.expandBtn}
               aria-expanded={isExpanded}
-              aria-label={`Expand ${categoryLabel}`}
+              aria-label={`Expand ${category.hiCategory}`}
               onClick={() => onToggle(key)}
             >
               <ChevronSvg className={`${styles.chevron} ${isExpanded ? styles.chevronOpen : ''}`} />
             </button>
-            <span>{categoryLabel}</span>
+            <span>{category.hiCategory}</span>
           </div>
         </td>
         <td className={styles.colBudget}>{formatCost(resolvedRawCost)}</td>
@@ -538,31 +476,19 @@ function HouseholdItemCategorySection({
 
       {isExpanded && (
         <>
-          {category.items.map((item) => (
-            <HouseholdItemRow
-              key={item.householdItemId}
-              item={item}
-              expanded={expandedKeys.has(`hi-item-${item.householdItemId}`)}
-              onToggle={onToggle}
-              perspective={perspective}
-            />
-          ))}
-
-          {/* Sum row for this category */}
-          <tr className={styles.rowSum} key={`${key}-sum`}>
-            <td className={`${styles.colName} ${styles.cellSumName}`}>
-              <div className={styles.nameContent}>
-                <span>Total {categoryLabel}</span>
-              </div>
-            </td>
-            <td className={styles.colBudget}>{formatCost(resolvedRawCost)}</td>
-            <td className={styles.colPayback}>
-              {category.subsidyPayback > 0 ? formatPayback(resolvedPayback) : '—'}
-            </td>
-            <td className={styles.colRemaining}>
-              {renderNet(resolvedRawCost, resolvedPayback, styles)}
-            </td>
-          </tr>
+          {category.items.map((item) => {
+            const itemKey = `hi-cat-${category.hiCategory}-item-${item.householdItemId}`;
+            return (
+              <HouseholdItemRow
+                key={item.householdItemId}
+                item={item}
+                expandKey={itemKey}
+                expanded={expandedKeys.has(itemKey)}
+                onToggle={onToggle}
+                perspective={perspective}
+              />
+            );
+          })}
         </>
       )}
     </>

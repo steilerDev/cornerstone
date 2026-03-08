@@ -38,11 +38,11 @@ test.describe('404 Not Found Page', () => {
     await page.goto('/invalid-route');
     await expect(notFoundPage.heading).toBeVisible();
 
-    // When: User clicks "Go back to Dashboard" link
+    // When: User clicks "Go back to Project Overview" link
     await notFoundPage.clickDashboardLink();
 
-    // Then: User should be redirected to dashboard
+    // Then: User should be redirected to project overview
     await expect(page).toHaveURL(ROUTES.home);
-    await expect(page.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Overview' })).toBeVisible();
   });
 });

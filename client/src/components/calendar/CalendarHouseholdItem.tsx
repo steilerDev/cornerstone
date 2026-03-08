@@ -41,7 +41,7 @@ export function CalendarHouseholdItem({
   const navigate = useNavigate();
 
   function handleNavigate() {
-    navigate(`/household-items/${item.id}`);
+    navigate(`/project/household-items/${item.id}`);
   }
 
   function handleClick() {

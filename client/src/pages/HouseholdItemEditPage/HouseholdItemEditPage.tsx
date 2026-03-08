@@ -1,23 +1,18 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import type { TagResponse, HouseholdItemCategory } from '@cornerstone/shared';
+import type {
+  TagResponse,
+  HouseholdItemCategory,
+  HouseholdItemCategoryEntity,
+} from '@cornerstone/shared';
 import { getHouseholdItem, updateHouseholdItem } from '../../lib/householdItemsApi.js';
 import { fetchTags, createTag } from '../../lib/tagsApi.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
+import { fetchHouseholdItemCategories } from '../../lib/householdItemCategoriesApi.js';
 import { TagPicker } from '../../components/TagPicker/TagPicker.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
+import { ProjectSubNav } from '../../components/ProjectSubNav/ProjectSubNav.js';
 import styles from './HouseholdItemEditPage.module.css';
-
-const CATEGORIES: Array<{ value: HouseholdItemCategory; label: string }> = [
-  { value: 'furniture', label: 'Furniture' },
-  { value: 'appliances', label: 'Appliances' },
-  { value: 'fixtures', label: 'Fixtures' },
-  { value: 'decor', label: 'Decor' },
-  { value: 'electronics', label: 'Electronics' },
-  { value: 'outdoor', label: 'Outdoor' },
-  { value: 'storage', label: 'Storage' },
-  { value: 'other', label: 'Other' },
-];
 
 interface Vendor {
   id: string;
@@ -31,7 +26,7 @@ export function HouseholdItemEditPage() {
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState<HouseholdItemCategory>('other');
+  const [category, setCategory] = useState<HouseholdItemCategory>('' as HouseholdItemCategory);
   const [quantity, setQuantity] = useState(1);
   const [vendorId, setVendorId] = useState('');
   const [url, setUrl] = useState('');
@@ -40,6 +35,7 @@ export function HouseholdItemEditPage() {
 
   const [availableTags, setAvailableTags] = useState<TagResponse[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [categories, setCategories] = useState<HouseholdItemCategoryEntity[]>([]);
 
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -47,19 +43,21 @@ export function HouseholdItemEditPage() {
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [notFound, setNotFound] = useState(false);
 
-  // Load item data, tags, and vendors on mount
+  // Load item data, tags, vendors, and categories on mount
   useEffect(() => {
     async function loadData() {
       setIsLoadingData(true);
       try {
-        const [tagsResponse, vendorsResponse, item] = await Promise.all([
+        const [tagsResponse, vendorsResponse, categoriesResponse, item] = await Promise.all([
           fetchTags(),
           fetchVendors({ pageSize: 100 }),
+          fetchHouseholdItemCategories(),
           getHouseholdItem(id!),
         ]);
 
         setAvailableTags(tagsResponse.tags);
         setVendors(vendorsResponse.vendors);
+        setCategories(categoriesResponse.categories);
 
         // Populate form with item data
         setName(item.name);
@@ -105,6 +103,10 @@ export function HouseholdItemEditPage() {
       errors.name = 'Name is required';
     }
 
+    if (!category) {
+      errors.category = 'Category is required';
+    }
+
     if (quantity < 1) {
       errors.quantity = 'Quantity must be at least 1';
     }
@@ -136,7 +138,7 @@ export function HouseholdItemEditPage() {
       });
 
       showToast('success', 'Household item updated successfully');
-      navigate(`/household-items/${id}`);
+      navigate(`/project/household-items/${id}`);
     } catch (err) {
       setError('Failed to update household item. Please try again.');
       console.error('Failed to update household item:', err);
@@ -159,7 +161,7 @@ export function HouseholdItemEditPage() {
           <button
             type="button"
             className={styles.backButton}
-            onClick={() => navigate('/household-items')}
+            onClick={() => navigate('/project/household-items')}
           >
             ← Back to Household Items
           </button>
@@ -178,13 +180,14 @@ export function HouseholdItemEditPage() {
         <button
           type="button"
           className={styles.backButton}
-          onClick={() => navigate(`/household-items/${id}`)}
+          onClick={() => navigate(`/project/household-items/${id}`)}
           disabled={isSubmitting}
         >
           ← Back to Item
         </button>
         <h1 className={styles.title}>Edit Household Item</h1>
       </div>
+      <ProjectSubNav />
 
       {error && <div className={styles.errorBanner}>{error}</div>}
 
@@ -234,18 +237,26 @@ export function HouseholdItemEditPage() {
             </label>
             <select
               id="category"
-              className={styles.select}
+              className={`${styles.select} ${validationErrors.category ? styles.selectError : ''}`}
               value={category}
               onChange={(e) => setCategory(e.target.value as HouseholdItemCategory)}
               disabled={isSubmitting}
               aria-required="true"
+              aria-invalid={!!validationErrors.category}
+              aria-describedby={validationErrors.category ? 'hi-edit-category-error' : undefined}
             >
-              {CATEGORIES.map((cat) => (
-                <option key={cat.value} value={cat.value}>
-                  {cat.label}
+              <option value="">— Select Category —</option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.name}
                 </option>
               ))}
             </select>
+            {validationErrors.category && (
+              <div id="hi-edit-category-error" className={styles.errorText} role="alert">
+                {validationErrors.category}
+              </div>
+            )}
           </div>
 
           <div className={styles.formGroup}>
@@ -337,7 +348,7 @@ export function HouseholdItemEditPage() {
           <button
             type="button"
             className={styles.cancelButton}
-            onClick={() => navigate(`/household-items/${id}`)}
+            onClick={() => navigate(`/project/household-items/${id}`)}
             disabled={isSubmitting}
           >
             Cancel

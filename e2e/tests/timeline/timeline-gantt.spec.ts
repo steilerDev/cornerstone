@@ -1,8 +1,8 @@
 /**
- * E2E tests for the Gantt chart view on the Timeline page (/timeline)
+ * E2E tests for the Gantt chart view on the Schedule page (/schedule)
  *
  * Scenarios covered:
- * 1.  Timeline page loads and shows Gantt chart heading
+ * 1.  Schedule page loads and shows Gantt chart heading
  * 2.  Gantt chart renders when work items have dates (mocked)
  * 3.  Gantt sidebar shows work item list
  * 4.  Gantt header (time grid) renders
@@ -19,22 +19,22 @@ import { TimelinePage, TIMELINE_ROUTE } from '../../pages/TimelinePage.js';
 import { createWorkItemViaApi, deleteWorkItemViaApi } from '../../fixtures/apiHelpers.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 1: Page loads with h1 "Timeline"
+// Scenario 1: Page loads with h1 "Schedule"
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
-  test('Timeline page loads with h1 "Timeline"', { tag: '@smoke' }, async ({ page }) => {
+  test('Schedule page loads with h1 "Schedule"', { tag: '@smoke' }, async ({ page }) => {
     const timelinePage = new TimelinePage(page);
     await timelinePage.goto();
 
     await expect(timelinePage.heading).toBeVisible();
-    await expect(timelinePage.heading).toHaveText('Timeline');
+    await expect(timelinePage.heading).toHaveText('Schedule');
   });
 
-  test('Page URL is /timeline', async ({ page }) => {
+  test('Page URL is /schedule', async ({ page }) => {
     await page.goto(TIMELINE_ROUTE);
-    await page.waitForURL('**/timeline');
-    expect(page.url()).toContain('/timeline');
+    await page.waitForURL('**/schedule');
+    expect(page.url()).toContain('/schedule');
   });
 
   test('Toolbar is rendered with view toggle buttons', async ({ page }) => {
@@ -549,8 +549,8 @@ test.describe('Sidebar navigation (Scenario 9)', () => {
       }
 
       // Should navigate to work item detail
-      await page.waitForURL(`**/work-items/${createdId}`);
-      expect(page.url()).toContain(`/work-items/${createdId}`);
+      await page.waitForURL(`**/project/work-items/${createdId}`);
+      expect(page.url()).toContain(`/project/work-items/${createdId}`);
     } finally {
       if (createdId) await deleteWorkItemViaApi(page, createdId);
     }

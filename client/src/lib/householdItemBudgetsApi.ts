@@ -1,9 +1,12 @@
-import { get, post, patch, del } from './apiClient.js';
+import { createBudgetApi } from './budgetApiFactory.js';
 import type {
   HouseholdItemBudgetLine,
   CreateHouseholdItemBudgetRequest,
   UpdateHouseholdItemBudgetRequest,
 } from '@cornerstone/shared';
+
+// Create the typed API using the factory
+const api = createBudgetApi<HouseholdItemBudgetLine>('household-items');
 
 /**
  * Fetches all budget lines for a given household item.
@@ -11,9 +14,7 @@ import type {
 export function fetchHouseholdItemBudgets(
   householdItemId: string,
 ): Promise<HouseholdItemBudgetLine[]> {
-  return get<{ budgets: HouseholdItemBudgetLine[] }>(
-    `/household-items/${householdItemId}/budgets`,
-  ).then((r) => r.budgets);
+  return api.fetchBudgets(householdItemId);
 }
 
 /**
@@ -23,10 +24,7 @@ export function createHouseholdItemBudget(
   householdItemId: string,
   data: CreateHouseholdItemBudgetRequest,
 ): Promise<HouseholdItemBudgetLine> {
-  return post<{ budget: HouseholdItemBudgetLine }>(
-    `/household-items/${householdItemId}/budgets`,
-    data,
-  ).then((r) => r.budget);
+  return api.createBudget(householdItemId, data);
 }
 
 /**
@@ -37,10 +35,7 @@ export function updateHouseholdItemBudget(
   budgetId: string,
   data: UpdateHouseholdItemBudgetRequest,
 ): Promise<HouseholdItemBudgetLine> {
-  return patch<{ budget: HouseholdItemBudgetLine }>(
-    `/household-items/${householdItemId}/budgets/${budgetId}`,
-    data,
-  ).then((r) => r.budget);
+  return api.updateBudget(householdItemId, budgetId, data);
 }
 
 /**
@@ -50,5 +45,5 @@ export function deleteHouseholdItemBudget(
   householdItemId: string,
   budgetId: string,
 ): Promise<void> {
-  return del<void>(`/household-items/${householdItemId}/budgets/${budgetId}`);
+  return api.deleteBudget(householdItemId, budgetId);
 }

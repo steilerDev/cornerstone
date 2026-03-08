@@ -8,6 +8,7 @@ import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
 import type * as TagsApiTypes from '../../lib/tagsApi.js';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
+import type * as HouseholdItemCategoriesApiTypes from '../../lib/householdItemCategoriesApi.js';
 import type * as HouseholdItemEditPageTypes from './HouseholdItemEditPage.js';
 import type React from 'react';
 
@@ -16,6 +17,8 @@ const mockUpdateHouseholdItem = jest.fn<typeof HouseholdItemsApiTypes.updateHous
 const mockFetchTags = jest.fn<typeof TagsApiTypes.fetchTags>();
 const mockCreateTag = jest.fn<typeof TagsApiTypes.createTag>();
 const mockFetchVendors = jest.fn<typeof VendorsApiTypes.fetchVendors>();
+const mockFetchHouseholdItemCategories =
+  jest.fn<typeof HouseholdItemCategoriesApiTypes.fetchHouseholdItemCategories>();
 
 // Mock only API modules — do NOT mock react-router-dom (causes OOM)
 jest.unstable_mockModule('../../lib/householdItemsApi.js', () => ({
@@ -37,6 +40,14 @@ jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   createVendor: jest.fn(),
   updateVendor: jest.fn(),
   deleteVendor: jest.fn(),
+}));
+
+// HouseholdItemEditPage calls fetchHouseholdItemCategories to populate the category dropdown.
+jest.unstable_mockModule('../../lib/householdItemCategoriesApi.js', () => ({
+  fetchHouseholdItemCategories: mockFetchHouseholdItemCategories,
+  createHouseholdItemCategory: jest.fn(),
+  updateHouseholdItemCategory: jest.fn(),
+  deleteHouseholdItemCategory: jest.fn(),
 }));
 
 // Mock useToast so HouseholdItemEditPage can render without a ToastProvider wrapper.
@@ -130,6 +141,7 @@ describe('HouseholdItemEditPage', () => {
     mockFetchTags.mockReset();
     mockCreateTag.mockReset();
     mockFetchVendors.mockReset();
+    mockFetchHouseholdItemCategories.mockReset();
 
     if (!HouseholdItemEditPageModule) {
       HouseholdItemEditPageModule = await import('./HouseholdItemEditPage.js');
@@ -141,18 +153,39 @@ describe('HouseholdItemEditPage', () => {
       pagination: { page: 1, pageSize: 100, totalItems: 2, totalPages: 1 },
     });
     mockGetHouseholdItem.mockResolvedValue(mockItem);
+    // Use id 'furniture' to match the category value on the test item (category: 'furniture')
+    mockFetchHouseholdItemCategories.mockResolvedValue({
+      categories: [
+        {
+          id: 'furniture',
+          name: 'Furniture',
+          color: '#8B5CF6',
+          sortOrder: 0,
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
+        },
+        {
+          id: 'appliances',
+          name: 'Appliances',
+          color: '#EC4899',
+          sortOrder: 1,
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
+        },
+      ],
+    });
   });
 
   function renderPage(itemId = 'hi-001') {
     return render(
-      <MemoryRouter initialEntries={[`/household-items/${itemId}/edit`]}>
+      <MemoryRouter initialEntries={[`/project/household-items/${itemId}/edit`]}>
         <Routes>
           <Route
-            path="/household-items/:id/edit"
+            path="/project/household-items/:id/edit"
             element={<HouseholdItemEditPageModule.default />}
           />
-          <Route path="/household-items/:id" element={<div>Household Item Detail</div>} />
-          <Route path="/household-items" element={<div>Household Items List</div>} />
+          <Route path="/project/household-items/:id" element={<div>Household Item Detail</div>} />
+          <Route path="/project/household-items" element={<div>Household Items List</div>} />
         </Routes>
         <LocationDisplay />
       </MemoryRouter>,
@@ -294,7 +327,7 @@ describe('HouseholdItemEditPage', () => {
       await user.click(screen.getByRole('button', { name: /cancel/i }));
 
       await waitFor(() => {
-        expect(screen.getByTestId('location')).toHaveTextContent('/household-items/hi-001');
+        expect(screen.getByTestId('location')).toHaveTextContent('/project/household-items/hi-001');
       });
     });
 
@@ -309,7 +342,7 @@ describe('HouseholdItemEditPage', () => {
       await user.click(screen.getByRole('button', { name: /back to item/i }));
 
       await waitFor(() => {
-        expect(screen.getByTestId('location')).toHaveTextContent('/household-items/hi-001');
+        expect(screen.getByTestId('location')).toHaveTextContent('/project/household-items/hi-001');
       });
     });
   });
@@ -358,7 +391,7 @@ describe('HouseholdItemEditPage', () => {
       await user.click(screen.getByRole('button', { name: /save changes/i }));
 
       await waitFor(() => {
-        expect(screen.getByTestId('location')).toHaveTextContent('/household-items/hi-001');
+        expect(screen.getByTestId('location')).toHaveTextContent('/project/household-items/hi-001');
       });
 
       expect(mockUpdateHouseholdItem).toHaveBeenCalledTimes(1);

@@ -1,9 +1,9 @@
 /**
- * E2E tests for Work Item Create page (/work-items/new)
+ * E2E tests for Work Item Create page (/project/work-items/new)
  *
  * Scenarios covered:
  * 1. Page loads with h1 "Create Work Item"
- * 2. Back button navigates to /work-items
+ * 2. Back button navigates to /project/work-items
  * 3. Create work item with title only — success, redirects to detail
  * 4. Create work item with all major fields
  * 5. Submit without title shows validation error
@@ -51,20 +51,20 @@ test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 2: Back button navigates to /work-items
+// Scenario 2: Back button navigates to /project/work-items
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Back button navigation (Scenario 2)', { tag: '@responsive' }, () => {
-  test('"← Back to Work Items" button navigates to /work-items', async ({ page }) => {
+  test('"← Back to Work Items" button navigates to /project/work-items', async ({ page }) => {
     const createPage = new WorkItemCreatePage(page);
 
     await createPage.goto();
 
     await createPage.backButton.click();
 
-    await page.waitForURL('**/work-items');
-    expect(page.url()).toContain('/work-items');
+    await page.waitForURL('**/project/work-items');
+    expect(page.url()).toContain('/project/work-items');
     // Verify we're on the list page (not the create page)
-    expect(page.url()).not.toContain('/work-items/new');
+    expect(page.url()).not.toContain('/project/work-items/new');
   });
 });
 
@@ -97,12 +97,12 @@ test.describe('Create with title only — happy path (Scenario 3)', { tag: '@res
         const body = (await response.json()) as { workItem?: { id: string }; id?: string };
         createdId = body.workItem?.id ?? body.id ?? null;
 
-        // Should redirect to /work-items/:id
+        // Should redirect to /project/work-items/:id
         // Use project-level navigationTimeout (15s for WebKit) — do not hardcode
         // a timeout that is too short for mobile/tablet WebKit.
-        await page.waitForURL('**/work-items/**');
-        expect(page.url()).toMatch(/\/work-items\/[a-z0-9-]+$/);
-        expect(page.url()).not.toContain('/work-items/new');
+        await page.waitForURL('**/project/work-items/**');
+        expect(page.url()).toMatch(/\/project\/work-items\/[a-z0-9-]+$/);
+        expect(page.url()).not.toContain('/project/work-items/new');
 
         // Detail page shows the correct title — use project-level expect timeout
         await expect(page.getByRole('heading', { level: 1 })).toHaveText(title);
@@ -151,7 +151,7 @@ test.describe('Create with all fields (Scenario 4)', { tag: '@responsive' }, () 
       createdId = body.workItem?.id ?? body.id ?? null;
 
       // Redirect to detail page
-      await page.waitForURL('**/work-items/**', { timeout: 7000 });
+      await page.waitForURL('**/project/work-items/**', { timeout: 7000 });
 
       // Title visible on detail page
       await expect(page.getByRole('heading', { level: 1 })).toHaveText(title, { timeout: 7000 });
@@ -194,7 +194,7 @@ test.describe('Validation — title required (Scenario 5)', { tag: '@responsive'
     expect(errorText?.toLowerCase()).toMatch(/title is required/i);
 
     // We should still be on the create page
-    expect(page.url()).toContain('/work-items/new');
+    expect(page.url()).toContain('/project/work-items/new');
   });
 
   test('Validation error clears when title is filled', async ({ page }) => {
@@ -224,7 +224,7 @@ test.describe('Validation — title required (Scenario 5)', { tag: '@responsive'
 // Scenario 6: Cancel navigates back to the list
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Cancel navigation (Scenario 6)', { tag: '@responsive' }, () => {
-  test('Cancel button navigates to /work-items without creating a work item', async ({
+  test('Cancel button navigates to /project/work-items without creating a work item', async ({
     page,
     testPrefix,
   }) => {
@@ -240,9 +240,9 @@ test.describe('Cancel navigation (Scenario 6)', { tag: '@responsive' }, () => {
     await createPage.cancelButton.click();
 
     // Should navigate to the list
-    await page.waitForURL('**/work-items');
-    expect(page.url()).toContain('/work-items');
-    expect(page.url()).not.toContain('/work-items/new');
+    await page.waitForURL('**/project/work-items');
+    expect(page.url()).toContain('/project/work-items');
+    expect(page.url()).not.toContain('/project/work-items/new');
 
     // Verify the cancelled item was NOT created
     await workItemsPage.waitForLoaded();
@@ -254,7 +254,7 @@ test.describe('Cancel navigation (Scenario 6)', { tag: '@responsive' }, () => {
     // No API cleanup needed — nothing was created
   });
 
-  test('Back button navigates to /work-items without creating a work item', async ({
+  test('Back button navigates to /project/work-items without creating a work item', async ({
     page,
     testPrefix,
   }) => {
@@ -266,9 +266,9 @@ test.describe('Cancel navigation (Scenario 6)', { tag: '@responsive' }, () => {
     await createPage.fillTitle(`${testPrefix} Back Button Cancelled`);
     await createPage.backButton.click();
 
-    await page.waitForURL('**/work-items');
-    expect(page.url()).toContain('/work-items');
-    expect(page.url()).not.toContain('/work-items/new');
+    await page.waitForURL('**/project/work-items');
+    expect(page.url()).toContain('/project/work-items');
+    expect(page.url()).not.toContain('/project/work-items/new');
   });
 });
 

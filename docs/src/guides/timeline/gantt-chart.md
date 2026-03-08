@@ -155,6 +155,4 @@ The engine uses the **Critical Path Method (CPM)** and respects:
 Only work items with status **Not Started** are rescheduled automatically. In-progress and completed items keep their actual dates.
 :::
 
-:::info Screenshot needed
-A screenshot of the Gantt chart with dependency arrows and critical path highlighting will be added on the next stable release.
-:::
+![Gantt chart with dependency arrows and critical path](/img/screenshots/timeline-gantt-dependencies-light.png)

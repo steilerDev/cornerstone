@@ -174,6 +174,16 @@ jest.unstable_mockModule('../../lib/invoicesApi.js', () => ({
   deleteInvoice: jest.fn<typeof InvoicesApiTypes.deleteInvoice>(),
 }));
 
+// Mock householdItemCategoriesApi — HouseholdItemDetailPage loads categories to display badges
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const mockFetchHouseholdItemCategories = jest.fn() as any;
+jest.unstable_mockModule('../../lib/householdItemCategoriesApi.js', () => ({
+  fetchHouseholdItemCategories: mockFetchHouseholdItemCategories,
+  createHouseholdItemCategory: jest.fn(),
+  updateHouseholdItemCategory: jest.fn(),
+  deleteHouseholdItemCategory: jest.fn(),
+}));
+
 // Mock LinkedDocumentsSection to avoid pulling in full documents component tree
 jest.unstable_mockModule('../../components/documents/LinkedDocumentsSection.js', () => ({
   LinkedDocumentsSection: function MockLinkedDocumentsSection(props: {
@@ -251,6 +261,7 @@ describe('HouseholdItemDetailPage', () => {
     mockDeleteHouseholdItemDep.mockReset();
     mockListMilestones.mockReset();
     mockFetchInvoices.mockReset();
+    mockFetchHouseholdItemCategories.mockReset();
 
     if (!HouseholdItemDetailPageModule) {
       HouseholdItemDetailPageModule = await import('./HouseholdItemDetailPage.js');
@@ -286,15 +297,34 @@ describe('HouseholdItemDetailPage', () => {
     mockDeleteHouseholdItemDep.mockResolvedValue(undefined);
     mockListMilestones.mockResolvedValue([]);
     mockFetchInvoices.mockResolvedValue([]);
+    // Use id 'furniture' to match the category value on the test item (category: 'furniture')
+    mockFetchHouseholdItemCategories.mockResolvedValue({
+      categories: [
+        {
+          id: 'furniture',
+          name: 'Furniture',
+          color: '#8B5CF6',
+          sortOrder: 0,
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
+        },
+      ],
+    });
   });
 
   function renderPage(itemId = 'item-1') {
     return render(
-      <MemoryRouter initialEntries={[`/household-items/${itemId}`]}>
+      <MemoryRouter initialEntries={[`/project/household-items/${itemId}`]}>
         <Routes>
-          <Route path="/household-items/:id" element={<HouseholdItemDetailPageModule.default />} />
-          <Route path="/household-items/:id/edit" element={<div>Household Item Edit</div>} />
-          <Route path="/household-items" element={<div>Household Items List</div>} />
+          <Route
+            path="/project/household-items/:id"
+            element={<HouseholdItemDetailPageModule.default />}
+          />
+          <Route
+            path="/project/household-items/:id/edit"
+            element={<div>Household Item Edit</div>}
+          />
+          <Route path="/project/household-items" element={<div>Household Items List</div>} />
         </Routes>
         <LocationDisplay />
       </MemoryRouter>,
@@ -539,7 +569,7 @@ describe('HouseholdItemDetailPage', () => {
       await waitFor(() => {
         const householdItemsLink = screen.getByRole('link', { name: 'Household Items' });
         expect(householdItemsLink).toBeInTheDocument();
-        expect(householdItemsLink).toHaveAttribute('href', '/household-items');
+        expect(householdItemsLink).toHaveAttribute('href', '/project/household-items');
       });
     });
   });
@@ -679,7 +709,9 @@ describe('HouseholdItemDetailPage', () => {
       await user.click(screen.getByRole('button', { name: /edit/i }));
 
       await waitFor(() => {
-        expect(screen.getByTestId('location')).toHaveTextContent('/household-items/item-1/edit');
+        expect(screen.getByTestId('location')).toHaveTextContent(
+          '/project/household-items/item-1/edit',
+        );
       });
     });
   });
@@ -772,7 +804,7 @@ describe('HouseholdItemDetailPage', () => {
       });
 
       await waitFor(() => {
-        expect(screen.getByTestId('location')).toHaveTextContent('/household-items');
+        expect(screen.getByTestId('location')).toHaveTextContent('/project/household-items');
       });
     });
 
@@ -878,7 +910,7 @@ describe('HouseholdItemDetailPage', () => {
       });
 
       // Should NOT have navigated
-      expect(screen.getByTestId('location')).toHaveTextContent('/household-items/item-1');
+      expect(screen.getByTestId('location')).toHaveTextContent('/project/household-items/item-1');
     });
 
     it('hides confirm button after delete error so user must re-open modal to retry', async () => {
@@ -1190,12 +1222,12 @@ describe('HouseholdItemDetailPage', () => {
       // Verify "Documents" heading exists
       expect(headingTexts).toContain('Documents');
 
-      // Verify Documents comes after Subsidies
-      const subsidiesIndex = headingTexts.findIndex((text) => text === 'Subsidies');
+      // Verify Documents comes after Budget (Subsidies is now an h3 inside Budget, not a standalone h2)
+      const budgetIndex = headingTexts.findIndex((text) => text === 'Budget');
       const documentsIndex = headingTexts.findIndex((text) => text === 'Documents');
-      expect(subsidiesIndex).toBeGreaterThan(-1);
+      expect(budgetIndex).toBeGreaterThan(-1);
       expect(documentsIndex).toBeGreaterThan(-1);
-      expect(documentsIndex).toBeGreaterThan(subsidiesIndex);
+      expect(documentsIndex).toBeGreaterThan(budgetIndex);
     });
 
     it('does not render LinkedDocumentsSection in loading state', async () => {
@@ -1506,7 +1538,7 @@ describe('HouseholdItemDetailPage', () => {
       // Work item should be a clickable link
       const link = screen.getByRole('link', { name: 'Install Foundation' });
       expect(link).toBeInTheDocument();
-      expect(link).toHaveAttribute('href', '/work-items/wi-install-123');
+      expect(link).toHaveAttribute('href', '/project/work-items/wi-install-123');
     });
 
     it('mixed dependencies: milestone is plain text, work item is link', async () => {
@@ -1549,7 +1581,7 @@ describe('HouseholdItemDetailPage', () => {
       // Work item should be a link
       const workItemLink = screen.getByRole('link', { name: 'Paint Walls' });
       expect(workItemLink).toBeInTheDocument();
-      expect(workItemLink).toHaveAttribute('href', '/work-items/wi-paint');
+      expect(workItemLink).toHaveAttribute('href', '/project/work-items/wi-paint');
     });
   });
 

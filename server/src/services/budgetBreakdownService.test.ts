@@ -186,14 +186,14 @@ describe('getBudgetBreakdown', () => {
     opts: {
       name?: string;
       category?:
-        | 'furniture'
-        | 'appliances'
-        | 'fixtures'
-        | 'decor'
-        | 'electronics'
-        | 'outdoor'
-        | 'storage'
-        | 'other';
+        | 'hic-furniture'
+        | 'hic-appliances'
+        | 'hic-fixtures'
+        | 'hic-decor'
+        | 'hic-electronics'
+        | 'hic-outdoor'
+        | 'hic-storage'
+        | 'hic-other';
       plannedAmount?: number;
       confidence?: 'own_estimate' | 'professional_estimate' | 'quote' | 'invoice';
       budgetCategoryId?: string | null;
@@ -207,7 +207,7 @@ describe('getBudgetBreakdown', () => {
       .values({
         id,
         name: opts.name ?? `Household Item ${id}`,
-        category: opts.category ?? 'furniture',
+        categoryId: opts.category ?? 'hic-furniture',
         status: 'planned',
         quantity: 1,
         isLate: false,
@@ -649,18 +649,18 @@ describe('getBudgetBreakdown', () => {
 
   describe('household item with budget line', () => {
     it('appears under the correct hiCategory', () => {
-      insertHouseholdItem({ name: 'Sofa', category: 'furniture', plannedAmount: 800 });
+      insertHouseholdItem({ name: 'Sofa', category: 'hic-furniture', plannedAmount: 800 });
 
       const result = getBudgetBreakdown(db);
 
       expect(result.householdItems.categories).toHaveLength(1);
-      expect(result.householdItems.categories[0].hiCategory).toBe('furniture');
+      expect(result.householdItems.categories[0].hiCategory).toBe('Furniture');
       expect(result.householdItems.categories[0].items).toHaveLength(1);
       expect(result.householdItems.categories[0].items[0].name).toBe('Sofa');
     });
 
     it('sets costDisplay to projected when no invoices', () => {
-      insertHouseholdItem({ category: 'appliances', plannedAmount: 1200, confidence: 'quote' });
+      insertHouseholdItem({ category: 'hic-appliances', plannedAmount: 1200, confidence: 'quote' });
 
       const result = getBudgetBreakdown(db);
 
@@ -670,7 +670,7 @@ describe('getBudgetBreakdown', () => {
 
     it('computes projectedMin and projectedMax using quote margin (5%)', () => {
       // quote margin = 0.05 → min=1140, max=1260
-      insertHouseholdItem({ category: 'appliances', plannedAmount: 1200, confidence: 'quote' });
+      insertHouseholdItem({ category: 'hic-appliances', plannedAmount: 1200, confidence: 'quote' });
 
       const result = getBudgetBreakdown(db);
 
@@ -681,7 +681,7 @@ describe('getBudgetBreakdown', () => {
 
     it('sets costDisplay to actual when all invoiced', () => {
       insertHouseholdItem({
-        category: 'fixtures',
+        category: 'hic-fixtures',
         plannedAmount: 500,
         confidence: 'invoice',
         actualCost: 480,
@@ -699,32 +699,32 @@ describe('getBudgetBreakdown', () => {
 
   describe('HI items from multiple categories', () => {
     it('only present categories appear in the result', () => {
-      insertHouseholdItem({ category: 'furniture', plannedAmount: 500 });
-      insertHouseholdItem({ category: 'electronics', plannedAmount: 300 });
+      insertHouseholdItem({ category: 'hic-furniture', plannedAmount: 500 });
+      insertHouseholdItem({ category: 'hic-electronics', plannedAmount: 300 });
 
       const result = getBudgetBreakdown(db);
 
       const categories = result.householdItems.categories.map((c) => c.hiCategory);
-      expect(categories).toContain('furniture');
-      expect(categories).toContain('electronics');
+      expect(categories).toContain('Furniture');
+      expect(categories).toContain('Electronics');
       // Other categories not present (no items)
-      expect(categories).not.toContain('appliances');
-      expect(categories).not.toContain('fixtures');
+      expect(categories).not.toContain('Appliances');
+      expect(categories).not.toContain('Fixtures');
     });
 
     it('categories are in the canonical HI_CATEGORY_ORDER', () => {
       // Insert in reverse order to test sorting
-      insertHouseholdItem({ category: 'other', plannedAmount: 100 });
-      insertHouseholdItem({ category: 'furniture', plannedAmount: 200 });
-      insertHouseholdItem({ category: 'appliances', plannedAmount: 300 });
+      insertHouseholdItem({ category: 'hic-other', plannedAmount: 100 });
+      insertHouseholdItem({ category: 'hic-furniture', plannedAmount: 200 });
+      insertHouseholdItem({ category: 'hic-appliances', plannedAmount: 300 });
 
       const result = getBudgetBreakdown(db);
 
       const categories = result.householdItems.categories.map((c) => c.hiCategory);
-      // furniture comes before appliances comes before other in HI_CATEGORY_ORDER
-      const idxFurniture = categories.indexOf('furniture');
-      const idxAppliances = categories.indexOf('appliances');
-      const idxOther = categories.indexOf('other');
+      // Furniture (sort_order=0) comes before Appliances (sort_order=1) comes before Other (sort_order=7)
+      const idxFurniture = categories.indexOf('Furniture');
+      const idxAppliances = categories.indexOf('Appliances');
+      const idxOther = categories.indexOf('Other');
       expect(idxFurniture).toBeLessThan(idxAppliances);
       expect(idxAppliances).toBeLessThan(idxOther);
     });
@@ -746,9 +746,9 @@ describe('getBudgetBreakdown', () => {
     });
 
     it('hiTotals.projectedMax equals sum of all HI category projectedMax values', () => {
-      insertHouseholdItem({ category: 'furniture', plannedAmount: 800, confidence: 'quote' });
+      insertHouseholdItem({ category: 'hic-furniture', plannedAmount: 800, confidence: 'quote' });
       insertHouseholdItem({
-        category: 'electronics',
+        category: 'hic-electronics',
         plannedAmount: 400,
         confidence: 'own_estimate',
       });
@@ -786,7 +786,7 @@ describe('getBudgetBreakdown', () => {
     it('computes subsidyPayback for household item with percentage subsidy', () => {
       // own_estimate, planned=1000 → max=1200; subsidy 20% → payback=240
       const { householdItemId } = insertHouseholdItem({
-        category: 'furniture',
+        category: 'hic-furniture',
         plannedAmount: 1000,
         confidence: 'own_estimate',
       });
@@ -808,7 +808,11 @@ describe('getBudgetBreakdown', () => {
   describe('mixed WI and HI data', () => {
     it('returns both workItems and householdItems sections independently', () => {
       insertWorkItem({ plannedAmount: 5000, confidence: 'quote' });
-      insertHouseholdItem({ category: 'decor', plannedAmount: 300, confidence: 'own_estimate' });
+      insertHouseholdItem({
+        category: 'hic-decor',
+        plannedAmount: 300,
+        confidence: 'own_estimate',
+      });
 
       const result = getBudgetBreakdown(db);
 
@@ -875,7 +879,7 @@ describe('getBudgetBreakdown', () => {
         confidence: 'own_estimate',
         budgetCategoryId: catId,
       });
-      const { workItemId: idB } = insertWorkItem({
+      insertWorkItem({
         plannedAmount: 2000,
         confidence: 'quote',
         budgetCategoryId: catId,
@@ -912,7 +916,7 @@ describe('getBudgetBreakdown', () => {
     it('HI item exposes rawProjectedMin/Max correctly', () => {
       // quote, planned=1200 → gross min=1140, gross max=1260
       const { householdItemId } = insertHouseholdItem({
-        category: 'appliances',
+        category: 'hic-appliances',
         plannedAmount: 1200,
         confidence: 'quote',
       });
@@ -989,7 +993,7 @@ describe('getBudgetBreakdown', () => {
       // own_estimate margin=0.2: min-margin amount = 1000 * 0.8 = 800
       // subsidy 10% → minSubsidyPayback = 800 * 0.1 = 80
       const { householdItemId } = insertHouseholdItem({
-        category: 'furniture',
+        category: 'hic-furniture',
         plannedAmount: 1000,
         confidence: 'own_estimate',
       });

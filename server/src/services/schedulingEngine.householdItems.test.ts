@@ -118,7 +118,7 @@ function insertHouseholdItem(
     .values({
       id,
       name: 'Test Household Item',
-      category: 'furniture',
+      categoryId: 'hic-furniture',
       status: 'planned',
       quantity: 1,
       createdAt: now(),

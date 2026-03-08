@@ -1,5 +1,5 @@
 /**
- * Page Object Model for the Work Item Create page (/work-items/new)
+ * Page Object Model for the Work Item Create page (/project/work-items/new)
  *
  * The page renders:
  * - A header with a back button ("← Back to Work Items", a <button> not a <Link>)
@@ -21,18 +21,18 @@
  * - Validation error text (class errorText) per field
  *
  * Key DOM observations from source code:
- * - Back button is a <button> with onClick navigate('/work-items'), NOT a <Link>
+ * - Back button is a <button> with onClick navigate('/project/work-items'), NOT a <Link>
  * - Submit button is type="submit" disabled during isSubmitting
  * - Cancel button is type="button" disabled during isSubmitting
  * - There is no submit-disabled state for empty title at field level — the form
  *   runs validateForm() on submit and shows errorText below #title
  * - The submit button text changes to "Creating..." while submitting
- * - On success, navigates to /work-items/:id (the newly created item's detail page)
+ * - On success, navigates to /project/work-items/:id (the newly created item's detail page)
  */
 
 import type { Page, Locator } from '@playwright/test';
 
-export const WORK_ITEM_CREATE_ROUTE = '/work-items/new';
+export const WORK_ITEM_CREATE_ROUTE = '/project/work-items/new';
 
 export interface WorkItemFormData {
   title?: string;
@@ -162,7 +162,7 @@ export class WorkItemCreatePage {
    */
   async cancel(): Promise<void> {
     await this.cancelButton.click();
-    await this.page.waitForURL('**/work-items');
+    await this.page.waitForURL('**/project/work-items');
   }
 
   /**

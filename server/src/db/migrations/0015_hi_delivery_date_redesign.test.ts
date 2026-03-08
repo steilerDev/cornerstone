@@ -40,7 +40,8 @@ describe('Migration 0015: Household Item Delivery Date Redesign', () => {
     const defaults = {
       id,
       name: `Item ${id}`,
-      category: 'other',
+      // migration 0016 replaced 'category' with 'category_id' FK
+      category_id: 'hic-other',
       status: 'planned',
       quantity: 1,
       created_at: now,
@@ -138,7 +139,8 @@ describe('Migration 0015: Household Item Delivery Date Redesign', () => {
       expect(colNames).toContain('id');
       expect(colNames).toContain('name');
       expect(colNames).toContain('description');
-      expect(colNames).toContain('category');
+      // 'category' column was replaced by 'category_id' FK in migration 0016
+      expect(colNames).toContain('category_id');
       expect(colNames).toContain('status');
       expect(colNames).toContain('vendor_id');
       expect(colNames).toContain('url');
@@ -211,10 +213,10 @@ describe('Migration 0015: Household Item Delivery Date Redesign', () => {
       const now = new Date().toISOString();
       sqlite
         .prepare(
-          `INSERT INTO household_items (id, name, category, status, quantity, is_late, created_at, updated_at)
+          `INSERT INTO household_items (id, name, category_id, status, quantity, is_late, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         )
-        .run('item-islate-set', 'Item Late', 'other', 'planned', 1, 1, now, now);
+        .run('item-islate-set', 'Item Late', 'hic-other', 'planned', 1, 1, now, now);
 
       const row = sqlite
         .prepare('SELECT is_late FROM household_items WHERE id = ?')
@@ -227,13 +229,14 @@ describe('Migration 0015: Household Item Delivery Date Redesign', () => {
   // ── 5. Indexes after table rebuild ────────────────────────────────────────
 
   describe('indexes after table rebuild', () => {
-    it('recreates all 5 original indexes on household_items table', () => {
+    it('recreates all original indexes on household_items table', () => {
       const indexes = sqlite
         .prepare(`SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='household_items'`)
         .all() as Array<{ name: string }>;
 
       const indexNames = indexes.map((i) => i.name);
-      expect(indexNames).toContain('idx_household_items_category');
+      // migration 0016 replaced idx_household_items_category with idx_household_items_category_id
+      expect(indexNames).toContain('idx_household_items_category_id');
       expect(indexNames).toContain('idx_household_items_status');
       expect(indexNames).toContain('idx_household_items_room');
       expect(indexNames).toContain('idx_household_items_vendor_id');
@@ -266,13 +269,13 @@ describe('Migration 0015: Household Item Delivery Date Redesign', () => {
       const now = new Date().toISOString();
       sqlite
         .prepare(
-          `INSERT INTO household_items (id, name, category, status, quantity, earliest_delivery_date, latest_delivery_date, target_delivery_date, actual_delivery_date, is_late, created_at, updated_at)
+          `INSERT INTO household_items (id, name, category_id, status, quantity, earliest_delivery_date, latest_delivery_date, target_delivery_date, actual_delivery_date, is_late, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
           'item-full-delivery',
           'Test Item',
-          'furniture',
+          'hic-furniture',
           'planned',
           1,
           '2026-06-01',
@@ -328,21 +331,25 @@ describe('Migration 0015: Household Item Delivery Date Redesign', () => {
   // ── 7. Constraint enforcement ────────────────────────────────────────────
 
   describe('constraint enforcement after rebuild', () => {
-    it('still enforces category CHECK constraint', () => {
+    // Note: migration 0016 dropped the 'category' CHECK constraint and replaced it
+    // with a 'category_id' FK referencing household_item_categories. Tests below
+    // use category_id with the seeded 'hic-*' values.
+
+    it('enforces category_id FK constraint (invalid category_id rejected)', () => {
       const now = new Date().toISOString();
       let error: Error | undefined;
       try {
         sqlite
           .prepare(
-            `INSERT INTO household_items (id, name, category, status, quantity, created_at, updated_at)
+            `INSERT INTO household_items (id, name, category_id, status, quantity, created_at, updated_at)
              VALUES (?, ?, ?, ?, ?, ?, ?)`,
           )
-          .run('item-bad-cat', 'Test', 'invalid_cat', 'planned', 1, now, now);
+          .run('item-bad-cat', 'Test', 'non-existent-category', 'planned', 1, now, now);
       } catch (err) {
         error = err as Error;
       }
       expect(error).toBeDefined();
-      expect(error?.message).toMatch(/CHECK constraint failed/);
+      expect(error?.message).toMatch(/FOREIGN KEY constraint failed/);
     });
 
     it('still enforces status CHECK constraint', () => {
@@ -351,10 +358,10 @@ describe('Migration 0015: Household Item Delivery Date Redesign', () => {
       try {
         sqlite
           .prepare(
-            `INSERT INTO household_items (id, name, category, status, quantity, created_at, updated_at)
+            `INSERT INTO household_items (id, name, category_id, status, quantity, created_at, updated_at)
              VALUES (?, ?, ?, ?, ?, ?, ?)`,
           )
-          .run('item-bad-status', 'Test', 'furniture', 'invalid_status', 1, now, now);
+          .run('item-bad-status', 'Test', 'hic-furniture', 'invalid_status', 1, now, now);
       } catch (err) {
         error = err as Error;
       }
@@ -368,10 +375,10 @@ describe('Migration 0015: Household Item Delivery Date Redesign', () => {
       try {
         sqlite
           .prepare(
-            `INSERT INTO household_items (id, name, category, status, quantity, created_at, updated_at)
+            `INSERT INTO household_items (id, name, category_id, status, quantity, created_at, updated_at)
              VALUES (?, ?, ?, ?, ?, ?, ?)`,
           )
-          .run('item-qty-zero', 'Test', 'furniture', 'planned', 0, now, now);
+          .run('item-qty-zero', 'Test', 'hic-furniture', 'planned', 0, now, now);
       } catch (err) {
         error = err as Error;
       }

@@ -1,5 +1,5 @@
 /**
- * Page Object Model for the Work Item Detail page (/work-items/:id)
+ * Page Object Model for the Work Item Detail page (/project/work-items/:id)
  *
  * The page renders:
  * - An error state (class `error`) if the work item cannot be loaded (404, etc.)
@@ -35,7 +35,7 @@
  * - Inline error banner (role="alert", class errorBanner) for inline failures
  *
  * Key DOM observations from source code:
- * - Back button is a <button> calling navigate('/work-items'), NOT an <a>
+ * - Back button is a <button> calling navigate('/project/work-items'), NOT an <a>
  * - Delete modal uses a plain div[class*="modal"] — no role="dialog", no aria-labelledby
  *   The h2 inside is "Delete Work Item?" (with question mark)
  * - Error state uses class `error` (div.error with a "Back to Work Items" button inside)
@@ -167,7 +167,7 @@ export class WorkItemDetailPage {
 
     // Error states
     this.errorBanner = page.locator('[role="alert"][class*="errorBanner"]');
-    this.errorState = page.locator('[class*="error"]').filter({ has: page.getByRole('button') });
+    this.errorState = page.locator('[class*="errorCard"]');
   }
 
   /**
@@ -176,7 +176,7 @@ export class WorkItemDetailPage {
    * the error state to appear (load failure / 404).
    */
   async goto(id: string): Promise<void> {
-    await this.page.goto(`/work-items/${id}`);
+    await this.page.goto(`/project/work-items/${id}`);
     // No explicit timeout — uses project-level actionTimeout (15s for WebKit).
     await Promise.race([
       this.heading.waitFor({ state: 'visible' }),
@@ -246,12 +246,12 @@ export class WorkItemDetailPage {
   }
 
   /**
-   * Confirm deletion in the modal. The page navigates to /work-items on success.
+   * Confirm deletion in the modal. The page navigates to /project/work-items on success.
    */
   async confirmDelete(): Promise<void> {
     await this.deleteConfirmButton.click();
     // No explicit timeout — uses project-level navigationTimeout (15s for WebKit).
-    await this.page.waitForURL('**/work-items');
+    await this.page.waitForURL('**/project/work-items');
   }
 
   /**

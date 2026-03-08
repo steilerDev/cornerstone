@@ -1,15 +1,10 @@
-import { useState, useEffect, useRef, type FormEvent } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import type {
   HouseholdItemDetail,
   HouseholdItemStatus,
-  HouseholdItemCategory,
   HouseholdItemBudgetLine,
-  ConfidenceLevel,
-  CreateHouseholdItemBudgetRequest,
-  UpdateHouseholdItemBudgetRequest,
   SubsidyProgram,
-  BudgetCategory,
   BudgetSource,
   Vendor,
   HouseholdItemSubsidyPaybackResponse,
@@ -18,8 +13,8 @@ import type {
   HouseholdItemDepDetail,
   HouseholdItemDepPredecessorType,
   MilestoneSummary,
+  HouseholdItemCategoryEntity,
 } from '@cornerstone/shared';
-import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
 import {
   getHouseholdItem,
   deleteHouseholdItem,
@@ -46,56 +41,22 @@ import {
   createHouseholdItemDep,
   deleteHouseholdItemDep,
 } from '../../lib/householdItemDepsApi.js';
-import { fetchBudgetCategories } from '../../lib/budgetCategoriesApi.js';
 import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
 import { fetchSubsidyPrograms } from '../../lib/subsidyProgramsApi.js';
 import { listWorkItems } from '../../lib/workItemsApi.js';
 import { listMilestones } from '../../lib/milestonesApi.js';
 import { fetchInvoices } from '../../lib/invoicesApi.js';
+import { fetchHouseholdItemCategories } from '../../lib/householdItemCategoriesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { formatDate, formatCurrency } from '../../lib/formatters.js';
 import { HouseholdItemStatusBadge } from '../../components/HouseholdItemStatusBadge/HouseholdItemStatusBadge.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
+import { useBudgetSection, type BudgetLineFormState } from '../../hooks/useBudgetSection.js';
+import { BudgetSection } from '../../components/budget/BudgetSection.js';
+import { ProjectSubNav } from '../../components/ProjectSubNav/ProjectSubNav.js';
 import styles from './HouseholdItemDetailPage.module.css';
-
-const CATEGORY_LABELS: Record<HouseholdItemCategory, string> = {
-  furniture: 'Furniture',
-  appliances: 'Appliances',
-  fixtures: 'Fixtures',
-  decor: 'Decor',
-  electronics: 'Electronics',
-  outdoor: 'Outdoor',
-  storage: 'Storage',
-  other: 'Other',
-};
-
-const CONFIDENCE_LABELS: Record<ConfidenceLevel, string> = {
-  own_estimate: 'Own Estimate',
-  professional_estimate: 'Professional Estimate',
-  quote: 'Quote',
-  invoice: 'Invoice',
-};
-
-/** Budget line form state used for both create and edit. */
-interface BudgetLineFormState {
-  description: string;
-  plannedAmount: string;
-  confidence: ConfidenceLevel;
-  budgetCategoryId: string;
-  budgetSourceId: string;
-  vendorId: string;
-}
-
-const EMPTY_BUDGET_FORM: BudgetLineFormState = {
-  description: '',
-  plannedAmount: '',
-  confidence: 'own_estimate',
-  budgetCategoryId: '',
-  budgetSourceId: '',
-  vendorId: '',
-};
 
 export function HouseholdItemDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -119,24 +80,14 @@ export function HouseholdItemDetailPage() {
 
   // Budget lines state
   const [budgetLines, setBudgetLines] = useState<HouseholdItemBudgetLine[]>([]);
-  const [budgetCategories, setBudgetCategories] = useState<BudgetCategory[]>([]);
   const [budgetSources, setBudgetSources] = useState<BudgetSource[]>([]);
   const [allVendors, setAllVendors] = useState<Vendor[]>([]);
   const [budgetLineInvoices, setBudgetLineInvoices] = useState<Record<string, Invoice[]>>({});
+  const [categories, setCategories] = useState<HouseholdItemCategoryEntity[]>([]);
 
-  // Budget line form state
-  const [showBudgetForm, setShowBudgetForm] = useState(false);
-  const [budgetForm, setBudgetForm] = useState<BudgetLineFormState>(EMPTY_BUDGET_FORM);
-  const [editingBudgetId, setEditingBudgetId] = useState<string | null>(null);
-  const [isSavingBudget, setIsSavingBudget] = useState(false);
-  const [budgetFormError, setBudgetFormError] = useState<string | null>(null);
-  const [deletingBudgetId, setDeletingBudgetId] = useState<string | null>(null);
-
-  // Subsidy linking state
+  // Subsidy linking state (linked subsidies and programs stay as local state)
   const [linkedSubsidies, setLinkedSubsidies] = useState<SubsidyProgram[]>([]);
   const [allSubsidyPrograms, setAllSubsidyPrograms] = useState<SubsidyProgram[]>([]);
-  const [selectedSubsidyId, setSelectedSubsidyId] = useState('');
-  const [isLinkingSubsidy, setIsLinkingSubsidy] = useState(false);
 
   // Subsidy payback state
   const [subsidyPayback, setSubsidyPayback] = useState<HouseholdItemSubsidyPaybackResponse | null>(
@@ -162,6 +113,13 @@ export function HouseholdItemDetailPage() {
   const [dateInlineError, setDateInlineError] = useState<string | null>(null);
   const [isChangingStatus, setIsChangingStatus] = useState(false);
 
+  // Auto-scroll to top when error appears
+  useEffect(() => {
+    if (error) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [error]);
+
   // Inline date editing state
   const [localOrderDate, setLocalOrderDate] = useState<string>('');
   const [localActualDeliveryDate, setLocalActualDeliveryDate] = useState<string>('');
@@ -172,6 +130,66 @@ export function HouseholdItemDetailPage() {
   const [autosaveEarliestDelivery, setAutosaveEarliestDelivery] = useState<AutosaveState>('idle');
   const [autosaveLatestDelivery, setAutosaveLatestDelivery] = useState<AutosaveState>('idle');
   const autosaveResetRefs = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  // Shared reload functions for budget-related data
+  const reloadBudgetLines = async () => {
+    if (!id) return;
+    try {
+      const data = await fetchHouseholdItemBudgets(id);
+      setBudgetLines(data);
+    } catch (err) {
+      console.error('Failed to reload budget lines:', err);
+    }
+  };
+
+  const reloadLinkedSubsidies = async () => {
+    if (!id) return;
+    try {
+      const data = await fetchHouseholdItemSubsidies(id);
+      setLinkedSubsidies(data);
+    } catch (err) {
+      console.error('Failed to reload linked subsidies:', err);
+    }
+  };
+
+  const reloadSubsidyPayback = async () => {
+    if (!id) return;
+    try {
+      const data = await fetchHouseholdItemSubsidyPayback(id);
+      setSubsidyPayback(data);
+    } catch (err) {
+      console.error('Failed to reload subsidy payback:', err);
+    }
+  };
+
+  // Budget section hook
+  const budgetSection = useBudgetSection<HouseholdItemBudgetLine>({
+    api: {
+      fetchBudgets: fetchHouseholdItemBudgets,
+      createBudget: createHouseholdItemBudget,
+      updateBudget: updateHouseholdItemBudget,
+      deleteBudget: deleteHouseholdItemBudget,
+    },
+    reloadBudgetLines,
+    reloadSubsidyPayback,
+    reloadLinkedSubsidies,
+    toFormState: (line: HouseholdItemBudgetLine): BudgetLineFormState => ({
+      description: line.description ?? '',
+      plannedAmount: String(line.plannedAmount),
+      confidence: line.confidence,
+      budgetCategoryId: '', // Household items don't use budget categories
+      budgetSourceId: line.budgetSource?.id ?? '',
+      vendorId: line.vendor?.id ?? '',
+    }),
+    toPayload: (form: BudgetLineFormState) => ({
+      description: form.description.trim() || null,
+      plannedAmount: parseFloat(form.plannedAmount),
+      confidence: form.confidence,
+      budgetSourceId: form.budgetSourceId || null,
+      vendorId: form.vendorId || null,
+    }),
+    entityId: id ?? '',
+  });
 
   useEffect(() => {
     if (!id) return;
@@ -275,38 +293,28 @@ export function HouseholdItemDetailPage() {
 
   const loadBudgetData = async (itemId: string) => {
     try {
-      const [budgets, subsidies, payback, categories, sources, vendors, programs, depsData] =
+      const [budgets, subsidies, payback, sources, vendors, programs, depsData, categoriesData] =
         await Promise.all([
           fetchHouseholdItemBudgets(itemId),
           fetchHouseholdItemSubsidies(itemId),
           fetchHouseholdItemSubsidyPayback(itemId),
-          fetchBudgetCategories(),
           fetchBudgetSources(),
           fetchVendors({ pageSize: 100 }),
           fetchSubsidyPrograms(),
           fetchHouseholdItemDeps(itemId),
+          fetchHouseholdItemCategories(),
         ]);
       setBudgetLines(budgets);
       setLinkedSubsidies(subsidies);
       setSubsidyPayback(payback);
-      setBudgetCategories(categories.categories);
       setBudgetSources(sources.budgetSources);
       setAllVendors(vendors.vendors);
       setAllSubsidyPrograms(programs.subsidyPrograms);
       setDependencies(depsData);
+      setCategories(categoriesData.categories);
     } catch (err) {
       // Non-critical — budget data failure shouldn't block the page
       console.error('Failed to load budget data:', err);
-    }
-  };
-
-  const reloadBudgetLines = async () => {
-    if (!id) return;
-    try {
-      const data = await fetchHouseholdItemBudgets(id);
-      setBudgetLines(data);
-    } catch (err) {
-      console.error('Failed to reload budget lines:', err);
     }
   };
 
@@ -323,26 +331,6 @@ export function HouseholdItemDetailPage() {
       setBudgetLineInvoices(grouped);
     } catch {
       // Silently fail — invoices are supplementary
-    }
-  };
-
-  const reloadLinkedSubsidies = async () => {
-    if (!id) return;
-    try {
-      const data = await fetchHouseholdItemSubsidies(id);
-      setLinkedSubsidies(data);
-    } catch (err) {
-      console.error('Failed to reload linked subsidies:', err);
-    }
-  };
-
-  const reloadSubsidyPayback = async () => {
-    if (!id) return;
-    try {
-      const data = await fetchHouseholdItemSubsidyPayback(id);
-      setSubsidyPayback(data);
-    } catch (err) {
-      console.error('Failed to reload subsidy payback:', err);
     }
   };
 
@@ -411,112 +399,34 @@ export function HouseholdItemDetailPage() {
     }
   };
 
-  // ─── Budget line handlers ──────────────────────────────────────────────────
+  // ─── Budget line handlers (delegated to useBudgetSection hook) ────────────
 
-  const openAddBudgetForm = () => {
-    setEditingBudgetId(null);
-    setBudgetForm(EMPTY_BUDGET_FORM);
-    setBudgetFormError(null);
-    setShowBudgetForm(true);
-  };
+  const {
+    confirmDeleteBudgetLine,
+    handleLinkSubsidy: hookHandleLinkSubsidy,
+    handleUnlinkSubsidy: hookHandleUnlinkSubsidy,
+    selectedSubsidyId,
+  } = budgetSection;
 
-  const openEditBudgetForm = (line: HouseholdItemBudgetLine) => {
-    setEditingBudgetId(line.id);
-    setBudgetForm({
-      description: line.description ?? '',
-      plannedAmount: String(line.plannedAmount),
-      confidence: line.confidence,
-      budgetCategoryId: line.budgetCategory?.id ?? '',
-      budgetSourceId: line.budgetSource?.id ?? '',
-      vendorId: line.vendor?.id ?? '',
-    });
-    setBudgetFormError(null);
-    setShowBudgetForm(true);
-  };
-
-  const closeBudgetForm = () => {
-    setShowBudgetForm(false);
-    setEditingBudgetId(null);
-    setBudgetForm(EMPTY_BUDGET_FORM);
-    setBudgetFormError(null);
-  };
-
-  const handleSaveBudgetLine = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!id) return;
-
-    const plannedAmount = parseFloat(budgetForm.plannedAmount);
-    if (isNaN(plannedAmount) || plannedAmount < 0) {
-      setBudgetFormError('Planned amount must be a valid non-negative number.');
-      return;
-    }
-
-    setIsSavingBudget(true);
-    setBudgetFormError(null);
-
-    const payload: CreateHouseholdItemBudgetRequest | UpdateHouseholdItemBudgetRequest = {
-      description: budgetForm.description.trim() || null,
-      plannedAmount,
-      confidence: budgetForm.confidence,
-      budgetCategoryId: budgetForm.budgetCategoryId || null,
-      budgetSourceId: budgetForm.budgetSourceId || null,
-      vendorId: budgetForm.vendorId || null,
-    };
-
+  // Handle delete confirmation with inline error management
+  const handleConfirmDeleteBudgetLine = async () => {
     try {
-      if (editingBudgetId) {
-        await updateHouseholdItemBudget(
-          id,
-          editingBudgetId,
-          payload as UpdateHouseholdItemBudgetRequest,
-        );
-      } else {
-        await createHouseholdItemBudget(id, payload as CreateHouseholdItemBudgetRequest);
-      }
-      closeBudgetForm();
-      await Promise.all([reloadBudgetLines(), reloadSubsidyPayback()]);
+      await confirmDeleteBudgetLine();
     } catch (err) {
-      const apiErr = err as { statusCode?: number; message?: string };
-      setBudgetFormError(apiErr.message ?? 'Failed to save budget line. Please try again.');
-      console.error('Failed to save budget line:', err);
-    } finally {
-      setIsSavingBudget(false);
+      const error = err as Error;
+      setInlineError(error.message);
     }
   };
 
-  const handleDeleteBudgetLine = (budgetId: string) => {
-    setDeletingBudgetId(budgetId);
-  };
-
-  const confirmDeleteBudgetLine = async () => {
-    if (!id || !deletingBudgetId) return;
-    setInlineError(null);
-    try {
-      await deleteHouseholdItemBudget(id, deletingBudgetId);
-      setDeletingBudgetId(null);
-      await Promise.all([reloadBudgetLines(), reloadSubsidyPayback()]);
-    } catch (err) {
-      setDeletingBudgetId(null);
-      const apiErr = err as { statusCode?: number; message?: string };
-      if (apiErr.statusCode === 409) {
-        setInlineError(apiErr.message || 'Budget line cannot be deleted because it is in use');
-      } else {
-        setInlineError('Failed to delete budget line');
-      }
-      console.error('Failed to delete budget line:', err);
-    }
-  };
-
-  // ─── Subsidy linking handlers ──────────────────────────────────────────────
+  // ─── Subsidy linking handlers (delegates to hook after API calls) ──────────
 
   const handleLinkSubsidy = async () => {
     if (!id || !selectedSubsidyId) return;
-    setIsLinkingSubsidy(true);
     setInlineError(null);
     try {
       await linkHouseholdItemSubsidy(id, selectedSubsidyId);
-      setSelectedSubsidyId('');
-      await Promise.all([reloadLinkedSubsidies(), reloadSubsidyPayback()]);
+      await hookHandleLinkSubsidy();
+      await reloadSubsidyPayback();
     } catch (err) {
       const apiErr = err as { statusCode?: number; message?: string };
       if (apiErr.statusCode === 409) {
@@ -525,8 +435,6 @@ export function HouseholdItemDetailPage() {
         setInlineError('Failed to link subsidy program');
       }
       console.error('Failed to link subsidy:', err);
-    } finally {
-      setIsLinkingSubsidy(false);
     }
   };
 
@@ -535,7 +443,8 @@ export function HouseholdItemDetailPage() {
     setInlineError(null);
     try {
       await unlinkHouseholdItemSubsidy(id, subsidyProgramId);
-      await Promise.all([reloadLinkedSubsidies(), reloadSubsidyPayback()]);
+      await hookHandleUnlinkSubsidy();
+      await reloadSubsidyPayback();
     } catch (err) {
       setInlineError('Failed to unlink subsidy program');
       console.error('Failed to unlink subsidy:', err);
@@ -650,7 +559,7 @@ export function HouseholdItemDetailPage() {
     try {
       await deleteHouseholdItem(item.id);
       showToast('success', 'Household item deleted successfully');
-      navigate('/household-items');
+      navigate('/project/household-items');
     } catch (err) {
       if (err instanceof ApiClientError) {
         setDeleteError(err.error.message);
@@ -696,7 +605,7 @@ export function HouseholdItemDetailPage() {
             <button
               type="button"
               className={styles.secondaryButton}
-              onClick={() => navigate('/household-items')}
+              onClick={() => navigate('/project/household-items')}
             >
               Back to Household Items
             </button>
@@ -716,7 +625,7 @@ export function HouseholdItemDetailPage() {
             <button
               type="button"
               className={styles.secondaryButton}
-              onClick={() => navigate('/household-items')}
+              onClick={() => navigate('/project/household-items')}
             >
               Back to Household Items
             </button>
@@ -729,30 +638,16 @@ export function HouseholdItemDetailPage() {
     );
   }
 
-  // Compute budget line totals
-  const totalPlanned = budgetLines.reduce((sum, b) => sum + b.plannedAmount, 0);
-  const totalActualCost = budgetLines.reduce((sum, b) => sum + b.actualCost, 0);
-  // Confidence-based min/max planned range: each line contributes amount ± margin
-  const totalMinPlanned = budgetLines.reduce((sum, b) => {
-    const margin = CONFIDENCE_MARGINS[b.confidence] ?? 0;
-    return sum + b.plannedAmount * (1 - margin);
-  }, 0);
-  const totalMaxPlanned = budgetLines.reduce((sum, b) => {
-    const margin = CONFIDENCE_MARGINS[b.confidence] ?? 0;
-    return sum + b.plannedAmount * (1 + margin);
-  }, 0);
-  // Show range only when there's meaningful variance (min !== max)
-  const hasPlannedRange = Math.abs(totalMaxPlanned - totalMinPlanned) > 0.01;
-  // Check if any budget lines have invoiced amounts
-  const hasInvoicedLines = budgetLines.some((b) => b.invoiceCount > 0);
-  const allLinesInvoiced = budgetLines.length > 0 && budgetLines.every((b) => b.invoiceCount > 0);
+  const availableSubsidies = allSubsidyPrograms.filter(
+    (prog) => !linkedSubsidies.some((linked) => linked.id === prog.id),
+  );
 
   return (
     <div className={styles.container}>
       <div className={styles.content}>
         {/* Breadcrumb */}
         <div className={styles.breadcrumb}>
-          <Link to="/household-items" className={styles.backLink}>
+          <Link to="/project/household-items" className={styles.backLink}>
             Household Items
           </Link>
           <span className={styles.breadcrumbSeparator} aria-hidden="true">
@@ -760,13 +655,16 @@ export function HouseholdItemDetailPage() {
           </span>
           <span className={styles.breadcrumbCurrent}>{item.name}</span>
         </div>
+        <ProjectSubNav />
 
         {/* Page header */}
         <div className={styles.pageHeader}>
           <div className={styles.pageHeading}>
             <h1 className={styles.pageTitle}>{item.name}</h1>
             <div className={styles.headerBadges}>
-              <span className={styles.categoryBadge}>{CATEGORY_LABELS[item.category]}</span>
+              <span className={styles.categoryBadge}>
+                {categories.find((c) => c.id === item.category)?.name ?? item.category}
+              </span>
               <HouseholdItemStatusBadge status={item.status} />
             </div>
           </div>
@@ -774,7 +672,7 @@ export function HouseholdItemDetailPage() {
             <button
               type="button"
               className={styles.editButton}
-              onClick={() => navigate(`/household-items/${item.id}/edit`)}
+              onClick={() => navigate(`/project/household-items/${item.id}/edit`)}
             >
               Edit
             </button>
@@ -1160,7 +1058,10 @@ export function HouseholdItemDetailPage() {
                       {dep.predecessorType === 'work_item' ? 'Work Item' : 'Milestone'}
                     </span>
                     {dep.predecessorType === 'work_item' ? (
-                      <Link to={`/work-items/${dep.predecessorId}`} className={styles.depPredLink}>
+                      <Link
+                        to={`/project/work-items/${dep.predecessorId}`}
+                        className={styles.depPredLink}
+                      >
                         {dep.predecessor.title}
                       </Link>
                     ) : (
@@ -1322,396 +1223,45 @@ export function HouseholdItemDetailPage() {
           )}
         </section>
 
-        {/* Budget card */}
-        <section className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h2 className={styles.cardTitle}>Budget</h2>
-            {!showBudgetForm && (
-              <button type="button" className={styles.button} onClick={openAddBudgetForm}>
-                Add Budget Line
-              </button>
-            )}
-          </div>
-
-          {inlineError && (
-            <div className={styles.errorBanner} role="alert">
-              {inlineError}
-            </div>
-          )}
-
-          {/* Budget form */}
-          {showBudgetForm && (
-            <form onSubmit={handleSaveBudgetLine} className={styles.budgetLineForm}>
-              <div className={styles.budgetFormField}>
-                <label htmlFor="budget-description" className={styles.formLabel}>
-                  Description
-                </label>
-                <input
-                  id="budget-description"
-                  type="text"
-                  value={budgetForm.description}
-                  onChange={(e) => setBudgetForm({ ...budgetForm, description: e.target.value })}
-                  placeholder="e.g., Kitchen appliance"
-                  className={styles.formInput}
-                  disabled={isSavingBudget}
-                />
-              </div>
-
-              <div className={styles.budgetFormField}>
-                <label htmlFor="budget-amount" className={styles.formLabel}>
-                  Planned Amount *
-                </label>
-                <input
-                  id="budget-amount"
-                  type="number"
-                  value={budgetForm.plannedAmount}
-                  onChange={(e) => setBudgetForm({ ...budgetForm, plannedAmount: e.target.value })}
-                  placeholder="0.00"
-                  step="0.01"
-                  min="0"
-                  className={styles.formInput}
-                  disabled={isSavingBudget}
-                  required
-                />
-              </div>
-
-              <div className={styles.budgetFormField}>
-                <label htmlFor="budget-confidence" className={styles.formLabel}>
-                  Confidence Level
-                </label>
-                <select
-                  id="budget-confidence"
-                  value={budgetForm.confidence}
-                  onChange={(e) =>
-                    setBudgetForm({ ...budgetForm, confidence: e.target.value as ConfidenceLevel })
-                  }
-                  className={styles.formSelect}
-                  disabled={isSavingBudget}
-                >
-                  {(Object.entries(CONFIDENCE_LABELS) as Array<[ConfidenceLevel, string]>).map(
-                    ([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ),
-                  )}
-                </select>
-              </div>
-
-              <div className={styles.budgetFormField}>
-                <label htmlFor="budget-category" className={styles.formLabel}>
-                  Budget Category
-                </label>
-                <select
-                  id="budget-category"
-                  value={budgetForm.budgetCategoryId}
-                  onChange={(e) =>
-                    setBudgetForm({ ...budgetForm, budgetCategoryId: e.target.value })
-                  }
-                  className={styles.formSelect}
-                  disabled={isSavingBudget}
-                >
-                  <option value="">— Select Category —</option>
-                  {budgetCategories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className={styles.budgetFormField}>
-                <label htmlFor="budget-source" className={styles.formLabel}>
-                  Budget Source
-                </label>
-                <select
-                  id="budget-source"
-                  value={budgetForm.budgetSourceId}
-                  onChange={(e) => setBudgetForm({ ...budgetForm, budgetSourceId: e.target.value })}
-                  className={styles.formSelect}
-                  disabled={isSavingBudget}
-                >
-                  <option value="">— Select Source —</option>
-                  {budgetSources.map((source) => (
-                    <option key={source.id} value={source.id}>
-                      {source.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className={styles.budgetFormField}>
-                <label htmlFor="budget-vendor" className={styles.formLabel}>
-                  Vendor
-                </label>
-                <select
-                  id="budget-vendor"
-                  value={budgetForm.vendorId}
-                  onChange={(e) => setBudgetForm({ ...budgetForm, vendorId: e.target.value })}
-                  className={styles.formSelect}
-                  disabled={isSavingBudget}
-                >
-                  <option value="">— Select Vendor —</option>
-                  {allVendors.map((vendor) => (
-                    <option key={vendor.id} value={vendor.id}>
-                      {vendor.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {budgetFormError && (
-                <div className={styles.errorBanner} role="alert">
-                  {budgetFormError}
-                </div>
-              )}
-
-              <div className={styles.budgetFormActions}>
-                <button type="submit" className={styles.button} disabled={isSavingBudget}>
-                  {isSavingBudget ? 'Saving...' : editingBudgetId ? 'Update' : 'Add'}
-                </button>
-                <button
-                  type="button"
-                  className={styles.cancelButton}
-                  onClick={closeBudgetForm}
-                  disabled={isSavingBudget}
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          )}
-
-          {/* Budget lines list */}
-          {budgetLines.length === 0 && !showBudgetForm ? (
-            <p className={styles.emptyState}>No budget lines added.</p>
-          ) : (
-            <div className={styles.budgetLinesList}>
-              {budgetLines.map((line) => (
-                <div key={line.id} className={styles.budgetLineItem}>
-                  <div className={styles.budgetLineMain}>
-                    <div className={styles.budgetLineTopRow}>
-                      {line.invoiceCount > 0 ? (
-                        <>
-                          <span
-                            className={`${styles.budgetLineAmount} ${styles.budgetLineAmountInvoiced}`}
-                          >
-                            {formatCurrency(line.actualCost)}
-                          </span>
-                          <span className={styles.budgetLineInvoicedLabel}>Invoiced Amount</span>
-                          <span className={styles.budgetLinePlannedSecondary}>
-                            (planned: {formatCurrency(line.plannedAmount)})
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <span className={styles.budgetLineAmount}>
-                            {formatCurrency(line.plannedAmount)}
-                          </span>
-                          <span className={styles.budgetLineConfidence}>
-                            {CONFIDENCE_LABELS[line.confidence]}
-                            {CONFIDENCE_MARGINS[line.confidence] > 0 && (
-                              <span className={styles.budgetLineMargin}>
-                                {' '}
-                                (+{Math.round(CONFIDENCE_MARGINS[line.confidence] * 100)}%)
-                              </span>
-                            )}
-                          </span>
-                        </>
-                      )}
-                    </div>
-                    {line.description && (
-                      <div className={styles.budgetLineDescription}>{line.description}</div>
-                    )}
-                    <div className={styles.budgetLineMeta}>
-                      {line.budgetCategory && (
-                        <span className={styles.budgetLineMetaItem}>
-                          {line.budgetCategory.name}
+        {/* Budget Lines */}
+        <section className={styles.section}>
+          <BudgetSection
+            budgetLines={budgetLines}
+            subsidyPayback={subsidyPayback}
+            linkedSubsidies={linkedSubsidies}
+            availableSubsidies={availableSubsidies}
+            budgetSectionHook={budgetSection}
+            budgetSources={budgetSources}
+            vendors={allVendors}
+            staticCategoryLabel="Household Items"
+            onLinkSubsidy={handleLinkSubsidy}
+            onUnlinkSubsidy={handleUnlinkSubsidy}
+            onConfirmDeleteBudgetLine={handleConfirmDeleteBudgetLine}
+            inlineError={inlineError}
+            renderBudgetLineChildren={(line) =>
+              budgetLineInvoices[line.id]?.length > 0 ? (
+                <div className={styles.budgetLineInvoices}>
+                  <h4 className={styles.budgetLineInvoicesTitle}>Linked Invoices</h4>
+                  <ul className={styles.invoiceList}>
+                    {budgetLineInvoices[line.id].map((inv) => (
+                      <li key={inv.id} className={styles.invoiceListItem}>
+                        <Link to={`/invoices/${inv.id}`} className={styles.invoiceLink}>
+                          {inv.invoiceNumber ? `#${inv.invoiceNumber}` : 'Invoice'}
+                        </Link>
+                        <span className={styles.invoiceAmount}>{formatCurrency(inv.amount)}</span>
+                        <span
+                          className={`${styles.invoiceStatusBadge} ${styles[`invoiceStatus_${inv.status}`]}`}
+                        >
+                          {inv.status.charAt(0).toUpperCase() + inv.status.slice(1)}
                         </span>
-                      )}
-                      {line.budgetSource && (
-                        <span className={styles.budgetLineMetaItem}>{line.budgetSource.name}</span>
-                      )}
-                      {line.vendor && (
-                        <span className={styles.budgetLineMetaItem}>{line.vendor.name}</span>
-                      )}
-                    </div>
-                    {budgetLineInvoices[line.id]?.length > 0 && (
-                      <div className={styles.budgetLineInvoices}>
-                        <h4 className={styles.budgetLineInvoicesTitle}>Linked Invoices</h4>
-                        <ul className={styles.invoiceList}>
-                          {budgetLineInvoices[line.id].map((inv) => (
-                            <li key={inv.id} className={styles.invoiceListItem}>
-                              <Link to={`/invoices/${inv.id}`} className={styles.invoiceLink}>
-                                {inv.invoiceNumber ? `#${inv.invoiceNumber}` : 'Invoice'}
-                              </Link>
-                              <span className={styles.invoiceAmount}>
-                                {formatCurrency(inv.amount)}
-                              </span>
-                              <span
-                                className={`${styles.invoiceStatusBadge} ${styles[`invoiceStatus_${inv.status}`]}`}
-                              >
-                                {inv.status.charAt(0).toUpperCase() + inv.status.slice(1)}
-                              </span>
-                              <span className={styles.invoiceDate}>{formatDate(inv.date)}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                  <div className={styles.budgetLineActions}>
-                    {deletingBudgetId === line.id ? (
-                      <>
-                        <button
-                          type="button"
-                          className={styles.deleteButton}
-                          onClick={confirmDeleteBudgetLine}
-                          disabled={false}
-                          title="Confirm delete"
-                        >
-                          Confirm
-                        </button>
-                        <button
-                          type="button"
-                          className={styles.cancelButton}
-                          onClick={() => setDeletingBudgetId(null)}
-                          title="Cancel delete"
-                        >
-                          Cancel
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          type="button"
-                          className={styles.editButton}
-                          onClick={() => openEditBudgetForm(line)}
-                          title="Edit budget line"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          className={styles.deleteButton}
-                          onClick={() => handleDeleteBudgetLine(line.id)}
-                          title="Delete budget line"
-                        >
-                          Delete
-                        </button>
-                      </>
-                    )}
-                  </div>
+                        <span className={styles.invoiceDate}>{formatDate(inv.date)}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-              ))}
-            </div>
-          )}
-
-          {/* Budget summary */}
-          {budgetLines.length > 0 && (
-            <div className={styles.budgetSummary}>
-              {hasInvoicedLines && (
-                <div className={styles.budgetSummaryRow}>
-                  <span className={styles.budgetSummaryLabel}>Total Actual Cost:</span>
-                  <span className={styles.budgetSummaryValue}>
-                    {formatCurrency(totalActualCost)}
-                  </span>
-                </div>
-              )}
-              <div className={styles.budgetSummaryRow}>
-                <span className={styles.budgetSummaryLabel}>
-                  {hasPlannedRange ? 'Planned Range:' : 'Total Planned:'}
-                </span>
-                <span
-                  className={
-                    hasInvoicedLines && allLinesInvoiced
-                      ? styles.budgetSummaryValueMuted
-                      : styles.budgetSummaryValue
-                  }
-                >
-                  {hasPlannedRange
-                    ? `${formatCurrency(totalMinPlanned)} – ${formatCurrency(totalMaxPlanned)}`
-                    : formatCurrency(totalPlanned)}
-                </span>
-              </div>
-            </div>
-          )}
-        </section>
-
-        {/* Subsidies card */}
-        <section className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h2 className={styles.cardTitle}>Subsidies</h2>
-          </div>
-
-          {/* Linked subsidies list */}
-          {linkedSubsidies.length > 0 && (
-            <div className={styles.subsidiesList}>
-              {linkedSubsidies.map((subsidy) => (
-                <div key={subsidy.id} className={styles.subsidyItem}>
-                  <div className={styles.subsidyInfo}>
-                    <div className={styles.subsidyName}>{subsidy.name}</div>
-                    <div className={styles.subsidyMeta}>
-                      {subsidy.reductionType === 'percentage' ? (
-                        <span className={styles.subsidyReduction}>−{subsidy.reductionValue}%</span>
-                      ) : (
-                        <span className={styles.subsidyReduction}>
-                          −{formatCurrency(subsidy.reductionValue)}
-                        </span>
-                      )}
-                      <span className={styles.subsidyStatus}>{subsidy.applicationStatus}</span>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    className={styles.unlinkButton}
-                    onClick={() => void handleUnlinkSubsidy(subsidy.id)}
-                    aria-label={`Unlink ${subsidy.name}`}
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Add subsidy row */}
-          <div className={styles.addSubsidyRow}>
-            <select
-              value={selectedSubsidyId}
-              onChange={(e) => setSelectedSubsidyId(e.target.value)}
-              className={styles.formSelect}
-              disabled={isLinkingSubsidy}
-              aria-label="Select subsidy program"
-            >
-              <option value="">— Link Subsidy Program —</option>
-              {allSubsidyPrograms
-                .filter((prog) => !linkedSubsidies.some((linked) => linked.id === prog.id))
-                .map((prog) => (
-                  <option key={prog.id} value={prog.id}>
-                    {prog.name}
-                  </option>
-                ))}
-            </select>
-            <button
-              type="button"
-              className={styles.button}
-              onClick={() => void handleLinkSubsidy()}
-              disabled={!selectedSubsidyId || isLinkingSubsidy}
-            >
-              {isLinkingSubsidy ? 'Linking...' : 'Add'}
-            </button>
-          </div>
-
-          {/* Subsidy payback summary */}
-          {subsidyPayback && subsidyPayback.maxTotalPayback > 0 && (
-            <div className={styles.subsidyPaybackSummary}>
-              <p className={styles.subsidyPaybackText}>
-                Estimated Subsidy Reduction: {formatCurrency(subsidyPayback.minTotalPayback)}–
-                {formatCurrency(subsidyPayback.maxTotalPayback)}
-              </p>
-            </div>
-          )}
+              ) : null
+            }
+          />
         </section>
 
         {/* Documents section */}

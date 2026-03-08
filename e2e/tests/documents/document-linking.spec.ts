@@ -17,7 +17,6 @@
 
 import type { Page, Route } from '@playwright/test';
 import { test, expect } from '../../fixtures/auth.js';
-import { API } from '../../fixtures/testData.js';
 import { createWorkItemViaApi, deleteWorkItemViaApi } from '../../fixtures/apiHelpers.js';
 
 // ─── Mock data ──────────────────────────────────────────────────────────────
@@ -181,7 +180,7 @@ test.describe('Document Linking — Work Item (Scenarios 1, 3, 6)', { tag: '@res
 
       await mockPaperlessForLinking(page, 'work_item', createdId);
 
-      await page.goto(`/work-items/${createdId}`);
+      await page.goto(`/project/work-items/${createdId}`);
       await page.getByRole('heading', { level: 1 }).waitFor({ state: 'visible' });
 
       // Documents section should be visible with no linked docs
@@ -250,7 +249,7 @@ test.describe('Document Linking — Duplicate (Scenario 5)', { tag: '@responsive
 
       await mockPaperlessForLinking(page, 'work_item', createdId);
 
-      await page.goto(`/work-items/${createdId}`);
+      await page.goto(`/project/work-items/${createdId}`);
       await page.getByRole('heading', { level: 1 }).waitFor({ state: 'visible' });
 
       // First link — should succeed
@@ -274,6 +273,12 @@ test.describe('Document Linking — Duplicate (Scenario 5)', { tag: '@responsive
       await addDocButton.click();
       pickerModal = page.getByRole('dialog', { name: 'Add Document' });
       await expect(pickerModal).toBeVisible();
+
+      // Uncheck "Hide linked" toggle so the already-linked document is visible
+      const hideLinkedCheckbox = pickerModal.getByRole('checkbox', { name: /hide linked/i });
+      await expect(hideLinkedCheckbox).toBeVisible({ timeout: 5000 });
+      await hideLinkedCheckbox.uncheck();
+
       await expect(
         pickerModal.getByRole('list', { name: 'Documents' }).getByRole('listitem'),
       ).toHaveCount(1, { timeout: 10000 });

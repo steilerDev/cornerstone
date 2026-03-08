@@ -16,6 +16,7 @@ import {
   THIS_ITEM_ID,
   dependencyTypeToVerbs,
 } from '../../components/DependencySentenceBuilder/index.js';
+import { ProjectSubNav } from '../../components/ProjectSubNav/ProjectSubNav.js';
 import styles from './WorkItemCreatePage.module.css';
 
 interface PendingDependency {
@@ -172,10 +173,10 @@ export default function WorkItemCreatePage() {
       // Navigate to detail page, optionally with error state
       if (failedDeps.length > 0) {
         navigate(
-          `/work-items/${workItem.id}?depError=${encodeURIComponent(failedDeps.join(', '))}`,
+          `/project/work-items/${workItem.id}?depError=${encodeURIComponent(failedDeps.join(', '))}`,
         );
       } else {
-        navigate(`/work-items/${workItem.id}`);
+        navigate(`/project/work-items/${workItem.id}`);
       }
     } catch (err) {
       setError('Failed to create work item. Please try again.');
@@ -198,13 +199,14 @@ export default function WorkItemCreatePage() {
         <button
           type="button"
           className={styles.backButton}
-          onClick={() => navigate('/work-items')}
+          onClick={() => navigate('/project/work-items')}
           disabled={isSubmitting}
         >
           ← Back to Work Items
         </button>
         <h1 className={styles.title}>Create Work Item</h1>
       </div>
+      <ProjectSubNav />
 
       {error && <div className={styles.errorBanner}>{error}</div>}
 
@@ -394,7 +396,7 @@ export default function WorkItemCreatePage() {
           <button
             type="button"
             className={styles.cancelButton}
-            onClick={() => navigate('/work-items')}
+            onClick={() => navigate('/project/work-items')}
             disabled={isSubmitting}
           >
             Cancel

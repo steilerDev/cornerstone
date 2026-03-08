@@ -25,9 +25,7 @@ Click **New Vendor** and provide the vendor's name.
 
 Click a vendor to see their detail page, which shows the vendor's information and all their invoices.
 
-:::info Screenshot needed
-A screenshot of the vendor detail page will be added here.
-:::
+![Vendor detail page](/img/screenshots/budget-vendor-detail-light.png)
 
 ## Invoices
 
@@ -70,6 +68,4 @@ Click an invoice to see its full detail page with all line items, current status
 
 If you have [Paperless-ngx configured](/guides/documents/setup), you can also link documents (invoice PDFs, receipts, supporting files) directly to invoices from the detail page. See [Linking Documents](/guides/documents/linking-documents) for details.
 
-:::info Screenshot needed
-A screenshot of the invoice detail page will be added here.
-:::
+![Invoice detail page](/img/screenshots/budget-invoice-detail-light.png)

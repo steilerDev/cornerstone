@@ -1,23 +1,19 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { TagResponse, HouseholdItemCategory, HouseholdItemStatus } from '@cornerstone/shared';
+import type {
+  TagResponse,
+  HouseholdItemCategory,
+  HouseholdItemStatus,
+  HouseholdItemCategoryEntity,
+} from '@cornerstone/shared';
 import { createHouseholdItem } from '../../lib/householdItemsApi.js';
 import { fetchTags, createTag } from '../../lib/tagsApi.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
+import { fetchHouseholdItemCategories } from '../../lib/householdItemCategoriesApi.js';
 import { TagPicker } from '../../components/TagPicker/TagPicker.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
+import { ProjectSubNav } from '../../components/ProjectSubNav/ProjectSubNav.js';
 import styles from './HouseholdItemCreatePage.module.css';
-
-const CATEGORIES: Array<{ value: HouseholdItemCategory; label: string }> = [
-  { value: 'furniture', label: 'Furniture' },
-  { value: 'appliances', label: 'Appliances' },
-  { value: 'fixtures', label: 'Fixtures' },
-  { value: 'decor', label: 'Decor' },
-  { value: 'electronics', label: 'Electronics' },
-  { value: 'outdoor', label: 'Outdoor' },
-  { value: 'storage', label: 'Storage' },
-  { value: 'other', label: 'Other' },
-];
 
 const STATUSES: Array<{ value: HouseholdItemStatus; label: string }> = [
   { value: 'planned', label: 'Planned' },
@@ -37,7 +33,7 @@ export function HouseholdItemCreatePage() {
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState<HouseholdItemCategory>('other');
+  const [category, setCategory] = useState<HouseholdItemCategory>('' as HouseholdItemCategory);
   const [status, setStatus] = useState<HouseholdItemStatus>('planned');
   const [quantity, setQuantity] = useState(1);
   const [vendorId, setVendorId] = useState('');
@@ -51,23 +47,30 @@ export function HouseholdItemCreatePage() {
 
   const [availableTags, setAvailableTags] = useState<TagResponse[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [categories, setCategories] = useState<HouseholdItemCategoryEntity[]>([]);
 
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
-  // Load tags and vendors on mount
+  // Load tags, vendors, and categories on mount
   useEffect(() => {
     async function loadData() {
       setIsLoadingData(true);
       try {
-        const [tagsResponse, vendorsResponse] = await Promise.all([
+        const [tagsResponse, vendorsResponse, categoriesResponse] = await Promise.all([
           fetchTags(),
           fetchVendors({ pageSize: 100 }),
+          fetchHouseholdItemCategories(),
         ]);
         setAvailableTags(tagsResponse.tags);
         setVendors(vendorsResponse.vendors);
+        setCategories(categoriesResponse.categories);
+        // Set default category to first one from API for better UX
+        if (categoriesResponse.categories.length > 0) {
+          setCategory(categoriesResponse.categories[0].id as HouseholdItemCategory);
+        }
       } catch (err) {
         setError('Failed to load form data. Please try again.');
         console.error('Failed to load data:', err);
@@ -90,6 +93,10 @@ export function HouseholdItemCreatePage() {
 
     if (!name.trim()) {
       errors.name = 'Name is required';
+    }
+
+    if (!category) {
+      errors.category = 'Category is required';
     }
 
     if (quantity < 1) {
@@ -137,7 +144,7 @@ export function HouseholdItemCreatePage() {
       });
 
       showToast('success', 'Household item created successfully');
-      navigate(`/household-items/${item.id}`);
+      navigate(`/project/household-items/${item.id}`);
     } catch (err) {
       setError('Failed to create household item. Please try again.');
       console.error('Failed to create household item:', err);
@@ -159,13 +166,14 @@ export function HouseholdItemCreatePage() {
         <button
           type="button"
           className={styles.backButton}
-          onClick={() => navigate('/household-items')}
+          onClick={() => navigate('/project/household-items')}
           disabled={isSubmitting}
         >
           ← Back to Household Items
         </button>
         <h1 className={styles.title}>New Household Item</h1>
       </div>
+      <ProjectSubNav />
 
       {error && <div className={styles.errorBanner}>{error}</div>}
 
@@ -215,18 +223,26 @@ export function HouseholdItemCreatePage() {
             </label>
             <select
               id="category"
-              className={styles.select}
+              className={`${styles.select} ${validationErrors.category ? styles.selectError : ''}`}
               value={category}
               onChange={(e) => setCategory(e.target.value as HouseholdItemCategory)}
               disabled={isSubmitting}
               aria-required="true"
+              aria-invalid={!!validationErrors.category}
+              aria-describedby={validationErrors.category ? 'hi-create-category-error' : undefined}
             >
-              {CATEGORIES.map((cat) => (
-                <option key={cat.value} value={cat.value}>
-                  {cat.label}
+              <option value="">— Select Category —</option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.name}
                 </option>
               ))}
             </select>
+            {validationErrors.category && (
+              <div id="hi-create-category-error" className={styles.errorText} role="alert">
+                {validationErrors.category}
+              </div>
+            )}
           </div>
 
           <div className={styles.formGroup}>
@@ -420,7 +436,7 @@ export function HouseholdItemCreatePage() {
           <button
             type="button"
             className={styles.cancelButton}
-            onClick={() => navigate('/household-items')}
+            onClick={() => navigate('/project/household-items')}
             disabled={isSubmitting}
           >
             Cancel

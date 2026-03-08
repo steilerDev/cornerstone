@@ -82,8 +82,8 @@ test.describe('Reverse Proxy Setup', { tag: '@responsive' }, () => {
     await page.goto(proxyBaseUrl);
 
     // Then: The application should load correctly
-    // Should redirect to /login since setup is already done via auth-setup
-    await expect(page).toHaveURL(/\/(login)?$/);
+    // Authenticated user is redirected to the default page
+    await expect(page).toHaveURL(/\/project\/overview/);
   });
 
   test('should enforce auth guard through proxy', async ({ browser }) => {
@@ -94,7 +94,7 @@ test.describe('Reverse Proxy Setup', { tag: '@responsive' }, () => {
     const page = await context.newPage();
 
     // When: Attempting to access a protected route through the proxy
-    await page.goto(`${proxyBaseUrl}/profile`);
+    await page.goto(`${proxyBaseUrl}/settings/profile`);
 
     // Then: Should redirect to login
     await expect(page).toHaveURL(/\/login/);
@@ -135,7 +135,7 @@ test.describe('Reverse Proxy Setup', { tag: '@responsive' }, () => {
     await loginThroughProxy(page, proxyBaseUrl);
 
     // And: Navigating to a protected route
-    await page.goto(`${proxyBaseUrl}/profile`);
+    await page.goto(`${proxyBaseUrl}/settings/profile`);
 
     // Then: The session should persist and the page should load
     await expect(page.getByRole('heading', { name: 'Profile', level: 1 })).toBeVisible();
@@ -156,7 +156,7 @@ test.describe('Reverse Proxy Setup', { tag: '@responsive' }, () => {
     await loginThroughProxy(page, proxyBaseUrl);
 
     // When: Logging out through the proxy
-    await page.goto(`${proxyBaseUrl}/profile`);
+    await page.goto(`${proxyBaseUrl}/settings/profile`);
 
     // Open sidebar on mobile/tablet viewports where it's hidden
     const viewport = page.viewportSize();
@@ -177,7 +177,7 @@ test.describe('Reverse Proxy Setup', { tag: '@responsive' }, () => {
     await expect(page).toHaveURL(/\/login/);
 
     // And: Attempting to access a protected route should redirect back to login
-    await page.goto(`${proxyBaseUrl}/profile`);
+    await page.goto(`${proxyBaseUrl}/settings/profile`);
     await expect(page).toHaveURL(/\/login/);
 
     await context.close();

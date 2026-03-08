@@ -1,11 +1,11 @@
 /**
- * E2E tests for the Household Item Create page (/household-items/new)
+ * E2E tests for the Household Item Create page (/project/household-items/new)
  *
  * EPIC-04 Story 4.4: Create & Edit Form
  *
  * Scenarios covered:
  * 1.  Page loads with h1 "New Household Item"
- * 2.  Back button navigates to /household-items
+ * 2.  Back button navigates to /project/household-items
  * 3.  All primary form fields are visible
  * 4.  Create item with name only — success, redirects to detail page
  * 5.  Create item with all major fields — success
@@ -47,18 +47,20 @@ test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 2: Back button navigates to /household-items
+// Scenario 2: Back button navigates to /project/household-items
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Back button navigation (Scenario 2)', { tag: '@responsive' }, () => {
-  test('"← Back to Household Items" button navigates to /household-items', async ({ page }) => {
+  test('"← Back to Household Items" button navigates to /project/household-items', async ({
+    page,
+  }) => {
     const createPage = new HouseholdItemCreatePage(page);
 
     await createPage.goto();
     await createPage.backButton.click();
 
-    await page.waitForURL('**/household-items');
-    expect(page.url()).toContain('/household-items');
-    expect(page.url()).not.toContain('/household-items/new');
+    await page.waitForURL('**/project/household-items');
+    expect(page.url()).toContain('/project/household-items');
+    expect(page.url()).not.toContain('/project/household-items/new');
   });
 });
 
@@ -97,7 +99,7 @@ test.describe('Create with name only — happy path (Scenario 4)', { tag: '@resp
         createdId = await createPage.submitAndWaitForDetail();
 
         // Should have navigated to the detail page
-        expect(page.url()).toContain('/household-items/');
+        expect(page.url()).toContain('/project/household-items/');
         expect(page.url()).not.toContain('/new');
         expect(createdId).toBeTruthy();
 
@@ -131,7 +133,7 @@ test.describe('Create with all fields (Scenario 5)', { tag: '@responsive' }, () 
       await createPage.fillForm({
         name,
         description: 'A comfortable sofa for the living room',
-        category: 'furniture',
+        category: 'hic-furniture',
         status: 'planned',
         quantity: '2',
         room: 'Living Room',
@@ -144,7 +146,7 @@ test.describe('Create with all fields (Scenario 5)', { tag: '@responsive' }, () 
       createdId = await createPage.submitAndWaitForDetail();
 
       // Should be on the detail page
-      expect(page.url()).toContain('/household-items/');
+      expect(page.url()).toContain('/project/household-items/');
       expect(createdId).toBeTruthy();
     } finally {
       if (createdId) await deleteHouseholdItemViaApi(page, createdId);
@@ -167,7 +169,7 @@ test.describe('Validation error — empty name (Scenario 6)', { tag: '@responsiv
     await createPage.submit();
 
     // Should still be on the create page
-    expect(page.url()).toContain('/household-items/new');
+    expect(page.url()).toContain('/project/household-items/new');
 
     // Validation error should appear near the name field
     const nameError = page.locator('[class*="errorText"]').first();
@@ -226,14 +228,14 @@ test.describe('Status options (Scenario 8)', { tag: '@responsive' }, () => {
 // Scenario 9: Cancel navigates back to list
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Cancel navigation (Scenario 9)', { tag: '@responsive' }, () => {
-  test('"Cancel" button navigates back to /household-items', async ({ page }) => {
+  test('"Cancel" button navigates back to /project/household-items', async ({ page }) => {
     const createPage = new HouseholdItemCreatePage(page);
 
     await createPage.goto();
     await createPage.cancelButton.click();
 
-    await page.waitForURL('**/household-items');
-    expect(page.url()).toContain('/household-items');
+    await page.waitForURL('**/project/household-items');
+    expect(page.url()).toContain('/project/household-items');
     expect(page.url()).not.toContain('/new');
   });
 });

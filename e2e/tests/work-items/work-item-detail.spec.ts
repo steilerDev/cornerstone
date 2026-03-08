@@ -1,9 +1,9 @@
 /**
- * E2E tests for Work Item Detail page (/work-items/:id)
+ * E2E tests for Work Item Detail page (/project/work-items/:id)
  *
  * Scenarios covered:
  * 1.  Page loads with work item title as heading
- * 2.  Back button navigates to /work-items
+ * 2.  Back button navigates to /project/work-items
  * 3.  Notes — add a note and verify it appears
  * 4.  Subtasks — add a subtask and verify it appears
  * 5.  Vendor linking regression — vendor dropdown loads without error
@@ -91,7 +91,7 @@ test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 2: Back button navigates to /work-items
+// Scenario 2: Back button navigates to /project/work-items
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Back button navigation (Scenario 2)', { tag: '@responsive' }, () => {
   test('"← Back to Work Items" button navigates to the work items list', async ({
@@ -109,9 +109,9 @@ test.describe('Back button navigation (Scenario 2)', { tag: '@responsive' }, () 
       await detailPage.backButton.click();
 
       // No explicit timeout — uses project-level navigationTimeout (15s for WebKit).
-      await page.waitForURL('**/work-items');
-      expect(page.url()).toContain('/work-items');
-      expect(page.url()).not.toMatch(/\/work-items\/[a-z0-9]/);
+      await page.waitForURL('**/project/work-items');
+      expect(page.url()).toContain('/project/work-items');
+      expect(page.url()).not.toMatch(/\/project\/work-items\/[a-z0-9]/);
     } finally {
       if (createdId) await deleteWorkItemViaApi(page, createdId);
     }
@@ -401,7 +401,7 @@ test.describe('Inline description edit (Scenario 6)', { tag: '@responsive' }, ()
 // Scenario 7: Delete work item — confirm + redirect to list
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Delete work item (Scenario 7)', { tag: '@responsive' }, () => {
-  test('Confirming delete redirects to /work-items list', async ({ page, testPrefix }) => {
+  test('Confirming delete redirects to /project/work-items list', async ({ page, testPrefix }) => {
     const detailPage = new WorkItemDetailPage(page);
 
     // Create the item (no cleanup — deleted via UI)
@@ -420,13 +420,13 @@ test.describe('Delete work item (Scenario 7)', { tag: '@responsive' }, () => {
       detailPage.deleteModal.getByRole('heading', { name: /Delete Work Item\?/i }),
     ).toBeVisible();
 
-    // Confirm deletion — navigates to /work-items
+    // Confirm deletion — navigates to /project/work-items
     await detailPage.confirmDelete();
 
     // No explicit timeout — uses project-level navigationTimeout (15s for WebKit).
-    await page.waitForURL('**/work-items');
-    expect(page.url()).toContain('/work-items');
-    expect(page.url()).not.toMatch(/\/work-items\/[a-z0-9]/);
+    await page.waitForURL('**/project/work-items');
+    expect(page.url()).toContain('/project/work-items');
+    expect(page.url()).not.toMatch(/\/project\/work-items\/[a-z0-9]/);
 
     // Work item no longer exists
     const checkResp = await page.request.get(`${API.workItems}/${createdId}`);
@@ -451,7 +451,7 @@ test.describe('Delete work item (Scenario 7)', { tag: '@responsive' }, () => {
       await detailPage.cancelDelete();
 
       // Should still be on the detail page
-      expect(page.url()).toContain(`/work-items/${createdId}`);
+      expect(page.url()).toContain(`/project/work-items/${createdId}`);
 
       // Modal is closed
       // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
@@ -469,7 +469,7 @@ test.describe('Error state for non-existent ID (Scenario 8)', { tag: '@responsiv
   test('Navigating to a non-existent work item ID shows an error state', async ({ page }) => {
     const detailPage = new WorkItemDetailPage(page);
 
-    await page.goto('/work-items/nonexistent-work-item-id-12345');
+    await page.goto('/project/work-items/nonexistent-work-item-id-12345');
 
     // Wait for the error state to appear
     const isError = await detailPage.isInErrorState();
@@ -486,7 +486,7 @@ test.describe('Error state for non-existent ID (Scenario 8)', { tag: '@responsiv
   test('Error state "Back to Work Items" button navigates to the list', async ({ page }) => {
     const detailPage = new WorkItemDetailPage(page);
 
-    await page.goto('/work-items/nonexistent-id-abc');
+    await page.goto('/project/work-items/nonexistent-id-abc');
 
     const isError = await detailPage.isInErrorState();
     expect(isError).toBe(true);
@@ -497,9 +497,9 @@ test.describe('Error state for non-existent ID (Scenario 8)', { tag: '@responsiv
     await backButton.click();
 
     // No explicit timeout — uses project-level navigationTimeout (15s for WebKit).
-    await page.waitForURL('**/work-items');
-    expect(page.url()).toContain('/work-items');
-    expect(page.url()).not.toMatch(/\/work-items\/[a-z0-9]/);
+    await page.waitForURL('**/project/work-items');
+    expect(page.url()).toContain('/project/work-items');
+    expect(page.url()).not.toMatch(/\/project\/work-items\/[a-z0-9]/);
   });
 });
 
@@ -567,7 +567,7 @@ test.describe('Dark mode rendering (Scenario 10)', { tag: '@responsive' }, () =>
         title: `${testPrefix} Dark Mode Detail Test`,
       });
 
-      await page.goto(`/work-items/${createdId}`);
+      await page.goto(`/project/work-items/${createdId}`);
       await page.evaluate(() => {
         document.documentElement.setAttribute('data-theme', 'dark');
       });
@@ -599,7 +599,7 @@ test.describe('Dark mode rendering (Scenario 10)', { tag: '@responsive' }, () =>
         title: `${testPrefix} Dark Modal Test`,
       });
 
-      await page.goto(`/work-items/${createdId}`);
+      await page.goto(`/project/work-items/${createdId}`);
       await page.evaluate(() => {
         document.documentElement.setAttribute('data-theme', 'dark');
       });

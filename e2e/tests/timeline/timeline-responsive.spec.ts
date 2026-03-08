@@ -1,5 +1,5 @@
 /**
- * E2E tests for responsive layout and accessibility on the Timeline page (/timeline)
+ * E2E tests for responsive layout and accessibility on the Schedule page (/schedule)
  *
  * Scenarios covered:
  * 1.  Timeline page renders without horizontal scroll on all viewports (@responsive)
@@ -53,7 +53,7 @@ test.describe('Mobile layout (Scenario 2)', { tag: '@responsive' }, () => {
     await timelinePage.goto();
 
     await expect(timelinePage.heading).toBeVisible();
-    await expect(timelinePage.heading).toHaveText('Timeline');
+    await expect(timelinePage.heading).toHaveText('Schedule');
   });
 
   test('View toggle buttons are visible on mobile viewport', async ({ page }) => {
@@ -299,8 +299,8 @@ test.describe('Keyboard navigation on sidebar (Scenario 4)', () => {
         await page.keyboard.press('Enter');
       }
 
-      await page.waitForURL('**/work-items/enter-nav-item');
-      expect(page.url()).toContain('/work-items/enter-nav-item');
+      await page.waitForURL('**/project/work-items/enter-nav-item');
+      expect(page.url()).toContain('/project/work-items/enter-nav-item');
     } finally {
       await page.unroute('**/api/timeline');
     }

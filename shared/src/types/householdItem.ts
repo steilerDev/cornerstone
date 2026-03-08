@@ -25,17 +25,41 @@ export interface HouseholdItemBudgetAggregate {
 }
 
 /**
- * Household item category enum - type of household item.
+ * Household item category - ID of category from household_item_categories table.
  */
-export type HouseholdItemCategory =
-  | 'furniture'
-  | 'appliances'
-  | 'fixtures'
-  | 'decor'
-  | 'electronics'
-  | 'outdoor'
-  | 'storage'
-  | 'other';
+export type HouseholdItemCategory = string;
+
+/**
+ * Household item category entity as stored in the database.
+ * EPIC-09: Story #509 - Unified Tags & Categories Management Page
+ */
+export interface HouseholdItemCategoryEntity {
+  id: string;
+  name: string;
+  color: string | null;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Request body for creating a new household item category.
+ */
+export interface CreateHouseholdItemCategoryRequest {
+  name: string;
+  color?: string | null;
+  sortOrder?: number;
+}
+
+/**
+ * Request body for updating a household item category.
+ * All fields are optional; at least one must be provided.
+ */
+export interface UpdateHouseholdItemCategoryRequest {
+  name?: string;
+  color?: string | null;
+  sortOrder?: number;
+}
 
 /**
  * Household item status enum - lifecycle status of a purchase.

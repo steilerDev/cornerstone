@@ -1,12 +1,12 @@
 /**
- * Page Object Model for the Household Item Detail page (/household-items/:id)
+ * Page Object Model for the Household Item Detail page (/project/household-items/:id)
  *
  * EPIC-04 Story 4.5: Detail Page
  *
  * The page renders:
- * - A back link "← Household Items" navigating to /household-items
+ * - A back link "← Household Items" navigating to /project/household-items
  * - h1 with the item name (inline-editable via autosave)
- * - An "Edit" button (navigates to /household-items/:id/edit)
+ * - An "Edit" button (navigates to /project/household-items/:id/edit)
  * - A status badge showing current status
  * - Fields: category, room, vendor, URL, quantity, description, dates
  * - Budget section: budget lines, subsidies, planned/actual totals
@@ -17,7 +17,7 @@
  * Key DOM observations from source code:
  * - h1 is the item name (autosave inline editable via contentEditable)
  * - Back link is a <Link> (not a button) with text "← Household Items"
- * - Edit button navigates to /household-items/:id/edit
+ * - Edit button navigates to /project/household-items/:id/edit
  * - Delete confirmation modal uses role="dialog"
  * - Budget section h2: "Budget" (rendered conditionally based on budget lines)
  * - Documents section uses LinkedDocumentsSection (same as work items, invoices)
@@ -77,7 +77,7 @@ export class HouseholdItemDetailPage {
    * Navigate to the household item detail page.
    */
   async goto(id: string): Promise<void> {
-    await this.page.goto(`/household-items/${id}`);
+    await this.page.goto(`/project/household-items/${id}`);
     await this.heading.waitFor({ state: 'visible', timeout: 10000 });
   }
 

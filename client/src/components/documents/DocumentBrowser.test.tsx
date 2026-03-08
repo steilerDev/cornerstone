@@ -57,6 +57,7 @@ const makeHook = (overrides: Partial<UsePaperlessResult> = {}): UsePaperlessResu
   error: null,
   query: '',
   selectedTags: [],
+  tagCountMap: new Map(),
   search: jest.fn(),
   toggleTag: jest.fn(),
   setPage: jest.fn(),
@@ -283,10 +284,10 @@ describe('DocumentBrowser', () => {
       expect(screen.getByText(/No documents match your search\./i)).toBeInTheDocument();
     });
 
-    it('renders Clear Search button when query is active in empty state', () => {
+    it('renders Clear Filters button when query is active in empty state', () => {
       mockUsePaperless.mockReturnValue(makeHook({ documents: [], query: 'invoice' }));
       render(<DocumentBrowser />);
-      expect(screen.getByRole('button', { name: /Clear Search/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Clear Filters/i })).toBeInTheDocument();
     });
   });
 

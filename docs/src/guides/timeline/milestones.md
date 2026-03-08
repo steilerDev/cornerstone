@@ -88,6 +88,4 @@ The milestone panel is a slide-over dialog accessible from the toolbar. It provi
 
 Use **Escape** to close the panel or navigate back from a sub-view.
 
-:::info Screenshot needed
-A screenshot of the milestone panel will be added on the next stable release.
-:::
+![Milestone panel](/img/screenshots/timeline-milestones-light.png)

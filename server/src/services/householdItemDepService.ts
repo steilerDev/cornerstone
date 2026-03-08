@@ -292,7 +292,7 @@ export function listDependentHouseholdItemsForWorkItem(
   return rows.map((row) => ({
     id: row.householdItem.id,
     name: row.householdItem.name,
-    category: row.householdItem.category as HouseholdItemCategory,
+    category: row.householdItem.categoryId as HouseholdItemCategory,
     status: row.householdItem.status as HouseholdItemStatus,
     targetDeliveryDate: row.householdItem.targetDeliveryDate,
     earliestDeliveryDate: row.householdItem.earliestDeliveryDate,

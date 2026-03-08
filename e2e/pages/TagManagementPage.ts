@@ -1,8 +1,9 @@
 /**
- * Page Object Model for the Tag Management page (/tags)
+ * Page Object Model for the Manage page (/settings/manage) — Tags tab
  *
+ * The /tags route now redirects to /settings/manage (default tab: tags).
  * The page renders:
- * - An h1 "Tag Management" heading
+ * - An h1 "Manage" heading (the unified manage page)
  * - A success banner (role="alert") for successful operations
  * - An error banner (role="alert") for global errors (e.g., load failure, delete error)
  * - A "Create New Tag" card with name input, color input, preview row, and submit button
@@ -17,12 +18,12 @@
  * is not usable. The modal is located by [role="dialog"][aria-modal="true"] instead.
  *
  * Note: Edit/Delete buttons in tag rows have no aria-labels — they are plain "Edit" /
- * "Delete" text buttons scoped inside the relevant .tagRow element.
+ * "Delete" text buttons scoped inside the relevant .itemRow element.
  */
 
 import type { Page, Locator } from '@playwright/test';
 
-export const TAG_MANAGEMENT_ROUTE = '/tags';
+export const TAG_MANAGEMENT_ROUTE = '/settings/manage';
 
 export class TagManagementPage {
   readonly page: Page;
@@ -55,8 +56,8 @@ export class TagManagementPage {
   constructor(page: Page) {
     this.page = page;
 
-    // Page heading
-    this.heading = page.getByRole('heading', { level: 1, name: 'Tag Management', exact: true });
+    // Page heading — ManagePage renders <h1>Manage</h1>
+    this.heading = page.getByRole('heading', { level: 1, name: 'Manage', exact: true });
 
     // Success banner — the top-level success alert that appears between h1 and the cards.
     // Filter by "successfully" to distinguish from create/update error banners.
@@ -81,7 +82,7 @@ export class TagManagementPage {
     this.createTagButton = page.getByRole('button', { name: /Create Tag|Creating\.\.\./ });
 
     // Preview row — always rendered below the form fields
-    this.previewRow = page.locator('[class*="previewRow"]');
+    this.previewRow = page.getByText('Preview:').locator('..');
 
     // Create error banner — the alert inside the create card (before the form)
     // Using a broad alert filter here; if the create form card is needed we rely on
@@ -96,7 +97,7 @@ export class TagManagementPage {
     // Use .first() to avoid strict mode: child elements (emptyStateTitle,
     // emptyStateDescription) also contain "emptyState" in their class names.
     this.emptyState = page.locator('[class*="emptyState"]').first();
-    this.tagsList = page.locator('[class*="tagsList"]');
+    this.tagsList = page.locator('[class*="itemsList"]');
 
     // Delete modal — the modal has role="dialog" aria-modal="true" but no aria-labelledby.
     // Locate by attribute selector.
@@ -139,15 +140,15 @@ export class TagManagementPage {
    */
   async getTagNames(): Promise<string[]> {
     // Each tag row in display mode contains a TagPill element whose text is the tag name.
-    // The TagPill renders as a <span> with the name text inside a .tagRow.
-    // We read the text from each .tagRow and strip button labels ("Edit", "Delete").
-    const rows = await this.tagsList.locator('[class*="tagRow"]').all();
+    // The TagPill renders as a <span> with the name text inside a .itemRow.
+    // We read the text from each .itemRow and strip button labels ("Edit", "Delete").
+    const rows = await this.tagsList.locator('[class*="itemRow"]').all();
     const names: string[] = [];
     for (const row of rows) {
       // In display mode the tag name is inside a <span> within the TagPill component.
       // TagPill renders as: <span class="...pill..."><span class="...dot..."></span>name</span>
       // Use the tagInfo div to get only the display-mode name, not edit inputs.
-      const tagInfo = row.locator('[class*="tagInfo"]');
+      const tagInfo = row.locator('[class*="itemInfo"]');
       const infoCount = await tagInfo.count();
       if (infoCount > 0) {
         const text = await tagInfo.textContent();
@@ -163,13 +164,13 @@ export class TagManagementPage {
    */
   async getTagRow(tagName: string): Promise<Locator | null> {
     try {
-      await this.tagsList.locator('[class*="tagRow"]').first().waitFor({ state: 'visible' });
+      await this.tagsList.locator('[class*="itemRow"]').first().waitFor({ state: 'visible' });
     } catch {
       return null;
     }
-    const rows = await this.tagsList.locator('[class*="tagRow"]').all();
+    const rows = await this.tagsList.locator('[class*="itemRow"]').all();
     for (const row of rows) {
-      const tagInfo = row.locator('[class*="tagInfo"]');
+      const tagInfo = row.locator('[class*="itemInfo"]');
       const infoCount = await tagInfo.count();
       if (infoCount === 0) continue; // skip edit-mode rows
       const text = await tagInfo.textContent();
@@ -230,7 +231,7 @@ export class TagManagementPage {
    */
   getEditModeRow(): Locator {
     return this.tagsList
-      .locator('[class*="tagRow"]')
+      .locator('[class*="itemRow"]')
       .filter({ has: this.page.locator('input[type="text"]') })
       .first();
   }
@@ -265,7 +266,7 @@ export class TagManagementPage {
     const saveButton = row.getByRole('button', { name: /^Save$|^Saving\.\.\.$/ });
     await saveButton.click();
     // Wait for the edit form to close (edit inputs disappear)
-    await this.page.locator('[class*="tagRow"] input[type="text"]').waitFor({ state: 'hidden' });
+    await this.page.locator('[class*="itemRow"] input[type="text"]').waitFor({ state: 'hidden' });
   }
 
   /**
@@ -276,7 +277,7 @@ export class TagManagementPage {
     const cancelButton = row.getByRole('button', { name: 'Cancel', exact: true });
     await cancelButton.click();
     // Wait for the edit form to close
-    await this.page.locator('[class*="tagRow"] input[type="text"]').waitFor({ state: 'hidden' });
+    await this.page.locator('[class*="itemRow"] input[type="text"]').waitFor({ state: 'hidden' });
   }
 
   /**
@@ -321,7 +322,7 @@ export class TagManagementPage {
    */
   async waitForTagsLoaded(): Promise<void> {
     await Promise.race([
-      this.tagsList.locator('[class*="tagRow"]').first().waitFor({ state: 'visible' }),
+      this.tagsList.locator('[class*="itemRow"]').first().waitFor({ state: 'visible' }),
       this.emptyState.waitFor({ state: 'visible' }),
     ]);
   }

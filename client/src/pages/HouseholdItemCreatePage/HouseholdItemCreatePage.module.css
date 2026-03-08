@@ -122,11 +122,13 @@
   cursor: not-allowed;
 }
 
-.inputError {
+.inputError,
+.selectError {
   border-color: var(--color-danger);
 }
 
-.inputError:focus-visible {
+.inputError:focus-visible,
+.selectError:focus-visible {
   border-color: var(--color-danger);
   box-shadow: var(--shadow-focus-danger);
 }

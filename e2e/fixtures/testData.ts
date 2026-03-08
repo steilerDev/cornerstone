@@ -15,22 +15,22 @@ export const TEST_MEMBER = {
 };
 
 export const ROUTES = {
-  home: '/',
+  home: '/project/overview',
   setup: '/setup',
   login: '/login',
-  workItems: '/work-items',
-  workItemsNew: '/work-items/new',
+  workItems: '/project/work-items',
+  workItemsNew: '/project/work-items/new',
   budget: '/budget/overview',
-  budgetCategories: '/budget/categories',
+  budgetCategories: '/settings/manage?tab=budget-categories',
   budgetVendors: '/budget/vendors',
   budgetSources: '/budget/sources',
   budgetSubsidies: '/budget/subsidies',
-  tags: '/tags',
-  timeline: '/timeline',
-  householdItems: '/household-items',
-  householdItemsNew: '/household-items/new',
-  profile: '/profile',
-  userManagement: '/admin/users',
+  tags: '/settings/manage',
+  timeline: '/schedule',
+  householdItems: '/project/household-items',
+  householdItemsNew: '/project/household-items/new',
+  profile: '/settings/profile',
+  userManagement: '/settings/users',
 };
 
 export const API = {

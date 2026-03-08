@@ -27,8 +27,8 @@ Browser  -->  Cornerstone Server  -->  Paperless-ngx
                (proxy layer)            (document store)
 ```
 
-:::info Screenshot needed
-A screenshot of the Documents page showing the document browser will be added on the next stable release.
+:::note
+Screenshots for the documents feature require a connected Paperless-ngx instance and will be added in a future release.
 :::
 
 ## Prerequisites

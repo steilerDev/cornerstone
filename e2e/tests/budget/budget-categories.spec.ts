@@ -86,11 +86,11 @@ test.describe('Default categories (Scenario 1 & 2)', { tag: '@responsive' }, () 
     expect(materialsRow).not.toBeNull();
     if (materialsRow) {
       // Color swatch element should be present
-      const swatch = materialsRow.locator('[class*="categorySwatch"]');
+      const swatch = materialsRow.locator('[class*="itemSwatch"]');
       await expect(swatch).toBeVisible();
 
       // Sort order indicator should be present
-      const sortOrder = materialsRow.locator('[class*="categorySortOrder"]');
+      const sortOrder = materialsRow.locator('[class*="itemSortOrder"]');
       await expect(sortOrder).toBeVisible();
     }
   });
@@ -213,7 +213,7 @@ test.describe('Create category — happy path (Scenario 3)', { tag: '@responsive
     const rows = await categoriesPage.getCategoryRows();
     let createdId: string | null = null;
     for (const row of rows) {
-      const nameEl = row.locator('[class*="categoryName"]');
+      const nameEl = row.locator('[class*="itemName"]');
       const rowText = await nameEl.textContent();
       if (rowText?.trim() === categoryName) {
         // Get the delete button aria-label to find the category
@@ -801,13 +801,13 @@ test.describe('Empty state (Scenario 18)', { tag: '@responsive' }, () => {
 // Page structure and navigation
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Page structure and accessibility', { tag: '@responsive' }, () => {
-  test('Page has correct h1 heading "Budget"', async ({ page }) => {
+  test('Page has correct h1 heading "Manage"', async ({ page }) => {
     const categoriesPage = new BudgetCategoriesPage(page);
 
     await categoriesPage.goto();
 
     await expect(categoriesPage.heading).toBeVisible();
-    await expect(categoriesPage.heading).toHaveText('Budget');
+    await expect(categoriesPage.heading).toHaveText('Manage');
 
     // Verify the correct sub-page loaded via the h2 section heading
     const sectionHeading = page.getByRole('heading', { level: 2, name: /^Categories \(/ });
@@ -833,13 +833,14 @@ test.describe('Page structure and accessibility', { tag: '@responsive' }, () => 
     await expect(categoriesPage.addCategoryButton).toBeDisabled();
   });
 
-  test('Page URL is /budget/categories', async ({ page }) => {
+  test('Page URL is /settings/manage?tab=budget-categories', async ({ page }) => {
     const categoriesPage = new BudgetCategoriesPage(page);
 
     await categoriesPage.goto();
 
-    await page.waitForURL('/budget/categories');
-    expect(page.url()).toContain('/budget/categories');
+    await page.waitForURL('**/settings/manage?tab=budget-categories');
+    expect(page.url()).toContain('/settings/manage');
+    expect(page.url()).toContain('tab=budget-categories');
   });
 
   test('Navigating to /budget redirects to /budget/overview', async ({ page }) => {
@@ -896,7 +897,7 @@ test.describe('Responsive layout (Scenario 9)', { tag: '@responsive' }, () => {
 
     // The first row (Materials) has Edit and Delete buttons
     const firstRow = rows[0];
-    const firstNameEl = firstRow.locator('[class*="categoryName"]');
+    const firstNameEl = firstRow.locator('[class*="itemName"]');
     const firstName = (await firstNameEl.textContent())?.trim() ?? '';
 
     if (firstName) {
@@ -953,13 +954,14 @@ test.describe('Dark mode rendering (Scenario 10)', { tag: '@responsive' }, () =>
     const categoriesPage = new BudgetCategoriesPage(page);
 
     // Enable dark mode via the data-theme attribute (matches ThemeContext implementation)
-    await page.goto('/budget/categories');
+    await page.goto('/settings/manage?tab=budget-categories');
     await page.evaluate(() => {
       document.documentElement.setAttribute('data-theme', 'dark');
     });
 
-    // Wait for categories to load
+    // Wait for page heading and tab content to load
     await categoriesPage.heading.waitFor({ state: 'visible', timeout: 8000 });
+    await categoriesPage.addCategoryButton.waitFor({ state: 'visible', timeout: 8000 });
 
     // Then: The heading is visible (not hidden by theme issues)
     await expect(categoriesPage.heading).toBeVisible();
@@ -981,12 +983,13 @@ test.describe('Dark mode rendering (Scenario 10)', { tag: '@responsive' }, () =>
   test('Create form is usable in dark mode', async ({ page }) => {
     const categoriesPage = new BudgetCategoriesPage(page);
 
-    await page.goto('/budget/categories');
+    await page.goto('/settings/manage?tab=budget-categories');
     await page.evaluate(() => {
       document.documentElement.setAttribute('data-theme', 'dark');
     });
 
     await categoriesPage.heading.waitFor({ state: 'visible', timeout: 8000 });
+    await categoriesPage.addCategoryButton.waitFor({ state: 'visible', timeout: 8000 });
     await categoriesPage.openCreateForm();
 
     // Form inputs should be visible in dark mode
@@ -1006,12 +1009,13 @@ test.describe('Dark mode rendering (Scenario 10)', { tag: '@responsive' }, () =>
     try {
       createdId = await createCategoryViaApi(page, categoryName, 992);
 
-      await page.goto('/budget/categories');
+      await page.goto('/settings/manage?tab=budget-categories');
       await page.evaluate(() => {
         document.documentElement.setAttribute('data-theme', 'dark');
       });
 
       await categoriesPage.heading.waitFor({ state: 'visible', timeout: 8000 });
+      await categoriesPage.addCategoryButton.waitFor({ state: 'visible', timeout: 8000 });
 
       // Open delete modal in dark mode
       await categoriesPage.openDeleteModal(categoryName);
@@ -1071,7 +1075,7 @@ test.describe('Color field (Scenario 17)', { tag: '@responsive' }, () => {
       expect(row).not.toBeNull();
 
       if (row) {
-        const swatch = row.locator('[class*="categorySwatch"]');
+        const swatch = row.locator('[class*="itemSwatch"]');
         await expect(swatch).toBeVisible();
         // The swatch should have a non-transparent background color
         const bgColor = await swatch.evaluate((el) => (el as HTMLElement).style.backgroundColor);

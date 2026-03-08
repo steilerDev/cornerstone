@@ -67,6 +67,11 @@ export interface GanttArrowsProps {
    */
   workItemRequiredMilestones?: ReadonlyMap<string, readonly number[]>;
   /**
+   * Set of milestone IDs that are on the critical path.
+   * Used to determine whether milestone linkage arrows should be styled as critical.
+   */
+  criticalMilestoneIds?: ReadonlySet<number>;
+  /**
    * Map from milestone ID to its title — used for accessible aria-labels.
    */
   milestoneTitles?: ReadonlyMap<number, string>;
@@ -182,6 +187,7 @@ export const GanttArrows = memo(function GanttArrows({
   milestonePoints,
   milestoneContributors,
   workItemRequiredMilestones,
+  criticalMilestoneIds,
   milestoneTitles,
   hiPoints,
   householdItems,
@@ -246,6 +252,7 @@ export const GanttArrows = memo(function GanttArrows({
     const results: Array<{
       key: string;
       arrowPath: ArrowPath;
+      isCritical: boolean;
       description: string;
       connectedIds: Set<string>;
     }> = [];
@@ -279,10 +286,13 @@ export const GanttArrows = memo(function GanttArrows({
         const workItemTitle = workItemTitles.get(workItemId) ?? workItemId;
         const arrowPath = computeArrowPath(barRect, msRect, 'finish_to_start', 0);
         const description = `${workItemTitle} contributes to milestone ${milestoneTitle}`;
+        const isCritical =
+          criticalMilestoneIds?.has(milestoneId) === true && criticalPathSet.has(workItemId);
 
         results.push({
           key: `milestone-contrib-${workItemId}-${milestoneId}`,
           arrowPath,
+          isCritical,
           description,
           connectedIds: new Set([workItemId, milestoneKey]),
         });
@@ -304,10 +314,13 @@ export const GanttArrows = memo(function GanttArrows({
         const milestoneKey = `milestone:${milestoneId}`;
         const arrowPath = computeArrowPath(msRect, barRect, 'finish_to_start', 0);
         const description = `${milestoneTitle} is a required milestone for ${workItemTitle}`;
+        const isCritical =
+          criticalMilestoneIds?.has(milestoneId) === true && criticalPathSet.has(workItemId);
 
         results.push({
           key: `milestone-req-${milestoneId}-${workItemId}`,
           arrowPath,
+          isCritical,
           description,
           connectedIds: new Set([workItemId, milestoneKey]),
         });
@@ -322,6 +335,8 @@ export const GanttArrows = memo(function GanttArrows({
     barRects,
     workItemTitles,
     milestoneTitles,
+    criticalMilestoneIds,
+    criticalPathSet,
   ]);
 
   // Pre-compute dotted connections between consecutive critical path items
@@ -350,6 +365,19 @@ export const GanttArrows = memo(function GanttArrows({
       // Skip if there's already an explicit dependency between them
       if (depPairs.has(`${fromId}:${toId}`)) continue;
 
+      // Skip if connected through a critical milestone (WI_A → MS → WI_B)
+      if (milestoneContributors && workItemRequiredMilestones && criticalMilestoneIds) {
+        const toMilestones = workItemRequiredMilestones.get(toId);
+        if (toMilestones) {
+          const isConnectedThroughMilestone = toMilestones.some(
+            (msId) =>
+              criticalMilestoneIds.has(msId) &&
+              (milestoneContributors.get(msId)?.includes(fromId) ?? false),
+          );
+          if (isConnectedThroughMilestone) continue;
+        }
+      }
+
       const fromRect = barRects.get(fromId);
       const toRect = barRects.get(toId);
       if (!fromRect || !toRect) continue;
@@ -370,7 +398,16 @@ export const GanttArrows = memo(function GanttArrows({
     }
 
     return results;
-  }, [criticalPathOrder, criticalPathSet, dependencies, barRects, workItemTitles]);
+  }, [
+    criticalPathOrder,
+    criticalPathSet,
+    dependencies,
+    barRects,
+    workItemTitles,
+    milestoneContributors,
+    workItemRequiredMilestones,
+    criticalMilestoneIds,
+  ]);
 
   // Pre-compute household item dependency arrows from work items/milestones to HI circles
   const hiArrows = useMemo(() => {
@@ -680,50 +717,94 @@ export const GanttArrows = memo(function GanttArrows({
           );
         })}
 
-      {/* Milestone linkage arrows (same style as default work-item arrows) */}
-      {milestoneArrows.map((a) => {
-        const arrowhead = computeArrowhead(
-          a.arrowPath.tipX,
-          a.arrowPath.tipY,
-          a.arrowPath.tipDirection,
-          ARROWHEAD_SIZE,
-        );
-        const { handleEnter, handleLeave, handleMove, handleFocus, handleBlur } = makeArrowHandlers(
-          a.key,
-          a.connectedIds,
-          a.description,
-        );
-        return (
-          <g
-            key={a.key}
-            className={arrowGroupClass(a.key)}
-            opacity={arrowBaseOpacity(false)}
-            role="graphics-symbol"
-            tabIndex={visible ? 0 : -1}
-            aria-label={a.description}
-            onMouseEnter={handleEnter}
-            onMouseLeave={handleLeave}
-            onMouseMove={handleMove}
-            onFocus={handleFocus}
-            onBlur={handleBlur}
-          >
-            <path d={a.arrowPath.pathD} className={styles.arrowHitArea} aria-hidden="true" />
-            <path
-              d={a.arrowPath.pathD}
-              stroke={colors.defaultArrow}
-              strokeWidth={ARROW_STROKE_DEFAULT}
-              className={styles.arrowDefault}
-              aria-hidden="true"
-            />
-            <polygon
-              points={arrowhead}
-              fill={colors.defaultArrow}
-              className={styles.arrowheadDefault}
-              aria-hidden="true"
-            />
-          </g>
-        );
-      })}
+      {/* Non-critical milestone linkage arrows (same style as default work-item arrows) */}
+      {milestoneArrows
+        .filter((a) => !a.isCritical)
+        .map((a) => {
+          const arrowhead = computeArrowhead(
+            a.arrowPath.tipX,
+            a.arrowPath.tipY,
+            a.arrowPath.tipDirection,
+            ARROWHEAD_SIZE,
+          );
+          const { handleEnter, handleLeave, handleMove, handleFocus, handleBlur } =
+            makeArrowHandlers(a.key, a.connectedIds, a.description);
+          return (
+            <g
+              key={a.key}
+              className={arrowGroupClass(a.key)}
+              opacity={arrowBaseOpacity(false)}
+              role="graphics-symbol"
+              tabIndex={visible ? 0 : -1}
+              aria-label={a.description}
+              onMouseEnter={handleEnter}
+              onMouseLeave={handleLeave}
+              onMouseMove={handleMove}
+              onFocus={handleFocus}
+              onBlur={handleBlur}
+            >
+              <path d={a.arrowPath.pathD} className={styles.arrowHitArea} aria-hidden="true" />
+              <path
+                d={a.arrowPath.pathD}
+                stroke={colors.defaultArrow}
+                strokeWidth={ARROW_STROKE_DEFAULT}
+                className={styles.arrowDefault}
+                aria-hidden="true"
+              />
+              <polygon
+                points={arrowhead}
+                fill={colors.defaultArrow}
+                className={styles.arrowheadDefault}
+                aria-hidden="true"
+              />
+            </g>
+          );
+        })}
+
+      {/* Critical milestone linkage arrows (rendered on top, full opacity, drop-shadow) */}
+      {milestoneArrows
+        .filter((a) => a.isCritical)
+        .map((a) => {
+          const arrowhead = computeArrowhead(
+            a.arrowPath.tipX,
+            a.arrowPath.tipY,
+            a.arrowPath.tipDirection,
+            ARROWHEAD_SIZE,
+          );
+          const { handleEnter, handleLeave, handleMove, handleFocus, handleBlur } =
+            makeArrowHandlers(a.key, a.connectedIds, a.description);
+          return (
+            <g
+              key={a.key}
+              className={arrowGroupClass(a.key)}
+              opacity={arrowBaseOpacity(true)}
+              filter="drop-shadow(0 0 2px rgba(251,146,60,0.4))"
+              role="graphics-symbol"
+              tabIndex={visible ? 0 : -1}
+              aria-label={a.description}
+              onMouseEnter={handleEnter}
+              onMouseLeave={handleLeave}
+              onMouseMove={handleMove}
+              onFocus={handleFocus}
+              onBlur={handleBlur}
+            >
+              <path d={a.arrowPath.pathD} className={styles.arrowHitArea} aria-hidden="true" />
+              <path
+                d={a.arrowPath.pathD}
+                stroke={colors.criticalArrow}
+                strokeWidth={ARROW_STROKE_CRITICAL}
+                className={styles.arrowCritical}
+                aria-hidden="true"
+              />
+              <polygon
+                points={arrowhead}
+                fill={colors.criticalArrow}
+                className={styles.arrowheadCritical}
+                aria-hidden="true"
+              />
+            </g>
+          );
+        })}
 
       {/* Household item dependency arrows (from work items/milestones to HI delivery markers) */}
       {hiArrows.map((a) => {

@@ -299,9 +299,9 @@ describe('WorkItemDetailPage', () => {
 
   function renderPage(id = 'work-1') {
     return render(
-      <MemoryRouter initialEntries={[`/work-items/${id}`]}>
+      <MemoryRouter initialEntries={[`/project/work-items/${id}`]}>
         <Routes>
-          <Route path="/work-items/:id" element={<WorkItemDetailPageModule.default />} />
+          <Route path="/project/work-items/:id" element={<WorkItemDetailPageModule.default />} />
         </Routes>
       </MemoryRouter>,
     );
@@ -361,7 +361,7 @@ describe('WorkItemDetailPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText('Work item not found')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /work item not found/i })).toBeInTheDocument();
       });
 
       expect(screen.getByRole('button', { name: /back to work items/i })).toBeInTheDocument();
@@ -529,7 +529,9 @@ describe('WorkItemDetailPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText('No notes yet')).toBeInTheDocument();
+        expect(
+          screen.getByText('No notes yet. Use the form above to add one.'),
+        ).toBeInTheDocument();
       });
     });
 
@@ -564,7 +566,7 @@ describe('WorkItemDetailPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText('No subtasks yet')).toBeInTheDocument();
+        expect(screen.getByText('No subtasks yet. Add one above.')).toBeInTheDocument();
       });
     });
 

@@ -455,7 +455,7 @@
   width: 100%;
 }
 
-.fieldInput:focus {
+.fieldInput:focus-visible {
   border-color: var(--color-border-focus);
   box-shadow: var(--shadow-focus);
 }
@@ -474,7 +474,7 @@
   border-color: var(--color-danger-input-border);
 }
 
-.fieldInputError:focus {
+.fieldInputError:focus-visible {
   box-shadow: var(--shadow-focus-danger);
 }
 
@@ -493,7 +493,7 @@
   line-height: 1.5;
 }
 
-.fieldTextarea:focus {
+.fieldTextarea:focus-visible {
   border-color: var(--color-border-focus);
   box-shadow: var(--shadow-focus);
 }

@@ -65,6 +65,10 @@ const config: Config = {
       displayName: 'client',
       testEnvironment: 'jsdom',
       testMatch: ['<rootDir>/client/src/**/*.test.{ts,tsx}'],
+      moduleNameMapper: {
+        ...baseConfig.moduleNameMapper,
+        '^@cornerstone/shared$': '<rootDir>/shared/src/index.ts',
+      },
       setupFilesAfterEnv: ['<rootDir>/client/src/test/setupTests.ts'],
       transformIgnorePatterns: ['node_modules/(?!@testing-library)'],
       // Define webpack globals so tests don't need the webpack build pipeline

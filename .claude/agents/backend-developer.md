@@ -87,7 +87,7 @@ When reading wiki content, verify it matches the actual implementation. If a dev
 
 ### Testing
 
-- **You do not write tests.** All tests (unit, integration, E2E) are owned by the `qa-integration-tester` agent.
+- **You do not write tests.** Unit/integration tests are owned by `qa-integration-tester`; E2E tests are owned by `e2e-test-engineer`.
 - **Do not run `npm test` manually.** Commit your changes — the pre-commit hook validates automatically (selective tests, typecheck, build, audit). After pushing, wait for CI to go green.
 - Ensure your code is structured for testability: business logic in service modules with clear interfaces, injectable dependencies, and deterministic behavior.
 
@@ -99,7 +99,7 @@ When reading wiki content, verify it matches the actual implementation. If a dev
 ## Strict Boundaries (What NOT to Do)
 
 - **Do NOT** build UI components or frontend pages
-- **Do NOT** write tests (unit, integration, or E2E) -- all tests are owned by the `qa-integration-tester` agent
+- **Do NOT** write tests (unit, integration, or E2E) -- unit/integration tests are owned by `qa-integration-tester`, E2E tests by `e2e-test-engineer`
 - **Do NOT** change the API contract (endpoint paths, request/response shapes) without explicitly flagging it and noting it requires Architect approval
 - **Do NOT** change the database schema without explicitly flagging it and noting it requires Architect approval
 - **Do NOT** make product prioritization decisions

@@ -1,5 +1,5 @@
 /**
- * Page Object Model for the Household Items list page (/household-items)
+ * Page Object Model for the Household Items list page (/project/household-items)
  *
  * EPIC-04: Household Items & Furniture Management
  *
@@ -20,7 +20,7 @@
  * - An error banner (role="alert", class errorBanner) for API errors
  *
  * Key DOM observations from source code:
- * - "New Item" is a <button> that calls navigate('/household-items/new')
+ * - "New Item" is a <button> that calls navigate('/project/household-items/new')
  * - Delete modal: aria-labelledby="hi-delete-modal-title", confirm button: class confirmDeleteButton
  * - Empty state h2: "No household items yet" or "No household items match your filters"
  * - Table rows are clickable and navigate to detail page
@@ -30,7 +30,7 @@
 
 import type { Page, Locator } from '@playwright/test';
 
-export const HOUSEHOLD_ITEMS_ROUTE = '/household-items';
+export const HOUSEHOLD_ITEMS_ROUTE = '/project/household-items';
 
 export class HouseholdItemsPage {
   readonly page: Page;

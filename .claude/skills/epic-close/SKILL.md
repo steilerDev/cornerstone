@@ -51,6 +51,19 @@ Include:
 
 Post this report as a comment on the epic GitHub Issue. Include it in the promotion PR body (Step 8).
 
+### 2b. Lint Health Check
+
+Check the most recent auto-fix workflow run for unfixable lint issues:
+
+```bash
+# Get the latest auto-fix run ID
+RUN_ID=$(gh run list --workflow=auto-fix.yml --limit=1 --json databaseId --jq '.[0].databaseId')
+# Extract lint errors and warnings
+gh run view "$RUN_ID" --log 2>/dev/null | grep -E '##\[(warning|error)\]' | grep -v 'Process completed'
+```
+
+If there are unfixable lint errors or warnings, include them in the refinement items (step 3). These should be addressed in the refinement PR alongside any review observations.
+
 ### 3. Collect Refinement Items
 
 Review all story PRs for non-blocking review comments — observations that were noted during review but not required for merge. Collect these into a list of refinement items.
@@ -71,7 +84,8 @@ If there are refinement items to address:
 3. Route fix specs to the appropriate implementation agents:
    - Backend fixes → **backend-developer** (Haiku)
    - Frontend fixes → **frontend-developer** (Haiku)
-   - Test fixes → **qa-integration-tester**
+   - Unit/integration test fixes → **qa-integration-tester**
+   - E2E test fixes → **e2e-test-engineer**
 4. Launch the **dev-team-lead** in `[MODE: review]` with the original refinement items + changed files
 5. If `VERDICT: CHANGES_REQUIRED`, iterate fixes (route to agents, re-review)
 6. Launch the **dev-team-lead** in `[MODE: commit]` with contributing agents list, branch name, and no issue number (refinement)
@@ -86,11 +100,13 @@ If no refinement items exist, skip to step 5.
 
 ### 5. E2E Validation
 
-Launch the **qa-integration-tester** agent to:
+Launch the **e2e-test-engineer** agent to:
 
 - Confirm all existing Playwright E2E tests pass
 - Verify every approved UAT scenario (from story issues) has E2E coverage
 - Write new E2E tests on a branch if coverage gaps exist
+- Ensure dependent system containers are included in the E2E environment (not just `page.route()` mocks)
+- Expand smoke tests if the epic introduced new major capabilities
 - Open a PR targeting `beta` to trigger the full sharded E2E suite in CI (if it does not yet exist)
 - Wait for the full E2E suite to pass (not just smoke tests)
 
@@ -103,7 +119,7 @@ Launch the **product-owner** agent to produce UAT scenarios, then the orchestrat
 - Produce a UAT Validation Report covering all stories in the epic
 - Provide step-by-step manual validation instructions to the user
 
-**AUTO_MODE override**: If AUTO_MODE is active (set by `/epic-run`), treat E2E pass + qa-integration-tester report as sufficient validation. Post the UAT report as a comment on the epic issue and proceed to step 7 without waiting for user walkthrough.
+**AUTO_MODE override**: If AUTO_MODE is active (set by `/epic-run`), treat E2E pass + e2e-test-engineer report as sufficient validation. Post the UAT report as a comment on the epic issue and proceed to step 7 without waiting for user walkthrough.
 
 **Interactive mode** (default): Present the report to the user. The user walks through each scenario:
 

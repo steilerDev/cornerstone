@@ -118,7 +118,7 @@ describe('HouseholdItemsPage', () => {
 
   function renderPage() {
     return render(
-      <MemoryRouter initialEntries={['/household-items']}>
+      <MemoryRouter initialEntries={['/project/household-items']}>
         <HouseholdItemsPage />
       </MemoryRouter>,
     );

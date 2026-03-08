@@ -1,17 +1,17 @@
 /**
- * Page Object Model for the Dashboard page (/)
+ * Page Object Model for the Project Overview page (/project/overview)
  *
- * The Dashboard is currently a stub page that renders:
- *   - An h1 "Dashboard"
+ * The Project Overview is currently a stub page that renders:
+ *   - An h1 "Overview"
  *   - A <p> describing the planned overview functionality
  *
- * When the Dashboard gains real content (activity feed, budget summary, etc.)
+ * When the page gains real content (activity feed, budget summary, etc.)
  * expand this POM with the new locators and helper methods.
  */
 
 import type { Page, Locator } from '@playwright/test';
 
-export const DASHBOARD_ROUTE = '/';
+export const DASHBOARD_ROUTE = '/project/overview';
 
 export class DashboardPage {
   readonly page: Page;
@@ -22,7 +22,11 @@ export class DashboardPage {
   constructor(page: Page) {
     this.page = page;
 
-    this.heading = page.getByRole('heading', { level: 1, name: 'Dashboard', exact: true });
+    this.heading = page.getByRole('heading', {
+      level: 1,
+      name: 'Overview',
+      exact: true,
+    });
     // The description is a <p> with the CSS-module class "description".
     // Matching via [class*="description"] is robust against the production
     // content-hash localIdentName while remaining unique on this page.

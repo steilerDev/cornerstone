@@ -10,12 +10,12 @@ interface SidebarProps {
 }
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
-  const { user, logout } = useAuth();
+  const { user: _user, logout } = useAuth();
   const sidebarClassName = [styles.sidebar, isOpen && styles.open].filter(Boolean).join(' ');
 
   return (
     <aside className={sidebarClassName} data-open={isOpen}>
-      <Link to="/" className={styles.logoArea} aria-label="Go to dashboard">
+      <Link to="/project" className={styles.logoArea} aria-label="Go to project overview">
         <Logo size={32} className={styles.logo} />
         <span className={styles.logoText}>Cornerstone</span>
       </Link>
@@ -31,76 +31,36 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       </div>
       <nav className={styles.nav} aria-label="Main navigation">
         <NavLink
-          to="/"
-          end
+          to="/project"
           className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
           onClick={onClose}
         >
-          Dashboard
-        </NavLink>
-        <NavLink
-          to="/work-items"
-          className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
-          onClick={onClose}
-        >
-          Work Items
+          Project
         </NavLink>
         <NavLink
           to="/budget"
-          end
           className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
           onClick={onClose}
         >
           Budget
         </NavLink>
         <NavLink
-          to="/timeline"
+          to="/schedule"
           className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
           onClick={onClose}
         >
-          Timeline
+          Schedule
         </NavLink>
-        <NavLink
-          to="/household-items"
-          className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
-          onClick={onClose}
-        >
-          Household Items
-        </NavLink>
-        <NavLink
-          to="/invoices"
-          className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
-          onClick={onClose}
-        >
-          Invoices
-        </NavLink>
-        <NavLink
-          to="/tags"
-          className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
-          onClick={onClose}
-        >
-          Tags
-        </NavLink>
-        <div className={styles.navSeparator} />
-        <NavLink
-          to="/profile"
-          className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
-          onClick={onClose}
-        >
-          Profile
-        </NavLink>
-        {user?.role === 'admin' && (
-          <NavLink
-            to="/admin/users"
-            className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
-            onClick={onClose}
-          >
-            User Management
-          </NavLink>
-        )}
       </nav>
       <div className={styles.sidebarFooter}>
         <ThemeToggle />
+        <NavLink
+          to="/settings"
+          className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
+          onClick={onClose}
+        >
+          Settings
+        </NavLink>
         <button
           type="button"
           className={styles.logoutButton}
