@@ -217,9 +217,12 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
             continue;
         }
 
+        // Determine cost basis: use invoice amount if available, otherwise planned amount
+        const costBasis = lineInvoiceMap.has(line.id) ? lineInvoiceMap.get(line.id)! : line.plannedAmount;
+
         // This subsidy applies to this line
         if (meta.reductionType === 'percentage') {
-          subsidyReduction += line.plannedAmount * (meta.reductionValue / 100);
+          subsidyReduction += costBasis * (meta.reductionValue / 100);
         } else if (meta.reductionType === 'fixed') {
           // Divide fixed amount equally across all matching budget lines for
           // this (entity, subsidy) combination.
@@ -238,7 +241,8 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
             if (matchingLineCount === 0) matchingLineCount = 1;
             fixedSubsidyLineCountCache.set(cacheKey, matchingLineCount);
           }
-          subsidyReduction += meta.reductionValue / matchingLineCount;
+          const perLineAmount = meta.reductionValue / matchingLineCount;
+          subsidyReduction += Math.min(perLineAmount, costBasis);
         }
       }
     }
@@ -427,8 +431,11 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
           continue;
       }
 
+      // Determine cost basis: use invoice amount if available, otherwise planned amount
+      const costBasis = lineInvoiceMap.has(line.id) ? lineInvoiceMap.get(line.id)! : line.plannedAmount;
+
       if (meta.reductionType === 'percentage') {
-        totalReductions += line.plannedAmount * (meta.reductionValue / 100);
+        totalReductions += costBasis * (meta.reductionValue / 100);
       } else if (meta.reductionType === 'fixed') {
         const cacheKey = `${line.entityId}:${subsidyId}`;
         let matchingLineCount = fixedSubsidyLineCountCacheForTotal.get(cacheKey);
@@ -442,7 +449,8 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
           if (matchingLineCount === 0) matchingLineCount = 1;
           fixedSubsidyLineCountCacheForTotal.set(cacheKey, matchingLineCount);
         }
-        totalReductions += meta.reductionValue / matchingLineCount;
+        const perLineAmount = meta.reductionValue / matchingLineCount;
+        totalReductions += Math.min(perLineAmount, costBasis);
       }
     }
   }
