@@ -38,11 +38,13 @@ export function computeBudgetTotals(budgetLines: BaseBudgetLine[]): BudgetTotals
   const totalActualCost = budgetLines.reduce((sum, b) => sum + b.actualCost, 0);
 
   const totalMinPlanned = budgetLines.reduce((sum, b) => {
+    if (b.invoiceCount > 0) return sum + b.actualCost;
     const margin = CONFIDENCE_MARGINS[b.confidence] ?? 0;
     return sum + b.plannedAmount * (1 - margin);
   }, 0);
 
   const totalMaxPlanned = budgetLines.reduce((sum, b) => {
+    if (b.invoiceCount > 0) return sum + b.actualCost;
     const margin = CONFIDENCE_MARGINS[b.confidence] ?? 0;
     return sum + b.plannedAmount * (1 + margin);
   }, 0);

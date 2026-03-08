@@ -20,7 +20,6 @@ import type {
   WorkItemLinkedHouseholdItemSummary,
   HouseholdItemCategory,
   HouseholdItemStatus,
-  ConfidenceLevel,
 } from '@cornerstone/shared';
 import {
   getWorkItem,
@@ -65,9 +64,7 @@ import { TagPicker } from '../../components/TagPicker/TagPicker.js';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import { KeyboardShortcutsHelp } from '../../components/KeyboardShortcutsHelp/KeyboardShortcutsHelp.js';
-import { BudgetLineForm } from '../../components/budget/BudgetLineForm.js';
-import { BudgetLineCard } from '../../components/budget/BudgetLineCard.js';
-import { SubsidyLinkSection } from '../../components/budget/SubsidyLinkSection.js';
+import { BudgetSection } from '../../components/budget/BudgetSection.js';
 import {
   DependencySentenceBuilder,
   DependencySentenceDisplay,
@@ -77,11 +74,6 @@ import { formatDate, formatCurrency } from '../../lib/formatters.js';
 import { AutosaveIndicator } from '../../components/AutosaveIndicator/AutosaveIndicator.js';
 import type { AutosaveState } from '../../components/AutosaveIndicator/AutosaveIndicator.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
-import {
-  CONFIDENCE_LABELS,
-  CONFIDENCE_MARGINS,
-  computeBudgetTotals,
-} from '../../lib/budgetConstants.js';
 import { useBudgetSection, type BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 import styles from './WorkItemDetailPage.module.css';
 
@@ -443,25 +435,12 @@ export default function WorkItemDetailPage() {
   // ─── Budget line handlers (delegated to useBudgetSection hook) ────────────
 
   const {
-    openAddBudgetForm,
-    openEditBudgetForm,
-    closeBudgetForm,
-    handleSaveBudgetLine,
-    handleDeleteBudgetLine,
     confirmDeleteBudgetLine,
     handleLinkSubsidy: hookHandleLinkSubsidy,
     handleUnlinkSubsidy: hookHandleUnlinkSubsidy,
-    showBudgetForm,
-    budgetForm,
-    editingBudgetId,
-    isSavingBudget,
-    budgetFormError,
     deletingBudgetId,
     selectedSubsidyId,
-    isLinkingSubsidy,
-    setBudgetFormPartial,
     setDeletingBudgetId,
-    setSelectedSubsidyId,
   } = budgetSection;
 
   // Handle delete confirmation with inline error management
@@ -1117,10 +1096,6 @@ export default function WorkItemDetailPage() {
 
   const isAdmin = user?.role === 'admin';
 
-  // Compute budget line totals using shared function
-  const { totalPlanned, totalActualCost, totalMinPlanned, totalMaxPlanned, hasPlannedRange } =
-    computeBudgetTotals(budgetLines);
-
   // Subsidies not yet linked
   const linkedSubsidyIds = new Set(linkedSubsidies.map((s) => s.id));
   const availableSubsidies = allSubsidyPrograms.filter((s) => !linkedSubsidyIds.has(s.id));
@@ -1340,209 +1315,73 @@ export default function WorkItemDetailPage() {
 
           {/* Budget Lines */}
           <section className={styles.section}>
-            <div className={styles.sectionHeader}>
-              <h2 className={styles.sectionTitle}>Budget</h2>
-              <button
-                type="button"
-                className={styles.addButton}
-                onClick={openAddBudgetForm}
-                aria-label="Add budget line"
-              >
-                + Add Line
-              </button>
-            </div>
-
-            {/* Budget totals summary */}
-            {budgetLines.length > 0 && (
-              <div className={styles.budgetSummary}>
-                <div className={styles.propertyGrid}>
-                  {totalActualCost > 0 ? (
-                    <>
-                      <div className={styles.property}>
-                        <span className={styles.propertyLabel}>Total Actual Cost</span>
-                        <span className={styles.budgetValueHighlighted}>
-                          {formatCurrency(totalActualCost)}
-                        </span>
-                      </div>
-                      <div className={styles.property}>
-                        <span className={styles.propertyLabel}>Planned Range</span>
-                        <span className={styles.budgetValueMuted}>
-                          {hasPlannedRange
-                            ? `${formatCurrency(totalMinPlanned)} – ${formatCurrency(totalMaxPlanned)}`
-                            : formatCurrency(totalPlanned)}
-                        </span>
-                      </div>
-                    </>
-                  ) : (
-                    <div className={styles.property}>
-                      <span className={styles.propertyLabel}>Planned Range</span>
-                      <span className={styles.budgetValue}>
-                        {hasPlannedRange
-                          ? `${formatCurrency(totalMinPlanned)} – ${formatCurrency(totalMaxPlanned)}`
-                          : formatCurrency(totalPlanned)}
-                      </span>
-                    </div>
-                  )}
-                  <div className={styles.property}>
-                    <span className={styles.propertyLabel}>Lines</span>
-                    <span className={styles.budgetValue}>{budgetLines.length}</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Expected Subsidy Payback — shown when non-rejected subsidies are linked */}
-            {subsidyPayback !== null && subsidyPayback.subsidies.length > 0 && (
-              <div
-                className={`${styles.subsidyPaybackRow} ${subsidyPayback.maxTotalPayback > 0 ? styles.subsidyPaybackRowActive : styles.subsidyPaybackRowZero}`}
-              >
-                <span className={styles.subsidyPaybackLabel}>Expected Subsidy Payback</span>
-                <span
-                  className={styles.subsidyPaybackAmount}
-                  aria-live="polite"
-                  aria-atomic="true"
-                  aria-label={
-                    subsidyPayback.minTotalPayback === subsidyPayback.maxTotalPayback
-                      ? `Expected subsidy payback: ${formatCurrency(subsidyPayback.minTotalPayback)}`
-                      : `Expected subsidy payback: ${formatCurrency(subsidyPayback.minTotalPayback)} to ${formatCurrency(subsidyPayback.maxTotalPayback)}`
-                  }
-                >
-                  {subsidyPayback.minTotalPayback === subsidyPayback.maxTotalPayback
-                    ? formatCurrency(subsidyPayback.minTotalPayback)
-                    : `${formatCurrency(subsidyPayback.minTotalPayback)} – ${formatCurrency(subsidyPayback.maxTotalPayback)}`}
-                </span>
-                {subsidyPayback.subsidies.length > 0 && (
-                  <div className={styles.subsidyPaybackChips} aria-label="Per-subsidy breakdown">
-                    {subsidyPayback.subsidies.map((entry) => (
-                      <span
-                        key={entry.subsidyProgramId}
-                        className={styles.subsidyPaybackChip}
-                        aria-label={
-                          entry.minPayback === entry.maxPayback
-                            ? `${entry.name}: ${formatCurrency(entry.minPayback)}`
-                            : `${entry.name}: ${formatCurrency(entry.minPayback)} to ${formatCurrency(entry.maxPayback)}`
-                        }
-                      >
-                        {entry.name}:{' '}
-                        {entry.minPayback === entry.maxPayback
-                          ? formatCurrency(entry.minPayback)
-                          : `${formatCurrency(entry.minPayback)} – ${formatCurrency(entry.maxPayback)}`}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Budget lines list */}
-            {budgetLines.length === 0 && !showBudgetForm && (
-              <div className={styles.emptyState}>
-                No budget lines yet. Add the first line to start tracking costs.
-              </div>
-            )}
-            <div className={styles.budgetLinesList}>
-              {budgetLines.map((line) => (
-                <BudgetLineCard
-                  key={line.id}
-                  line={line}
-                  confidenceLabels={CONFIDENCE_LABELS}
-                  onEdit={() => openEditBudgetForm(line)}
-                  onDelete={() => handleDeleteBudgetLine(line.id)}
-                  isDeleting={deletingBudgetId === line.id}
-                  onConfirmDelete={handleConfirmDeleteBudgetLine}
-                  onCancelDelete={() => setDeletingBudgetId(null)}
-                >
-                  {/* Invoice popover for work items (WI-specific) */}
-                  {line.invoiceCount > 0 && (
-                    <div
-                      className={styles.invoicePopoverWrapper}
-                      ref={invoicePopoverBudgetId === line.id ? invoicePopoverRef : null}
+            <BudgetSection
+              budgetLines={budgetLines}
+              subsidyPayback={subsidyPayback}
+              linkedSubsidies={linkedSubsidies}
+              availableSubsidies={availableSubsidies}
+              budgetSectionHook={budgetSection}
+              budgetSources={budgetSources}
+              vendors={allVendors}
+              budgetCategories={budgetCategories}
+              onLinkSubsidy={handleLinkSubsidy}
+              onUnlinkSubsidy={handleUnlinkSubsidy}
+              onConfirmDeleteBudgetLine={handleConfirmDeleteBudgetLine}
+              renderBudgetLineChildren={(line) =>
+                line.invoiceCount > 0 ? (
+                  <div
+                    className={styles.invoicePopoverWrapper}
+                    ref={invoicePopoverBudgetId === line.id ? invoicePopoverRef : null}
+                  >
+                    <button
+                      type="button"
+                      className={styles.budgetLineMetaLink}
+                      onClick={() =>
+                        setInvoicePopoverBudgetId((prev) => (prev === line.id ? null : line.id))
+                      }
+                      aria-expanded={invoicePopoverBudgetId === line.id}
+                      aria-haspopup="true"
                     >
-                      <button
-                        type="button"
-                        className={styles.budgetLineMetaLink}
-                        onClick={() =>
-                          setInvoicePopoverBudgetId((prev) => (prev === line.id ? null : line.id))
-                        }
-                        aria-expanded={invoicePopoverBudgetId === line.id}
-                        aria-haspopup="true"
-                      >
-                        {line.invoiceCount} invoice{line.invoiceCount !== 1 ? 's' : ''} ·{' '}
-                        {formatCurrency(line.actualCost)}
-                      </button>
-                      {invoicePopoverBudgetId === line.id && (
-                        <div className={styles.invoicePopover} role="listbox">
-                          <div className={styles.invoicePopoverHeader}>Invoices</div>
-                          {line.invoices.map((inv) => (
-                            <Link
-                              key={inv.id}
-                              to={`/invoices/${inv.id}`}
-                              className={styles.invoicePopoverItem}
-                              onClick={() => setInvoicePopoverBudgetId(null)}
-                            >
-                              <div className={styles.invoicePopoverItemRow}>
-                                <span className={styles.invoicePopoverItemNumber}>
-                                  {inv.invoiceNumber ? `#${inv.invoiceNumber}` : 'No #'}
-                                </span>
-                                <span className={styles.invoicePopoverItemAmount}>
-                                  {formatCurrency(inv.amount)}
-                                </span>
-                              </div>
-                              <div className={styles.invoicePopoverItemMeta}>
-                                {inv.vendorName && <span>{inv.vendorName}</span>}
-                                {inv.vendorName && <span>·</span>}
-                                <span>{inv.date.slice(0, 10)}</span>
-                                <span>·</span>
-                                <span
-                                  className={`${styles.invoicePopoverStatusBadge} ${styles[`invoicePopoverStatus_${inv.status}`]}`}
-                                >
-                                  {inv.status}
-                                </span>
-                              </div>
-                            </Link>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </BudgetLineCard>
-              ))}
-            </div>
-
-            {/* Budget line form (inline) */}
-            {showBudgetForm && (
-              <BudgetLineForm
-                form={budgetForm}
-                onSubmit={handleSaveBudgetLine}
-                onFormChange={setBudgetFormPartial}
-                onCancel={closeBudgetForm}
-                error={budgetFormError}
-                isSaving={isSavingBudget}
-                isEditing={editingBudgetId !== null}
-                confidenceLabels={CONFIDENCE_LABELS}
-                budgetSources={budgetSources}
-                vendors={allVendors}
-                budgetCategories={budgetCategories}
-              >
-                <h3 className={styles.subsectionTitle}>
-                  {editingBudgetId ? 'Edit Budget Line' : 'New Budget Line'}
-                </h3>
-              </BudgetLineForm>
-            )}
-
-            {/* Subsidies Section */}
-            <div className={styles.budgetSubsection}>
-              <h3 className={styles.subsectionTitle}>Subsidies</h3>
-              <SubsidyLinkSection
-                linkedSubsidies={linkedSubsidies}
-                availableSubsidies={availableSubsidies}
-                selectedSubsidyId={selectedSubsidyId}
-                onSelectSubsidy={setSelectedSubsidyId}
-                onLinkSubsidy={handleLinkSubsidy}
-                onUnlinkSubsidy={handleUnlinkSubsidy}
-                isLinking={isLinkingSubsidy}
-              />
-            </div>
+                      {line.invoiceCount} invoice{line.invoiceCount !== 1 ? 's' : ''} ·{' '}
+                      {formatCurrency(line.actualCost)}
+                    </button>
+                    {invoicePopoverBudgetId === line.id && (
+                      <div className={styles.invoicePopover} role="listbox">
+                        <div className={styles.invoicePopoverHeader}>Invoices</div>
+                        {line.invoices.map((inv) => (
+                          <Link
+                            key={inv.id}
+                            to={`/invoices/${inv.id}`}
+                            className={styles.invoicePopoverItem}
+                            onClick={() => setInvoicePopoverBudgetId(null)}
+                          >
+                            <div className={styles.invoicePopoverItemRow}>
+                              <span className={styles.invoicePopoverItemNumber}>
+                                {inv.invoiceNumber ? `#${inv.invoiceNumber}` : 'No #'}
+                              </span>
+                              <span className={styles.invoicePopoverItemAmount}>
+                                {formatCurrency(inv.amount)}
+                              </span>
+                            </div>
+                            <div className={styles.invoicePopoverItemMeta}>
+                              {inv.vendorName && <span>{inv.vendorName}</span>}
+                              {inv.vendorName && <span>·</span>}
+                              <span>{inv.date.slice(0, 10)}</span>
+                              <span>·</span>
+                              <span
+                                className={`${styles.invoicePopoverStatusBadge} ${styles[`invoicePopoverStatus_${inv.status}`]}`}
+                              >
+                                {inv.status}
+                              </span>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : null
+              }
+            />
           </section>
         </div>
 

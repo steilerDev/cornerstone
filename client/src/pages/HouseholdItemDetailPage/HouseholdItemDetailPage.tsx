@@ -5,10 +5,8 @@ import type {
   HouseholdItemStatus,
   HouseholdItemCategory,
   HouseholdItemBudgetLine,
-  ConfidenceLevel,
   CreateHouseholdItemBudgetRequest,
   SubsidyProgram,
-  BudgetCategory,
   BudgetSource,
   Vendor,
   HouseholdItemSubsidyPaybackResponse,
@@ -57,15 +55,8 @@ import { formatDate, formatCurrency } from '../../lib/formatters.js';
 import { HouseholdItemStatusBadge } from '../../components/HouseholdItemStatusBadge/HouseholdItemStatusBadge.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
-import {
-  CONFIDENCE_LABELS,
-  CONFIDENCE_MARGINS,
-  computeBudgetTotals,
-} from '../../lib/budgetConstants.js';
 import { useBudgetSection, type BudgetLineFormState } from '../../hooks/useBudgetSection.js';
-import { BudgetLineForm } from '../../components/budget/BudgetLineForm.js';
-import { BudgetLineCard } from '../../components/budget/BudgetLineCard.js';
-import { SubsidyLinkSection } from '../../components/budget/SubsidyLinkSection.js';
+import { BudgetSection } from '../../components/budget/BudgetSection.js';
 import styles from './HouseholdItemDetailPage.module.css';
 
 export function HouseholdItemDetailPage() {
@@ -412,25 +403,10 @@ export function HouseholdItemDetailPage() {
   // ─── Budget line handlers (delegated to useBudgetSection hook) ────────────
 
   const {
-    openAddBudgetForm,
-    openEditBudgetForm,
-    closeBudgetForm,
-    handleSaveBudgetLine,
-    handleDeleteBudgetLine,
     confirmDeleteBudgetLine,
     handleLinkSubsidy: hookHandleLinkSubsidy,
     handleUnlinkSubsidy: hookHandleUnlinkSubsidy,
-    showBudgetForm,
-    budgetForm,
-    editingBudgetId,
-    isSavingBudget,
-    budgetFormError,
-    deletingBudgetId,
     selectedSubsidyId,
-    isLinkingSubsidy,
-    setBudgetFormPartial,
-    setDeletingBudgetId,
-    setSelectedSubsidyId,
   } = budgetSection;
 
   // Handle delete confirmation with inline error management
@@ -663,18 +639,6 @@ export function HouseholdItemDetailPage() {
     );
   }
 
-  // Compute budget line totals using shared function
-  const { totalPlanned, totalActualCost, totalMinPlanned, totalMaxPlanned, hasPlannedRange } =
-    computeBudgetTotals(budgetLines);
-  // Check if any budget lines have invoiced amounts
-  const hasInvoicedLines = budgetLines.some((b) => b.invoiceCount > 0);
-  const allLinesInvoiced = budgetLines.length > 0 && budgetLines.every((b) => b.invoiceCount > 0);
-
-  // Derived variables for unified budget section
-  const hasSubsidyPayback = subsidyPayback !== null && subsidyPayback.subsidies.length > 0;
-  const baseForNetCost = totalActualCost > 0 ? totalActualCost : totalPlanned;
-  const netCostMin = baseForNetCost - (subsidyPayback?.maxTotalPayback ?? 0);
-  const netCostMax = baseForNetCost - (subsidyPayback?.minTotalPayback ?? 0);
   const availableSubsidies = allSubsidyPrograms.filter(
     (prog) => !linkedSubsidies.some((linked) => linked.id === prog.id),
   );
@@ -1258,204 +1222,43 @@ export function HouseholdItemDetailPage() {
 
         {/* Budget Lines */}
         <section className={styles.section}>
-          <div className={styles.sectionHeader}>
-            <h2 className={styles.sectionTitle}>Budget</h2>
-            <button
-              type="button"
-              className={styles.addButton}
-              onClick={openAddBudgetForm}
-              aria-label="Add budget line"
-            >
-              + Add Line
-            </button>
-          </div>
-
-          {inlineError && (
-            <div className={styles.errorBanner} role="alert">
-              {inlineError}
-            </div>
-          )}
-
-          {/* Budget totals summary */}
-          {budgetLines.length > 0 && (
-            <div className={styles.budgetSummary}>
-              <div className={styles.propertyGrid}>
-                {totalActualCost > 0 ? (
-                  <>
-                    <div className={styles.property}>
-                      <span className={styles.propertyLabel}>Total Actual Cost</span>
-                      <span className={styles.budgetValueHighlighted}>
-                        {formatCurrency(totalActualCost)}
-                      </span>
-                    </div>
-                    <div className={styles.property}>
-                      <span className={styles.propertyLabel}>Planned Range</span>
-                      <span className={styles.budgetValueMuted}>
-                        {hasPlannedRange
-                          ? `${formatCurrency(totalMinPlanned)} – ${formatCurrency(totalMaxPlanned)}`
-                          : formatCurrency(totalPlanned)}
-                      </span>
-                    </div>
-                  </>
-                ) : (
-                  <div className={styles.property}>
-                    <span className={styles.propertyLabel}>Planned Range</span>
-                    <span className={styles.budgetValue}>
-                      {hasPlannedRange
-                        ? `${formatCurrency(totalMinPlanned)} – ${formatCurrency(totalMaxPlanned)}`
-                        : formatCurrency(totalPlanned)}
-                    </span>
-                  </div>
-                )}
-                {hasSubsidyPayback && (
-                  <div className={styles.property}>
-                    <span className={styles.propertyLabel}>Expected Subsidy Payback</span>
-                    <span className={styles.budgetValue}>
-                      {subsidyPayback!.minTotalPayback === subsidyPayback!.maxTotalPayback
-                        ? formatCurrency(subsidyPayback!.minTotalPayback)
-                        : `${formatCurrency(subsidyPayback!.minTotalPayback)} – ${formatCurrency(subsidyPayback!.maxTotalPayback)}`}
-                    </span>
-                  </div>
-                )}
-                {hasSubsidyPayback && totalActualCost > 0 && (
-                  <div className={styles.property}>
-                    <span className={styles.propertyLabel}>Net Cost</span>
-                    <span className={styles.budgetValue}>
-                      {netCostMin === netCostMax
-                        ? formatCurrency(netCostMin)
-                        : `${formatCurrency(netCostMin)} – ${formatCurrency(netCostMax)}`}
-                    </span>
-                  </div>
-                )}
-                <div className={styles.property}>
-                  <span className={styles.propertyLabel}>Lines</span>
-                  <span className={styles.budgetValue}>{budgetLines.length}</span>
+          <BudgetSection
+            budgetLines={budgetLines}
+            subsidyPayback={subsidyPayback}
+            linkedSubsidies={linkedSubsidies}
+            availableSubsidies={availableSubsidies}
+            budgetSectionHook={budgetSection}
+            budgetSources={budgetSources}
+            vendors={allVendors}
+            staticCategoryLabel="Household Items"
+            onLinkSubsidy={handleLinkSubsidy}
+            onUnlinkSubsidy={handleUnlinkSubsidy}
+            onConfirmDeleteBudgetLine={handleConfirmDeleteBudgetLine}
+            inlineError={inlineError}
+            renderBudgetLineChildren={(line) =>
+              budgetLineInvoices[line.id]?.length > 0 ? (
+                <div className={styles.budgetLineInvoices}>
+                  <h4 className={styles.budgetLineInvoicesTitle}>Linked Invoices</h4>
+                  <ul className={styles.invoiceList}>
+                    {budgetLineInvoices[line.id].map((inv) => (
+                      <li key={inv.id} className={styles.invoiceListItem}>
+                        <Link to={`/invoices/${inv.id}`} className={styles.invoiceLink}>
+                          {inv.invoiceNumber ? `#${inv.invoiceNumber}` : 'Invoice'}
+                        </Link>
+                        <span className={styles.invoiceAmount}>{formatCurrency(inv.amount)}</span>
+                        <span
+                          className={`${styles.invoiceStatusBadge} ${styles[`invoiceStatus_${inv.status}`]}`}
+                        >
+                          {inv.status.charAt(0).toUpperCase() + inv.status.slice(1)}
+                        </span>
+                        <span className={styles.invoiceDate}>{formatDate(inv.date)}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-              </div>
-            </div>
-          )}
-
-          {/* Expected Subsidy Payback — shown when non-rejected subsidies are linked */}
-          {hasSubsidyPayback && (
-            <div
-              className={`${styles.subsidyPaybackRow} ${subsidyPayback!.maxTotalPayback > 0 ? styles.subsidyPaybackRowActive : styles.subsidyPaybackRowZero}`}
-            >
-              <span className={styles.subsidyPaybackLabel}>Expected Subsidy Payback</span>
-              <span
-                className={styles.subsidyPaybackAmount}
-                aria-live="polite"
-                aria-atomic="true"
-                aria-label={
-                  subsidyPayback!.minTotalPayback === subsidyPayback!.maxTotalPayback
-                    ? `Expected subsidy payback: ${formatCurrency(subsidyPayback!.minTotalPayback)}`
-                    : `Expected subsidy payback: ${formatCurrency(subsidyPayback!.minTotalPayback)} to ${formatCurrency(subsidyPayback!.maxTotalPayback)}`
-                }
-              >
-                {subsidyPayback!.minTotalPayback === subsidyPayback!.maxTotalPayback
-                  ? formatCurrency(subsidyPayback!.minTotalPayback)
-                  : `${formatCurrency(subsidyPayback!.minTotalPayback)} – ${formatCurrency(subsidyPayback!.maxTotalPayback)}`}
-              </span>
-              {subsidyPayback!.subsidies.length > 0 && (
-                <div className={styles.subsidyPaybackChips} aria-label="Per-subsidy breakdown">
-                  {subsidyPayback!.subsidies.map((entry) => (
-                    <span
-                      key={entry.subsidyProgramId}
-                      className={styles.subsidyPaybackChip}
-                      aria-label={
-                        entry.minPayback === entry.maxPayback
-                          ? `${entry.name}: ${formatCurrency(entry.minPayback)}`
-                          : `${entry.name}: ${formatCurrency(entry.minPayback)} to ${formatCurrency(entry.maxPayback)}`
-                      }
-                    >
-                      {entry.name}:{' '}
-                      {entry.minPayback === entry.maxPayback
-                        ? formatCurrency(entry.minPayback)
-                        : `${formatCurrency(entry.minPayback)} – ${formatCurrency(entry.maxPayback)}`}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Budget lines list */}
-          {budgetLines.length === 0 && !showBudgetForm && (
-            <div className={styles.emptyState}>
-              No budget lines yet. Add the first line to start tracking costs.
-            </div>
-          )}
-          <div className={styles.budgetLinesList}>
-            {budgetLines.map((line) => (
-              <BudgetLineCard
-                key={line.id}
-                line={line}
-                confidenceLabels={CONFIDENCE_LABELS}
-                onEdit={() => openEditBudgetForm(line)}
-                onDelete={() => handleDeleteBudgetLine(line.id)}
-                isDeleting={deletingBudgetId === line.id}
-                onConfirmDelete={handleConfirmDeleteBudgetLine}
-                onCancelDelete={() => setDeletingBudgetId(null)}
-              >
-                {/* Inline invoice list for household items (HI-specific) */}
-                {budgetLineInvoices[line.id]?.length > 0 && (
-                  <div className={styles.budgetLineInvoices}>
-                    <h4 className={styles.budgetLineInvoicesTitle}>Linked Invoices</h4>
-                    <ul className={styles.invoiceList}>
-                      {budgetLineInvoices[line.id].map((inv) => (
-                        <li key={inv.id} className={styles.invoiceListItem}>
-                          <Link to={`/invoices/${inv.id}`} className={styles.invoiceLink}>
-                            {inv.invoiceNumber ? `#${inv.invoiceNumber}` : 'Invoice'}
-                          </Link>
-                          <span className={styles.invoiceAmount}>{formatCurrency(inv.amount)}</span>
-                          <span
-                            className={`${styles.invoiceStatusBadge} ${styles[`invoiceStatus_${inv.status}`]}`}
-                          >
-                            {inv.status.charAt(0).toUpperCase() + inv.status.slice(1)}
-                          </span>
-                          <span className={styles.invoiceDate}>{formatDate(inv.date)}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </BudgetLineCard>
-            ))}
-          </div>
-
-          {/* Budget line form (inline) */}
-          {showBudgetForm && (
-            <BudgetLineForm
-              form={budgetForm}
-              onSubmit={handleSaveBudgetLine}
-              onFormChange={setBudgetFormPartial}
-              onCancel={closeBudgetForm}
-              error={budgetFormError}
-              isSaving={isSavingBudget}
-              isEditing={editingBudgetId !== null}
-              confidenceLabels={CONFIDENCE_LABELS}
-              budgetSources={budgetSources}
-              vendors={allVendors}
-              staticCategoryLabel="Household Items"
-            >
-              <h3 className={styles.subsectionTitle}>
-                {editingBudgetId ? 'Edit Budget Line' : 'New Budget Line'}
-              </h3>
-            </BudgetLineForm>
-          )}
-
-          {/* Subsidies Section */}
-          <div className={styles.budgetSubsection}>
-            <h3 className={styles.subsectionTitle}>Subsidies</h3>
-            <SubsidyLinkSection
-              linkedSubsidies={linkedSubsidies}
-              availableSubsidies={availableSubsidies}
-              selectedSubsidyId={selectedSubsidyId}
-              onSelectSubsidy={setSelectedSubsidyId}
-              onLinkSubsidy={handleLinkSubsidy}
-              onUnlinkSubsidy={handleUnlinkSubsidy}
-              isLinking={isLinkingSubsidy}
-            />
-          </div>
+              ) : null
+            }
+          />
         </section>
 
         {/* Documents section */}
