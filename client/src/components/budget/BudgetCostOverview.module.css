@@ -1,0 +1,58 @@
+/* ─── Budget Cost Overview ─────────────────────────────────────────────── */
+
+.budgetSummary {
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+}
+
+.summaryRows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.summaryRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.summaryLabel {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.budgetValue {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  text-align: right;
+}
+
+.budgetValueHighlighted {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--color-success-text-on-light);
+  text-align: right;
+}
+
+.budgetValueMuted {
+  font-size: 0.9375rem;
+  color: var(--color-text-muted);
+  font-weight: 400;
+  text-decoration: line-through;
+  text-align: right;
+}
+
+.budgetValuePayback {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--color-success-text-on-light);
+  text-align: right;
+}
