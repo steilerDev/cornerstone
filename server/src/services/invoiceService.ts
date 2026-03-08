@@ -5,17 +5,11 @@ import type * as schemaTypes from '../db/schema.js';
 import {
   invoices,
   vendors,
-  workItemBudgets,
-  workItems,
   users,
-  householdItemBudgets,
-  householdItems,
 } from '../db/schema.js';
 import type {
   Invoice,
   InvoiceStatus,
-  WorkItemBudgetSummary,
-  HouseholdItemBudgetSummary,
   CreateInvoiceRequest,
   UpdateInvoiceRequest,
   UserSummary,
@@ -26,7 +20,6 @@ import type {
 import {
   NotFoundError,
   ValidationError,
-  MutuallyExclusiveBudgetLinkError,
 } from '../errors/AppError.js';
 import { deleteLinksForEntity } from './documentLinkService.js';
 
@@ -60,65 +53,10 @@ function toUserSummary(user: typeof users.$inferSelect | null | undefined): User
 }
 
 /**
- * Resolve the WorkItemBudgetSummary for an invoice, if linked.
- * Joins work_item_budgets and work_items to build the summary shape.
- */
-function toWorkItemBudgetSummary(db: DbType, budgetId: string): WorkItemBudgetSummary | null {
-  const budgetRow = db.select().from(workItemBudgets).where(eq(workItemBudgets.id, budgetId)).get();
-  if (!budgetRow) return null;
-
-  const workItemRow = db
-    .select()
-    .from(workItems)
-    .where(eq(workItems.id, budgetRow.workItemId))
-    .get();
-  if (!workItemRow) return null;
-
-  return {
-    id: budgetRow.id,
-    workItemId: budgetRow.workItemId,
-    workItemTitle: workItemRow.title,
-    description: budgetRow.description,
-    plannedAmount: budgetRow.plannedAmount,
-    confidence: budgetRow.confidence,
-  };
-}
-
-/**
- * Resolve the HouseholdItemBudgetSummary for an invoice, if linked.
- * Joins household_item_budgets and household_items to build the summary shape.
- */
-function toHouseholdItemBudgetSummary(
-  db: DbType,
-  budgetId: string,
-): HouseholdItemBudgetSummary | null {
-  const budgetRow = db
-    .select()
-    .from(householdItemBudgets)
-    .where(eq(householdItemBudgets.id, budgetId))
-    .get();
-  if (!budgetRow) return null;
-
-  const householdItemRow = db
-    .select()
-    .from(householdItems)
-    .where(eq(householdItems.id, budgetRow.householdItemId))
-    .get();
-  if (!householdItemRow) return null;
-
-  return {
-    id: budgetRow.id,
-    householdItemId: budgetRow.householdItemId,
-    householdItemName: householdItemRow.name,
-    description: budgetRow.description,
-    plannedAmount: budgetRow.plannedAmount,
-    confidence: budgetRow.confidence,
-  };
-}
-
-/**
  * Convert a database invoice row to Invoice API shape.
- * Resolves vendorName, createdBy, workItemBudget, and householdItemBudget via separate queries.
+ * TEMPORARY COMPILATION SHIM (Story #604 will rewrite this properly).
+ * Resolves vendorName and createdBy via separate queries.
+ * Budget lines and remaining amount are stubbed pending implementation of invoice budget line CRUD.
  * If knownVendorName is provided, skips the vendor DB lookup.
  */
 function toInvoice(
@@ -134,28 +72,18 @@ function toInvoice(
     ? db.select().from(users).where(eq(users.id, row.createdBy)).get()
     : null;
 
-  const workItemBudget = row.workItemBudgetId
-    ? toWorkItemBudgetSummary(db, row.workItemBudgetId)
-    : null;
-
-  const householdItemBudget = row.householdItemBudgetId
-    ? toHouseholdItemBudgetSummary(db, row.householdItemBudgetId)
-    : null;
-
   return {
     id: row.id,
     vendorId: row.vendorId,
     vendorName,
-    workItemBudgetId: row.workItemBudgetId,
-    workItemBudget,
-    householdItemBudgetId: row.householdItemBudgetId,
-    householdItemBudget,
     invoiceNumber: row.invoiceNumber,
     amount: row.amount,
     date: row.date,
     dueDate: row.dueDate,
     status: row.status as InvoiceStatus,
     notes: row.notes,
+    budgetLines: [],
+    remainingAmount: row.amount,
     createdBy: toUserSummary(createdByUser),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -349,37 +277,6 @@ export function createInvoice(
     }
   }
 
-  // Mutual exclusivity: cannot link to both work item and household item budgets
-  if (data.workItemBudgetId && data.householdItemBudgetId) {
-    throw new MutuallyExclusiveBudgetLinkError();
-  }
-
-  // Validate workItemBudgetId if provided
-  if (data.workItemBudgetId) {
-    const budgetLine = db
-      .select()
-      .from(workItemBudgets)
-      .where(eq(workItemBudgets.id, data.workItemBudgetId))
-      .get();
-    if (!budgetLine) {
-      throw new ValidationError(`Work item budget line not found: ${data.workItemBudgetId}`);
-    }
-  }
-
-  // Validate householdItemBudgetId if provided
-  if (data.householdItemBudgetId) {
-    const budgetLine = db
-      .select()
-      .from(householdItemBudgets)
-      .where(eq(householdItemBudgets.id, data.householdItemBudgetId))
-      .get();
-    if (!budgetLine) {
-      throw new ValidationError(
-        `Household item budget line not found: ${data.householdItemBudgetId}`,
-      );
-    }
-  }
-
   const id = randomUUID();
   const now = new Date().toISOString();
 
@@ -393,8 +290,6 @@ export function createInvoice(
       dueDate: data.dueDate ?? null,
       status: data.status ?? 'pending',
       notes: data.notes ?? null,
-      workItemBudgetId: data.workItemBudgetId ?? null,
-      householdItemBudgetId: data.householdItemBudgetId ?? null,
       createdBy: userId,
       createdAt: now,
       updatedAt: now,
@@ -471,50 +366,6 @@ export function updateInvoice(
 
   if (data.notes !== undefined) {
     updates.notes = data.notes;
-  }
-
-  // workItemBudgetId (nullable — null unlinks)
-  if ('workItemBudgetId' in data) {
-    if (data.workItemBudgetId) {
-      const budgetLine = db
-        .select()
-        .from(workItemBudgets)
-        .where(eq(workItemBudgets.id, data.workItemBudgetId))
-        .get();
-      if (!budgetLine) {
-        throw new ValidationError(`Work item budget line not found: ${data.workItemBudgetId}`);
-      }
-    }
-    updates.workItemBudgetId = data.workItemBudgetId ?? null;
-  }
-
-  // householdItemBudgetId (nullable — null unlinks)
-  if ('householdItemBudgetId' in data) {
-    if (data.householdItemBudgetId) {
-      const budgetLine = db
-        .select()
-        .from(householdItemBudgets)
-        .where(eq(householdItemBudgets.id, data.householdItemBudgetId))
-        .get();
-      if (!budgetLine) {
-        throw new ValidationError(
-          `Household item budget line not found: ${data.householdItemBudgetId}`,
-        );
-      }
-    }
-    updates.householdItemBudgetId = data.householdItemBudgetId ?? null;
-  }
-
-  // Mutual exclusivity: compute effective values and validate
-  const effectiveWorkItemBudgetId =
-    'workItemBudgetId' in data ? (data.workItemBudgetId ?? null) : existing.workItemBudgetId;
-  const effectiveHouseholdItemBudgetId =
-    'householdItemBudgetId' in data
-      ? (data.householdItemBudgetId ?? null)
-      : existing.householdItemBudgetId;
-
-  if (effectiveWorkItemBudgetId && effectiveHouseholdItemBudgetId) {
-    throw new MutuallyExclusiveBudgetLinkError();
   }
 
   const now = new Date().toISOString();

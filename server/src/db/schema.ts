@@ -303,6 +303,8 @@ export const workItemBudgets = sqliteTable(
 /**
  * Invoices table - tracks vendor invoices for payment management.
  * EPIC-05 Story 5.9: added workItemBudgetId FK; changed 'overdue' status to 'claimed'.
+ * EPIC-15 Story 15.1: removed workItemBudgetId and householdItemBudgetId FKs;
+ * relationships now managed via invoice_budget_lines junction table.
  */
 export const invoices = sqliteTable(
   'invoices',
@@ -319,13 +321,6 @@ export const invoices = sqliteTable(
       .notNull()
       .default('pending'),
     notes: text('notes'),
-    workItemBudgetId: text('work_item_budget_id').references(() => workItemBudgets.id, {
-      onDelete: 'set null',
-    }),
-    householdItemBudgetId: text('household_item_budget_id').references(
-      () => householdItemBudgets.id,
-      { onDelete: 'set null' },
-    ),
     createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
@@ -334,10 +329,41 @@ export const invoices = sqliteTable(
     vendorIdIdx: index('idx_invoices_vendor_id').on(table.vendorId),
     statusIdx: index('idx_invoices_status').on(table.status),
     dateIdx: index('idx_invoices_date').on(table.date),
-    workItemBudgetIdIdx: index('idx_invoices_work_item_budget_id').on(table.workItemBudgetId),
-    householdItemBudgetIdIdx: index('idx_invoices_household_item_budget_id').on(
-      table.householdItemBudgetId,
+  }),
+);
+
+/**
+ * Invoice budget lines junction table - M:N relationship between invoices and budget lines.
+ * Allows an invoice to be split across multiple work item and household item budget allocations.
+ * Each junction row links an invoice to exactly one budget line (work_item OR household_item, not both).
+ * EPIC-15 Story 15.1: Replaces the old 1:1 model with a many-to-many junction table.
+ */
+export const invoiceBudgetLines = sqliteTable(
+  'invoice_budget_lines',
+  {
+    id: text('id').primaryKey(),
+    invoiceId: text('invoice_id')
+      .notNull()
+      .references(() => invoices.id, { onDelete: 'cascade' }),
+    workItemBudgetId: text('work_item_budget_id').references(() => workItemBudgets.id, {
+      onDelete: 'set null',
+    }),
+    householdItemBudgetId: text('household_item_budget_id').references(
+      () => householdItemBudgets.id,
+      { onDelete: 'set null' },
     ),
+    itemizedAmount: real('itemized_amount').notNull(),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => ({
+    invoiceIdIdx: index('idx_invoice_budget_lines_invoice_id').on(table.invoiceId),
+    workItemBudgetUniqueIdx: uniqueIndex('idx_invoice_budget_lines_work_item_budget_id')
+      .on(table.workItemBudgetId)
+      .where(isNotNull(table.workItemBudgetId)),
+    householdItemBudgetUniqueIdx: uniqueIndex('idx_invoice_budget_lines_household_item_budget_id')
+      .on(table.householdItemBudgetId)
+      .where(isNotNull(table.householdItemBudgetId)),
   }),
 );
 
