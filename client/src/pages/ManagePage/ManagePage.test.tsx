@@ -49,6 +49,11 @@ jest.unstable_mockModule('../../lib/householdItemCategoriesApi.js', () => ({
   deleteHouseholdItemCategory: mockDeleteHICCategory,
 }));
 
+// Mock SettingsSubNav to avoid AuthContext dependency
+jest.unstable_mockModule('../../components/SettingsSubNav/SettingsSubNav.js', () => ({
+  SettingsSubNav: () => null,
+}));
+
 // ─── Sample test data ──────────────────────────────────────────────────────────
 
 const sampleTag1: TagResponse = {
