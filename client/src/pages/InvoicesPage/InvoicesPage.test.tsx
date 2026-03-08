@@ -133,7 +133,9 @@ function makeInvoice(overrides: Partial<Invoice> & { id: string }): Invoice {
   };
 }
 
-function makeApiResponse(overrides: Partial<InvoiceListPaginatedResponse> = {}): InvoiceListPaginatedResponse {
+function makeApiResponse(
+  overrides: Partial<InvoiceListPaginatedResponse> = {},
+): InvoiceListPaginatedResponse {
   return {
     invoices: [],
     pagination: EMPTY_PAGINATION,
@@ -190,7 +192,9 @@ describe('InvoicesPage', () => {
     it('renders the "Add Invoice" button', async () => {
       renderPage();
 
-      await waitFor(() => expect(screen.getByRole('button', { name: 'Add Invoice' })).toBeInTheDocument());
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Add Invoice' })).toBeInTheDocument(),
+      );
     });
 
     it('renders the empty state when no invoices exist', async () => {
@@ -456,7 +460,9 @@ describe('InvoicesPage', () => {
 
       renderPage();
 
-      await waitFor(() => expect(screen.getAllByText('Smith Builders').length).toBeGreaterThanOrEqual(1));
+      await waitFor(() =>
+        expect(screen.getAllByText('Smith Builders').length).toBeGreaterThanOrEqual(1),
+      );
     });
 
     it('shows filtered empty state when filters yield no results', async () => {

@@ -263,7 +263,9 @@ export function InvoicesPage() {
           </div>
           <div className={styles.summaryCard}>
             <span className={styles.summaryLabel}>Paid</span>
-            <span className={styles.summaryCount}>{summary.paid.count + summary.claimed.count}</span>
+            <span className={styles.summaryCount}>
+              {summary.paid.count + summary.claimed.count}
+            </span>
             <span className={`${styles.summaryAmount} ${styles.summaryAmountPaid}`}>
               {formatCurrency(summary.paid.totalAmount + summary.claimed.totalAmount)}
             </span>
