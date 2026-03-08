@@ -142,6 +142,7 @@ Fix for inline status selector. Auto-sets actualDeliveryDate when status → 'ar
 ## PR #612 Review (2026-03-08) -- EPIC-15 Story 15.1
 
 Invoice-budget-line junction table (migration 0017). Request changes:
+
 - CRITICAL: Broken test assertions -- `MutuallyExclusiveBudgetLinkError` tests retained but validation removed from service. CI red.
 - HIGH: Wiki Schema.md says ON DELETE SET NULL for budget FKs, but migration/Drizzle/ADR-018 use ON DELETE CASCADE.
 - MEDIUM: InvoiceBudgetLineSummary shared type diverges from wiki API Contract shape. Defer reconciliation to Story 15.2.

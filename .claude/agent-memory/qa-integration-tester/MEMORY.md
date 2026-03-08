@@ -8,12 +8,14 @@
 **Pattern**: When `invoice_budget_lines` uses partial UNIQUE index on `work_item_budget_id` and `household_item_budget_id`, each budget line can link to AT MOST ONE invoice. Any test that previously inserted multiple invoices for the same budget line violates this constraint.
 
 **Fix strategy**: Replace "multiple invoices on 1 budget line" with "1 invoice per budget line". Use separate budget lines for each invoice:
+
 - When testing totals: create N budget lines, each with 1 invoice, sum the amounts
 - When testing `budgetOverviewService.insertWorkItem` helper with both `actualCost` + `actualCostPending`: create a sibling budget line for the pending invoice so the UNIQUE constraint is not violated
 - When testing `invoiceCount`: with new model, max count per budget line is 1 (not 2+)
 - When `invoiceService.createInvoice()` no longer validates budget IDs (moved to routes layer), remove tests that expect `ValidationError`/`MutuallyExclusiveBudgetLinkError` from the service
 
 **Files fixed** (Story 15.1 junction table migration):
+
 - `shared/budgetServiceFactory.test.ts` — 3 tests
 - `subsidyPaybackService.test.ts` — 1 test
 - `shared/subsidyPaybackServiceFactory.test.ts` — 1 test

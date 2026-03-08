@@ -1834,11 +1834,7 @@ describe('VendorDetailPage', () => {
       await user.click(within(dialog).getByRole('button', { name: /save changes/i }));
 
       await waitFor(() => {
-        expect(mockUpdateInvoice).toHaveBeenCalledWith(
-          'vendor-1',
-          'invoice-1',
-          expect.any(Object),
-        );
+        expect(mockUpdateInvoice).toHaveBeenCalledWith('vendor-1', 'invoice-1', expect.any(Object));
       });
     });
 

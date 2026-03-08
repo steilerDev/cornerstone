@@ -14,7 +14,14 @@ import type {
   ApiErrorResponse,
   CreateBudgetSourceRequest,
 } from '@cornerstone/shared';
-import { budgetSources, workItems, workItemBudgets, vendors, invoices, invoiceBudgetLines } from '../db/schema.js';
+import {
+  budgetSources,
+  workItems,
+  workItemBudgets,
+  vendors,
+  invoices,
+  invoiceBudgetLines,
+} from '../db/schema.js';
 
 describe('Budget Source Routes', () => {
   let app: FastifyInstance;

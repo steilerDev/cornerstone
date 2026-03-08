@@ -2,11 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { eq, desc, and, asc, sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import {
-  invoices,
-  vendors,
-  users,
-} from '../db/schema.js';
+import { invoices, vendors, users } from '../db/schema.js';
 import type {
   Invoice,
   InvoiceStatus,
@@ -17,10 +13,7 @@ import type {
   InvoiceStatusBreakdown,
   InvoiceStatusSummary,
 } from '@cornerstone/shared';
-import {
-  NotFoundError,
-  ValidationError,
-} from '../errors/AppError.js';
+import { NotFoundError, ValidationError } from '../errors/AppError.js';
 import { deleteLinksForEntity } from './documentLinkService.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;

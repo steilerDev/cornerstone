@@ -212,11 +212,7 @@ function insertJunctionRow(
     itemizedAmount?: number;
   } = {},
 ): void {
-  const {
-    workItemBudgetId = null,
-    householdItemBudgetId = null,
-    itemizedAmount = 100.0,
-  } = opts;
+  const { workItemBudgetId = null, householdItemBudgetId = null, itemizedAmount = 100.0 } = opts;
   const now = new Date().toISOString();
   db.prepare(
     `INSERT INTO invoice_budget_lines
@@ -286,27 +282,27 @@ describe('Migration 0017: Invoice-Budget-Line Junction Table', () => {
 
   describe('invoices table after migration', () => {
     it('does NOT have work_item_budget_id column after migration', () => {
-      const columns = sqlite
-        .prepare("PRAGMA table_info('invoices')")
-        .all() as Array<{ name: string }>;
+      const columns = sqlite.prepare("PRAGMA table_info('invoices')").all() as Array<{
+        name: string;
+      }>;
       const colNames = columns.map((c) => c.name);
 
       expect(colNames).not.toContain('work_item_budget_id');
     });
 
     it('does NOT have household_item_budget_id column after migration', () => {
-      const columns = sqlite
-        .prepare("PRAGMA table_info('invoices')")
-        .all() as Array<{ name: string }>;
+      const columns = sqlite.prepare("PRAGMA table_info('invoices')").all() as Array<{
+        name: string;
+      }>;
       const colNames = columns.map((c) => c.name);
 
       expect(colNames).not.toContain('household_item_budget_id');
     });
 
     it('retains all other expected invoices columns', () => {
-      const columns = sqlite
-        .prepare("PRAGMA table_info('invoices')")
-        .all() as Array<{ name: string }>;
+      const columns = sqlite.prepare("PRAGMA table_info('invoices')").all() as Array<{
+        name: string;
+      }>;
       const colNames = columns.map((c) => c.name);
 
       expect(colNames).toContain('id');
@@ -327,9 +323,7 @@ describe('Migration 0017: Invoice-Budget-Line Junction Table', () => {
 
   describe('invoice_budget_lines table structure', () => {
     it('has all required columns with correct types and nullability', () => {
-      const columns = sqlite
-        .prepare("PRAGMA table_info('invoice_budget_lines')")
-        .all() as Array<{
+      const columns = sqlite.prepare("PRAGMA table_info('invoice_budget_lines')").all() as Array<{
         name: string;
         type: string;
         notnull: number;
@@ -561,9 +555,7 @@ describe('Migration 0017: Invoice-Budget-Line Junction Table', () => {
 
       runMigration0017(db);
 
-      const columns = db
-        .prepare("PRAGMA table_info('invoices')")
-        .all() as Array<{ name: string }>;
+      const columns = db.prepare("PRAGMA table_info('invoices')").all() as Array<{ name: string }>;
       const colNames = columns.map((c) => c.name);
 
       expect(colNames).not.toContain('work_item_budget_id');
@@ -685,9 +677,7 @@ describe('Migration 0017: Invoice-Budget-Line Junction Table', () => {
 
       runMigration0017(db);
 
-      const columns = db
-        .prepare("PRAGMA table_info('invoices')")
-        .all() as Array<{ name: string }>;
+      const columns = db.prepare("PRAGMA table_info('invoices')").all() as Array<{ name: string }>;
       const colNames = columns.map((c) => c.name);
 
       expect(colNames).not.toContain('household_item_budget_id');
@@ -712,9 +702,9 @@ describe('Migration 0017: Invoice-Budget-Line Junction Table', () => {
 
       runMigration0017(db);
 
-      const junctionRows = db
-        .prepare(`SELECT * FROM invoice_budget_lines`)
-        .all() as Array<Record<string, unknown>>;
+      const junctionRows = db.prepare(`SELECT * FROM invoice_budget_lines`).all() as Array<
+        Record<string, unknown>
+      >;
 
       expect(junctionRows).toHaveLength(0);
 
@@ -733,9 +723,9 @@ describe('Migration 0017: Invoice-Budget-Line Junction Table', () => {
 
       runMigration0017(db);
 
-      const inv = db
-        .prepare(`SELECT * FROM invoices WHERE id = ?`)
-        .get('inv-preserve-1') as Record<string, unknown> | undefined;
+      const inv = db.prepare(`SELECT * FROM invoices WHERE id = ?`).get('inv-preserve-1') as
+        | Record<string, unknown>
+        | undefined;
 
       expect(inv).toBeDefined();
       expect(inv!.amount).toBe(750.0);
@@ -1155,9 +1145,7 @@ describe('Migration 0017: Invoice-Budget-Line Junction Table', () => {
         itemizedAmount: 200.0,
       });
 
-      sqlite
-        .prepare('DELETE FROM household_item_budgets WHERE id = ?')
-        .run('hib-cascade-bl-1');
+      sqlite.prepare('DELETE FROM household_item_budgets WHERE id = ?').run('hib-cascade-bl-1');
 
       const after = sqlite
         .prepare(`SELECT id FROM invoice_budget_lines WHERE id = ?`)
@@ -1170,9 +1158,7 @@ describe('Migration 0017: Invoice-Budget-Line Junction Table', () => {
       insertWorkItemBudget(sqlite, 'wib-cascade-bl-unlinked', 'wi-cascade-bl-unlinked');
 
       expect(() => {
-        sqlite
-          .prepare('DELETE FROM work_item_budgets WHERE id = ?')
-          .run('wib-cascade-bl-unlinked');
+        sqlite.prepare('DELETE FROM work_item_budgets WHERE id = ?').run('wib-cascade-bl-unlinked');
       }).not.toThrow();
     });
 
@@ -1194,9 +1180,7 @@ describe('Migration 0017: Invoice-Budget-Line Junction Table', () => {
       });
 
       // Delete one budget line
-      sqlite
-        .prepare('DELETE FROM work_item_budgets WHERE id = ?')
-        .run('wib-cascade-bl-linked');
+      sqlite.prepare('DELETE FROM work_item_budgets WHERE id = ?').run('wib-cascade-bl-linked');
 
       // Its junction row is gone
       const deleted = sqlite

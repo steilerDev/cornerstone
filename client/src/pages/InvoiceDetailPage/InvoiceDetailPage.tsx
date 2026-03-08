@@ -310,9 +310,7 @@ export function InvoiceDetailPage() {
             {invoice.budgetLines.length > 0 && (
               <div className={styles.infoRow}>
                 <dt className={styles.infoLabel}>Budget Lines</dt>
-                <dd className={styles.infoValue}>
-                  {invoice.budgetLines.length} line(s) linked
-                </dd>
+                <dd className={styles.infoValue}>{invoice.budgetLines.length} line(s) linked</dd>
               </div>
             )}
             <div className={styles.infoRow}>

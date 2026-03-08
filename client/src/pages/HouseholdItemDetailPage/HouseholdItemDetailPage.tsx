@@ -325,7 +325,10 @@ export function HouseholdItemDetailPage() {
       for (const inv of allVendorInvoices) {
         // Find if any budget line in this invoice matches the household item budget lines
         for (const budgetLine of inv.budgetLines) {
-          if (budgetLine.budgetLineType === 'household_item' && budgetLineIds.includes(budgetLine.budgetLineId)) {
+          if (
+            budgetLine.budgetLineType === 'household_item' &&
+            budgetLineIds.includes(budgetLine.budgetLineId)
+          ) {
             if (!grouped[budgetLine.budgetLineId]) grouped[budgetLine.budgetLineId] = [];
             grouped[budgetLine.budgetLineId].push(inv);
             break; // Only add invoice once per budget line

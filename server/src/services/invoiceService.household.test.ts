@@ -176,7 +176,7 @@ describe('Invoice Service - Household Item Budget Linking', () => {
         vendorId,
         {
           amount: 2500,
-          date: '2026-02-01'
+          date: '2026-02-01',
         },
         userId,
       );
@@ -234,8 +234,7 @@ describe('Invoice Service - Household Item Budget Linking', () => {
         userId,
       );
 
-      const updated = invoiceService.updateInvoice(db, vendorId, created.id, {
-      });
+      const updated = invoiceService.updateInvoice(db, vendorId, created.id, {});
 
       // expect(updated.budgetLines?.[0]?.householdItemBudgetId).toBe(budgetId);
       // expect(updated.budgetLines?.[0]?.householdItemBudget).not.toBeNull();
@@ -257,15 +256,14 @@ describe('Invoice Service - Household Item Budget Linking', () => {
         vendorId,
         {
           amount: 2500,
-          date: '2026-02-01'
+          date: '2026-02-01',
         },
         userId,
       );
 
       // expect(created.budgetLines?.[0]?.householdItemBudgetId).toBe(budgetId);
 
-      const updated = invoiceService.updateInvoice(db, vendorId, created.id, {
-      });
+      const updated = invoiceService.updateInvoice(db, vendorId, created.id, {});
 
       // expect(updated.budgetLines?.[0]?.householdItemBudgetId).toBeNull();
       // expect(updated.budgetLines?.[0]?.householdItemBudget).toBeNull();
@@ -291,7 +289,7 @@ describe('Invoice Service - Household Item Budget Linking', () => {
         {
           invoiceNumber: 'HI-INV-001',
           amount: 2500,
-          date: '2026-02-01'
+          date: '2026-02-01',
         },
         userId,
       );
@@ -340,7 +338,7 @@ describe('Invoice Service - Household Item Budget Linking', () => {
         vendorId,
         {
           amount: 1000,
-          date: '2026-02-01'
+          date: '2026-02-01',
         },
         userId,
       );
@@ -382,7 +380,7 @@ describe('Invoice Service - Household Item Budget Linking', () => {
         vendorId,
         {
           amount: 3500,
-          date: '2026-02-01'
+          date: '2026-02-01',
         },
         userId,
       );
