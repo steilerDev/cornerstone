@@ -5,6 +5,7 @@ import { useMilestones } from '../../hooks/useMilestones.js';
 import { GanttChart, GanttChartSkeleton } from '../../components/GanttChart/GanttChart.js';
 import { MilestonePanel } from '../../components/milestones/MilestonePanel.js';
 import { CalendarView } from '../../components/calendar/CalendarView.js';
+import { ScheduleSubNav } from '../../components/ScheduleSubNav/ScheduleSubNav.js';
 import {
   type ZoomLevel,
   COLUMN_WIDTHS,
@@ -52,64 +53,6 @@ function ArrowsIcon({ active }: { active: boolean }) {
         strokeLinejoin="round"
         fill="none"
       />
-    </svg>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// View toggle icons
-// ---------------------------------------------------------------------------
-
-function GanttIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 20 20"
-      width="16"
-      height="16"
-      fill="none"
-      aria-hidden="true"
-      style={{ display: 'block' }}
-    >
-      {/* Gantt bar rows */}
-      <rect x="2" y="4" width="10" height="3" rx="1" fill="currentColor" />
-      <rect x="5" y="9" width="8" height="3" rx="1" fill="currentColor" />
-      <rect x="8" y="14" width="10" height="3" rx="1" fill="currentColor" />
-    </svg>
-  );
-}
-
-function CalendarIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 20 20"
-      width="16"
-      height="16"
-      fill="none"
-      aria-hidden="true"
-      style={{ display: 'block' }}
-    >
-      <rect x="3" y="4" width="14" height="13" rx="2" stroke="currentColor" strokeWidth="1.5" />
-      <line
-        x1="7"
-        y1="2"
-        x2="7"
-        y2="6"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-      <line
-        x1="13"
-        y1="2"
-        x2="13"
-        y2="6"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-      <line x1="3" y1="9" x2="17" y2="9" stroke="currentColor" strokeWidth="1.5" />
     </svg>
   );
 }
@@ -549,34 +492,11 @@ export function TimelinePage() {
               </div>
             </>
           )}
-
-          {/* View toggle: Gantt / Calendar */}
-          <div className={styles.viewToggle} role="toolbar" aria-label="View mode">
-            <button
-              type="button"
-              className={`${styles.viewButton} ${activeView === 'gantt' ? styles.viewButtonActive : ''}`}
-              aria-pressed={activeView === 'gantt'}
-              onClick={() => setActiveView('gantt')}
-              title="Gantt chart view"
-              aria-label="Gantt view"
-            >
-              <GanttIcon />
-              <span className={styles.viewButtonLabel}>Gantt</span>
-            </button>
-            <button
-              type="button"
-              className={`${styles.viewButton} ${activeView === 'calendar' ? styles.viewButtonActive : ''}`}
-              aria-pressed={activeView === 'calendar'}
-              onClick={() => setActiveView('calendar')}
-              title="Calendar view"
-              aria-label="Calendar view"
-            >
-              <CalendarIcon />
-              <span className={styles.viewButtonLabel}>Calendar</span>
-            </button>
-          </div>
         </div>
       </div>
+
+      {/* Schedule sub-navigation: Gantt / Calendar view toggle */}
+      <ScheduleSubNav activeView={activeView} onViewChange={setActiveView} />
 
       {/* Chart / calendar area */}
       <div className={styles.chartArea} ref={chartAreaRef}>

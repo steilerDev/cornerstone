@@ -47,7 +47,7 @@ setup('authenticate as admin', async ({ page }) => {
   // The setup endpoint creates a session automatically, so after setup:
   // /setup -> redirect to /login -> LoginPage detects session -> redirect to / -> /project/overview
   // Wait for the project overview to load (confirms session is active and redirects completed)
-  await expect(page.getByRole('heading', { name: 'Project Overview', level: 1 })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Overview', level: 1 })).toBeVisible({
     timeout: 15000,
   });
   console.log('✅ Admin user created, session established, redirected to project overview');

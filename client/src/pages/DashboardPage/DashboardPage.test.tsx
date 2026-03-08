@@ -3,10 +3,10 @@ import { renderWithRouter } from '../../test/testUtils';
 import { DashboardPage } from './DashboardPage';
 
 describe('DashboardPage', () => {
-  it('renders Project Overview title', () => {
+  it('renders Overview title', () => {
     renderWithRouter(<DashboardPage />);
 
-    expect(screen.getByRole('heading', { name: /project overview/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /^overview$/i })).toBeInTheDocument();
   });
 
   it('renders descriptive welcome message', () => {
