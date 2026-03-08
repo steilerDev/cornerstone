@@ -67,16 +67,17 @@ const SCHEDULE_TABS: { view: 'gantt' | 'calendar'; label: string; Icon: () => Re
 export function ScheduleSubNav({ activeView, onViewChange }: ScheduleSubNavProps) {
   return (
     <nav className={styles.subNav} aria-label="Schedule view navigation">
-      <div className={styles.tabList} role="list">
+      <div className={styles.tabList} role="toolbar" aria-label="View mode">
         {SCHEDULE_TABS.map(({ view, label, Icon }) => {
           const isActive = activeView === view;
+          const ariaLabel = view === 'gantt' ? 'Gantt view' : 'Calendar view';
           return (
             <button
               key={view}
               type="button"
-              role="listitem"
               className={`${styles.tab} ${isActive ? styles.tabActive : ''}`}
               aria-pressed={isActive}
+              aria-label={ariaLabel}
               onClick={() => onViewChange(view)}
               data-testid={`schedule-view-${view}`}
             >
