@@ -372,12 +372,12 @@ export async function listDocuments(
     if (filterTagId != null) {
       const clientTagIds = query.tags ? query.tags.split(',').map((s) => s.trim()) : [];
       const allTagIds = Array.from(new Set([...clientTagIds, String(filterTagId)]));
-      params.set('tags__id__in', allTagIds.join(','));
+      params.set('tags__id__all', allTagIds.join(','));
     } else if (query.tags) {
-      params.set('tags__id__in', query.tags);
+      params.set('tags__id__all', query.tags);
     }
   } else if (query.tags) {
-    params.set('tags__id__in', query.tags);
+    params.set('tags__id__all', query.tags);
   }
   if (query.correspondent !== undefined) {
     params.set('correspondent__id', String(query.correspondent));
