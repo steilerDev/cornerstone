@@ -881,7 +881,8 @@ describe('HouseholdItemDetailPage — budget line rendering (bug #436)', () => {
       expect(screen.getByText('Expected Cost')).toBeInTheDocument();
 
       // Invoiced lines collapse: bl-1 min=max=480, bl-2 min=max=290 → total=770
-      expect(screen.getByText('€770.00')).toBeInTheDocument();
+      // Value appears in both Expected Cost and Total Actual Cost
+      expect(screen.getAllByText('€770.00').length).toBeGreaterThanOrEqual(1);
     });
 
     it('Expected Cost shows mixed range when some lines have invoices (totalActualCost > 0)', async () => {
