@@ -30,9 +30,9 @@
   background: var(--color-bg-tertiary);
 }
 
-.toggleBtn:focus {
-  outline: 2px solid var(--color-primary);
-  outline-offset: -1px;
+.toggleBtn:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
 }
 
 .toggleBtn:active {
@@ -192,6 +192,11 @@
   background: var(--color-danger-bg);
   color: var(--color-danger-active);
   border-color: var(--color-danger-border);
+}
+
+.unlinkBtn:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
 }
 
 .unlinkBtn:disabled {

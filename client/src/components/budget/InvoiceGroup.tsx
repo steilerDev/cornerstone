@@ -59,9 +59,10 @@ export function InvoiceGroup<T extends BaseBudgetLine>({
   }, [isExpanded]);
 
   const statusBadgeClass = `${styles.statusBadge} ${styles[`status_${invoiceStatus}`] || ''}`;
+  const ariaLabel = `Invoice ${invoiceNumber || 'unknown'}: ${lines.length} budget lines, ${formatCurrency(itemizedTotal)} invoiced`;
 
   return (
-    <div className={styles.group}>
+    <div className={styles.group} role="group" aria-label={ariaLabel}>
       {/* Header with toggle button */}
       <button
         ref={toggleButtonRef}

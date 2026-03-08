@@ -92,9 +92,9 @@
   background: var(--color-primary-hover);
 }
 
-.linkInvoiceBtn:focus {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 1px;
+.linkInvoiceBtn:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
 }
 
 .linkInvoiceBtn:disabled {
@@ -103,8 +103,14 @@
 }
 
 @media (max-width: 767px) {
+  .addButton {
+    min-height: 44px;
+    padding: 0.75rem 1rem;
+  }
+
   .linkInvoiceBtn {
     min-height: 44px;
+    min-width: 44px;
     padding: 0.5rem 1rem;
     width: 100%;
   }
