@@ -335,22 +335,30 @@ describe('subsidyPaybackService', () => {
       expect(result.subsidies[0].maxPayback).toBeCloseTo(80);
     });
 
-    it('sums multiple invoices for the same budget line as actual cost (min === max)', () => {
+    it('uses actual invoiced cost across multiple budget lines as actual cost (min === max)', () => {
+      // Each budget line can only link to ONE invoice (partial UNIQUE index on work_item_budget_id).
+      // Use two separate budget lines — each with its own invoice — to model distributed invoicing.
       const workItemId = insertWorkItem();
-      const budgetLineId = insertBudgetLine({
+      const budgetLine1Id = insertBudgetLine({
         workItemId,
-        plannedAmount: 2000,
+        plannedAmount: 1200,
         confidence: 'own_estimate',
       });
-      insertInvoice(budgetLineId, 600);
-      insertInvoice(budgetLineId, 400); // total: 1000
+      const budgetLine2Id = insertBudgetLine({
+        workItemId,
+        plannedAmount: 800,
+        confidence: 'own_estimate',
+      });
+      insertInvoice(budgetLine1Id, 600); // actual for line 1
+      insertInvoice(budgetLine2Id, 400); // actual for line 2 — total across both: 1000
 
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
       linkSubsidyToWorkItem(workItemId, subsidyId);
 
       const result = getWorkItemSubsidyPayback(db, workItemId);
 
-      // 1000 × 10% = 100, no margin
+      // Both lines are invoiced: actual cost = 600 + 400 = 1000, no margin
+      // 1000 × 10% = 100
       expect(result.minTotalPayback).toBeCloseTo(100);
       expect(result.maxTotalPayback).toBeCloseTo(100);
     });

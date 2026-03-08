@@ -5,7 +5,6 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { randomUUID } from 'node:crypto';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
@@ -14,7 +13,10 @@ import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
 import * as invoiceService from './invoiceService.js';
 import * as householdItemService from './householdItemService.js';
-import { ValidationError, MutuallyExclusiveBudgetLinkError } from '../errors/AppError.js';
+// ValidationError and MutuallyExclusiveBudgetLinkError were used by old budget FK validation
+// (pre-Story-15.1). Budget linking now happens via the invoice_budget_lines junction table,
+// not via direct FK columns on invoices. These error types are no longer triggered by
+// createInvoice / updateInvoice.
 
 describe('Invoice Service - Household Item Budget Linking', () => {
   let sqlite: Database.Database;
@@ -188,65 +190,11 @@ describe('Invoice Service - Household Item Budget Linking', () => {
       // expect(result.budgetLines?.[0]?.householdItemBudget?.confidence).toBe('professional_estimate');
     });
 
-    it('throws ValidationError when householdItemBudgetId does not exist', () => {
-      const userId = createTestUser('test@example.com', 'Test User');
-      const vendorId = createTestVendor('Test Vendor');
-
-      expect(() => {
-        invoiceService.createInvoice(
-          db,
-          vendorId,
-          {
-            amount: 2500,
-            date: '2026-02-01'
-          },
-          userId,
-        );
-      }).toThrow(ValidationError);
-      expect(() => {
-        invoiceService.createInvoice(
-          db,
-          vendorId,
-          {
-            amount: 2500,
-            date: '2026-02-01'
-          },
-          userId,
-        );
-      }).toThrow(/not found/i);
-    });
-
-    it('throws ValidationError when both workItemBudgetId and householdItemBudgetId are provided', () => {
-      const userId = createTestUser('test@example.com', 'Test User');
-      const vendorId = createTestVendor('Test Vendor');
-      const workItemId = createTestWorkItem('Test Work Item', userId);
-      const workItemBudgetId = createTestWorkItemBudget(workItemId);
-      const householdItemId = createTestHouseholdItem('Kitchen Appliance', userId);
-      const householdItemBudgetId = createTestHouseholdItemBudget(householdItemId);
-
-      expect(() => {
-        invoiceService.createInvoice(
-          db,
-          vendorId,
-          {
-            amount: 2500,
-            date: '2026-02-01',
-          },
-          userId,
-        );
-      }).toThrow(MutuallyExclusiveBudgetLinkError);
-      expect(() => {
-        invoiceService.createInvoice(
-          db,
-          vendorId,
-          {
-            amount: 2500,
-            date: '2026-02-01',
-          },
-          userId,
-        );
-      }).toThrow(/only be linked to one budget line/i);
-    });
+    // NOTE: The following tests for ValidationError on missing householdItemBudgetId and
+    // MutuallyExclusiveBudgetLinkError have been removed. Story 15.1 moved budget linking
+    // from direct FK columns on invoices to the invoice_budget_lines junction table.
+    // The invoiceService.createInvoice() no longer validates budget IDs — that validation
+    // now happens in the routes layer when creating junction rows.
 
     it('returns householdItemBudget as null when householdItemBudgetId is not provided', () => {
       const userId = createTestUser('test@example.com', 'Test User');
@@ -294,33 +242,9 @@ describe('Invoice Service - Household Item Budget Linking', () => {
       // expect(updated.budgetLines?.[0]?.householdItemBudget?.householdItemName).toBe('Kitchen Appliance');
     });
 
-    it('throws ValidationError when updating to set both workItemBudgetId and householdItemBudgetId', () => {
-      const userId = createTestUser('test@example.com', 'Test User');
-      const vendorId = createTestVendor('Test Vendor');
-      const workItemId = createTestWorkItem('Test Work Item', userId);
-      const workItemBudgetId = createTestWorkItemBudget(workItemId);
-      const householdItemId = createTestHouseholdItem('Kitchen Appliance', userId);
-      const householdItemBudgetId = createTestHouseholdItemBudget(householdItemId);
-
-      const created = invoiceService.createInvoice(
-        db,
-        vendorId,
-        {
-          amount: 2500,
-          date: '2026-02-01',
-        },
-        userId,
-      );
-
-      expect(() => {
-        invoiceService.updateInvoice(db, vendorId, created.id, {
-        });
-      }).toThrow(MutuallyExclusiveBudgetLinkError);
-      expect(() => {
-        invoiceService.updateInvoice(db, vendorId, created.id, {
-        });
-      }).toThrow(/only be linked to one budget line/i);
-    });
+    // NOTE: The test for MutuallyExclusiveBudgetLinkError on update has been removed.
+    // Story 15.1 moved budget linking from direct FK columns on invoices to the
+    // invoice_budget_lines junction table. updateInvoice() no longer validates budget IDs.
 
     it('successfully clears householdItemBudgetId by setting it to null', () => {
       const userId = createTestUser('test@example.com', 'Test User');
@@ -347,29 +271,9 @@ describe('Invoice Service - Household Item Budget Linking', () => {
       // expect(updated.budgetLines?.[0]?.householdItemBudget).toBeNull();
     });
 
-    it('throws ValidationError when updating to link to a non-existent householdItemBudgetId', () => {
-      const userId = createTestUser('test@example.com', 'Test User');
-      const vendorId = createTestVendor('Test Vendor');
-
-      const created = invoiceService.createInvoice(
-        db,
-        vendorId,
-        {
-          amount: 2500,
-          date: '2026-02-01',
-        },
-        userId,
-      );
-
-      expect(() => {
-        invoiceService.updateInvoice(db, vendorId, created.id, {
-        });
-      }).toThrow(ValidationError);
-      expect(() => {
-        invoiceService.updateInvoice(db, vendorId, created.id, {
-        });
-      }).toThrow(/not found/i);
-    });
+    // NOTE: The test for ValidationError on non-existent householdItemBudgetId during update
+    // has been removed. Story 15.1 moved budget linking from direct FK columns on invoices to
+    // the invoice_budget_lines junction table. updateInvoice() no longer validates budget IDs.
   });
 
   // ─── listAllInvoices() with householdItemBudgetId ────────────────────────────────

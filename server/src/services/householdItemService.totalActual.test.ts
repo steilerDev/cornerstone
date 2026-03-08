@@ -156,13 +156,17 @@ describe('Household Item Service - Total Actual Amount', () => {
       expect(detail.budgetSummary.totalActual).toBe(2500);
     });
 
-    it('returns sum across multiple invoices on the same budget line', () => {
+    it('returns sum across multiple invoices on distinct budget lines for the same household item', () => {
+      // Story 15.1 (junction table model): each budget line can link to AT MOST ONE invoice
+      // (partial UNIQUE index on household_item_budget_id in invoice_budget_lines).
+      // Use three separate budget lines — each with its own invoice — to model distributed cost.
       const userId = createTestUser('test@example.com', 'Test User');
       const householdItemId = createTestHouseholdItem('Kitchen Appliance', userId);
-      const budgetId = createTestHouseholdItemBudget(householdItemId, 10000);
+      const budgetId1 = createTestHouseholdItemBudget(householdItemId, 4000);
+      const budgetId2 = createTestHouseholdItemBudget(householdItemId, 3000);
+      const budgetId3 = createTestHouseholdItemBudget(householdItemId, 5000);
       const vendorId = createTestVendor('Appliance Vendor');
 
-      // Create three invoices on the same budget line
       const inv1 = invoiceService.createInvoice(
         db,
         vendorId,
@@ -176,7 +180,7 @@ describe('Household Item Service - Total Actual Amount', () => {
         .values({
           id: randomUUID(),
           invoiceId: inv1.id,
-          householdItemBudgetId: budgetId,
+          householdItemBudgetId: budgetId1,
           itemizedAmount: 2000,
           createdAt: inv1.createdAt,
           updatedAt: inv1.updatedAt,
@@ -196,7 +200,7 @@ describe('Household Item Service - Total Actual Amount', () => {
         .values({
           id: randomUUID(),
           invoiceId: inv2.id,
-          householdItemBudgetId: budgetId,
+          householdItemBudgetId: budgetId2,
           itemizedAmount: 1500,
           createdAt: inv2.createdAt,
           updatedAt: inv2.updatedAt,
@@ -216,7 +220,7 @@ describe('Household Item Service - Total Actual Amount', () => {
         .values({
           id: randomUUID(),
           invoiceId: inv3.id,
-          householdItemBudgetId: budgetId,
+          householdItemBudgetId: budgetId3,
           itemizedAmount: 2500,
           createdAt: inv3.createdAt,
           updatedAt: inv3.updatedAt,
@@ -225,17 +229,21 @@ describe('Household Item Service - Total Actual Amount', () => {
 
       const detail = householdItemService.getHouseholdItemById(db, householdItemId);
 
-      expect(detail.budgetSummary.totalActual).toBe(6000);
+      // totalActual = SUM of itemized_amounts across all budget lines for this household item
+      expect(detail.budgetSummary.totalActual).toBe(6000); // 2000 + 1500 + 2500
     });
 
     it('returns sum across multiple budget lines on the same household item', () => {
+      // Story 15.1 (junction table model): each budget line can link to AT MOST ONE invoice.
+      // Use three separate budget lines — one invoice per line.
       const userId = createTestUser('test@example.com', 'Test User');
       const householdItemId = createTestHouseholdItem('Kitchen Appliance', userId);
       const budget1Id = createTestHouseholdItemBudget(householdItemId, 5000);
       const budget2Id = createTestHouseholdItemBudget(householdItemId, 3000);
+      const budget3Id = createTestHouseholdItemBudget(householdItemId, 2000);
       const vendorId = createTestVendor('Appliance Vendor');
 
-      // Create invoices on different budget lines for the same household item
+      // Create one invoice per budget line
       const invA = invoiceService.createInvoice(
         db,
         vendorId,
@@ -289,7 +297,7 @@ describe('Household Item Service - Total Actual Amount', () => {
         .values({
           id: randomUUID(),
           invoiceId: invC.id,
-          householdItemBudgetId: budget1Id,
+          householdItemBudgetId: budget3Id,
           itemizedAmount: 500,
           createdAt: invC.createdAt,
           updatedAt: invC.updatedAt,
@@ -298,7 +306,7 @@ describe('Household Item Service - Total Actual Amount', () => {
 
       const detail = householdItemService.getHouseholdItemById(db, householdItemId);
 
-      // 1500 + 1000 + 500 = 3000
+      // totalActual = sum of all itemized_amounts for this household item: 1500 + 1000 + 500 = 3000
       expect(detail.budgetSummary.totalActual).toBe(3000);
     });
 
@@ -394,9 +402,12 @@ describe('Household Item Service - Total Actual Amount', () => {
     });
 
     it('handles decimal amounts correctly', () => {
+      // Story 15.1 (junction table model): each budget line can link to AT MOST ONE invoice.
+      // Use two separate budget lines — each with its own invoice.
       const userId = createTestUser('test@example.com', 'Test User');
       const householdItemId = createTestHouseholdItem('Kitchen Appliance', userId);
-      const budgetId = createTestHouseholdItemBudget(householdItemId, 5000.5);
+      const budgetId1 = createTestHouseholdItemBudget(householdItemId, 3000);
+      const budgetId2 = createTestHouseholdItemBudget(householdItemId, 2000.5);
       const vendorId = createTestVendor('Appliance Vendor');
 
       const inv1 = invoiceService.createInvoice(
@@ -412,7 +423,7 @@ describe('Household Item Service - Total Actual Amount', () => {
         .values({
           id: randomUUID(),
           invoiceId: inv1.id,
-          householdItemBudgetId: budgetId,
+          householdItemBudgetId: budgetId1,
           itemizedAmount: 2345.67,
           createdAt: inv1.createdAt,
           updatedAt: inv1.updatedAt,
@@ -432,7 +443,7 @@ describe('Household Item Service - Total Actual Amount', () => {
         .values({
           id: randomUUID(),
           invoiceId: inv2.id,
-          householdItemBudgetId: budgetId,
+          householdItemBudgetId: budgetId2,
           itemizedAmount: 1234.33,
           createdAt: inv2.createdAt,
           updatedAt: inv2.updatedAt,

@@ -287,16 +287,32 @@ describe('budgetServiceFactory — createBudgetService()', () => {
         const workItemId = insertWorkItem();
         const vendorId = insertVendor();
 
-        const line = createWorkItemBudget(db, workItemId, 'user-001', { plannedAmount: 500 });
-        insertInvoiceForWorkItemBudget(line.id, vendorId, { amount: 150, status: 'paid' });
-        insertInvoiceForWorkItemBudget(line.id, vendorId, { amount: 75, status: 'pending' });
+        // Each budget line can only link to ONE invoice (partial UNIQUE index on work_item_budget_id)
+        // Use two separate budget lines — each with its own invoice
+        const lineA = createWorkItemBudget(db, workItemId, 'user-001', {
+          plannedAmount: 300,
+          description: 'Line A (paid)',
+        });
+        const lineB = createWorkItemBudget(db, workItemId, 'user-001', {
+          plannedAmount: 200,
+          description: 'Line B (pending)',
+        });
+        insertInvoiceForWorkItemBudget(lineA.id, vendorId, { amount: 150, status: 'paid' });
+        insertInvoiceForWorkItemBudget(lineB.id, vendorId, { amount: 75, status: 'pending' });
 
         const result = listWorkItemBudgets(db, workItemId);
 
-        expect(result).toHaveLength(1);
-        expect(result[0].invoiceCount).toBe(2);
-        expect(result[0].actualCost).toBe(225); // 150 + 75
-        expect(result[0].actualCostPaid).toBe(150); // only paid/claimed
+        expect(result).toHaveLength(2);
+        // Line A: 1 paid invoice
+        const resultA = result.find((r) => r.id === lineA.id)!;
+        expect(resultA.invoiceCount).toBe(1);
+        expect(resultA.actualCost).toBe(150);
+        expect(resultA.actualCostPaid).toBe(150);
+        // Line B: 1 pending invoice
+        const resultB = result.find((r) => r.id === lineB.id)!;
+        expect(resultB.invoiceCount).toBe(1);
+        expect(resultB.actualCost).toBe(75);
+        expect(resultB.actualCostPaid).toBe(0); // pending does not count
       });
     });
 
@@ -853,7 +869,7 @@ describe('budgetServiceFactory — createBudgetService()', () => {
         const workItemId = insertWorkItem();
         const vendorId = insertVendor();
         const line = createWorkItemBudget(db, workItemId, 'user-001', { plannedAmount: 500 });
-        insertInvoiceForWorkItemBudget(line.id, vendorId);
+        // Each budget line can only link to ONE invoice (partial UNIQUE index on work_item_budget_id)
         insertInvoiceForWorkItemBudget(line.id, vendorId);
 
         let caughtError: BudgetLineInUseError | undefined;
@@ -865,7 +881,7 @@ describe('budgetServiceFactory — createBudgetService()', () => {
 
         expect(caughtError).toBeDefined();
         expect(caughtError).toBeInstanceOf(BudgetLineInUseError);
-        expect(caughtError?.details?.invoiceCount).toBe(2);
+        expect(caughtError?.details?.invoiceCount).toBe(1);
       });
 
       it('cannot delete a budget line belonging to a different work item', () => {
@@ -925,17 +941,35 @@ describe('budgetServiceFactory — createBudgetService()', () => {
     it('actualCostPaid includes only paid and claimed invoices, not pending', () => {
       const workItemId = insertWorkItem();
       const vendorId = insertVendor();
-      const line = createWorkItemBudget(db, workItemId, 'user-001', { plannedAmount: 1000 });
+      // Each budget line can only link to ONE invoice (partial UNIQUE index on work_item_budget_id).
+      // Use three separate budget lines — one per invoice status.
+      const linePending = createWorkItemBudget(db, workItemId, 'user-001', {
+        plannedAmount: 300,
+        description: 'Pending line',
+      });
+      const linePaid = createWorkItemBudget(db, workItemId, 'user-001', {
+        plannedAmount: 500,
+        description: 'Paid line',
+      });
+      const lineClaimed = createWorkItemBudget(db, workItemId, 'user-001', {
+        plannedAmount: 700,
+        description: 'Claimed line',
+      });
 
-      insertInvoiceForWorkItemBudget(line.id, vendorId, { amount: 100, status: 'pending' });
-      insertInvoiceForWorkItemBudget(line.id, vendorId, { amount: 200, status: 'paid' });
-      insertInvoiceForWorkItemBudget(line.id, vendorId, { amount: 300, status: 'claimed' });
+      insertInvoiceForWorkItemBudget(linePending.id, vendorId, { amount: 100, status: 'pending' });
+      insertInvoiceForWorkItemBudget(linePaid.id, vendorId, { amount: 200, status: 'paid' });
+      insertInvoiceForWorkItemBudget(lineClaimed.id, vendorId, { amount: 300, status: 'claimed' });
 
       const result = listWorkItemBudgets(db, workItemId);
 
-      expect(result[0].actualCost).toBe(600); // all three: 100+200+300
-      expect(result[0].actualCostPaid).toBe(500); // only paid + claimed: 200+300
-      expect(result[0].invoiceCount).toBe(3);
+      // Verify across all three lines: total actualCost and actualCostPaid
+      const totalActualCost = result.reduce((sum, r) => sum + r.actualCost, 0);
+      const totalActualCostPaid = result.reduce((sum, r) => sum + r.actualCostPaid, 0);
+      const totalInvoiceCount = result.reduce((sum, r) => sum + r.invoiceCount, 0);
+
+      expect(totalActualCost).toBe(600); // all three: 100+200+300
+      expect(totalActualCostPaid).toBe(500); // only paid + claimed: 200+300
+      expect(totalInvoiceCount).toBe(3);
     });
 
     it('returns 0 for all aggregates when no invoices are linked', () => {
