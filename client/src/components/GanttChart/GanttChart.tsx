@@ -602,12 +602,12 @@ export function GanttChart({
   /**
    * Map from HI ID to its circle center position in SVG coordinates.
    * Mirrors the positioning logic in GanttHouseholdItems: each HI occupies
-   * its own row in the unified row list. The x position uses earliestDeliveryDate.
+   * its own row in the unified row list. The x position uses the best available date.
    */
   const hiPoints = useMemo<ReadonlyMap<string, { x: number; y: number }>>(() => {
     const map = new Map<string, { x: number; y: number }>();
     for (const hi of data.householdItems ?? []) {
-      const dateStr = hi.actualDeliveryDate ?? hi.earliestDeliveryDate;
+      const dateStr = hi.actualDeliveryDate ?? hi.targetDeliveryDate ?? hi.earliestDeliveryDate;
       if (!dateStr) continue;
       const rowIdx = hiRowIndices.get(hi.id) ?? 0;
       const y = rowIdx * ROW_HEIGHT + ROW_HEIGHT / 2;
