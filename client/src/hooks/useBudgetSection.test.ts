@@ -35,8 +35,7 @@ const mockDeleteBudget = jest.fn<() => Promise<void>>();
 const mockReloadBudgetLines = jest.fn<() => Promise<void>>();
 const mockReloadSubsidyPayback = jest.fn<() => Promise<void>>();
 const mockReloadLinkedSubsidies = jest.fn<() => Promise<void>>();
-const mockToFormState =
-  jest.fn<(line: TestBudgetLine) => BudgetLineFormState>();
+const mockToFormState = jest.fn<(line: TestBudgetLine) => BudgetLineFormState>();
 const mockToPayload = jest.fn<() => CreateBudgetLineRequest>();
 
 import type * as UseBudgetSectionModule from './useBudgetSection.js';

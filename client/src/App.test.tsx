@@ -325,7 +325,11 @@ describe('App', () => {
     // /budget/categories now redirects to /settings/manage?tab=budget-categories
     // ManagePage renders an h1 heading of "Manage"
     // Extended timeout: requires lazy-load of ManagePage after redirect from /budget/categories
-    const heading = await screen.findByRole('heading', { name: /^manage$/i, level: 1 }, { timeout: 5000 });
+    const heading = await screen.findByRole(
+      'heading',
+      { name: /^manage$/i, level: 1 },
+      { timeout: 5000 },
+    );
     expect(heading).toBeInTheDocument();
   });
 

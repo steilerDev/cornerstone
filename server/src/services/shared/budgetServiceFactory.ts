@@ -77,7 +77,12 @@ export function resolveRelations(
   };
 }
 
-export interface BudgetServiceFactoryConfig<_EntityRow, BudgetLine, _CreateRequest, _UpdateRequest> {
+export interface BudgetServiceFactoryConfig<
+  _EntityRow,
+  BudgetLine,
+  _CreateRequest,
+  _UpdateRequest,
+> {
   budgetTable: SQLiteTable;
   budgetEntityIdColumn: string;
   invoiceHandler?: {
