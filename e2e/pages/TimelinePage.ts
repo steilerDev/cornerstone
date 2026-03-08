@@ -120,8 +120,8 @@ export class TimelinePage {
     // Toolbar controls
     this.arrowsToggleButton = page.getByLabel(/dependency arrows/i);
     this.zoomToolbar = page.getByRole('toolbar', { name: 'Zoom level' });
-    this.ganttViewButton = page.getByLabel('Gantt view');
-    this.calendarViewButton = page.getByLabel('Calendar view');
+    this.ganttViewButton = page.getByTestId('schedule-view-gantt');
+    this.calendarViewButton = page.getByTestId('schedule-view-calendar');
     this.milestonePanelButton = page.getByTestId('milestones-panel-button');
 
     // Chart area states
