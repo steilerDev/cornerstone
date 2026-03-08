@@ -17,7 +17,6 @@
 
 import type { Page, Route } from '@playwright/test';
 import { test, expect } from '../../fixtures/auth.js';
-import { API } from '../../fixtures/testData.js';
 import { createWorkItemViaApi, deleteWorkItemViaApi } from '../../fixtures/apiHelpers.js';
 
 // ─── Mock data ──────────────────────────────────────────────────────────────

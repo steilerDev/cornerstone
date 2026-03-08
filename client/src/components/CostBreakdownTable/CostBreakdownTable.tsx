@@ -141,47 +141,6 @@ function ConfidenceBadge({ confidence }: { confidence: ConfidenceLevel }) {
 }
 
 /**
- * Renders a cost value based on costDisplay mode.
- * Note: For 'projected' mode, uses neutral color (not valuePositive) per accessibility requirements.
- */
-function CostDisplay({
-  costDisplay,
-  projectedMin,
-  projectedMax,
-  actualCost,
-  perspective,
-}: {
-  costDisplay: 'actual' | 'projected' | 'mixed';
-  projectedMin: number;
-  projectedMax: number;
-  actualCost: number;
-  perspective: CostPerspective;
-}) {
-  const isPositive = actualCost >= 0 && projectedMax >= 0;
-  const perspectiveValue = resolveProjected(projectedMin, projectedMax, perspective);
-
-  if (costDisplay === 'actual') {
-    return (
-      <span className={isPositive ? styles.valuePositive : styles.valueNegative}>
-        Actual: {formatCurrency(actualCost)}
-      </span>
-    );
-  }
-
-  if (costDisplay === 'projected') {
-    return <span>{formatCurrency(perspectiveValue)}</span>;
-  }
-
-  // mixed
-  return (
-    <div className={styles.costMixedWrapper}>
-      <span className={styles.valuePositive}>Actual: {formatCurrency(actualCost)}</span>
-      <span>Projected: {formatCurrency(perspectiveValue)}</span>
-    </div>
-  );
-}
-
-/**
  * Renders a single budget line row (Level 3).
  */
 function BudgetLineRow({

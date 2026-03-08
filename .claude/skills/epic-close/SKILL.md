@@ -51,6 +51,19 @@ Include:
 
 Post this report as a comment on the epic GitHub Issue. Include it in the promotion PR body (Step 8).
 
+### 2b. Lint Health Check
+
+Check the most recent auto-fix workflow run for unfixable lint issues:
+
+```bash
+# Get the latest auto-fix run ID
+RUN_ID=$(gh run list --workflow=auto-fix.yml --limit=1 --json databaseId --jq '.[0].databaseId')
+# Extract lint errors and warnings
+gh run view "$RUN_ID" --log 2>/dev/null | grep -E '##\[(warning|error)\]' | grep -v 'Process completed'
+```
+
+If there are unfixable lint errors or warnings, include them in the refinement items (step 3). These should be addressed in the refinement PR alongside any review observations.
+
 ### 3. Collect Refinement Items
 
 Review all story PRs for non-blocking review comments — observations that were noted during review but not required for merge. Collect these into a list of refinement items.
