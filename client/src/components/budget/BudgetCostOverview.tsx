@@ -1,5 +1,5 @@
 import type { BaseBudgetLine } from '@cornerstone/shared';
-import { computeBudgetTotals, type BudgetTotals } from '../../lib/budgetConstants.js';
+import { computeBudgetTotals } from '../../lib/budgetConstants.js';
 import { formatCurrency } from '../../lib/formatters.js';
 import styles from './BudgetCostOverview.module.css';
 
@@ -27,7 +27,7 @@ function formatRange(min: number, max: number): string {
 export function BudgetCostOverview({ budgetLines, subsidyPayback }: BudgetCostOverviewProps) {
   if (budgetLines.length === 0) return null;
 
-  const { totalPlanned, totalActualCost, totalMinPlanned, totalMaxPlanned, hasPlannedRange } =
+  const { totalPlanned, totalMinPlanned, totalMaxPlanned, hasPlannedRange, allInvoiced } =
     computeBudgetTotals(budgetLines);
 
   const hasSubsidyPayback =
@@ -45,85 +45,49 @@ export function BudgetCostOverview({ budgetLines, subsidyPayback }: BudgetCostOv
     : totalMaxPlanned;
 
   return (
-    <>
-      <div className={styles.budgetSummary}>
-        <div className={styles.propertyGrid}>
-          {/* Expected Cost — always shown as primary value */}
-          <div className={styles.property}>
-            <span className={styles.propertyLabel}>Expected Cost</span>
-            <span
-              className={
-                hasSubsidyPayback ? styles.budgetValueHighlighted : styles.budgetValue
-              }
-            >
-              {formatRange(expectedCostMin, expectedCostMax)}
-            </span>
-          </div>
-
-          {/* Planned Range — shown when subsidies exist (so user sees pre-payback range) */}
-          {hasSubsidyPayback && (
-            <div className={styles.property}>
-              <span className={styles.propertyLabel}>Planned Range</span>
-              <span className={styles.budgetValueMuted}>
-                {hasPlannedRange
-                  ? `${formatCurrency(totalMinPlanned)} – ${formatCurrency(totalMaxPlanned)}`
-                  : formatCurrency(totalPlanned)}
-              </span>
-            </div>
-          )}
-
-          {/* Total Actual Cost — shown when any invoices exist */}
-          {totalActualCost > 0 && (
-            <div className={styles.property}>
-              <span className={styles.propertyLabel}>Total Actual Cost</span>
-              <span className={styles.budgetValue}>{formatCurrency(totalActualCost)}</span>
-            </div>
-          )}
-
-          <div className={styles.property}>
-            <span className={styles.propertyLabel}>Lines</span>
-            <span className={styles.budgetValue}>{budgetLines.length}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Expected Subsidy Payback — shown when non-rejected subsidies are linked */}
-      {subsidyPayback !== null && subsidyPayback.subsidies.length > 0 && (
-        <div
-          className={`${styles.subsidyPaybackRow} ${subsidyPayback.maxTotalPayback > 0 ? styles.subsidyPaybackRowActive : styles.subsidyPaybackRowZero}`}
-        >
-          <span className={styles.subsidyPaybackLabel}>Expected Payback</span>
+    <div className={styles.budgetSummary}>
+      <div className={styles.summaryRows}>
+        {/* Expected Cost — always shown as primary value */}
+        <div className={styles.summaryRow}>
+          <span className={styles.summaryLabel}>Expected Cost</span>
           <span
-            className={styles.subsidyPaybackAmount}
-            aria-live="polite"
-            aria-atomic="true"
-            aria-label={
-              subsidyPayback.minTotalPayback === subsidyPayback.maxTotalPayback
-                ? `Expected subsidy payback: ${formatCurrency(subsidyPayback.minTotalPayback)}`
-                : `Expected subsidy payback: ${formatCurrency(subsidyPayback.minTotalPayback)} to ${formatCurrency(subsidyPayback.maxTotalPayback)}`
+            className={
+              hasSubsidyPayback ? styles.budgetValueHighlighted : styles.budgetValue
             }
           >
-            {formatRange(subsidyPayback.minTotalPayback, subsidyPayback.maxTotalPayback)}
+            {formatRange(expectedCostMin, expectedCostMax)}
           </span>
-          {subsidyPayback.subsidies.length > 0 && (
-            <div className={styles.subsidyPaybackChips} aria-label="Per-subsidy breakdown">
-              {subsidyPayback.subsidies.map((entry) => (
-                <span
-                  key={entry.subsidyProgramId}
-                  className={styles.subsidyPaybackChip}
-                  aria-label={
-                    entry.minPayback === entry.maxPayback
-                      ? `${entry.name}: ${formatCurrency(entry.minPayback)}`
-                      : `${entry.name}: ${formatCurrency(entry.minPayback)} to ${formatCurrency(entry.maxPayback)}`
-                  }
-                >
-                  {entry.name}: {formatRange(entry.minPayback, entry.maxPayback)}
-                </span>
-              ))}
-            </div>
-          )}
         </div>
-      )}
-    </>
+
+        {/* Planned Range — always shown; struck-through only when ALL lines are invoiced */}
+        <div className={styles.summaryRow}>
+          <span className={styles.summaryLabel}>Planned Range</span>
+          <span className={allInvoiced ? styles.budgetValueMuted : styles.budgetValue}>
+            {hasPlannedRange
+              ? `${formatCurrency(totalMinPlanned)} – ${formatCurrency(totalMaxPlanned)}`
+              : formatCurrency(totalPlanned)}
+          </span>
+        </div>
+
+        {/* Expected Payback — shown below planned range when subsidies apply */}
+        {hasSubsidyPayback && (
+          <div className={styles.summaryRow}>
+            <span className={styles.summaryLabel}>Expected Payback</span>
+            <span
+              className={styles.budgetValuePayback}
+              aria-live="polite"
+              aria-atomic="true"
+              aria-label={
+                subsidyPayback!.minTotalPayback === subsidyPayback!.maxTotalPayback
+                  ? `Expected subsidy payback: ${formatCurrency(subsidyPayback!.minTotalPayback)}`
+                  : `Expected subsidy payback: ${formatCurrency(subsidyPayback!.minTotalPayback)} to ${formatCurrency(subsidyPayback!.maxTotalPayback)}`
+              }
+            >
+              {formatRange(subsidyPayback!.minTotalPayback, subsidyPayback!.maxTotalPayback)}
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

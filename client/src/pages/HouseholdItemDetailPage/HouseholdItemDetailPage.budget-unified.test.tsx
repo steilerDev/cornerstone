@@ -5,11 +5,10 @@
  *
  * Verifies that the HouseholdItemDetailPage renders a single "Budget" section that:
  *   1. Has no separate top-level "Subsidies" h2 heading (only an h3 subsection)
- *   2. Shows propertyGrid with Expected Cost, Planned Range (with subsidies), Total Actual Cost, Expected Payback, Lines
+ *   2. Shows summary rows: Expected Cost, Planned Range, Expected Payback (when subsidies linked)
  *   3. Shows Expected Payback only when subsidies are linked
  *   4. Shows Expected Cost reflecting net value (planned minus payback) when subsidies linked
- *   5. Shows per-subsidy chips in the payback row
- *   6. Always shows Lines count when budget lines exist
+ *   5. Planned Range is struck-through only when ALL budget lines have invoices
  */
 
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
@@ -390,7 +389,7 @@ describe('HouseholdItemDetailPage — unified Budget section (issue #566)', () =
   // ─── Scenario 2: Budget summary — planned only, no actuals, no subsidies ────
 
   describe('Scenario 2: budget summary — planned only (no actuals, no subsidies)', () => {
-    it('shows Expected Cost label when a budget line has a confidence margin', async () => {
+    it('shows Expected Cost and Planned Range when a budget line exists', async () => {
       mockGetHouseholdItem.mockResolvedValue(makeItem());
       mockFetchHouseholdItemBudgets.mockResolvedValue([
         makeBudgetLine({
@@ -409,29 +408,14 @@ describe('HouseholdItemDetailPage — unified Budget section (issue #566)', () =
       });
 
       expect(screen.getByText('Expected Cost')).toBeInTheDocument();
+      expect(screen.getByText('Planned Range')).toBeInTheDocument();
     });
 
-    it('does NOT show Total Actual Cost when all invoiceCounts are 0', async () => {
+    it('does NOT show Expected Payback when no subsidies are linked', async () => {
       mockGetHouseholdItem.mockResolvedValue(makeItem());
       mockFetchHouseholdItemBudgets.mockResolvedValue([
         makeBudgetLine({ plannedAmount: 500, invoiceCount: 0, actualCost: 0 }),
       ]);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      expect(screen.queryByText('Total Actual Cost')).not.toBeInTheDocument();
-    });
-
-    it('does NOT show Expected Payback property when no subsidies are linked', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockFetchHouseholdItemBudgets.mockResolvedValue([
-        makeBudgetLine({ plannedAmount: 500, invoiceCount: 0, actualCost: 0 }),
-      ]);
-      // Default: subsidyPayback has empty subsidies array → hasSubsidyPayback = false
 
       renderPage();
 
@@ -461,7 +445,7 @@ describe('HouseholdItemDetailPage — unified Budget section (issue #566)', () =
   // ─── Scenario 3: Actuals present + subsidies linked ─────────────────────────
 
   describe('Scenario 3: actuals present + subsidies linked', () => {
-    it('shows Total Actual Cost property when any budget line has invoices', async () => {
+    it('shows Expected Payback row when subsidies are linked', async () => {
       mockGetHouseholdItem.mockResolvedValue(makeItem());
       mockFetchHouseholdItemBudgets.mockResolvedValue([
         makeBudgetLine({ plannedAmount: 500, actualCost: 400, invoiceCount: 1 }),
@@ -480,10 +464,10 @@ describe('HouseholdItemDetailPage — unified Budget section (issue #566)', () =
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      expect(screen.getByText('Total Actual Cost')).toBeInTheDocument();
+      expect(screen.getByText('Expected Payback')).toBeInTheDocument();
     });
 
-    it('shows Expected Payback property when subsidies are linked', async () => {
+    it('shows Expected Cost with correct net value when subsidies linked AND invoiced', async () => {
       mockGetHouseholdItem.mockResolvedValue(makeItem());
       mockFetchHouseholdItemBudgets.mockResolvedValue([
         makeBudgetLine({ plannedAmount: 500, actualCost: 400, invoiceCount: 1 }),
@@ -502,40 +486,16 @@ describe('HouseholdItemDetailPage — unified Budget section (issue #566)', () =
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      // The label appears in both the propertyGrid row and the payback chip row
-      expect(screen.getAllByText('Expected Payback').length).toBeGreaterThanOrEqual(1);
-    });
-
-    it('shows Expected Cost property when subsidies are linked AND totalActualCost > 0', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockFetchHouseholdItemBudgets.mockResolvedValue([
-        makeBudgetLine({ plannedAmount: 500, actualCost: 400, invoiceCount: 1 }),
-      ]);
-      mockFetchHouseholdItemSubsidyPayback.mockResolvedValue(
-        makeSubsidyPayback({
-          minTotalPayback: 100,
-          maxTotalPayback: 120,
-          subsidies: [makeSubsidyEntry()],
-        }),
-      );
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      // Expected Cost = minPlanned - maxPayback to maxPlanned - minPayback
       // Invoiced line: min=max=400; payback 100-120 → 400-120=280 to 400-100=300
       expect(screen.getByText('Expected Cost')).toBeInTheDocument();
       expect(screen.getByText(/€280.00.*€300.00/)).toBeInTheDocument();
     });
   });
 
-  // ─── Scenario 4: Subsidy payback row with per-subsidy chips ─────────────────
+  // ─── Scenario 4: Expected Payback visibility ───────────────────────────────
 
-  describe('Scenario 4: subsidy payback row with per-subsidy chips', () => {
-    it('shows Expected Payback label in the payback row when subsidies are linked', async () => {
+  describe('Scenario 4: Expected Payback visibility', () => {
+    it('shows Expected Payback as a summary row when subsidies are linked', async () => {
       mockGetHouseholdItem.mockResolvedValue(makeItem());
       mockFetchHouseholdItemBudgets.mockResolvedValue([
         makeBudgetLine({ plannedAmount: 500, invoiceCount: 0, actualCost: 0 }),
@@ -561,74 +521,7 @@ describe('HouseholdItemDetailPage — unified Budget section (issue #566)', () =
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      // The payback row label appears (the label text is in the row, separate from the propertyGrid)
-      expect(screen.getAllByText('Expected Payback').length).toBeGreaterThanOrEqual(1);
-    });
-
-    it('shows the per-subsidy chip text containing the subsidy name', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockFetchHouseholdItemBudgets.mockResolvedValue([
-        makeBudgetLine({ plannedAmount: 500, invoiceCount: 0, actualCost: 0 }),
-      ]);
-      mockFetchHouseholdItemSubsidyPayback.mockResolvedValue(
-        makeSubsidyPayback({
-          minTotalPayback: 50,
-          maxTotalPayback: 80,
-          subsidies: [
-            makeSubsidyEntry({
-              subsidyProgramId: 'sp-1',
-              name: 'Solar Subsidy',
-              minPayback: 50,
-              maxPayback: 80,
-            }),
-          ],
-        }),
-      );
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      // The chip renders subsidy name: amount
-      expect(screen.getByText(/Solar Subsidy/)).toBeInTheDocument();
-    });
-
-    it('shows a chip for each linked subsidy program', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockFetchHouseholdItemBudgets.mockResolvedValue([
-        makeBudgetLine({ plannedAmount: 500, invoiceCount: 0, actualCost: 0 }),
-      ]);
-      mockFetchHouseholdItemSubsidyPayback.mockResolvedValue(
-        makeSubsidyPayback({
-          minTotalPayback: 130,
-          maxTotalPayback: 180,
-          subsidies: [
-            makeSubsidyEntry({
-              subsidyProgramId: 'sp-1',
-              name: 'Solar Subsidy',
-              minPayback: 50,
-              maxPayback: 80,
-            }),
-            makeSubsidyEntry({
-              subsidyProgramId: 'sp-2',
-              name: 'Green Renovation Grant',
-              minPayback: 80,
-              maxPayback: 100,
-            }),
-          ],
-        }),
-      );
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      expect(screen.getByText(/Solar Subsidy/)).toBeInTheDocument();
-      expect(screen.getByText(/Green Renovation Grant/)).toBeInTheDocument();
+      expect(screen.getByText('Expected Payback')).toBeInTheDocument();
     });
 
     it('does NOT show the payback row when no subsidies are linked', async () => {
@@ -636,7 +529,6 @@ describe('HouseholdItemDetailPage — unified Budget section (issue #566)', () =
       mockFetchHouseholdItemBudgets.mockResolvedValue([
         makeBudgetLine({ plannedAmount: 500, invoiceCount: 0, actualCost: 0 }),
       ]);
-      // Default: subsidyPayback with empty subsidies array → hasSubsidyPayback = false
 
       renderPage();
 
@@ -651,10 +543,10 @@ describe('HouseholdItemDetailPage — unified Budget section (issue #566)', () =
   // ─── Scenario 5: Net Cost visibility rules ───────────────────────────────────
 
   describe('Scenario 5: Expected Cost reflects net value when subsidies linked', () => {
-    it('shows Expected Cost with net value when subsidies linked but totalActualCost is 0', async () => {
+    it('shows Expected Cost with net value when subsidies linked but no invoices', async () => {
       mockGetHouseholdItem.mockResolvedValue(makeItem());
       mockFetchHouseholdItemBudgets.mockResolvedValue([
-        // No invoices → totalActualCost = 0, own_estimate 500: min=400, max=600
+        // No invoices → own_estimate 500: min=400, max=600
         makeBudgetLine({ plannedAmount: 500, actualCost: 0, invoiceCount: 0 }),
       ]);
       mockFetchHouseholdItemSubsidyPayback.mockResolvedValue(
@@ -677,7 +569,7 @@ describe('HouseholdItemDetailPage — unified Budget section (issue #566)', () =
       expect(screen.getByText(/€280.00.*€500.00/)).toBeInTheDocument();
     });
 
-    it('shows Expected Cost with net value when subsidies linked AND totalActualCost > 0', async () => {
+    it('shows Expected Cost with net value when subsidies linked AND invoiced', async () => {
       mockGetHouseholdItem.mockResolvedValue(makeItem());
       mockFetchHouseholdItemBudgets.mockResolvedValue([
         makeBudgetLine({ plannedAmount: 500, actualCost: 400, invoiceCount: 1 }),
@@ -707,7 +599,6 @@ describe('HouseholdItemDetailPage — unified Budget section (issue #566)', () =
       mockFetchHouseholdItemBudgets.mockResolvedValue([
         makeBudgetLine({ plannedAmount: 500, actualCost: 400, invoiceCount: 1 }),
       ]);
-      // Default: subsidyPayback with empty subsidies array → hasSubsidyPayback = false
 
       renderPage();
 
@@ -719,45 +610,10 @@ describe('HouseholdItemDetailPage — unified Budget section (issue #566)', () =
     });
   });
 
-  // ─── Scenario 6: Lines count always shown when budget lines exist ────────────
+  // ─── Scenario 6: Budget overview not shown when no budget lines ──────────────
 
-  describe('Scenario 6: Lines count always shown when budget lines exist', () => {
-    it('shows Lines label with correct count for a single budget line', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem({ quantity: 99 }));
-      mockFetchHouseholdItemBudgets.mockResolvedValue([
-        makeBudgetLine({ id: 'bl-1', plannedAmount: 500, invoiceCount: 0, actualCost: 0 }),
-      ]);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      // "Lines" label is shown in the propertyGrid alongside the count
-      expect(screen.getByText('Lines')).toBeInTheDocument();
-      // "1" is now unambiguous since item quantity is set to 99 to avoid collision
-      expect(screen.getByText('1')).toBeInTheDocument();
-    });
-
-    it('shows Lines label with correct count for multiple budget lines', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem({ budgetLineCount: 2 }));
-      mockFetchHouseholdItemBudgets.mockResolvedValue([
-        makeBudgetLine({ id: 'bl-1', plannedAmount: 300, invoiceCount: 0, actualCost: 0 }),
-        makeBudgetLine({ id: 'bl-2', plannedAmount: 200, invoiceCount: 0, actualCost: 0 }),
-      ]);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      expect(screen.getByText('Lines')).toBeInTheDocument();
-      expect(screen.getByText('2')).toBeInTheDocument();
-    });
-
-    it('does NOT show Lines label when there are no budget lines', async () => {
+  describe('Scenario 6: budget overview visibility', () => {
+    it('does NOT show budget overview when there are no budget lines', async () => {
       mockGetHouseholdItem.mockResolvedValue(
         makeItem({ budgetLineCount: 0, totalPlannedAmount: 0 }),
       );
@@ -769,8 +625,9 @@ describe('HouseholdItemDetailPage — unified Budget section (issue #566)', () =
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      // The propertyGrid is only rendered when budgetLines.length > 0
-      expect(screen.queryByText('Lines')).not.toBeInTheDocument();
+      // The overview is only rendered when budgetLines.length > 0
+      expect(screen.queryByText('Expected Cost')).not.toBeInTheDocument();
+      expect(screen.queryByText('Planned Range')).not.toBeInTheDocument();
     });
   });
 });

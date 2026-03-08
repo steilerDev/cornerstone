@@ -24,6 +24,7 @@ export interface BudgetTotals {
   totalMinPlanned: number;
   totalMaxPlanned: number;
   hasPlannedRange: boolean;
+  allInvoiced: boolean;
 }
 
 /**
@@ -50,6 +51,7 @@ export function computeBudgetTotals(budgetLines: BaseBudgetLine[]): BudgetTotals
   }, 0);
 
   const hasPlannedRange = Math.abs(totalMaxPlanned - totalMinPlanned) > 0.01;
+  const allInvoiced = budgetLines.length > 0 && budgetLines.every((b) => b.invoiceCount > 0);
 
-  return { totalPlanned, totalActualCost, totalMinPlanned, totalMaxPlanned, hasPlannedRange };
+  return { totalPlanned, totalActualCost, totalMinPlanned, totalMaxPlanned, hasPlannedRange, allInvoiced };
 }
