@@ -1349,35 +1349,34 @@ export default function WorkItemDetailPage() {
                     </button>
                     {invoicePopoverBudgetId === line.id && (
                       <div className={styles.invoicePopover} role="listbox">
-                        <div className={styles.invoicePopoverHeader}>Invoices</div>
-                        {line.invoices.map((inv) => (
+                        <div className={styles.invoicePopoverHeader}>Invoice</div>
+                        {line.invoiceLink ? (
                           <Link
-                            key={inv.id}
-                            to={`/budget/invoices/${inv.id}`}
+                            to={`/budget/invoices/${line.invoiceLink.invoiceId}`}
                             className={styles.invoicePopoverItem}
                             onClick={() => setInvoicePopoverBudgetId(null)}
                           >
                             <div className={styles.invoicePopoverItemRow}>
                               <span className={styles.invoicePopoverItemNumber}>
-                                {inv.invoiceNumber ? `#${inv.invoiceNumber}` : 'No #'}
+                                {line.invoiceLink.invoiceNumber ? `#${line.invoiceLink.invoiceNumber}` : 'No #'}
                               </span>
                               <span className={styles.invoicePopoverItemAmount}>
-                                {formatCurrency(inv.amount)}
+                                {formatCurrency(line.invoiceLink.itemizedAmount)}
                               </span>
                             </div>
                             <div className={styles.invoicePopoverItemMeta}>
-                              {inv.vendorName && <span>{inv.vendorName}</span>}
-                              {inv.vendorName && <span>·</span>}
-                              <span>{inv.date.slice(0, 10)}</span>
+                              <span>{line.invoiceLink.invoiceDate.slice(0, 10)}</span>
                               <span>·</span>
                               <span
-                                className={`${styles.invoicePopoverStatusBadge} ${styles[`invoicePopoverStatus_${inv.status}`]}`}
+                                className={`${styles.invoicePopoverStatusBadge} ${styles[`invoicePopoverStatus_${line.invoiceLink.invoiceStatus}`]}`}
                               >
-                                {inv.status}
+                                {line.invoiceLink.invoiceStatus}
                               </span>
                             </div>
                           </Link>
-                        ))}
+                        ) : (
+                          <div className={styles.invoicePopoverEmpty}>No invoice linked</div>
+                        )}
                       </div>
                     )}
                   </div>

@@ -100,7 +100,7 @@ describe('VendorDetailPage', () => {
     actualCost: 0,
     actualCostPaid: 0,
     invoiceCount: 0,
-    invoices: [],
+    invoiceLink: null,
     createdBy: null,
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
