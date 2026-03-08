@@ -57,6 +57,7 @@ import { useToast } from '../../components/Toast/ToastContext.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
 import { useBudgetSection, type BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 import { BudgetSection } from '../../components/budget/BudgetSection.js';
+import { ProjectSubNav } from '../../components/ProjectSubNav/ProjectSubNav.js';
 import styles from './HouseholdItemDetailPage.module.css';
 
 export function HouseholdItemDetailPage() {
@@ -560,7 +561,7 @@ export function HouseholdItemDetailPage() {
     try {
       await deleteHouseholdItem(item.id);
       showToast('success', 'Household item deleted successfully');
-      navigate('/household-items');
+      navigate('/project/household-items');
     } catch (err) {
       if (err instanceof ApiClientError) {
         setDeleteError(err.error.message);
@@ -606,7 +607,7 @@ export function HouseholdItemDetailPage() {
             <button
               type="button"
               className={styles.secondaryButton}
-              onClick={() => navigate('/household-items')}
+              onClick={() => navigate('/project/household-items')}
             >
               Back to Household Items
             </button>
@@ -626,7 +627,7 @@ export function HouseholdItemDetailPage() {
             <button
               type="button"
               className={styles.secondaryButton}
-              onClick={() => navigate('/household-items')}
+              onClick={() => navigate('/project/household-items')}
             >
               Back to Household Items
             </button>
@@ -648,7 +649,7 @@ export function HouseholdItemDetailPage() {
       <div className={styles.content}>
         {/* Breadcrumb */}
         <div className={styles.breadcrumb}>
-          <Link to="/household-items" className={styles.backLink}>
+          <Link to="/project/household-items" className={styles.backLink}>
             Household Items
           </Link>
           <span className={styles.breadcrumbSeparator} aria-hidden="true">
@@ -656,6 +657,7 @@ export function HouseholdItemDetailPage() {
           </span>
           <span className={styles.breadcrumbCurrent}>{item.name}</span>
         </div>
+        <ProjectSubNav />
 
         {/* Page header */}
         <div className={styles.pageHeader}>
@@ -672,7 +674,7 @@ export function HouseholdItemDetailPage() {
             <button
               type="button"
               className={styles.editButton}
-              onClick={() => navigate(`/household-items/${item.id}/edit`)}
+              onClick={() => navigate(`/project/household-items/${item.id}/edit`)}
             >
               Edit
             </button>
@@ -1058,7 +1060,7 @@ export function HouseholdItemDetailPage() {
                       {dep.predecessorType === 'work_item' ? 'Work Item' : 'Milestone'}
                     </span>
                     {dep.predecessorType === 'work_item' ? (
-                      <Link to={`/work-items/${dep.predecessorId}`} className={styles.depPredLink}>
+                      <Link to={`/project/work-items/${dep.predecessorId}`} className={styles.depPredLink}>
                         {dep.predecessor.title}
                       </Link>
                     ) : (

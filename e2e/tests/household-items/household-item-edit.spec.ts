@@ -1,5 +1,5 @@
 /**
- * E2E tests for the Household Item Edit page (/household-items/:id/edit)
+ * E2E tests for the Household Item Edit page (/project/household-items/:id/edit)
  *
  * EPIC-04 Story 4.4: Create & Edit Form
  *
@@ -28,7 +28,7 @@ test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
         name: `${testPrefix} HI Edit Heading Test`,
       });
 
-      await page.goto(`/household-items/${createdId}/edit`);
+      await page.goto(`/project/household-items/${createdId}/edit`);
 
       const heading = page.getByRole('heading', { level: 1, name: 'Edit Household Item' });
       await expect(heading).toBeVisible({ timeout: 10000 });
@@ -45,7 +45,7 @@ test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
         name: `${testPrefix} HI Edit Buttons Test`,
       });
 
-      await page.goto(`/household-items/${createdId}/edit`);
+      await page.goto(`/project/household-items/${createdId}/edit`);
       await page.getByRole('heading', { level: 1, name: 'Edit Household Item' }).waitFor({
         state: 'visible',
         timeout: 10000,
@@ -73,7 +73,7 @@ test.describe('Form pre-population (Scenario 2)', { tag: '@responsive' }, () => 
     try {
       createdId = await createHouseholdItemViaApi(page, { name, category: 'hic-furniture' });
 
-      await page.goto(`/household-items/${createdId}/edit`);
+      await page.goto(`/project/household-items/${createdId}/edit`);
       await page.getByRole('heading', { level: 1, name: 'Edit Household Item' }).waitFor({
         state: 'visible',
         timeout: 10000,
@@ -104,7 +104,7 @@ test.describe('Back button navigation (Scenario 3)', { tag: '@responsive' }, () 
         name: `${testPrefix} HI Edit Back Test`,
       });
 
-      await page.goto(`/household-items/${createdId}/edit`);
+      await page.goto(`/project/household-items/${createdId}/edit`);
       await page.getByRole('heading', { level: 1, name: 'Edit Household Item' }).waitFor({
         state: 'visible',
         timeout: 10000,
@@ -115,8 +115,8 @@ test.describe('Back button navigation (Scenario 3)', { tag: '@responsive' }, () 
       await backButton.click();
 
       // Should navigate to the detail page
-      await page.waitForURL(`**/household-items/${createdId}`);
-      expect(page.url()).toContain(`/household-items/${createdId}`);
+      await page.waitForURL(`**/project/household-items/${createdId}`);
+      expect(page.url()).toContain(`/project/household-items/${createdId}`);
       expect(page.url()).not.toContain('/edit');
     } finally {
       if (createdId) await deleteHouseholdItemViaApi(page, createdId);
@@ -139,7 +139,7 @@ test.describe('Save changes — happy path (Scenario 4)', { tag: '@responsive' }
     try {
       createdId = await createHouseholdItemViaApi(page, { name: originalName });
 
-      await page.goto(`/household-items/${createdId}/edit`);
+      await page.goto(`/project/household-items/${createdId}/edit`);
       await page.getByRole('heading', { level: 1, name: 'Edit Household Item' }).waitFor({
         state: 'visible',
         timeout: 10000,
@@ -161,8 +161,8 @@ test.describe('Save changes — happy path (Scenario 4)', { tag: '@responsive' }
       await saveResponsePromise;
 
       // Should navigate back to the detail page
-      await page.waitForURL(`**/household-items/${createdId}`);
-      expect(page.url()).toContain(`/household-items/${createdId}`);
+      await page.waitForURL(`**/project/household-items/${createdId}`);
+      expect(page.url()).toContain(`/project/household-items/${createdId}`);
       expect(page.url()).not.toContain('/edit');
     } finally {
       if (createdId) await deleteHouseholdItemViaApi(page, createdId);
@@ -182,7 +182,7 @@ test.describe('Validation — empty name (Scenario 5)', { tag: '@responsive' }, 
         name: `${testPrefix} HI Edit Validate Name`,
       });
 
-      await page.goto(`/household-items/${createdId}/edit`);
+      await page.goto(`/project/household-items/${createdId}/edit`);
       await page.getByRole('heading', { level: 1, name: 'Edit Household Item' }).waitFor({
         state: 'visible',
         timeout: 10000,
@@ -213,7 +213,7 @@ test.describe('Validation — empty name (Scenario 5)', { tag: '@responsive' }, 
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('404 state (Scenario 6)', { tag: '@responsive' }, () => {
   test('Navigating to edit page for non-existent item shows not-found state', async ({ page }) => {
-    await page.goto('/household-items/non-existent-id-edit-000/edit');
+    await page.goto('/project/household-items/non-existent-id-edit-000/edit');
 
     // The edit page renders a not-found state when the item doesn't exist.
     // Use .first() to avoid strict mode violation: the page renders both a heading
@@ -235,7 +235,7 @@ test.describe('Responsive layout (Scenario 7)', { tag: '@responsive' }, () => {
         name: `${testPrefix} HI Edit Responsive`,
       });
 
-      await page.goto(`/household-items/${createdId}/edit`);
+      await page.goto(`/project/household-items/${createdId}/edit`);
       await page.getByRole('heading', { level: 1, name: 'Edit Household Item' }).waitFor({
         state: 'visible',
         timeout: 10000,

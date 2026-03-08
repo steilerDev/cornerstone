@@ -833,13 +833,13 @@ test.describe('Page structure and accessibility', { tag: '@responsive' }, () => 
     await expect(categoriesPage.addCategoryButton).toBeDisabled();
   });
 
-  test('Page URL is /manage?tab=budget-categories', async ({ page }) => {
+  test('Page URL is /settings/manage?tab=budget-categories', async ({ page }) => {
     const categoriesPage = new BudgetCategoriesPage(page);
 
     await categoriesPage.goto();
 
-    await page.waitForURL('**/manage?tab=budget-categories');
-    expect(page.url()).toContain('/manage');
+    await page.waitForURL('**/settings/manage?tab=budget-categories');
+    expect(page.url()).toContain('/settings/manage');
     expect(page.url()).toContain('tab=budget-categories');
   });
 
@@ -954,7 +954,7 @@ test.describe('Dark mode rendering (Scenario 10)', { tag: '@responsive' }, () =>
     const categoriesPage = new BudgetCategoriesPage(page);
 
     // Enable dark mode via the data-theme attribute (matches ThemeContext implementation)
-    await page.goto('/manage?tab=budget-categories');
+    await page.goto('/settings/manage?tab=budget-categories');
     await page.evaluate(() => {
       document.documentElement.setAttribute('data-theme', 'dark');
     });
@@ -983,7 +983,7 @@ test.describe('Dark mode rendering (Scenario 10)', { tag: '@responsive' }, () =>
   test('Create form is usable in dark mode', async ({ page }) => {
     const categoriesPage = new BudgetCategoriesPage(page);
 
-    await page.goto('/manage?tab=budget-categories');
+    await page.goto('/settings/manage?tab=budget-categories');
     await page.evaluate(() => {
       document.documentElement.setAttribute('data-theme', 'dark');
     });
@@ -1009,7 +1009,7 @@ test.describe('Dark mode rendering (Scenario 10)', { tag: '@responsive' }, () =>
     try {
       createdId = await createCategoryViaApi(page, categoryName, 992);
 
-      await page.goto('/manage?tab=budget-categories');
+      await page.goto('/settings/manage?tab=budget-categories');
       await page.evaluate(() => {
         document.documentElement.setAttribute('data-theme', 'dark');
       });

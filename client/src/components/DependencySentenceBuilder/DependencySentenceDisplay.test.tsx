@@ -96,7 +96,7 @@ describe('DependencySentenceDisplay', () => {
       });
       renderDisplay([dep], []);
       const link = screen.getByRole('link', { name: 'Framing' });
-      expect(link).toHaveAttribute('href', '/work-items/wi-abc');
+      expect(link).toHaveAttribute('href', '/project/work-items/wi-abc');
     });
   });
 
@@ -139,7 +139,7 @@ describe('DependencySentenceDisplay', () => {
       });
       renderDisplay([], [dep]);
       const link = screen.getByRole('link', { name: 'Electrical' });
-      expect(link).toHaveAttribute('href', '/work-items/wi-xyz');
+      expect(link).toHaveAttribute('href', '/project/work-items/wi-xyz');
     });
   });
 

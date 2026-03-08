@@ -1,5 +1,5 @@
 /**
- * E2E tests for the Household Items list page (/household-items)
+ * E2E tests for the Household Items list page (/project/household-items)
  *
  * EPIC-04 Stories covered:
  * - 4.3: List Page (filtering, sorting, status badges)
@@ -7,7 +7,7 @@
  *
  * Scenarios covered:
  * 1.  Page loads with h1 "Household Items"
- * 2.  "New Item" button navigates to /household-items/new
+ * 2.  "New Item" button navigates to /project/household-items/new
  * 3.  Empty state when no items exist (mocked)
  * 4.  Filter empty state when search matches nothing
  * 5.  Item created via API appears in the list
@@ -47,15 +47,15 @@ test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
     },
   );
 
-  test('Page URL is /household-items', async ({ page }) => {
+  test('Page URL is /project/household-items', async ({ page }) => {
     await page.goto(HOUSEHOLD_ITEMS_ROUTE);
-    await page.waitForURL('/household-items');
-    expect(page.url()).toContain('/household-items');
+    await page.waitForURL('/project/household-items');
+    expect(page.url()).toContain('/project/household-items');
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 2: "New Item" button navigates to /household-items/new
+// Scenario 2: "New Item" button navigates to /project/household-items/new
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('"New Item" navigation (Scenario 2)', { tag: '@responsive' }, () => {
   test('"New Item" button navigates to the create page', async ({ page }) => {
@@ -66,8 +66,8 @@ test.describe('"New Item" navigation (Scenario 2)', { tag: '@responsive' }, () =
 
     await listPage.newItemButton.click();
 
-    await page.waitForURL('**/household-items/new');
-    expect(page.url()).toContain('/household-items/new');
+    await page.waitForURL('**/project/household-items/new');
+    expect(page.url()).toContain('/project/household-items/new');
   });
 });
 

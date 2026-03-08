@@ -20,7 +20,7 @@ test.describe('Authentication Guard - Unauthenticated', () => {
     await expect(page).toHaveURL(ROUTES.login);
   });
 
-  test('Unauthenticated access to /profile redirects to /login', async ({ page }) => {
+  test('Unauthenticated access to /settings/profile redirects to /login', async ({ page }) => {
     // Given: User is not authenticated
 
     // When: User tries to access profile
@@ -30,7 +30,7 @@ test.describe('Authentication Guard - Unauthenticated', () => {
     await expect(page).toHaveURL(ROUTES.login);
   });
 
-  test('Unauthenticated access to /admin/users redirects to /login', async ({ page }) => {
+  test('Unauthenticated access to /settings/users redirects to /login', async ({ page }) => {
     // Given: User is not authenticated
 
     // When: User tries to access user management

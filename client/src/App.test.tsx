@@ -300,16 +300,17 @@ describe('App', () => {
     expect(main).toBeInTheDocument();
   });
 
-  it('shows Dashboard page at root path /', async () => {
+  it('shows Project Overview page at root path / (redirects to /project/overview)', async () => {
     render(<App />);
 
-    // Wait for lazy-loaded Dashboard component to resolve
-    const heading = await screen.findByRole('heading', { name: /dashboard/i });
+    // Wait for lazy-loaded DashboardPage component to resolve
+    // Root redirects to /project which redirects to /project/overview
+    const heading = await screen.findByRole('heading', { name: /project overview/i });
     expect(heading).toBeInTheDocument();
   });
 
-  it('navigates to Work Items page when /work-items path is accessed', async () => {
-    window.history.pushState({}, 'Work Items', '/work-items');
+  it('navigates to Work Items page when /project/work-items path is accessed', async () => {
+    window.history.pushState({}, 'Work Items', '/project/work-items');
     render(<App />);
 
     // Wait for lazy-loaded WorkItems component to resolve
@@ -321,25 +322,25 @@ describe('App', () => {
     window.history.pushState({}, 'Budget Categories', '/budget/categories');
     render(<App />);
 
-    // /budget/categories now redirects to /manage?tab=budget-categories
+    // /budget/categories now redirects to /settings/manage?tab=budget-categories
     // ManagePage renders an h1 heading of "Manage"
     const heading = await screen.findByRole('heading', { name: /^manage$/i, level: 1 });
     expect(heading).toBeInTheDocument();
   });
 
-  it('navigates to Timeline page when /timeline path is accessed', async () => {
-    window.history.pushState({}, 'Timeline', '/timeline');
+  it('navigates to Schedule page when /schedule path is accessed', async () => {
+    window.history.pushState({}, 'Schedule', '/schedule');
     render(<App />);
 
-    // Wait for lazy-loaded Timeline component to resolve.
+    // Wait for lazy-loaded TimelinePage component to resolve.
     // Use an extended timeout because TimelinePage has more static imports
     // (useMilestones, MilestonePanel) which makes the lazy load slower in CI.
-    const heading = await screen.findByRole('heading', { name: /timeline/i }, { timeout: 5000 });
+    const heading = await screen.findByRole('heading', { name: /schedule/i }, { timeout: 5000 });
     expect(heading).toBeInTheDocument();
   });
 
-  it('navigates to Household Items page when /household-items path is accessed', async () => {
-    window.history.pushState({}, 'Household Items', '/household-items');
+  it('navigates to Household Items page when /project/household-items path is accessed', async () => {
+    window.history.pushState({}, 'Household Items', '/project/household-items');
     render(<App />);
 
     // Wait for lazy-loaded HouseholdItems component to resolve.
@@ -351,8 +352,8 @@ describe('App', () => {
     expect(heading).toBeInTheDocument();
   });
 
-  it('navigates to Invoices page when /invoices path is accessed', async () => {
-    window.history.pushState({}, 'Invoices', '/invoices');
+  it('navigates to Invoices page when /budget/invoices path is accessed', async () => {
+    window.history.pushState({}, 'Invoices', '/budget/invoices');
     render(<App />);
 
     // Wait for lazy-loaded Invoices component to resolve

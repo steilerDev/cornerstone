@@ -1,8 +1,8 @@
 /**
- * Page Object Model for the Work Items list page (/work-items)
+ * Page Object Model for the Work Items list page (/project/work-items)
  *
  * The page renders:
- * - A page header with h1 "Work Items" and a "New Work Item" button (navigates to /work-items/new)
+ * - A page header with h1 "Work Items" and a "New Work Item" button (navigates to /project/work-items/new)
  * - A search input and filter/sort controls (status, user, tag, sortBy, sort order toggle)
  * - A data table (desktop, class tableContainer) and card list (mobile, class cardsContainer)
  * - Pagination controls when totalPages > 1
@@ -11,7 +11,7 @@
  * - An error banner (role="alert", class errorBanner) for API errors
  *
  * Key DOM observations from source code:
- * - "New Work Item" is a <button> (not a <Link>) that calls navigate('/work-items/new')
+ * - "New Work Item" is a <button> (not a <Link>) that calls navigate('/project/work-items/new')
  * - The delete modal uses role="dialog" with aria-modal="true" (no aria-labelledby)
  * - The confirm delete button uses class `confirmDeleteButton` (not an accessible name)
  * - Empty state renders an h2: "No work items yet" or "No work items match your filters"
@@ -21,7 +21,7 @@
 
 import type { Page, Locator } from '@playwright/test';
 
-export const WORK_ITEMS_ROUTE = '/work-items';
+export const WORK_ITEMS_ROUTE = '/project/work-items';
 
 export class WorkItemsPage {
   readonly page: Page;

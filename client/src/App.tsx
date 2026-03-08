@@ -1,11 +1,21 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { AppShell } from './components/AppShell/AppShell';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthGuard } from './components/AuthGuard/AuthGuard';
 import { ToastProvider } from './components/Toast/ToastContext';
 import { ToastList } from './components/Toast/Toast';
+
+/** Redirect helper that resolves route params (e.g. :id) into the target path. */
+function ParamRedirect({ to }: { to: string }) {
+  const params = useParams();
+  const resolved = Object.entries(params).reduce(
+    (path, [key, value]) => path.replace(`:${key}`, value ?? ''),
+    to,
+  );
+  return <Navigate to={resolved} replace />;
+}
 
 const SetupPage = lazy(() => import('./pages/SetupPage/SetupPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage/LoginPage'));
@@ -64,33 +74,83 @@ export function App() {
               {/* Protected app routes (with AuthGuard and AppShell wrapper) */}
               <Route element={<AuthGuard />}>
                 <Route element={<AppShell />}>
-                  <Route index element={<DashboardPage />} />
-                  <Route path="work-items" element={<WorkItemsPage />} />
-                  <Route path="work-items/new" element={<WorkItemCreatePage />} />
-                  <Route path="work-items/:id" element={<WorkItemDetailPage />} />
+                  {/* Root redirects to /project */}
+                  <Route index element={<Navigate to="/project" replace />} />
+
+                  {/* Project section */}
+                  <Route path="project">
+                    <Route index element={<Navigate to="overview" replace />} />
+                    <Route path="overview" element={<DashboardPage />} />
+                    <Route path="work-items" element={<WorkItemsPage />} />
+                    <Route path="work-items/new" element={<WorkItemCreatePage />} />
+                    <Route path="work-items/:id" element={<WorkItemDetailPage />} />
+                    <Route path="household-items" element={<HouseholdItemsPage />} />
+                    <Route path="household-items/new" element={<HouseholdItemCreatePage />} />
+                    <Route path="household-items/:id" element={<HouseholdItemDetailPage />} />
+                    <Route path="household-items/:id/edit" element={<HouseholdItemEditPage />} />
+                  </Route>
+
+                  {/* Budget section */}
                   <Route path="budget">
                     <Route index element={<Navigate to="overview" replace />} />
                     <Route path="overview" element={<BudgetOverviewPage />} />
                     <Route
                       path="categories"
-                      element={<Navigate to="/manage?tab=budget-categories" replace />}
+                      element={<Navigate to="/settings/manage?tab=budget-categories" replace />}
                     />
                     <Route path="vendors" element={<VendorsPage />} />
                     <Route path="vendors/:id" element={<VendorDetailPage />} />
                     <Route path="sources" element={<BudgetSourcesPage />} />
                     <Route path="subsidies" element={<SubsidyProgramsPage />} />
+                    <Route path="invoices" element={<InvoicesPage />} />
+                    <Route path="invoices/:id" element={<InvoiceDetailPage />} />
                   </Route>
-                  <Route path="invoices" element={<InvoicesPage />} />
-                  <Route path="invoices/:id" element={<InvoiceDetailPage />} />
-                  <Route path="timeline" element={<TimelinePage />} />
-                  <Route path="household-items" element={<HouseholdItemsPage />} />
-                  <Route path="household-items/new" element={<HouseholdItemCreatePage />} />
-                  <Route path="household-items/:id" element={<HouseholdItemDetailPage />} />
-                  <Route path="household-items/:id/edit" element={<HouseholdItemEditPage />} />
-                  <Route path="manage" element={<ManagePage />} />
-                  <Route path="tags" element={<Navigate to="/manage" replace />} />
-                  <Route path="profile" element={<ProfilePage />} />
-                  <Route path="admin/users" element={<UserManagementPage />} />
+
+                  {/* Schedule (renamed from Timeline) */}
+                  <Route path="schedule" element={<TimelinePage />} />
+
+                  {/* Settings section */}
+                  <Route path="settings">
+                    <Route index element={<Navigate to="profile" replace />} />
+                    <Route path="profile" element={<ProfilePage />} />
+                    <Route path="manage" element={<ManagePage />} />
+                    <Route path="users" element={<UserManagementPage />} />
+                  </Route>
+
+                  {/* Legacy redirects — preserve old bookmarks */}
+                  <Route path="work-items" element={<Navigate to="/project/work-items" replace />} />
+                  <Route
+                    path="work-items/new"
+                    element={<Navigate to="/project/work-items/new" replace />}
+                  />
+                  <Route
+                    path="work-items/:id"
+                    element={<ParamRedirect to="/project/work-items/:id" />}
+                  />
+                  <Route
+                    path="household-items"
+                    element={<Navigate to="/project/household-items" replace />}
+                  />
+                  <Route
+                    path="household-items/new"
+                    element={<Navigate to="/project/household-items/new" replace />}
+                  />
+                  <Route
+                    path="household-items/:id"
+                    element={<ParamRedirect to="/project/household-items/:id" />}
+                  />
+                  <Route
+                    path="household-items/:id/edit"
+                    element={<ParamRedirect to="/project/household-items/:id/edit" />}
+                  />
+                  <Route path="invoices" element={<Navigate to="/budget/invoices" replace />} />
+                  <Route path="invoices/:id" element={<ParamRedirect to="/budget/invoices/:id" />} />
+                  <Route path="timeline" element={<Navigate to="/schedule" replace />} />
+                  <Route path="manage" element={<Navigate to="/settings/manage" replace />} />
+                  <Route path="tags" element={<Navigate to="/settings/manage" replace />} />
+                  <Route path="profile" element={<Navigate to="/settings/profile" replace />} />
+                  <Route path="admin/users" element={<Navigate to="/settings/users" replace />} />
+
                   <Route path="*" element={<NotFoundPage />} />
                 </Route>
               </Route>

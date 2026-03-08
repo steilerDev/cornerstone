@@ -75,6 +75,7 @@ import { AutosaveIndicator } from '../../components/AutosaveIndicator/AutosaveIn
 import type { AutosaveState } from '../../components/AutosaveIndicator/AutosaveIndicator.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
 import { useBudgetSection, type BudgetLineFormState } from '../../hooks/useBudgetSection.js';
+import { ProjectSubNav } from '../../components/ProjectSubNav/ProjectSubNav.js';
 import styles from './WorkItemDetailPage.module.css';
 
 interface DeletingDependency {
@@ -106,7 +107,7 @@ export default function WorkItemDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const locationState = location.state as { from?: string; view?: string } | null;
-  const fromTimeline = locationState?.from === 'timeline';
+  const fromTimeline = locationState?.from === 'schedule';
   const fromView = locationState?.view;
   const { user } = useAuth();
 
@@ -954,7 +955,7 @@ export default function WorkItemDetailPage() {
     setInlineError(null);
     try {
       await deleteWorkItem(id);
-      navigate('/work-items');
+      navigate('/project/work-items');
     } catch (err) {
       setInlineError('Failed to delete work item');
       console.error('Failed to delete work item:', err);
@@ -1061,7 +1062,7 @@ export default function WorkItemDetailPage() {
             <button
               type="button"
               className={styles.backButton}
-              onClick={() => navigate('/work-items')}
+              onClick={() => navigate('/project/work-items')}
             >
               Back to Work Items
             </button>
@@ -1081,7 +1082,7 @@ export default function WorkItemDetailPage() {
             <button
               type="button"
               className={styles.backButton}
-              onClick={() => navigate('/work-items')}
+              onClick={() => navigate('/project/work-items')}
             >
               Back to Work Items
             </button>
@@ -1125,14 +1126,14 @@ export default function WorkItemDetailPage() {
               <button
                 type="button"
                 className={styles.backButton}
-                onClick={() => navigate(fromView ? `/timeline?view=${fromView}` : '/timeline')}
+                onClick={() => navigate(fromView ? `/schedule?view=${fromView}` : '/schedule')}
               >
-                ← Back to Timeline
+                ← Back to Schedule
               </button>
               <button
                 type="button"
                 className={styles.secondaryNavButton}
-                onClick={() => navigate('/work-items')}
+                onClick={() => navigate('/project/work-items')}
               >
                 To Work Items
               </button>
@@ -1142,20 +1143,21 @@ export default function WorkItemDetailPage() {
               <button
                 type="button"
                 className={styles.backButton}
-                onClick={() => navigate('/work-items')}
+                onClick={() => navigate('/project/work-items')}
               >
                 ← Back to Work Items
               </button>
               <button
                 type="button"
                 className={styles.secondaryNavButton}
-                onClick={() => navigate('/timeline')}
+                onClick={() => navigate('/schedule')}
               >
-                To Timeline
+                To Schedule
               </button>
             </>
           )}
         </div>
+        <ProjectSubNav />
 
         <div className={styles.headerRow}>
           <div className={styles.titleSection}>
@@ -1351,7 +1353,7 @@ export default function WorkItemDetailPage() {
                         {line.invoices.map((inv) => (
                           <Link
                             key={inv.id}
-                            to={`/invoices/${inv.id}`}
+                            to={`/budget/invoices/${inv.id}`}
                             className={styles.invoicePopoverItem}
                             onClick={() => setInvoicePopoverBudgetId(null)}
                           >
@@ -1932,7 +1934,7 @@ export default function WorkItemDetailPage() {
           <ul className={styles.householdItemLinkList}>
             {linkedHouseholdItems.map((hi) => (
               <li key={hi.id} className={styles.householdItemLinkRow}>
-                <Link to={`/household-items/${hi.id}`} className={styles.householdItemLinkName}>
+                <Link to={`/project/household-items/${hi.id}`} className={styles.householdItemLinkName}>
                   {hi.name}
                 </Link>
                 <span className={styles.householdItemCategoryBadge}>

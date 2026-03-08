@@ -16,7 +16,7 @@ export class NotFoundPage {
     this.description = page.getByText(
       'The page you are looking for does not exist or has been moved.',
     );
-    this.dashboardLink = page.getByRole('link', { name: 'Go back to Dashboard' });
+    this.dashboardLink = page.getByRole('link', { name: 'Go back to Project Overview' });
   }
 
   async getHeading(): Promise<string | null> {

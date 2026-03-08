@@ -8,8 +8,8 @@ export function NotFoundPage() {
       <p className={styles.description}>
         The page you are looking for does not exist or has been moved.
       </p>
-      <Link to="/" className={styles.homeLink}>
-        Go back to Dashboard
+      <Link to="/project" className={styles.homeLink}>
+        Go back to Project Overview
       </Link>
     </div>
   );

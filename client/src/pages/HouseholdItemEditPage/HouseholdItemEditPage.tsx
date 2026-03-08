@@ -11,6 +11,7 @@ import { fetchVendors } from '../../lib/vendorsApi.js';
 import { fetchHouseholdItemCategories } from '../../lib/householdItemCategoriesApi.js';
 import { TagPicker } from '../../components/TagPicker/TagPicker.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
+import { ProjectSubNav } from '../../components/ProjectSubNav/ProjectSubNav.js';
 import styles from './HouseholdItemEditPage.module.css';
 
 interface Vendor {
@@ -137,7 +138,7 @@ export function HouseholdItemEditPage() {
       });
 
       showToast('success', 'Household item updated successfully');
-      navigate(`/household-items/${id}`);
+      navigate(`/project/household-items/${id}`);
     } catch (err) {
       setError('Failed to update household item. Please try again.');
       console.error('Failed to update household item:', err);
@@ -160,7 +161,7 @@ export function HouseholdItemEditPage() {
           <button
             type="button"
             className={styles.backButton}
-            onClick={() => navigate('/household-items')}
+            onClick={() => navigate('/project/household-items')}
           >
             ← Back to Household Items
           </button>
@@ -179,13 +180,14 @@ export function HouseholdItemEditPage() {
         <button
           type="button"
           className={styles.backButton}
-          onClick={() => navigate(`/household-items/${id}`)}
+          onClick={() => navigate(`/project/household-items/${id}`)}
           disabled={isSubmitting}
         >
           ← Back to Item
         </button>
         <h1 className={styles.title}>Edit Household Item</h1>
       </div>
+      <ProjectSubNav />
 
       {error && <div className={styles.errorBanner}>{error}</div>}
 
@@ -346,7 +348,7 @@ export function HouseholdItemEditPage() {
           <button
             type="button"
             className={styles.cancelButton}
-            onClick={() => navigate(`/household-items/${id}`)}
+            onClick={() => navigate(`/project/household-items/${id}`)}
             disabled={isSubmitting}
           >
             Cancel

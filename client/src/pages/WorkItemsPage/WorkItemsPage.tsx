@@ -11,6 +11,7 @@ import { TagPill } from '../../components/TagPill/TagPill.js';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import { KeyboardShortcutsHelp } from '../../components/KeyboardShortcutsHelp/KeyboardShortcutsHelp.js';
 import { formatDate } from '../../lib/formatters.js';
+import { ProjectSubNav } from '../../components/ProjectSubNav/ProjectSubNav.js';
 import styles from './WorkItemsPage.module.css';
 
 const STATUS_OPTIONS: { value: WorkItemStatus; label: string }[] = [
@@ -249,7 +250,7 @@ export function WorkItemsPage() {
   };
 
   const handleRowClick = (workItemId: string) => {
-    navigate(`/work-items/${workItemId}`);
+    navigate(`/project/work-items/${workItemId}`);
   };
 
   const handleDeleteClick = (workItem: WorkItemSummary, event: React.MouseEvent) => {
@@ -288,7 +289,7 @@ export function WorkItemsPage() {
     () => [
       {
         key: 'n',
-        handler: () => navigate('/work-items/new'),
+        handler: () => navigate('/project/work-items/new'),
         description: 'New work item',
       },
       {
@@ -320,7 +321,7 @@ export function WorkItemsPage() {
         key: 'Enter',
         handler: () => {
           if (selectedIndex >= 0 && workItems[selectedIndex]) {
-            navigate(`/work-items/${workItems[selectedIndex].id}`);
+            navigate(`/project/work-items/${workItems[selectedIndex].id}`);
           }
         },
         description: 'Open selected item',
@@ -373,11 +374,12 @@ export function WorkItemsPage() {
         <button
           type="button"
           className={styles.primaryButton}
-          onClick={() => navigate('/work-items/new')}
+          onClick={() => navigate('/project/work-items/new')}
         >
           New Work Item
         </button>
       </div>
+      <ProjectSubNav />
 
       {error && (
         <div className={styles.errorBanner} role="alert">
@@ -511,7 +513,7 @@ export function WorkItemsPage() {
               <button
                 type="button"
                 className={styles.primaryButton}
-                onClick={() => navigate('/work-items/new')}
+                onClick={() => navigate('/project/work-items/new')}
               >
                 Create First Work Item
               </button>
@@ -586,7 +588,7 @@ export function WorkItemsPage() {
                             <button
                               type="button"
                               className={styles.menuItem}
-                              onClick={() => navigate(`/work-items/${item.id}`)}
+                              onClick={() => navigate(`/project/work-items/${item.id}`)}
                             >
                               Edit
                             </button>
@@ -628,7 +630,7 @@ export function WorkItemsPage() {
                           <button
                             type="button"
                             className={styles.menuItem}
-                            onClick={() => navigate(`/work-items/${item.id}`)}
+                            onClick={() => navigate(`/project/work-items/${item.id}`)}
                           >
                             Edit
                           </button>

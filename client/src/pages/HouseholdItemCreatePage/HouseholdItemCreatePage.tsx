@@ -12,6 +12,7 @@ import { fetchVendors } from '../../lib/vendorsApi.js';
 import { fetchHouseholdItemCategories } from '../../lib/householdItemCategoriesApi.js';
 import { TagPicker } from '../../components/TagPicker/TagPicker.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
+import { ProjectSubNav } from '../../components/ProjectSubNav/ProjectSubNav.js';
 import styles from './HouseholdItemCreatePage.module.css';
 
 const STATUSES: Array<{ value: HouseholdItemStatus; label: string }> = [
@@ -143,7 +144,7 @@ export function HouseholdItemCreatePage() {
       });
 
       showToast('success', 'Household item created successfully');
-      navigate(`/household-items/${item.id}`);
+      navigate(`/project/household-items/${item.id}`);
     } catch (err) {
       setError('Failed to create household item. Please try again.');
       console.error('Failed to create household item:', err);
@@ -165,13 +166,14 @@ export function HouseholdItemCreatePage() {
         <button
           type="button"
           className={styles.backButton}
-          onClick={() => navigate('/household-items')}
+          onClick={() => navigate('/project/household-items')}
           disabled={isSubmitting}
         >
           ← Back to Household Items
         </button>
         <h1 className={styles.title}>New Household Item</h1>
       </div>
+      <ProjectSubNav />
 
       {error && <div className={styles.errorBanner}>{error}</div>}
 
@@ -434,7 +436,7 @@ export function HouseholdItemCreatePage() {
           <button
             type="button"
             className={styles.cancelButton}
-            onClick={() => navigate('/household-items')}
+            onClick={() => navigate('/project/household-items')}
             disabled={isSubmitting}
           >
             Cancel

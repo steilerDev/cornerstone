@@ -3,6 +3,7 @@ import { updateProfile, changePassword } from '../../lib/usersApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { formatDate } from '../../lib/formatters.js';
+import { SettingsSubNav } from '../../components/SettingsSubNav/SettingsSubNav.js';
 import styles from './ProfilePage.module.css';
 
 interface PasswordFormErrors {
@@ -155,6 +156,7 @@ export function ProfilePage() {
     <div className={styles.container}>
       <div className={styles.content}>
         <h1 className={styles.pageTitle}>Profile</h1>
+        <SettingsSubNav />
 
         {/* Profile Information Card */}
         <section className={styles.card}>

@@ -1,7 +1,7 @@
 /**
- * Page Object Model for the Manage page (/manage) — Tags tab
+ * Page Object Model for the Manage page (/settings/manage) — Tags tab
  *
- * The /tags route now redirects to /manage (default tab: tags).
+ * The /tags route now redirects to /settings/manage (default tab: tags).
  * The page renders:
  * - An h1 "Manage" heading (the unified manage page)
  * - A success banner (role="alert") for successful operations
@@ -23,7 +23,7 @@
 
 import type { Page, Locator } from '@playwright/test';
 
-export const TAG_MANAGEMENT_ROUTE = '/manage';
+export const TAG_MANAGEMENT_ROUTE = '/settings/manage';
 
 export class TagManagementPage {
   readonly page: Page;

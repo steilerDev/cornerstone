@@ -312,9 +312,9 @@ describe('WorkItemDetailPage — UI Harmonization (Story #501)', () => {
 
   function renderPage(id = 'work-1') {
     return render(
-      <MemoryRouter initialEntries={[`/work-items/${id}`]}>
+      <MemoryRouter initialEntries={[`/project/work-items/${id}`]}>
         <Routes>
-          <Route path="/work-items/:id" element={<WorkItemDetailPageModule.default />} />
+          <Route path="/project/work-items/:id" element={<WorkItemDetailPageModule.default />} />
         </Routes>
       </MemoryRouter>,
     );

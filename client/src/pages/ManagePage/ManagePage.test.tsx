@@ -49,6 +49,11 @@ jest.unstable_mockModule('../../lib/householdItemCategoriesApi.js', () => ({
   deleteHouseholdItemCategory: mockDeleteHICCategory,
 }));
 
+// Mock SettingsSubNav to avoid AuthContext dependency
+jest.unstable_mockModule('../../components/SettingsSubNav/SettingsSubNav.js', () => ({
+  SettingsSubNav: () => null,
+}));
+
 // ─── Sample test data ──────────────────────────────────────────────────────────
 
 const sampleTag1: TagResponse = {
@@ -108,7 +113,7 @@ const sampleHICat2: HouseholdItemCategoryEntity = {
 describe('ManagePage', () => {
   let ManagePage: React.ComponentType;
 
-  function renderManagePage(initialPath = '/manage') {
+  function renderManagePage(initialPath = '/settings/manage') {
     return render(
       <MemoryRouter initialEntries={[initialPath]}>
         <ManagePage />
@@ -161,7 +166,7 @@ describe('ManagePage', () => {
     });
 
     it('Tags tab is active by default (no URL param)', async () => {
-      renderManagePage('/manage');
+      renderManagePage('/settings/manage');
       const tagsTab = screen.getByRole('tab', { name: 'Tags' });
       expect(tagsTab).toHaveAttribute('aria-selected', 'true');
       const budgetTab = screen.getByRole('tab', { name: 'Budget Categories' });
@@ -171,13 +176,13 @@ describe('ManagePage', () => {
     });
 
     it('Tags tab is active when ?tab=tags in URL', async () => {
-      renderManagePage('/manage?tab=tags');
+      renderManagePage('/settings/manage?tab=tags');
       const tagsTab = screen.getByRole('tab', { name: 'Tags' });
       expect(tagsTab).toHaveAttribute('aria-selected', 'true');
     });
 
     it('Budget Categories tab is active when ?tab=budget-categories in URL', async () => {
-      renderManagePage('/manage?tab=budget-categories');
+      renderManagePage('/settings/manage?tab=budget-categories');
       const budgetTab = screen.getByRole('tab', { name: 'Budget Categories' });
       expect(budgetTab).toHaveAttribute('aria-selected', 'true');
       const tagsTab = screen.getByRole('tab', { name: 'Tags' });
@@ -185,7 +190,7 @@ describe('ManagePage', () => {
     });
 
     it('Household Item Categories tab is active when ?tab=hi-categories in URL', async () => {
-      renderManagePage('/manage?tab=hi-categories');
+      renderManagePage('/settings/manage?tab=hi-categories');
       const hicTab = screen.getByRole('tab', { name: 'Household Item Categories' });
       expect(hicTab).toHaveAttribute('aria-selected', 'true');
       const tagsTab = screen.getByRole('tab', { name: 'Tags' });
@@ -194,7 +199,7 @@ describe('ManagePage', () => {
 
     it('clicking Budget Categories tab makes it active', async () => {
       const user = userEvent.setup();
-      renderManagePage('/manage');
+      renderManagePage('/settings/manage');
 
       // Initially Tags tab is active
       expect(screen.getByRole('tab', { name: 'Tags' })).toHaveAttribute('aria-selected', 'true');
@@ -209,7 +214,7 @@ describe('ManagePage', () => {
 
     it('clicking Household Item Categories tab makes it active', async () => {
       const user = userEvent.setup();
-      renderManagePage('/manage');
+      renderManagePage('/settings/manage');
 
       await user.click(screen.getByRole('tab', { name: 'Household Item Categories' }));
 
@@ -225,12 +230,12 @@ describe('ManagePage', () => {
     it('shows loading state while fetching tags', () => {
       // Don't resolve to keep it loading
       mockFetchTags.mockReturnValue(new Promise(() => {}));
-      renderManagePage('/manage');
+      renderManagePage('/settings/manage');
       expect(screen.getByText('Loading tags...')).toBeInTheDocument();
     });
 
     it('shows tag list after loading', async () => {
-      renderManagePage('/manage');
+      renderManagePage('/settings/manage');
       await waitFor(() => {
         expect(screen.getByText('Electrical')).toBeInTheDocument();
       });
@@ -238,7 +243,7 @@ describe('ManagePage', () => {
     });
 
     it('shows Create New Tag section', async () => {
-      renderManagePage('/manage');
+      renderManagePage('/settings/manage');
       await waitFor(() => {
         expect(screen.getByText('Create New Tag')).toBeInTheDocument();
       });
@@ -246,14 +251,14 @@ describe('ManagePage', () => {
 
     it('shows error state when loading tags fails', async () => {
       mockFetchTags.mockRejectedValue(new Error('Network error'));
-      renderManagePage('/manage');
+      renderManagePage('/settings/manage');
       await waitFor(() => {
         expect(screen.getByText('Failed to load tags. Please try again.')).toBeInTheDocument();
       });
     });
 
     it('shows tag name and count', async () => {
-      renderManagePage('/manage');
+      renderManagePage('/settings/manage');
       await waitFor(() => {
         // Two tags loaded
         expect(screen.getByText(/Existing Tags \(2\)/)).toBeInTheDocument();
@@ -262,7 +267,7 @@ describe('ManagePage', () => {
 
     it('delete confirmation modal appears on delete click', async () => {
       const user = userEvent.setup();
-      renderManagePage('/manage');
+      renderManagePage('/settings/manage');
 
       await waitFor(() => {
         expect(screen.getByText('Electrical')).toBeInTheDocument();
@@ -289,7 +294,7 @@ describe('ManagePage', () => {
       };
       mockCreateTag.mockResolvedValue(newTag);
 
-      renderManagePage('/manage');
+      renderManagePage('/settings/manage');
 
       await waitFor(() => {
         expect(screen.getByText('Create New Tag')).toBeInTheDocument();
@@ -310,7 +315,7 @@ describe('ManagePage', () => {
     });
 
     it('shows validation error when creating a tag with empty name', async () => {
-      renderManagePage('/manage');
+      renderManagePage('/settings/manage');
 
       await waitFor(() => {
         expect(screen.getByText('Create New Tag')).toBeInTheDocument();
@@ -323,7 +328,7 @@ describe('ManagePage', () => {
 
     it('shows edit form when Edit button is clicked for a tag', async () => {
       const user = userEvent.setup();
-      renderManagePage('/manage');
+      renderManagePage('/settings/manage');
 
       await waitFor(() => {
         expect(screen.getByText('Electrical')).toBeInTheDocument();
@@ -339,7 +344,7 @@ describe('ManagePage', () => {
 
     it('cancels edit and returns to view mode', async () => {
       const user = userEvent.setup();
-      renderManagePage('/manage');
+      renderManagePage('/settings/manage');
 
       await waitFor(() => {
         expect(screen.getByText('Electrical')).toBeInTheDocument();
@@ -366,7 +371,7 @@ describe('ManagePage', () => {
       };
       mockUpdateTag.mockResolvedValue(updatedTag);
 
-      renderManagePage('/manage');
+      renderManagePage('/settings/manage');
 
       await waitFor(() => {
         expect(screen.getByText('Electrical')).toBeInTheDocument();
@@ -401,7 +406,7 @@ describe('ManagePage', () => {
       const user = userEvent.setup();
       mockDeleteTag.mockResolvedValue(undefined);
 
-      renderManagePage('/manage');
+      renderManagePage('/settings/manage');
 
       await waitFor(() => {
         expect(screen.getByText('Electrical')).toBeInTheDocument();
@@ -431,12 +436,12 @@ describe('ManagePage', () => {
   describe('Budget Categories tab', () => {
     it('shows loading state while fetching budget categories', () => {
       mockFetchBudgetCategories.mockReturnValue(new Promise(() => {}));
-      renderManagePage('/manage?tab=budget-categories');
+      renderManagePage('/settings/manage?tab=budget-categories');
       expect(screen.getByText('Loading budget categories...')).toBeInTheDocument();
     });
 
     it('shows budget category list after loading', async () => {
-      renderManagePage('/manage?tab=budget-categories');
+      renderManagePage('/settings/manage?tab=budget-categories');
       await waitFor(() => {
         expect(screen.getByText('Materials')).toBeInTheDocument();
       });
@@ -444,7 +449,7 @@ describe('ManagePage', () => {
     });
 
     it('shows Add Category button', async () => {
-      renderManagePage('/manage?tab=budget-categories');
+      renderManagePage('/settings/manage?tab=budget-categories');
       await waitFor(() => {
         expect(screen.getByRole('button', { name: 'Add Category' })).toBeInTheDocument();
       });
@@ -452,7 +457,7 @@ describe('ManagePage', () => {
 
     it('shows error state when loading budget categories fails', async () => {
       mockFetchBudgetCategories.mockRejectedValue(new Error('Network error'));
-      renderManagePage('/manage?tab=budget-categories');
+      renderManagePage('/settings/manage?tab=budget-categories');
       await waitFor(() => {
         expect(
           screen.getByText('Failed to load budget categories. Please try again.'),
@@ -461,7 +466,7 @@ describe('ManagePage', () => {
     });
 
     it('shows category count', async () => {
-      renderManagePage('/manage?tab=budget-categories');
+      renderManagePage('/settings/manage?tab=budget-categories');
       await waitFor(() => {
         expect(screen.getByText(/Categories \(2\)/)).toBeInTheDocument();
       });
@@ -469,7 +474,7 @@ describe('ManagePage', () => {
 
     it('shows New Budget Category form when Add Category is clicked', async () => {
       const user = userEvent.setup();
-      renderManagePage('/manage?tab=budget-categories');
+      renderManagePage('/settings/manage?tab=budget-categories');
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: 'Add Category' })).toBeInTheDocument();
@@ -482,7 +487,7 @@ describe('ManagePage', () => {
 
     it('delete confirmation modal appears on delete click', async () => {
       const user = userEvent.setup();
-      renderManagePage('/manage?tab=budget-categories');
+      renderManagePage('/settings/manage?tab=budget-categories');
 
       await waitFor(() => {
         expect(screen.getByText('Materials')).toBeInTheDocument();
@@ -498,7 +503,7 @@ describe('ManagePage', () => {
     });
 
     it('calls fetchBudgetCategories when tab is active', async () => {
-      renderManagePage('/manage?tab=budget-categories');
+      renderManagePage('/settings/manage?tab=budget-categories');
       await waitFor(() => {
         expect(mockFetchBudgetCategories).toHaveBeenCalledTimes(1);
       });
@@ -517,7 +522,7 @@ describe('ManagePage', () => {
       };
       mockCreateBudgetCategory.mockResolvedValue(newCat);
 
-      renderManagePage('/manage?tab=budget-categories');
+      renderManagePage('/settings/manage?tab=budget-categories');
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: 'Add Category' })).toBeInTheDocument();
@@ -543,7 +548,7 @@ describe('ManagePage', () => {
 
     it('shows edit form when Edit is clicked for a budget category', async () => {
       const user = userEvent.setup();
-      renderManagePage('/manage?tab=budget-categories');
+      renderManagePage('/settings/manage?tab=budget-categories');
 
       await waitFor(() => {
         expect(screen.getByText('Materials')).toBeInTheDocument();
@@ -557,7 +562,7 @@ describe('ManagePage', () => {
 
     it('cancels edit of budget category and returns to view mode', async () => {
       const user = userEvent.setup();
-      renderManagePage('/manage?tab=budget-categories');
+      renderManagePage('/settings/manage?tab=budget-categories');
 
       await waitFor(() => {
         expect(screen.getByText('Materials')).toBeInTheDocument();
@@ -584,7 +589,7 @@ describe('ManagePage', () => {
       };
       mockUpdateBudgetCategory.mockResolvedValue(updated);
 
-      renderManagePage('/manage?tab=budget-categories');
+      renderManagePage('/settings/manage?tab=budget-categories');
 
       await waitFor(() => {
         expect(screen.getByText('Materials')).toBeInTheDocument();
@@ -616,7 +621,7 @@ describe('ManagePage', () => {
       const user = userEvent.setup();
       mockDeleteBudgetCategory.mockResolvedValue(undefined);
 
-      renderManagePage('/manage?tab=budget-categories');
+      renderManagePage('/settings/manage?tab=budget-categories');
 
       await waitFor(() => {
         expect(screen.getByText('Materials')).toBeInTheDocument();
@@ -648,7 +653,7 @@ describe('ManagePage', () => {
         }),
       );
 
-      renderManagePage('/manage?tab=budget-categories');
+      renderManagePage('/settings/manage?tab=budget-categories');
 
       await waitFor(() => {
         expect(screen.getByText('Materials')).toBeInTheDocument();
@@ -677,12 +682,12 @@ describe('ManagePage', () => {
   describe('Household Item Categories tab', () => {
     it('shows loading state while fetching HI categories', () => {
       mockFetchHICCategories.mockReturnValue(new Promise(() => {}));
-      renderManagePage('/manage?tab=hi-categories');
+      renderManagePage('/settings/manage?tab=hi-categories');
       expect(screen.getByText('Loading household item categories...')).toBeInTheDocument();
     });
 
     it('shows HI category list after loading', async () => {
-      renderManagePage('/manage?tab=hi-categories');
+      renderManagePage('/settings/manage?tab=hi-categories');
       await waitFor(() => {
         expect(screen.getByText('Furniture')).toBeInTheDocument();
       });
@@ -690,7 +695,7 @@ describe('ManagePage', () => {
     });
 
     it('shows Add Category button', async () => {
-      renderManagePage('/manage?tab=hi-categories');
+      renderManagePage('/settings/manage?tab=hi-categories');
       await waitFor(() => {
         expect(screen.getByRole('button', { name: 'Add Category' })).toBeInTheDocument();
       });
@@ -698,7 +703,7 @@ describe('ManagePage', () => {
 
     it('shows error state when loading HI categories fails', async () => {
       mockFetchHICCategories.mockRejectedValue(new Error('Network error'));
-      renderManagePage('/manage?tab=hi-categories');
+      renderManagePage('/settings/manage?tab=hi-categories');
       await waitFor(() => {
         expect(
           screen.getByText('Failed to load household item categories. Please try again.'),
@@ -707,7 +712,7 @@ describe('ManagePage', () => {
     });
 
     it('shows category count', async () => {
-      renderManagePage('/manage?tab=hi-categories');
+      renderManagePage('/settings/manage?tab=hi-categories');
       await waitFor(() => {
         expect(screen.getByText(/Categories \(2\)/)).toBeInTheDocument();
       });
@@ -715,7 +720,7 @@ describe('ManagePage', () => {
 
     it('shows New Household Item Category form when Add Category is clicked', async () => {
       const user = userEvent.setup();
-      renderManagePage('/manage?tab=hi-categories');
+      renderManagePage('/settings/manage?tab=hi-categories');
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: 'Add Category' })).toBeInTheDocument();
@@ -728,7 +733,7 @@ describe('ManagePage', () => {
 
     it('delete confirmation modal appears on delete click', async () => {
       const user = userEvent.setup();
-      renderManagePage('/manage?tab=hi-categories');
+      renderManagePage('/settings/manage?tab=hi-categories');
 
       await waitFor(() => {
         expect(screen.getByText('Furniture')).toBeInTheDocument();
@@ -744,7 +749,7 @@ describe('ManagePage', () => {
     });
 
     it('calls fetchHouseholdItemCategories when tab is active', async () => {
-      renderManagePage('/manage?tab=hi-categories');
+      renderManagePage('/settings/manage?tab=hi-categories');
       await waitFor(() => {
         expect(mockFetchHICCategories).toHaveBeenCalledTimes(1);
       });
@@ -752,7 +757,7 @@ describe('ManagePage', () => {
 
     it('shows edit form when Edit is clicked for a HI category', async () => {
       const user = userEvent.setup();
-      renderManagePage('/manage?tab=hi-categories');
+      renderManagePage('/settings/manage?tab=hi-categories');
 
       await waitFor(() => {
         expect(screen.getByText('Furniture')).toBeInTheDocument();
@@ -766,7 +771,7 @@ describe('ManagePage', () => {
 
     it('cancels edit of HI category and returns to view mode', async () => {
       const user = userEvent.setup();
-      renderManagePage('/manage?tab=hi-categories');
+      renderManagePage('/settings/manage?tab=hi-categories');
 
       await waitFor(() => {
         expect(screen.getByText('Furniture')).toBeInTheDocument();
@@ -792,7 +797,7 @@ describe('ManagePage', () => {
       };
       mockUpdateHICCategory.mockResolvedValue(updated);
 
-      renderManagePage('/manage?tab=hi-categories');
+      renderManagePage('/settings/manage?tab=hi-categories');
 
       await waitFor(() => {
         expect(screen.getByText('Furniture')).toBeInTheDocument();
@@ -829,7 +834,7 @@ describe('ManagePage', () => {
         }),
       );
 
-      renderManagePage('/manage?tab=hi-categories');
+      renderManagePage('/settings/manage?tab=hi-categories');
 
       await waitFor(() => {
         expect(screen.getByText('Furniture')).toBeInTheDocument();
@@ -862,7 +867,7 @@ describe('ManagePage', () => {
 
   describe('Tab isolation', () => {
     it('does not call fetchHouseholdItemCategories when Tags tab is active', async () => {
-      renderManagePage('/manage');
+      renderManagePage('/settings/manage');
       await waitFor(() => {
         expect(mockFetchTags).toHaveBeenCalledTimes(1);
       });
@@ -870,7 +875,7 @@ describe('ManagePage', () => {
     });
 
     it('does not call fetchBudgetCategories when Tags tab is active', async () => {
-      renderManagePage('/manage');
+      renderManagePage('/settings/manage');
       await waitFor(() => {
         expect(mockFetchTags).toHaveBeenCalledTimes(1);
       });
@@ -878,7 +883,7 @@ describe('ManagePage', () => {
     });
 
     it('does not call fetchTags when Budget Categories tab is active', async () => {
-      renderManagePage('/manage?tab=budget-categories');
+      renderManagePage('/settings/manage?tab=budget-categories');
       await waitFor(() => {
         expect(mockFetchBudgetCategories).toHaveBeenCalledTimes(1);
       });
@@ -886,7 +891,7 @@ describe('ManagePage', () => {
     });
 
     it('does not call fetchTags when HI Categories tab is active', async () => {
-      renderManagePage('/manage?tab=hi-categories');
+      renderManagePage('/settings/manage?tab=hi-categories');
       await waitFor(() => {
         expect(mockFetchHICCategories).toHaveBeenCalledTimes(1);
       });
@@ -909,7 +914,7 @@ describe('ManagePage', () => {
       };
       mockCreateHICCategory.mockResolvedValue(newCat);
 
-      renderManagePage('/manage?tab=hi-categories');
+      renderManagePage('/settings/manage?tab=hi-categories');
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: 'Add Category' })).toBeInTheDocument();
@@ -938,7 +943,7 @@ describe('ManagePage', () => {
 
     it('shows validation error when name is empty', async () => {
       const user = userEvent.setup();
-      renderManagePage('/manage?tab=hi-categories');
+      renderManagePage('/settings/manage?tab=hi-categories');
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: 'Add Category' })).toBeInTheDocument();
@@ -961,7 +966,7 @@ describe('ManagePage', () => {
         }),
       );
 
-      renderManagePage('/manage?tab=hi-categories');
+      renderManagePage('/settings/manage?tab=hi-categories');
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: 'Add Category' })).toBeInTheDocument();

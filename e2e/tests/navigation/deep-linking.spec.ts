@@ -12,10 +12,10 @@ test.describe('Deep Linking', () => {
   test('Direct URL for each route loads correct page', async ({ page }) => {
     // Given/When/Then: Navigate to each route and verify correct page heading
 
-    // Dashboard (/)
+    // Project Overview (/ redirects to /project/overview)
     await page.goto(ROUTES.home);
-    await expect(page.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeVisible();
-    expect(page.url()).toMatch(new RegExp(`${ROUTES.home}$`));
+    await expect(page.getByRole('heading', { level: 1, name: 'Project Overview' })).toBeVisible();
+    expect(page.url()).toContain('/project/overview');
 
     // Work Items
     await page.goto(ROUTES.workItems);
@@ -27,9 +27,9 @@ test.describe('Deep Linking', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Budget' })).toBeVisible();
     expect(page.url()).toContain(ROUTES.budget);
 
-    // Timeline
+    // Schedule
     await page.goto(ROUTES.timeline);
-    await expect(page.getByRole('heading', { level: 1, name: 'Timeline' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Schedule' })).toBeVisible();
     expect(page.url()).toContain(ROUTES.timeline);
 
     // Household Items
@@ -55,7 +55,7 @@ test.describe('Deep Linking', () => {
     // When: User navigates to Work Items
     await page.goto(ROUTES.workItems);
 
-    // Then: URL should match /work-items
+    // Then: URL should match /project/work-items
     expect(page.url()).toContain(ROUTES.workItems);
 
     // When: User navigates to Budget

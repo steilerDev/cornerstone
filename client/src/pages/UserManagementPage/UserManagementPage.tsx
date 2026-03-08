@@ -8,6 +8,7 @@ import {
 } from '../../lib/usersApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import type { UserResponse } from '@cornerstone/shared';
+import { SettingsSubNav } from '../../components/SettingsSubNav/SettingsSubNav.js';
 import styles from './UserManagementPage.module.css';
 
 interface EditFormData {
@@ -220,6 +221,9 @@ export function UserManagementPage() {
       <div className={styles.content}>
         <div className={styles.header}>
           <h1 className={styles.pageTitle}>User Management</h1>
+        </div>
+        <SettingsSubNav />
+        <div className={styles.header}>
           <div className={styles.searchWrapper}>
             <input
               type="text"

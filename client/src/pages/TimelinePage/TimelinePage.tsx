@@ -343,14 +343,14 @@ export function TimelinePage() {
 
   const handleItemClick = useCallback(
     (id: string) => {
-      void navigate(`/work-items/${id}`, { state: { from: 'timeline' } });
+      void navigate(`/project/work-items/${id}`, { state: { from: 'schedule' } });
     },
     [navigate],
   );
 
   const handleHouseholdItemClick = useCallback(
     (id: string) => {
-      void navigate(`/household-items/${id}`, { state: { from: 'timeline' } });
+      void navigate(`/project/household-items/${id}`, { state: { from: 'schedule' } });
     },
     [navigate],
   );
@@ -372,7 +372,7 @@ export function TimelinePage() {
     <div className={styles.page} data-testid="timeline-page">
       {/* Page header: title + toolbar */}
       <div className={styles.pageHeader}>
-        <h1 className={styles.pageTitle}>Timeline</h1>
+        <h1 className={styles.pageTitle}>Schedule</h1>
 
         <div className={styles.toolbar}>
           {/* Milestones panel toggle — shown in both views */}
@@ -628,7 +628,7 @@ export function TimelinePage() {
             <p className={styles.emptyStateDescription}>
               Add work items with start and end dates to see them on the timeline.
             </p>
-            <Link to="/work-items" className={styles.emptyStateLink}>
+            <Link to="/project/work-items" className={styles.emptyStateLink}>
               Go to Work Items
             </Link>
           </div>
@@ -662,7 +662,7 @@ export function TimelinePage() {
                 Your work items don&apos;t have start and end dates yet. Set dates on your work
                 items to see them positioned on the timeline.
               </p>
-              <Link to="/work-items" className={styles.emptyStateLink}>
+              <Link to="/project/work-items" className={styles.emptyStateLink}>
                 Go to Work Items
               </Link>
             </div>

@@ -178,14 +178,14 @@ describe('HouseholdItemEditPage', () => {
 
   function renderPage(itemId = 'hi-001') {
     return render(
-      <MemoryRouter initialEntries={[`/household-items/${itemId}/edit`]}>
+      <MemoryRouter initialEntries={[`/project/household-items/${itemId}/edit`]}>
         <Routes>
           <Route
-            path="/household-items/:id/edit"
+            path="/project/household-items/:id/edit"
             element={<HouseholdItemEditPageModule.default />}
           />
-          <Route path="/household-items/:id" element={<div>Household Item Detail</div>} />
-          <Route path="/household-items" element={<div>Household Items List</div>} />
+          <Route path="/project/household-items/:id" element={<div>Household Item Detail</div>} />
+          <Route path="/project/household-items" element={<div>Household Items List</div>} />
         </Routes>
         <LocationDisplay />
       </MemoryRouter>,
@@ -327,7 +327,7 @@ describe('HouseholdItemEditPage', () => {
       await user.click(screen.getByRole('button', { name: /cancel/i }));
 
       await waitFor(() => {
-        expect(screen.getByTestId('location')).toHaveTextContent('/household-items/hi-001');
+        expect(screen.getByTestId('location')).toHaveTextContent('/project/household-items/hi-001');
       });
     });
 
@@ -342,7 +342,7 @@ describe('HouseholdItemEditPage', () => {
       await user.click(screen.getByRole('button', { name: /back to item/i }));
 
       await waitFor(() => {
-        expect(screen.getByTestId('location')).toHaveTextContent('/household-items/hi-001');
+        expect(screen.getByTestId('location')).toHaveTextContent('/project/household-items/hi-001');
       });
     });
   });
@@ -391,7 +391,7 @@ describe('HouseholdItemEditPage', () => {
       await user.click(screen.getByRole('button', { name: /save changes/i }));
 
       await waitFor(() => {
-        expect(screen.getByTestId('location')).toHaveTextContent('/household-items/hi-001');
+        expect(screen.getByTestId('location')).toHaveTextContent('/project/household-items/hi-001');
       });
 
       expect(mockUpdateHouseholdItem).toHaveBeenCalledTimes(1);
