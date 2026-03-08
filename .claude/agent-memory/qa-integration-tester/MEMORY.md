@@ -3,6 +3,25 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`
 
+## Story #603 / Story 15.1 Test Fixes — Junction Table Model (2026-03-08)
+
+**Pattern**: When `invoice_budget_lines` uses partial UNIQUE index on `work_item_budget_id` and `household_item_budget_id`, each budget line can link to AT MOST ONE invoice. Any test that previously inserted multiple invoices for the same budget line violates this constraint.
+
+**Fix strategy**: Replace "multiple invoices on 1 budget line" with "1 invoice per budget line". Use separate budget lines for each invoice:
+- When testing totals: create N budget lines, each with 1 invoice, sum the amounts
+- When testing `budgetOverviewService.insertWorkItem` helper with both `actualCost` + `actualCostPending`: create a sibling budget line for the pending invoice so the UNIQUE constraint is not violated
+- When testing `invoiceCount`: with new model, max count per budget line is 1 (not 2+)
+- When `invoiceService.createInvoice()` no longer validates budget IDs (moved to routes layer), remove tests that expect `ValidationError`/`MutuallyExclusiveBudgetLinkError` from the service
+
+**Files fixed** (Story 15.1 junction table migration):
+- `shared/budgetServiceFactory.test.ts` — 3 tests
+- `subsidyPaybackService.test.ts` — 1 test
+- `shared/subsidyPaybackServiceFactory.test.ts` — 1 test
+- `budgetOverviewService.test.ts` — `insertWorkItem` helper + 3 tests
+- `budgetSourceService.test.ts` — 5 tests (3 multi-invoice, 1 mixed, context: claimed+paid tracking)
+- `invoiceService.household.test.ts` — removed 4 tests for old FK validation logic
+- `householdItemService.totalActual.test.ts` — 3 tests
+
 ## Story #603 Invoice-Budget-Line Junction Migration (2026-03-08, Bug #611)
 
 - **Test file**: `server/src/db/migrations/0017_invoice_budget_lines.test.ts` (52 tests, all passing)
