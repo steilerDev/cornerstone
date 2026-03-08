@@ -4,7 +4,12 @@ import type * as schemaTypes from '../db/schema.js';
 import { workItems, workItemBudgets } from '../db/schema.js';
 import { createBudgetService } from './shared/budgetServiceFactory.js';
 import type { ResolvedBudgetRelations } from './shared/budgetServiceFactory.js';
-import type { WorkItemBudgetLine, CreateWorkItemBudgetRequest, UpdateWorkItemBudgetRequest, InvoiceStatus } from '@cornerstone/shared';
+import type {
+  WorkItemBudgetLine,
+  CreateWorkItemBudgetRequest,
+  UpdateWorkItemBudgetRequest,
+  InvoiceStatus,
+} from '@cornerstone/shared';
 import { NotFoundError } from '../errors/AppError.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;

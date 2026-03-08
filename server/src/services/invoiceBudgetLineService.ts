@@ -58,7 +58,11 @@ function resolveDetail(
   let parentItemTitle = '';
 
   if (row.workItemBudgetId) {
-    const wib = db.select().from(workItemBudgets).where(eq(workItemBudgets.id, row.workItemBudgetId)).get();
+    const wib = db
+      .select()
+      .from(workItemBudgets)
+      .where(eq(workItemBudgets.id, row.workItemBudgetId))
+      .get();
     if (!wib) {
       throw new NotFoundError('Work item budget line not found');
     }
@@ -74,7 +78,11 @@ function resolveDetail(
     parentItemId = wi.id;
     parentItemTitle = wi.title;
   } else if (row.householdItemBudgetId) {
-    const hib = db.select().from(householdItemBudgets).where(eq(householdItemBudgets.id, row.householdItemBudgetId)).get();
+    const hib = db
+      .select()
+      .from(householdItemBudgets)
+      .where(eq(householdItemBudgets.id, row.householdItemBudgetId))
+      .get();
     if (!hib) {
       throw new NotFoundError('Household item budget line not found');
     }
@@ -83,7 +91,11 @@ function resolveDetail(
     confidence = hib.confidence as ConfidenceLevel;
     categoryId = hib.budgetCategoryId;
 
-    const hi = db.select().from(householdItems).where(eq(householdItems.id, hib.householdItemId)).get();
+    const hi = db
+      .select()
+      .from(householdItems)
+      .where(eq(householdItems.id, hib.householdItemId))
+      .get();
     if (!hi) {
       throw new NotFoundError('Household item not found');
     }
@@ -189,7 +201,8 @@ export function createInvoiceBudgetLine(
 
   // Validate XOR: exactly one of workItemBudgetId or householdItemBudgetId
   const hasWorkItem = data.workItemBudgetId !== undefined && data.workItemBudgetId !== null;
-  const hasHouseholdItem = data.householdItemBudgetId !== undefined && data.householdItemBudgetId !== null;
+  const hasHouseholdItem =
+    data.householdItemBudgetId !== undefined && data.householdItemBudgetId !== null;
 
   if (!hasWorkItem && !hasHouseholdItem) {
     throw new ValidationError('Either workItemBudgetId or householdItemBudgetId must be provided');
@@ -200,7 +213,11 @@ export function createInvoiceBudgetLine(
 
   // Verify the referenced budget line exists
   if (hasWorkItem) {
-    const wib = db.select().from(workItemBudgets).where(eq(workItemBudgets.id, data.workItemBudgetId!)).get();
+    const wib = db
+      .select()
+      .from(workItemBudgets)
+      .where(eq(workItemBudgets.id, data.workItemBudgetId!))
+      .get();
     if (!wib) {
       throw new NotFoundError('Work item budget line not found');
     }
@@ -220,7 +237,11 @@ export function createInvoiceBudgetLine(
       );
     }
   } else {
-    const hib = db.select().from(householdItemBudgets).where(eq(householdItemBudgets.id, data.householdItemBudgetId!)).get();
+    const hib = db
+      .select()
+      .from(householdItemBudgets)
+      .where(eq(householdItemBudgets.id, data.householdItemBudgetId!))
+      .get();
     if (!hib) {
       throw new NotFoundError('Household item budget line not found');
     }
@@ -301,7 +322,11 @@ export function updateInvoiceBudgetLine(
   }
 
   // Verify the line exists and belongs to this invoice
-  const existing = db.select().from(invoiceBudgetLines).where(eq(invoiceBudgetLines.id, lineId)).get();
+  const existing = db
+    .select()
+    .from(invoiceBudgetLines)
+    .where(eq(invoiceBudgetLines.id, lineId))
+    .get();
   if (!existing) {
     throw new NotFoundError('Invoice budget line not found');
   }
@@ -325,7 +350,9 @@ export function updateInvoiceBudgetLine(
     const otherRows = db
       .select()
       .from(invoiceBudgetLines)
-      .where(sql`${invoiceBudgetLines.invoiceId} = ${invoiceId} AND ${invoiceBudgetLines.id} != ${lineId}`)
+      .where(
+        sql`${invoiceBudgetLines.invoiceId} = ${invoiceId} AND ${invoiceBudgetLines.id} != ${lineId}`,
+      )
       .all();
     const otherTotal = otherRows.reduce((sum, row) => sum + row.itemizedAmount, 0);
     const newTotal = otherTotal + newItemizedAmount;
@@ -346,7 +373,11 @@ export function updateInvoiceBudgetLine(
     .where(eq(invoiceBudgetLines.id, lineId))
     .run();
 
-  const updated = db.select().from(invoiceBudgetLines).where(eq(invoiceBudgetLines.id, lineId)).get()!;
+  const updated = db
+    .select()
+    .from(invoiceBudgetLines)
+    .where(eq(invoiceBudgetLines.id, lineId))
+    .get()!;
   const budgetLine = resolveDetail(db, updated);
 
   // Calculate remaining amount
@@ -375,7 +406,11 @@ export function deleteInvoiceBudgetLine(db: DbType, invoiceId: string, lineId: s
   }
 
   // Verify the line exists and belongs to this invoice
-  const existing = db.select().from(invoiceBudgetLines).where(eq(invoiceBudgetLines.id, lineId)).get();
+  const existing = db
+    .select()
+    .from(invoiceBudgetLines)
+    .where(eq(invoiceBudgetLines.id, lineId))
+    .get();
   if (!existing) {
     throw new NotFoundError('Invoice budget line not found');
   }

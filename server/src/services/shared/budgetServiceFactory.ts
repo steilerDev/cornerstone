@@ -27,7 +27,14 @@ export function getInvoiceLink(
   db: DbType,
   budgetId: string,
   invoiceBudgetIdColumn: string,
-): { invoiceBudgetLineId: string; invoiceId: string; invoiceNumber: string | null; invoiceDate: string; invoiceStatus: string; itemizedAmount: number } | null {
+): {
+  invoiceBudgetLineId: string;
+  invoiceId: string;
+  invoiceNumber: string | null;
+  invoiceDate: string;
+  invoiceStatus: string;
+  itemizedAmount: number;
+} | null {
   const row = db.get<{
     ibl_id: string;
     invoice_id: string;
@@ -62,7 +69,14 @@ export interface ResolvedBudgetRelations {
   actualCost: number;
   actualCostPaid: number;
   invoiceCount: number;
-  invoiceLink: { invoiceBudgetLineId: string; invoiceId: string; invoiceNumber: string | null; invoiceDate: string; invoiceStatus: string; itemizedAmount: number } | null;
+  invoiceLink: {
+    invoiceBudgetLineId: string;
+    invoiceId: string;
+    invoiceNumber: string | null;
+    invoiceDate: string;
+    invoiceStatus: string;
+    itemizedAmount: number;
+  } | null;
   createdBy: ReturnType<typeof toUserSummary>;
 }
 
@@ -95,7 +109,9 @@ export function resolveRelations(
     ? getInvoiceAggregates(db, row.id, invoiceBudgetIdColumn)
     : { actualCost: 0, actualCostPaid: 0, invoiceCount: 0 };
 
-  const invoiceLink = invoiceBudgetIdColumn ? getInvoiceLink(db, row.id, invoiceBudgetIdColumn) : null;
+  const invoiceLink = invoiceBudgetIdColumn
+    ? getInvoiceLink(db, row.id, invoiceBudgetIdColumn)
+    : null;
 
   return {
     confidence,

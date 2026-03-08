@@ -1,7 +1,10 @@
 import type { FastifyInstance } from 'fastify';
 import { UnauthorizedError } from '../errors/AppError.js';
 import * as invoiceBudgetLineService from '../services/invoiceBudgetLineService.js';
-import type { CreateInvoiceBudgetLineRequest, UpdateInvoiceBudgetLineRequest } from '@cornerstone/shared';
+import type {
+  CreateInvoiceBudgetLineRequest,
+  UpdateInvoiceBudgetLineRequest,
+} from '@cornerstone/shared';
 
 // JSON schema for GET /api/invoices/:invoiceId/budget-lines
 const listBudgetLinesSchema = {
@@ -83,7 +86,10 @@ export default async function invoiceBudgetLineRoutes(fastify: FastifyInstance) 
         throw new UnauthorizedError();
       }
 
-      const result = invoiceBudgetLineService.listInvoiceBudgetLines(fastify.db, request.params.invoiceId);
+      const result = invoiceBudgetLineService.listInvoiceBudgetLines(
+        fastify.db,
+        request.params.invoiceId,
+      );
       return reply.status(200).send(result);
     },
   );
@@ -146,7 +152,11 @@ export default async function invoiceBudgetLineRoutes(fastify: FastifyInstance) 
         throw new UnauthorizedError();
       }
 
-      invoiceBudgetLineService.deleteInvoiceBudgetLine(fastify.db, request.params.invoiceId, request.params.id);
+      invoiceBudgetLineService.deleteInvoiceBudgetLine(
+        fastify.db,
+        request.params.invoiceId,
+        request.params.id,
+      );
       return reply.status(204).send();
     },
   );

@@ -1358,7 +1358,9 @@ export default function WorkItemDetailPage() {
                           >
                             <div className={styles.invoicePopoverItemRow}>
                               <span className={styles.invoicePopoverItemNumber}>
-                                {line.invoiceLink.invoiceNumber ? `#${line.invoiceLink.invoiceNumber}` : 'No #'}
+                                {line.invoiceLink.invoiceNumber
+                                  ? `#${line.invoiceLink.invoiceNumber}`
+                                  : 'No #'}
                               </span>
                               <span className={styles.invoicePopoverItemAmount}>
                                 {formatCurrency(line.invoiceLink.itemizedAmount)}
