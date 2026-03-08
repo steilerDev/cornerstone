@@ -1,5 +1,5 @@
 /**
- * E2E tests for the Household Item Detail page (/household-items/:id)
+ * E2E tests for the Household Item Detail page (/project/household-items/:id)
  *
  * EPIC-04 Stories covered:
  * - 4.5: Detail Page
@@ -10,8 +10,8 @@
  *
  * Scenarios covered:
  * 1.  Page loads with item name as heading
- * 2.  Back link navigates to /household-items
- * 3.  Edit button navigates to /household-items/:id/edit
+ * 2.  Back link navigates to /project/household-items
+ * 3.  Edit button navigates to /project/household-items/:id/edit
  * 4.  Budget section is visible on the detail page
  * 5.  Documents section heading "Documents" is visible
  * 6.  "+  Add Document" button is disabled when Paperless is not configured
@@ -54,10 +54,10 @@ test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 2: Back link navigates to /household-items
+// Scenario 2: Back link navigates to /project/household-items
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Back breadcrumb navigation (Scenario 2)', { tag: '@responsive' }, () => {
-  test('"Household Items" breadcrumb link navigates to /household-items', async ({
+  test('"Household Items" breadcrumb link navigates to /project/household-items', async ({
     page,
     testPrefix,
   }) => {
@@ -73,10 +73,10 @@ test.describe('Back breadcrumb navigation (Scenario 2)', { tag: '@responsive' },
 
       await detailPage.backLink.click();
 
-      await page.waitForURL('**/household-items');
-      expect(page.url()).toContain('/household-items');
+      await page.waitForURL('**/project/household-items');
+      expect(page.url()).toContain('/project/household-items');
       // Should not be on the detail page
-      expect(page.url()).not.toMatch(/\/household-items\/[a-zA-Z0-9-]+$/);
+      expect(page.url()).not.toMatch(/\/project\/household-items\/[a-zA-Z0-9-]+$/);
     } finally {
       if (createdId) await deleteHouseholdItemViaApi(page, createdId);
     }
@@ -87,7 +87,7 @@ test.describe('Back breadcrumb navigation (Scenario 2)', { tag: '@responsive' },
 // Scenario 3: Edit button navigates to edit page
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Edit button navigation (Scenario 3)', { tag: '@responsive' }, () => {
-  test('"Edit" button navigates to /household-items/:id/edit', async ({ page, testPrefix }) => {
+  test('"Edit" button navigates to /project/household-items/:id/edit', async ({ page, testPrefix }) => {
     const detailPage = new HouseholdItemDetailPage(page);
     let createdId: string | null = null;
 
@@ -100,7 +100,7 @@ test.describe('Edit button navigation (Scenario 3)', { tag: '@responsive' }, () 
 
       await detailPage.editButton.click();
 
-      await page.waitForURL(`**/household-items/${createdId}/edit`);
+      await page.waitForURL(`**/project/household-items/${createdId}/edit`);
       expect(page.url()).toContain('/edit');
     } finally {
       if (createdId) await deleteHouseholdItemViaApi(page, createdId);
@@ -123,7 +123,7 @@ test.describe('Budget section visible (Scenario 4 — Story 4.6)', { tag: '@resp
         name: `${testPrefix} HI Budget Section Test`,
       });
 
-      await page.goto(`/household-items/${createdId}`);
+      await page.goto(`/project/household-items/${createdId}`);
       await page.getByRole('heading', { level: 1 }).waitFor({ state: 'visible', timeout: 10000 });
 
       // The budget section heading should be visible
@@ -146,7 +146,7 @@ test.describe('Budget section visible (Scenario 4 — Story 4.6)', { tag: '@resp
         name: `${testPrefix} HI Budget Add Test`,
       });
 
-      await page.goto(`/household-items/${createdId}`);
+      await page.goto(`/project/household-items/${createdId}`);
       await page.getByRole('heading', { level: 1 }).waitFor({ state: 'visible', timeout: 10000 });
 
       // The budget section should have an "Add Budget Line" button
@@ -255,7 +255,7 @@ test.describe('Documents section — Story 8.6 (Scenarios 5–7, 11)', { tag: '@
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('404 / error state (Scenario 8)', { tag: '@responsive' }, () => {
   test('Navigating to a non-existent household item shows error state', async ({ page }) => {
-    await page.goto('/household-items/non-existent-id-000');
+    await page.goto('/project/household-items/non-existent-id-000');
 
     // The page should either show a not-found message or redirect
     // The HouseholdItemDetailPage shows "not found" text when item doesn't exist.
@@ -310,7 +310,7 @@ test.describe('Dark mode rendering (Scenario 10)', { tag: '@responsive' }, () =>
         name: `${testPrefix} HI Detail Dark Mode`,
       });
 
-      await page.goto(`/household-items/${createdId}`);
+      await page.goto(`/project/household-items/${createdId}`);
       await page.evaluate(() => {
         document.documentElement.setAttribute('data-theme', 'dark');
       });
@@ -337,7 +337,7 @@ test.describe('Dark mode rendering (Scenario 10)', { tag: '@responsive' }, () =>
         name: `${testPrefix} HI Doc Dark Mode`,
       });
 
-      await page.goto(`/household-items/${createdId}`);
+      await page.goto(`/project/household-items/${createdId}`);
       await page.evaluate(() => {
         document.documentElement.setAttribute('data-theme', 'dark');
       });

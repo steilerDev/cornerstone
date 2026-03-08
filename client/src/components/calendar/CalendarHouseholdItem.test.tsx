@@ -192,10 +192,10 @@ describe('CalendarHouseholdItem', () => {
   // ── Click navigation ───────────────────────────────────────────────────────
 
   describe('click navigation', () => {
-    it('click navigates to /household-items/:id (non-touch)', () => {
+    it('click navigates to /project/household-items/:id (non-touch)', () => {
       // Use a MemoryRouter so we can verify navigation happened without erroring
       render(
-        <MemoryRouter initialEntries={['/timeline']}>
+        <MemoryRouter initialEntries={['/schedule']}>
           <CalendarHouseholdItem item={makeHouseholdItem({ id: 'hi-42' })} />
         </MemoryRouter>,
       );

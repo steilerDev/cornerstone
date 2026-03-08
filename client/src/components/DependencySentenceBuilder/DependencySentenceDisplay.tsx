@@ -51,7 +51,7 @@ export function DependencySentenceDisplay({
             <ul className={styles.itemList}>
               {group.items.map((dep) => (
                 <li key={dep.workItem.id} className={styles.item}>
-                  <Link to={`/work-items/${dep.workItem.id}`} className={styles.itemLink}>
+                  <Link to={`/project/work-items/${dep.workItem.id}`} className={styles.itemLink}>
                     {dep.workItem.title}
                   </Link>
                   <button
@@ -79,7 +79,7 @@ export function DependencySentenceDisplay({
             <ul className={styles.itemList}>
               {group.items.map((dep) => (
                 <li key={dep.workItem.id} className={styles.item}>
-                  <Link to={`/work-items/${dep.workItem.id}`} className={styles.itemLink}>
+                  <Link to={`/project/work-items/${dep.workItem.id}`} className={styles.itemLink}>
                     {dep.workItem.title}
                   </Link>
                   <button

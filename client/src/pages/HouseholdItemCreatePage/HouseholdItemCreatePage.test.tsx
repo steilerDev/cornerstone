@@ -168,11 +168,11 @@ describe('HouseholdItemCreatePage', () => {
 
   function renderPage() {
     return render(
-      <MemoryRouter initialEntries={['/household-items/new']}>
+      <MemoryRouter initialEntries={['/project/household-items/new']}>
         <Routes>
-          <Route path="/household-items/new" element={<HouseholdItemCreatePageModule.default />} />
-          <Route path="/household-items/:id" element={<div>Household Item Detail</div>} />
-          <Route path="/household-items" element={<div>Household Items List</div>} />
+          <Route path="/project/household-items/new" element={<HouseholdItemCreatePageModule.default />} />
+          <Route path="/project/household-items/:id" element={<div>Household Item Detail</div>} />
+          <Route path="/project/household-items" element={<div>Household Items List</div>} />
         </Routes>
         <LocationDisplay />
       </MemoryRouter>,
@@ -280,10 +280,10 @@ describe('HouseholdItemCreatePage', () => {
       await user.click(screen.getByRole('button', { name: /cancel/i }));
 
       await waitFor(() => {
-        expect(screen.getByTestId('location')).toHaveTextContent('/household-items');
+        expect(screen.getByTestId('location')).toHaveTextContent('/project/household-items');
       });
 
-      expect(screen.getByTestId('location').textContent).not.toBe('/household-items/new');
+      expect(screen.getByTestId('location').textContent).not.toBe('/project/household-items/new');
     });
 
     it('navigates to household items list on back button click', async () => {
@@ -299,7 +299,7 @@ describe('HouseholdItemCreatePage', () => {
       await user.click(screen.getByRole('button', { name: /back to household items/i }));
 
       await waitFor(() => {
-        expect(screen.getByTestId('location')).toHaveTextContent('/household-items');
+        expect(screen.getByTestId('location')).toHaveTextContent('/project/household-items');
       });
     });
   });
@@ -367,7 +367,7 @@ describe('HouseholdItemCreatePage', () => {
       await user.click(screen.getByRole('button', { name: /create item/i }));
 
       await waitFor(() => {
-        expect(screen.getByTestId('location')).toHaveTextContent('/household-items/hi-new');
+        expect(screen.getByTestId('location')).toHaveTextContent('/project/household-items/hi-new');
       });
 
       expect(mockCreateHouseholdItem).toHaveBeenCalledTimes(1);

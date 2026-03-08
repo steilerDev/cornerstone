@@ -165,10 +165,10 @@ afterEach(() => {
 
 function renderPage(id = MOCK_INVOICE_ID) {
   return render(
-    <MemoryRouter initialEntries={[`/invoices/${id}`]}>
+    <MemoryRouter initialEntries={[`/budget/invoices/${id}`]}>
       <Routes>
-        <Route path="/invoices/:id" element={<InvoiceDetailPage />} />
-        <Route path="/invoices" element={<div>Invoice List Page</div>} />
+        <Route path="/budget/invoices/:id" element={<InvoiceDetailPage />} />
+        <Route path="/budget/invoices" element={<div>Invoice List Page</div>} />
       </Routes>
     </MemoryRouter>,
   );

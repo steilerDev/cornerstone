@@ -1,5 +1,5 @@
 /**
- * Page Object Model for the Household Item Create page (/household-items/new)
+ * Page Object Model for the Household Item Create page (/project/household-items/new)
  *
  * EPIC-04 Story 4.4: Create & Edit Form
  *
@@ -22,14 +22,14 @@
  * - Error banner for server-side errors
  *
  * Key DOM observations from source code:
- * - Back button is a <button> with onClick navigate('/household-items')
+ * - Back button is a <button> with onClick navigate('/project/household-items')
  * - Submit button is type="submit", disabled during isSubmitting
- * - On success, navigates to /household-items/:id (the detail page)
+ * - On success, navigates to /project/household-items/:id (the detail page)
  */
 
 import type { Page, Locator } from '@playwright/test';
 
-export const HOUSEHOLD_ITEM_CREATE_ROUTE = '/household-items/new';
+export const HOUSEHOLD_ITEM_CREATE_ROUTE = '/project/household-items/new';
 
 export interface HouseholdItemFormData {
   name?: string;
@@ -173,13 +173,13 @@ export class HouseholdItemCreatePage {
     await this.page.waitForURL(
       (url) => {
         const path = url.pathname;
-        return path.startsWith('/household-items/') && !path.endsWith('/new');
+        return path.startsWith('/project/household-items/') && !path.endsWith('/new');
       },
       { timeout: 30000 },
     );
     // Extract the ID from the URL path
     const url = this.page.url();
-    const match = url.match(/\/household-items\/([^/]+)$/);
+    const match = url.match(/\/project\/household-items\/([^/]+)$/);
     return match ? match[1] : '';
   }
 

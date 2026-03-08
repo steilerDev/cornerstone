@@ -1,14 +1,14 @@
 /**
- * Page Object Model for the Budget Categories tab on the Manage page (/manage?tab=budget-categories)
+ * Page Object Model for the Budget Categories tab on the Manage page (/settings/manage?tab=budget-categories)
  *
- * Note: /budget/categories now redirects to /manage?tab=budget-categories.
+ * Note: /budget/categories now redirects to /settings/manage?tab=budget-categories.
  * The page uses an inline create form (toggled by "Add Category" button),
  * a list of categories with inline edit forms, and a delete confirmation modal.
  */
 
 import type { Page, Locator } from '@playwright/test';
 
-export const BUDGET_CATEGORIES_ROUTE = '/manage?tab=budget-categories';
+export const BUDGET_CATEGORIES_ROUTE = '/settings/manage?tab=budget-categories';
 
 export interface CreateCategoryData {
   name: string;

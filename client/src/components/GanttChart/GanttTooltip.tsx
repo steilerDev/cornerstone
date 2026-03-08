@@ -327,7 +327,7 @@ function WorkItemTooltipContent({
         <>
           <div className={styles.separator} aria-hidden="true" />
           <Link
-            to={`/work-items/${data.workItemId}`}
+            to={`/project/work-items/${data.workItemId}`}
             className={styles.viewItemLink}
             aria-label={`View details for ${data.title}`}
           >

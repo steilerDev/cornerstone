@@ -180,7 +180,7 @@ test.describe('Document Linking — Work Item (Scenarios 1, 3, 6)', { tag: '@res
 
       await mockPaperlessForLinking(page, 'work_item', createdId);
 
-      await page.goto(`/work-items/${createdId}`);
+      await page.goto(`/project/work-items/${createdId}`);
       await page.getByRole('heading', { level: 1 }).waitFor({ state: 'visible' });
 
       // Documents section should be visible with no linked docs
@@ -249,7 +249,7 @@ test.describe('Document Linking — Duplicate (Scenario 5)', { tag: '@responsive
 
       await mockPaperlessForLinking(page, 'work_item', createdId);
 
-      await page.goto(`/work-items/${createdId}`);
+      await page.goto(`/project/work-items/${createdId}`);
       await page.getByRole('heading', { level: 1 }).waitFor({ state: 'visible' });
 
       // First link — should succeed

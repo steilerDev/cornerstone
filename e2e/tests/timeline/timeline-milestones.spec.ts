@@ -1,5 +1,5 @@
 /**
- * E2E tests for Milestone CRUD flows on the Timeline page (/timeline)
+ * E2E tests for Milestone CRUD flows on the Schedule page (/schedule)
  *
  * Scenarios covered:
  * 1.  Open milestones panel — empty state message

@@ -14,6 +14,7 @@ import { formatDate, formatCurrency } from '../../lib/formatters.js';
 import { WorkItemPicker } from '../../components/WorkItemPicker/WorkItemPicker.js';
 import { HouseholdItemPicker } from '../../components/HouseholdItemPicker/HouseholdItemPicker.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
+import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
 import styles from './InvoiceDetailPage.module.css';
 
 const STATUS_LABELS: Record<InvoiceStatus, string> = {
@@ -210,7 +211,7 @@ export function InvoiceDetailPage() {
     setDeleteError('');
     try {
       await deleteInvoice(invoice.vendorId, invoice.id);
-      navigate('/invoices');
+      navigate('/budget/invoices');
     } catch (err) {
       if (err instanceof ApiClientError) {
         setDeleteError(err.error.message);
@@ -240,7 +241,7 @@ export function InvoiceDetailPage() {
             <button
               type="button"
               className={styles.secondaryButton}
-              onClick={() => navigate('/invoices')}
+              onClick={() => navigate('/budget/invoices')}
             >
               Back to Invoices
             </button>
@@ -258,7 +259,7 @@ export function InvoiceDetailPage() {
       <div className={styles.content}>
         {/* Breadcrumb */}
         <div className={styles.breadcrumb}>
-          <Link to="/invoices" className={styles.backLink}>
+          <Link to="/budget/invoices" className={styles.backLink}>
             Invoices
           </Link>
           <span className={styles.breadcrumbSeparator} aria-hidden="true">
@@ -266,6 +267,7 @@ export function InvoiceDetailPage() {
           </span>
           <span className={styles.breadcrumbCurrent}>{invoice.invoiceNumber ?? 'Invoice'}</span>
         </div>
+        <BudgetSubNav />
 
         {/* Page heading */}
         <div className={styles.pageHeader}>
@@ -334,7 +336,7 @@ export function InvoiceDetailPage() {
                 <dt className={styles.infoLabel}>Work Item</dt>
                 <dd className={styles.infoValue}>
                   <Link
-                    to={`/work-items/${invoice.workItemBudget.workItemId}`}
+                    to={`/project/work-items/${invoice.workItemBudget.workItemId}`}
                     className={styles.infoLink}
                   >
                     {invoice.workItemBudget.workItemTitle}
@@ -347,7 +349,7 @@ export function InvoiceDetailPage() {
                 <dt className={styles.infoLabel}>Household Item</dt>
                 <dd className={styles.infoValue}>
                   <Link
-                    to={`/household-items/${invoice.householdItemBudget.householdItemId}`}
+                    to={`/project/household-items/${invoice.householdItemBudget.householdItemId}`}
                     className={styles.infoLink}
                   >
                     {invoice.householdItemBudget.householdItemName}

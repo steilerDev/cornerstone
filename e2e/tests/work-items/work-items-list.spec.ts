@@ -1,10 +1,10 @@
 /**
- * E2E tests for Work Items List page (/work-items)
+ * E2E tests for Work Items List page (/project/work-items)
  *
  * Scenarios covered:
  * 1.  Page loads with h1 "Work Items"
  * 2.  Empty state when no work items (mock API)
- * 3.  "New Work Item" button navigates to /work-items/new
+ * 3.  "New Work Item" button navigates to /project/work-items/new
  * 4.  Search filters work items
  * 5.  Create via API + verify appears in list + delete via API cleanup
  * 6.  Delete modal — confirm removes work item
@@ -32,10 +32,10 @@ test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
     await expect(workItemsPage.heading).toHaveText('Work Items');
   });
 
-  test('Page URL is /work-items', async ({ page }) => {
+  test('Page URL is /project/work-items', async ({ page }) => {
     await page.goto(WORK_ITEMS_ROUTE);
-    await page.waitForURL('/work-items');
-    expect(page.url()).toContain('/work-items');
+    await page.waitForURL('/project/work-items');
+    expect(page.url()).toContain('/project/work-items');
   });
 });
 
@@ -116,7 +116,7 @@ test.describe('Empty state (Scenario 2)', { tag: '@responsive' }, () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 3: "New Work Item" button navigates to /work-items/new
+// Scenario 3: "New Work Item" button navigates to /project/work-items/new
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('"New Work Item" navigation (Scenario 3)', { tag: '@responsive' }, () => {
   test('"New Work Item" button navigates to the create page', async ({ page }) => {
@@ -127,9 +127,9 @@ test.describe('"New Work Item" navigation (Scenario 3)', { tag: '@responsive' },
 
     await workItemsPage.newWorkItemButton.click();
 
-    // Should navigate to /work-items/new
-    await page.waitForURL('**/work-items/new');
-    expect(page.url()).toContain('/work-items/new');
+    // Should navigate to /project/work-items/new
+    await page.waitForURL('**/project/work-items/new');
+    expect(page.url()).toContain('/project/work-items/new');
   });
 });
 

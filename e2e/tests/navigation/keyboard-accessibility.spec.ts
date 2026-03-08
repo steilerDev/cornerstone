@@ -32,7 +32,7 @@ test.describe('Keyboard Accessibility', { tag: '@responsive' }, () => {
       'Dashboard',
       'Work Items',
       'Budget',
-      'Timeline',
+      'Schedule',
       'Household Items',
       'Documents',
       'Profile',

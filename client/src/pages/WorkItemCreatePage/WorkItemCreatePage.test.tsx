@@ -95,11 +95,11 @@ describe('WorkItemCreatePage', () => {
 
   function renderPage() {
     return render(
-      <MemoryRouter initialEntries={['/work-items/new']}>
+      <MemoryRouter initialEntries={['/project/work-items/new']}>
         <Routes>
-          <Route path="/work-items/new" element={<WorkItemCreatePageModule.default />} />
-          <Route path="/work-items/:id" element={<div>Work Item Detail</div>} />
-          <Route path="/work-items" element={<div>Work Items List</div>} />
+          <Route path="/project/work-items/new" element={<WorkItemCreatePageModule.default />} />
+          <Route path="/project/work-items/:id" element={<div>Work Item Detail</div>} />
+          <Route path="/project/work-items" element={<div>Work Items List</div>} />
         </Routes>
         <LocationDisplay />
       </MemoryRouter>,
@@ -318,7 +318,7 @@ describe('WorkItemCreatePage', () => {
 
       // After successful creation, navigates to /work-items/work-1
       await waitFor(() => {
-        expect(screen.getByTestId('location')).toHaveTextContent('/work-items/work-1');
+        expect(screen.getByTestId('location')).toHaveTextContent('/project/work-items/work-1');
       });
     });
 
@@ -438,7 +438,7 @@ describe('WorkItemCreatePage', () => {
       await user.click(backButton);
 
       await waitFor(() => {
-        expect(screen.getByTestId('location')).toHaveTextContent('/work-items');
+        expect(screen.getByTestId('location')).toHaveTextContent('/project/work-items');
       });
     });
 
@@ -454,7 +454,7 @@ describe('WorkItemCreatePage', () => {
       await user.click(cancelButton);
 
       await waitFor(() => {
-        expect(screen.getByTestId('location')).toHaveTextContent('/work-items');
+        expect(screen.getByTestId('location')).toHaveTextContent('/project/work-items');
       });
     });
   });

@@ -1886,7 +1886,7 @@ describe('CostBreakdownTable', () => {
   });
 
   // Scenario 11: Work item name is a link with correct href
-  it('work item name in item row is an anchor link to /work-items/{workItemId}', () => {
+  it('work item name in item row is an anchor link to /project/work-items/{workItemId}', () => {
     const { container } = renderWithRouter(
       buildBreakdownWithWI({
         workItemId: 'wi-link-test',
@@ -1902,11 +1902,11 @@ describe('CostBreakdownTable', () => {
 
     const link = screen.getByRole('link', { name: 'Plumbing Work' });
     expect(link).toBeInTheDocument();
-    expect(link).toHaveAttribute('href', '/work-items/wi-link-test');
+    expect(link).toHaveAttribute('href', '/project/work-items/wi-link-test');
   });
 
   // Scenario 12: Household item name is a link with correct href
-  it('household item name in item row is an anchor link to /household-items/{householdItemId}', () => {
+  it('household item name in item row is an anchor link to /project/household-items/{householdItemId}', () => {
     const { container } = renderWithRouter(
       buildBreakdownWithHI({
         hiCategory: 'Bathroom',
@@ -1921,7 +1921,7 @@ describe('CostBreakdownTable', () => {
 
     const link = screen.getByRole('link', { name: 'Bathroom Sink' });
     expect(link).toBeInTheDocument();
-    expect(link).toHaveAttribute('href', '/household-items/hi-link-test');
+    expect(link).toHaveAttribute('href', '/project/household-items/hi-link-test');
   });
 
   // Scenario 13: Cost column shows "-€" prefix for projected items

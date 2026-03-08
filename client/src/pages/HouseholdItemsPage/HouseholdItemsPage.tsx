@@ -15,6 +15,7 @@ import { HouseholdItemStatusBadge } from '../../components/HouseholdItemStatusBa
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import { KeyboardShortcutsHelp } from '../../components/KeyboardShortcutsHelp/KeyboardShortcutsHelp.js';
 import { formatDate, formatCurrency } from '../../lib/formatters.js';
+import { ProjectSubNav } from '../../components/ProjectSubNav/ProjectSubNav.js';
 import styles from './HouseholdItemsPage.module.css';
 
 const STATUS_OPTIONS: { value: HouseholdItemStatus; label: string }[] = [
@@ -319,7 +320,7 @@ export function HouseholdItemsPage() {
   };
 
   const handleRowClick = (itemId: string) => {
-    navigate(`/household-items/${itemId}`);
+    navigate(`/project/household-items/${itemId}`);
   };
 
   const handleDeleteClick = (item: HouseholdItemSummary, event: React.MouseEvent) => {
@@ -362,7 +363,7 @@ export function HouseholdItemsPage() {
     () => [
       {
         key: 'n',
-        handler: () => navigate('/household-items/new'),
+        handler: () => navigate('/project/household-items/new'),
         description: 'New household item',
       },
       {
@@ -394,7 +395,7 @@ export function HouseholdItemsPage() {
         key: 'Enter',
         handler: () => {
           if (selectedIndex >= 0 && householdItems[selectedIndex]) {
-            navigate(`/household-items/${householdItems[selectedIndex].id}`);
+            navigate(`/project/household-items/${householdItems[selectedIndex].id}`);
           }
         },
         description: 'Open selected item',
@@ -447,11 +448,12 @@ export function HouseholdItemsPage() {
         <button
           type="button"
           className={styles.primaryButton}
-          onClick={() => navigate('/household-items/new')}
+          onClick={() => navigate('/project/household-items/new')}
         >
           New Item
         </button>
       </div>
+      <ProjectSubNav />
 
       {error && (
         <div className={styles.errorBanner} role="alert">
@@ -612,7 +614,7 @@ export function HouseholdItemsPage() {
               <button
                 type="button"
                 className={styles.primaryButton}
-                onClick={() => navigate('/household-items/new')}
+                onClick={() => navigate('/project/household-items/new')}
               >
                 Create First Item
               </button>
@@ -772,7 +774,7 @@ export function HouseholdItemsPage() {
                               type="button"
                               className={styles.menuItem}
                               role="menuitem"
-                              onClick={() => navigate(`/household-items/${item.id}`)}
+                              onClick={() => navigate(`/project/household-items/${item.id}`)}
                             >
                               Edit
                             </button>
@@ -838,7 +840,7 @@ export function HouseholdItemsPage() {
                             type="button"
                             className={styles.menuItem}
                             role="menuitem"
-                            onClick={() => navigate(`/household-items/${item.id}`)}
+                            onClick={() => navigate(`/project/household-items/${item.id}`)}
                           >
                             Edit
                           </button>

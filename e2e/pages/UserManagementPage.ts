@@ -1,5 +1,5 @@
 /**
- * Page Object Model for the User Management page (/admin/users)
+ * Page Object Model for the User Management page (/settings/users)
  */
 
 import type { Page, Locator } from '@playwright/test';

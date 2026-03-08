@@ -1124,14 +1124,14 @@ describe('GanttTooltip — touch device navigation affordance (#342)', () => {
     expect(screen.getByText('View item')).toBeInTheDocument();
   });
 
-  it('"View item" link points to /work-items/:workItemId', () => {
+  it('"View item" link points to /project/work-items/:workItemId', () => {
     render(
       <MemoryRouter>
         <GanttTooltip data={WORK_ITEM_DATA} position={{ x: 100, y: 200 }} isTouchDevice={true} />
       </MemoryRouter>,
     );
     const link = screen.getByText('View item');
-    expect(link).toHaveAttribute('href', '/work-items/wi-abc-123');
+    expect(link).toHaveAttribute('href', '/project/work-items/wi-abc-123');
   });
 
   it('"View item" link has aria-label describing the work item title', () => {

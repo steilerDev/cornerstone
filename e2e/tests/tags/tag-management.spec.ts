@@ -1,7 +1,7 @@
 /**
- * E2E tests for Tag Management (/manage — Tags tab)
+ * E2E tests for Tag Management (/settings/manage — Tags tab)
  *
- * Note: /tags now redirects to /manage (the unified Manage page).
+ * Note: /tags now redirects to /settings/manage (the unified Manage page).
  * The Tags tab is the default tab so no ?tab= parameter is needed.
  *
  * UAT Scenarios covered:
@@ -750,7 +750,7 @@ test.describe('Dark mode rendering (Scenario 12)', { tag: '@responsive' }, () =>
   test('Manage page (Tags tab) renders correctly in dark mode', async ({ page }) => {
     const tagsPage = new TagManagementPage(page);
 
-    await page.goto('/manage');
+    await page.goto('/settings/manage');
     // Activate dark mode before checking
     await page.evaluate(() => {
       document.documentElement.setAttribute('data-theme', 'dark');
@@ -781,7 +781,7 @@ test.describe('Dark mode rendering (Scenario 12)', { tag: '@responsive' }, () =>
     try {
       createdId = await createTagViaApi(page, { name: tagName });
 
-      await page.goto('/manage');
+      await page.goto('/settings/manage');
       await page.evaluate(() => {
         document.documentElement.setAttribute('data-theme', 'dark');
       });

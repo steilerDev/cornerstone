@@ -171,7 +171,7 @@ afterEach(() => {
 
 function renderPage() {
   return render(
-    <MemoryRouter initialEntries={['/invoices']}>
+    <MemoryRouter initialEntries={['/budget/invoices']}>
       <InvoicesPage />
     </MemoryRouter>,
   );
@@ -473,7 +473,7 @@ describe('InvoicesPage', () => {
 
       // Simulate there being an active filter by injecting q param
       render(
-        <MemoryRouter initialEntries={['/invoices?q=nonexistent']}>
+        <MemoryRouter initialEntries={['/budget/invoices?q=nonexistent']}>
           <InvoicesPage />
         </MemoryRouter>,
       );

@@ -1,8 +1,8 @@
 /**
- * Page Object Model for the Timeline page (/timeline)
+ * Page Object Model for the Schedule page (/schedule)
  *
- * The Timeline page hosts:
- *   - A page header with h1 "Timeline" and a toolbar
+ * The Schedule page hosts:
+ *   - A page header with h1 "Schedule" and a toolbar
  *   - Gantt chart view (default): sidebar + scrollable SVG chart
  *   - Calendar view: month/week grids with navigation
  *   - Milestone panel (slide-in dialog via portal)
@@ -38,7 +38,7 @@
 
 import type { Page, Locator } from '@playwright/test';
 
-export const TIMELINE_ROUTE = '/timeline';
+export const TIMELINE_ROUTE = '/schedule';
 
 export class TimelinePage {
   readonly page: Page;
@@ -115,7 +115,7 @@ export class TimelinePage {
     this.page = page;
 
     // Page header
-    this.heading = page.getByRole('heading', { level: 1, name: 'Timeline', exact: true });
+    this.heading = page.getByRole('heading', { level: 1, name: 'Schedule', exact: true });
 
     // Toolbar controls
     this.arrowsToggleButton = page.getByLabel(/dependency arrows/i);
@@ -173,13 +173,13 @@ export class TimelinePage {
 
   // ── Navigation ─────────────────────────────────────────────────────────────
 
-  /** Navigate to the Timeline page and wait for the heading. */
+  /** Navigate to the Schedule page and wait for the heading. */
   async goto(): Promise<void> {
     await this.page.goto(TIMELINE_ROUTE);
     await this.heading.waitFor({ state: 'visible' });
   }
 
-  /** Navigate to timeline in calendar view. */
+  /** Navigate to schedule in calendar view. */
   async gotoCalendar(): Promise<void> {
     await this.page.goto(`${TIMELINE_ROUTE}?view=calendar`);
     await this.heading.waitFor({ state: 'visible' });

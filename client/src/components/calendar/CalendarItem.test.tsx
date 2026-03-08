@@ -230,7 +230,7 @@ describe('CalendarItem', () => {
     it('navigates to work item detail page on click', () => {
       // Use a wrapper that captures navigation via MemoryRouter's history
       const { container } = render(
-        <MemoryRouter initialEntries={['/timeline']}>
+        <MemoryRouter initialEntries={['/schedule']}>
           <CalendarItem item={makeItem({ id: 'item-abc' })} isStart isEnd />
         </MemoryRouter>,
       );

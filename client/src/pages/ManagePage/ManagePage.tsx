@@ -26,6 +26,7 @@ import {
 } from '../../lib/householdItemCategoriesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { TagPill } from '../../components/TagPill/TagPill.js';
+import { SettingsSubNav } from '../../components/SettingsSubNav/SettingsSubNav.js';
 import styles from './ManagePage.module.css';
 
 const DEFAULT_COLOR = '#3b82f6';
@@ -1606,6 +1607,7 @@ export default function ManagePage() {
     <div className={styles.container}>
       <div className={styles.content}>
         <h1 className={styles.pageTitle}>Manage</h1>
+        <SettingsSubNav />
 
         <div role="tablist" className={styles.tabList} onKeyDown={handleTabKeyDown}>
           <button

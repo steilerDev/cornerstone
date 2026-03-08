@@ -15,6 +15,7 @@ import { WorkItemPicker } from '../../components/WorkItemPicker/WorkItemPicker.j
 import { HouseholdItemPicker } from '../../components/HouseholdItemPicker/HouseholdItemPicker.js';
 import type { WorkItemBudgetLine, HouseholdItemBudgetLine } from '@cornerstone/shared';
 import { formatDate, formatCurrency } from '../../lib/formatters.js';
+import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
 import styles from './InvoicesPage.module.css';
 
 const STATUS_LABELS: Record<InvoiceStatus, string> = {
@@ -239,6 +240,7 @@ export function InvoicesPage() {
           <div className={styles.pageHeader}>
             <h1 className={styles.pageTitle}>Invoices</h1>
           </div>
+          <BudgetSubNav />
           <div className={styles.loading}>Loading invoices...</div>
         </div>
       </div>
@@ -251,6 +253,7 @@ export function InvoicesPage() {
         <div className={styles.pageHeader}>
           <h1 className={styles.pageTitle}>Invoices</h1>
         </div>
+        <BudgetSubNav />
 
         {/* Summary cards */}
         <div className={styles.summaryGrid}>
@@ -496,12 +499,12 @@ export function InvoicesPage() {
                       <td>{formatDate(invoice.date)}</td>
                       <td className={styles.invoiceNumberCell}>
                         {invoice.invoiceNumber ? (
-                          <Link to={`/invoices/${invoice.id}`} className={styles.invoiceLink}>
+                          <Link to={`/budget/invoices/${invoice.id}`} className={styles.invoiceLink}>
                             {invoice.invoiceNumber}
                           </Link>
                         ) : (
                           <Link
-                            to={`/invoices/${invoice.id}`}
+                            to={`/budget/invoices/${invoice.id}`}
                             className={`${styles.invoiceLink} ${styles.invoiceLinkNoNumber}`}
                           >
                             &mdash;
@@ -533,7 +536,7 @@ export function InvoicesPage() {
                         </span>
                       </td>
                       <td className={styles.actionsCell}>
-                        <Link to={`/invoices/${invoice.id}`} className={styles.viewButton}>
+                        <Link to={`/budget/invoices/${invoice.id}`} className={styles.viewButton}>
                           View
                         </Link>
                       </td>
@@ -549,7 +552,7 @@ export function InvoicesPage() {
                 <div key={invoice.id} className={styles.card}>
                   <div className={styles.cardTop}>
                     <div className={styles.cardLeft}>
-                      <Link to={`/invoices/${invoice.id}`} className={styles.cardInvoiceNumber}>
+                      <Link to={`/budget/invoices/${invoice.id}`} className={styles.cardInvoiceNumber}>
                         {invoice.invoiceNumber ? `#${invoice.invoiceNumber}` : 'No Number'}
                       </Link>
                       <Link
@@ -571,7 +574,7 @@ export function InvoicesPage() {
                     )}
                   </div>
                   <div className={styles.cardActions}>
-                    <Link to={`/invoices/${invoice.id}`} className={styles.viewButton}>
+                    <Link to={`/budget/invoices/${invoice.id}`} className={styles.viewButton}>
                       View Details
                     </Link>
                   </div>

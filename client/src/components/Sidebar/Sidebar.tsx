@@ -15,7 +15,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   return (
     <aside className={sidebarClassName} data-open={isOpen}>
-      <Link to="/" className={styles.logoArea} aria-label="Go to dashboard">
+      <Link to="/project" className={styles.logoArea} aria-label="Go to project overview">
         <Logo size={32} className={styles.logo} />
         <span className={styles.logoText}>Cornerstone</span>
       </Link>
@@ -31,19 +31,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       </div>
       <nav className={styles.nav} aria-label="Main navigation">
         <NavLink
-          to="/"
-          end
+          to="/project"
           className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
           onClick={onClose}
         >
-          Dashboard
-        </NavLink>
-        <NavLink
-          to="/work-items"
-          className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
-          onClick={onClose}
-        >
-          Work Items
+          Project
         </NavLink>
         <NavLink
           to="/budget"
@@ -53,52 +45,21 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           Budget
         </NavLink>
         <NavLink
-          to="/timeline"
+          to="/schedule"
           className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
           onClick={onClose}
         >
-          Timeline
+          Schedule
         </NavLink>
-        <NavLink
-          to="/household-items"
-          className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
-          onClick={onClose}
-        >
-          Household Items
-        </NavLink>
-        <NavLink
-          to="/invoices"
-          className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
-          onClick={onClose}
-        >
-          Invoices
-        </NavLink>
-        <NavLink
-          to="/manage"
-          className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
-          onClick={onClose}
-        >
-          Manage
-        </NavLink>
-        <div className={styles.navSeparator} />
-        <NavLink
-          to="/profile"
-          className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
-          onClick={onClose}
-        >
-          Profile
-        </NavLink>
-        {user?.role === 'admin' && (
-          <NavLink
-            to="/admin/users"
-            className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
-            onClick={onClose}
-          >
-            User Management
-          </NavLink>
-        )}
       </nav>
       <div className={styles.sidebarFooter}>
+        <NavLink
+          to="/settings"
+          className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
+          onClick={onClose}
+        >
+          Settings
+        </NavLink>
         <ThemeToggle />
         <button
           type="button"

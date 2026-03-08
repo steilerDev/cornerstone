@@ -191,7 +191,7 @@ test.describe(
 
         await mockPaperlessConfigured(page, 3);
 
-        await page.goto(`/work-items/${createdId}`);
+        await page.goto(`/project/work-items/${createdId}`);
         await page.getByRole('heading', { level: 1 }).waitFor({ state: 'visible' });
 
         // Click "+ Add Document" button (it should be enabled with mocked config)
@@ -227,7 +227,7 @@ test.describe(
 
         await mockPaperlessConfigured(page, 6);
 
-        await page.goto(`/work-items/${createdId}`);
+        await page.goto(`/project/work-items/${createdId}`);
         await page.getByRole('heading', { level: 1 }).waitFor({ state: 'visible' });
 
         const addDocButton = page.getByRole('button', { name: '+ Add Document', exact: true });
@@ -263,7 +263,7 @@ test.describe(
 
         await mockPaperlessConfigured(page, 3);
 
-        await page.goto(`/work-items/${createdId}`);
+        await page.goto(`/project/work-items/${createdId}`);
         await page.getByRole('heading', { level: 1 }).waitFor({ state: 'visible' });
 
         const addDocButton = page.getByRole('button', { name: '+ Add Document', exact: true });
@@ -298,7 +298,7 @@ test.describe(
         // Override document route to return empty results for any query
         await mockPaperlessConfigured(page, 0);
 
-        await page.goto(`/work-items/${createdId}`);
+        await page.goto(`/project/work-items/${createdId}`);
         await page.getByRole('heading', { level: 1 }).waitFor({ state: 'visible' });
 
         const addDocButton = page.getByRole('button', { name: '+ Add Document', exact: true });
@@ -337,7 +337,7 @@ test.describe(
 
         await mockPaperlessUnreachable(page);
 
-        await page.goto(`/work-items/${createdId}`);
+        await page.goto(`/project/work-items/${createdId}`);
         await page.getByRole('heading', { level: 1 }).waitFor({ state: 'visible' });
 
         // The "+ Add Document" button should be disabled when status loads as unreachable
@@ -385,7 +385,7 @@ test.describe('Document Browser — responsive (Scenario 8)', { tag: '@responsiv
 
       await mockPaperlessConfigured(page, 4);
 
-      await page.goto(`/work-items/${createdId}`);
+      await page.goto(`/project/work-items/${createdId}`);
       await page.getByRole('heading', { level: 1 }).waitFor({ state: 'visible' });
 
       const addDocButton = page.getByRole('button', { name: '+ Add Document', exact: true });

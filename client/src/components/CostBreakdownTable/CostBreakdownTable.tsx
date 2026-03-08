@@ -231,7 +231,7 @@ function WorkItemRow({
                 className={`${styles.chevron} ${itemExpanded ? styles.chevronOpen : ''}`}
               />
             </button>
-            <Link to={`/work-items/${item.workItemId}`} className={styles.nameLink}>
+            <Link to={`/project/work-items/${item.workItemId}`} className={styles.nameLink}>
               {item.title}
             </Link>
             {item.costDisplay === 'actual' && (
@@ -384,7 +384,7 @@ function HouseholdItemRow({
                 className={`${styles.chevron} ${itemExpanded ? styles.chevronOpen : ''}`}
               />
             </button>
-            <Link to={`/household-items/${item.householdItemId}`} className={styles.nameLink}>
+            <Link to={`/project/household-items/${item.householdItemId}`} className={styles.nameLink}>
               {item.name}
             </Link>
             {item.costDisplay === 'actual' && (

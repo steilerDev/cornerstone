@@ -1,5 +1,5 @@
 /**
- * Page Object Model for the Profile page (/profile)
+ * Page Object Model for the Profile page (/settings/profile)
  */
 
 import type { Page, Locator } from '@playwright/test';
