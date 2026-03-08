@@ -9,8 +9,8 @@ PRAGMA foreign_keys = OFF;
 CREATE TABLE invoice_budget_lines (
   id TEXT PRIMARY KEY,
   invoice_id TEXT NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
-  work_item_budget_id TEXT REFERENCES work_item_budgets(id) ON DELETE SET NULL,
-  household_item_budget_id TEXT REFERENCES household_item_budgets(id) ON DELETE SET NULL,
+  work_item_budget_id TEXT REFERENCES work_item_budgets(id) ON DELETE CASCADE,
+  household_item_budget_id TEXT REFERENCES household_item_budgets(id) ON DELETE CASCADE,
   itemized_amount REAL NOT NULL CHECK(itemized_amount > 0),
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,

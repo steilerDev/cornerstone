@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { randomUUID } from 'node:crypto';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
@@ -131,10 +132,19 @@ describe('Budget Source Service', () => {
       .values({
         id: invoiceId,
         vendorId,
-        workItemBudgetId: budgetLineId,
         amount,
         date: '2026-01-01',
         status: 'claimed',
+        createdAt: ts,
+        updatedAt: ts,
+      })
+      .run();
+    db.insert(schema.invoiceBudgetLines)
+      .values({
+        id: randomUUID(),
+        invoiceId,
+        workItemBudgetId: budgetLineId,
+        itemizedAmount: amount,
         createdAt: ts,
         updatedAt: ts,
       })
@@ -156,10 +166,19 @@ describe('Budget Source Service', () => {
       .values({
         id: invoiceId,
         vendorId,
-        workItemBudgetId: budgetLineId,
         amount,
         date: '2026-01-01',
         status: 'paid',
+        createdAt: ts,
+        updatedAt: ts,
+      })
+      .run();
+    db.insert(schema.invoiceBudgetLines)
+      .values({
+        id: randomUUID(),
+        invoiceId,
+        workItemBudgetId: budgetLineId,
+        itemizedAmount: amount,
         createdAt: ts,
         updatedAt: ts,
       })

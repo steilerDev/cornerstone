@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { buildApp } from '../app.js';
 import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
@@ -16,6 +17,7 @@ import {
   subsidyProgramCategories,
   vendors,
   invoices,
+  invoiceBudgetLines,
 } from '../db/schema.js';
 
 describe('Work Item Subsidy Payback Routes', () => {
@@ -176,7 +178,6 @@ describe('Work Item Subsidy Payback Routes', () => {
       .insert(invoices)
       .values({
         id: invoiceId,
-        workItemBudgetId: budgetLineId,
         vendorId,
         invoiceNumber: null,
         amount,
@@ -184,6 +185,18 @@ describe('Work Item Subsidy Payback Routes', () => {
         date: timestamp.slice(0, 10),
         dueDate: null,
         notes: null,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      })
+      .run();
+
+    app.db
+      .insert(invoiceBudgetLines)
+      .values({
+        id: randomUUID(),
+        invoiceId,
+        workItemBudgetId: budgetLineId,
+        itemizedAmount: amount,
         createdAt: timestamp,
         updatedAt: timestamp,
       })

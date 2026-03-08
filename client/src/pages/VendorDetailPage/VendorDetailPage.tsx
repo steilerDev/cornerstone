@@ -306,7 +306,6 @@ export function VendorDetailPage() {
         dueDate: createForm.dueDate || null,
         status: createForm.status,
         notes: createForm.notes.trim() || null,
-        workItemBudgetId: createForm.workItemBudgetId || null,
       });
       setInvoices((prev) => [newInvoice, ...prev]);
       setShowCreateModal(false);
@@ -325,7 +324,6 @@ export function VendorDetailPage() {
 
   const openEditInvoiceModal = (invoice: Invoice) => {
     setEditingInvoice(invoice);
-    const linkedWorkItemId = invoice.workItemBudget?.workItemId ?? '';
     setEditInvoiceForm({
       invoiceNumber: invoice.invoiceNumber ?? '',
       amount: invoice.amount.toString(),
@@ -333,21 +331,12 @@ export function VendorDetailPage() {
       dueDate: invoice.dueDate ? invoice.dueDate.slice(0, 10) : '',
       status: invoice.status,
       notes: invoice.notes ?? '',
-      selectedWorkItemId: linkedWorkItemId,
-      workItemBudgetId: invoice.workItemBudgetId ?? '',
+      selectedWorkItemId: '',
+      workItemBudgetId: '',
     });
     setBudgetLines([]);
     setBudgetLinkTouched(false);
     setEditInvoiceError('');
-
-    // Pre-load budget lines for the linked work item so the dropdown is populated
-    if (linkedWorkItemId) {
-      setBudgetLinesLoading(true);
-      void fetchWorkItemBudgets(linkedWorkItemId)
-        .then((lines) => setBudgetLines(lines))
-        .catch(() => setBudgetLines([]))
-        .finally(() => setBudgetLinesLoading(false));
-    }
   };
 
   const closeEditInvoiceModal = () => {
@@ -382,9 +371,6 @@ export function VendorDetailPage() {
         dueDate: editInvoiceForm.dueDate || null,
         status: editInvoiceForm.status,
         notes: editInvoiceForm.notes.trim() || null,
-        ...(budgetLinkTouched
-          ? { workItemBudgetId: editInvoiceForm.workItemBudgetId || null }
-          : {}),
       });
       setInvoices((prev) => prev.map((inv) => (inv.id === updated.id ? updated : inv)));
       setEditingInvoice(null);
@@ -1240,16 +1226,6 @@ export function VendorDetailPage() {
                 <label htmlFor="edit-work-item" className={styles.label}>
                   Link to Work Item
                 </label>
-                {editingInvoice?.workItemBudget && !budgetLinkTouched && (
-                  <p className={styles.budgetLinkNote}>
-                    Linked to &ldquo;{editingInvoice.workItemBudget.workItemTitle}&rdquo;
-                    {editingInvoice.workItemBudget.description
-                      ? ` — ${editingInvoice.workItemBudget.description}`
-                      : ''}
-                    . Change the selection below to update the link, or choose &ldquo;None&rdquo; to
-                    unlink.
-                  </p>
-                )}
                 <select
                   id="edit-work-item"
                   value={editInvoiceForm.selectedWorkItemId}

@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { randomUUID } from 'node:crypto';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
@@ -137,14 +138,24 @@ describe('budgetServiceFactory — createBudgetService()', () => {
   ) {
     const id = `inv-${++idCounter}`;
     const now = new Date(Date.now() + idCounter).toISOString();
+    const amount = opts.amount ?? 100;
     db.insert(schema.invoices)
       .values({
         id,
         vendorId,
-        amount: opts.amount ?? 100,
+        amount,
         date: '2025-01-01',
         status: opts.status ?? 'pending',
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    db.insert(schema.invoiceBudgetLines)
+      .values({
+        id: randomUUID(),
+        invoiceId: id,
         workItemBudgetId,
+        itemizedAmount: amount,
         createdAt: now,
         updatedAt: now,
       })
@@ -159,14 +170,24 @@ describe('budgetServiceFactory — createBudgetService()', () => {
   ) {
     const id = `inv-${++idCounter}`;
     const now = new Date(Date.now() + idCounter).toISOString();
+    const amount = opts.amount ?? 100;
     db.insert(schema.invoices)
       .values({
         id,
         vendorId,
-        amount: opts.amount ?? 100,
+        amount,
         date: '2025-01-01',
         status: opts.status ?? 'pending',
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    db.insert(schema.invoiceBudgetLines)
+      .values({
+        id: randomUUID(),
+        invoiceId: id,
         householdItemBudgetId,
+        itemizedAmount: amount,
         createdAt: now,
         updatedAt: now,
       })

@@ -4,6 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { randomUUID } from 'node:crypto';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
@@ -130,16 +131,25 @@ describe('Household Item Service - Total Actual Amount', () => {
       const vendorId = createTestVendor('Appliance Vendor');
 
       // Create invoice linked to the household item budget
-      invoiceService.createInvoice(
+      const invoice = invoiceService.createInvoice(
         db,
         vendorId,
         {
           amount: 2500,
           date: '2026-02-01',
-          householdItemBudgetId: budgetId,
         },
         userId,
       );
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId: invoice.id,
+          householdItemBudgetId: budgetId,
+          itemizedAmount: 2500,
+          createdAt: invoice.createdAt,
+          updatedAt: invoice.updatedAt,
+        })
+        .run();
 
       const detail = householdItemService.getHouseholdItemById(db, householdItemId);
 
@@ -153,38 +163,65 @@ describe('Household Item Service - Total Actual Amount', () => {
       const vendorId = createTestVendor('Appliance Vendor');
 
       // Create three invoices on the same budget line
-      invoiceService.createInvoice(
+      const inv1 = invoiceService.createInvoice(
         db,
         vendorId,
         {
           amount: 2000,
           date: '2026-02-01',
-          householdItemBudgetId: budgetId,
         },
         userId,
       );
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId: inv1.id,
+          householdItemBudgetId: budgetId,
+          itemizedAmount: 2000,
+          createdAt: inv1.createdAt,
+          updatedAt: inv1.updatedAt,
+        })
+        .run();
 
-      invoiceService.createInvoice(
+      const inv2 = invoiceService.createInvoice(
         db,
         vendorId,
         {
           amount: 1500,
           date: '2026-02-10',
-          householdItemBudgetId: budgetId,
         },
         userId,
       );
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId: inv2.id,
+          householdItemBudgetId: budgetId,
+          itemizedAmount: 1500,
+          createdAt: inv2.createdAt,
+          updatedAt: inv2.updatedAt,
+        })
+        .run();
 
-      invoiceService.createInvoice(
+      const inv3 = invoiceService.createInvoice(
         db,
         vendorId,
         {
           amount: 2500,
           date: '2026-02-20',
-          householdItemBudgetId: budgetId,
         },
         userId,
       );
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId: inv3.id,
+          householdItemBudgetId: budgetId,
+          itemizedAmount: 2500,
+          createdAt: inv3.createdAt,
+          updatedAt: inv3.updatedAt,
+        })
+        .run();
 
       const detail = householdItemService.getHouseholdItemById(db, householdItemId);
 
@@ -199,38 +236,65 @@ describe('Household Item Service - Total Actual Amount', () => {
       const vendorId = createTestVendor('Appliance Vendor');
 
       // Create invoices on different budget lines for the same household item
-      invoiceService.createInvoice(
+      const invA = invoiceService.createInvoice(
         db,
         vendorId,
         {
           amount: 1500,
           date: '2026-02-01',
-          householdItemBudgetId: budget1Id,
         },
         userId,
       );
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId: invA.id,
+          householdItemBudgetId: budget1Id,
+          itemizedAmount: 1500,
+          createdAt: invA.createdAt,
+          updatedAt: invA.updatedAt,
+        })
+        .run();
 
-      invoiceService.createInvoice(
+      const invB = invoiceService.createInvoice(
         db,
         vendorId,
         {
           amount: 1000,
           date: '2026-02-05',
-          householdItemBudgetId: budget2Id,
         },
         userId,
       );
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId: invB.id,
+          householdItemBudgetId: budget2Id,
+          itemizedAmount: 1000,
+          createdAt: invB.createdAt,
+          updatedAt: invB.updatedAt,
+        })
+        .run();
 
-      invoiceService.createInvoice(
+      const invC = invoiceService.createInvoice(
         db,
         vendorId,
         {
           amount: 500,
           date: '2026-02-10',
-          householdItemBudgetId: budget1Id,
         },
         userId,
       );
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId: invC.id,
+          householdItemBudgetId: budget1Id,
+          itemizedAmount: 500,
+          createdAt: invC.createdAt,
+          updatedAt: invC.updatedAt,
+        })
+        .run();
 
       const detail = householdItemService.getHouseholdItemById(db, householdItemId);
 
@@ -247,28 +311,46 @@ describe('Household Item Service - Total Actual Amount', () => {
       const vendorId = createTestVendor('Appliance Vendor');
 
       // Create invoice for item 1
-      invoiceService.createInvoice(
+      const inv1 = invoiceService.createInvoice(
         db,
         vendorId,
         {
           amount: 2000,
           date: '2026-02-01',
-          householdItemBudgetId: budget1Id,
         },
         userId,
       );
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId: inv1.id,
+          householdItemBudgetId: budget1Id,
+          itemizedAmount: 2000,
+          createdAt: inv1.createdAt,
+          updatedAt: inv1.updatedAt,
+        })
+        .run();
 
       // Create invoice for item 2
-      invoiceService.createInvoice(
+      const inv2 = invoiceService.createInvoice(
         db,
         vendorId,
         {
           amount: 1500,
           date: '2026-02-05',
-          householdItemBudgetId: budget2Id,
         },
         userId,
       );
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId: inv2.id,
+          householdItemBudgetId: budget2Id,
+          itemizedAmount: 1500,
+          createdAt: inv2.createdAt,
+          updatedAt: inv2.updatedAt,
+        })
+        .run();
 
       // Check item 1
       const detail1 = householdItemService.getHouseholdItemById(db, householdItem1Id);
@@ -286,16 +368,25 @@ describe('Household Item Service - Total Actual Amount', () => {
       const vendorId = createTestVendor('Appliance Vendor');
 
       // Create invoice for household item
-      invoiceService.createInvoice(
+      const invoice = invoiceService.createInvoice(
         db,
         vendorId,
         {
           amount: 2000,
           date: '2026-02-01',
-          householdItemBudgetId: budgetId,
         },
         userId,
       );
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId: invoice.id,
+          householdItemBudgetId: budgetId,
+          itemizedAmount: 2000,
+          createdAt: invoice.createdAt,
+          updatedAt: invoice.updatedAt,
+        })
+        .run();
 
       // Verify totalActual includes only the household item invoice
       const detail = householdItemService.getHouseholdItemById(db, householdItemId);
@@ -308,27 +399,45 @@ describe('Household Item Service - Total Actual Amount', () => {
       const budgetId = createTestHouseholdItemBudget(householdItemId, 5000.5);
       const vendorId = createTestVendor('Appliance Vendor');
 
-      invoiceService.createInvoice(
+      const inv1 = invoiceService.createInvoice(
         db,
         vendorId,
         {
           amount: 2345.67,
           date: '2026-02-01',
-          householdItemBudgetId: budgetId,
         },
         userId,
       );
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId: inv1.id,
+          householdItemBudgetId: budgetId,
+          itemizedAmount: 2345.67,
+          createdAt: inv1.createdAt,
+          updatedAt: inv1.updatedAt,
+        })
+        .run();
 
-      invoiceService.createInvoice(
+      const inv2 = invoiceService.createInvoice(
         db,
         vendorId,
         {
           amount: 1234.33,
           date: '2026-02-10',
-          householdItemBudgetId: budgetId,
         },
         userId,
       );
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId: inv2.id,
+          householdItemBudgetId: budgetId,
+          itemizedAmount: 1234.33,
+          createdAt: inv2.createdAt,
+          updatedAt: inv2.updatedAt,
+        })
+        .run();
 
       const detail = householdItemService.getHouseholdItemById(db, householdItemId);
 
@@ -347,16 +456,25 @@ describe('Household Item Service - Total Actual Amount', () => {
       const vendorId = createTestVendor('Appliance Vendor');
 
       // Create invoice (which affects totalActual but not netCost calculation)
-      invoiceService.createInvoice(
+      const invoice = invoiceService.createInvoice(
         db,
         vendorId,
         {
           amount: 2500,
           date: '2026-02-01',
-          householdItemBudgetId: budgetId,
         },
         userId,
       );
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId: invoice.id,
+          householdItemBudgetId: budgetId,
+          itemizedAmount: 2500,
+          createdAt: invoice.createdAt,
+          updatedAt: invoice.updatedAt,
+        })
+        .run();
 
       const detail = householdItemService.getHouseholdItemById(db, householdItemId);
 
@@ -372,16 +490,25 @@ describe('Household Item Service - Total Actual Amount', () => {
       const budgetId = createTestHouseholdItemBudget(householdItemId, 5000);
       const vendorId = createTestVendor('Appliance Vendor');
 
-      invoiceService.createInvoice(
+      const invoice = invoiceService.createInvoice(
         db,
         vendorId,
         {
           amount: 3000,
           date: '2026-02-01',
-          householdItemBudgetId: budgetId,
         },
         userId,
       );
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId: invoice.id,
+          householdItemBudgetId: budgetId,
+          itemizedAmount: 3000,
+          createdAt: invoice.createdAt,
+          updatedAt: invoice.updatedAt,
+        })
+        .run();
 
       const detail = householdItemService.getHouseholdItemById(db, householdItemId);
 

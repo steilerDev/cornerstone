@@ -4,6 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { randomUUID } from 'node:crypto';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
@@ -121,16 +122,25 @@ describe('Budget Overview Service - Household Item Invoice Aggregation', () => {
       const budgetId = createTestHouseholdItemBudget(householdItemId, 5000);
       const vendorId = createTestVendor('Appliance Vendor');
 
-      invoiceService.createInvoice(
+      const invoice = invoiceService.createInvoice(
         db,
         vendorId,
         {
           amount: 2500,
           date: '2026-02-01',
-          householdItemBudgetId: budgetId,
         },
         userId,
       );
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId: invoice.id,
+          householdItemBudgetId: budgetId,
+          itemizedAmount: 2500,
+          createdAt: invoice.createdAt,
+          updatedAt: invoice.updatedAt,
+        })
+        .run();
 
       const overview = budgetOverviewService.getBudgetOverview(db);
 
@@ -146,27 +156,45 @@ describe('Budget Overview Service - Household Item Invoice Aggregation', () => {
       const budget2Id = createTestHouseholdItemBudget(householdItemId, 3000);
       const vendorId = createTestVendor('Appliance Vendor');
 
-      invoiceService.createInvoice(
+      const invoice1 = invoiceService.createInvoice(
         db,
         vendorId,
         {
           amount: 2000,
           date: '2026-02-01',
-          householdItemBudgetId: budget1Id,
         },
         userId,
       );
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId: invoice1.id,
+          householdItemBudgetId: budget1Id,
+          itemizedAmount: 2000,
+          createdAt: invoice1.createdAt,
+          updatedAt: invoice1.updatedAt,
+        })
+        .run();
 
-      invoiceService.createInvoice(
+      const invoice2 = invoiceService.createInvoice(
         db,
         vendorId,
         {
           amount: 1500,
           date: '2026-02-05',
-          householdItemBudgetId: budget2Id,
         },
         userId,
       );
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId: invoice2.id,
+          householdItemBudgetId: budget2Id,
+          itemizedAmount: 1500,
+          createdAt: invoice2.createdAt,
+          updatedAt: invoice2.updatedAt,
+        })
+        .run();
 
       const overview = budgetOverviewService.getBudgetOverview(db);
 
@@ -217,28 +245,46 @@ describe('Budget Overview Service - Household Item Invoice Aggregation', () => {
       const vendorId = createTestVendor('Multi-Purpose Vendor');
 
       // Create household item invoice
-      invoiceService.createInvoice(
+      const hiInvoice = invoiceService.createInvoice(
         db,
         vendorId,
         {
           amount: 2000,
           date: '2026-02-01',
-          householdItemBudgetId: hiBudgetId,
         },
         userId,
       );
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId: hiInvoice.id,
+          householdItemBudgetId: hiBudgetId,
+          itemizedAmount: 2000,
+          createdAt: hiInvoice.createdAt,
+          updatedAt: hiInvoice.updatedAt,
+        })
+        .run();
 
       // Create work item invoice
-      invoiceService.createInvoice(
+      const wiInvoice = invoiceService.createInvoice(
         db,
         vendorId,
         {
           amount: 1500,
           date: '2026-02-05',
-          workItemBudgetId: wiBudgetId,
         },
         userId,
       );
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId: wiInvoice.id,
+          workItemBudgetId: wiBudgetId,
+          itemizedAmount: 1500,
+          createdAt: wiInvoice.createdAt,
+          updatedAt: wiInvoice.updatedAt,
+        })
+        .run();
 
       const overview = budgetOverviewService.getBudgetOverview(db);
 
@@ -277,16 +323,25 @@ describe('Budget Overview Service - Household Item Invoice Aggregation', () => {
       const budgetId = createTestHouseholdItemBudget(householdItemId, 5000, categoryId);
       const vendorId = createTestVendor('Appliance Vendor');
 
-      invoiceService.createInvoice(
+      const invoice = invoiceService.createInvoice(
         db,
         vendorId,
         {
           amount: 2500,
           date: '2026-02-01',
-          householdItemBudgetId: budgetId,
         },
         userId,
       );
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId: invoice.id,
+          householdItemBudgetId: budgetId,
+          itemizedAmount: 2500,
+          createdAt: invoice.createdAt,
+          updatedAt: invoice.updatedAt,
+        })
+        .run();
 
       const overview = budgetOverviewService.getBudgetOverview(db);
 
@@ -346,27 +401,45 @@ describe('Budget Overview Service - Household Item Invoice Aggregation', () => {
       const vendorId = createTestVendor('Multi-Purpose Vendor');
 
       // Create invoices for both
-      invoiceService.createInvoice(
+      const hiInvoice = invoiceService.createInvoice(
         db,
         vendorId,
         {
           amount: 1000,
           date: '2026-02-01',
-          householdItemBudgetId: hiBudgetId,
         },
         userId,
       );
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId: hiInvoice.id,
+          householdItemBudgetId: hiBudgetId,
+          itemizedAmount: 1000,
+          createdAt: hiInvoice.createdAt,
+          updatedAt: hiInvoice.updatedAt,
+        })
+        .run();
 
-      invoiceService.createInvoice(
+      const wiInvoice = invoiceService.createInvoice(
         db,
         vendorId,
         {
           amount: 800,
           date: '2026-02-05',
-          workItemBudgetId: wiBudgetId,
         },
         userId,
       );
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId: wiInvoice.id,
+          workItemBudgetId: wiBudgetId,
+          itemizedAmount: 800,
+          createdAt: wiInvoice.createdAt,
+          updatedAt: wiInvoice.updatedAt,
+        })
+        .run();
 
       const overview = budgetOverviewService.getBudgetOverview(db);
 
@@ -399,16 +472,25 @@ describe('Budget Overview Service - Household Item Invoice Aggregation', () => {
       const budgetId = createTestHouseholdItemBudget(householdItemId, 5000, undefined);
       const vendorId = createTestVendor('Appliance Vendor');
 
-      invoiceService.createInvoice(
+      const invoice = invoiceService.createInvoice(
         db,
         vendorId,
         {
           amount: 2500,
           date: '2026-02-01',
-          householdItemBudgetId: budgetId,
         },
         userId,
       );
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId: invoice.id,
+          householdItemBudgetId: budgetId,
+          itemizedAmount: 2500,
+          createdAt: invoice.createdAt,
+          updatedAt: invoice.updatedAt,
+        })
+        .run();
 
       const overview = budgetOverviewService.getBudgetOverview(db);
 
@@ -427,16 +509,25 @@ describe('Budget Overview Service - Household Item Invoice Aggregation', () => {
       const budgetId = createTestHouseholdItemBudget(householdItemId, 5000);
       const vendorId = createTestVendor('Appliance Vendor');
 
-      invoiceService.createInvoice(
+      const invoice = invoiceService.createInvoice(
         db,
         vendorId,
         {
           amount: 2500,
           date: '2026-02-01',
-          householdItemBudgetId: budgetId,
         },
         userId,
       );
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId: invoice.id,
+          householdItemBudgetId: budgetId,
+          itemizedAmount: 2500,
+          createdAt: invoice.createdAt,
+          updatedAt: invoice.updatedAt,
+        })
+        .run();
 
       const overview = budgetOverviewService.getBudgetOverview(db);
 

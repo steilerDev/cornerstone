@@ -346,11 +346,11 @@ export const invoiceBudgetLines = sqliteTable(
       .notNull()
       .references(() => invoices.id, { onDelete: 'cascade' }),
     workItemBudgetId: text('work_item_budget_id').references(() => workItemBudgets.id, {
-      onDelete: 'set null',
+      onDelete: 'cascade',
     }),
     householdItemBudgetId: text('household_item_budget_id').references(
       () => householdItemBudgets.id,
-      { onDelete: 'set null' },
+      { onDelete: 'cascade' },
     ),
     itemizedAmount: real('itemized_amount').notNull(),
     createdAt: text('created_at').notNull(),

@@ -12,31 +12,24 @@
  *   8. Partial UNIQUE index (work_item_budget_id): each budget line can link to at most one invoice
  *   9. Partial UNIQUE index (household_item_budget_id): same for HI budget lines
  *  10. CASCADE delete from invoice removes junction rows
- *  11. SET NULL on budget line delete: ACTUAL behavior documented (see defect note in describe block)
+ *  11. CASCADE delete from budget line removes junction rows
  *  12. Idempotency: running migrator twice on fresh DB does not error
  *  13. invoice_budget_lines table structure and indexes are correct
  *  14. invoices table indexes are recreated correctly after table rebuild
  *
  * EPIC-15 Story 15.1: Invoice-Budget-Line Junction Schema & Migration
  * See ADR-018 for architectural rationale.
- *
- * DEFECT NOTE: ADR-018 states ON DELETE SET NULL would allow junction rows to survive
- * with both FKs = NULL. This is INCORRECT for SQLite — SQLite enforces CHECK constraints
- * when SET NULL fires, so deleting a budget line that has a junction row FAILS with
- * CHECK constraint error. This is a migration design defect. See GitHub Issue filed by QA.
  */
 
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import Database from 'better-sqlite3';
 import { mkdtempSync, symlinkSync, unlinkSync, existsSync, readFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
-import { fileURLToPath } from 'node:url';
 import { runMigrations } from '../migrate.js';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-// This test file lives IN the migrations directory, so __dirname IS the migrations dir.
-const MIGRATIONS_DIR = __dirname;
+// This test file lives IN the migrations directory, so resolve to that path.
+const MIGRATIONS_DIR = resolve(__dirname);
 
 // ── Helper: apply migrations 0001-0016 only (pre-0017 state) ─────────────────
 //
@@ -1116,121 +1109,105 @@ describe('Migration 0017: Invoice-Budget-Line Junction Table', () => {
     });
   });
 
-  // ── 14. SET NULL on budget line delete ─────────────────────────────────────
-  //
-  // DEFECT DOCUMENTED HERE:
-  //
-  // ADR-018 stated that ON DELETE SET NULL from budget lines would allow junction rows
-  // to survive with both FKs = NULL (leaving "orphaned" rows for application-layer cleanup).
-  // This is INCORRECT for SQLite. Testing confirmed that SQLite DOES enforce CHECK constraints
-  // when ON DELETE SET NULL clears an FK column.
-  //
-  // When work_item_budgets is deleted, SQLite tries to SET NULL on invoice_budget_lines.
-  // But that makes both work_item_budget_id AND household_item_budget_id NULL, which
-  // violates the XOR CHECK constraint. SQLite then aborts the entire DELETE with:
-  //   SqliteError: CHECK constraint failed: ...
-  //
-  // This means the migration design is flawed: ON DELETE SET NULL is incompatible with
-  // the XOR CHECK constraint in SQLite. The fix should change ON DELETE SET NULL to
-  // ON DELETE CASCADE on both FK references, or remove the XOR CHECK constraint and
-  // handle exclusivity at the application layer.
-  //
-  // See GitHub Issue filed by QA for the full bug report with reproduction steps.
+  // ── 14. CASCADE delete from budget line removes junction rows ──────────────
 
-  describe('SET NULL on budget line delete — DEFECT: XOR CHECK prevents SET NULL in SQLite', () => {
-    it('deleting a linked work item budget line FAILS with CHECK constraint error (ON DELETE SET NULL + XOR incompatibility)', () => {
-      // Documents actual SQLite behavior — NOT the behavior ADR-018 described.
-      // The intended behavior (row survives with NULL FK) cannot be achieved with this schema.
-      insertVendor(sqlite, 'v-setnull-wi-1');
-      insertWorkItem(sqlite, 'wi-setnull-1');
-      insertWorkItemBudget(sqlite, 'wib-setnull-1', 'wi-setnull-1');
-      insertInvoicePost0017(sqlite, 'inv-setnull-wi-1', 'v-setnull-wi-1', 100.0);
-      insertJunctionRow(sqlite, 'j-setnull-wi-1', 'inv-setnull-wi-1', {
-        workItemBudgetId: 'wib-setnull-1',
+  describe('CASCADE delete from budget line', () => {
+    it('deleting a linked work item budget line cascades to junction rows', () => {
+      insertVendor(sqlite, 'v-cascade-bl-wi-1');
+      insertWorkItem(sqlite, 'wi-cascade-bl-1');
+      insertWorkItemBudget(sqlite, 'wib-cascade-bl-1', 'wi-cascade-bl-1');
+      insertInvoicePost0017(sqlite, 'inv-cascade-bl-wi-1', 'v-cascade-bl-wi-1', 100.0);
+      insertJunctionRow(sqlite, 'j-cascade-bl-wi-1', 'inv-cascade-bl-wi-1', {
+        workItemBudgetId: 'wib-cascade-bl-1',
         itemizedAmount: 100.0,
       });
 
+      // Junction row exists before delete
       const before = sqlite
-        .prepare(`SELECT work_item_budget_id FROM invoice_budget_lines WHERE id = ?`)
-        .get('j-setnull-wi-1') as { work_item_budget_id: string | null };
-      expect(before.work_item_budget_id).toBe('wib-setnull-1');
+        .prepare(`SELECT id FROM invoice_budget_lines WHERE id = ?`)
+        .get('j-cascade-bl-wi-1');
+      expect(before).toBeDefined();
 
-      // DELETE fails because SET NULL would make both FKs NULL, violating XOR CHECK.
-      let error: Error | undefined;
-      try {
-        sqlite.prepare('DELETE FROM work_item_budgets WHERE id = ?').run('wib-setnull-1');
-      } catch (err) {
-        error = err as Error;
-      }
+      // Delete the budget line — should cascade to junction row
+      sqlite.prepare('DELETE FROM work_item_budgets WHERE id = ?').run('wib-cascade-bl-1');
 
-      expect(error).toBeDefined();
-      expect(error!.message).toMatch(/CHECK constraint failed/);
-
-      // Junction row still exists (the delete was rolled back by SQLite)
+      // Junction row should be gone
       const after = sqlite
-        .prepare(`SELECT work_item_budget_id FROM invoice_budget_lines WHERE id = ?`)
-        .get('j-setnull-wi-1') as { work_item_budget_id: string | null } | undefined;
-      expect(after).toBeDefined();
-      expect(after!.work_item_budget_id).toBe('wib-setnull-1');
+        .prepare(`SELECT id FROM invoice_budget_lines WHERE id = ?`)
+        .get('j-cascade-bl-wi-1');
+      expect(after).toBeUndefined();
+
+      // Invoice itself should still exist
+      const invoice = sqlite
+        .prepare(`SELECT id FROM invoices WHERE id = ?`)
+        .get('inv-cascade-bl-wi-1');
+      expect(invoice).toBeDefined();
     });
 
-    it('deleting a linked household item budget line FAILS with CHECK constraint error', () => {
-      insertVendor(sqlite, 'v-setnull-hi-1');
-      insertHouseholdItem(sqlite, 'hi-setnull-1');
-      insertHouseholdItemBudget(sqlite, 'hib-setnull-1', 'hi-setnull-1');
-      insertInvoicePost0017(sqlite, 'inv-setnull-hi-1', 'v-setnull-hi-1', 200.0);
-      insertJunctionRow(sqlite, 'j-setnull-hi-1', 'inv-setnull-hi-1', {
-        householdItemBudgetId: 'hib-setnull-1',
+    it('deleting a linked household item budget line cascades to junction rows', () => {
+      insertVendor(sqlite, 'v-cascade-bl-hi-1');
+      insertHouseholdItem(sqlite, 'hi-cascade-bl-1');
+      insertHouseholdItemBudget(sqlite, 'hib-cascade-bl-1', 'hi-cascade-bl-1');
+      insertInvoicePost0017(sqlite, 'inv-cascade-bl-hi-1', 'v-cascade-bl-hi-1', 200.0);
+      insertJunctionRow(sqlite, 'j-cascade-bl-hi-1', 'inv-cascade-bl-hi-1', {
+        householdItemBudgetId: 'hib-cascade-bl-1',
         itemizedAmount: 200.0,
       });
 
-      let error: Error | undefined;
-      try {
-        sqlite.prepare('DELETE FROM household_item_budgets WHERE id = ?').run('hib-setnull-1');
-      } catch (err) {
-        error = err as Error;
-      }
+      sqlite
+        .prepare('DELETE FROM household_item_budgets WHERE id = ?')
+        .run('hib-cascade-bl-1');
 
-      expect(error).toBeDefined();
-      expect(error!.message).toMatch(/CHECK constraint failed/);
+      const after = sqlite
+        .prepare(`SELECT id FROM invoice_budget_lines WHERE id = ?`)
+        .get('j-cascade-bl-hi-1');
+      expect(after).toBeUndefined();
     });
 
-    it('a budget line with NO junction row can be deleted successfully (no XOR conflict)', () => {
-      // Budget lines not referenced by any junction row are unaffected by this defect.
-      insertWorkItem(sqlite, 'wi-setnull-unlinked');
-      insertWorkItemBudget(sqlite, 'wib-setnull-unlinked', 'wi-setnull-unlinked');
+    it('a budget line with NO junction row can be deleted successfully', () => {
+      insertWorkItem(sqlite, 'wi-cascade-bl-unlinked');
+      insertWorkItemBudget(sqlite, 'wib-cascade-bl-unlinked', 'wi-cascade-bl-unlinked');
 
       expect(() => {
         sqlite
           .prepare('DELETE FROM work_item_budgets WHERE id = ?')
-          .run('wib-setnull-unlinked');
+          .run('wib-cascade-bl-unlinked');
       }).not.toThrow();
     });
 
-    it('unlinked budget lines can be deleted without affecting existing junction rows', () => {
-      insertVendor(sqlite, 'v-setnull-other-1');
-      insertWorkItem(sqlite, 'wi-setnull-other-linked');
-      insertWorkItem(sqlite, 'wi-setnull-other-unlinked');
-      insertWorkItemBudget(sqlite, 'wib-setnull-other-linked', 'wi-setnull-other-linked');
-      insertWorkItemBudget(sqlite, 'wib-setnull-other-unlinked', 'wi-setnull-other-unlinked');
-      insertInvoicePost0017(sqlite, 'inv-setnull-other', 'v-setnull-other-1', 300.0);
-      insertJunctionRow(sqlite, 'j-setnull-other-linked', 'inv-setnull-other', {
-        workItemBudgetId: 'wib-setnull-other-linked',
+    it('deleting one budget line does not affect junction rows for other budget lines', () => {
+      insertVendor(sqlite, 'v-cascade-bl-other-1');
+      insertWorkItem(sqlite, 'wi-cascade-bl-linked');
+      insertWorkItem(sqlite, 'wi-cascade-bl-other');
+      insertWorkItemBudget(sqlite, 'wib-cascade-bl-linked', 'wi-cascade-bl-linked');
+      insertWorkItemBudget(sqlite, 'wib-cascade-bl-other', 'wi-cascade-bl-other');
+      insertInvoicePost0017(sqlite, 'inv-cascade-bl-other', 'v-cascade-bl-other-1', 300.0);
+      insertInvoicePost0017(sqlite, 'inv-cascade-bl-other2', 'v-cascade-bl-other-1', 150.0);
+      insertJunctionRow(sqlite, 'j-cascade-bl-linked', 'inv-cascade-bl-other', {
+        workItemBudgetId: 'wib-cascade-bl-linked',
+        itemizedAmount: 150.0,
+      });
+      insertJunctionRow(sqlite, 'j-cascade-bl-other', 'inv-cascade-bl-other2', {
+        workItemBudgetId: 'wib-cascade-bl-other',
         itemizedAmount: 150.0,
       });
 
-      // Delete the UNLINKED budget line — no junction row, so no SET NULL, no constraint conflict
-      expect(() => {
-        sqlite
-          .prepare('DELETE FROM work_item_budgets WHERE id = ?')
-          .run('wib-setnull-other-unlinked');
-      }).not.toThrow();
+      // Delete one budget line
+      sqlite
+        .prepare('DELETE FROM work_item_budgets WHERE id = ?')
+        .run('wib-cascade-bl-linked');
 
-      // The linked junction row is unaffected
-      const linked = sqlite
+      // Its junction row is gone
+      const deleted = sqlite
+        .prepare(`SELECT id FROM invoice_budget_lines WHERE id = ?`)
+        .get('j-cascade-bl-linked');
+      expect(deleted).toBeUndefined();
+
+      // The other junction row is still there
+      const kept = sqlite
         .prepare(`SELECT work_item_budget_id FROM invoice_budget_lines WHERE id = ?`)
-        .get('j-setnull-other-linked') as { work_item_budget_id: string | null };
-      expect(linked.work_item_budget_id).toBe('wib-setnull-other-linked');
+        .get('j-cascade-bl-other') as { work_item_budget_id: string };
+      expect(kept.work_item_budget_id).toBe('wib-cascade-bl-other');
     });
   });
 

@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { randomUUID } from 'node:crypto';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
@@ -127,10 +128,19 @@ describe('getBudgetOverview', () => {
         .values({
           id: invoiceId,
           vendorId,
-          workItemBudgetId: budgetId,
           amount: opts.actualCost,
           date: '2026-01-01',
           status: 'paid',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId,
+          workItemBudgetId: budgetId,
+          itemizedAmount: opts.actualCost,
           createdAt: now,
           updatedAt: now,
         })
@@ -148,10 +158,19 @@ describe('getBudgetOverview', () => {
         .values({
           id: invoiceId,
           vendorId,
-          workItemBudgetId: budgetId,
           amount: opts.actualCostPending,
           date: '2026-01-01',
           status: 'pending',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId,
+          workItemBudgetId: budgetId,
+          itemizedAmount: opts.actualCostPending,
           createdAt: now,
           updatedAt: now,
         })
@@ -1189,14 +1208,24 @@ describe('getBudgetOverview', () => {
           updatedAt: now,
         })
         .run();
+      const invoiceId = `inv-multi-${idCounter++}`;
       db.insert(schema.invoices)
         .values({
-          id: `inv-multi-${idCounter++}`,
+          id: invoiceId,
           vendorId: vendorId2,
-          workItemBudgetId: budgetLineId!,
           amount: 2500,
           date: '2026-01-01',
           status: 'paid',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId,
+          workItemBudgetId: budgetLineId!,
+          itemizedAmount: 2500,
           createdAt: now,
           updatedAt: now,
         })
@@ -1331,10 +1360,19 @@ describe('getBudgetOverview', () => {
         .values({
           id: invoiceId,
           vendorId,
-          workItemBudgetId: budgetLineId,
           amount,
           date: '2026-01-01',
           status: 'claimed',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId,
+          workItemBudgetId: budgetLineId,
+          itemizedAmount: amount,
           createdAt: now,
           updatedAt: now,
         })
@@ -1617,10 +1655,19 @@ describe('getBudgetOverview', () => {
         .values({
           id: invoiceId,
           vendorId,
-          workItemBudgetId: budgetLineId!,
           amount: 900,
           date: '2026-01-01',
           status: 'paid',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId,
+          workItemBudgetId: budgetLineId!,
+          itemizedAmount: 900,
           createdAt: now,
           updatedAt: now,
         })

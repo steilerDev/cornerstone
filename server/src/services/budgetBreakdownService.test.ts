@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { randomUUID } from 'node:crypto';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
@@ -117,10 +118,19 @@ describe('getBudgetBreakdown', () => {
         .values({
           id: invoiceId,
           vendorId,
-          workItemBudgetId: budgetId,
           amount: opts.actualCost,
           date: '2026-01-01',
           status: 'paid',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId,
+          workItemBudgetId: budgetId,
+          itemizedAmount: opts.actualCost,
           createdAt: now,
           updatedAt: now,
         })
@@ -165,10 +175,19 @@ describe('getBudgetBreakdown', () => {
         .values({
           id: invoiceId,
           vendorId,
-          workItemBudgetId: id,
           amount: opts.actualCost,
           date: '2026-01-01',
           status: 'paid',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId,
+          workItemBudgetId: id,
+          itemizedAmount: opts.actualCost,
           createdAt: now,
           updatedAt: now,
         })
@@ -244,10 +263,19 @@ describe('getBudgetBreakdown', () => {
         .values({
           id: invoiceId,
           vendorId,
-          householdItemBudgetId: budgetId,
           amount: opts.actualCost,
           date: '2026-01-01',
           status: 'paid',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId,
+          householdItemBudgetId: budgetId,
+          itemizedAmount: opts.actualCost,
           createdAt: now,
           updatedAt: now,
         })

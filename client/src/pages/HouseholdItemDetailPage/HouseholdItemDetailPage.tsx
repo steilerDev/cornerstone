@@ -323,9 +323,13 @@ export function HouseholdItemDetailPage() {
       const allVendorInvoices = await fetchInvoices(vendorId);
       const grouped: Record<string, Invoice[]> = {};
       for (const inv of allVendorInvoices) {
-        if (inv.householdItemBudgetId && budgetLineIds.includes(inv.householdItemBudgetId)) {
-          if (!grouped[inv.householdItemBudgetId]) grouped[inv.householdItemBudgetId] = [];
-          grouped[inv.householdItemBudgetId].push(inv);
+        // Find if any budget line in this invoice matches the household item budget lines
+        for (const budgetLine of inv.budgetLines) {
+          if (budgetLine.budgetLineType === 'household_item' && budgetLineIds.includes(budgetLine.budgetLineId)) {
+            if (!grouped[budgetLine.budgetLineId]) grouped[budgetLine.budgetLineId] = [];
+            grouped[budgetLine.budgetLineId].push(inv);
+            break; // Only add invoice once per budget line
+          }
         }
       }
       setBudgetLineInvoices(grouped);

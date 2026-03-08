@@ -2,7 +2,13 @@ import { randomUUID } from 'node:crypto';
 import { eq, asc, sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { budgetSources, workItemBudgets, invoices, users } from '../db/schema.js';
+import {
+  budgetSources,
+  workItemBudgets,
+  invoiceBudgetLines,
+  invoices,
+  users,
+} from '../db/schema.js';
 import type {
   BudgetSource,
   BudgetSourceType,
@@ -88,10 +94,12 @@ function computeUsedAmount(db: DbType, sourceId: string): number {
  * references this source. Returns 0 if no claimed invoices exist.
  */
 function computeClaimedAmount(db: DbType, sourceId: string): number {
+  // EPIC-15: Join through invoiceBudgetLines junction table instead of direct FK
   const result = db
-    .select({ total: sql<number>`COALESCE(SUM(${invoices.amount}), 0)` })
-    .from(invoices)
-    .innerJoin(workItemBudgets, eq(workItemBudgets.id, invoices.workItemBudgetId))
+    .select({ total: sql<number>`COALESCE(SUM(${invoiceBudgetLines.itemizedAmount}), 0)` })
+    .from(invoiceBudgetLines)
+    .innerJoin(invoices, eq(invoices.id, invoiceBudgetLines.invoiceId))
+    .innerJoin(workItemBudgets, eq(workItemBudgets.id, invoiceBudgetLines.workItemBudgetId))
     .where(sql`${invoices.status} = 'claimed' AND ${workItemBudgets.budgetSourceId} = ${sourceId}`)
     .get();
   return result?.total ?? 0;
@@ -103,10 +111,12 @@ function computeClaimedAmount(db: DbType, sourceId: string): number {
  * references this source. Returns 0 if no paid invoices exist.
  */
 function computeUnclaimedAmount(db: DbType, sourceId: string): number {
+  // EPIC-15: Join through invoiceBudgetLines junction table instead of direct FK
   const result = db
-    .select({ total: sql<number>`COALESCE(SUM(${invoices.amount}), 0)` })
-    .from(invoices)
-    .innerJoin(workItemBudgets, eq(workItemBudgets.id, invoices.workItemBudgetId))
+    .select({ total: sql<number>`COALESCE(SUM(${invoiceBudgetLines.itemizedAmount}), 0)` })
+    .from(invoiceBudgetLines)
+    .innerJoin(invoices, eq(invoices.id, invoiceBudgetLines.invoiceId))
+    .innerJoin(workItemBudgets, eq(workItemBudgets.id, invoiceBudgetLines.workItemBudgetId))
     .where(sql`${invoices.status} = 'paid' AND ${workItemBudgets.budgetSourceId} = ${sourceId}`)
     .get();
   return result?.total ?? 0;

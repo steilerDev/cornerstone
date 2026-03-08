@@ -214,8 +214,6 @@ export function InvoicesPage() {
         dueDate: createForm.dueDate || null,
         status: createForm.status,
         notes: createForm.notes.trim() || null,
-        workItemBudgetId: createForm.workItemBudgetId || null,
-        householdItemBudgetId: createForm.householdItemBudgetId || null,
       };
       await createInvoice(createForm.vendorId, data);
       setShowCreateModal(false);
@@ -524,11 +522,9 @@ export function InvoicesPage() {
                       </td>
                       <td className={styles.amountCell}>{formatCurrency(invoice.amount)}</td>
                       <td>
-                        {invoice.workItemBudget
-                          ? invoice.workItemBudget.workItemTitle
-                          : invoice.householdItemBudget
-                            ? invoice.householdItemBudget.householdItemName
-                            : '—'}
+                        {invoice.budgetLines.length > 0
+                          ? invoice.budgetLines[0].budgetLineDescription || '—'
+                          : '—'}
                       </td>
                       <td>{invoice.dueDate ? formatDate(invoice.dueDate) : '\u2014'}</td>
                       <td>
