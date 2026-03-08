@@ -926,3 +926,206 @@ describe('highlightedArrowKeys prop — item-hover-driven highlighting (Issue #2
     }).not.toThrow();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Critical milestone arrows — styling (Issue #573)
+//
+// When both the contributing work item and the milestone are on the critical
+// path, the milestone linkage arrow must be rendered with a drop-shadow filter
+// (same visual treatment as critical work-item-to-work-item arrows).
+// ---------------------------------------------------------------------------
+
+describe('Critical milestone arrows — styling (Issue #573)', () => {
+  // Shared fixtures: MS 10 connects wi-a (contributor) → wi-b (requires MS 10)
+  const MILESTONE_POINTS_573 = new Map([[10, { x: 400, y: 60 }]]);
+  const MILESTONE_CONTRIBUTORS_573 = new Map([[10, ['wi-a'] as readonly string[]]]);
+  const WORK_ITEM_REQUIRED_573 = new Map([['wi-b', [10] as readonly number[]]]);
+  const CRITICAL_MILESTONE_IDS_573 = new Set([10]);
+
+  it('contributing arrow has drop-shadow when WI and MS are both critical', () => {
+    renderArrows({
+      dependencies: [],
+      criticalPathSet: new Set(['wi-a']),
+      criticalMilestoneIds: CRITICAL_MILESTONE_IDS_573,
+      milestonePoints: MILESTONE_POINTS_573,
+      milestoneContributors: MILESTONE_CONTRIBUTORS_573,
+      workItemRequiredMilestones: new Map(),
+    });
+
+    const arrows = screen.getAllByRole('graphics-symbol');
+    const contribArrow = arrows.find((el) =>
+      el.getAttribute('aria-label')?.includes('contributes to milestone'),
+    );
+    expect(contribArrow).toBeDefined();
+    // Critical milestone arrows receive a drop-shadow filter (same as WI critical arrows)
+    expect(contribArrow!.getAttribute('filter')).not.toBeNull();
+    expect(contribArrow!.getAttribute('filter')).toContain('drop-shadow');
+  });
+
+  it('required arrow has drop-shadow when MS and WI are both critical', () => {
+    renderArrows({
+      dependencies: [],
+      criticalPathSet: new Set(['wi-b']),
+      criticalMilestoneIds: CRITICAL_MILESTONE_IDS_573,
+      milestonePoints: MILESTONE_POINTS_573,
+      milestoneContributors: new Map(),
+      workItemRequiredMilestones: WORK_ITEM_REQUIRED_573,
+    });
+
+    const arrows = screen.getAllByRole('graphics-symbol');
+    const reqArrow = arrows.find((el) =>
+      el.getAttribute('aria-label')?.includes('is a required milestone for'),
+    );
+    expect(reqArrow).toBeDefined();
+    expect(reqArrow!.getAttribute('filter')).not.toBeNull();
+    expect(reqArrow!.getAttribute('filter')).toContain('drop-shadow');
+  });
+
+  it('contributing arrow has no drop-shadow when MS is NOT critical', () => {
+    renderArrows({
+      dependencies: [],
+      criticalPathSet: new Set(['wi-a']),
+      // MS 10 is NOT in criticalMilestoneIds
+      criticalMilestoneIds: new Set<number>(),
+      milestonePoints: MILESTONE_POINTS_573,
+      milestoneContributors: MILESTONE_CONTRIBUTORS_573,
+      workItemRequiredMilestones: new Map(),
+    });
+
+    const arrows = screen.getAllByRole('graphics-symbol');
+    const contribArrow = arrows.find((el) =>
+      el.getAttribute('aria-label')?.includes('contributes to milestone'),
+    );
+    expect(contribArrow).toBeDefined();
+    expect(contribArrow!.getAttribute('filter')).toBeNull();
+  });
+
+  it('contributing arrow has no drop-shadow when WI is NOT on critical path', () => {
+    renderArrows({
+      dependencies: [],
+      // wi-a is NOT on the critical path
+      criticalPathSet: new Set<string>(),
+      criticalMilestoneIds: CRITICAL_MILESTONE_IDS_573,
+      milestonePoints: MILESTONE_POINTS_573,
+      milestoneContributors: MILESTONE_CONTRIBUTORS_573,
+      workItemRequiredMilestones: new Map(),
+    });
+
+    const arrows = screen.getAllByRole('graphics-symbol');
+    const contribArrow = arrows.find((el) =>
+      el.getAttribute('aria-label')?.includes('contributes to milestone'),
+    );
+    expect(contribArrow).toBeDefined();
+    expect(contribArrow!.getAttribute('filter')).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Implicit critical path — milestone transitive skip (Issue #573)
+//
+// When two consecutive critical path work items are connected through a
+// critical milestone (WI_A → MS → WI_B), no implicit dotted connection
+// should be drawn between them — the milestone arrows already represent
+// the relationship visually.
+// ---------------------------------------------------------------------------
+
+describe('Implicit critical path — milestone transitive skip (Issue #573)', () => {
+  // Shared fixtures: wi-a → MS 10 → wi-b, MS 10 is critical
+  const MILESTONE_POINTS_573 = new Map([[10, { x: 400, y: 60 }]]);
+  const MILESTONE_CONTRIBUTORS_573 = new Map([[10, ['wi-a'] as readonly string[]]]);
+  const WORK_ITEM_REQUIRED_573 = new Map([['wi-b', [10] as readonly number[]]]);
+  const CRITICAL_MILESTONE_IDS_573 = new Set([10]);
+
+  it('no implicit dotted line when pair connected through critical milestone', () => {
+    renderArrows({
+      dependencies: [],
+      criticalPathOrder: ['wi-a', 'wi-b'],
+      criticalPathSet: new Set(['wi-a', 'wi-b']),
+      criticalMilestoneIds: CRITICAL_MILESTONE_IDS_573,
+      milestonePoints: MILESTONE_POINTS_573,
+      milestoneContributors: MILESTONE_CONTRIBUTORS_573,
+      workItemRequiredMilestones: WORK_ITEM_REQUIRED_573,
+    });
+
+    const arrows = screen.getAllByRole('graphics-symbol');
+    const implicitArrow = arrows.find((el) =>
+      el.getAttribute('aria-label')?.includes('consecutive on the critical path'),
+    );
+    // The pair is connected through a critical milestone, so no dotted implicit arrow
+    expect(implicitArrow).toBeUndefined();
+  });
+
+  it('implicit dotted line IS drawn when connecting milestone is NOT critical', () => {
+    renderArrows({
+      dependencies: [],
+      criticalPathOrder: ['wi-a', 'wi-b'],
+      criticalPathSet: new Set(['wi-a', 'wi-b']),
+      // MS 10 is NOT critical — skip condition should not trigger
+      criticalMilestoneIds: new Set<number>(),
+      milestonePoints: MILESTONE_POINTS_573,
+      milestoneContributors: MILESTONE_CONTRIBUTORS_573,
+      workItemRequiredMilestones: WORK_ITEM_REQUIRED_573,
+    });
+
+    const arrows = screen.getAllByRole('graphics-symbol');
+    const implicitArrow = arrows.find((el) =>
+      el.getAttribute('aria-label')?.includes('consecutive on the critical path'),
+    );
+    expect(implicitArrow).toBeDefined();
+  });
+
+  it('implicit dotted line IS drawn when WI_A does not contribute to any shared milestone', () => {
+    renderArrows({
+      dependencies: [],
+      criticalPathOrder: ['wi-a', 'wi-b'],
+      criticalPathSet: new Set(['wi-a', 'wi-b']),
+      criticalMilestoneIds: CRITICAL_MILESTONE_IDS_573,
+      milestonePoints: MILESTONE_POINTS_573,
+      // MS 10 contributors is wi-c, NOT wi-a — transitive connection does not exist
+      milestoneContributors: new Map([[10, ['wi-c'] as readonly string[]]]),
+      workItemRequiredMilestones: WORK_ITEM_REQUIRED_573,
+    });
+
+    const arrows = screen.getAllByRole('graphics-symbol');
+    const implicitArrow = arrows.find((el) =>
+      el.getAttribute('aria-label')?.includes('consecutive on the critical path'),
+    );
+    expect(implicitArrow).toBeDefined();
+  });
+
+  it('multi-hop: no implicit dotted lines for 3-item chain through milestones', () => {
+    // wi-a → MS10 → wi-b → MS11 → wi-c, all critical
+    // MS 10: wi-a contributes, wi-b requires
+    // MS 11: wi-b contributes, wi-c requires
+    const milestonePoints = new Map([
+      [10, { x: 400, y: 60 }],
+      [11, { x: 700, y: 110 }],
+    ]);
+    const milestoneContributors = new Map([
+      [10, ['wi-a'] as readonly string[]],
+      [11, ['wi-b'] as readonly string[]],
+    ]);
+    const workItemRequiredMilestones = new Map([
+      ['wi-b', [10] as readonly number[]],
+      ['wi-c', [11] as readonly number[]],
+    ]);
+    const criticalMilestoneIds = new Set([10, 11]);
+
+    renderArrows({
+      dependencies: [],
+      criticalPathOrder: ['wi-a', 'wi-b', 'wi-c'],
+      criticalPathSet: new Set(['wi-a', 'wi-b', 'wi-c']),
+      criticalMilestoneIds,
+      milestonePoints,
+      milestoneContributors,
+      workItemRequiredMilestones,
+    });
+
+    const arrows = screen.getAllByRole('graphics-symbol');
+    const implicitArrows = arrows.filter((el) =>
+      el.getAttribute('aria-label')?.includes('consecutive on the critical path'),
+    );
+    // Both pairs (wi-a, wi-b) and (wi-b, wi-c) are connected through critical milestones
+    expect(implicitArrows).toHaveLength(0);
+  });
+});
