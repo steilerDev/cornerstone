@@ -1162,6 +1162,7 @@ export function GanttChart({
               milestonePoints={milestonePoints}
               milestoneContributors={milestoneContributors}
               workItemRequiredMilestones={workItemRequiredMilestones}
+              criticalMilestoneIds={criticalMilestoneIds}
               milestoneTitles={milestoneTitles}
               hiPoints={hiPoints}
               householdItems={data.householdItems}
