@@ -24,12 +24,13 @@
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import Database from 'better-sqlite3';
 import { mkdtempSync, symlinkSync, unlinkSync, existsSync, readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
 import { runMigrations } from '../migrate.js';
 
 // This test file lives IN the migrations directory, so resolve to that path.
-const MIGRATIONS_DIR = resolve(__dirname);
+const MIGRATIONS_DIR = dirname(fileURLToPath(import.meta.url));
 
 // ── Helper: apply migrations 0001-0016 only (pre-0017 state) ─────────────────
 //
