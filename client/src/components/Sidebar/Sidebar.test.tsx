@@ -295,4 +295,21 @@ describe('Sidebar', () => {
     expect(buttons[0]).toHaveAttribute('aria-label', 'Close menu');
     expect(buttons[2]).toHaveTextContent(/logout/i);
   });
+
+  it('Settings link appears immediately before the Logout button in the footer', () => {
+    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
+    const settingsLink = screen.getByRole('link', { name: /^settings$/i });
+    const logoutButton = screen.getByRole('button', { name: /logout/i });
+    expect(settingsLink.nextElementSibling).toBe(logoutButton);
+  });
+
+  it('ThemeToggle appears before the Settings link in the footer', () => {
+    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
+    const settingsLink = screen.getByRole('link', { name: /^settings$/i });
+    const prevSibling = settingsLink.previousElementSibling;
+    expect(prevSibling).not.toBeNull();
+    expect(prevSibling?.tagName.toLowerCase()).toBe('button');
+    // ThemeToggle aria-label is "Switch to <NextTheme> mode" — matches /switch to .+ mode/i
+    expect(prevSibling).toHaveAttribute('aria-label', expect.stringMatching(/switch to .+ mode/i));
+  });
 });
