@@ -110,11 +110,12 @@ export function getInvoiceAggregates(
     invoiceCount: number;
   }>(
     sql`SELECT
-      COALESCE(SUM(amount), 0) AS actualCost,
-      COALESCE(SUM(CASE WHEN status IN ('paid', 'claimed') THEN amount ELSE 0 END), 0) AS actualCostPaid,
+      COALESCE(SUM(ibl.itemized_amount), 0) AS actualCost,
+      COALESCE(SUM(CASE WHEN i.status IN ('paid', 'claimed') THEN ibl.itemized_amount ELSE 0 END), 0) AS actualCostPaid,
       COUNT(*) AS invoiceCount
-    FROM invoices
-    WHERE ${sql.raw(invoiceBudgetIdColumn)} = ${budgetId}`,
+    FROM invoice_budget_lines ibl
+    INNER JOIN invoices i ON i.id = ibl.invoice_id
+    WHERE ibl.${sql.raw(invoiceBudgetIdColumn)} = ${budgetId}`,
   );
 
   return {
@@ -135,8 +136,10 @@ export function getLinkedInvoices(db: DbType, budgetId: string, invoiceBudgetIdC
     status: string;
   }>(
     sql`SELECT i.id, i.vendor_id, v.name AS vendor_name, i.invoice_number, i.amount, i.date, i.status
-    FROM invoices i LEFT JOIN vendors v ON v.id = i.vendor_id
-    WHERE i.${sql.raw(invoiceBudgetIdColumn)} = ${budgetId}
+    FROM invoice_budget_lines ibl
+    INNER JOIN invoices i ON i.id = ibl.invoice_id
+    LEFT JOIN vendors v ON v.id = i.vendor_id
+    WHERE ibl.${sql.raw(invoiceBudgetIdColumn)} = ${budgetId}
     ORDER BY i.date DESC`,
   );
 
@@ -287,7 +290,7 @@ export function createBudgetService<
 
       if (config.invoiceHandler?.blockDeleteOnInvoices) {
         const invoiceCountRow = db.get<{ count: number }>(
-          sql`SELECT COUNT(*) AS count FROM invoices WHERE ${sql.raw(config.invoiceHandler.budgetIdColumn)} = ${budgetId}`,
+          sql`SELECT COUNT(*) AS count FROM invoice_budget_lines WHERE ${sql.raw(config.invoiceHandler.budgetIdColumn)} = ${budgetId}`,
         );
         const invoiceCount = invoiceCountRow?.count ?? 0;
 
