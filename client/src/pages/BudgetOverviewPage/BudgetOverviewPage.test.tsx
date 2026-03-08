@@ -883,6 +883,154 @@ describe('BudgetOverviewPage', () => {
     });
   });
 
+  // ─── Category filter scope: Budget Health vs Cost Breakdown ─────────────────
+
+  describe('category filter scope', () => {
+    /**
+     * Breakdown fixture matching richOverview's two categories (Materials / Labor).
+     * Both are included so the CostBreakdownTable renders an "Expand" button for each.
+     */
+    const breakdownWithTwoCategories = {
+      workItems: {
+        categories: [
+          {
+            categoryId: 'cat-1',
+            categoryName: 'Materials',
+            categoryColor: '#FF5733',
+            projectedMin: 72000,
+            projectedMax: 88000,
+            actualCost: 70000,
+            subsidyPayback: 0,
+            rawProjectedMin: 72000,
+            rawProjectedMax: 88000,
+            minSubsidyPayback: 0,
+            items: [],
+          },
+          {
+            categoryId: 'cat-2',
+            categoryName: 'Labor',
+            categoryColor: null,
+            projectedMin: 68000,
+            projectedMax: 72000,
+            actualCost: 50000,
+            subsidyPayback: 0,
+            rawProjectedMin: 68000,
+            rawProjectedMax: 72000,
+            minSubsidyPayback: 0,
+            items: [],
+          },
+        ],
+        totals: {
+          projectedMin: 140000,
+          projectedMax: 160000,
+          actualCost: 120000,
+          subsidyPayback: 0,
+          rawProjectedMin: 140000,
+          rawProjectedMax: 160000,
+          minSubsidyPayback: 0,
+        },
+      },
+      householdItems: {
+        categories: [],
+        totals: {
+          projectedMin: 0,
+          projectedMax: 0,
+          actualCost: 0,
+          subsidyPayback: 0,
+          rawProjectedMin: 0,
+          rawProjectedMax: 0,
+          minSubsidyPayback: 0,
+        },
+      },
+    };
+
+    it('selecting only one category updates Budget Health projected range but not Cost Breakdown', async () => {
+      const user = userEvent.setup();
+
+      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
+      mockFetchBudgetBreakdown.mockResolvedValueOnce(breakdownWithTwoCategories);
+      renderPage();
+
+      // Wait for the page and the breakdown to finish loading
+      await waitFor(() => {
+        expect(screen.queryByText(/loading budget overview/i)).not.toBeInTheDocument();
+        // The WI section expand button signals that the CostBreakdownTable rendered
+        expect(
+          screen.getByRole('button', { name: /expand work item budget categories/i }),
+        ).toBeInTheDocument();
+      });
+
+      // Expand the WI section so category rows become visible
+      await user.click(
+        screen.getByRole('button', { name: /expand work item budget categories/i }),
+      );
+
+      // Both category expand buttons must be present before filtering
+      expect(screen.getByRole('button', { name: /expand materials/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /expand labor/i })).toBeInTheDocument();
+
+      // Budget Health shows full projected range: €140K–€160K
+      expect(screen.getByText(/€140K/)).toBeInTheDocument();
+      expect(screen.getByText(/€160K/)).toBeInTheDocument();
+
+      // Open the category filter and deselect "Labor" — leaving only "Materials" selected
+      await user.click(screen.getByRole('button', { name: /all categories/i }));
+      await user.click(screen.getByRole('checkbox', { name: 'Labor' }));
+
+      // Budget Health projected range should now show only Materials totals:
+      // projectedMin=72000 → €72K, projectedMax=88000 → €88K
+      await waitFor(() => {
+        expect(screen.getByText(/€72K/)).toBeInTheDocument();
+        expect(screen.getByText(/€88K/)).toBeInTheDocument();
+      });
+
+      // Cost Breakdown must still show BOTH category rows regardless of the filter.
+      // The page always passes emptyCategories (size=0) to CostBreakdownTable,
+      // which treats size===0 as "show all" — so neither category is hidden.
+      expect(screen.getByRole('button', { name: /expand materials/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /expand labor/i })).toBeInTheDocument();
+    });
+
+    it('clearing all categories shows €0 projected range in Budget Health but Cost Breakdown keeps all categories', async () => {
+      const user = userEvent.setup();
+
+      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
+      mockFetchBudgetBreakdown.mockResolvedValueOnce(breakdownWithTwoCategories);
+      renderPage();
+
+      // Wait for the breakdown to render (WI section expand button is present)
+      await waitFor(() => {
+        expect(screen.queryByText(/loading budget overview/i)).not.toBeInTheDocument();
+        expect(
+          screen.getByRole('button', { name: /expand work item budget categories/i }),
+        ).toBeInTheDocument();
+      });
+
+      // Expand the WI section to reveal individual category rows
+      await user.click(
+        screen.getByRole('button', { name: /expand work item budget categories/i }),
+      );
+      expect(screen.getByRole('button', { name: /expand materials/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /expand labor/i })).toBeInTheDocument();
+
+      // Open filter and clear all categories
+      await user.click(screen.getByRole('button', { name: /all categories/i }));
+      await user.click(screen.getByRole('button', { name: 'Clear All' }));
+
+      // Budget Health: all filtered totals become 0 (no category selected),
+      // projected range collapses — at least one €0.00 value appears
+      await waitFor(() => {
+        const zeroEls = screen.getAllByText(/0\.00/);
+        expect(zeroEls.length).toBeGreaterThan(0);
+      });
+
+      // Cost Breakdown: both category expand buttons still present (unaffected by filter).
+      // The page passes emptyCategories (size=0) → CostBreakdownTable shows everything.
+      expect(screen.getByRole('button', { name: /expand materials/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /expand labor/i })).toBeInTheDocument();
+    });
+  });
+
   // ─── Currency formatting ────────────────────────────────────────────────────
 
   describe('currency formatting', () => {

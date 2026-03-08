@@ -17,6 +17,9 @@ import { Tooltip } from '../../components/Tooltip/Tooltip.js';
 import { CostBreakdownTable } from '../../components/CostBreakdownTable/CostBreakdownTable.js';
 import styles from './BudgetOverviewPage.module.css';
 
+/** Stable empty set passed to CostBreakdownTable so it always shows all categories. */
+const emptyCategories = new Set<string | null>();
+
 // ---- Helpers ----
 
 function formatShort(value: number): string {
@@ -714,7 +717,7 @@ export function BudgetOverviewPage() {
             <CostBreakdownTable
               breakdown={breakdown}
               overview={overview}
-              selectedCategories={selectedCategories}
+              selectedCategories={emptyCategories}
               budgetSources={budgetSources}
             />
           ) : null)}
