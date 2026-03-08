@@ -21,6 +21,7 @@ export interface UsePaperlessResult {
   error: string | null;
   query: string;
   selectedTags: number[];
+  tagCountMap: Map<number, number>;
   search: (q: string) => void;
   toggleTag: (tagId: number) => void;
   setPage: (page: number) => void;
@@ -45,6 +46,7 @@ export function usePaperless(): UsePaperlessResult {
   const [selectedTags, setSelectedTagsState] = useState<number[]>([]);
   const [page, setPageState] = useState(1);
   const [fetchCount, setFetchCount] = useState(0);
+  const [tagCountMap, setTagCountMap] = useState<Map<number, number>>(new Map());
 
   // Phase 1: fetch status on mount
   useEffect(() => {
@@ -79,6 +81,7 @@ export function usePaperless(): UsePaperlessResult {
 
     if (!status.configured || !status.reachable) {
       setIsLoading(false);
+      setTagCountMap(new Map());
       return;
     }
 
@@ -99,6 +102,15 @@ export function usePaperless(): UsePaperlessResult {
           setDocuments(docsResponse.documents);
           setPagination(docsResponse.pagination);
           setTags(tagsResponse.tags);
+
+          // Compute tag count map from returned documents
+          const countMap = new Map<number, number>();
+          for (const doc of docsResponse.documents) {
+            for (const tag of doc.tags) {
+              countMap.set(tag.id, (countMap.get(tag.id) ?? 0) + 1);
+            }
+          }
+          setTagCountMap(countMap);
         }
       } catch (err) {
         if (!cancelled) {
@@ -150,6 +162,7 @@ export function usePaperless(): UsePaperlessResult {
     error,
     query,
     selectedTags,
+    tagCountMap,
     search,
     toggleTag,
     setPage,
