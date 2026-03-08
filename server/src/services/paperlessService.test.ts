@@ -318,13 +318,23 @@ describe('listDocuments()', () => {
     expect(callUrl).toContain('query=invoice');
   });
 
-  it('appends tag filter as tags__id__in', async () => {
+  it('appends tag filter as tags__id__all', async () => {
     setupListMocks();
 
     await paperlessService.listDocuments(BASE_URL, TOKEN, { tags: '5,12' });
 
     const callUrl = (mockFetch.mock.calls[0] as [string, ...unknown[]])[0];
-    expect(callUrl).toContain('tags__id__in=5%2C12');
+    expect(callUrl).toContain('tags__id__all=5%2C12');
+  });
+
+  it('uses tags__id__all for AND semantics when multiple tags supplied', async () => {
+    setupListMocks();
+
+    await paperlessService.listDocuments(BASE_URL, TOKEN, { tags: '3,7,9' });
+
+    const callUrl = (mockFetch.mock.calls[0] as [string, ...unknown[]])[0];
+    expect(callUrl).toContain('tags__id__all');
+    expect(callUrl).not.toContain('tags__id__in');
   });
 
   it('appends correspondent filter', async () => {
@@ -495,7 +505,7 @@ describe('listDocuments()', () => {
       paperlessService._resetFilterTagCache();
     });
 
-    it('appends filter tag ID to tags__id__in when filter tag found', async () => {
+    it('appends filter tag ID to tags__id__all when filter tag found', async () => {
       // 1. Filter tag resolution (resolveFilterTagId runs first)
       mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
       // 2. Documents call
@@ -511,7 +521,7 @@ describe('listDocuments()', () => {
 
       // The documents call is now the second fetch (index 1)
       const callUrl = (mockFetch.mock.calls[1] as [string, ...unknown[]])[0];
-      expect(callUrl).toContain('tags__id__in=5');
+      expect(callUrl).toContain('tags__id__all=5');
     });
 
     it('merges client-specified tags with filter tag, avoiding duplication', async () => {
@@ -524,10 +534,10 @@ describe('listDocuments()', () => {
 
       // Documents call is at index 1 (after tag resolution)
       const callUrl = (mockFetch.mock.calls[1] as [string, ...unknown[]])[0];
-      // Both 5 (invoice) and 12 (contract) should be in tags__id__in
-      expect(callUrl).toContain('tags__id__in');
+      // Both 5 (invoice) and 12 (contract) should be in tags__id__all
+      expect(callUrl).toContain('tags__id__all');
       const decoded = decodeURIComponent(callUrl);
-      expect(decoded).toMatch(/tags__id__in=(5.*12|12.*5)/);
+      expect(decoded).toMatch(/tags__id__all=(5.*12|12.*5)/);
     });
 
     it('deduplicates when filter tag ID matches client tags', async () => {
@@ -541,8 +551,8 @@ describe('listDocuments()', () => {
       // Documents call is at index 1
       const callUrl = (mockFetch.mock.calls[1] as [string, ...unknown[]])[0];
       // Should only have 5, not 5,5
-      expect(callUrl).toContain('tags__id__in=5');
-      expect(callUrl).not.toContain('tags__id__in=5%2C5');
+      expect(callUrl).toContain('tags__id__all=5');
+      expect(callUrl).not.toContain('tags__id__all=5%2C5');
     });
 
     it('preserves client tags when filter tag not found', async () => {
@@ -556,10 +566,10 @@ describe('listDocuments()', () => {
       // Documents call is at index 1
       const callUrl = (mockFetch.mock.calls[1] as [string, ...unknown[]])[0];
       // Should still have client-specified tag
-      expect(callUrl).toContain('tags__id__in=12');
+      expect(callUrl).toContain('tags__id__all=12');
     });
 
-    it('does not append tags__id__in when no filter tag and no client tags', async () => {
+    it('does not append tags__id__all when no filter tag and no client tags', async () => {
       // 1. Filter tag resolution — returns empty (tag not found)
       mockFetch.mockResolvedValueOnce(mockJsonResponse({ count: 0, results: [] }));
       // 2-5. Standard list mocks
@@ -569,8 +579,8 @@ describe('listDocuments()', () => {
 
       // Documents call is at index 1
       const callUrl = (mockFetch.mock.calls[1] as [string, ...unknown[]])[0];
-      // No tags__id__in should be present
-      expect(callUrl).not.toContain('tags__id__in');
+      // No tags__id__all should be present
+      expect(callUrl).not.toContain('tags__id__all');
     });
   });
 });
