@@ -152,7 +152,6 @@ describe('documentLinkService', () => {
         dueDate: null,
         status: 'pending',
         notes: null,
-        workItemBudgetId: null,
         createdBy: null,
         createdAt: now,
         updatedAt: now,

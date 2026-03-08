@@ -65,11 +65,12 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
     actualCost: number;
   }>(
     sql`SELECT
-      work_item_budget_id AS budgetLineId,
-      COALESCE(SUM(amount), 0) AS actualCost
-    FROM invoices
-    WHERE work_item_budget_id IS NOT NULL
-    GROUP BY work_item_budget_id`,
+      ibl.work_item_budget_id AS budgetLineId,
+      COALESCE(SUM(ibl.itemized_amount), 0) AS actualCost
+    FROM invoice_budget_lines ibl
+    INNER JOIN invoices i ON i.id = ibl.invoice_id
+    WHERE ibl.work_item_budget_id IS NOT NULL
+    GROUP BY ibl.work_item_budget_id`,
   );
 
   const wiLineInvoiceMap = new Map<string, number>();
@@ -115,11 +116,12 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
     actualCost: number;
   }>(
     sql`SELECT
-      household_item_budget_id AS budgetLineId,
-      COALESCE(SUM(amount), 0) AS actualCost
-    FROM invoices
-    WHERE household_item_budget_id IS NOT NULL
-    GROUP BY household_item_budget_id`,
+      ibl.household_item_budget_id AS budgetLineId,
+      COALESCE(SUM(ibl.itemized_amount), 0) AS actualCost
+    FROM invoice_budget_lines ibl
+    INNER JOIN invoices i ON i.id = ibl.invoice_id
+    WHERE ibl.household_item_budget_id IS NOT NULL
+    GROUP BY ibl.household_item_budget_id`,
   );
 
   const hiLineInvoiceMap = new Map<string, number>();

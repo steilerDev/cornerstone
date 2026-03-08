@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { randomUUID } from 'node:crypto';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
@@ -131,10 +132,19 @@ describe('Budget Source Service', () => {
       .values({
         id: invoiceId,
         vendorId,
-        workItemBudgetId: budgetLineId,
         amount,
         date: '2026-01-01',
         status: 'claimed',
+        createdAt: ts,
+        updatedAt: ts,
+      })
+      .run();
+    db.insert(schema.invoiceBudgetLines)
+      .values({
+        id: randomUUID(),
+        invoiceId,
+        workItemBudgetId: budgetLineId,
+        itemizedAmount: amount,
         createdAt: ts,
         updatedAt: ts,
       })
@@ -156,10 +166,19 @@ describe('Budget Source Service', () => {
       .values({
         id: invoiceId,
         vendorId,
-        workItemBudgetId: budgetLineId,
         amount,
         date: '2026-01-01',
         status: 'paid',
+        createdAt: ts,
+        updatedAt: ts,
+      })
+      .run();
+    db.insert(schema.invoiceBudgetLines)
+      .values({
+        id: randomUUID(),
+        invoiceId,
+        workItemBudgetId: budgetLineId,
+        itemizedAmount: amount,
         createdAt: ts,
         updatedAt: ts,
       })
@@ -1254,9 +1273,11 @@ describe('Budget Source Service', () => {
         totalAmount: 60000,
       });
 
-      const { budgetId } = insertRawWorkItemWithSource(raw.id, 25000);
-      insertPaidInvoice(budgetId, 9000); // paid — should NOT be counted
-      insertClaimedInvoice(budgetId, 3000); // claimed — should be counted
+      // Each budget line can link to at most one invoice (UNIQUE constraint)
+      const { budgetId: b1 } = insertRawWorkItemWithSource(raw.id, 25000);
+      const { budgetId: b2 } = insertRawWorkItemWithSource(raw.id, 25000);
+      insertPaidInvoice(b1, 9000); // paid — should NOT be counted
+      insertClaimedInvoice(b2, 3000); // claimed — should be counted
 
       const result = budgetSourceService.getBudgetSourceById(db, raw.id);
 
@@ -1288,17 +1309,21 @@ describe('Budget Source Service', () => {
       expect(resultB.actualAvailableAmount).toBe(50000);
     });
 
-    it('accumulates multiple claimed invoices on the same budget line', () => {
+    it('accumulates claimed invoices across multiple budget lines for the same source', () => {
+      // Story 15.1 (junction table model): each budget line can link to AT MOST ONE invoice.
+      // Use three separate budget lines — each with its own claimed invoice.
       const raw = insertRawSource({
         name: 'Multi-Claim Source',
         sourceType: 'credit_line',
         totalAmount: 200000,
       });
 
-      const { budgetId } = insertRawWorkItemWithSource(raw.id, 50000);
-      insertClaimedInvoice(budgetId, 4000);
-      insertClaimedInvoice(budgetId, 6000);
-      insertClaimedInvoice(budgetId, 2500);
+      const { budgetId: b1 } = insertRawWorkItemWithSource(raw.id, 20000);
+      const { budgetId: b2 } = insertRawWorkItemWithSource(raw.id, 15000);
+      const { budgetId: b3 } = insertRawWorkItemWithSource(raw.id, 10000);
+      insertClaimedInvoice(b1, 4000);
+      insertClaimedInvoice(b2, 6000);
+      insertClaimedInvoice(b3, 2500);
 
       const result = budgetSourceService.getBudgetSourceById(db, raw.id);
 
@@ -1411,9 +1436,11 @@ describe('Budget Source Service', () => {
         totalAmount: 60000,
       });
 
-      const { budgetId } = insertRawWorkItemWithSource(raw.id, 25000);
-      insertClaimedInvoice(budgetId, 9000); // claimed — should NOT count toward unclaimedAmount
-      insertPaidInvoice(budgetId, 3000); // paid — SHOULD count toward unclaimedAmount
+      // Each budget line can link to at most one invoice (UNIQUE constraint)
+      const { budgetId: b1 } = insertRawWorkItemWithSource(raw.id, 25000);
+      const { budgetId: b2 } = insertRawWorkItemWithSource(raw.id, 25000);
+      insertClaimedInvoice(b1, 9000); // claimed — should NOT count toward unclaimedAmount
+      insertPaidInvoice(b2, 3000); // paid — SHOULD count toward unclaimedAmount
 
       const result = budgetSourceService.getBudgetSourceById(db, raw.id);
 
@@ -1443,17 +1470,21 @@ describe('Budget Source Service', () => {
       expect(resultB.unclaimedAmount).toBe(0);
     });
 
-    it('accumulates multiple paid invoices on the same budget line', () => {
+    it('accumulates paid invoices across multiple budget lines for the same source', () => {
+      // Story 15.1 (junction table model): each budget line can link to AT MOST ONE invoice.
+      // Use three separate budget lines — each with its own paid invoice.
       const raw = insertRawSource({
         name: 'Multi-Paid Source',
         sourceType: 'credit_line',
         totalAmount: 200000,
       });
 
-      const { budgetId } = insertRawWorkItemWithSource(raw.id, 50000);
-      insertPaidInvoice(budgetId, 3000);
-      insertPaidInvoice(budgetId, 7000);
-      insertPaidInvoice(budgetId, 1500);
+      const { budgetId: b1 } = insertRawWorkItemWithSource(raw.id, 20000);
+      const { budgetId: b2 } = insertRawWorkItemWithSource(raw.id, 15000);
+      const { budgetId: b3 } = insertRawWorkItemWithSource(raw.id, 10000);
+      insertPaidInvoice(b1, 3000);
+      insertPaidInvoice(b2, 7000);
+      insertPaidInvoice(b3, 1500);
 
       const result = budgetSourceService.getBudgetSourceById(db, raw.id);
 
@@ -1489,20 +1520,23 @@ describe('Budget Source Service', () => {
     });
 
     it('correctly tracks both claimedAmount and unclaimedAmount independently', () => {
-      // A source with a mix of claimed and paid invoices across multiple budget lines
+      // Story 15.1 (junction table model): each budget line can link to AT MOST ONE invoice.
+      // Use four separate budget lines — one claimed and one paid for each "conceptual" cost centre.
       const raw = insertRawSource({
         name: 'Mixed Invoice Source',
         sourceType: 'bank_loan',
         totalAmount: 300000,
       });
 
-      const { budgetId: b1 } = insertRawWorkItemWithSource(raw.id, 50000);
-      const { budgetId: b2 } = insertRawWorkItemWithSource(raw.id, 30000);
+      const { budgetId: b1Claimed } = insertRawWorkItemWithSource(raw.id, 50000);
+      const { budgetId: b1Paid } = insertRawWorkItemWithSource(raw.id, 20000);
+      const { budgetId: b2Claimed } = insertRawWorkItemWithSource(raw.id, 30000);
+      const { budgetId: b2Paid } = insertRawWorkItemWithSource(raw.id, 15000);
 
-      insertClaimedInvoice(b1, 12000); // claimed
-      insertPaidInvoice(b1, 5000); // paid (unclaimed)
-      insertClaimedInvoice(b2, 8000); // claimed
-      insertPaidInvoice(b2, 3000); // paid (unclaimed)
+      insertClaimedInvoice(b1Claimed, 12000); // claimed
+      insertPaidInvoice(b1Paid, 5000); // paid (unclaimed)
+      insertClaimedInvoice(b2Claimed, 8000); // claimed
+      insertPaidInvoice(b2Paid, 3000); // paid (unclaimed)
 
       const result = budgetSourceService.getBudgetSourceById(db, raw.id);
 

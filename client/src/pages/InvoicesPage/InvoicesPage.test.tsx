@@ -116,10 +116,8 @@ function makeInvoice(overrides: Partial<Invoice> & { id: string }): Invoice {
   return {
     vendorId: 'vendor-1',
     vendorName: 'Acme Construction',
-    workItemBudgetId: null,
-    workItemBudget: null,
-    householdItemBudgetId: null,
-    householdItemBudget: null,
+    budgetLines: [],
+    remainingAmount: 100,
     invoiceNumber: null,
     amount: 100,
     date: '2026-01-15',

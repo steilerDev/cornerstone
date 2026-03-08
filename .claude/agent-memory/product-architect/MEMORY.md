@@ -18,20 +18,22 @@
 - Offset pagination: page (1-indexed), pageSize (default 25, max 100)
 - Tags/users NOT paginated (small collections)
 - PATCH with tagIds replaces entire tag set (set-semantics)
-- Junction tables use composite PKs (no surrogate id)
+- Junction tables use composite PKs (no surrogate id) -- EXCEPT invoice_budget_lines which uses surrogate UUID (carries itemized_amount, needs individual CRUD)
 
 ## Naming Conventions
 
 - DB: snake_case | TS vars: camelCase | TS types: PascalCase | Files: camelCase.ts (React: PascalCase.tsx) | API: kebab-case | Env: UPPER_SNAKE_CASE
 
-## Migrations (12 total)
+## Migrations (17 total)
 
 - 0001-0009: Auth, work items, budget, milestones, deps, actual dates, document_links
 - 0010: household_items + 5 supporting tables (EPIC-04)
 - 0011: household_item_budget_id FK + index on invoices (EPIC-04)
-- 0012: household_item_deps + delivery date columns, drops household_item_work_items (PR #416, in review)
+- 0012: household_item_deps + delivery date columns
+- 0013-0016: HI dep cleanup, status rename, delivery date redesign, HI categories
+- 0017: invoice_budget_lines junction table (EPIC-15, ADR-018)
 
-## ADRs (ADR-001 through ADR-016)
+## ADRs (ADR-001 through ADR-018)
 
 - ADR-001-009: Tech stack + error handling
 - ADR-010: Auth (sessions + OIDC + scrypt)
@@ -41,6 +43,7 @@
 - ADR-014: Scheduling engine (server-side CPM)
 - ADR-015: Paperless-ngx integration (proxy + polymorphic links)
 - ADR-016: Household items (separate entity with parallel structure)
+- ADR-018: Invoice-budget-line junction table (M:N with XOR CHECK, ON DELETE CASCADE)
 
 ## EPIC Status
 
@@ -49,7 +52,8 @@
 - EPIC-05 Budget: Complete (promoted to main, v1.9.0)
 - EPIC-06 Timeline/Gantt: Complete (promoted to main, v1.10.0)
 - EPIC-08 Documents: Complete (promoted to main, v1.11.0)
-- EPIC-04 Household Items: In progress. Schema (PR #396), CRUD API (PR #397), Budget (PR #401), Work Item Linking (PR #402), Invoice Linking (PR #414 -- request changes)
+- EPIC-04 Household Items: Complete (promoted to main, v1.12.0)
+- EPIC-15 Budget-Line Invoice Linking: In progress. Story 15.1 schema (PR #612, request changes)
 
 ## GitHub Wiki
 
@@ -134,3 +138,14 @@ Values are fractions (0.2, 0.1, 0.05, 0), NOT percentages. Frontend must multipl
 Fix for inline status selector. Auto-sets actualDeliveryDate when status → 'arrived' and date is null.
 
 **Finding**: API Contract wiki was not updated to document the auto-set behavior. Backend/frontend/tests are correct; wiki doc gap identified and flagged.
+
+## PR #612 Review (2026-03-08) -- EPIC-15 Story 15.1
+
+Invoice-budget-line junction table (migration 0017). Request changes:
+- CRITICAL: Broken test assertions -- `MutuallyExclusiveBudgetLinkError` tests retained but validation removed from service. CI red.
+- HIGH: Wiki Schema.md says ON DELETE SET NULL for budget FKs, but migration/Drizzle/ADR-018 use ON DELETE CASCADE.
+- MEDIUM: InvoiceBudgetLineSummary shared type diverges from wiki API Contract shape. Defer reconciliation to Story 15.2.
+
+### Key Lesson: XOR CHECK + ON DELETE SET NULL Incompatibility (Bug #611)
+
+SQLite enforces CHECK constraints during FK SET NULL actions. If a table has `CHECK((a IS NOT NULL AND b IS NULL) OR ...)` and `ON DELETE SET NULL` on column `a`, deleting the referenced row triggers SET NULL which violates the XOR CHECK. Fix: use ON DELETE CASCADE instead.

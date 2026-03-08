@@ -22,8 +22,8 @@ type DbType = BetterSQLite3Database<typeof schemaTypes>;
  *     max_planned = max(0, raw_max - subsidy_reduction)
  *
  *   Available Funds = SUM(active budget_sources.total_amount)
- *   Actual Cost     = SUM(invoices.amount WHERE work_item_budget_id IS NOT NULL)
- *   Actual Paid     = SUM(invoices.amount WHERE work_item_budget_id IS NOT NULL AND status IN ('paid', 'claimed'))
+ *   Actual Cost     = SUM(invoice_budget_lines.itemized_amount WHERE work_item_budget_id IS NOT NULL)
+ *   Actual Paid     = SUM(invoice_budget_lines.itemized_amount WHERE work_item_budget_id IS NOT NULL AND invoices.status IN ('paid', 'claimed'))
  */
 export function getBudgetOverview(db: DbType): BudgetOverview {
   // ── 1. Available funds from active budget sources ──────────────────────────
@@ -140,18 +140,20 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
     actualCost: number;
   }>(
     sql`SELECT
-      work_item_budget_id AS budgetLineId,
-      COALESCE(SUM(amount), 0) AS actualCost
-    FROM invoices
-    WHERE work_item_budget_id IS NOT NULL
-    GROUP BY work_item_budget_id
+      ibl.work_item_budget_id AS budgetLineId,
+      COALESCE(SUM(ibl.itemized_amount), 0) AS actualCost
+    FROM invoice_budget_lines ibl
+    INNER JOIN invoices i ON i.id = ibl.invoice_id
+    WHERE ibl.work_item_budget_id IS NOT NULL
+    GROUP BY ibl.work_item_budget_id
     UNION ALL
     SELECT
-      household_item_budget_id AS budgetLineId,
-      COALESCE(SUM(amount), 0) AS actualCost
-    FROM invoices
-    WHERE household_item_budget_id IS NOT NULL
-    GROUP BY household_item_budget_id`,
+      ibl.household_item_budget_id AS budgetLineId,
+      COALESCE(SUM(ibl.itemized_amount), 0) AS actualCost
+    FROM invoice_budget_lines ibl
+    INNER JOIN invoices i ON i.id = ibl.invoice_id
+    WHERE ibl.household_item_budget_id IS NOT NULL
+    GROUP BY ibl.household_item_budget_id`,
   );
 
   const lineInvoiceMap = new Map<string, number>();
@@ -287,11 +289,11 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
     actualCostClaimed: number | null;
   }>(
     sql`SELECT
-      COALESCE(SUM(amount), 0)                                                         AS actualCost,
-      COALESCE(SUM(CASE WHEN status IN ('paid', 'claimed') THEN amount ELSE 0 END), 0) AS actualCostPaid,
-      COALESCE(SUM(CASE WHEN status = 'claimed' THEN amount ELSE 0 END), 0)            AS actualCostClaimed
-    FROM invoices
-    WHERE work_item_budget_id IS NOT NULL OR household_item_budget_id IS NOT NULL`,
+      COALESCE(SUM(ibl.itemized_amount), 0)                                                         AS actualCost,
+      COALESCE(SUM(CASE WHEN i.status IN ('paid', 'claimed') THEN ibl.itemized_amount ELSE 0 END), 0) AS actualCostPaid,
+      COALESCE(SUM(CASE WHEN i.status = 'claimed' THEN ibl.itemized_amount ELSE 0 END), 0)            AS actualCostClaimed
+    FROM invoice_budget_lines ibl
+    INNER JOIN invoices i ON i.id = ibl.invoice_id`,
   );
 
   const actualCost = invoiceTotalsRow?.actualCost ?? 0;
@@ -308,20 +310,22 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
   }>(
     sql`SELECT
       wib.budget_category_id                                                                      AS budgetCategoryId,
-      COALESCE(SUM(inv.amount), 0)                                                                AS actualCost,
-      COALESCE(SUM(CASE WHEN inv.status IN ('paid', 'claimed') THEN inv.amount ELSE 0 END), 0)   AS actualCostPaid,
-      COALESCE(SUM(CASE WHEN inv.status = 'claimed' THEN inv.amount ELSE 0 END), 0)              AS actualCostClaimed
-    FROM invoices inv
-    INNER JOIN work_item_budgets wib ON wib.id = inv.work_item_budget_id
+      COALESCE(SUM(ibl.itemized_amount), 0)                                                                AS actualCost,
+      COALESCE(SUM(CASE WHEN i.status IN ('paid', 'claimed') THEN ibl.itemized_amount ELSE 0 END), 0)   AS actualCostPaid,
+      COALESCE(SUM(CASE WHEN i.status = 'claimed' THEN ibl.itemized_amount ELSE 0 END), 0)              AS actualCostClaimed
+    FROM invoice_budget_lines ibl
+    INNER JOIN invoices i ON i.id = ibl.invoice_id
+    INNER JOIN work_item_budgets wib ON wib.id = ibl.work_item_budget_id
     GROUP BY wib.budget_category_id
     UNION ALL
     SELECT
       hib.budget_category_id                                                                      AS budgetCategoryId,
-      COALESCE(SUM(inv.amount), 0)                                                                AS actualCost,
-      COALESCE(SUM(CASE WHEN inv.status IN ('paid', 'claimed') THEN inv.amount ELSE 0 END), 0)   AS actualCostPaid,
-      COALESCE(SUM(CASE WHEN inv.status = 'claimed' THEN inv.amount ELSE 0 END), 0)              AS actualCostClaimed
-    FROM invoices inv
-    INNER JOIN household_item_budgets hib ON hib.id = inv.household_item_budget_id
+      COALESCE(SUM(ibl.itemized_amount), 0)                                                                AS actualCost,
+      COALESCE(SUM(CASE WHEN i.status IN ('paid', 'claimed') THEN ibl.itemized_amount ELSE 0 END), 0)   AS actualCostPaid,
+      COALESCE(SUM(CASE WHEN i.status = 'claimed' THEN ibl.itemized_amount ELSE 0 END), 0)              AS actualCostClaimed
+    FROM invoice_budget_lines ibl
+    INNER JOIN invoices i ON i.id = ibl.invoice_id
+    INNER JOIN household_item_budgets hib ON hib.id = ibl.household_item_budget_id
     GROUP BY hib.budget_category_id`,
   );
 

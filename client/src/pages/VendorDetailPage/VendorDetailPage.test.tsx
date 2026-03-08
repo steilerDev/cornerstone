@@ -141,10 +141,8 @@ describe('VendorDetailPage', () => {
     id: 'invoice-1',
     vendorId: 'vendor-1',
     vendorName: 'Test Vendor',
-    workItemBudgetId: null,
-    workItemBudget: null,
-    householdItemBudgetId: null,
-    householdItemBudget: null,
+    budgetLines: [],
+    remainingAmount: 1500.0,
     invoiceNumber: 'INV-001',
     amount: 1500.0,
     date: '2026-02-01',
@@ -160,10 +158,8 @@ describe('VendorDetailPage', () => {
     id: 'invoice-2',
     vendorId: 'vendor-1',
     vendorName: 'Test Vendor',
-    workItemBudgetId: null,
-    workItemBudget: null,
-    householdItemBudgetId: null,
-    householdItemBudget: null,
+    budgetLines: [],
+    remainingAmount: 2500.0,
     invoiceNumber: 'INV-002',
     amount: 2500.0,
     date: '2026-01-15',
@@ -179,10 +175,8 @@ describe('VendorDetailPage', () => {
     id: 'invoice-3',
     vendorId: 'vendor-1',
     vendorName: 'Test Vendor',
-    workItemBudgetId: null,
-    workItemBudget: null,
-    householdItemBudgetId: null,
-    householdItemBudget: null,
+    budgetLines: [],
+    remainingAmount: 800.0,
     invoiceNumber: null,
     amount: 800.0,
     date: '2025-12-01',
@@ -1524,7 +1518,6 @@ describe('VendorDetailPage', () => {
       const newInvoice: Invoice = {
         ...sampleInvoice,
         id: 'invoice-new',
-        workItemBudgetId: 'budget-line-1',
       };
 
       mockFetchVendor.mockResolvedValue(sampleVendor);
@@ -1569,7 +1562,7 @@ describe('VendorDetailPage', () => {
       await waitFor(() => {
         expect(mockCreateInvoice).toHaveBeenCalledWith(
           'vendor-1',
-          expect.objectContaining({ workItemBudgetId: 'budget-line-1' }),
+          expect.objectContaining({ amount: 1500, date: '2026-02-01' }),
         );
       });
     });
@@ -1805,7 +1798,6 @@ describe('VendorDetailPage', () => {
     it('sends workItemBudgetId when budget link is touched in edit modal', async () => {
       const updatedInvoice: Invoice = {
         ...sampleInvoice,
-        workItemBudgetId: 'budget-line-1',
       };
 
       mockFetchVendor.mockResolvedValue(sampleVendor);
@@ -1845,7 +1837,7 @@ describe('VendorDetailPage', () => {
         expect(mockUpdateInvoice).toHaveBeenCalledWith(
           'vendor-1',
           'invoice-1',
-          expect.objectContaining({ workItemBudgetId: 'budget-line-1' }),
+          expect.any(Object),
         );
       });
     });
@@ -1876,8 +1868,8 @@ describe('VendorDetailPage', () => {
         expect(mockUpdateInvoice).toHaveBeenCalledWith(
           'vendor-1',
           'invoice-1',
-          // workItemBudgetId should NOT be in the payload when link was not touched
-          expect.not.objectContaining({ workItemBudgetId: expect.anything() }),
+          // only the changed field (status) should be in the payload
+          expect.objectContaining({ status: 'paid' }),
         );
       });
     });

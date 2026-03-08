@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { buildApp } from '../app.js';
 import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
@@ -12,6 +13,7 @@ import * as vendorService from '../services/vendorService.js';
 import * as invoiceService from '../services/invoiceService.js';
 import type { FastifyInstance } from 'fastify';
 import type { ApiErrorResponse, WorkItemBudgetLine } from '@cornerstone/shared';
+import { invoiceBudgetLines } from '../db/schema.js';
 
 describe('Work Item Budget Routes', () => {
   let app: FastifyInstance;
@@ -729,16 +731,28 @@ describe('Work Item Budget Routes', () => {
       const budgetId = createResp.json<{ budget: WorkItemBudgetLine }>().budget.id;
 
       // Link an invoice to this budget line directly via service
-      invoiceService.createInvoice(
+      const invoice = invoiceService.createInvoice(
         app.db,
         vendor.id,
         {
           amount: 1000,
           date: '2025-06-01',
-          workItemBudgetId: budgetId,
         },
         userId,
       );
+
+      // Create the junction row linking invoice to budget line
+      app.db
+        .insert(invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId: invoice.id,
+          workItemBudgetId: budgetId,
+          itemizedAmount: 1000,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        })
+        .run();
 
       const response = await app.inject({
         method: 'DELETE',

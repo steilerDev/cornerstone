@@ -92,8 +92,6 @@ export type {
 export type {
   Invoice,
   InvoiceStatus,
-  WorkItemBudgetSummary,
-  HouseholdItemBudgetSummary,
   CreateInvoiceRequest,
   UpdateInvoiceRequest,
   InvoiceListResponse,
@@ -103,6 +101,16 @@ export type {
   InvoiceListPaginatedResponse,
   InvoiceDetailResponse,
 } from './types/invoice.js';
+
+// Invoice Budget Lines
+export type {
+  InvoiceBudgetLine,
+  InvoiceBudgetLineSummary,
+  CreateInvoiceBudgetLineRequest,
+  UpdateInvoiceBudgetLineRequest,
+  InvoiceBudgetLineResponse,
+  InvoiceBudgetLineListResponse,
+} from './types/invoiceBudgetLine.js';
 
 // Budget Sources
 export type {

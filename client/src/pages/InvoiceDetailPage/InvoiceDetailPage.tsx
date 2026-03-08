@@ -106,8 +106,6 @@ export function InvoiceDetailPage() {
 
   const openEditModal = () => {
     if (!invoice) return;
-    const preSelectedWorkItemId = invoice.workItemBudget?.workItemId ?? '';
-    const preSelectedHouseholdItemId = invoice.householdItemBudget?.householdItemId ?? '';
     setEditForm({
       invoiceNumber: invoice.invoiceNumber ?? '',
       amount: invoice.amount.toString(),
@@ -115,31 +113,13 @@ export function InvoiceDetailPage() {
       dueDate: invoice.dueDate ? invoice.dueDate.slice(0, 10) : '',
       status: invoice.status,
       notes: invoice.notes ?? '',
-      selectedWorkItemId: preSelectedWorkItemId,
-      workItemBudgetId: invoice.workItemBudgetId ?? '',
-      selectedHouseholdItemId: preSelectedHouseholdItemId,
-      householdItemBudgetId: invoice.householdItemBudgetId ?? '',
+      selectedWorkItemId: '',
+      workItemBudgetId: '',
+      selectedHouseholdItemId: '',
+      householdItemBudgetId: '',
     });
-    // Pre-fetch budget lines for the already-linked work item
-    if (preSelectedWorkItemId) {
-      setBudgetLinesLoading(true);
-      void fetchWorkItemBudgets(preSelectedWorkItemId)
-        .then((lines) => setBudgetLines(lines))
-        .catch(() => setBudgetLines([]))
-        .finally(() => setBudgetLinesLoading(false));
-    } else {
-      setBudgetLines([]);
-    }
-    // Pre-fetch budget lines for the already-linked household item
-    if (preSelectedHouseholdItemId) {
-      setHouseholdItemBudgetLinesLoading(true);
-      void fetchHouseholdItemBudgets(preSelectedHouseholdItemId)
-        .then((lines) => setHouseholdItemBudgetLines(lines))
-        .catch(() => setHouseholdItemBudgetLines([]))
-        .finally(() => setHouseholdItemBudgetLinesLoading(false));
-    } else {
-      setHouseholdItemBudgetLines([]);
-    }
+    setBudgetLines([]);
+    setHouseholdItemBudgetLines([]);
     setBudgetLinkTouched(false);
     setHouseholdItemBudgetLinkTouched(false);
     setEditError('');
@@ -175,10 +155,6 @@ export function InvoiceDetailPage() {
         dueDate: editForm.dueDate || null,
         status: editForm.status,
         notes: editForm.notes.trim() || null,
-        ...(budgetLinkTouched ? { workItemBudgetId: editForm.workItemBudgetId || null } : {}),
-        ...(householdItemBudgetLinkTouched
-          ? { householdItemBudgetId: editForm.householdItemBudgetId || null }
-          : {}),
       });
       setInvoice(updated);
       setShowEditModal(false);
@@ -331,35 +307,11 @@ export function InvoiceDetailPage() {
                 </span>
               </dd>
             </div>
-            {invoice.workItemBudget && (
+            {invoice.budgetLines.length > 0 && (
               <div className={styles.infoRow}>
-                <dt className={styles.infoLabel}>Work Item</dt>
+                <dt className={styles.infoLabel}>Budget Lines</dt>
                 <dd className={styles.infoValue}>
-                  <Link
-                    to={`/project/work-items/${invoice.workItemBudget.workItemId}`}
-                    className={styles.infoLink}
-                  >
-                    {invoice.workItemBudget.workItemTitle}
-                  </Link>
-                </dd>
-              </div>
-            )}
-            {invoice.householdItemBudget && (
-              <div className={styles.infoRow}>
-                <dt className={styles.infoLabel}>Household Item</dt>
-                <dd className={styles.infoValue}>
-                  <Link
-                    to={`/project/household-items/${invoice.householdItemBudget.householdItemId}`}
-                    className={styles.infoLink}
-                  >
-                    {invoice.householdItemBudget.householdItemName}
-                  </Link>
-                  {invoice.householdItemBudget.description && (
-                    <span className={styles.budgetLineDescription}>
-                      {' '}
-                      — {invoice.householdItemBudget.description}
-                    </span>
-                  )}
+                  {invoice.budgetLines.length} line(s) linked
                 </dd>
               </div>
             )}
@@ -511,7 +463,6 @@ export function InvoiceDetailPage() {
                   disabled={isUpdating}
                   placeholder="Search work items..."
                   showItemsOnFocus
-                  initialTitle={invoice.workItemBudget?.workItemTitle ?? undefined}
                 />
               </div>
 
@@ -570,7 +521,6 @@ export function InvoiceDetailPage() {
                   disabled={isUpdating}
                   placeholder="Search household items..."
                   showItemsOnFocus
-                  initialTitle={invoice.householdItemBudget?.householdItemName ?? undefined}
                 />
               </div>
 

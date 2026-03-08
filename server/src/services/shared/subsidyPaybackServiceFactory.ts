@@ -84,13 +84,14 @@ export function createSubsidyPaybackService(
     if (config.supportsInvoices) {
       const invoiceRows = db.all<{ workItemBudgetId: string; actualCost: number }>(
         sql`SELECT
-          work_item_budget_id AS workItemBudgetId,
-          COALESCE(SUM(amount), 0) AS actualCost
-        FROM invoices
-        WHERE work_item_budget_id IN (
+          ibl.work_item_budget_id AS workItemBudgetId,
+          COALESCE(SUM(ibl.itemized_amount), 0) AS actualCost
+        FROM invoice_budget_lines ibl
+        INNER JOIN invoices i ON i.id = ibl.invoice_id
+        WHERE ibl.work_item_budget_id IN (
           SELECT id FROM work_item_budgets WHERE work_item_id = ${entityId}
         )
-        GROUP BY work_item_budget_id`,
+        GROUP BY ibl.work_item_budget_id`,
       );
 
       for (const row of invoiceRows) {

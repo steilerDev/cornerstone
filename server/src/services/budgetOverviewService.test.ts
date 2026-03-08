@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { randomUUID } from 'node:crypto';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
@@ -68,9 +69,13 @@ describe('getBudgetOverview', () => {
    * Returns { workItemId, budgetLineId }.
    * If no budget fields are specified, only the work item is created (no budget line).
    *
-   * When actualCost is provided, a vendor + paid invoice is inserted linked to the budget line
-   * (modelling the Story 5.9 pattern). When actualCostPending is provided, a pending invoice
-   * is inserted instead.
+   * When actualCost is provided, a vendor + paid invoice is inserted linked to the budget line.
+   * When actualCostPending is provided, a pending invoice is inserted.
+   *
+   * IMPORTANT (Story 15.1 — junction table model): Each budget line can link to AT MOST ONE
+   * invoice (partial UNIQUE index on work_item_budget_id in invoice_budget_lines). When both
+   * actualCost and actualCostPending are provided, the pending invoice is attached to a SEPARATE
+   * budget line (same work item, same category/source) so the UNIQUE constraint is not violated.
    */
   function insertWorkItem(
     opts: {
@@ -79,8 +84,8 @@ describe('getBudgetOverview', () => {
       confidence?: 'own_estimate' | 'professional_estimate' | 'quote' | 'invoice';
       budgetCategoryId?: string | null;
       budgetSourceId?: string | null;
-      actualCost?: number | null; // creates a paid invoice
-      actualCostPending?: number | null; // creates a pending invoice
+      actualCost?: number | null; // creates a paid invoice on the primary budget line
+      actualCostPending?: number | null; // creates a pending invoice (on a separate budget line when actualCost is also set)
     } = {},
   ): { workItemId: string; budgetLineId: string | null } {
     const id = `wi-test-${idCounter++}`;
@@ -127,7 +132,6 @@ describe('getBudgetOverview', () => {
         .values({
           id: invoiceId,
           vendorId,
-          workItemBudgetId: budgetId,
           amount: opts.actualCost,
           date: '2026-01-01',
           status: 'paid',
@@ -135,10 +139,43 @@ describe('getBudgetOverview', () => {
           updatedAt: now,
         })
         .run();
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId,
+          workItemBudgetId: budgetId,
+          itemizedAmount: opts.actualCost,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
     }
 
-    // Insert pending invoice when actualCostPending is given
+    // Insert pending invoice when actualCostPending is given.
+    // If actualCost was ALSO set, the primary budgetId is already taken by a paid invoice.
+    // In that case, create a second budget line for the pending invoice so the UNIQUE constraint
+    // on work_item_budget_id in invoice_budget_lines is not violated.
     if (opts.actualCostPending != null && opts.actualCostPending > 0) {
+      const pendingBudgetId =
+        opts.actualCost != null && opts.actualCost > 0
+          ? (() => {
+              // Create a sibling budget line for the pending invoice
+              const siblingId = `bud-test-${idCounter++}`;
+              db.insert(schema.workItemBudgets)
+                .values({
+                  id: siblingId,
+                  workItemId: id,
+                  plannedAmount: opts.actualCostPending,
+                  confidence: opts.confidence ?? 'own_estimate',
+                  budgetCategoryId: opts.budgetCategoryId ?? null,
+                  budgetSourceId: opts.budgetSourceId ?? null,
+                  createdAt: now,
+                  updatedAt: now,
+                })
+                .run();
+              return siblingId;
+            })()
+          : budgetId;
       const vendorId = `wi-vendor-${idCounter++}`;
       db.insert(schema.vendors)
         .values({ id: vendorId, name: `Auto Vendor ${vendorId}`, createdAt: now, updatedAt: now })
@@ -148,10 +185,19 @@ describe('getBudgetOverview', () => {
         .values({
           id: invoiceId,
           vendorId,
-          workItemBudgetId: budgetId,
           amount: opts.actualCostPending,
           date: '2026-01-01',
           status: 'pending',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId,
+          workItemBudgetId: pendingBudgetId,
+          itemizedAmount: opts.actualCostPending,
           createdAt: now,
           updatedAt: now,
         })
@@ -1171,42 +1217,25 @@ describe('getBudgetOverview', () => {
       expect(cat!.projectedMax).toBeCloseTo(7150, 5); // 4000 + 3150
     });
 
-    it('multiple invoices on the same budget line sum to a single projected cost', () => {
-      // A budget line with two invoices (both contribute to actualCost)
-      const { workItemId, budgetLineId } = insertWorkItem({
-        plannedAmount: 10000,
+    it('invoices across multiple budget lines sum correctly to projected cost', () => {
+      // Story 15.1 (junction table model): each budget line can link to AT MOST ONE invoice.
+      // Use two separate budget lines — each with its own paid invoice — to model the scenario
+      // where a work item has multiple invoiced cost components.
+      insertWorkItem({
+        plannedAmount: 6000,
         confidence: 'own_estimate',
-        actualCost: 3000, // first invoice (paid)
+        actualCost: 3000, // first paid invoice on first budget line
       });
-      // Insert a second invoice against the same budget line directly
-      const now = new Date().toISOString();
-      const vendorId2 = `vendor-multi-${idCounter++}`;
-      db.insert(schema.vendors)
-        .values({
-          id: vendorId2,
-          name: `Vendor Multi ${vendorId2}`,
-          createdAt: now,
-          updatedAt: now,
-        })
-        .run();
-      db.insert(schema.invoices)
-        .values({
-          id: `inv-multi-${idCounter++}`,
-          vendorId: vendorId2,
-          workItemBudgetId: budgetLineId!,
-          amount: 2500,
-          date: '2026-01-01',
-          status: 'paid',
-          createdAt: now,
-          updatedAt: now,
-        })
-        .run();
-
-      void workItemId; // used in insertWorkItem above
+      insertWorkItem({
+        plannedAmount: 5000,
+        confidence: 'own_estimate',
+        actualCost: 2500, // second paid invoice on second budget line
+      });
 
       const result = getBudgetOverview(db);
 
-      // Both invoices sum: actualCost = 3000 + 2500 = 5500 → projected = 5500
+      // Both budget lines have invoices: actualCost = 3000 + 2500 = 5500
+      // When invoiced, projected = actualCost (no confidence margin)
       expect(result.projectedMin).toBe(5500);
       expect(result.projectedMax).toBe(5500);
       expect(result.actualCost).toBe(5500);
@@ -1331,10 +1360,19 @@ describe('getBudgetOverview', () => {
         .values({
           id: invoiceId,
           vendorId,
-          workItemBudgetId: budgetLineId,
           amount,
           date: '2026-01-01',
           status: 'claimed',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId,
+          workItemBudgetId: budgetLineId,
+          itemizedAmount: amount,
           createdAt: now,
           updatedAt: now,
         })
@@ -1617,10 +1655,19 @@ describe('getBudgetOverview', () => {
         .values({
           id: invoiceId,
           vendorId,
-          workItemBudgetId: budgetLineId!,
           amount: 900,
           date: '2026-01-01',
           status: 'paid',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId,
+          workItemBudgetId: budgetLineId!,
+          itemizedAmount: 900,
           createdAt: now,
           updatedAt: now,
         })
