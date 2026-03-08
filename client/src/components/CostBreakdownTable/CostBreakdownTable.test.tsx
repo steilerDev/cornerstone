@@ -687,7 +687,7 @@ describe('CostBreakdownTable', () => {
   // and the row has the rowMixed CSS class. The component does not show separate Actual/Projected
   // labels in the Cost column for mixed items — only for actual mode shows 'Actual:' label.
 
-  it('shows projected cost value in item row for costDisplay=mixed (rowMixed class applied)', () => {
+  it('shows projected cost value in item row for costDisplay=mixed (no rowMixed class)', () => {
     const { container } = renderWithRouter(
       buildBreakdownWithWI({
         costDisplay: 'mixed',
@@ -709,9 +709,9 @@ describe('CostBreakdownTable', () => {
     const projectedAvg = screen.getAllByText(/€1,100\.00/);
     expect(projectedAvg.length).toBeGreaterThanOrEqual(1);
 
-    // Item row must have rowMixed CSS class (visual indicator for mixed state)
+    // rowMixed class is no longer applied to item rows (green tinting removed)
     const mixedRows = container.querySelectorAll('tr.rowMixed');
-    expect(mixedRows.length).toBeGreaterThanOrEqual(1);
+    expect(mixedRows.length).toBe(0);
   });
 
   // ── 24. Zero subsidy payback → "—" ───────────────────────────────────────
@@ -1496,8 +1496,9 @@ describe('CostBreakdownTable', () => {
 
   // ── Row Highlighting (Scenarios 10–13) ────────────────────────────────────
 
-  // Scenario 10: costDisplay === 'actual' → rowActual CSS class on <tr>
-  it('work item with costDisplay=actual has rowActual CSS class on its row', () => {
+  // Scenario 10: costDisplay === 'actual' → NO rowActual CSS class on <tr> (green tinting removed)
+  // Instead, an "invoiced" badge is shown next to the item title.
+  it('work item with costDisplay=actual does NOT have rowActual CSS class on its row', () => {
     const { container } = renderWithRouter(
       buildBreakdownWithWI({
         costDisplay: 'actual',
@@ -1514,13 +1515,16 @@ describe('CostBreakdownTable', () => {
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
     fireEvent.click(getButtonByControls(container, 'wi-cat-cat-ins-actual-items'));
 
-    // The work item row (level 2) should have rowActual class
-    const actualRows = container.querySelectorAll('.rowActual');
-    expect(actualRows.length).toBeGreaterThan(0);
+    // rowActual class is no longer applied to work item rows (green tinting removed)
+    const level2Rows = container.querySelectorAll('.rowLevel2');
+    expect(level2Rows.length).toBeGreaterThan(0);
+    level2Rows.forEach((row) => {
+      expect(row.getAttribute('class') ?? '').not.toContain('rowActual');
+    });
   });
 
-  // Scenario 11: costDisplay === 'mixed' → rowMixed CSS class on <tr>
-  it('work item with costDisplay=mixed has rowMixed CSS class on its row', () => {
+  // Scenario 11: costDisplay === 'mixed' → NO rowMixed CSS class on <tr> (green tinting removed)
+  it('work item with costDisplay=mixed does NOT have rowMixed CSS class on its row', () => {
     const { container } = renderWithRouter(
       buildBreakdownWithWI({
         costDisplay: 'mixed',
@@ -1537,8 +1541,9 @@ describe('CostBreakdownTable', () => {
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
     fireEvent.click(getButtonByControls(container, 'wi-cat-cat-des-mixed-items'));
 
+    // rowMixed class is no longer applied (green tinting removed)
     const mixedRows = container.querySelectorAll('.rowMixed');
-    expect(mixedRows.length).toBeGreaterThan(0);
+    expect(mixedRows.length).toBe(0);
   });
 
   // Scenario 12: costDisplay === 'projected' → neither rowActual nor rowMixed
@@ -1568,8 +1573,8 @@ describe('CostBreakdownTable', () => {
     });
   });
 
-  // Scenario 13: budget line with hasInvoice===true → rowActual CSS class
-  it('budget line with hasInvoice=true has rowActual CSS class', () => {
+  // Scenario 13: budget line with hasInvoice===true → "invoiced" badge shown, NO rowActual class
+  it('budget line with hasInvoice=true shows "invoiced" badge and does NOT have rowActual CSS class', () => {
     const { container } = renderWithRouter(
       buildBreakdownWithWI({
         costDisplay: 'actual',
@@ -1590,9 +1595,16 @@ describe('CostBreakdownTable', () => {
     fireEvent.click(getButtonByControls(container, 'wi-cat-cat-lab-inv-items'));
     fireEvent.click(getButtonByControls(container, 'wi-item-wi-inv-budget-lines'));
 
-    // Budget line row (level 3) with hasInvoice should have rowActual
-    const actualRows = container.querySelectorAll('.rowActual');
-    expect(actualRows.length).toBeGreaterThan(0);
+    // Budget line row (level 3) with hasInvoice shows "invoiced" badge (not rowActual class)
+    const invoicedBadges = container.querySelectorAll('.invoicedBadge');
+    expect(invoicedBadges.length).toBeGreaterThan(0);
+
+    // rowActual class is no longer applied to budget line rows (green tinting removed)
+    const level3Rows = container.querySelectorAll('.rowLevel3');
+    expect(level3Rows.length).toBeGreaterThan(0);
+    level3Rows.forEach((row) => {
+      expect(row.getAttribute('class') ?? '').not.toContain('rowActual');
+    });
   });
 
   // ── Available Funds Expansion (Scenarios 14–17) ───────────────────────────
@@ -2146,5 +2158,235 @@ describe('CostBreakdownTable', () => {
     const negativeSpan = container.querySelector('.valueNegative');
     expect(negativeSpan).not.toBeNull();
     expect(screen.getByText('Remaining')).toBeInTheDocument();
+  });
+
+  // ── Invoiced Badge (Issue #575) ────────────────────────────────────────────
+
+  // Budget line: hasInvoice=true → "invoiced" badge; no confidence pill
+  it('budget line with hasInvoice=true shows "invoiced" badge text', () => {
+    const { container } = renderWithRouter(
+      buildBreakdownWithWI({
+        costDisplay: 'actual',
+        actualCost: 600,
+        projectedMin: 600,
+        projectedMax: 600,
+        hasInvoice: true,
+        categoryName: 'Materials',
+        categoryId: 'cat-inv-badge',
+        workItemId: 'wi-inv-badge',
+        description: 'Concrete supply',
+      }),
+      buildOverview(),
+    );
+
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-inv-badge-items'));
+    fireEvent.click(getButtonByControls(container, 'wi-item-wi-inv-badge-budget-lines'));
+
+    // Both the work item row (costDisplay=actual) and the budget line row (hasInvoice=true)
+    // show "invoiced" badges — verify at least one is present.
+    const invoicedBadges = screen.getAllByText('invoiced');
+    expect(invoicedBadges.length).toBeGreaterThanOrEqual(1);
+
+    // Confirm at least one badge appears in a level-3 budget line row
+    const level3Rows = container.querySelectorAll('.rowLevel3');
+    expect(level3Rows.length).toBeGreaterThan(0);
+    const level3HasInvoicedBadge = Array.from(level3Rows).some((row) =>
+      row.textContent?.includes('invoiced'),
+    );
+    expect(level3HasInvoicedBadge).toBe(true);
+  });
+
+  // Budget line: hasInvoice=true → confidence text NOT shown in name cell
+  it('budget line with hasInvoice=true does not show confidence text (e.g., "own estimate")', () => {
+    const { container } = renderWithRouter(
+      buildBreakdownWithWI({
+        costDisplay: 'actual',
+        actualCost: 700,
+        projectedMin: 700,
+        projectedMax: 700,
+        hasInvoice: true,
+        categoryName: 'Labor',
+        categoryId: 'cat-no-conf',
+        workItemId: 'wi-no-conf',
+        description: 'Electrician',
+      }),
+      buildOverview(),
+    );
+
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-no-conf-items'));
+    fireEvent.click(getButtonByControls(container, 'wi-item-wi-no-conf-budget-lines'));
+
+    // Confidence badge text "own estimate" must NOT appear when hasInvoice=true
+    expect(screen.queryByText('own estimate')).not.toBeInTheDocument();
+  });
+
+  // Budget line: hasInvoice=false → confidence pill is shown, no "invoiced" badge
+  it('budget line with hasInvoice=false shows confidence pill and no "invoiced" badge', () => {
+    const { container } = renderWithRouter(
+      buildBreakdownWithWI({
+        costDisplay: 'projected',
+        projectedMin: 800,
+        projectedMax: 1200,
+        hasInvoice: false,
+        categoryName: 'Design',
+        categoryId: 'cat-conf-pill',
+        workItemId: 'wi-conf-pill',
+        description: 'Architect plan',
+      }),
+      buildOverview(),
+    );
+
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-conf-pill-items'));
+    fireEvent.click(getButtonByControls(container, 'wi-item-wi-conf-pill-budget-lines'));
+
+    // Confidence level "own_estimate" renders as "own estimate" in ConfidenceBadge
+    expect(screen.getByText('own estimate')).toBeInTheDocument();
+    // "invoiced" badge must NOT appear
+    expect(screen.queryByText('invoiced')).not.toBeInTheDocument();
+  });
+
+  // Work item: costDisplay=actual → "invoiced" badge shown next to item title
+  it('work item with costDisplay=actual shows "invoiced" badge next to its title', () => {
+    const { container } = renderWithRouter(
+      buildBreakdownWithWI({
+        costDisplay: 'actual',
+        actualCost: 1200,
+        projectedMin: 1200,
+        projectedMax: 1200,
+        categoryName: 'Permits',
+        categoryId: 'cat-wi-inv-badge',
+        workItemId: 'wi-wi-inv-badge',
+        itemTitle: 'Building Permit',
+      }),
+      buildOverview(),
+    );
+
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-wi-inv-badge-items'));
+
+    // "invoiced" badge should appear in the work item row name cell
+    expect(screen.getByText('invoiced')).toBeInTheDocument();
+  });
+
+  // Work item: costDisplay=mixed → NO "invoiced" badge next to item title
+  it('work item with costDisplay=mixed does NOT show "invoiced" badge next to its title', () => {
+    const { container } = renderWithRouter(
+      buildBreakdownWithWI({
+        costDisplay: 'mixed',
+        actualCost: 400,
+        projectedMin: 800,
+        projectedMax: 1200,
+        rawProjectedMin: 800,
+        rawProjectedMax: 1200,
+        categoryName: 'Utilities',
+        categoryId: 'cat-wi-mixed-badge',
+        workItemId: 'wi-mixed-badge',
+        itemTitle: 'Plumbing Rough-in',
+      }),
+      buildOverview(),
+    );
+
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-wi-mixed-badge-items'));
+
+    // "invoiced" badge must NOT appear for partially invoiced (mixed) items
+    expect(screen.queryByText('invoiced')).not.toBeInTheDocument();
+  });
+
+  // Work item: costDisplay=projected → NO "invoiced" badge
+  it('work item with costDisplay=projected does NOT show "invoiced" badge', () => {
+    const { container } = renderWithRouter(
+      buildBreakdownWithWI({
+        costDisplay: 'projected',
+        projectedMin: 500,
+        projectedMax: 900,
+        categoryName: 'Equipment',
+        categoryId: 'cat-wi-proj-badge',
+        workItemId: 'wi-proj-badge',
+        itemTitle: 'Scaffolding Rental',
+      }),
+      buildOverview(),
+    );
+
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-wi-proj-badge-items'));
+
+    expect(screen.queryByText('invoiced')).not.toBeInTheDocument();
+  });
+
+  // Household item: costDisplay=actual → "invoiced" badge shown next to item name
+  it('household item with costDisplay=actual shows "invoiced" badge next to its name', () => {
+    const { container } = renderWithRouter(
+      buildBreakdownWithHI({
+        hiCategory: 'Kitchen',
+        costDisplay: 'actual',
+        actualCost: 2500,
+        rawProjectedMin: 2500,
+        rawProjectedMax: 2500,
+        householdItemId: 'hi-inv-badge',
+        itemName: 'Refrigerator',
+      }),
+      buildOverview(),
+    );
+
+    fireEvent.click(getButtonByControls(container, 'hi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'hi-cat-Kitchen-items'));
+
+    // "invoiced" badge should appear in the household item row name cell
+    expect(screen.getByText('invoiced')).toBeInTheDocument();
+  });
+
+  // Household item: costDisplay=mixed → NO "invoiced" badge
+  it('household item with costDisplay=mixed does NOT show "invoiced" badge', () => {
+    const { container } = renderWithRouter(
+      buildBreakdownWithHI({
+        hiCategory: 'Bedroom',
+        costDisplay: 'mixed',
+        actualCost: 300,
+        projectedMin: 600,
+        projectedMax: 900,
+        rawProjectedMin: 600,
+        rawProjectedMax: 900,
+        householdItemId: 'hi-mixed-badge',
+        itemName: 'Wardrobe',
+      }),
+      buildOverview(),
+    );
+
+    fireEvent.click(getButtonByControls(container, 'hi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'hi-cat-Bedroom-items'));
+
+    expect(screen.queryByText('invoiced')).not.toBeInTheDocument();
+  });
+
+  // No rowActual on level-3 rows regardless of hasInvoice (green tinting fully removed)
+  it('budget line rows never have rowActual class regardless of hasInvoice value', () => {
+    const { container } = renderWithRouter(
+      buildBreakdownWithWI({
+        costDisplay: 'actual',
+        actualCost: 850,
+        projectedMin: 850,
+        projectedMax: 850,
+        hasInvoice: true,
+        categoryName: 'Landscaping',
+        categoryId: 'cat-no-actual-cls',
+        workItemId: 'wi-no-actual-cls',
+        description: 'Garden irrigation',
+      }),
+      buildOverview(),
+    );
+
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-no-actual-cls-items'));
+    fireEvent.click(getButtonByControls(container, 'wi-item-wi-no-actual-cls-budget-lines'));
+
+    const level3Rows = container.querySelectorAll('.rowLevel3');
+    expect(level3Rows.length).toBeGreaterThan(0);
+    level3Rows.forEach((row) => {
+      expect(row.getAttribute('class') ?? '').not.toContain('rowActual');
+    });
   });
 });
