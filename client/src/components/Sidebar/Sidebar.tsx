@@ -53,6 +53,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         </NavLink>
       </nav>
       <div className={styles.sidebarFooter}>
+        <ThemeToggle />
         <NavLink
           to="/settings"
           className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
@@ -60,7 +61,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         >
           Settings
         </NavLink>
-        <ThemeToggle />
         <button
           type="button"
           className={styles.logoutButton}
