@@ -77,7 +77,7 @@ test.describe('Sidebar Navigation', { tag: '@responsive' }, () => {
     const expectedLinks = ['Project', 'Budget', 'Schedule', 'Settings'];
 
     for (const linkName of expectedLinks) {
-      const link = appShell.sidebar.getByRole('link', { name: linkName });
+      const link = appShell.sidebar.getByRole('link', { name: linkName, exact: true });
       await expect(link).toBeVisible();
     }
   });
