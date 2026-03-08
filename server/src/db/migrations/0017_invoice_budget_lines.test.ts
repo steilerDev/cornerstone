@@ -764,6 +764,134 @@ describe('Migration 0017: Invoice-Budget-Line Junction Table', () => {
     });
   });
 
+  // ── 8b. Data migration — deduplication of shared budget lines ─────────────
+
+  describe('data migration: deduplication when multiple invoices share a budget line', () => {
+    it('keeps only the most recent invoice per work_item_budget_id', () => {
+      const db = new Database(':memory:');
+      db.pragma('journal_mode = WAL');
+      db.pragma('foreign_keys = ON');
+      console.warn = () => undefined;
+      setupPreMigrationDb(db);
+
+      insertVendor(db, 'v-dedup-wi');
+      insertWorkItem(db, 'wi-dedup-1');
+      insertWorkItemBudget(db, 'wib-dedup-1', 'wi-dedup-1');
+
+      // Insert two invoices sharing the same work_item_budget_id with different created_at
+      insertInvoicePre0017(db, 'inv-dedup-old', 'v-dedup-wi', 100.0, {
+        work_item_budget_id: 'wib-dedup-1',
+        created_at: '2026-01-01T00:00:00.000Z',
+      });
+      insertInvoicePre0017(db, 'inv-dedup-new', 'v-dedup-wi', 200.0, {
+        work_item_budget_id: 'wib-dedup-1',
+        created_at: '2026-02-01T00:00:00.000Z',
+      });
+
+      // Migration should not throw a UNIQUE constraint error
+      runMigration0017(db);
+
+      const junctionRows = db
+        .prepare(
+          `SELECT invoice_id, work_item_budget_id, itemized_amount
+           FROM invoice_budget_lines WHERE work_item_budget_id = ?`,
+        )
+        .all('wib-dedup-1') as Array<Record<string, unknown>>;
+
+      expect(junctionRows).toHaveLength(1);
+      expect(junctionRows[0].invoice_id).toBe('inv-dedup-new');
+      expect(junctionRows[0].itemized_amount).toBe(200.0);
+
+      db.close();
+    });
+
+    it('keeps only the most recent invoice per household_item_budget_id', () => {
+      const db = new Database(':memory:');
+      db.pragma('journal_mode = WAL');
+      db.pragma('foreign_keys = ON');
+      console.warn = () => undefined;
+      setupPreMigrationDb(db);
+
+      insertVendor(db, 'v-dedup-hi');
+      insertHouseholdItem(db, 'hi-dedup-1');
+      insertHouseholdItemBudget(db, 'hib-dedup-1', 'hi-dedup-1');
+
+      // Insert two invoices sharing the same household_item_budget_id
+      insertInvoicePre0017(db, 'inv-dedup-hi-old', 'v-dedup-hi', 300.0, {
+        household_item_budget_id: 'hib-dedup-1',
+        created_at: '2026-01-01T00:00:00.000Z',
+      });
+      insertInvoicePre0017(db, 'inv-dedup-hi-new', 'v-dedup-hi', 400.0, {
+        household_item_budget_id: 'hib-dedup-1',
+        created_at: '2026-02-01T00:00:00.000Z',
+      });
+
+      runMigration0017(db);
+
+      const junctionRows = db
+        .prepare(
+          `SELECT invoice_id, household_item_budget_id, itemized_amount
+           FROM invoice_budget_lines WHERE household_item_budget_id = ?`,
+        )
+        .all('hib-dedup-1') as Array<Record<string, unknown>>;
+
+      expect(junctionRows).toHaveLength(1);
+      expect(junctionRows[0].invoice_id).toBe('inv-dedup-hi-new');
+      expect(junctionRows[0].itemized_amount).toBe(400.0);
+
+      db.close();
+    });
+
+    it('deduplication does not affect budget lines with only one invoice', () => {
+      const db = new Database(':memory:');
+      db.pragma('journal_mode = WAL');
+      db.pragma('foreign_keys = ON');
+      console.warn = () => undefined;
+      setupPreMigrationDb(db);
+
+      insertVendor(db, 'v-dedup-mix');
+      insertWorkItem(db, 'wi-dedup-mix-1');
+      insertWorkItem(db, 'wi-dedup-mix-2');
+      insertWorkItemBudget(db, 'wib-dedup-mix-1', 'wi-dedup-mix-1');
+      insertWorkItemBudget(db, 'wib-dedup-mix-2', 'wi-dedup-mix-2');
+
+      // Two invoices sharing wib-dedup-mix-1
+      insertInvoicePre0017(db, 'inv-dedup-mix-old', 'v-dedup-mix', 100.0, {
+        work_item_budget_id: 'wib-dedup-mix-1',
+        created_at: '2026-01-01T00:00:00.000Z',
+      });
+      insertInvoicePre0017(db, 'inv-dedup-mix-new', 'v-dedup-mix', 150.0, {
+        work_item_budget_id: 'wib-dedup-mix-1',
+        created_at: '2026-02-01T00:00:00.000Z',
+      });
+      // One invoice with unique wib-dedup-mix-2
+      insertInvoicePre0017(db, 'inv-dedup-mix-solo', 'v-dedup-mix', 250.0, {
+        work_item_budget_id: 'wib-dedup-mix-2',
+      });
+
+      runMigration0017(db);
+
+      const allRows = db
+        .prepare(
+          `SELECT invoice_id, work_item_budget_id, itemized_amount
+           FROM invoice_budget_lines ORDER BY work_item_budget_id`,
+        )
+        .all() as Array<Record<string, unknown>>;
+
+      expect(allRows).toHaveLength(2);
+
+      const deduped = allRows.find((r) => r.work_item_budget_id === 'wib-dedup-mix-1');
+      expect(deduped).toBeDefined();
+      expect(deduped!.invoice_id).toBe('inv-dedup-mix-new');
+
+      const solo = allRows.find((r) => r.work_item_budget_id === 'wib-dedup-mix-2');
+      expect(solo).toBeDefined();
+      expect(solo!.invoice_id).toBe('inv-dedup-mix-solo');
+
+      db.close();
+    });
+  });
+
   // ── 9. XOR CHECK constraint ────────────────────────────────────────────────
 
   describe('XOR CHECK constraint (exactly one FK must be non-null)', () => {

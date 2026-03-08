@@ -32,6 +32,9 @@ CREATE UNIQUE INDEX idx_invoice_budget_lines_household_item_budget_id
   WHERE household_item_budget_id IS NOT NULL;
 
 -- Step 2: Migrate existing 1:1 FK data into junction rows
+-- Deduplicate: if multiple invoices share the same budget line,
+-- keep only the most recent invoice (by created_at) per budget line.
+
 -- For work_item_budget_id links:
 INSERT INTO invoice_budget_lines (
   id, invoice_id, work_item_budget_id, household_item_budget_id,
@@ -46,14 +49,20 @@ SELECT
     substr(hex(randomblob(2)), 2) || '-' ||
     hex(randomblob(6))
   ) AS id,
-  id AS invoice_id,
-  work_item_budget_id,
+  i1.id AS invoice_id,
+  i1.work_item_budget_id,
   NULL AS household_item_budget_id,
-  amount AS itemized_amount,
-  created_at,
-  updated_at
-FROM invoices
-WHERE work_item_budget_id IS NOT NULL;
+  i1.amount AS itemized_amount,
+  i1.created_at,
+  i1.updated_at
+FROM invoices i1
+WHERE i1.work_item_budget_id IS NOT NULL
+  AND i1.rowid = (
+    SELECT i2.rowid FROM invoices i2
+    WHERE i2.work_item_budget_id = i1.work_item_budget_id
+    ORDER BY i2.created_at DESC
+    LIMIT 1
+  );
 
 -- For household_item_budget_id links:
 INSERT INTO invoice_budget_lines (
@@ -69,14 +78,20 @@ SELECT
     substr(hex(randomblob(2)), 2) || '-' ||
     hex(randomblob(6))
   ) AS id,
-  id AS invoice_id,
+  i1.id AS invoice_id,
   NULL AS work_item_budget_id,
-  household_item_budget_id,
-  amount AS itemized_amount,
-  created_at,
-  updated_at
-FROM invoices
-WHERE household_item_budget_id IS NOT NULL;
+  i1.household_item_budget_id,
+  i1.amount AS itemized_amount,
+  i1.created_at,
+  i1.updated_at
+FROM invoices i1
+WHERE i1.household_item_budget_id IS NOT NULL
+  AND i1.rowid = (
+    SELECT i2.rowid FROM invoices i2
+    WHERE i2.household_item_budget_id = i1.household_item_budget_id
+    ORDER BY i2.created_at DESC
+    LIMIT 1
+  );
 
 -- Step 3: Recreate invoices table without budget FK columns
 CREATE TABLE invoices_new (
