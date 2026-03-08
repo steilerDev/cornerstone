@@ -1273,9 +1273,11 @@ describe('Budget Source Service', () => {
         totalAmount: 60000,
       });
 
-      const { budgetId } = insertRawWorkItemWithSource(raw.id, 25000);
-      insertPaidInvoice(budgetId, 9000); // paid — should NOT be counted
-      insertClaimedInvoice(budgetId, 3000); // claimed — should be counted
+      // Each budget line can link to at most one invoice (UNIQUE constraint)
+      const { budgetId: b1 } = insertRawWorkItemWithSource(raw.id, 25000);
+      const { budgetId: b2 } = insertRawWorkItemWithSource(raw.id, 25000);
+      insertPaidInvoice(b1, 9000); // paid — should NOT be counted
+      insertClaimedInvoice(b2, 3000); // claimed — should be counted
 
       const result = budgetSourceService.getBudgetSourceById(db, raw.id);
 
@@ -1434,9 +1436,11 @@ describe('Budget Source Service', () => {
         totalAmount: 60000,
       });
 
-      const { budgetId } = insertRawWorkItemWithSource(raw.id, 25000);
-      insertClaimedInvoice(budgetId, 9000); // claimed — should NOT count toward unclaimedAmount
-      insertPaidInvoice(budgetId, 3000); // paid — SHOULD count toward unclaimedAmount
+      // Each budget line can link to at most one invoice (UNIQUE constraint)
+      const { budgetId: b1 } = insertRawWorkItemWithSource(raw.id, 25000);
+      const { budgetId: b2 } = insertRawWorkItemWithSource(raw.id, 25000);
+      insertClaimedInvoice(b1, 9000); // claimed — should NOT count toward unclaimedAmount
+      insertPaidInvoice(b2, 3000); // paid — SHOULD count toward unclaimedAmount
 
       const result = budgetSourceService.getBudgetSourceById(db, raw.id);
 
