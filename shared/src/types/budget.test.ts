@@ -48,6 +48,7 @@ const minimalBudgetLine = {
   actualCost: 0,
   actualCostPaid: 0,
   invoiceCount: 0,
+  invoiceLink: null,
   createdBy: null,
   createdAt: '2025-01-01T00:00:00Z',
   updatedAt: '2025-01-01T00:00:00Z',
@@ -316,6 +317,7 @@ describe('BaseBudgetLine interface', () => {
       actualCost: 24500,
       actualCostPaid: 24500,
       invoiceCount: 2,
+      invoiceLink: null,
       createdBy: {
         id: 'user-001',
         displayName: 'Alice Builder',
@@ -644,23 +646,22 @@ describe('BudgetSummary interface', () => {
 // ---------------------------------------------------------------------------
 
 describe('WorkItemBudgetLine interface (extends BaseBudgetLine)', () => {
-  it('constructs a valid work item budget line with all base fields plus workItemId and invoices', () => {
+  it('constructs a valid work item budget line with all base fields plus workItemId', () => {
     const line: WorkItemBudgetLine = {
       ...minimalBudgetLine,
       id: 'wbl-001',
       workItemId: 'wi-123',
-      invoices: [],
     };
 
     expect(line.id).toBe('wbl-001');
     expect(line.workItemId).toBe('wi-123');
-    expect(line.invoices).toHaveLength(0);
+    expect(line.invoiceLink).toBeNull();
     // Base fields are present
     expect(line.plannedAmount).toBe(1000);
     expect(line.confidence).toBe('own_estimate');
   });
 
-  it('includes inline invoice summaries in the invoices array', () => {
+  it('can have a non-null invoiceLink when linked to an invoice', () => {
     const line: WorkItemBudgetLine = {
       ...minimalBudgetLine,
       id: 'wbl-002',
@@ -668,32 +669,19 @@ describe('WorkItemBudgetLine interface (extends BaseBudgetLine)', () => {
       actualCost: 3200,
       actualCostPaid: 1600,
       invoiceCount: 2,
-      invoices: [
-        {
-          id: 'inv-a',
-          vendorId: 'v-001',
-          vendorName: 'Top Electricians',
-          invoiceNumber: 'E-001',
-          amount: 1600,
-          date: '2025-06-01',
-          status: 'paid',
-        },
-        {
-          id: 'inv-b',
-          vendorId: 'v-001',
-          vendorName: 'Top Electricians',
-          invoiceNumber: null,
-          amount: 1600,
-          date: '2025-07-01',
-          status: 'pending',
-        },
-      ],
+      invoiceLink: {
+        invoiceBudgetLineId: 'ibl-1',
+        invoiceId: 'inv-a',
+        invoiceNumber: 'E-001',
+        invoiceDate: '2025-06-01',
+        invoiceStatus: 'paid',
+        itemizedAmount: 1600,
+      },
     };
 
-    expect(line.invoices).toHaveLength(2);
-    expect(line.invoices[0].id).toBe('inv-a');
-    expect(line.invoices[0].status).toBe('paid');
-    expect(line.invoices[1].invoiceNumber).toBeNull();
+    expect(line.invoiceLink).not.toBeNull();
+    expect(line.invoiceLink?.invoiceNumber).toBe('E-001');
+    expect(line.invoiceLink?.invoiceStatus).toBe('paid');
     expect(line.invoiceCount).toBe(2);
   });
 
@@ -702,7 +690,6 @@ describe('WorkItemBudgetLine interface (extends BaseBudgetLine)', () => {
       ...minimalBudgetLine,
       id: 'wbl-subtype',
       workItemId: 'wi-789',
-      invoices: [],
     };
 
     // Type system assignment — if this compiles, WorkItemBudgetLine satisfies BaseBudgetLine
@@ -718,7 +705,7 @@ describe('WorkItemBudgetLine interface (extends BaseBudgetLine)', () => {
 // ---------------------------------------------------------------------------
 
 describe('HouseholdItemBudgetLine interface (extends BaseBudgetLine)', () => {
-  it('constructs a valid household item budget line with householdItemId and no invoices field', () => {
+  it('constructs a valid household item budget line with householdItemId', () => {
     const line: HouseholdItemBudgetLine = {
       ...minimalBudgetLine,
       id: 'hibl-001',
@@ -727,8 +714,7 @@ describe('HouseholdItemBudgetLine interface (extends BaseBudgetLine)', () => {
 
     expect(line.id).toBe('hibl-001');
     expect(line.householdItemId).toBe('hi-001');
-    // HI budget lines have no invoices field
-    expect((line as unknown as { invoices?: unknown }).invoices).toBeUndefined();
+    expect(line.invoiceLink).toBeNull();
     // Base fields are present
     expect(line.plannedAmount).toBe(1000);
     expect(line.actualCost).toBe(0);

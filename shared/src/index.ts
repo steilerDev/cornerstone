@@ -110,6 +110,9 @@ export type {
   UpdateInvoiceBudgetLineRequest,
   InvoiceBudgetLineResponse,
   InvoiceBudgetLineListResponse,
+  InvoiceBudgetLineDetailResponse,
+  InvoiceBudgetLineCreateResponse,
+  InvoiceBudgetLineListDetailResponse,
 } from './types/invoiceBudgetLine.js';
 
 // Budget Sources
@@ -131,6 +134,7 @@ export type {
   SubsidyPaybackEntry,
   BudgetAggregate,
   BudgetSummary,
+  BudgetLineInvoiceLink,
 } from './types/budget.js';
 
 // Subsidy Programs

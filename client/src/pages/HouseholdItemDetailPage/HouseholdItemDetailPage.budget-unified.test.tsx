@@ -255,6 +255,7 @@ describe('HouseholdItemDetailPage — unified Budget section (issue #566)', () =
       actualCost: 0,
       actualCostPaid: 0,
       invoiceCount: 0,
+      invoiceLink: null,
       createdBy: null,
       createdAt: '2026-01-15T10:00:00Z',
       updatedAt: '2026-01-15T10:00:00Z',

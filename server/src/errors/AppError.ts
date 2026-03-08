@@ -127,3 +127,23 @@ export class MutuallyExclusiveBudgetLinkError extends AppError {
     this.name = 'MutuallyExclusiveBudgetLinkError';
   }
 }
+
+export class BudgetLineAlreadyLinkedError extends AppError {
+  constructor(
+    message = 'Budget line is already linked to a different invoice',
+    details?: Record<string, unknown>,
+  ) {
+    super('BUDGET_LINE_ALREADY_LINKED', 409, message, details);
+    this.name = 'BudgetLineAlreadyLinkedError';
+  }
+}
+
+export class ItemizedSumExceedsInvoiceError extends AppError {
+  constructor(
+    message = 'Sum of itemized amounts would exceed the invoice total',
+    details?: Record<string, unknown>,
+  ) {
+    super('ITEMIZED_SUM_EXCEEDS_INVOICE', 400, message, details);
+    this.name = 'ItemizedSumExceedsInvoiceError';
+  }
+}

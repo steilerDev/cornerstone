@@ -43,6 +43,19 @@ export interface VendorSummary {
 }
 
 /**
+ * Summary of a single invoice linked to a budget line.
+ * Returned as part of BaseBudgetLine.invoiceLink when present.
+ */
+export interface BudgetLineInvoiceLink {
+  invoiceBudgetLineId: string;
+  invoiceId: string;
+  invoiceNumber: string | null;
+  invoiceDate: string;
+  invoiceStatus: string;
+  itemizedAmount: number;
+}
+
+/**
  * Summary of an invoice linked to a budget line.
  * Returned as part of WorkItemBudgetLine so the WorkItemDetailPage
  * can render an invoice popover without a separate API call.
@@ -77,6 +90,8 @@ export interface BaseBudgetLine {
   actualCostPaid: number;
   /** Computed: count of linked invoices */
   invoiceCount: number;
+  /** The primary invoice link for this budget line (if linked to exactly one invoice). */
+  invoiceLink: BudgetLineInvoiceLink | null;
   createdBy: UserSummary | null;
   createdAt: string;
   updatedAt: string;

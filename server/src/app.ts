@@ -25,6 +25,7 @@ import budgetSourceRoutes from './routes/budgetSources.js';
 import vendorRoutes from './routes/vendors.js';
 import invoiceRoutes from './routes/invoices.js';
 import standaloneInvoiceRoutes from './routes/standaloneInvoices.js';
+import invoiceBudgetLineRoutes from './routes/invoiceBudgetLines.js';
 import subsidyProgramRoutes from './routes/subsidyPrograms.js';
 import workItemVendorRoutes from './routes/workItemVendors.js';
 import workItemSubsidyRoutes from './routes/workItemSubsidies.js';
@@ -110,6 +111,9 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Standalone invoice routes (cross-vendor)
   await app.register(standaloneInvoiceRoutes, { prefix: '/api/invoices' });
+
+  // Invoice budget line routes (nested under invoices)
+  await app.register(invoiceBudgetLineRoutes, { prefix: '/api/invoices/:invoiceId/budget-lines' });
 
   // Subsidy program routes
   await app.register(subsidyProgramRoutes, { prefix: '/api/subsidy-programs' });

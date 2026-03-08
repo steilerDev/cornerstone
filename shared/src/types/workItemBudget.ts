@@ -18,7 +18,6 @@ export { CONFIDENCE_MARGINS } from './budget.js';
 
 import type {
   BaseBudgetLine,
-  InvoiceSummary,
   CreateBudgetLineRequest,
   UpdateBudgetLineRequest,
 } from './budget.js';
@@ -29,8 +28,6 @@ import type {
  */
 export interface WorkItemBudgetLine extends BaseBudgetLine {
   workItemId: string;
-  /** Individual invoices linked to this budget line, ordered by date descending. */
-  invoices: InvoiceSummary[];
 }
 
 /**

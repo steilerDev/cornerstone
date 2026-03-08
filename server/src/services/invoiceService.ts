@@ -15,6 +15,7 @@ import type {
 } from '@cornerstone/shared';
 import { NotFoundError, ValidationError } from '../errors/AppError.js';
 import { deleteLinksForEntity } from './documentLinkService.js';
+import { getInvoiceBudgetLinesForInvoice } from './invoiceBudgetLineService.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -47,9 +48,8 @@ function toUserSummary(user: typeof users.$inferSelect | null | undefined): User
 
 /**
  * Convert a database invoice row to Invoice API shape.
- * TEMPORARY COMPILATION SHIM (Story #604 will rewrite this properly).
  * Resolves vendorName and createdBy via separate queries.
- * Budget lines and remaining amount are stubbed pending implementation of invoice budget line CRUD.
+ * Resolves budget lines via invoiceBudgetLineService.
  * If knownVendorName is provided, skips the vendor DB lookup.
  */
 function toInvoice(
@@ -65,6 +65,8 @@ function toInvoice(
     ? db.select().from(users).where(eq(users.id, row.createdBy)).get()
     : null;
 
+  const { budgetLines, remainingAmount } = getInvoiceBudgetLinesForInvoice(db, row.id, row.amount);
+
   return {
     id: row.id,
     vendorId: row.vendorId,
@@ -75,8 +77,8 @@ function toInvoice(
     dueDate: row.dueDate,
     status: row.status as InvoiceStatus,
     notes: row.notes,
-    budgetLines: [],
-    remainingAmount: row.amount,
+    budgetLines,
+    remainingAmount,
     createdBy: toUserSummary(createdByUser),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,

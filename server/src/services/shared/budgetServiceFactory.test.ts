@@ -400,7 +400,7 @@ describe('budgetServiceFactory — createBudgetService()', () => {
         expect(result.actualCost).toBe(0);
         expect(result.actualCostPaid).toBe(0);
         expect(result.invoiceCount).toBe(0);
-        expect(result.invoices).toEqual([]);
+        expect(result.invoiceLink).toBeNull();
         expect(result.createdAt).toBeDefined();
         expect(result.updatedAt).toBeDefined();
       });
@@ -551,12 +551,12 @@ describe('budgetServiceFactory — createBudgetService()', () => {
         }).toThrow('Work item not found');
       });
 
-      it('includes invoices field (empty array) when no invoices linked', () => {
+      it('includes invoiceLink field (null) when no invoices linked', () => {
         const workItemId = insertWorkItem();
 
         const result = createWorkItemBudget(db, workItemId, 'user-001', { plannedAmount: 100 });
 
-        expect(result.invoices).toEqual([]);
+        expect(result.invoiceLink).toBeNull();
       });
     });
 
@@ -982,7 +982,7 @@ describe('budgetServiceFactory — createBudgetService()', () => {
       expect(line.invoiceCount).toBe(0);
     });
 
-    it('work item budget includes invoices list with vendor info', () => {
+    it('work item budget includes invoiceLink when invoice is linked', () => {
       const workItemId = insertWorkItem();
       const vendorId = insertVendor('Concrete Co.');
       const line = createWorkItemBudget(db, workItemId, 'user-001', { plannedAmount: 500 });
@@ -990,11 +990,10 @@ describe('budgetServiceFactory — createBudgetService()', () => {
 
       const result = listWorkItemBudgets(db, workItemId);
 
-      expect(result[0].invoices).toHaveLength(1);
-      expect(result[0].invoices[0].amount).toBe(250);
-      expect(result[0].invoices[0].status).toBe('paid');
-      expect(result[0].invoices[0].vendorId).toBe(vendorId);
-      expect(result[0].invoices[0].vendorName).toBe('Concrete Co.');
+      expect(result[0].invoiceLink).not.toBeNull();
+      expect(result[0].invoiceLink?.itemizedAmount).toBe(250);
+      expect(result[0].invoiceLink?.invoiceStatus).toBe('paid');
+      expect(result[0].invoiceCount).toBe(1);
     });
   });
 

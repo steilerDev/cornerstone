@@ -20,6 +20,7 @@ const makeLine = (overrides: Partial<TestBudgetLine> = {}): TestBudgetLine => ({
   actualCost: 0,
   actualCostPaid: 0,
   invoiceCount: 0,
+  invoiceLink: null,
   createdBy: null,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
