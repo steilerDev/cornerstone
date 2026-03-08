@@ -57,6 +57,7 @@ const makeHook = (overrides: Partial<UsePaperlessResult> = {}): UsePaperlessResu
   error: null,
   query: '',
   selectedTags: [],
+  tagCountMap: new Map(),
   search: jest.fn(),
   toggleTag: jest.fn(),
   setPage: jest.fn(),
