@@ -83,3 +83,44 @@ export interface InvoiceBudgetLineSummary {
   /** The amount itemized to this invoice budget line. */
   itemizedAmount: number;
 }
+
+/**
+ * Detailed invoice budget line response (GET /api/invoices/:invoiceId/budget-lines).
+ * Includes full details of the linked budget line and its parent item.
+ */
+export interface InvoiceBudgetLineDetailResponse {
+  id: string;
+  invoiceId: string;
+  workItemBudgetId: string | null;
+  householdItemBudgetId: string | null;
+  itemizedAmount: number;
+  budgetLineDescription: string | null;
+  plannedAmount: number;
+  confidence: ConfidenceLevel;
+  categoryId: string | null;
+  categoryName: string | null;
+  categoryColor: string | null;
+  parentItemId: string;
+  parentItemTitle: string;
+  parentItemType: 'work_item' | 'household_item';
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Response wrapper for creating an invoice budget line.
+ * Includes the created line and updated remaining amount.
+ */
+export interface InvoiceBudgetLineCreateResponse {
+  budgetLine: InvoiceBudgetLineDetailResponse;
+  remainingAmount: number;
+}
+
+/**
+ * Response for listing invoice budget lines for a specific invoice.
+ * Includes all lines and the remaining unallocated amount.
+ */
+export interface InvoiceBudgetLineListDetailResponse {
+  budgetLines: InvoiceBudgetLineDetailResponse[];
+  remainingAmount: number;
+}

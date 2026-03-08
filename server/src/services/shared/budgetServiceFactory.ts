@@ -23,6 +23,36 @@ import { NotFoundError, ValidationError, BudgetLineInUseError } from '../../erro
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
+export function getInvoiceLink(
+  db: DbType,
+  budgetId: string,
+  invoiceBudgetIdColumn: string,
+): { invoiceBudgetLineId: string; invoiceId: string; invoiceNumber: string | null; invoiceDate: string; invoiceStatus: string; itemizedAmount: number } | null {
+  const row = db.get<{
+    ibl_id: string;
+    invoice_id: string;
+    invoice_number: string | null;
+    date: string;
+    status: string;
+    itemized_amount: number;
+  }>(
+    sql`SELECT ibl.id AS ibl_id, ibl.invoice_id, i.invoice_number, i.date, i.status, ibl.itemized_amount
+    FROM invoice_budget_lines ibl
+    INNER JOIN invoices i ON i.id = ibl.invoice_id
+    WHERE ibl.${sql.raw(invoiceBudgetIdColumn)} = ${budgetId}
+    LIMIT 1`,
+  );
+  if (!row) return null;
+  return {
+    invoiceBudgetLineId: row.ibl_id,
+    invoiceId: row.invoice_id,
+    invoiceNumber: row.invoice_number,
+    invoiceDate: row.date,
+    invoiceStatus: row.status,
+    itemizedAmount: row.itemized_amount,
+  };
+}
+
 export interface ResolvedBudgetRelations {
   confidence: ConfidenceLevel;
   confidenceMargin: number;
@@ -32,6 +62,7 @@ export interface ResolvedBudgetRelations {
   actualCost: number;
   actualCostPaid: number;
   invoiceCount: number;
+  invoiceLink: { invoiceBudgetLineId: string; invoiceId: string; invoiceNumber: string | null; invoiceDate: string; invoiceStatus: string; itemizedAmount: number } | null;
   createdBy: ReturnType<typeof toUserSummary>;
 }
 
@@ -64,6 +95,8 @@ export function resolveRelations(
     ? getInvoiceAggregates(db, row.id, invoiceBudgetIdColumn)
     : { actualCost: 0, actualCostPaid: 0, invoiceCount: 0 };
 
+  const invoiceLink = invoiceBudgetIdColumn ? getInvoiceLink(db, row.id, invoiceBudgetIdColumn) : null;
+
   return {
     confidence,
     confidenceMargin: confidenceMargins[confidence],
@@ -73,6 +106,7 @@ export function resolveRelations(
     actualCost,
     actualCostPaid,
     invoiceCount,
+    invoiceLink,
     createdBy: toUserSummary(createdByUser),
   };
 }

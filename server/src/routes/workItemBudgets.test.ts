@@ -180,7 +180,7 @@ describe('Work Item Budget Routes', () => {
       expect(body.budgets).toHaveLength(1);
       expect(body.budgets[0].description).toBe('Initial budget estimate');
       expect(body.budgets[0].plannedAmount).toBe(5000);
-      expect(body.budgets[0].invoices).toEqual([]);
+      expect(body.budgets[0].invoiceLink).toBeNull();
     });
 
     it('returns 404 when work item does not exist', async () => {
@@ -262,7 +262,7 @@ describe('Work Item Budget Routes', () => {
       expect(body.budget.actualCost).toBe(0);
       expect(body.budget.actualCostPaid).toBe(0);
       expect(body.budget.invoiceCount).toBe(0);
-      expect(body.budget.invoices).toEqual([]);
+      expect(body.budget.invoiceLink).toBeNull();
       expect(body.budget.createdBy?.id).toBeDefined();
       expect(body.budget.createdAt).toBeDefined();
       expect(body.budget.updatedAt).toBeDefined();
