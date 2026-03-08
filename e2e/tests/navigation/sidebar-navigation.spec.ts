@@ -18,7 +18,8 @@ test.describe('Sidebar Navigation', { tag: '@responsive' }, () => {
         await appShell.openSidebar();
       }
       // Use sidebar locator (not nav) since Settings is in the footer, outside <nav>
-      await appShell.sidebar.getByRole('link', { name }).click();
+      // Use exact: true to avoid matching the logo link (aria-label contains "project")
+      await appShell.sidebar.getByRole('link', { name, exact: true }).click();
     };
 
     // Given: User is on the project overview
