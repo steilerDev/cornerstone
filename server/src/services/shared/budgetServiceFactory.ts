@@ -77,7 +77,7 @@ export function resolveRelations(
   };
 }
 
-export interface BudgetServiceFactoryConfig<EntityRow, BudgetLine, CreateRequest, UpdateRequest> {
+export interface BudgetServiceFactoryConfig<_EntityRow, BudgetLine, _CreateRequest, _UpdateRequest> {
   budgetTable: SQLiteTable;
   budgetEntityIdColumn: string;
   invoiceHandler?: {
@@ -89,7 +89,7 @@ export interface BudgetServiceFactoryConfig<EntityRow, BudgetLine, CreateRequest
     db: DbType,
     entityId: string,
     userId: string,
-    data: CreateRequest,
+    data: any,
   ) => Record<string, any>;
   assertEntityExists: (db: DbType, entityId: string) => void;
 }
