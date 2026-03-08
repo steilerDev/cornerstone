@@ -225,7 +225,6 @@ export default function WorkItemDetailPage() {
   // Budget section hook
   const budgetSection = useBudgetSection<WorkItemBudgetLine>({
     api: {
-      fetchBudgets: fetchWorkItemBudgets,
       createBudget: createWorkItemBudget,
       updateBudget: updateWorkItemBudget,
       deleteBudget: deleteWorkItemBudget,

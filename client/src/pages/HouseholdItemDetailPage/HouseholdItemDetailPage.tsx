@@ -167,7 +167,6 @@ export function HouseholdItemDetailPage() {
   // Budget section hook
   const budgetSection = useBudgetSection<HouseholdItemBudgetLine>({
     api: {
-      fetchBudgets: fetchHouseholdItemBudgets,
       createBudget: createHouseholdItemBudget,
       updateBudget: updateHouseholdItemBudget,
       deleteBudget: deleteHouseholdItemBudget,
