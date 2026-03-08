@@ -82,8 +82,8 @@ test.describe('Reverse Proxy Setup', { tag: '@responsive' }, () => {
     await page.goto(proxyBaseUrl);
 
     // Then: The application should load correctly
-    // Should redirect to /login since setup is already done via auth-setup
-    await expect(page).toHaveURL(/\/(login)?$/);
+    // Authenticated users land on /project/overview; unauthenticated on /login
+    await expect(page).toHaveURL(/\/(login|project\/overview)?$/);
   });
 
   test('should enforce auth guard through proxy', async ({ browser }) => {
