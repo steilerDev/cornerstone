@@ -6,8 +6,8 @@
  * Verifies that:
  *   - Budget lines WITH invoices show actual cost in green with "Invoiced Amount" label
  *   - Budget lines WITHOUT invoices show planned amount with confidence label + margin %
- *   - Budget summary shows "Expected Cost" and "Planned Range" rows
- *   - Planned Range is struck-through only when ALL lines have invoices
+ *   - Budget summary shows "Expected Cost" and "Planned Cost" rows
+ *   - Planned Cost is struck-through only when ALL lines have invoices
  */
 
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
@@ -613,7 +613,7 @@ describe('HouseholdItemDetailPage — budget line rendering (bug #436)', () => {
       expect(screen.getAllByText('€630.00').length).toBeGreaterThanOrEqual(1);
     });
 
-    it('shows Expected Cost and Planned Range labels when budget lines exist', async () => {
+    it('shows Expected Cost and Planned Cost labels when budget lines exist', async () => {
       mockGetHouseholdItem.mockResolvedValue(makeItem());
       mockFetchHouseholdItemBudgets.mockResolvedValue([
         makeBudgetLine({ plannedAmount: 500, actualCost: 0, invoiceCount: 0 }),
@@ -626,11 +626,11 @@ describe('HouseholdItemDetailPage — budget line rendering (bug #436)', () => {
       });
 
       expect(screen.getByText('Expected Cost')).toBeInTheDocument();
-      expect(screen.getByText('Planned Range')).toBeInTheDocument();
+      expect(screen.getByText('Planned Cost')).toBeInTheDocument();
     });
   });
 
-  // ─── Scenario 4: Budget summary shows "Planned Range:" with confidence margins ─
+  // ─── Scenario 4: Budget summary shows "Planned Cost:" with confidence margins ─
 
   describe('Scenario 4: budget summary shows "Expected Cost" for confidence-margined lines', () => {
     it('shows "Expected Cost" label when confidence margin creates min/max spread', async () => {
@@ -674,7 +674,7 @@ describe('HouseholdItemDetailPage — budget line rendering (bug #436)', () => {
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      // Budget summary range: "€400.00 – €600.00" (appears in both Expected Cost and Planned Range)
+      // Budget summary range: "€400.00 – €600.00" (appears in both Expected Cost and Planned Cost)
       expect(screen.getAllByText(/€400.00.*€600.00/).length).toBeGreaterThanOrEqual(1);
     });
 
@@ -709,7 +709,7 @@ describe('HouseholdItemDetailPage — budget line rendering (bug #436)', () => {
       });
 
       expect(screen.getByText('Expected Cost')).toBeInTheDocument();
-      // Range appears in both Expected Cost and Planned Range rows
+      // Range appears in both Expected Cost and Planned Cost rows
       expect(screen.getAllByText(/€430.00.*€570.00/).length).toBeGreaterThanOrEqual(1);
     });
   });
@@ -813,7 +813,7 @@ describe('HouseholdItemDetailPage — budget line rendering (bug #436)', () => {
       });
 
       expect(screen.getByText('Expected Cost')).toBeInTheDocument();
-      // Total = 300 + 200 = 500 (appears in Expected Cost and Planned Range)
+      // Total = 300 + 200 = 500 (appears in Expected Cost and Planned Cost)
       expect(screen.getAllByText('€500.00').length).toBeGreaterThanOrEqual(1);
     });
   });
@@ -849,7 +849,7 @@ describe('HouseholdItemDetailPage — budget line rendering (bug #436)', () => {
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      // No subsidies → only "Expected Cost" is shown (not "Planned Range")
+      // No subsidies → only "Expected Cost" is shown (not "Planned Cost")
       expect(screen.getByText('Expected Cost')).toBeInTheDocument();
 
       // Invoiced lines collapse: bl-1 min=max=480, bl-2 min=max=290 → total=770
@@ -889,7 +889,7 @@ describe('HouseholdItemDetailPage — budget line rendering (bug #436)', () => {
 
       // bl-1 (invoiced): min=max=480; bl-2 (own_estimate): min=300*0.8=240, max=300*1.2=360
       // totalMin = 480 + 240 = 720, totalMax = 480 + 360 = 840
-      // Range appears in both Expected Cost and Planned Range rows
+      // Range appears in both Expected Cost and Planned Cost rows
       expect(screen.getAllByText(/€720.00.*€840.00/).length).toBeGreaterThanOrEqual(1);
     });
 
@@ -956,7 +956,7 @@ describe('HouseholdItemDetailPage — budget line rendering (bug #436)', () => {
       });
 
       expect(screen.queryByText('Expected Cost')).not.toBeInTheDocument();
-      expect(screen.queryByText('Planned Range')).not.toBeInTheDocument();
+      expect(screen.queryByText('Planned Cost')).not.toBeInTheDocument();
     });
 
     it('mixed: one invoiced line and one non-invoiced line shows both renderings', async () => {

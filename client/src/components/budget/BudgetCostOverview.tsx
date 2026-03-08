@@ -62,7 +62,7 @@ export function BudgetCostOverview({ budgetLines, subsidyPayback }: BudgetCostOv
 
         {/* Planned Range — always shown; struck-through only when ALL lines are invoiced */}
         <div className={styles.summaryRow}>
-          <span className={styles.summaryLabel}>Planned Range</span>
+          <span className={styles.summaryLabel}>Planned Cost</span>
           <span className={allInvoiced ? styles.budgetValueMuted : styles.budgetValue}>
             {hasPlannedRange
               ? `${formatCurrency(totalMinPlanned)} – ${formatCurrency(totalMaxPlanned)}`

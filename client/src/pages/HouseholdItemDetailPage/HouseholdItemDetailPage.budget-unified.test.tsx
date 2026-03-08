@@ -5,10 +5,10 @@
  *
  * Verifies that the HouseholdItemDetailPage renders a single "Budget" section that:
  *   1. Has no separate top-level "Subsidies" h2 heading (only an h3 subsection)
- *   2. Shows summary rows: Expected Cost, Planned Range, Expected Payback (when subsidies linked)
+ *   2. Shows summary rows: Expected Cost, Planned Cost, Expected Payback (when subsidies linked)
  *   3. Shows Expected Payback only when subsidies are linked
  *   4. Shows Expected Cost reflecting net value (planned minus payback) when subsidies linked
- *   5. Planned Range is struck-through only when ALL budget lines have invoices
+ *   5. Planned Cost is struck-through only when ALL budget lines have invoices
  */
 
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
@@ -389,7 +389,7 @@ describe('HouseholdItemDetailPage — unified Budget section (issue #566)', () =
   // ─── Scenario 2: Budget summary — planned only, no actuals, no subsidies ────
 
   describe('Scenario 2: budget summary — planned only (no actuals, no subsidies)', () => {
-    it('shows Expected Cost and Planned Range when a budget line exists', async () => {
+    it('shows Expected Cost and Planned Cost when a budget line exists', async () => {
       mockGetHouseholdItem.mockResolvedValue(makeItem());
       mockFetchHouseholdItemBudgets.mockResolvedValue([
         makeBudgetLine({
@@ -408,7 +408,7 @@ describe('HouseholdItemDetailPage — unified Budget section (issue #566)', () =
       });
 
       expect(screen.getByText('Expected Cost')).toBeInTheDocument();
-      expect(screen.getByText('Planned Range')).toBeInTheDocument();
+      expect(screen.getByText('Planned Cost')).toBeInTheDocument();
     });
 
     it('does NOT show Expected Payback when no subsidies are linked', async () => {
@@ -627,7 +627,7 @@ describe('HouseholdItemDetailPage — unified Budget section (issue #566)', () =
 
       // The overview is only rendered when budgetLines.length > 0
       expect(screen.queryByText('Expected Cost')).not.toBeInTheDocument();
-      expect(screen.queryByText('Planned Range')).not.toBeInTheDocument();
+      expect(screen.queryByText('Planned Cost')).not.toBeInTheDocument();
     });
   });
 });
