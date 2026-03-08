@@ -1,6 +1,7 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import type { BaseBudgetLine } from '@cornerstone/shared';
+import type { BaseBudgetLine, CreateBudgetLineRequest } from '@cornerstone/shared';
+import type { BudgetLineFormState } from './useBudgetSection.js';
 
 type TestBudgetLine = BaseBudgetLine;
 
@@ -35,8 +36,8 @@ const mockReloadBudgetLines = jest.fn<() => Promise<void>>();
 const mockReloadSubsidyPayback = jest.fn<() => Promise<void>>();
 const mockReloadLinkedSubsidies = jest.fn<() => Promise<void>>();
 const mockToFormState =
-  jest.fn<(line: TestBudgetLine) => import('../hooks/useBudgetSection.js').BudgetLineFormState>();
-const mockToPayload = jest.fn<() => import('@cornerstone/shared').CreateBudgetLineRequest>();
+  jest.fn<(line: TestBudgetLine) => BudgetLineFormState>();
+const mockToPayload = jest.fn<() => CreateBudgetLineRequest>();
 
 import type * as UseBudgetSectionModule from './useBudgetSection.js';
 

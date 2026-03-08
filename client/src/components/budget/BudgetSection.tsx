@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import type {
   BaseBudgetLine,
-  ConfidenceLevel,
   BudgetSource,
   Vendor,
   BudgetCategory,

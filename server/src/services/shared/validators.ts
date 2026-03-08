@@ -8,7 +8,7 @@
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { eq } from 'drizzle-orm';
 import type * as schemaTypes from '../../db/schema.js';
-import { budgetCategories, budgetSources, tags, users, vendors } from '../../db/schema.js';
+import { budgetCategories, budgetSources, tags, vendors } from '../../db/schema.js';
 import { ValidationError } from '../../errors/AppError.js';
 import type { ConfidenceLevel } from '@cornerstone/shared';
 
@@ -29,9 +29,9 @@ export const MAX_DESCRIPTION_LENGTH = 500;
  * Validate that all tag IDs exist.
  * Throws ValidationError if any tag does not exist.
  */
-export function validateTagIds(db: DbType, tagIds: string[]): void {
+export function validateTagIds(_db: DbType, tagIds: string[]): void {
   for (const tagId of tagIds) {
-    const tag = db.select().from(tags).where(eq(tags.id, tagId)).get();
+    const tag = _db.select().from(tags).where(eq(tags.id, tagId)).get();
     if (!tag) {
       throw new ValidationError(`Tag not found: ${tagId}`);
     }
@@ -77,8 +77,8 @@ export function validateBudgetCategoryId(db: DbType, budgetCategoryId: string): 
  * Validate that a budget source ID exists.
  * Throws ValidationError if not found.
  */
-export function validateBudgetSourceId(db: DbType, budgetSourceId: string): void {
-  const source = db.select().from(budgetSources).where(eq(budgetSources.id, budgetSourceId)).get();
+export function validateBudgetSourceId(_db: DbType, budgetSourceId: string): void {
+  const source = _db.select().from(budgetSources).where(eq(budgetSources.id, budgetSourceId)).get();
   if (!source) {
     throw new ValidationError(`Budget source not found: ${budgetSourceId}`);
   }

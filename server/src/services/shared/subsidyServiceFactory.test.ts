@@ -9,7 +9,7 @@ import { NotFoundError, ConflictError } from '../../errors/AppError.js';
 
 // ─── Factory configurations under test ────────────────────────────────────────
 
-function makeWorkItemService(db: BetterSQLite3Database<typeof schema>) {
+function makeWorkItemService(_db: BetterSQLite3Database<typeof schema>) {
   return createSubsidyService({
     entityTable: schema.workItems,
     entityIdColumn: schema.workItems.id,
@@ -21,7 +21,7 @@ function makeWorkItemService(db: BetterSQLite3Database<typeof schema>) {
   });
 }
 
-function makeHouseholdItemService(db: BetterSQLite3Database<typeof schema>) {
+function makeHouseholdItemService(_db: BetterSQLite3Database<typeof schema>) {
   return createSubsidyService({
     entityTable: schema.householdItems,
     entityIdColumn: schema.householdItems.id,

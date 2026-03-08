@@ -6,7 +6,6 @@ import { buildApp } from '../app.js';
 import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
 import * as householdItemService from '../services/householdItemService.js';
-import * as budgetCategoryService from '../services/budgetCategoryService.js';
 import * as budgetSourceService from '../services/budgetSourceService.js';
 import * as vendorService from '../services/vendorService.js';
 import type { FastifyInstance } from 'fastify';
@@ -66,17 +65,6 @@ describe('Household Item Budget Routes', () => {
       name,
     });
     return { id: householdItem.id, name: householdItem.name };
-  }
-
-  /**
-   * Helper: Create a budget category.
-   */
-  function createTestBudgetCategory(name: string): { id: string; name: string } {
-    const category = budgetCategoryService.createBudgetCategory(app.db, {
-      name,
-      color: '#3b82f6',
-    });
-    return { id: category.id, name: category.name };
   }
 
   /**

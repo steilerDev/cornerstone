@@ -1,11 +1,9 @@
-import { useState, useEffect, useRef, type FormEvent } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import type {
   HouseholdItemDetail,
   HouseholdItemStatus,
-  HouseholdItemCategory,
   HouseholdItemBudgetLine,
-  CreateHouseholdItemBudgetRequest,
   SubsidyProgram,
   BudgetSource,
   Vendor,

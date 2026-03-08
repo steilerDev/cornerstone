@@ -32,7 +32,6 @@ import { validateTagIds, validateVendorId } from './shared/validators.js';
 import type {
   HouseholdItemDetail,
   HouseholdItemSummary,
-  UserSummary,
   TagResponse,
   HouseholdItemCategory,
   HouseholdItemStatus,

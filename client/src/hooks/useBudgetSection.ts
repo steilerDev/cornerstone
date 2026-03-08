@@ -247,11 +247,7 @@ export function useBudgetSection<T extends BaseBudgetLine>(
   };
 
   const handleUnlinkSubsidy = async () => {
-    try {
-      await reloadLinkedSubsidies();
-    } catch (err) {
-      throw err;
-    }
+    await reloadLinkedSubsidies();
   };
 
   return {
