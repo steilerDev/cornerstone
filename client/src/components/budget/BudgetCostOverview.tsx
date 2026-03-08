@@ -38,12 +38,13 @@ export function BudgetCostOverview({ budgetLines, subsidyPayback }: BudgetCostOv
   // When all budget lines are invoiced, costs are known — collapse to single values.
   // The server-side payback should already return equal min/max when all lines are invoiced,
   // but we force collapse here for a definitive single-number display.
-  const effectivePaybackMin = allInvoiced && hasSubsidyPayback
-    ? subsidyPayback!.maxTotalPayback
-    : hasSubsidyPayback ? subsidyPayback!.minTotalPayback : 0;
-  const effectivePaybackMax = hasSubsidyPayback
-    ? subsidyPayback!.maxTotalPayback
-    : 0;
+  const effectivePaybackMin =
+    allInvoiced && hasSubsidyPayback
+      ? subsidyPayback!.maxTotalPayback
+      : hasSubsidyPayback
+        ? subsidyPayback!.minTotalPayback
+        : 0;
+  const effectivePaybackMax = hasSubsidyPayback ? subsidyPayback!.maxTotalPayback : 0;
 
   // Expected Cost = Planned Range - Expected Payback (straight subtraction)
   const rawExpectedCostA = totalMinPlanned - effectivePaybackMin;
@@ -57,11 +58,7 @@ export function BudgetCostOverview({ budgetLines, subsidyPayback }: BudgetCostOv
         {/* Expected Cost — always shown as primary value */}
         <div className={styles.summaryRow}>
           <span className={styles.summaryLabel}>Expected Cost</span>
-          <span
-            className={
-              hasSubsidyPayback ? styles.budgetValueHighlighted : styles.budgetValue
-            }
-          >
+          <span className={hasSubsidyPayback ? styles.budgetValueHighlighted : styles.budgetValue}>
             {formatRange(expectedCostMin, expectedCostMax)}
           </span>
         </div>

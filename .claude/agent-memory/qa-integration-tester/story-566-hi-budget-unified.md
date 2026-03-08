@@ -43,6 +43,7 @@ const mockFetchBudgetSources = jest.fn() as jest.MockedFunction<
 ### SubsidyPaybackEntry Required Fields
 
 `HouseholdItemSubsidyPaybackEntry = SubsidyPaybackEntry` requires ALL of:
+
 - `subsidyProgramId`, `name`, `reductionType` ('percentage'|'fixed'), `reductionValue`, `minPayback`, `maxPayback`
 
 Always use a `makeSubsidyEntry()` helper to avoid TS2739 errors.
@@ -50,6 +51,7 @@ Always use a `makeSubsidyEntry()` helper to avoid TS2739 errors.
 ### Duplicate Text Assertions
 
 "Expected Subsidy Payback" appears TWICE when subsidies + budget lines render:
+
 - Once in `propertyGrid` as a `propertyLabel` span
 - Once in the `subsidyPaybackRow` as a `subsidyPaybackLabel` span
 
@@ -80,6 +82,7 @@ jest.unstable_mockModule('../../lib/householdItemCategoriesApi.js', () => ({
 ## Unified Budget Layout Structure (as implemented)
 
 The HI detail page (post-#566) unified layout:
+
 - `<section>` with `<h2>Budget</h2>` — single top-level section
 - NO separate Subsidies `<h2>` — replaced by `<h3>Subsidies</h3>` inside the Budget section
 - `propertyGrid` entries (when `budgetLines.length > 0`):
