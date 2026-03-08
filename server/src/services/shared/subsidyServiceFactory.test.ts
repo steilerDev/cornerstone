@@ -9,7 +9,7 @@ import { NotFoundError, ConflictError } from '../../errors/AppError.js';
 
 // ─── Factory configurations under test ────────────────────────────────────────
 
-function makeWorkItemService(db: BetterSQLite3Database<typeof schema>) {
+function makeWorkItemService() {
   return createSubsidyService({
     entityTable: schema.workItems,
     entityIdColumn: schema.workItems.id,
@@ -21,7 +21,7 @@ function makeWorkItemService(db: BetterSQLite3Database<typeof schema>) {
   });
 }
 
-function makeHouseholdItemService(db: BetterSQLite3Database<typeof schema>) {
+function makeHouseholdItemService() {
   return createSubsidyService({
     entityTable: schema.householdItems,
     entityIdColumn: schema.householdItems.id,
@@ -148,7 +148,7 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
 
   describe('factory shape', () => {
     it('returns a service object with list, link, and unlink methods', () => {
-      const service = makeWorkItemService(db);
+      const service = makeWorkItemService();
 
       expect(typeof service.list).toBe('function');
       expect(typeof service.link).toBe('function');
@@ -156,8 +156,8 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
     });
 
     it('two factory instances created with different configs are independent', () => {
-      const wiService = makeWorkItemService(db);
-      const hiService = makeHouseholdItemService(db);
+      const wiService = makeWorkItemService();
+      const hiService = makeHouseholdItemService();
 
       const workItemId = insertWorkItem();
       const hiId = insertHouseholdItem();
@@ -178,14 +178,14 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
   describe('list()', () => {
     describe('work-item configuration', () => {
       it('returns empty array when no subsidies are linked', () => {
-        const service = makeWorkItemService(db);
+        const service = makeWorkItemService();
         const workItemId = insertWorkItem();
 
         expect(service.list(db, workItemId)).toEqual([]);
       });
 
       it('returns linked subsidy program with full shape', () => {
-        const service = makeWorkItemService(db);
+        const service = makeWorkItemService();
         const workItemId = insertWorkItem('Foundation Work');
         const subsidyId = insertSubsidyProgram('Green Energy Rebate', {
           reductionType: 'percentage',
@@ -211,7 +211,7 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
       });
 
       it('returns multiple linked subsidy programs', () => {
-        const service = makeWorkItemService(db);
+        const service = makeWorkItemService();
         const workItemId = insertWorkItem();
         const subsidyId1 = insertSubsidyProgram('Subsidy A');
         const subsidyId2 = insertSubsidyProgram('Subsidy B');
@@ -231,7 +231,7 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
       });
 
       it('returns subsidy with null createdBy when createdBy is null', () => {
-        const service = makeWorkItemService(db);
+        const service = makeWorkItemService();
         const workItemId = insertWorkItem();
         const subsidyId = insertSubsidyProgram('Anonymous Subsidy', { createdBy: null });
         db.insert(schema.workItemSubsidies)
@@ -245,7 +245,7 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
       });
 
       it('throws NotFoundError when work item does not exist', () => {
-        const service = makeWorkItemService(db);
+        const service = makeWorkItemService();
 
         expect(() => {
           service.list(db, 'non-existent-wi');
@@ -259,14 +259,14 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
 
     describe('household-item configuration', () => {
       it('returns empty array when no subsidies are linked', () => {
-        const service = makeHouseholdItemService(db);
+        const service = makeHouseholdItemService();
         const hiId = insertHouseholdItem();
 
         expect(service.list(db, hiId)).toEqual([]);
       });
 
       it('throws NotFoundError when household item does not exist', () => {
-        const service = makeHouseholdItemService(db);
+        const service = makeHouseholdItemService();
 
         expect(() => {
           service.list(db, 'non-existent-hi');
@@ -278,7 +278,7 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
       });
 
       it('does not return subsidies linked to a different household item', () => {
-        const service = makeHouseholdItemService(db);
+        const service = makeHouseholdItemService();
         const hiId1 = insertHouseholdItem('Sofa');
         const hiId2 = insertHouseholdItem('Fridge');
         const subsidyId = insertSubsidyProgram('Exclusive Subsidy');
@@ -296,7 +296,7 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
   describe('link()', () => {
     describe('work-item configuration', () => {
       it('creates junction row and returns the subsidy program', () => {
-        const service = makeWorkItemService(db);
+        const service = makeWorkItemService();
         const workItemId = insertWorkItem();
         const subsidyId = insertSubsidyProgram('Solar Panel Rebate', {
           reductionType: 'fixed',
@@ -312,7 +312,7 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
       });
 
       it('persists the link so list() returns it', () => {
-        const service = makeWorkItemService(db);
+        const service = makeWorkItemService();
         const workItemId = insertWorkItem();
         const subsidyId = insertSubsidyProgram('Persistent Subsidy');
 
@@ -324,7 +324,7 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
       });
 
       it('throws NotFoundError when work item does not exist', () => {
-        const service = makeWorkItemService(db);
+        const service = makeWorkItemService();
         const subsidyId = insertSubsidyProgram('Some Subsidy');
 
         expect(() => {
@@ -337,7 +337,7 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
       });
 
       it('throws NotFoundError when subsidy program does not exist', () => {
-        const service = makeWorkItemService(db);
+        const service = makeWorkItemService();
         const workItemId = insertWorkItem();
 
         expect(() => {
@@ -350,7 +350,7 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
       });
 
       it('throws ConflictError when subsidy is already linked', () => {
-        const service = makeWorkItemService(db);
+        const service = makeWorkItemService();
         const workItemId = insertWorkItem();
         const subsidyId = insertSubsidyProgram('Duplicate Subsidy');
 
@@ -366,7 +366,7 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
       });
 
       it('allows linking the same subsidy to multiple work items', () => {
-        const service = makeWorkItemService(db);
+        const service = makeWorkItemService();
         const workItemId1 = insertWorkItem('Work Item 1');
         const workItemId2 = insertWorkItem('Work Item 2');
         const subsidyId = insertSubsidyProgram('Shared Subsidy');
@@ -381,7 +381,7 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
 
     describe('household-item configuration', () => {
       it('creates junction row and returns the subsidy program', () => {
-        const service = makeHouseholdItemService(db);
+        const service = makeHouseholdItemService();
         const hiId = insertHouseholdItem();
         const subsidyId = insertSubsidyProgram('Appliance Rebate', {
           reductionType: 'percentage',
@@ -397,7 +397,7 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
       });
 
       it('throws NotFoundError when household item does not exist', () => {
-        const service = makeHouseholdItemService(db);
+        const service = makeHouseholdItemService();
         const subsidyId = insertSubsidyProgram('Some Subsidy');
 
         expect(() => {
@@ -410,7 +410,7 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
       });
 
       it('throws NotFoundError when subsidy program does not exist', () => {
-        const service = makeHouseholdItemService(db);
+        const service = makeHouseholdItemService();
         const hiId = insertHouseholdItem();
 
         expect(() => {
@@ -423,7 +423,7 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
       });
 
       it('throws ConflictError when subsidy is already linked to the household item', () => {
-        const service = makeHouseholdItemService(db);
+        const service = makeHouseholdItemService();
         const hiId = insertHouseholdItem();
         const subsidyId = insertSubsidyProgram('Duplicate Subsidy');
 
@@ -445,7 +445,7 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
   describe('unlink()', () => {
     describe('work-item configuration', () => {
       it('removes the junction row', () => {
-        const service = makeWorkItemService(db);
+        const service = makeWorkItemService();
         const workItemId = insertWorkItem();
         const subsidyId = insertSubsidyProgram('Linked Subsidy');
 
@@ -456,7 +456,7 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
       });
 
       it('only removes the specified link, not others on the same entity', () => {
-        const service = makeWorkItemService(db);
+        const service = makeWorkItemService();
         const workItemId = insertWorkItem();
         const subsidyId1 = insertSubsidyProgram('Subsidy To Remove');
         const subsidyId2 = insertSubsidyProgram('Subsidy To Keep');
@@ -471,7 +471,7 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
       });
 
       it('throws NotFoundError when work item does not exist', () => {
-        const service = makeWorkItemService(db);
+        const service = makeWorkItemService();
         const subsidyId = insertSubsidyProgram('Some Subsidy');
 
         expect(() => {
@@ -484,7 +484,7 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
       });
 
       it('throws NotFoundError when subsidy is not linked to the work item', () => {
-        const service = makeWorkItemService(db);
+        const service = makeWorkItemService();
         const workItemId = insertWorkItem();
         const subsidyId = insertSubsidyProgram('Unlinked Subsidy');
 
@@ -500,7 +500,7 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
 
     describe('household-item configuration', () => {
       it('removes the junction row', () => {
-        const service = makeHouseholdItemService(db);
+        const service = makeHouseholdItemService();
         const hiId = insertHouseholdItem();
         const subsidyId = insertSubsidyProgram('Linked Subsidy');
 
@@ -511,7 +511,7 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
       });
 
       it('throws NotFoundError when household item does not exist', () => {
-        const service = makeHouseholdItemService(db);
+        const service = makeHouseholdItemService();
         const subsidyId = insertSubsidyProgram('Some Subsidy');
 
         expect(() => {
@@ -524,7 +524,7 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
       });
 
       it('throws NotFoundError when subsidy is not linked to the household item', () => {
-        const service = makeHouseholdItemService(db);
+        const service = makeHouseholdItemService();
         const hiId = insertHouseholdItem();
         const subsidyId = insertSubsidyProgram('Unlinked Subsidy');
 
@@ -543,7 +543,7 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
 
   describe('applicableCategories', () => {
     it('loads applicable categories linked to the subsidy program', () => {
-      const service = makeWorkItemService(db);
+      const service = makeWorkItemService();
       const workItemId = insertWorkItem();
       const subsidyId = insertSubsidyProgram('Category Subsidy');
 
@@ -563,7 +563,7 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
     });
 
     it('returns empty applicableCategories when none are linked to the subsidy', () => {
-      const service = makeWorkItemService(db);
+      const service = makeWorkItemService();
       const workItemId = insertWorkItem();
       const subsidyId = insertSubsidyProgram('Uncategorized Subsidy');
       db.insert(schema.workItemSubsidies).values({ workItemId, subsidyProgramId: subsidyId }).run();

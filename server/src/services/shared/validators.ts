@@ -8,7 +8,7 @@
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { eq } from 'drizzle-orm';
 import type * as schemaTypes from '../../db/schema.js';
-import { budgetCategories, budgetSources, tags, users, vendors } from '../../db/schema.js';
+import { budgetCategories, budgetSources, tags, vendors } from '../../db/schema.js';
 import { ValidationError } from '../../errors/AppError.js';
 import type { ConfidenceLevel } from '@cornerstone/shared';
 

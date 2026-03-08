@@ -1,6 +1,7 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import type { BaseBudgetLine } from '@cornerstone/shared';
+import type { BaseBudgetLine, CreateBudgetLineRequest } from '@cornerstone/shared';
+import type { BudgetLineFormState } from './useBudgetSection.js';
 
 type TestBudgetLine = BaseBudgetLine;
 
@@ -27,16 +28,14 @@ const makeLine = (overrides: Partial<TestBudgetLine> = {}): TestBudgetLine => ({
 
 // ─── Mock API and reload callbacks ────────────────────────────────────────────
 
-const mockFetchBudgets = jest.fn<() => Promise<TestBudgetLine[]>>();
 const mockCreateBudget = jest.fn<() => Promise<TestBudgetLine>>();
 const mockUpdateBudget = jest.fn<() => Promise<TestBudgetLine>>();
 const mockDeleteBudget = jest.fn<() => Promise<void>>();
 const mockReloadBudgetLines = jest.fn<() => Promise<void>>();
 const mockReloadSubsidyPayback = jest.fn<() => Promise<void>>();
 const mockReloadLinkedSubsidies = jest.fn<() => Promise<void>>();
-const mockToFormState =
-  jest.fn<(line: TestBudgetLine) => import('../hooks/useBudgetSection.js').BudgetLineFormState>();
-const mockToPayload = jest.fn<() => import('@cornerstone/shared').CreateBudgetLineRequest>();
+const mockToFormState = jest.fn<(line: TestBudgetLine) => BudgetLineFormState>();
+const mockToPayload = jest.fn<() => CreateBudgetLineRequest>();
 
 import type * as UseBudgetSectionModule from './useBudgetSection.js';
 
@@ -45,7 +44,6 @@ let useBudgetSection: (typeof UseBudgetSectionModule)['useBudgetSection'];
 beforeEach(async () => {
   ({ useBudgetSection } = (await import('./useBudgetSection.js')) as typeof UseBudgetSectionModule);
 
-  mockFetchBudgets.mockReset().mockResolvedValue([]);
   mockCreateBudget.mockReset().mockResolvedValue(makeLine({ id: 'bl-new' }));
   mockUpdateBudget.mockReset().mockResolvedValue(makeLine({ id: 'bl-1' }));
   mockDeleteBudget.mockReset().mockResolvedValue(undefined);
@@ -72,7 +70,6 @@ function makeOptions(
 ): Parameters<typeof useBudgetSection<TestBudgetLine>>[0] {
   return {
     api: {
-      fetchBudgets: mockFetchBudgets,
       createBudget: mockCreateBudget as Parameters<
         typeof useBudgetSection<TestBudgetLine>
       >[0]['api']['createBudget'],

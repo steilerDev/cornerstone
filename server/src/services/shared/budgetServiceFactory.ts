@@ -77,7 +77,7 @@ export function resolveRelations(
   };
 }
 
-export interface BudgetServiceFactoryConfig<EntityRow, BudgetLine, CreateRequest, UpdateRequest> {
+export interface BudgetServiceFactoryConfig<BudgetLine, CreateRequest> {
   budgetTable: SQLiteTable;
   budgetEntityIdColumn: string;
   invoiceHandler?: {
@@ -147,11 +147,10 @@ export function getLinkedInvoices(db: DbType, budgetId: string, invoiceBudgetIdC
 }
 
 export function createBudgetService<
-  EntityRow,
   BudgetLine,
   CreateRequest extends Record<string, any>,
   UpdateRequest extends Record<string, any>,
->(config: BudgetServiceFactoryConfig<EntityRow, BudgetLine, CreateRequest, UpdateRequest>) {
+>(config: BudgetServiceFactoryConfig<BudgetLine, CreateRequest>) {
   const table = config.budgetTable as any;
   const findBudgetLine = (db: DbType, entityId: string, budgetId: string) =>
     db

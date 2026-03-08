@@ -29,7 +29,6 @@ export interface UseBudgetSectionOptions<T extends BaseBudgetLine> {
    * API callbacks: create, update, delete operations
    */
   api: {
-    fetchBudgets(entityId: string): Promise<T[]>;
     createBudget(entityId: string, data: CreateBudgetLineRequest): Promise<T>;
     updateBudget(entityId: string, budgetId: string, data: UpdateBudgetLineRequest): Promise<T>;
     deleteBudget(entityId: string, budgetId: string): Promise<void>;
@@ -247,11 +246,7 @@ export function useBudgetSection<T extends BaseBudgetLine>(
   };
 
   const handleUnlinkSubsidy = async () => {
-    try {
-      await reloadLinkedSubsidies();
-    } catch (err) {
-      throw err;
-    }
+    await reloadLinkedSubsidies();
   };
 
   return {
