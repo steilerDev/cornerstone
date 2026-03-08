@@ -37,6 +37,7 @@ import scheduleRoutes from './routes/schedule.js';
 import timelineRoutes from './routes/timeline.js';
 import paperlessRoutes from './routes/paperless.js';
 import documentLinksRoutes from './routes/documentLinks.js';
+import householdItemCategoryRoutes from './routes/householdItemCategories.js';
 import householdItemRoutes from './routes/householdItems.js';
 import householdItemBudgetRoutes from './routes/householdItemBudgets.js';
 import householdItemSubsidyRoutes from './routes/householdItemSubsidies.js';
@@ -149,6 +150,9 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Document link routes (EPIC-08: Link Paperless-ngx documents to entities)
   await app.register(documentLinksRoutes, { prefix: '/api/document-links' });
+
+  // Household item category routes (EPIC-09: Story #509 - Unified Tags & Categories Management)
+  await app.register(householdItemCategoryRoutes, { prefix: '/api/household-item-categories' });
 
   // Household item routes (EPIC-04: Household Items & Furniture Management)
   await app.register(householdItemRoutes, { prefix: '/api/household-items' });

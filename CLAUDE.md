@@ -10,7 +10,7 @@ Cornerstone is a web-based home building project management application designed
 
 ## Agent Team
 
-This project uses a team of 9 specialized Claude Code agents defined in `.claude/agents/`:
+This project uses a team of 10 specialized Claude Code agents defined in `.claude/agents/`:
 
 | Agent                   | Role                                                                                                                                    |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
@@ -20,7 +20,8 @@ This project uses a team of 9 specialized Claude Code agents defined in `.claude
 | `dev-team-lead`         | Spec-writer, reviewer, and committer (Sonnet): decomposes work into implementation specs, reviews agent output, commits and monitors CI |
 | `backend-developer`     | API endpoints, business logic, auth, database operations (Haiku, launched by orchestrator with dev-team-lead specs)                     |
 | `frontend-developer`    | UI components, pages, interactions, API client (Haiku, launched by orchestrator with dev-team-lead specs)                               |
-| `qa-integration-tester` | Unit test coverage (95%+ target), integration tests, Playwright E2E browser tests, performance testing, bug reports                     |
+| `qa-integration-tester` | Unit test coverage (95%+ target), integration tests, performance testing, bug reports                                                   |
+| `e2e-test-engineer`     | Playwright E2E browser tests, page objects, smoke tests, responsive testing, dependent system integration testing                       |
 | `security-engineer`     | Security audits, vulnerability reports, remediation guidance                                                                            |
 | `docs-writer`           | Documentation site (`docs/`), lean README.md, user-facing guides after UAT approval                                                     |
 
@@ -75,7 +76,8 @@ The GitHub Projects board uses 4 statuses: Backlog, Todo, In Progress, Done. All
 - **Implementation specs** → `dev-team-lead` agent (produces specs, reviews code, commits)
 - **Backend code** → `backend-developer` agent (Haiku, launched by orchestrator with dev-team-lead specs)
 - **Frontend code** → `frontend-developer` agent (Haiku, launched by orchestrator with dev-team-lead specs)
-- **Unit/integration/E2E tests** → `qa-integration-tester` agent (launched by orchestrator with dev-team-lead specs)
+- **Unit/integration tests** → `qa-integration-tester` agent (launched by orchestrator with dev-team-lead specs)
+- **E2E browser tests** → `e2e-test-engineer` agent (launched by orchestrator with dev-team-lead specs)
 - **Visual specs, design tokens, brand assets, CSS files** → `ux-designer` agent
 - **Schema/API design, ADRs, wiki** → `product-architect` agent
 - **Story definitions** → `product-owner` agent
@@ -97,13 +99,13 @@ The orchestrator uses four skills to drive work. Each skill contains the full op
 
 `/epic-run` activates **AUTO_MODE** for the session. When AUTO_MODE is active, intermediate user approval gates are auto-approved. The existing skills (`/epic-start`, `/develop`, `/epic-close`) each contain `AUTO_MODE override` blocks that describe the alternate behavior. AUTO_MODE is never active when skills are invoked directly — only when chained by `/epic-run`.
 
-| Skill         | Gate                | Interactive (default) | AUTO_MODE                                            |
-| ------------- | ------------------- | --------------------- | ---------------------------------------------------- |
-| `/epic-start` | Plan approval       | Wait for user         | Post plan to epic issue, auto-proceed                |
-| `/develop`    | Bug spec approval   | Wait for user         | Auto-approve PO spec, create issue immediately       |
-| `/develop`    | PR merge approval   | Wait for user         | Auto-merge after CI green + all reviewers approved   |
-| `/epic-close` | UAT validation      | User walkthrough      | E2E pass + qa-integration-tester report = sufficient |
-| `/epic-close` | Promotion to `main` | **Wait for user**     | **Wait for user (ALWAYS)** — never auto-approved     |
+| Skill         | Gate                | Interactive (default) | AUTO_MODE                                          |
+| ------------- | ------------------- | --------------------- | -------------------------------------------------- |
+| `/epic-start` | Plan approval       | Wait for user         | Post plan to epic issue, auto-proceed              |
+| `/develop`    | Bug spec approval   | Wait for user         | Auto-approve PO spec, create issue immediately     |
+| `/develop`    | PR merge approval   | Wait for user         | Auto-merge after CI green + all reviewers approved |
+| `/epic-close` | UAT validation      | User walkthrough      | E2E pass + e2e-test-engineer report = sufficient   |
+| `/epic-close` | Promotion to `main` | **Wait for user**     | **Wait for user (ALWAYS)** — never auto-approved   |
 
 ## Acceptance & Validation
 
@@ -116,8 +118,8 @@ Every epic follows a two-phase validation lifecycle. **Development phase** (`/de
 - **Iterate until right** — failed validation triggers a fix-and-revalidate loop
 - **Acceptance criteria live on GitHub Issues** — stored on story issues, summarized on promotion PRs
 - **Security review required** — the `security-engineer` must review every story PR
-- **Test agents own all tests** — `qa-integration-tester` owns unit, integration, and Playwright E2E tests. Developer agents do not write tests.
-- **Flat delegation model** — the orchestrator launches all agents directly. The `dev-team-lead` produces implementation specs, reviews agent output, and handles commits/CI. The orchestrator routes specs to `backend-developer`, `frontend-developer`, and `qa-integration-tester`.
+- **Test agents own all tests** — `qa-integration-tester` owns unit and integration tests; `e2e-test-engineer` owns Playwright E2E browser tests. Developer agents do not write tests.
+- **Flat delegation model** — the orchestrator launches all agents directly. The `dev-team-lead` produces implementation specs, reviews agent output, and handles commits/CI. The orchestrator routes specs to `backend-developer`, `frontend-developer`, `qa-integration-tester`, and `e2e-test-engineer`.
 
 ## Git & Commit Conventions
 
@@ -167,6 +169,7 @@ The orchestrator runs a **trailer verification** after every commit:
 1. Commit trailers must include Haiku co-authors for production file changes
 2. Files under `server/` or `shared/` → must have `backend-developer` trailer
 3. Files under `client/` → must have `frontend-developer` trailer
+4. Files under `e2e/` → must have `e2e-test-engineer` trailer
 
 Commits that change production files without the appropriate Haiku co-author trailers are rejected and re-committed with corrected trailers.
 

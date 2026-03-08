@@ -94,24 +94,10 @@ function getButtonByControls(container: HTMLElement, controlsId: string): HTMLEl
     throw new Error(`Category button for controlsId="${controlsId}" not found`);
   } else if (controlsId.startsWith('hi-cat-') && controlsId.endsWith('-items')) {
     // For household item category expansion
-    // Extract category from controlsId: "hi-cat-{hiCategory}-items"
-    // Example: "hi-cat-appliances-items" → looking for button with sibling text "Appliances"
-    const categoryMatch = controlsId.match(/^hi-cat-([a-z]+)-items$/);
-    if (categoryMatch) {
-      const category = categoryMatch[1];
-      // Map category to label
-      const categoryLabels: Record<string, string> = {
-        furniture: 'Furniture',
-        appliances: 'Appliances',
-        fixtures: 'Fixtures',
-        decor: 'Decor',
-        electronics: 'Electronics',
-        outdoor: 'Outdoor',
-        storage: 'Storage',
-        other: 'Other',
-      };
-      expectedText = categoryLabels[category] || null;
-    }
+    // Extract category name from controlsId: "hi-cat-{hiCategory}-items"
+    // The category name is used directly (user-defined string, not a legacy enum key)
+    const inner = controlsId.slice('hi-cat-'.length, -'-items'.length);
+    expectedText = inner || null;
   } else if (controlsId.startsWith('wi-item-') && controlsId.endsWith('-budget-lines')) {
     // For work item expansion, find in the correct section
     // Look for buttons in rows that are nested under a WI category
@@ -145,7 +131,8 @@ function getButtonByControls(container: HTMLElement, controlsId: string): HTMLEl
       } else if (
         foundHISection &&
         text &&
-        !text.match(/^(Furniture|Appliances|Fixtures|Decor|Electronics|Outdoor|Storage|Other)$/)
+        text !== 'Household items' &&
+        !text.startsWith('Total ')
       ) {
         return btn;
       }
@@ -346,15 +333,7 @@ function buildBreakdownWithWI(
  */
 function buildBreakdownWithHI(
   opts: {
-    hiCategory?:
-      | 'furniture'
-      | 'appliances'
-      | 'fixtures'
-      | 'decor'
-      | 'electronics'
-      | 'outdoor'
-      | 'storage'
-      | 'other';
+    hiCategory?: string;
     projectedMin?: number;
     projectedMax?: number;
     actualCost?: number;
@@ -367,7 +346,7 @@ function buildBreakdownWithHI(
     householdItemId?: string;
   } = {},
 ): BudgetBreakdown {
-  const hiCategory = opts.hiCategory ?? 'furniture';
+  const hiCategory = opts.hiCategory ?? 'Living Room';
   const projectedMin = opts.projectedMin ?? 400;
   const projectedMax = opts.projectedMax ?? 600;
   const actualCost = opts.actualCost ?? 0;
@@ -953,7 +932,7 @@ describe('CostBreakdownTable', () => {
       householdItems: {
         categories: [
           {
-            hiCategory: 'furniture',
+            hiCategory: 'Living Room',
             projectedMin: 300,
             projectedMax: 500,
             actualCost: 0,
@@ -1148,7 +1127,7 @@ describe('CostBreakdownTable', () => {
   it('shows HI category label after expanding HI section', () => {
     const { container } = render(
       <CostBreakdownTable
-        breakdown={buildBreakdownWithHI({ hiCategory: 'electronics' })}
+        breakdown={buildBreakdownWithHI({ hiCategory: 'Home Office' })}
         overview={buildOverview()}
         selectedCategories={new Set()}
         budgetSources={[]}
@@ -1157,14 +1136,14 @@ describe('CostBreakdownTable', () => {
 
     fireEvent.click(getButtonByControls(container, 'hi-section-categories'));
 
-    // "Electronics" is the label for the 'electronics' hiCategory
-    expect(screen.getByText('Electronics')).toBeInTheDocument();
+    // "Home Office" is the user-defined category name used directly as the display label
+    expect(screen.getByText('Home Office')).toBeInTheDocument();
   });
 
   it('shows HI item name after expanding HI category', () => {
     const { container } = renderWithRouter(
       buildBreakdownWithHI({
-        hiCategory: 'appliances',
+        hiCategory: 'Kitchen',
         itemName: 'Dishwasher',
         householdItemId: 'hi-dishwasher',
       }),
@@ -1172,7 +1151,7 @@ describe('CostBreakdownTable', () => {
     );
 
     fireEvent.click(getButtonByControls(container, 'hi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'hi-cat-appliances-items'));
+    fireEvent.click(getButtonByControls(container, 'hi-cat-Kitchen-items'));
 
     expect(screen.getByText('Dishwasher')).toBeInTheDocument();
   });
@@ -1280,7 +1259,7 @@ describe('CostBreakdownTable', () => {
       householdItems: {
         categories: [
           {
-            hiCategory: 'furniture',
+            hiCategory: 'Living Room',
             projectedMin: 200,
             projectedMax: 300,
             actualCost: 0,
@@ -1335,14 +1314,14 @@ describe('CostBreakdownTable', () => {
 
   it('shows sum row for expanded HI category', () => {
     const { container } = renderWithRouter(
-      buildBreakdownWithHI({ hiCategory: 'storage', householdItemId: 'hi-stor' }),
+      buildBreakdownWithHI({ hiCategory: 'Garage', householdItemId: 'hi-stor' }),
       buildOverview(),
     );
 
     fireEvent.click(getButtonByControls(container, 'hi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'hi-cat-storage-items'));
+    fireEvent.click(getButtonByControls(container, 'hi-cat-Garage-items'));
 
-    expect(screen.getByText('Total Storage')).toBeInTheDocument();
+    expect(screen.getByText('Total Garage')).toBeInTheDocument();
   });
 
   // ── Null category WI item ─────────────────────────────────────────────────
@@ -1910,7 +1889,7 @@ describe('CostBreakdownTable', () => {
   it('household item name in item row is an anchor link to /household-items/{householdItemId}', () => {
     const { container } = renderWithRouter(
       buildBreakdownWithHI({
-        hiCategory: 'fixtures',
+        hiCategory: 'Bathroom',
         householdItemId: 'hi-link-test',
         itemName: 'Bathroom Sink',
       }),
@@ -1918,7 +1897,7 @@ describe('CostBreakdownTable', () => {
     );
 
     fireEvent.click(getButtonByControls(container, 'hi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'hi-cat-fixtures-items'));
+    fireEvent.click(getButtonByControls(container, 'hi-cat-Bathroom-items'));
 
     const link = screen.getByRole('link', { name: 'Bathroom Sink' });
     expect(link).toBeInTheDocument();
@@ -2000,6 +1979,23 @@ describe('CostBreakdownTable', () => {
     fireEvent.click(screen.getByRole('radio', { name: 'Max' }));
     const maxPayback = screen.getAllByText('€120.00');
     expect(maxPayback.length).toBeGreaterThanOrEqual(1);
+  });
+
+  // Regression: user-defined HI category name is used directly as the display label
+  it('shows user-defined HI category name after expanding HI section', () => {
+    const { container } = render(
+      <MemoryRouter>
+        <CostBreakdownTable
+          breakdown={buildBreakdownWithHI({ hiCategory: 'Master Bedroom' })}
+          overview={buildOverview()}
+          selectedCategories={new Set<string | null>()}
+          budgetSources={[]}
+        />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(getButtonByControls(container, 'hi-section-categories'));
+    expect(screen.getByText('Master Bedroom')).toBeInTheDocument();
   });
 
   // Scenario 16: Net column renders a single perspective-resolved value on item rows

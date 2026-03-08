@@ -301,6 +301,13 @@ export function BudgetOverviewPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
 
+  // Auto-scroll to top when error appears
+  useEffect(() => {
+    if (error) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [error]);
+
   // Breakdown state
   const [breakdown, setBreakdown] = useState<BudgetBreakdown | null>(null);
   const [isBreakdownLoading, setIsBreakdownLoading] = useState(false);
@@ -586,6 +593,29 @@ export function BudgetOverviewPage() {
               </span>
             </div>
 
+            {/* Expected Payback (only when hasPayback) */}
+            {hasPayback && (
+              <div className={styles.metricGroup}>
+                <span className={styles.metricLabel}>Expected Payback</span>
+                <span
+                  className={`${styles.metricValue} ${styles.metricPaybackValue}`}
+                  aria-live="polite"
+                  aria-atomic="true"
+                >
+                  <span className={styles.metricRange}>
+                    {formatShort(overview.subsidySummary.minTotalPayback)}
+                    {overview.subsidySummary.minTotalPayback !==
+                    overview.subsidySummary.maxTotalPayback ? (
+                      <>
+                        <span className={styles.metricRangeSep}>&ndash;</span>
+                        {formatShort(overview.subsidySummary.maxTotalPayback)}
+                      </>
+                    ) : null}
+                  </span>
+                </span>
+              </div>
+            )}
+
             {/* Remaining (best/worst) — with detail on hover/tap */}
             <div className={styles.metricGroup}>
               <span className={styles.metricLabel}>Remaining</span>
@@ -621,29 +651,6 @@ export function BudgetOverviewPage() {
                 <RemainingDetailPanel items={remainingDetailItems} />
               </div>
             </div>
-
-            {/* Expected Payback (only when hasPayback) */}
-            {hasPayback && (
-              <div className={styles.metricGroup}>
-                <span className={styles.metricLabel}>Expected Payback</span>
-                <span
-                  className={`${styles.metricValue} ${styles.metricPaybackValue}`}
-                  aria-live="polite"
-                  aria-atomic="true"
-                >
-                  <span className={styles.metricRange}>
-                    {formatShort(overview.subsidySummary.minTotalPayback)}
-                    {overview.subsidySummary.minTotalPayback !==
-                    overview.subsidySummary.maxTotalPayback ? (
-                      <>
-                        <span className={styles.metricRangeSep}>&ndash;</span>
-                        {formatShort(overview.subsidySummary.maxTotalPayback)}
-                      </>
-                    ) : null}
-                  </span>
-                </span>
-              </div>
-            )}
           </div>
 
           {/* Stacked bar */}

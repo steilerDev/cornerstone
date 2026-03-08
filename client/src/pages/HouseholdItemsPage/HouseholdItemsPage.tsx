@@ -5,26 +5,17 @@ import type {
   HouseholdItemCategory,
   HouseholdItemStatus,
   Vendor,
+  HouseholdItemCategoryEntity,
 } from '@cornerstone/shared';
 import { listHouseholdItems, deleteHouseholdItem } from '../../lib/householdItemsApi.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
+import { fetchHouseholdItemCategories } from '../../lib/householdItemCategoriesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { HouseholdItemStatusBadge } from '../../components/HouseholdItemStatusBadge/HouseholdItemStatusBadge.js';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import { KeyboardShortcutsHelp } from '../../components/KeyboardShortcutsHelp/KeyboardShortcutsHelp.js';
 import { formatDate, formatCurrency } from '../../lib/formatters.js';
 import styles from './HouseholdItemsPage.module.css';
-
-const CATEGORY_OPTIONS: { value: HouseholdItemCategory; label: string }[] = [
-  { value: 'furniture', label: 'Furniture' },
-  { value: 'appliances', label: 'Appliances' },
-  { value: 'fixtures', label: 'Fixtures' },
-  { value: 'decor', label: 'Decor' },
-  { value: 'electronics', label: 'Electronics' },
-  { value: 'outdoor', label: 'Outdoor' },
-  { value: 'storage', label: 'Storage' },
-  { value: 'other', label: 'Other' },
-];
 
 const STATUS_OPTIONS: { value: HouseholdItemStatus; label: string }[] = [
   { value: 'planned', label: 'Planned' },
@@ -51,8 +42,16 @@ export function HouseholdItemsPage() {
   // Data state
   const [householdItems, setHouseholdItems] = useState<HouseholdItemSummary[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [categories, setCategories] = useState<HouseholdItemCategoryEntity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
+
+  // Auto-scroll to top when error appears
+  useEffect(() => {
+    if (error) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [error]);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -103,17 +102,30 @@ export function HouseholdItemsPage() {
   const deleteTriggerRef = useRef<HTMLButtonElement | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
-  // Load vendors on mount
+  // Category name lookup map
+  const categoryNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const cat of categories) {
+      map.set(cat.id, cat.name);
+    }
+    return map;
+  }, [categories]);
+
+  // Load vendors and categories on mount
   useEffect(() => {
-    const loadVendors = async () => {
+    const loadData = async () => {
       try {
-        const vendorsResponse = await fetchVendors();
+        const [vendorsResponse, categoriesResponse] = await Promise.all([
+          fetchVendors(),
+          fetchHouseholdItemCategories(),
+        ]);
         setVendors(vendorsResponse.vendors);
+        setCategories(categoriesResponse.categories);
       } catch (err) {
-        console.error('Failed to load vendors:', err);
+        console.error('Failed to load vendors or categories:', err);
       }
     };
-    loadVendors();
+    loadData();
   }, []);
 
   // Sync current page with URL
@@ -479,9 +491,9 @@ export function HouseholdItemsPage() {
                 className={styles.filterSelect}
               >
                 <option value="">All Categories</option>
-                {CATEGORY_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
+                {categories.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.name}
                   </option>
                 ))}
               </select>
@@ -712,7 +724,7 @@ export function HouseholdItemsPage() {
                     onClick={() => handleRowClick(item.id)}
                   >
                     <td className={styles.titleCell}>{item.name}</td>
-                    <td>{item.category.charAt(0).toUpperCase() + item.category.slice(1)}</td>
+                    <td>{categoryNameMap.get(item.category) ?? item.category}</td>
                     <td>
                       <HouseholdItemStatusBadge status={item.status} />
                     </td>
@@ -846,7 +858,7 @@ export function HouseholdItemsPage() {
                 <div className={styles.cardBody}>
                   <div className={styles.cardRow}>
                     <span className={styles.cardLabel}>Category:</span>
-                    <span>{item.category.charAt(0).toUpperCase() + item.category.slice(1)}</span>
+                    <span>{categoryNameMap.get(item.category) ?? item.category}</span>
                   </div>
                   <div className={styles.cardRow}>
                     <span className={styles.cardLabel}>Status:</span>

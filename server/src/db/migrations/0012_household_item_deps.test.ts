@@ -51,10 +51,11 @@ describe('Migration 0012: Household Item Deps', () => {
    */
   function insertHouseholdItem(db: Database.Database, id: string) {
     const now = new Date().toISOString();
+    // Migration 0016 dropped the 'category' column and replaced it with 'category_id' FK
     db.prepare(
-      `INSERT INTO household_items (id, name, category, status, quantity, created_at, updated_at)
+      `INSERT INTO household_items (id, name, category_id, status, quantity, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    ).run(id, `Item ${id}`, 'other', 'planned', 1, now, now);
+    ).run(id, `Item ${id}`, 'hic-other', 'planned', 1, now, now);
   }
 
   /**
@@ -143,12 +144,13 @@ describe('Migration 0012: Household Item Deps', () => {
 
     it('new columns default to NULL on insert without specifying them', () => {
       const now = new Date().toISOString();
+      // Migration 0016 dropped 'category' column; use 'category_id' FK instead
       sqlite
         .prepare(
-          `INSERT INTO household_items (id, name, category, status, quantity, created_at, updated_at)
+          `INSERT INTO household_items (id, name, category_id, status, quantity, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, ?)`,
         )
-        .run('item-null-dates', 'Test', 'other', 'planned', 1, now, now);
+        .run('item-null-dates', 'Test', 'hic-other', 'planned', 1, now, now);
 
       const row = sqlite
         .prepare(
@@ -165,15 +167,16 @@ describe('Migration 0012: Household Item Deps', () => {
 
     it('can set and read earliest_delivery_date and latest_delivery_date', () => {
       const now = new Date().toISOString();
+      // Migration 0016 dropped 'category' column; use 'category_id' FK instead
       sqlite
         .prepare(
-          `INSERT INTO household_items (id, name, category, status, quantity, earliest_delivery_date, latest_delivery_date, created_at, updated_at)
+          `INSERT INTO household_items (id, name, category_id, status, quantity, earliest_delivery_date, latest_delivery_date, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
           'item-with-dates',
           'Test',
-          'other',
+          'hic-other',
           'planned',
           1,
           '2026-05-10',

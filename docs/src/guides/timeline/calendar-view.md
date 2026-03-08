@@ -78,6 +78,4 @@ Both the view mode (Gantt vs Calendar) and the calendar sub-mode (Month vs Week)
 
 This means your view preferences are preserved when bookmarking, sharing links, or using browser back/forward navigation.
 
-:::info Screenshot needed
-A screenshot of the calendar monthly view will be added on the next stable release.
-:::
+![Calendar monthly view](/img/screenshots/timeline-calendar-light.png)

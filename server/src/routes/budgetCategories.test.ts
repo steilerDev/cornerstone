@@ -15,12 +15,12 @@ import type {
 import { budgetCategories, subsidyPrograms, subsidyProgramCategories } from '../db/schema.js';
 
 /**
- * NOTE: The migration seeds 10 default budget categories:
+ * NOTE: The migration seeds 11 default budget categories:
  * Materials, Labor, Permits, Design, Equipment, Landscaping,
- * Utilities, Insurance, Contingency, Other.
+ * Utilities, Insurance, Contingency, Other, Household Items (added by migration 0016).
  *
  * Tests that insert categories use unique names like "Custom *" to avoid conflicts.
- * Tests that check empty/count behavior account for the 10 seeded records.
+ * Tests that check empty/count behavior account for the 11 seeded records.
  */
 
 describe('Budget Category Routes', () => {
@@ -28,8 +28,8 @@ describe('Budget Category Routes', () => {
   let tempDir: string;
   let originalEnv: NodeJS.ProcessEnv;
 
-  /** Number of categories seeded by migration */
-  const SEEDED_CATEGORY_COUNT = 10;
+  /** Number of categories seeded by migration (migration 0016 added 'bc-household-items') */
+  const SEEDED_CATEGORY_COUNT = 11;
 
   beforeEach(async () => {
     originalEnv = { ...process.env };
@@ -137,7 +137,7 @@ describe('Budget Category Routes', () => {
   // ─── GET /api/budget-categories ───────────────────────────────────────────
 
   describe('GET /api/budget-categories', () => {
-    it('returns the 10 seeded default categories after migration', async () => {
+    it('returns the 11 seeded default categories after migration', async () => {
       const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
 
       const response = await app.inject({

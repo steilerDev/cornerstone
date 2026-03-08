@@ -275,11 +275,11 @@ describe('getBudgetOverview', () => {
       expect(result.subsidySummary.activeSubsidyCount).toBe(0);
     });
 
-    it('returns 10 category summaries (seeded defaults) with all-zero values', () => {
+    it('returns 11 category summaries (seeded defaults) with all-zero values', () => {
       const result = getBudgetOverview(db);
 
-      // Migration seeds exactly 10 categories
-      expect(result.categorySummaries).toHaveLength(10);
+      // Migration seeds exactly 11 categories (migration 0016 added 'bc-household-items')
+      expect(result.categorySummaries).toHaveLength(11);
 
       for (const cat of result.categorySummaries) {
         expect(cat.minPlanned).toBe(0);

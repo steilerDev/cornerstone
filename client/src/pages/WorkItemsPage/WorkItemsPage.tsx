@@ -39,6 +39,13 @@ export function WorkItemsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
 
+  // Auto-scroll to top when error appears
+  useEffect(() => {
+    if (error) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [error]);
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);

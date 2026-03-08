@@ -204,7 +204,7 @@ test.describe(
       const name = `${testPrefix} HI Table Columns Test`;
 
       try {
-        createdId = await createHouseholdItemViaApi(page, { name, category: 'furniture' });
+        createdId = await createHouseholdItemViaApi(page, { name, category: 'hic-furniture' });
 
         await listPage.goto();
         await listPage.waitForLoaded();
@@ -281,10 +281,10 @@ test.describe('Category filter (Scenario 7)', { tag: '@responsive' }, () => {
 
     try {
       created.push(
-        await createHouseholdItemViaApi(page, { name: furnitureName, category: 'furniture' }),
+        await createHouseholdItemViaApi(page, { name: furnitureName, category: 'hic-furniture' }),
       );
       created.push(
-        await createHouseholdItemViaApi(page, { name: applianceName, category: 'appliances' }),
+        await createHouseholdItemViaApi(page, { name: applianceName, category: 'hic-appliances' }),
       );
 
       await listPage.goto();
@@ -293,9 +293,9 @@ test.describe('Category filter (Scenario 7)', { tag: '@responsive' }, () => {
       // First search to narrow to our prefix, then apply category filter
       await listPage.search(`${testPrefix} HI Cat`);
 
-      // Select 'furniture' category and wait for URL to reflect it
-      await listPage.categoryFilter.selectOption('furniture');
-      await page.waitForURL((url) => url.searchParams.get('category') === 'furniture', {
+      // Select 'hic-furniture' category and wait for URL to reflect it
+      await listPage.categoryFilter.selectOption('hic-furniture');
+      await page.waitForURL((url) => url.searchParams.get('category') === 'hic-furniture', {
         timeout: 10000,
       });
 
@@ -501,7 +501,7 @@ test.describe('Pagination (Scenario 12)', { tag: '@responsive' }, () => {
         const items = Array.from({ length: 25 }, (_, i) => ({
           id: `mock-hi-${i}`,
           name: `Mock Household Item ${String(i + 1).padStart(2, '0')}`,
-          category: 'furniture',
+          category: 'hic-furniture',
           status: 'planned',
           room: null,
           vendor: null,

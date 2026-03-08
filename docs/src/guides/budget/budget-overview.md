@@ -60,6 +60,4 @@ A summary of each financing source shows:
 
 Approved and disbursed [subsidies](subsidies) are factored into the overview calculations. The dashboard shows how much each subsidy reduces the total cost for its linked category. Pending and rejected subsidies are excluded from calculations.
 
-:::info Screenshot needed
-A screenshot of the budget overview dashboard will be added here.
-:::
+![Budget overview dashboard](/img/screenshots/budget-overview-light.png)

@@ -14,6 +14,8 @@ import {
 import { listWorkItemBudgets } from './workItemBudgetService.js';
 import { autoReschedule } from './schedulingEngine.js';
 import { deleteLinksForEntity } from './documentLinkService.js';
+import { toUserSummary, toTagResponse } from './shared/converters.js';
+import { validateTagIds } from './shared/validators.js';
 import type {
   WorkItemDetail,
   WorkItemSummary,
@@ -30,29 +32,6 @@ import type {
 import { NotFoundError, ValidationError } from '../errors/AppError.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
-
-/**
- * Convert database user row to UserSummary shape.
- */
-function toUserSummary(user: typeof users.$inferSelect | null): UserSummary | null {
-  if (!user) return null;
-  return {
-    id: user.id,
-    displayName: user.displayName,
-    email: user.email,
-  };
-}
-
-/**
- * Convert database tag row to TagResponse shape.
- */
-function toTagResponse(tag: typeof tags.$inferSelect): TagResponse {
-  return {
-    id: tag.id,
-    name: tag.name,
-    color: tag.color,
-  };
-}
 
 /**
  * Convert database subtask row to SubtaskResponse shape.
@@ -239,19 +218,6 @@ function validateDateConstraints(data: {
 
   if (errors.length > 0) {
     throw new ValidationError(errors.join('; '));
-  }
-}
-
-/**
- * Validate that all tag IDs exist.
- * Throws ValidationError if any tag does not exist.
- */
-function validateTagIds(db: DbType, tagIds: string[]): void {
-  for (const tagId of tagIds) {
-    const tag = db.select().from(tags).where(eq(tags.id, tagId)).get();
-    if (!tag) {
-      throw new ValidationError(`Tag not found: ${tagId}`);
-    }
   }
 }
 

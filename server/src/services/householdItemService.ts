@@ -15,6 +15,7 @@ import type * as schemaTypes from '../db/schema.js';
 import {
   householdItems,
   householdItemTags,
+  householdItemCategories,
   tags,
   users,
   vendors,
@@ -26,10 +27,11 @@ import {
 import { deleteLinksForEntity } from './documentLinkService.js';
 import { listDeps } from './householdItemDepService.js';
 import { autoReschedule } from './schedulingEngine.js';
+import { toUserSummary, toTagResponse, toVendorSummary } from './shared/converters.js';
+import { validateTagIds, validateVendorId } from './shared/validators.js';
 import type {
   HouseholdItemDetail,
   HouseholdItemSummary,
-  HouseholdItemVendorSummary,
   UserSummary,
   TagResponse,
   HouseholdItemCategory,
@@ -44,43 +46,6 @@ import type {
 import { NotFoundError, ValidationError } from '../errors/AppError.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
-
-/**
- * Convert database user row to UserSummary shape.
- */
-function toUserSummary(user: typeof users.$inferSelect | null): UserSummary | null {
-  if (!user) return null;
-  return {
-    id: user.id,
-    displayName: user.displayName,
-    email: user.email,
-  };
-}
-
-/**
- * Convert database tag row to TagResponse shape.
- */
-function toTagResponse(tag: typeof tags.$inferSelect): TagResponse {
-  return {
-    id: tag.id,
-    name: tag.name,
-    color: tag.color,
-  };
-}
-
-/**
- * Convert database vendor row to HouseholdItemVendorSummary shape.
- */
-function toVendorSummary(
-  vendor: typeof vendors.$inferSelect | null,
-): HouseholdItemVendorSummary | null {
-  if (!vendor) return null;
-  return {
-    id: vendor.id,
-    name: vendor.name,
-    specialty: vendor.specialty,
-  };
-}
 
 /**
  * Fetch tags for a household item.
@@ -243,7 +208,7 @@ export function toHouseholdItemSummary(
     id: item.id,
     name: item.name,
     description: item.description,
-    category: item.category as HouseholdItemCategory,
+    category: item.categoryId as HouseholdItemCategory,
     status: item.status as HouseholdItemStatus,
     vendor: toVendorSummary(vendor),
     room: item.room,
@@ -294,26 +259,17 @@ function findHouseholdItemById(db: DbType, id: string): typeof householdItems.$i
 }
 
 /**
- * Validate that all tag IDs exist.
- * Throws ValidationError if any tag does not exist.
+ * Validate that household item category ID exists.
+ * Throws ValidationError if category does not exist.
  */
-function validateTagIds(db: DbType, tagIds: string[]): void {
-  for (const tagId of tagIds) {
-    const tag = db.select().from(tags).where(eq(tags.id, tagId)).get();
-    if (!tag) {
-      throw new ValidationError(`Tag not found: ${tagId}`);
-    }
-  }
-}
-
-/**
- * Validate that vendor ID exists (if provided).
- * Throws ValidationError if vendor does not exist.
- */
-function validateVendorId(db: DbType, vendorId: string): void {
-  const vendor = db.select().from(vendors).where(eq(vendors.id, vendorId)).get();
-  if (!vendor) {
-    throw new ValidationError(`Vendor not found: ${vendorId}`);
+function validateHouseholdItemCategoryId(db: DbType, categoryId: string): void {
+  const category = db
+    .select()
+    .from(householdItemCategories)
+    .where(eq(householdItemCategories.id, categoryId))
+    .get();
+  if (!category) {
+    throw new ValidationError(`Household item category not found: ${categoryId}`);
   }
 }
 
@@ -359,6 +315,10 @@ export function createHouseholdItem(
     validateTagIds(db, tagIds);
   }
 
+  // Validate optional category ID if provided, default to 'hic-other'
+  const categoryId = data.category ?? 'hic-other';
+  validateHouseholdItemCategoryId(db, categoryId);
+
   // Cross-field validation: if both earliest and latest are provided, earliest <= latest
   if (data.earliestDeliveryDate && data.latestDeliveryDate) {
     if (data.earliestDeliveryDate > data.latestDeliveryDate) {
@@ -376,7 +336,7 @@ export function createHouseholdItem(
       id,
       name: data.name.trim(),
       description: data.description ?? null,
-      category: data.category ?? 'other',
+      categoryId,
       status: data.status ?? 'planned',
       vendorId: data.vendorId ?? null,
       url: data.url ?? null,
@@ -436,6 +396,11 @@ export function updateHouseholdItem(
     validateVendorId(db, data.vendorId);
   }
 
+  // Validate category if provided
+  if ('category' in data && data.category) {
+    validateHouseholdItemCategoryId(db, data.category);
+  }
+
   // Validate tags if provided
   if ('tagIds' in data) {
     const tagIds = data.tagIds ?? [];
@@ -478,7 +443,7 @@ export function updateHouseholdItem(
   }
 
   if ('category' in data) {
-    updateData.category = data.category;
+    updateData.categoryId = data.category;
   }
 
   if ('status' in data) {
@@ -579,7 +544,7 @@ export function listHouseholdItems(
   const conditions = [];
 
   if (query.category) {
-    conditions.push(eq(householdItems.category, query.category));
+    conditions.push(eq(householdItems.categoryId, query.category));
   }
 
   if (query.status) {
@@ -631,7 +596,7 @@ export function listHouseholdItems(
     sortBy === 'name'
       ? householdItems.name
       : sortBy === 'category'
-        ? householdItems.category
+        ? householdItems.categoryId
         : sortBy === 'status'
           ? householdItems.status
           : sortBy === 'room'

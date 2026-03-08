@@ -361,7 +361,7 @@ describe('WorkItemDetailPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText('Work item not found')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /work item not found/i })).toBeInTheDocument();
       });
 
       expect(screen.getByRole('button', { name: /back to work items/i })).toBeInTheDocument();
@@ -529,7 +529,9 @@ describe('WorkItemDetailPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText('No notes yet')).toBeInTheDocument();
+        expect(
+          screen.getByText('No notes yet. Use the form above to add one.'),
+        ).toBeInTheDocument();
       });
     });
 
@@ -564,7 +566,7 @@ describe('WorkItemDetailPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText('No subtasks yet')).toBeInTheDocument();
+        expect(screen.getByText('No subtasks yet. Add one above.')).toBeInTheDocument();
       });
     });
 

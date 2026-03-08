@@ -44,6 +44,4 @@ Subsidies reduce the total cost shown in the [Budget Overview](budget-overview).
 
 Multiple subsidies can apply to the same category, and their reductions stack.
 
-:::info Screenshot needed
-A screenshot of the subsidies page will be added here.
-:::
+![Subsidies page](/img/screenshots/budget-subsidies-light.png)

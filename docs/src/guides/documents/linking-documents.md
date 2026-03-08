@@ -17,8 +17,8 @@ A **Documents** section appears on:
 
 Each section shows the number of linked documents as a badge next to the heading.
 
-:::info Screenshot needed
-A screenshot of the linked documents section on a work item detail page will be added on the next stable release.
+:::note
+Screenshots for the documents feature require a connected Paperless-ngx instance and will be added in a future release.
 :::
 
 ## Linking a Document

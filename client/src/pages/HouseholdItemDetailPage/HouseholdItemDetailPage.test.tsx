@@ -174,6 +174,16 @@ jest.unstable_mockModule('../../lib/invoicesApi.js', () => ({
   deleteInvoice: jest.fn<typeof InvoicesApiTypes.deleteInvoice>(),
 }));
 
+// Mock householdItemCategoriesApi — HouseholdItemDetailPage loads categories to display badges
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const mockFetchHouseholdItemCategories = jest.fn() as any;
+jest.unstable_mockModule('../../lib/householdItemCategoriesApi.js', () => ({
+  fetchHouseholdItemCategories: mockFetchHouseholdItemCategories,
+  createHouseholdItemCategory: jest.fn(),
+  updateHouseholdItemCategory: jest.fn(),
+  deleteHouseholdItemCategory: jest.fn(),
+}));
+
 // Mock LinkedDocumentsSection to avoid pulling in full documents component tree
 jest.unstable_mockModule('../../components/documents/LinkedDocumentsSection.js', () => ({
   LinkedDocumentsSection: function MockLinkedDocumentsSection(props: {
@@ -251,6 +261,7 @@ describe('HouseholdItemDetailPage', () => {
     mockDeleteHouseholdItemDep.mockReset();
     mockListMilestones.mockReset();
     mockFetchInvoices.mockReset();
+    mockFetchHouseholdItemCategories.mockReset();
 
     if (!HouseholdItemDetailPageModule) {
       HouseholdItemDetailPageModule = await import('./HouseholdItemDetailPage.js');
@@ -286,6 +297,19 @@ describe('HouseholdItemDetailPage', () => {
     mockDeleteHouseholdItemDep.mockResolvedValue(undefined);
     mockListMilestones.mockResolvedValue([]);
     mockFetchInvoices.mockResolvedValue([]);
+    // Use id 'furniture' to match the category value on the test item (category: 'furniture')
+    mockFetchHouseholdItemCategories.mockResolvedValue({
+      categories: [
+        {
+          id: 'furniture',
+          name: 'Furniture',
+          color: '#8B5CF6',
+          sortOrder: 0,
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
+        },
+      ],
+    });
   });
 
   function renderPage(itemId = 'item-1') {
@@ -1190,12 +1214,12 @@ describe('HouseholdItemDetailPage', () => {
       // Verify "Documents" heading exists
       expect(headingTexts).toContain('Documents');
 
-      // Verify Documents comes after Subsidies
-      const subsidiesIndex = headingTexts.findIndex((text) => text === 'Subsidies');
+      // Verify Documents comes after Budget (Subsidies is now an h3 inside Budget, not a standalone h2)
+      const budgetIndex = headingTexts.findIndex((text) => text === 'Budget');
       const documentsIndex = headingTexts.findIndex((text) => text === 'Documents');
-      expect(subsidiesIndex).toBeGreaterThan(-1);
+      expect(budgetIndex).toBeGreaterThan(-1);
       expect(documentsIndex).toBeGreaterThan(-1);
-      expect(documentsIndex).toBeGreaterThan(subsidiesIndex);
+      expect(documentsIndex).toBeGreaterThan(budgetIndex);
     });
 
     it('does not render LinkedDocumentsSection in loading state', async () => {

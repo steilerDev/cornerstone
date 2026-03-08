@@ -27,13 +27,13 @@ This skill activates **AUTO_MODE** for the session. When AUTO_MODE is active:
 - The **only mandatory human gate** is promotion from `beta` → `main` (Phase 3, Step 8)
 - Progress updates are posted as comments on the epic GitHub Issue
 
-| Phase   | Gate                | AUTO_MODE Behavior                                   |
-| ------- | ------------------- | ---------------------------------------------------- |
-| Phase 1 | Plan approval       | Post plan to epic issue, auto-proceed                |
-| Phase 2 | Bug spec approval   | Auto-approve PO spec, create issue immediately       |
-| Phase 2 | PR merge approval   | Auto-merge after CI green + all reviewers approved   |
-| Phase 3 | UAT validation      | E2E pass + qa-integration-tester report = sufficient |
-| Phase 3 | Promotion to `main` | **WAIT for user (ALWAYS)** — never auto-approved     |
+| Phase   | Gate                | AUTO_MODE Behavior                                 |
+| ------- | ------------------- | -------------------------------------------------- |
+| Phase 1 | Plan approval       | Post plan to epic issue, auto-proceed              |
+| Phase 2 | Bug spec approval   | Auto-approve PO spec, create issue immediately     |
+| Phase 2 | PR merge approval   | Auto-merge after CI green + all reviewers approved |
+| Phase 3 | UAT validation      | E2E pass + e2e-test-engineer report = sufficient   |
+| Phase 3 | Promotion to `main` | **WAIT for user (ALWAYS)** — never auto-approved   |
 
 ## Error Handling: Retry-Then-Pause
 
@@ -195,7 +195,10 @@ Follow the same multi-phase flow as `/develop` step 6:
 
 **2.5c. Frontend Implementation**: If frontend spec present, launch **frontend-developer** (Haiku) — in parallel with 2.5b if `Execution Order: parallel`, otherwise sequentially after 2.5b.
 
-**2.5d. QA Testing**: Launch **qa-integration-tester** with the `## QA Spec` section + list of files changed.
+**2.5d. QA + E2E Testing**: Launch both test agents in parallel:
+
+- **qa-integration-tester** with the `## QA Spec` section + list of files changed
+- **e2e-test-engineer** (skip if no `## E2E Spec` section) with the `## E2E Spec` section + list of files changed
 
 **2.5e. Code Review**: Launch **dev-team-lead** in `[MODE: review]` with original spec + changed files list. If `VERDICT: CHANGES_REQUIRED`, run fix loop (max 3 iterations — route fixes to appropriate agents, re-review). Each re-launch of an implementation agent counts toward the story's retry budget.
 
@@ -247,7 +250,7 @@ If any reviewer identifies blocking issues:
 
 1. Collect reviewer feedback into a fix request
 2. Launch **dev-team-lead** in `[MODE: spec]` with reviewer feedback to produce targeted fix specs (or write fix specs directly if feedback is clear)
-3. Route fix specs to appropriate implementation agents (backend-developer, frontend-developer, or qa-integration-tester)
+3. Route fix specs to appropriate implementation agents (backend-developer, frontend-developer, qa-integration-tester, or e2e-test-engineer)
 4. Launch **dev-team-lead** in `[MODE: review]` to verify fixes
 5. Launch **dev-team-lead** in `[MODE: commit]` to commit, push, watch CI
 6. Run trailer verification (step 2.6)
@@ -329,18 +332,20 @@ Review all story PRs for non-blocking review comments. If refinement items exist
 
 1. Create a branch: `git checkout -B chore/<epic-number>-refinement origin/beta`
 2. Launch **dev-team-lead** in `[MODE: spec]` with refinement observations
-3. Route fix specs to appropriate implementation agents (backend-developer, frontend-developer, qa-integration-tester)
+3. Route fix specs to appropriate implementation agents (backend-developer, frontend-developer, qa-integration-tester, e2e-test-engineer)
 4. Launch **dev-team-lead** in `[MODE: review]` to verify fixes
 5. Launch **dev-team-lead** in `[MODE: commit]` with contributing agents list
 6. Create PR targeting `beta`, wait for CI, auto-merge
 
 ### 3.4 E2E Validation
 
-Launch the **qa-integration-tester** agent to:
+Launch the **e2e-test-engineer** agent to:
 
 - Confirm all existing Playwright E2E tests pass
 - Verify every UAT scenario has E2E coverage
 - Write new E2E tests if coverage gaps exist
+- Ensure dependent system containers are included in the E2E environment
+- Expand smoke tests if the epic introduced new major capabilities
 - Open a PR targeting `beta` to trigger the full sharded E2E suite
 - Wait for the full E2E suite to pass
 
@@ -348,7 +353,7 @@ Launch the **qa-integration-tester** agent to:
 
 Launch the **product-owner** agent to produce UAT scenarios, then the orchestrator coordinates validation and produces a UAT Validation Report.
 
-**AUTO_MODE**: E2E pass + qa-integration-tester report = sufficient. Do NOT wait for user walkthrough. Post the UAT report as a comment on the epic issue and proceed.
+**AUTO_MODE**: E2E pass + e2e-test-engineer report = sufficient. Do NOT wait for user walkthrough. Post the UAT report as a comment on the epic issue and proceed.
 
 ### 3.6 Documentation
 
@@ -391,7 +396,7 @@ gh pr create --base main --head beta --title "release: promote epic #<epic-numbe
 <Paste metrics report from step 3.2>
 
 ## UAT Validation
-All UAT scenarios passed (AUTO_MODE: E2E + qa-integration-tester report).
+All UAT scenarios passed (AUTO_MODE: E2E + e2e-test-engineer report).
 See validation report in comments.
 
 ## Review Summary

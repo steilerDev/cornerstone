@@ -575,7 +575,7 @@ describe('HouseholdItemDetailPage — budget line rendering (bug #436)', () => {
   // ─── Scenario 3: Budget summary shows "Total Actual Cost" when invoices present ─
 
   describe('Scenario 3: budget summary with invoices present', () => {
-    it('shows "Total Actual Cost:" label when any budget line has invoices', async () => {
+    it('shows "Total Actual Cost" label when any budget line has invoices', async () => {
       mockGetHouseholdItem.mockResolvedValue(makeItem());
       mockFetchHouseholdItemBudgets.mockResolvedValue([
         makeBudgetLine({
@@ -591,8 +591,8 @@ describe('HouseholdItemDetailPage — budget line rendering (bug #436)', () => {
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      // totalActualCost = 450 > 0, so "Total Actual Cost:" should appear in summary
-      expect(screen.getByText('Total Actual Cost:')).toBeInTheDocument();
+      // totalActualCost = 450 > 0, so "Total Actual Cost" should appear in summary
+      expect(screen.getByText('Total Actual Cost')).toBeInTheDocument();
     });
 
     it('shows the summed actual cost in the summary', async () => {
@@ -622,7 +622,7 @@ describe('HouseholdItemDetailPage — budget line rendering (bug #436)', () => {
       expect(screen.getByText('€630.00')).toBeInTheDocument();
     });
 
-    it('does NOT show "Total Actual Cost:" when all invoiceCount are 0', async () => {
+    it('does NOT show "Total Actual Cost" when all invoiceCount are 0', async () => {
       mockGetHouseholdItem.mockResolvedValue(makeItem());
       mockFetchHouseholdItemBudgets.mockResolvedValue([
         makeBudgetLine({ plannedAmount: 500, actualCost: 0, invoiceCount: 0 }),
@@ -634,10 +634,12 @@ describe('HouseholdItemDetailPage — budget line rendering (bug #436)', () => {
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      expect(screen.queryByText('Total Actual Cost:')).not.toBeInTheDocument();
+      expect(screen.queryByText('Total Actual Cost')).not.toBeInTheDocument();
     });
 
-    it('shows "Total Actual Cost:" when invoiceCount > 0 even if actualCost is 0', async () => {
+    it('does NOT show "Total Actual Cost" when invoiceCount > 0 but actualCost is 0', async () => {
+      // In the new layout, only totalActualCost > 0 shows the "Total Actual Cost" row.
+      // invoiceCount alone is not sufficient — the actualCost field must be non-zero.
       mockGetHouseholdItem.mockResolvedValue(makeItem());
       mockFetchHouseholdItemBudgets.mockResolvedValue([
         makeBudgetLine({
@@ -653,7 +655,7 @@ describe('HouseholdItemDetailPage — budget line rendering (bug #436)', () => {
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      expect(screen.getByText('Total Actual Cost:')).toBeInTheDocument();
+      expect(screen.queryByText('Total Actual Cost')).not.toBeInTheDocument();
     });
   });
 
@@ -679,7 +681,7 @@ describe('HouseholdItemDetailPage — budget line rendering (bug #436)', () => {
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      expect(screen.getByText('Planned Range:')).toBeInTheDocument();
+      expect(screen.getByText('Planned Range')).toBeInTheDocument();
     });
 
     it('shows the min-max range formatted correctly', async () => {
@@ -735,7 +737,7 @@ describe('HouseholdItemDetailPage — budget line rendering (bug #436)', () => {
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      expect(screen.getByText('Planned Range:')).toBeInTheDocument();
+      expect(screen.getByText('Planned Range')).toBeInTheDocument();
       expect(screen.getByText(/€430.00.*€570.00/)).toBeInTheDocument();
     });
   });
@@ -762,7 +764,7 @@ describe('HouseholdItemDetailPage — budget line rendering (bug #436)', () => {
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      expect(screen.getByText('Total Planned:')).toBeInTheDocument();
+      expect(screen.getByText('Planned Range')).toBeInTheDocument();
     });
 
     it('shows the total planned amount when no margin variance', async () => {
@@ -807,7 +809,7 @@ describe('HouseholdItemDetailPage — budget line rendering (bug #436)', () => {
       });
 
       // quote has 5% margin → 500*0.95=475, 500*1.05=525 → min !== max → Planned Range
-      expect(screen.getByText('Planned Range:')).toBeInTheDocument();
+      expect(screen.getByText('Planned Range')).toBeInTheDocument();
     });
 
     it('shows "Total Planned:" when multiple invoice-confidence lines have same amount (no margin variance)', async () => {
@@ -838,7 +840,7 @@ describe('HouseholdItemDetailPage — budget line rendering (bug #436)', () => {
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      expect(screen.getByText('Total Planned:')).toBeInTheDocument();
+      expect(screen.getByText('Planned Range')).toBeInTheDocument();
       // Total = 300 + 200 = 500
       expect(screen.getByText('€500.00')).toBeInTheDocument();
     });
@@ -847,7 +849,7 @@ describe('HouseholdItemDetailPage — budget line rendering (bug #436)', () => {
   // ─── Scenario 6: Planned range de-emphasis when all lines are invoiced (issue #462) ─
 
   describe('Scenario 6: planned range de-emphasis (allLinesInvoiced)', () => {
-    it('planned range span has budgetSummaryValueMuted class when all budget lines have invoices', async () => {
+    it('planned range span has budgetValueMuted class when all budget lines have invoices', async () => {
       mockGetHouseholdItem.mockResolvedValue(makeItem());
       // All lines are invoiced: allLinesInvoiced = true
       mockFetchHouseholdItemBudgets.mockResolvedValue([
@@ -876,16 +878,16 @@ describe('HouseholdItemDetailPage — budget line rendering (bug #436)', () => {
       });
 
       // "Total Planned:" should be present (0% margin lines, min === max)
-      expect(screen.getByText('Total Planned:')).toBeInTheDocument();
+      expect(screen.getByText('Planned Range')).toBeInTheDocument();
 
       // The planned amount value should use the muted class
       const totalPlannedAmount = screen.getByText('€800.00');
-      expect(totalPlannedAmount.className).toContain('budgetSummaryValueMuted');
+      expect(totalPlannedAmount.getAttribute('class')).toContain('budgetValueMuted');
     });
 
-    it('planned range span has budgetSummaryValue class when only some lines have invoices', async () => {
+    it('planned range span has budgetValueMuted class when some lines have invoices (totalActualCost > 0)', async () => {
       mockGetHouseholdItem.mockResolvedValue(makeItem());
-      // Mixed: one invoiced, one not — allLinesInvoiced = false
+      // Mixed: one invoiced, one not — totalActualCost > 0 so planned range is muted
       mockFetchHouseholdItemBudgets.mockResolvedValue([
         makeBudgetLine({
           id: 'bl-1',
@@ -911,18 +913,17 @@ describe('HouseholdItemDetailPage — budget line rendering (bug #436)', () => {
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      // "Planned Range:" should be present (20% margin)
-      expect(screen.getByText('Planned Range:')).toBeInTheDocument();
+      // "Planned Range" should be present (20% margin)
+      expect(screen.getByText('Planned Range')).toBeInTheDocument();
 
-      // The planned range value should NOT use the muted class — normal emphasis
+      // totalActualCost = 480 > 0, so the planned range uses budgetValueMuted
       // totalMin = 500*0.8 + 300*0.8 = 400 + 240 = 640
       // totalMax = 500*1.2 + 300*1.2 = 600 + 360 = 960
       const rangeEl = screen.getByText(/€640.00.*€960.00/);
-      expect(rangeEl.className).toContain('budgetSummaryValue');
-      expect(rangeEl.className).not.toContain('budgetSummaryValueMuted');
+      expect(rangeEl.getAttribute('class')).toContain('budgetValueMuted');
     });
 
-    it('planned range span has budgetSummaryValue class when no lines have invoices', async () => {
+    it('planned range span has budgetValue class when no lines have invoices', async () => {
       mockGetHouseholdItem.mockResolvedValue(makeItem());
       // No invoices at all: allLinesInvoiced = false
       mockFetchHouseholdItemBudgets.mockResolvedValue([
@@ -942,13 +943,13 @@ describe('HouseholdItemDetailPage — budget line rendering (bug #436)', () => {
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      expect(screen.getByText('Planned Range:')).toBeInTheDocument();
+      expect(screen.getByText('Planned Range')).toBeInTheDocument();
 
-      // Normal emphasis — not muted
+      // Normal emphasis (budgetValue) — totalActualCost = 0 so planned range is not muted
       // totalMin = 500*0.8 = 400, totalMax = 500*1.2 = 600
       const rangeEl = screen.getByText(/€400.00.*€600.00/);
-      expect(rangeEl.className).toContain('budgetSummaryValue');
-      expect(rangeEl.className).not.toContain('budgetSummaryValueMuted');
+      expect(rangeEl.getAttribute('class')).toContain('budgetValue');
+      expect(rangeEl.getAttribute('class')).not.toContain('budgetValueMuted');
     });
   });
 
@@ -967,7 +968,9 @@ describe('HouseholdItemDetailPage — budget line rendering (bug #436)', () => {
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      expect(screen.getByText('No budget lines added.')).toBeInTheDocument();
+      expect(
+        screen.getByText('No budget lines yet. Add the first line to start tracking costs.'),
+      ).toBeInTheDocument();
     });
 
     it('does NOT show budget summary when no budget lines exist', async () => {
@@ -982,9 +985,8 @@ describe('HouseholdItemDetailPage — budget line rendering (bug #436)', () => {
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      expect(screen.queryByText('Total Planned:')).not.toBeInTheDocument();
-      expect(screen.queryByText('Planned Range:')).not.toBeInTheDocument();
-      expect(screen.queryByText('Total Actual Cost:')).not.toBeInTheDocument();
+      expect(screen.queryByText('Planned Range')).not.toBeInTheDocument();
+      expect(screen.queryByText('Total Actual Cost')).not.toBeInTheDocument();
     });
 
     it('mixed: one invoiced line and one non-invoiced line shows both renderings', async () => {
@@ -1021,7 +1023,7 @@ describe('HouseholdItemDetailPage — budget line rendering (bug #436)', () => {
       // Non-invoiced line shows confidence label
       expect(screen.getByText('Own Estimate')).toBeInTheDocument();
       // Budget summary shows actual cost (480 > 0)
-      expect(screen.getByText('Total Actual Cost:')).toBeInTheDocument();
+      expect(screen.getByText('Total Actual Cost')).toBeInTheDocument();
     });
   });
 });

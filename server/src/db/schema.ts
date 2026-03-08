@@ -509,9 +509,28 @@ export const documentLinks = sqliteTable(
 // ─── EPIC-04: Household Items & Furniture Management ───────────────────────
 
 /**
+ * Household item categories table - lookup table for household item types.
+ * Pre-seeded with 8 default categories; users can manage custom categories.
+ * EPIC-09: Story #509 - Unified Tags & Categories Management Page
+ */
+export const householdItemCategories = sqliteTable(
+  'household_item_categories',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').unique().notNull(),
+    color: text('color'),
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [index('idx_household_item_categories_sort_order').on(table.sortOrder)],
+);
+
+/**
  * Household items table - stores furniture, appliances, and other items for purchase.
  * Tracks ordering status, delivery, and optional vendor association.
  * EPIC-04: Central entity for household item management.
+ * EPIC-09: Story #509 - category changed from enum to FK to householdItemCategories.
  */
 export const householdItems = sqliteTable(
   'household_items',
@@ -519,20 +538,9 @@ export const householdItems = sqliteTable(
     id: text('id').primaryKey(),
     name: text('name').notNull(),
     description: text('description'),
-    category: text('category', {
-      enum: [
-        'furniture',
-        'appliances',
-        'fixtures',
-        'decor',
-        'electronics',
-        'outdoor',
-        'storage',
-        'other',
-      ],
-    })
+    categoryId: text('category_id')
       .notNull()
-      .default('other'),
+      .references(() => householdItemCategories.id, { onDelete: 'restrict' }),
     status: text('status', {
       enum: ['planned', 'purchased', 'scheduled', 'arrived'],
     })
@@ -553,7 +561,7 @@ export const householdItems = sqliteTable(
     updatedAt: text('updated_at').notNull(),
   },
   (table) => ({
-    categoryIdx: index('idx_household_items_category').on(table.category),
+    categoryIdIdx: index('idx_household_items_category_id').on(table.categoryId),
     statusIdx: index('idx_household_items_status').on(table.status),
     roomIdx: index('idx_household_items_room').on(table.room),
     vendorIdIdx: index('idx_household_items_vendor_id').on(table.vendorId),

@@ -274,6 +274,12 @@ test.describe('Document Linking — Duplicate (Scenario 5)', { tag: '@responsive
       await addDocButton.click();
       pickerModal = page.getByRole('dialog', { name: 'Add Document' });
       await expect(pickerModal).toBeVisible();
+
+      // Uncheck "Hide linked" toggle so the already-linked document is visible
+      const hideLinkedCheckbox = pickerModal.getByRole('checkbox', { name: /hide linked/i });
+      await expect(hideLinkedCheckbox).toBeVisible({ timeout: 5000 });
+      await hideLinkedCheckbox.uncheck();
+
       await expect(
         pickerModal.getByRole('list', { name: 'Documents' }).getByRole('listitem'),
       ).toHaveCount(1, { timeout: 10000 });

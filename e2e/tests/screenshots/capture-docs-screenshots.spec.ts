@@ -14,7 +14,7 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { test, expect } from '@playwright/test';
-import { ROUTES } from '../../fixtures/testData.js';
+import { ROUTES, API } from '../../fixtures/testData.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SCREENSHOTS_DIR = path.resolve(__dirname, '../../../docs/static/img/screenshots');
@@ -63,8 +63,8 @@ async function seedWorkItems(request: Parameters<typeof test>[2], baseUrl: strin
       // Tag already created by another parallel worker — look it up by name
       const listRes = await request.get(`${baseUrl}/api/tags`);
       if (listRes.ok()) {
-        const listBody = (await listRes.json()) as Array<{ id: number; name: string }>;
-        const existing = listBody.find((t) => t.name === tag.name);
+        const listBody = (await listRes.json()) as { tags: Array<{ id: number; name: string }> };
+        const existing = listBody.tags.find((t) => t.name === tag.name);
         if (existing) {
           tagIds.push(existing.id);
         }
@@ -150,11 +150,266 @@ async function seedWorkItems(request: Parameters<typeof test>[2], baseUrl: strin
   return createdIds;
 }
 
+async function seedBudgetData(
+  request: Parameters<typeof test>[2],
+  baseUrl: string,
+  workItemIds: number[],
+) {
+  // Create budget categories
+  const categories = [
+    { name: 'Electrical', description: 'All electrical work and materials' },
+    { name: 'Plumbing', description: 'Water supply, drainage, and fixtures' },
+    { name: 'Windows & Doors', description: 'Exterior and interior openings' },
+    { name: 'Structural', description: 'Foundation, framing, and load-bearing elements' },
+  ];
+  const categoryIds: number[] = [];
+  for (const cat of categories) {
+    const res = await request.post(`${baseUrl}${API.budgetCategories}`, { data: cat });
+    if (res.ok()) {
+      const body = (await res.json()) as { id: number };
+      categoryIds.push(body.id);
+    }
+  }
+
+  // Create financing sources
+  const sources = [
+    { name: 'Construction Loan', totalAmount: 250000 },
+    { name: 'Savings', totalAmount: 50000 },
+  ];
+  const sourceIds: number[] = [];
+  for (const src of sources) {
+    const res = await request.post(`${baseUrl}${API.budgetSources}`, { data: src });
+    if (res.ok()) {
+      const body = (await res.json()) as { id: number };
+      sourceIds.push(body.id);
+    }
+  }
+
+  // Create a subsidy program
+  await request.post(`${baseUrl}${API.subsidyPrograms}`, {
+    data: {
+      name: 'Energy Efficiency Rebate',
+      type: 'percentage',
+      rate: 15,
+      budgetCategoryId: categoryIds[0],
+      status: 'approved',
+    },
+  });
+
+  // Create vendors
+  const vendors = [
+    { name: 'Sparky Electric Co.' },
+    { name: 'ProPlumb Solutions' },
+    { name: 'ClearView Windows' },
+  ];
+  const vendorIds: number[] = [];
+  for (const v of vendors) {
+    const res = await request.post(`${baseUrl}${API.vendors}`, { data: v });
+    if (res.ok()) {
+      const body = (await res.json()) as { id: number };
+      vendorIds.push(body.id);
+    }
+  }
+
+  // Add budget lines to work items
+  if (workItemIds.length >= 5 && categoryIds.length >= 4 && sourceIds.length >= 2) {
+    const budgetLines = [
+      {
+        workItemId: workItemIds[1],
+        categoryId: categoryIds[0],
+        sourceId: sourceIds[0],
+        amount: 18500,
+        confidence: 'professional_estimate',
+      },
+      {
+        workItemId: workItemIds[2],
+        categoryId: categoryIds[1],
+        sourceId: sourceIds[0],
+        amount: 12000,
+        confidence: 'quote',
+      },
+      {
+        workItemId: workItemIds[4],
+        categoryId: categoryIds[2],
+        sourceId: sourceIds[1],
+        amount: 22000,
+        confidence: 'own_estimate',
+      },
+      {
+        workItemId: workItemIds[3],
+        categoryId: categoryIds[3],
+        sourceId: sourceIds[0],
+        amount: 35000,
+        confidence: 'invoice',
+      },
+    ];
+    for (const line of budgetLines) {
+      await request.post(`${baseUrl}/api/work-items/${line.workItemId}/budgets`, {
+        data: {
+          budgetCategoryId: line.categoryId,
+          budgetSourceId: line.sourceId,
+          estimatedAmount: line.amount,
+          confidence: line.confidence,
+        },
+      });
+    }
+  }
+
+  // Create invoices on vendors
+  const invoiceIds: number[] = [];
+  if (vendorIds.length >= 2) {
+    const invoices = [
+      {
+        vendorId: vendorIds[0],
+        invoiceNumber: 'INV-2026-001',
+        date: '2026-02-15',
+        status: 'paid',
+        lineItems: [{ description: 'First fix wiring labor', amount: 9500 }],
+      },
+      {
+        vendorId: vendorIds[0],
+        invoiceNumber: 'INV-2026-002',
+        date: '2026-02-28',
+        status: 'pending',
+        lineItems: [{ description: 'Electrical materials', amount: 4200 }],
+      },
+      {
+        vendorId: vendorIds[1],
+        invoiceNumber: 'PP-4401',
+        date: '2026-02-20',
+        status: 'paid',
+        lineItems: [
+          { description: 'Pipe fittings and connectors', amount: 3100 },
+          { description: 'Plumbing labor - bathrooms', amount: 6800 },
+        ],
+      },
+    ];
+    for (const inv of invoices) {
+      const res = await request.post(`${baseUrl}${API.vendors}/${inv.vendorId}/invoices`, {
+        data: {
+          invoiceNumber: inv.invoiceNumber,
+          date: inv.date,
+          status: inv.status,
+          lineItems: inv.lineItems,
+        },
+      });
+      if (res.ok()) {
+        const body = (await res.json()) as { id: number };
+        invoiceIds.push(body.id);
+      }
+    }
+  }
+
+  return { vendorIds, invoiceIds };
+}
+
+async function seedTimelineData(
+  request: Parameters<typeof test>[2],
+  baseUrl: string,
+  workItemIds: number[],
+) {
+  // Create dependencies between work items
+  if (workItemIds.length >= 7) {
+    // Foundation -> Plumbing rough-in (FS)
+    await request.post(`${baseUrl}/api/work-items/${workItemIds[2]}/dependencies`, {
+      data: { predecessorId: workItemIds[3], type: 'finish_to_start' },
+    });
+    // Foundation -> Electrical rough-in (FS)
+    await request.post(`${baseUrl}/api/work-items/${workItemIds[1]}/dependencies`, {
+      data: { predecessorId: workItemIds[3], type: 'finish_to_start' },
+    });
+    // Electrical -> Drywall (FS)
+    await request.post(`${baseUrl}/api/work-items/${workItemIds[5]}/dependencies`, {
+      data: { predecessorId: workItemIds[1], type: 'finish_to_start' },
+    });
+    // Drywall -> Paint (FS)
+    await request.post(`${baseUrl}/api/work-items/${workItemIds[6]}/dependencies`, {
+      data: { predecessorId: workItemIds[5], type: 'finish_to_start' },
+    });
+  }
+
+  // Create milestones
+  const milestones = [
+    { title: 'Foundation Complete', targetDate: '2026-01-25' },
+    { title: 'Rough-ins Complete', targetDate: '2026-02-28' },
+    { title: 'Final Inspection', targetDate: '2026-06-30' },
+  ];
+  for (const ms of milestones) {
+    await request.post(`${baseUrl}${API.milestones}`, { data: ms });
+  }
+
+  // Trigger auto-schedule
+  await request.post(`${baseUrl}${API.schedule}/auto`);
+}
+
+async function seedHouseholdItems(request: Parameters<typeof test>[2], baseUrl: string) {
+  const items = [
+    {
+      name: 'Kitchen island pendant lights',
+      category: 'fixtures',
+      status: 'purchased',
+      room: 'Kitchen',
+      quantity: 3,
+      description: 'Brass pendant lights for above the kitchen island.',
+    },
+    {
+      name: 'Dishwasher',
+      category: 'appliances',
+      status: 'scheduled',
+      room: 'Kitchen',
+      quantity: 1,
+      description: 'Energy Star rated built-in dishwasher.',
+    },
+    {
+      name: 'Living room sofa',
+      category: 'furniture',
+      status: 'planned',
+      room: 'Living Room',
+      quantity: 1,
+      description: 'L-shaped sectional sofa in charcoal grey.',
+    },
+    {
+      name: 'Smart thermostat',
+      category: 'electronics',
+      status: 'arrived',
+      room: 'Hallway',
+      quantity: 1,
+      description: 'Wi-Fi connected programmable thermostat.',
+    },
+    {
+      name: 'Bathroom vanity mirror',
+      category: 'fixtures',
+      status: 'planned',
+      room: 'Bathroom',
+      quantity: 2,
+      description: 'LED backlit vanity mirrors with anti-fog.',
+    },
+  ];
+
+  const householdItemIds: number[] = [];
+  for (const item of items) {
+    const res = await request.post(`${baseUrl}${API.householdItems}`, { data: item });
+    if (res.ok()) {
+      const body = (await res.json()) as { id: number };
+      householdItemIds.push(body.id);
+    }
+  }
+  return householdItemIds;
+}
+
 test.describe('Documentation screenshots', () => {
   const baseUrl = process.env.APP_BASE_URL || 'http://localhost:3000';
 
+  let workItemIds: number[] = [];
+  let vendorIds: number[] = [];
+  let householdItemIds: number[] = [];
+
   test.beforeAll(async ({ request }) => {
-    await seedWorkItems(request, baseUrl);
+    workItemIds = await seedWorkItems(request, baseUrl);
+    const budgetResult = await seedBudgetData(request, baseUrl, workItemIds);
+    vendorIds = budgetResult.vendorIds;
+    await seedTimelineData(request, baseUrl, workItemIds);
+    householdItemIds = await seedHouseholdItems(request, baseUrl);
   });
 
   test.describe('Unauthenticated screenshots', () => {
@@ -234,7 +489,7 @@ test.describe('Documentation screenshots', () => {
   });
 
   test('Tags page', async ({ page }) => {
-    await page.goto(`${baseUrl}/tags`);
+    await page.goto(`${baseUrl}/manage`);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(500);
 
@@ -266,6 +521,221 @@ test.describe('Documentation screenshots', () => {
       await setTheme(page, theme);
       await page.waitForTimeout(300);
       await saveScreenshot(page, 'admin-users', theme);
+    }
+  });
+
+  // Budget screenshots
+
+  test('Budget overview', async ({ page }) => {
+    await page.goto(`${baseUrl}${ROUTES.budget}`);
+    await page.waitForLoadState('networkidle');
+    await expect(page.getByRole('heading', { level: 1, name: /budget/i })).toBeVisible();
+    await page.waitForTimeout(500);
+
+    for (const theme of ['light', 'dark'] as const) {
+      await setTheme(page, theme);
+      await page.waitForTimeout(300);
+      await saveScreenshot(page, 'budget-overview', theme);
+    }
+  });
+
+  test('Budget categories', async ({ page }) => {
+    await page.goto(`${baseUrl}${ROUTES.budgetCategories}`);
+    await page.waitForLoadState('networkidle');
+    await expect(page.getByRole('heading', { level: 1, name: /manage/i })).toBeVisible();
+    await page.waitForTimeout(500);
+
+    for (const theme of ['light', 'dark'] as const) {
+      await setTheme(page, theme);
+      await page.waitForTimeout(300);
+      await saveScreenshot(page, 'budget-categories', theme);
+    }
+  });
+
+  test('Budget financing sources', async ({ page }) => {
+    await page.goto(`${baseUrl}${ROUTES.budgetSources}`);
+    await page.waitForLoadState('networkidle');
+    await expect(page.getByRole('heading', { level: 1, name: /budget/i })).toBeVisible();
+    await page.waitForTimeout(500);
+
+    for (const theme of ['light', 'dark'] as const) {
+      await setTheme(page, theme);
+      await page.waitForTimeout(300);
+      await saveScreenshot(page, 'budget-sources', theme);
+    }
+  });
+
+  test('Budget subsidies', async ({ page }) => {
+    await page.goto(`${baseUrl}${ROUTES.budgetSubsidies}`);
+    await page.waitForLoadState('networkidle');
+    await expect(page.getByRole('heading', { level: 1, name: /budget/i })).toBeVisible();
+    await page.waitForTimeout(500);
+
+    for (const theme of ['light', 'dark'] as const) {
+      await setTheme(page, theme);
+      await page.waitForTimeout(300);
+      await saveScreenshot(page, 'budget-subsidies', theme);
+    }
+  });
+
+  test('Vendor detail', async ({ page }) => {
+    const vendorId = vendorIds[0];
+    if (!vendorId) {
+      test.skip(true, 'No vendors available');
+      return;
+    }
+
+    await page.goto(`${baseUrl}${ROUTES.budgetVendors}/${vendorId}`);
+    await page.waitForLoadState('networkidle');
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await page.waitForTimeout(500);
+
+    for (const theme of ['light', 'dark'] as const) {
+      await setTheme(page, theme);
+      await page.waitForTimeout(300);
+      await saveScreenshot(page, 'budget-vendor-detail', theme);
+    }
+  });
+
+  test('Invoice detail', async ({ page }) => {
+    const vendorId = vendorIds[0];
+    if (!vendorId) {
+      test.skip(true, 'No vendors available');
+      return;
+    }
+
+    await page.goto(`${baseUrl}${ROUTES.budgetVendors}/${vendorId}`);
+    await page.waitForLoadState('networkidle');
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+
+    // Click the first invoice row to navigate to invoice detail
+    const invoiceLink = page.getByRole('link', { name: /INV-2026-001/i });
+    if ((await invoiceLink.count()) > 0) {
+      await invoiceLink.click();
+      await page.waitForLoadState('networkidle');
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+      await page.waitForTimeout(500);
+
+      for (const theme of ['light', 'dark'] as const) {
+        await setTheme(page, theme);
+        await page.waitForTimeout(300);
+        await saveScreenshot(page, 'budget-invoice-detail', theme);
+      }
+    }
+  });
+
+  // Timeline screenshots
+
+  test('Timeline Gantt chart', async ({ page }) => {
+    await page.goto(`${baseUrl}${ROUTES.timeline}`);
+    await page.waitForLoadState('networkidle');
+    // Wait for SVG bars to render
+    await expect(page.locator('svg rect').first()).toBeVisible({ timeout: 10000 });
+    await page.waitForTimeout(500);
+
+    for (const theme of ['light', 'dark'] as const) {
+      await setTheme(page, theme);
+      await page.waitForTimeout(300);
+      await saveScreenshot(page, 'timeline-gantt', theme);
+    }
+  });
+
+  test('Timeline Gantt dependencies', async ({ page }) => {
+    await page.goto(`${baseUrl}${ROUTES.timeline}`);
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('svg rect').first()).toBeVisible({ timeout: 10000 });
+
+    // Ensure dependency arrows are visible (toggle on if needed)
+    const arrowPath = page.locator('svg path.dependency-arrow, svg path[marker-end]').first();
+    if ((await arrowPath.count()) === 0) {
+      // Try toggling the dependency arrows button
+      const toggleBtn = page.locator('[aria-label*="dependencies"], [aria-label*="arrows"]');
+      if ((await toggleBtn.count()) > 0) {
+        await toggleBtn.first().click();
+        await page.waitForTimeout(500);
+      }
+    }
+
+    // Also toggle critical path on if available
+    const criticalPathBtn = page.locator(
+      '[aria-label*="critical path"], [aria-label*="Critical path"]',
+    );
+    if ((await criticalPathBtn.count()) > 0) {
+      await criticalPathBtn.first().click();
+      await page.waitForTimeout(500);
+    }
+
+    await page.waitForTimeout(300);
+
+    for (const theme of ['light', 'dark'] as const) {
+      await setTheme(page, theme);
+      await page.waitForTimeout(300);
+      await saveScreenshot(page, 'timeline-gantt-dependencies', theme);
+    }
+  });
+
+  test('Timeline calendar view', async ({ page }) => {
+    await page.goto(`${baseUrl}${ROUTES.timeline}?view=calendar`);
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(500);
+
+    for (const theme of ['light', 'dark'] as const) {
+      await setTheme(page, theme);
+      await page.waitForTimeout(300);
+      await saveScreenshot(page, 'timeline-calendar', theme);
+    }
+  });
+
+  test('Timeline milestones panel', async ({ page }) => {
+    await page.goto(`${baseUrl}${ROUTES.timeline}`);
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('svg rect').first()).toBeVisible({ timeout: 10000 });
+
+    // Open milestones panel
+    const milestonesBtn = page.locator('[data-testid="milestones-panel-button"]');
+    if ((await milestonesBtn.count()) > 0) {
+      await milestonesBtn.click();
+      await page.waitForTimeout(500);
+    }
+
+    for (const theme of ['light', 'dark'] as const) {
+      await setTheme(page, theme);
+      await page.waitForTimeout(300);
+      await saveScreenshot(page, 'timeline-milestones', theme);
+    }
+  });
+
+  // Household items screenshots
+
+  test('Household items list', async ({ page }) => {
+    await page.goto(`${baseUrl}${ROUTES.householdItems}`);
+    await page.waitForLoadState('networkidle');
+    await expect(page.getByRole('heading', { level: 1, name: /household items/i })).toBeVisible();
+    await page.waitForTimeout(500);
+
+    for (const theme of ['light', 'dark'] as const) {
+      await setTheme(page, theme);
+      await page.waitForTimeout(300);
+      await saveScreenshot(page, 'household-items-list', theme);
+    }
+  });
+
+  test('Household item detail', async ({ page }) => {
+    const itemId = householdItemIds[0];
+    if (!itemId) {
+      test.skip(true, 'No household items available');
+      return;
+    }
+
+    await page.goto(`${baseUrl}${ROUTES.householdItems}/${itemId}`);
+    await page.waitForLoadState('networkidle');
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await page.waitForTimeout(500);
+
+    for (const theme of ['light', 'dark'] as const) {
+      await setTheme(page, theme);
+      await page.waitForTimeout(300);
+      await saveScreenshot(page, 'household-item-detail', theme);
     }
   });
 });

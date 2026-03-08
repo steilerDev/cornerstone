@@ -114,7 +114,7 @@ function insertHouseholdItem(
     .values({
       id,
       name: 'Test Household Item',
-      category: 'furniture',
+      categoryId: 'hic-furniture',
       status: 'planned',
       quantity: 1,
       createdAt: now,
@@ -530,7 +530,7 @@ describe('householdItemDepService', () => {
       const wiId = insertWorkItem(db, userId);
       const hiId = insertHouseholdItem(db, {
         name: 'Custom Sofa',
-        category: 'furniture',
+        categoryId: 'hic-furniture',
         status: 'purchased',
         targetDeliveryDate: '2026-06-01',
         earliestDeliveryDate: '2026-05-20',
@@ -551,7 +551,7 @@ describe('householdItemDepService', () => {
       const hi = result[0];
       expect(hi.id).toBe(hiId);
       expect(hi.name).toBe('Custom Sofa');
-      expect(hi.category).toBe('furniture');
+      expect(hi.category).toBe('hic-furniture');
       expect(hi.status).toBe('purchased');
       expect(hi.targetDeliveryDate).toBe('2026-06-01');
       expect(hi.earliestDeliveryDate).toBe('2026-05-20');

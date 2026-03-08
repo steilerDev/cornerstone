@@ -18,9 +18,16 @@ Cornerstone is under active development. Here is the current state of planned fe
 - [x] **EPIC-06: Timeline and Gantt Chart** ([#6](https://github.com/steilerDev/cornerstone/issues/6)) -- Interactive Gantt chart, calendar view, milestones, CPM-based scheduling engine, dependency arrows, critical path highlighting
 - [x] **EPIC-08: Paperless-ngx Integration** ([#8](https://github.com/steilerDev/cornerstone/issues/8)) -- Document browser, document linking to work items and invoices, proxy architecture, thumbnail and metadata display
 - [x] **EPIC-04: Household Items** ([#4](https://github.com/steilerDev/cornerstone/issues/4)) -- Furniture and appliance tracking with categories, delivery scheduling, budget integration, work item linking, timeline dependencies, invoice and document linking
-- [ ] **EPIC-07: Reporting and Export** ([#7](https://github.com/steilerDev/cornerstone/issues/7)) -- Document export and reporting features
+- [x] **EPIC-07: Reporting and Export** ([#7](https://github.com/steilerDev/cornerstone/issues/7)) -- Budget report generation and document export for bank reporting
+- [x] **EPIC-10: UX Polish and Accessibility** ([#10](https://github.com/steilerDev/cornerstone/issues/10)) -- Cross-cutting UX improvements, keyboard shortcuts, touch optimization, performance tuning
+- [x] **EPIC-11: Unified Tag and Category System** ([#444](https://github.com/steilerDev/cornerstone/issues/444)) -- Consolidated tagging and categorization across work items, budget lines, and household items
+- [x] **EPIC-12: Codebase Refinement and Consistency** ([#445](https://github.com/steilerDev/cornerstone/issues/445)) -- Shared route factories, standardized API clients, consolidated error handling, reusable modal component
+- [x] **EPIC-14: Cross-Entity Code Deduplication** ([#495](https://github.com/steilerDev/cornerstone/issues/495)) -- Shared service factories, unified React components for budget and subsidy logic, accessibility improvements, harmonized design tokens
+
+## Planned
+
 - [ ] **EPIC-09: Dashboard and Overview** ([#9](https://github.com/steilerDev/cornerstone/issues/9)) -- Project dashboard with budget summary and activity
-- [ ] **EPIC-10: UX Polish and Accessibility** ([#10](https://github.com/steilerDev/cornerstone/issues/10)) -- Accessibility improvements and UI refinements
+- [ ] **EPIC-13: Construction Diary** ([#446](https://github.com/steilerDev/cornerstone/issues/446)) -- Project-level construction diary with automatic system events and manual entries
 
 ## Live Tracking
 

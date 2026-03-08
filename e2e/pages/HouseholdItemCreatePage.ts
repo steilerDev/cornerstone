@@ -9,7 +9,7 @@
  * - A form with household item fields:
  *   - #name (text, required) — shows validation error when empty on submit
  *   - #description (textarea)
- *   - #category (select) — options: furniture, appliances, fixtures, decor, electronics, outdoor, storage, other
+ *   - #category (select) — options loaded from API; values use hic- prefix: hic-furniture, hic-appliances, hic-fixtures, hic-decor, hic-electronics, hic-outdoor, hic-storage, hic-other
  *   - #status (select) — options: planned, purchased, scheduled, arrived
  *   - #quantity (number, min 1)
  *   - #vendorId (select)

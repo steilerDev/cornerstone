@@ -3,7 +3,6 @@ import styles from './BudgetSubNav.module.css';
 
 const BUDGET_TABS = [
   { label: 'Overview', to: '/budget/overview' },
-  { label: 'Categories', to: '/budget/categories' },
   { label: 'Vendors', to: '/budget/vendors' },
   { label: 'Sources', to: '/budget/sources' },
   { label: 'Subsidies', to: '/budget/subsidies' },
