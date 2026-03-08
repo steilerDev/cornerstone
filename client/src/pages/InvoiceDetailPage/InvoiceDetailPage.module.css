@@ -226,14 +226,6 @@
   border-radius: var(--radius-sm);
 }
 
-.budgetLineId {
-  font-family: monospace;
-  font-size: var(--font-size-xs);
-  background-color: var(--color-bg-secondary);
-  padding: var(--spacing-0-5) var(--spacing-1-5);
-  border-radius: var(--radius-sm);
-  color: var(--color-text-secondary);
-}
 
 /* ---- Error banner ---- */
 
@@ -361,25 +353,6 @@
   cursor: not-allowed;
 }
 
-.budgetLinkNote {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
-  margin: 0 0 var(--spacing-2) 0;
-  font-style: italic;
-}
-
-.separator {
-  text-align: center;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-  margin: var(--spacing-2) 0;
-  font-weight: var(--font-weight-medium);
-}
-
-.budgetLineDescription {
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-}
 
 /* ---- Buttons ---- */
 
