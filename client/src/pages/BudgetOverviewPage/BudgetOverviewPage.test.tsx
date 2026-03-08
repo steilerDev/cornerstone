@@ -961,9 +961,7 @@ describe('BudgetOverviewPage', () => {
       });
 
       // Expand the WI section so category rows become visible
-      await user.click(
-        screen.getByRole('button', { name: /expand work item budget categories/i }),
-      );
+      await user.click(screen.getByRole('button', { name: /expand work item budget categories/i }));
 
       // Both category expand buttons must be present before filtering
       expect(screen.getByRole('button', { name: /expand materials/i })).toBeInTheDocument();
@@ -1007,9 +1005,7 @@ describe('BudgetOverviewPage', () => {
       });
 
       // Expand the WI section to reveal individual category rows
-      await user.click(
-        screen.getByRole('button', { name: /expand work item budget categories/i }),
-      );
+      await user.click(screen.getByRole('button', { name: /expand work item budget categories/i }));
       expect(screen.getByRole('button', { name: /expand materials/i })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /expand labor/i })).toBeInTheDocument();
 
