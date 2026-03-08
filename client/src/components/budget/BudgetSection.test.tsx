@@ -10,13 +10,7 @@ import type { BudgetSectionProps } from './BudgetSection.js';
 // ─── Stub heavy child components ─────────────────────────────────────────────
 
 jest.unstable_mockModule('./BudgetLineCard.js', () => ({
-  BudgetLineCard: ({
-    line,
-    children,
-  }: {
-    line: BaseBudgetLine;
-    children?: React.ReactNode;
-  }) => (
+  BudgetLineCard: ({ line, children }: { line: BaseBudgetLine; children?: React.ReactNode }) => (
     <div data-testid={`budget-line-card-${line.id}`}>
       <span>{line.description ?? 'no-description'}</span>
       {children}
@@ -112,9 +106,7 @@ function buildLine(id: string, invoiceLink: BudgetLineInvoiceLink | null = null)
   };
 }
 
-function buildHookReturn(
-  overrides?: Partial<UseBudgetSectionReturn>,
-): UseBudgetSectionReturn {
+function buildHookReturn(overrides?: Partial<UseBudgetSectionReturn>): UseBudgetSectionReturn {
   return {
     showBudgetForm: false,
     budgetForm: {

@@ -8,6 +8,7 @@
 **Test files**: `invoiceBudgetLinesApi.test.ts` (26), `InvoiceBudgetLinesSection.test.tsx` (36), updated `InvoiceDetailPage.test.tsx` (18).
 
 **Key patterns**:
+
 - When stubbing a sibling component (same directory), use `jest.unstable_mockModule('./InvoiceBudgetLinesSection.js', ...)` (relative path with `.js` extension)
 - When a section component has cascading deps (api mocks, pickers), stub it in the parent page test rather than setting up all transitive mocks
 - **Backdrop click via CSS class**: `outerModal?.querySelector('.modalBackdrop')` reliably selects the backdrop div when there is no accessible role/label on it

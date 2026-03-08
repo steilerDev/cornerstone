@@ -112,7 +112,10 @@ export function BudgetSection<T extends BaseBudgetLine>({
         {Array.from(invoiceGroups.entries()).map(([invoiceId, groupLines]) => {
           const firstLine = groupLines[0]!;
           const invoiceLink = firstLine.invoiceLink!;
-          const itemizedTotal = groupLines.reduce((sum, line) => sum + (line.invoiceLink?.itemizedAmount || 0), 0);
+          const itemizedTotal = groupLines.reduce(
+            (sum, line) => sum + (line.invoiceLink?.itemizedAmount || 0),
+            0,
+          );
           const plannedTotal = groupLines.reduce((sum, line) => sum + line.plannedAmount, 0);
 
           return (

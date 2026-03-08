@@ -294,11 +294,7 @@ describe('InvoiceLinkModal', () => {
     const onSuccess = jest.fn();
     const onClose = jest.fn();
 
-    render(
-      <InvoiceLinkModal
-        {...buildProps({ onSuccess, onClose })}
-      />,
-    );
+    render(<InvoiceLinkModal {...buildProps({ onSuccess, onClose })} />);
 
     await waitFor(() => {
       expect(screen.queryByText('Loading invoices...')).toBeNull();
@@ -327,9 +323,7 @@ describe('InvoiceLinkModal', () => {
     fireEvent.click(screen.getByRole('button', { name: /link to invoice/i }));
 
     await waitFor(() => {
-      expect(
-        screen.getByText('This budget line is already linked to an invoice'),
-      ).toBeTruthy();
+      expect(screen.getByText('This budget line is already linked to an invoice')).toBeTruthy();
     });
   });
 
@@ -349,9 +343,7 @@ describe('InvoiceLinkModal', () => {
     fireEvent.click(screen.getByRole('button', { name: /link to invoice/i }));
 
     await waitFor(() => {
-      expect(
-        screen.getByText('The itemized amount exceeds the invoice total'),
-      ).toBeTruthy();
+      expect(screen.getByText('The itemized amount exceeds the invoice total')).toBeTruthy();
     });
   });
 

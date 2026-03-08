@@ -8,13 +8,7 @@ import type { InvoiceGroupProps } from './InvoiceGroup.js';
 
 // ─── Stub BudgetLineCard to avoid deep rendering ────────────────────────────
 jest.unstable_mockModule('./BudgetLineCard.js', () => ({
-  BudgetLineCard: ({
-    line,
-    children,
-  }: {
-    line: BaseBudgetLine;
-    children?: React.ReactNode;
-  }) => (
+  BudgetLineCard: ({ line, children }: { line: BaseBudgetLine; children?: React.ReactNode }) => (
     <div data-testid={`budget-line-card-${line.id}`}>
       <span>{line.description ?? 'no-description'}</span>
       {children}

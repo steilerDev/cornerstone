@@ -127,7 +127,9 @@ export function InvoiceGroup<T extends BaseBudgetLine>({
                       disabled={isUnlinking[line.invoiceLink.invoiceBudgetLineId] || false}
                       aria-label="Unlink from invoice"
                     >
-                      {isUnlinking[line.invoiceLink.invoiceBudgetLineId] ? 'Unlinking...' : 'Unlink'}
+                      {isUnlinking[line.invoiceLink.invoiceBudgetLineId]
+                        ? 'Unlinking...'
+                        : 'Unlink'}
                     </button>
                   </div>
                 )}

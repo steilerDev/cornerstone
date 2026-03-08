@@ -210,6 +210,7 @@ See `story-4-11-hi-detail-inline-edit.md` for full spec.
 Spec posted at https://github.com/steilerDev/cornerstone/issues/606#issuecomment-4020101918
 
 Key decisions:
+
 - Section placement: between Invoice Details card and LinkedDocumentsSection, full-width `.card`
 - Edit modal: old WI/HI pickers removed entirely; modal may shrink from `modalContentWide` (48rem) back to default 28rem
 - Remaining row: `var(--color-bg-secondary)` bg, `border-top: 2px solid var(--color-border-strong)` (double weight), italic label

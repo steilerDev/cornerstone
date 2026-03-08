@@ -84,7 +84,9 @@ export function InvoiceLinkModal({
   // Focus management
   useEffect(() => {
     if (modalRef.current) {
-      const firstInput = modalRef.current.querySelector('select, input[type="number"]') as HTMLElement;
+      const firstInput = modalRef.current.querySelector(
+        'select, input[type="number"]',
+      ) as HTMLElement;
       firstInput?.focus();
     }
   }, []);
@@ -143,7 +145,12 @@ export function InvoiceLinkModal({
   };
 
   return (
-    <div className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="link-modal-title">
+    <div
+      className={styles.modal}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="link-modal-title"
+    >
       <div className={styles.backdrop} onClick={handleBackdropClick} />
       <div className={styles.content} ref={modalRef}>
         <div className={styles.header}>
@@ -192,8 +199,10 @@ export function InvoiceLinkModal({
                 >
                   {invoices.map((inv) => (
                     <option key={inv.id} value={inv.id}>
-                      {inv.invoiceNumber ? `#${inv.invoiceNumber}` : `Invoice ${inv.id.slice(0, 8)}`} —{' '}
-                      {formatCurrency(inv.amount)}
+                      {inv.invoiceNumber
+                        ? `#${inv.invoiceNumber}`
+                        : `Invoice ${inv.id.slice(0, 8)}`}{' '}
+                      — {formatCurrency(inv.amount)}
                     </option>
                   ))}
                 </select>
@@ -225,9 +234,7 @@ export function InvoiceLinkModal({
               disabled={isSaving}
               required
             />
-            {error?.field === 'amount' && (
-              <div className={styles.fieldError}>{error.message}</div>
-            )}
+            {error?.field === 'amount' && <div className={styles.fieldError}>{error.message}</div>}
           </div>
 
           {/* Actions */}
