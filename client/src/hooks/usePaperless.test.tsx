@@ -307,9 +307,7 @@ describe('usePaperless', () => {
         { id: 2, name: 'b', color: null, documentCount: 3 },
         { id: 3, name: 'c', color: null, documentCount: 1 },
       ]);
-      mockListPaperlessDocuments.mockResolvedValueOnce(
-        makeDocsResponse([docA, docB]),
-      );
+      mockListPaperlessDocuments.mockResolvedValueOnce(makeDocsResponse([docA, docB]));
 
       const { result } = renderHook(() => usePaperless());
       await waitFor(() => expect(result.current.isLoading).toBe(false));

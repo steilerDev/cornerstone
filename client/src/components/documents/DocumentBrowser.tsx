@@ -162,9 +162,7 @@ export function DocumentBrowser({
                 onKeyDown={(e) => handleTagKeyDown(e, tag.id)}
               >
                 {tag.name}
-                {count > 0 && (
-                  <span className={styles.tagCount}>{count}</span>
-                )}
+                {count > 0 && <span className={styles.tagCount}>{count}</span>}
               </span>
             );
           })}
