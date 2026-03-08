@@ -57,11 +57,11 @@ jest.unstable_mockModule('../../lib/householdItemBudgetsApi.js', () => ({
 // ─── Mock: WorkItemPicker ──────────────────────────────────────────────────────
 
 jest.unstable_mockModule('../../components/WorkItemPicker/WorkItemPicker.js', () => ({
-  WorkItemPicker: (props: { onChange?: (id: string) => void; onSelectItem?: (item: { id: string }) => void }) => (
-    <button
-      data-testid="work-item-picker"
-      onClick={() => props.onSelectItem?.({ id: 'wi-001' })}
-    >
+  WorkItemPicker: (props: {
+    onChange?: (id: string) => void;
+    onSelectItem?: (item: { id: string }) => void;
+  }) => (
+    <button data-testid="work-item-picker" onClick={() => props.onSelectItem?.({ id: 'wi-001' })}>
       Work Item Picker
     </button>
   ),
@@ -71,10 +71,7 @@ jest.unstable_mockModule('../../components/WorkItemPicker/WorkItemPicker.js', ()
 
 jest.unstable_mockModule('../../components/HouseholdItemPicker/HouseholdItemPicker.js', () => ({
   HouseholdItemPicker: (props: { onChange?: (id: string) => void }) => (
-    <button
-      data-testid="household-item-picker"
-      onClick={() => props.onChange?.('hi-001')}
-    >
+    <button data-testid="household-item-picker" onClick={() => props.onChange?.('hi-001')}>
       Household Item Picker
     </button>
   ),
@@ -177,9 +174,8 @@ beforeEach(async () => {
   mockFetchHouseholdItemBudgets.mockResolvedValue([]);
 
   // Deferred import after mock registration
-  const module = (await import(
-    './InvoiceBudgetLinesSection.js'
-  )) as typeof InvoiceBudgetLinesSectionTypes;
+  const module =
+    (await import('./InvoiceBudgetLinesSection.js')) as typeof InvoiceBudgetLinesSectionTypes;
   InvoiceBudgetLinesSection = module.InvoiceBudgetLinesSection;
 });
 
@@ -190,9 +186,7 @@ afterEach(() => {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function renderSection(invoiceId = INVOICE_ID, invoiceTotal = INVOICE_TOTAL) {
-  return render(
-    <InvoiceBudgetLinesSection invoiceId={invoiceId} invoiceTotal={invoiceTotal} />,
-  );
+  return render(<InvoiceBudgetLinesSection invoiceId={invoiceId} invoiceTotal={invoiceTotal} />);
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
@@ -248,9 +242,7 @@ describe('InvoiceBudgetLinesSection', () => {
     it('renders empty state text when no budget lines are linked', async () => {
       mockFetchInvoiceBudgetLines.mockResolvedValue(makeListResponse([], INVOICE_TOTAL));
       renderSection();
-      await waitFor(() =>
-        expect(screen.getByText('No budget lines linked')).toBeInTheDocument(),
-      );
+      await waitFor(() => expect(screen.getByText('No budget lines linked')).toBeInTheDocument());
     });
 
     it('renders descriptive body text in empty state', async () => {
@@ -282,9 +274,7 @@ describe('InvoiceBudgetLinesSection', () => {
     it('renders "+ Add Budget Line" button', async () => {
       renderSection();
       await waitFor(() =>
-        expect(
-          screen.getByRole('button', { name: /\+ Add Budget Line/i }),
-        ).toBeInTheDocument(),
+        expect(screen.getByRole('button', { name: /\+ Add Budget Line/i })).toBeInTheDocument(),
       );
     });
   });
@@ -372,9 +362,7 @@ describe('InvoiceBudgetLinesSection', () => {
         expect(screen.getByRole('button', { name: /\+ Add Budget Line/i })).not.toBeDisabled(),
       );
       fireEvent.click(screen.getByRole('button', { name: /\+ Add Budget Line/i }));
-      expect(
-        screen.getByRole('heading', { name: /^Add Budget Line$/i }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /^Add Budget Line$/i })).toBeInTheDocument();
     });
 
     it('renders WorkItemPicker and HouseholdItemPicker in step 1', async () => {
@@ -423,8 +411,8 @@ describe('InvoiceBudgetLinesSection', () => {
       // Click the outer modal container itself (which is the parent of the backdrop div)
       const dialog = screen.getByRole('dialog');
       const outerModal = dialog.parentElement; // .modalContent -> .modal
-      const backdropDiv = outerModal?.querySelector('.modalBackdrop') ??
-        outerModal?.firstElementChild;
+      const backdropDiv =
+        outerModal?.querySelector('.modalBackdrop') ?? outerModal?.firstElementChild;
       if (backdropDiv) fireEvent.click(backdropDiv);
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     });
@@ -601,9 +589,7 @@ describe('InvoiceBudgetLinesSection', () => {
         fireEvent.click(screen.getByRole('button', { name: /^Remove$/i }));
       });
 
-      await waitFor(() =>
-        expect(screen.getByText('No budget lines linked')).toBeInTheDocument(),
-      );
+      await waitFor(() => expect(screen.getByText('No budget lines linked')).toBeInTheDocument());
     });
 
     it('shows error banner when deleteInvoiceBudgetLine rejects', async () => {
@@ -630,7 +616,10 @@ describe('InvoiceBudgetLinesSection', () => {
       const line = makeDetailLine('ibl-001', { itemizedAmount: 500.0, plannedAmount: 800.0 });
       mockFetchInvoiceBudgetLines.mockResolvedValue(makeListResponse([line], 1000.0));
 
-      const updatedLine = makeDetailLine('ibl-001', { itemizedAmount: 1200.0, plannedAmount: 800.0 });
+      const updatedLine = makeDetailLine('ibl-001', {
+        itemizedAmount: 1200.0,
+        plannedAmount: 800.0,
+      });
       mockUpdateInvoiceBudgetLine.mockResolvedValue(makeCreateResponse(updatedLine, 300.0));
 
       renderSection();

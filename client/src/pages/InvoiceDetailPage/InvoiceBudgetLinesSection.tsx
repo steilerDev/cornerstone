@@ -150,9 +150,7 @@ export function InvoiceBudgetLinesSection({
       });
     } catch (err) {
       const errorMsg =
-        err instanceof ApiClientError
-          ? err.error.message
-          : 'Failed to load budget lines.';
+        err instanceof ApiClientError ? err.error.message : 'Failed to load budget lines.';
 
       setPickerState({
         step: 2,
@@ -170,7 +168,9 @@ export function InvoiceBudgetLinesSection({
    * Step 2: User selects a budget line from the filtered list.
    * Create the invoice budget line link.
    */
-  const handleSelectBudgetLine = async (budgetLine: WorkItemBudgetLine | HouseholdItemBudgetLine) => {
+  const handleSelectBudgetLine = async (
+    budgetLine: WorkItemBudgetLine | HouseholdItemBudgetLine,
+  ) => {
     if (!pickerState.itemId || !pickerState.type) return;
 
     try {
@@ -236,9 +236,7 @@ export function InvoiceBudgetLinesSection({
 
       // Update the line and remaining amount
       setBudgetLines(
-        budgetLines.map((line) =>
-          line.id === editingLineId ? response.budgetLine : line,
-        ),
+        budgetLines.map((line) => (line.id === editingLineId ? response.budgetLine : line)),
       );
       setRemainingAmount(response.remainingAmount);
       setEditingLineId(null);
@@ -349,7 +347,10 @@ export function InvoiceBudgetLinesSection({
         <div className={styles.emptyState}>
           <span className={styles.emptyIcon}>📊</span>
           <p className={styles.emptyTitle}>No budget lines linked</p>
-          <p className={styles.emptyBody}>Link budget lines to allocate portions of this invoice to specific work items or household items.</p>
+          <p className={styles.emptyBody}>
+            Link budget lines to allocate portions of this invoice to specific work items or
+            household items.
+          </p>
         </div>
       )}
 
@@ -369,12 +370,8 @@ export function InvoiceBudgetLinesSection({
             <tbody>
               {budgetLines.map((line) => (
                 <tr key={line.id} className={styles.tr}>
-                  <td className={styles.tdDescription}>
-                    {line.budgetLineDescription || '\u2014'}
-                  </td>
-                  <td className={styles.tdCategory}>
-                    {line.categoryName || '\u2014'}
-                  </td>
+                  <td className={styles.tdDescription}>{line.budgetLineDescription || '\u2014'}</td>
+                  <td className={styles.tdCategory}>{line.categoryName || '\u2014'}</td>
                   <td className={styles.tdPlanned}>{formatCurrency(line.plannedAmount)}</td>
                   <td className={styles.tdItemized}>
                     {editingLineId === line.id ? (
@@ -389,9 +386,7 @@ export function InvoiceBudgetLinesSection({
                           step="0.01"
                           aria-label={`Edit itemized amount for budget line`}
                         />
-                        {editError && (
-                          <div className={styles.editErrorMsg}>{editError}</div>
-                        )}
+                        {editError && <div className={styles.editErrorMsg}>{editError}</div>}
                         <div className={styles.editActions}>
                           <button
                             type="button"
@@ -443,7 +438,9 @@ export function InvoiceBudgetLinesSection({
               ))}
 
               {/* Remaining row */}
-              <tr className={`${styles.tr} ${styles.trRemaining} ${styles[`trRemaining_${getRemainingColor()}`]}`}>
+              <tr
+                className={`${styles.tr} ${styles.trRemaining} ${styles[`trRemaining_${getRemainingColor()}`]}`}
+              >
                 <td colSpan={3} className={styles.tdRemainingLabel}>
                   Remaining
                 </td>
@@ -469,7 +466,9 @@ export function InvoiceBudgetLinesSection({
           >
             <div className={styles.modalHeader}>
               <h2 id="picker-title" className={styles.modalTitle}>
-                {pickerState.step === 1 ? 'Add Budget Line' : `Select Budget Line for ${pickerState.itemTitle}`}
+                {pickerState.step === 1
+                  ? 'Add Budget Line'
+                  : `Select Budget Line for ${pickerState.itemTitle}`}
               </h2>
               <button
                 type="button"
@@ -533,11 +532,13 @@ export function InvoiceBudgetLinesSection({
                     </div>
                   )}
 
-                  {!pickerState.isLoading && pickerState.budgetLines.length === 0 && !pickerState.error && (
-                    <div className={styles.emptyState}>
-                      <p>No unlinked budget lines available for this item.</p>
-                    </div>
-                  )}
+                  {!pickerState.isLoading &&
+                    pickerState.budgetLines.length === 0 &&
+                    !pickerState.error && (
+                      <div className={styles.emptyState}>
+                        <p>No unlinked budget lines available for this item.</p>
+                      </div>
+                    )}
 
                   {!pickerState.isLoading && pickerState.budgetLines.length > 0 && (
                     <div className={styles.budgetLineList}>
@@ -597,8 +598,8 @@ export function InvoiceBudgetLinesSection({
               Remove Budget Line?
             </h2>
             <p className={styles.modalText}>
-              This budget line will be unlinked from the invoice. The budget line itself will
-              remain in the work item or household item.
+              This budget line will be unlinked from the invoice. The budget line itself will remain
+              in the work item or household item.
             </p>
             <div className={styles.modalActions}>
               <button

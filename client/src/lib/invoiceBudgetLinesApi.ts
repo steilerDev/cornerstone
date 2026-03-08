@@ -14,9 +14,7 @@ import type {
 export function fetchInvoiceBudgetLines(
   invoiceId: string,
 ): Promise<InvoiceBudgetLineListDetailResponse> {
-  return get<InvoiceBudgetLineListDetailResponse>(
-    `/invoices/${invoiceId}/budget-lines`,
-  );
+  return get<InvoiceBudgetLineListDetailResponse>(`/invoices/${invoiceId}/budget-lines`);
 }
 
 /**
@@ -26,10 +24,7 @@ export function createInvoiceBudgetLine(
   invoiceId: string,
   data: CreateInvoiceBudgetLineRequest,
 ): Promise<InvoiceBudgetLineCreateResponse> {
-  return post<InvoiceBudgetLineCreateResponse>(
-    `/invoices/${invoiceId}/budget-lines`,
-    data,
-  );
+  return post<InvoiceBudgetLineCreateResponse>(`/invoices/${invoiceId}/budget-lines`, data);
 }
 
 /**
