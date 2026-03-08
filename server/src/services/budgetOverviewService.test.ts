@@ -1278,7 +1278,7 @@ describe('getBudgetOverview', () => {
         applicationStatus: 'approved',
         categoryIds: [catA],
       });
-      linkWorkItemSubsidy(wi1Id, prog); // applies to wi1 (catA, invoice) => 50000 * 0.1 = 5000
+      linkWorkItemSubsidy(wi1Id, prog); // applies to wi1 (catA, invoice) => 45000 * 0.1 = 4500 (uses itemized amount, not plannedAmount)
 
       const result = getBudgetOverview(db);
 
@@ -1312,7 +1312,7 @@ describe('getBudgetOverview', () => {
       expect(result.remainingVsActualPaid).toBe(155000); // 200000 - 45000
 
       // Subsidy summary
-      expect(result.subsidySummary.totalReductions).toBeCloseTo(5000, 5);
+      expect(result.subsidySummary.totalReductions).toBeCloseTo(4500, 5);
       expect(result.subsidySummary.activeSubsidyCount).toBe(1);
 
       // Category A: wi1 (has invoice 45000 → min/max=45000) + wi3 (no invoice → 19000/21000)
