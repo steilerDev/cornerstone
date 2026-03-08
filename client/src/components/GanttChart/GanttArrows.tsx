@@ -287,8 +287,7 @@ export const GanttArrows = memo(function GanttArrows({
         const arrowPath = computeArrowPath(barRect, msRect, 'finish_to_start', 0);
         const description = `${workItemTitle} contributes to milestone ${milestoneTitle}`;
         const isCritical =
-          criticalMilestoneIds?.has(milestoneId) === true &&
-          criticalPathSet.has(workItemId);
+          criticalMilestoneIds?.has(milestoneId) === true && criticalPathSet.has(workItemId);
 
         results.push({
           key: `milestone-contrib-${workItemId}-${milestoneId}`,
@@ -316,8 +315,7 @@ export const GanttArrows = memo(function GanttArrows({
         const arrowPath = computeArrowPath(msRect, barRect, 'finish_to_start', 0);
         const description = `${milestoneTitle} is a required milestone for ${workItemTitle}`;
         const isCritical =
-          criticalMilestoneIds?.has(milestoneId) === true &&
-          criticalPathSet.has(workItemId);
+          criticalMilestoneIds?.has(milestoneId) === true && criticalPathSet.has(workItemId);
 
         results.push({
           key: `milestone-req-${milestoneId}-${workItemId}`,
