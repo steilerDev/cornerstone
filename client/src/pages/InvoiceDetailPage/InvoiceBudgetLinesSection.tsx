@@ -293,7 +293,8 @@ export function InvoiceBudgetLinesSection({
         // If there are remaining lines, focus the next one; otherwise focus the Add button
         if (budgetLines.length > 1) {
           // Focus the next row if available, or the previous one
-          const focusIndex = deletedIndex < budgetLines.length - 1 ? deletedIndex : deletedIndex - 1;
+          const focusIndex =
+            deletedIndex < budgetLines.length - 1 ? deletedIndex : deletedIndex - 1;
           const rows = document.querySelectorAll('[data-row-id]');
           if (rows[focusIndex]) {
             (rows[focusIndex] as HTMLElement).focus();
