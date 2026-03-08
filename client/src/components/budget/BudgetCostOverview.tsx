@@ -35,13 +35,19 @@ export function BudgetCostOverview({ budgetLines, subsidyPayback }: BudgetCostOv
     subsidyPayback.subsidies.length > 0 &&
     subsidyPayback.maxTotalPayback > 0;
 
+  // When all budget lines are invoiced, costs are known — collapse to single values.
+  // The server-side payback should already return equal min/max when all lines are invoiced,
+  // but we force collapse here for a definitive single-number display.
+  const effectivePaybackMin = allInvoiced && hasSubsidyPayback
+    ? subsidyPayback!.maxTotalPayback
+    : hasSubsidyPayback ? subsidyPayback!.minTotalPayback : 0;
+  const effectivePaybackMax = hasSubsidyPayback
+    ? subsidyPayback!.maxTotalPayback
+    : 0;
+
   // Expected Cost = Planned Range - Expected Payback (straight subtraction)
-  const rawExpectedCostA = hasSubsidyPayback
-    ? totalMinPlanned - subsidyPayback!.minTotalPayback
-    : totalMinPlanned;
-  const rawExpectedCostB = hasSubsidyPayback
-    ? totalMaxPlanned - subsidyPayback!.maxTotalPayback
-    : totalMaxPlanned;
+  const rawExpectedCostA = totalMinPlanned - effectivePaybackMin;
+  const rawExpectedCostB = totalMaxPlanned - effectivePaybackMax;
   const expectedCostMin = Math.min(rawExpectedCostA, rawExpectedCostB);
   const expectedCostMax = Math.max(rawExpectedCostA, rawExpectedCostB);
 
@@ -79,12 +85,12 @@ export function BudgetCostOverview({ budgetLines, subsidyPayback }: BudgetCostOv
               aria-live="polite"
               aria-atomic="true"
               aria-label={
-                subsidyPayback!.minTotalPayback === subsidyPayback!.maxTotalPayback
-                  ? `Expected subsidy payback: ${formatCurrency(subsidyPayback!.minTotalPayback)}`
-                  : `Expected subsidy payback: ${formatCurrency(subsidyPayback!.minTotalPayback)} to ${formatCurrency(subsidyPayback!.maxTotalPayback)}`
+                effectivePaybackMin === effectivePaybackMax
+                  ? `Expected subsidy payback: ${formatCurrency(effectivePaybackMin)}`
+                  : `Expected subsidy payback: ${formatCurrency(effectivePaybackMin)} to ${formatCurrency(effectivePaybackMax)}`
               }
             >
-              {formatRange(subsidyPayback!.minTotalPayback, subsidyPayback!.maxTotalPayback)}
+              {formatRange(effectivePaybackMin, effectivePaybackMax)}
             </span>
           </div>
         )}

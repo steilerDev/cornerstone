@@ -486,9 +486,9 @@ describe('HouseholdItemDetailPage — unified Budget section (issue #566)', () =
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      // Invoiced line: min=max=400; payback 100-120 → 400-120=280 to 400-100=300
+      // All lines invoiced: payback collapses to 120 (max), expected cost = 400-120 = 280
       expect(screen.getByText('Expected Cost')).toBeInTheDocument();
-      expect(screen.getByText(/€280.00.*€300.00/)).toBeInTheDocument();
+      expect(screen.getByText('€280.00')).toBeInTheDocument();
     });
   });
 
@@ -588,10 +588,9 @@ describe('HouseholdItemDetailPage — unified Budget section (issue #566)', () =
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      // Invoiced line collapses: min=max=400; payback 100-120
-      // Expected Cost = 400-120=280 to 400-100=300 → "€280.00 – €300.00"
+      // All lines invoiced: payback collapses to 120 (max), expected cost = 400-120 = 280
       expect(screen.getByText('Expected Cost')).toBeInTheDocument();
-      expect(screen.getByText(/€280.00.*€300.00/)).toBeInTheDocument();
+      expect(screen.getByText('€280.00')).toBeInTheDocument();
     });
 
     it('does NOT show Net Cost when no subsidies are linked even if actuals > 0', async () => {
