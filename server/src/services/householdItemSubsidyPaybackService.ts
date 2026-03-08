@@ -12,7 +12,8 @@ const getPayback = createSubsidyPaybackService({
   junctionEntityIdColumn: 'household_item_id',
   budgetLinesTable: 'household_item_budgets',
   budgetLinesEntityIdColumn: 'household_item_id',
-  supportsInvoices: false,
+  supportsInvoices: true,
+  invoiceBudgetIdColumn: 'household_item_budget_id',
   entityLabel: 'Household item',
   entityIdResponseKey: 'householdItemId',
 });
@@ -22,11 +23,13 @@ const getPayback = createSubsidyPaybackService({
  *
  * Rules:
  *   - Only non-rejected subsidies linked to this household item are included.
- *   - Household items never have invoices, so all budget lines use confidence margins.
+ *   - If a budget line HAS invoices: actual cost is known → min = max = actualCost
+ *   - If a budget line has NO invoices: apply confidence margin to plannedAmount:
+ *       minAmount = plannedAmount * (1 - margin)
+ *       maxAmount = plannedAmount * (1 + margin)
  *   - For percentage subsidies: iterate over matching budget lines and compute
- *     min/max amounts using confidence margins.
- *         minAmount = plannedAmount * (1 - margin)
- *         maxAmount = plannedAmount * (1 + margin)
+ *     min/max amounts using confidence margins or actual cost as applicable.
+ *     Payback range per line = [minAmount * rate/100, maxAmount * rate/100]
  *     Payback range per line = [minAmount * rate/100, maxAmount * rate/100]
  *     Sum across all matching lines per subsidy, then across subsidies.
  *   - For fixed subsidies: amount is fixed regardless of budget lines →

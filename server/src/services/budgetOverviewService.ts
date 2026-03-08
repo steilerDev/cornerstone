@@ -424,7 +424,8 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
       }
 
       if (meta.reductionType === 'percentage') {
-        totalReductions += line.plannedAmount * (meta.reductionValue / 100);
+        const basisAmount = lineInvoiceMap.get(line.id) ?? line.plannedAmount;
+        totalReductions += basisAmount * (meta.reductionValue / 100);
       } else if (meta.reductionType === 'fixed') {
         const cacheKey = `${line.entityId}:${subsidyId}`;
         let matchingLineCount = fixedSubsidyLineCountCacheForTotal.get(cacheKey);

@@ -15,6 +15,7 @@ export interface SubsidyPaybackConfig {
   budgetLinesTable: string;
   budgetLinesEntityIdColumn: string;
   supportsInvoices: boolean;
+  invoiceBudgetIdColumn: string;
   entityLabel: string;
   entityIdResponseKey: string;
 }
@@ -82,19 +83,20 @@ export function createSubsidyPaybackService(
 
     const invoiceMap = new Map<string, number>();
     if (config.supportsInvoices) {
-      const invoiceRows = db.all<{ workItemBudgetId: string; actualCost: number }>(
+      const invoiceRows = db.all<{ budgetLineId: string; actualCost: number }>(
         sql`SELECT
-          work_item_budget_id AS workItemBudgetId,
+          ${sql.raw(config.invoiceBudgetIdColumn)} AS budgetLineId,
           COALESCE(SUM(amount), 0) AS actualCost
         FROM invoices
-        WHERE work_item_budget_id IN (
-          SELECT id FROM work_item_budgets WHERE work_item_id = ${entityId}
+        WHERE ${sql.raw(config.invoiceBudgetIdColumn)} IN (
+          SELECT id FROM ${sql.raw(config.budgetLinesTable)}
+          WHERE ${sql.raw(config.budgetLinesEntityIdColumn)} = ${entityId}
         )
-        GROUP BY work_item_budget_id`,
+        GROUP BY ${sql.raw(config.invoiceBudgetIdColumn)}`,
       );
 
       for (const row of invoiceRows) {
-        invoiceMap.set(row.workItemBudgetId, row.actualCost);
+        invoiceMap.set(row.budgetLineId, row.actualCost);
       }
     }
 

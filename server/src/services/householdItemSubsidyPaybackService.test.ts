@@ -191,7 +191,109 @@ describe('householdItemSubsidyPaybackService', () => {
     });
   });
 
-  // ─── Confidence margin ranges (no invoice support) ─────────────────────────
+  // ─── Invoice helper ─────────────────────────────────────────────────────────
+
+  function insertVendor() {
+    const id = `vendor-${++idCounter}`;
+    const now = new Date(Date.now() + idCounter).toISOString();
+    db.insert(schema.vendors)
+      .values({ id, name: `Vendor ${id}`, createdAt: now, updatedAt: now })
+      .run();
+    return id;
+  }
+
+  function insertHIInvoice(householdItemBudgetId: string, amount: number) {
+    const vendorId = insertVendor();
+    const id = `inv-${++idCounter}`;
+    const now = new Date(Date.now() + idCounter).toISOString();
+    db.insert(schema.invoices)
+      .values({
+        id,
+        householdItemBudgetId,
+        vendorId,
+        invoiceNumber: null,
+        amount,
+        status: 'pending',
+        date: now.slice(0, 10),
+        dueDate: null,
+        notes: null,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    return id;
+  }
+
+  // ─── Invoiced lines (actual cost known) ────────────────────────────────────
+
+  describe('invoiced lines (actual cost known)', () => {
+    it('uses actual invoiced cost for min and max when invoices exist (min === max)', () => {
+      const hiId = insertHouseholdItem();
+      const budgetLineId = insertBudgetLine({
+        householdItemId: hiId,
+        plannedAmount: 1000,
+        confidence: 'own_estimate',
+      });
+      insertHIInvoice(budgetLineId, 800); // actual cost = 800
+
+      const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
+      linkSubsidyToHouseholdItem(hiId, subsidyId);
+
+      const result = getHouseholdItemSubsidyPayback(db, hiId);
+
+      // Actual cost 800, no margin: min = max = 800 * 10% = 80
+      expect(result.minTotalPayback).toBeCloseTo(80);
+      expect(result.maxTotalPayback).toBeCloseTo(80);
+      expect(result.subsidies[0].minPayback).toBeCloseTo(80);
+      expect(result.subsidies[0].maxPayback).toBeCloseTo(80);
+    });
+
+    it('sums multiple invoices for the same budget line as actual cost (min === max)', () => {
+      const hiId = insertHouseholdItem();
+      const budgetLineId = insertBudgetLine({
+        householdItemId: hiId,
+        plannedAmount: 2000,
+        confidence: 'own_estimate',
+      });
+      insertHIInvoice(budgetLineId, 600);
+      insertHIInvoice(budgetLineId, 400); // total: 1000
+
+      const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
+      linkSubsidyToHouseholdItem(hiId, subsidyId);
+
+      const result = getHouseholdItemSubsidyPayback(db, hiId);
+
+      // 1000 × 10% = 100, no margin
+      expect(result.minTotalPayback).toBeCloseTo(100);
+      expect(result.maxTotalPayback).toBeCloseTo(100);
+    });
+
+    it('produces min < max when some lines invoiced and some not (mixed scenario)', () => {
+      const hiId = insertHouseholdItem();
+      // Invoiced line: actual cost 500
+      const invoicedLine = insertBudgetLine({
+        householdItemId: hiId,
+        plannedAmount: 1000,
+        confidence: 'own_estimate',
+      });
+      insertHIInvoice(invoicedLine, 500);
+      // Non-invoiced line: own_estimate, planned 1000
+      insertBudgetLine({ householdItemId: hiId, plannedAmount: 1000, confidence: 'own_estimate' });
+
+      const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
+      linkSubsidyToHouseholdItem(hiId, subsidyId);
+
+      const result = getHouseholdItemSubsidyPayback(db, hiId);
+
+      // Invoiced: min=max=500*10%=50
+      // Non-invoiced (own_estimate ±20%): min=1000*0.8*10%=80, max=1000*1.2*10%=120
+      // Total: min=130, max=170
+      expect(result.minTotalPayback).toBeCloseTo(130);
+      expect(result.maxTotalPayback).toBeCloseTo(170);
+    });
+  });
+
+  // ─── Confidence margin ranges ───────────────────────────────────────────────
 
   describe('confidence margin ranges', () => {
     it('applies own_estimate margin (±20%) to produce min/max range', () => {
@@ -273,9 +375,9 @@ describe('householdItemSubsidyPaybackService', () => {
       expect(result.maxTotalPayback).toBeCloseTo(115);
     });
 
-    it('confidence margins still apply even without invoice support (no actual cost override)', () => {
-      // This test documents the supportsInvoices: false behavior explicitly.
-      // Even if there were invoices in the DB, household items should use confidence margins.
+    it('confidence margins still apply when no invoices are linked (no actual cost override)', () => {
+      // Without any invoices in the DB, confidence margins are used for the payback range.
+      // This verifies the baseline behavior before invoices are added to a budget line.
       const hiId = insertHouseholdItem();
       insertBudgetLine({ householdItemId: hiId, plannedAmount: 1000, confidence: 'own_estimate' });
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 20 });
@@ -284,7 +386,7 @@ describe('householdItemSubsidyPaybackService', () => {
       const result = getHouseholdItemSubsidyPayback(db, hiId);
 
       // own_estimate ±20%: min=1000*0.8*20%=160, max=1000*1.2*20%=240
-      // These are NOT collapsed to an actual cost even if invoices existed (supportsInvoices=false)
+      // No invoices → confidence margin applies, giving a range (min < max)
       expect(result.minTotalPayback).toBeCloseTo(160);
       expect(result.maxTotalPayback).toBeCloseTo(240);
     });

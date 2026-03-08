@@ -13,6 +13,7 @@ const getPayback = createSubsidyPaybackService({
   budgetLinesTable: 'work_item_budgets',
   budgetLinesEntityIdColumn: 'work_item_id',
   supportsInvoices: true,
+  invoiceBudgetIdColumn: 'work_item_budget_id',
   entityLabel: 'Work item',
   entityIdResponseKey: 'workItemId',
 });

@@ -1038,6 +1038,108 @@ describe('getBudgetOverview', () => {
     });
   });
 
+  // ─── totalReductions uses actual invoice cost for invoiced lines ─────────
+
+  describe('totalReductions uses actual invoice cost for invoiced percentage subsidy lines', () => {
+    it('uses actual invoice cost (not plannedAmount) when a budget line has an invoice', () => {
+      // Work item with budget line: plannedAmount=10000, invoice=7000
+      // 20% universal subsidy
+      // Expected: totalReductions = 7000 * 0.20 = 1400 (NOT 10000 * 0.20 = 2000)
+      const { workItemId, budgetLineId } = insertWorkItem({
+        plannedAmount: 10000,
+        confidence: 'own_estimate',
+      });
+      // Insert an invoice for this budget line (actualCost=7000)
+      const vendorId = `vendor-inv-${idCounter++}`;
+      const now = new Date().toISOString();
+      db.insert(schema.vendors)
+        .values({ id: vendorId, name: `Vendor ${vendorId}`, createdAt: now, updatedAt: now })
+        .run();
+      db.insert(schema.invoices)
+        .values({
+          id: `inv-test-${idCounter++}`,
+          vendorId,
+          workItemBudgetId: budgetLineId!,
+          amount: 7000,
+          date: '2026-01-15',
+          status: 'paid',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+
+      const progId = insertSubsidyProgram({
+        reductionType: 'percentage',
+        reductionValue: 20,
+        applicationStatus: 'approved',
+        categoryIds: [], // universal subsidy
+      });
+      linkWorkItemSubsidy(workItemId, progId);
+
+      const result = getBudgetOverview(db);
+
+      // Invoice cost = 7000; 7000 * 20% = 1400 (not 10000 * 20% = 2000)
+      expect(result.subsidySummary.totalReductions).toBeCloseTo(1400, 5);
+    });
+
+    it('uses plannedAmount for uninvoiced lines alongside invoiced lines', () => {
+      // Work item with two budget lines:
+      //   Line A: plannedAmount=10000, invoice=7000
+      //   Line B: plannedAmount=5000, no invoice
+      // 10% universal subsidy
+      // Expected: totalReductions = 7000 * 0.10 + 5000 * 0.10 = 700 + 500 = 1200
+      const { workItemId, budgetLineId: lineAId } = insertWorkItem({
+        plannedAmount: 10000,
+        confidence: 'own_estimate',
+      });
+      // Add second budget line (no invoice)
+      const lineBId = `bud-test-${idCounter++}`;
+      const now = new Date().toISOString();
+      db.insert(schema.workItemBudgets)
+        .values({
+          id: lineBId,
+          workItemId,
+          plannedAmount: 5000,
+          confidence: 'own_estimate',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      // Insert invoice for Line A only
+      const vendorId = `vendor-inv-${idCounter++}`;
+      db.insert(schema.vendors)
+        .values({ id: vendorId, name: `Vendor ${vendorId}`, createdAt: now, updatedAt: now })
+        .run();
+      db.insert(schema.invoices)
+        .values({
+          id: `inv-test-${idCounter++}`,
+          vendorId,
+          workItemBudgetId: lineAId!,
+          amount: 7000,
+          date: '2026-01-15',
+          status: 'paid',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+
+      const progId = insertSubsidyProgram({
+        reductionType: 'percentage',
+        reductionValue: 10,
+        applicationStatus: 'approved',
+        categoryIds: [], // universal subsidy
+      });
+      linkWorkItemSubsidy(workItemId, progId);
+
+      const result = getBudgetOverview(db);
+
+      // Line A (invoiced): 7000 * 10% = 700
+      // Line B (not invoiced): 5000 * 10% = 500
+      // Total: 1200
+      expect(result.subsidySummary.totalReductions).toBeCloseTo(1200, 5);
+    });
+  });
+
   // ─── Confidence margins interact with subsidy reductions ──────────────────
 
   describe('confidence margins interacting with subsidy reductions', () => {
@@ -1249,7 +1351,7 @@ describe('getBudgetOverview', () => {
         applicationStatus: 'approved',
         categoryIds: [catA],
       });
-      linkWorkItemSubsidy(wi1Id, prog); // applies to wi1 (catA, invoice) => 50000 * 0.1 = 5000
+      linkWorkItemSubsidy(wi1Id, prog); // applies to wi1 (catA, actualCost=45000) => 45000 * 0.1 = 4500
 
       const result = getBudgetOverview(db);
 
@@ -1282,8 +1384,9 @@ describe('getBudgetOverview', () => {
       expect(result.remainingVsActualCost).toBe(123000); // 200000 - 77000
       expect(result.remainingVsActualPaid).toBe(155000); // 200000 - 45000
 
-      // Subsidy summary
-      expect(result.subsidySummary.totalReductions).toBeCloseTo(5000, 5);
+      // Subsidy summary — totalReductions uses actual invoice cost (45000), not plannedAmount (50000)
+      // 45000 * 10% = 4500
+      expect(result.subsidySummary.totalReductions).toBeCloseTo(4500, 5);
       expect(result.subsidySummary.activeSubsidyCount).toBe(1);
 
       // Category A: wi1 (has invoice 45000 → min/max=45000) + wi3 (no invoice → 19000/21000)
