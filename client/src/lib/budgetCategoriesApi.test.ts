@@ -104,7 +104,7 @@ describe('budgetCategoriesApi', () => {
 
   describe('createBudgetCategory', () => {
     it('sends POST request to /api/budget-categories with body', async () => {
-      const mockResponse: BudgetCategory = {
+      const budgetCategory: BudgetCategory = {
         id: 'cat-new',
         name: 'Materials',
         description: null,
@@ -117,7 +117,7 @@ describe('budgetCategoriesApi', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 201,
-        json: async () => mockResponse,
+        json: async () => ({ budgetCategory }),
       } as Response);
 
       const requestData = { name: 'Materials' };
@@ -133,7 +133,7 @@ describe('budgetCategoriesApi', () => {
     });
 
     it('returns the created budget category', async () => {
-      const mockResponse: BudgetCategory = {
+      const budgetCategory: BudgetCategory = {
         id: 'cat-new',
         name: 'Labor',
         description: 'Construction labor',
@@ -146,7 +146,7 @@ describe('budgetCategoriesApi', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 201,
-        json: async () => mockResponse,
+        json: async () => ({ budgetCategory }),
       } as Response);
 
       const result = await createBudgetCategory({
@@ -156,13 +156,13 @@ describe('budgetCategoriesApi', () => {
         sortOrder: 5,
       });
 
-      expect(result).toEqual(mockResponse);
+      expect(result).toEqual(budgetCategory);
       expect(result.id).toBe('cat-new');
       expect(result.name).toBe('Labor');
     });
 
     it('sends all optional fields when provided', async () => {
-      const mockResponse: BudgetCategory = {
+      const budgetCategory: BudgetCategory = {
         id: 'cat-full',
         name: 'Permits',
         description: 'Permit costs',
@@ -175,7 +175,7 @@ describe('budgetCategoriesApi', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 201,
-        json: async () => mockResponse,
+        json: async () => ({ budgetCategory }),
       } as Response);
 
       const requestData = {
@@ -228,7 +228,7 @@ describe('budgetCategoriesApi', () => {
 
   describe('updateBudgetCategory', () => {
     it('sends PATCH request to /api/budget-categories/:id with body', async () => {
-      const mockResponse: BudgetCategory = {
+      const budgetCategory: BudgetCategory = {
         id: 'cat-1',
         name: 'Updated Materials',
         description: null,
@@ -240,7 +240,7 @@ describe('budgetCategoriesApi', () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => mockResponse,
+        json: async () => ({ budgetCategory }),
       } as Response);
 
       const updateData = { name: 'Updated Materials' };
@@ -256,7 +256,7 @@ describe('budgetCategoriesApi', () => {
     });
 
     it('returns the updated budget category', async () => {
-      const mockResponse: BudgetCategory = {
+      const budgetCategory: BudgetCategory = {
         id: 'cat-1',
         name: 'New Name',
         description: 'New description',
@@ -268,7 +268,7 @@ describe('budgetCategoriesApi', () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => mockResponse,
+        json: async () => ({ budgetCategory }),
       } as Response);
 
       const result = await updateBudgetCategory('cat-1', {
@@ -278,12 +278,12 @@ describe('budgetCategoriesApi', () => {
         sortOrder: 10,
       });
 
-      expect(result).toEqual(mockResponse);
+      expect(result).toEqual(budgetCategory);
       expect(result.name).toBe('New Name');
     });
 
     it('handles partial update (only color)', async () => {
-      const mockResponse: BudgetCategory = {
+      const budgetCategory: BudgetCategory = {
         id: 'cat-1',
         name: 'Materials',
         description: null,
@@ -295,7 +295,7 @@ describe('budgetCategoriesApi', () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => mockResponse,
+        json: async () => ({ budgetCategory }),
       } as Response);
 
       const updateData = { color: '#AABBCC' };

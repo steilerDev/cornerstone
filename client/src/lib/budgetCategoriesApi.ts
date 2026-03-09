@@ -2,6 +2,7 @@ import { get, post, patch, del } from './apiClient.js';
 import type {
   BudgetCategory,
   BudgetCategoryListResponse,
+  BudgetCategoryResponse,
   CreateBudgetCategoryRequest,
   UpdateBudgetCategoryRequest,
 } from '@cornerstone/shared';
@@ -16,18 +17,22 @@ export function fetchBudgetCategories(): Promise<BudgetCategoryListResponse> {
 /**
  * Creates a new budget category.
  */
-export function createBudgetCategory(data: CreateBudgetCategoryRequest): Promise<BudgetCategory> {
-  return post<BudgetCategory>('/budget-categories', data);
+export async function createBudgetCategory(
+  data: CreateBudgetCategoryRequest,
+): Promise<BudgetCategory> {
+  const response = await post<BudgetCategoryResponse>('/budget-categories', data);
+  return response.budgetCategory;
 }
 
 /**
  * Updates an existing budget category.
  */
-export function updateBudgetCategory(
+export async function updateBudgetCategory(
   id: string,
   data: UpdateBudgetCategoryRequest,
 ): Promise<BudgetCategory> {
-  return patch<BudgetCategory>(`/budget-categories/${id}`, data);
+  const response = await patch<BudgetCategoryResponse>(`/budget-categories/${id}`, data);
+  return response.budgetCategory;
 }
 
 /**

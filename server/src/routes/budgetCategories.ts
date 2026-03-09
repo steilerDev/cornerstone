@@ -80,7 +80,7 @@ export default async function budgetCategoryRoutes(fastify: FastifyInstance) {
       }
 
       const category = budgetCategoryService.createBudgetCategory(fastify.db, request.body);
-      return reply.status(201).send(category);
+      return reply.status(201).send({ budgetCategory: category });
     },
   );
 
@@ -98,7 +98,7 @@ export default async function budgetCategoryRoutes(fastify: FastifyInstance) {
       }
 
       const category = budgetCategoryService.getBudgetCategoryById(fastify.db, request.params.id);
-      return reply.status(200).send(category);
+      return reply.status(200).send({ budgetCategory: category });
     },
   );
 
@@ -120,7 +120,7 @@ export default async function budgetCategoryRoutes(fastify: FastifyInstance) {
         request.params.id,
         request.body,
       );
-      return reply.status(200).send(category);
+      return reply.status(200).send({ budgetCategory: category });
     },
   );
 

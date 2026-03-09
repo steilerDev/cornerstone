@@ -1,4 +1,4 @@
-import { get, post, put, del } from './apiClient.js';
+import { get, post, patch, del } from './apiClient.js';
 import type {
   InvoiceBudgetLineDetailResponse,
   InvoiceBudgetLineCreateResponse,
@@ -35,7 +35,7 @@ export function updateInvoiceBudgetLine(
   lineId: string,
   data: UpdateInvoiceBudgetLineRequest,
 ): Promise<InvoiceBudgetLineCreateResponse> {
-  return put<InvoiceBudgetLineCreateResponse>(
+  return patch<InvoiceBudgetLineCreateResponse>(
     `/invoices/${invoiceId}/budget-lines/${lineId}`,
     data,
   );
