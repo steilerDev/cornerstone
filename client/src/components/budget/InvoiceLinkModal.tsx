@@ -1,7 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import type { Invoice } from '@cornerstone/shared';
 import { fetchAllInvoices } from '../../lib/invoicesApi.js';
-import { createInvoiceBudgetLine, fetchInvoiceBudgetLines } from '../../lib/invoiceBudgetLinesApi.js';
+import {
+  createInvoiceBudgetLine,
+  fetchInvoiceBudgetLines,
+} from '../../lib/invoiceBudgetLinesApi.js';
 import { formatCurrency } from '../../lib/formatters.js';
 import { useToast } from '../Toast/ToastContext.js';
 import styles from './InvoiceLinkModal.module.css';
@@ -297,9 +300,7 @@ export function InvoiceLinkModal({
                             {formatCurrency(inv.amount)}
                           </span>
                           {inv.notes && (
-                            <span className={styles.dropdownItemDescription}>
-                              {inv.notes}
-                            </span>
+                            <span className={styles.dropdownItemDescription}>{inv.notes}</span>
                           )}
                         </button>
                       ))}

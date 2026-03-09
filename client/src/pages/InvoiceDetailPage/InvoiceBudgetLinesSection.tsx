@@ -12,7 +12,10 @@ import {
   deleteInvoiceBudgetLine,
 } from '../../lib/invoiceBudgetLinesApi.js';
 import { fetchWorkItemBudgets, createWorkItemBudget } from '../../lib/workItemBudgetsApi.js';
-import { fetchHouseholdItemBudgets, createHouseholdItemBudget } from '../../lib/householdItemBudgetsApi.js';
+import {
+  fetchHouseholdItemBudgets,
+  createHouseholdItemBudget,
+} from '../../lib/householdItemBudgetsApi.js';
 import { fetchBudgetCategories } from '../../lib/budgetCategoriesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { formatCurrency } from '../../lib/formatters.js';
@@ -194,7 +197,8 @@ export function InvoiceBudgetLinesSection({
         categories: categoriesResponse.categories,
       });
     } catch (err) {
-      const errorMsg = err instanceof ApiClientError ? err.error.message : 'Failed to load categories.';
+      const errorMsg =
+        err instanceof ApiClientError ? err.error.message : 'Failed to load categories.';
       setPickerState({
         ...pickerState,
         error: errorMsg,
@@ -234,7 +238,8 @@ export function InvoiceBudgetLinesSection({
     });
 
     try {
-      const createFn = pickerState.type === 'work_item' ? createWorkItemBudget : createHouseholdItemBudget;
+      const createFn =
+        pickerState.type === 'work_item' ? createWorkItemBudget : createHouseholdItemBudget;
       await createFn(pickerState.itemId, {
         description,
         plannedAmount: parsedAmount,
@@ -243,7 +248,8 @@ export function InvoiceBudgetLinesSection({
       });
 
       // After creating the budget line, re-fetch the list
-      const fetchFn = pickerState.type === 'work_item' ? fetchWorkItemBudgets : fetchHouseholdItemBudgets;
+      const fetchFn =
+        pickerState.type === 'work_item' ? fetchWorkItemBudgets : fetchHouseholdItemBudgets;
       const lines = await fetchFn(pickerState.itemId);
       const unlinkedLines = lines.filter((bl) => bl.invoiceLink === null);
 
@@ -688,7 +694,8 @@ export function InvoiceBudgetLinesSection({
 
                   {!pickerState.isLoading &&
                     pickerState.budgetLines.length === 0 &&
-                    !pickerState.error && !pickerState.showCreateForm && (
+                    !pickerState.error &&
+                    !pickerState.showCreateForm && (
                       <div className={styles.emptyState}>
                         <p>No unlinked budget lines for this item.</p>
                         <button
