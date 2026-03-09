@@ -299,3 +299,34 @@ export function listDependentHouseholdItemsForWorkItem(
     latestDeliveryDate: row.householdItem.latestDeliveryDate,
   }));
 }
+
+/**
+ * List all household items that depend on a milestone.
+ * Returns household items with delivery date information.
+ */
+export function listDependentHouseholdItemsForMilestone(
+  db: DbType,
+  milestoneId: number,
+): WorkItemLinkedHouseholdItemSummary[] {
+  const rows = db
+    .select({ householdItem: householdItems })
+    .from(householdItemDeps)
+    .innerJoin(householdItems, eq(householdItems.id, householdItemDeps.householdItemId))
+    .where(
+      and(
+        eq(householdItemDeps.predecessorType, 'milestone'),
+        eq(householdItemDeps.predecessorId, milestoneId.toString()),
+      ),
+    )
+    .all();
+
+  return rows.map((row) => ({
+    id: row.householdItem.id,
+    name: row.householdItem.name,
+    category: row.householdItem.categoryId as HouseholdItemCategory,
+    status: row.householdItem.status as HouseholdItemStatus,
+    targetDeliveryDate: row.householdItem.targetDeliveryDate,
+    earliestDeliveryDate: row.householdItem.earliestDeliveryDate,
+    latestDeliveryDate: row.householdItem.latestDeliveryDate,
+  }));
+}

@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { UnauthorizedError } from '../errors/AppError.js';
 import * as milestoneService from '../services/milestoneService.js';
+import * as householdItemDepService from '../services/householdItemDepService.js';
 import type {
   CreateMilestoneRequest,
   UpdateMilestoneRequest,
@@ -112,6 +113,17 @@ const removeDependentWorkItemSchema = {
     properties: {
       id: { type: 'integer' },
       workItemId: { type: 'string' },
+    },
+  },
+};
+
+// JSON schema for GET /api/milestones/:id/dependent-household-items (list dependent household items)
+const dependentHouseholdItemsSchema = {
+  params: {
+    type: 'object',
+    required: ['id'],
+    properties: {
+      id: { type: 'integer' },
     },
   },
 };
@@ -280,6 +292,26 @@ export default async function milestoneRoutes(fastify: FastifyInstance) {
         request.params.workItemId,
       );
       return reply.status(204).send();
+    },
+  );
+
+  /**
+   * GET /api/milestones/:id/dependent-household-items
+   * Lists all household items that depend on this milestone.
+   * Auth required: Yes (both admin and member)
+   */
+  fastify.get<{ Params: { id: number } }>(
+    '/:id/dependent-household-items',
+    { schema: dependentHouseholdItemsSchema },
+    async (request, reply) => {
+      if (!request.user) {
+        throw new UnauthorizedError();
+      }
+      const householdItems = householdItemDepService.listDependentHouseholdItemsForMilestone(
+        fastify.db,
+        request.params.id,
+      );
+      return reply.status(200).send({ householdItems });
     },
   );
 }
