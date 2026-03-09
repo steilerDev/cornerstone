@@ -121,9 +121,7 @@ describe('InvoiceLinkModal', () => {
     render(<InvoiceLinkModal {...buildProps()} />);
 
     await waitFor(() => {
-      expect(mockFetchAllInvoices).toHaveBeenCalledWith(
-        expect.objectContaining({ pageSize: 100 }),
-      );
+      expect(mockFetchAllInvoices).toHaveBeenCalledWith(expect.objectContaining({ pageSize: 100 }));
       // vendorId should NOT be in the call
       const callArg = mockFetchAllInvoices.mock.calls[0]?.[0];
       expect(callArg).not.toHaveProperty('vendorId');

@@ -253,7 +253,9 @@ export function TimelinePage() {
 
   // ---- View toggle: gantt (default) or calendar ----
   const location = useLocation();
-  const activeView: 'gantt' | 'calendar' = location.pathname.includes('/calendar') ? 'calendar' : 'gantt';
+  const activeView: 'gantt' | 'calendar' = location.pathname.includes('/calendar')
+    ? 'calendar'
+    : 'gantt';
 
   // ---- Milestone state ----
   const [showMilestonePanel, setShowMilestonePanel] = useState(false);
