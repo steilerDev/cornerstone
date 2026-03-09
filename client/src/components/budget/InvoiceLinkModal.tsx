@@ -274,7 +274,7 @@ export function InvoiceLinkModal({
                     placeholder="Search by invoice number or description..."
                     value={
                       selectedInvoice && !searchInput
-                        ? `#${selectedInvoice.invoiceNumber || selectedInvoice.id.slice(0, 8)} — ${formatCurrency(selectedInvoice.amount)}`
+                        ? `#${selectedInvoice.invoiceNumber || selectedInvoice.id.slice(0, 8)}`
                         : searchInput
                     }
                     onChange={(e) => handleSearchChange(e.target.value)}

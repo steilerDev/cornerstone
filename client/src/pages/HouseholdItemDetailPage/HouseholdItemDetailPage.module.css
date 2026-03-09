@@ -50,6 +50,66 @@
 }
 
 /* ============================================================
+ * Navigation Buttons
+ * ============================================================ */
+
+.navButtons {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.backButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: transparent;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.backButton:hover:not(:disabled) {
+  background: var(--color-bg-tertiary);
+  border-color: var(--color-text-placeholder);
+}
+
+.backButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.secondaryNavButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: transparent;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.secondaryNavButton:hover {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  opacity: 1;
+}
+
+.secondaryNavButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+/* ============================================================
  * Breadcrumb
  * ============================================================ */
 

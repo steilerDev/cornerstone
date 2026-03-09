@@ -144,7 +144,6 @@ describe('InvoiceLinkModal', () => {
     await waitFor(() => {
       const searchInput = screen.getByPlaceholderText(/search by invoice/i) as HTMLInputElement;
       expect(searchInput.value).toContain('#INV-001');
-      expect(searchInput.value).toContain('€1,000.00');
     });
   });
 

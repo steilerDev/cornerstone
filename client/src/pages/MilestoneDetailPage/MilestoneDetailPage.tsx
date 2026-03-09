@@ -1,6 +1,6 @@
 import type { FormEvent } from 'react';
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import type { MilestoneDetail, WorkItemSummary } from '@cornerstone/shared';
 import {
   getMilestone,
@@ -17,6 +17,11 @@ import styles from './MilestoneDetailPage.module.css';
 export function MilestoneDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const locationState = location.state as { from?: string; view?: string } | null;
+  const fromSchedule = locationState?.from === 'schedule';
+  const fromView = locationState?.view;
 
   const milestoneId = id ? parseInt(id, 10) : NaN;
 
@@ -91,7 +96,7 @@ export function MilestoneDetailPage() {
 
     const loadWorkItems = async () => {
       try {
-        const response = await listWorkItems({ pageSize: 1000 });
+        const response = await listWorkItems({ pageSize: 100 });
         // Filter out already-linked work items
         const linkedIds = new Set(milestone.workItems.map((wi) => wi.id));
         const available = response.items.filter((item) => !linkedIds.has(item.id));
@@ -248,12 +253,45 @@ export function MilestoneDetailPage() {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <div className={styles.headerTitle}>
-          <Link to="/project/milestones" className={styles.backLink}>
-            ← Milestones
-          </Link>
-          <h1 className={styles.pageTitle}>{milestone.title}</h1>
+        <div className={styles.navButtons}>
+          {fromSchedule ? (
+            <>
+              <button
+                type="button"
+                className={styles.backButton}
+                onClick={() => navigate(fromView ? `/schedule?view=${fromView}` : '/schedule')}
+              >
+                ← Back to Schedule
+              </button>
+              <button
+                type="button"
+                className={styles.secondaryNavButton}
+                onClick={() => navigate('/project/milestones')}
+              >
+                To Milestones
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                className={styles.backButton}
+                onClick={() => navigate('/project/milestones')}
+              >
+                ← Back to Milestones
+              </button>
+              <button
+                type="button"
+                className={styles.secondaryNavButton}
+                onClick={() => navigate('/schedule')}
+              >
+                To Schedule
+              </button>
+            </>
+          )}
         </div>
+
+        <h1 className={styles.pageTitle}>{milestone.title}</h1>
       </div>
 
       {error && (
