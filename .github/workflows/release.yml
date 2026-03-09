@@ -154,7 +154,7 @@ jobs:
       - name: Docker metadata (beta)
         id: meta-beta
         if: needs.release.outputs.is-prerelease == 'true'
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: steilerdev/cornerstone
           tags: |
@@ -164,7 +164,7 @@ jobs:
       - name: Docker metadata (stable)
         id: meta-stable
         if: needs.release.outputs.is-prerelease == 'false'
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: steilerdev/cornerstone
           tags: |
