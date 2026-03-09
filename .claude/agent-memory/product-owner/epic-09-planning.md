@@ -1,23 +1,24 @@
 # EPIC-09: Dashboard & Project Health Center
 
 ## Epic Issue: #9
+
 - Priority: Should Have
 - Sprint: 5
 - Dependencies: EPIC-02, EPIC-03, EPIC-05, EPIC-06
 
 ## Stories (9 total)
 
-| Story | Issue | Title | Priority | Blocked By | ACs |
-|-------|-------|-------|----------|------------|-----|
-| 9.1 | #470 | User Preferences Infrastructure | Must | (none) | 9 |
-| 9.2 | #471 | Dashboard Layout & Data Shell | Must | #470 | 10 |
-| 9.3 | #472 | Budget Summary Card | Must | #471 | 8 |
-| 9.4 | #473 | Budget Alerts & Source Utilization | Must | #472 | 7 |
-| 9.5 | #474 | Timeline Status Cards | Should | #471 | 9 |
-| 9.6 | #475 | Mini Gantt Preview Card | Should | #474 | 11 |
-| 9.7 | #476 | Invoice & Subsidy Pipeline Cards | Must | #471 | 9 |
-| 9.8 | #477 | Quick Actions & Navigation Card | Should | #471 | 5 |
-| 9.9 | #478 | Responsive, Dark Mode & A11y Polish | Must | all above | 11 |
+| Story | Issue | Title                               | Priority | Blocked By | ACs |
+| ----- | ----- | ----------------------------------- | -------- | ---------- | --- |
+| 9.1   | #470  | User Preferences Infrastructure     | Must     | (none)     | 9   |
+| 9.2   | #471  | Dashboard Layout & Data Shell       | Must     | #470       | 10  |
+| 9.3   | #472  | Budget Summary Card                 | Must     | #471       | 8   |
+| 9.4   | #473  | Budget Alerts & Source Utilization  | Must     | #472       | 7   |
+| 9.5   | #474  | Timeline Status Cards               | Should   | #471       | 9   |
+| 9.6   | #475  | Mini Gantt Preview Card             | Should   | #474       | 11  |
+| 9.7   | #476  | Invoice & Subsidy Pipeline Cards    | Must     | #471       | 9   |
+| 9.8   | #477  | Quick Actions & Navigation Card     | Should   | #471       | 5   |
+| 9.9   | #478  | Responsive, Dark Mode & A11y Polish | Must     | all above  | 11  |
 
 ## Dependency Graph
 
@@ -64,6 +65,7 @@
 ## AC Verification Notes
 
 All 9 stories have well-formed acceptance criteria:
+
 - All use "As a... I want... so that..." format
 - All have numbered, testable ACs (total: 79 ACs across 9 stories)
 - All reference parent epic #9

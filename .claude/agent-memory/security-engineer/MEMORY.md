@@ -84,7 +84,7 @@ See `review-history.md` for detailed findings per PR.
 | #612 | EPIC-15 Story 15.1 — Invoice-Budget-Line Junction Schema & Migration              | COMMENTED (2 informational)                                                                                                   | 2026-03-08 |
 | #614 | EPIC-15 Story 15.2 — Invoice cost basis for subsidy reductions                    | COMMENTED (1 informational: pending invoices count toward cost basis — product design choice, not security risk)              | 2026-03-08 |
 | #615 | EPIC-15 Story #606 — Invoice Budget Lines Frontend (InvoiceBudgetLinesSection)    | COMMENTED (no findings)                                                                                                       | 2026-03-08 |
-| #708 | EPIC-09 Story #470 — User Preferences Infrastructure                             | COMMENTED (2 informational: value no maxLength, DELETE key param no bounds)                                                   | 2026-03-09 |
+| #708 | EPIC-09 Story #470 — User Preferences Infrastructure                              | COMMENTED (2 informational: value no maxLength, DELETE key param no bounds)                                                   | 2026-03-09 |
 
 ## Known Open Recommendations (Low Priority)
 

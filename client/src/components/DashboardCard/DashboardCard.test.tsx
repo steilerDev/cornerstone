@@ -32,9 +32,7 @@ describe('DashboardCard', () => {
         <p>content</p>
       </DashboardCard>,
     );
-    expect(
-      screen.getByRole('button', { name: 'Hide Invoice Pipeline card' }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Hide Invoice Pipeline card' })).toBeInTheDocument();
   });
 
   // ─── Test 3: Dismiss button click ────────────────────────────────────────
@@ -58,7 +56,9 @@ describe('DashboardCard', () => {
         <p>should not appear</p>
       </DashboardCard>,
     );
-    expect(screen.getByRole('status', { name: 'Loading Timeline Status data' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('status', { name: 'Loading Timeline Status data' }),
+    ).toBeInTheDocument();
     expect(screen.queryByText('should not appear')).not.toBeInTheDocument();
   });
 

@@ -11,7 +11,12 @@ import { ProjectSubNav } from '../../components/ProjectSubNav/ProjectSubNav.js';
 import { DashboardCard } from '../../components/DashboardCard/DashboardCard.js';
 import styles from './DashboardPage.module.css';
 
-type DataSourceKey = 'budgetOverview' | 'budgetSources' | 'timeline' | 'invoices' | 'subsidyPrograms';
+type DataSourceKey =
+  | 'budgetOverview'
+  | 'budgetSources'
+  | 'timeline'
+  | 'invoices'
+  | 'subsidyPrograms';
 
 interface DataSourceState {
   isLoading: boolean;
@@ -118,7 +123,13 @@ export function DashboardPage() {
       fetchAllInvoices({ pageSize: 10 }),
     ]);
 
-    const [budgetOverviewResult, budgetSourcesResult, subsidyProgramsResult, timelineResult, invoicesResult] = results;
+    const [
+      budgetOverviewResult,
+      budgetSourcesResult,
+      subsidyProgramsResult,
+      timelineResult,
+      invoicesResult,
+    ] = results;
 
     // Update budget overview state
     if (budgetOverviewResult.status === 'fulfilled') {
@@ -156,7 +167,8 @@ export function DashboardPage() {
       }));
     } else {
       const error = budgetSourcesResult.reason;
-      const message = error instanceof ApiClientError ? error.error.message : 'Failed to load budget sources';
+      const message =
+        error instanceof ApiClientError ? error.error.message : 'Failed to load budget sources';
       setDataStates((prev) => ({
         ...prev,
         budgetSources: {
@@ -179,7 +191,8 @@ export function DashboardPage() {
       }));
     } else {
       const error = subsidyProgramsResult.reason;
-      const message = error instanceof ApiClientError ? error.error.message : 'Failed to load subsidy programs';
+      const message =
+        error instanceof ApiClientError ? error.error.message : 'Failed to load subsidy programs';
       setDataStates((prev) => ({
         ...prev,
         subsidyPrograms: {
@@ -202,7 +215,8 @@ export function DashboardPage() {
       }));
     } else {
       const error = timelineResult.reason;
-      const message = error instanceof ApiClientError ? error.error.message : 'Failed to load timeline';
+      const message =
+        error instanceof ApiClientError ? error.error.message : 'Failed to load timeline';
       setDataStates((prev) => ({
         ...prev,
         timeline: {
@@ -225,7 +239,8 @@ export function DashboardPage() {
       }));
     } else {
       const error = invoicesResult.reason;
-      const message = error instanceof ApiClientError ? error.error.message : 'Failed to load invoices';
+      const message =
+        error instanceof ApiClientError ? error.error.message : 'Failed to load invoices';
       setDataStates((prev) => ({
         ...prev,
         invoices: {

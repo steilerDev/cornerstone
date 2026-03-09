@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import styles from './DashboardCard.module.css';
 
 export interface DashboardCardProps {
@@ -43,7 +43,9 @@ export function DashboardCard({
     <article className={styles.card} aria-labelledby={`card-${id}-title`}>
       {/* Card header with title and dismiss button */}
       <div className={styles.cardHeader}>
-        <h2 id={`card-${id}-title`} className={styles.cardTitle}>{title}</h2>
+        <h2 id={`card-${id}-title`} className={styles.cardTitle}>
+          {title}
+        </h2>
         <button
           type="button"
           className={styles.dismissButton}
@@ -59,7 +61,12 @@ export function DashboardCard({
       <div className={styles.cardContent}>
         {/* Loading state */}
         {isLoading && (
-          <div className={styles.skeleton} role="status" aria-busy="true" aria-label={`Loading ${title} data`}>
+          <div
+            className={styles.skeleton}
+            role="status"
+            aria-busy="true"
+            aria-label={`Loading ${title} data`}
+          >
             <div className={styles.skeletonLine} />
             <div className={styles.skeletonLine} />
             <div className={styles.skeletonLine} />

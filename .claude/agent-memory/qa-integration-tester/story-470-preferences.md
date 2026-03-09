@@ -11,11 +11,13 @@
 ## Key Patterns
 
 ### preferencesService test pattern
+
 - Uses `drizzle(new Database(':memory:'))` + `runMigrations()`
 - Insert user via `db.insert(schema.users).values({...}).run()` before each test
 - `userPreferences` table uses integer PK (not UUID), with `userId + key` UNIQUE index
 
 ### routes/preferences test pattern
+
 - `buildApp()` with temp dir DATABASE_URL
 - `createLocalUser()` + `createSession()` helper pattern (same as documentLinks.test.ts)
 - Routes registered at `/api/users/me/preferences` (prefix in app.ts)
@@ -23,12 +25,14 @@
 - DELETE `/:key` with URL-encoded key in path
 
 ### preferencesApi test pattern
+
 - Mocks `./apiClient.js` (get, patch, del)
 - `listPreferences()` calls GET `/users/me/preferences`, returns `r.preferences`
 - `upsertPreference(key, value)` calls PATCH `/users/me/preferences`, returns `r.preference`
 - `deletePreference(key)` calls DELETE `/users/me/preferences/${encodeURIComponent(key)}`
 
 ### ThemeContext test pattern
+
 - `@jest-environment jsdom` directive required
 - Mock `../lib/preferencesApi.js` (listPreferences, upsertPreference, deletePreference)
 - Dynamic import with `if (!ThemeProvider)` guard for module-level caching
@@ -40,6 +44,7 @@
 
 The worktree's local branch had BOTH server+frontend in one commit (`945c463`)
 while the remote branch had only the frontend commit (`b970b48`). Resolution:
+
 - `git reset --hard origin/feat/470-user-prefs-infra` (to align with remote)
 - `git cherry-pick 945c463` (to restore server-side production files)
 - Then re-create and commit the test files

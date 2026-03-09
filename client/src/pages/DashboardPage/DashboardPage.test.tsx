@@ -229,7 +229,10 @@ describe('DashboardPage', () => {
   // ─── Test 15: Error state when API fails ────────────────────────────────
 
   it('shows error state for Budget Summary and Budget Alerts when budget overview API fails', async () => {
-    const apiError = new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'Server exploded' });
+    const apiError = new ApiClientError(500, {
+      code: 'INTERNAL_ERROR',
+      message: 'Server exploded',
+    });
     mockFetchBudgetOverview.mockRejectedValue(apiError);
 
     renderPage();
