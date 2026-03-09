@@ -132,7 +132,7 @@ describe('HouseholdItemsPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByRole('heading', { name: /household items/i, level: 1 }),
+          screen.getByRole('heading', { name: /^project$/i, level: 1 }),
         ).toBeInTheDocument();
       });
     });

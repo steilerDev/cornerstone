@@ -179,11 +179,11 @@ function renderPage() {
 
 describe('InvoicesPage', () => {
   describe('page rendering', () => {
-    it('renders the Invoices page heading', async () => {
+    it('renders the Budget page heading', async () => {
       renderPage();
 
       await waitFor(() =>
-        expect(screen.getByRole('heading', { name: 'Invoices', level: 1 })).toBeInTheDocument(),
+        expect(screen.getByRole('heading', { name: 'Budget', level: 1 })).toBeInTheDocument(),
       );
     });
 

@@ -271,8 +271,8 @@ describe('TimelinePage', () => {
   // ---------------------------------------------------------------------------
 
   describe('entity filter in calendar view', () => {
-    it('shows the entity filter group when the view is calendar', () => {
-      renderWithRouter(['/schedule?view=calendar']);
+    it('shows the entity filter group when the route is /schedule/calendar', () => {
+      renderWithRouter(['/schedule/calendar']);
       expect(screen.getByRole('group', { name: /entity filter/i })).toBeInTheDocument();
     });
   });
@@ -289,38 +289,23 @@ describe('TimelinePage', () => {
       ).toBeInTheDocument();
     });
 
-    it('shows Gantt tab as active (aria-pressed="true") by default', () => {
+    it('renders both Gantt and Calendar tabs', () => {
       renderWithRouter();
-      expect(screen.getByTestId('schedule-view-gantt')).toHaveAttribute('aria-pressed', 'true');
-      expect(screen.getByTestId('schedule-view-calendar')).toHaveAttribute('aria-pressed', 'false');
+      expect(screen.getByTestId('schedule-view-gantt')).toBeInTheDocument();
+      expect(screen.getByTestId('schedule-view-calendar')).toBeInTheDocument();
     });
 
-    it('shows Calendar tab as active when URL has ?view=calendar', () => {
-      renderWithRouter(['/schedule?view=calendar']);
-      expect(screen.getByTestId('schedule-view-calendar')).toHaveAttribute('aria-pressed', 'true');
-      expect(screen.getByTestId('schedule-view-gantt')).toHaveAttribute('aria-pressed', 'false');
-    });
-
-    it('switches to calendar view when Calendar tab is clicked', () => {
+    it('Gantt tab links to /schedule/gantt', () => {
       renderWithRouter();
-      // Gantt is active by default
-      expect(screen.getByTestId('schedule-view-gantt')).toHaveAttribute('aria-pressed', 'true');
-
-      fireEvent.click(screen.getByTestId('schedule-view-calendar'));
-
-      expect(screen.getByTestId('schedule-view-calendar')).toHaveAttribute('aria-pressed', 'true');
-      expect(screen.getByTestId('schedule-view-gantt')).toHaveAttribute('aria-pressed', 'false');
+      expect(screen.getByTestId('schedule-view-gantt')).toHaveAttribute('href', '/schedule/gantt');
     });
 
-    it('switches back to gantt view when Gantt tab is clicked from calendar view', () => {
-      renderWithRouter(['/schedule?view=calendar']);
-      // Calendar is active
-      expect(screen.getByTestId('schedule-view-calendar')).toHaveAttribute('aria-pressed', 'true');
-
-      fireEvent.click(screen.getByTestId('schedule-view-gantt'));
-
-      expect(screen.getByTestId('schedule-view-gantt')).toHaveAttribute('aria-pressed', 'true');
-      expect(screen.getByTestId('schedule-view-calendar')).toHaveAttribute('aria-pressed', 'false');
+    it('Calendar tab links to /schedule/calendar', () => {
+      renderWithRouter();
+      expect(screen.getByTestId('schedule-view-calendar')).toHaveAttribute(
+        'href',
+        '/schedule/calendar',
+      );
     });
   });
 });

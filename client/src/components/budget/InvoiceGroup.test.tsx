@@ -3,15 +3,25 @@
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import type { BaseBudgetLine, BudgetLineInvoiceLink } from '@cornerstone/shared';
 import type { InvoiceGroupProps } from './InvoiceGroup.js';
 
 // ─── Stub BudgetLineCard to avoid deep rendering ────────────────────────────
 jest.unstable_mockModule('./BudgetLineCard.js', () => ({
-  BudgetLineCard: ({ line, children }: { line: BaseBudgetLine; children?: React.ReactNode }) => (
+  BudgetLineCard: ({
+    line,
+    children,
+    unlinkAction,
+  }: {
+    line: BaseBudgetLine;
+    children?: React.ReactNode;
+    unlinkAction?: React.ReactNode;
+  }) => (
     <div data-testid={`budget-line-card-${line.id}`}>
       <span>{line.description ?? 'no-description'}</span>
       {children}
+      {unlinkAction}
     </div>
   ),
 }));
@@ -83,6 +93,12 @@ function buildProps(
   };
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function renderGroup(ui: React.ReactElement) {
+  return render(<MemoryRouter initialEntries={['/budget/invoices']}>{ui}</MemoryRouter>);
+}
+
 // ─── Tests ──────────────────────────────────────────────────────────────────
 
 describe('InvoiceGroup', () => {
@@ -93,14 +109,14 @@ describe('InvoiceGroup', () => {
   });
 
   it('defaults to collapsed — lines not visible', () => {
-    render(<InvoiceGroup {...buildProps()} />);
+    renderGroup(<InvoiceGroup {...buildProps()} />);
 
     // Lines container is not rendered when collapsed
     expect(screen.queryByTestId('budget-line-card-line-1')).toBeNull();
   });
 
   it('click toggle expands the group and shows lines', () => {
-    render(<InvoiceGroup {...buildProps()} />);
+    renderGroup(<InvoiceGroup {...buildProps()} />);
 
     const toggle = screen.getByRole('button', { name: /INV-001/i });
     fireEvent.click(toggle);
@@ -110,7 +126,7 @@ describe('InvoiceGroup', () => {
   });
 
   it('Enter key on toggle expands the group', () => {
-    render(<InvoiceGroup {...buildProps()} />);
+    renderGroup(<InvoiceGroup {...buildProps()} />);
 
     const toggle = screen.getByRole('button', { name: /INV-001/i });
     fireEvent.keyDown(toggle, { key: 'Enter', code: 'Enter' });
@@ -120,7 +136,7 @@ describe('InvoiceGroup', () => {
   });
 
   it('Space key on toggle expands the group', () => {
-    render(<InvoiceGroup {...buildProps()} />);
+    renderGroup(<InvoiceGroup {...buildProps()} />);
 
     const toggle = screen.getByRole('button', { name: /INV-001/i });
     fireEvent.keyDown(toggle, { key: ' ', code: 'Space' });
@@ -130,38 +146,38 @@ describe('InvoiceGroup', () => {
   });
 
   it('header shows invoice number with # prefix', () => {
-    render(<InvoiceGroup {...buildProps()} />);
+    renderGroup(<InvoiceGroup {...buildProps()} />);
 
     expect(screen.getByText('#INV-001')).toBeTruthy();
   });
 
   it('header shows invoice status badge', () => {
-    render(<InvoiceGroup {...buildProps({ invoiceStatus: 'paid' })} />);
+    renderGroup(<InvoiceGroup {...buildProps({ invoiceStatus: 'paid' })} />);
 
     expect(screen.getByText('paid')).toBeTruthy();
   });
 
   it('header shows itemized total formatted as currency', () => {
-    render(<InvoiceGroup {...buildProps({ itemizedTotal: 750 })} />);
+    renderGroup(<InvoiceGroup {...buildProps({ itemizedTotal: 750 })} />);
 
     // EUR formatted — locale uses €
     expect(screen.getByText('€750.00')).toBeTruthy();
   });
 
   it('header shows planned total formatted as currency', () => {
-    render(<InvoiceGroup {...buildProps({ plannedTotal: 1200 })} />);
+    renderGroup(<InvoiceGroup {...buildProps({ plannedTotal: 1200 })} />);
 
     expect(screen.getByText('€1,200.00')).toBeTruthy();
   });
 
   it('null invoiceNumber shows "Invoice" fallback', () => {
-    render(<InvoiceGroup {...buildProps({ invoiceNumber: null })} />);
+    renderGroup(<InvoiceGroup {...buildProps({ invoiceNumber: null })} />);
 
     expect(screen.getByText('Invoice')).toBeTruthy();
   });
 
   it('toggle has aria-controls pointing to lines container id', () => {
-    render(<InvoiceGroup {...buildProps({ invoiceId: 'inv-42' })} />);
+    renderGroup(<InvoiceGroup {...buildProps({ invoiceId: 'inv-42' })} />);
 
     const toggle = screen.getByRole('button', { expanded: false });
     expect(toggle).toHaveAttribute('aria-controls', 'invoice-group-inv-42');
@@ -169,7 +185,7 @@ describe('InvoiceGroup', () => {
 
   it('expanded lines container has matching id', () => {
     const props = buildProps({ invoiceId: 'inv-42' });
-    render(<InvoiceGroup {...props} />);
+    renderGroup(<InvoiceGroup {...props} />);
 
     const toggle = screen.getByRole('button', { expanded: false });
     fireEvent.click(toggle);
@@ -183,7 +199,7 @@ describe('InvoiceGroup', () => {
     const invoiceLink = buildInvoiceLink({ invoiceBudgetLineId: 'ibl-99', invoiceId: 'inv-1' });
     const line = buildLine('line-1', invoiceLink);
 
-    render(<InvoiceGroup {...buildProps({ lines: [line], onUnlink })} />);
+    renderGroup(<InvoiceGroup {...buildProps({ lines: [line], onUnlink })} />);
 
     // Expand first
     const toggle = screen.getByRole('button', { expanded: false });
@@ -203,7 +219,7 @@ describe('InvoiceGroup', () => {
       isUnlinking: { 'ibl-99': true },
     });
 
-    render(<InvoiceGroup {...props} />);
+    renderGroup(<InvoiceGroup {...props} />);
 
     const toggle = screen.getByRole('button', { expanded: false });
     fireEvent.click(toggle);
@@ -213,13 +229,13 @@ describe('InvoiceGroup', () => {
   });
 
   it('status badge uses status text in content', () => {
-    render(<InvoiceGroup {...buildProps({ invoiceStatus: 'claimed' })} />);
+    renderGroup(<InvoiceGroup {...buildProps({ invoiceStatus: 'claimed' })} />);
 
     expect(screen.getByText('claimed')).toBeTruthy();
   });
 
   it('second click collapses the group again', () => {
-    render(<InvoiceGroup {...buildProps()} />);
+    renderGroup(<InvoiceGroup {...buildProps()} />);
 
     const toggle = screen.getByRole('button', { expanded: false });
     fireEvent.click(toggle);
@@ -237,7 +253,7 @@ describe('InvoiceGroup', () => {
     const line2 = buildLine('line-2', link2);
     const props = buildProps({ lines: [line1, line2] });
 
-    render(<InvoiceGroup {...props} />);
+    renderGroup(<InvoiceGroup {...props} />);
 
     const toggle = screen.getByRole('button', { expanded: false });
     fireEvent.click(toggle);

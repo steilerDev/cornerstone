@@ -3,6 +3,7 @@
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import type * as InvoiceBudgetLinesApiTypes from '../../lib/invoiceBudgetLinesApi.js';
 import type * as WorkItemBudgetsApiTypes from '../../lib/workItemBudgetsApi.js';
 import type * as HouseholdItemBudgetsApiTypes from '../../lib/householdItemBudgetsApi.js';
@@ -186,7 +187,11 @@ afterEach(() => {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function renderSection(invoiceId = INVOICE_ID, invoiceTotal = INVOICE_TOTAL) {
-  return render(<InvoiceBudgetLinesSection invoiceId={invoiceId} invoiceTotal={invoiceTotal} />);
+  return render(
+    <MemoryRouter initialEntries={[`/budget/invoices/${invoiceId}`]}>
+      <InvoiceBudgetLinesSection invoiceId={invoiceId} invoiceTotal={invoiceTotal} />
+    </MemoryRouter>,
+  );
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
@@ -334,6 +339,29 @@ describe('InvoiceBudgetLinesSection', () => {
       await waitFor(() => expect(screen.getByRole('table')).toBeInTheDocument());
       // em-dash rendered as \u2014
       expect(screen.getAllByText('\u2014').length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('renders "Linked Item" column header', async () => {
+      const lines = [makeDetailLine('ibl-001')];
+      mockFetchInvoiceBudgetLines.mockResolvedValue(makeListResponse(lines, 1000.0));
+      renderSection();
+      await waitFor(() => expect(screen.getByRole('table')).toBeInTheDocument());
+      expect(screen.getByText('Linked Item')).toBeInTheDocument();
+    });
+
+    it('renders parent item title as a link in the Linked Item column', async () => {
+      const lines = [
+        makeDetailLine('ibl-001', {
+          parentItemId: 'wi-001',
+          parentItemTitle: 'Foundation',
+          parentItemType: 'work_item',
+        }),
+      ];
+      mockFetchInvoiceBudgetLines.mockResolvedValue(makeListResponse(lines, 1000.0));
+      renderSection();
+      await waitFor(() => expect(screen.getByText('Foundation')).toBeInTheDocument());
+      const link = screen.getByRole('link', { name: 'Foundation' });
+      expect(link).toHaveAttribute('href', '/project/work-items/wi-001');
     });
 
     it('renders count badge when budget lines are present', async () => {
