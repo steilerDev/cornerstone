@@ -449,7 +449,7 @@ export function InvoicesPage() {
                     >
                       Amount{renderSortIcon('amount')}
                     </th>
-                    <th>Linked To</th>
+                    <th>Allocated</th>
                     <th
                       className={styles.sortableHeader}
                       onClick={() => handleSortChange('due_date')}

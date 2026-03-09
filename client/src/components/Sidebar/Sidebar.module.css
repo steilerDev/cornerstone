@@ -122,6 +122,10 @@
   outline-offset: -2px;
 }
 
+.logoutButton.active {
+  background-color: var(--color-sidebar-active);
+}
+
 .sidebarHeader {
   display: none;
 }
