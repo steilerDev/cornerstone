@@ -1,7 +1,11 @@
 import type { FormEvent } from 'react';
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
-import type { MilestoneDetail, WorkItemSummary, WorkItemLinkedHouseholdItemSummary } from '@cornerstone/shared';
+import type {
+  MilestoneDetail,
+  WorkItemSummary,
+  WorkItemLinkedHouseholdItemSummary,
+} from '@cornerstone/shared';
 import {
   getMilestone,
   updateMilestone,
@@ -12,10 +16,7 @@ import {
 } from '../../lib/milestonesApi.js';
 import { listWorkItems } from '../../lib/workItemsApi.js';
 import { listHouseholdItems } from '../../lib/householdItemsApi.js';
-import {
-  createHouseholdItemDep,
-  deleteHouseholdItemDep,
-} from '../../lib/householdItemDepsApi.js';
+import { createHouseholdItemDep, deleteHouseholdItemDep } from '../../lib/householdItemDepsApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { formatDate } from '../../lib/formatters.js';
 import styles from './MilestoneDetailPage.module.css';
@@ -54,8 +55,12 @@ export function MilestoneDetailPage() {
   const [itemSearchInput, setItemSearchInput] = useState('');
   const [showItemDropdown, setShowItemDropdown] = useState(false);
   const [availableWorkItems, setAvailableWorkItems] = useState<WorkItemSummary[]>([]);
-  const [availableHouseholdItems, setAvailableHouseholdItems] = useState<WorkItemLinkedHouseholdItemSummary[]>([]);
-  const [linkedHouseholdItems, setLinkedHouseholdItems] = useState<WorkItemLinkedHouseholdItemSummary[]>([]);
+  const [availableHouseholdItems, setAvailableHouseholdItems] = useState<
+    WorkItemLinkedHouseholdItemSummary[]
+  >([]);
+  const [linkedHouseholdItems, setLinkedHouseholdItems] = useState<
+    WorkItemLinkedHouseholdItemSummary[]
+  >([]);
   const [isLinkingItem, setIsLinkingItem] = useState(false);
   const [isUnlinkingItem, setIsUnlinkingItem] = useState<Record<string, boolean>>({});
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -108,13 +113,17 @@ export function MilestoneDetailPage() {
         // Load available work items
         const workItemsResponse = await listWorkItems({ pageSize: 100 });
         const linkedWorkItemIds = new Set(milestone.workItems.map((wi) => wi.id));
-        const availableWI = workItemsResponse.items.filter((item) => !linkedWorkItemIds.has(item.id));
+        const availableWI = workItemsResponse.items.filter(
+          (item) => !linkedWorkItemIds.has(item.id),
+        );
         setAvailableWorkItems(availableWI);
 
         // Load available household items
         const householdItemsResponse = await listHouseholdItems({ pageSize: 100 });
         const linkedHouseholdItemIds = new Set(linkedHouseholdItems.map((hi) => hi.id));
-        const availableHI = householdItemsResponse.items.filter((item) => !linkedHouseholdItemIds.has(item.id));
+        const availableHI = householdItemsResponse.items.filter(
+          (item) => !linkedHouseholdItemIds.has(item.id),
+        );
         setAvailableHouseholdItems(availableHI);
 
         // Load linked household items
@@ -175,7 +184,9 @@ export function MilestoneDetailPage() {
       setLinkedHouseholdItems(linkedHI);
       const householdItemsResponse = await listHouseholdItems({ pageSize: 100 });
       const linkedHouseholdItemIds = new Set(linkedHI.map((hi) => hi.id));
-      const availableHI = householdItemsResponse.items.filter((item) => !linkedHouseholdItemIds.has(item.id));
+      const availableHI = householdItemsResponse.items.filter(
+        (item) => !linkedHouseholdItemIds.has(item.id),
+      );
       setAvailableHouseholdItems(availableHI);
     } catch (err) {
       if (err instanceof ApiClientError) {
@@ -228,7 +239,9 @@ export function MilestoneDetailPage() {
       setLinkedHouseholdItems(linkedHI);
       const householdItemsResponse = await listHouseholdItems({ pageSize: 100 });
       const linkedHouseholdItemIds = new Set(linkedHI.map((hi) => hi.id));
-      const availableHI = householdItemsResponse.items.filter((item) => !linkedHouseholdItemIds.has(item.id));
+      const availableHI = householdItemsResponse.items.filter(
+        (item) => !linkedHouseholdItemIds.has(item.id),
+      );
       setAvailableHouseholdItems(availableHI);
     } catch (err) {
       if (err instanceof ApiClientError) {
@@ -471,7 +484,10 @@ export function MilestoneDetailPage() {
                   ))}
                   {linkedHouseholdItems.map((item) => (
                     <li key={`hi-${item.id}`} className={styles.linkedWorkItem}>
-                      <Link to={`/project/household-items/${item.id}`} className={styles.workItemLink}>
+                      <Link
+                        to={`/project/household-items/${item.id}`}
+                        className={styles.workItemLink}
+                      >
                         {item.name}
                       </Link>
                       <span className={styles.itemTypeBadgeHI}>Household</span>
@@ -704,7 +720,6 @@ export function MilestoneDetailPage() {
           </div>
         </div>
       )}
-
     </div>
   );
 }
