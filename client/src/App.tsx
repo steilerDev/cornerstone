@@ -39,6 +39,9 @@ const HouseholdItemDetailPage = lazy(
 const HouseholdItemEditPage = lazy(
   () => import('./pages/HouseholdItemEditPage/HouseholdItemEditPage'),
 );
+const MilestonesPage = lazy(() => import('./pages/MilestonesPage/MilestonesPage'));
+const MilestoneCreatePage = lazy(() => import('./pages/MilestoneCreatePage/MilestoneCreatePage'));
+const MilestoneDetailPage = lazy(() => import('./pages/MilestoneDetailPage/MilestoneDetailPage'));
 const ManagePage = lazy(() => import('./pages/ManagePage/ManagePage.js'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage/ProfilePage'));
 const UserManagementPage = lazy(() => import('./pages/UserManagementPage/UserManagementPage'));
@@ -88,6 +91,9 @@ export function App() {
                     <Route path="household-items/new" element={<HouseholdItemCreatePage />} />
                     <Route path="household-items/:id" element={<HouseholdItemDetailPage />} />
                     <Route path="household-items/:id/edit" element={<HouseholdItemEditPage />} />
+                    <Route path="milestones" element={<MilestonesPage />} />
+                    <Route path="milestones/new" element={<MilestoneCreatePage />} />
+                    <Route path="milestones/:id" element={<MilestoneDetailPage />} />
                   </Route>
 
                   {/* Budget section */}
