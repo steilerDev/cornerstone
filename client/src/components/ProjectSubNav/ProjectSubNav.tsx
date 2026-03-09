@@ -5,6 +5,7 @@ const PROJECT_TABS = [
   { label: 'Overview', to: '/project/overview' },
   { label: 'Work Items', to: '/project/work-items' },
   { label: 'Household Items', to: '/project/household-items' },
+  { label: 'Milestones', to: '/project/milestones' },
 ] as const;
 
 /**
