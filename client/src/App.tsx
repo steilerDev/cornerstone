@@ -1,8 +1,9 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { AppShell } from './components/AppShell/AppShell';
 import { AuthProvider } from './contexts/AuthContext';
-import { ThemeProvider } from './contexts/ThemeContext';
+import { ThemeProvider, useTheme } from './contexts/ThemeContext';
+import { useAuth } from './contexts/AuthContext';
 import { AuthGuard } from './components/AuthGuard/AuthGuard';
 import { ToastProvider } from './components/Toast/ToastContext';
 import { ToastList } from './components/Toast/Toast';
@@ -15,6 +16,23 @@ function ParamRedirect({ to }: { to: string }) {
     to,
   );
   return <Navigate to={resolved} replace />;
+}
+
+/**
+ * Bridge component that syncs theme with server when user authenticates.
+ * Must be placed inside AuthProvider but outside Routes to access useAuth and useTheme.
+ */
+function ThemeServerSync() {
+  const { user } = useAuth();
+  const { syncWithServer } = useTheme();
+
+  useEffect(() => {
+    if (user) {
+      void syncWithServer(user.id);
+    }
+  }, [user, syncWithServer]);
+
+  return null;
 }
 
 const SetupPage = lazy(() => import('./pages/SetupPage/SetupPage'));
@@ -55,6 +73,7 @@ export function App() {
       <ThemeProvider>
         <ToastProvider>
           <AuthProvider>
+            <ThemeServerSync />
             <Routes>
               {/* Auth routes (no AppShell wrapper) */}
               <Route
