@@ -294,7 +294,7 @@ describe('invoiceBudgetLinesApi', () => {
   // ─── updateInvoiceBudgetLine ───────────────────────────────────────────────
 
   describe('updateInvoiceBudgetLine', () => {
-    it('sends PUT request to /api/invoices/:invoiceId/budget-lines/:lineId', async () => {
+    it('sends PATCH request to /api/invoices/:invoiceId/budget-lines/:lineId', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => sampleCreateResponse,
@@ -306,7 +306,7 @@ describe('invoiceBudgetLinesApi', () => {
       expect(mockFetch).toHaveBeenCalledWith(
         '/api/invoices/inv-001/budget-lines/ibl-001',
         expect.objectContaining({
-          method: 'PUT',
+          method: 'PATCH',
           body: JSON.stringify(data),
         }),
       );

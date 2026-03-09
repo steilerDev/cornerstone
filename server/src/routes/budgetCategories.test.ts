@@ -9,6 +9,7 @@ import type { FastifyInstance } from 'fastify';
 import type {
   BudgetCategory,
   BudgetCategoryListResponse,
+  BudgetCategoryResponse,
   ApiErrorResponse,
   CreateBudgetCategoryRequest,
 } from '@cornerstone/shared';
@@ -246,14 +247,14 @@ describe('Budget Category Routes', () => {
       });
 
       expect(response.statusCode).toBe(201);
-      const body = response.json<BudgetCategory>();
-      expect(body.id).toBeDefined();
-      expect(body.name).toBe('Custom Masonry');
-      expect(body.description).toBeNull();
-      expect(body.color).toBeNull();
-      expect(body.sortOrder).toBe(0);
-      expect(body.createdAt).toBeDefined();
-      expect(body.updatedAt).toBeDefined();
+      const body = response.json<BudgetCategoryResponse>();
+      expect(body.budgetCategory.id).toBeDefined();
+      expect(body.budgetCategory.name).toBe('Custom Masonry');
+      expect(body.budgetCategory.description).toBeNull();
+      expect(body.budgetCategory.color).toBeNull();
+      expect(body.budgetCategory.sortOrder).toBe(0);
+      expect(body.budgetCategory.createdAt).toBeDefined();
+      expect(body.budgetCategory.updatedAt).toBeDefined();
     });
 
     it('creates a category with all fields (201)', async () => {
@@ -274,11 +275,11 @@ describe('Budget Category Routes', () => {
       });
 
       expect(response.statusCode).toBe(201);
-      const body = response.json<BudgetCategory>();
-      expect(body.name).toBe('Custom Foundation');
-      expect(body.description).toBe('Foundation and concrete costs');
-      expect(body.color).toBe('#3B82F6');
-      expect(body.sortOrder).toBe(5);
+      const body = response.json<BudgetCategoryResponse>();
+      expect(body.budgetCategory.name).toBe('Custom Foundation');
+      expect(body.budgetCategory.description).toBe('Foundation and concrete costs');
+      expect(body.budgetCategory.color).toBe('#3B82F6');
+      expect(body.budgetCategory.sortOrder).toBe(5);
     });
 
     it('trims name whitespace on creation', async () => {
@@ -292,8 +293,8 @@ describe('Budget Category Routes', () => {
       });
 
       expect(response.statusCode).toBe(201);
-      const body = response.json<BudgetCategory>();
-      expect(body.name).toBe('Custom Tiling');
+      const body = response.json<BudgetCategoryResponse>();
+      expect(body.budgetCategory.name).toBe('Custom Tiling');
     });
 
     it('returns 400 VALIDATION_ERROR for missing name', async () => {
@@ -387,8 +388,8 @@ describe('Budget Category Routes', () => {
 
       // Fastify strips extra properties and creates the category
       expect(response.statusCode).toBe(201);
-      const body = response.json<BudgetCategory>();
-      expect(body.name).toBe('Custom Test');
+      const body = response.json<BudgetCategoryResponse>();
+      expect(body.budgetCategory.name).toBe('Custom Test');
     });
 
     it('returns 401 without authentication', async () => {
@@ -419,8 +420,8 @@ describe('Budget Category Routes', () => {
       });
 
       expect(response.statusCode).toBe(201);
-      const body = response.json<BudgetCategory>();
-      expect(body.name).toBe('Custom Heating');
+      const body = response.json<BudgetCategoryResponse>();
+      expect(body.budgetCategory.name).toBe('Custom Heating');
     });
   });
 
@@ -437,9 +438,9 @@ describe('Budget Category Routes', () => {
       });
 
       expect(response.statusCode).toBe(200);
-      const body = response.json<BudgetCategory>();
-      expect(body.id).toBe('bc-materials');
-      expect(body.name).toBe('Materials');
+      const body = response.json<BudgetCategoryResponse>();
+      expect(body.budgetCategory.id).toBe('bc-materials');
+      expect(body.budgetCategory.name).toBe('Materials');
     });
 
     it('returns a custom category by ID', async () => {
@@ -453,10 +454,10 @@ describe('Budget Category Routes', () => {
       });
 
       expect(response.statusCode).toBe(200);
-      const body = response.json<BudgetCategory>();
-      expect(body.id).toBe(cat.id);
-      expect(body.name).toBe('Custom Cooling');
-      expect(body.color).toBe('#FF5733');
+      const body = response.json<BudgetCategoryResponse>();
+      expect(body.budgetCategory.id).toBe(cat.id);
+      expect(body.budgetCategory.name).toBe('Custom Cooling');
+      expect(body.budgetCategory.color).toBe('#FF5733');
     });
 
     it('returns 404 NOT_FOUND for non-existent category', async () => {
@@ -500,10 +501,10 @@ describe('Budget Category Routes', () => {
       });
 
       expect(response.statusCode).toBe(200);
-      const body = response.json<BudgetCategory>();
-      expect(body.id).toBe(cat.id);
-      expect(body.name).toBe('Custom New Name');
-      expect(body.color).toBe('#FF0000'); // Unchanged
+      const body = response.json<BudgetCategoryResponse>();
+      expect(body.budgetCategory.id).toBe(cat.id);
+      expect(body.budgetCategory.name).toBe('Custom New Name');
+      expect(body.budgetCategory.color).toBe('#FF0000'); // Unchanged
     });
 
     it('updates description only (partial update)', async () => {
@@ -518,9 +519,9 @@ describe('Budget Category Routes', () => {
       });
 
       expect(response.statusCode).toBe(200);
-      const body = response.json<BudgetCategory>();
-      expect(body.description).toBe('Structural costs');
-      expect(body.name).toBe('Custom Structural'); // Unchanged
+      const body = response.json<BudgetCategoryResponse>();
+      expect(body.budgetCategory.description).toBe('Structural costs');
+      expect(body.budgetCategory.name).toBe('Custom Structural'); // Unchanged
     });
 
     it('clears color by setting to null', async () => {
@@ -535,8 +536,8 @@ describe('Budget Category Routes', () => {
       });
 
       expect(response.statusCode).toBe(200);
-      const body = response.json<BudgetCategory>();
-      expect(body.color).toBeNull();
+      const body = response.json<BudgetCategoryResponse>();
+      expect(body.budgetCategory.color).toBeNull();
     });
 
     it('updates sortOrder', async () => {
@@ -551,8 +552,8 @@ describe('Budget Category Routes', () => {
       });
 
       expect(response.statusCode).toBe(200);
-      const body = response.json<BudgetCategory>();
-      expect(body.sortOrder).toBe(99);
+      const body = response.json<BudgetCategoryResponse>();
+      expect(body.budgetCategory.sortOrder).toBe(99);
     });
 
     it('allows updating name to the same value (no conflict)', async () => {
@@ -567,8 +568,8 @@ describe('Budget Category Routes', () => {
       });
 
       expect(response.statusCode).toBe(200);
-      const body = response.json<BudgetCategory>();
-      expect(body.name).toBe('Custom Scaffolding');
+      const body = response.json<BudgetCategoryResponse>();
+      expect(body.budgetCategory.name).toBe('Custom Scaffolding');
     });
 
     it('returns 409 CONFLICT when name conflicts with another category (seeded)', async () => {
@@ -663,8 +664,8 @@ describe('Budget Category Routes', () => {
       });
 
       expect(response.statusCode).toBe(200);
-      const body = response.json<BudgetCategory>();
-      expect(body.name).toBe('Custom Cabinet');
+      const body = response.json<BudgetCategoryResponse>();
+      expect(body.budgetCategory.name).toBe('Custom Cabinet');
     });
   });
 

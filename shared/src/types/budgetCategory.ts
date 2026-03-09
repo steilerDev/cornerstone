@@ -46,6 +46,8 @@ export interface BudgetCategoryListResponse {
 
 /**
  * Response for single-category endpoints (POST, GET by ID, PATCH).
- * The category object is returned directly (not wrapped).
+ * The category object is wrapped under the budgetCategory key.
  */
-export type BudgetCategoryResponse = BudgetCategory;
+export interface BudgetCategoryResponse {
+  budgetCategory: BudgetCategory;
+}

@@ -38,7 +38,7 @@ const createBudgetLineSchema = {
   },
 };
 
-// JSON schema for PUT /api/invoices/:invoiceId/budget-lines/:id
+// JSON schema for PATCH /api/invoices/:invoiceId/budget-lines/:id
 const updateBudgetLineSchema = {
   body: {
     type: 'object',
@@ -117,11 +117,11 @@ export default async function invoiceBudgetLineRoutes(fastify: FastifyInstance) 
   );
 
   /**
-   * PUT /api/invoices/:invoiceId/budget-lines/:id
+   * PATCH /api/invoices/:invoiceId/budget-lines/:id
    * Update an invoice budget line.
    * Auth required: Yes (both admin and member)
    */
-  fastify.put<{ Params: { invoiceId: string; id: string }; Body: UpdateInvoiceBudgetLineRequest }>(
+  fastify.patch<{ Params: { invoiceId: string; id: string }; Body: UpdateInvoiceBudgetLineRequest }>(
     '/:id',
     { schema: updateBudgetLineSchema },
     async (request, reply) => {
