@@ -11,6 +11,8 @@ import type {
   BreakdownTotals,
   CostDisplay,
 } from '@cornerstone/shared';
+import { computeSubsidyEffects } from './shared/subsidyCalculationEngine.js';
+import type { LinkedSubsidy } from './shared/subsidyCalculationEngine.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -213,64 +215,57 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
       return 0;
     }
 
-    // Build effective lines (with actual or margin-adjusted amounts)
-    const effectiveLines = budgetLines.map((line) => {
-      const lineActualCost = invoiceMap.get(line.id);
-      if (lineActualCost !== undefined) {
-        return {
-          budgetCategoryId: line.budgetCategoryId,
-          amount: lineActualCost,
-        };
-      }
-      const margin =
-        CONFIDENCE_MARGINS[line.confidence as keyof typeof CONFIDENCE_MARGINS] ??
-        CONFIDENCE_MARGINS.own_estimate;
-      // Use min margin if useMinMargin=true, max margin otherwise
-      const multiplier = useMinMargin ? 1 - margin : 1 + margin;
-      return {
-        budgetCategoryId: line.budgetCategoryId,
-        amount: line.plannedAmount * multiplier,
-      };
-    });
+    // Build engine inputs from the entity's budget lines
+    const engineLines = budgetLines.map((line) => ({
+      id: line.id,
+      budgetCategoryId: line.budgetCategoryId,
+      plannedAmount: line.plannedAmount,
+      confidence: line.confidence,
+    }));
 
-    let payback = 0;
-    const fixedSubsidyLineCountCache = new Map<string, number>();
-
+    const engineSubsidies: LinkedSubsidy[] = [];
     for (const subsidyId of linkedSubsidyIds) {
       const meta = subsidyMeta.get(subsidyId);
       if (!meta) continue;
-
-      const applicableCategories = subsidyCategoryMap.get(subsidyId);
-      const isUniversal = !applicableCategories || applicableCategories.size === 0;
-
-      if (meta.reductionType === 'percentage') {
-        const rate = meta.reductionValue / 100;
-        for (const line of effectiveLines) {
-          const categoryMatches =
-            isUniversal ||
-            (line.budgetCategoryId !== null && applicableCategories!.has(line.budgetCategoryId));
-          if (categoryMatches) {
-            payback += line.amount * rate;
-          }
-        }
-      } else if (meta.reductionType === 'fixed') {
-        // Fixed amount: count matching lines for this entity+subsidy and divide
-        const cacheKey = `${entityId}:${subsidyId}`;
-        let matchingLineCount = fixedSubsidyLineCountCache.get(cacheKey);
-        if (matchingLineCount === undefined) {
-          matchingLineCount = budgetLines.filter(
-            (l) =>
-              isUniversal ||
-              (l.budgetCategoryId !== null && applicableCategories!.has(l.budgetCategoryId)),
-          ).length;
-          if (matchingLineCount === 0) matchingLineCount = 1;
-          fixedSubsidyLineCountCache.set(cacheKey, matchingLineCount);
-        }
-        payback += meta.reductionValue / matchingLineCount;
-      }
+      engineSubsidies.push({
+        subsidyProgramId: subsidyId,
+        name: subsidyId,
+        reductionType: meta.reductionType as 'percentage' | 'fixed',
+        reductionValue: meta.reductionValue,
+      });
     }
 
-    return payback;
+    if (useMinMargin) {
+      // For min margin: create a custom invoice map that adjusts all lines by min margin
+      const minInvoiceMap = new Map<string, number>();
+      for (const line of budgetLines) {
+        const lineActualCost = invoiceMap.get(line.id);
+        if (lineActualCost !== undefined) {
+          minInvoiceMap.set(line.id, lineActualCost);
+        } else {
+          const margin =
+            CONFIDENCE_MARGINS[line.confidence as keyof typeof CONFIDENCE_MARGINS] ??
+            CONFIDENCE_MARGINS.own_estimate;
+          minInvoiceMap.set(line.id, line.plannedAmount * (1 - margin));
+        }
+      }
+      const { minTotalPayback } = computeSubsidyEffects(
+        engineLines,
+        engineSubsidies,
+        subsidyCategoryMap,
+        minInvoiceMap,
+      );
+      return minTotalPayback;
+    } else {
+      // For max margin: use the provided invoice map as-is (which uses max margin or actual cost)
+      const { maxTotalPayback } = computeSubsidyEffects(
+        engineLines,
+        engineSubsidies,
+        subsidyCategoryMap,
+        invoiceMap,
+      );
+      return maxTotalPayback;
+    }
   }
 
   // ── Helper: Compute costDisplay for an entity ──────────────────────────────

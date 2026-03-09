@@ -1,11 +1,11 @@
 import { sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../../db/schema.js';
-import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
 import { NotFoundError } from '../../errors/AppError.js';
+import { computeSubsidyEffects } from './subsidyCalculationEngine.js';
+import type { LinkedSubsidy } from './subsidyCalculationEngine.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
-type ConfidenceLevel = keyof typeof CONFIDENCE_MARGINS;
 
 export interface SubsidyPaybackConfig {
   entityTable: string;
@@ -19,14 +19,6 @@ export interface SubsidyPaybackConfig {
   entityIdResponseKey: string;
 }
 
-export interface SubsidyPaybackEntry {
-  subsidyProgramId: string;
-  name: string;
-  reductionType: 'percentage' | 'fixed';
-  reductionValue: number;
-  minPayback: number;
-  maxPayback: number;
-}
 
 export function createSubsidyPaybackService(
   config: SubsidyPaybackConfig,
@@ -99,26 +91,20 @@ export function createSubsidyPaybackService(
       }
     }
 
-    const budgetLines = budgetLineRows.map((line) => {
-      if (config.supportsInvoices && invoiceMap.has(line.id)) {
-        const actualCost = invoiceMap.get(line.id) ?? 0;
-        return {
-          id: line.id,
-          budgetCategoryId: line.budgetCategoryId,
-          minAmount: actualCost,
-          maxAmount: actualCost,
-        };
-      } else {
-        const margin =
-          CONFIDENCE_MARGINS[line.confidence as ConfidenceLevel] ?? CONFIDENCE_MARGINS.own_estimate;
-        return {
-          id: line.id,
-          budgetCategoryId: line.budgetCategoryId,
-          minAmount: line.plannedAmount * (1 - margin),
-          maxAmount: line.plannedAmount * (1 + margin),
-        };
-      }
-    });
+    // Map raw rows to engine input shapes
+    const engineBudgetLines = budgetLineRows.map((line) => ({
+      id: line.id,
+      budgetCategoryId: line.budgetCategoryId,
+      plannedAmount: line.plannedAmount,
+      confidence: line.confidence,
+    }));
+
+    const engineSubsidies: LinkedSubsidy[] = linkedRows.map((row) => ({
+      subsidyProgramId: row.subsidyProgramId,
+      name: row.name,
+      reductionType: row.reductionType as 'percentage' | 'fixed',
+      reductionValue: row.reductionValue,
+    }));
 
     const subsidyIds = linkedRows.map((r) => r.subsidyProgramId);
     const inList = subsidyIds.map((id) => sql`${id}`);
@@ -138,49 +124,18 @@ export function createSubsidyPaybackService(
       cats.add(row.budgetCategoryId);
     }
 
-    const subsidyEntries: SubsidyPaybackEntry[] = [];
-    let minTotalPayback = 0;
-    let maxTotalPayback = 0;
-
-    for (const subsidy of linkedRows) {
-      const applicableCategories = subsidyCategoryMap.get(subsidy.subsidyProgramId);
-      const isUniversal = !applicableCategories || applicableCategories.size === 0;
-      let minPayback = 0;
-      let maxPayback = 0;
-
-      if (subsidy.reductionType === 'percentage') {
-        const rate = subsidy.reductionValue / 100;
-        for (const line of budgetLines) {
-          const categoryMatches =
-            isUniversal ||
-            (line.budgetCategoryId !== null && applicableCategories!.has(line.budgetCategoryId));
-          if (categoryMatches) {
-            minPayback += line.minAmount * rate;
-            maxPayback += line.maxAmount * rate;
-          }
-        }
-      } else if (subsidy.reductionType === 'fixed') {
-        minPayback = subsidy.reductionValue;
-        maxPayback = subsidy.reductionValue;
-      }
-
-      subsidyEntries.push({
-        subsidyProgramId: subsidy.subsidyProgramId,
-        name: subsidy.name,
-        reductionType: subsidy.reductionType as 'percentage' | 'fixed',
-        reductionValue: subsidy.reductionValue,
-        minPayback,
-        maxPayback,
-      });
-      minTotalPayback += minPayback;
-      maxTotalPayback += maxPayback;
-    }
+    const { subsidies, minTotalPayback, maxTotalPayback } = computeSubsidyEffects(
+      engineBudgetLines,
+      engineSubsidies,
+      subsidyCategoryMap,
+      invoiceMap,
+    );
 
     return {
       [config.entityIdResponseKey]: entityId,
       minTotalPayback,
       maxTotalPayback,
-      subsidies: subsidyEntries,
+      subsidies,
     };
   };
 }

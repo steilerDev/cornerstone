@@ -3,6 +3,8 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
 import type { BudgetOverview, CategoryBudgetSummary } from '@cornerstone/shared';
+import { computeSubsidyEffects } from './shared/subsidyCalculationEngine.js';
+import type { LinkedSubsidy } from './shared/subsidyCalculationEngine.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -451,50 +453,35 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
   for (const [entityId, linkedSubsidyIds] of entitySubsidyMap) {
     const entityLines = linesByEntity.get(entityId) ?? [];
 
-    // Compute per-line effective min/max amounts (mirrors subsidyPaybackService)
-    const effectiveLines = entityLines.map((line) => {
-      const lineActualCost = lineInvoiceMap.get(line.id);
-      if (lineActualCost !== undefined) {
-        return {
-          budgetCategoryId: line.budgetCategoryId,
-          minAmount: lineActualCost,
-          maxAmount: lineActualCost,
-        };
-      }
-      const margin =
-        CONFIDENCE_MARGINS[line.confidence as keyof typeof CONFIDENCE_MARGINS] ??
-        CONFIDENCE_MARGINS.own_estimate;
-      return {
-        budgetCategoryId: line.budgetCategoryId,
-        minAmount: line.plannedAmount * (1 - margin),
-        maxAmount: line.plannedAmount * (1 + margin),
-      };
-    });
+    // Build engine inputs from the entity's budget lines
+    const engineLines = entityLines.map((line) => ({
+      id: line.id,
+      budgetCategoryId: line.budgetCategoryId,
+      plannedAmount: line.plannedAmount,
+      confidence: line.confidence,
+    }));
 
+    const engineSubsidies: LinkedSubsidy[] = [];
     for (const subsidyId of linkedSubsidyIds) {
       const meta = subsidyMeta.get(subsidyId);
       if (!meta) continue;
-
-      const applicableCategories = subsidyCategoryMap.get(subsidyId);
-      const isUniversal = !applicableCategories || applicableCategories.size === 0;
-
-      if (meta.reductionType === 'percentage') {
-        const rate = meta.reductionValue / 100;
-        for (const line of effectiveLines) {
-          const categoryMatches =
-            isUniversal ||
-            (line.budgetCategoryId !== null && applicableCategories!.has(line.budgetCategoryId));
-          if (categoryMatches) {
-            totalMinPayback += line.minAmount * rate;
-            totalMaxPayback += line.maxAmount * rate;
-          }
-        }
-      } else if (meta.reductionType === 'fixed') {
-        // Fixed amount: min === max === reductionValue
-        totalMinPayback += meta.reductionValue;
-        totalMaxPayback += meta.reductionValue;
-      }
+      engineSubsidies.push({
+        subsidyProgramId: subsidyId,
+        name: subsidyId,
+        reductionType: meta.reductionType as 'percentage' | 'fixed',
+        reductionValue: meta.reductionValue,
+      });
     }
+
+    const { minTotalPayback: entityMin, maxTotalPayback: entityMax } = computeSubsidyEffects(
+      engineLines,
+      engineSubsidies,
+      subsidyCategoryMap,
+      lineInvoiceMap,
+    );
+
+    totalMinPayback += entityMin;
+    totalMaxPayback += entityMax;
   }
 
   const subsidySummary = {
