@@ -38,7 +38,7 @@
 
 import type { Page, Locator } from '@playwright/test';
 
-export const TIMELINE_ROUTE = '/schedule';
+export const TIMELINE_ROUTE = '/schedule/gantt';
 
 export class TimelinePage {
   readonly page: Page;

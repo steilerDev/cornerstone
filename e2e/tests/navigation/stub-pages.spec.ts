@@ -26,7 +26,7 @@ test.describe('Stub pages — smoke tests', { tag: '@responsive' }, () => {
     const dashboard = new DashboardPage(page);
     await dashboard.goto();
     await expect(dashboard.heading).toBeVisible();
-    await expect(dashboard.heading).toHaveText('Overview');
+    await expect(dashboard.heading).toHaveText('Project');
     await expect(dashboard.description).toBeVisible();
   });
 });

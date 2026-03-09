@@ -444,7 +444,7 @@ export function HouseholdItemsPage() {
   return (
     <div className={styles.container} ref={containerRef}>
       <div className={styles.header}>
-        <h1 className={styles.pageTitle}>Household Items</h1>
+        <h1 className={styles.pageTitle}>Project</h1>
         <button
           type="button"
           className={styles.primaryButton}

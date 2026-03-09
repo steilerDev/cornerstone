@@ -63,6 +63,22 @@
   white-space: nowrap;
 }
 
+.invoiceLink {
+  color: var(--color-primary);
+  text-decoration: none;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.invoiceLink:hover {
+  text-decoration: underline;
+}
+
+.invoiceLink:focus-visible {
+  box-shadow: var(--shadow-focus);
+  border-radius: 2px;
+}
+
 .statusBadge {
   display: inline-block;
   padding: 0.25rem 0.5rem;
@@ -130,6 +146,10 @@
   font-size: 0.75rem;
   color: var(--color-text-muted);
   font-weight: 400;
+}
+
+.amountLabelMuted {
+  opacity: 0.6;
 }
 
 /* ─── Chevron ────────────────────────────────────────────────────────────── */

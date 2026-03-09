@@ -80,7 +80,6 @@ import { AutosaveIndicator } from '../../components/AutosaveIndicator/AutosaveIn
 import type { AutosaveState } from '../../components/AutosaveIndicator/AutosaveIndicator.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
 import { useBudgetSection, type BudgetLineFormState } from '../../hooks/useBudgetSection.js';
-import { ProjectSubNav } from '../../components/ProjectSubNav/ProjectSubNav.js';
 import styles from './WorkItemDetailPage.module.css';
 
 interface DeletingDependency {
@@ -1182,7 +1181,6 @@ export default function WorkItemDetailPage() {
             </>
           )}
         </div>
-        <ProjectSubNav />
 
         <div className={styles.headerRow}>
           <div className={styles.titleSection}>

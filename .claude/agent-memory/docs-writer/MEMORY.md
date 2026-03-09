@@ -47,9 +47,13 @@
 - Double dashes `--` used instead of em dashes in all existing content
 - Footer links in `docusaurus.config.js` should be updated when major features are added
 
-## Roadmap State (post EPIC-14)
+## Roadmap State (post EPIC-15)
 
-Completed: EPIC-02, EPIC-11(#12), EPIC-01, EPIC-03, EPIC-12(#115), EPIC-05, EPIC-06, EPIC-08, EPIC-04, EPIC-07, EPIC-10, EPIC-11(#444 tags), EPIC-12(#445 refinement), EPIC-14(#495)
+Completed: EPIC-02, EPIC-11(#12), EPIC-01, EPIC-03, EPIC-12(#115), EPIC-05, EPIC-06, EPIC-08, EPIC-04, EPIC-07, EPIC-10, EPIC-11(#444 tags), EPIC-12(#445 refinement), EPIC-14(#495), EPIC-15(#602)
 Planned: EPIC-09(#9 dashboard), EPIC-13(#446 construction diary)
 
 Note: EPIC-11 and EPIC-12 each have two issues -- original (#12/#115) and new (#444/#445). Both pairs are completed.
+
+## EPIC-15 Invoice-Budget-Line Rework
+
+Key docs changes: vendors-and-invoices.md was substantially rewritten to document the many-to-many model, two-step picker, invoice groups, and bidirectional linking. Subsidy page updated with cost basis section. Budget overview updated to reference itemized amounts. No new pages added -- no sidebar changes needed.

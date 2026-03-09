@@ -43,7 +43,7 @@ export function InvoiceLinkModal({
       try {
         setIsLoading(true);
         const response = await fetchAllInvoices({
-          pageSize: 1000,
+          pageSize: 100,
           ...(vendorId && { vendorId }),
         });
         setInvoices(response.invoices);

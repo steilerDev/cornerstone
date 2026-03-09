@@ -75,7 +75,7 @@ export class HouseholdItemsPage {
     this.page = page;
 
     // Page header
-    this.heading = page.getByRole('heading', { level: 1, name: 'Household Items', exact: true });
+    this.heading = page.getByRole('heading', { level: 1, name: 'Project', exact: true });
     this.newItemButton = page.getByRole('button', { name: /New Item/i });
 
     // Search and filters
