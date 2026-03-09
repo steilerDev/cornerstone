@@ -261,6 +261,15 @@ export type {
   UpdateHouseholdItemCategoryRequest,
 } from './types/householdItem.js';
 
+// User Preferences
+export type {
+  UserPreference,
+  PreferenceKey,
+  DashboardCardId,
+  UpsertPreferenceRequest,
+  PreferencesResponse,
+} from './types/preference.js';
+
 // Household Item Budgets
 export type {
   HouseholdItemBudgetLine,
