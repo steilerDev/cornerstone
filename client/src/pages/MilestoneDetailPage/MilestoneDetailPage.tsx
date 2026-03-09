@@ -731,7 +731,9 @@ export function MilestoneDetailPage() {
                       .filter((item) =>
                         item.title.toLowerCase().includes(depSearchInput.toLowerCase()),
                       )
-                      .filter((item) => !milestone.dependentWorkItems.find((dep) => dep.id === item.id))
+                      .filter(
+                        (item) => !milestone.dependentWorkItems.find((dep) => dep.id === item.id),
+                      )
                       .map((item) => (
                         <button
                           key={item.id}
@@ -747,10 +749,13 @@ export function MilestoneDetailPage() {
                       .filter((item) =>
                         item.title.toLowerCase().includes(depSearchInput.toLowerCase()),
                       )
-                      .filter((item) => !milestone.dependentWorkItems.find((dep) => dep.id === item.id))
-                      .length === 0 && (
-                        <div className={styles.searchDropdownEmpty}>No work items match your search</div>
-                      )}
+                      .filter(
+                        (item) => !milestone.dependentWorkItems.find((dep) => dep.id === item.id),
+                      ).length === 0 && (
+                      <div className={styles.searchDropdownEmpty}>
+                        No work items match your search
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
