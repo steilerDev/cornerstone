@@ -11,8 +11,9 @@ import {
   updateInvoiceBudgetLine,
   deleteInvoiceBudgetLine,
 } from '../../lib/invoiceBudgetLinesApi.js';
-import { fetchWorkItemBudgets } from '../../lib/workItemBudgetsApi.js';
-import { fetchHouseholdItemBudgets } from '../../lib/householdItemBudgetsApi.js';
+import { fetchWorkItemBudgets, createWorkItemBudget } from '../../lib/workItemBudgetsApi.js';
+import { fetchHouseholdItemBudgets, createHouseholdItemBudget } from '../../lib/householdItemBudgetsApi.js';
+import { fetchBudgetCategories } from '../../lib/budgetCategoriesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { formatCurrency } from '../../lib/formatters.js';
 import { WorkItemPicker } from '../../components/WorkItemPicker/WorkItemPicker.js';
@@ -38,6 +39,14 @@ interface PickerState {
   isLoading: boolean;
   error?: string;
   itemizedAmounts?: Record<string, number>;
+  showCreateForm?: boolean;
+  createFormData?: {
+    description: string;
+    amount: string;
+    categoryId?: string;
+  };
+  categories?: Array<{ id: string; name: string }>;
+  isCreatingBudgetLine?: boolean;
 }
 
 export function InvoiceBudgetLinesSection({
@@ -167,6 +176,96 @@ export function InvoiceBudgetLinesSection({
         isLoading: false,
         error: errorMsg,
         itemizedAmounts: {},
+      });
+    }
+  };
+
+  /**
+   * Show the inline form for creating a new budget line.
+   */
+  const showCreateBudgetLineForm = async () => {
+    // Fetch categories to populate the dropdown
+    try {
+      const categoriesResponse = await fetchBudgetCategories();
+      setPickerState({
+        ...pickerState,
+        showCreateForm: true,
+        createFormData: { description: '', amount: '', categoryId: undefined },
+        categories: categoriesResponse.categories,
+      });
+    } catch (err) {
+      const errorMsg = err instanceof ApiClientError ? err.error.message : 'Failed to load categories.';
+      setPickerState({
+        ...pickerState,
+        error: errorMsg,
+      });
+    }
+  };
+
+  /**
+   * Handle creating a new budget line inline.
+   */
+  const handleCreateBudgetLine = async () => {
+    if (!pickerState.itemId || !pickerState.type || !pickerState.createFormData) return;
+
+    const { description, amount, categoryId } = pickerState.createFormData;
+    const parsedAmount = parseFloat(amount);
+
+    if (!description.trim()) {
+      setPickerState({
+        ...pickerState,
+        error: 'Description is required.',
+      });
+      return;
+    }
+
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      setPickerState({
+        ...pickerState,
+        error: 'Amount must be a positive number.',
+      });
+      return;
+    }
+
+    setPickerState({
+      ...pickerState,
+      isCreatingBudgetLine: true,
+      error: undefined,
+    });
+
+    try {
+      const createFn = pickerState.type === 'work_item' ? createWorkItemBudget : createHouseholdItemBudget;
+      await createFn(pickerState.itemId, {
+        description,
+        amount: parsedAmount,
+        confidence: 'own_estimate',
+        categoryId,
+      });
+
+      // After creating the budget line, re-fetch the list
+      const fetchFn = pickerState.type === 'work_item' ? fetchWorkItemBudgets : fetchHouseholdItemBudgets;
+      const lines = await fetchFn(pickerState.itemId);
+      const unlinkedLines = lines.filter((bl) => bl.invoiceLink === null);
+
+      setPickerState({
+        step: 2,
+        type: pickerState.type,
+        itemId: pickerState.itemId,
+        itemTitle: pickerState.itemTitle,
+        budgetLines: unlinkedLines,
+        isLoading: false,
+        itemizedAmounts: {},
+        showCreateForm: false,
+        isCreatingBudgetLine: false,
+      });
+    } catch (err) {
+      const errorMsg =
+        err instanceof ApiClientError ? err.error.message : 'Failed to create budget line.';
+
+      setPickerState({
+        ...pickerState,
+        error: errorMsg,
+        isCreatingBudgetLine: false,
       });
     }
   };
@@ -562,6 +661,9 @@ export function InvoiceBudgetLinesSection({
                         onChange={(itemId) => {
                           void handleSelectItem(itemId, 'household_item');
                         }}
+                        onSelectItem={(item) => {
+                          void handleSelectItem(item.id, 'household_item', item.name);
+                        }}
                         excludeIds={[]}
                         placeholder="Search household items..."
                         showItemsOnFocus
@@ -586,11 +688,130 @@ export function InvoiceBudgetLinesSection({
 
                   {!pickerState.isLoading &&
                     pickerState.budgetLines.length === 0 &&
-                    !pickerState.error && (
+                    !pickerState.error && !pickerState.showCreateForm && (
                       <div className={styles.emptyState}>
-                        <p>No unlinked budget lines available for this item.</p>
+                        <p>No unlinked budget lines for this item.</p>
+                        <button
+                          type="button"
+                          className={styles.addButton}
+                          onClick={() => void showCreateBudgetLineForm()}
+                        >
+                          Create Budget Line
+                        </button>
                       </div>
                     )}
+
+                  {!pickerState.isLoading && pickerState.showCreateForm && (
+                    <div className={styles.createBudgetLineForm}>
+                      <h4 className={styles.createFormTitle}>Create Budget Line</h4>
+                      {pickerState.error && (
+                        <div className={styles.errorBanner} role="alert">
+                          {pickerState.error}
+                        </div>
+                      )}
+                      <div className={styles.formGroup}>
+                        <label className={styles.formLabel} htmlFor="budget-description">
+                          Description
+                        </label>
+                        <input
+                          id="budget-description"
+                          type="text"
+                          className={styles.formInput}
+                          value={pickerState.createFormData?.description ?? ''}
+                          onChange={(e) => {
+                            setPickerState({
+                              ...pickerState,
+                              createFormData: {
+                                ...pickerState.createFormData!,
+                                description: e.target.value,
+                              },
+                            });
+                          }}
+                          placeholder="e.g., Labor costs, Materials"
+                          disabled={pickerState.isCreatingBudgetLine}
+                        />
+                      </div>
+
+                      <div className={styles.formGroup}>
+                        <label className={styles.formLabel} htmlFor="budget-category">
+                          Category (Optional)
+                        </label>
+                        <select
+                          id="budget-category"
+                          className={styles.formSelect}
+                          value={pickerState.createFormData?.categoryId ?? ''}
+                          onChange={(e) => {
+                            setPickerState({
+                              ...pickerState,
+                              createFormData: {
+                                ...pickerState.createFormData!,
+                                categoryId: e.target.value || undefined,
+                              },
+                            });
+                          }}
+                          disabled={pickerState.isCreatingBudgetLine}
+                        >
+                          <option value="">No category</option>
+                          {pickerState.categories?.map((cat) => (
+                            <option key={cat.id} value={cat.id}>
+                              {cat.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className={styles.formGroup}>
+                        <label className={styles.formLabel} htmlFor="budget-amount">
+                          Planned Amount
+                        </label>
+                        <input
+                          id="budget-amount"
+                          type="number"
+                          className={styles.formInput}
+                          value={pickerState.createFormData?.amount ?? ''}
+                          onChange={(e) => {
+                            setPickerState({
+                              ...pickerState,
+                              createFormData: {
+                                ...pickerState.createFormData!,
+                                amount: e.target.value,
+                              },
+                            });
+                          }}
+                          placeholder="0.00"
+                          min="0"
+                          step="0.01"
+                          disabled={pickerState.isCreatingBudgetLine}
+                        />
+                      </div>
+
+                      <div className={styles.formActions}>
+                        <button
+                          type="button"
+                          className={styles.cancelButton}
+                          onClick={() => {
+                            setPickerState({
+                              ...pickerState,
+                              showCreateForm: false,
+                              createFormData: undefined,
+                              categories: undefined,
+                            });
+                          }}
+                          disabled={pickerState.isCreatingBudgetLine}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.addButton}
+                          onClick={() => void handleCreateBudgetLine()}
+                          disabled={pickerState.isCreatingBudgetLine}
+                        >
+                          {pickerState.isCreatingBudgetLine ? 'Creating...' : 'Create'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   {!pickerState.isLoading && pickerState.budgetLines.length > 0 && (
                     <>
@@ -610,7 +831,7 @@ export function InvoiceBudgetLinesSection({
                                     </span>
                                   )}
                                   <span className={styles.budgetLinePlanned}>
-                                    {formatCurrency(line.plannedAmount)}
+                                    Planned: {formatCurrency(line.plannedAmount)}
                                   </span>
                                 </div>
                               </div>

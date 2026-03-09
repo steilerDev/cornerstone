@@ -15,6 +15,7 @@ const STATUS_BORDER_COLORS: Record<HouseholdItemStatus, string> = {
 interface HouseholdItemPickerProps {
   value: string;
   onChange: (id: string) => void;
+  onSelectItem?: (item: { id: string; name: string }) => void;
   excludeIds: string[];
   disabled?: boolean;
   placeholder?: string;
@@ -32,6 +33,7 @@ interface HouseholdItemPickerProps {
 export function HouseholdItemPicker({
   value,
   onChange,
+  onSelectItem,
   excludeIds,
   disabled = false,
   placeholder = 'Search household items...',
@@ -151,6 +153,7 @@ export function HouseholdItemPicker({
   const handleSelect = (item: HouseholdItemSummary) => {
     setSelectedItem(item);
     onChange(item.id);
+    onSelectItem?.({ id: item.id, name: item.name });
     setIsOpen(false);
     setSearchTerm('');
     setResults([]);
