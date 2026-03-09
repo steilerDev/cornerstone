@@ -365,6 +365,5 @@ describe('Budget Overview Routes', () => {
         expect(typeof cat.budgetLineCount).toBe('number');
       }
     });
-
   });
 });
