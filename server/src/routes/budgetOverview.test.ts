@@ -232,22 +232,17 @@ describe('Budget Overview Routes', () => {
       const body = response.json<BudgetOverviewResponse>();
       const overview = body.overview;
 
-      // Top-level numeric fields (new shape from Story 5.11)
+      // Top-level numeric fields
       expect(typeof overview.availableFunds).toBe('number');
       expect(typeof overview.sourceCount).toBe('number');
       expect(typeof overview.minPlanned).toBe('number');
       expect(typeof overview.maxPlanned).toBe('number');
-      // Story 5.11: blended projected fields
-      expect(typeof overview.projectedMin).toBe('number');
-      expect(typeof overview.projectedMax).toBe('number');
       expect(typeof overview.actualCost).toBe('number');
       expect(typeof overview.actualCostPaid).toBe('number');
 
-      // Six remaining perspectives
+      // Remaining perspectives
       expect(typeof overview.remainingVsMinPlanned).toBe('number');
       expect(typeof overview.remainingVsMaxPlanned).toBe('number');
-      expect(typeof overview.remainingVsProjectedMin).toBe('number');
-      expect(typeof overview.remainingVsProjectedMax).toBe('number');
       expect(typeof overview.remainingVsActualCost).toBe('number');
       expect(typeof overview.remainingVsActualPaid).toBe('number');
 
@@ -275,16 +270,10 @@ describe('Budget Overview Routes', () => {
       expect(overview.availableFunds).toBe(0);
       expect(overview.minPlanned).toBe(0);
       expect(overview.maxPlanned).toBe(0);
-      // Story 5.11 projected fields — also zero for empty project
-      expect(overview.projectedMin).toBe(0);
-      expect(overview.projectedMax).toBe(0);
       expect(overview.actualCost).toBe(0);
       expect(overview.actualCostPaid).toBe(0);
       expect(overview.remainingVsMinPlanned).toBe(0);
       expect(overview.remainingVsMaxPlanned).toBe(0);
-      // Story 5.11 remaining projected perspectives — also zero
-      expect(overview.remainingVsProjectedMin).toBe(0);
-      expect(overview.remainingVsProjectedMax).toBe(0);
       expect(overview.remainingVsActualCost).toBe(0);
       expect(overview.remainingVsActualPaid).toBe(0);
       // 11 seeded categories (migration 0016 added 'bc-household-items')
@@ -365,69 +354,17 @@ describe('Budget Overview Routes', () => {
       expect(response.statusCode).toBe(200);
       const { overview } = response.json<BudgetOverviewResponse>();
 
-      // Each category summary has required fields from new shape (including Story 5.11 projected fields)
+      // Each category summary has required fields
       for (const cat of overview.categorySummaries) {
         expect(typeof cat.categoryId).toBe('string');
         expect(typeof cat.categoryName).toBe('string');
         expect(typeof cat.minPlanned).toBe('number');
         expect(typeof cat.maxPlanned).toBe('number');
-        // Story 5.11: blended projected fields on category summaries
-        expect(typeof cat.projectedMin).toBe('number');
-        expect(typeof cat.projectedMax).toBe('number');
         expect(typeof cat.actualCost).toBe('number');
         expect(typeof cat.actualCostPaid).toBe('number');
         expect(typeof cat.budgetLineCount).toBe('number');
       }
     });
 
-    it('projectedMin and projectedMax reflect blended invoice model at route level', async () => {
-      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
-
-      // Line A: invoiced at 7000 (own_estimate, planned=10000) → min/max = actualCost = 7000
-      // Line B: no invoices (quote ±5%, planned=5000, min=4750/max=5250)
-      insertWorkItem({ plannedAmount: 10000, confidence: 'own_estimate', actualCost: 7000 });
-      insertWorkItem({ plannedAmount: 5000, confidence: 'quote' });
-
-      const response = await app.inject({
-        method: 'GET',
-        url: '/api/budget/overview',
-        headers: { cookie },
-      });
-
-      expect(response.statusCode).toBe(200);
-      const { overview } = response.json<BudgetOverviewResponse>();
-
-      // minPlanned = 7000 (A, invoice overrides) + 4750 (B) = 11750
-      // maxPlanned = 7000 (A, invoice overrides) + 5250 (B) = 12250
-      expect(overview.minPlanned).toBeCloseTo(11750, 5);
-      expect(overview.maxPlanned).toBeCloseTo(12250, 5);
-      // projected now equals planned
-      expect(overview.projectedMin).toBeCloseTo(11750, 5);
-      expect(overview.projectedMax).toBeCloseTo(12250, 5);
-    });
-
-    it('remainingVsProjectedMin and remainingVsProjectedMax are correct at route level', async () => {
-      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
-
-      insertBudgetSource(100000, 'active');
-      // Line with invoice: projected = actualCost = 6000
-      insertWorkItem({ plannedAmount: 10000, confidence: 'invoice', actualCost: 6000 });
-
-      const response = await app.inject({
-        method: 'GET',
-        url: '/api/budget/overview',
-        headers: { cookie },
-      });
-
-      expect(response.statusCode).toBe(200);
-      const { overview } = response.json<BudgetOverviewResponse>();
-
-      expect(overview.availableFunds).toBe(100000);
-      // Line has invoice → projected = 6000 (min = max)
-      expect(overview.projectedMin).toBe(6000);
-      expect(overview.projectedMax).toBe(6000);
-      expect(overview.remainingVsProjectedMin).toBe(94000); // 100000 - 6000
-      expect(overview.remainingVsProjectedMax).toBe(94000); // 100000 - 6000
-    });
   });
 });
