@@ -64,13 +64,13 @@ describe('Sidebar', () => {
     onClose: mockOnClose,
   });
 
-  it('renders all 5 navigation links plus 1 logo link plus 1 GitHub footer link', () => {
+  it('renders 3 navigation links plus 1 logo link plus 1 GitHub footer link', () => {
     renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
 
     const links = screen.getAllByRole('link');
-    // 3 main nav links (Project, Budget, Schedule) + 1 footer nav (Settings)
-    // + 1 logo link (Go to project overview) + 1 GitHub link in the footer
-    expect(links).toHaveLength(6);
+    // 3 main nav links (Project, Budget, Schedule) + 1 logo link (Go to project overview)
+    // + 1 GitHub link in the footer (Settings is now a button, not a link)
+    expect(links).toHaveLength(5);
   });
 
   it('logo link navigates to /project and has aria-label', () => {
@@ -94,7 +94,8 @@ describe('Sidebar', () => {
     expect(screen.getByRole('link', { name: /^project$/i })).toHaveAttribute('href', '/project');
     expect(screen.getByRole('link', { name: /^budget$/i })).toHaveAttribute('href', '/budget');
     expect(screen.getByRole('link', { name: /^schedule$/i })).toHaveAttribute('href', '/schedule');
-    expect(screen.getByRole('link', { name: /^settings$/i })).toHaveAttribute('href', '/settings');
+    // Settings is now a button (programmatic navigation), not a link
+    expect(screen.getByRole('button', { name: /^settings$/i })).toBeInTheDocument();
   });
 
   it('project link is active at /project', () => {
@@ -133,20 +134,21 @@ describe('Sidebar', () => {
     expect(scheduleLink).toHaveClass('active');
   });
 
-  it('settings link is active at /settings', () => {
+  it('settings button is active at /settings', () => {
     renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />, {
       initialEntries: ['/settings'],
     });
 
-    const settingsLink = screen.getByRole('link', { name: /^settings$/i });
-    expect(settingsLink).toHaveClass('active');
+    const settingsButton = screen.getByRole('button', { name: /^settings$/i });
+    expect(settingsButton).toHaveClass('active');
   });
 
-  it('only one link is active at a time', () => {
+  it('only one nav link is active at a time', () => {
     renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />, {
       initialEntries: ['/budget'],
     });
 
+    // Settings is now a button so only check nav links for active state
     const activeLinks = screen
       .getAllByRole('link')
       .filter((link) => link.classList.contains('active'));
@@ -215,12 +217,12 @@ describe('Sidebar', () => {
     expect(mockOnClose).toHaveBeenCalledTimes(1);
   });
 
-  it('clicking settings link calls onClose', async () => {
+  it('clicking settings button calls onClose', async () => {
     const user = userEvent.setup();
     renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
 
-    const settingsLink = screen.getByRole('link', { name: /^settings$/i });
-    await user.click(settingsLink);
+    const settingsButton = screen.getByRole('button', { name: /^settings$/i });
+    await user.click(settingsButton);
 
     expect(mockOnClose).toHaveBeenCalledTimes(1);
   });
@@ -287,26 +289,26 @@ describe('Sidebar', () => {
     const links = screen.getAllByRole('link');
     const buttons = screen.getAllByRole('button');
 
-    // 3 main nav links (Project, Budget, Schedule) + 1 footer nav (Settings)
-    // + 1 logo link + 1 GitHub link
-    expect(links).toHaveLength(6);
-    // 3 buttons: close button + theme toggle + logout button
-    expect(buttons).toHaveLength(3);
+    // 3 main nav links (Project, Budget, Schedule) + 1 logo link + 1 GitHub link
+    // (Settings is now a button, not a link)
+    expect(links).toHaveLength(5);
+    // 4 buttons: close button + theme toggle + settings button + logout button
+    expect(buttons).toHaveLength(4);
     expect(buttons[0]).toHaveAttribute('aria-label', 'Close menu');
-    expect(buttons[2]).toHaveTextContent(/logout/i);
+    expect(buttons[3]).toHaveTextContent(/logout/i);
   });
 
-  it('Settings link appears immediately before the Logout button in the footer', () => {
+  it('Settings button appears immediately before the Logout button in the footer', () => {
     renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
-    const settingsLink = screen.getByRole('link', { name: /^settings$/i });
+    const settingsButton = screen.getByRole('button', { name: /^settings$/i });
     const logoutButton = screen.getByRole('button', { name: /logout/i });
-    expect(settingsLink.nextElementSibling).toBe(logoutButton);
+    expect(settingsButton.nextElementSibling).toBe(logoutButton);
   });
 
-  it('ThemeToggle appears before the Settings link in the footer', () => {
+  it('ThemeToggle appears before the Settings button in the footer', () => {
     renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
-    const settingsLink = screen.getByRole('link', { name: /^settings$/i });
-    const prevSibling = settingsLink.previousElementSibling;
+    const settingsButton = screen.getByRole('button', { name: /^settings$/i });
+    const prevSibling = settingsButton.previousElementSibling;
     expect(prevSibling).not.toBeNull();
     expect(prevSibling?.tagName.toLowerCase()).toBe('button');
     // ThemeToggle aria-label is "Switch to <NextTheme> mode" — matches /switch to .+ mode/i

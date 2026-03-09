@@ -37,6 +37,7 @@ interface PickerState {
   budgetLines: (WorkItemBudgetLine | HouseholdItemBudgetLine)[];
   isLoading: boolean;
   error?: string;
+  itemizedAmounts?: Record<string, number>;
 }
 
 export function InvoiceBudgetLinesSection({
@@ -134,6 +135,7 @@ export function InvoiceBudgetLinesSection({
       itemTitle: itemTitle ?? itemId,
       budgetLines: [],
       isLoading: true,
+      itemizedAmounts: {},
     });
 
     try {
@@ -150,6 +152,7 @@ export function InvoiceBudgetLinesSection({
         itemTitle: itemTitle ?? itemId,
         budgetLines: unlinkedLines,
         isLoading: false,
+        itemizedAmounts: {},
       });
     } catch (err) {
       const errorMsg =
@@ -163,6 +166,7 @@ export function InvoiceBudgetLinesSection({
         budgetLines: [],
         isLoading: false,
         error: errorMsg,
+        itemizedAmounts: {},
       });
     }
   };
@@ -567,7 +571,7 @@ export function InvoiceBudgetLinesSection({
                 </div>
               )}
 
-              {/* Step 2: Select budget line */}
+              {/* Step 2: Select budget line and set itemized amounts */}
               {pickerState.step === 2 && (
                 <div className={styles.pickerStep}>
                   {pickerState.isLoading && (
@@ -589,33 +593,142 @@ export function InvoiceBudgetLinesSection({
                     )}
 
                   {!pickerState.isLoading && pickerState.budgetLines.length > 0 && (
-                    <div className={styles.budgetLineList}>
-                      {pickerState.budgetLines.map((line) => (
-                        <button
-                          key={line.id}
-                          type="button"
-                          className={styles.budgetLineItem}
-                          onClick={() => void handleSelectBudgetLine(line)}
+                    <>
+                      <div className={styles.budgetLineList}>
+                        {pickerState.budgetLines.map((line) => {
+                          const itemizedAmount = pickerState.itemizedAmounts?.[line.id] ?? 0;
+                          return (
+                            <div key={line.id} className={styles.pickerBudgetLineRow}>
+                              <div className={styles.budgetLineInfo}>
+                                <div className={styles.budgetLineDesc}>
+                                  {line.description || 'Unnamed budget line'}
+                                </div>
+                                <div className={styles.budgetLineDetails}>
+                                  {line.budgetCategory && (
+                                    <span className={styles.budgetLineCategory}>
+                                      {line.budgetCategory.name}
+                                    </span>
+                                  )}
+                                  <span className={styles.budgetLinePlanned}>
+                                    {formatCurrency(line.plannedAmount)}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className={styles.pickerBudgetLineAmount}>
+                                <input
+                                  type="number"
+                                  value={itemizedAmount > 0 ? itemizedAmount.toString() : ''}
+                                  onChange={(e) => {
+                                    const newAmount = parseFloat(e.target.value) || 0;
+                                    setPickerState({
+                                      ...pickerState,
+                                      itemizedAmounts: {
+                                        ...pickerState.itemizedAmounts,
+                                        [line.id]: newAmount,
+                                      },
+                                    });
+                                  }}
+                                  className={styles.pickerAmountInput}
+                                  placeholder="0.00"
+                                  min="0"
+                                  step="0.01"
+                                  aria-label={`Itemized amount for ${line.description || 'budget line'}`}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Remaining to allocate indicator */}
+                      <div className={styles.remainingIndicator}>
+                        <span className={styles.remainingLabel}>Remaining to allocate:</span>
+                        <span
+                          className={`${styles.remainingAmount} ${
+                            (pickerState.itemizedAmounts &&
+                            Object.values(pickerState.itemizedAmounts).reduce((sum, v) => sum + v, 0) >
+                              invoiceTotal)
+                              ? styles.remainingExceeds
+                              : ''
+                          }`}
                         >
-                          <div className={styles.budgetLineInfo}>
-                            <div className={styles.budgetLineDesc}>
-                              {line.description || 'Unnamed budget line'}
-                            </div>
-                            <div className={styles.budgetLineDetails}>
-                              {line.budgetCategory && (
-                                <span className={styles.budgetLineCategory}>
-                                  {line.budgetCategory.name}
-                                </span>
-                              )}
-                              <span className={styles.budgetLinePlanned}>
-                                {formatCurrency(line.plannedAmount)}
-                              </span>
-                            </div>
-                          </div>
-                          <div className={styles.budgetLineArrow}>→</div>
-                        </button>
-                      ))}
-                    </div>
+                          {formatCurrency(
+                            invoiceTotal -
+                              (pickerState.itemizedAmounts
+                                ? Object.values(pickerState.itemizedAmounts).reduce(
+                                    (sum, v) => sum + v,
+                                    0,
+                                  )
+                                : 0),
+                          )}
+                        </span>
+                      </div>
+
+                      {/* Create links for all entered amounts */}
+                      <button
+                        type="button"
+                        className={styles.addButton}
+                        onClick={async () => {
+                          if (!pickerState.itemId || !pickerState.type || !pickerState.itemizedAmounts)
+                            return;
+
+                          // Create links for all lines with amounts entered
+                          for (const line of pickerState.budgetLines) {
+                            const amount = pickerState.itemizedAmounts[line.id];
+                            if (amount > 0) {
+                              try {
+                                const createData = {
+                                  invoiceId,
+                                  ...(pickerState.type === 'work_item'
+                                    ? { workItemBudgetId: line.id }
+                                    : { householdItemBudgetId: line.id }),
+                                  itemizedAmount: amount,
+                                };
+
+                                const response = await createInvoiceBudgetLine(invoiceId, createData);
+
+                                // Update state with new line and remaining amount
+                                const newBudgetLines = [...budgetLines, response.budgetLine];
+                                setBudgetLines(newBudgetLines);
+                                setRemainingAmount(response.remainingAmount);
+                              } catch (err) {
+                                let errorMsg = 'Failed to link budget line. Please try again.';
+
+                                if (err instanceof ApiClientError) {
+                                  if (err.error.code === 'BUDGET_LINE_ALREADY_LINKED') {
+                                    errorMsg = 'This budget line is already linked to another invoice.';
+                                  } else if (err.error.code === 'ITEMIZED_SUM_EXCEEDS_INVOICE') {
+                                    errorMsg = 'Linking this budget line would exceed the invoice total.';
+                                  } else {
+                                    errorMsg = err.error.message;
+                                  }
+                                }
+
+                                setPickerState({
+                                  ...pickerState,
+                                  error: errorMsg,
+                                });
+                                return;
+                              }
+                            }
+                          }
+
+                          closePicker();
+
+                          // Focus the newly added row after a short delay
+                          setTimeout(() => {
+                            newLineRowRef.current?.focus();
+                          }, 100);
+                        }}
+                        disabled={
+                          !pickerState.itemizedAmounts ||
+                          Object.values(pickerState.itemizedAmounts).reduce((sum, v) => sum + v, 0) ===
+                            0
+                        }
+                      >
+                        Add Selected Lines
+                      </button>
+                    </>
                   )}
 
                   <button

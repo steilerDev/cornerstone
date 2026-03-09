@@ -1,4 +1,4 @@
-import { NavLink, Link } from 'react-router-dom';
+import { NavLink, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { Logo } from '../Logo/Logo.js';
 import { ThemeToggle } from '../ThemeToggle/ThemeToggle.js';
@@ -11,6 +11,8 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { user: _user, logout } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
   const sidebarClassName = [styles.sidebar, isOpen && styles.open].filter(Boolean).join(' ');
 
   return (
@@ -54,13 +56,16 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       </nav>
       <div className={styles.sidebarFooter}>
         <ThemeToggle />
-        <NavLink
-          to="/settings"
-          className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
-          onClick={onClose}
+        <button
+          type="button"
+          className={`${styles.logoutButton} ${location.pathname.startsWith('/settings') ? styles.active : ''}`}
+          onClick={() => {
+            navigate('/settings');
+            onClose();
+          }}
         >
           Settings
-        </NavLink>
+        </button>
         <button
           type="button"
           className={styles.logoutButton}

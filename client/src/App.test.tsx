@@ -352,10 +352,11 @@ describe('App', () => {
     // Wait for lazy-loaded HouseholdItems component to resolve.
     // The HouseholdItemsPage h1 now reads "Project" (shared sub-nav heading).
     // Use level: 1 to match the page title h1 (not the h2 empty state "No household items yet").
-    const heading = await screen.findByRole('heading', {
-      name: /^project$/i,
-      level: 1,
-    });
+    const heading = await screen.findByRole(
+      'heading',
+      { name: /^project$/i, level: 1 },
+      { timeout: 5000 },
+    );
     expect(heading).toBeInTheDocument();
   });
 
@@ -365,7 +366,7 @@ describe('App', () => {
 
     // Wait for lazy-loaded Invoices component to resolve
     // The InvoicesPage h1 now reads "Budget" (shared sub-nav heading)
-    const heading = await screen.findByRole('heading', { name: /^budget$/i, level: 1 });
+    const heading = await screen.findByRole('heading', { name: /^budget$/i, level: 1 }, { timeout: 5000 });
     expect(heading).toBeInTheDocument();
   });
 
