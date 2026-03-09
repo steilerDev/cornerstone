@@ -5,7 +5,9 @@
  *   - A page header with h1 "Schedule" and a toolbar
  *   - Gantt chart view (default): sidebar + scrollable SVG chart
  *   - Calendar view: month/week grids with navigation
- *   - Milestone panel (slide-in dialog via portal)
+ *
+ * Note: Milestones now have their own dedicated page at /project/milestones.
+ * The Gantt chart still renders milestone diamond markers from the timeline API.
  *
  * DOM observations (from TimelinePage.tsx, GanttChart.tsx, etc.):
  *   - Page root: data-testid="timeline-page"
@@ -20,16 +22,6 @@
  *   - Milestone diamond: data-testid="gantt-milestone-diamond"
  *   - Milestones layer: data-testid="gantt-milestones-layer"
  *   - Tooltip: data-testid="gantt-tooltip"
- *   - Milestone panel button: data-testid="milestones-panel-button"
- *   - Milestone filter button: data-testid="milestone-filter-button"
- *   - Milestone filter dropdown: data-testid="milestone-filter-dropdown"
- *   - Milestone panel: data-testid="milestone-panel" (portal on body)
- *   - Milestone list empty: data-testid="milestone-list-empty"
- *   - Milestone list item: data-testid="milestone-list-item"
- *   - Milestone new button: data-testid="milestone-new-button"
- *   - Milestone form: data-testid="milestone-form"
- *   - Milestone form submit: data-testid="milestone-form-submit"
- *   - Milestone delete confirm: data-testid="milestone-delete-confirm"
  *   - Calendar view: data-testid="calendar-view"
  *   - Timeline empty: data-testid="timeline-empty"
  *   - Timeline no-dates: data-testid="timeline-no-dates"
@@ -55,8 +47,6 @@ export class TimelinePage {
   readonly ganttViewButton: Locator;
   /** Calendar view toggle button. */
   readonly calendarViewButton: Locator;
-  /** Milestones panel open button. */
-  readonly milestonePanelButton: Locator;
 
   // ── Chart area states ──────────────────────────────────────────────────────
   /** Gantt chart container. */
@@ -88,19 +78,6 @@ export class TimelinePage {
   // ── Tooltip ────────────────────────────────────────────────────────────────
   readonly tooltip: Locator;
 
-  // ── Milestone panel (portal) ───────────────────────────────────────────────
-  readonly milestonePanel: Locator;
-  readonly milestonePanelCloseButton: Locator;
-  readonly milestoneListEmpty: Locator;
-  readonly milestoneListItems: Locator;
-  readonly milestoneNewButton: Locator;
-  readonly milestoneForm: Locator;
-  readonly milestoneFormSubmit: Locator;
-  readonly milestoneNameInput: Locator;
-  readonly milestoneDateInput: Locator;
-  readonly milestoneDescriptionInput: Locator;
-  readonly milestoneDeleteConfirm: Locator;
-
   // ── Calendar view ──────────────────────────────────────────────────────────
   readonly calendarView: Locator;
   readonly calendarMonthButton: Locator;
@@ -122,7 +99,6 @@ export class TimelinePage {
     this.zoomToolbar = page.getByRole('toolbar', { name: 'Zoom level' });
     this.ganttViewButton = page.getByTestId('schedule-view-gantt');
     this.calendarViewButton = page.getByTestId('schedule-view-calendar');
-    this.milestonePanelButton = page.getByTestId('milestones-panel-button');
 
     // Chart area states
     this.ganttChart = page.getByTestId('gantt-chart');
@@ -146,19 +122,6 @@ export class TimelinePage {
 
     // Tooltip
     this.tooltip = page.getByTestId('gantt-tooltip');
-
-    // Milestone panel (portal — attached to body, not inside page root)
-    this.milestonePanel = page.getByTestId('milestone-panel');
-    this.milestonePanelCloseButton = this.milestonePanel.getByLabel('Close milestones panel');
-    this.milestoneListEmpty = page.getByTestId('milestone-list-empty');
-    this.milestoneListItems = page.getByTestId('milestone-list-item');
-    this.milestoneNewButton = page.getByTestId('milestone-new-button');
-    this.milestoneForm = page.getByTestId('milestone-form');
-    this.milestoneFormSubmit = page.getByTestId('milestone-form-submit');
-    this.milestoneNameInput = page.locator('#milestone-title');
-    this.milestoneDateInput = page.locator('#milestone-target-date');
-    this.milestoneDescriptionInput = page.locator('#milestone-description');
-    this.milestoneDeleteConfirm = page.getByTestId('milestone-delete-confirm');
 
     // Calendar view
     this.calendarView = page.getByTestId('calendar-view');
@@ -262,65 +225,6 @@ export class TimelinePage {
       if (label) labels.push(label);
     }
     return labels;
-  }
-
-  // ── Milestone panel ────────────────────────────────────────────────────────
-
-  /** Open the milestones panel and wait for it to appear. */
-  async openMilestonePanel(): Promise<void> {
-    await this.milestonePanelButton.click();
-    await this.milestonePanel.waitFor({ state: 'visible' });
-  }
-
-  /** Close the milestones panel. */
-  async closeMilestonePanel(): Promise<void> {
-    await this.milestonePanelCloseButton.click();
-    await this.milestonePanel.waitFor({ state: 'hidden' });
-  }
-
-  /**
-   * Create a milestone via the panel UI.
-   * Assumes the panel is already open and in list view.
-   */
-  async createMilestoneViaPanel(title: string, date: string, description?: string): Promise<void> {
-    await this.milestoneNewButton.click();
-    await this.milestoneForm.waitFor({ state: 'visible' });
-    await this.milestoneNameInput.fill(title);
-    await this.milestoneDateInput.fill(date);
-    if (description) {
-      await this.milestoneDescriptionInput.fill(description);
-    }
-    const saveResponsePromise = this.page.waitForResponse(
-      (resp) => resp.url().includes('/api/milestones') && resp.status() === 201,
-    );
-    await this.milestoneFormSubmit.click();
-    await saveResponsePromise;
-    // After save, the form should close and return to list view
-    await this.milestoneForm.waitFor({ state: 'hidden' });
-  }
-
-  /**
-   * Delete the first milestone in the list that matches the given title.
-   * Assumes the panel is open and in list view.
-   */
-  async deleteMilestoneByTitle(title: string): Promise<void> {
-    const items = await this.milestoneListItems.all();
-    for (const item of items) {
-      const text = await item.textContent();
-      if (text?.includes(title)) {
-        const deleteBtn = item.getByLabel(`Delete ${title}`);
-        await deleteBtn.click();
-        // Confirm in the delete dialog
-        await this.milestoneDeleteConfirm.waitFor({ state: 'visible' });
-        const deleteResponsePromise = this.page.waitForResponse(
-          (resp) => resp.url().includes('/api/milestones') && resp.request().method() === 'DELETE',
-        );
-        await this.milestoneDeleteConfirm.click();
-        await deleteResponsePromise;
-        return;
-      }
-    }
-    throw new Error(`Milestone with title "${title}" not found in panel`);
   }
 
   // ── Calendar view helpers ─────────────────────────────────────────────────
