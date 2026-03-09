@@ -75,7 +75,9 @@ export function BudgetAlertsCard({ categorySummaries }: BudgetAlertsCardProps) {
             aria-hidden="true"
           />
           <span className={styles.categoryName}>{alert.categoryName}</span>
-          <span className={`${styles.pctText} ${alert.severity === 'red' ? styles.pctRed : styles.pctYellow}`}>
+          <span
+            className={`${styles.pctText} ${alert.severity === 'red' ? styles.pctRed : styles.pctYellow}`}
+          >
             {alert.pctUsed.toFixed(1)}% of budget
           </span>
         </li>

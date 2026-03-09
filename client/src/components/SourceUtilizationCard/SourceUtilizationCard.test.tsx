@@ -56,9 +56,7 @@ describe('SourceUtilizationCard', () => {
   // ── Test 2: Source name displayed ────────────────────────────────────────
 
   it('displays the source name within each source row', () => {
-    const sources: BudgetSource[] = [
-      { ...baseSource, id: 'bs-1', name: 'My Construction Loan' },
-    ];
+    const sources: BudgetSource[] = [{ ...baseSource, id: 'bs-1', name: 'My Construction Loan' }];
 
     renderWithRouter(<SourceUtilizationCard sources={sources} />);
 
@@ -68,9 +66,7 @@ describe('SourceUtilizationCard', () => {
   // ── Test 3: Type badge — bank_loan ───────────────────────────────────────
 
   it('renders "Bank Loan" type badge for bank_loan source type', () => {
-    const sources: BudgetSource[] = [
-      { ...baseSource, id: 'bs-1', sourceType: 'bank_loan' },
-    ];
+    const sources: BudgetSource[] = [{ ...baseSource, id: 'bs-1', sourceType: 'bank_loan' }];
 
     renderWithRouter(<SourceUtilizationCard sources={sources} />);
 
@@ -80,9 +76,7 @@ describe('SourceUtilizationCard', () => {
   // ── Test 4: Type badge — credit_line ─────────────────────────────────────
 
   it('renders "Credit Line" type badge for credit_line source type', () => {
-    const sources: BudgetSource[] = [
-      { ...baseSource, id: 'bs-1', sourceType: 'credit_line' },
-    ];
+    const sources: BudgetSource[] = [{ ...baseSource, id: 'bs-1', sourceType: 'credit_line' }];
 
     renderWithRouter(<SourceUtilizationCard sources={sources} />);
 
@@ -92,9 +86,7 @@ describe('SourceUtilizationCard', () => {
   // ── Test 5: Type badge — savings ─────────────────────────────────────────
 
   it('renders "Savings" type badge for savings source type', () => {
-    const sources: BudgetSource[] = [
-      { ...baseSource, id: 'bs-1', sourceType: 'savings' },
-    ];
+    const sources: BudgetSource[] = [{ ...baseSource, id: 'bs-1', sourceType: 'savings' }];
 
     renderWithRouter(<SourceUtilizationCard sources={sources} />);
 
@@ -104,9 +96,7 @@ describe('SourceUtilizationCard', () => {
   // ── Test 6: Type badge — other ───────────────────────────────────────────
 
   it('renders "Other" type badge for other source type', () => {
-    const sources: BudgetSource[] = [
-      { ...baseSource, id: 'bs-1', sourceType: 'other' },
-    ];
+    const sources: BudgetSource[] = [{ ...baseSource, id: 'bs-1', sourceType: 'other' }];
 
     renderWithRouter(<SourceUtilizationCard sources={sources} />);
 
@@ -131,9 +121,7 @@ describe('SourceUtilizationCard', () => {
   // ── Test 8: BudgetBar rendered ───────────────────────────────────────────
 
   it('renders a BudgetBar with role="img" for each source row', () => {
-    const sources: BudgetSource[] = [
-      { ...baseSource, id: 'bs-1' },
-    ];
+    const sources: BudgetSource[] = [{ ...baseSource, id: 'bs-1' }];
 
     renderWithRouter(<SourceUtilizationCard sources={sources} />);
 
