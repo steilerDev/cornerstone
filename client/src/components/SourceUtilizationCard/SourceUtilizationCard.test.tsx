@@ -21,6 +21,7 @@ const baseSource: BudgetSource = {
   availableAmount: 100000,
   claimedAmount: 50000,
   unclaimedAmount: 50000,
+  actualAvailableAmount: 150000,
   interestRate: 3.5,
   terms: null,
   notes: null,
