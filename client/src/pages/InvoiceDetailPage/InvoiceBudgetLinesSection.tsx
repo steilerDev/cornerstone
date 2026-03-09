@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import type {
   InvoiceBudgetLineDetailResponse,
   WorkItemBudgetLine,
@@ -125,12 +126,12 @@ export function InvoiceBudgetLinesSection({
    * Step 1: User selects a work item or household item.
    * Fetch its budget lines and move to step 2.
    */
-  const handleSelectItem = async (itemId: string, type: BudgetLineType) => {
+  const handleSelectItem = async (itemId: string, type: BudgetLineType, itemTitle?: string) => {
     setPickerState({
       step: 2,
       type,
       itemId,
-      itemTitle: itemId,
+      itemTitle: itemTitle ?? itemId,
       budgetLines: [],
       isLoading: true,
     });
@@ -146,7 +147,7 @@ export function InvoiceBudgetLinesSection({
         step: 2,
         type,
         itemId,
-        itemTitle: itemId,
+        itemTitle: itemTitle ?? itemId,
         budgetLines: unlinkedLines,
         isLoading: false,
       });
@@ -158,7 +159,7 @@ export function InvoiceBudgetLinesSection({
         step: 2,
         type,
         itemId,
-        itemTitle: itemId,
+        itemTitle: itemTitle ?? itemId,
         budgetLines: [],
         isLoading: false,
         error: errorMsg,
@@ -389,6 +390,7 @@ export function InvoiceBudgetLinesSection({
                 <th className={styles.thCategory}>Category</th>
                 <th className={styles.thPlanned}>Planned</th>
                 <th className={styles.thItemized}>Itemized</th>
+                <th className={styles.thLinkedItem}>Linked Item</th>
                 <th className={styles.thActions}>Actions</th>
               </tr>
             </thead>
@@ -441,6 +443,14 @@ export function InvoiceBudgetLinesSection({
                       <span>{formatCurrency(line.itemizedAmount)}</span>
                     )}
                   </td>
+                  <td className={styles.tdLinkedItem}>
+                    <Link
+                      to={`/project/${line.parentItemType === 'work_item' ? 'work-items' : 'household-items'}/${line.parentItemId}`}
+                      className={styles.linkedItemLink}
+                    >
+                      {line.parentItemTitle}
+                    </Link>
+                  </td>
                   <td className={styles.tdActions}>
                     {editingLineId !== line.id && (
                       <div className={styles.actionButtons}>
@@ -472,7 +482,7 @@ export function InvoiceBudgetLinesSection({
               <tr
                 className={`${styles.tr} ${styles.trRemaining} ${styles[`trRemaining_${getRemainingColor()}`]}`}
               >
-                <td colSpan={3} className={styles.tdRemainingLabel}>
+                <td colSpan={4} className={styles.tdRemainingLabel}>
                   Remaining
                 </td>
                 <td
@@ -531,7 +541,7 @@ export function InvoiceBudgetLinesSection({
                           void handleSelectItem(itemId, 'work_item');
                         }}
                         onSelectItem={(item) => {
-                          void handleSelectItem(item.id, 'work_item');
+                          void handleSelectItem(item.id, 'work_item', item.title);
                         }}
                         excludeIds={[]}
                         placeholder="Search work items..."

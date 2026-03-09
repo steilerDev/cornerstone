@@ -16,7 +16,6 @@ import {
   THIS_ITEM_ID,
   dependencyTypeToVerbs,
 } from '../../components/DependencySentenceBuilder/index.js';
-import { ProjectSubNav } from '../../components/ProjectSubNav/ProjectSubNav.js';
 import styles from './WorkItemCreatePage.module.css';
 
 interface PendingDependency {
@@ -206,7 +205,6 @@ export default function WorkItemCreatePage() {
         </button>
         <h1 className={styles.title}>Create Work Item</h1>
       </div>
-      <ProjectSubNav />
 
       {error && <div className={styles.errorBanner}>{error}</div>}
 

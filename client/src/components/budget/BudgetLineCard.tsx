@@ -13,6 +13,7 @@ export interface BudgetLineCardProps {
   onConfirmDelete: () => void;
   onCancelDelete: () => void;
   children?: ReactNode;
+  unlinkAction?: ReactNode;
 }
 
 export function BudgetLineCard({
@@ -24,6 +25,7 @@ export function BudgetLineCard({
   onConfirmDelete,
   onCancelDelete,
   children,
+  unlinkAction,
 }: BudgetLineCardProps) {
   const showInvoicedAmount = line.invoiceCount > 0;
 
@@ -108,6 +110,7 @@ export function BudgetLineCard({
             >
               Delete
             </button>
+            {unlinkAction}
           </>
         )}
       </div>

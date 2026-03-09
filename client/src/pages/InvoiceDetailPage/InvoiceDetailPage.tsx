@@ -5,7 +5,6 @@ import { fetchInvoiceById, updateInvoice, deleteInvoice } from '../../lib/invoic
 import { ApiClientError } from '../../lib/apiClient.js';
 import { formatDate, formatCurrency } from '../../lib/formatters.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
-import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
 import { InvoiceBudgetLinesSection } from './InvoiceBudgetLinesSection.js';
 import styles from './InvoiceDetailPage.module.css';
 
@@ -209,7 +208,6 @@ export function InvoiceDetailPage() {
           </span>
           <span className={styles.breadcrumbCurrent}>{invoice.invoiceNumber ?? 'Invoice'}</span>
         </div>
-        <BudgetSubNav />
 
         {/* Page heading */}
         <div className={styles.pageHeader}>

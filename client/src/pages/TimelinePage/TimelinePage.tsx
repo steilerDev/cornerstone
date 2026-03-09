@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useTimeline } from '../../hooks/useTimeline.js';
 import { useMilestones } from '../../hooks/useMilestones.js';
 import { GanttChart, GanttChartSkeleton } from '../../components/GanttChart/GanttChart.js';
@@ -252,25 +252,8 @@ export function TimelinePage() {
   }
 
   // ---- View toggle: gantt (default) or calendar ----
-  const rawView = searchParams.get('view');
-  const activeView: 'gantt' | 'calendar' = rawView === 'calendar' ? 'calendar' : 'gantt';
-
-  function setActiveView(view: 'gantt' | 'calendar') {
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        if (view === 'gantt') {
-          next.delete('view');
-          // Remove calendarMode when switching to gantt to keep URL clean
-          next.delete('calendarMode');
-        } else {
-          next.set('view', view);
-        }
-        return next;
-      },
-      { replace: true },
-    );
-  }
+  const location = useLocation();
+  const activeView: 'gantt' | 'calendar' = location.pathname.includes('/calendar') ? 'calendar' : 'gantt';
 
   // ---- Milestone state ----
   const [showMilestonePanel, setShowMilestonePanel] = useState(false);
@@ -496,7 +479,7 @@ export function TimelinePage() {
       </div>
 
       {/* Schedule sub-navigation: Gantt / Calendar view toggle */}
-      <ScheduleSubNav activeView={activeView} onViewChange={setActiveView} />
+      <ScheduleSubNav />
 
       {/* Chart / calendar area */}
       <div className={styles.chartArea} ref={chartAreaRef}>

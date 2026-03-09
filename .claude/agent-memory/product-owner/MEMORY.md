@@ -1,12 +1,14 @@
 # Product Owner Agent Memory
 
-## Backlog State (as of 2026-03-02)
+## Backlog State (as of 2026-03-09)
 
-- 12 epics, 75+ user stories across all epics
+- 14+ epics, 85+ user stories across all epics
 - Sprint 1 COMPLETE: EPIC-01, EPIC-02, EPIC-11
 - Sprint 2 COMPLETE: EPIC-03, EPIC-12
 - Sprint 3 COMPLETE: EPIC-05 (v1.9.0), EPIC-06 (v1.10.0)
-- Sprint 4 IN PROGRESS: EPIC-08 COMPLETE (v1.11.0), EPIC-04 stories created (#387-#394)
+- Sprint 4: EPIC-08 COMPLETE (v1.11.0), EPIC-04 stories created (#387-#394, #413, #415, #467)
+- EPIC-14 COMPLETE (v1.13.0): Code Deduplication
+- EPIC-15 (#602): Budget-Line Invoice Linking Rework — 7 stories merged, 3 UAT bugs created (#622, #623, #624)
 - Security hygiene backlog: Issue #315 (rate limiting, headers, lockout, etc.)
 - GitHub Projects board: "Cornerstone Backlog" (project #4, owner steilerDev)
 
@@ -20,6 +22,8 @@
 - EPIC-05 (#5): Budget Management -- CLOSED (v1.9.0), all 12 stories
 - EPIC-06 (#6): Timeline & Gantt -- CLOSED (v1.10.0), all 9 stories
 - EPIC-08 (#8): Paperless-ngx Document Integration -- CLOSED (v1.11.0), all 6 stories
+- EPIC-14: Code Deduplication -- CLOSED (v1.13.0), promoted via PR #541
+- EPIC-15 (#602): Budget-Line Invoice Linking Rework -- 7 stories merged to beta, 3 UAT bugs (#622, #623, #624) created 2026-03-09
 
 ## Epic Quick Reference
 

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import type { BaseBudgetLine } from '@cornerstone/shared';
 import { formatCurrency } from '../../lib/formatters.js';
 import { BudgetLineCard } from './BudgetLineCard.js';
@@ -75,19 +76,23 @@ export function InvoiceGroup<T extends BaseBudgetLine>({
       >
         <div className={styles.headerContent}>
           <div className={styles.invoiceInfo}>
-            <span className={styles.invoiceNumber}>
+            <Link
+              to={`/budget/invoices/${invoiceId}`}
+              className={styles.invoiceLink}
+              onClick={(e) => e.stopPropagation()}
+            >
               {invoiceNumber ? `#${invoiceNumber}` : 'Invoice'}
-            </span>
+            </Link>
             <span className={statusBadgeClass}>{invoiceStatus}</span>
           </div>
           <div className={styles.amounts}>
             <div className={styles.amountGroup}>
               <span className={styles.amountValue}>{formatCurrency(itemizedTotal)}</span>
-              <span className={styles.amountLabel}>Itemized</span>
+              <span className={styles.amountLabel}>Invoiced</span>
             </div>
             <div className={styles.amountGroup}>
               <span className={styles.amountValue}>{formatCurrency(plannedTotal)}</span>
-              <span className={styles.amountLabel}>Planned</span>
+              <span className={`${styles.amountLabel} ${styles.amountLabelMuted}`}>Planned</span>
             </div>
           </div>
         </div>
@@ -117,10 +122,8 @@ export function InvoiceGroup<T extends BaseBudgetLine>({
                 isDeleting={isDeleting[line.id] || false}
                 onConfirmDelete={() => onConfirmDelete(line.id)}
                 onCancelDelete={() => onCancelDelete(line.id)}
-              >
-                {/* Unlink button below the card */}
-                {line.invoiceLink && (
-                  <div className={styles.unlinkSection}>
+                unlinkAction={
+                  line.invoiceLink ? (
                     <button
                       type="button"
                       className={styles.unlinkBtn}
@@ -132,9 +135,9 @@ export function InvoiceGroup<T extends BaseBudgetLine>({
                         ? 'Unlinking...'
                         : 'Unlink'}
                     </button>
-                  </div>
-                )}
-              </BudgetLineCard>
+                  ) : undefined
+                }
+              />
             </div>
           ))}
         </div>

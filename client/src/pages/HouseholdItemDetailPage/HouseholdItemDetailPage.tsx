@@ -60,7 +60,6 @@ import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumen
 import { useBudgetSection, type BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 import { BudgetSection } from '../../components/budget/BudgetSection.js';
 import { InvoiceLinkModal } from '../../components/budget/InvoiceLinkModal.js';
-import { ProjectSubNav } from '../../components/ProjectSubNav/ProjectSubNav.js';
 import styles from './HouseholdItemDetailPage.module.css';
 
 export function HouseholdItemDetailPage() {
@@ -672,7 +671,6 @@ export function HouseholdItemDetailPage() {
           </span>
           <span className={styles.breadcrumbCurrent}>{item.name}</span>
         </div>
-        <ProjectSubNav />
 
         {/* Page header */}
         <div className={styles.pageHeader}>

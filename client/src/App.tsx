@@ -107,7 +107,11 @@ export function App() {
                   </Route>
 
                   {/* Schedule (renamed from Timeline) */}
-                  <Route path="schedule" element={<TimelinePage />} />
+                  <Route path="schedule">
+                    <Route index element={<Navigate to="gantt" replace />} />
+                    <Route path="gantt" element={<TimelinePage />} />
+                    <Route path="calendar" element={<TimelinePage />} />
+                  </Route>
 
                   {/* Settings section */}
                   <Route path="settings">
@@ -151,7 +155,7 @@ export function App() {
                     path="invoices/:id"
                     element={<ParamRedirect to="/budget/invoices/:id" />}
                   />
-                  <Route path="timeline" element={<Navigate to="/schedule" replace />} />
+                  <Route path="timeline" element={<Navigate to="/schedule/gantt" replace />} />
                   <Route path="manage" element={<Navigate to="/settings/manage" replace />} />
                   <Route path="tags" element={<Navigate to="/settings/manage" replace />} />
                   <Route path="profile" element={<Navigate to="/settings/profile" replace />} />

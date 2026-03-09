@@ -39,6 +39,14 @@ const EMPTY_FORM: InvoiceFormState = {
   notes: '',
 };
 
+function getAttributionLabel(invoice: Invoice): string {
+  if (invoice.budgetLines.length === 0) return '\u2014';
+  const totalItemized = invoice.budgetLines.reduce((sum, bl) => sum + bl.itemizedAmount, 0);
+  if (invoice.amount === 0) return `${invoice.budgetLines.length} lines`;
+  const pct = Math.round((totalItemized / invoice.amount) * 100);
+  return `${pct}% allocated`;
+}
+
 export function InvoicesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -216,7 +224,7 @@ export function InvoicesPage() {
       <div className={styles.container}>
         <div className={styles.content}>
           <div className={styles.pageHeader}>
-            <h1 className={styles.pageTitle}>Invoices</h1>
+            <h1 className={styles.pageTitle}>Budget</h1>
           </div>
           <BudgetSubNav />
           <div className={styles.loading}>Loading invoices...</div>
@@ -229,7 +237,7 @@ export function InvoicesPage() {
     <div className={styles.container}>
       <div className={styles.content}>
         <div className={styles.pageHeader}>
-          <h1 className={styles.pageTitle}>Invoices</h1>
+          <h1 className={styles.pageTitle}>Budget</h1>
         </div>
         <BudgetSubNav />
 
@@ -501,11 +509,7 @@ export function InvoicesPage() {
                         </Link>
                       </td>
                       <td className={styles.amountCell}>{formatCurrency(invoice.amount)}</td>
-                      <td>
-                        {invoice.budgetLines.length > 0
-                          ? invoice.budgetLines[0].budgetLineDescription || '—'
-                          : '—'}
-                      </td>
+                      <td>{getAttributionLabel(invoice)}</td>
                       <td>{invoice.dueDate ? formatDate(invoice.dueDate) : '\u2014'}</td>
                       <td>
                         <span
