@@ -597,7 +597,7 @@ export function MilestoneDetailPage() {
                   ))}
                   {linkedHouseholdItems.map((item) => (
                     <li key={`hi-${item.id}`} className={styles.linkedWorkItem}>
-                      <span className={styles.itemTypeBadgeHI}>Household Item</span>
+                      <span className={styles.itemTypeBadge}>Household Item</span>
                       <Link
                         to={`/project/household-items/${item.id}`}
                         className={styles.workItemLink}
@@ -666,7 +666,7 @@ export function MilestoneDetailPage() {
                           onClick={() => handleQuickLinkHouseholdItem(item.id)}
                           disabled={isLinkingItem}
                         >
-                          <span className={styles.itemTypeBadgeHI}>Household</span>
+                          <span className={styles.itemTypeBadge}>Household Item</span>
                           <span>{item.name}</span>
                         </button>
                       ))}
