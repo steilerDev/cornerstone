@@ -94,9 +94,11 @@ export function InvoiceLinkModal({
   // Handle invoice search input
   const handleSearchChange = (value: string) => {
     setSearchInput(value);
+    // Strip leading '#' so users can paste/type "#INV-001" and still match "INV-001"
+    const normalizedValue = value.replace(/^#/, '');
     const filtered = invoices.filter((inv) => {
       const invoiceNumber = inv.invoiceNumber || `Invoice ${inv.id.slice(0, 8)}`;
-      const searchLower = value.toLowerCase();
+      const searchLower = normalizedValue.toLowerCase();
       return (
         invoiceNumber.toLowerCase().includes(searchLower) ||
         (inv.notes && inv.notes.toLowerCase().includes(searchLower))
