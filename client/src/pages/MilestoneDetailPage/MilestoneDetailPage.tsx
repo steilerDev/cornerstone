@@ -1,15 +1,21 @@
 import type { FormEvent } from 'react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
-import type { MilestoneDetail, WorkItemSummary } from '@cornerstone/shared';
+import type { MilestoneDetail, WorkItemSummary, WorkItemLinkedHouseholdItemSummary } from '@cornerstone/shared';
 import {
   getMilestone,
   updateMilestone,
   deleteMilestone,
   linkWorkItem,
   unlinkWorkItem,
+  fetchMilestoneLinkedHouseholdItems,
 } from '../../lib/milestonesApi.js';
 import { listWorkItems } from '../../lib/workItemsApi.js';
+import { listHouseholdItems } from '../../lib/householdItemsApi.js';
+import {
+  createHouseholdItemDep,
+  deleteHouseholdItemDep,
+} from '../../lib/householdItemDepsApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { formatDate } from '../../lib/formatters.js';
 import styles from './MilestoneDetailPage.module.css';
@@ -44,12 +50,15 @@ export function MilestoneDetailPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Linked work items management
-  const [showAddWorkItem, setShowAddWorkItem] = useState(false);
+  // Linked items management
+  const [itemSearchInput, setItemSearchInput] = useState('');
+  const [showItemDropdown, setShowItemDropdown] = useState(false);
   const [availableWorkItems, setAvailableWorkItems] = useState<WorkItemSummary[]>([]);
-  const [selectedWorkItemId, setSelectedWorkItemId] = useState('');
-  const [isLinkingWorkItem, setIsLinkingWorkItem] = useState(false);
-  const [isUnlinkingWorkItem, setIsUnlinkingWorkItem] = useState<Record<string, boolean>>({});
+  const [availableHouseholdItems, setAvailableHouseholdItems] = useState<WorkItemLinkedHouseholdItemSummary[]>([]);
+  const [linkedHouseholdItems, setLinkedHouseholdItems] = useState<WorkItemLinkedHouseholdItemSummary[]>([]);
+  const [isLinkingItem, setIsLinkingItem] = useState(false);
+  const [isUnlinkingItem, setIsUnlinkingItem] = useState<Record<string, boolean>>({});
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Load milestone on mount
   useEffect(() => {
@@ -88,42 +97,55 @@ export function MilestoneDetailPage() {
     loadMilestone();
   }, [milestoneId]);
 
-  // Load available work items for linking (when add work item modal opens)
+  // Load available work items and household items, and linked household items
   useEffect(() => {
-    if (!showAddWorkItem || !milestone) {
+    if (!milestone) {
       return;
     }
 
-    const loadWorkItems = async () => {
+    const loadItems = async () => {
       try {
-        const response = await listWorkItems({ pageSize: 100 });
-        // Filter out already-linked work items
-        const linkedIds = new Set(milestone.workItems.map((wi) => wi.id));
-        const available = response.items.filter((item) => !linkedIds.has(item.id));
-        setAvailableWorkItems(available);
+        // Load available work items
+        const workItemsResponse = await listWorkItems({ pageSize: 100 });
+        const linkedWorkItemIds = new Set(milestone.workItems.map((wi) => wi.id));
+        const availableWI = workItemsResponse.items.filter((item) => !linkedWorkItemIds.has(item.id));
+        setAvailableWorkItems(availableWI);
+
+        // Load available household items
+        const householdItemsResponse = await listHouseholdItems({ pageSize: 100 });
+        const linkedHouseholdItemIds = new Set(linkedHouseholdItems.map((hi) => hi.id));
+        const availableHI = householdItemsResponse.items.filter((item) => !linkedHouseholdItemIds.has(item.id));
+        setAvailableHouseholdItems(availableHI);
+
+        // Load linked household items
+        const linkedHI = await fetchMilestoneLinkedHouseholdItems(milestone.id);
+        setLinkedHouseholdItems(linkedHI);
       } catch (err) {
-        console.error('Failed to load available work items', err);
+        console.error('Failed to load items', err);
       }
     };
 
-    loadWorkItems();
-  }, [showAddWorkItem, milestone]);
+    loadItems();
+  }, [milestone]);
 
-  const handleLinkWorkItem = async () => {
-    if (!milestone || !selectedWorkItemId.trim()) {
-      return;
-    }
+  const handleQuickLinkWorkItem = async (workItemId: string) => {
+    if (!milestone) return;
 
-    setIsLinkingWorkItem(true);
+    setIsLinkingItem(true);
     setError('');
 
     try {
-      await linkWorkItem(milestone.id, selectedWorkItemId);
-      // Reload milestone to get updated work items
+      await linkWorkItem(milestone.id, workItemId);
+      // Reload milestone and available items
       const updated = await getMilestone(milestone.id);
       setMilestone(updated);
-      setSelectedWorkItemId('');
-      setShowAddWorkItem(false);
+      setItemSearchInput('');
+      setShowItemDropdown(false);
+      // Reload available items and linked household items
+      const workItemsResponse = await listWorkItems({ pageSize: 100 });
+      const linkedWorkItemIds = new Set(updated.workItems.map((wi) => wi.id));
+      const availableWI = workItemsResponse.items.filter((item) => !linkedWorkItemIds.has(item.id));
+      setAvailableWorkItems(availableWI);
     } catch (err) {
       if (err instanceof ApiClientError) {
         setError(err.error.message);
@@ -131,14 +153,45 @@ export function MilestoneDetailPage() {
         setError('Failed to link work item. Please try again.');
       }
     } finally {
-      setIsLinkingWorkItem(false);
+      setIsLinkingItem(false);
+    }
+  };
+
+  const handleQuickLinkHouseholdItem = async (householdItemId: string) => {
+    if (!milestone) return;
+
+    setIsLinkingItem(true);
+    setError('');
+
+    try {
+      await createHouseholdItemDep(householdItemId, {
+        predecessorType: 'milestone',
+        predecessorId: milestone.id.toString(),
+      });
+      setItemSearchInput('');
+      setShowItemDropdown(false);
+      // Reload linked household items and available items
+      const linkedHI = await fetchMilestoneLinkedHouseholdItems(milestone.id);
+      setLinkedHouseholdItems(linkedHI);
+      const householdItemsResponse = await listHouseholdItems({ pageSize: 100 });
+      const linkedHouseholdItemIds = new Set(linkedHI.map((hi) => hi.id));
+      const availableHI = householdItemsResponse.items.filter((item) => !linkedHouseholdItemIds.has(item.id));
+      setAvailableHouseholdItems(availableHI);
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setError(err.error.message);
+      } else {
+        setError('Failed to link household item. Please try again.');
+      }
+    } finally {
+      setIsLinkingItem(false);
     }
   };
 
   const handleUnlinkWorkItem = async (workItemId: string) => {
     if (!milestone) return;
 
-    setIsUnlinkingWorkItem((prev) => ({ ...prev, [workItemId]: true }));
+    setIsUnlinkingItem((prev) => ({ ...prev, [`wi-${workItemId}`]: true }));
     setError('');
 
     try {
@@ -146,6 +199,11 @@ export function MilestoneDetailPage() {
       // Reload milestone to get updated work items
       const updated = await getMilestone(milestone.id);
       setMilestone(updated);
+      // Reload available work items
+      const workItemsResponse = await listWorkItems({ pageSize: 100 });
+      const linkedWorkItemIds = new Set(updated.workItems.map((wi) => wi.id));
+      const availableWI = workItemsResponse.items.filter((item) => !linkedWorkItemIds.has(item.id));
+      setAvailableWorkItems(availableWI);
     } catch (err) {
       if (err instanceof ApiClientError) {
         setError(err.error.message);
@@ -153,9 +211,52 @@ export function MilestoneDetailPage() {
         setError('Failed to unlink work item. Please try again.');
       }
     } finally {
-      setIsUnlinkingWorkItem((prev) => ({ ...prev, [workItemId]: false }));
+      setIsUnlinkingItem((prev) => ({ ...prev, [`wi-${workItemId}`]: false }));
     }
   };
+
+  const handleUnlinkHouseholdItem = async (householdItemId: string) => {
+    if (!milestone) return;
+
+    setIsUnlinkingItem((prev) => ({ ...prev, [`hi-${householdItemId}`]: true }));
+    setError('');
+
+    try {
+      await deleteHouseholdItemDep(householdItemId, 'milestone', milestone.id.toString());
+      // Reload linked household items and available items
+      const linkedHI = await fetchMilestoneLinkedHouseholdItems(milestone.id);
+      setLinkedHouseholdItems(linkedHI);
+      const householdItemsResponse = await listHouseholdItems({ pageSize: 100 });
+      const linkedHouseholdItemIds = new Set(linkedHI.map((hi) => hi.id));
+      const availableHI = householdItemsResponse.items.filter((item) => !linkedHouseholdItemIds.has(item.id));
+      setAvailableHouseholdItems(availableHI);
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setError(err.error.message);
+      } else {
+        setError('Failed to unlink household item. Please try again.');
+      }
+    } finally {
+      setIsUnlinkingItem((prev) => ({ ...prev, [`hi-${householdItemId}`]: false }));
+    }
+  };
+
+  // Handle click outside dropdown to close it
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowItemDropdown(false);
+      }
+    };
+
+    if (showItemDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+    return undefined;
+  }, [showItemDropdown]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target as HTMLInputElement | HTMLTextAreaElement;
@@ -344,15 +445,15 @@ export function MilestoneDetailPage() {
               </div>
             )}
 
-            {/* Linked Work Items Section */}
+            {/* Linked Items Section */}
             <div className={styles.viewField}>
-              <label className={styles.fieldLabel}>Linked Work Items</label>
-              {milestone.workItems.length === 0 ? (
-                <p className={styles.fieldValue}>No work items linked</p>
+              <label className={styles.fieldLabel}>Linked Items</label>
+              {milestone.workItems.length === 0 && linkedHouseholdItems.length === 0 ? (
+                <p className={styles.fieldValue}>No items linked</p>
               ) : (
                 <ul className={styles.linkedWorkItemsList}>
                   {milestone.workItems.map((item) => (
-                    <li key={item.id} className={styles.linkedWorkItem}>
+                    <li key={`wi-${item.id}`} className={styles.linkedWorkItem}>
                       <Link to={`/project/work-items/${item.id}`} className={styles.workItemLink}>
                         {item.title}
                       </Link>
@@ -360,7 +461,7 @@ export function MilestoneDetailPage() {
                         type="button"
                         className={styles.unlinkButton}
                         onClick={() => handleUnlinkWorkItem(item.id)}
-                        disabled={isUnlinkingWorkItem[item.id]}
+                        disabled={isUnlinkingItem[`wi-${item.id}`]}
                         title="Remove this work item from the milestone"
                         data-testid={`unlink-work-item-${item.id}`}
                       >
@@ -368,16 +469,89 @@ export function MilestoneDetailPage() {
                       </button>
                     </li>
                   ))}
+                  {linkedHouseholdItems.map((item) => (
+                    <li key={`hi-${item.id}`} className={styles.linkedWorkItem}>
+                      <Link to={`/project/household-items/${item.id}`} className={styles.workItemLink}>
+                        {item.name}
+                      </Link>
+                      <span className={styles.itemTypeBadgeHI}>Household</span>
+                      <button
+                        type="button"
+                        className={styles.unlinkButton}
+                        onClick={() => handleUnlinkHouseholdItem(item.id)}
+                        disabled={isUnlinkingItem[`hi-${item.id}`]}
+                        title="Remove this household item from the milestone"
+                        data-testid={`unlink-household-item-${item.id}`}
+                      >
+                        ✕
+                      </button>
+                    </li>
+                  ))}
                 </ul>
               )}
-              <button
-                type="button"
-                className={styles.addLinkButton}
-                onClick={() => setShowAddWorkItem(true)}
-                data-testid="add-work-item-link-button"
-              >
-                + Add Work Item
-              </button>
+
+              {/* Inline search to add items */}
+              <div className={styles.inlineSearch} ref={dropdownRef}>
+                <input
+                  type="text"
+                  placeholder="Search work items or household items to link..."
+                  value={itemSearchInput}
+                  onChange={(e) => {
+                    setItemSearchInput(e.target.value);
+                    setShowItemDropdown(true);
+                  }}
+                  onFocus={() => setShowItemDropdown(true)}
+                  className={styles.searchInput}
+                  data-testid="item-search-input"
+                  disabled={isLinkingItem}
+                />
+                {showItemDropdown && itemSearchInput.trim() && (
+                  <div className={styles.searchDropdown}>
+                    {/* Filter and show matching work items */}
+                    {availableWorkItems
+                      .filter((item) =>
+                        item.title.toLowerCase().includes(itemSearchInput.toLowerCase()),
+                      )
+                      .map((item) => (
+                        <button
+                          key={`wi-${item.id}`}
+                          type="button"
+                          className={styles.searchDropdownItem}
+                          onClick={() => handleQuickLinkWorkItem(item.id)}
+                          disabled={isLinkingItem}
+                        >
+                          <span className={styles.itemTypeBadge}>Work Item</span>
+                          <span>{item.title}</span>
+                        </button>
+                      ))}
+                    {/* Filter and show matching household items */}
+                    {availableHouseholdItems
+                      .filter((item) =>
+                        item.name.toLowerCase().includes(itemSearchInput.toLowerCase()),
+                      )
+                      .map((item) => (
+                        <button
+                          key={`hi-${item.id}`}
+                          type="button"
+                          className={styles.searchDropdownItem}
+                          onClick={() => handleQuickLinkHouseholdItem(item.id)}
+                          disabled={isLinkingItem}
+                        >
+                          <span className={styles.itemTypeBadgeHI}>Household</span>
+                          <span>{item.name}</span>
+                        </button>
+                      ))}
+                    {availableWorkItems.filter((item) =>
+                      item.title.toLowerCase().includes(itemSearchInput.toLowerCase()),
+                    ).length === 0 &&
+                      availableHouseholdItems.filter((item) =>
+                        item.name.toLowerCase().includes(itemSearchInput.toLowerCase()),
+                      ).length === 0 && (
+                        <div className={styles.searchDropdownEmpty}>No items match your search</div>
+                      )}
+                  </div>
+                )}
+              </div>
             </div>
 
             {milestone.dependentWorkItems.length > 0 && (
@@ -531,60 +705,6 @@ export function MilestoneDetailPage() {
         </div>
       )}
 
-      {/* Add work item link modal */}
-      {showAddWorkItem && (
-        <div className={styles.modal} role="dialog" aria-modal="true">
-          <div
-            className={styles.modalBackdrop}
-            onClick={() => !isLinkingWorkItem && setShowAddWorkItem(false)}
-          />
-          <div className={styles.modalContent}>
-            <h2 className={styles.modalTitle}>Add Work Item</h2>
-            <div className={styles.formGroup}>
-              <label htmlFor="workItemSelect" className={styles.label}>
-                Select a work item to link
-              </label>
-              <select
-                id="workItemSelect"
-                className={styles.input}
-                value={selectedWorkItemId}
-                onChange={(e) => setSelectedWorkItemId(e.target.value)}
-                disabled={isLinkingWorkItem}
-                data-testid="work-item-select"
-              >
-                <option value="">-- Choose a work item --</option>
-                {availableWorkItems.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.title}
-                  </option>
-                ))}
-              </select>
-              {availableWorkItems.length === 0 && (
-                <p className={styles.emptyMessage}>All work items are already linked.</p>
-              )}
-            </div>
-            <div className={styles.modalActions}>
-              <button
-                type="button"
-                className={styles.modalCancelButton}
-                onClick={() => setShowAddWorkItem(false)}
-                disabled={isLinkingWorkItem}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className={styles.modalActionButton}
-                onClick={handleLinkWorkItem}
-                disabled={isLinkingWorkItem || !selectedWorkItemId}
-                data-testid="confirm-link-work-item"
-              >
-                {isLinkingWorkItem ? 'Linking...' : 'Link Work Item'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

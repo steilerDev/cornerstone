@@ -7,6 +7,7 @@ import type {
   UpdateMilestoneRequest,
   LinkWorkItemRequest,
   MilestoneWorkItemLinkResponse,
+  WorkItemLinkedHouseholdItemSummary,
 } from '@cornerstone/shared';
 
 /**
@@ -84,4 +85,15 @@ export function addDependentWorkItem(
  */
 export function removeDependentWorkItem(milestoneId: number, workItemId: string): Promise<void> {
   return del<void>(`/milestones/${milestoneId}/dependents/${workItemId}`);
+}
+
+/**
+ * Fetches household items that depend on a milestone.
+ */
+export function fetchMilestoneLinkedHouseholdItems(
+  milestoneId: number,
+): Promise<WorkItemLinkedHouseholdItemSummary[]> {
+  return get<{ householdItems: WorkItemLinkedHouseholdItemSummary[] }>(
+    `/milestones/${milestoneId}/dependent-household-items`,
+  ).then((r) => r.householdItems);
 }
