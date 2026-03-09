@@ -31,13 +31,14 @@ Higher confidence levels produce tighter budget projections. As your project pro
 
 ## Linking to Invoices
 
-When a vendor invoice arrives for work covered by a budget line, you can link the invoice line item to the budget line. This automatically:
+When a vendor invoice arrives for work covered by a budget line, you can link the budget line to an invoice. You can do this from either direction:
 
-- Sets the confidence level to **Invoice**
-- Uses the actual invoice amount instead of the estimate
-- Updates the budget overview with the real cost
+- From the **invoice detail page** -- use the two-step picker to select a work item and then a budget line, and specify the itemized amount
+- From the **work item Budget tab** -- click the link action on an unlinked budget line to attach it to an existing invoice
 
-See [Vendors & Invoices](vendors-and-invoices) for details on managing invoices.
+When multiple budget lines on the same work item share an invoice, they collapse into an **Invoice Group** showing the invoice total alongside each line's planned and itemized amounts.
+
+See [Vendors & Invoices](vendors-and-invoices) for details on managing invoices and the linking workflow.
 
 ## Multiple Budget Lines per Work Item
 

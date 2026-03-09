@@ -44,4 +44,8 @@ Subsidies reduce the total cost shown in the [Budget Overview](budget-overview).
 
 Multiple subsidies can apply to the same category, and their reductions stack.
 
+### Cost Basis for Subsidy Calculations
+
+When a budget line is linked to an invoice with an itemized amount, the subsidy calculation uses the **itemized invoice amount** as the cost basis instead of the planned amount. This ensures subsidy reductions reflect the actual cost attribution from invoices, not the original estimate.
+
 ![Subsidies page](/img/screenshots/budget-subsidies-light.png)

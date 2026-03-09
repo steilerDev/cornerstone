@@ -5,7 +5,7 @@ title: Vendors & Invoices
 
 # Vendors & Invoices
 
-Vendors are the companies and contractors that provide services or materials for your project. Each vendor can have multiple invoices, and each invoice can have line items linked to budget lines on your work items.
+Vendors are the companies and contractors that provide services or materials for your project. Each vendor can have multiple invoices, and each invoice can be linked to multiple budget lines across your work items and household items.
 
 ## Vendors
 
@@ -44,7 +44,9 @@ From a vendor's detail page, click **New Invoice** and provide:
 
 - **Invoice Number** -- The vendor's invoice reference number
 - **Date** -- The invoice date
-- **Line Items** -- One or more line items, each with a description, amount, and optional link to a budget line
+- **Amount** -- The total invoice amount
+
+Budget lines are linked to the invoice after creation from the invoice detail page (see [Linking Budget Lines](#linking-budget-lines-to-an-invoice) below).
 
 ### Invoice Statuses
 
@@ -56,16 +58,49 @@ Invoices progress through three statuses:
 | **Paid** | Invoice has been paid to the vendor |
 | **Claimed** | Payment has been claimed from / reimbursed by the financing source |
 
-### Invoice Line Items
-
-Each invoice contains one or more line items. A line item can be linked to a **budget line** on a work item. When linked, the invoice amount replaces the budget line's estimate and the confidence level is set to "Invoice" automatically.
-
-This is how estimates transition to actual costs -- as invoices arrive, your budget projections become more accurate.
-
 ### Invoice Detail
 
-Click an invoice to see its full detail page with all line items, current status, and linked budget lines.
+Click an invoice to see its full detail page with the invoice amount, current status, and the **Linked Budget Lines** section.
 
 If you have [Paperless-ngx configured](/guides/documents/setup), you can also link documents (invoice PDFs, receipts, supporting files) directly to invoices from the detail page. See [Linking Documents](/guides/documents/linking-documents) for details.
 
 ![Invoice detail page](/img/screenshots/budget-invoice-detail-light.png)
+
+## Linking Budget Lines to an Invoice
+
+A single invoice often covers multiple cost items -- for example, one contractor invoice might include materials, labor, and equipment hire across different budget categories. Cornerstone supports linking **multiple budget lines** from work items and household items to a single invoice, each with an itemized amount.
+
+### How to Link from the Invoice Page
+
+On the invoice detail page, the **Linked Budget Lines** section lets you add budget line links using a two-step picker:
+
+1. **Select an item** -- Choose a work item or household item from the picker
+2. **Select a budget line** -- Pick which budget line on that item to link
+
+Once linked, enter the **itemized amount** for each budget line -- the portion of the invoice total that applies to that specific line. All itemized amounts are shown alongside a computed **Remaining** row that displays the unallocated portion of the invoice total.
+
+:::tip
+The Remaining row helps you ensure the full invoice amount is allocated. If the remaining amount is zero, the invoice is fully distributed across budget lines.
+:::
+
+### How to Link from an Item Detail Page
+
+You can also link budget lines to invoices directly from the work item or household item detail page. On the **Budget** tab, each budget line that is not yet linked to an invoice shows a link action that lets you select an existing invoice.
+
+This bidirectional linking means you can work from whichever direction makes sense -- start with the invoice and find the budget lines, or start with a budget line and attach it to an invoice.
+
+### Invoice Groups on Item Detail Pages
+
+When multiple budget lines on a work item or household item share the same invoice, they are visually grouped into an **Invoice Group**. The group is collapsible and shows:
+
+- The **invoice total** amount
+- Each budget line's **planned amount** and **itemized amount** (the portion allocated from that invoice)
+- The invoice status and date
+
+This grouped view helps you see at a glance how a single invoice is distributed across the item's budget lines.
+
+### Rules and Constraints
+
+- A budget line can be linked to **at most one invoice** -- each budget line is exclusive to a single invoice
+- An invoice can be linked to **many budget lines** across different work items and household items
+- Itemized amounts are independent of the planned amount on the budget line -- they represent the actual cost attribution from the invoice
