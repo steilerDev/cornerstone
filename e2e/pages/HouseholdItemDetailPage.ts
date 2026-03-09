@@ -49,13 +49,10 @@ export class HouseholdItemDetailPage {
 
     // Back link is a <Link> in the breadcrumb with text "Household Items".
     // NOTE: The AppShell sidebar also has a "Household Items" nav link.
-    // On mobile/tablet, the sidebar is off-screen, so .first() resolves to the
-    // sidebar nav link (outside viewport) and the click times out.
-    // Scope to the breadcrumb container (class*="breadcrumb") to always get the
-    // correct in-page breadcrumb link regardless of viewport.
-    this.backLink = page.locator('[class*="breadcrumb"]').getByRole('link', {
-      name: 'Household Items',
-      exact: true,
+    // The back button is in a navButtons container above the heading.
+    // Scope to the navButtons container to avoid matching sidebar links.
+    this.backLink = page.locator('[class*="navButtons"]').getByRole('button', {
+      name: /back to household items/i,
     });
 
     // Edit button — located in the pageActions area; class="editButton"
