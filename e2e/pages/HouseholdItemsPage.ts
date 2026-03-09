@@ -4,7 +4,7 @@
  * EPIC-04: Household Items & Furniture Management
  *
  * The page renders:
- * - A page header with h1 "Household Items" and a "New Item" button
+ * - A page header with h1 "Household Items" and an "Add new Household Item" button
  * - A search input (aria-label="Search household items") with 300ms debounce
  * - Filter panel (role="search", aria-label="Household item filters") with:
  *   - #category-filter (select)
@@ -20,7 +20,7 @@
  * - An error banner (role="alert", class errorBanner) for API errors
  *
  * Key DOM observations from source code:
- * - "New Item" is a <button> that calls navigate('/project/household-items/new')
+ * - "Add new Household Item" is a <button> that calls navigate('/project/household-items/new')
  * - Delete modal: aria-labelledby="hi-delete-modal-title", confirm button: class confirmDeleteButton
  * - Empty state h2: "No household items yet" or "No household items match your filters"
  * - Table rows are clickable and navigate to detail page
@@ -76,7 +76,7 @@ export class HouseholdItemsPage {
 
     // Page header
     this.heading = page.getByRole('heading', { level: 1, name: 'Project', exact: true });
-    this.newItemButton = page.getByRole('button', { name: /New Item/i });
+    this.newItemButton = page.getByRole('button', { name: /Add new Household Item/i });
 
     // Search and filters
     this.searchInput = page.getByLabel('Search household items');
