@@ -237,9 +237,9 @@ export function InvoiceBudgetLinesSection({
       const createFn = pickerState.type === 'work_item' ? createWorkItemBudget : createHouseholdItemBudget;
       await createFn(pickerState.itemId, {
         description,
-        amount: parsedAmount,
+        plannedAmount: parsedAmount,
         confidence: 'own_estimate',
-        categoryId,
+        budgetCategoryId: categoryId,
       });
 
       // After creating the budget line, re-fetch the list

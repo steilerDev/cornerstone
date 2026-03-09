@@ -96,7 +96,7 @@ export function InvoiceLinkModal({
       const searchLower = value.toLowerCase();
       return (
         invoiceNumber.toLowerCase().includes(searchLower) ||
-        (inv.description && inv.description.toLowerCase().includes(searchLower))
+        (inv.notes && inv.notes.toLowerCase().includes(searchLower))
       );
     });
     setFilteredInvoices(filtered);
@@ -296,9 +296,9 @@ export function InvoiceLinkModal({
                           <span className={styles.dropdownItemAmount}>
                             {formatCurrency(inv.amount)}
                           </span>
-                          {inv.description && (
+                          {inv.notes && (
                             <span className={styles.dropdownItemDescription}>
-                              {inv.description}
+                              {inv.notes}
                             </span>
                           )}
                         </button>
