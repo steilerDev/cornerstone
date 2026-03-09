@@ -19,7 +19,6 @@ export interface SubsidyPaybackConfig {
   entityIdResponseKey: string;
 }
 
-
 export function createSubsidyPaybackService(
   config: SubsidyPaybackConfig,
 ): (db: DbType, entityId: string) => unknown {

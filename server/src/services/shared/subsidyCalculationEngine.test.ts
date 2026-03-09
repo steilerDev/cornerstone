@@ -124,8 +124,16 @@ describe('computeSubsidyEffects', () => {
     });
 
     it('mixed: one invoiced (800), one not (1000, own_estimate), 10% → min=160, max=200', () => {
-      const invoicedLine = makeLine({ id: 'line-a', plannedAmount: 1000, confidence: 'own_estimate' });
-      const uninvoicedLine = makeLine({ id: 'line-b', plannedAmount: 1000, confidence: 'own_estimate' });
+      const invoicedLine = makeLine({
+        id: 'line-a',
+        plannedAmount: 1000,
+        confidence: 'own_estimate',
+      });
+      const uninvoicedLine = makeLine({
+        id: 'line-b',
+        plannedAmount: 1000,
+        confidence: 'own_estimate',
+      });
       const subsidy = makeSubsidy({ reductionType: 'percentage', reductionValue: 10 });
       const invoices = new Map([['line-a', 800]]);
       const result = computeSubsidyEffects(
@@ -166,8 +174,16 @@ describe('computeSubsidyEffects', () => {
     });
 
     it('two fixed subsidies (1000 + 2000) → totalMin=totalMax=3000', () => {
-      const sub1 = makeSubsidy({ subsidyProgramId: 'sub-1', reductionType: 'fixed', reductionValue: 1000 });
-      const sub2 = makeSubsidy({ subsidyProgramId: 'sub-2', reductionType: 'fixed', reductionValue: 2000 });
+      const sub1 = makeSubsidy({
+        subsidyProgramId: 'sub-1',
+        reductionType: 'fixed',
+        reductionValue: 1000,
+      });
+      const sub2 = makeSubsidy({
+        subsidyProgramId: 'sub-2',
+        reductionType: 'fixed',
+        reductionValue: 2000,
+      });
       const result = computeSubsidyEffects([], [sub1, sub2], emptyCategories, emptyInvoices);
 
       expect(result.subsidies).toHaveLength(2);
@@ -186,8 +202,16 @@ describe('computeSubsidyEffects', () => {
         reductionType: 'percentage',
         reductionValue: 10,
       });
-      const lineA = makeLine({ budgetCategoryId: 'cat-A', plannedAmount: 1000, confidence: 'invoice' });
-      const lineB = makeLine({ budgetCategoryId: 'cat-B', plannedAmount: 500, confidence: 'invoice' });
+      const lineA = makeLine({
+        budgetCategoryId: 'cat-A',
+        plannedAmount: 1000,
+        confidence: 'invoice',
+      });
+      const lineB = makeLine({
+        budgetCategoryId: 'cat-B',
+        plannedAmount: 500,
+        confidence: 'invoice',
+      });
       const catMap = categoryMap('sub-cat-a', ['cat-A']);
       const result = computeSubsidyEffects([lineA, lineB], [subsidy], catMap, emptyInvoices);
 
@@ -202,8 +226,16 @@ describe('computeSubsidyEffects', () => {
         reductionType: 'percentage',
         reductionValue: 10,
       });
-      const lineA = makeLine({ budgetCategoryId: 'cat-A', plannedAmount: 1000, confidence: 'invoice' });
-      const lineB = makeLine({ budgetCategoryId: 'cat-B', plannedAmount: 500, confidence: 'invoice' });
+      const lineA = makeLine({
+        budgetCategoryId: 'cat-A',
+        plannedAmount: 1000,
+        confidence: 'invoice',
+      });
+      const lineB = makeLine({
+        budgetCategoryId: 'cat-B',
+        plannedAmount: 500,
+        confidence: 'invoice',
+      });
       // Empty set = universal
       const catMap = new Map<string, Set<string>>([['sub-universal', new Set()]]);
       const result = computeSubsidyEffects([lineA, lineB], [subsidy], catMap, emptyInvoices);
@@ -219,7 +251,11 @@ describe('computeSubsidyEffects', () => {
         reductionType: 'percentage',
         reductionValue: 10,
       });
-      const nullLine = makeLine({ budgetCategoryId: null, plannedAmount: 1000, confidence: 'invoice' });
+      const nullLine = makeLine({
+        budgetCategoryId: null,
+        plannedAmount: 1000,
+        confidence: 'invoice',
+      });
       const catMap = categoryMap('sub-restricted', ['cat-A']);
       const result = computeSubsidyEffects([nullLine], [subsidy], catMap, emptyInvoices);
 
@@ -234,7 +270,11 @@ describe('computeSubsidyEffects', () => {
         reductionType: 'percentage',
         reductionValue: 10,
       });
-      const nullLine = makeLine({ budgetCategoryId: null, plannedAmount: 1000, confidence: 'invoice' });
+      const nullLine = makeLine({
+        budgetCategoryId: null,
+        plannedAmount: 1000,
+        confidence: 'invoice',
+      });
       // Not present in categoryMap at all → isUniversal = true
       const result = computeSubsidyEffects([nullLine], [subsidy], emptyCategories, emptyInvoices);
 
@@ -250,8 +290,16 @@ describe('computeSubsidyEffects', () => {
   describe('multiple subsidies', () => {
     it('two percentage subsidies with different rates → correct individual entries and totals', () => {
       const line = makeLine({ plannedAmount: 1000, confidence: 'invoice' });
-      const sub1 = makeSubsidy({ subsidyProgramId: 'sub-1', reductionType: 'percentage', reductionValue: 10 });
-      const sub2 = makeSubsidy({ subsidyProgramId: 'sub-2', reductionType: 'percentage', reductionValue: 20 });
+      const sub1 = makeSubsidy({
+        subsidyProgramId: 'sub-1',
+        reductionType: 'percentage',
+        reductionValue: 10,
+      });
+      const sub2 = makeSubsidy({
+        subsidyProgramId: 'sub-2',
+        reductionType: 'percentage',
+        reductionValue: 20,
+      });
       const result = computeSubsidyEffects([line], [sub1, sub2], emptyCategories, emptyInvoices);
 
       expect(result.subsidies).toHaveLength(2);
@@ -277,7 +325,12 @@ describe('computeSubsidyEffects', () => {
         reductionType: 'fixed',
         reductionValue: 500,
       });
-      const result = computeSubsidyEffects([line], [percentSub, fixedSub], emptyCategories, emptyInvoices);
+      const result = computeSubsidyEffects(
+        [line],
+        [percentSub, fixedSub],
+        emptyCategories,
+        emptyInvoices,
+      );
 
       expect(result.subsidies).toHaveLength(2);
       const pctEffect = result.subsidies.find((s) => s.subsidyProgramId === 'sub-pct')!;

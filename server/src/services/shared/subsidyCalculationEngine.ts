@@ -46,7 +46,11 @@ export function computeSubsidyEffects(
   const effectiveLines = budgetLines.map((line) => {
     if (invoiceMap.has(line.id)) {
       const actualCost = invoiceMap.get(line.id)!;
-      return { budgetCategoryId: line.budgetCategoryId, minAmount: actualCost, maxAmount: actualCost };
+      return {
+        budgetCategoryId: line.budgetCategoryId,
+        minAmount: actualCost,
+        maxAmount: actualCost,
+      };
     }
     const margin =
       CONFIDENCE_MARGINS[line.confidence as ConfidenceLevel] ?? CONFIDENCE_MARGINS.own_estimate;
