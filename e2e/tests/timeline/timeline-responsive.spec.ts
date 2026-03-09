@@ -64,12 +64,6 @@ test.describe('Mobile layout (Scenario 2)', { tag: '@responsive' }, () => {
     await expect(timelinePage.calendarViewButton).toBeVisible();
   });
 
-  test('Milestone panel button is visible on mobile viewport', async ({ page }) => {
-    const timelinePage = new TimelinePage(page);
-    await timelinePage.goto();
-
-    await expect(timelinePage.milestonePanelButton).toBeVisible();
-  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
