@@ -80,7 +80,12 @@ describe('BudgetSummaryCard', () => {
     // remainingPct = (100000 - 70000) / 100000 * 100 = 30.0%
     renderWithRouter(
       <BudgetSummaryCard
-        overview={{ ...baseOverview, availableFunds: 100000, actualCost: 70000, remainingVsActualCost: 30000 }}
+        overview={{
+          ...baseOverview,
+          availableFunds: 100000,
+          actualCost: 70000,
+          remainingVsActualCost: 30000,
+        }}
       />,
     );
 
@@ -95,7 +100,12 @@ describe('BudgetSummaryCard', () => {
     // remainingPct = (100000 - 88000) / 100000 * 100 = 12.0%
     renderWithRouter(
       <BudgetSummaryCard
-        overview={{ ...baseOverview, availableFunds: 100000, actualCost: 88000, remainingVsActualCost: 12000 }}
+        overview={{
+          ...baseOverview,
+          availableFunds: 100000,
+          actualCost: 88000,
+          remainingVsActualCost: 12000,
+        }}
       />,
     );
 
@@ -110,7 +120,12 @@ describe('BudgetSummaryCard', () => {
     // remainingPct = (100000 - 97000) / 100000 * 100 = 3.0%
     renderWithRouter(
       <BudgetSummaryCard
-        overview={{ ...baseOverview, availableFunds: 100000, actualCost: 97000, remainingVsActualCost: 3000 }}
+        overview={{
+          ...baseOverview,
+          availableFunds: 100000,
+          actualCost: 97000,
+          remainingVsActualCost: 3000,
+        }}
       />,
     );
 

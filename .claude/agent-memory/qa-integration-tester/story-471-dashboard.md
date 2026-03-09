@@ -1,6 +1,7 @@
 # Story #471 Dashboard Layout & Data Shell — Test Notes
 
 **Test files**:
+
 - `client/src/components/DashboardCard/DashboardCard.test.tsx` (12 unit tests)
 - `client/src/pages/DashboardPage/DashboardPage.test.tsx` (22 integration tests, replaces stub)
 

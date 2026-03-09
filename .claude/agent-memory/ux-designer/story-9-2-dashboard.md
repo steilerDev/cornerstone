@@ -85,13 +85,13 @@ All values covered by existing Layer 2 semantic tokens.
 
 ## Card Footer Link Targets
 
-| Card ID          | href                       |
-|------------------|----------------------------|
-| `budget`         | `/project/overview`        |
-| `timeline`       | `/project/milestones`      |
-| `budget-sources` | `/budget/sources`          |
-| `subsidies`      | `/budget/subsidies`        |
-| `invoices`       | `/budget/invoices`         |
+| Card ID          | href                  |
+| ---------------- | --------------------- |
+| `budget`         | `/project/overview`   |
+| `timeline`       | `/project/milestones` |
+| `budget-sources` | `/budget/sources`     |
+| `subsidies`      | `/budget/subsidies`   |
+| `invoices`       | `/budget/invoices`    |
 
 ## PR #709 Review Findings (for impl correction reference)
 

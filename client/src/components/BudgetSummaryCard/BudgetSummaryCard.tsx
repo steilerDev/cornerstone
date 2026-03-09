@@ -79,7 +79,10 @@ export function BudgetSummaryCard({ overview }: BudgetSummaryCardProps) {
           remainingVsProjectedMax={remainingVsMaxPlanned}
           availableFunds={availableFunds}
         />
-        <span className={`${styles.remainingPct} ${remainingColorClass}`} data-testid="remaining-pct">
+        <span
+          className={`${styles.remainingPct} ${remainingColorClass}`}
+          data-testid="remaining-pct"
+        >
           {remainingPct.toFixed(1)}% remaining
         </span>
       </div>
