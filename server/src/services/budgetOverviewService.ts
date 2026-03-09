@@ -195,6 +195,7 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
   // Per-work-item fixed subsidy line counts (memoized):
   // key = `${workItemId}:${subsidyId}` -> count of matching lines
   const fixedSubsidyLineCountCache = new Map<string, number>();
+  let totalReductions = 0;
 
   for (const line of budgetLines) {
     const margin = CONFIDENCE_MARGINS[line.confidence as keyof typeof CONFIDENCE_MARGINS] ?? 0;
@@ -248,6 +249,8 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
         }
       }
     }
+
+    totalReductions += subsidyReduction;
 
     const rawMinPlanned = Math.max(0, rawMin - subsidyReduction);
     const rawMaxPlanned = Math.max(0, rawMax - subsidyReduction);
@@ -408,56 +411,6 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
     FROM subsidy_programs
     WHERE application_status != 'rejected'`,
   );
-
-  // Total reductions: sum of subsidy reductions computed per budget line.
-  // Re-compute from the budget lines using the same logic (already done above),
-  // but we need the total across all lines, not just category-bucketed lines.
-  // Re-derive from totalMinPlanned vs totalMaxPlanned is wrong — derive directly.
-  //
-  // Compute totalReductions by summing per-line reductions independently.
-  let totalReductions = 0;
-  const fixedSubsidyLineCountCacheForTotal = new Map<string, number>();
-
-  for (const line of budgetLines) {
-    const linkedSubsidyIds = entitySubsidyMap.get(line.entityId);
-    if (!linkedSubsidyIds) continue;
-
-    for (const subsidyId of linkedSubsidyIds) {
-      const meta = subsidyMeta.get(subsidyId);
-      if (!meta) continue;
-
-      const applicableCategories = subsidyCategoryMap.get(subsidyId);
-      const isUniversalSubsidy = !applicableCategories || applicableCategories.size === 0;
-      if (!isUniversalSubsidy) {
-        if (line.budgetCategoryId === null || !applicableCategories.has(line.budgetCategoryId))
-          continue;
-      }
-
-      // Determine cost basis: use invoice amount if available, otherwise planned amount
-      const costBasis = lineInvoiceMap.has(line.id)
-        ? lineInvoiceMap.get(line.id)!
-        : line.plannedAmount;
-
-      if (meta.reductionType === 'percentage') {
-        totalReductions += costBasis * (meta.reductionValue / 100);
-      } else if (meta.reductionType === 'fixed') {
-        const cacheKey = `${line.entityId}:${subsidyId}`;
-        let matchingLineCount = fixedSubsidyLineCountCacheForTotal.get(cacheKey);
-        if (matchingLineCount === undefined) {
-          matchingLineCount = budgetLines.filter(
-            (l) =>
-              l.entityId === line.entityId &&
-              (isUniversalSubsidy ||
-                (l.budgetCategoryId !== null && applicableCategories.has(l.budgetCategoryId))),
-          ).length;
-          if (matchingLineCount === 0) matchingLineCount = 1;
-          fixedSubsidyLineCountCacheForTotal.set(cacheKey, matchingLineCount);
-        }
-        const perLineAmount = meta.reductionValue / matchingLineCount;
-        totalReductions += Math.min(perLineAmount, costBasis);
-      }
-    }
-  }
 
   // ── 11b. Aggregate subsidy payback across all work items ──────────────────
   //
