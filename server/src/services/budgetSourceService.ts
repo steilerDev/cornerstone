@@ -5,6 +5,7 @@ import type * as schemaTypes from '../db/schema.js';
 import {
   budgetSources,
   workItemBudgets,
+  householdItemBudgets,
   invoiceBudgetLines,
   invoices,
   users,
@@ -76,15 +77,18 @@ function toBudgetSource(
 
 /**
  * Compute the used amount for a budget source.
- * Sums planned_amount from work_item_budgets where budget_source_id matches.
+ * Sums planned_amount from both work_item_budgets and household_item_budgets where budget_source_id matches.
  * Returns 0 if no budget lines reference this source.
  */
 function computeUsedAmount(db: DbType, sourceId: string): number {
-  const result = db
-    .select({ total: sql<number>`COALESCE(SUM(${workItemBudgets.plannedAmount}), 0)` })
-    .from(workItemBudgets)
-    .where(eq(workItemBudgets.budgetSourceId, sourceId))
-    .get();
+  const result = db.get<{ total: number }>(
+    sql`SELECT COALESCE(SUM(planned_amount), 0) AS total
+    FROM (
+      SELECT planned_amount FROM ${workItemBudgets} WHERE budget_source_id = ${sourceId}
+      UNION ALL
+      SELECT planned_amount FROM ${householdItemBudgets} WHERE budget_source_id = ${sourceId}
+    )`,
+  );
   return result?.total ?? 0;
 }
 
@@ -124,13 +128,17 @@ function computeUnclaimedAmount(db: DbType, sourceId: string): number {
 
 /**
  * Count budget lines referencing a budget source.
+ * Counts both work_item_budgets and household_item_budgets rows.
  */
-function countWorkItemReferences(db: DbType, sourceId: string): number {
-  const result = db
-    .select({ count: sql<number>`COUNT(*)` })
-    .from(workItemBudgets)
-    .where(eq(workItemBudgets.budgetSourceId, sourceId))
-    .get();
+function countBudgetLineReferences(db: DbType, sourceId: string): number {
+  const result = db.get<{ count: number }>(
+    sql`SELECT COUNT(*) AS count
+    FROM (
+      SELECT id FROM ${workItemBudgets} WHERE budget_source_id = ${sourceId}
+      UNION ALL
+      SELECT id FROM ${householdItemBudgets} WHERE budget_source_id = ${sourceId}
+    )`,
+  );
   return result?.count ?? 0;
 }
 
@@ -326,7 +334,7 @@ export function updateBudgetSource(
 
 /**
  * Delete a budget source.
- * Fails if any work items reference this source (once budget_source_id is added to work_items).
+ * Fails if any work item or household item budget lines reference this source.
  * @throws NotFoundError if source does not exist
  * @throws BudgetSourceInUseError if referenced by work items
  */
@@ -338,7 +346,7 @@ export function deleteBudgetSource(db: DbType, id: string): void {
   }
 
   // Check for budget line references
-  const budgetLineCount = countWorkItemReferences(db, id);
+  const budgetLineCount = countBudgetLineReferences(db, id);
   if (budgetLineCount > 0) {
     throw new BudgetSourceInUseError('Budget source is in use and cannot be deleted', {
       budgetLineCount,

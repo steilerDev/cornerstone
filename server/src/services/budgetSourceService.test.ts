@@ -78,6 +78,42 @@ describe('Budget Source Service', () => {
   }
 
   let workItemCounter = 0;
+  let householdItemCounter = 0;
+
+  /**
+   * Helper: Insert a household item budget line with a budget_source_id reference.
+   * Used for testing computeUsedAmount and deleteBudgetSource blocking with HI budgets.
+   * NOTE: householdItems requires categoryId (NOT NULL FK); hic-furniture is seeded by migration 0016.
+   */
+  function insertRawHouseholdItemWithSource(
+    sourceId: string,
+    plannedAmount: number,
+  ): { hiId: string; budgetId: string } {
+    const hiId = `hi-src-test-${++householdItemCounter}`;
+    const budgetId = `hi-bud-src-test-${householdItemCounter}`;
+    const ts = new Date(Date.now() + householdItemCounter).toISOString();
+    db.insert(schema.householdItems)
+      .values({
+        id: hiId,
+        name: `Test Household Item ${householdItemCounter}`,
+        categoryId: 'hic-furniture', // seeded by migration 0016
+        createdAt: ts,
+        updatedAt: ts,
+      })
+      .run();
+    db.insert(schema.householdItemBudgets)
+      .values({
+        id: budgetId,
+        householdItemId: hiId,
+        budgetSourceId: sourceId,
+        plannedAmount,
+        confidence: 'own_estimate',
+        createdAt: ts,
+        updatedAt: ts,
+      })
+      .run();
+    return { hiId, budgetId };
+  }
 
   /**
    * Helper: Insert a work item budget line with a budget_source_id reference.
@@ -191,6 +227,7 @@ describe('Budget Source Service', () => {
     db = testDb.db;
     timestampOffset = 0;
     workItemCounter = 0;
+    householdItemCounter = 0;
     insertTestUser();
   });
 
@@ -1546,4 +1583,120 @@ describe('Budget Source Service', () => {
       expect(result.actualAvailableAmount).toBe(280000); // 300000 - 20000
     });
   });
+
+  // ─── usedAmount with household item budgets (Bug #626) ────────────────────
+
+  describe('usedAmount including household item budget lines', () => {
+    it('computes usedAmount from household item budget lines only', () => {
+      const raw = insertRawSource({
+        name: 'HI Only Source',
+        sourceType: 'savings',
+        totalAmount: 50000,
+      });
+
+      insertRawHouseholdItemWithSource(raw.id, 10000);
+      insertRawHouseholdItemWithSource(raw.id, 7500);
+
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      expect(result.usedAmount).toBe(17500);
+      expect(result.availableAmount).toBe(32500);
+    });
+
+    it('computes usedAmount from both work item and household item budget lines', () => {
+      const raw = insertRawSource({
+        name: 'Mixed Source',
+        sourceType: 'bank_loan',
+        totalAmount: 100000,
+      });
+
+      insertRawWorkItemWithSource(raw.id, 20000);
+      insertRawHouseholdItemWithSource(raw.id, 15000);
+
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      expect(result.usedAmount).toBe(35000);
+    });
+
+    it('isolates usedAmount per source — household item budget lines from other sources do not count', () => {
+      const rawA = insertRawSource({
+        name: 'Source A (HI)',
+        sourceType: 'savings',
+        totalAmount: 40000,
+      });
+      const rawB = insertRawSource({
+        name: 'Source B (HI)',
+        sourceType: 'savings',
+        totalAmount: 60000,
+      });
+
+      insertRawHouseholdItemWithSource(rawA.id, 8000);
+      insertRawHouseholdItemWithSource(rawB.id, 12000);
+
+      const resultA = budgetSourceService.getBudgetSourceById(db, rawA.id);
+      const resultB = budgetSourceService.getBudgetSourceById(db, rawB.id);
+
+      expect(resultA.usedAmount).toBe(8000);
+      expect(resultA.availableAmount).toBe(32000);
+      expect(resultB.usedAmount).toBe(12000);
+      expect(resultB.availableAmount).toBe(48000);
+    });
+  });
+
+  // ─── deleteBudgetSource blocked by household item budgets (Bug #626) ───────
+
+  describe('deleteBudgetSource() with household item budget lines', () => {
+    it('throws BudgetSourceInUseError when household item budgets reference the source', () => {
+      const raw = insertRawSource({
+        name: 'HI In Use Source',
+        sourceType: 'savings',
+        totalAmount: 25000,
+      });
+
+      insertRawHouseholdItemWithSource(raw.id, 5000);
+
+      expect(() => {
+        budgetSourceService.deleteBudgetSource(db, raw.id);
+      }).toThrow(BudgetSourceInUseError);
+    });
+
+    it('succeeds when only an unrelated source has household item budget references', () => {
+      const rawA = insertRawSource({
+        name: 'Source A — no HI refs',
+        sourceType: 'other',
+        totalAmount: 10000,
+      });
+      const rawB = insertRawSource({
+        name: 'Source B — has HI ref',
+        sourceType: 'savings',
+        totalAmount: 20000,
+      });
+
+      // Only rawB has a household item budget line referencing it
+      insertRawHouseholdItemWithSource(rawB.id, 3000);
+
+      // Deleting rawA should succeed because nothing references it
+      expect(() => {
+        budgetSourceService.deleteBudgetSource(db, rawA.id);
+      }).not.toThrow();
+
+      expect(() => {
+        budgetSourceService.getBudgetSourceById(db, rawA.id);
+      }).toThrow(NotFoundError);
+    });
+
+    it('throws BudgetSourceInUseError when both work item and household item budgets reference the source', () => {
+      const raw = insertRawSource({
+        name: 'Both Types In Use',
+        sourceType: 'bank_loan',
+        totalAmount: 150000,
+      });
+
+      insertRawWorkItemWithSource(raw.id, 30000);
+      insertRawHouseholdItemWithSource(raw.id, 20000);
+
+      expect(() => {
+        budgetSourceService.deleteBudgetSource(db, raw.id);
+      }).toThrow(BudgetSourceInUseError);
+    });
+  });
 });
+
