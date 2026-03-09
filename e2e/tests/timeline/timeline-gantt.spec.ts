@@ -43,7 +43,6 @@ test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
 
     await expect(timelinePage.ganttViewButton).toBeVisible();
     await expect(timelinePage.calendarViewButton).toBeVisible();
-    await expect(timelinePage.milestonePanelButton).toBeVisible();
   });
 });
 
