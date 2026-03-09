@@ -83,9 +83,9 @@ export function HouseholdItemDetailPage() {
   const [deleteError, setDeleteError] = useState('');
   const modalRef = useRef<HTMLDivElement>(null);
 
-  // Add Dependency modal
-  const depModalRef = useRef<HTMLDivElement>(null);
-  const depSearchInputRef = useRef<HTMLInputElement>(null);
+  // Add Dependency inline search
+  const depDropdownRef = useRef<HTMLDivElement>(null);
+  const depSearchRef = useRef<HTMLInputElement>(null);
 
   // Budget lines state
   const [budgetLines, setBudgetLines] = useState<HouseholdItemBudgetLine[]>([]);
@@ -109,15 +109,12 @@ export function HouseholdItemDetailPage() {
 
   // Dependency state
   const [dependencies, setDependencies] = useState<HouseholdItemDepDetail[]>([]);
-  const [showAddDepModal, setShowAddDepModal] = useState(false);
-  const [depPredecessorType, setDepPredecessorType] =
-    useState<HouseholdItemDepPredecessorType>('work_item');
-  const [depSearchQuery, setDepSearchQuery] = useState('');
-  const [depSelectedId, setDepSelectedId] = useState('');
+  const [depSearchInput, setDepSearchInput] = useState('');
+  const [showDepDropdown, setShowDepDropdown] = useState(false);
   const [depError, setDepError] = useState<string | null>(null);
   const [isAddingDep, setIsAddingDep] = useState(false);
   const [removingDepKey, setRemovingDepKey] = useState<string | null>(null);
-  // For modal search results
+  // For inline search results
   const [allWorkItems, setAllWorkItems] = useState<WorkItemSummary[]>([]);
   const [allMilestones, setAllMilestones] = useState<MilestoneSummary[]>([]);
 
@@ -254,20 +251,40 @@ export function HouseholdItemDetailPage() {
   }, [showDeleteModal, isDeleting, deleteError]);
 
   // Add Dependency modal: focus trap and Escape key handler
+  // Load work items and milestones on component mount (not just when opening modal)
   useEffect(() => {
-    if (!showAddDepModal) return;
-    // Auto-focus the search input when modal opens
-    depSearchInputRef.current?.focus();
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        setShowAddDepModal(false);
-        setDepError(null);
-        return;
+    const loadPredecessors = async () => {
+      try {
+        if (allWorkItems.length === 0) {
+          const wis = await listWorkItems({ pageSize: 100 });
+          setAllWorkItems(wis.items);
+        }
+        if (allMilestones.length === 0) {
+          const ms = await listMilestones();
+          setAllMilestones(ms);
+        }
+      } catch (err) {
+        console.error('Failed to load predecessors:', err);
       }
-    }
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [showAddDepModal]);
+    };
+    void loadPredecessors();
+  }, []);
+
+  // Handle click outside the dependency dropdown
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        depDropdownRef.current &&
+        depSearchRef.current &&
+        !depDropdownRef.current.contains(e.target as Node) &&
+        !depSearchRef.current.contains(e.target as Node)
+      ) {
+        setShowDepDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const loadItem = async () => {
     if (!id) return;
@@ -324,36 +341,30 @@ export function HouseholdItemDetailPage() {
 
   // ─── Dependency handlers ──────────────────────────────────────────────────
 
-  const handleOpenAddDepModal = async () => {
-    setShowAddDepModal(true);
-    if (allWorkItems.length === 0) {
-      const wis = await listWorkItems({ pageSize: 100 });
-      setAllWorkItems(wis.items);
-    }
-    if (allMilestones.length === 0) {
-      const ms = await listMilestones();
-      setAllMilestones(ms);
-    }
-  };
-
-  const handleAddDep = async () => {
-    if (!id || !depSelectedId) return;
+  const handleAddDepInline = async (
+    predecessorType: 'work_item' | 'milestone',
+    predecessorId: string,
+  ) => {
+    if (!id) return;
     setIsAddingDep(true);
     setDepError(null);
     try {
       await createHouseholdItemDep(id, {
-        predecessorType: depPredecessorType,
-        predecessorId: depSelectedId,
+        predecessorType,
+        predecessorId,
       });
       const updated = await fetchHouseholdItemDeps(id);
       setDependencies(updated);
       const newItem = await getHouseholdItem(id);
       setItem(newItem);
-      setShowAddDepModal(false);
-      showToast('success', 'Dependency added');
+      setDepSearchInput('');
+      setShowDepDropdown(false);
+      showToast('success', 'Dependency added successfully');
     } catch (err) {
       if (err instanceof ApiClientError) {
         setDepError(err.error.message ?? 'Failed to add dependency');
+      } else {
+        showToast('error', 'Failed to add dependency');
       }
     } finally {
       setIsAddingDep(false);
@@ -974,13 +985,6 @@ export function HouseholdItemDetailPage() {
         <section className={styles.card}>
           <div className={styles.cardHeader}>
             <h2 className={styles.cardTitle}>Dependencies</h2>
-            <button
-              type="button"
-              className={styles.button}
-              onClick={() => void handleOpenAddDepModal()}
-            >
-              Add Dependency
-            </button>
           </div>
 
           {/* Earliest & Latest Delivery Date - inline editable constraints */}
@@ -1147,128 +1151,95 @@ export function HouseholdItemDetailPage() {
             </ul>
           )}
 
-          {/* Add Dependency modal */}
-          {showAddDepModal && (
-            <div
-              ref={depModalRef}
-              className={styles.modalOverlay}
-              role="dialog"
-              aria-modal="true"
-              aria-label="Add Dependency"
-            >
-              <div className={styles.modalContent} style={{ maxWidth: '36rem' }}>
-                <h3 className={styles.modalTitle}>Add Dependency</h3>
-                {/* Entity type toggle (radiogroup) */}
-                <div
-                  role="radiogroup"
-                  aria-label="Predecessor type"
-                  className={styles.depTypeToggle}
-                >
-                  <label className={styles.radioOption}>
-                    <input
-                      type="radio"
-                      name="predType"
-                      value="work_item"
-                      checked={depPredecessorType === 'work_item'}
-                      onChange={() => {
-                        setDepPredecessorType('work_item');
-                        setDepSelectedId('');
-                      }}
-                    />
-                    Work Item
-                  </label>
-                  <label className={styles.radioOption}>
-                    <input
-                      type="radio"
-                      name="predType"
-                      value="milestone"
-                      checked={depPredecessorType === 'milestone'}
-                      onChange={() => {
-                        setDepPredecessorType('milestone');
-                        setDepSelectedId('');
-                      }}
-                    />
-                    Milestone
-                  </label>
-                </div>
-                {/* Search */}
-                <input
-                  ref={depSearchInputRef}
-                  type="text"
-                  className={styles.formInput}
-                  placeholder={`Search ${depPredecessorType === 'work_item' ? 'work items' : 'milestones'}...`}
-                  value={depSearchQuery}
-                  onChange={(e) => setDepSearchQuery(e.target.value)}
-                  aria-label="Search predecessors"
-                  autoFocus
-                />
-                {/* Results list */}
-                <ul role="list" aria-label="Search results" className={styles.depSearchResults}>
-                  {(depPredecessorType === 'work_item' ? allWorkItems : allMilestones)
-                    .filter((item) => {
-                      const title = depPredecessorType === 'work_item' ? item.title : item.title;
-                      const alreadyAdded = dependencies.some(
+          {/* Inline dependency search */}
+          <div className={styles.inlineSearch} ref={depDropdownRef}>
+            <input
+              ref={depSearchRef}
+              type="text"
+              placeholder="Search work items or milestones to add..."
+              value={depSearchInput}
+              onChange={(e) => {
+                setDepSearchInput(e.target.value);
+                setShowDepDropdown(true);
+              }}
+              onFocus={() => setShowDepDropdown(true)}
+              className={styles.searchInput}
+              disabled={isAddingDep}
+              data-testid="dep-search-input"
+              aria-label="Search work items or milestones to add as dependencies"
+            />
+            {showDepDropdown && depSearchInput.trim() && (
+              <div className={styles.searchDropdown}>
+                {/* Work items that match */}
+                {allWorkItems
+                  .filter((wi) => {
+                    const alreadyLinked = dependencies.some(
+                      (d) => d.predecessorType === 'work_item' && d.predecessorId === wi.id,
+                    );
+                    return (
+                      !alreadyLinked &&
+                      wi.title.toLowerCase().includes(depSearchInput.toLowerCase())
+                    );
+                  })
+                  .map((wi) => (
+                    <button
+                      key={`wi-${wi.id}`}
+                      type="button"
+                      className={styles.searchDropdownItem}
+                      onClick={() => void handleAddDepInline('work_item', wi.id)}
+                      disabled={isAddingDep}
+                    >
+                      <span className={styles.itemTypeBadge}>Work Item</span>
+                      <span>{wi.title}</span>
+                    </button>
+                  ))}
+                {/* Milestones that match */}
+                {allMilestones
+                  .filter((ms) => {
+                    const alreadyLinked = dependencies.some(
+                      (d) => d.predecessorType === 'milestone' && d.predecessorId === String(ms.id),
+                    );
+                    return (
+                      !alreadyLinked &&
+                      ms.title.toLowerCase().includes(depSearchInput.toLowerCase())
+                    );
+                  })
+                  .map((ms) => (
+                    <button
+                      key={`ms-${ms.id}`}
+                      type="button"
+                      className={styles.searchDropdownItem}
+                      onClick={() => void handleAddDepInline('milestone', String(ms.id))}
+                      disabled={isAddingDep}
+                    >
+                      <span className={styles.itemTypeBadgeMilestone}>Milestone</span>
+                      <span>{ms.title}</span>
+                    </button>
+                  ))}
+                {/* Empty state */}
+                {allWorkItems.filter(
+                  (wi) =>
+                    !dependencies.some(
+                      (d) => d.predecessorType === 'work_item' && d.predecessorId === wi.id,
+                    ) && wi.title.toLowerCase().includes(depSearchInput.toLowerCase()),
+                ).length === 0 &&
+                  allMilestones.filter(
+                    (ms) =>
+                      !dependencies.some(
                         (d) =>
-                          d.predecessorType === depPredecessorType &&
-                          d.predecessorId === String(item.id),
-                      );
-                      return (
-                        !alreadyAdded && title.toLowerCase().includes(depSearchQuery.toLowerCase())
-                      );
-                    })
-                    .map((item) => (
-                      <li
-                        key={item.id}
-                        role="listitem"
-                        className={`${styles.depSearchOption} ${
-                          depSelectedId === String(item.id) ? styles.depSearchOptionSelected : ''
-                        }`}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => setDepSelectedId(String(item.id))}
-                          style={{
-                            width: '100%',
-                            textAlign: 'left',
-                            background: 'none',
-                            border: 'none',
-                            padding: 0,
-                            cursor: 'pointer',
-                          }}
-                        >
-                          {depPredecessorType === 'work_item' ? item.title : item.title}
-                        </button>
-                      </li>
-                    ))}
-                </ul>
-                {depError && (
-                  <div role="alert" className={styles.errorBanner}>
-                    {depError}
-                  </div>
-                )}
-                <div className={styles.modalActions}>
-                  <button
-                    type="button"
-                    className={styles.cancelButton}
-                    onClick={() => {
-                      setShowAddDepModal(false);
-                      setDepError(null);
-                    }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.button}
-                    disabled={!depSelectedId || isAddingDep}
-                    onClick={() => void handleAddDep()}
-                  >
-                    {isAddingDep ? 'Adding...' : 'Add Dependency'}
-                  </button>
-                </div>
+                          d.predecessorType === 'milestone' && d.predecessorId === String(ms.id),
+                      ) && ms.title.toLowerCase().includes(depSearchInput.toLowerCase()),
+                  ).length === 0 && (
+                    <div className={styles.searchDropdownEmpty}>No items match your search</div>
+                  )}
               </div>
-            </div>
-          )}
+            )}
+            {depError && (
+              <div role="alert" className={styles.errorBanner} style={{ marginTop: '0.5rem' }}>
+                {depError}
+              </div>
+            )}
+          </div>
         </section>
 
         {/* Budget Lines */}

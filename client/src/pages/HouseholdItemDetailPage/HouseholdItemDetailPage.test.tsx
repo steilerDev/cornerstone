@@ -1400,7 +1400,7 @@ describe('HouseholdItemDetailPage', () => {
       expect(screen.getByText('Milestone')).toBeInTheDocument();
     });
 
-    it('"Add Dependency" button is visible in the Dependencies card', async () => {
+    it('inline dependency search input is visible in the Dependencies card', async () => {
       mockGetHouseholdItem.mockResolvedValue(makeItem());
 
       renderPage();
@@ -1409,7 +1409,7 @@ describe('HouseholdItemDetailPage', () => {
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      expect(screen.getByRole('button', { name: 'Add Dependency' })).toBeInTheDocument();
+      expect(screen.getByTestId('dep-search-input')).toBeInTheDocument();
     });
 
     it('clicking "×" remove button shows Confirm and Cancel actions', async () => {
