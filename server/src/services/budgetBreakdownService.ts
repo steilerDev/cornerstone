@@ -424,8 +424,10 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
     const categoryArray = Array.from(groups.values()).sort((a, b) => {
       // Sort by sort_order first, then by name
       if (a.categoryMeta.categorySortOrder !== b.categoryMeta.categorySortOrder) {
-        return (a.categoryMeta.categorySortOrder ?? Infinity) -
-               (b.categoryMeta.categorySortOrder ?? Infinity);
+        return (
+          (a.categoryMeta.categorySortOrder ?? Infinity) -
+          (b.categoryMeta.categorySortOrder ?? Infinity)
+        );
       }
       return a.categoryMeta.categoryName.localeCompare(b.categoryMeta.categoryName);
     });
@@ -535,15 +537,19 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
         categoryMinPayback += itemMinSubsidyPayback;
       }
 
-      const category = config.buildCategory(group.categoryMeta, {
-        projectedMin: categoryMin,
-        projectedMax: categoryMax,
-        actualCost: categoryActual,
-        subsidyPayback: categoryPayback,
-        rawProjectedMin: categoryRawMin,
-        rawProjectedMax: categoryRawMax,
-        minSubsidyPayback: categoryMinPayback,
-      }, categoryItems);
+      const category = config.buildCategory(
+        group.categoryMeta,
+        {
+          projectedMin: categoryMin,
+          projectedMax: categoryMax,
+          actualCost: categoryActual,
+          subsidyPayback: categoryPayback,
+          rawProjectedMin: categoryRawMin,
+          rawProjectedMax: categoryRawMax,
+          minSubsidyPayback: categoryMinPayback,
+        },
+        categoryItems,
+      );
 
       categories.push(category);
       totals.projectedMin += categoryMin;
