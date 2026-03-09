@@ -181,7 +181,7 @@ export class TimelinePage {
 
   /** Navigate to schedule in calendar view. */
   async gotoCalendar(): Promise<void> {
-    await this.page.goto(`${TIMELINE_ROUTE}?view=calendar`);
+    await this.page.goto('/schedule/calendar');
     await this.heading.waitFor({ state: 'visible' });
     await this.calendarView.waitFor({ state: 'visible' });
   }

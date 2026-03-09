@@ -439,7 +439,7 @@ test.describe('Documentation screenshots', () => {
     // Ensure list is populated before screenshotting.
     // Use level: 1 to target only the page h1, not the sidebar nav link which
     // also matches /work items/i and would cause a strict-mode violation.
-    await expect(page.getByRole('heading', { level: 1, name: /work items/i })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: /project/i })).toBeVisible();
     await page.waitForTimeout(500);
 
     for (const theme of ['light', 'dark'] as const) {
@@ -710,7 +710,7 @@ test.describe('Documentation screenshots', () => {
   test('Household items list', async ({ page }) => {
     await page.goto(`${baseUrl}${ROUTES.householdItems}`);
     await page.waitForLoadState('networkidle');
-    await expect(page.getByRole('heading', { level: 1, name: /household items/i })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: /project/i })).toBeVisible();
     await page.waitForTimeout(500);
 
     for (const theme of ['light', 'dark'] as const) {
