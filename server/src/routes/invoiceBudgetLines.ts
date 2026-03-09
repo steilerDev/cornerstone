@@ -121,23 +121,22 @@ export default async function invoiceBudgetLineRoutes(fastify: FastifyInstance) 
    * Update an invoice budget line.
    * Auth required: Yes (both admin and member)
    */
-  fastify.patch<{ Params: { invoiceId: string; id: string }; Body: UpdateInvoiceBudgetLineRequest }>(
-    '/:id',
-    { schema: updateBudgetLineSchema },
-    async (request, reply) => {
-      if (!request.user) {
-        throw new UnauthorizedError();
-      }
+  fastify.patch<{
+    Params: { invoiceId: string; id: string };
+    Body: UpdateInvoiceBudgetLineRequest;
+  }>('/:id', { schema: updateBudgetLineSchema }, async (request, reply) => {
+    if (!request.user) {
+      throw new UnauthorizedError();
+    }
 
-      const result = invoiceBudgetLineService.updateInvoiceBudgetLine(
-        fastify.db,
-        request.params.invoiceId,
-        request.params.id,
-        request.body,
-      );
-      return reply.status(200).send(result);
-    },
-  );
+    const result = invoiceBudgetLineService.updateInvoiceBudgetLine(
+      fastify.db,
+      request.params.invoiceId,
+      request.params.id,
+      request.body,
+    );
+    return reply.status(200).send(result);
+  });
 
   /**
    * DELETE /api/invoices/:invoiceId/budget-lines/:id
