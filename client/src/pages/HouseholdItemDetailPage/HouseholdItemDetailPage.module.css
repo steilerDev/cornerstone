@@ -1607,3 +1607,106 @@
   font-size: var(--font-size-sm);
   margin-bottom: var(--spacing-4);
 }
+
+/* ============================================================
+ * Inline Dependency Search
+ * ============================================================ */
+
+.inlineSearch {
+  position: relative;
+  margin-top: var(--spacing-3);
+}
+
+.searchInput {
+  width: 100%;
+  padding: var(--spacing-2-5) var(--spacing-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  transition: border-color var(--transition-normal);
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: var(--color-primary-hover);
+  box-shadow: var(--shadow-focus-subtle);
+}
+
+.searchInput:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.searchDropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: 200px;
+  overflow-y: auto;
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border-strong);
+  border-top: none;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  z-index: 10;
+  box-shadow: var(--shadow-md);
+}
+
+.searchDropdownItem {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  width: 100%;
+  padding: var(--spacing-2) var(--spacing-3);
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  transition: background-color var(--transition-fast);
+}
+
+.searchDropdownItem:hover:not(:disabled) {
+  background-color: var(--color-bg-tertiary);
+}
+
+.searchDropdownItem:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.searchDropdownEmpty {
+  padding: var(--spacing-3) var(--spacing-3);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.itemTypeBadge {
+  display: inline-block;
+  padding: var(--spacing-0-5) var(--spacing-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  background-color: var(--color-primary);
+  color: var(--color-primary-text);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.itemTypeBadgeMilestone {
+  display: inline-block;
+  padding: var(--spacing-0-5) var(--spacing-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  background-color: var(--color-warning-bg);
+  color: var(--color-warning);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
