@@ -188,6 +188,32 @@ export function CalendarView({
 
   const milestoneById = useMemo(() => new Map(milestones.map((m) => [m.id, m])), [milestones]);
 
+  const householdItemById = useMemo(
+    () => new Map(householdItems.map((hi) => [hi.id, hi])),
+    [householdItems],
+  );
+
+  // Build per-HI linked items (resolved from dependencyIds)
+  const hiLinkedItemsMap = useMemo(() => {
+    const map = new Map<string, { id: string; title: string; type: 'work_item' | 'milestone' }[]>();
+    for (const hi of householdItems) {
+      if (hi.dependencyIds.length === 0) continue;
+      const linked: { id: string; title: string; type: 'work_item' | 'milestone' }[] = [];
+      for (const dep of hi.dependencyIds) {
+        if (dep.predecessorType === 'work_item') {
+          const wi = workItemById.get(dep.predecessorId);
+          if (wi) linked.push({ id: dep.predecessorId, title: wi.title, type: 'work_item' });
+        } else {
+          const msId = Number(dep.predecessorId);
+          const ms = milestoneById.get(msId);
+          if (ms) linked.push({ id: dep.predecessorId, title: ms.title, type: 'milestone' });
+        }
+      }
+      if (linked.length > 0) map.set(hi.id, linked);
+    }
+    return map;
+  }, [householdItems, workItemById, milestoneById]);
+
   // Build per-item dependency tooltip entries (predecessors + successors)
   const itemTooltipDepsMap = useMemo(() => {
     const map = new Map<string, GanttTooltipDependencyEntry[]>();
@@ -241,28 +267,47 @@ export function CalendarView({
     return map;
   }, [workItems]);
 
-  // When a first touch-tap occurs on a work item, show its tooltip and register for two-tap
+  // When a first touch-tap occurs on a work/household item, show its tooltip and register for two-tap
   const handleCalendarItemTouchTap = useCallback(
     (itemId: string, onNavigate: () => void) => {
-      const item = workItemById.get(itemId);
-      if (item && activeTouchId !== itemId) {
+      if (activeTouchId !== itemId) {
         // First tap: build tooltip data and show it
-        const today = new Date();
-        const effectiveStart = item.actualStartDate ?? item.startDate;
-        const effectiveEnd = item.actualEndDate ?? item.endDate;
-        const actualDurationDays = computeActualDuration(effectiveStart, effectiveEnd, today);
-        setTooltipData({
-          kind: 'work-item',
-          title: item.title,
-          status: item.status,
-          startDate: item.startDate,
-          endDate: item.endDate,
-          durationDays: item.durationDays,
-          assignedUserName: item.assignedUser?.displayName ?? null,
-          plannedDurationDays: item.durationDays,
-          actualDurationDays,
-          dependencies: itemTooltipDepsMap.get(itemId),
-        });
+        const item = workItemById.get(itemId);
+        if (item) {
+          const today = new Date();
+          const effectiveStart = item.actualStartDate ?? item.startDate;
+          const effectiveEnd = item.actualEndDate ?? item.endDate;
+          const actualDurationDays = computeActualDuration(effectiveStart, effectiveEnd, today);
+          setTooltipData({
+            kind: 'work-item',
+            title: item.title,
+            status: item.status,
+            startDate: item.startDate,
+            endDate: item.endDate,
+            durationDays: item.durationDays,
+            assignedUserName: item.assignedUser?.displayName ?? null,
+            plannedDurationDays: item.durationDays,
+            actualDurationDays,
+            dependencies: itemTooltipDepsMap.get(itemId),
+          });
+        } else {
+          const hi = householdItemById.get(itemId);
+          if (hi) {
+            setTooltipData({
+              kind: 'household-item',
+              name: hi.name,
+              category: hi.category,
+              status: hi.status,
+              earliestDeliveryDate: hi.earliestDeliveryDate,
+              latestDeliveryDate: hi.latestDeliveryDate,
+              targetDeliveryDate: hi.targetDeliveryDate,
+              actualDeliveryDate: hi.actualDeliveryDate,
+              isLate: hi.isLate,
+              householdItemId: hi.id,
+              linkedItems: hiLinkedItemsMap.get(hi.id),
+            });
+          }
+        }
         // Position tooltip at viewport center as a safe default for touch
         setTooltipPosition({
           x: typeof window !== 'undefined' ? window.innerWidth / 2 : 300,
@@ -277,37 +322,61 @@ export function CalendarView({
         onNavigate();
       });
     },
-    [workItemById, activeTouchId, itemTooltipDepsMap, handleTouchTap],
+    [workItemById, householdItemById, activeTouchId, itemTooltipDepsMap, hiLinkedItemsMap, handleTouchTap],
   );
 
-  const handleWorkItemMouseEnter = useCallback(
+  const handleItemMouseEnter = useCallback(
     (itemId: string, mouseX: number, mouseY: number) => {
       clearTooltipTimers();
       handleItemHoverStart(itemId);
+
+      // Check work items first
       const item = workItemById.get(itemId);
-      if (!item) return;
-      tooltipShowTimerRef.current = setTimeout(() => {
-        // Compute actual duration from actual/scheduled dates
-        const today = new Date();
-        const effectiveStart = item.actualStartDate ?? item.startDate;
-        const effectiveEnd = item.actualEndDate ?? item.endDate;
-        const actualDurationDays = computeActualDuration(effectiveStart, effectiveEnd, today);
-        setTooltipData({
-          kind: 'work-item',
-          title: item.title,
-          status: item.status,
-          startDate: item.startDate,
-          endDate: item.endDate,
-          durationDays: item.durationDays,
-          assignedUserName: item.assignedUser?.displayName ?? null,
-          plannedDurationDays: item.durationDays,
-          actualDurationDays,
-          dependencies: itemTooltipDepsMap.get(itemId),
-        });
-        setTooltipPosition({ x: mouseX, y: mouseY });
-      }, TOOLTIP_SHOW_DELAY);
+      if (item) {
+        tooltipShowTimerRef.current = setTimeout(() => {
+          const today = new Date();
+          const effectiveStart = item.actualStartDate ?? item.startDate;
+          const effectiveEnd = item.actualEndDate ?? item.endDate;
+          const actualDurationDays = computeActualDuration(effectiveStart, effectiveEnd, today);
+          setTooltipData({
+            kind: 'work-item',
+            title: item.title,
+            status: item.status,
+            startDate: item.startDate,
+            endDate: item.endDate,
+            durationDays: item.durationDays,
+            assignedUserName: item.assignedUser?.displayName ?? null,
+            plannedDurationDays: item.durationDays,
+            actualDurationDays,
+            dependencies: itemTooltipDepsMap.get(itemId),
+          });
+          setTooltipPosition({ x: mouseX, y: mouseY });
+        }, TOOLTIP_SHOW_DELAY);
+        return;
+      }
+
+      // Check household items
+      const hi = householdItemById.get(itemId);
+      if (hi) {
+        tooltipShowTimerRef.current = setTimeout(() => {
+          setTooltipData({
+            kind: 'household-item',
+            name: hi.name,
+            category: hi.category,
+            status: hi.status,
+            earliestDeliveryDate: hi.earliestDeliveryDate,
+            latestDeliveryDate: hi.latestDeliveryDate,
+            targetDeliveryDate: hi.targetDeliveryDate,
+            actualDeliveryDate: hi.actualDeliveryDate,
+            isLate: hi.isLate,
+            householdItemId: hi.id,
+            linkedItems: hiLinkedItemsMap.get(hi.id),
+          });
+          setTooltipPosition({ x: mouseX, y: mouseY });
+        }, TOOLTIP_SHOW_DELAY);
+      }
     },
-    [workItemById, handleItemHoverStart, itemTooltipDepsMap],
+    [workItemById, householdItemById, handleItemHoverStart, itemTooltipDepsMap, hiLinkedItemsMap],
   );
 
   const handleWorkItemMouseLeave = useCallback(() => {
@@ -543,7 +612,7 @@ export function CalendarView({
             householdItems={householdItems}
             onMilestoneClick={onMilestoneClick}
             hoveredItemId={hoveredItemId}
-            onItemMouseEnter={handleWorkItemMouseEnter}
+            onItemMouseEnter={handleItemMouseEnter}
             onItemMouseLeave={handleWorkItemMouseLeave}
             onItemMouseMove={handleWorkItemMouseMove}
             onMilestoneMouseEnter={handleMilestoneMouseEnter}
@@ -561,7 +630,7 @@ export function CalendarView({
             householdItems={householdItems}
             onMilestoneClick={onMilestoneClick}
             hoveredItemId={hoveredItemId}
-            onItemMouseEnter={handleWorkItemMouseEnter}
+            onItemMouseEnter={handleItemMouseEnter}
             onItemMouseLeave={handleWorkItemMouseLeave}
             onItemMouseMove={handleWorkItemMouseMove}
             onMilestoneMouseEnter={handleMilestoneMouseEnter}
