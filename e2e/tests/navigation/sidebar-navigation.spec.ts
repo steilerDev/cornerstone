@@ -17,9 +17,13 @@ test.describe('Sidebar Navigation', { tag: '@responsive' }, () => {
       if (isMobile) {
         await appShell.openSidebar();
       }
-      // Use sidebar locator (not nav) since Settings is in the footer, outside <nav>
+      // Settings is a button (not a link), other nav items are links
       // Use exact: true to avoid matching the logo link (aria-label contains "project")
-      await appShell.sidebar.getByRole('link', { name, exact: true }).click();
+      if (name === 'Settings') {
+        await appShell.sidebar.getByRole('button', { name, exact: true }).click();
+      } else {
+        await appShell.sidebar.getByRole('link', { name, exact: true }).click();
+      }
     };
 
     // Given: User is on the project overview
@@ -72,14 +76,18 @@ test.describe('Sidebar Navigation', { tag: '@responsive' }, () => {
       await appShell.openSidebar();
     }
 
-    // Then: All expected navigation links should be present
-    // Main nav: Project, Budget, Schedule — Footer nav: Settings
-    const expectedLinks = ['Project', 'Budget', 'Schedule', 'Settings'];
+    // Then: All expected navigation items should be present
+    // Main nav: Project, Budget, Schedule (links) — Footer: Settings (button)
+    const expectedLinks = ['Project', 'Budget', 'Schedule'];
 
     for (const linkName of expectedLinks) {
       const link = appShell.sidebar.getByRole('link', { name: linkName, exact: true });
       await expect(link).toBeVisible();
     }
+
+    // Settings is a button, not a link
+    const settingsButton = appShell.sidebar.getByRole('button', { name: 'Settings', exact: true });
+    await expect(settingsButton).toBeVisible();
   });
 
   test('Logout button is present', async ({ page }) => {
