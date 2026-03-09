@@ -63,7 +63,6 @@ test.describe('Mobile layout (Scenario 2)', { tag: '@responsive' }, () => {
     await expect(timelinePage.ganttViewButton).toBeVisible();
     await expect(timelinePage.calendarViewButton).toBeVisible();
   });
-
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

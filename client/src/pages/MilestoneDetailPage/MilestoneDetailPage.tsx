@@ -1,4 +1,5 @@
-import { useState, useEffect, FormEvent } from 'react';
+import type { FormEvent } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import type { MilestoneDetail } from '@cornerstone/shared';
 import { getMilestone, updateMilestone, deleteMilestone } from '../../lib/milestonesApi.js';
