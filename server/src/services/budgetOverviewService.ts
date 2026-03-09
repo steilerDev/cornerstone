@@ -176,8 +176,6 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
   // ── 7. Compute per-line planned amounts and per-category aggregates ─────────
   let totalMinPlanned = 0;
   let totalMaxPlanned = 0;
-  let totalProjectedMin = 0;
-  let totalProjectedMax = 0;
 
   // Category summaries: categoryId -> running totals
   const categoryAgg = new Map<
@@ -185,8 +183,6 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
     {
       minPlanned: number;
       maxPlanned: number;
-      projectedMin: number;
-      projectedMax: number;
       actualCost: number;
       actualCostPaid: number;
       actualCostClaimed: number;
@@ -262,13 +258,9 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
     const hasInvoices = lineActualCost !== undefined;
     const minPlanned = hasInvoices ? lineActualCost : rawMinPlanned;
     const maxPlanned = hasInvoices ? lineActualCost : rawMaxPlanned;
-    const projectedMin = minPlanned;
-    const projectedMax = maxPlanned;
 
     totalMinPlanned += minPlanned;
     totalMaxPlanned += maxPlanned;
-    totalProjectedMin += projectedMin;
-    totalProjectedMax += projectedMax;
 
     // Aggregate per category (null key = uncategorized)
     let agg = categoryAgg.get(line.budgetCategoryId);
@@ -276,8 +268,6 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
       agg = {
         minPlanned: 0,
         maxPlanned: 0,
-        projectedMin: 0,
-        projectedMax: 0,
         actualCost: 0,
         actualCostPaid: 0,
         actualCostClaimed: 0,
@@ -287,8 +277,6 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
     }
     agg.minPlanned += minPlanned;
     agg.maxPlanned += maxPlanned;
-    agg.projectedMin += projectedMin;
-    agg.projectedMax += projectedMax;
     agg.budgetLineCount += 1;
   }
 
@@ -346,8 +334,6 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
       agg = {
         minPlanned: 0,
         maxPlanned: 0,
-        projectedMin: 0,
-        projectedMax: 0,
         actualCost: 0,
         actualCostPaid: 0,
         actualCostClaimed: 0,
@@ -380,8 +366,6 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
       categoryColor: cat.color,
       minPlanned: agg?.minPlanned ?? 0,
       maxPlanned: agg?.maxPlanned ?? 0,
-      projectedMin: agg?.projectedMin ?? 0,
-      projectedMax: agg?.projectedMax ?? 0,
       actualCost: agg?.actualCost ?? 0,
       actualCostPaid: agg?.actualCostPaid ?? 0,
       actualCostClaimed: agg?.actualCostClaimed ?? 0,
@@ -398,8 +382,6 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
       categoryColor: null,
       minPlanned: uncategorizedAgg.minPlanned,
       maxPlanned: uncategorizedAgg.maxPlanned,
-      projectedMin: uncategorizedAgg.projectedMin,
-      projectedMax: uncategorizedAgg.projectedMax,
       actualCost: uncategorizedAgg.actualCost,
       actualCostPaid: uncategorizedAgg.actualCostPaid,
       actualCostClaimed: uncategorizedAgg.actualCostClaimed,
@@ -494,8 +476,6 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
   // ── 12. Remaining-funds perspectives ───────────────────────────────────────
   const remainingVsMinPlanned = availableFunds - totalMinPlanned;
   const remainingVsMaxPlanned = availableFunds - totalMaxPlanned;
-  const remainingVsProjectedMin = availableFunds - totalProjectedMin;
-  const remainingVsProjectedMax = availableFunds - totalProjectedMax;
   const remainingVsActualCost = availableFunds - actualCost;
   const remainingVsActualPaid = availableFunds - actualCostPaid;
   const remainingVsActualClaimed = availableFunds - actualCostClaimed;
@@ -509,15 +489,11 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
     sourceCount,
     minPlanned: totalMinPlanned,
     maxPlanned: totalMaxPlanned,
-    projectedMin: totalProjectedMin,
-    projectedMax: totalProjectedMax,
     actualCost,
     actualCostPaid,
     actualCostClaimed,
     remainingVsMinPlanned,
     remainingVsMaxPlanned,
-    remainingVsProjectedMin,
-    remainingVsProjectedMax,
     remainingVsActualCost,
     remainingVsActualPaid,
     remainingVsActualClaimed,

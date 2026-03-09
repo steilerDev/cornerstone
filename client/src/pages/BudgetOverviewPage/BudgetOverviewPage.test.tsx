@@ -38,15 +38,11 @@ describe('BudgetOverviewPage', () => {
     sourceCount: 0,
     minPlanned: 0,
     maxPlanned: 0,
-    projectedMin: 0,
-    projectedMax: 0,
     actualCost: 0,
     actualCostPaid: 0,
     actualCostClaimed: 0,
     remainingVsMinPlanned: 0,
     remainingVsMaxPlanned: 0,
-    remainingVsProjectedMin: 0,
-    remainingVsProjectedMax: 0,
     remainingVsActualCost: 0,
     remainingVsActualPaid: 0,
     remainingVsActualClaimed: 0,
@@ -61,23 +57,19 @@ describe('BudgetOverviewPage', () => {
     },
   };
 
-  // Rich overview: availableFunds=200000, projectedMax=160000
-  // Health: remaining vs projected max = 200000 - 160000 = 40000
-  // margin = 40000 / 200000 = 0.20 > 0.10 → "On Budget"
+  // Rich overview: availableFunds=200000, maxPlanned=180000
+  // Health: remaining vs max planned = 200000 - 180000 = 20000
+  // margin = 20000 / 200000 = 0.10 → "At Risk" (exactly 10%)
   const richOverview: BudgetOverview = {
     availableFunds: 200000,
     sourceCount: 2,
     minPlanned: 120000,
     maxPlanned: 180000,
-    projectedMin: 140000,
-    projectedMax: 160000,
     actualCost: 120000,
     actualCostPaid: 100000,
     actualCostClaimed: 60000,
     remainingVsMinPlanned: 80000,
     remainingVsMaxPlanned: 20000,
-    remainingVsProjectedMin: 60000,
-    remainingVsProjectedMax: 40000,
     remainingVsActualCost: 80000,
     remainingVsActualPaid: 100000,
     remainingVsActualClaimed: 140000,
@@ -90,8 +82,6 @@ describe('BudgetOverviewPage', () => {
         categoryColor: '#FF5733',
         minPlanned: 64000,
         maxPlanned: 96000,
-        projectedMin: 72000,
-        projectedMax: 88000,
         actualCost: 70000,
         actualCostPaid: 65000,
         actualCostClaimed: 40000,
@@ -103,8 +93,6 @@ describe('BudgetOverviewPage', () => {
         categoryColor: null,
         minPlanned: 56000,
         maxPlanned: 84000,
-        projectedMin: 68000,
-        projectedMax: 72000,
         actualCost: 50000,
         actualCostPaid: 35000,
         actualCostClaimed: 20000,
@@ -378,13 +366,12 @@ describe('BudgetOverviewPage', () => {
       });
     });
 
-    it('shows "Over Budget" when remaining vs projected max is negative', async () => {
+    it('shows "Over Budget" when remaining vs max planned is negative', async () => {
       // Component uses remainingVsMaxPlanned (or WithPayback when hasPayback) for health indicator.
       // Set both to negative to trigger "Over Budget" status.
       const overBudgetOverview: BudgetOverview = {
         ...richOverview,
         availableFunds: 100000,
-        projectedMax: 150000, // exceeds available
         remainingVsMaxPlanned: -50000, // negative → Over Budget
         remainingVsMaxPlannedWithPayback: -50000,
       };
@@ -402,7 +389,6 @@ describe('BudgetOverviewPage', () => {
       const atRiskOverview: BudgetOverview = {
         ...richOverview,
         availableFunds: 100000,
-        projectedMax: 95000,
         remainingVsMaxPlanned: 5000, // margin = 5000/100000 = 5% → At Risk
         remainingVsMaxPlannedWithPayback: 5000,
       };
@@ -446,14 +432,14 @@ describe('BudgetOverviewPage', () => {
       });
     });
 
-    it('shows projected min and max values in the metrics row', async () => {
+    it('shows planned min and max values in the metrics row', async () => {
       mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
       renderPage();
 
-      // richOverview: projectedMin=140000 → €140K, projectedMax=160000 → €160K
+      // richOverview: minPlanned=120000 → €120K, maxPlanned=180000 → €180K
       await waitFor(() => {
-        expect(screen.getByText(/140K/)).toBeInTheDocument();
-        expect(screen.getByText(/160K/)).toBeInTheDocument();
+        expect(screen.getByText(/120K/)).toBeInTheDocument();
+        expect(screen.getByText(/180K/)).toBeInTheDocument();
       });
     });
 
@@ -518,8 +504,8 @@ describe('BudgetOverviewPage', () => {
       });
     });
 
-    it('does not render overflow segment when projected max <= available funds', async () => {
-      // richOverview: projectedMax=160000 <= availableFunds=200000 → no overflow
+    it('does not render overflow segment when max planned <= available funds', async () => {
+      // richOverview: maxPlanned=180000 <= availableFunds=200000 → no overflow
       mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
       renderPage();
 
@@ -532,10 +518,10 @@ describe('BudgetOverviewPage', () => {
       expect(label).not.toContain('Overflow');
     });
 
-    it('renders overflow segment when projected max exceeds available funds', async () => {
+    it('renders overflow segment when max planned exceeds available funds', async () => {
       const overflowOverview: BudgetOverview = {
         ...richOverview,
-        availableFunds: 100000, // projectedMax=160000 > 100000 → overflow=60000
+        availableFunds: 100000, // maxPlanned=180000 > 100000 → overflow=80000
       };
       mockFetchBudgetOverview.mockResolvedValueOnce(overflowOverview);
       renderPage();
@@ -706,8 +692,6 @@ describe('BudgetOverviewPage', () => {
             categoryColor: null,
             minPlanned: 0,
             maxPlanned: 0,
-            projectedMin: 0,
-            projectedMax: 0,
             actualCost: 0,
             actualCostPaid: 0,
             actualCostClaimed: 0,
@@ -719,8 +703,6 @@ describe('BudgetOverviewPage', () => {
             categoryColor: null,
             minPlanned: 0,
             maxPlanned: 0,
-            projectedMin: 0,
-            projectedMax: 0,
             actualCost: 0,
             actualCostPaid: 0,
             actualCostClaimed: 0,
@@ -865,7 +847,7 @@ describe('BudgetOverviewPage', () => {
       await user.click(screen.getByRole('button', { name: 'Clear All' }));
 
       // With 0 categories selected, filtered totals are all 0
-      // projectedMin=0, projectedMax=0 → displayed as €0.00 (both sides of range)
+      // minPlanned=0, maxPlanned=0 → displayed as €0.00 (both sides of range)
       await waitFor(() => {
         const zeroElements = screen.getAllByText(/0\.00/);
         expect(zeroElements.length).toBeGreaterThan(0);
@@ -876,9 +858,9 @@ describe('BudgetOverviewPage', () => {
       mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
       renderPage();
 
-      // richOverview: projectedMin=140000 → €140K
+      // richOverview: minPlanned=120000 → €120K
       await waitFor(() => {
-        expect(screen.getByText(/140K/)).toBeInTheDocument();
+        expect(screen.getByText(/120K/)).toBeInTheDocument();
       });
     });
   });
@@ -967,19 +949,19 @@ describe('BudgetOverviewPage', () => {
       expect(screen.getByRole('button', { name: /expand materials/i })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /expand labor/i })).toBeInTheDocument();
 
-      // Budget Health shows full projected range: €140K–€160K
-      expect(screen.getByText(/€140K/)).toBeInTheDocument();
-      expect(screen.getByText(/€160K/)).toBeInTheDocument();
+      // Budget Health shows full planned range: €120K–€180K
+      expect(screen.getByText(/€120K/)).toBeInTheDocument();
+      expect(screen.getByText(/€180K/)).toBeInTheDocument();
 
       // Open the category filter and deselect "Labor" — leaving only "Materials" selected
       await user.click(screen.getByRole('button', { name: /all categories/i }));
       await user.click(screen.getByRole('checkbox', { name: 'Labor' }));
 
-      // Budget Health projected range should now show only Materials totals:
-      // projectedMin=72000 → €72K, projectedMax=88000 → €88K
+      // Budget Health planned range should now show only Materials totals:
+      // minPlanned=64000 → €64K, maxPlanned=96000 → €96K
       await waitFor(() => {
-        expect(screen.getByText(/€72K/)).toBeInTheDocument();
-        expect(screen.getByText(/€88K/)).toBeInTheDocument();
+        expect(screen.getByText(/€64K/)).toBeInTheDocument();
+        expect(screen.getByText(/€96K/)).toBeInTheDocument();
       });
 
       // Cost Breakdown must still show BOTH category rows regardless of the filter.
@@ -1034,10 +1016,10 @@ describe('BudgetOverviewPage', () => {
       mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
       renderPage();
 
-      // richOverview: projectedMin=140000 → €140K, projectedMax=160000 → €160K
+      // richOverview: minPlanned=120000 → €120K, maxPlanned=180000 → €180K
       await waitFor(() => {
-        expect(screen.getByText(/€140K/)).toBeInTheDocument();
-        expect(screen.getByText(/€160K/)).toBeInTheDocument();
+        expect(screen.getByText(/€120K/)).toBeInTheDocument();
+        expect(screen.getByText(/€180K/)).toBeInTheDocument();
       });
     });
 
