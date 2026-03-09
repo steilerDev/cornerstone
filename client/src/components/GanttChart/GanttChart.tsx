@@ -1103,6 +1103,7 @@ export function GanttChart({
         milestones={data.milestones}
         unifiedRows={unifiedRows}
         onItemClick={handleBarOrSidebarClick}
+        onMilestoneClick={onMilestoneClick}
         onHouseholdItemClick={handleHiClick}
         ref={sidebarScrollRef}
       />

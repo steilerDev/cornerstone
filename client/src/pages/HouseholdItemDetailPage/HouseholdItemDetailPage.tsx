@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import type {
   HouseholdItemDetail,
   HouseholdItemStatus,
@@ -65,7 +65,12 @@ import styles from './HouseholdItemDetailPage.module.css';
 export function HouseholdItemDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { showToast } = useToast();
+
+  const locationState = location.state as { from?: string; view?: string } | null;
+  const fromSchedule = locationState?.from === 'schedule';
+  const fromView = locationState?.view;
 
   const [item, setItem] = useState<HouseholdItemDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -661,15 +666,43 @@ export function HouseholdItemDetailPage() {
   return (
     <div className={styles.container}>
       <div className={styles.content}>
-        {/* Breadcrumb */}
-        <div className={styles.breadcrumb}>
-          <Link to="/project/household-items" className={styles.backLink}>
-            Household Items
-          </Link>
-          <span className={styles.breadcrumbSeparator} aria-hidden="true">
-            /
-          </span>
-          <span className={styles.breadcrumbCurrent}>{item.name}</span>
+        {/* Navigation buttons */}
+        <div className={styles.navButtons}>
+          {fromSchedule ? (
+            <>
+              <button
+                type="button"
+                className={styles.backButton}
+                onClick={() => navigate(fromView ? `/schedule?view=${fromView}` : '/schedule')}
+              >
+                ← Back to Schedule
+              </button>
+              <button
+                type="button"
+                className={styles.secondaryNavButton}
+                onClick={() => navigate('/project/household-items')}
+              >
+                To Household Items
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                className={styles.backButton}
+                onClick={() => navigate('/project/household-items')}
+              >
+                ← Back to Household Items
+              </button>
+              <button
+                type="button"
+                className={styles.secondaryNavButton}
+                onClick={() => navigate('/schedule')}
+              >
+                To Schedule
+              </button>
+            </>
+          )}
         </div>
 
         {/* Page header */}

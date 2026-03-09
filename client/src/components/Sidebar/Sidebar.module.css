@@ -4,6 +4,7 @@
   color: var(--color-sidebar-text);
   display: flex;
   flex-direction: column;
+  height: 100vh;
 }
 
 .logoArea {
@@ -199,6 +200,7 @@
 /* Desktop: static position, always visible */
 @media (min-width: 1025px) {
   .sidebar {
-    position: static;
+    position: sticky;
+    top: 0;
   }
 }

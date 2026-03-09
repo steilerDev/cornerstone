@@ -22,6 +22,8 @@ export interface GanttSidebarProps {
   unifiedRows?: UnifiedRow[];
   /** Called when user clicks a sidebar row — navigate to the work item. */
   onItemClick?: (id: string) => void;
+  /** Called when user clicks a milestone sidebar row — navigate to the milestone. */
+  onMilestoneClick?: (milestoneId: number) => void;
   /** Called when user clicks a household item sidebar row — navigate to the household item. */
   onHouseholdItemClick?: (id: string) => void;
 }
@@ -37,7 +39,7 @@ export interface GanttSidebarProps {
  * - Enter/Space: activate (navigate to work item detail)
  */
 export const GanttSidebar = forwardRef<HTMLDivElement, GanttSidebarProps>(function GanttSidebar(
-  { items, unifiedRows, onItemClick, onHouseholdItemClick },
+  { items, unifiedRows, onItemClick, onMilestoneClick, onHouseholdItemClick },
   ref,
 ) {
   // Ref for the rows container to query row elements
@@ -68,6 +70,33 @@ export const GanttSidebar = forwardRef<HTMLDivElement, GanttSidebarProps>(functi
       }
     },
     [onItemClick],
+  );
+
+  const handleMilestoneKeyDown = useCallback(
+    (e: ReactKeyboardEvent<HTMLDivElement>, idx: number, milestoneId: number) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        onMilestoneClick?.(milestoneId);
+        return;
+      }
+
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        const container = rowsRef.current;
+        if (!container) return;
+
+        const rows = container.querySelectorAll<HTMLDivElement>('[data-gantt-sidebar-row]');
+        const nextIdx = e.key === 'ArrowDown' ? idx + 1 : idx - 1;
+
+        if (nextIdx >= 0 && nextIdx < rows.length) {
+          const nextRow = rows[nextIdx];
+          nextRow.focus();
+          // Scroll the row into view within the sidebar
+          nextRow.scrollIntoView?.({ block: 'nearest' });
+        }
+      }
+    },
+    [onMilestoneClick],
   );
 
   const handleHiKeyDown = useCallback(
@@ -161,8 +190,12 @@ export const GanttSidebar = forwardRef<HTMLDivElement, GanttSidebarProps>(functi
                     className={`${styles.sidebarRow} ${styles.sidebarMilestoneRow} ${isEven ? styles.sidebarRowEven : styles.sidebarRowOdd}`}
                     style={{ height: ROW_HEIGHT }}
                     role="listitem"
+                    tabIndex={0}
+                    onClick={() => onMilestoneClick?.(milestone.id)}
+                    onKeyDown={(e) => handleMilestoneKeyDown(e, idx, milestone.id)}
                     aria-label={`Milestone: ${milestone.title}`}
                     data-testid={`gantt-sidebar-milestone-${milestone.id}`}
+                    data-gantt-sidebar-row={idx}
                   >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
