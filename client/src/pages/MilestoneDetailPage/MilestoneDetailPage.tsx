@@ -1,11 +1,17 @@
 import type { FormEvent } from 'react';
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import type { MilestoneDetail } from '@cornerstone/shared';
-import { getMilestone, updateMilestone, deleteMilestone } from '../../lib/milestonesApi.js';
+import type { MilestoneDetail, WorkItemSummary } from '@cornerstone/shared';
+import {
+  getMilestone,
+  updateMilestone,
+  deleteMilestone,
+  linkWorkItem,
+  unlinkWorkItem,
+} from '../../lib/milestonesApi.js';
+import { listWorkItems } from '../../lib/workItemsApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { formatDate } from '../../lib/formatters.js';
-import { ProjectSubNav } from '../../components/ProjectSubNav/ProjectSubNav.js';
 import styles from './MilestoneDetailPage.module.css';
 
 export function MilestoneDetailPage() {
@@ -32,6 +38,13 @@ export function MilestoneDetailPage() {
   // Delete confirmation
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Linked work items management
+  const [showAddWorkItem, setShowAddWorkItem] = useState(false);
+  const [availableWorkItems, setAvailableWorkItems] = useState<WorkItemSummary[]>([]);
+  const [selectedWorkItemId, setSelectedWorkItemId] = useState('');
+  const [isLinkingWorkItem, setIsLinkingWorkItem] = useState(false);
+  const [isUnlinkingWorkItem, setIsUnlinkingWorkItem] = useState<Record<string, boolean>>({});
 
   // Load milestone on mount
   useEffect(() => {
@@ -69,6 +82,75 @@ export function MilestoneDetailPage() {
 
     loadMilestone();
   }, [milestoneId]);
+
+  // Load available work items for linking (when add work item modal opens)
+  useEffect(() => {
+    if (!showAddWorkItem || !milestone) {
+      return;
+    }
+
+    const loadWorkItems = async () => {
+      try {
+        const response = await listWorkItems({ pageSize: 1000 });
+        // Filter out already-linked work items
+        const linkedIds = new Set(milestone.workItems.map((wi) => wi.id));
+        const available = response.items.filter((item) => !linkedIds.has(item.id));
+        setAvailableWorkItems(available);
+      } catch (err) {
+        console.error('Failed to load available work items', err);
+      }
+    };
+
+    loadWorkItems();
+  }, [showAddWorkItem, milestone]);
+
+  const handleLinkWorkItem = async () => {
+    if (!milestone || !selectedWorkItemId.trim()) {
+      return;
+    }
+
+    setIsLinkingWorkItem(true);
+    setError('');
+
+    try {
+      await linkWorkItem(milestone.id, selectedWorkItemId);
+      // Reload milestone to get updated work items
+      const updated = await getMilestone(milestone.id);
+      setMilestone(updated);
+      setSelectedWorkItemId('');
+      setShowAddWorkItem(false);
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setError(err.error.message);
+      } else {
+        setError('Failed to link work item. Please try again.');
+      }
+    } finally {
+      setIsLinkingWorkItem(false);
+    }
+  };
+
+  const handleUnlinkWorkItem = async (workItemId: string) => {
+    if (!milestone) return;
+
+    setIsUnlinkingWorkItem((prev) => ({ ...prev, [workItemId]: true }));
+    setError('');
+
+    try {
+      await unlinkWorkItem(milestone.id, workItemId);
+      // Reload milestone to get updated work items
+      const updated = await getMilestone(milestone.id);
+      setMilestone(updated);
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setError(err.error.message);
+      } else {
+        setError('Failed to unlink work item. Please try again.');
+      }
+    } finally {
+      setIsUnlinkingWorkItem((prev) => ({ ...prev, [workItemId]: false }));
+    }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target as HTMLInputElement | HTMLTextAreaElement;
@@ -170,10 +252,9 @@ export function MilestoneDetailPage() {
           <Link to="/project/milestones" className={styles.backLink}>
             ← Milestones
           </Link>
-          <h1 className={styles.pageTitle}>Project</h1>
+          <h1 className={styles.pageTitle}>{milestone.title}</h1>
         </div>
       </div>
-      <ProjectSubNav />
 
       {error && (
         <div className={styles.errorBanner} role="alert">
@@ -225,15 +306,56 @@ export function MilestoneDetailPage() {
               </div>
             )}
 
+            {/* Linked Work Items Section */}
             <div className={styles.viewField}>
-              <label className={styles.fieldLabel}>Work Items Linked</label>
-              <p className={styles.fieldValue}>{milestone.workItems.length}</p>
+              <label className={styles.fieldLabel}>Linked Work Items</label>
+              {milestone.workItems.length === 0 ? (
+                <p className={styles.fieldValue}>No work items linked</p>
+              ) : (
+                <ul className={styles.linkedWorkItemsList}>
+                  {milestone.workItems.map((item) => (
+                    <li key={item.id} className={styles.linkedWorkItem}>
+                      <Link to={`/project/work-items/${item.id}`} className={styles.workItemLink}>
+                        {item.title}
+                      </Link>
+                      <button
+                        type="button"
+                        className={styles.unlinkButton}
+                        onClick={() => handleUnlinkWorkItem(item.id)}
+                        disabled={isUnlinkingWorkItem[item.id]}
+                        title="Remove this work item from the milestone"
+                        data-testid={`unlink-work-item-${item.id}`}
+                      >
+                        ✕
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <button
+                type="button"
+                className={styles.addLinkButton}
+                onClick={() => setShowAddWorkItem(true)}
+                data-testid="add-work-item-link-button"
+              >
+                + Add Work Item
+              </button>
             </div>
 
-            <div className={styles.viewField}>
-              <label className={styles.fieldLabel}>Work Items Dependent</label>
-              <p className={styles.fieldValue}>{milestone.dependentWorkItems.length}</p>
-            </div>
+            {milestone.dependentWorkItems.length > 0 && (
+              <div className={styles.viewField}>
+                <label className={styles.fieldLabel}>Dependent Work Items</label>
+                <ul className={styles.linkedWorkItemsList}>
+                  {milestone.dependentWorkItems.map((item) => (
+                    <li key={item.id} className={styles.linkedWorkItem}>
+                      <Link to={`/project/work-items/${item.id}`} className={styles.workItemLink}>
+                        {item.title}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
 
           <div className={styles.viewActions}>
@@ -365,6 +487,61 @@ export function MilestoneDetailPage() {
                 data-testid="confirm-delete-milestone"
               >
                 {isDeleting ? 'Deleting...' : 'Delete Milestone'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add work item link modal */}
+      {showAddWorkItem && (
+        <div className={styles.modal} role="dialog" aria-modal="true">
+          <div
+            className={styles.modalBackdrop}
+            onClick={() => !isLinkingWorkItem && setShowAddWorkItem(false)}
+          />
+          <div className={styles.modalContent}>
+            <h2 className={styles.modalTitle}>Add Work Item</h2>
+            <div className={styles.formGroup}>
+              <label htmlFor="workItemSelect" className={styles.label}>
+                Select a work item to link
+              </label>
+              <select
+                id="workItemSelect"
+                className={styles.input}
+                value={selectedWorkItemId}
+                onChange={(e) => setSelectedWorkItemId(e.target.value)}
+                disabled={isLinkingWorkItem}
+                data-testid="work-item-select"
+              >
+                <option value="">-- Choose a work item --</option>
+                {availableWorkItems.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.title}
+                  </option>
+                ))}
+              </select>
+              {availableWorkItems.length === 0 && (
+                <p className={styles.emptyMessage}>All work items are already linked.</p>
+              )}
+            </div>
+            <div className={styles.modalActions}>
+              <button
+                type="button"
+                className={styles.modalCancelButton}
+                onClick={() => setShowAddWorkItem(false)}
+                disabled={isLinkingWorkItem}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={styles.modalActionButton}
+                onClick={handleLinkWorkItem}
+                disabled={isLinkingWorkItem || !selectedWorkItemId}
+                data-testid="confirm-link-work-item"
+              >
+                {isLinkingWorkItem ? 'Linking...' : 'Link Work Item'}
               </button>
             </div>
           </div>

@@ -269,6 +269,13 @@ export function TimelinePage() {
     [navigate],
   );
 
+  const handleMilestoneClick = useCallback(
+    (id: number) => {
+      void navigate(`/project/milestones/${id}`, { state: { from: 'schedule' } });
+    },
+    [navigate],
+  );
+
   // ---- Filtered data arrays for display ----
   const filteredWorkItems = activeEntities.has('work-items') ? (data?.workItems ?? []) : [];
   const filteredMilestones = activeEntities.has('milestones') ? (data?.milestones ?? []) : [];
@@ -549,6 +556,7 @@ export function TimelinePage() {
               onItemClick={handleItemClick}
               showArrows={showArrows}
               highlightCriticalPath={highlightCriticalPath}
+              onMilestoneClick={handleMilestoneClick}
               onHouseholdItemClick={handleHouseholdItemClick}
               onCtrlScroll={(delta) => adjustColumnWidth(delta > 0 ? 1 : -1)}
             />
