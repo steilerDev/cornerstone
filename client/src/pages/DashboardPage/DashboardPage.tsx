@@ -250,7 +250,7 @@ export function DashboardPage() {
   return (
     <div className={styles.page}>
       <div className={styles.pageHeader}>
-        <h1 className={styles.title}>Dashboard</h1>
+        <h1 className={styles.title}>Project</h1>
         {hasHiddenCards && (
           <div className={styles.customizeContainer} ref={customizeRef}>
             <button

@@ -1,11 +1,5 @@
 /**
  * @jest-environment jsdom
- *
- * NOTE (Bug #712): DashboardPage.tsx:200 reads `invoicesResult.value.items` but
- * InvoiceListPaginatedResponse uses the key `.invoices` (not `.items`). As a result,
- * the `isEmpty` flag for the Invoice Pipeline card is always computed as
- * `undefined === 0` → false, so the empty state for that card can never trigger.
- * Tests for Invoice Pipeline empty state are omitted until Bug #712 is fixed.
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { screen, waitFor, render } from '@testing-library/react';
@@ -184,9 +178,9 @@ describe('DashboardPage', () => {
 
   // ─── Test 11: H1 heading ─────────────────────────────────────────────────
 
-  it('renders h1 "Dashboard"', () => {
+  it('renders h1 "Project"', () => {
     renderPage();
-    expect(screen.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Project' })).toBeInTheDocument();
   });
 
   // ─── Test 12: ProjectSubNav ──────────────────────────────────────────────
@@ -275,7 +269,9 @@ describe('DashboardPage', () => {
 
     // isEmpty=true → empty message is shown for this card
     // (at least one "No data available" — Subsidy Pipeline may also be empty)
-    expect(screen.getAllByText('No data available').length).toBeGreaterThanOrEqual(1);
+    await waitFor(() => {
+      expect(screen.getAllByText('No data available').length).toBeGreaterThanOrEqual(1);
+    });
   });
 
   it('shows empty state for Subsidy Pipeline when subsidy programs API returns empty list', async () => {
@@ -287,7 +283,9 @@ describe('DashboardPage', () => {
       expect(screen.getByRole('heading', { name: 'Subsidy Pipeline' })).toBeInTheDocument();
     });
 
-    expect(screen.getAllByText('No data available').length).toBeGreaterThanOrEqual(1);
+    await waitFor(() => {
+      expect(screen.getAllByText('No data available').length).toBeGreaterThanOrEqual(1);
+    });
   });
 
   // ─── Test 17: Dismiss calls upsert with dashboard.hiddenCards ────────────
@@ -496,7 +494,7 @@ describe('DashboardPage', () => {
     // Must not throw — all cards visible, no Customize button
     renderPage();
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Project' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Customize' })).not.toBeInTheDocument();
     // All 8 cards still visible
     expect(screen.getByRole('heading', { name: 'Budget Summary' })).toBeInTheDocument();
