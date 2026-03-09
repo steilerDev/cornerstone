@@ -296,405 +296,327 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
     };
   }
 
-  // ── Build Work Items Breakdown ─────────────────────────────────────────────
-
-  // Group work item lines by (budgetCategoryId, categoryName, categoryColor, categorySortOrder)
-  interface WIGroupKey {
-    categoryId: string | null;
-    categoryName: string;
-    categoryColor: string | null;
-    categorySortOrder: number | null;
+  // ── Generic entity breakdown builder ──────────────────────────────────────────
+  interface EntityRow {
+    budgetLineId: string;
+    description: string | null;
+    plannedAmount: number;
+    confidence: string;
+    budgetCategoryId: string | null;
   }
 
-  interface WIGroup {
-    key: WIGroupKey;
-    lines: typeof workItemLineRows;
+  interface EntityBreakdownConfig<TRow extends EntityRow, TItem, TCategory> {
+    rows: TRow[];
+    invoiceMap: Map<string, number>;
+    getCategoryKey: (row: TRow) => string;
+    getCategoryMeta: (row: TRow) => {
+      categoryId: string | null;
+      categoryName: string;
+      categoryColor: string | null;
+      categorySortOrder: number | null;
+    };
+    getEntityKey: (row: TRow) => string;
+    getEntityMeta: (row: TRow) => { entityId: string; entityLabel: string };
+    buildItem: (
+      entityMeta: { entityId: string; entityLabel: string },
+      computed: {
+        projectedMin: number;
+        projectedMax: number;
+        actualCost: number;
+        subsidyPayback: number;
+        rawProjectedMin: number;
+        rawProjectedMax: number;
+        minSubsidyPayback: number;
+        costDisplay: CostDisplay;
+        budgetLines: Array<{
+          id: string;
+          description: string | null;
+          plannedAmount: number;
+          confidence: ConfidenceLevel;
+          actualCost: number;
+          hasInvoice: boolean;
+        }>;
+      },
+    ) => TItem;
+    buildCategory: (
+      categoryMeta: {
+        categoryId: string | null;
+        categoryName: string;
+        categoryColor: string | null;
+        categorySortOrder: number | null;
+      },
+      totals: {
+        projectedMin: number;
+        projectedMax: number;
+        actualCost: number;
+        subsidyPayback: number;
+        rawProjectedMin: number;
+        rawProjectedMax: number;
+        minSubsidyPayback: number;
+      },
+      items: TItem[],
+    ) => TCategory;
   }
 
-  const wiGroups = new Map<string, WIGroup>();
-  for (const line of workItemLineRows) {
-    const key = `${line.budgetCategoryId}`;
-    if (!wiGroups.has(key)) {
-      wiGroups.set(key, {
-        key: {
-          categoryId: line.budgetCategoryId,
-          categoryName: line.budgetCategoryId === null ? 'Uncategorized' : line.categoryName!,
-          categoryColor: line.categoryColor,
-          categorySortOrder: line.categorySortOrder,
-        },
-        lines: [],
-      });
+  function buildEntityBreakdown<TRow extends EntityRow, TItem, TCategory>(
+    config: EntityBreakdownConfig<TRow, TItem, TCategory>,
+  ): { categories: TCategory[]; totals: BreakdownTotals } {
+    // Group rows by category key
+    interface Group {
+      categoryMeta: {
+        categoryId: string | null;
+        categoryName: string;
+        categoryColor: string | null;
+        categorySortOrder: number | null;
+      };
+      lines: TRow[];
     }
-    wiGroups.get(key)!.lines.push(line);
-  }
 
-  // Build per-work-item data within each category
-  interface WIItemData {
-    workItemId: string;
-    title: string;
-    lines: typeof workItemLineRows;
-  }
-
-  const wiWorkItemsByCategory = new Map<string, WIItemData[]>();
-  for (const [categoryKey, group] of wiGroups) {
-    const itemsInCategory = new Map<string, WIItemData>();
-    for (const line of group.lines) {
-      const itemKey = line.workItemId;
-      if (!itemsInCategory.has(itemKey)) {
-        itemsInCategory.set(itemKey, {
-          workItemId: line.workItemId,
-          title: line.workItemTitle,
+    const groups = new Map<string, Group>();
+    for (const line of config.rows) {
+      const categoryKey = config.getCategoryKey(line);
+      if (!groups.has(categoryKey)) {
+        groups.set(categoryKey, {
+          categoryMeta: config.getCategoryMeta(line),
           lines: [],
         });
       }
-      itemsInCategory.get(itemKey)!.lines.push(line);
+      groups.get(categoryKey)!.lines.push(line);
     }
-    wiWorkItemsByCategory.set(categoryKey, Array.from(itemsInCategory.values()));
-  }
 
-  // Build work item categories with items
-  const wiCategories: BreakdownWorkItemCategory[] = [];
-  const wiTotals: BreakdownTotals = {
-    projectedMin: 0,
-    projectedMax: 0,
-    actualCost: 0,
-    subsidyPayback: 0,
-    rawProjectedMin: 0,
-    rawProjectedMax: 0,
-    minSubsidyPayback: 0,
-  };
-
-  const wiCategoryArray = Array.from(wiGroups.values()).sort((a, b) => {
-    // Sort by sort_order first, then by name
-    if (a.key.categorySortOrder !== b.key.categorySortOrder) {
-      return (a.key.categorySortOrder ?? Infinity) - (b.key.categorySortOrder ?? Infinity);
+    // Build per-entity data within each category
+    interface ItemData {
+      entityId: string;
+      entityLabel: string;
+      lines: TRow[];
     }
-    return a.key.categoryName.localeCompare(b.key.categoryName);
-  });
 
-  for (const group of wiCategoryArray) {
-    const categoryKey = `${group.key.categoryId}`;
-    const itemsInCategory = wiWorkItemsByCategory.get(categoryKey) || [];
-
-    const categoryItems: BreakdownWorkItem[] = [];
-    let categoryMin = 0;
-    let categoryMax = 0;
-    let categoryActual = 0;
-    let categoryPayback = 0;
-    let categoryRawMin = 0;
-    let categoryRawMax = 0;
-    let categoryMinPayback = 0;
-
-    for (const itemData of itemsInCategory) {
-      // Build budget lines for this work item
-      const itemBudgetLines = itemData.lines.map((line) => {
-        const actualCost = wiLineInvoiceMap.get(line.budgetLineId) ?? 0;
-        return {
-          id: line.budgetLineId,
-          description: line.description,
-          plannedAmount: line.plannedAmount,
-          confidence: line.confidence as ConfidenceLevel,
-          actualCost,
-          hasInvoice: wiLineInvoiceMap.has(line.budgetLineId),
-        };
-      });
-
-      // Compute projected min/max for this item
-      let itemMin = 0;
-      let itemMax = 0;
-      let itemActual = 0;
-
-      for (const budgetLine of itemBudgetLines) {
-        const { min, max } = computeLineProjected(
-          budgetLine.plannedAmount,
-          budgetLine.confidence,
-          budgetLine.actualCost,
-          budgetLine.hasInvoice,
-        );
-        itemMin += min;
-        itemMax += max;
-        itemActual += budgetLine.actualCost;
+    const itemsByCategory = new Map<string, ItemData[]>();
+    for (const [categoryKey, group] of groups) {
+      const itemsInCategory = new Map<string, ItemData>();
+      for (const line of group.lines) {
+        const itemKey = config.getEntityKey(line);
+        if (!itemsInCategory.has(itemKey)) {
+          const entityMeta = config.getEntityMeta(line);
+          itemsInCategory.set(itemKey, {
+            entityId: entityMeta.entityId,
+            entityLabel: entityMeta.entityLabel,
+            lines: [],
+          });
+        }
+        itemsInCategory.get(itemKey)!.lines.push(line);
       }
-
-      // Store raw (pre-subsidy) projected costs
-      const itemRawMin = itemMin;
-      const itemRawMax = itemMax;
-
-      // Apply subsidy reduction to this item
-      const itemSubsidyPayback = computeEntitySubsidyPayback(
-        itemData.workItemId,
-        itemData.lines.map((line) => ({
-          id: line.budgetLineId,
-          plannedAmount: line.plannedAmount,
-          confidence: line.confidence,
-          budgetCategoryId: line.budgetCategoryId,
-        })),
-        wiLineInvoiceMap,
-        false, // Use max margin (existing behavior)
-      );
-
-      const itemMinSubsidyPayback = computeEntitySubsidyPayback(
-        itemData.workItemId,
-        itemData.lines.map((line) => ({
-          id: line.budgetLineId,
-          plannedAmount: line.plannedAmount,
-          confidence: line.confidence,
-          budgetCategoryId: line.budgetCategoryId,
-        })),
-        wiLineInvoiceMap,
-        true, // Use min margin
-      );
-
-      // Apply subsidy reduction to item totals
-      const subsidyReduction = itemSubsidyPayback;
-      const adjustedMin = Math.max(0, itemMin - subsidyReduction);
-      const adjustedMax = Math.max(0, itemMax - subsidyReduction);
-
-      const costDisplay = computeCostDisplay(itemBudgetLines);
-
-      const item: BreakdownWorkItem = {
-        workItemId: itemData.workItemId,
-        title: itemData.title,
-        projectedMin: adjustedMin,
-        projectedMax: adjustedMax,
-        actualCost: itemActual,
-        subsidyPayback: itemSubsidyPayback,
-        rawProjectedMin: itemRawMin,
-        rawProjectedMax: itemRawMax,
-        minSubsidyPayback: itemMinSubsidyPayback,
-        costDisplay,
-        budgetLines: itemBudgetLines,
-      };
-
-      categoryItems.push(item);
-      categoryMin += adjustedMin;
-      categoryMax += adjustedMax;
-      categoryActual += itemActual;
-      categoryPayback += itemSubsidyPayback;
-      categoryRawMin += itemRawMin;
-      categoryRawMax += itemRawMax;
-      categoryMinPayback += itemMinSubsidyPayback;
+      itemsByCategory.set(categoryKey, Array.from(itemsInCategory.values()));
     }
 
-    const category: BreakdownWorkItemCategory = {
-      categoryId: group.key.categoryId,
-      categoryName: group.key.categoryName,
-      categoryColor: group.key.categoryColor,
-      projectedMin: categoryMin,
-      projectedMax: categoryMax,
-      actualCost: categoryActual,
-      subsidyPayback: categoryPayback,
-      rawProjectedMin: categoryRawMin,
-      rawProjectedMax: categoryRawMax,
-      minSubsidyPayback: categoryMinPayback,
-      items: categoryItems,
+    // Build categories with items
+    const categories: TCategory[] = [];
+    const totals: BreakdownTotals = {
+      projectedMin: 0,
+      projectedMax: 0,
+      actualCost: 0,
+      subsidyPayback: 0,
+      rawProjectedMin: 0,
+      rawProjectedMax: 0,
+      minSubsidyPayback: 0,
     };
 
-    wiCategories.push(category);
-    wiTotals.projectedMin += categoryMin;
-    wiTotals.projectedMax += categoryMax;
-    wiTotals.actualCost += categoryActual;
-    wiTotals.subsidyPayback += categoryPayback;
-    wiTotals.rawProjectedMin += categoryRawMin;
-    wiTotals.rawProjectedMax += categoryRawMax;
-    wiTotals.minSubsidyPayback += categoryMinPayback;
+    const categoryArray = Array.from(groups.values()).sort((a, b) => {
+      // Sort by sort_order first, then by name
+      if (a.categoryMeta.categorySortOrder !== b.categoryMeta.categorySortOrder) {
+        return (a.categoryMeta.categorySortOrder ?? Infinity) -
+               (b.categoryMeta.categorySortOrder ?? Infinity);
+      }
+      return a.categoryMeta.categoryName.localeCompare(b.categoryMeta.categoryName);
+    });
+
+    for (const group of categoryArray) {
+      const categoryKey = config.getCategoryKey(group.lines[0]);
+      const itemsInCategory = itemsByCategory.get(categoryKey) || [];
+
+      const categoryItems: TItem[] = [];
+      let categoryMin = 0;
+      let categoryMax = 0;
+      let categoryActual = 0;
+      let categoryPayback = 0;
+      let categoryRawMin = 0;
+      let categoryRawMax = 0;
+      let categoryMinPayback = 0;
+
+      for (const itemData of itemsInCategory) {
+        // Build budget lines for this entity
+        const itemBudgetLines = itemData.lines.map((line) => {
+          const actualCost = config.invoiceMap.get(line.budgetLineId) ?? 0;
+          return {
+            id: line.budgetLineId,
+            description: line.description,
+            plannedAmount: line.plannedAmount,
+            confidence: line.confidence as ConfidenceLevel,
+            actualCost,
+            hasInvoice: config.invoiceMap.has(line.budgetLineId),
+          };
+        });
+
+        // Compute projected min/max for this entity
+        let itemMin = 0;
+        let itemMax = 0;
+        let itemActual = 0;
+
+        for (const budgetLine of itemBudgetLines) {
+          const { min, max } = computeLineProjected(
+            budgetLine.plannedAmount,
+            budgetLine.confidence,
+            budgetLine.actualCost,
+            budgetLine.hasInvoice,
+          );
+          itemMin += min;
+          itemMax += max;
+          itemActual += budgetLine.actualCost;
+        }
+
+        // Store raw (pre-subsidy) projected costs
+        const itemRawMin = itemMin;
+        const itemRawMax = itemMax;
+
+        // Apply subsidy reduction to this entity
+        const itemSubsidyPayback = computeEntitySubsidyPayback(
+          itemData.entityId,
+          itemData.lines.map((line) => ({
+            id: line.budgetLineId,
+            plannedAmount: line.plannedAmount,
+            confidence: line.confidence,
+            budgetCategoryId: line.budgetCategoryId,
+          })),
+          config.invoiceMap,
+          false, // Use max margin (existing behavior)
+        );
+
+        const itemMinSubsidyPayback = computeEntitySubsidyPayback(
+          itemData.entityId,
+          itemData.lines.map((line) => ({
+            id: line.budgetLineId,
+            plannedAmount: line.plannedAmount,
+            confidence: line.confidence,
+            budgetCategoryId: line.budgetCategoryId,
+          })),
+          config.invoiceMap,
+          true, // Use min margin
+        );
+
+        // Apply subsidy reduction to entity totals
+        const subsidyReduction = itemSubsidyPayback;
+        const adjustedMin = Math.max(0, itemMin - subsidyReduction);
+        const adjustedMax = Math.max(0, itemMax - subsidyReduction);
+
+        const costDisplay = computeCostDisplay(itemBudgetLines);
+
+        const item = config.buildItem(
+          { entityId: itemData.entityId, entityLabel: itemData.entityLabel },
+          {
+            projectedMin: adjustedMin,
+            projectedMax: adjustedMax,
+            actualCost: itemActual,
+            subsidyPayback: itemSubsidyPayback,
+            rawProjectedMin: itemRawMin,
+            rawProjectedMax: itemRawMax,
+            minSubsidyPayback: itemMinSubsidyPayback,
+            costDisplay,
+            budgetLines: itemBudgetLines,
+          },
+        );
+
+        categoryItems.push(item);
+        categoryMin += adjustedMin;
+        categoryMax += adjustedMax;
+        categoryActual += itemActual;
+        categoryPayback += itemSubsidyPayback;
+        categoryRawMin += itemRawMin;
+        categoryRawMax += itemRawMax;
+        categoryMinPayback += itemMinSubsidyPayback;
+      }
+
+      const category = config.buildCategory(group.categoryMeta, {
+        projectedMin: categoryMin,
+        projectedMax: categoryMax,
+        actualCost: categoryActual,
+        subsidyPayback: categoryPayback,
+        rawProjectedMin: categoryRawMin,
+        rawProjectedMax: categoryRawMax,
+        minSubsidyPayback: categoryMinPayback,
+      }, categoryItems);
+
+      categories.push(category);
+      totals.projectedMin += categoryMin;
+      totals.projectedMax += categoryMax;
+      totals.actualCost += categoryActual;
+      totals.subsidyPayback += categoryPayback;
+      totals.rawProjectedMin += categoryRawMin;
+      totals.rawProjectedMax += categoryRawMax;
+      totals.minSubsidyPayback += categoryMinPayback;
+    }
+
+    return { categories, totals };
   }
+
+  // ── Build Work Items Breakdown ─────────────────────────────────────────────
+  const { categories: wiCategories, totals: wiTotals } = buildEntityBreakdown<
+    (typeof workItemLineRows)[number],
+    BreakdownWorkItem,
+    BreakdownWorkItemCategory
+  >({
+    rows: workItemLineRows,
+    invoiceMap: wiLineInvoiceMap,
+    getCategoryKey: (row) => `${row.budgetCategoryId}`,
+    getCategoryMeta: (row) => ({
+      categoryId: row.budgetCategoryId,
+      categoryName: row.budgetCategoryId === null ? 'Uncategorized' : row.categoryName!,
+      categoryColor: row.categoryColor,
+      categorySortOrder: row.categorySortOrder,
+    }),
+    getEntityKey: (row) => row.workItemId,
+    getEntityMeta: (row) => ({ entityId: row.workItemId, entityLabel: row.workItemTitle }),
+    buildItem: (meta, computed) => ({
+      workItemId: meta.entityId,
+      title: meta.entityLabel,
+      ...computed,
+    }),
+    buildCategory: (catMeta, totals, items) => ({
+      categoryId: catMeta.categoryId,
+      categoryName: catMeta.categoryName,
+      categoryColor: catMeta.categoryColor,
+      ...totals,
+      items,
+    }),
+  });
 
   // ── Build Household Items Breakdown ────────────────────────────────────────
-
-  // Group HI lines by category
-  interface HIGroup {
-    categoryId: string;
-    categoryName: string;
-    categoryColor: string | null;
-    categorySortOrder: number;
-    lines: typeof hiLineRows;
-  }
-
-  const hiGroups = new Map<string, HIGroup>();
-  for (const line of hiLineRows) {
-    const categoryKey = line.hiCategoryId;
-    if (!hiGroups.has(categoryKey)) {
-      hiGroups.set(categoryKey, {
-        categoryId: line.hiCategoryId,
-        categoryName: line.hiCategoryName,
-        categoryColor: line.hiCategoryColor,
-        categorySortOrder: line.hiCategorySortOrder,
-        lines: [],
-      });
-    }
-    hiGroups.get(categoryKey)!.lines.push(line);
-  }
-
-  // Build per-household-item data within each category
-  interface HIItemData {
-    householdItemId: string;
-    name: string;
-    lines: typeof hiLineRows;
-  }
-
-  const hiItemsByCategory = new Map<string, HIItemData[]>();
-  for (const [categoryKey, group] of hiGroups) {
-    const itemsInCategory = new Map<string, HIItemData>();
-    for (const line of group.lines) {
-      const itemKey = line.householdItemId;
-      if (!itemsInCategory.has(itemKey)) {
-        itemsInCategory.set(itemKey, {
-          householdItemId: line.householdItemId,
-          name: line.itemName,
-          lines: [],
-        });
-      }
-      itemsInCategory.get(itemKey)!.lines.push(line);
-    }
-    hiItemsByCategory.set(categoryKey, Array.from(itemsInCategory.values()));
-  }
-
-  // Build household item categories with items (only include categories with items)
-  const hiCategories: BreakdownHouseholdItemCategory[] = [];
-  const hiTotals: BreakdownTotals = {
-    projectedMin: 0,
-    projectedMax: 0,
-    actualCost: 0,
-    subsidyPayback: 0,
-    rawProjectedMin: 0,
-    rawProjectedMax: 0,
-    minSubsidyPayback: 0,
-  };
-
-  // Sort groups by sort_order, then by name
-  const hiCategoryArray = Array.from(hiGroups.values()).sort((a, b) => {
-    if (a.categorySortOrder !== b.categorySortOrder) {
-      return a.categorySortOrder - b.categorySortOrder;
-    }
-    return a.categoryName.localeCompare(b.categoryName);
+  const { categories: hiCategories, totals: hiTotals } = buildEntityBreakdown<
+    (typeof hiLineRows)[number],
+    BreakdownHouseholdItem,
+    BreakdownHouseholdItemCategory
+  >({
+    rows: hiLineRows,
+    invoiceMap: hiLineInvoiceMap,
+    getCategoryKey: (row) => row.hiCategoryId,
+    getCategoryMeta: (row) => ({
+      categoryId: row.hiCategoryId,
+      categoryName: row.hiCategoryName,
+      categoryColor: row.hiCategoryColor ?? null,
+      categorySortOrder: row.hiCategorySortOrder,
+    }),
+    getEntityKey: (row) => row.householdItemId,
+    getEntityMeta: (row) => ({ entityId: row.householdItemId, entityLabel: row.itemName }),
+    buildItem: (meta, computed) => ({
+      householdItemId: meta.entityId,
+      name: meta.entityLabel,
+      ...computed,
+    }),
+    buildCategory: (catMeta, totals, items) => ({
+      hiCategory: catMeta.categoryName,
+      ...totals,
+      items,
+    }),
   });
-
-  for (const group of hiCategoryArray) {
-    const categoryKey = group.categoryId;
-    const itemsInCategory = hiItemsByCategory.get(categoryKey) || [];
-
-    const categoryItems: BreakdownHouseholdItem[] = [];
-    let categoryMin = 0;
-    let categoryMax = 0;
-    let categoryActual = 0;
-    let categoryPayback = 0;
-    let categoryRawMin = 0;
-    let categoryRawMax = 0;
-    let categoryMinPayback = 0;
-
-    for (const itemData of itemsInCategory) {
-      // Build budget lines for this household item
-      const itemBudgetLines = itemData.lines.map((line) => {
-        const actualCost = hiLineInvoiceMap.get(line.budgetLineId) ?? 0;
-        return {
-          id: line.budgetLineId,
-          description: line.description,
-          plannedAmount: line.plannedAmount,
-          confidence: line.confidence as ConfidenceLevel,
-          actualCost,
-          hasInvoice: hiLineInvoiceMap.has(line.budgetLineId),
-        };
-      });
-
-      // Compute projected min/max for this item
-      let itemMin = 0;
-      let itemMax = 0;
-      let itemActual = 0;
-
-      for (const budgetLine of itemBudgetLines) {
-        const { min, max } = computeLineProjected(
-          budgetLine.plannedAmount,
-          budgetLine.confidence,
-          budgetLine.actualCost,
-          budgetLine.hasInvoice,
-        );
-        itemMin += min;
-        itemMax += max;
-        itemActual += budgetLine.actualCost;
-      }
-
-      // Store raw (pre-subsidy) projected costs
-      const itemRawMin = itemMin;
-      const itemRawMax = itemMax;
-
-      // Apply subsidy reduction to this item
-      const itemSubsidyPayback = computeEntitySubsidyPayback(
-        itemData.householdItemId,
-        itemData.lines.map((line) => ({
-          id: line.budgetLineId,
-          plannedAmount: line.plannedAmount,
-          confidence: line.confidence,
-          budgetCategoryId: line.budgetCategoryId,
-        })),
-        hiLineInvoiceMap,
-        false, // Use max margin (existing behavior)
-      );
-
-      const itemMinSubsidyPayback = computeEntitySubsidyPayback(
-        itemData.householdItemId,
-        itemData.lines.map((line) => ({
-          id: line.budgetLineId,
-          plannedAmount: line.plannedAmount,
-          confidence: line.confidence,
-          budgetCategoryId: line.budgetCategoryId,
-        })),
-        hiLineInvoiceMap,
-        true, // Use min margin
-      );
-
-      // Apply subsidy reduction to item totals
-      const subsidyReduction = itemSubsidyPayback;
-      const adjustedMin = Math.max(0, itemMin - subsidyReduction);
-      const adjustedMax = Math.max(0, itemMax - subsidyReduction);
-
-      const costDisplay = computeCostDisplay(itemBudgetLines);
-
-      const item: BreakdownHouseholdItem = {
-        householdItemId: itemData.householdItemId,
-        name: itemData.name,
-        projectedMin: adjustedMin,
-        projectedMax: adjustedMax,
-        actualCost: itemActual,
-        subsidyPayback: itemSubsidyPayback,
-        rawProjectedMin: itemRawMin,
-        rawProjectedMax: itemRawMax,
-        minSubsidyPayback: itemMinSubsidyPayback,
-        costDisplay,
-        budgetLines: itemBudgetLines,
-      };
-
-      categoryItems.push(item);
-      categoryMin += adjustedMin;
-      categoryMax += adjustedMax;
-      categoryActual += itemActual;
-      categoryPayback += itemSubsidyPayback;
-      categoryRawMin += itemRawMin;
-      categoryRawMax += itemRawMax;
-      categoryMinPayback += itemMinSubsidyPayback;
-    }
-
-    const hiCategory: BreakdownHouseholdItemCategory = {
-      hiCategory: group.categoryName,
-      projectedMin: categoryMin,
-      projectedMax: categoryMax,
-      actualCost: categoryActual,
-      subsidyPayback: categoryPayback,
-      rawProjectedMin: categoryRawMin,
-      rawProjectedMax: categoryRawMax,
-      minSubsidyPayback: categoryMinPayback,
-      items: categoryItems,
-    };
-
-    hiCategories.push(hiCategory);
-    hiTotals.projectedMin += categoryMin;
-    hiTotals.projectedMax += categoryMax;
-    hiTotals.actualCost += categoryActual;
-    hiTotals.subsidyPayback += categoryPayback;
-    hiTotals.rawProjectedMin += categoryRawMin;
-    hiTotals.rawProjectedMax += categoryRawMax;
-    hiTotals.minSubsidyPayback += categoryMinPayback;
-  }
 
   return {
     workItems: {
