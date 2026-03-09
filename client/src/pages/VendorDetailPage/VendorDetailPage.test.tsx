@@ -323,13 +323,13 @@ describe('VendorDetailPage', () => {
       });
     });
 
-    it('renders breadcrumb back link to Vendors list', async () => {
+    it('renders back button to Vendors list', async () => {
       mockFetchVendor.mockResolvedValueOnce(sampleVendor);
 
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('link', { name: /vendors/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /back to vendors/i })).toBeInTheDocument();
       });
     });
   });
