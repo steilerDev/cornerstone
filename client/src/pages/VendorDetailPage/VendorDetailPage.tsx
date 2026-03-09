@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, type FormEvent } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import type {
   VendorDetail,
   UpdateVendorRequest,
@@ -432,19 +432,19 @@ export function VendorDetailPage() {
   return (
     <div className={styles.container}>
       <div className={styles.content}>
-        {/* Back navigation */}
-        <div className={styles.breadcrumb}>
-          <Link to="/budget/vendors" className={styles.backLink}>
-            Vendors
-          </Link>
-          <span className={styles.breadcrumbSeparator} aria-hidden="true">
-            /
-          </span>
-          <span className={styles.breadcrumbCurrent}>{vendor.name}</span>
+        {/* Navigation buttons */}
+        <div className={styles.navButtons}>
+          <button
+            type="button"
+            className={styles.backButton}
+            onClick={() => navigate('/budget/vendors')}
+          >
+            ← Back to Vendors
+          </button>
         </div>
 
         {/* Page heading */}
-        <div className={styles.pageHeader}>
+        <div className={styles.headerRow}>
           <div className={styles.pageHeading}>
             <h1 className={styles.pageTitle}>{vendor.name}</h1>
             {vendor.specialty && <span className={styles.pageSubtitle}>{vendor.specialty}</span>}

@@ -706,7 +706,7 @@ export function HouseholdItemDetailPage() {
         </div>
 
         {/* Page header */}
-        <div className={styles.pageHeader}>
+        <div className={styles.headerRow}>
           <div className={styles.pageHeading}>
             <h1 className={styles.pageTitle}>{item.name}</h1>
             <div className={styles.headerBadges}>
