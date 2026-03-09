@@ -87,6 +87,8 @@ export interface GanttTooltipHouseholdItemData {
   isLate: boolean;
   /** HI ID for "View item" touch link. */
   householdItemId?: string;
+  /** Linked items (work items / milestones) that this household item depends on. */
+  linkedItems?: { id: string; title: string; type: 'work_item' | 'milestone' }[];
 }
 
 /**
@@ -589,6 +591,30 @@ function HouseholdItemTooltipContent({
         <div className={styles.detailRow}>
           <span className={styles.detailValueFloored}>Floored to today</span>
         </div>
+      )}
+
+      {/* Linked items section */}
+      {data.linkedItems && data.linkedItems.length > 0 && (
+        <>
+          <div className={styles.separator} aria-hidden="true" />
+          <div className={styles.linkedItemsSection}>
+            <span className={styles.linkedItemsLabel}>
+              Linked Items ({data.linkedItems.length})
+            </span>
+            <ul className={styles.linkedItemsList} aria-label="Linked items">
+              {data.linkedItems.slice(0, MAX_LINKED_ITEMS_SHOWN).map((item) => (
+                <li key={`${item.type}-${item.id}`} className={styles.linkedItem}>
+                  {item.title}
+                </li>
+              ))}
+              {data.linkedItems.length > MAX_LINKED_ITEMS_SHOWN && (
+                <li className={styles.linkedItemsOverflow}>
+                  +{data.linkedItems.length - MAX_LINKED_ITEMS_SHOWN} more
+                </li>
+              )}
+            </ul>
+          </div>
+        </>
       )}
 
       {/* View item link (touch devices only) */}

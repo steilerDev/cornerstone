@@ -597,13 +597,13 @@ export function MilestoneDetailPage() {
                   ))}
                   {linkedHouseholdItems.map((item) => (
                     <li key={`hi-${item.id}`} className={styles.linkedWorkItem}>
+                      <span className={styles.itemTypeBadgeHI}>Household Item</span>
                       <Link
                         to={`/project/household-items/${item.id}`}
                         className={styles.workItemLink}
                       >
                         {item.name}
                       </Link>
-                      <span className={styles.itemTypeBadgeHI}>Household</span>
                       <button
                         type="button"
                         className={styles.unlinkButton}

@@ -450,7 +450,7 @@ export function HouseholdItemsPage() {
           className={styles.primaryButton}
           onClick={() => navigate('/project/household-items/new')}
         >
-          Add new Household Item
+          New Household Item
         </button>
       </div>
       <ProjectSubNav />
