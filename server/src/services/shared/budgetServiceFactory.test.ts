@@ -18,6 +18,8 @@ import {
   updateHouseholdItemBudget,
   deleteHouseholdItemBudget,
 } from '../householdItemBudgetService.js';
+import { resolveRelationsBatch } from './budgetServiceFactory.js';
+import { eq } from 'drizzle-orm';
 
 // ─── Test database helpers ─────────────────────────────────────────────────────
 
@@ -1035,5 +1037,439 @@ describe('budgetServiceFactory — createBudgetService()', () => {
       });
       expect(result.confidenceMargin).toBe(0);
     });
+  });
+});
+
+// ─── resolveRelationsBatch() unit tests ────────────────────────────────────────
+
+describe('resolveRelationsBatch()', () => {
+  let sqlite: Database.Database;
+  let db: BetterSQLite3Database<typeof schema>;
+  let idCounter = 0;
+
+  function createTestDb() {
+    const sqliteDb = new Database(':memory:');
+    sqliteDb.pragma('journal_mode = WAL');
+    sqliteDb.pragma('foreign_keys = ON');
+    console.warn = () => undefined; // suppress migration logs
+    runMigrations(sqliteDb);
+    return { sqlite: sqliteDb, db: drizzle(sqliteDb, { schema }) };
+  }
+
+  function insertTestUser(id = 'user-001') {
+    const now = new Date().toISOString();
+    db.insert(schema.users)
+      .values({
+        id,
+        email: `${id}@example.com`,
+        displayName: 'Test User',
+        role: 'member',
+        authProvider: 'local',
+        passwordHash: 'hashed',
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    return id;
+  }
+
+  function insertWorkItem(title = 'Test Work Item', userId = 'user-001') {
+    const id = `wi-${++idCounter}`;
+    const now = new Date(Date.now() + idCounter).toISOString();
+    db.insert(schema.workItems)
+      .values({
+        id,
+        title,
+        status: 'not_started',
+        createdBy: userId,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    return id;
+  }
+
+  function insertBudgetCategory(name = 'Test Category') {
+    const id = `bc-test-${++idCounter}`;
+    const now = new Date(Date.now() + idCounter).toISOString();
+    db.insert(schema.budgetCategories)
+      .values({ id, name, createdAt: now, updatedAt: now })
+      .run();
+    return id;
+  }
+
+  function insertBudgetSource(name = 'Test Source', userId = 'user-001') {
+    const id = `bs-${++idCounter}`;
+    const now = new Date(Date.now() + idCounter).toISOString();
+    db.insert(schema.budgetSources)
+      .values({
+        id,
+        name,
+        sourceType: 'savings',
+        totalAmount: 10000,
+        createdBy: userId,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    return id;
+  }
+
+  function insertVendor(name = 'Test Vendor', userId = 'user-001') {
+    const id = `v-${++idCounter}`;
+    const now = new Date(Date.now() + idCounter).toISOString();
+    db.insert(schema.vendors)
+      .values({ id, name, createdBy: userId, createdAt: now, updatedAt: now })
+      .run();
+    return id;
+  }
+
+  function insertWorkItemBudgetLine(opts: {
+    workItemId: string;
+    confidence?: string;
+    budgetCategoryId?: string | null;
+    budgetSourceId?: string | null;
+    vendorId?: string | null;
+    createdBy?: string | null;
+    plannedAmount?: number;
+  }) {
+    const id = `wib-${++idCounter}`;
+    const now = new Date(Date.now() + idCounter).toISOString();
+    db.insert(schema.workItemBudgets)
+      .values({
+        id,
+        workItemId: opts.workItemId,
+        plannedAmount: opts.plannedAmount ?? 100,
+        confidence: (opts.confidence ?? 'own_estimate') as any,
+        budgetCategoryId: opts.budgetCategoryId ?? null,
+        budgetSourceId: opts.budgetSourceId ?? null,
+        vendorId: opts.vendorId ?? null,
+        createdBy: opts.createdBy ?? null,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    return db.select().from(schema.workItemBudgets).where(eq(schema.workItemBudgets.id, id)).get()!;
+  }
+
+  function insertInvoiceLinkedToWorkItemBudget(
+    workItemBudgetId: string,
+    vendorId: string,
+    opts: { amount?: number; status?: 'pending' | 'paid' | 'claimed'; invoiceNumber?: string } = {},
+  ) {
+    const invoiceId = `inv-${++idCounter}`;
+    const iblId = `ibl-${++idCounter}`;
+    const amount = opts.amount ?? 100;
+    const now = new Date(Date.now() + idCounter).toISOString();
+    db.insert(schema.invoices)
+      .values({
+        id: invoiceId,
+        vendorId,
+        invoiceNumber: opts.invoiceNumber ?? null,
+        amount,
+        date: '2025-06-01',
+        status: opts.status ?? 'pending',
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    db.insert(schema.invoiceBudgetLines)
+      .values({
+        id: iblId,
+        invoiceId,
+        workItemBudgetId,
+        itemizedAmount: amount,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    return { invoiceId, iblId };
+  }
+
+  beforeEach(() => {
+    const testDb = createTestDb();
+    sqlite = testDb.sqlite;
+    db = testDb.db;
+    idCounter = 0;
+    insertTestUser();
+  });
+
+  afterEach(() => {
+    sqlite.close();
+  });
+
+  // ─── Empty input ──────────────────────────────────────────────────────────
+
+  it('returns empty Map for empty rows array', () => {
+    const result = resolveRelationsBatch(db, [], 'work_item_budget_id');
+    expect(result).toBeInstanceOf(Map);
+    expect(result.size).toBe(0);
+  });
+
+  it('returns empty Map when called without invoiceBudgetIdColumn and empty rows', () => {
+    const result = resolveRelationsBatch(db, []);
+    expect(result).toBeInstanceOf(Map);
+    expect(result.size).toBe(0);
+  });
+
+  // ─── Single row, all relations populated ─────────────────────────────────
+
+  it('returns correct relations for single row with all relations populated', () => {
+    const userId = insertTestUser('user-002');
+    const categoryId = insertBudgetCategory('Electrical');
+    const sourceId = insertBudgetSource('Savings', userId);
+    const vendorId = insertVendor('Sparks Inc.', userId);
+    const workItemId = insertWorkItem('Foundation', userId);
+
+    const row = insertWorkItemBudgetLine({
+      workItemId,
+      confidence: 'professional_estimate',
+      budgetCategoryId: categoryId,
+      budgetSourceId: sourceId,
+      vendorId,
+      createdBy: userId,
+      plannedAmount: 5000,
+    });
+
+    const { invoiceId: _invoiceId, iblId } = insertInvoiceLinkedToWorkItemBudget(
+      row.id,
+      vendorId,
+      { amount: 1200, status: 'paid', invoiceNumber: 'INV-001' },
+    );
+
+    const result = resolveRelationsBatch(db, [row], 'work_item_budget_id');
+
+    expect(result.size).toBe(1);
+    const entry = result.get(row.id)!;
+    expect(entry).toBeDefined();
+
+    // Confidence
+    expect(entry.confidence).toBe('professional_estimate');
+    expect(entry.confidenceMargin).toBe(0.1);
+
+    // Relations
+    expect(entry.budgetCategory).not.toBeNull();
+    expect(entry.budgetCategory?.id).toBe(categoryId);
+    expect(entry.budgetCategory?.name).toBe('Electrical');
+
+    expect(entry.budgetSource).not.toBeNull();
+    expect(entry.budgetSource?.id).toBe(sourceId);
+
+    expect(entry.vendor).not.toBeNull();
+    expect(entry.vendor?.id).toBe(vendorId);
+
+    expect(entry.createdBy).not.toBeNull();
+    expect(entry.createdBy?.id).toBe(userId);
+
+    // Invoice aggregates
+    expect(entry.actualCost).toBe(1200);
+    expect(entry.actualCostPaid).toBe(1200); // paid invoice
+    expect(entry.invoiceCount).toBe(1);
+
+    // Invoice link
+    expect(entry.invoiceLink).not.toBeNull();
+    expect(entry.invoiceLink?.invoiceBudgetLineId).toBe(iblId);
+    expect(entry.invoiceLink?.itemizedAmount).toBe(1200);
+    expect(entry.invoiceLink?.invoiceStatus).toBe('paid');
+    expect(entry.invoiceLink?.invoiceNumber).toBe('INV-001');
+  });
+
+  // ─── Single row, all nullable fields null ─────────────────────────────────
+
+  it('returns null for all nullable relations when row has no FK values', () => {
+    const workItemId = insertWorkItem();
+    // Insert directly with null FK columns; no createdBy user either
+    const row = insertWorkItemBudgetLine({
+      workItemId,
+      confidence: 'own_estimate',
+      budgetCategoryId: null,
+      budgetSourceId: null,
+      vendorId: null,
+      createdBy: null,
+    });
+
+    const result = resolveRelationsBatch(db, [row], 'work_item_budget_id');
+
+    expect(result.size).toBe(1);
+    const entry = result.get(row.id)!;
+    expect(entry.budgetCategory).toBeNull();
+    expect(entry.budgetSource).toBeNull();
+    expect(entry.vendor).toBeNull();
+    expect(entry.createdBy).toBeNull();
+    expect(entry.actualCost).toBe(0);
+    expect(entry.actualCostPaid).toBe(0);
+    expect(entry.invoiceCount).toBe(0);
+    expect(entry.invoiceLink).toBeNull();
+  });
+
+  // ─── Two rows sharing the same category ───────────────────────────────────
+
+  it('two rows sharing the same category both get the correct category data', () => {
+    const workItemId = insertWorkItem();
+    const categoryId = insertBudgetCategory('Plumbing');
+
+    const row1 = insertWorkItemBudgetLine({ workItemId, budgetCategoryId: categoryId });
+    const row2 = insertWorkItemBudgetLine({ workItemId, budgetCategoryId: categoryId });
+
+    const result = resolveRelationsBatch(db, [row1, row2], 'work_item_budget_id');
+
+    expect(result.size).toBe(2);
+    const entry1 = result.get(row1.id)!;
+    const entry2 = result.get(row2.id)!;
+    expect(entry1.budgetCategory?.id).toBe(categoryId);
+    expect(entry1.budgetCategory?.name).toBe('Plumbing');
+    expect(entry2.budgetCategory?.id).toBe(categoryId);
+    expect(entry2.budgetCategory?.name).toBe('Plumbing');
+  });
+
+  // ─── Invoice aggregates zero when no invoices ─────────────────────────────
+
+  it('invoice aggregates are zero for rows with no linked invoices', () => {
+    const workItemId = insertWorkItem();
+    const row = insertWorkItemBudgetLine({ workItemId });
+
+    const result = resolveRelationsBatch(db, [row], 'work_item_budget_id');
+
+    const entry = result.get(row.id)!;
+    expect(entry.actualCost).toBe(0);
+    expect(entry.actualCostPaid).toBe(0);
+    expect(entry.invoiceCount).toBe(0);
+    expect(entry.invoiceLink).toBeNull();
+  });
+
+  // ─── No invoiceBudgetIdColumn argument ────────────────────────────────────
+
+  it('returns zero invoice aggregates and null invoiceLink when invoiceBudgetIdColumn is omitted', () => {
+    const workItemId = insertWorkItem();
+    const vendorId = insertVendor();
+    const row = insertWorkItemBudgetLine({ workItemId });
+    // Insert an invoice linked to this budget line — it must NOT appear in results
+    insertInvoiceLinkedToWorkItemBudget(row.id, vendorId, { amount: 500, status: 'paid' });
+
+    // Call WITHOUT the column arg
+    const result = resolveRelationsBatch(db, [row]);
+
+    const entry = result.get(row.id)!;
+    expect(entry.actualCost).toBe(0);
+    expect(entry.actualCostPaid).toBe(0);
+    expect(entry.invoiceCount).toBe(0);
+    expect(entry.invoiceLink).toBeNull();
+  });
+
+  // ─── Multiple rows with different relations ────────────────────────────────
+
+  it('handles multiple rows with different category assignments including null', () => {
+    const workItemId = insertWorkItem();
+    const categoryA = insertBudgetCategory('Category A');
+    const categoryB = insertBudgetCategory('Category B');
+
+    const rowWithCatA = insertWorkItemBudgetLine({ workItemId, budgetCategoryId: categoryA });
+    const rowWithCatB = insertWorkItemBudgetLine({ workItemId, budgetCategoryId: categoryB });
+    const rowNoCat = insertWorkItemBudgetLine({ workItemId, budgetCategoryId: null });
+
+    const result = resolveRelationsBatch(
+      db,
+      [rowWithCatA, rowWithCatB, rowNoCat],
+      'work_item_budget_id',
+    );
+
+    expect(result.size).toBe(3);
+    expect(result.get(rowWithCatA.id)?.budgetCategory?.id).toBe(categoryA);
+    expect(result.get(rowWithCatA.id)?.budgetCategory?.name).toBe('Category A');
+    expect(result.get(rowWithCatB.id)?.budgetCategory?.id).toBe(categoryB);
+    expect(result.get(rowWithCatB.id)?.budgetCategory?.name).toBe('Category B');
+    expect(result.get(rowNoCat.id)?.budgetCategory).toBeNull();
+  });
+
+  // ─── Invoice aggregates per-row correctness ───────────────────────────────
+
+  it('computes per-row actualCostPaid correctly across different invoice statuses', () => {
+    const workItemId = insertWorkItem();
+    const vendorId = insertVendor();
+
+    const rowPending = insertWorkItemBudgetLine({ workItemId, plannedAmount: 300 });
+    const rowPaid = insertWorkItemBudgetLine({ workItemId, plannedAmount: 500 });
+    const rowClaimed = insertWorkItemBudgetLine({ workItemId, plannedAmount: 700 });
+
+    insertInvoiceLinkedToWorkItemBudget(rowPending.id, vendorId, { amount: 100, status: 'pending' });
+    insertInvoiceLinkedToWorkItemBudget(rowPaid.id, vendorId, { amount: 200, status: 'paid' });
+    insertInvoiceLinkedToWorkItemBudget(rowClaimed.id, vendorId, { amount: 300, status: 'claimed' });
+
+    const result = resolveRelationsBatch(
+      db,
+      [rowPending, rowPaid, rowClaimed],
+      'work_item_budget_id',
+    );
+
+    const entryPending = result.get(rowPending.id)!;
+    expect(entryPending.actualCost).toBe(100);
+    expect(entryPending.actualCostPaid).toBe(0); // pending does not count
+    expect(entryPending.invoiceCount).toBe(1);
+
+    const entryPaid = result.get(rowPaid.id)!;
+    expect(entryPaid.actualCost).toBe(200);
+    expect(entryPaid.actualCostPaid).toBe(200); // paid counts
+    expect(entryPaid.invoiceCount).toBe(1);
+
+    const entryClaimed = result.get(rowClaimed.id)!;
+    expect(entryClaimed.actualCost).toBe(300);
+    expect(entryClaimed.actualCostPaid).toBe(300); // claimed counts
+    expect(entryClaimed.invoiceCount).toBe(1);
+  });
+
+  // ─── list() regression: correct data for 5 budget lines ──────────────────
+
+  it('list() returns correct data for 5 budget lines with distinct relations (batch path)', () => {
+    const workItemId = insertWorkItem();
+    const vendorId = insertVendor('Multi Vendor');
+
+    // Insert 5 lines each with a distinct category
+    const lines: Array<{ line: ReturnType<typeof createWorkItemBudget>; catId: string }> = [];
+    for (let i = 0; i < 5; i++) {
+      const catId = insertBudgetCategory(`Cat ${i}`);
+      const line = createWorkItemBudget(db, workItemId, 'user-001', {
+        plannedAmount: (i + 1) * 100,
+        budgetCategoryId: catId,
+      });
+      lines.push({ line, catId });
+    }
+
+    // Link one invoice to the first line
+    insertInvoiceLinkedToWorkItemBudget(lines[0].line.id, vendorId, {
+      amount: 50,
+      status: 'paid',
+    });
+
+    const result = listWorkItemBudgets(db, workItemId);
+
+    expect(result).toHaveLength(5);
+
+    // Verify each line has its own correct category
+    for (let i = 0; i < 5; i++) {
+      const resultLine = result.find((r) => r.id === lines[i].line.id)!;
+      expect(resultLine).toBeDefined();
+      expect(resultLine.plannedAmount).toBe((i + 1) * 100);
+      expect(resultLine.budgetCategory?.id).toBe(lines[i].catId);
+    }
+
+    // Verify invoice aggregates on the first line
+    const firstResult = result.find((r) => r.id === lines[0].line.id)!;
+    expect(firstResult.actualCost).toBe(50);
+    expect(firstResult.actualCostPaid).toBe(50);
+    expect(firstResult.invoiceCount).toBe(1);
+    expect(firstResult.invoiceLink).not.toBeNull();
+
+    // Verify zero aggregates on lines 2-5
+    for (let i = 1; i < 5; i++) {
+      const r = result.find((res) => res.id === lines[i].line.id)!;
+      expect(r.actualCost).toBe(0);
+      expect(r.invoiceLink).toBeNull();
+    }
+  });
+
+  it('list() returns empty array for work item with no budget lines (batch handles zero rows)', () => {
+    const workItemId = insertWorkItem();
+    const result = listWorkItemBudgets(db, workItemId);
+    expect(result).toEqual([]);
   });
 });
