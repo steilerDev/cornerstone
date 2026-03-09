@@ -1,0 +1,210 @@
+/* ============================================================
+ * DashboardCard — CSS Module
+ * ============================================================ */
+
+.card {
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+  padding: var(--spacing-5);
+  height: 100%;
+}
+
+/* ---- Card header ---- */
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+  padding-bottom: var(--spacing-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  flex: 1;
+}
+
+.dismissButton {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-lg);
+  cursor: pointer;
+  line-height: 1;
+  transition: color var(--transition-normal);
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: calc(var(--spacing-5) * -1) calc(var(--spacing-5) * -1) calc(var(--spacing-3) * -1) 0;
+}
+
+.dismissButton:hover {
+  color: var(--color-text-secondary);
+}
+
+.dismissButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus-subtle);
+  border-radius: var(--radius-sm);
+}
+
+/* ---- Content area ---- */
+
+.cardContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---- Loading skeleton ---- */
+
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.skeletonLine {
+  height: 12px;
+  background: linear-gradient(
+    90deg,
+    var(--color-bg-tertiary) 0%,
+    var(--color-bg-hover) 50%,
+    var(--color-bg-tertiary) 100%
+  );
+  background-size: 200% 100%;
+  border-radius: var(--radius-sm);
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeletonLine {
+    animation: none;
+    background: var(--color-bg-tertiary);
+  }
+}
+
+/* ---- Error state ---- */
+
+.errorState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-3);
+  padding: var(--spacing-6) var(--spacing-3);
+  text-align: center;
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+}
+
+.errorMessage {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-danger);
+  line-height: 1.5;
+}
+
+.retryButton {
+  composes: btnSecondaryCompact from '../../styles/shared.module.css';
+  min-height: 44px;
+}
+
+/* ---- Empty state ---- */
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-6) var(--spacing-3);
+  text-align: center;
+}
+
+.emptyMessage {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+.emptyAction {
+  color: var(--color-primary);
+  text-decoration: none;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  transition: opacity var(--transition-normal);
+}
+
+.emptyAction:hover {
+  opacity: 0.75;
+}
+
+.emptyAction:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
+}
+
+/* ============================================================
+ * RESPONSIVE — Tablet (768px – 1024px)
+ * ============================================================ */
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .card {
+    padding: var(--spacing-4);
+  }
+
+  .cardHeader {
+    padding-bottom: var(--spacing-2);
+  }
+
+  .dismissButton {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* ============================================================
+ * RESPONSIVE — Mobile (max 767px)
+ * ============================================================ */
+
+@media (max-width: 767px) {
+  .card {
+    padding: var(--spacing-4);
+    gap: var(--spacing-3);
+  }
+
+  .cardTitle {
+    font-size: var(--font-size-xs);
+  }
+
+  .dismissButton {
+    min-width: 44px;
+    min-height: 44px;
+    margin: calc(var(--spacing-4) * -1) calc(var(--spacing-4) * -1) calc(var(--spacing-2) * -1) 0;
+  }
+}

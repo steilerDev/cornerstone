@@ -1,16 +1,183 @@
+/* ============================================================
+ * DashboardPage — CSS Module
+ * ============================================================ */
+
 .page {
+  padding: var(--spacing-8);
   max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* ---- Page header ---- */
+
+.pageHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+  margin-bottom: var(--spacing-6);
+  flex-wrap: wrap;
 }
 
 .title {
-  margin-bottom: 1rem;
-  font-size: 2rem;
-  font-weight: 700;
+  margin: 0;
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-bold);
   color: var(--color-text-primary);
 }
 
-.description {
-  font-size: 1rem;
-  line-height: 1.5;
-  color: var(--color-text-subtle);
+/* ---- Customize dropdown ---- */
+
+.customizeContainer {
+  position: relative;
+}
+
+.customizeButton {
+  padding: var(--spacing-2) var(--spacing-4);
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: var(--transition-button-border);
+  min-height: 44px;
+  white-space: nowrap;
+}
+
+.customizeButton:hover {
+  background-color: var(--color-bg-hover);
+}
+
+.customizeButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.customizeDropdown {
+  position: absolute;
+  top: calc(100% + var(--spacing-2));
+  right: 0;
+  z-index: var(--z-dropdown);
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  min-width: 200px;
+  overflow-y: auto;
+  padding: var(--spacing-2) 0;
+}
+
+.customizeHeading {
+  margin: 0;
+  padding: var(--spacing-2) var(--spacing-3);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.reEnableButton {
+  display: block;
+  width: 100%;
+  padding: var(--spacing-2) var(--spacing-3);
+  background: none;
+  border: none;
+  text-align: left;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background-color var(--transition-normal);
+  min-height: 44px;
+}
+
+.reEnableButton:hover {
+  background-color: var(--color-bg-secondary);
+}
+
+.reEnableButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+/* ---- Card grid ---- */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-6);
+}
+
+.cardPlaceholder {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+/* ============================================================
+ * RESPONSIVE — Tablet (768px – 1024px)
+ * ============================================================ */
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .page {
+    padding: var(--spacing-6);
+  }
+
+  .pageHeader {
+    margin-bottom: var(--spacing-4);
+  }
+
+  .title {
+    font-size: var(--font-size-2xl);
+  }
+
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-5);
+  }
+
+  .customizeButton {
+    min-height: 44px;
+  }
+
+  .reEnableButton {
+    min-height: 44px;
+  }
+}
+
+/* ============================================================
+ * RESPONSIVE — Mobile (max 767px)
+ * ============================================================ */
+
+@media (max-width: 767px) {
+  .page {
+    padding: var(--spacing-4);
+  }
+
+  .pageHeader {
+    margin-bottom: var(--spacing-3);
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .title {
+    font-size: var(--font-size-2xl);
+  }
+
+  .customizeButton {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-4);
+  }
+
+  .reEnableButton {
+    min-height: 44px;
+  }
 }

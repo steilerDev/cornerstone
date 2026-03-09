@@ -218,3 +218,7 @@ Key decisions:
 - HI vs WI entity type pill: use `var(--color-role-member-bg)` / `var(--color-role-member-text)` for "HI" discriminator chip
 - Picker modal: `min(640px, calc(100vw - 2rem))` — between default and wide
 - InvoiceDetailPage.module.css uses `box-shadow: var(--shadow-sm)` for cards (NOT `border: 1px solid`) — diverges from WorkItemDetailPage pattern
+
+## Story 9.2 — Dashboard Layout & Data Shell (Issue #471)
+
+See `story-9-2-dashboard.md`. Key: 3/2/1 col grid, card = `<article>`, skeleton replaces body only (header+footer always visible), Customize button only when ≥1 hidden card, no new tokens needed.
