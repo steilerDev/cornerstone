@@ -1,5 +1,5 @@
-import { forwardRef, useRef, useCallback } from 'react';
-import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { useRef, useCallback } from 'react';
+import type { KeyboardEvent as ReactKeyboardEvent, Ref, RefObject } from 'react';
 import type {
   TimelineWorkItem,
   TimelineMilestone,
@@ -45,7 +45,7 @@ export const GanttSidebar = function GanttSidebar({
   onItemClick,
   onMilestoneClick,
   onHouseholdItemClick,
-}: GanttSidebarProps & { ref?: React.RefObject<HTMLDivElement | null> }) {
+}: GanttSidebarProps & { ref?: Ref<HTMLDivElement | null> }) {
   // Ref for the rows container to query row elements
   const rowsRef = useRef<HTMLDivElement>(null);
 
@@ -145,12 +145,12 @@ export const GanttSidebar = function GanttSidebar({
       {/* Scrollable rows container — ref is assigned here for scroll sync */}
       <div
         ref={(node) => {
-          // Assign both the forwarded ref and our local ref
+          // Assign both the passed ref and our local ref
           rowsRef.current = node;
           if (typeof ref === 'function') {
             ref(node);
-          } else if (ref) {
-            ref.current = node;
+          } else if (ref && typeof ref === 'object') {
+            (ref as RefObject<HTMLDivElement | null>).current = node;
           }
         }}
         className={styles.sidebarRows}
