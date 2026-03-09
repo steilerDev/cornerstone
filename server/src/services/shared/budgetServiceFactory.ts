@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, sql, inArray } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 import type * as schemaTypes from '../../db/schema.js';
@@ -127,6 +127,181 @@ export function resolveRelations(
   };
 }
 
+export function resolveRelationsBatch(
+  db: DbType,
+  rows: Array<{
+    id: string;
+    confidence: string;
+    budgetCategoryId: string | null;
+    budgetSourceId: string | null;
+    vendorId: string | null;
+    createdBy: string | null;
+  }>,
+  invoiceBudgetIdColumn?: string,
+): Map<string, ResolvedBudgetRelations> {
+  const result = new Map<string, ResolvedBudgetRelations>();
+
+  if (rows.length === 0) {
+    return result;
+  }
+
+  // Collect unique IDs for each lookup dimension
+  const categoryIds = new Set(rows.map((r) => r.budgetCategoryId).filter(Boolean) as string[]);
+  const sourceIds = new Set(rows.map((r) => r.budgetSourceId).filter(Boolean) as string[]);
+  const vendorIds = new Set(rows.map((r) => r.vendorId).filter(Boolean) as string[]);
+  const userIds = new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[]);
+
+  // Bulk-fetch lookup tables
+  const categoryMap = new Map<string, any>();
+  if (categoryIds.size > 0) {
+    const categories = db
+      .select()
+      .from(budgetCategories)
+      .where(inArray(budgetCategories.id, [...categoryIds]))
+      .all();
+    categories.forEach((cat) => categoryMap.set(cat.id, cat));
+  }
+
+  const sourceMap = new Map<string, any>();
+  if (sourceIds.size > 0) {
+    const sources = db
+      .select()
+      .from(budgetSources)
+      .where(inArray(budgetSources.id, [...sourceIds]))
+      .all();
+    sources.forEach((src) => sourceMap.set(src.id, src));
+  }
+
+  const vendorMap = new Map<string, any>();
+  if (vendorIds.size > 0) {
+    const vendorList = db
+      .select()
+      .from(vendors)
+      .where(inArray(vendors.id, [...vendorIds]))
+      .all();
+    vendorList.forEach((v) => vendorMap.set(v.id, v));
+  }
+
+  const userMap = new Map<string, any>();
+  if (userIds.size > 0) {
+    const userList = db
+      .select()
+      .from(users)
+      .where(inArray(users.id, [...userIds]))
+      .all();
+    userList.forEach((u) => userMap.set(u.id, u));
+  }
+
+  // Bulk-fetch invoice aggregates
+  const invoiceAggregatesMap = new Map<string, { actualCost: number; actualCostPaid: number; invoiceCount: number }>();
+  if (invoiceBudgetIdColumn) {
+    const budgetIds = rows.map((r) => r.id);
+    const idItems = budgetIds.map((id) => sql`${id}`);
+    const aggregateRows = db.all<{
+      budget_id: string;
+      actualCost: number;
+      actualCostPaid: number;
+      invoiceCount: number;
+    }>(
+      sql`SELECT
+        ibl.${sql.raw(invoiceBudgetIdColumn)} AS budget_id,
+        COALESCE(SUM(ibl.itemized_amount), 0) AS actualCost,
+        COALESCE(SUM(CASE WHEN i.status IN ('paid', 'claimed') THEN ibl.itemized_amount ELSE 0 END), 0) AS actualCostPaid,
+        COUNT(*) AS invoiceCount
+      FROM invoice_budget_lines ibl
+      INNER JOIN invoices i ON i.id = ibl.invoice_id
+      WHERE ibl.${sql.raw(invoiceBudgetIdColumn)} IN (${sql.join(idItems, sql`, `)})
+      GROUP BY ibl.${sql.raw(invoiceBudgetIdColumn)}`,
+    );
+    aggregateRows.forEach((row) => {
+      invoiceAggregatesMap.set(row.budget_id, {
+        actualCost: row.actualCost,
+        actualCostPaid: row.actualCostPaid,
+        invoiceCount: row.invoiceCount,
+      });
+    });
+  }
+
+  // Bulk-fetch invoice links (one per budget line)
+  const invoiceLinkMap = new Map<string, {
+    invoiceBudgetLineId: string;
+    invoiceId: string;
+    invoiceNumber: string | null;
+    invoiceDate: string;
+    invoiceStatus: string;
+    itemizedAmount: number;
+  }>();
+  if (invoiceBudgetIdColumn) {
+    const budgetIds = rows.map((r) => r.id);
+    const idItems = budgetIds.map((id) => sql`${id}`);
+    const invoiceLinkRows = db.all<{
+      budget_id: string;
+      ibl_id: string;
+      invoice_id: string;
+      invoice_number: string | null;
+      date: string;
+      status: string;
+      itemized_amount: number;
+    }>(
+      sql`SELECT
+        ibl.${sql.raw(invoiceBudgetIdColumn)} AS budget_id,
+        ibl.id AS ibl_id,
+        ibl.invoice_id,
+        i.invoice_number,
+        i.date,
+        i.status,
+        ibl.itemized_amount
+      FROM invoice_budget_lines ibl
+      INNER JOIN invoices i ON i.id = ibl.invoice_id
+      WHERE ibl.${sql.raw(invoiceBudgetIdColumn)} IN (${sql.join(idItems, sql`, `)})
+      ORDER BY ibl.${sql.raw(invoiceBudgetIdColumn)}`,
+    );
+    // Add to map only if not already present (replicate LIMIT 1 per budget line)
+    invoiceLinkRows.forEach((row) => {
+      if (!invoiceLinkMap.has(row.budget_id)) {
+        invoiceLinkMap.set(row.budget_id, {
+          invoiceBudgetLineId: row.ibl_id,
+          invoiceId: row.invoice_id,
+          invoiceNumber: row.invoice_number,
+          invoiceDate: row.date,
+          invoiceStatus: row.status,
+          itemizedAmount: row.itemized_amount,
+        });
+      }
+    });
+  }
+
+  // Assemble result map
+  rows.forEach((row) => {
+    const confidence = row.confidence as ConfidenceLevel;
+    const category = categoryMap.get(row.budgetCategoryId ?? '');
+    const source = sourceMap.get(row.budgetSourceId ?? '');
+    const vendor = vendorMap.get(row.vendorId ?? '');
+    const createdByUser = userMap.get(row.createdBy ?? '');
+    const invoiceAggregates = invoiceAggregatesMap.get(row.id) ?? {
+      actualCost: 0,
+      actualCostPaid: 0,
+      invoiceCount: 0,
+    };
+    const invoiceLink = invoiceLinkMap.get(row.id) ?? null;
+
+    result.set(row.id, {
+      confidence,
+      confidenceMargin: confidenceMargins[confidence],
+      budgetCategory: toBudgetCategory(category),
+      budgetSource: toBudgetSourceSummary(source),
+      vendor: toVendorSummary(vendor),
+      actualCost: invoiceAggregates.actualCost,
+      actualCostPaid: invoiceAggregates.actualCostPaid,
+      invoiceCount: invoiceAggregates.invoiceCount,
+      invoiceLink,
+      createdBy: toUserSummary(createdByUser),
+    });
+  });
+
+  return result;
+}
+
 export interface BudgetServiceFactoryConfig<
   _EntityRow,
   BudgetLine,
@@ -229,7 +404,12 @@ export function createBudgetService<
         .where(eq(table[config.budgetEntityIdColumn], entityId))
         .orderBy(table.createdAt)
         .all();
-      return rows.map((row) => toResult(db, row));
+      const relationsMap = resolveRelationsBatch(
+        db,
+        rows as any,
+        config.invoiceHandler?.budgetIdColumn,
+      );
+      return rows.map((row: any) => config.toLine(db, row, relationsMap.get(row.id)!));
     },
 
     create(db: DbType, entityId: string, userId: string, data: CreateRequest): BudgetLine {
