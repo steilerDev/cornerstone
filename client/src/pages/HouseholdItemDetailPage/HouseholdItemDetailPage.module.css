@@ -90,12 +90,13 @@
   gap: 0.5rem;
   padding: 0.5rem 1rem;
   background: transparent;
-  border: 1px solid var(--color-border-strong);
+  border: 1px solid var(--color-border);
   border-radius: 0.375rem;
   font-size: 0.875rem;
-  color: var(--color-text-secondary);
+  color: var(--color-text-muted);
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: var(--transition-button-border);
+  opacity: 0.7;
 }
 
 .secondaryNavButton:hover {
@@ -107,6 +108,7 @@
 .secondaryNavButton:focus-visible {
   outline: none;
   box-shadow: var(--shadow-focus);
+  opacity: 1;
 }
 
 /* ============================================================

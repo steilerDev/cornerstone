@@ -1,5 +1,5 @@
 import type { FormEvent } from 'react';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import type {
   MilestoneDetail,
@@ -13,6 +13,8 @@ import {
   linkWorkItem,
   unlinkWorkItem,
   fetchMilestoneLinkedHouseholdItems,
+  addDependentWorkItem,
+  removeDependentWorkItem,
 } from '../../lib/milestonesApi.js';
 import { listWorkItems } from '../../lib/workItemsApi.js';
 import { listHouseholdItems } from '../../lib/householdItemsApi.js';
@@ -64,6 +66,34 @@ export function MilestoneDetailPage() {
   const [isLinkingItem, setIsLinkingItem] = useState(false);
   const [isUnlinkingItem, setIsUnlinkingItem] = useState<Record<string, boolean>>({});
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Dependent work items management
+  const [depSearchInput, setDepSearchInput] = useState('');
+  const [showDepDropdown, setShowDepDropdown] = useState(false);
+  const [isManagingDeps, setIsManagingDeps] = useState(false);
+  const [isRemovingDep, setIsRemovingDep] = useState<Record<string, boolean>>({});
+  const depDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Compute projected date from linked work items
+  const projectedDate = useMemo(() => {
+    if (!milestone) return null;
+    let latest: string | null = null;
+    for (const wi of milestone.workItems) {
+      if (wi.endDate && (!latest || wi.endDate > latest)) {
+        latest = wi.endDate;
+      }
+    }
+    return latest;
+  }, [milestone]);
+
+  // Compute delay in days
+  const delayDays = useMemo(() => {
+    if (!projectedDate || !milestone) return 0;
+    const target = new Date(milestone.targetDate);
+    const projected = new Date(projectedDate);
+    const diff = Math.ceil((projected.getTime() - target.getTime()) / (1000 * 60 * 60 * 24));
+    return diff;
+  }, [projectedDate, milestone]);
 
   // Load milestone on mount
   useEffect(() => {
@@ -254,6 +284,52 @@ export function MilestoneDetailPage() {
     }
   };
 
+  const handleAddDependentWorkItem = async (workItemId: string) => {
+    if (!milestone) return;
+
+    setIsManagingDeps(true);
+    setError('');
+
+    try {
+      await addDependentWorkItem(milestone.id, workItemId);
+      // Reload milestone to get updated dependent work items
+      const updated = await getMilestone(milestone.id);
+      setMilestone(updated);
+      setDepSearchInput('');
+      setShowDepDropdown(false);
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setError(err.error.message);
+      } else {
+        setError('Failed to add dependent work item. Please try again.');
+      }
+    } finally {
+      setIsManagingDeps(false);
+    }
+  };
+
+  const handleRemoveDependentWorkItem = async (workItemId: string) => {
+    if (!milestone) return;
+
+    setIsRemovingDep((prev) => ({ ...prev, [workItemId]: true }));
+    setError('');
+
+    try {
+      await removeDependentWorkItem(milestone.id, workItemId);
+      // Reload milestone to get updated dependent work items
+      const updated = await getMilestone(milestone.id);
+      setMilestone(updated);
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setError(err.error.message);
+      } else {
+        setError('Failed to remove dependent work item. Please try again.');
+      }
+    } finally {
+      setIsRemovingDep((prev) => ({ ...prev, [workItemId]: false }));
+    }
+  };
+
   // Handle click outside dropdown to close it
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -270,6 +346,23 @@ export function MilestoneDetailPage() {
     }
     return undefined;
   }, [showItemDropdown]);
+
+  // Handle click outside dependent items dropdown to close it
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (depDropdownRef.current && !depDropdownRef.current.contains(event.target as Node)) {
+        setShowDepDropdown(false);
+      }
+    };
+
+    if (showDepDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+    return undefined;
+  }, [showDepDropdown]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target as HTMLInputElement | HTMLTextAreaElement;
@@ -444,6 +537,25 @@ export function MilestoneDetailPage() {
               <p className={styles.fieldValue}>{formatDate(milestone.targetDate)}</p>
             </div>
 
+            {projectedDate && (
+              <div className={styles.viewField}>
+                <label className={styles.fieldLabel}>Projected Date</label>
+                <p className={styles.fieldValue}>
+                  {formatDate(projectedDate)}
+                  {delayDays > 0 && (
+                    <span className={styles.delayBadge}>
+                      {delayDays} day{delayDays !== 1 ? 's' : ''} late
+                    </span>
+                  )}
+                  {delayDays < 0 && (
+                    <span className={styles.aheadBadge}>
+                      {Math.abs(delayDays)} day{Math.abs(delayDays) !== 1 ? 's' : ''} ahead
+                    </span>
+                  )}
+                </p>
+              </div>
+            )}
+
             {milestone.description && (
               <div className={styles.viewField}>
                 <label className={styles.fieldLabel}>Description</label>
@@ -467,6 +579,7 @@ export function MilestoneDetailPage() {
                 <ul className={styles.linkedWorkItemsList}>
                   {milestone.workItems.map((item) => (
                     <li key={`wi-${item.id}`} className={styles.linkedWorkItem}>
+                      <span className={styles.itemTypeBadge}>Work Item</span>
                       <Link to={`/project/work-items/${item.id}`} className={styles.workItemLink}>
                         {item.title}
                       </Link>
@@ -570,20 +683,78 @@ export function MilestoneDetailPage() {
               </div>
             </div>
 
-            {milestone.dependentWorkItems.length > 0 && (
-              <div className={styles.viewField}>
-                <label className={styles.fieldLabel}>Dependent Work Items</label>
+            <div className={styles.viewField} data-testid="dependent-items-section">
+              <label className={styles.fieldLabel}>Dependent Work Items</label>
+              {milestone.dependentWorkItems.length > 0 && (
                 <ul className={styles.linkedWorkItemsList}>
                   {milestone.dependentWorkItems.map((item) => (
                     <li key={item.id} className={styles.linkedWorkItem}>
                       <Link to={`/project/work-items/${item.id}`} className={styles.workItemLink}>
                         {item.title}
                       </Link>
+                      <button
+                        type="button"
+                        className={styles.unlinkButton}
+                        onClick={() => handleRemoveDependentWorkItem(item.id)}
+                        disabled={isRemovingDep[item.id]}
+                        title="Remove this dependent work item from the milestone"
+                        data-testid={`remove-dep-work-item-${item.id}`}
+                      >
+                        ✕
+                      </button>
                     </li>
                   ))}
                 </ul>
+              )}
+              {milestone.dependentWorkItems.length === 0 && (
+                <p className={styles.emptyMessage}>No dependent work items</p>
+              )}
+
+              {/* Inline search to add dependent work items */}
+              <div className={styles.inlineSearch} ref={depDropdownRef}>
+                <input
+                  type="text"
+                  placeholder="Search work items to add as dependent..."
+                  value={depSearchInput}
+                  onChange={(e) => {
+                    setDepSearchInput(e.target.value);
+                    setShowDepDropdown(true);
+                  }}
+                  onFocus={() => setShowDepDropdown(true)}
+                  className={styles.searchInput}
+                  data-testid="dep-search-input"
+                  disabled={isManagingDeps}
+                />
+                {showDepDropdown && depSearchInput.trim() && (
+                  <div className={styles.searchDropdown}>
+                    {availableWorkItems
+                      .filter((item) =>
+                        item.title.toLowerCase().includes(depSearchInput.toLowerCase()),
+                      )
+                      .filter((item) => !milestone.dependentWorkItems.find((dep) => dep.id === item.id))
+                      .map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          className={styles.searchDropdownItem}
+                          onClick={() => handleAddDependentWorkItem(item.id)}
+                          disabled={isManagingDeps}
+                        >
+                          <span>{item.title}</span>
+                        </button>
+                      ))}
+                    {availableWorkItems
+                      .filter((item) =>
+                        item.title.toLowerCase().includes(depSearchInput.toLowerCase()),
+                      )
+                      .filter((item) => !milestone.dependentWorkItems.find((dep) => dep.id === item.id))
+                      .length === 0 && (
+                        <div className={styles.searchDropdownEmpty}>No work items match your search</div>
+                      )}
+                  </div>
+                )}
               </div>
-            )}
+            </div>
           </div>
 
           <div className={styles.viewActions}>

@@ -672,6 +672,28 @@
 }
 
 /* Responsive */
+.delayBadge {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background-color: var(--color-danger-bg-subtle);
+  color: var(--color-danger);
+}
+
+.aheadBadge {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background-color: var(--color-success-bg);
+  color: var(--color-success);
+}
+
 @media (max-width: 767px) {
   .container {
     padding: 1rem;
