@@ -366,7 +366,11 @@ describe('App', () => {
 
     // Wait for lazy-loaded Invoices component to resolve
     // The InvoicesPage h1 now reads "Budget" (shared sub-nav heading)
-    const heading = await screen.findByRole('heading', { name: /^budget$/i, level: 1 }, { timeout: 5000 });
+    const heading = await screen.findByRole(
+      'heading',
+      { name: /^budget$/i, level: 1 },
+      { timeout: 5000 },
+    );
     expect(heading).toBeInTheDocument();
   });
 

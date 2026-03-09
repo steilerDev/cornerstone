@@ -645,9 +645,11 @@ export function InvoiceBudgetLinesSection({
                         <span className={styles.remainingLabel}>Remaining to allocate:</span>
                         <span
                           className={`${styles.remainingAmount} ${
-                            (pickerState.itemizedAmounts &&
-                            Object.values(pickerState.itemizedAmounts).reduce((sum, v) => sum + v, 0) >
-                              invoiceTotal)
+                            pickerState.itemizedAmounts &&
+                            Object.values(pickerState.itemizedAmounts).reduce(
+                              (sum, v) => sum + v,
+                              0,
+                            ) > invoiceTotal
                               ? styles.remainingExceeds
                               : ''
                           }`}
@@ -669,7 +671,11 @@ export function InvoiceBudgetLinesSection({
                         type="button"
                         className={styles.addButton}
                         onClick={async () => {
-                          if (!pickerState.itemId || !pickerState.type || !pickerState.itemizedAmounts)
+                          if (
+                            !pickerState.itemId ||
+                            !pickerState.type ||
+                            !pickerState.itemizedAmounts
+                          )
                             return;
 
                           // Create links for all lines with amounts entered
@@ -685,7 +691,10 @@ export function InvoiceBudgetLinesSection({
                                   itemizedAmount: amount,
                                 };
 
-                                const response = await createInvoiceBudgetLine(invoiceId, createData);
+                                const response = await createInvoiceBudgetLine(
+                                  invoiceId,
+                                  createData,
+                                );
 
                                 // Update state with new line and remaining amount
                                 const newBudgetLines = [...budgetLines, response.budgetLine];
@@ -696,9 +705,11 @@ export function InvoiceBudgetLinesSection({
 
                                 if (err instanceof ApiClientError) {
                                   if (err.error.code === 'BUDGET_LINE_ALREADY_LINKED') {
-                                    errorMsg = 'This budget line is already linked to another invoice.';
+                                    errorMsg =
+                                      'This budget line is already linked to another invoice.';
                                   } else if (err.error.code === 'ITEMIZED_SUM_EXCEEDS_INVOICE') {
-                                    errorMsg = 'Linking this budget line would exceed the invoice total.';
+                                    errorMsg =
+                                      'Linking this budget line would exceed the invoice total.';
                                   } else {
                                     errorMsg = err.error.message;
                                   }
@@ -722,8 +733,10 @@ export function InvoiceBudgetLinesSection({
                         }}
                         disabled={
                           !pickerState.itemizedAmounts ||
-                          Object.values(pickerState.itemizedAmounts).reduce((sum, v) => sum + v, 0) ===
-                            0
+                          Object.values(pickerState.itemizedAmounts).reduce(
+                            (sum, v) => sum + v,
+                            0,
+                          ) === 0
                         }
                       >
                         Add Selected Lines
