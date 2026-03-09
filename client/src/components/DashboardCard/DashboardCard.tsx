@@ -93,7 +93,7 @@ export function DashboardCard({
         {/* Normal content */}
         {!isLoading && !error && !isEmpty && children}
       </div>
-    </div>
+    </article>
   );
 }
 
