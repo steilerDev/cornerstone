@@ -38,10 +38,14 @@ export interface GanttSidebarProps {
  * - ArrowUp/ArrowDown: move focus between rows
  * - Enter/Space: activate (navigate to work item detail)
  */
-export const GanttSidebar = forwardRef<HTMLDivElement, GanttSidebarProps>(function GanttSidebar(
-  { items, unifiedRows, onItemClick, onMilestoneClick, onHouseholdItemClick },
+export const GanttSidebar = function GanttSidebar({
   ref,
-) {
+  items,
+  unifiedRows,
+  onItemClick,
+  onMilestoneClick,
+  onHouseholdItemClick,
+}: GanttSidebarProps & { ref?: React.RefObject<HTMLDivElement | null> }) {
   // Ref for the rows container to query row elements
   const rowsRef = useRef<HTMLDivElement>(null);
 
@@ -277,4 +281,4 @@ export const GanttSidebar = forwardRef<HTMLDivElement, GanttSidebarProps>(functi
       </div>
     </div>
   );
-});
+};

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, use, useState, useEffect, type ReactNode } from 'react';
 import { getAuthMe, logout as logoutApi, type AuthMeResponse } from '../lib/authApi.js';
 import type { UserResponse } from '@cornerstone/shared';
 
@@ -74,15 +74,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  return (
-    <AuthContext.Provider value={{ ...authState, refreshAuth, logout }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext value={{ ...authState, refreshAuth, logout }}>{children}</AuthContext>;
 }
 
 export function useAuth(): AuthContextValue {
-  const context = useContext(AuthContext);
+  const context = use(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }

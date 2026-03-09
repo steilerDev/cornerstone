@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useRef, type ReactNode } from 'react';
+import { createContext, use, useState, useCallback, useRef, type ReactNode } from 'react';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -75,11 +75,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
     [dismissToast],
   );
 
-  return (
-    <ToastContext.Provider value={{ toasts, showToast, dismissToast }}>
-      {children}
-    </ToastContext.Provider>
-  );
+  return <ToastContext value={{ toasts, showToast, dismissToast }}>{children}</ToastContext>;
 }
 
 // ---------------------------------------------------------------------------
@@ -87,7 +83,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
 // ---------------------------------------------------------------------------
 
 export function useToast(): ToastContextValue {
-  const context = useContext(ToastContext);
+  const context = use(ToastContext);
   if (context === undefined) {
     throw new Error('useToast must be used within a ToastProvider');
   }
