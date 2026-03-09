@@ -198,19 +198,19 @@ export function InvoiceDetailPage() {
   return (
     <div className={styles.container}>
       <div className={styles.content}>
-        {/* Breadcrumb */}
-        <div className={styles.breadcrumb}>
-          <Link to="/budget/invoices" className={styles.backLink}>
-            Invoices
-          </Link>
-          <span className={styles.breadcrumbSeparator} aria-hidden="true">
-            /
-          </span>
-          <span className={styles.breadcrumbCurrent}>{invoice.invoiceNumber ?? 'Invoice'}</span>
+        {/* Navigation buttons */}
+        <div className={styles.navButtons}>
+          <button
+            type="button"
+            className={styles.backButton}
+            onClick={() => navigate('/budget/invoices')}
+          >
+            ← Back to Invoices
+          </button>
         </div>
 
         {/* Page heading */}
-        <div className={styles.pageHeader}>
+        <div className={styles.headerRow}>
           <div className={styles.pageHeading}>
             <h1 className={styles.pageTitle}>
               {invoice.invoiceNumber ? `#${invoice.invoiceNumber}` : 'Invoice'}

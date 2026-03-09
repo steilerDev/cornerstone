@@ -155,7 +155,7 @@
  * Page Header
  * ============================================================ */
 
-.pageHeader {
+.headerRow {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -171,8 +171,8 @@
 }
 
 .pageTitle {
-  font-size: var(--font-size-3xl);
-  font-weight: var(--font-weight-bold);
+  font-size: 2rem;
+  font-weight: 700;
   color: var(--color-text-primary);
   margin: 0;
   word-break: break-word;
@@ -686,7 +686,7 @@
     font-size: var(--font-size-2xl);
   }
 
-  .pageHeader {
+  .headerRow {
     flex-direction: column;
     align-items: stretch;
   }
