@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import type { DashboardCardId, BudgetOverview } from '@cornerstone/shared';
+import type { DashboardCardId, BudgetOverview, BudgetSource } from '@cornerstone/shared';
 import { fetchBudgetOverview } from '../../lib/budgetOverviewApi.js';
 import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { fetchSubsidyPrograms } from '../../lib/subsidyProgramsApi.js';
@@ -10,6 +10,8 @@ import { usePreferences } from '../../hooks/usePreferences.js';
 import { ProjectSubNav } from '../../components/ProjectSubNav/ProjectSubNav.js';
 import { DashboardCard } from '../../components/DashboardCard/DashboardCard.js';
 import { BudgetSummaryCard } from '../../components/BudgetSummaryCard/BudgetSummaryCard.js';
+import { BudgetAlertsCard } from '../../components/BudgetAlertsCard/BudgetAlertsCard.js';
+import { SourceUtilizationCard } from '../../components/SourceUtilizationCard/SourceUtilizationCard.js';
 import styles from './DashboardPage.module.css';
 
 type DataSourceKey =
@@ -72,6 +74,7 @@ export function DashboardPage() {
     invoices: { isLoading: true, error: null, isEmpty: false },
   });
   const [budgetOverview, setBudgetOverview] = useState<BudgetOverview | null>(null);
+  const [budgetSources, setBudgetSources] = useState<BudgetSource[]>([]);
 
   const { preferences, upsert: upsertPreference } = usePreferences();
   const [customizeOpen, setCustomizeOpen] = useState(false);
@@ -160,6 +163,7 @@ export function DashboardPage() {
 
     // Update budget sources state
     if (budgetSourcesResult.status === 'fulfilled') {
+      setBudgetSources(budgetSourcesResult.value.budgetSources);
       setDataStates((prev) => ({
         ...prev,
         budgetSources: {
@@ -349,6 +353,10 @@ export function DashboardPage() {
             >
               {card.id === 'budget-summary' && budgetOverview ? (
                 <BudgetSummaryCard overview={budgetOverview} />
+              ) : card.id === 'budget-alerts' && budgetOverview ? (
+                <BudgetAlertsCard categorySummaries={budgetOverview.categorySummaries} />
+              ) : card.id === 'source-utilization' ? (
+                <SourceUtilizationCard sources={budgetSources} />
               ) : (
                 <p className={styles.cardPlaceholder}>Content coming soon.</p>
               )}
