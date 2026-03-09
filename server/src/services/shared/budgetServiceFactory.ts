@@ -193,7 +193,10 @@ export function resolveRelationsBatch(
   }
 
   // Bulk-fetch invoice aggregates
-  const invoiceAggregatesMap = new Map<string, { actualCost: number; actualCostPaid: number; invoiceCount: number }>();
+  const invoiceAggregatesMap = new Map<
+    string,
+    { actualCost: number; actualCostPaid: number; invoiceCount: number }
+  >();
   if (invoiceBudgetIdColumn) {
     const budgetIds = rows.map((r) => r.id);
     const idItems = budgetIds.map((id) => sql`${id}`);
@@ -223,14 +226,17 @@ export function resolveRelationsBatch(
   }
 
   // Bulk-fetch invoice links (one per budget line)
-  const invoiceLinkMap = new Map<string, {
-    invoiceBudgetLineId: string;
-    invoiceId: string;
-    invoiceNumber: string | null;
-    invoiceDate: string;
-    invoiceStatus: string;
-    itemizedAmount: number;
-  }>();
+  const invoiceLinkMap = new Map<
+    string,
+    {
+      invoiceBudgetLineId: string;
+      invoiceId: string;
+      invoiceNumber: string | null;
+      invoiceDate: string;
+      invoiceStatus: string;
+      itemizedAmount: number;
+    }
+  >();
   if (invoiceBudgetIdColumn) {
     const budgetIds = rows.map((r) => r.id);
     const idItems = budgetIds.map((id) => sql`${id}`);

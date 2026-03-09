@@ -1092,9 +1092,7 @@ describe('resolveRelationsBatch()', () => {
   function insertBudgetCategory(name = 'Test Category') {
     const id = `bc-test-${++idCounter}`;
     const now = new Date(Date.now() + idCounter).toISOString();
-    db.insert(schema.budgetCategories)
-      .values({ id, name, createdAt: now, updatedAt: now })
-      .run();
+    db.insert(schema.budgetCategories).values({ id, name, createdAt: now, updatedAt: now }).run();
     return id;
   }
 
@@ -1231,11 +1229,11 @@ describe('resolveRelationsBatch()', () => {
       plannedAmount: 5000,
     });
 
-    const { invoiceId: _invoiceId, iblId } = insertInvoiceLinkedToWorkItemBudget(
-      row.id,
-      vendorId,
-      { amount: 1200, status: 'paid', invoiceNumber: 'INV-001' },
-    );
+    const { invoiceId: _invoiceId, iblId } = insertInvoiceLinkedToWorkItemBudget(row.id, vendorId, {
+      amount: 1200,
+      status: 'paid',
+      invoiceNumber: 'INV-001',
+    });
 
     const result = resolveRelationsBatch(db, [row], 'work_item_budget_id');
 
@@ -1391,9 +1389,15 @@ describe('resolveRelationsBatch()', () => {
     const rowPaid = insertWorkItemBudgetLine({ workItemId, plannedAmount: 500 });
     const rowClaimed = insertWorkItemBudgetLine({ workItemId, plannedAmount: 700 });
 
-    insertInvoiceLinkedToWorkItemBudget(rowPending.id, vendorId, { amount: 100, status: 'pending' });
+    insertInvoiceLinkedToWorkItemBudget(rowPending.id, vendorId, {
+      amount: 100,
+      status: 'pending',
+    });
     insertInvoiceLinkedToWorkItemBudget(rowPaid.id, vendorId, { amount: 200, status: 'paid' });
-    insertInvoiceLinkedToWorkItemBudget(rowClaimed.id, vendorId, { amount: 300, status: 'claimed' });
+    insertInvoiceLinkedToWorkItemBudget(rowClaimed.id, vendorId, {
+      amount: 300,
+      status: 'claimed',
+    });
 
     const result = resolveRelationsBatch(
       db,
