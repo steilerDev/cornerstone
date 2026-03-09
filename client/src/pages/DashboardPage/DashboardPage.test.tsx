@@ -33,7 +33,7 @@ const mockFetchBudgetSources = jest.fn<typeof BudgetSourcesApiTypes.fetchBudgetS
 const mockFetchSubsidyPrograms = jest.fn<typeof SubsidyProgramsApiTypes.fetchSubsidyPrograms>();
 const mockGetTimeline = jest.fn<typeof TimelineApiTypes.getTimeline>();
 const mockFetchAllInvoices = jest.fn<typeof InvoicesApiTypes.fetchAllInvoices>();
-const mockUpsertPreference = jest.fn<() => Promise<void>>();
+const mockUpsertPreference = jest.fn<(key: string, value: string) => Promise<void>>();
 const mockUsePreferences = jest.fn<typeof UsePreferencesTypes.usePreferences>();
 
 jest.unstable_mockModule('../../lib/budgetOverviewApi.js', () => ({
