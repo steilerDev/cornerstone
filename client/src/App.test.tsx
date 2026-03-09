@@ -334,8 +334,8 @@ describe('App', () => {
     expect(heading).toBeInTheDocument();
   });
 
-  it('navigates to Schedule page when /schedule path is accessed', async () => {
-    window.history.pushState({}, 'Schedule', '/schedule');
+  it('navigates to Schedule page when /schedule/gantt path is accessed', async () => {
+    window.history.pushState({}, 'Schedule', '/schedule/gantt');
     render(<App />);
 
     // Wait for lazy-loaded TimelinePage component to resolve.
