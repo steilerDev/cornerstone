@@ -142,6 +142,13 @@
   font-size: 0.9375rem;
 }
 
+.amountValueMuted {
+  font-weight: 600;
+  color: var(--color-text-muted);
+  font-size: 0.9375rem;
+  text-decoration: line-through;
+}
+
 .amountLabel {
   font-size: 0.75rem;
   color: var(--color-text-muted);
@@ -150,7 +157,6 @@
 
 .amountLabelMuted {
   opacity: 0.6;
-  text-decoration: line-through;
 }
 
 /* ─── Chevron ────────────────────────────────────────────────────────────── */
