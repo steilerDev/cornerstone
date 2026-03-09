@@ -1424,7 +1424,7 @@ describe('resolveRelationsBatch()', () => {
     const vendorId = insertVendor('Multi Vendor');
 
     // Insert 5 lines each with a distinct category
-    const lines = [];
+    const lines: Array<{ line: ReturnType<typeof createWorkItemBudget>; catId: string }> = [];
     for (let i = 0; i < 5; i++) {
       const catId = insertBudgetCategory(`Cat ${i}`);
       const line = createWorkItemBudget(db, workItemId, 'user-001', {
