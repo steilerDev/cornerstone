@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import type { DashboardCardId } from '@cornerstone/shared';
+import type { DashboardCardId, BudgetOverview } from '@cornerstone/shared';
 import { fetchBudgetOverview } from '../../lib/budgetOverviewApi.js';
 import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { fetchSubsidyPrograms } from '../../lib/subsidyProgramsApi.js';
@@ -9,6 +9,7 @@ import { ApiClientError } from '../../lib/apiClient.js';
 import { usePreferences } from '../../hooks/usePreferences.js';
 import { ProjectSubNav } from '../../components/ProjectSubNav/ProjectSubNav.js';
 import { DashboardCard } from '../../components/DashboardCard/DashboardCard.js';
+import { BudgetSummaryCard } from '../../components/BudgetSummaryCard/BudgetSummaryCard.js';
 import styles from './DashboardPage.module.css';
 
 type DataSourceKey =
@@ -70,6 +71,7 @@ export function DashboardPage() {
     timeline: { isLoading: true, error: null, isEmpty: false },
     invoices: { isLoading: true, error: null, isEmpty: false },
   });
+  const [budgetOverview, setBudgetOverview] = useState<BudgetOverview | null>(null);
 
   const { preferences, upsert: upsertPreference } = usePreferences();
   const [customizeOpen, setCustomizeOpen] = useState(false);
@@ -133,6 +135,7 @@ export function DashboardPage() {
 
     // Update budget overview state
     if (budgetOverviewResult.status === 'fulfilled') {
+      setBudgetOverview(budgetOverviewResult.value);
       setDataStates((prev) => ({
         ...prev,
         budgetOverview: {
@@ -344,7 +347,11 @@ export function DashboardPage() {
               emptyMessage={card.emptyMessage ?? 'No data available'}
               emptyAction={card.emptyAction}
             >
-              <p className={styles.cardPlaceholder}>Content coming soon.</p>
+              {card.id === 'budget-summary' && budgetOverview ? (
+                <BudgetSummaryCard overview={budgetOverview} />
+              ) : (
+                <p className={styles.cardPlaceholder}>Content coming soon.</p>
+              )}
             </DashboardCard>
           );
         })}
