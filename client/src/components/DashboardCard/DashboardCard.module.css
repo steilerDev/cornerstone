@@ -83,9 +83,9 @@
   height: 12px;
   background: linear-gradient(
     90deg,
-    var(--color-bg-secondary) 0%,
-    var(--color-bg-tertiary) 50%,
-    var(--color-bg-secondary) 100%
+    var(--color-bg-tertiary) 0%,
+    var(--color-bg-hover) 50%,
+    var(--color-bg-tertiary) 100%
   );
   background-size: 200% 100%;
   border-radius: var(--radius-sm);
@@ -98,6 +98,13 @@
   }
   100% {
     background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeletonLine {
+    animation: none;
+    background: var(--color-bg-tertiary);
   }
 }
 
@@ -122,25 +129,8 @@
 }
 
 .retryButton {
-  padding: var(--spacing-2) var(--spacing-4);
-  background-color: var(--color-primary);
-  color: var(--color-primary-text);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  border: none;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: var(--transition-button);
+  composes: btnSecondaryCompact from '../../styles/shared.module.css';
   min-height: 44px;
-}
-
-.retryButton:hover:not(:disabled) {
-  background-color: var(--color-primary-hover);
-}
-
-.retryButton:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus);
 }
 
 /* ---- Empty state ---- */
@@ -183,7 +173,7 @@
  * RESPONSIVE — Tablet (768px – 1024px)
  * ============================================================ */
 
-@media (min-width: 768px) and (max-width: 1024px) {
+@media (min-width: 768px) and (max-width: 1023px) {
   .card {
     padding: var(--spacing-4);
   }
@@ -193,8 +183,8 @@
   }
 
   .dismissButton {
-    min-width: 40px;
-    min-height: 40px;
+    min-width: 44px;
+    min-height: 44px;
   }
 }
 
@@ -213,8 +203,8 @@
   }
 
   .dismissButton {
-    min-width: 40px;
-    min-height: 40px;
+    min-width: 44px;
+    min-height: 44px;
     margin: calc(var(--spacing-4) * -1) calc(var(--spacing-4) * -1) calc(var(--spacing-2) * -1) 0;
   }
 }

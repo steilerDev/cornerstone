@@ -17,18 +17,18 @@ describe('DashboardCard', () => {
 
   it('renders card title in header', () => {
     render(
-      <DashboardCard title="Budget Summary" onDismiss={noop}>
+      <DashboardCard id="test-card" title="Budget Summary" onDismiss={noop}>
         <p>content</p>
       </DashboardCard>,
     );
-    expect(screen.getByRole('heading', { name: 'Budget Summary' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Budget Summary' })).toBeInTheDocument();
   });
 
   // ─── Test 2: Dismiss button aria-label ───────────────────────────────────
 
   it('renders dismiss button with correct aria-label', () => {
     render(
-      <DashboardCard title="Invoice Pipeline" onDismiss={noop}>
+      <DashboardCard id="test-card" title="Invoice Pipeline" onDismiss={noop}>
         <p>content</p>
       </DashboardCard>,
     );
@@ -42,7 +42,7 @@ describe('DashboardCard', () => {
   it('calls onDismiss when dismiss button clicked', async () => {
     const onDismiss = jest.fn();
     render(
-      <DashboardCard title="Mini Gantt" onDismiss={onDismiss}>
+      <DashboardCard id="test-card" title="Mini Gantt" onDismiss={onDismiss}>
         <p>content</p>
       </DashboardCard>,
     );
@@ -54,11 +54,11 @@ describe('DashboardCard', () => {
 
   it('shows loading skeleton when isLoading=true', () => {
     render(
-      <DashboardCard title="Timeline Status" onDismiss={noop} isLoading>
+      <DashboardCard id="test-card" title="Timeline Status" onDismiss={noop} isLoading>
         <p>should not appear</p>
       </DashboardCard>,
     );
-    expect(screen.getByRole('status', { name: 'Loading' })).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Loading Timeline Status data' })).toBeInTheDocument();
     expect(screen.queryByText('should not appear')).not.toBeInTheDocument();
   });
 
@@ -67,6 +67,7 @@ describe('DashboardCard', () => {
   it('shows error state with message and Retry button when error is set', () => {
     render(
       <DashboardCard
+        id="test-card"
         title="Source Utilization"
         onDismiss={noop}
         error="Failed to load budget sources"
@@ -87,6 +88,7 @@ describe('DashboardCard', () => {
     const onRetry = jest.fn();
     render(
       <DashboardCard
+        id="test-card"
         title="Budget Alerts"
         onDismiss={noop}
         error="Something went wrong"
@@ -104,6 +106,7 @@ describe('DashboardCard', () => {
   it('shows empty state when isEmpty=true', () => {
     render(
       <DashboardCard
+        id="test-card"
         title="Subsidy Pipeline"
         onDismiss={noop}
         isEmpty
@@ -121,6 +124,7 @@ describe('DashboardCard', () => {
   it('shows empty action link when emptyAction provided', () => {
     render(
       <DashboardCard
+        id="test-card"
         title="Quick Actions"
         onDismiss={noop}
         isEmpty
@@ -139,7 +143,7 @@ describe('DashboardCard', () => {
 
   it('renders children when not loading, not errored, and not empty', () => {
     render(
-      <DashboardCard title="Budget Summary" onDismiss={noop}>
+      <DashboardCard id="test-card" title="Budget Summary" onDismiss={noop}>
         <p>Content coming soon.</p>
       </DashboardCard>,
     );
@@ -153,6 +157,7 @@ describe('DashboardCard', () => {
   it('shows skeleton even when isEmpty and error are also set while isLoading=true', () => {
     render(
       <DashboardCard
+        id="test-card"
         title="Budget Summary"
         onDismiss={noop}
         isLoading
@@ -164,7 +169,7 @@ describe('DashboardCard', () => {
       </DashboardCard>,
     );
     // Skeleton should be visible
-    expect(screen.getByRole('status', { name: 'Loading' })).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Loading Budget Summary data' })).toBeInTheDocument();
     // Error and empty states must NOT be rendered (they are gated on !isLoading)
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();
@@ -175,7 +180,7 @@ describe('DashboardCard', () => {
 
   it('does not render Retry button when onRetry is not provided', () => {
     render(
-      <DashboardCard title="Budget Summary" onDismiss={noop} error="Some error">
+      <DashboardCard id="test-card" title="Budget Summary" onDismiss={noop} error="Some error">
         <p>content</p>
       </DashboardCard>,
     );
@@ -187,7 +192,7 @@ describe('DashboardCard', () => {
 
   it('uses default empty message when emptyMessage is not provided', () => {
     render(
-      <DashboardCard title="Budget Summary" onDismiss={noop} isEmpty>
+      <DashboardCard id="test-card" title="Budget Summary" onDismiss={noop} isEmpty>
         <p>content</p>
       </DashboardCard>,
     );

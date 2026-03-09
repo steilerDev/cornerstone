@@ -2,6 +2,8 @@ import { ReactNode } from 'react';
 import styles from './DashboardCard.module.css';
 
 export interface DashboardCardProps {
+  /** Unique identifier for the card (used for aria-labelledby) */
+  id: string;
   /** Card title displayed in the header */
   title: string;
   /** Called when the dismiss button is clicked */
@@ -26,6 +28,7 @@ export interface DashboardCardProps {
 }
 
 export function DashboardCard({
+  id,
   title,
   onDismiss,
   isLoading = false,
@@ -37,10 +40,10 @@ export function DashboardCard({
   children,
 }: DashboardCardProps) {
   return (
-    <div className={styles.card}>
+    <article className={styles.card} aria-labelledby={`card-${id}-title`}>
       {/* Card header with title and dismiss button */}
       <div className={styles.cardHeader}>
-        <h3 className={styles.cardTitle}>{title}</h3>
+        <h2 id={`card-${id}-title`} className={styles.cardTitle}>{title}</h2>
         <button
           type="button"
           className={styles.dismissButton}
@@ -56,7 +59,7 @@ export function DashboardCard({
       <div className={styles.cardContent}>
         {/* Loading state */}
         {isLoading && (
-          <div className={styles.skeleton} role="status" aria-busy="true" aria-label="Loading">
+          <div className={styles.skeleton} role="status" aria-busy="true" aria-label={`Loading ${title} data`}>
             <div className={styles.skeletonLine} />
             <div className={styles.skeletonLine} />
             <div className={styles.skeletonLine} />

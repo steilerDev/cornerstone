@@ -268,10 +268,12 @@ describe('DashboardPage', () => {
     });
 
     // isEmpty=true → empty message is shown for this card
-    // (at least one "No data available" — Subsidy Pipeline may also be empty)
     await waitFor(() => {
-      expect(screen.getAllByText('No data available').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getByText('No budget sources configured')).toBeInTheDocument();
     });
+
+    // Check that the contextual link is rendered
+    expect(screen.getByRole('link', { name: 'Add a budget source' })).toBeInTheDocument();
   });
 
   it('shows empty state for Subsidy Pipeline when subsidy programs API returns empty list', async () => {
@@ -283,9 +285,13 @@ describe('DashboardPage', () => {
       expect(screen.getByRole('heading', { name: 'Subsidy Pipeline' })).toBeInTheDocument();
     });
 
+    // isEmpty=true → empty message is shown for this card
     await waitFor(() => {
-      expect(screen.getAllByText('No data available').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getByText('No subsidy programs found')).toBeInTheDocument();
     });
+
+    // Check that the contextual link is rendered
+    expect(screen.getByRole('link', { name: 'Add a subsidy program' })).toBeInTheDocument();
   });
 
   // ─── Test 17: Dismiss calls upsert with dashboard.hiddenCards ────────────

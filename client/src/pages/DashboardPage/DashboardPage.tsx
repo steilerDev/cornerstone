@@ -23,14 +23,37 @@ const CARD_DEFINITIONS: {
   id: DashboardCardId;
   title: string;
   dataSource?: DataSourceKey;
+  emptyMessage?: string;
+  emptyAction?: {
+    label: string;
+    href: string;
+  };
 }[] = [
   { id: 'budget-summary', title: 'Budget Summary', dataSource: 'budgetOverview' },
   { id: 'budget-alerts', title: 'Budget Alerts', dataSource: 'budgetOverview' },
-  { id: 'source-utilization', title: 'Source Utilization', dataSource: 'budgetSources' },
+  {
+    id: 'source-utilization',
+    title: 'Source Utilization',
+    dataSource: 'budgetSources',
+    emptyMessage: 'No budget sources configured',
+    emptyAction: { label: 'Add a budget source', href: '/budget/sources' },
+  },
   { id: 'timeline-status', title: 'Timeline Status', dataSource: 'timeline' },
   { id: 'mini-gantt', title: 'Mini Gantt', dataSource: 'timeline' },
-  { id: 'invoice-pipeline', title: 'Invoice Pipeline', dataSource: 'invoices' },
-  { id: 'subsidy-pipeline', title: 'Subsidy Pipeline', dataSource: 'subsidyPrograms' },
+  {
+    id: 'invoice-pipeline',
+    title: 'Invoice Pipeline',
+    dataSource: 'invoices',
+    emptyMessage: 'No invoices yet',
+    emptyAction: { label: 'Create an invoice', href: '/budget/invoices' },
+  },
+  {
+    id: 'subsidy-pipeline',
+    title: 'Subsidy Pipeline',
+    dataSource: 'subsidyPrograms',
+    emptyMessage: 'No subsidy programs found',
+    emptyAction: { label: 'Add a subsidy program', href: '/budget/subsidies' },
+  },
   { id: 'quick-actions', title: 'Quick Actions' },
 ];
 
@@ -296,13 +319,15 @@ export function DashboardPage() {
           return (
             <DashboardCard
               key={card.id}
+              id={card.id}
               title={card.title}
               onDismiss={() => void handleDismissCard(card.id)}
               isLoading={dataState?.isLoading}
               error={dataState?.error}
               onRetry={() => void loadAllData()}
               isEmpty={dataState?.isEmpty}
-              emptyMessage="No data available"
+              emptyMessage={card.emptyMessage ?? 'No data available'}
+              emptyAction={card.emptyAction}
             >
               <p className={styles.cardPlaceholder}>Content coming soon.</p>
             </DashboardCard>
