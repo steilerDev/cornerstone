@@ -47,7 +47,7 @@ export class HouseholdItemDetailPage {
     // h1 heading — the item name (editable)
     this.heading = page.getByRole('heading', { level: 1 });
 
-    // Back link is a <Link> in the breadcrumb with text "Household Items".
+    // Back button navigates to the household items list.
     // NOTE: The AppShell sidebar also has a "Household Items" nav link.
     // The back button is in a navButtons container above the heading.
     // Scope to the navButtons container to avoid matching sidebar links.

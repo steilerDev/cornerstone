@@ -417,13 +417,13 @@ test.describe('Vendor detail page (Scenario 5)', { tag: '@responsive' }, () => {
     }
   });
 
-  test('Detail page heading matches vendor name; breadcrumb shows vendor name', async ({
+  test('Detail page heading matches vendor name and back button is visible', async ({
     page,
     testPrefix,
   }) => {
     const detailPage = new VendorDetailPage(page);
     let createdId: string | null = null;
-    const vendorName = `${testPrefix} Breadcrumb Vendor`;
+    const vendorName = `${testPrefix} Detail Heading Vendor`;
 
     try {
       createdId = await createVendorViaApi(page, {
@@ -434,7 +434,7 @@ test.describe('Vendor detail page (Scenario 5)', { tag: '@responsive' }, () => {
       await detailPage.goto(createdId);
 
       await expect(detailPage.pageTitle).toHaveText(vendorName);
-      await expect(detailPage.breadcrumbCurrent).toHaveText(vendorName);
+      await expect(detailPage.backToVendorsButton).toBeVisible();
     } finally {
       if (createdId) await deleteVendorViaApi(page, createdId);
     }
@@ -1054,7 +1054,7 @@ test.describe('List shows key info (Scenario 14)', { tag: '@responsive' }, () =>
 // Navigation tests
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Navigation between list and detail pages', { tag: '@responsive' }, () => {
-  test('Clicking vendor link navigates to detail page; breadcrumb "Vendors" returns to list', async ({
+  test('Clicking vendor link navigates to detail page; back button returns to list', async ({
     page,
     testPrefix,
   }) => {
@@ -1078,10 +1078,10 @@ test.describe('Navigation between list and detail pages', { tag: '@responsive' }
       await vendorsPage.clickView(vendorName);
       await page.waitForURL('**/budget/vendors/*', { timeout: 15000 });
 
-      // Wait for detail page to fully render before interacting with breadcrumb
+      // Wait for detail page to fully render before interacting with back button
       await expect(detailPage.infoCard).toBeVisible({ timeout: 15000 });
 
-      // Navigate back via breadcrumb
+      // Navigate back via back button
       await detailPage.goBackToVendors();
       expect(page.url()).toContain('/budget/vendors');
       await vendorsPage.heading.waitFor({ state: 'visible', timeout: 15000 });

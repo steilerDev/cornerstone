@@ -2,7 +2,7 @@
  * Page Object Model for the Vendor Detail page (/budget/vendors/:id)
  *
  * The page renders:
- * - A breadcrumb navigation (Vendors / <name>)
+ * - A back button navigation ("← Back to Vendors")
  * - A page header with vendor name, specialty subtitle, and Edit/Delete buttons
  * - Stats cards: Total Invoices and Outstanding Balance
  * - An info card (dl/dt/dd list) with all vendor fields — read view
@@ -25,9 +25,8 @@ export interface EditVendorData {
 export class VendorDetailPage {
   readonly page: Page;
 
-  // Breadcrumb
+  // Navigation
   readonly backToVendorsButton: Locator;
-  readonly breadcrumbCurrent: Locator;
 
   // Page header
   readonly pageTitle: Locator;
@@ -71,9 +70,8 @@ export class VendorDetailPage {
   constructor(page: Page) {
     this.page = page;
 
-    // Breadcrumb — the "Vendors" back link is a React Router <Link> (renders <a>)
-    this.backToVendorsButton = page.getByRole('link', { name: 'Vendors', exact: true });
-    this.breadcrumbCurrent = page.locator('[class*="breadcrumbCurrent"]');
+    // Navigation — back button replaces breadcrumb
+    this.backToVendorsButton = page.getByRole('button', { name: /back to vendors/i });
 
     // Page header
     this.pageTitle = page.getByRole('heading', { level: 1 });
@@ -136,7 +134,7 @@ export class VendorDetailPage {
   }
 
   /**
-   * Navigate back to the vendors list using the breadcrumb button.
+   * Navigate back to the vendors list using the back button.
    */
   async goBackToVendors(): Promise<void> {
     await this.backToVendorsButton.click();
