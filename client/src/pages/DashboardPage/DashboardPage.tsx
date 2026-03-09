@@ -197,7 +197,7 @@ export function DashboardPage() {
         invoices: {
           isLoading: false,
           error: null,
-          isEmpty: invoicesResult.value.items.length === 0,
+          isEmpty: invoicesResult.value.invoices.length === 0,
         },
       }));
     } else {
