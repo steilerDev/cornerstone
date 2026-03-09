@@ -85,10 +85,24 @@ All values covered by existing Layer 2 semantic tokens.
 
 ## Card Footer Link Targets
 
-| Card ID          | href                  |
-| ---------------- | --------------------- |
-| `budget`         | `/project/overview`   |
-| `timeline`       | `/project/milestones` |
-| `budget-sources` | `/budget/sources`     |
-| `subsidies`      | `/budget/subsidies`   |
-| `invoices`       | `/budget/invoices`    |
+| Card ID          | href                       |
+|------------------|----------------------------|
+| `budget`         | `/project/overview`        |
+| `timeline`       | `/project/milestones`      |
+| `budget-sources` | `/budget/sources`          |
+| `subsidies`      | `/budget/subsidies`        |
+| `invoices`       | `/budget/invoices`         |
+
+## PR #709 Review Findings (for impl correction reference)
+
+- `<div>` + `<h3>` used instead of required `<article aria-labelledby>` + `<h2>`
+- Skeleton `aria-label="Loading"` must include card name: `aria-label={\`Loading ${title} data\`}`
+- Dismiss button reduced to 40×40px on tablet/mobile — must stay 44px at all sizes ≤1023px
+- Grid gaps off by one step: desktop needs `--spacing-6`, tablet `--spacing-5`, mobile `--spacing-4`
+- max-width is 1400px — spec says 1200px
+- Tablet breakpoint uses `max-width: 1024px` — must be `1023px` (recurring pattern)
+- Skeleton gradient: `--color-bg-secondary` base used instead of `--color-bg-tertiary`
+- Missing `prefers-reduced-motion` guard on shimmer `@keyframes`
+- `retryButton` duplicates `btnPrimary`; spec says compose `btnSecondaryCompact`
+- `customizeButton` uses `--color-bg-tertiary` (code block token); use `--color-bg-secondary` or compose `btnSecondary`
+- `reEnableButton:focus-visible` uses non-standard inset shadow; must use `var(--shadow-focus)` (outset)

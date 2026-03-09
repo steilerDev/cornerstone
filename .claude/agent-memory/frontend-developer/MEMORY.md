@@ -496,3 +496,21 @@ git update-index --add --cacheinfo 100644,<hash>,<path>
 ```
 
 For agent-owned dirs, Python fallback: write compressed zlib blob directly.
+
+## DashboardCard Component (Story #471, PR TBD)
+
+- `client/src/components/DashboardCard/DashboardCard.tsx` — reusable card shell for dashboard
+- Props: `title`, `onDismiss`, `isLoading?`, `error?`, `onRetry?`, `isEmpty?`, `emptyMessage?`, `emptyAction?`, `children`
+- CSS: `.card` (bg-primary, border, shadow), `.cardHeader` (flex between title and dismiss), `.cardTitle` (uppercase muted)
+- Dismiss button: `aria-label="Hide {title} card"` — min-height 44px for touch
+- Loading: 3 shimmer lines with gradient animation, `aria-busy="true"`
+- Error: centered message + "Retry" button (uses `--color-primary` via `retryButton` class)
+- Empty: centered message + optional link action
+- Responsive: Desktop (5px pad) → Tablet (4px) → Mobile (4px)
+- DashboardPage: 8 cards (budget-summary, budget-alerts, source-utilization, timeline-status, mini-gantt, invoice-pipeline, subsidy-pipeline, quick-actions)
+- Preferences: `dashboard.hiddenCards` = JSON array of card IDs; parse + store in `hiddenCardIds` Set
+- Customize dropdown: only shows when cards are hidden; "Show X" buttons re-enable cards
+- Parallel data fetch: `Promise.allSettled([budgetOverview, budgetSources, subsidyPrograms, timeline, invoices])`
+- Per-card state: `dataStates` Record<DataSourceKey, DataSourceState> with isLoading/error/isEmpty
+- Card mapping: budget-summary/alerts → budgetOverview; source-utilization → budgetSources; timeline-status/mini-gantt → timeline; invoice-pipeline → invoices; subsidy-pipeline → subsidyPrograms; quick-actions → no data (always shows)
+- Grid: 3-column desktop, 2-column tablet, 1-column mobile (all via CSS Grid)
