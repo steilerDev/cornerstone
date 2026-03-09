@@ -322,7 +322,14 @@ export function CalendarView({
         onNavigate();
       });
     },
-    [workItemById, householdItemById, activeTouchId, itemTooltipDepsMap, hiLinkedItemsMap, handleTouchTap],
+    [
+      workItemById,
+      householdItemById,
+      activeTouchId,
+      itemTooltipDepsMap,
+      hiLinkedItemsMap,
+      handleTouchTap,
+    ],
   );
 
   const handleItemMouseEnter = useCallback(
