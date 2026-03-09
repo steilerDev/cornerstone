@@ -43,7 +43,7 @@ test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
       await listPage.goto();
 
       await expect(listPage.heading).toBeVisible();
-      await expect(listPage.heading).toHaveText('Household Items');
+      await expect(listPage.heading).toHaveText('Project');
     },
   );
 
