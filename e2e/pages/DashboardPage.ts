@@ -24,7 +24,7 @@ export class DashboardPage {
 
     this.heading = page.getByRole('heading', {
       level: 1,
-      name: 'Overview',
+      name: 'Project',
       exact: true,
     });
     // The description is a <p> with the CSS-module class "description".

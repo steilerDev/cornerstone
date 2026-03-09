@@ -65,7 +65,7 @@ export class WorkItemsPage {
     this.page = page;
 
     // Page header
-    this.heading = page.getByRole('heading', { level: 1, name: 'Work Items', exact: true });
+    this.heading = page.getByRole('heading', { level: 1, name: 'Project', exact: true });
     // "New Work Item" is a <button> that calls navigate(), not a <Link>
     this.newWorkItemButton = page.getByRole('button', { name: /New Work Item/ });
 
