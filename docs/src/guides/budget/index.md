@@ -22,7 +22,7 @@ The budget system provides:
 
 Each **work item** can have one or more **budget lines**. A budget line connects a work item to a **budget category** and a **financing source** with an estimated amount and confidence level.
 
-When a vendor submits an **invoice**, you link invoice line items to the relevant budget lines. This replaces the estimate with the actual cost and automatically updates the budget overview.
+When a vendor submits an **invoice**, you link the relevant budget lines to the invoice with itemized amounts. A single invoice can be linked to multiple budget lines across different work items and household items, and each link carries a specific amount that attributes a portion of the invoice to that budget line. This replaces the estimate with the actual cost and automatically updates the budget overview.
 
 **Subsidies** reduce the total amount needed from financing sources, applied per budget category.
 

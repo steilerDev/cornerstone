@@ -131,19 +131,17 @@ describe('HouseholdItemsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(
-          screen.getByRole('heading', { name: /household items/i, level: 1 }),
-        ).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /^project$/i, level: 1 })).toBeInTheDocument();
       });
     });
 
-    it('renders "New Item" button in header', async () => {
+    it('renders "New Household Item" button in header', async () => {
       mockListHouseholdItems.mockResolvedValueOnce(emptyResponse);
 
       renderPage();
 
       await waitFor(() => {
-        const buttons = screen.getAllByRole('button', { name: /new item/i });
+        const buttons = screen.getAllByRole('button', { name: /new household item/i });
         expect(buttons[0]).toBeInTheDocument();
       });
     });
@@ -332,7 +330,7 @@ describe('HouseholdItemsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new item/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /new household item/i })).toBeInTheDocument();
       });
 
       // Open the actions menu for the first item by clicking the first menu button
@@ -360,7 +358,7 @@ describe('HouseholdItemsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new item/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /new household item/i })).toBeInTheDocument();
       });
 
       // Open the actions menu for the first item
@@ -386,7 +384,7 @@ describe('HouseholdItemsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new item/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /new household item/i })).toBeInTheDocument();
       });
 
       // Open the actions menu for the first item
@@ -414,7 +412,7 @@ describe('HouseholdItemsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new item/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /new household item/i })).toBeInTheDocument();
       });
 
       // Open the actions menu for the first item
@@ -443,7 +441,7 @@ describe('HouseholdItemsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new item/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /new household item/i })).toBeInTheDocument();
       });
 
       // Open the actions menu for the first item

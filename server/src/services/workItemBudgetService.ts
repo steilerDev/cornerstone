@@ -2,19 +2,20 @@ import { eq } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import { workItems, workItemBudgets } from '../db/schema.js';
-import { createBudgetService, getLinkedInvoices } from './shared/budgetServiceFactory.js';
+import { createBudgetService } from './shared/budgetServiceFactory.js';
 import type { ResolvedBudgetRelations } from './shared/budgetServiceFactory.js';
 import type {
   WorkItemBudgetLine,
   CreateWorkItemBudgetRequest,
   UpdateWorkItemBudgetRequest,
+  InvoiceStatus,
 } from '@cornerstone/shared';
 import { NotFoundError } from '../errors/AppError.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
 function toWorkItemBudgetLine(
-  db: DbType,
+  _db: DbType,
   row: typeof workItemBudgets.$inferSelect,
   rel: ResolvedBudgetRelations,
 ): WorkItemBudgetLine {
@@ -31,7 +32,16 @@ function toWorkItemBudgetLine(
     actualCost: rel.actualCost,
     actualCostPaid: rel.actualCostPaid,
     invoiceCount: rel.invoiceCount,
-    invoices: getLinkedInvoices(db, row.id, 'work_item_budget_id'),
+    invoiceLink: rel.invoiceLink
+      ? {
+          invoiceBudgetLineId: rel.invoiceLink.invoiceBudgetLineId,
+          invoiceId: rel.invoiceLink.invoiceId,
+          invoiceNumber: rel.invoiceLink.invoiceNumber,
+          invoiceDate: rel.invoiceLink.invoiceDate,
+          invoiceStatus: rel.invoiceLink.invoiceStatus as InvoiceStatus,
+          itemizedAmount: rel.invoiceLink.itemizedAmount,
+        }
+      : null,
     createdBy: rel.createdBy,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,

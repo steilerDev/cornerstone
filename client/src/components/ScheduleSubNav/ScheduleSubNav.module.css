@@ -1,7 +1,12 @@
+/* ============================================================
+ * ScheduleSubNav — horizontal tab navigation for the Schedule section
+ * ============================================================ */
+
 .subNav {
   width: 100%;
 }
 
+/* Scrollable tab row — scrolls horizontally when tabs overflow on mobile */
 .tabList {
   display: flex;
   flex-direction: row;
@@ -9,27 +14,27 @@
   border-bottom: 2px solid var(--color-border);
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
+  /* Hide scrollbar on browsers that support it — tabs still scroll on touch */
+  scrollbar-width: none; /* Firefox */
 }
 
 .tabList::-webkit-scrollbar {
-  display: none;
+  display: none; /* Chrome / Safari */
 }
 
+/* Individual tab link */
 .tab {
   display: inline-flex;
   align-items: center;
-  gap: var(--spacing-1-5);
   padding: var(--spacing-2-5) var(--spacing-4);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
   color: var(--color-text-secondary);
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -2px;
+  text-decoration: none;
   white-space: nowrap;
-  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  /* Pull the tab border down so it overlaps the container border */
+  margin-bottom: -2px;
   transition:
     color var(--transition-normal),
     border-color var(--transition-normal),
@@ -48,6 +53,7 @@
   border-radius: var(--radius-sm);
 }
 
+/* Active tab */
 .tabActive {
   color: var(--color-primary);
   border-bottom-color: var(--color-primary);
@@ -60,17 +66,13 @@
   border-bottom-color: var(--color-primary-hover);
 }
 
-.tabLabel {
-  /* visible by default */
-}
+/* ============================================================
+ * RESPONSIVE — Mobile (max 767px): reduce padding for smaller screens
+ * ============================================================ */
 
 @media (max-width: 767px) {
   .tab {
     padding: var(--spacing-2) var(--spacing-3);
     font-size: var(--font-size-xs);
-  }
-
-  .tabLabel {
-    display: none;
   }
 }

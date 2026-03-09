@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { randomUUID } from 'node:crypto';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
@@ -151,7 +152,6 @@ describe('subsidyPaybackService', () => {
     db.insert(schema.invoices)
       .values({
         id,
-        workItemBudgetId: budgetLineId,
         vendorId,
         invoiceNumber: null,
         amount,
@@ -159,6 +159,16 @@ describe('subsidyPaybackService', () => {
         date: now.slice(0, 10),
         dueDate: null,
         notes: null,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    db.insert(schema.invoiceBudgetLines)
+      .values({
+        id: randomUUID(),
+        invoiceId: id,
+        workItemBudgetId: budgetLineId,
+        itemizedAmount: amount,
         createdAt: now,
         updatedAt: now,
       })
@@ -325,22 +335,30 @@ describe('subsidyPaybackService', () => {
       expect(result.subsidies[0].maxPayback).toBeCloseTo(80);
     });
 
-    it('sums multiple invoices for the same budget line as actual cost (min === max)', () => {
+    it('uses actual invoiced cost across multiple budget lines as actual cost (min === max)', () => {
+      // Each budget line can only link to ONE invoice (partial UNIQUE index on work_item_budget_id).
+      // Use two separate budget lines — each with its own invoice — to model distributed invoicing.
       const workItemId = insertWorkItem();
-      const budgetLineId = insertBudgetLine({
+      const budgetLine1Id = insertBudgetLine({
         workItemId,
-        plannedAmount: 2000,
+        plannedAmount: 1200,
         confidence: 'own_estimate',
       });
-      insertInvoice(budgetLineId, 600);
-      insertInvoice(budgetLineId, 400); // total: 1000
+      const budgetLine2Id = insertBudgetLine({
+        workItemId,
+        plannedAmount: 800,
+        confidence: 'own_estimate',
+      });
+      insertInvoice(budgetLine1Id, 600); // actual for line 1
+      insertInvoice(budgetLine2Id, 400); // actual for line 2 — total across both: 1000
 
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
       linkSubsidyToWorkItem(workItemId, subsidyId);
 
       const result = getWorkItemSubsidyPayback(db, workItemId);
 
-      // 1000 × 10% = 100, no margin
+      // Both lines are invoiced: actual cost = 600 + 400 = 1000, no margin
+      // 1000 × 10% = 100
       expect(result.minTotalPayback).toBeCloseTo(100);
       expect(result.maxTotalPayback).toBeCloseTo(100);
     });

@@ -128,7 +128,7 @@ describe('WorkItemsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('heading', { name: /work items/i, level: 1 })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /^project$/i, level: 1 })).toBeInTheDocument();
       });
     });
 

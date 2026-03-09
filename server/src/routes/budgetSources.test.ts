@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { buildApp } from '../app.js';
 import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
@@ -13,7 +14,14 @@ import type {
   ApiErrorResponse,
   CreateBudgetSourceRequest,
 } from '@cornerstone/shared';
-import { budgetSources, workItems, workItemBudgets, vendors, invoices } from '../db/schema.js';
+import {
+  budgetSources,
+  workItems,
+  workItemBudgets,
+  vendors,
+  invoices,
+  invoiceBudgetLines,
+} from '../db/schema.js';
 
 describe('Budget Source Routes', () => {
   let app: FastifyInstance;
@@ -148,15 +156,27 @@ describe('Budget Source Routes', () => {
       })
       .run();
 
+    const invoiceId = `inv-route-claims-${n}`;
     app.db
       .insert(invoices)
       .values({
-        id: `inv-route-claims-${n}`,
+        id: invoiceId,
         vendorId,
-        workItemBudgetId: budgetId,
         amount: invoiceAmount,
         date: '2026-01-01',
         status: 'claimed',
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+
+    app.db
+      .insert(invoiceBudgetLines)
+      .values({
+        id: randomUUID(),
+        invoiceId,
+        workItemBudgetId: budgetId,
+        itemizedAmount: invoiceAmount,
         createdAt: now,
         updatedAt: now,
       })
@@ -214,15 +234,27 @@ describe('Budget Source Routes', () => {
       })
       .run();
 
+    const invoiceId = `inv-route-paid-${n}`;
     app.db
       .insert(invoices)
       .values({
-        id: `inv-route-paid-${n}`,
+        id: invoiceId,
         vendorId,
-        workItemBudgetId: budgetId,
         amount: invoiceAmount,
         date: '2026-01-01',
         status: 'paid',
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+
+    app.db
+      .insert(invoiceBudgetLines)
+      .values({
+        id: randomUUID(),
+        invoiceId,
+        workItemBudgetId: budgetId,
+        itemizedAmount: invoiceAmount,
         createdAt: now,
         updatedAt: now,
       })

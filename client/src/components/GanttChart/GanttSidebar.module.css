@@ -81,7 +81,7 @@
 
 /* Milestone rows — appear after work item rows, visually distinct */
 .sidebarMilestoneRow {
-  cursor: default;
+  cursor: pointer;
   gap: var(--spacing-2);
 }
 

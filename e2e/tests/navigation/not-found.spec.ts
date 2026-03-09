@@ -43,6 +43,6 @@ test.describe('404 Not Found Page', () => {
 
     // Then: User should be redirected to project overview
     await expect(page).toHaveURL(ROUTES.home);
-    await expect(page.getByRole('heading', { level: 1, name: 'Overview' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Project' })).toBeVisible();
   });
 });

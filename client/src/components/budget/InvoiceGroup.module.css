@@ -1,0 +1,284 @@
+/* ─── Invoice Group Container ───────────────────────────────────────────── */
+
+.group {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  overflow: hidden;
+}
+
+/* ─── Toggle Button (Header) ─────────────────────────────────────────────── */
+
+.toggleBtn {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: var(--color-bg-primary);
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  transition: var(--transition-button);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.toggleBtn:hover {
+  background: var(--color-bg-tertiary);
+}
+
+.toggleBtn:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.toggleBtn:active {
+  background: var(--color-bg-secondary);
+}
+
+/* ─── Header Content ─────────────────────────────────────────────────────── */
+
+.headerContent {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.invoiceInfo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 0 1 auto;
+}
+
+.invoiceNumber {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+.invoiceLink {
+  color: var(--color-primary);
+  text-decoration: none;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.invoiceLink:hover {
+  text-decoration: underline;
+}
+
+.invoiceLink:focus-visible {
+  box-shadow: var(--shadow-focus);
+  border-radius: 2px;
+}
+
+.statusBadge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: capitalize;
+  white-space: nowrap;
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+}
+
+.statusBadge.status_pending {
+  background: var(--color-orange-100);
+  color: var(--color-orange-800);
+}
+
+[data-theme='dark'] .statusBadge.status_pending {
+  background: var(--color-orange-400);
+  color: var(--color-black);
+}
+
+.statusBadge.status_paid {
+  background: var(--color-green-100);
+  color: var(--color-green-700);
+}
+
+[data-theme='dark'] .statusBadge.status_paid {
+  background: var(--color-emerald-400);
+  color: var(--color-black);
+}
+
+.statusBadge.status_claimed {
+  background: var(--color-blue-100);
+  color: var(--color-blue-800);
+}
+
+[data-theme='dark'] .statusBadge.status_claimed {
+  background: var(--color-blue-300);
+  color: var(--color-black);
+}
+
+/* ─── Amounts Display ────────────────────────────────────────────────────── */
+
+.amounts {
+  display: flex;
+  gap: 1.5rem;
+  flex: 0 1 auto;
+}
+
+.amountGroup {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.125rem;
+}
+
+.amountValue {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  font-size: 0.9375rem;
+}
+
+.amountValueMuted {
+  font-weight: 600;
+  color: var(--color-text-muted);
+  font-size: 0.9375rem;
+  text-decoration: line-through;
+}
+
+.amountLabel {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+.amountLabelMuted {
+  opacity: 0.6;
+}
+
+/* ─── Chevron ────────────────────────────────────────────────────────────── */
+
+.chevron {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  color: var(--color-text-muted);
+  transition: transform 0.2s ease-out;
+  font-size: 0.75rem;
+}
+
+.chevronOpen {
+  transform: rotate(-180deg);
+}
+
+/* ─── Expanded Content ───────────────────────────────────────────────────── */
+
+.lines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: var(--color-bg-secondary);
+  outline: none;
+}
+
+.lineWrapper {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── Unlink Section ─────────────────────────────────────────────────────── */
+
+.unlinkSection {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.unlinkBtn {
+  padding: 0.375rem 0.75rem;
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 0.25rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition-button);
+}
+
+.unlinkBtn:hover:not(:disabled) {
+  background: var(--color-danger-bg);
+  color: var(--color-danger-active);
+  border-color: var(--color-danger-border);
+}
+
+.unlinkBtn:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.unlinkBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ─── Responsive ─────────────────────────────────────────────────────────── */
+
+@media (max-width: 1024px) {
+  .toggleBtn {
+    min-height: 44px;
+  }
+
+  .amounts {
+    gap: 1rem;
+  }
+
+  .amountValue {
+    font-size: 0.875rem;
+  }
+
+  .amountLabel {
+    font-size: 0.7rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .toggleBtn {
+    padding: 0.625rem 0.875rem;
+    min-height: 44px;
+  }
+
+  .headerContent {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .amounts {
+    width: 100%;
+    gap: 2rem;
+    justify-content: space-between;
+  }
+
+  .amountGroup {
+    align-items: flex-start;
+  }
+
+  .lines {
+    padding: 0.5rem;
+  }
+
+  .unlinkBtn {
+    min-height: 44px;
+    padding: 0.5rem 1rem;
+  }
+}

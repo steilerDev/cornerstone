@@ -600,6 +600,30 @@ export function GanttChart({
   }, [data.milestones]);
 
   /**
+   * Map from household item ID → resolved linked items (work items / milestones).
+   * Used to populate the tooltip's "Linked Items" section.
+   */
+  const hiLinkedItemsMap = useMemo(() => {
+    const map = new Map<string, { id: string; title: string; type: 'work_item' | 'milestone' }[]>();
+    for (const hi of data.householdItems ?? []) {
+      if (hi.dependencyIds.length === 0) continue;
+      const linked: { id: string; title: string; type: 'work_item' | 'milestone' }[] = [];
+      for (const dep of hi.dependencyIds) {
+        if (dep.predecessorType === 'work_item') {
+          const title = workItemMap.get(dep.predecessorId)?.title;
+          if (title) linked.push({ id: dep.predecessorId, title, type: 'work_item' });
+        } else {
+          const msId = Number(dep.predecessorId);
+          const title = milestoneTitles.get(msId);
+          if (title) linked.push({ id: dep.predecessorId, title, type: 'milestone' });
+        }
+      }
+      if (linked.length > 0) map.set(hi.id, linked);
+    }
+    return map;
+  }, [data.householdItems, workItemMap, milestoneTitles]);
+
+  /**
    * Map from HI ID to its circle center position in SVG coordinates.
    * Mirrors the positioning logic in GanttHouseholdItems: each HI occupies
    * its own row in the unified row list. The x position uses the best available date.
@@ -994,6 +1018,7 @@ export function GanttChart({
           actualDeliveryDate: tooltipItem.actualDeliveryDate,
           isLate: tooltipItem.isLate,
           householdItemId: hiId,
+          linkedItems: hiLinkedItemsMap.get(hiId),
         });
         setTooltipPosition({
           x: window.innerWidth / 2,
@@ -1008,6 +1033,7 @@ export function GanttChart({
       onHouseholdItemClick,
       showTimerRef,
       hideTimerRef,
+      hiLinkedItemsMap,
     ],
   );
 
@@ -1103,6 +1129,7 @@ export function GanttChart({
         milestones={data.milestones}
         unifiedRows={unifiedRows}
         onItemClick={handleBarOrSidebarClick}
+        onMilestoneClick={onMilestoneClick}
         onHouseholdItemClick={handleHiClick}
         ref={sidebarScrollRef}
       />
@@ -1318,6 +1345,7 @@ export function GanttChart({
                       actualDeliveryDate: hi.actualDeliveryDate,
                       isLate: hi.isLate,
                       householdItemId: hi.id,
+                      linkedItems: hiLinkedItemsMap.get(hi.id),
                     });
                     setTooltipPosition(newPos);
                   }, TOOLTIP_SHOW_DELAY);
@@ -1353,6 +1381,7 @@ export function GanttChart({
                       actualDeliveryDate: hi.actualDeliveryDate,
                       isLate: hi.isLate,
                       householdItemId: hi.id,
+                      linkedItems: hiLinkedItemsMap.get(hi.id),
                     });
                     setTooltipPosition(newPos);
                   }, TOOLTIP_SHOW_DELAY);

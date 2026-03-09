@@ -3,6 +3,51 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`
 
+## Story #606 Invoice Budget Lines UI Tests (2026-03-08)
+
+**Test files**: `invoiceBudgetLinesApi.test.ts` (26), `InvoiceBudgetLinesSection.test.tsx` (36), updated `InvoiceDetailPage.test.tsx` (18).
+
+**Key patterns**:
+
+- When stubbing a sibling component (same directory), use `jest.unstable_mockModule('./InvoiceBudgetLinesSection.js', ...)` (relative path with `.js` extension)
+- When a section component has cascading deps (api mocks, pickers), stub it in the parent page test rather than setting up all transitive mocks
+- **Backdrop click via CSS class**: `outerModal?.querySelector('.modalBackdrop')` reliably selects the backdrop div when there is no accessible role/label on it
+- **Multiple elements same text**: `plannedAmount` and `remainingAmount` can both be `$1000.00` — use distinct values in fixture to avoid `getByText` ambiguity
+- **`data-invoice-total` attribute**: Numbers become strings in HTML attributes; assert with `.toHaveAttribute('data-invoice-total', '1500')` (not `1500` as number)
+- **InvoiceDetailPage test cleanup**: Removed stale `workItemBudgetsApi` and `householdItemsApi` mocks after those deps moved into `InvoiceBudgetLinesSection` (now stubbed)
+
+## Story #603 / Story 15.1 Test Fixes — Junction Table Model (2026-03-08)
+
+**Pattern**: When `invoice_budget_lines` uses partial UNIQUE index on `work_item_budget_id` and `household_item_budget_id`, each budget line can link to AT MOST ONE invoice. Any test that previously inserted multiple invoices for the same budget line violates this constraint.
+
+**Fix strategy**: Replace "multiple invoices on 1 budget line" with "1 invoice per budget line". Use separate budget lines for each invoice:
+
+- When testing totals: create N budget lines, each with 1 invoice, sum the amounts
+- When testing `budgetOverviewService.insertWorkItem` helper with both `actualCost` + `actualCostPending`: create a sibling budget line for the pending invoice so the UNIQUE constraint is not violated
+- When testing `invoiceCount`: with new model, max count per budget line is 1 (not 2+)
+- When `invoiceService.createInvoice()` no longer validates budget IDs (moved to routes layer), remove tests that expect `ValidationError`/`MutuallyExclusiveBudgetLinkError` from the service
+
+**Files fixed** (Story 15.1 junction table migration):
+
+- `shared/budgetServiceFactory.test.ts` — 3 tests
+- `subsidyPaybackService.test.ts` — 1 test
+- `shared/subsidyPaybackServiceFactory.test.ts` — 1 test
+- `budgetOverviewService.test.ts` — `insertWorkItem` helper + 3 tests
+- `budgetSourceService.test.ts` — 5 tests (3 multi-invoice, 1 mixed, context: claimed+paid tracking)
+- `invoiceService.household.test.ts` — removed 4 tests for old FK validation logic
+- `householdItemService.totalActual.test.ts` — 3 tests
+
+## Story #603 Invoice-Budget-Line Junction Migration (2026-03-08, Bug #611)
+
+- **Test file**: `server/src/db/migrations/0017_invoice_budget_lines.test.ts` (52 tests, all passing)
+- **Critical defect found**: SQLite DOES enforce CHECK constraints when ON DELETE SET NULL fires. ADR-018 claimed otherwise. Bug #611 filed.
+- **Pattern for partial migrations**: Use symlinks in a temp dir pointing to pre-migration SQL files, call `runMigrations(db, tempDir)`, then `db.exec(readFileSync('0017...sql'))` + `INSERT OR IGNORE INTO _migrations`. Clean up symlinks in `finally`.
+- **`MIGRATIONS_DIR` in migration test files**: `__dirname` IS the migrations dir (test file lives inside it), so `MIGRATIONS_DIR = __dirname` (NOT `join(__dirname, 'migrations')`).
+- **`ln -sf` on existing dir**: On Linux, `ln -sf /src /dest` where `/dest` is an existing directory creates a symlink INSIDE the dir, not replacing it. Use `ln -s` only when dest doesn't exist, or remove first.
+- **Worktree node_modules**: If worktree has empty `node_modules`, use `ln -sf /main/node_modules /worktree/node_modules`. The symlink replaces the empty dir (verified working).
+- **`console.warn = () => undefined`** in beforeEach suppresses `runMigrations()` progress logs. In tests that create their own DB (per-test isolation), also set it before calling `setupPreMigrationDb`.
+- **XOR CHECK + ON DELETE SET NULL incompatibility**: Any table with `CHECK((a IS NOT NULL AND b IS NULL) OR (a IS NULL AND b IS NOT NULL))` and `ON DELETE SET NULL` on column `a` will FAIL when the referenced row is deleted (SET NULL makes both NULL, violating XOR). Fix: use CASCADE instead of SET NULL.
+
 ## Story #498 Generic Budget Service Factory (2026-03-07)
 
 - **Test files**: `shared/budgetServiceFactory.test.ts` (65 tests), `routes/workItemBudgets.test.ts` (24 tests) — all passing.

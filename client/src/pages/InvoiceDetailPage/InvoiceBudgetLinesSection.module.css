@@ -1,0 +1,898 @@
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+/* ---- Section Header ---- */
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+}
+
+.sectionTitle {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.countBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  padding: var(--spacing-0-5) var(--spacing-1-5);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  min-width: 24px;
+}
+
+.addButton {
+  padding: var(--spacing-2) var(--spacing-3);
+  background-color: var(--color-primary);
+  color: var(--color-primary-text);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: var(--transition-button);
+  white-space: nowrap;
+}
+
+.addButton:hover:not(:disabled) {
+  background-color: var(--color-primary-hover);
+}
+
+.addButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.addButton:disabled {
+  background-color: var(--color-text-placeholder);
+  cursor: not-allowed;
+}
+
+/* ---- Error banner ---- */
+
+.errorBanner {
+  background-color: var(--color-danger-bg);
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-md);
+  color: var(--color-danger-active);
+  padding: var(--spacing-3);
+  font-size: var(--font-size-sm);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+}
+
+.dismissButton {
+  background: none;
+  border: none;
+  color: var(--color-danger);
+  cursor: pointer;
+  padding: var(--spacing-1);
+  font-weight: var(--font-weight-semibold);
+}
+
+.dismissButton:hover {
+  opacity: 0.8;
+}
+
+/* ---- Loading state ---- */
+
+.loadingState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-6);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+/* ---- Empty state ---- */
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-8);
+  text-align: center;
+}
+
+.emptyIcon {
+  font-size: var(--font-size-3xl);
+}
+
+.emptyTitle {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.emptyBody {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  max-width: 300px;
+  margin: 0;
+}
+
+/* ---- Table ---- */
+
+.tableWrapper {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.table thead {
+  background-color: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border-strong);
+}
+
+.table th {
+  padding: var(--spacing-3);
+  text-align: left;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  border-bottom: 1px solid var(--color-border-strong);
+}
+
+.thDescription {
+  min-width: 200px;
+}
+
+.thCategory {
+  min-width: 120px;
+}
+
+.thPlanned {
+  min-width: 100px;
+  text-align: right;
+}
+
+.thItemized {
+  min-width: 100px;
+  text-align: right;
+}
+
+.thLinkedItem {
+  min-width: 120px;
+}
+
+.thActions {
+  min-width: 120px;
+  text-align: center;
+}
+
+.table tbody tr {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.table tbody tr:hover {
+  background-color: var(--color-bg-secondary);
+}
+
+.tr {
+  display: table-row;
+}
+
+.td {
+  padding: var(--spacing-3);
+}
+
+.tdDescription {
+  @extend .td;
+  color: var(--color-text-primary);
+}
+
+.tdCategory {
+  @extend .td;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+}
+
+.tdPlanned {
+  @extend .td;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+}
+
+.tdItemized {
+  @extend .td;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
+}
+
+.tdLinkedItem {
+  @extend .td;
+  padding: var(--spacing-2) var(--spacing-3);
+}
+
+.linkedItemLink {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.linkedItemLink:hover {
+  text-decoration: underline;
+}
+
+.tdActions {
+  @extend .td;
+  text-align: center;
+}
+
+/* ---- Edit container (inline edit) ---- */
+
+.editContainer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.editInput {
+  padding: var(--spacing-1-5) var(--spacing-2);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-primary);
+  width: 100px;
+}
+
+.editInput:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-focus-subtle);
+}
+
+.editErrorMsg {
+  font-size: var(--font-size-xs);
+  color: var(--color-danger);
+}
+
+.editActions {
+  display: flex;
+  gap: var(--spacing-1);
+}
+
+.editSaveButton,
+.editCancelButton {
+  padding: var(--spacing-1) var(--spacing-2);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: var(--transition-button);
+}
+
+.editSaveButton {
+  background-color: var(--color-success);
+  color: var(--color-success-text);
+}
+
+.editSaveButton:hover:not(:disabled) {
+  background-color: var(--color-primary-hover);
+}
+
+.editCancelButton {
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border-strong);
+}
+
+.editCancelButton:hover {
+  background-color: var(--color-bg-hover);
+}
+
+/* ---- Action buttons ---- */
+
+.actionButtons {
+  display: flex;
+  gap: var(--spacing-2);
+}
+
+.editButton,
+.removeButton {
+  padding: var(--spacing-1) var(--spacing-2);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: var(--transition-button);
+  white-space: nowrap;
+}
+
+.editButton:hover,
+.removeButton:hover {
+  background-color: var(--color-bg-secondary);
+}
+
+.editButton:focus-visible,
+.removeButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.removeButton {
+  color: var(--color-danger);
+  border-color: var(--color-danger-border);
+}
+
+.removeButton:hover {
+  background-color: var(--color-danger-bg);
+}
+
+/* ---- Remaining row ---- */
+
+.trRemaining {
+  background-color: var(--color-bg-secondary);
+  font-weight: var(--font-weight-semibold);
+  border-top: 2px solid var(--color-border-strong);
+}
+
+.trRemaining_warning .tdRemaining {
+  color: var(--color-primary);
+}
+
+.trRemaining_danger .tdRemaining {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+.trRemaining_warning .tdRemaining {
+  font-weight: 600;
+}
+
+.trRemaining_neutral .tdRemaining {
+  color: var(--color-text-muted);
+}
+
+.tdRemainingLabel {
+  padding: var(--spacing-3);
+  text-align: right;
+  color: var(--color-text-secondary);
+}
+
+.tdRemaining {
+  padding: var(--spacing-3);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Modal ---- */
+
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modalBackdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--color-overlay);
+  cursor: pointer;
+}
+
+.modalContent {
+  position: relative;
+  background: var(--color-bg-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-2xl);
+  padding: var(--spacing-6);
+  max-width: 600px;
+  width: calc(100% - var(--spacing-8));
+  margin: var(--spacing-4);
+  max-height: calc(100vh - var(--spacing-8));
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.modalHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+}
+
+.modalTitle {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.modalClose {
+  background: none;
+  border: none;
+  font-size: var(--font-size-2xl);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.modalClose:hover {
+  color: var(--color-text-primary);
+}
+
+.modalBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.pickerStep {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.tabsContainer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.tab {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.tabTitle {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.separator {
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+/* ---- Budget line list ---- */
+
+.budgetLineList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  max-height: 300px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.budgetLineItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg-primary);
+  cursor: pointer;
+  transition: var(--transition-button);
+  text-align: left;
+}
+
+.budgetLineItem:hover {
+  background-color: var(--color-bg-secondary);
+  border-color: var(--color-border-strong);
+}
+
+.budgetLineItem:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.budgetLineInfo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  flex: 1;
+  min-width: 0;
+}
+
+.budgetLineDesc {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.budgetLineDetails {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.budgetLineCategory {
+  background-color: var(--color-bg-secondary);
+  padding: var(--spacing-0-5) var(--spacing-1);
+  border-radius: var(--radius-sm);
+}
+
+.budgetLinePlanned {
+  font-weight: var(--font-weight-medium);
+  font-variant-numeric: tabular-nums;
+}
+
+.budgetLineArrow {
+  color: var(--color-text-placeholder);
+  margin-left: var(--spacing-2);
+}
+
+/* ---- Picker Budget Line Row (Step 2) ---- */
+
+.pickerBudgetLineRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg-primary);
+}
+
+.pickerBudgetLineRow:hover {
+  background-color: var(--color-bg-secondary);
+  border-color: var(--color-border-strong);
+}
+
+.pickerBudgetLineAmount {
+  flex: 0 0 auto;
+  margin-left: var(--spacing-3);
+}
+
+.pickerAmountInput {
+  padding: var(--spacing-1-5) var(--spacing-2);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-primary);
+  width: 100px;
+  text-align: right;
+}
+
+.pickerAmountInput:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-focus-subtle);
+}
+
+/* ---- Remaining to allocate indicator ---- */
+
+.remainingIndicator {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-3);
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.remainingLabel {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.remainingAmount {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.remainingAmount.remainingExceeds {
+  color: var(--color-danger);
+}
+
+/* ---- Create Budget Line Form ---- */
+
+.createBudgetLineForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+  padding: var(--spacing-4);
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.createFormTitle {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1-5);
+}
+
+.formLabel {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.formInput,
+.formSelect {
+  padding: var(--spacing-1-5) var(--spacing-2);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-primary);
+  font-family: inherit;
+}
+
+.formInput:focus-visible,
+.formSelect:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-focus-subtle);
+}
+
+.formInput:disabled,
+.formSelect:disabled {
+  background-color: var(--color-bg-tertiary);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.formActions {
+  display: flex;
+  gap: var(--spacing-2);
+  justify-content: flex-end;
+}
+
+.formActions .cancelButton {
+  flex: 1;
+}
+
+.formActions .addButton {
+  flex: 1;
+}
+
+/* ---- Back button ---- */
+
+.backButton {
+  padding: var(--spacing-2) var(--spacing-3);
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: var(--transition-button);
+}
+
+.backButton:hover {
+  background-color: var(--color-bg-secondary);
+}
+
+.backButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+/* ---- Modal actions ---- */
+
+.modalActions {
+  display: flex;
+  gap: var(--spacing-3);
+  justify-content: flex-end;
+}
+
+.cancelButton {
+  padding: var(--spacing-2) var(--spacing-3);
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: var(--transition-button);
+}
+
+.cancelButton:hover:not(:disabled) {
+  background-color: var(--color-bg-secondary);
+}
+
+.cancelButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.cancelButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.deleteButton {
+  padding: var(--spacing-2) var(--spacing-3);
+  background-color: var(--color-danger);
+  color: var(--color-danger-text);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: background-color var(--transition-normal);
+}
+
+.deleteButton:hover:not(:disabled) {
+  background-color: var(--color-danger-hover);
+}
+
+.deleteButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus-danger);
+}
+
+.deleteButton:disabled {
+  background-color: var(--color-text-placeholder);
+  cursor: not-allowed;
+}
+
+.modalText {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+/* ============================================================
+ * RESPONSIVE — Mobile (max 767px)
+ * ============================================================ */
+
+@media (max-width: 767px) {
+  .sectionHeader {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .addButton {
+    width: 100%;
+    text-align: center;
+    min-height: 44px;
+  }
+
+  .table th,
+  .table td {
+    padding: var(--spacing-2);
+    font-size: var(--font-size-xs);
+  }
+
+  .thDescription {
+    min-width: 100px;
+  }
+
+  .thCategory {
+    min-width: 80px;
+  }
+
+  .thPlanned,
+  .thItemized {
+    min-width: 70px;
+  }
+
+  .thActions {
+    min-width: 80px;
+  }
+
+  .actionButtons {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .editButton,
+  .removeButton {
+    width: 100%;
+    text-align: center;
+    min-height: 36px;
+  }
+
+  .editInput {
+    width: 80px;
+  }
+
+  /* Modal */
+  .modalContent {
+    margin: 0;
+    width: 100%;
+    max-width: 100%;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    max-height: 80vh;
+  }
+
+  .modalActions {
+    flex-direction: column-reverse;
+  }
+
+  .modalActions .cancelButton,
+  .deleteButton {
+    width: 100%;
+    text-align: center;
+    min-height: 44px;
+  }
+
+  .backButton {
+    width: 100%;
+    text-align: center;
+    min-height: 44px;
+  }
+}
+
+/* ============================================================
+ * RESPONSIVE — Tablet (768px – 1024px)
+ * ============================================================ */
+
+@media (min-width: 768px) and (max-width: 1024px) {
+  .addButton {
+    min-height: 44px;
+  }
+
+  .editButton,
+  .removeButton {
+    min-height: 36px;
+  }
+
+  .cancelButton,
+  .deleteButton {
+    min-height: 44px;
+  }
+}

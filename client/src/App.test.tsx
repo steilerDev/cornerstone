@@ -300,12 +300,12 @@ describe('App', () => {
     expect(main).toBeInTheDocument();
   });
 
-  it('shows Overview page at root path / (redirects to /project/overview)', async () => {
+  it('shows Project page at root path / (redirects to /project/overview)', async () => {
     render(<App />);
 
     // Wait for lazy-loaded DashboardPage component to resolve
     // Root redirects to /project which redirects to /project/overview
-    const heading = await screen.findByRole('heading', { name: /^overview$/i });
+    const heading = await screen.findByRole('heading', { name: /^project$/i });
     expect(heading).toBeInTheDocument();
   });
 
@@ -314,7 +314,8 @@ describe('App', () => {
     render(<App />);
 
     // Wait for lazy-loaded WorkItems component to resolve
-    const heading = await screen.findByRole('heading', { name: /work items/i, level: 1 });
+    // The WorkItemsPage h1 now reads "Project" (shared sub-nav heading)
+    const heading = await screen.findByRole('heading', { name: /^project$/i, level: 1 });
     expect(heading).toBeInTheDocument();
   });
 
@@ -333,8 +334,8 @@ describe('App', () => {
     expect(heading).toBeInTheDocument();
   });
 
-  it('navigates to Schedule page when /schedule path is accessed', async () => {
-    window.history.pushState({}, 'Schedule', '/schedule');
+  it('navigates to Schedule page when /schedule/gantt path is accessed', async () => {
+    window.history.pushState({}, 'Schedule', '/schedule/gantt');
     render(<App />);
 
     // Wait for lazy-loaded TimelinePage component to resolve.
@@ -349,11 +350,13 @@ describe('App', () => {
     render(<App />);
 
     // Wait for lazy-loaded HouseholdItems component to resolve.
+    // The HouseholdItemsPage h1 now reads "Project" (shared sub-nav heading).
     // Use level: 1 to match the page title h1 (not the h2 empty state "No household items yet").
-    const heading = await screen.findByRole('heading', {
-      name: /household items/i,
-      level: 1,
-    });
+    const heading = await screen.findByRole(
+      'heading',
+      { name: /^project$/i, level: 1 },
+      { timeout: 5000 },
+    );
     expect(heading).toBeInTheDocument();
   });
 
@@ -362,7 +365,12 @@ describe('App', () => {
     render(<App />);
 
     // Wait for lazy-loaded Invoices component to resolve
-    const heading = await screen.findByRole('heading', { name: /^invoices$/i, level: 1 });
+    // The InvoicesPage h1 now reads "Budget" (shared sub-nav heading)
+    const heading = await screen.findByRole(
+      'heading',
+      { name: /^budget$/i, level: 1 },
+      { timeout: 5000 },
+    );
     expect(heading).toBeInTheDocument();
   });
 

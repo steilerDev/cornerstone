@@ -12,7 +12,6 @@ import { fetchVendors } from '../../lib/vendorsApi.js';
 import { fetchHouseholdItemCategories } from '../../lib/householdItemCategoriesApi.js';
 import { TagPicker } from '../../components/TagPicker/TagPicker.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
-import { ProjectSubNav } from '../../components/ProjectSubNav/ProjectSubNav.js';
 import styles from './HouseholdItemCreatePage.module.css';
 
 const STATUSES: Array<{ value: HouseholdItemStatus; label: string }> = [
@@ -173,7 +172,6 @@ export function HouseholdItemCreatePage() {
         </button>
         <h1 className={styles.title}>New Household Item</h1>
       </div>
-      <ProjectSubNav />
 
       {error && <div className={styles.errorBanner}>{error}</div>}
 

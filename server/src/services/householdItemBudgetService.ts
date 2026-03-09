@@ -8,6 +8,7 @@ import type {
   HouseholdItemBudgetLine,
   CreateHouseholdItemBudgetRequest,
   UpdateHouseholdItemBudgetRequest,
+  InvoiceStatus,
 } from '@cornerstone/shared';
 import { NotFoundError } from '../errors/AppError.js';
 
@@ -31,6 +32,16 @@ function toHouseholdItemBudgetLine(
     actualCost: rel.actualCost,
     actualCostPaid: rel.actualCostPaid,
     invoiceCount: rel.invoiceCount,
+    invoiceLink: rel.invoiceLink
+      ? {
+          invoiceBudgetLineId: rel.invoiceLink.invoiceBudgetLineId,
+          invoiceId: rel.invoiceLink.invoiceId,
+          invoiceNumber: rel.invoiceLink.invoiceNumber,
+          invoiceDate: rel.invoiceLink.invoiceDate,
+          invoiceStatus: rel.invoiceLink.invoiceStatus as InvoiceStatus,
+          itemizedAmount: rel.invoiceLink.itemizedAmount,
+        }
+      : null,
     createdBy: rel.createdBy,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,

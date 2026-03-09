@@ -36,6 +36,10 @@ import {
   updateWorkItemBudget,
   deleteWorkItemBudget,
 } from '../../lib/workItemBudgetsApi.js';
+import {
+  createInvoiceBudgetLine,
+  deleteInvoiceBudgetLine,
+} from '../../lib/invoiceBudgetLinesApi.js';
 import { listNotes, createNote, updateNote, deleteNote } from '../../lib/notesApi.js';
 import {
   listSubtasks,
@@ -65,6 +69,7 @@ import { useAuth } from '../../contexts/AuthContext.js';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import { KeyboardShortcutsHelp } from '../../components/KeyboardShortcutsHelp/KeyboardShortcutsHelp.js';
 import { BudgetSection } from '../../components/budget/BudgetSection.js';
+import { InvoiceLinkModal } from '../../components/budget/InvoiceLinkModal.js';
 import {
   DependencySentenceBuilder,
   DependencySentenceDisplay,
@@ -75,7 +80,6 @@ import { AutosaveIndicator } from '../../components/AutosaveIndicator/AutosaveIn
 import type { AutosaveState } from '../../components/AutosaveIndicator/AutosaveIndicator.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
 import { useBudgetSection, type BudgetLineFormState } from '../../hooks/useBudgetSection.js';
-import { ProjectSubNav } from '../../components/ProjectSubNav/ProjectSubNav.js';
 import styles from './WorkItemDetailPage.module.css';
 
 interface DeletingDependency {
@@ -128,9 +132,10 @@ export default function WorkItemDetailPage() {
   const [budgetSources, setBudgetSources] = useState<BudgetSource[]>([]);
   const [allVendors, setAllVendors] = useState<Vendor[]>([]);
 
-  // Invoice popover state: holds the budget line id whose popover is open (WI-specific)
-  const [invoicePopoverBudgetId, setInvoicePopoverBudgetId] = useState<string | null>(null);
-  const invoicePopoverRef = useRef<HTMLDivElement>(null);
+  // Invoice linking state
+  const [showInvoiceLinkModal, setShowInvoiceLinkModal] = useState(false);
+  const [invoiceLinkingBudgetId, setInvoiceLinkingBudgetId] = useState<string | null>(null);
+  const [isUnlinkingInvoice, setIsUnlinkingInvoice] = useState<Record<string, boolean>>({});
 
   // Subsidy linking state (linked subsidies and programs stay as local state)
   const [linkedSubsidies, setLinkedSubsidies] = useState<SubsidyProgram[]>([]);
@@ -365,18 +370,6 @@ export default function WorkItemDetailPage() {
     loadData();
   }, [id]);
 
-  // Close invoice popover on click-outside
-  useEffect(() => {
-    if (!invoicePopoverBudgetId) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      if (invoicePopoverRef.current && !invoicePopoverRef.current.contains(e.target as Node)) {
-        setInvoicePopoverBudgetId(null);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [invoicePopoverBudgetId]);
-
   // Reload work item details after changes
   const reloadWorkItem = async () => {
     if (!id) return;
@@ -485,6 +478,37 @@ export default function WorkItemDetailPage() {
       setInlineError('Failed to unlink subsidy program');
       console.error('Failed to unlink subsidy:', err);
     }
+  };
+
+  // ─── Invoice linking handlers ────────────────────────────────────────────
+
+  const handleLinkInvoice = (budgetLineId: string) => {
+    setInvoiceLinkingBudgetId(budgetLineId);
+    setShowInvoiceLinkModal(true);
+  };
+
+  const handleUnlinkInvoice = async (budgetLineId: string, invoiceBudgetLineId: string) => {
+    const invoiceLink = budgetLines.find((line) => line.id === budgetLineId)?.invoiceLink;
+    if (!invoiceLink) return;
+
+    setIsUnlinkingInvoice((prev) => ({ ...prev, [invoiceBudgetLineId]: true }));
+    setInlineError(null);
+
+    try {
+      await deleteInvoiceBudgetLine(invoiceLink.invoiceId, invoiceBudgetLineId);
+      await reloadBudgetLines();
+    } catch (err) {
+      setInlineError('Failed to unlink budget line from invoice');
+      console.error('Failed to unlink invoice:', err);
+    } finally {
+      setIsUnlinkingInvoice((prev) => ({ ...prev, [invoiceBudgetLineId]: false }));
+    }
+  };
+
+  const handleInvoiceLinkSuccess = () => {
+    setShowInvoiceLinkModal(false);
+    setInvoiceLinkingBudgetId(null);
+    reloadBudgetLines();
   };
 
   // ─── Milestone relationship handlers ──────────────────────────────────────
@@ -1157,7 +1181,6 @@ export default function WorkItemDetailPage() {
             </>
           )}
         </div>
-        <ProjectSubNav />
 
         <div className={styles.headerRow}>
           <div className={styles.titleSection}>
@@ -1329,60 +1352,11 @@ export default function WorkItemDetailPage() {
               onLinkSubsidy={handleLinkSubsidy}
               onUnlinkSubsidy={handleUnlinkSubsidy}
               onConfirmDeleteBudgetLine={handleConfirmDeleteBudgetLine}
-              renderBudgetLineChildren={(line) =>
-                line.invoiceCount > 0 ? (
-                  <div
-                    className={styles.invoicePopoverWrapper}
-                    ref={invoicePopoverBudgetId === line.id ? invoicePopoverRef : null}
-                  >
-                    <button
-                      type="button"
-                      className={styles.budgetLineMetaLink}
-                      onClick={() =>
-                        setInvoicePopoverBudgetId((prev) => (prev === line.id ? null : line.id))
-                      }
-                      aria-expanded={invoicePopoverBudgetId === line.id}
-                      aria-haspopup="true"
-                    >
-                      {line.invoiceCount} invoice{line.invoiceCount !== 1 ? 's' : ''} ·{' '}
-                      {formatCurrency(line.actualCost)}
-                    </button>
-                    {invoicePopoverBudgetId === line.id && (
-                      <div className={styles.invoicePopover} role="listbox">
-                        <div className={styles.invoicePopoverHeader}>Invoices</div>
-                        {line.invoices.map((inv) => (
-                          <Link
-                            key={inv.id}
-                            to={`/budget/invoices/${inv.id}`}
-                            className={styles.invoicePopoverItem}
-                            onClick={() => setInvoicePopoverBudgetId(null)}
-                          >
-                            <div className={styles.invoicePopoverItemRow}>
-                              <span className={styles.invoicePopoverItemNumber}>
-                                {inv.invoiceNumber ? `#${inv.invoiceNumber}` : 'No #'}
-                              </span>
-                              <span className={styles.invoicePopoverItemAmount}>
-                                {formatCurrency(inv.amount)}
-                              </span>
-                            </div>
-                            <div className={styles.invoicePopoverItemMeta}>
-                              {inv.vendorName && <span>{inv.vendorName}</span>}
-                              {inv.vendorName && <span>·</span>}
-                              <span>{inv.date.slice(0, 10)}</span>
-                              <span>·</span>
-                              <span
-                                className={`${styles.invoicePopoverStatusBadge} ${styles[`invoicePopoverStatus_${inv.status}`]}`}
-                              >
-                                {inv.status}
-                              </span>
-                            </div>
-                          </Link>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ) : null
-              }
+              budgetLineType="work_item"
+              onLinkInvoice={handleLinkInvoice}
+              onUnlinkInvoice={handleUnlinkInvoice}
+              isUnlinking={isUnlinkingInvoice}
+              inlineError={inlineError}
             />
           </section>
         </div>
@@ -2142,6 +2116,22 @@ export default function WorkItemDetailPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Invoice link modal */}
+      {showInvoiceLinkModal && invoiceLinkingBudgetId && (
+        <InvoiceLinkModal
+          budgetLineId={invoiceLinkingBudgetId}
+          budgetLineType="work_item"
+          defaultAmount={
+            budgetLines.find((line) => line.id === invoiceLinkingBudgetId)?.plannedAmount || 0
+          }
+          onSuccess={handleInvoiceLinkSuccess}
+          onClose={() => {
+            setShowInvoiceLinkModal(false);
+            setInvoiceLinkingBudgetId(null);
+          }}
+        />
       )}
     </div>
   );

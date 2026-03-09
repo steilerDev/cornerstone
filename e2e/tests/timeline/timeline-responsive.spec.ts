@@ -63,13 +63,6 @@ test.describe('Mobile layout (Scenario 2)', { tag: '@responsive' }, () => {
     await expect(timelinePage.ganttViewButton).toBeVisible();
     await expect(timelinePage.calendarViewButton).toBeVisible();
   });
-
-  test('Milestone panel button is visible on mobile viewport', async ({ page }) => {
-    const timelinePage = new TimelinePage(page);
-    await timelinePage.goto();
-
-    await expect(timelinePage.milestonePanelButton).toBeVisible();
-  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -474,13 +467,12 @@ test.describe('ARIA roles and labels (Scenario 7)', { tag: '@responsive' }, () =
     await expect(timelinePage.zoomToolbar).toHaveAttribute('aria-label', 'Zoom level');
   });
 
-  test('View toggle toolbar has role=toolbar and accessible label', async ({ page }) => {
+  test('View toggle navigation has accessible label', async ({ page }) => {
     const timelinePage = new TimelinePage(page);
     await timelinePage.goto();
 
-    const viewToolbar = page.getByRole('toolbar', { name: 'View mode' });
-    await expect(viewToolbar).toBeVisible();
-    await expect(viewToolbar).toHaveAttribute('role', 'toolbar');
+    const viewNav = page.getByRole('navigation', { name: 'Schedule view navigation' });
+    await expect(viewNav).toBeVisible();
   });
 
   test('Calendar mode toolbar has role=toolbar', async ({ page }) => {

@@ -31,10 +31,10 @@ test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
     await expect(timelinePage.heading).toHaveText('Schedule');
   });
 
-  test('Page URL is /schedule', async ({ page }) => {
+  test('Page URL is /schedule/gantt', async ({ page }) => {
     await page.goto(TIMELINE_ROUTE);
-    await page.waitForURL('**/schedule');
-    expect(page.url()).toContain('/schedule');
+    await page.waitForURL('**/schedule/gantt');
+    expect(page.url()).toContain('/schedule/gantt');
   });
 
   test('Toolbar is rendered with view toggle buttons', async ({ page }) => {
@@ -43,7 +43,6 @@ test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
 
     await expect(timelinePage.ganttViewButton).toBeVisible();
     await expect(timelinePage.calendarViewButton).toBeVisible();
-    await expect(timelinePage.milestonePanelButton).toBeVisible();
   });
 });
 

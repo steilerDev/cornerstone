@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { buildApp } from '../app.js';
 import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
@@ -108,10 +109,20 @@ describe('GET /api/budget/breakdown', () => {
         .values({
           id: invoiceId,
           vendorId,
-          workItemBudgetId: budgetId,
           amount: opts.actualCost,
           date: '2026-01-01',
           status: 'paid',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      app.db
+        .insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId,
+          workItemBudgetId: budgetId,
+          itemizedAmount: opts.actualCost,
           createdAt: now,
           updatedAt: now,
         })

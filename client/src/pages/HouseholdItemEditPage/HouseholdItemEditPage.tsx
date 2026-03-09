@@ -11,7 +11,6 @@ import { fetchVendors } from '../../lib/vendorsApi.js';
 import { fetchHouseholdItemCategories } from '../../lib/householdItemCategoriesApi.js';
 import { TagPicker } from '../../components/TagPicker/TagPicker.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
-import { ProjectSubNav } from '../../components/ProjectSubNav/ProjectSubNav.js';
 import styles from './HouseholdItemEditPage.module.css';
 
 interface Vendor {
@@ -187,7 +186,6 @@ export function HouseholdItemEditPage() {
         </button>
         <h1 className={styles.title}>Edit Household Item</h1>
       </div>
-      <ProjectSubNav />
 
       {error && <div className={styles.errorBanner}>{error}</div>}
 

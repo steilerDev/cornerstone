@@ -1,20 +1,11 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import type {
-  Invoice,
-  InvoiceStatus,
-  WorkItemBudgetLine,
-  HouseholdItemBudgetLine,
-} from '@cornerstone/shared';
+import type { Invoice, InvoiceStatus } from '@cornerstone/shared';
 import { fetchInvoiceById, updateInvoice, deleteInvoice } from '../../lib/invoicesApi.js';
-import { fetchWorkItemBudgets } from '../../lib/workItemBudgetsApi.js';
-import { fetchHouseholdItemBudgets } from '../../lib/householdItemBudgetsApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { formatDate, formatCurrency } from '../../lib/formatters.js';
-import { WorkItemPicker } from '../../components/WorkItemPicker/WorkItemPicker.js';
-import { HouseholdItemPicker } from '../../components/HouseholdItemPicker/HouseholdItemPicker.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
-import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
+import { InvoiceBudgetLinesSection } from './InvoiceBudgetLinesSection.js';
 import styles from './InvoiceDetailPage.module.css';
 
 const STATUS_LABELS: Record<InvoiceStatus, string> = {
@@ -30,10 +21,6 @@ interface InvoiceFormState {
   dueDate: string;
   status: InvoiceStatus;
   notes: string;
-  selectedWorkItemId: string;
-  workItemBudgetId: string;
-  selectedHouseholdItemId: string;
-  householdItemBudgetId: string;
 }
 
 export function InvoiceDetailPage() {
@@ -53,28 +40,14 @@ export function InvoiceDetailPage() {
     dueDate: '',
     status: 'pending',
     notes: '',
-    selectedWorkItemId: '',
-    workItemBudgetId: '',
-    selectedHouseholdItemId: '',
-    householdItemBudgetId: '',
   });
   const [isUpdating, setIsUpdating] = useState(false);
   const [editError, setEditError] = useState('');
-  const [budgetLinkTouched, setBudgetLinkTouched] = useState(false);
-  const [householdItemBudgetLinkTouched, setHouseholdItemBudgetLinkTouched] = useState(false);
 
   // Delete modal
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
-
-  // Budget lines for the selected work item
-  const [budgetLines, setBudgetLines] = useState<WorkItemBudgetLine[]>([]);
-  const [budgetLinesLoading, setBudgetLinesLoading] = useState(false);
-  const [householdItemBudgetLines, setHouseholdItemBudgetLines] = useState<
-    HouseholdItemBudgetLine[]
-  >([]);
-  const [householdItemBudgetLinesLoading, setHouseholdItemBudgetLinesLoading] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -106,8 +79,6 @@ export function InvoiceDetailPage() {
 
   const openEditModal = () => {
     if (!invoice) return;
-    const preSelectedWorkItemId = invoice.workItemBudget?.workItemId ?? '';
-    const preSelectedHouseholdItemId = invoice.householdItemBudget?.householdItemId ?? '';
     setEditForm({
       invoiceNumber: invoice.invoiceNumber ?? '',
       amount: invoice.amount.toString(),
@@ -115,33 +86,7 @@ export function InvoiceDetailPage() {
       dueDate: invoice.dueDate ? invoice.dueDate.slice(0, 10) : '',
       status: invoice.status,
       notes: invoice.notes ?? '',
-      selectedWorkItemId: preSelectedWorkItemId,
-      workItemBudgetId: invoice.workItemBudgetId ?? '',
-      selectedHouseholdItemId: preSelectedHouseholdItemId,
-      householdItemBudgetId: invoice.householdItemBudgetId ?? '',
     });
-    // Pre-fetch budget lines for the already-linked work item
-    if (preSelectedWorkItemId) {
-      setBudgetLinesLoading(true);
-      void fetchWorkItemBudgets(preSelectedWorkItemId)
-        .then((lines) => setBudgetLines(lines))
-        .catch(() => setBudgetLines([]))
-        .finally(() => setBudgetLinesLoading(false));
-    } else {
-      setBudgetLines([]);
-    }
-    // Pre-fetch budget lines for the already-linked household item
-    if (preSelectedHouseholdItemId) {
-      setHouseholdItemBudgetLinesLoading(true);
-      void fetchHouseholdItemBudgets(preSelectedHouseholdItemId)
-        .then((lines) => setHouseholdItemBudgetLines(lines))
-        .catch(() => setHouseholdItemBudgetLines([]))
-        .finally(() => setHouseholdItemBudgetLinesLoading(false));
-    } else {
-      setHouseholdItemBudgetLines([]);
-    }
-    setBudgetLinkTouched(false);
-    setHouseholdItemBudgetLinkTouched(false);
     setEditError('');
     setShowEditModal(true);
   };
@@ -175,10 +120,6 @@ export function InvoiceDetailPage() {
         dueDate: editForm.dueDate || null,
         status: editForm.status,
         notes: editForm.notes.trim() || null,
-        ...(budgetLinkTouched ? { workItemBudgetId: editForm.workItemBudgetId || null } : {}),
-        ...(householdItemBudgetLinkTouched
-          ? { householdItemBudgetId: editForm.householdItemBudgetId || null }
-          : {}),
       });
       setInvoice(updated);
       setShowEditModal(false);
@@ -257,20 +198,19 @@ export function InvoiceDetailPage() {
   return (
     <div className={styles.container}>
       <div className={styles.content}>
-        {/* Breadcrumb */}
-        <div className={styles.breadcrumb}>
-          <Link to="/budget/invoices" className={styles.backLink}>
-            Invoices
-          </Link>
-          <span className={styles.breadcrumbSeparator} aria-hidden="true">
-            /
-          </span>
-          <span className={styles.breadcrumbCurrent}>{invoice.invoiceNumber ?? 'Invoice'}</span>
+        {/* Navigation buttons */}
+        <div className={styles.navButtons}>
+          <button
+            type="button"
+            className={styles.backButton}
+            onClick={() => navigate('/budget/invoices')}
+          >
+            ← Back to Invoices
+          </button>
         </div>
-        <BudgetSubNav />
 
         {/* Page heading */}
-        <div className={styles.pageHeader}>
+        <div className={styles.headerRow}>
           <div className={styles.pageHeading}>
             <h1 className={styles.pageTitle}>
               {invoice.invoiceNumber ? `#${invoice.invoiceNumber}` : 'Invoice'}
@@ -331,38 +271,6 @@ export function InvoiceDetailPage() {
                 </span>
               </dd>
             </div>
-            {invoice.workItemBudget && (
-              <div className={styles.infoRow}>
-                <dt className={styles.infoLabel}>Work Item</dt>
-                <dd className={styles.infoValue}>
-                  <Link
-                    to={`/project/work-items/${invoice.workItemBudget.workItemId}`}
-                    className={styles.infoLink}
-                  >
-                    {invoice.workItemBudget.workItemTitle}
-                  </Link>
-                </dd>
-              </div>
-            )}
-            {invoice.householdItemBudget && (
-              <div className={styles.infoRow}>
-                <dt className={styles.infoLabel}>Household Item</dt>
-                <dd className={styles.infoValue}>
-                  <Link
-                    to={`/project/household-items/${invoice.householdItemBudget.householdItemId}`}
-                    className={styles.infoLink}
-                  >
-                    {invoice.householdItemBudget.householdItemName}
-                  </Link>
-                  {invoice.householdItemBudget.description && (
-                    <span className={styles.budgetLineDescription}>
-                      {' '}
-                      — {invoice.householdItemBudget.description}
-                    </span>
-                  )}
-                </dd>
-              </div>
-            )}
             <div className={styles.infoRow}>
               <dt className={styles.infoLabel}>Notes</dt>
               <dd className={`${styles.infoValue} ${invoice.notes ? styles.infoValueNotes : ''}`}>
@@ -375,6 +283,8 @@ export function InvoiceDetailPage() {
             </div>
           </dl>
         </section>
+
+        <InvoiceBudgetLinesSection invoiceId={id!} invoiceTotal={invoice.amount} />
 
         <LinkedDocumentsSection entityType="invoice" entityId={id!} />
       </div>
@@ -482,122 +392,6 @@ export function InvoiceDetailPage() {
                   <option value="claimed">Claimed</option>
                 </select>
               </div>
-
-              <div className={styles.field}>
-                <span className={styles.label}>Link to Work Item</span>
-                <WorkItemPicker
-                  value={editForm.selectedWorkItemId}
-                  onChange={(workItemId) => {
-                    setBudgetLinkTouched(true);
-                    setHouseholdItemBudgetLinkTouched(true);
-                    setEditForm({
-                      ...editForm,
-                      selectedWorkItemId: workItemId,
-                      workItemBudgetId: '',
-                      selectedHouseholdItemId: '',
-                      householdItemBudgetId: '',
-                    });
-                    if (workItemId) {
-                      setBudgetLinesLoading(true);
-                      void fetchWorkItemBudgets(workItemId)
-                        .then((lines) => setBudgetLines(lines))
-                        .catch(() => setBudgetLines([]))
-                        .finally(() => setBudgetLinesLoading(false));
-                    } else {
-                      setBudgetLines([]);
-                    }
-                  }}
-                  excludeIds={[]}
-                  disabled={isUpdating}
-                  placeholder="Search work items..."
-                  showItemsOnFocus
-                  initialTitle={invoice.workItemBudget?.workItemTitle ?? undefined}
-                />
-              </div>
-
-              {editForm.selectedWorkItemId && (
-                <div className={styles.field}>
-                  <label htmlFor="edit-budget-line" className={styles.label}>
-                    Budget Line
-                  </label>
-                  <select
-                    id="edit-budget-line"
-                    value={editForm.workItemBudgetId}
-                    onChange={(e) => {
-                      setBudgetLinkTouched(true);
-                      setEditForm({ ...editForm, workItemBudgetId: e.target.value });
-                    }}
-                    className={styles.select}
-                    disabled={isUpdating || budgetLinesLoading}
-                  >
-                    <option value="">None</option>
-                    {budgetLines.map((bl) => (
-                      <option key={bl.id} value={bl.id}>
-                        {bl.description || `${formatCurrency(bl.plannedAmount)} (${bl.confidence})`}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              <div className={styles.separator}>— or —</div>
-
-              <div className={styles.field}>
-                <span className={styles.label}>Link to Household Item</span>
-                <HouseholdItemPicker
-                  value={editForm.selectedHouseholdItemId}
-                  onChange={(householdItemId) => {
-                    setHouseholdItemBudgetLinkTouched(true);
-                    setBudgetLinkTouched(true);
-                    setEditForm({
-                      ...editForm,
-                      selectedHouseholdItemId: householdItemId,
-                      householdItemBudgetId: '',
-                      selectedWorkItemId: '',
-                      workItemBudgetId: '',
-                    });
-                    if (householdItemId) {
-                      setHouseholdItemBudgetLinesLoading(true);
-                      void fetchHouseholdItemBudgets(householdItemId)
-                        .then((lines) => setHouseholdItemBudgetLines(lines))
-                        .catch(() => setHouseholdItemBudgetLines([]))
-                        .finally(() => setHouseholdItemBudgetLinesLoading(false));
-                    } else {
-                      setHouseholdItemBudgetLines([]);
-                    }
-                  }}
-                  excludeIds={[]}
-                  disabled={isUpdating}
-                  placeholder="Search household items..."
-                  showItemsOnFocus
-                  initialTitle={invoice.householdItemBudget?.householdItemName ?? undefined}
-                />
-              </div>
-
-              {editForm.selectedHouseholdItemId && (
-                <div className={styles.field}>
-                  <label htmlFor="edit-household-budget-line" className={styles.label}>
-                    Budget Line
-                  </label>
-                  <select
-                    id="edit-household-budget-line"
-                    value={editForm.householdItemBudgetId}
-                    onChange={(e) => {
-                      setHouseholdItemBudgetLinkTouched(true);
-                      setEditForm({ ...editForm, householdItemBudgetId: e.target.value });
-                    }}
-                    className={styles.select}
-                    disabled={isUpdating || householdItemBudgetLinesLoading}
-                  >
-                    <option value="">None</option>
-                    {householdItemBudgetLines.map((bl) => (
-                      <option key={bl.id} value={bl.id}>
-                        {bl.description || `${formatCurrency(bl.plannedAmount)} (${bl.confidence})`}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
 
               <div className={styles.field}>
                 <label htmlFor="edit-notes" className={styles.label}>

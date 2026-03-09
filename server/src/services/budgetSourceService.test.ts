@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { randomUUID } from 'node:crypto';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
@@ -77,6 +78,42 @@ describe('Budget Source Service', () => {
   }
 
   let workItemCounter = 0;
+  let householdItemCounter = 0;
+
+  /**
+   * Helper: Insert a household item budget line with a budget_source_id reference.
+   * Used for testing computeUsedAmount and deleteBudgetSource blocking with HI budgets.
+   * NOTE: householdItems requires categoryId (NOT NULL FK); hic-furniture is seeded by migration 0016.
+   */
+  function insertRawHouseholdItemWithSource(
+    sourceId: string,
+    plannedAmount: number,
+  ): { hiId: string; budgetId: string } {
+    const hiId = `hi-src-test-${++householdItemCounter}`;
+    const budgetId = `hi-bud-src-test-${householdItemCounter}`;
+    const ts = new Date(Date.now() + householdItemCounter).toISOString();
+    db.insert(schema.householdItems)
+      .values({
+        id: hiId,
+        name: `Test Household Item ${householdItemCounter}`,
+        categoryId: 'hic-furniture', // seeded by migration 0016
+        createdAt: ts,
+        updatedAt: ts,
+      })
+      .run();
+    db.insert(schema.householdItemBudgets)
+      .values({
+        id: budgetId,
+        householdItemId: hiId,
+        budgetSourceId: sourceId,
+        plannedAmount,
+        confidence: 'own_estimate',
+        createdAt: ts,
+        updatedAt: ts,
+      })
+      .run();
+    return { hiId, budgetId };
+  }
 
   /**
    * Helper: Insert a work item budget line with a budget_source_id reference.
@@ -131,10 +168,19 @@ describe('Budget Source Service', () => {
       .values({
         id: invoiceId,
         vendorId,
-        workItemBudgetId: budgetLineId,
         amount,
         date: '2026-01-01',
         status: 'claimed',
+        createdAt: ts,
+        updatedAt: ts,
+      })
+      .run();
+    db.insert(schema.invoiceBudgetLines)
+      .values({
+        id: randomUUID(),
+        invoiceId,
+        workItemBudgetId: budgetLineId,
+        itemizedAmount: amount,
         createdAt: ts,
         updatedAt: ts,
       })
@@ -156,10 +202,19 @@ describe('Budget Source Service', () => {
       .values({
         id: invoiceId,
         vendorId,
-        workItemBudgetId: budgetLineId,
         amount,
         date: '2026-01-01',
         status: 'paid',
+        createdAt: ts,
+        updatedAt: ts,
+      })
+      .run();
+    db.insert(schema.invoiceBudgetLines)
+      .values({
+        id: randomUUID(),
+        invoiceId,
+        workItemBudgetId: budgetLineId,
+        itemizedAmount: amount,
         createdAt: ts,
         updatedAt: ts,
       })
@@ -172,6 +227,7 @@ describe('Budget Source Service', () => {
     db = testDb.db;
     timestampOffset = 0;
     workItemCounter = 0;
+    householdItemCounter = 0;
     insertTestUser();
   });
 
@@ -1254,9 +1310,11 @@ describe('Budget Source Service', () => {
         totalAmount: 60000,
       });
 
-      const { budgetId } = insertRawWorkItemWithSource(raw.id, 25000);
-      insertPaidInvoice(budgetId, 9000); // paid — should NOT be counted
-      insertClaimedInvoice(budgetId, 3000); // claimed — should be counted
+      // Each budget line can link to at most one invoice (UNIQUE constraint)
+      const { budgetId: b1 } = insertRawWorkItemWithSource(raw.id, 25000);
+      const { budgetId: b2 } = insertRawWorkItemWithSource(raw.id, 25000);
+      insertPaidInvoice(b1, 9000); // paid — should NOT be counted
+      insertClaimedInvoice(b2, 3000); // claimed — should be counted
 
       const result = budgetSourceService.getBudgetSourceById(db, raw.id);
 
@@ -1288,17 +1346,21 @@ describe('Budget Source Service', () => {
       expect(resultB.actualAvailableAmount).toBe(50000);
     });
 
-    it('accumulates multiple claimed invoices on the same budget line', () => {
+    it('accumulates claimed invoices across multiple budget lines for the same source', () => {
+      // Story 15.1 (junction table model): each budget line can link to AT MOST ONE invoice.
+      // Use three separate budget lines — each with its own claimed invoice.
       const raw = insertRawSource({
         name: 'Multi-Claim Source',
         sourceType: 'credit_line',
         totalAmount: 200000,
       });
 
-      const { budgetId } = insertRawWorkItemWithSource(raw.id, 50000);
-      insertClaimedInvoice(budgetId, 4000);
-      insertClaimedInvoice(budgetId, 6000);
-      insertClaimedInvoice(budgetId, 2500);
+      const { budgetId: b1 } = insertRawWorkItemWithSource(raw.id, 20000);
+      const { budgetId: b2 } = insertRawWorkItemWithSource(raw.id, 15000);
+      const { budgetId: b3 } = insertRawWorkItemWithSource(raw.id, 10000);
+      insertClaimedInvoice(b1, 4000);
+      insertClaimedInvoice(b2, 6000);
+      insertClaimedInvoice(b3, 2500);
 
       const result = budgetSourceService.getBudgetSourceById(db, raw.id);
 
@@ -1411,9 +1473,11 @@ describe('Budget Source Service', () => {
         totalAmount: 60000,
       });
 
-      const { budgetId } = insertRawWorkItemWithSource(raw.id, 25000);
-      insertClaimedInvoice(budgetId, 9000); // claimed — should NOT count toward unclaimedAmount
-      insertPaidInvoice(budgetId, 3000); // paid — SHOULD count toward unclaimedAmount
+      // Each budget line can link to at most one invoice (UNIQUE constraint)
+      const { budgetId: b1 } = insertRawWorkItemWithSource(raw.id, 25000);
+      const { budgetId: b2 } = insertRawWorkItemWithSource(raw.id, 25000);
+      insertClaimedInvoice(b1, 9000); // claimed — should NOT count toward unclaimedAmount
+      insertPaidInvoice(b2, 3000); // paid — SHOULD count toward unclaimedAmount
 
       const result = budgetSourceService.getBudgetSourceById(db, raw.id);
 
@@ -1443,17 +1507,21 @@ describe('Budget Source Service', () => {
       expect(resultB.unclaimedAmount).toBe(0);
     });
 
-    it('accumulates multiple paid invoices on the same budget line', () => {
+    it('accumulates paid invoices across multiple budget lines for the same source', () => {
+      // Story 15.1 (junction table model): each budget line can link to AT MOST ONE invoice.
+      // Use three separate budget lines — each with its own paid invoice.
       const raw = insertRawSource({
         name: 'Multi-Paid Source',
         sourceType: 'credit_line',
         totalAmount: 200000,
       });
 
-      const { budgetId } = insertRawWorkItemWithSource(raw.id, 50000);
-      insertPaidInvoice(budgetId, 3000);
-      insertPaidInvoice(budgetId, 7000);
-      insertPaidInvoice(budgetId, 1500);
+      const { budgetId: b1 } = insertRawWorkItemWithSource(raw.id, 20000);
+      const { budgetId: b2 } = insertRawWorkItemWithSource(raw.id, 15000);
+      const { budgetId: b3 } = insertRawWorkItemWithSource(raw.id, 10000);
+      insertPaidInvoice(b1, 3000);
+      insertPaidInvoice(b2, 7000);
+      insertPaidInvoice(b3, 1500);
 
       const result = budgetSourceService.getBudgetSourceById(db, raw.id);
 
@@ -1489,20 +1557,23 @@ describe('Budget Source Service', () => {
     });
 
     it('correctly tracks both claimedAmount and unclaimedAmount independently', () => {
-      // A source with a mix of claimed and paid invoices across multiple budget lines
+      // Story 15.1 (junction table model): each budget line can link to AT MOST ONE invoice.
+      // Use four separate budget lines — one claimed and one paid for each "conceptual" cost centre.
       const raw = insertRawSource({
         name: 'Mixed Invoice Source',
         sourceType: 'bank_loan',
         totalAmount: 300000,
       });
 
-      const { budgetId: b1 } = insertRawWorkItemWithSource(raw.id, 50000);
-      const { budgetId: b2 } = insertRawWorkItemWithSource(raw.id, 30000);
+      const { budgetId: b1Claimed } = insertRawWorkItemWithSource(raw.id, 50000);
+      const { budgetId: b1Paid } = insertRawWorkItemWithSource(raw.id, 20000);
+      const { budgetId: b2Claimed } = insertRawWorkItemWithSource(raw.id, 30000);
+      const { budgetId: b2Paid } = insertRawWorkItemWithSource(raw.id, 15000);
 
-      insertClaimedInvoice(b1, 12000); // claimed
-      insertPaidInvoice(b1, 5000); // paid (unclaimed)
-      insertClaimedInvoice(b2, 8000); // claimed
-      insertPaidInvoice(b2, 3000); // paid (unclaimed)
+      insertClaimedInvoice(b1Claimed, 12000); // claimed
+      insertPaidInvoice(b1Paid, 5000); // paid (unclaimed)
+      insertClaimedInvoice(b2Claimed, 8000); // claimed
+      insertPaidInvoice(b2Paid, 3000); // paid (unclaimed)
 
       const result = budgetSourceService.getBudgetSourceById(db, raw.id);
 
@@ -1510,6 +1581,121 @@ describe('Budget Source Service', () => {
       expect(result.unclaimedAmount).toBe(8000); // 5000 + 3000
       // actualAvailableAmount is based on claimedAmount only
       expect(result.actualAvailableAmount).toBe(280000); // 300000 - 20000
+    });
+  });
+
+  // ─── usedAmount with household item budgets (Bug #626) ────────────────────
+
+  describe('usedAmount including household item budget lines', () => {
+    it('computes usedAmount from household item budget lines only', () => {
+      const raw = insertRawSource({
+        name: 'HI Only Source',
+        sourceType: 'savings',
+        totalAmount: 50000,
+      });
+
+      insertRawHouseholdItemWithSource(raw.id, 10000);
+      insertRawHouseholdItemWithSource(raw.id, 7500);
+
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      expect(result.usedAmount).toBe(17500);
+      expect(result.availableAmount).toBe(32500);
+    });
+
+    it('computes usedAmount from both work item and household item budget lines', () => {
+      const raw = insertRawSource({
+        name: 'Mixed Source',
+        sourceType: 'bank_loan',
+        totalAmount: 100000,
+      });
+
+      insertRawWorkItemWithSource(raw.id, 20000);
+      insertRawHouseholdItemWithSource(raw.id, 15000);
+
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      expect(result.usedAmount).toBe(35000);
+    });
+
+    it('isolates usedAmount per source — household item budget lines from other sources do not count', () => {
+      const rawA = insertRawSource({
+        name: 'Source A (HI)',
+        sourceType: 'savings',
+        totalAmount: 40000,
+      });
+      const rawB = insertRawSource({
+        name: 'Source B (HI)',
+        sourceType: 'savings',
+        totalAmount: 60000,
+      });
+
+      insertRawHouseholdItemWithSource(rawA.id, 8000);
+      insertRawHouseholdItemWithSource(rawB.id, 12000);
+
+      const resultA = budgetSourceService.getBudgetSourceById(db, rawA.id);
+      const resultB = budgetSourceService.getBudgetSourceById(db, rawB.id);
+
+      expect(resultA.usedAmount).toBe(8000);
+      expect(resultA.availableAmount).toBe(32000);
+      expect(resultB.usedAmount).toBe(12000);
+      expect(resultB.availableAmount).toBe(48000);
+    });
+  });
+
+  // ─── deleteBudgetSource blocked by household item budgets (Bug #626) ───────
+
+  describe('deleteBudgetSource() with household item budget lines', () => {
+    it('throws BudgetSourceInUseError when household item budgets reference the source', () => {
+      const raw = insertRawSource({
+        name: 'HI In Use Source',
+        sourceType: 'savings',
+        totalAmount: 25000,
+      });
+
+      insertRawHouseholdItemWithSource(raw.id, 5000);
+
+      expect(() => {
+        budgetSourceService.deleteBudgetSource(db, raw.id);
+      }).toThrow(BudgetSourceInUseError);
+    });
+
+    it('succeeds when only an unrelated source has household item budget references', () => {
+      const rawA = insertRawSource({
+        name: 'Source A — no HI refs',
+        sourceType: 'other',
+        totalAmount: 10000,
+      });
+      const rawB = insertRawSource({
+        name: 'Source B — has HI ref',
+        sourceType: 'savings',
+        totalAmount: 20000,
+      });
+
+      // Only rawB has a household item budget line referencing it
+      insertRawHouseholdItemWithSource(rawB.id, 3000);
+
+      // Deleting rawA should succeed because nothing references it
+      expect(() => {
+        budgetSourceService.deleteBudgetSource(db, rawA.id);
+      }).not.toThrow();
+
+      expect(() => {
+        budgetSourceService.getBudgetSourceById(db, rawA.id);
+      }).toThrow(NotFoundError);
+    });
+
+    it('throws BudgetSourceInUseError when both work item and household item budgets reference the source', () => {
+      const raw = insertRawSource({
+        name: 'Both Types In Use',
+        sourceType: 'bank_loan',
+        totalAmount: 150000,
+      });
+
+      insertRawWorkItemWithSource(raw.id, 30000);
+      insertRawHouseholdItemWithSource(raw.id, 20000);
+
+      expect(() => {
+        budgetSourceService.deleteBudgetSource(db, raw.id);
+      }).toThrow(BudgetSourceInUseError);
     });
   });
 });

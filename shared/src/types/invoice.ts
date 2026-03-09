@@ -2,10 +2,12 @@
  * Invoice types and interfaces.
  * Invoices track payments to vendors for construction work.
  * Invoices are nested under vendors: /api/vendors/:vendorId/invoices
+ * EPIC-15 Story 15.1: Invoices now support M:N relationships with budget lines via junction table.
  */
 
 import type { PaginationMeta } from './pagination.js';
 import type { UserSummary } from './workItem.js';
+import type { InvoiceBudgetLineSummary } from './invoiceBudgetLine.js';
 
 /**
  * Invoice payment status.
@@ -14,54 +16,22 @@ import type { UserSummary } from './workItem.js';
 export type InvoiceStatus = 'pending' | 'paid' | 'claimed';
 
 /**
- * Summary of the work item budget line linked to an invoice.
- * Returned as part of the Invoice response to allow the client to
- * pre-populate the "Link to Work Item" dropdown in the edit modal.
- */
-export interface WorkItemBudgetSummary {
-  id: string;
-  workItemId: string;
-  workItemTitle: string;
-  description: string | null;
-  plannedAmount: number;
-  confidence: string;
-}
-
-/**
- * Summary of the household item budget line linked to an invoice.
- * Returned as part of the Invoice response to allow the client to
- * pre-populate the "Link to Household Item" dropdown in the edit modal.
- */
-export interface HouseholdItemBudgetSummary {
-  id: string;
-  householdItemId: string;
-  householdItemName: string;
-  description: string | null;
-  plannedAmount: number;
-  confidence: string;
-}
-
-/**
  * Invoice entity as returned by the API.
  */
 export interface Invoice {
   id: string;
   vendorId: string;
   vendorName: string;
-  /** Optional link to the work item budget line this invoice was issued against. */
-  workItemBudgetId: string | null;
-  /** Enriched budget line + work item details when workItemBudgetId is set. */
-  workItemBudget: WorkItemBudgetSummary | null;
-  /** Optional link to the household item budget line this invoice was issued against. */
-  householdItemBudgetId: string | null;
-  /** Enriched budget line + household item details when householdItemBudgetId is set. */
-  householdItemBudget: HouseholdItemBudgetSummary | null;
   invoiceNumber: string | null;
   amount: number;
   date: string;
   dueDate: string | null;
   status: InvoiceStatus;
   notes: string | null;
+  /** Invoice budget lines: itemized allocations of this invoice to work item/household item budgets. */
+  budgetLines: InvoiceBudgetLineSummary[];
+  /** Remaining amount: invoice total minus sum of itemized amounts across budget lines. */
+  remainingAmount: number;
   createdBy: UserSummary | null;
   createdAt: string;
   updatedAt: string;
@@ -69,6 +39,7 @@ export interface Invoice {
 
 /**
  * Request body for creating a new invoice.
+ * Budget line itemization is managed via separate POST /api/invoices/:id/budget-lines endpoint.
  */
 export interface CreateInvoiceRequest {
   invoiceNumber?: string | null;
@@ -77,13 +48,12 @@ export interface CreateInvoiceRequest {
   dueDate?: string | null;
   status?: InvoiceStatus;
   notes?: string | null;
-  workItemBudgetId?: string | null;
-  householdItemBudgetId?: string | null;
 }
 
 /**
  * Request body for updating an invoice.
  * All fields are optional; at least one must be provided.
+ * Budget line itemization is managed via separate PATCH endpoint.
  */
 export interface UpdateInvoiceRequest {
   invoiceNumber?: string | null;
@@ -92,8 +62,6 @@ export interface UpdateInvoiceRequest {
   dueDate?: string | null;
   status?: InvoiceStatus;
   notes?: string | null;
-  workItemBudgetId?: string | null;
-  householdItemBudgetId?: string | null;
 }
 
 /**

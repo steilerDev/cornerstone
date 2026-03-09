@@ -1,9 +1,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useTimeline } from '../../hooks/useTimeline.js';
-import { useMilestones } from '../../hooks/useMilestones.js';
 import { GanttChart, GanttChartSkeleton } from '../../components/GanttChart/GanttChart.js';
-import { MilestonePanel } from '../../components/milestones/MilestonePanel.js';
 import { CalendarView } from '../../components/calendar/CalendarView.js';
 import { ScheduleSubNav } from '../../components/ScheduleSubNav/ScheduleSubNav.js';
 import {
@@ -252,37 +250,10 @@ export function TimelinePage() {
   }
 
   // ---- View toggle: gantt (default) or calendar ----
-  const rawView = searchParams.get('view');
-  const activeView: 'gantt' | 'calendar' = rawView === 'calendar' ? 'calendar' : 'gantt';
-
-  function setActiveView(view: 'gantt' | 'calendar') {
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        if (view === 'gantt') {
-          next.delete('view');
-          // Remove calendarMode when switching to gantt to keep URL clean
-          next.delete('calendarMode');
-        } else {
-          next.set('view', view);
-        }
-        return next;
-      },
-      { replace: true },
-    );
-  }
-
-  // ---- Milestone state ----
-  const [showMilestonePanel, setShowMilestonePanel] = useState(false);
-  const [selectedMilestoneId, setSelectedMilestoneId] = useState<number | undefined>(undefined);
-  const milestones = useMilestones();
-
-  // Build a map from milestone ID → projected date for the MilestonePanel.
-  // Sourced from the timeline response so the panel can show late indicators.
-  const projectedDates = useMemo<ReadonlyMap<number, string | null>>(() => {
-    if (data === null) return new Map();
-    return new Map(data.milestones.map((m) => [m.id, m.projectedDate]));
-  }, [data]);
+  const location = useLocation();
+  const activeView: 'gantt' | 'calendar' = location.pathname.includes('/calendar')
+    ? 'calendar'
+    : 'gantt';
 
   const handleItemClick = useCallback(
     (id: string) => {
@@ -294,6 +265,13 @@ export function TimelinePage() {
   const handleHouseholdItemClick = useCallback(
     (id: string) => {
       void navigate(`/project/household-items/${id}`, { state: { from: 'schedule' } });
+    },
+    [navigate],
+  );
+
+  const handleMilestoneClick = useCallback(
+    (id: number) => {
+      void navigate(`/project/milestones/${id}`, { state: { from: 'schedule' } });
     },
     [navigate],
   );
@@ -318,34 +296,6 @@ export function TimelinePage() {
         <h1 className={styles.pageTitle}>Schedule</h1>
 
         <div className={styles.toolbar}>
-          {/* Milestones panel toggle — shown in both views */}
-          <button
-            type="button"
-            className={styles.toolbarButton}
-            onClick={() => setShowMilestonePanel(true)}
-            title="Manage milestones"
-            aria-label="Open milestones panel"
-            data-testid="milestones-panel-button"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 12 12"
-              width="16"
-              height="16"
-              fill="none"
-              aria-hidden="true"
-              style={{ display: 'block' }}
-            >
-              <polygon
-                points="6,0 12,6 6,12 0,6"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                fill="none"
-              />
-            </svg>
-            <span>Milestones</span>
-          </button>
-
           {/* Entity filter toggle — shown in both views */}
           <div
             className={styles.entityFilterToggle}
@@ -496,7 +446,7 @@ export function TimelinePage() {
       </div>
 
       {/* Schedule sub-navigation: Gantt / Calendar view toggle */}
-      <ScheduleSubNav activeView={activeView} onViewChange={setActiveView} />
+      <ScheduleSubNav />
 
       {/* Chart / calendar area */}
       <div className={styles.chartArea} ref={chartAreaRef}>
@@ -606,10 +556,7 @@ export function TimelinePage() {
               onItemClick={handleItemClick}
               showArrows={showArrows}
               highlightCriticalPath={highlightCriticalPath}
-              onMilestoneClick={(milestoneId) => {
-                setSelectedMilestoneId(milestoneId);
-                setShowMilestonePanel(true);
-              }}
+              onMilestoneClick={handleMilestoneClick}
               onHouseholdItemClick={handleHouseholdItemClick}
               onCtrlScroll={(delta) => adjustColumnWidth(delta > 0 ? 1 : -1)}
             />
@@ -622,36 +569,9 @@ export function TimelinePage() {
             milestones={filteredMilestones}
             householdItems={filteredHouseholdItems}
             dependencies={data.dependencies}
-            onMilestoneClick={(milestoneId) => {
-              setSelectedMilestoneId(milestoneId);
-              setShowMilestonePanel(true);
-            }}
           />
         )}
       </div>
-
-      {/* Milestone CRUD panel */}
-      {showMilestonePanel && (
-        <MilestonePanel
-          milestones={milestones.milestones}
-          isLoading={milestones.isLoading}
-          error={milestones.error}
-          onClose={() => {
-            setShowMilestonePanel(false);
-            setSelectedMilestoneId(undefined);
-          }}
-          initialMilestoneId={selectedMilestoneId}
-          hooks={{
-            createMilestone: milestones.createMilestone,
-            updateMilestone: milestones.updateMilestone,
-            deleteMilestone: milestones.deleteMilestone,
-            linkWorkItem: milestones.linkWorkItem,
-            unlinkWorkItem: milestones.unlinkWorkItem,
-          }}
-          onMutated={refetch}
-          projectedDates={projectedDates}
-        />
-      )}
     </div>
   );
 }

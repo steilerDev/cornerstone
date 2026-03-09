@@ -268,8 +268,8 @@ interface FilteredTotals {
   actualCostClaimed: number;
   actualCostPaid: number;
   actualCost: number;
-  projectedMin: number;
-  projectedMax: number;
+  minPlanned: number;
+  maxPlanned: number;
 }
 
 function computeFilteredTotals(
@@ -282,8 +282,8 @@ function computeFilteredTotals(
       actualCostClaimed: overview.actualCostClaimed,
       actualCostPaid: overview.actualCostPaid,
       actualCost: overview.actualCost,
-      projectedMin: overview.projectedMin,
-      projectedMax: overview.projectedMax,
+      minPlanned: overview.minPlanned,
+      maxPlanned: overview.maxPlanned,
     };
   }
 
@@ -292,8 +292,8 @@ function computeFilteredTotals(
     actualCostClaimed: selected.reduce((s, c) => s + c.actualCostClaimed, 0),
     actualCostPaid: selected.reduce((s, c) => s + c.actualCostPaid, 0),
     actualCost: selected.reduce((s, c) => s + c.actualCost, 0),
-    projectedMin: selected.reduce((s, c) => s + c.projectedMin, 0),
-    projectedMax: selected.reduce((s, c) => s + c.projectedMax, 0),
+    minPlanned: selected.reduce((s, c) => s + c.minPlanned, 0),
+    maxPlanned: selected.reduce((s, c) => s + c.maxPlanned, 0),
   };
 }
 
@@ -440,13 +440,13 @@ export function BudgetOverviewPage() {
   const claimedVal = filtered.actualCostClaimed;
   const paidVal = Math.max(0, filtered.actualCostPaid - filtered.actualCostClaimed);
   const pendingVal = Math.max(0, filtered.actualCost - filtered.actualCostPaid);
-  const projMinVal = Math.max(0, filtered.projectedMin - filtered.actualCost);
-  const projMaxVal = Math.max(0, filtered.projectedMax - filtered.projectedMin);
-  const overflow = Math.max(0, filtered.projectedMax - overview.availableFunds);
+  const projMinVal = Math.max(0, filtered.minPlanned - filtered.actualCost);
+  const projMaxVal = Math.max(0, filtered.maxPlanned - filtered.minPlanned);
+  const overflow = Math.max(0, filtered.maxPlanned - overview.availableFunds);
 
   // Remaining vs projected (using filtered totals)
-  const filteredRemainingVsProjectedMin = overview.availableFunds - filtered.projectedMin;
-  const filteredRemainingVsProjectedMax = overview.availableFunds - filtered.projectedMax;
+  const filteredRemainingVsProjectedMin = overview.availableFunds - filtered.minPlanned;
+  const filteredRemainingVsProjectedMax = overview.availableFunds - filtered.maxPlanned;
 
   // Bar segments
   const segments: BudgetBarSegment[] = [
@@ -476,7 +476,7 @@ export function BudgetOverviewPage() {
       value: projMinVal,
       color: 'var(--color-budget-projected)',
       label: 'Projected (optimistic)',
-      totalValue: filtered.projectedMin,
+      totalValue: filtered.minPlanned,
     },
     {
       key: 'proj-max',
@@ -484,7 +484,7 @@ export function BudgetOverviewPage() {
       // Projected max layer is fainter — achieved via inline opacity on color
       color: 'var(--color-budget-projected)',
       label: 'Projected (pessimistic)',
-      totalValue: filtered.projectedMax,
+      totalValue: filtered.maxPlanned,
     },
   ];
 
@@ -589,9 +589,9 @@ export function BudgetOverviewPage() {
               <span className={styles.metricLabel}>Projected Cost Range</span>
               <span className={styles.metricValue}>
                 <span className={styles.metricRange}>
-                  {formatShort(filtered.projectedMin)}
+                  {formatShort(filtered.minPlanned)}
                   <span className={styles.metricRangeSep}>&ndash;</span>
-                  {formatShort(filtered.projectedMax)}
+                  {formatShort(filtered.maxPlanned)}
                 </span>
               </span>
             </div>
@@ -660,7 +660,7 @@ export function BudgetOverviewPage() {
           <div className={styles.barWrapper}>
             <BudgetBar
               segments={segmentsForBar}
-              maxValue={Math.max(overview.availableFunds, filtered.projectedMax, 1)}
+              maxValue={Math.max(overview.availableFunds, filtered.maxPlanned, 1)}
               overflow={overflow}
               height="lg"
               onSegmentHover={handleSegmentHover}

@@ -56,8 +56,8 @@ test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 2: Back link navigates to /project/household-items
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Back breadcrumb navigation (Scenario 2)', { tag: '@responsive' }, () => {
-  test('"Household Items" breadcrumb link navigates to /project/household-items', async ({
+test.describe('Back button navigation (Scenario 2)', { tag: '@responsive' }, () => {
+  test('"Back to Household Items" button navigates to /project/household-items', async ({
     page,
     testPrefix,
   }) => {

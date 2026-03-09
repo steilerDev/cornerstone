@@ -39,16 +39,14 @@ test.describe('View toggle (Scenario 1)', { tag: '@responsive' }, () => {
     const timelinePage = new TimelinePage(page);
     await timelinePage.goto();
 
-    // Start in Gantt view (default)
-    await expect(timelinePage.ganttViewButton).toHaveAttribute('aria-pressed', 'true');
-    await expect(timelinePage.calendarViewButton).toHaveAttribute('aria-pressed', 'false');
+    // Start in Gantt view (default) — NavLink sets aria-current="page" on active link
+    await expect(timelinePage.ganttViewButton).toHaveAttribute('aria-current', 'page');
 
     // Switch to calendar
     await timelinePage.switchToCalendar();
 
     await expect(timelinePage.calendarView).toBeVisible();
-    await expect(timelinePage.calendarViewButton).toHaveAttribute('aria-pressed', 'true');
-    await expect(timelinePage.ganttViewButton).toHaveAttribute('aria-pressed', 'false');
+    await expect(timelinePage.calendarViewButton).toHaveAttribute('aria-current', 'page');
   });
 
   test('Switching back to Gantt view hides the calendar', async ({ page }) => {
@@ -60,23 +58,23 @@ test.describe('View toggle (Scenario 1)', { tag: '@responsive' }, () => {
     await timelinePage.switchToGantt();
 
     await expect(timelinePage.calendarView).not.toBeVisible();
-    await expect(timelinePage.ganttViewButton).toHaveAttribute('aria-pressed', 'true');
+    await expect(timelinePage.ganttViewButton).toHaveAttribute('aria-current', 'page');
   });
 
-  test('Calendar view URL param is added/removed when toggling views', async ({ page }) => {
+  test('Calendar view URL changes when toggling views', async ({ page }) => {
     const timelinePage = new TimelinePage(page);
     await timelinePage.goto();
 
-    // Default URL has no ?view param
-    expect(page.url()).not.toContain('view=calendar');
+    // Default URL is /schedule/gantt
+    expect(page.url()).toContain('/schedule/gantt');
 
     // Switch to calendar
     await timelinePage.switchToCalendar();
-    expect(page.url()).toContain('view=calendar');
+    expect(page.url()).toContain('/schedule/calendar');
 
     // Switch back to Gantt
     await timelinePage.switchToGantt();
-    expect(page.url()).not.toContain('view=calendar');
+    expect(page.url()).toContain('/schedule/gantt');
   });
 });
 
@@ -413,7 +411,7 @@ test.describe('Calendar dark mode (Scenario 10)', { tag: '@responsive' }, () => 
   test('Calendar view renders correctly in dark mode', async ({ page }) => {
     const timelinePage = new TimelinePage(page);
 
-    await page.goto(`${TIMELINE_ROUTE}?view=calendar`);
+    await page.goto('/schedule/calendar');
     await page.evaluate(() => {
       document.documentElement.setAttribute('data-theme', 'dark');
     });
@@ -435,21 +433,21 @@ test.describe('Calendar dark mode (Scenario 10)', { tag: '@responsive' }, () => 
 // Scenario 11: URL param persistence
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('URL param persistence (Scenario 11)', () => {
-  test('Direct navigation to ?view=calendar renders calendar view', async ({ page }) => {
+test.describe('URL route persistence (Scenario 11)', () => {
+  test('Direct navigation to /schedule/calendar renders calendar view', async ({ page }) => {
     const timelinePage = new TimelinePage(page);
     await timelinePage.gotoCalendar();
 
     await expect(timelinePage.calendarView).toBeVisible();
-    await expect(timelinePage.calendarViewButton).toHaveAttribute('aria-pressed', 'true');
+    await expect(timelinePage.calendarViewButton).toHaveAttribute('aria-current', 'page');
   });
 
-  test('Direct navigation to ?view=calendar&calendarMode=week renders week grid', async ({
+  test('Direct navigation to /schedule/calendar?calendarMode=week renders week grid', async ({
     page,
   }) => {
     const timelinePage = new TimelinePage(page);
 
-    await page.goto(`${TIMELINE_ROUTE}?view=calendar&calendarMode=week`);
+    await page.goto('/schedule/calendar?calendarMode=week');
     await timelinePage.heading.waitFor({ state: 'visible' });
     await timelinePage.calendarView.waitFor({ state: 'visible' });
 

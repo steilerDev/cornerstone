@@ -23,6 +23,7 @@ import {
   householdItemSubsidies,
   subsidyPrograms,
   invoices,
+  invoiceBudgetLines,
 } from '../db/schema.js';
 import { deleteLinksForEntity } from './documentLinkService.js';
 import { listDeps } from './householdItemDepService.js';
@@ -111,10 +112,15 @@ function getTotalPlannedAmount(db: DbType, householdItemId: string): number {
  * Sum total actual amount from invoices linked to household item budget lines.
  */
 function getTotalActualAmount(db: DbType, householdItemId: string): number {
+  // EPIC-15: Join through invoiceBudgetLines junction table instead of direct FK
   const result = db
-    .select({ total: sql<number>`COALESCE(SUM(${invoices.amount}), 0)` })
-    .from(invoices)
-    .innerJoin(householdItemBudgets, eq(invoices.householdItemBudgetId, householdItemBudgets.id))
+    .select({ total: sql<number>`COALESCE(SUM(${invoiceBudgetLines.itemizedAmount}), 0)` })
+    .from(invoiceBudgetLines)
+    .innerJoin(invoices, eq(invoices.id, invoiceBudgetLines.invoiceId))
+    .innerJoin(
+      householdItemBudgets,
+      eq(invoiceBudgetLines.householdItemBudgetId, householdItemBudgets.id),
+    )
     .where(eq(householdItemBudgets.householdItemId, householdItemId))
     .get();
   return result?.total ?? 0;
