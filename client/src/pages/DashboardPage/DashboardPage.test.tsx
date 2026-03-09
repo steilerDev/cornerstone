@@ -222,7 +222,7 @@ describe('DashboardPage', () => {
     //   invoices       → Invoice Pipeline (1)
     //   subsidyPrograms→ Subsidy Pipeline (1)
     // Quick Actions has no dataSource — renders children immediately, no skeleton
-    const loadingEls = screen.getAllByRole('status', { name: 'Loading' });
+    const loadingEls = screen.getAllByRole('status', { name: /^Loading .+ data$/ });
     expect(loadingEls.length).toBe(7);
   });
 
