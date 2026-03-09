@@ -32,11 +32,7 @@ function toUserPreference(row: typeof userPreferences.$inferSelect): UserPrefere
  * @returns array of UserPreference objects (empty array if user has no preferences)
  */
 export function listPreferences(db: DbType, userId: string): UserPreference[] {
-  const rows = db
-    .select()
-    .from(userPreferences)
-    .where(eq(userPreferences.userId, userId))
-    .all();
+  const rows = db.select().from(userPreferences).where(eq(userPreferences.userId, userId)).all();
 
   return rows.map(toUserPreference);
 }

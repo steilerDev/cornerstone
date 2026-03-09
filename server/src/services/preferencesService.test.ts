@@ -87,7 +87,12 @@ describe('preferencesService', () => {
 
     it('returns all preferences for a user with multiple keys', () => {
       preferencesService.upsertPreference(db, 'user-001', 'theme', 'dark');
-      preferencesService.upsertPreference(db, 'user-001', 'dashboard.hiddenCards', '["budget-summary"]');
+      preferencesService.upsertPreference(
+        db,
+        'user-001',
+        'dashboard.hiddenCards',
+        '["budget-summary"]',
+      );
 
       const result = preferencesService.listPreferences(db, 'user-001');
 

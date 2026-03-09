@@ -1,10 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { UserPreference } from '@cornerstone/shared';
-import {
-  listPreferences,
-  upsertPreference,
-  deletePreference,
-} from '../lib/preferencesApi.js';
+import { listPreferences, upsertPreference, deletePreference } from '../lib/preferencesApi.js';
 import { ApiClientError, NetworkError } from '../lib/apiClient.js';
 
 export interface UsePreferencesResult {

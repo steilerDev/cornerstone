@@ -107,14 +107,16 @@ describe('Preferences Routes', () => {
       });
 
       expect(response.statusCode).toBe(200);
-      const body = response.json<{ preferences: Array<{ key: string; value: string; updatedAt: string }> }>();
+      const body = response.json<{
+        preferences: Array<{ key: string; value: string; updatedAt: string }>;
+      }>();
       expect(body.preferences).toHaveLength(1);
       expect(body.preferences[0].key).toBe('theme');
       expect(body.preferences[0].value).toBe('dark');
       expect(typeof body.preferences[0].updatedAt).toBe('string');
     });
 
-    it('returns only the authenticated user\'s preferences', async () => {
+    it("returns only the authenticated user's preferences", async () => {
       const { cookie: cookie1 } = await createUserWithSession('user1@example.com');
       const { cookie: cookie2 } = await createUserWithSession('user2@example.com');
 
@@ -219,7 +221,9 @@ describe('Preferences Routes', () => {
       });
 
       expect(response.statusCode).toBe(200);
-      const body = response.json<{ preference: { key: string; value: string; updatedAt: string } }>();
+      const body = response.json<{
+        preference: { key: string; value: string; updatedAt: string };
+      }>();
       expect(body.preference).toBeDefined();
       expect(body.preference.key).toBe('theme');
       expect(body.preference.value).toBe('dark');

@@ -1,4 +1,12 @@
-import { createContext, use, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
+import {
+  createContext,
+  use,
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  type ReactNode,
+} from 'react';
 import { listPreferences, upsertPreference } from '../lib/preferencesApi.js';
 
 export type ThemePreference = 'light' | 'dark' | 'system';
@@ -102,7 +110,12 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
       const preferences = await listPreferences();
       const serverTheme = preferences.find((p) => p.key === 'theme');
 
-      if (serverTheme && (serverTheme.value === 'light' || serverTheme.value === 'dark' || serverTheme.value === 'system')) {
+      if (
+        serverTheme &&
+        (serverTheme.value === 'light' ||
+          serverTheme.value === 'dark' ||
+          serverTheme.value === 'system')
+      ) {
         // Server has a valid theme preference - apply it and clear localStorage
         setThemeState(serverTheme.value as ThemePreference);
         setResolvedTheme(resolveTheme(serverTheme.value as ThemePreference));

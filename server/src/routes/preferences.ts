@@ -101,7 +101,11 @@ export default async function preferencesRoutes(fastify: FastifyInstance) {
         throw new UnauthorizedError();
       }
 
-      const found = preferencesService.deletePreference(fastify.db, request.user.id, request.params.key);
+      const found = preferencesService.deletePreference(
+        fastify.db,
+        request.user.id,
+        request.params.key,
+      );
       if (!found) {
         throw new NotFoundError('Preference not found');
       }

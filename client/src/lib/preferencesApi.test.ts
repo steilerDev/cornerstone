@@ -126,7 +126,9 @@ describe('preferencesApi', () => {
     it('propagates errors thrown by the API client', async () => {
       mockPatch.mockRejectedValueOnce(new Error('Unauthorized'));
 
-      await expect(preferencesApi.upsertPreference('theme', 'dark')).rejects.toThrow('Unauthorized');
+      await expect(preferencesApi.upsertPreference('theme', 'dark')).rejects.toThrow(
+        'Unauthorized',
+      );
     });
   });
 
