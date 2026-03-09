@@ -142,7 +142,7 @@ describe('InvoiceLinkModal', () => {
     render(<InvoiceLinkModal {...buildProps()} />);
 
     await waitFor(() => {
-      const searchInput = screen.getByLabelText(/invoice/i) as HTMLInputElement;
+      const searchInput = screen.getByPlaceholderText(/search by invoice/i) as HTMLInputElement;
       expect(searchInput.value).toContain('#INV-001');
       expect(searchInput.value).toContain('€1,000.00');
     });
