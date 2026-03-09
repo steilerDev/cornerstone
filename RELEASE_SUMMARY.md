@@ -1,10 +1,15 @@
 ## What's New
 
-This release focuses on internal code quality and accessibility improvements. No new user-facing features were added -- instead, duplicated logic across Work Items and Household Items was consolidated into shared patterns, and UI consistency was improved across all entity detail pages.
+This release reworks the invoice-budget-line relationship from a one-to-one model to a flexible many-to-many design. A single invoice can now be linked to multiple budget lines across work items and household items, each with an itemized amount that attributes a specific portion of the invoice to that budget line.
 
 ### Highlights
 
-- **Improved Accessibility** -- All interactive elements now show `:focus-visible` indicators, status messages use `role="status"` and `role="alert"` attributes, and touch targets meet the 44px minimum for comfortable mobile use
-- **Consistent Error Handling** -- All detail pages now display structured 404 and error states with a uniform layout, instead of each page implementing its own error display
-- **Reduced Code Duplication** -- Budget, subsidy, and payback logic that was duplicated between Work Items and Household Items has been extracted into shared service factories and React components, reducing detail page code by approximately 25%
-- **Harmonized Design Tokens** -- Semantic CSS custom properties are now used consistently across all entity views, with proper dark mode support throughout
+- **Multiple Budget Lines per Invoice** -- Link several budget lines from different work items and household items to a single invoice, each with its own itemized amount. A computed "Remaining" row on the invoice page shows any unallocated portion of the invoice total.
+- **Bidirectional Linking** -- Attach budget lines to invoices from the invoice detail page (two-step picker: select item, then budget line) or directly from a work item or household item's Budget tab.
+- **Invoice Groups on Item Pages** -- When multiple budget lines on the same item share an invoice, they collapse into a grouped view showing the invoice total, each line's planned amount, and its itemized amount.
+- **Accurate Subsidy Calculations** -- Subsidy reductions now use the itemized invoice amount as the cost basis when a budget line is linked to an invoice, instead of the planned estimate.
+- **Accessibility Improvements** -- Focus-visible states, ARIA attributes on invoice groups, keyboard navigation, and 44px touch targets on mobile.
+
+### Breaking Changes
+
+- The old single-budget-line picker on the invoice create/edit modals has been removed. Budget lines are now linked after invoice creation from the invoice detail page or from item detail pages.

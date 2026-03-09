@@ -32,13 +32,14 @@ A single household item can have multiple budget lines. For example, a kitchen a
 
 ## Invoice Linking
 
-When a vendor invoice arrives for a household item purchase, you can link invoice line items to the item's budget lines. This replaces the estimate with the actual cost:
+When a vendor invoice arrives for a household item purchase, you can link the item's budget lines to the invoice. You can do this from either direction:
 
-1. Navigate to the vendor's invoice detail page (via **Budget > Invoices**)
-2. On an invoice line item, select the household item's budget line as the linked budget
-3. The actual cost updates automatically
+- **From the invoice detail page** -- use the two-step picker to select the household item and then a budget line, and specify the itemized amount
+- **From the household item Budget tab** -- click the link action on an unlinked budget line to attach it to an existing invoice
 
-See [Vendors & Invoices](/guides/budget/vendors-and-invoices) for details on creating invoices.
+A single invoice can cover multiple budget lines across different items. When multiple budget lines on the same household item share an invoice, they collapse into an **Invoice Group** showing the invoice total alongside each line's planned and itemized amounts.
+
+See [Vendors & Invoices](/guides/budget/vendors-and-invoices) for details on managing invoices and the full linking workflow.
 
 ## Subsidies
 

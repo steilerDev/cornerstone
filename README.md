@@ -37,7 +37,7 @@ A self-hosted home building project management tool for homeowners. Track work i
 ## Features
 
 - **Work Items** -- CRUD, statuses, dates, assignments, tags, notes, subtasks, dependencies, keyboard shortcuts
-- **Budget Management** -- Budget categories, financing sources, vendor invoices, subsidies, overview dashboard with projections
+- **Budget Management** -- Budget categories, financing sources, multi-budget-line invoice linking with itemized amounts, subsidies, overview dashboard with projections
 - **Timeline & Gantt Chart** -- Interactive Gantt chart with dependency arrows, critical path, zoom controls, milestones, and CPM-based auto-scheduling
 - **Calendar View** -- Monthly and weekly calendar grids with work items and milestones
 - **Household Items** -- Track furniture, appliances, and fixtures with categories, delivery scheduling, budget integration, and work item linking
@@ -75,6 +75,7 @@ Open `http://localhost:3000` -- the setup wizard will guide you through creating
 - [x] **EPIC-11**: Unified Tag and Category System
 - [x] **EPIC-12**: Codebase Refinement and Consistency
 - [x] **EPIC-14**: Cross-Entity Code Deduplication
+- [x] **EPIC-15**: Budget-Line Invoice Linking Rework
 - [ ] **EPIC-09**: Dashboard and Overview
 - [ ] **EPIC-13**: Construction Diary
 
