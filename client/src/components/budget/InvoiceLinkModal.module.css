@@ -115,8 +115,8 @@
   color: var(--color-text-primary);
 }
 
-.select,
-.input {
+.input,
+.searchInput {
   padding: 0.625rem 0.75rem;
   border: 1px solid var(--color-border);
   border-radius: 0.375rem;
@@ -125,17 +125,19 @@
   font-size: 0.9375rem;
   font-family: inherit;
   transition: var(--transition-button);
+  width: 100%;
+  box-sizing: border-box;
 }
 
-.select:focus-visible,
-.input:focus-visible {
+.input:focus-visible,
+.searchInput:focus-visible {
   outline: none;
   border-color: var(--color-primary);
   box-shadow: inset 0 0 0 2px var(--color-focus-ring-subtle);
 }
 
-.select:disabled,
-.input:disabled {
+.input:disabled,
+.searchInput:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -155,6 +157,124 @@
   font-size: 0.8125rem;
   color: var(--color-danger-active);
   margin-top: 0.25rem;
+}
+
+/* ─── Searchable Invoice Dropdown ──────────────────────────────────────── */
+
+.searchWrapper {
+  position: relative;
+}
+
+.dropdownList {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-top: none;
+  border-radius: 0 0 0.375rem 0.375rem;
+  box-shadow: var(--shadow-md);
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 10;
+}
+
+.dropdownItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.625rem 0.75rem;
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--color-text-primary);
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
+  transition: var(--transition-button);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.dropdownItem:last-child {
+  border-bottom: none;
+}
+
+.dropdownItem:hover:not(.dropdownItemActive) {
+  background: var(--color-bg-secondary);
+}
+
+.dropdownItemActive {
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+}
+
+.dropdownItemActive .dropdownItemDescription {
+  color: var(--color-primary-text);
+  opacity: 0.9;
+}
+
+.dropdownItemNumber {
+  font-weight: 600;
+  color: inherit;
+}
+
+.dropdownItemAmount {
+  font-size: 0.8125rem;
+  color: inherit;
+  opacity: 0.85;
+}
+
+.dropdownItemDescription {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dropdownEmpty {
+  padding: 1rem 0.75rem;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+/* ─── Remaining Amount Info ───────────────────────────────────────────── */
+
+.remainingAmountInfo {
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--color-bg-secondary);
+  border-radius: 0.25rem;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
+.remainingAmountWarning {
+  background: var(--color-danger-bg);
+  color: var(--color-danger-active);
+}
+
+/* ─── Amount Input Wrapper with Indicator ──────────────────────────────── */
+
+.amountInputWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.amountIndicator {
+  padding: 0.375rem 0.75rem;
+  background: var(--color-bg-secondary);
+  border-radius: 0.25rem;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
+.amountIndicatorWarning {
+  background: var(--color-danger-bg);
+  color: var(--color-danger-active);
 }
 
 /* ─── Loading & Empty State ───────────────────────────────────────────────── */

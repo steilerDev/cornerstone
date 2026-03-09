@@ -11,6 +11,8 @@ import type { InvoiceLinkModalProps } from './InvoiceLinkModal.js';
 // ─── Module-scope mock functions ─────────────────────────────────────────────
 
 const mockFetchAllInvoices = jest.fn<typeof InvoicesApiTypes.fetchAllInvoices>();
+const mockFetchInvoiceBudgetLines =
+  jest.fn<typeof InvoiceBudgetLinesApiTypes.fetchInvoiceBudgetLines>();
 const mockCreateInvoiceBudgetLine =
   jest.fn<typeof InvoiceBudgetLinesApiTypes.createInvoiceBudgetLine>();
 const mockShowToast = jest.fn<(type: string, message: string) => void>();
@@ -29,7 +31,7 @@ jest.unstable_mockModule('../../lib/invoicesApi.js', () => ({
 // ─── Mock: invoiceBudgetLinesApi ──────────────────────────────────────────────
 
 jest.unstable_mockModule('../../lib/invoiceBudgetLinesApi.js', () => ({
-  fetchInvoiceBudgetLines: jest.fn(),
+  fetchInvoiceBudgetLines: mockFetchInvoiceBudgetLines,
   createInvoiceBudgetLine: mockCreateInvoiceBudgetLine,
   updateInvoiceBudgetLine: jest.fn(),
   deleteInvoiceBudgetLine: jest.fn(),
@@ -99,6 +101,11 @@ function buildProps(overrides?: Partial<InvoiceLinkModalProps>): InvoiceLinkModa
 describe('InvoiceLinkModal', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
+    // Default: remaining amount covers typical test amounts
+    mockFetchInvoiceBudgetLines.mockResolvedValue({
+      budgetLines: [],
+      remainingAmount: 1000,
+    });
     const module = await import('./InvoiceLinkModal.js');
     InvoiceLinkModal = module.InvoiceLinkModal;
   });
@@ -128,15 +135,16 @@ describe('InvoiceLinkModal', () => {
     });
   });
 
-  it('populates select with loaded invoices', async () => {
+  it('auto-selects first invoice and shows it in search input', async () => {
     const invoices = [buildInvoice('inv-1', 'INV-001'), buildInvoice('inv-2', 'INV-002')];
     mockFetchAllInvoices.mockResolvedValue(buildPaginatedResponse(invoices));
 
     render(<InvoiceLinkModal {...buildProps()} />);
 
     await waitFor(() => {
-      expect(screen.getByText('#INV-001 — €1,000.00')).toBeTruthy();
-      expect(screen.getByText('#INV-002 — €1,000.00')).toBeTruthy();
+      const searchInput = screen.getByPlaceholderText(/search by invoice/i) as HTMLInputElement;
+      expect(searchInput.value).toContain('#INV-001');
+      expect(searchInput.value).toContain('€1,000.00');
     });
   });
 
