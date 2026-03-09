@@ -562,15 +562,14 @@ describe('HouseholdItemDetailPage', () => {
       expect(dateMatches.length).toBeGreaterThan(0);
     });
 
-    it('renders breadcrumb with household items link', async () => {
+    it('renders back button to household items list', async () => {
       mockGetHouseholdItem.mockResolvedValue(makeItem());
 
       renderPage();
 
       await waitFor(() => {
-        const householdItemsLink = screen.getByRole('link', { name: 'Household Items' });
-        expect(householdItemsLink).toBeInTheDocument();
-        expect(householdItemsLink).toHaveAttribute('href', '/project/household-items');
+        const backButton = screen.getByRole('button', { name: /back to household items/i });
+        expect(backButton).toBeInTheDocument();
       });
     });
   });
