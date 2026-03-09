@@ -135,7 +135,7 @@ export function DashboardPage() {
 
     // Update budget overview state
     if (budgetOverviewResult.status === 'fulfilled') {
-      setBudgetOverview(budgetOverviewResult.value.overview);
+      setBudgetOverview(budgetOverviewResult.value);
       setDataStates((prev) => ({
         ...prev,
         budgetOverview: {
