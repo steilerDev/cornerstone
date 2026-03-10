@@ -514,3 +514,32 @@ For agent-owned dirs, Python fallback: write compressed zlib blob directly.
 - Per-card state: `dataStates` Record<DataSourceKey, DataSourceState> with isLoading/error/isEmpty
 - Card mapping: budget-summary/alerts → budgetOverview; source-utilization → budgetSources; timeline-status/mini-gantt → timeline; invoice-pipeline → invoices; subsidy-pipeline → subsidyPrograms; quick-actions → no data (always shows)
 - Grid: 3-column desktop, 2-column tablet, 1-column mobile (all via CSS Grid)
+
+## Invoice & Subsidy Pipeline Cards (Story #476, feat/476-invoice-subsidy-pipeline)
+
+**InvoicePipelineCard** (`client/src/components/InvoicePipelineCard/`):
+
+- Receives `invoices: Invoice[]` + `summary: InvoiceStatusBreakdown` props
+- Filters to pending invoices, sorts by date (oldest first), shows top 5
+- Overdue detection: parse date with `new Date(year, month-1, day)`, compare < today's midnight
+- Displays vendor name, invoice number (or `#${id.slice(0,8)}`), amount (formatCurrency), date (formatDate)
+- Overdue badge (`data-testid="overdue-badge"`) with warning color via `rgba(251, 146, 60, 0.15)` background
+- Footer: pending total + "View all invoices" link to `/budget/invoices`
+- Empty state: `"No pending invoices"` when no pending items
+
+**SubsidyPipelineCard** (`client/src/components/SubsidyPipelineCard/`):
+
+- Receives `subsidyPrograms: SubsidyProgram[]` prop
+- Groups by lifecycle status: eligible/applied/approved/received/rejected (in that order, only show non-empty groups)
+- Per-group: count, fixed-reduction total (sum `reductionValue` where `reductionType === 'fixed'`), deadline warning
+- Deadline warning: if ANY program has `applicationDeadline` within 14 days (inclusive) and >= 0 days future
+- Status badges: gray (eligible), blue (applied), green (approved+received), red (rejected)
+- Footer: "View all subsidies" link to `/budget/subsidies`
+- Empty state: `"No subsidy programs found"`
+
+**Integration into DashboardPage**:
+
+- Added state: `invoices: Invoice[]`, `invoiceSummary: InvoiceStatusBreakdown | null`, `subsidyPrograms: SubsidyProgram[]`
+- Fetching: `Promise.allSettled` includes `fetchAllInvoices({ pageSize: 10 })` and `fetchSubsidyPrograms()`
+- isEmpty logic: invoices card = `invoices.filter(inv => status === 'pending').length === 0`
+- Conditional render: `invoiceSummary ? <InvoicePipelineCard ... />` and `<SubsidyPipelineCard ... />`
