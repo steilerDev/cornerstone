@@ -337,7 +337,9 @@ test.describe('Timeline Status card (Scenario 4)', { tag: '@responsive' }, () =>
       await expect(timelineCard.first()).toBeVisible();
 
       // The card heading should be present
-      const heading = timelineCard.first().getByRole('heading', { name: 'Timeline Status', level: 2 });
+      const heading = timelineCard
+        .first()
+        .getByRole('heading', { name: 'Timeline Status', level: 2 });
       await expect(heading).toBeVisible();
     } finally {
       await uninterceptDashboardApis(page);
@@ -567,7 +569,12 @@ test.describe('Responsive mobile layout (Scenario 8)', { tag: '@responsive' }, (
 
       // Primary section cards (Budget Summary, Budget Alerts, Invoice Pipeline, Quick Actions)
       // should be visible without expanding any collapsible section
-      const primaryTitles = ['Budget Summary', 'Budget Alerts', 'Invoice Pipeline', 'Quick Actions'];
+      const primaryTitles = [
+        'Budget Summary',
+        'Budget Alerts',
+        'Invoice Pipeline',
+        'Quick Actions',
+      ];
       for (const title of primaryTitles) {
         const heading = mobileSections.getByRole('heading', { name: title, level: 2 });
         await expect(heading.first()).toBeVisible();

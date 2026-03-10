@@ -79,16 +79,21 @@ export class DashboardPage {
   async waitForCardsLoaded(): Promise<void> {
     // Wait for all busy status elements to disappear
     const skeletons = this.page.locator('[aria-busy="true"]');
-    await skeletons.first().waitFor({ state: 'hidden' }).catch(() => {
-      // If no skeleton was ever visible, that's fine — cards loaded instantly or were empty
-    });
+    await skeletons
+      .first()
+      .waitFor({ state: 'hidden' })
+      .catch(() => {
+        // If no skeleton was ever visible, that's fine — cards loaded instantly or were empty
+      });
   }
 
   /**
    * Returns the article element for a specific card by its card title.
    */
   card(title: string): Locator {
-    return this.page.getByRole('article').filter({ has: this.page.getByRole('heading', { name: title, level: 2 }) });
+    return this.page
+      .getByRole('article')
+      .filter({ has: this.page.getByRole('heading', { name: title, level: 2 }) });
   }
 
   /**
