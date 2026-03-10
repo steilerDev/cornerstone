@@ -212,7 +212,15 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
         {/* Today marker line */}
         {(() => {
           const todayLocal = new Date();
-          const todayNoon = new Date(todayLocal.getFullYear(), todayLocal.getMonth(), todayLocal.getDate(), 12, 0, 0, 0);
+          const todayNoon = new Date(
+            todayLocal.getFullYear(),
+            todayLocal.getMonth(),
+            todayLocal.getDate(),
+            12,
+            0,
+            0,
+            0,
+          );
           const x = dateToX(todayNoon, weekStart);
           if (x < 0 || x > CHART_WIDTH) return null;
           return (
@@ -271,7 +279,11 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
                   fill={colors.barText}
                   fontWeight="500"
                 >
-                  <tspan>{item.title.length > Math.floor(clampedWidth / 7) ? item.title.slice(0, Math.floor(clampedWidth / 7) - 1) + '…' : item.title}</tspan>
+                  <tspan>
+                    {item.title.length > Math.floor(clampedWidth / 7)
+                      ? item.title.slice(0, Math.floor(clampedWidth / 7) - 1) + '…'
+                      : item.title}
+                  </tspan>
                 </text>
               )}
             </g>

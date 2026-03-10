@@ -70,8 +70,19 @@ const CARD_DEFINITIONS: {
     emptyMessage: 'No budget sources configured',
     emptyAction: { label: 'Add a budget source', href: '/budget/sources' },
   },
-  { id: 'upcoming-milestones', title: 'Upcoming Milestones', section: 'timeline', dataSource: 'timeline', emptyMessage: 'No upcoming milestones' },
-  { id: 'work-item-progress', title: 'Work Item Progress', section: 'timeline', dataSource: 'timeline' },
+  {
+    id: 'upcoming-milestones',
+    title: 'Upcoming Milestones',
+    section: 'timeline',
+    dataSource: 'timeline',
+    emptyMessage: 'No upcoming milestones',
+  },
+  {
+    id: 'work-item-progress',
+    title: 'Work Item Progress',
+    section: 'timeline',
+    dataSource: 'timeline',
+  },
   { id: 'critical-path', title: 'Critical Path', section: 'timeline', dataSource: 'timeline' },
   { id: 'mini-gantt', title: 'Mini Gantt', section: 'timeline', dataSource: 'timeline' },
   {
@@ -372,7 +383,10 @@ export function DashboardPage() {
         ) : card.id === 'work-item-progress' && timelineData ? (
           <WorkItemProgressCard workItems={timelineData.workItems} />
         ) : card.id === 'critical-path' && timelineData ? (
-          <CriticalPathCard criticalPath={timelineData.criticalPath} workItems={timelineData.workItems} />
+          <CriticalPathCard
+            criticalPath={timelineData.criticalPath}
+            workItems={timelineData.workItems}
+          />
         ) : card.id === 'mini-gantt' && timelineData ? (
           <MiniGanttCard timeline={timelineData} />
         ) : card.id === 'invoice-pipeline' && invoiceSummary ? (

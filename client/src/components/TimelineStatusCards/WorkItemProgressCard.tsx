@@ -89,14 +89,7 @@ export function WorkItemProgressCard({ workItems }: WorkItemProgressCardProps) {
         aria-label={`Work item progress: ${counts.completed} completed, ${counts.in_progress} in progress, ${counts.not_started} not started`}
       >
         {/* Background circle */}
-        <circle
-          cx="52"
-          cy="52"
-          r="40"
-          fill="none"
-          stroke="var(--color-border)"
-          strokeWidth="24"
-        />
+        <circle cx="52" cy="52" r="40" fill="none" stroke="var(--color-border)" strokeWidth="24" />
 
         {/* Rotated group for clockwise rotation from top */}
         <g transform="rotate(-90 52 52)">{circles}</g>

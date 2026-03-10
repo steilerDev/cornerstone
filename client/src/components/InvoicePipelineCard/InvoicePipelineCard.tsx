@@ -47,10 +47,7 @@ export function InvoicePipelineCard({ invoices, summary }: InvoicePipelineCardPr
               data-testid="invoice-row"
               className={`${styles.item} ${overdue ? styles.itemOverdue : ''}`}
             >
-              <Link
-                to={`/budget/invoices/${invoice.id}`}
-                className={styles.itemLink}
-              >
+              <Link to={`/budget/invoices/${invoice.id}`} className={styles.itemLink}>
                 <span className={styles.vendorName}>{invoice.vendorName}</span>
                 <span className={styles.invoiceNumber}>{displayInvoiceNumber}</span>
                 <span className={styles.amount}>{formatCurrency(invoice.amount)}</span>
