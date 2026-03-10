@@ -191,10 +191,9 @@ describe('InvoicePipelineCard', () => {
 
     renderWithRouter(<InvoicePipelineCard invoices={invoices} summary={summary} />);
 
-    // The footer renders "Pending Total: €12,500.00"
-    const footer = screen.getByText(/pending total/i, { exact: false });
-    expect(footer).toBeInTheDocument();
-    expect(footer.textContent).toMatch(/12,500/);
+    const totalEl = screen.getByTestId('pending-total');
+    expect(totalEl).toBeInTheDocument();
+    expect(totalEl.textContent).toMatch(/12,500/);
   });
 
   // ── Test 11: Footer link to invoices page ────────────────────────────────────
