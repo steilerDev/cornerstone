@@ -16,8 +16,9 @@
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
   text-decoration: none;
-  transition: background-color 0.15s ease;
+  transition: var(--transition-button);
   cursor: pointer;
+  min-height: 44px;
 }
 
 .primaryAction:hover {
@@ -47,18 +48,24 @@
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
   text-decoration: none;
-  transition:
-    border-color 0.15s ease,
-    background-color 0.15s ease;
+  transition: var(--transition-button-border);
   cursor: pointer;
+  min-height: 44px;
 }
 
 .quickLink:hover {
   border-color: var(--color-primary);
-  background-color: var(--color-bg-tertiary);
+  background-color: var(--color-bg-hover);
 }
 
 .quickLink:focus-visible {
   outline: none;
   box-shadow: var(--shadow-focus);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .primaryAction,
+  .quickLink {
+    transition: none;
+  }
 }

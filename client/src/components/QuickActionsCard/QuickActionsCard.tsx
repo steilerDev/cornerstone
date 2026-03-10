@@ -16,19 +16,19 @@ export function QuickActionsCard() {
 
       {/* Quick navigation links grid */}
       <div className={styles.linksGrid}>
-        <Link to="/project/work-items" className={styles.quickLink} aria-label="View work items">
+        <Link to="/project/work-items" className={styles.quickLink} aria-label="Work Items">
           Work Items
         </Link>
-        <Link to="/schedule" className={styles.quickLink} aria-label="View timeline">
+        <Link to="/schedule" className={styles.quickLink} aria-label="Timeline">
           Timeline
         </Link>
-        <Link to="/budget/overview" className={styles.quickLink} aria-label="View budget overview">
+        <Link to="/budget/overview" className={styles.quickLink} aria-label="Budget">
           Budget
         </Link>
-        <Link to="/budget/invoices" className={styles.quickLink} aria-label="View invoices">
+        <Link to="/budget/invoices" className={styles.quickLink} aria-label="Invoices">
           Invoices
         </Link>
-        <Link to="/budget/vendors" className={styles.quickLink} aria-label="View vendors">
+        <Link to="/budget/vendors" className={styles.quickLink} aria-label="Vendors">
           Vendors
         </Link>
       </div>

@@ -35,7 +35,7 @@ describe('QuickActionsCard', () => {
   it('renders View Work Items link with correct href', () => {
     renderWithRouter(<QuickActionsCard />);
 
-    const link = screen.getByRole('link', { name: /view work items/i });
+    const link = screen.getByRole('link', { name: /^work items$/i });
     expect(link).toBeInTheDocument();
     expect(link).toHaveAttribute('href', '/project/work-items');
   });
@@ -45,7 +45,7 @@ describe('QuickActionsCard', () => {
   it('renders View Timeline link with correct href', () => {
     renderWithRouter(<QuickActionsCard />);
 
-    const link = screen.getByRole('link', { name: /view timeline/i });
+    const link = screen.getByRole('link', { name: /^timeline$/i });
     expect(link).toBeInTheDocument();
     expect(link).toHaveAttribute('href', '/schedule');
   });
@@ -55,7 +55,7 @@ describe('QuickActionsCard', () => {
   it('renders View Budget link with correct href', () => {
     renderWithRouter(<QuickActionsCard />);
 
-    const link = screen.getByRole('link', { name: /view budget/i });
+    const link = screen.getByRole('link', { name: /^budget$/i });
     expect(link).toBeInTheDocument();
     expect(link).toHaveAttribute('href', '/budget/overview');
   });
@@ -65,7 +65,7 @@ describe('QuickActionsCard', () => {
   it('renders View Invoices link with correct href', () => {
     renderWithRouter(<QuickActionsCard />);
 
-    const link = screen.getByRole('link', { name: /view invoices/i });
+    const link = screen.getByRole('link', { name: /^invoices$/i });
     expect(link).toBeInTheDocument();
     expect(link).toHaveAttribute('href', '/budget/invoices');
   });
@@ -75,7 +75,7 @@ describe('QuickActionsCard', () => {
   it('renders View Vendors link with correct href', () => {
     renderWithRouter(<QuickActionsCard />);
 
-    const link = screen.getByRole('link', { name: /view vendors/i });
+    const link = screen.getByRole('link', { name: /^vendors$/i });
     expect(link).toBeInTheDocument();
     expect(link).toHaveAttribute('href', '/budget/vendors');
   });
