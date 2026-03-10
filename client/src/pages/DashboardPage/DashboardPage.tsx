@@ -21,6 +21,7 @@ import { BudgetSummaryCard } from '../../components/BudgetSummaryCard/BudgetSumm
 import { BudgetAlertsCard } from '../../components/BudgetAlertsCard/BudgetAlertsCard.js';
 import { SourceUtilizationCard } from '../../components/SourceUtilizationCard/SourceUtilizationCard.js';
 import { TimelineStatusCards } from '../../components/TimelineStatusCards/TimelineStatusCards.js';
+import { MiniGanttCard } from '../../components/MiniGanttCard/MiniGanttCard.js';
 import { QuickActionsCard } from '../../components/QuickActionsCard/QuickActionsCard.js';
 import { InvoicePipelineCard } from '../../components/InvoicePipelineCard/InvoicePipelineCard.js';
 import { SubsidyPipelineCard } from '../../components/SubsidyPipelineCard/SubsidyPipelineCard.js';
@@ -380,6 +381,8 @@ export function DashboardPage() {
                 <SourceUtilizationCard sources={budgetSources} />
               ) : card.id === 'timeline-status' && timelineData ? (
                 <TimelineStatusCards timeline={timelineData} />
+              ) : card.id === 'mini-gantt' && timelineData ? (
+                <MiniGanttCard timeline={timelineData} />
               ) : card.id === 'invoice-pipeline' && invoiceSummary ? (
                 <InvoicePipelineCard invoices={invoices} summary={invoiceSummary} />
               ) : card.id === 'subsidy-pipeline' ? (
