@@ -34,9 +34,8 @@ function resolveColors() {
       in_progress: readCssVar('--color-gantt-bar-in-progress'),
       completed: readCssVar('--color-gantt-bar-completed'),
     },
+    barText: readCssVar('--color-text-inverse'),
     todayMarker: readCssVar('--color-gantt-today-marker'),
-    arrowDefault: readCssVar('--color-gantt-arrow-default'),
-    arrowCritical: readCssVar('--color-gantt-arrow-critical'),
     criticalBorder: readCssVar('--color-gantt-bar-critical-border'),
     milestoneFill: readCssVar('--color-milestone-incomplete-fill') || 'transparent',
     milestoneCompleteFill: readCssVar('--color-milestone-complete-fill'),
@@ -114,22 +113,6 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
       return start <= weekEnd && end >= weekStart;
     });
   }, [timeline.workItems, weekStart, weekEnd]);
-
-  // Build a map of work item IDs to row indices for dependency drawing
-  const itemRowMap = useMemo(() => {
-    const map = new Map<string, number>();
-    filteredWorkItems.forEach((item, idx) => {
-      map.set(item.id, idx);
-    });
-    return map;
-  }, [filteredWorkItems]);
-
-  // Filter dependencies to only those where both items are visible
-  const visibleDependencies = useMemo(() => {
-    return timeline.dependencies.filter(
-      (dep) => itemRowMap.has(dep.predecessorId) && itemRowMap.has(dep.successorId),
-    );
-  }, [timeline.dependencies, itemRowMap]);
 
   // Filter milestones that fall within the week
   const visibleMilestones = useMemo(() => {
@@ -285,7 +268,7 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
                   x={clampedX + 4}
                   y={barY + BAR_HEIGHT / 2 + 4}
                   fontSize="11"
-                  fill="white"
+                  fill={colors.barText}
                   fontWeight="500"
                 >
                   <tspan>{item.title.length > Math.floor(clampedWidth / 7) ? item.title.slice(0, Math.floor(clampedWidth / 7) - 1) + '…' : item.title}</tspan>
