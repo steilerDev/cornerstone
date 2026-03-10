@@ -49,7 +49,10 @@ function resolveColors() {
 /**
  * Gets bar color for a work item status.
  */
-function getBarColor(status: WorkItemStatus | undefined, colors: ReturnType<typeof resolveColors>): string {
+function getBarColor(
+  status: WorkItemStatus | undefined,
+  colors: ReturnType<typeof resolveColors>,
+): string {
   if (!status) return colors.barColors.not_started;
   const statusMap: Record<WorkItemStatus, keyof typeof colors.barColors> = {
     not_started: 'not_started',
@@ -292,7 +295,8 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
           const x1 = dateToX(predEnd, today);
           const x2 = dateToX(succStart, today);
 
-          const isCritical = timeline.criticalPath.includes(dep.predecessorId) &&
+          const isCritical =
+            timeline.criticalPath.includes(dep.predecessorId) &&
             timeline.criticalPath.includes(dep.successorId);
           const arrowColor = isCritical ? colors.arrowCritical : colors.arrowDefault;
 
@@ -329,7 +333,9 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
           ];
 
           const isCritical = milestone.isCritical;
-          const fillColor = milestone.isCompleted ? colors.milestoneCompleteFill : colors.milestoneFill;
+          const fillColor = milestone.isCompleted
+            ? colors.milestoneCompleteFill
+            : colors.milestoneFill;
           const strokeColor = isCritical ? colors.criticalBorder : colors.milestoneStroke;
 
           return (

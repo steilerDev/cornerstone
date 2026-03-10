@@ -119,8 +119,20 @@ describe('MiniGanttCard', () => {
     const timeline: TimelineResponse = {
       ...emptyTimeline,
       workItems: [
-        { ...baseWorkItem, id: 'wi-001', title: 'Item 1', startDate: daysFromToday(1), endDate: daysFromToday(5) },
-        { ...baseWorkItem, id: 'wi-002', title: 'Item 2', startDate: daysFromToday(6), endDate: daysFromToday(12) },
+        {
+          ...baseWorkItem,
+          id: 'wi-001',
+          title: 'Item 1',
+          startDate: daysFromToday(1),
+          endDate: daysFromToday(5),
+        },
+        {
+          ...baseWorkItem,
+          id: 'wi-002',
+          title: 'Item 2',
+          startDate: daysFromToday(6),
+          endDate: daysFromToday(12),
+        },
       ],
     };
 
