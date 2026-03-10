@@ -179,7 +179,7 @@
   flex-shrink: 0;
 }
 
-details[open] > .sectionSummary > .sectionChevron {
+.sectionDetails[open] > .sectionSummary > .sectionChevron {
   transform: rotate(90deg);
 }
 
