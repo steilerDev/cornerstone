@@ -185,4 +185,18 @@ describe('UpcomingMilestonesCard', () => {
     const healthBadge = screen.getByTestId('milestone-health');
     expect(healthBadge).toHaveTextContent('Delayed');
   });
+
+  // ── Test 11: Milestone title is a link to /schedule/milestones/:id ─────────
+
+  it('renders the milestone title as a link to /schedule/milestones/:id', () => {
+    const milestones: TimelineMilestone[] = [
+      { ...baseMilestone, id: 42, title: 'Roof Complete', targetDate: '2026-06-15' },
+    ];
+
+    renderWithRouter(<UpcomingMilestonesCard milestones={milestones} />);
+
+    const link = screen.getByRole('link', { name: 'Roof Complete' });
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute('href', '/schedule/milestones/42');
+  });
 });
