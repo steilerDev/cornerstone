@@ -41,6 +41,7 @@ A self-hosted home building project management tool for homeowners. Track work i
 - **Timeline & Gantt Chart** -- Interactive Gantt chart with dependency arrows, critical path, zoom controls, milestones, and CPM-based auto-scheduling
 - **Calendar View** -- Monthly and weekly calendar grids with work items and milestones
 - **Household Items** -- Track furniture, appliances, and fixtures with categories, delivery scheduling, budget integration, and work item linking
+- **Project Dashboard** -- At-a-glance project health with budget, timeline, invoice, and subsidy cards, mini Gantt preview, and customizable layout
 - **Document Integration** -- Browse and link documents from Paperless-ngx to work items, household items, and invoices
 - **Authentication** -- Local accounts with setup wizard, OIDC single sign-on
 - **User Management** -- Admin and Member roles, admin panel
@@ -76,7 +77,7 @@ Open `http://localhost:3000` -- the setup wizard will guide you through creating
 - [x] **EPIC-12**: Codebase Refinement and Consistency
 - [x] **EPIC-14**: Cross-Entity Code Deduplication
 - [x] **EPIC-15**: Budget-Line Invoice Linking Rework
-- [ ] **EPIC-09**: Dashboard and Overview
+- [x] **EPIC-09**: Dashboard and Overview
 - [ ] **EPIC-13**: Construction Diary
 
 Track live progress on the [GitHub Projects board](https://github.com/users/steilerDev/projects/4).

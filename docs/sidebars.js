@@ -76,6 +76,7 @@ const sidebars = {
         'guides/household-items/delivery-and-dependencies',
       ],
     },
+    'guides/dashboard/index',
     'guides/appearance/dark-mode',
     'roadmap',
   ],
