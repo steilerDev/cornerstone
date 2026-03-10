@@ -498,9 +498,11 @@ describe('DashboardPage', () => {
       expect(screen.getAllByRole('heading', { name: 'Budget Summary' })[0]).toBeInTheDocument();
     });
 
-    // Both the desktop grid and mobile sections have role="region" + aria-label="Dashboard overview"
-    const regions = screen.getAllByRole('region', { name: 'Dashboard overview' });
-    expect(regions.length).toBeGreaterThanOrEqual(1);
+    // Desktop grid has aria-label="Dashboard overview", mobile has "Dashboard overview (mobile)"
+    const desktopRegion = screen.getByRole('region', { name: 'Dashboard overview' });
+    expect(desktopRegion).toBeInTheDocument();
+    const mobileRegion = screen.getByRole('region', { name: 'Dashboard overview (mobile)' });
+    expect(mobileRegion).toBeInTheDocument();
   });
 
   // Test 24: ARIA live region on grid
