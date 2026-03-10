@@ -48,12 +48,12 @@ export function CriticalPathCard({
 
   // Compute days remaining
   const today = new Date();
-  const deadlineDate = deadline
-    ? new Date(deadline.split('-').map((x, i) => (i === 1 ? String(Number(x) - 1) : x)).join('-'))
-    : null;
+  today.setHours(0, 0, 0, 0);
 
   let daysRemaining = 0;
-  if (deadlineDate) {
+  if (deadline) {
+    const [year, month, day] = deadline.split('-').map(Number);
+    const deadlineDate = new Date(year, month - 1, day);
     const diff = deadlineDate.getTime() - today.getTime();
     daysRemaining = Math.ceil(diff / (1000 * 60 * 60 * 24));
   }
@@ -67,7 +67,7 @@ export function CriticalPathCard({
   } else if (daysRemaining < 7) {
     healthColor = 'var(--color-danger)'; // red <7 days
     healthLabel = 'Critical';
-  } else if (daysRemaining < 14) {
+  } else if (daysRemaining <= 14) {
     healthColor = 'var(--color-warning)'; // yellow 7-14 days
     healthLabel = 'Warning';
   }
