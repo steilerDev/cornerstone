@@ -1,5 +1,10 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import type { DashboardCardId, BudgetOverview, BudgetSource, TimelineResponse } from '@cornerstone/shared';
+import type {
+  DashboardCardId,
+  BudgetOverview,
+  BudgetSource,
+  TimelineResponse,
+} from '@cornerstone/shared';
 import { fetchBudgetOverview } from '../../lib/budgetOverviewApi.js';
 import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { fetchSubsidyPrograms } from '../../lib/subsidyProgramsApi.js';

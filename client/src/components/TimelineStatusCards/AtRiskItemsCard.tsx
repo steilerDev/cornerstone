@@ -63,10 +63,7 @@ export function AtRiskItemsCard({ workItems }: AtRiskItemsCardProps) {
             <Link to={`/work-items/${item.id}`} className={styles.link}>
               {item.title}
             </Link>
-            <span
-              data-testid="risk-reason"
-              className={`${styles.badge} ${styles.badgeRed}`}
-            >
+            <span data-testid="risk-reason" className={`${styles.badge} ${styles.badgeRed}`}>
               {item.reason}
             </span>
           </li>

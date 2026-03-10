@@ -5,9 +5,7 @@ interface WorkItemProgressCardProps {
   workItems: TimelineWorkItem[];
 }
 
-export function WorkItemProgressCard({
-  workItems,
-}: WorkItemProgressCardProps) {
+export function WorkItemProgressCard({ workItems }: WorkItemProgressCardProps) {
   if (workItems.length === 0) {
     return (
       <div className={styles.cardSection}>
@@ -107,9 +105,7 @@ export function WorkItemProgressCard({
           />
 
           {/* Rotated group for clockwise rotation from top */}
-          <g transform="rotate(-90 52 52)">
-            {circles}
-          </g>
+          <g transform="rotate(-90 52 52)">{circles}</g>
 
           {/* Center text */}
           <text

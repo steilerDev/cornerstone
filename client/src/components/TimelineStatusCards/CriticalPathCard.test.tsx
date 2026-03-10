@@ -10,7 +10,10 @@ import type { TimelineWorkItem } from '@cornerstone/shared';
 
 // Dynamic import — must happen after any jest.unstable_mockModule calls.
 // CriticalPathCard has no context deps so no mocks are needed before the import.
-let CriticalPathCard: React.ComponentType<{ criticalPath: string[]; workItems: TimelineWorkItem[] }>;
+let CriticalPathCard: React.ComponentType<{
+  criticalPath: string[];
+  workItems: TimelineWorkItem[];
+}>;
 
 const baseWorkItem: TimelineWorkItem = {
   id: 'wi-1',
@@ -54,9 +57,7 @@ describe('CriticalPathCard', () => {
   // ── Test 1: Empty state when criticalPath is empty ────────────────────────
 
   it('shows empty state with data-testid="critical-empty" and "No critical path defined" when criticalPath is empty', () => {
-    renderWithRouter(
-      <CriticalPathCard criticalPath={[]} workItems={[]} />,
-    );
+    renderWithRouter(<CriticalPathCard criticalPath={[]} workItems={[]} />);
 
     const el = screen.getByTestId('critical-empty');
     expect(el).toBeInTheDocument();
@@ -72,9 +73,7 @@ describe('CriticalPathCard', () => {
       { ...baseWorkItem, id: 'wi-off', title: 'Not Critical', endDate: '2026-04-30' },
     ];
 
-    renderWithRouter(
-      <CriticalPathCard criticalPath={['wi-1', 'wi-2']} workItems={workItems} />,
-    );
+    renderWithRouter(<CriticalPathCard criticalPath={['wi-1', 'wi-2']} workItems={workItems} />);
 
     const countEl = screen.getByTestId('critical-count');
     expect(countEl).toHaveTextContent('2');
@@ -87,9 +86,7 @@ describe('CriticalPathCard', () => {
       { ...baseWorkItem, id: 'wi-1', title: 'Critical Item', endDate: '2026-04-30' },
     ];
 
-    renderWithRouter(
-      <CriticalPathCard criticalPath={['wi-1']} workItems={workItems} />,
-    );
+    renderWithRouter(<CriticalPathCard criticalPath={['wi-1']} workItems={workItems} />);
 
     const deadlineEl = screen.getByTestId('critical-deadline');
     expect(deadlineEl).toBeInTheDocument();
@@ -105,9 +102,7 @@ describe('CriticalPathCard', () => {
       { ...baseWorkItem, id: 'wi-1', title: 'Critical Item', endDate: '2026-03-19' },
     ];
 
-    renderWithRouter(
-      <CriticalPathCard criticalPath={['wi-1']} workItems={workItems} />,
-    );
+    renderWithRouter(<CriticalPathCard criticalPath={['wi-1']} workItems={workItems} />);
 
     const daysEl = screen.getByTestId('critical-days');
     expect(daysEl).toBeInTheDocument();
@@ -122,9 +117,7 @@ describe('CriticalPathCard', () => {
       { ...baseWorkItem, id: 'wi-1', title: 'Critical Item', endDate: '2026-04-30' },
     ];
 
-    renderWithRouter(
-      <CriticalPathCard criticalPath={['wi-1']} workItems={workItems} />,
-    );
+    renderWithRouter(<CriticalPathCard criticalPath={['wi-1']} workItems={workItems} />);
 
     const healthEl = screen.getByTestId('critical-health');
     expect(healthEl).toHaveTextContent('On Track');
@@ -138,9 +131,7 @@ describe('CriticalPathCard', () => {
       { ...baseWorkItem, id: 'wi-1', title: 'Critical Item', endDate: '2026-03-19' },
     ];
 
-    renderWithRouter(
-      <CriticalPathCard criticalPath={['wi-1']} workItems={workItems} />,
-    );
+    renderWithRouter(<CriticalPathCard criticalPath={['wi-1']} workItems={workItems} />);
 
     const healthEl = screen.getByTestId('critical-health');
     expect(healthEl).toHaveTextContent('Warning');
@@ -154,9 +145,7 @@ describe('CriticalPathCard', () => {
       { ...baseWorkItem, id: 'wi-1', title: 'Critical Item', endDate: '2026-03-12' },
     ];
 
-    renderWithRouter(
-      <CriticalPathCard criticalPath={['wi-1']} workItems={workItems} />,
-    );
+    renderWithRouter(<CriticalPathCard criticalPath={['wi-1']} workItems={workItems} />);
 
     const healthEl = screen.getByTestId('critical-health');
     expect(healthEl).toHaveTextContent('Critical');
@@ -170,9 +159,7 @@ describe('CriticalPathCard', () => {
       { ...baseWorkItem, id: 'wi-1', title: 'Critical Item', endDate: '2020-01-01' },
     ];
 
-    renderWithRouter(
-      <CriticalPathCard criticalPath={['wi-1']} workItems={workItems} />,
-    );
+    renderWithRouter(<CriticalPathCard criticalPath={['wi-1']} workItems={workItems} />);
 
     const healthEl = screen.getByTestId('critical-health');
     expect(healthEl).toHaveTextContent('Overdue');
@@ -191,9 +178,7 @@ describe('CriticalPathCard', () => {
       },
     ];
 
-    renderWithRouter(
-      <CriticalPathCard criticalPath={['wi-1']} workItems={workItems} />,
-    );
+    renderWithRouter(<CriticalPathCard criticalPath={['wi-1']} workItems={workItems} />);
 
     const emptyEl = screen.getByTestId('critical-empty');
     expect(emptyEl).toBeInTheDocument();
@@ -210,10 +195,7 @@ describe('CriticalPathCard', () => {
     ];
 
     renderWithRouter(
-      <CriticalPathCard
-        criticalPath={['wi-critical-1', 'wi-critical-2']}
-        workItems={workItems}
-      />,
+      <CriticalPathCard criticalPath={['wi-critical-1', 'wi-critical-2']} workItems={workItems} />,
     );
 
     // Only 2 items are on the critical path; the third must be excluded

@@ -7,14 +7,9 @@ interface CriticalPathCardProps {
   workItems: TimelineWorkItem[];
 }
 
-export function CriticalPathCard({
-  criticalPath,
-  workItems,
-}: CriticalPathCardProps) {
+export function CriticalPathCard({ criticalPath, workItems }: CriticalPathCardProps) {
   // Filter work items to those on the critical path
-  const criticalItems = workItems.filter((item) =>
-    criticalPath.includes(item.id)
-  );
+  const criticalItems = workItems.filter((item) => criticalPath.includes(item.id));
 
   if (criticalItems.length === 0) {
     return (
@@ -81,7 +76,10 @@ export function CriticalPathCard({
           <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-xs)' }}>
             Items on Path
           </span>
-          <div data-testid="critical-count" style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 'var(--font-weight-bold)' }}>
+          <div
+            data-testid="critical-count"
+            style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 'var(--font-weight-bold)' }}
+          >
             {criticalItems.length}
           </div>
         </div>
@@ -90,7 +88,10 @@ export function CriticalPathCard({
           <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-xs)' }}>
             Next Deadline
           </span>
-          <div data-testid="critical-deadline" style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-primary)' }}>
+          <div
+            data-testid="critical-deadline"
+            style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-primary)' }}
+          >
             {formatDate(deadline)}
           </div>
         </div>
@@ -100,14 +101,14 @@ export function CriticalPathCard({
             <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-xs)' }}>
               Days Remaining
             </span>
-            <div data-testid="critical-days" style={{ fontSize: 'var(--font-size-lg)', fontWeight: 'var(--font-weight-semibold)' }}>
+            <div
+              data-testid="critical-days"
+              style={{ fontSize: 'var(--font-size-lg)', fontWeight: 'var(--font-weight-semibold)' }}
+            >
               {daysRemaining}
             </div>
           </div>
-          <div
-            data-testid="critical-health"
-            className={`${styles.badge} ${healthClass}`}
-          >
+          <div data-testid="critical-health" className={`${styles.badge} ${healthClass}`}>
             {healthLabel}
           </div>
         </div>

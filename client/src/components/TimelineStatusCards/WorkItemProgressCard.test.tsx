@@ -47,9 +47,7 @@ describe('WorkItemProgressCard', () => {
   // ── Test 2: Renders SVG donut chart with correct testid and role ──────────
 
   it('renders SVG donut chart with data-testid="progress-donut" and role="img"', () => {
-    const workItems: TimelineWorkItem[] = [
-      { ...baseWorkItem, id: 'wi-1', status: 'in_progress' },
-    ];
+    const workItems: TimelineWorkItem[] = [{ ...baseWorkItem, id: 'wi-1', status: 'in_progress' }];
 
     renderWithRouter(<WorkItemProgressCard workItems={workItems} />);
 
@@ -76,9 +74,7 @@ describe('WorkItemProgressCard', () => {
   // ── Test 4: Shows legend with data-testid="progress-legend" ──────────────
 
   it('renders a legend with data-testid="progress-legend"', () => {
-    const workItems: TimelineWorkItem[] = [
-      { ...baseWorkItem, id: 'wi-1', status: 'in_progress' },
-    ];
+    const workItems: TimelineWorkItem[] = [{ ...baseWorkItem, id: 'wi-1', status: 'in_progress' }];
 
     renderWithRouter(<WorkItemProgressCard workItems={workItems} />);
 

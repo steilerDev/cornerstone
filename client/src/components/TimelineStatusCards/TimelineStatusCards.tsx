@@ -15,10 +15,7 @@ export function TimelineStatusCards({ timeline }: TimelineStatusCardsProps) {
       <UpcomingMilestonesCard milestones={timeline.milestones} />
       <WorkItemProgressCard workItems={timeline.workItems} />
       <AtRiskItemsCard workItems={timeline.workItems} />
-      <CriticalPathCard
-        criticalPath={timeline.criticalPath}
-        workItems={timeline.workItems}
-      />
+      <CriticalPathCard criticalPath={timeline.criticalPath} workItems={timeline.workItems} />
     </div>
   );
 }

@@ -6,9 +6,7 @@ interface UpcomingMilestonesCardProps {
   milestones: TimelineMilestone[];
 }
 
-export function UpcomingMilestonesCard({
-  milestones,
-}: UpcomingMilestonesCardProps) {
+export function UpcomingMilestonesCard({ milestones }: UpcomingMilestonesCardProps) {
   // Filter out completed milestones, sort by targetDate ascending, take first 5
   const upcoming = milestones
     .filter((m) => !m.isCompleted)
@@ -33,8 +31,7 @@ export function UpcomingMilestonesCard({
         {upcoming.map((milestone) => {
           // Determine health: "On Track" if projectedDate <= targetDate or no projectedDate
           const isOnTrack =
-            !milestone.projectedDate ||
-            milestone.projectedDate <= milestone.targetDate;
+            !milestone.projectedDate || milestone.projectedDate <= milestone.targetDate;
           const healthText = isOnTrack ? 'On Track' : 'Delayed';
 
           return (
@@ -46,9 +43,7 @@ export function UpcomingMilestonesCard({
                 </span>
                 <span
                   data-testid="milestone-health"
-                  className={`${styles.badge} ${
-                    isOnTrack ? styles.badgeGreen : styles.badgeRed
-                  }`}
+                  className={`${styles.badge} ${isOnTrack ? styles.badgeGreen : styles.badgeRed}`}
                 >
                   {healthText}
                 </span>

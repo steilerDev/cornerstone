@@ -182,13 +182,55 @@ describe('AtRiskItemsCard', () => {
 
   it('shows at most 5 risk-rows when more than 5 at-risk items exist', () => {
     const workItems: TimelineWorkItem[] = [
-      { ...baseWorkItem, id: 'wi-1', title: 'Overdue 1', status: 'in_progress', endDate: '2020-01-01' },
-      { ...baseWorkItem, id: 'wi-2', title: 'Overdue 2', status: 'in_progress', endDate: '2020-01-02' },
-      { ...baseWorkItem, id: 'wi-3', title: 'Overdue 3', status: 'in_progress', endDate: '2020-01-03' },
-      { ...baseWorkItem, id: 'wi-4', title: 'Overdue 4', status: 'in_progress', endDate: '2020-01-04' },
-      { ...baseWorkItem, id: 'wi-5', title: 'Overdue 5', status: 'in_progress', endDate: '2020-01-05' },
-      { ...baseWorkItem, id: 'wi-6', title: 'Overdue 6', status: 'in_progress', endDate: '2020-01-06' },
-      { ...baseWorkItem, id: 'wi-7', title: 'Overdue 7', status: 'in_progress', endDate: '2020-01-07' },
+      {
+        ...baseWorkItem,
+        id: 'wi-1',
+        title: 'Overdue 1',
+        status: 'in_progress',
+        endDate: '2020-01-01',
+      },
+      {
+        ...baseWorkItem,
+        id: 'wi-2',
+        title: 'Overdue 2',
+        status: 'in_progress',
+        endDate: '2020-01-02',
+      },
+      {
+        ...baseWorkItem,
+        id: 'wi-3',
+        title: 'Overdue 3',
+        status: 'in_progress',
+        endDate: '2020-01-03',
+      },
+      {
+        ...baseWorkItem,
+        id: 'wi-4',
+        title: 'Overdue 4',
+        status: 'in_progress',
+        endDate: '2020-01-04',
+      },
+      {
+        ...baseWorkItem,
+        id: 'wi-5',
+        title: 'Overdue 5',
+        status: 'in_progress',
+        endDate: '2020-01-05',
+      },
+      {
+        ...baseWorkItem,
+        id: 'wi-6',
+        title: 'Overdue 6',
+        status: 'in_progress',
+        endDate: '2020-01-06',
+      },
+      {
+        ...baseWorkItem,
+        id: 'wi-7',
+        title: 'Overdue 7',
+        status: 'in_progress',
+        endDate: '2020-01-07',
+      },
     ];
 
     renderWithRouter(<AtRiskItemsCard workItems={workItems} />);

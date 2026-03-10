@@ -63,7 +63,13 @@ describe('UpcomingMilestonesCard', () => {
       { ...baseMilestone, id: 1, title: 'Milestone A', targetDate: '2026-07-01' },
       { ...baseMilestone, id: 2, title: 'Milestone B', targetDate: '2026-08-01' },
       { ...baseMilestone, id: 3, title: 'Milestone C', targetDate: '2026-09-01' },
-      { ...baseMilestone, id: 4, title: 'Completed', isCompleted: true, completedAt: '2026-01-01T00:00:00.000Z' },
+      {
+        ...baseMilestone,
+        id: 4,
+        title: 'Completed',
+        isCompleted: true,
+        completedAt: '2026-01-01T00:00:00.000Z',
+      },
     ];
 
     renderWithRouter(<UpcomingMilestonesCard milestones={milestones} />);
@@ -136,9 +142,7 @@ describe('UpcomingMilestonesCard', () => {
   // ── Test 8: Shows "On Track" badge when projectedDate is null ────────────
 
   it('shows "On Track" health badge when projectedDate is null (no projected date)', () => {
-    const milestones: TimelineMilestone[] = [
-      { ...baseMilestone, id: 1, projectedDate: null },
-    ];
+    const milestones: TimelineMilestone[] = [{ ...baseMilestone, id: 1, projectedDate: null }];
 
     renderWithRouter(<UpcomingMilestonesCard milestones={milestones} />);
 
