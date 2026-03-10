@@ -167,4 +167,42 @@ describe('SourceUtilizationCard', () => {
 
     expect(screen.queryByTestId('source-row')).toBeNull();
   });
+
+  // ── Story #478: Responsive, Dark Mode & Accessibility ─────────────────────
+
+  // Test 11: sr-only utilization percentage — normal case
+  it('renders a visually hidden element with "50% utilized" for a source with usedAmount=500 and totalAmount=1000', () => {
+    const source: BudgetSource = {
+      ...baseSource,
+      id: 'bs-pct',
+      usedAmount: 500,
+      totalAmount: 1000,
+      availableAmount: 500,
+    };
+
+    const { container } = renderWithRouter(<SourceUtilizationCard sources={[source]} />);
+
+    // The sr-only span is not accessible by role — query via text content
+    // Identity-obj-proxy mocks CSS modules, so className becomes the key name
+    // We rely on text content rather than CSS visibility
+    const allText = container.textContent ?? '';
+    expect(allText).toContain('50% utilized');
+  });
+
+  // Test 12: sr-only utilization percentage — zero total
+  it('renders "0% utilized" in the sr-only span when totalAmount is 0', () => {
+    const source: BudgetSource = {
+      ...baseSource,
+      id: 'bs-zero',
+      usedAmount: 0,
+      totalAmount: 0,
+      availableAmount: 0,
+      actualAvailableAmount: 0,
+    };
+
+    const { container } = renderWithRouter(<SourceUtilizationCard sources={[source]} />);
+
+    const allText = container.textContent ?? '';
+    expect(allText).toContain('0% utilized');
+  });
 });
