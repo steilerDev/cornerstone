@@ -261,7 +261,8 @@ export function DashboardPage() {
         invoices: {
           isLoading: false,
           error: null,
-          isEmpty: invoicesResult.value.invoices.filter((inv) => inv.status === 'pending').length === 0,
+          isEmpty:
+            invoicesResult.value.invoices.filter((inv) => inv.status === 'pending').length === 0,
         },
       }));
     } else {

@@ -24,7 +24,9 @@ export function SubsidyPipelineCard({ subsidyPrograms }: SubsidyPipelineCardProp
     const deadlineDate = new Date(year, month - 1, day);
     const today = new Date();
     const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const daysUntilDeadline = Math.ceil((deadlineDate.getTime() - todayMidnight.getTime()) / (1000 * 60 * 60 * 24));
+    const daysUntilDeadline = Math.ceil(
+      (deadlineDate.getTime() - todayMidnight.getTime()) / (1000 * 60 * 60 * 24),
+    );
     return daysUntilDeadline >= 0 && daysUntilDeadline <= 14;
   };
 
@@ -81,7 +83,11 @@ export function SubsidyPipelineCard({ subsidyPrograms }: SubsidyPipelineCardProp
 
   // Empty state
   if (statusGroups.length === 0) {
-    return <p data-testid="subsidy-empty" className={styles.emptyState}>No subsidy programs found</p>;
+    return (
+      <p data-testid="subsidy-empty" className={styles.emptyState}>
+        No subsidy programs found
+      </p>
+    );
   }
 
   return (

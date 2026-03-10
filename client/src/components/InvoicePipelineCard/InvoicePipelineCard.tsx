@@ -27,7 +27,11 @@ export function InvoicePipelineCard({ invoices, summary }: InvoicePipelineCardPr
 
   // Empty state
   if (pendingInvoices.length === 0) {
-    return <p data-testid="invoice-empty" className={styles.emptyState}>No pending invoices</p>;
+    return (
+      <p data-testid="invoice-empty" className={styles.emptyState}>
+        No pending invoices
+      </p>
+    );
   }
 
   return (

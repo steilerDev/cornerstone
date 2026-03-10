@@ -182,7 +182,12 @@ describe('SubsidyPipelineCard', () => {
 
   it('does not show a deadline-warning when applicationDeadline is null', () => {
     const programs: SubsidyProgram[] = [
-      { ...baseProgram, id: 'sp-null-dl', applicationStatus: 'eligible', applicationDeadline: null },
+      {
+        ...baseProgram,
+        id: 'sp-null-dl',
+        applicationStatus: 'eligible',
+        applicationDeadline: null,
+      },
     ];
 
     renderWithRouter(<SubsidyPipelineCard subsidyPrograms={programs} />);
