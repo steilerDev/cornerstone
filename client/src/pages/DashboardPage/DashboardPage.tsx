@@ -34,6 +34,8 @@ type DataSourceKey =
   | 'invoices'
   | 'subsidyPrograms';
 
+type DashboardSection = 'primary' | 'timeline' | 'budget-details';
+
 interface DataSourceState {
   isLoading: boolean;
   error: string | null;
@@ -43,6 +45,7 @@ interface DataSourceState {
 const CARD_DEFINITIONS: {
   id: DashboardCardId;
   title: string;
+  section: DashboardSection;
   dataSource?: DataSourceKey;
   emptyMessage?: string;
   emptyAction?: {
@@ -50,20 +53,22 @@ const CARD_DEFINITIONS: {
     href: string;
   };
 }[] = [
-  { id: 'budget-summary', title: 'Budget Summary', dataSource: 'budgetOverview' },
-  { id: 'budget-alerts', title: 'Budget Alerts', dataSource: 'budgetOverview' },
+  { id: 'budget-summary', title: 'Budget Summary', section: 'primary', dataSource: 'budgetOverview' },
+  { id: 'budget-alerts', title: 'Budget Alerts', section: 'primary', dataSource: 'budgetOverview' },
   {
     id: 'source-utilization',
     title: 'Source Utilization',
+    section: 'budget-details',
     dataSource: 'budgetSources',
     emptyMessage: 'No budget sources configured',
     emptyAction: { label: 'Add a budget source', href: '/budget/sources' },
   },
-  { id: 'timeline-status', title: 'Timeline Status', dataSource: 'timeline' },
-  { id: 'mini-gantt', title: 'Mini Gantt', dataSource: 'timeline' },
+  { id: 'timeline-status', title: 'Timeline Status', section: 'timeline', dataSource: 'timeline' },
+  { id: 'mini-gantt', title: 'Mini Gantt', section: 'timeline', dataSource: 'timeline' },
   {
     id: 'invoice-pipeline',
     title: 'Invoice Pipeline',
+    section: 'primary',
     dataSource: 'invoices',
     emptyMessage: 'No invoices yet',
     emptyAction: { label: 'Create an invoice', href: '/budget/invoices' },
@@ -71,12 +76,25 @@ const CARD_DEFINITIONS: {
   {
     id: 'subsidy-pipeline',
     title: 'Subsidy Pipeline',
+    section: 'budget-details',
     dataSource: 'subsidyPrograms',
     emptyMessage: 'No subsidy programs found',
     emptyAction: { label: 'Add a subsidy program', href: '/budget/subsidies' },
   },
-  { id: 'quick-actions', title: 'Quick Actions' },
+  { id: 'quick-actions', title: 'Quick Actions', section: 'primary' },
 ];
+
+function getTimelineSummary(isLoading: boolean, timeline: TimelineResponse | null): string {
+  if (isLoading) return '…';
+  const count = timeline?.workItems.length ?? 0;
+  return count === 0 ? 'No items scheduled' : `${count} work item${count === 1 ? '' : 's'} scheduled`;
+}
+
+function getBudgetDetailsSummary(isLoading: boolean, sources: BudgetSource[]): string {
+  if (isLoading) return '…';
+  const count = sources.length;
+  return count === 0 ? 'No sources configured' : `${count} source${count === 1 ? '' : 's'} configured`;
+}
 
 export function DashboardPage() {
   const [dataStates, setDataStates] = useState<Record<DataSourceKey, DataSourceState>>({
@@ -314,6 +332,45 @@ export function DashboardPage() {
   const hasHiddenCards = hiddenCardIds.size > 0;
   const hiddenCards = CARD_DEFINITIONS.filter((card) => hiddenCardIds.has(card.id));
 
+  // Helper to render a card
+  const renderCard = (card: typeof visibleCards[number]) => {
+    const dataState = card.dataSource ? dataStates[card.dataSource] : undefined;
+    return (
+      <DashboardCard
+        key={card.id}
+        id={card.id}
+        title={card.title}
+        onDismiss={() => void handleDismissCard(card.id)}
+        isLoading={dataState?.isLoading}
+        error={dataState?.error}
+        onRetry={() => void loadAllData()}
+        isEmpty={dataState?.isEmpty}
+        emptyMessage={card.emptyMessage ?? 'No data available'}
+        emptyAction={card.emptyAction}
+      >
+        {card.id === 'budget-summary' && budgetOverview ? (
+          <BudgetSummaryCard overview={budgetOverview} />
+        ) : card.id === 'budget-alerts' && budgetOverview ? (
+          <BudgetAlertsCard categorySummaries={budgetOverview.categorySummaries} />
+        ) : card.id === 'source-utilization' ? (
+          <SourceUtilizationCard sources={budgetSources} />
+        ) : card.id === 'timeline-status' && timelineData ? (
+          <TimelineStatusCards timeline={timelineData} />
+        ) : card.id === 'mini-gantt' && timelineData ? (
+          <MiniGanttCard timeline={timelineData} />
+        ) : card.id === 'invoice-pipeline' && invoiceSummary ? (
+          <InvoicePipelineCard invoices={invoices} summary={invoiceSummary} />
+        ) : card.id === 'subsidy-pipeline' ? (
+          <SubsidyPipelineCard subsidyPrograms={subsidyPrograms} />
+        ) : card.id === 'quick-actions' ? (
+          <QuickActionsCard />
+        ) : (
+          <p className={styles.cardPlaceholder}>Content coming soon.</p>
+        )}
+      </DashboardCard>
+    );
+  };
+
   return (
     <div className={styles.page}>
       <div className={styles.pageHeader}>
@@ -355,46 +412,55 @@ export function DashboardPage() {
 
       <ProjectSubNav />
 
-      {/* Card grid */}
-      <div className={styles.grid}>
-        {visibleCards.map((card) => {
-          const dataState = card.dataSource ? dataStates[card.dataSource] : undefined;
+      {/* Desktop/tablet: flat grid */}
+      <div
+        role="region"
+        aria-label="Dashboard overview"
+        aria-live="polite"
+        aria-atomic="false"
+        className={styles.grid}
+      >
+        {visibleCards.map((card) => renderCard(card))}
+      </div>
 
-          return (
-            <DashboardCard
-              key={card.id}
-              id={card.id}
-              title={card.title}
-              onDismiss={() => void handleDismissCard(card.id)}
-              isLoading={dataState?.isLoading}
-              error={dataState?.error}
-              onRetry={() => void loadAllData()}
-              isEmpty={dataState?.isEmpty}
-              emptyMessage={card.emptyMessage ?? 'No data available'}
-              emptyAction={card.emptyAction}
-            >
-              {card.id === 'budget-summary' && budgetOverview ? (
-                <BudgetSummaryCard overview={budgetOverview} />
-              ) : card.id === 'budget-alerts' && budgetOverview ? (
-                <BudgetAlertsCard categorySummaries={budgetOverview.categorySummaries} />
-              ) : card.id === 'source-utilization' ? (
-                <SourceUtilizationCard sources={budgetSources} />
-              ) : card.id === 'timeline-status' && timelineData ? (
-                <TimelineStatusCards timeline={timelineData} />
-              ) : card.id === 'mini-gantt' && timelineData ? (
-                <MiniGanttCard timeline={timelineData} />
-              ) : card.id === 'invoice-pipeline' && invoiceSummary ? (
-                <InvoicePipelineCard invoices={invoices} summary={invoiceSummary} />
-              ) : card.id === 'subsidy-pipeline' ? (
-                <SubsidyPipelineCard subsidyPrograms={subsidyPrograms} />
-              ) : card.id === 'quick-actions' ? (
-                <QuickActionsCard />
-              ) : (
-                <p className={styles.cardPlaceholder}>Content coming soon.</p>
-              )}
-            </DashboardCard>
-          );
-        })}
+      {/* Mobile: sectioned layout */}
+      <div className={styles.mobileSections} role="region" aria-label="Dashboard overview">
+        {/* Primary section — always expanded */}
+        <div className={styles.mobileSection}>
+          {visibleCards.filter((c) => c.section === 'primary').map((card) => renderCard(card))}
+        </div>
+
+        {/* Timeline section — collapsible */}
+        {visibleCards.some((c) => c.section === 'timeline') && (
+          <details className={styles.sectionDetails}>
+            <summary className={styles.sectionSummary}>
+              <span className={styles.sectionSummaryTitle}>Timeline</span>
+              <span className={styles.sectionSummaryText}>
+                {getTimelineSummary(dataStates.timeline.isLoading, timelineData)}
+              </span>
+              <span className={styles.sectionChevron} aria-hidden="true">›</span>
+            </summary>
+            <div className={styles.sectionCards}>
+              {visibleCards.filter((c) => c.section === 'timeline').map((card) => renderCard(card))}
+            </div>
+          </details>
+        )}
+
+        {/* Budget Details section — collapsible */}
+        {visibleCards.some((c) => c.section === 'budget-details') && (
+          <details className={styles.sectionDetails}>
+            <summary className={styles.sectionSummary}>
+              <span className={styles.sectionSummaryTitle}>Budget Details</span>
+              <span className={styles.sectionSummaryText}>
+                {getBudgetDetailsSummary(dataStates.budgetSources.isLoading, budgetSources)}
+              </span>
+              <span className={styles.sectionChevron} aria-hidden="true">›</span>
+            </summary>
+            <div className={styles.sectionCards}>
+              {visibleCards.filter((c) => c.section === 'budget-details').map((card) => renderCard(card))}
+            </div>
+          </details>
+        )}
       </div>
     </div>
   );

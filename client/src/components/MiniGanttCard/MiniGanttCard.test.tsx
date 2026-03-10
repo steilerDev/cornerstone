@@ -267,6 +267,53 @@ describe('MiniGanttCard', () => {
     expect(rects.length).toBe(2);
   });
 
+  // ── Story #478: SVG accessibility — role="img" and aria-label ───────────────
+
+  it('SVG has role="img" and aria-label containing work item count and milestone count', () => {
+    const timeline: TimelineResponse = {
+      ...emptyTimeline,
+      workItems: [
+        {
+          ...baseWorkItem,
+          id: 'wi-001',
+          title: 'Item A',
+          startDate: daysFromToday(2),
+          endDate: daysFromToday(8),
+        },
+        {
+          ...baseWorkItem,
+          id: 'wi-002',
+          title: 'Item B',
+          startDate: daysFromToday(10),
+          endDate: daysFromToday(18),
+        },
+      ],
+      milestones: [
+        {
+          id: 1,
+          title: 'Phase 1 Complete',
+          targetDate: daysFromToday(15),
+          isCompleted: false,
+          completedAt: null,
+          color: null,
+          workItemIds: [],
+          projectedDate: null,
+          isCritical: false,
+        },
+      ],
+    };
+
+    const { container } = renderWithRouter(<MiniGanttCard timeline={timeline} />);
+
+    const svg = container.querySelector('svg');
+    expect(svg).not.toBeNull();
+    expect(svg).toHaveAttribute('role', 'img');
+
+    const ariaLabel = svg?.getAttribute('aria-label') ?? '';
+    expect(ariaLabel).toContain('2 work items');
+    expect(ariaLabel).toContain('1 milestone');
+  });
+
   // ── Test 10: Dependency lines rendered between visible work items ─────────────
 
   it('renders line elements for dependencies between two visible work items', () => {

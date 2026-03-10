@@ -198,7 +198,7 @@ describe('DashboardPage', () => {
 
     for (const title of ALL_CARD_TITLES) {
       await waitFor(() => {
-        expect(screen.getByRole('heading', { name: title })).toBeInTheDocument();
+        expect(screen.getAllByRole('heading', { name: title })[0]).toBeInTheDocument();
       });
     }
   });
@@ -223,7 +223,7 @@ describe('DashboardPage', () => {
     //   subsidyPrograms→ Subsidy Pipeline (1)
     // Quick Actions has no dataSource — renders children immediately, no skeleton
     const loadingEls = screen.getAllByRole('status', { name: /^Loading .+ data$/ });
-    expect(loadingEls.length).toBe(7);
+    expect(loadingEls.length).toBe(14);
   });
 
   // ─── Test 15: Error state when API fails ────────────────────────────────
@@ -254,7 +254,7 @@ describe('DashboardPage', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText('Failed to load budget sources')).toBeInTheDocument();
+      expect(screen.getAllByText('Failed to load budget sources')[0]).toBeInTheDocument();
     });
   });
 
@@ -267,16 +267,16 @@ describe('DashboardPage', () => {
 
     // Wait for the loading phase to complete
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Source Utilization' })).toBeInTheDocument();
+      expect(screen.getAllByRole('heading', { name: 'Source Utilization' })[0]).toBeInTheDocument();
     });
 
     // isEmpty=true → empty message is shown for this card
     await waitFor(() => {
-      expect(screen.getByText('No budget sources configured')).toBeInTheDocument();
+      expect(screen.getAllByText('No budget sources configured')[0]).toBeInTheDocument();
     });
 
     // Check that the contextual link is rendered
-    expect(screen.getByRole('link', { name: 'Add a budget source' })).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: 'Add a budget source' })[0]).toBeInTheDocument();
   });
 
   it('shows empty state for Subsidy Pipeline when subsidy programs API returns empty list', async () => {
@@ -285,16 +285,16 @@ describe('DashboardPage', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Subsidy Pipeline' })).toBeInTheDocument();
+      expect(screen.getAllByRole('heading', { name: 'Subsidy Pipeline' })[0]).toBeInTheDocument();
     });
 
     // isEmpty=true → empty message is shown for this card
     await waitFor(() => {
-      expect(screen.getByText('No subsidy programs found')).toBeInTheDocument();
+      expect(screen.getAllByText('No subsidy programs found')[0]).toBeInTheDocument();
     });
 
     // Check that the contextual link is rendered
-    expect(screen.getByRole('link', { name: 'Add a subsidy program' })).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: 'Add a subsidy program' })[0]).toBeInTheDocument();
   });
 
   // ─── Test 17: Dismiss calls upsert with dashboard.hiddenCards ────────────
@@ -303,10 +303,10 @@ describe('DashboardPage', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Budget Summary' })).toBeInTheDocument();
+      expect(screen.getAllByRole('heading', { name: 'Budget Summary' })[0]).toBeInTheDocument();
     });
 
-    await userEvent.click(screen.getByRole('button', { name: 'Hide Budget Summary card' }));
+    await userEvent.click(screen.getAllByRole('button', { name: 'Hide Budget Summary card' })[0]);
 
     await waitFor(() => {
       expect(mockUpsertPreference).toHaveBeenCalledWith(
@@ -331,10 +331,10 @@ describe('DashboardPage', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Budget Summary' })).toBeInTheDocument();
+      expect(screen.getAllByRole('heading', { name: 'Budget Summary' })[0]).toBeInTheDocument();
     });
 
-    await userEvent.click(screen.getByRole('button', { name: 'Hide Budget Summary card' }));
+    await userEvent.click(screen.getAllByRole('button', { name: 'Hide Budget Summary card' })[0]);
 
     await waitFor(() => {
       expect(mockUpsertPreference).toHaveBeenCalledWith(
@@ -365,7 +365,7 @@ describe('DashboardPage', () => {
 
     expect(screen.queryByRole('heading', { name: 'Mini Gantt' })).not.toBeInTheDocument();
     // Sibling card still visible
-    expect(screen.getByRole('heading', { name: 'Timeline Status' })).toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { name: 'Timeline Status' })[0]).toBeInTheDocument();
   });
 
   // ─── Test 19: Customize button appears when cards are hidden ─────────────
@@ -487,6 +487,199 @@ describe('DashboardPage', () => {
     });
   });
 
+  // ─── Story #478: Responsive, Dark Mode & Accessibility ──────────────────
+
+  // Test 23: ARIA region landmark on grid
+  it('renders an element with role="region" and aria-label="Dashboard overview" for the desktop grid', async () => {
+    renderPage();
+
+    // Wait for data to settle so the grid is fully rendered
+    await waitFor(() => {
+      expect(screen.getAllByRole('heading', { name: 'Budget Summary' })[0]).toBeInTheDocument();
+    });
+
+    // Both the desktop grid and mobile sections have role="region" + aria-label="Dashboard overview"
+    const regions = screen.getAllByRole('region', { name: 'Dashboard overview' });
+    expect(regions.length).toBeGreaterThanOrEqual(1);
+  });
+
+  // Test 24: ARIA live region on grid
+  it('desktop grid region has aria-live="polite"', async () => {
+    const { container } = renderPage();
+
+    await waitFor(() => {
+      expect(screen.getAllByRole('heading', { name: 'Budget Summary' })[0]).toBeInTheDocument();
+    });
+
+    // The desktop grid element is the first element with role="region" and aria-live on it
+    const liveRegion = container.querySelector('[aria-live="polite"][role="region"]');
+    expect(liveRegion).not.toBeNull();
+    expect(liveRegion).toHaveAttribute('aria-live', 'polite');
+    expect(liveRegion).toHaveAttribute('aria-label', 'Dashboard overview');
+  });
+
+  // Test 25: Mobile sections render exactly 2 details elements
+  it('mobile sections contain exactly 2 <details> elements (Timeline and Budget Details)', async () => {
+    const { container } = renderPage();
+
+    await waitFor(() => {
+      expect(screen.getAllByRole('heading', { name: 'Budget Summary' })[0]).toBeInTheDocument();
+    });
+
+    const detailsEls = container.querySelectorAll('details');
+    expect(detailsEls).toHaveLength(2);
+  });
+
+  // Test 26: Timeline summary with loaded data containing 3 work items
+  it('timeline <details> summary shows "3 work items scheduled" when timeline has 3 work items', async () => {
+    const timelineWith3Items: TimelineResponse = {
+      ...emptyTimelineResponse,
+      workItems: [
+        {
+          id: 'wi-1',
+          title: 'Item 1',
+          status: 'not_started',
+          startDate: '2026-04-01',
+          endDate: '2026-04-10',
+          actualStartDate: null,
+          actualEndDate: null,
+          durationDays: 9,
+          startAfter: null,
+          startBefore: null,
+          assignedUser: null,
+          tags: [],
+          requiredMilestoneIds: [],
+        },
+        {
+          id: 'wi-2',
+          title: 'Item 2',
+          status: 'in_progress',
+          startDate: '2026-04-11',
+          endDate: '2026-04-20',
+          actualStartDate: null,
+          actualEndDate: null,
+          durationDays: 9,
+          startAfter: null,
+          startBefore: null,
+          assignedUser: null,
+          tags: [],
+          requiredMilestoneIds: [],
+        },
+        {
+          id: 'wi-3',
+          title: 'Item 3',
+          status: 'completed',
+          startDate: '2026-04-21',
+          endDate: '2026-04-30',
+          actualStartDate: null,
+          actualEndDate: null,
+          durationDays: 9,
+          startAfter: null,
+          startBefore: null,
+          assignedUser: null,
+          tags: [],
+          requiredMilestoneIds: [],
+        },
+      ],
+    };
+    mockGetTimeline.mockResolvedValue(timelineWith3Items);
+
+    const { container } = renderPage();
+
+    await waitFor(() => {
+      expect(screen.getAllByRole('heading', { name: 'Budget Summary' })[0]).toBeInTheDocument();
+    });
+
+    // The Timeline <details> summary should contain the count text
+    const detailsEls = container.querySelectorAll('details');
+    const timelineDetails = detailsEls[0]; // Timeline is first
+    expect(timelineDetails?.textContent).toContain('3 work items scheduled');
+  });
+
+  // Test 27: Timeline summary with empty data
+  it('timeline <details> summary shows "No items scheduled" when timeline has no work items', async () => {
+    mockGetTimeline.mockResolvedValue(emptyTimelineResponse);
+
+    const { container } = renderPage();
+
+    await waitFor(() => {
+      expect(screen.getAllByRole('heading', { name: 'Budget Summary' })[0]).toBeInTheDocument();
+    });
+
+    const detailsEls = container.querySelectorAll('details');
+    const timelineDetails = detailsEls[0];
+    expect(timelineDetails?.textContent).toContain('No items scheduled');
+  });
+
+  // Test 28: Budget Details summary with 2 sources
+  it('budget details <details> summary shows "2 sources configured" when 2 budget sources are returned', async () => {
+    const twoSources = [
+      {
+        id: 'bs-1',
+        name: 'Construction Loan',
+        sourceType: 'bank_loan' as const,
+        totalAmount: 200000,
+        usedAmount: 100000,
+        availableAmount: 100000,
+        claimedAmount: 50000,
+        unclaimedAmount: 50000,
+        actualAvailableAmount: 150000,
+        interestRate: 3.5,
+        terms: null,
+        notes: null,
+        status: 'active' as const,
+        createdBy: null,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+      {
+        id: 'bs-2',
+        name: 'Savings',
+        sourceType: 'savings' as const,
+        totalAmount: 50000,
+        usedAmount: 10000,
+        availableAmount: 40000,
+        claimedAmount: 0,
+        unclaimedAmount: 0,
+        actualAvailableAmount: 50000,
+        interestRate: null,
+        terms: null,
+        notes: null,
+        status: 'active' as const,
+        createdBy: null,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+    ];
+    mockFetchBudgetSources.mockResolvedValue({ budgetSources: twoSources });
+
+    const { container } = renderPage();
+
+    await waitFor(() => {
+      expect(screen.getAllByRole('heading', { name: 'Budget Summary' })[0]).toBeInTheDocument();
+    });
+
+    const detailsEls = container.querySelectorAll('details');
+    // Budget Details is the second <details> element
+    const budgetDetails = detailsEls[1];
+    expect(budgetDetails?.textContent).toContain('2 sources configured');
+  });
+
+  // Test 29: Budget Details summary with empty sources
+  it('budget details <details> summary shows "No sources configured" when sources are empty', async () => {
+    mockFetchBudgetSources.mockResolvedValue({ budgetSources: [] });
+
+    const { container } = renderPage();
+
+    await waitFor(() => {
+      expect(screen.getAllByRole('heading', { name: 'Budget Summary' })[0]).toBeInTheDocument();
+    });
+
+    const detailsEls = container.querySelectorAll('details');
+    const budgetDetails = detailsEls[1];
+    expect(budgetDetails?.textContent).toContain('No sources configured');
+  });
+
   // ─── Test 22: Malformed JSON in preferences does not crash ───────────────
 
   it('handles malformed JSON in dashboard.hiddenCards preference gracefully', () => {
@@ -506,7 +699,7 @@ describe('DashboardPage', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Project' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Customize' })).not.toBeInTheDocument();
     // All 8 cards still visible
-    expect(screen.getByRole('heading', { name: 'Budget Summary' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Quick Actions' })).toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { name: 'Budget Summary' })[0]).toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { name: 'Quick Actions' })[0]).toBeInTheDocument();
   });
 });
