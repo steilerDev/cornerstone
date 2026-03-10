@@ -198,7 +198,7 @@ describe('DashboardPage', () => {
 
     for (const title of ALL_CARD_TITLES) {
       await waitFor(() => {
-        expect(screen.getByRole('heading', { name: title })).toBeInTheDocument();
+        expect(screen.getAllByRole('heading', { name: title })[0]).toBeInTheDocument();
       });
     }
   });
@@ -223,7 +223,7 @@ describe('DashboardPage', () => {
     //   subsidyPrograms→ Subsidy Pipeline (1)
     // Quick Actions has no dataSource — renders children immediately, no skeleton
     const loadingEls = screen.getAllByRole('status', { name: /^Loading .+ data$/ });
-    expect(loadingEls.length).toBe(7);
+    expect(loadingEls.length).toBe(14);
   });
 
   // ─── Test 15: Error state when API fails ────────────────────────────────
@@ -254,7 +254,7 @@ describe('DashboardPage', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText('Failed to load budget sources')).toBeInTheDocument();
+      expect(screen.getAllByText('Failed to load budget sources')[0]).toBeInTheDocument();
     });
   });
 
@@ -267,16 +267,16 @@ describe('DashboardPage', () => {
 
     // Wait for the loading phase to complete
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Source Utilization' })).toBeInTheDocument();
+      expect(screen.getAllByRole('heading', { name: 'Source Utilization' })[0]).toBeInTheDocument();
     });
 
     // isEmpty=true → empty message is shown for this card
     await waitFor(() => {
-      expect(screen.getByText('No budget sources configured')).toBeInTheDocument();
+      expect(screen.getAllByText('No budget sources configured')[0]).toBeInTheDocument();
     });
 
     // Check that the contextual link is rendered
-    expect(screen.getByRole('link', { name: 'Add a budget source' })).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: 'Add a budget source' })[0]).toBeInTheDocument();
   });
 
   it('shows empty state for Subsidy Pipeline when subsidy programs API returns empty list', async () => {
@@ -285,16 +285,16 @@ describe('DashboardPage', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Subsidy Pipeline' })).toBeInTheDocument();
+      expect(screen.getAllByRole('heading', { name: 'Subsidy Pipeline' })[0]).toBeInTheDocument();
     });
 
     // isEmpty=true → empty message is shown for this card
     await waitFor(() => {
-      expect(screen.getByText('No subsidy programs found')).toBeInTheDocument();
+      expect(screen.getAllByText('No subsidy programs found')[0]).toBeInTheDocument();
     });
 
     // Check that the contextual link is rendered
-    expect(screen.getByRole('link', { name: 'Add a subsidy program' })).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: 'Add a subsidy program' })[0]).toBeInTheDocument();
   });
 
   // ─── Test 17: Dismiss calls upsert with dashboard.hiddenCards ────────────
@@ -303,10 +303,10 @@ describe('DashboardPage', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Budget Summary' })).toBeInTheDocument();
+      expect(screen.getAllByRole('heading', { name: 'Budget Summary' })[0]).toBeInTheDocument();
     });
 
-    await userEvent.click(screen.getByRole('button', { name: 'Hide Budget Summary card' }));
+    await userEvent.click(screen.getAllByRole('button', { name: 'Hide Budget Summary card' })[0]);
 
     await waitFor(() => {
       expect(mockUpsertPreference).toHaveBeenCalledWith(
@@ -331,10 +331,10 @@ describe('DashboardPage', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Budget Summary' })).toBeInTheDocument();
+      expect(screen.getAllByRole('heading', { name: 'Budget Summary' })[0]).toBeInTheDocument();
     });
 
-    await userEvent.click(screen.getByRole('button', { name: 'Hide Budget Summary card' }));
+    await userEvent.click(screen.getAllByRole('button', { name: 'Hide Budget Summary card' })[0]);
 
     await waitFor(() => {
       expect(mockUpsertPreference).toHaveBeenCalledWith(
@@ -365,7 +365,7 @@ describe('DashboardPage', () => {
 
     expect(screen.queryByRole('heading', { name: 'Mini Gantt' })).not.toBeInTheDocument();
     // Sibling card still visible
-    expect(screen.getByRole('heading', { name: 'Timeline Status' })).toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { name: 'Timeline Status' })[0]).toBeInTheDocument();
   });
 
   // ─── Test 19: Customize button appears when cards are hidden ─────────────
@@ -495,7 +495,7 @@ describe('DashboardPage', () => {
 
     // Wait for data to settle so the grid is fully rendered
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Budget Summary' })).toBeInTheDocument();
+      expect(screen.getAllByRole('heading', { name: 'Budget Summary' })[0]).toBeInTheDocument();
     });
 
     // Both the desktop grid and mobile sections have role="region" + aria-label="Dashboard overview"
@@ -508,7 +508,7 @@ describe('DashboardPage', () => {
     const { container } = renderPage();
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Budget Summary' })).toBeInTheDocument();
+      expect(screen.getAllByRole('heading', { name: 'Budget Summary' })[0]).toBeInTheDocument();
     });
 
     // The desktop grid element is the first element with role="region" and aria-live on it
@@ -523,7 +523,7 @@ describe('DashboardPage', () => {
     const { container } = renderPage();
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Budget Summary' })).toBeInTheDocument();
+      expect(screen.getAllByRole('heading', { name: 'Budget Summary' })[0]).toBeInTheDocument();
     });
 
     const detailsEls = container.querySelectorAll('details');
@@ -587,7 +587,7 @@ describe('DashboardPage', () => {
     const { container } = renderPage();
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Budget Summary' })).toBeInTheDocument();
+      expect(screen.getAllByRole('heading', { name: 'Budget Summary' })[0]).toBeInTheDocument();
     });
 
     // The Timeline <details> summary should contain the count text
@@ -603,7 +603,7 @@ describe('DashboardPage', () => {
     const { container } = renderPage();
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Budget Summary' })).toBeInTheDocument();
+      expect(screen.getAllByRole('heading', { name: 'Budget Summary' })[0]).toBeInTheDocument();
     });
 
     const detailsEls = container.querySelectorAll('details');
@@ -656,7 +656,7 @@ describe('DashboardPage', () => {
     const { container } = renderPage();
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Budget Summary' })).toBeInTheDocument();
+      expect(screen.getAllByRole('heading', { name: 'Budget Summary' })[0]).toBeInTheDocument();
     });
 
     const detailsEls = container.querySelectorAll('details');
@@ -672,7 +672,7 @@ describe('DashboardPage', () => {
     const { container } = renderPage();
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Budget Summary' })).toBeInTheDocument();
+      expect(screen.getAllByRole('heading', { name: 'Budget Summary' })[0]).toBeInTheDocument();
     });
 
     const detailsEls = container.querySelectorAll('details');
@@ -699,7 +699,7 @@ describe('DashboardPage', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Project' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Customize' })).not.toBeInTheDocument();
     // All 8 cards still visible
-    expect(screen.getByRole('heading', { name: 'Budget Summary' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Quick Actions' })).toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { name: 'Budget Summary' })[0]).toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { name: 'Quick Actions' })[0]).toBeInTheDocument();
   });
 });
