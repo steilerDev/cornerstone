@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import type { TimelineMilestone } from '@cornerstone/shared';
 import { formatDate } from '../../lib/formatters.js';
 import styles from './TimelineStatusCards.module.css';
@@ -15,18 +16,14 @@ export function UpcomingMilestonesCard({ milestones }: UpcomingMilestonesCardPro
 
   if (upcoming.length === 0) {
     return (
-      <div className={styles.cardSection}>
-        <h3 className={styles.sectionHeader}>Upcoming Milestones</h3>
-        <p data-testid="milestone-empty" className={styles.emptyState}>
-          No upcoming milestones
-        </p>
-      </div>
+      <p data-testid="milestone-empty" className={styles.emptyState}>
+        No upcoming milestones
+      </p>
     );
   }
 
   return (
-    <div className={styles.cardSection}>
-      <h3 className={styles.sectionHeader}>Upcoming Milestones</h3>
+    <>
       <ul className={styles.list}>
         {upcoming.map((milestone) => {
           // Determine health: "On Track" if projectedDate <= targetDate or no projectedDate
@@ -36,7 +33,9 @@ export function UpcomingMilestonesCard({ milestones }: UpcomingMilestonesCardPro
 
           return (
             <li key={milestone.id} data-testid="milestone-row" className={styles.listItem}>
-              <span>{milestone.title}</span>
+              <Link to={`/schedule/milestones/${milestone.id}`} className={styles.link}>
+                {milestone.title}
+              </Link>
               <div style={{ display: 'flex', gap: 'var(--spacing-2)' }}>
                 <span style={{ color: 'var(--color-text-muted)' }}>
                   {formatDate(milestone.targetDate)}
@@ -52,6 +51,6 @@ export function UpcomingMilestonesCard({ milestones }: UpcomingMilestonesCardPro
           );
         })}
       </ul>
-    </div>
+    </>
   );
 }

@@ -101,3 +101,23 @@
   box-shadow: var(--shadow-focus);
   border-radius: var(--radius-sm);
 }
+
+.itemLink {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  flex: 1;
+  text-decoration: none;
+  color: inherit;
+  width: 100%;
+}
+
+.itemLink:hover {
+  text-decoration: none;
+}
+
+.itemLink:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
+}

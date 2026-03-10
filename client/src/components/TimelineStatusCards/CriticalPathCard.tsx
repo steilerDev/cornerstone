@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import type { TimelineWorkItem } from '@cornerstone/shared';
 import { formatDate } from '../../lib/formatters.js';
 import styles from './TimelineStatusCards.module.css';
@@ -13,12 +14,9 @@ export function CriticalPathCard({ criticalPath, workItems }: CriticalPathCardPr
 
   if (criticalItems.length === 0) {
     return (
-      <div className={styles.cardSection}>
-        <h3 className={styles.sectionHeader}>Critical Path</h3>
-        <p data-testid="critical-empty" className={styles.emptyState}>
-          No critical path defined
-        </p>
-      </div>
+      <p data-testid="critical-empty" className={styles.emptyState}>
+        No critical path defined
+      </p>
     );
   }
 
@@ -29,12 +27,9 @@ export function CriticalPathCard({ criticalPath, workItems }: CriticalPathCardPr
 
   if (incompleteCritical.length === 0) {
     return (
-      <div className={styles.cardSection}>
-        <h3 className={styles.sectionHeader}>Critical Path</h3>
-        <p data-testid="critical-empty" className={styles.emptyState}>
-          All critical items completed
-        </p>
-      </div>
+      <p data-testid="critical-empty" className={styles.emptyState}>
+        All critical items completed
+      </p>
     );
   }
 
@@ -68,49 +63,47 @@ export function CriticalPathCard({ criticalPath, workItems }: CriticalPathCardPr
   }
 
   return (
-    <div className={styles.cardSection}>
-      <h3 className={styles.sectionHeader}>Critical Path</h3>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-3)' }}>
-        <div>
-          <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-xs)' }}>
-            Items on Path
-          </span>
-          <div
-            data-testid="critical-count"
-            style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 'var(--font-weight-bold)' }}
-          >
-            {criticalItems.length}
-          </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-3)' }}>
+      <div>
+        <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-xs)' }}>
+          Items on Path
+        </span>
+        <div
+          data-testid="critical-count"
+          style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 'var(--font-weight-bold)' }}
+        >
+          {criticalItems.length}
         </div>
+      </div>
 
-        <div>
-          <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-xs)' }}>
-            Next Deadline
-          </span>
-          <div
-            data-testid="critical-deadline"
-            style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-primary)' }}
-          >
+      <div>
+        <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-xs)' }}>
+          Next Deadline
+        </span>
+        <div
+          data-testid="critical-deadline"
+          style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-primary)' }}
+        >
+          <Link to={`/work-items/${nextItem.id}`} className={styles.link}>
             {formatDate(deadline)}
+          </Link>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div>
+          <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-xs)' }}>
+            Days Remaining
+          </span>
+          <div
+            data-testid="critical-days"
+            style={{ fontSize: 'var(--font-size-lg)', fontWeight: 'var(--font-weight-semibold)' }}
+          >
+            {daysRemaining}
           </div>
         </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-xs)' }}>
-              Days Remaining
-            </span>
-            <div
-              data-testid="critical-days"
-              style={{ fontSize: 'var(--font-size-lg)', fontWeight: 'var(--font-weight-semibold)' }}
-            >
-              {daysRemaining}
-            </div>
-          </div>
-          <div data-testid="critical-health" className={`${styles.badge} ${healthClass}`}>
-            {healthLabel}
-          </div>
+        <div data-testid="critical-health" className={`${styles.badge} ${healthClass}`}>
+          {healthLabel}
         </div>
       </div>
     </div>

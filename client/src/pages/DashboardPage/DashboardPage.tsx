@@ -20,7 +20,9 @@ import { DashboardCard } from '../../components/DashboardCard/DashboardCard.js';
 import { BudgetSummaryCard } from '../../components/BudgetSummaryCard/BudgetSummaryCard.js';
 import { BudgetAlertsCard } from '../../components/BudgetAlertsCard/BudgetAlertsCard.js';
 import { SourceUtilizationCard } from '../../components/SourceUtilizationCard/SourceUtilizationCard.js';
-import { TimelineStatusCards } from '../../components/TimelineStatusCards/TimelineStatusCards.js';
+import { UpcomingMilestonesCard } from '../../components/TimelineStatusCards/UpcomingMilestonesCard.js';
+import { WorkItemProgressCard } from '../../components/TimelineStatusCards/WorkItemProgressCard.js';
+import { CriticalPathCard } from '../../components/TimelineStatusCards/CriticalPathCard.js';
 import { MiniGanttCard } from '../../components/MiniGanttCard/MiniGanttCard.js';
 import { QuickActionsCard } from '../../components/QuickActionsCard/QuickActionsCard.js';
 import { InvoicePipelineCard } from '../../components/InvoicePipelineCard/InvoicePipelineCard.js';
@@ -68,7 +70,9 @@ const CARD_DEFINITIONS: {
     emptyMessage: 'No budget sources configured',
     emptyAction: { label: 'Add a budget source', href: '/budget/sources' },
   },
-  { id: 'timeline-status', title: 'Timeline Status', section: 'timeline', dataSource: 'timeline' },
+  { id: 'upcoming-milestones', title: 'Upcoming Milestones', section: 'timeline', dataSource: 'timeline', emptyMessage: 'No upcoming milestones' },
+  { id: 'work-item-progress', title: 'Work Item Progress', section: 'timeline', dataSource: 'timeline' },
+  { id: 'critical-path', title: 'Critical Path', section: 'timeline', dataSource: 'timeline' },
   { id: 'mini-gantt', title: 'Mini Gantt', section: 'timeline', dataSource: 'timeline' },
   {
     id: 'invoice-pipeline',
@@ -363,8 +367,12 @@ export function DashboardPage() {
           <BudgetAlertsCard categorySummaries={budgetOverview.categorySummaries} />
         ) : card.id === 'source-utilization' ? (
           <SourceUtilizationCard sources={budgetSources} />
-        ) : card.id === 'timeline-status' && timelineData ? (
-          <TimelineStatusCards timeline={timelineData} />
+        ) : card.id === 'upcoming-milestones' && timelineData ? (
+          <UpcomingMilestonesCard milestones={timelineData.milestones} />
+        ) : card.id === 'work-item-progress' && timelineData ? (
+          <WorkItemProgressCard workItems={timelineData.workItems} />
+        ) : card.id === 'critical-path' && timelineData ? (
+          <CriticalPathCard criticalPath={timelineData.criticalPath} workItems={timelineData.workItems} />
         ) : card.id === 'mini-gantt' && timelineData ? (
           <MiniGanttCard timeline={timelineData} />
         ) : card.id === 'invoice-pipeline' && invoiceSummary ? (
