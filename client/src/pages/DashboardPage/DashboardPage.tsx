@@ -433,7 +433,13 @@ export function DashboardPage() {
       </div>
 
       {/* Mobile: sectioned layout */}
-      <div className={styles.mobileSections} role="region" aria-label="Dashboard overview" aria-live="polite" aria-atomic="false">
+      <div
+        className={styles.mobileSections}
+        role="region"
+        aria-label="Dashboard overview"
+        aria-live="polite"
+        aria-atomic="false"
+      >
         {/* Primary section — always expanded */}
         <div className={styles.mobileSection}>
           {visibleCards.filter((c) => c.section === 'primary').map((card) => renderCard(card))}
