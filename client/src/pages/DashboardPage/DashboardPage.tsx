@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import type { DashboardCardId, BudgetOverview, BudgetSource } from '@cornerstone/shared';
+import type { DashboardCardId, BudgetOverview, BudgetSource, TimelineResponse } from '@cornerstone/shared';
 import { fetchBudgetOverview } from '../../lib/budgetOverviewApi.js';
 import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { fetchSubsidyPrograms } from '../../lib/subsidyProgramsApi.js';
@@ -12,6 +12,7 @@ import { DashboardCard } from '../../components/DashboardCard/DashboardCard.js';
 import { BudgetSummaryCard } from '../../components/BudgetSummaryCard/BudgetSummaryCard.js';
 import { BudgetAlertsCard } from '../../components/BudgetAlertsCard/BudgetAlertsCard.js';
 import { SourceUtilizationCard } from '../../components/SourceUtilizationCard/SourceUtilizationCard.js';
+import { TimelineStatusCards } from '../../components/TimelineStatusCards/TimelineStatusCards.js';
 import styles from './DashboardPage.module.css';
 
 type DataSourceKey =
@@ -75,6 +76,7 @@ export function DashboardPage() {
   });
   const [budgetOverview, setBudgetOverview] = useState<BudgetOverview | null>(null);
   const [budgetSources, setBudgetSources] = useState<BudgetSource[]>([]);
+  const [timelineData, setTimelineData] = useState<TimelineResponse | null>(null);
 
   const { preferences, upsert: upsertPreference } = usePreferences();
   const [customizeOpen, setCustomizeOpen] = useState(false);
@@ -212,6 +214,7 @@ export function DashboardPage() {
 
     // Update timeline state
     if (timelineResult.status === 'fulfilled') {
+      setTimelineData(timelineResult.value);
       setDataStates((prev) => ({
         ...prev,
         timeline: {
@@ -357,6 +360,8 @@ export function DashboardPage() {
                 <BudgetAlertsCard categorySummaries={budgetOverview.categorySummaries} />
               ) : card.id === 'source-utilization' ? (
                 <SourceUtilizationCard sources={budgetSources} />
+              ) : card.id === 'timeline-status' && timelineData ? (
+                <TimelineStatusCards timeline={timelineData} />
               ) : (
                 <p className={styles.cardPlaceholder}>Content coming soon.</p>
               )}
