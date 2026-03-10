@@ -81,8 +81,14 @@
 }
 
 .link:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+/* Badge variant for health indicator with dynamic background color */
+.badgeYellow {
+  background-color: var(--color-warning-bg);
+  color: var(--color-text-secondary);
 }
 
 /* Legend for donut chart */
@@ -102,8 +108,8 @@
 }
 
 .legendDot {
-  width: 8px;
-  height: 8px;
+  width: var(--spacing-2);
+  height: var(--spacing-2);
   border-radius: var(--radius-circle);
   flex-shrink: 0;
 }

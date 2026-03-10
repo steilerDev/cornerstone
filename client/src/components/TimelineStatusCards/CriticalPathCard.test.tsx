@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  */
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { screen } from '@testing-library/react';
 import { renderWithRouter } from '../../test/testUtils.js';
 import type { TimelineWorkItem } from '@cornerstone/shared';

@@ -58,17 +58,17 @@ export function CriticalPathCard({
     daysRemaining = Math.ceil(diff / (1000 * 60 * 60 * 24));
   }
 
-  // Determine health indicator color
-  let healthColor = 'var(--color-success)'; // green >14 days
+  // Determine health indicator
+  let healthClass = styles.badgeGreen; // green >14 days
   let healthLabel = 'On Track';
   if (daysRemaining < 0) {
-    healthColor = 'var(--color-danger)'; // red: overdue
+    healthClass = styles.badgeRed; // red: overdue
     healthLabel = 'Overdue';
   } else if (daysRemaining < 7) {
-    healthColor = 'var(--color-danger)'; // red <7 days
+    healthClass = styles.badgeRed; // red <7 days
     healthLabel = 'Critical';
   } else if (daysRemaining <= 14) {
-    healthColor = 'var(--color-warning)'; // yellow 7-14 days
+    healthClass = styles.badgeYellow; // yellow 7-14 days
     healthLabel = 'Warning';
   }
 
@@ -106,14 +106,7 @@ export function CriticalPathCard({
           </div>
           <div
             data-testid="critical-health"
-            style={{
-              backgroundColor: healthColor,
-              color: 'white',
-              padding: 'var(--spacing-2) var(--spacing-3)',
-              borderRadius: 'var(--radius-md)',
-              fontSize: 'var(--font-size-xs)',
-              fontWeight: 'var(--font-weight-medium)',
-            }}
+            className={`${styles.badge} ${healthClass}`}
           >
             {healthLabel}
           </div>
