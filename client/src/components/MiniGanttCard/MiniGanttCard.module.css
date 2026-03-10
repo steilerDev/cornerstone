@@ -1,0 +1,23 @@
+.container {
+  cursor: pointer;
+  max-height: 300px;
+  overflow-y: auto;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background-color: var(--color-bg-primary);
+}
+
+.svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.emptyState {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  text-align: center;
+  padding: var(--spacing-4) 0;
+  cursor: pointer;
+}
