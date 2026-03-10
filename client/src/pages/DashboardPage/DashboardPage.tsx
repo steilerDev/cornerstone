@@ -18,6 +18,7 @@ import { BudgetSummaryCard } from '../../components/BudgetSummaryCard/BudgetSumm
 import { BudgetAlertsCard } from '../../components/BudgetAlertsCard/BudgetAlertsCard.js';
 import { SourceUtilizationCard } from '../../components/SourceUtilizationCard/SourceUtilizationCard.js';
 import { TimelineStatusCards } from '../../components/TimelineStatusCards/TimelineStatusCards.js';
+import { QuickActionsCard } from '../../components/QuickActionsCard/QuickActionsCard.js';
 import styles from './DashboardPage.module.css';
 
 type DataSourceKey =
@@ -367,6 +368,8 @@ export function DashboardPage() {
                 <SourceUtilizationCard sources={budgetSources} />
               ) : card.id === 'timeline-status' && timelineData ? (
                 <TimelineStatusCards timeline={timelineData} />
+              ) : card.id === 'quick-actions' ? (
+                <QuickActionsCard />
               ) : (
                 <p className={styles.cardPlaceholder}>Content coming soon.</p>
               )}

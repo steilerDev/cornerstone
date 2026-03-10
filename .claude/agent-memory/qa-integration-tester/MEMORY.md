@@ -3,6 +3,21 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## Story #476 Invoice & Subsidy Pipeline Cards (2026-03-10)
+
+**Test files**: `InvoicePipelineCard.test.tsx` (12 tests), `SubsidyPipelineCard.test.tsx` (13 tests).
+
+**Key patterns**:
+
+- **No `data-testid` on pending total**: `InvoicePipelineCard` renders the footer total in a plain `div` with `className={styles.footerTotal}` — no testid. Test it with `getByText(/pending total/i, { exact: false })` and check `textContent` contains the amount.
+- **Early return on empty state**: `InvoicePipelineCard` returns `<p data-testid="invoice-empty">` when `pendingInvoices.length === 0` (before the footer renders), so the footer/total is not present in the empty state.
+- **Dynamic date tests**: Compute "yesterday", "+N days" using `new Date()` + `setDate()` + `formatDateStr()` helper. Never hardcode dates that become stale.
+- **`SubsidyPipelineCard` deadline logic**: inclusive boundary at 14 days (`daysUntilDeadline <= 14`). 14 days = warning, 15 days = no warning.
+- **Percentage reduction excluded from group-reduction**: `group-reduction` testid only shows fixed reductions. When only percentage programs exist, `totalFixedReduction = 0` so the `group-reduction` span is not rendered at all.
+- **Rejected group always last**: Component appends rejected group after the `lifecycleStatuses` loop — it always renders after eligible/applied/approved/received.
+- **`SubsidyProgram.applicableCategories`**: type is `BudgetCategory[]` (not `string[]`). Always set to `[]` in fixtures.
+- **`Invoice.budgetLines`**: type is `InvoiceBudgetLineSummary[]`. Always set to `[]` in fixtures. Also requires `remainingAmount: number`.
+
 ## Story #606 Invoice Budget Lines UI Tests (2026-03-08)
 
 **Test files**: `invoiceBudgetLinesApi.test.ts` (26), `InvoiceBudgetLinesSection.test.tsx` (36), updated `InvoiceDetailPage.test.tsx` (18).

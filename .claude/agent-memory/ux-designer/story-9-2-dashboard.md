@@ -106,3 +106,13 @@ All values covered by existing Layer 2 semantic tokens.
 - `retryButton` duplicates `btnPrimary`; spec says compose `btnSecondaryCompact`
 - `customizeButton` uses `--color-bg-tertiary` (code block token); use `--color-bg-secondary` or compose `btnSecondary`
 - `reEnableButton:focus-visible` uses non-standard inset shadow; must use `var(--shadow-focus)` (outset)
+
+## PR #713 Review Findings — Invoice & Subsidy Pipeline Cards (APPROVED)
+
+Model implementation — comprehensive token use, correct focus-visible pattern, consistent with BudgetAlertsCard/TimelineStatusCards patterns.
+
+Key informational notes:
+
+- `rgba(251, 146, 60, ...)` (orange-400 value) used for warning tint backgrounds — accepted exception per review criteria, but hue drifts slightly from `--color-warning` in dark mode (shifts to orange-300). A future `--color-warning-bg` token would eliminate this drift.
+- `TimelineStatusCards.module.css` line 91 has pre-existing reference to `--color-warning-bg` which does NOT exist in tokens.css — flag as a separate bug (not part of PR #713).
+- Low: overdue `<li>` items lack `aria-label` to announce overdue state in context for SR users.

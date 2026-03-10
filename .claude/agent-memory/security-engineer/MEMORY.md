@@ -86,6 +86,7 @@ See `review-history.md` for detailed findings per PR.
 | #615 | EPIC-15 Story #606 — Invoice Budget Lines Frontend (InvoiceBudgetLinesSection)    | COMMENTED (no findings)                                                                                                       | 2026-03-08 |
 | #708 | EPIC-09 Story #470 — User Preferences Infrastructure                              | COMMENTED (2 informational: value no maxLength, DELETE key param no bounds)                                                   | 2026-03-09 |
 | #709 | EPIC-09 Story #471 — Dashboard Layout & Data Shell                                | COMMENTED (1 informational: emptyAction.href no protocol allowlist)                                                           | 2026-03-09 |
+| #713 | EPIC-09 Story #476 — Invoice & Subsidy Pipeline Cards                             | COMMENTED (no findings)                                                                                                       | 2026-03-10 |
 
 ## Known Open Recommendations (Low Priority)
 
