@@ -53,7 +53,12 @@ const CARD_DEFINITIONS: {
     href: string;
   };
 }[] = [
-  { id: 'budget-summary', title: 'Budget Summary', section: 'primary', dataSource: 'budgetOverview' },
+  {
+    id: 'budget-summary',
+    title: 'Budget Summary',
+    section: 'primary',
+    dataSource: 'budgetOverview',
+  },
   { id: 'budget-alerts', title: 'Budget Alerts', section: 'primary', dataSource: 'budgetOverview' },
   {
     id: 'source-utilization',
@@ -87,13 +92,17 @@ const CARD_DEFINITIONS: {
 function getTimelineSummary(isLoading: boolean, timeline: TimelineResponse | null): string {
   if (isLoading) return '…';
   const count = timeline?.workItems.length ?? 0;
-  return count === 0 ? 'No items scheduled' : `${count} work item${count === 1 ? '' : 's'} scheduled`;
+  return count === 0
+    ? 'No items scheduled'
+    : `${count} work item${count === 1 ? '' : 's'} scheduled`;
 }
 
 function getBudgetDetailsSummary(isLoading: boolean, sources: BudgetSource[]): string {
   if (isLoading) return '…';
   const count = sources.length;
-  return count === 0 ? 'No sources configured' : `${count} source${count === 1 ? '' : 's'} configured`;
+  return count === 0
+    ? 'No sources configured'
+    : `${count} source${count === 1 ? '' : 's'} configured`;
 }
 
 export function DashboardPage() {
@@ -333,7 +342,7 @@ export function DashboardPage() {
   const hiddenCards = CARD_DEFINITIONS.filter((card) => hiddenCardIds.has(card.id));
 
   // Helper to render a card
-  const renderCard = (card: typeof visibleCards[number]) => {
+  const renderCard = (card: (typeof visibleCards)[number]) => {
     const dataState = card.dataSource ? dataStates[card.dataSource] : undefined;
     return (
       <DashboardCard
@@ -438,7 +447,9 @@ export function DashboardPage() {
               <span className={styles.sectionSummaryText}>
                 {getTimelineSummary(dataStates.timeline.isLoading, timelineData)}
               </span>
-              <span className={styles.sectionChevron} aria-hidden="true">›</span>
+              <span className={styles.sectionChevron} aria-hidden="true">
+                ›
+              </span>
             </summary>
             <div className={styles.sectionCards}>
               {visibleCards.filter((c) => c.section === 'timeline').map((card) => renderCard(card))}
@@ -454,10 +465,14 @@ export function DashboardPage() {
               <span className={styles.sectionSummaryText}>
                 {getBudgetDetailsSummary(dataStates.budgetSources.isLoading, budgetSources)}
               </span>
-              <span className={styles.sectionChevron} aria-hidden="true">›</span>
+              <span className={styles.sectionChevron} aria-hidden="true">
+                ›
+              </span>
             </summary>
             <div className={styles.sectionCards}>
-              {visibleCards.filter((c) => c.section === 'budget-details').map((card) => renderCard(card))}
+              {visibleCards
+                .filter((c) => c.section === 'budget-details')
+                .map((card) => renderCard(card))}
             </div>
           </details>
         )}
