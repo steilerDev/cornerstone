@@ -1,5 +1,13 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import type { DashboardCardId, BudgetOverview, BudgetSource, TimelineResponse } from '@cornerstone/shared';
+import type {
+  DashboardCardId,
+  BudgetOverview,
+  BudgetSource,
+  TimelineResponse,
+  Invoice,
+  InvoiceStatusBreakdown,
+  SubsidyProgram,
+} from '@cornerstone/shared';
 import { fetchBudgetOverview } from '../../lib/budgetOverviewApi.js';
 import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { fetchSubsidyPrograms } from '../../lib/subsidyProgramsApi.js';
@@ -13,6 +21,8 @@ import { BudgetSummaryCard } from '../../components/BudgetSummaryCard/BudgetSumm
 import { BudgetAlertsCard } from '../../components/BudgetAlertsCard/BudgetAlertsCard.js';
 import { SourceUtilizationCard } from '../../components/SourceUtilizationCard/SourceUtilizationCard.js';
 import { TimelineStatusCards } from '../../components/TimelineStatusCards/TimelineStatusCards.js';
+import { InvoicePipelineCard } from '../../components/InvoicePipelineCard/InvoicePipelineCard.js';
+import { SubsidyPipelineCard } from '../../components/SubsidyPipelineCard/SubsidyPipelineCard.js';
 import styles from './DashboardPage.module.css';
 
 type DataSourceKey =
@@ -77,6 +87,9 @@ export function DashboardPage() {
   const [budgetOverview, setBudgetOverview] = useState<BudgetOverview | null>(null);
   const [budgetSources, setBudgetSources] = useState<BudgetSource[]>([]);
   const [timelineData, setTimelineData] = useState<TimelineResponse | null>(null);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [invoiceSummary, setInvoiceSummary] = useState<InvoiceStatusBreakdown | null>(null);
+  const [subsidyPrograms, setSubsidyPrograms] = useState<SubsidyProgram[]>([]);
 
   const { preferences, upsert: upsertPreference } = usePreferences();
   const [customizeOpen, setCustomizeOpen] = useState(false);
@@ -190,6 +203,7 @@ export function DashboardPage() {
 
     // Update subsidy programs state
     if (subsidyProgramsResult.status === 'fulfilled') {
+      setSubsidyPrograms(subsidyProgramsResult.value.subsidyPrograms);
       setDataStates((prev) => ({
         ...prev,
         subsidyPrograms: {
@@ -239,12 +253,14 @@ export function DashboardPage() {
 
     // Update invoices state
     if (invoicesResult.status === 'fulfilled') {
+      setInvoices(invoicesResult.value.invoices);
+      setInvoiceSummary(invoicesResult.value.summary);
       setDataStates((prev) => ({
         ...prev,
         invoices: {
           isLoading: false,
           error: null,
-          isEmpty: invoicesResult.value.invoices.length === 0,
+          isEmpty: invoicesResult.value.invoices.filter((inv) => inv.status === 'pending').length === 0,
         },
       }));
     } else {
@@ -362,6 +378,10 @@ export function DashboardPage() {
                 <SourceUtilizationCard sources={budgetSources} />
               ) : card.id === 'timeline-status' && timelineData ? (
                 <TimelineStatusCards timeline={timelineData} />
+              ) : card.id === 'invoice-pipeline' && invoiceSummary ? (
+                <InvoicePipelineCard invoices={invoices} summary={invoiceSummary} />
+              ) : card.id === 'subsidy-pipeline' ? (
+                <SubsidyPipelineCard subsidyPrograms={subsidyPrograms} />
               ) : (
                 <p className={styles.cardPlaceholder}>Content coming soon.</p>
               )}
