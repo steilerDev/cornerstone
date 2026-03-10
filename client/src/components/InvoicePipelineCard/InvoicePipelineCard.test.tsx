@@ -218,4 +218,27 @@ describe('InvoicePipelineCard', () => {
     const row = screen.getByTestId('invoice-row');
     expect(row).toHaveTextContent('€3,750.00');
   });
+
+  // ── Test 13: Each invoice row links to the invoice detail page ────────────
+
+  it('each invoice row contains a link to /budget/invoices/<invoice-id>', () => {
+    const invoices: Invoice[] = [
+      { ...baseInvoice, id: 'inv-aaa', vendorName: 'Vendor AAA' },
+      { ...baseInvoice, id: 'inv-bbb', vendorName: 'Vendor BBB' },
+    ];
+
+    renderWithRouter(<InvoicePipelineCard invoices={invoices} summary={baseSummary} />);
+
+    const rows = screen.getAllByTestId('invoice-row');
+    expect(rows).toHaveLength(2);
+
+    // Each row must contain an <a> pointing to the invoice detail page
+    const linkAAA = rows[0].querySelector('a');
+    expect(linkAAA).not.toBeNull();
+    expect(linkAAA).toHaveAttribute('href', '/budget/invoices/inv-aaa');
+
+    const linkBBB = rows[1].querySelector('a');
+    expect(linkBBB).not.toBeNull();
+    expect(linkBBB).toHaveAttribute('href', '/budget/invoices/inv-bbb');
+  });
 });

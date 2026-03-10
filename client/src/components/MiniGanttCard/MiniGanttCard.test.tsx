@@ -39,6 +39,20 @@ function daysFromToday(n: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+/**
+ * Returns a YYYY-MM-DD string for Monday of the current week + n days.
+ * n=0 → Monday, n=1 → Tuesday, ..., n=6 → Sunday.
+ */
+function daysFromMonday(n: number): string {
+  const now = new Date();
+  const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon...6=Sat
+  const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + daysToMonday);
+  monday.setDate(monday.getDate() + n);
+  return `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`;
+}
+
 // ── Fixtures ─────────────────────────────────────────────────────────────────
 
 const emptyTimeline: TimelineResponse = {
@@ -54,11 +68,11 @@ const baseWorkItem = {
   id: 'wi-001',
   title: 'Foundation Work',
   status: 'in_progress' as const,
-  startDate: daysFromToday(2),
-  endDate: daysFromToday(10),
+  startDate: daysFromMonday(1),
+  endDate: daysFromMonday(4),
   actualStartDate: null,
   actualEndDate: null,
-  durationDays: 8,
+  durationDays: 3,
   startAfter: null,
   startBefore: null,
   assignedUser: null,
@@ -76,12 +90,12 @@ describe('MiniGanttCard', () => {
 
     const el = screen.getByTestId('mini-gantt-empty');
     expect(el).toBeInTheDocument();
-    expect(el).toHaveTextContent('No work items in the next 30 days');
+    expect(el).toHaveTextContent('No work items scheduled this week');
   });
 
-  // ── Test 2: Empty state — items exist but outside the 30-day window ─────────
+  // ── Test 2: Empty state — items exist but outside the weekly window ──────────
 
-  it('shows empty state when all work items have dates beyond the 30-day window', () => {
+  it('shows empty state when all work items have dates beyond the weekly window', () => {
     const futureTimeline: TimelineResponse = {
       ...emptyTimeline,
       workItems: [
@@ -101,7 +115,7 @@ describe('MiniGanttCard', () => {
 
   // ── Test 3: SVG rendered when work items fall within the window ──────────────
 
-  it('renders an SVG element when there is at least one work item within the 30-day window', () => {
+  it('renders an SVG element when there is at least one work item within the weekly window', () => {
     const timeline: TimelineResponse = {
       ...emptyTimeline,
       workItems: [{ ...baseWorkItem }],
@@ -123,15 +137,15 @@ describe('MiniGanttCard', () => {
           ...baseWorkItem,
           id: 'wi-001',
           title: 'Item 1',
-          startDate: daysFromToday(1),
-          endDate: daysFromToday(5),
+          startDate: daysFromMonday(1),
+          endDate: daysFromMonday(2),
         },
         {
           ...baseWorkItem,
           id: 'wi-002',
           title: 'Item 2',
-          startDate: daysFromToday(6),
-          endDate: daysFromToday(12),
+          startDate: daysFromMonday(3),
+          endDate: daysFromMonday(5),
         },
       ],
     };
@@ -162,7 +176,7 @@ describe('MiniGanttCard', () => {
 
   // ── Test 6: Milestone diamonds rendered as polygon elements ─────────────────
 
-  it('renders a polygon element for a milestone whose targetDate is within the 30-day window', () => {
+  it('renders a polygon element for a milestone whose targetDate is within the weekly window', () => {
     const timeline: TimelineResponse = {
       ...emptyTimeline,
       workItems: [{ ...baseWorkItem }],
@@ -170,7 +184,7 @@ describe('MiniGanttCard', () => {
         {
           id: 1,
           title: 'Foundation Complete',
-          targetDate: daysFromToday(15),
+          targetDate: daysFromMonday(2),
           isCompleted: false,
           completedAt: null,
           color: null,
@@ -189,7 +203,7 @@ describe('MiniGanttCard', () => {
 
   // ── Test 7: Milestones outside the window are NOT rendered ───────────────────
 
-  it('does not render a polygon when the only milestone is beyond the 30-day window', () => {
+  it('does not render a polygon when the only milestone is beyond the weekly window', () => {
     const timeline: TimelineResponse = {
       ...emptyTimeline,
       workItems: [{ ...baseWorkItem }],
@@ -248,8 +262,8 @@ describe('MiniGanttCard', () => {
           ...baseWorkItem,
           id: 'wi-valid',
           title: 'Dated Item',
-          startDate: daysFromToday(3),
-          endDate: daysFromToday(8),
+          startDate: daysFromMonday(1),
+          endDate: daysFromMonday(3),
         },
       ],
     };
@@ -269,7 +283,7 @@ describe('MiniGanttCard', () => {
 
   // ── Story #478: SVG accessibility — role="img" and aria-label ───────────────
 
-  it('SVG has role="img" and aria-label containing work item count and milestone count', () => {
+  it('SVG has role="img" and aria-label containing work item count and "this week"', () => {
     const timeline: TimelineResponse = {
       ...emptyTimeline,
       workItems: [
@@ -277,22 +291,22 @@ describe('MiniGanttCard', () => {
           ...baseWorkItem,
           id: 'wi-001',
           title: 'Item A',
-          startDate: daysFromToday(2),
-          endDate: daysFromToday(8),
+          startDate: daysFromMonday(1),
+          endDate: daysFromMonday(3),
         },
         {
           ...baseWorkItem,
           id: 'wi-002',
           title: 'Item B',
-          startDate: daysFromToday(10),
-          endDate: daysFromToday(18),
+          startDate: daysFromMonday(3),
+          endDate: daysFromMonday(5),
         },
       ],
       milestones: [
         {
           id: 1,
           title: 'Phase 1 Complete',
-          targetDate: daysFromToday(15),
+          targetDate: daysFromMonday(4),
           isCompleted: false,
           completedAt: null,
           color: null,
@@ -312,50 +326,63 @@ describe('MiniGanttCard', () => {
     const ariaLabel = svg?.getAttribute('aria-label') ?? '';
     expect(ariaLabel).toContain('2 work items');
     expect(ariaLabel).toContain('1 milestone');
+    expect(ariaLabel).toContain('this week');
   });
 
-  // ── Test 10: Dependency lines rendered between visible work items ─────────────
+  // ── Test 10: Grid line count — 8 grid lines + today marker (no dependency arrows) ──
 
-  it('renders line elements for dependencies between two visible work items', () => {
-    const predId = 'wi-pred';
-    const succId = 'wi-succ';
-
-    const timeline: TimelineResponse = {
+  it('renders exactly 8 grid lines for day boundaries regardless of whether dependencies exist', () => {
+    // Without dependencies
+    const timelineNoDeps: TimelineResponse = {
       ...emptyTimeline,
       workItems: [
         {
           ...baseWorkItem,
-          id: predId,
+          id: 'wi-pred',
           title: 'Predecessor',
-          startDate: daysFromToday(1),
-          endDate: daysFromToday(5),
+          startDate: daysFromMonday(0),
+          endDate: daysFromMonday(2),
         },
         {
           ...baseWorkItem,
-          id: succId,
+          id: 'wi-succ',
           title: 'Successor',
-          startDate: daysFromToday(6),
-          endDate: daysFromToday(12),
+          startDate: daysFromMonday(3),
+          endDate: daysFromMonday(5),
         },
       ],
+      dependencies: [],
+    };
+
+    // With dependencies between the two items
+    const timelineWithDeps: TimelineResponse = {
+      ...timelineNoDeps,
       dependencies: [
         {
-          predecessorId: predId,
-          successorId: succId,
+          predecessorId: 'wi-pred',
+          successorId: 'wi-succ',
           dependencyType: 'finish_to_start',
           leadLagDays: 0,
         },
       ],
     };
 
-    const { container } = renderWithRouter(<MiniGanttCard timeline={timeline} />);
+    // Render without dependencies
+    const { container: containerNoDeps } = renderWithRouter(
+      <MiniGanttCard timeline={timelineNoDeps} />,
+    );
+    const linesNoDeps = containerNoDeps.querySelectorAll('svg line');
 
-    // The SVG has grid lines + today marker + 1 dependency arrow line.
-    // Dependency arrows are rendered as <line> elements with strokeWidth="1".
-    // We verify there are more than just grid lines (CHART_DAYS + 1 = 31 grid lines + 1 today marker).
-    // With a dependency, the total line count should exceed the baseline by at least 1.
-    const lines = container.querySelectorAll('svg line');
-    // 31 grid lines + 1 today marker + 1 dependency arrow = 33 minimum
-    expect(lines.length).toBeGreaterThanOrEqual(33);
+    // Render with dependencies — dependency arrows were removed, so line count must be the same
+    const { container: containerWithDeps } = renderWithRouter(
+      <MiniGanttCard timeline={timelineWithDeps} />,
+    );
+    const linesWithDeps = containerWithDeps.querySelectorAll('svg line');
+
+    // 8 grid lines + 1 today marker = 9 maximum; dependency arrows are NOT rendered
+    expect(linesWithDeps.length).toBe(linesNoDeps.length);
+
+    // The grid alone must produce at least 8 lines
+    expect(linesNoDeps.length).toBeGreaterThanOrEqual(8);
   });
 });

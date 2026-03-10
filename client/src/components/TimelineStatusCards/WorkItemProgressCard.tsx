@@ -8,12 +8,9 @@ interface WorkItemProgressCardProps {
 export function WorkItemProgressCard({ workItems }: WorkItemProgressCardProps) {
   if (workItems.length === 0) {
     return (
-      <div className={styles.cardSection}>
-        <h3 className={styles.sectionHeader}>Work Item Progress</h3>
-        <p data-testid="progress-empty" className={styles.emptyState}>
-          No work items
-        </p>
-      </div>
+      <p data-testid="progress-empty" className={styles.emptyState}>
+        No work items
+      </p>
     );
   }
 
@@ -82,46 +79,42 @@ export function WorkItemProgressCard({ workItems }: WorkItemProgressCardProps) {
   };
 
   return (
-    <div className={styles.cardSection}>
-      <h3 className={styles.sectionHeader}>Work Item Progress</h3>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      <svg
+        viewBox="0 0 104 104"
+        width="120"
+        height="120"
+        data-testid="progress-donut"
+        role="img"
+        aria-label={`Work item progress: ${counts.completed} completed, ${counts.in_progress} in progress, ${counts.not_started} not started`}
+      >
+        {/* Background circle */}
+        <circle
+          cx="52"
+          cy="52"
+          r="40"
+          fill="none"
+          stroke="var(--color-border)"
+          strokeWidth="24"
+        />
 
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <svg
-          viewBox="0 0 104 104"
-          width="120"
-          height="120"
-          data-testid="progress-donut"
-          role="img"
-          aria-label={`Work item progress: ${counts.completed} completed, ${counts.in_progress} in progress, ${counts.not_started} not started`}
+        {/* Rotated group for clockwise rotation from top */}
+        <g transform="rotate(-90 52 52)">{circles}</g>
+
+        {/* Center text */}
+        <text
+          x="52"
+          y="52"
+          textAnchor="middle"
+          dy="0.3em"
+          fontSize="24"
+          fontWeight="600"
+          fill="var(--color-text-primary)"
+          data-testid="progress-total"
         >
-          {/* Background circle */}
-          <circle
-            cx="52"
-            cy="52"
-            r="40"
-            fill="none"
-            stroke="var(--color-border)"
-            strokeWidth="24"
-          />
-
-          {/* Rotated group for clockwise rotation from top */}
-          <g transform="rotate(-90 52 52)">{circles}</g>
-
-          {/* Center text */}
-          <text
-            x="52"
-            y="52"
-            textAnchor="middle"
-            dy="0.3em"
-            fontSize="24"
-            fontWeight="600"
-            fill="var(--color-text-primary)"
-            data-testid="progress-total"
-          >
-            {total}
-          </text>
-        </svg>
-      </div>
+          {total}
+        </text>
+      </svg>
 
       {/* Legend */}
       <div className={styles.legend} data-testid="progress-legend">

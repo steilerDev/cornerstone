@@ -202,4 +202,19 @@ describe('CriticalPathCard', () => {
     const countEl = screen.getByTestId('critical-count');
     expect(countEl).toHaveTextContent('2');
   });
+
+  // ── Test 11: Next deadline is a link to /work-items/:id ──────────────────
+
+  it('renders the next critical deadline as a link to /work-items/:id', () => {
+    const workItems: TimelineWorkItem[] = [
+      { ...baseWorkItem, id: 'wi-link', title: 'Critical Task', endDate: '2026-04-30' },
+    ];
+
+    renderWithRouter(<CriticalPathCard criticalPath={['wi-link']} workItems={workItems} />);
+
+    const deadlineEl = screen.getByTestId('critical-deadline');
+    const link = deadlineEl.querySelector('a');
+    expect(link).not.toBeNull();
+    expect(link).toHaveAttribute('href', '/work-items/wi-link');
+  });
 });

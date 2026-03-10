@@ -9,12 +9,12 @@ interface MiniGanttCardProps {
 }
 
 // Mini gantt layout constants
-const ROW_HEIGHT = 24;
-const BAR_HEIGHT = 16;
-const BAR_OFFSET_Y = 4;
-const HEADER_HEIGHT = 24;
+const ROW_HEIGHT = 36;
+const BAR_HEIGHT = 24;
+const BAR_OFFSET_Y = 6;
+const HEADER_HEIGHT = 32;
 const CHART_WIDTH = 600;
-const CHART_DAYS = 30;
+const CHART_DAYS = 7;
 
 /**
  * Reads a computed CSS custom property value from the document root.
@@ -34,9 +34,8 @@ function resolveColors() {
       in_progress: readCssVar('--color-gantt-bar-in-progress'),
       completed: readCssVar('--color-gantt-bar-completed'),
     },
+    barText: readCssVar('--color-text-inverse'),
     todayMarker: readCssVar('--color-gantt-today-marker'),
-    arrowDefault: readCssVar('--color-gantt-arrow-default'),
-    arrowCritical: readCssVar('--color-gantt-arrow-critical'),
     criticalBorder: readCssVar('--color-gantt-bar-critical-border'),
     milestoneFill: readCssVar('--color-milestone-incomplete-fill') || 'transparent',
     milestoneCompleteFill: readCssVar('--color-milestone-complete-fill'),
@@ -63,10 +62,10 @@ function getBarColor(
 }
 
 /**
- * Converts a date to an X position in the 30-day chart.
+ * Converts a date to an X position in the week chart.
  */
-function dateToX(date: Date, today: Date): number {
-  const days = daysBetween(today, date);
+function dateToX(date: Date, weekStart: Date): number {
+  const days = daysBetween(weekStart, date);
   return (days / CHART_DAYS) * CHART_WIDTH;
 }
 
@@ -91,49 +90,37 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
     return () => observer.disconnect();
   }, []);
 
-  // Today's date (at noon UTC to match ganttUtils pattern)
-  const today = useMemo(() => {
+  // Week start: Monday of the current week (at noon UTC)
+  const weekStart = useMemo(() => {
     const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0, 0);
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0, 0);
+    const dayOfWeek = d.getDay(); // 0=Sun, 1=Mon...6=Sat
+    const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    d.setDate(d.getDate() + daysToMonday);
+    return d;
   }, []);
 
-  // Window: today through today + 30 days
-  const windowEnd = useMemo(() => addDays(today, CHART_DAYS), [today]);
+  // Week end: Sunday of the current week
+  const weekEnd = useMemo(() => addDays(weekStart, 6), [weekStart]);
 
-  // Filter work items that overlap the 30-day window
+  // Filter work items that overlap the weekly window
   const filteredWorkItems = useMemo(() => {
     return timeline.workItems.filter((item) => {
       if (!item.startDate || !item.endDate) return false;
       const start = toUtcMidnight(item.startDate);
       const end = toUtcMidnight(item.endDate);
-      // Overlap check: item.start <= windowEnd AND item.end >= today
-      return start <= windowEnd && end >= today;
+      // Overlap check: item.start <= weekEnd AND item.end >= weekStart
+      return start <= weekEnd && end >= weekStart;
     });
-  }, [timeline.workItems, today, windowEnd]);
+  }, [timeline.workItems, weekStart, weekEnd]);
 
-  // Build a map of work item IDs to row indices for dependency drawing
-  const itemRowMap = useMemo(() => {
-    const map = new Map<string, number>();
-    filteredWorkItems.forEach((item, idx) => {
-      map.set(item.id, idx);
-    });
-    return map;
-  }, [filteredWorkItems]);
-
-  // Filter dependencies to only those where both items are visible
-  const visibleDependencies = useMemo(() => {
-    return timeline.dependencies.filter(
-      (dep) => itemRowMap.has(dep.predecessorId) && itemRowMap.has(dep.successorId),
-    );
-  }, [timeline.dependencies, itemRowMap]);
-
-  // Filter milestones that fall within the 30-day window
+  // Filter milestones that fall within the week
   const visibleMilestones = useMemo(() => {
     return timeline.milestones.filter((m) => {
       const targetDate = toUtcMidnight(m.targetDate);
-      return targetDate >= today && targetDate <= windowEnd;
+      return targetDate >= weekStart && targetDate <= weekEnd;
     });
-  }, [timeline.milestones, today, windowEnd]);
+  }, [timeline.milestones, weekStart, weekEnd]);
 
   // SVG dimensions
   const svgHeight = useMemo(() => {
@@ -148,7 +135,7 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
     }
   };
 
-  // If no work items in the 30-day window, show empty state
+  // If no work items in the week, show empty state
   if (filteredWorkItems.length === 0) {
     return (
       <div
@@ -160,7 +147,7 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
         aria-label="View full schedule"
       >
         <p className={styles.emptyState} data-testid="mini-gantt-empty">
-          No work items in the next 30 days
+          No work items scheduled this week
         </p>
       </div>
     );
@@ -180,36 +167,34 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
         viewBox={`0 0 ${CHART_WIDTH} ${svgHeight}`}
         xmlns="http://www.w3.org/2000/svg"
         role="img"
-        aria-label={`Mini Gantt: ${filteredWorkItems.length} work item${filteredWorkItems.length === 1 ? '' : 's'} in the next 30 days${visibleMilestones.length > 0 ? `, ${visibleMilestones.length} milestone${visibleMilestones.length === 1 ? '' : 's'}` : ''}`}
+        aria-label={`Mini Gantt: ${filteredWorkItems.length} work item${filteredWorkItems.length === 1 ? '' : 's'} scheduled this week${visibleMilestones.length > 0 ? `, ${visibleMilestones.length} milestone${visibleMilestones.length === 1 ? '' : 's'}` : ''}`}
       >
         {/* Header background */}
         <rect x="0" y="0" width={CHART_WIDTH} height={HEADER_HEIGHT} fill={colors.gridMajor} />
 
-        {/* Header day-of-month labels (every ~6 days) */}
-        {Array.from({ length: 6 }).map((_, i) => {
-          const dayIdx = i * 5;
-          const labelDate = addDays(today, dayIdx);
-          const x = dateToX(labelDate, today);
-          const dayOfMonth = labelDate.getDate();
+        {/* Header day-of-week labels (Mon, Tue, Wed, Thu, Fri, Sat, Sun) */}
+        {Array.from({ length: 7 }).map((_, i) => {
+          const labelDate = addDays(weekStart, i);
+          const x = dateToX(labelDate, weekStart);
+          const dayLabel = labelDate.toLocaleDateString('en-US', { weekday: 'short' });
           return (
             <text
               key={`header-${i}`}
-              x={x + 5}
-              y={HEADER_HEIGHT - 6}
+              x={x + 4}
+              y={HEADER_HEIGHT - 8}
               fontSize="11"
               fill={colors.gridMinor}
               fontWeight="500"
             >
-              {dayOfMonth}
+              {dayLabel}
             </text>
           );
         })}
 
-        {/* Grid lines for each day */}
-        {Array.from({ length: CHART_DAYS + 1 }).map((_, i) => {
-          const lineDate = addDays(today, i);
-          const x = dateToX(lineDate, today);
-          const isMajor = i % 7 === 0; // Major line every Sunday
+        {/* Grid lines for day boundaries (8 lines for 7 days) */}
+        {Array.from({ length: 8 }).map((_, i) => {
+          const lineDate = addDays(weekStart, i);
+          const x = dateToX(lineDate, weekStart);
           return (
             <line
               key={`grid-${i}`}
@@ -217,16 +202,19 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
               y1={HEADER_HEIGHT}
               x2={x}
               y2={svgHeight}
-              stroke={isMajor ? colors.gridMajor : colors.gridMinor}
-              strokeWidth={isMajor ? 1 : 0.5}
-              opacity={0.5}
+              stroke={colors.gridMajor}
+              strokeWidth="1"
+              opacity="0.5"
             />
           );
         })}
 
         {/* Today marker line */}
         {(() => {
-          const x = dateToX(today, today);
+          const todayLocal = new Date();
+          const todayNoon = new Date(todayLocal.getFullYear(), todayLocal.getMonth(), todayLocal.getDate(), 12, 0, 0, 0);
+          const x = dateToX(todayNoon, weekStart);
+          if (x < 0 || x > CHART_WIDTH) return null;
           return (
             <line
               key="today-marker"
@@ -241,7 +229,7 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
           );
         })()}
 
-        {/* Work item bars and milestone diamonds rendered together by row */}
+        {/* Work item bars rendered by row */}
         {filteredWorkItems.map((item, rowIndex) => {
           const y = HEADER_HEIGHT + rowIndex * ROW_HEIGHT;
           const barY = y + BAR_OFFSET_Y;
@@ -249,8 +237,8 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
           // Compute bar position
           const startDate = toUtcMidnight(item.startDate!);
           const endDate = toUtcMidnight(item.endDate!);
-          const x = dateToX(startDate, today);
-          const xEnd = dateToX(endDate, today);
+          const x = dateToX(startDate, weekStart);
+          const xEnd = dateToX(endDate, weekStart);
           const rawWidth = xEnd - x;
           const barWidth = Math.max(rawWidth, 4); // Minimum 4px width
 
@@ -274,52 +262,26 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
                 stroke={isCritical ? colors.criticalBorder : 'none'}
                 strokeWidth={isCritical ? '2' : '0'}
               />
+              {/* Title text on bar */}
+              {clampedWidth >= 40 && (
+                <text
+                  x={clampedX + 4}
+                  y={barY + BAR_HEIGHT / 2 + 4}
+                  fontSize="11"
+                  fill={colors.barText}
+                  fontWeight="500"
+                >
+                  <tspan>{item.title.length > Math.floor(clampedWidth / 7) ? item.title.slice(0, Math.floor(clampedWidth / 7) - 1) + '…' : item.title}</tspan>
+                </text>
+              )}
             </g>
-          );
-        })}
-
-        {/* Dependency arrows */}
-        {visibleDependencies.map((dep, depIdx) => {
-          const predRow = itemRowMap.get(dep.predecessorId);
-          const succRow = itemRowMap.get(dep.successorId);
-          if (predRow === undefined || succRow === undefined) return null;
-
-          const predItem = filteredWorkItems[predRow];
-          const succItem = filteredWorkItems[succRow];
-
-          if (!predItem.endDate || !succItem.startDate) return null;
-
-          const predEnd = toUtcMidnight(predItem.endDate);
-          const succStart = toUtcMidnight(succItem.startDate);
-
-          const predY = HEADER_HEIGHT + predRow * ROW_HEIGHT + ROW_HEIGHT / 2;
-          const succY = HEADER_HEIGHT + succRow * ROW_HEIGHT + ROW_HEIGHT / 2;
-          const x1 = dateToX(predEnd, today);
-          const x2 = dateToX(succStart, today);
-
-          const isCritical =
-            timeline.criticalPath.includes(dep.predecessorId) &&
-            timeline.criticalPath.includes(dep.successorId);
-          const arrowColor = isCritical ? colors.arrowCritical : colors.arrowDefault;
-
-          return (
-            <line
-              key={`arrow-${depIdx}`}
-              x1={x1}
-              y1={predY}
-              x2={x2}
-              y2={succY}
-              stroke={arrowColor}
-              strokeWidth="1"
-              opacity="0.6"
-            />
           );
         })}
 
         {/* Milestone diamonds */}
         {visibleMilestones.map((milestone) => {
           const targetDate = toUtcMidnight(milestone.targetDate);
-          const x = dateToX(targetDate, today);
+          const x = dateToX(targetDate, weekStart);
           // Position milestone at the bottom of the chart area
           const mY = svgHeight - 8;
 

@@ -134,7 +134,9 @@ const ALL_CARD_TITLES = [
   'Budget Summary',
   'Budget Alerts',
   'Source Utilization',
-  'Timeline Status',
+  'Upcoming Milestones',
+  'Work Item Progress',
+  'Critical Path',
   'Mini Gantt',
   'Invoice Pipeline',
   'Subsidy Pipeline',
@@ -191,9 +193,9 @@ describe('DashboardPage', () => {
     expect(screen.getByRole('navigation')).toBeInTheDocument();
   });
 
-  // ─── Test 13: All 8 cards render after data loads ────────────────────────
+  // ─── Test 13: All 10 cards render after data loads ───────────────────────
 
-  it('renders all 8 card titles after data loads', async () => {
+  it('renders all 10 card titles after data loads', async () => {
     renderPage();
 
     for (const title of ALL_CARD_TITLES) {
@@ -215,15 +217,16 @@ describe('DashboardPage', () => {
 
     renderPage();
 
-    // 5 data sources map to 7 cards with loading state:
+    // 5 data sources map to 9 cards with loading state:
     //   budgetOverview → Budget Summary + Budget Alerts (2)
     //   budgetSources  → Source Utilization (1)
-    //   timeline       → Timeline Status + Mini Gantt (2)
+    //   timeline       → Upcoming Milestones + Work Item Progress + Critical Path + Mini Gantt (4)
     //   invoices       → Invoice Pipeline (1)
     //   subsidyPrograms→ Subsidy Pipeline (1)
     // Quick Actions has no dataSource — renders children immediately, no skeleton
+    // Each card appears in both desktop grid and mobile section = 9 × 2 = 18
     const loadingEls = screen.getAllByRole('status', { name: /^Loading .+ data$/ });
-    expect(loadingEls.length).toBe(14);
+    expect(loadingEls.length).toBe(18);
   });
 
   // ─── Test 15: Error state when API fails ────────────────────────────────
@@ -365,7 +368,7 @@ describe('DashboardPage', () => {
 
     expect(screen.queryByRole('heading', { name: 'Mini Gantt' })).not.toBeInTheDocument();
     // Sibling card still visible
-    expect(screen.getAllByRole('heading', { name: 'Timeline Status' })[0]).toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { name: 'Upcoming Milestones' })[0]).toBeInTheDocument();
   });
 
   // ─── Test 19: Customize button appears when cards are hidden ─────────────

@@ -145,6 +145,7 @@
 
   /* --- Warning (orange/amber) --- */
   --color-warning: var(--color-orange-400);
+  --color-warning-bg: #fff7ed;
 
   /* --- Success (green) --- */
   --color-success: var(--color-green-500);
@@ -496,6 +497,7 @@
 
   /* --- Warning --- */
   --color-warning: var(--color-orange-300);
+  --color-warning-bg: rgba(251, 146, 60, 0.1);
 
   /* --- Danger / Error --- */
   --color-danger: var(--color-red-400);
