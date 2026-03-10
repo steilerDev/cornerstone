@@ -33,7 +33,6 @@ function resolveColors() {
       not_started: readCssVar('--color-gantt-bar-not-started'),
       in_progress: readCssVar('--color-gantt-bar-in-progress'),
       completed: readCssVar('--color-gantt-bar-completed'),
-      blocked: readCssVar('--color-gantt-bar-blocked') || readCssVar('--color-danger'),
     },
     todayMarker: readCssVar('--color-gantt-today-marker'),
     arrowDefault: readCssVar('--color-gantt-arrow-default'),
@@ -56,7 +55,6 @@ function getBarColor(status: WorkItemStatus | undefined, colors: ReturnType<type
     not_started: 'not_started',
     in_progress: 'in_progress',
     completed: 'completed',
-    blocked: 'blocked',
   };
   return colors.barColors[statusMap[status] ?? 'not_started'];
 }
