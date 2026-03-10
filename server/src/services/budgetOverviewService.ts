@@ -250,8 +250,8 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
 
     totalReductions += subsidyReduction;
 
-    const rawMinPlanned = Math.max(0, rawMin - subsidyReduction);
-    const rawMaxPlanned = Math.max(0, rawMax - subsidyReduction);
+    const rawMinPlanned = rawMin;
+    const rawMaxPlanned = rawMax;
 
     // If line has invoices, actual cost overrides planned values (the real cost is known)
     const lineActualCost = lineInvoiceMap.get(line.id);

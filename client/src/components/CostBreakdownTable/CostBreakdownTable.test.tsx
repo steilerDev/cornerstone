@@ -2037,13 +2037,13 @@ describe('CostBreakdownTable', () => {
     // The Net cell (colRemaining) for the item row must contain some currency value.
     // Avg rawCost = resolveProjected(800, 1200, 'avg') = 1000
     // Avg payback = resolveProjected(80, 100, 'avg') = 90
-    // Net (Avg) = 1000 - 90 = 910 → "€910.00"
+    // Net (Avg) = payback - rawCost = 90 - 1000 = -910 → "-€910.00"
     const netCells = container.querySelectorAll('td.colRemaining');
     const nonEmptyNetCells = Array.from(netCells).filter((td) => td.textContent?.trim() !== '');
     expect(nonEmptyNetCells.length).toBeGreaterThan(0);
     // No range format — single value only
     expect(container.textContent).not.toContain('€900.00 – €920.00');
-    expect(container.textContent).toContain('€910.00');
+    expect(container.textContent).toContain('-€910.00');
   });
 
   // Scenario 17: "Sum" label appears AND "Remaining" row also appears
@@ -2088,11 +2088,11 @@ describe('CostBreakdownTable', () => {
   });
 
   // Scenario 19: Sum Net and Remaining Net (perspective-aware)
-  it('Sum Net = totalRawProjected - resolvedPayback; Remaining Net = availableFunds - totalRawProjected + resolvedPayback', () => {
+  it('Sum Net = resolvedPayback - totalRawProjected; Remaining Net = availableFunds - totalRawProjected + resolvedPayback', () => {
     // availableFunds=10000, rawProjectedMin=3000, rawProjectedMax=5000
     // Avg raw = resolveProjected(3000, 5000, 'avg') = 4000
     // minSubsidyPayback=100, subsidyPayback=200 → avgPayback=resolveProjected(100,200,'avg')=150
-    // Sum Net = 4000 - 150 = 3850 → "€3,850.00"
+    // Sum Net = payback - rawCost = 150 - 4000 = -3850 → "-€3,850.00"
     // Remaining Net = 10000 - 4000 + 150 = 6150 → "€6,150.00"
     render(
       <CostBreakdownTable
@@ -2110,9 +2110,9 @@ describe('CostBreakdownTable', () => {
       />,
     );
 
-    // Sum Net = totalRawProjected - resolvedPayback = 4000 - 150 = 3850
+    // Sum Net = payback - rawCost = 150 - 4000 = -3850
     // (may appear multiple times across section rows and Sum row)
-    expect(screen.getAllByText('€3,850.00').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('-€3,850.00').length).toBeGreaterThanOrEqual(1);
     // Remaining Net = availableFunds - totalRawProjected + resolvedPayback = 10000 - 4000 + 150 = 6150
     expect(screen.getByText('€6,150.00')).toBeInTheDocument();
   });

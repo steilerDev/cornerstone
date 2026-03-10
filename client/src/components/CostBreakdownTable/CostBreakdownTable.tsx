@@ -52,7 +52,7 @@ function formatPayback(amount: number): string {
 }
 
 /**
- * Renders net value (cost - payback).
+ * Renders net value (payback - cost).
  * At item/category level, uses neutral text color (still an expense).
  * At sum level, uses green/red coloring (surplus vs deficit).
  */
@@ -62,7 +62,7 @@ function renderNet(
   cssStyles: typeof styles,
   colored: boolean = false,
 ): React.ReactNode {
-  const net = rawCost - payback;
+  const net = payback - rawCost;
   if (colored) {
     return (
       <span className={net >= 0 ? cssStyles.valuePositive : cssStyles.valueNegative}>
