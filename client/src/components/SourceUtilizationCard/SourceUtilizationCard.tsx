@@ -59,6 +59,12 @@ export function SourceUtilizationCard({ sources }: SourceUtilizationCardProps) {
               formatValue={formatCurrency}
             />
 
+            <span className={styles.srOnly}>
+              {source.totalAmount > 0
+                ? `${((source.usedAmount / source.totalAmount) * 100).toFixed(0)}% utilized`
+                : '0% utilized'}
+            </span>
+
             <div className={styles.amounts}>
               <span data-testid="source-used">{formatCurrency(source.usedAmount)}</span>
               <span>/</span>

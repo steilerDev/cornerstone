@@ -176,6 +176,8 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
         className={styles.svg}
         viewBox={`0 0 ${CHART_WIDTH} ${svgHeight}`}
         xmlns="http://www.w3.org/2000/svg"
+        role="img"
+        aria-label={`Mini Gantt: ${filteredWorkItems.length} work item${filteredWorkItems.length === 1 ? '' : 's'} in the next 30 days${visibleMilestones.length > 0 ? `, ${visibleMilestones.length} milestone${visibleMilestones.length === 1 ? '' : 's'}` : ''}`}
       >
         {/* Header background */}
         <rect x="0" y="0" width={CHART_WIDTH} height={HEADER_HEIGHT} fill={colors.gridMajor} />
