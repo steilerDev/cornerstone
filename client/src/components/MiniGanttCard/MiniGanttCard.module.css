@@ -5,6 +5,11 @@
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
   background-color: var(--color-bg-primary);
+  outline: none;
+}
+
+.container:focus-visible {
+  box-shadow: var(--shadow-focus);
 }
 
 .svg {

@@ -204,24 +204,17 @@ describe('MiniGanttCard', () => {
 
   // ── Test 8: Navigable — component has a link or click handler to /schedule ───
 
-  it('renders a clickable container that navigates to /schedule', () => {
+  it('renders a clickable container with keyboard accessibility for /schedule navigation', () => {
     const timeline: TimelineResponse = {
       ...emptyTimeline,
       workItems: [{ ...baseWorkItem }],
     };
 
-    const { container } = renderWithRouter(<MiniGanttCard timeline={timeline} />);
+    renderWithRouter(<MiniGanttCard timeline={timeline} />);
 
-    // The component uses an onClick on the outer div — verify it exists in the DOM
-    // by checking that the outermost rendered element has a click handler attached,
-    // or alternatively that a link with href="/schedule" exists.
-    // MiniGanttCard uses useNavigate + onClick rather than an <a> tag, so we verify
-    // the container div is present and the SVG is clickable via its parent.
-    const clickableDiv = container.querySelector('[class]');
-    expect(clickableDiv).not.toBeNull();
-    // The component calls navigate('/schedule') on click — confirm the element exists
-    // that would trigger that navigation.
-    expect(container.firstChild).not.toBeNull();
+    const button = screen.getByRole('button', { name: 'View full schedule' });
+    expect(button).toBeInTheDocument();
+    expect(button).toHaveAttribute('tabindex', '0');
   });
 
   // ── Test 9: Items without dates are filtered out ──────────────────────────────

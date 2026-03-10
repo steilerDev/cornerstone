@@ -1,4 +1,4 @@
-import { useRef, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { TimelineResponse, WorkItemStatus } from '@cornerstone/shared';
 import { toUtcMidnight, addDays, daysBetween } from '../GanttChart/ganttUtils.js';
@@ -33,13 +33,14 @@ function resolveColors() {
       not_started: readCssVar('--color-gantt-bar-not-started'),
       in_progress: readCssVar('--color-gantt-bar-in-progress'),
       completed: readCssVar('--color-gantt-bar-completed'),
-      blocked: readCssVar('--color-gantt-bar-blocked') || '#dc2626',
+      blocked: readCssVar('--color-gantt-bar-blocked') || readCssVar('--color-danger'),
     },
     todayMarker: readCssVar('--color-gantt-today-marker'),
     arrowDefault: readCssVar('--color-gantt-arrow-default'),
     arrowCritical: readCssVar('--color-gantt-arrow-critical'),
     criticalBorder: readCssVar('--color-gantt-bar-critical-border'),
     milestoneFill: readCssVar('--color-milestone-incomplete-fill') || 'transparent',
+    milestoneCompleteFill: readCssVar('--color-milestone-complete-fill'),
     milestoneStroke: readCssVar('--color-milestone-incomplete-stroke'),
     gridMinor: readCssVar('--color-gantt-grid-minor'),
     gridMajor: readCssVar('--color-gantt-grid-major'),
@@ -73,7 +74,21 @@ function dateToX(date: Date, today: Date): number {
  */
 export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
   const navigate = useNavigate();
-  const colors = useMemo(() => resolveColors(), []);
+
+  // CSS color values read from computed styles (updated on theme change)
+  const [colors, setColors] = useState<ReturnType<typeof resolveColors>>(() => resolveColors());
+
+  // Listen for theme changes and re-read colors
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setColors(resolveColors());
+    });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme'],
+    });
+    return () => observer.disconnect();
+  }, []);
 
   // Today's date (at noon UTC to match ganttUtils pattern)
   const today = useMemo(() => {
@@ -125,10 +140,24 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
     return HEADER_HEIGHT + itemRowsHeight;
   }, [filteredWorkItems.length]);
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      navigate('/schedule');
+    }
+  };
+
   // If no work items in the 30-day window, show empty state
   if (filteredWorkItems.length === 0) {
     return (
-      <div className={styles.container} onClick={() => navigate('/schedule')}>
+      <div
+        className={styles.container}
+        onClick={() => navigate('/schedule')}
+        onKeyDown={handleKeyDown}
+        role="button"
+        tabIndex={0}
+        aria-label="View full schedule"
+      >
         <p className={styles.emptyState} data-testid="mini-gantt-empty">
           No work items in the next 30 days
         </p>
@@ -137,7 +166,14 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
   }
 
   return (
-    <div className={styles.container} onClick={() => navigate('/schedule')}>
+    <div
+      className={styles.container}
+      onClick={() => navigate('/schedule')}
+      onKeyDown={handleKeyDown}
+      role="button"
+      tabIndex={0}
+      aria-label="View full schedule"
+    >
       <svg
         className={styles.svg}
         viewBox={`0 0 ${CHART_WIDTH} ${svgHeight}`}
@@ -295,7 +331,7 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
           ];
 
           const isCritical = milestone.isCritical;
-          const fillColor = milestone.isCompleted ? colors.gridMajor : colors.milestoneFill;
+          const fillColor = milestone.isCompleted ? colors.milestoneCompleteFill : colors.milestoneFill;
           const strokeColor = isCritical ? colors.criticalBorder : colors.milestoneStroke;
 
           return (
