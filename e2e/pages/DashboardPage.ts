@@ -14,7 +14,9 @@ export type DashboardCardId =
   | 'budget-summary'
   | 'budget-alerts'
   | 'source-utilization'
-  | 'timeline-status'
+  | 'upcoming-milestones'
+  | 'work-item-progress'
+  | 'critical-path'
   | 'mini-gantt'
   | 'invoice-pipeline'
   | 'subsidy-pipeline'
@@ -25,7 +27,9 @@ export const CARD_TITLES = [
   'Budget Summary',
   'Budget Alerts',
   'Source Utilization',
-  'Timeline Status',
+  'Upcoming Milestones',
+  'Work Item Progress',
+  'Critical Path',
   'Mini Gantt',
   'Invoice Pipeline',
   'Subsidy Pipeline',
