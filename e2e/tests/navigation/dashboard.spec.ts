@@ -3,9 +3,9 @@
  *
  * Scenarios covered:
  * 1.  Smoke: Dashboard page loads and shows h1 "Project"
- * 2.  All 8 card headings visible after data loads
+ * 2.  All 10 card headings visible after data loads
  * 3.  Budget Summary card: shows available funds and remaining budget
- * 4.  Timeline Status card: shows work item status indicators
+ * 4.  Timeline cards: Upcoming Milestones, Work Item Progress, Critical Path
  * 5.  Quick Actions card: navigation links are clickable
  * 6.  Card dismiss: clicking dismiss hides a card; page reload keeps it hidden
  * 7.  Card re-enable: Customize dropdown shows hidden cards, clicking re-enables
@@ -246,11 +246,11 @@ test.describe('Smoke test (Scenario 1)', { tag: '@smoke' }, () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 2: All 8 card headings visible after data loads
+// Scenario 2: All 10 card headings visible after data loads
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('All cards render (Scenario 2)', { tag: '@responsive' }, () => {
-  test('All 8 card headings are visible after data loads', async ({ page }) => {
+  test('All 10 card headings are visible after data loads', async ({ page }) => {
     const dashboardPage = new DashboardPage(page);
 
     await interceptDashboardApis(page);
@@ -319,11 +319,13 @@ test.describe('Budget Summary card (Scenario 3)', { tag: '@responsive' }, () => 
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 4: Timeline Status card shows work item status indicators
+// Scenario 4: Timeline cards (Upcoming Milestones, Work Item Progress, Critical Path)
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Timeline Status card (Scenario 4)', { tag: '@responsive' }, () => {
-  test('Timeline Status card is visible with work item data', async ({ page }) => {
+test.describe('Timeline cards (Scenario 4)', { tag: '@responsive' }, () => {
+  test('Upcoming Milestones, Work Item Progress, and Critical Path cards are visible', async ({
+    page,
+  }) => {
     const dashboardPage = new DashboardPage(page);
 
     await interceptDashboardApis(page);
@@ -332,15 +334,13 @@ test.describe('Timeline Status card (Scenario 4)', { tag: '@responsive' }, () =>
       await dashboardPage.goto();
       await dashboardPage.waitForCardsLoaded();
 
-      // The Timeline Status card article should be visible
-      const timelineCard = dashboardPage.card('Timeline Status');
-      await expect(timelineCard.first()).toBeVisible();
+      for (const title of ['Upcoming Milestones', 'Work Item Progress', 'Critical Path']) {
+        const card = dashboardPage.card(title);
+        await expect(card.first()).toBeVisible();
 
-      // The card heading should be present
-      const heading = timelineCard
-        .first()
-        .getByRole('heading', { name: 'Timeline Status', level: 2 });
-      await expect(heading).toBeVisible();
+        const heading = card.first().getByRole('heading', { name: title, level: 2 });
+        await expect(heading).toBeVisible();
+      }
     } finally {
       await uninterceptDashboardApis(page);
     }
@@ -706,9 +706,9 @@ test.describe('Keyboard navigation (Scenario 9)', () => {
       // All dismiss buttons should be focusable
       const dismissButtons = page.getByRole('button', { name: /^Hide .+ card$/ });
       const count = await dismissButtons.count();
-      // We have 8 cards so there should be 8 dismiss buttons (on desktop/tablet grid)
-      // On mobile both grid and mobile sections render cards, so count may be 16
-      expect(count).toBeGreaterThanOrEqual(8);
+      // We have 10 cards so there should be 10 dismiss buttons (on desktop/tablet grid)
+      // On mobile both grid and mobile sections render cards, so count may be 20
+      expect(count).toBeGreaterThanOrEqual(10);
     } finally {
       await uninterceptDashboardApis(page);
     }
