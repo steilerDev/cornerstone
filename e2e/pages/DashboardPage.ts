@@ -58,8 +58,8 @@ export class DashboardPage {
     // Desktop/tablet grid — role="region" labeled "Dashboard overview"
     this.cardGrid = page.getByRole('region', { name: 'Dashboard overview' }).first();
 
-    // Mobile sections container
-    this.mobileSections = page.getByRole('region', { name: 'Dashboard overview (mobile)' });
+    // Mobile sections container (data-testid on the component)
+    this.mobileSections = page.getByTestId('dashboard-mobile-sections');
 
     // Customize button (only visible when cards are hidden)
     this.customizeButton = page.getByRole('button', { name: 'Customize' });

@@ -459,6 +459,7 @@ export function DashboardPage() {
         className={styles.mobileSections}
         role="region"
         aria-label="Dashboard overview"
+        data-testid="dashboard-mobile-sections"
         aria-live="polite"
         aria-atomic="false"
       >

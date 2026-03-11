@@ -160,19 +160,9 @@ function mockSubsidyPrograms() {
  * from real data state in the test container.
  */
 async function interceptDashboardApis(page: InstanceType<typeof DashboardPage>['page']) {
-  // Intercept preferences GET to always return empty hidden cards, ensuring all cards
-  // are visible even in tests that run in the same shard as dismiss tests.
-  await page.route('**/api/users/me/preferences', async (route) => {
-    if (route.request().method() === 'GET') {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ preferences: [{ key: 'dashboard.hiddenCards', value: '[]' }] }),
-      });
-    } else {
-      await route.continue();
-    }
-  });
+  // Note: preferences are reset by the global beforeEach hook (PATCH to clear hiddenCards).
+  // We do NOT intercept GET /api/users/me/preferences here because the "dismissed card
+  // stays hidden after reload" test needs to read real server-side state after reload.
 
   await page.route('**/api/budget/overview', async (route) => {
     if (route.request().method() === 'GET') {
@@ -236,7 +226,6 @@ async function interceptDashboardApis(page: InstanceType<typeof DashboardPage>['
 }
 
 async function uninterceptDashboardApis(page: InstanceType<typeof DashboardPage>['page']) {
-  await page.unroute('**/api/users/me/preferences');
   await page.unroute('**/api/budget/overview');
   await page.unroute('**/api/budget-sources');
   await page.unroute('**/api/timeline');
