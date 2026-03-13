@@ -1,4 +1,4 @@
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, useCallback, type FormEvent } from 'react';
 import type {
   BudgetSource,
   BudgetSourceType,
@@ -14,6 +14,8 @@ import {
 import { ApiClientError } from '../../lib/apiClient.js';
 import { formatCurrency, formatPercent } from '../../lib/formatters.js';
 import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
+import { BudgetBar } from '../../components/BudgetBar/BudgetBar.js';
+import type { BudgetBarSegment } from '../../components/BudgetBar/BudgetBar.js';
 import styles from './BudgetSourcesPage.module.css';
 
 // ---- Display helpers ----
@@ -76,6 +78,147 @@ function sourceToEditState(source: BudgetSource): EditingSource {
     notes: source.notes ?? '',
     status: source.status,
   };
+}
+
+// ---- SourceBarChart sub-component ----
+
+interface SourceBarChartProps {
+  source: BudgetSource;
+}
+
+function SourceBarChart({ source }: SourceBarChartProps) {
+  const [hoveredSegment, setHoveredSegment] = useState<BudgetBarSegment | null>(null);
+  const handleSegmentHover = useCallback((seg: BudgetBarSegment | null) => {
+    setHoveredSegment(seg);
+  }, []);
+
+  const handleSegmentClick = useCallback((seg: BudgetBarSegment | null) => {
+    setHoveredSegment((prev) => (prev?.key === seg?.key ? null : seg));
+  }, []);
+
+  const claimedVal = source.claimedAmount;
+  const paidVal = Math.max(0, source.paidAmount - source.claimedAmount);
+  const projectedVal = Math.max(0, source.projectedAmount - source.paidAmount);
+  const allocatedVal = Math.max(0, source.usedAmount - Math.max(source.projectedAmount, source.paidAmount));
+
+  const maxValue = Math.max(source.totalAmount, source.projectedAmount, 1);
+  const overflow = Math.max(0, source.projectedAmount - source.totalAmount);
+
+  const segments: BudgetBarSegment[] = [
+    {
+      key: 'claimed',
+      value: claimedVal,
+      color: 'var(--color-budget-claimed)',
+      label: 'Claimed',
+      totalValue: source.claimedAmount,
+    },
+    {
+      key: 'paid',
+      value: paidVal,
+      color: 'var(--color-budget-paid)',
+      label: 'Paid (unclaimed)',
+      totalValue: source.paidAmount,
+    },
+    {
+      key: 'projected',
+      value: projectedVal,
+      color: 'var(--color-budget-projected)',
+      label: 'Projected',
+      totalValue: source.projectedAmount,
+    },
+    {
+      key: 'allocated',
+      value: allocatedVal,
+      color: 'var(--color-budget-allocated)',
+      label: 'Allocated (planned)',
+      totalValue: source.usedAmount,
+    },
+  ];
+
+  const legendRows = segments.filter((s) => (s.totalValue ?? s.value) > 0);
+
+  return (
+    <div className={styles.sourceBarSection}>
+      <div className={styles.barWrapper}>
+        <BudgetBar
+          segments={segments}
+          maxValue={maxValue}
+          overflow={overflow}
+          height="sm"
+          onSegmentHover={handleSegmentHover}
+          onSegmentClick={handleSegmentClick}
+          formatValue={formatCurrency}
+        />
+        {hoveredSegment && (
+          <div className={styles.barTooltipAnchor} role="status" aria-atomic="true">
+            <div className={styles.segmentTooltip}>
+              <span className={styles.segmentTooltipLabel}>{hoveredSegment.label}</span>
+              <span className={styles.segmentTooltipValue}>
+                {formatCurrency(hoveredSegment.totalValue ?? hoveredSegment.value)}
+              </span>
+              <span className={styles.segmentTooltipPct}>
+                {source.totalAmount > 0
+                  ? `${(((hoveredSegment.totalValue ?? hoveredSegment.value) / source.totalAmount) * 100).toFixed(1)}% of total`
+                  : '0.0% of total'}
+              </span>
+              <span className={styles.segmentTooltipPct}>
+                Remaining: {formatCurrency(source.totalAmount - (hoveredSegment.totalValue ?? hoveredSegment.value))}
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {(legendRows.length > 0 || overflow > 0) && (
+        <div className={styles.barLegend}>
+          {legendRows.map((seg) => (
+            <div key={seg.key} className={styles.barLegendRow}>
+              <span className={styles.barLegendDot} style={{ backgroundColor: seg.color }} aria-hidden="true" />
+              <span className={styles.barLegendLabel}>{seg.label}</span>
+              <span className={styles.barLegendValue}>{formatCurrency(seg.totalValue ?? seg.value)}</span>
+            </div>
+          ))}
+          {overflow > 0 && (
+            <div className={styles.barLegendRow}>
+              <span className={styles.barLegendDot} style={{ backgroundColor: 'var(--color-budget-overflow)' }} aria-hidden="true" />
+              <span className={styles.barLegendLabel}>Overflow</span>
+              <span className={styles.barLegendValue}>{formatCurrency(overflow)}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className={styles.sourceSummaryRow}>
+        <span className={styles.summaryItem}>
+          Total: <strong>{formatCurrency(source.totalAmount)}</strong>
+        </span>
+        <span className={styles.summaryDivider} aria-hidden="true">
+          |
+        </span>
+        <span
+          className={`${styles.summaryItem} ${source.actualAvailableAmount < 0 ? styles.amountNegative : ''}`}
+        >
+          Available: <strong>{formatCurrency(source.actualAvailableAmount)}</strong>
+        </span>
+        <span className={styles.summaryDivider} aria-hidden="true">
+          |
+        </span>
+        <span className={styles.summaryItem}>
+          Planned: <strong>{formatCurrency(source.usedAmount)}</strong>
+        </span>
+        {source.interestRate != null && (
+          <>
+            <span className={styles.summaryDivider} aria-hidden="true">
+              |
+            </span>
+            <span className={styles.summaryItem}>
+              Rate: <strong>{formatPercent(source.interestRate)}</strong>
+            </span>
+          </>
+        )}
+      </div>
+    </div>
+  );
 }
 
 // ---- Component ----
@@ -748,57 +891,7 @@ export function BudgetSourcesPage() {
                           </div>
                         </div>
 
-                        <div className={styles.sourceAmounts}>
-                          <div className={styles.amountGroup}>
-                            <span className={styles.amountLabel}>Total</span>
-                            <span className={styles.amountValue}>
-                              {formatCurrency(source.totalAmount)}
-                            </span>
-                          </div>
-                          <div className={styles.amountGroup}>
-                            <span className={styles.amountLabel}>Claimed</span>
-                            <span className={styles.amountValue}>
-                              {formatCurrency(source.claimedAmount)}
-                            </span>
-                          </div>
-                          <div className={styles.amountGroup}>
-                            <span className={styles.amountLabel}>Unclaimed</span>
-                            <span className={styles.amountValue}>
-                              {formatCurrency(source.unclaimedAmount)}
-                            </span>
-                          </div>
-                          <div className={styles.amountGroup}>
-                            <span className={styles.amountLabel}>Available</span>
-                            <span
-                              className={`${styles.amountValue} ${source.actualAvailableAmount < 0 ? styles.amountNegative : ''}`}
-                            >
-                              {formatCurrency(source.actualAvailableAmount)}
-                            </span>
-                          </div>
-                          <div className={styles.amountGroup}>
-                            <span className={styles.amountLabel}>Projected</span>
-                            <span className={styles.amountValue}>
-                              {formatCurrency(source.projectedAmount)}
-                            </span>
-                          </div>
-                          <div className={styles.amountGroup}>
-                            <span className={styles.amountLabel}>Paid</span>
-                            <span className={styles.amountValue}>
-                              {formatCurrency(source.paidAmount)}
-                            </span>
-                          </div>
-                          {source.interestRate != null && (
-                            <div className={styles.amountGroup}>
-                              <span className={styles.amountLabel}>Rate</span>
-                              <span className={styles.amountValue}>
-                                {formatPercent(source.interestRate)}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                        <div className={styles.plannedAllocation}>
-                          Planned: {formatCurrency(source.usedAmount)}
-                        </div>
+                        <SourceBarChart source={source} />
 
                         {source.terms && (
                           <p className={styles.sourceTerms} title="Terms">
