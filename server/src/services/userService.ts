@@ -437,12 +437,5 @@ export function resetLoginAttempts(db: DbType, userId: string): void {
  * Unlock a user account (admin operation).
  */
 export function unlockUser(db: DbType, userId: string): void {
-  db.update(users)
-    .set({
-      failedLoginAttempts: 0,
-      lockedUntil: null,
-      updatedAt: new Date().toISOString(),
-    })
-    .where(eq(users.id, userId))
-    .run();
+  resetLoginAttempts(db, userId);
 }
