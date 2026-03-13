@@ -78,9 +78,8 @@ export default async function feedsRoutes(fastify: FastifyInstance) {
       if (!startDate || !endDate) continue;
 
       calendar.createEvent({
-        uid: `wi-${wi.id}@cornerstone`,
+        id: `wi-${wi.id}@cornerstone`,
         summary: wi.title,
-        description: wi.description || undefined,
         start: new Date(startDate),
         end: new Date(endDate),
         allDay: true,
@@ -96,9 +95,8 @@ export default async function feedsRoutes(fastify: FastifyInstance) {
       if (!eventDate) continue;
 
       calendar.createEvent({
-        uid: `milestone-${milestone.id}@cornerstone`,
+        id: `milestone-${milestone.id}@cornerstone`,
         summary: milestone.title,
-        description: milestone.description || undefined,
         start: new Date(eventDate),
         end: new Date(eventDate),
         allDay: true,
@@ -124,7 +122,7 @@ export default async function feedsRoutes(fastify: FastifyInstance) {
       if (!startDate || !endDate) continue;
 
       calendar.createEvent({
-        uid: `hi-${hi.id}@cornerstone`,
+        id: `hi-${hi.id}@cornerstone`,
         summary: `${hi.name} (Delivery)`,
         start: new Date(startDate),
         end: new Date(endDate),
@@ -174,7 +172,7 @@ export default async function feedsRoutes(fastify: FastifyInstance) {
       }
 
       if (vendor.phone) {
-        vcard.addPhoneNumber(vendor.phone, 'WORK');
+        vcard.addPhoneNumber(vendor.phone as unknown as number, 'WORK');
       }
 
       if (vendor.address) {
