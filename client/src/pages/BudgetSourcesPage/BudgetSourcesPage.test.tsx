@@ -266,19 +266,24 @@ describe('BudgetSourcesPage', () => {
       });
     });
 
-    it('displays Claimed, Unclaimed, and Available (actualAvailableAmount) amounts', async () => {
+    it('displays Claimed label in bar legend and Available in summary row', async () => {
+      const sourceWithClaimed: BudgetSource = {
+        ...sampleSource1,
+        claimedAmount: 10000,
+      };
       mockFetchBudgetSources.mockResolvedValueOnce({
-        budgetSources: [sampleSource1],
+        budgetSources: [sourceWithClaimed],
       });
 
       renderPage();
 
       await waitFor(() => {
-        // claimedAmount = 0 → €0.00 and unclaimedAmount = 0 → €0.00
-        // actualAvailableAmount = 200000 → €200,000.00 (at least 2 matches: Total and Available)
+        // claimedAmount = 10000 → Claimed appears in bar legend
         expect(screen.getByText('Claimed')).toBeInTheDocument();
-        expect(screen.getByText('Unclaimed')).toBeInTheDocument();
-        expect(screen.getByText('Available')).toBeInTheDocument();
+        // Available appears inline in summary row as "Available: €X"
+        expect(screen.getByText(/available:/i)).toBeInTheDocument();
+        // Old standalone 'Unclaimed' label is gone — replaced by 'Paid (unclaimed)' in legend
+        expect(screen.queryByText('Unclaimed')).not.toBeInTheDocument();
       });
     });
 
@@ -300,12 +305,13 @@ describe('BudgetSourcesPage', () => {
       });
     });
 
-    it('displays source with non-zero claimedAmount and unclaimedAmount', async () => {
+    it('displays source with non-zero claimedAmount and paidAmount in bar legend', async () => {
       const sourceWithAmounts: BudgetSource = {
         ...sampleSource1,
         totalAmount: 100000,
         claimedAmount: 30000,
         unclaimedAmount: 20000,
+        paidAmount: 50000, // paidVal = 50000 - 30000 = 20000 → 'Paid (unclaimed)' in legend
         actualAvailableAmount: 70000, // 100000 - 30000
         usedAmount: 80000,
         availableAmount: 20000,
@@ -317,16 +323,14 @@ describe('BudgetSourcesPage', () => {
       renderPage();
 
       await waitFor(() => {
+        // Bar legend shows 'Claimed' (totalValue=30000) and 'Paid (unclaimed)' (totalValue=50000)
         expect(screen.getByText('Claimed')).toBeInTheDocument();
-        expect(screen.getByText('Unclaimed')).toBeInTheDocument();
-        expect(screen.getByText('Available')).toBeInTheDocument();
-        // Claimed: €30,000.00
-        expect(screen.getByText('€30,000.00')).toBeInTheDocument();
-        // Unclaimed: €20,000.00
-        expect(screen.getByText('€20,000.00')).toBeInTheDocument();
-        // Available: €70,000.00
-        expect(screen.getByText('€70,000.00')).toBeInTheDocument();
-        // Planned secondary line: €80,000.00
+        expect(screen.getByText('Paid (unclaimed)')).toBeInTheDocument();
+        // Old standalone 'Unclaimed' label is gone
+        expect(screen.queryByText('Unclaimed')).not.toBeInTheDocument();
+        // Available: €70,000.00 appears in summary row as "Available: €70,000.00"
+        expect(screen.getByText(/available:/i)).toBeInTheDocument();
+        // Planned appears in summary row
         expect(screen.getByText(/planned:/i)).toBeInTheDocument();
       });
     });
@@ -1482,7 +1486,7 @@ describe('BudgetSourcesPage', () => {
       });
     });
 
-    it('displays Paid amount for a source', async () => {
+    it('displays Paid (unclaimed) label for a source with paidAmount > claimedAmount', async () => {
       const sourceWithPaid: BudgetSource = {
         ...sampleSource1,
         claimedAmount: 50000,
@@ -1496,21 +1500,29 @@ describe('BudgetSourcesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText('Paid')).toBeInTheDocument();
+        // paidVal = 75000 - 50000 = 25000 → 'Paid (unclaimed)' in legend with totalValue=75000
+        expect(screen.getByText('Paid (unclaimed)')).toBeInTheDocument();
         expect(screen.getByText('€75,000.00')).toBeInTheDocument();
+        // The old standalone 'Paid' label is gone — now reads 'Paid (unclaimed)'
+        expect(screen.queryByText('Paid')).not.toBeInTheDocument();
       });
     });
 
-    it('displays both Projected and Paid labels together', async () => {
+    it('displays both Claimed and Paid (unclaimed) labels when both non-zero', async () => {
+      const sourceWithBoth: BudgetSource = {
+        ...sampleSource1,
+        claimedAmount: 30000,
+        paidAmount: 50000, // paidVal = 50000 - 30000 = 20000 → 'Paid (unclaimed)'
+      };
       mockFetchBudgetSources.mockResolvedValueOnce({
-        budgetSources: [sampleSource1],
+        budgetSources: [sourceWithBoth],
       });
 
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText('Projected')).toBeInTheDocument();
-        expect(screen.getByText('Paid')).toBeInTheDocument();
+        expect(screen.getByText('Claimed')).toBeInTheDocument();
+        expect(screen.getByText('Paid (unclaimed)')).toBeInTheDocument();
       });
     });
 
@@ -1550,6 +1562,197 @@ describe('BudgetSourcesPage', () => {
 
       expect(optionValues).not.toContain('discretionary');
       expect(optionTexts).not.toContain('Discretionary');
+    });
+  });
+
+  // ─── SourceBarChart behaviour ─────────────────────────────────────────────────
+
+  describe('SourceBarChart bar chart display', () => {
+    it('renders a BudgetBar with role="img" for each source', async () => {
+      const sourceWithAmounts: BudgetSource = {
+        ...sampleSource1,
+        claimedAmount: 30000,
+        paidAmount: 50000,
+        projectedAmount: 80000,
+        usedAmount: 90000,
+      };
+      mockFetchBudgetSources.mockResolvedValueOnce({
+        budgetSources: [sourceWithAmounts],
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        // BudgetBar renders role="img" with aria-label
+        expect(screen.getByRole('img')).toBeInTheDocument();
+      });
+    });
+
+    it('bar legend shows Claimed segment when claimedAmount is non-zero', async () => {
+      const sourceWithClaimed: BudgetSource = {
+        ...sampleSource1,
+        claimedAmount: 30000,
+      };
+      mockFetchBudgetSources.mockResolvedValueOnce({
+        budgetSources: [sourceWithClaimed],
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Claimed')).toBeInTheDocument();
+      });
+    });
+
+    it('bar legend shows Paid (unclaimed) when paidAmount exceeds claimedAmount', async () => {
+      const sourceWithPaidUnclaimed: BudgetSource = {
+        ...sampleSource1,
+        claimedAmount: 20000,
+        paidAmount: 50000, // paidVal = 50000 - 20000 = 30000
+      };
+      mockFetchBudgetSources.mockResolvedValueOnce({
+        budgetSources: [sourceWithPaidUnclaimed],
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Paid (unclaimed)')).toBeInTheDocument();
+      });
+    });
+
+    it('bar legend hides all segments when all amounts are zero', async () => {
+      const zeroSource: BudgetSource = {
+        ...sampleSource2, // paidAmount=0, claimedAmount=0, projectedAmount=0, usedAmount=0
+      };
+      mockFetchBudgetSources.mockResolvedValueOnce({
+        budgetSources: [zeroSource],
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Savings Account')).toBeInTheDocument();
+      });
+
+      // No legend segments rendered when all amounts are zero
+      expect(screen.queryByText('Claimed')).not.toBeInTheDocument();
+      expect(screen.queryByText('Paid (unclaimed)')).not.toBeInTheDocument();
+      expect(screen.queryByText('Projected')).not.toBeInTheDocument();
+      expect(screen.queryByText('Allocated (planned)')).not.toBeInTheDocument();
+    });
+
+    it('bar legend shows Overflow row when projectedAmount exceeds totalAmount', async () => {
+      const overflowSource: BudgetSource = {
+        ...sampleSource1,
+        totalAmount: 100000,
+        projectedAmount: 130000, // overflow = 130000 - 100000 = 30000
+      };
+      mockFetchBudgetSources.mockResolvedValueOnce({
+        budgetSources: [overflowSource],
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Overflow')).toBeInTheDocument();
+      });
+    });
+
+    it('bar legend does NOT show Overflow when projectedAmount does not exceed totalAmount', async () => {
+      const noOverflowSource: BudgetSource = {
+        ...sampleSource1,
+        totalAmount: 200000,
+        projectedAmount: 150000, // no overflow
+      };
+      mockFetchBudgetSources.mockResolvedValueOnce({
+        budgetSources: [noOverflowSource],
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Home Loan')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByText('Overflow')).not.toBeInTheDocument();
+    });
+
+    it('summary row shows Total, Available, and Planned labels', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({
+        budgetSources: [sampleSource1],
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText(/total:/i)).toBeInTheDocument();
+        expect(screen.getByText(/available:/i)).toBeInTheDocument();
+        expect(screen.getByText(/planned:/i)).toBeInTheDocument();
+      });
+    });
+
+    it('summary row shows Rate when interestRate is set', async () => {
+      // sampleSource1 has interestRate: 3.5
+      mockFetchBudgetSources.mockResolvedValueOnce({
+        budgetSources: [sampleSource1],
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText(/rate:/i)).toBeInTheDocument();
+      });
+    });
+
+    it('summary row does NOT show Rate when interestRate is null', async () => {
+      // sampleSource2 has interestRate: null
+      mockFetchBudgetSources.mockResolvedValueOnce({
+        budgetSources: [sampleSource2],
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Savings Account')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByText(/rate:/i)).not.toBeInTheDocument();
+    });
+
+    it('old standalone "Unclaimed" label is no longer present', async () => {
+      const sourceWithUnclaimed: BudgetSource = {
+        ...sampleSource1,
+        claimedAmount: 10000,
+        paidAmount: 30000, // previously shown as 'Unclaimed', now 'Paid (unclaimed)'
+      };
+      mockFetchBudgetSources.mockResolvedValueOnce({
+        budgetSources: [sourceWithUnclaimed],
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Home Loan')).toBeInTheDocument();
+      });
+
+      // The old standalone 'Unclaimed' label is gone from the redesigned layout
+      expect(screen.queryByText('Unclaimed')).not.toBeInTheDocument();
+      // Replaced by 'Paid (unclaimed)' in the bar legend
+      expect(screen.getByText('Paid (unclaimed)')).toBeInTheDocument();
+    });
+
+    it('terms are still displayed below the bar chart', async () => {
+      // sampleSource1 has terms: '30-year fixed'
+      mockFetchBudgetSources.mockResolvedValueOnce({
+        budgetSources: [sampleSource1],
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('30-year fixed')).toBeInTheDocument();
+      });
     });
   });
 });
