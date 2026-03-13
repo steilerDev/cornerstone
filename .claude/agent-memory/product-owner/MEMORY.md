@@ -1,8 +1,9 @@
 # Product Owner Agent Memory
 
-## Backlog State (as of 2026-03-09)
+## Backlog State (as of 2026-03-13)
 
-- 14+ epics, 85+ user stories across all epics
+- 16+ epics, 107+ user stories across all epics
+- EPIC-16 (#752): Floor Plans & Utility Tracking — 22 stories (#753-#775), all Backlog. See [epic-16-planning.md](epic-16-planning.md)
 - Sprint 1 COMPLETE: EPIC-01, EPIC-02, EPIC-11
 - Sprint 2 COMPLETE: EPIC-03, EPIC-12
 - Sprint 3 COMPLETE: EPIC-05 (v1.9.0), EPIC-06 (v1.10.0)

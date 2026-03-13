@@ -6,6 +6,7 @@ import { existsSync } from 'node:fs';
 import fastifyStatic from '@fastify/static';
 import fastifyCompress from '@fastify/compress';
 import fastifyCookie from '@fastify/cookie';
+import multipart from '@fastify/multipart';
 import { sql } from 'drizzle-orm';
 import type { ApiErrorResponse } from '@cornerstone/shared';
 import configPlugin from './plugins/config.js';
@@ -38,6 +39,7 @@ import scheduleRoutes from './routes/schedule.js';
 import timelineRoutes from './routes/timeline.js';
 import paperlessRoutes from './routes/paperless.js';
 import documentLinksRoutes from './routes/documentLinks.js';
+import photoRoutes from './routes/photos.js';
 import preferencesRoutes from './routes/preferences.js';
 import householdItemCategoryRoutes from './routes/householdItemCategories.js';
 import householdItemRoutes from './routes/householdItems.js';
@@ -67,6 +69,13 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Cookie parsing (required for session management)
   await app.register(fastifyCookie);
+
+  // Multipart form data parsing (for file uploads)
+  await app.register(multipart, {
+    limits: {
+      fileSize: 50 * 1024 * 1024, // 50MB hard cap; actual limit enforced per config in route
+    },
+  });
 
   // Database connection & migrations
   await app.register(dbPlugin);
@@ -155,6 +164,9 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Document link routes (EPIC-08: Link Paperless-ngx documents to entities)
   await app.register(documentLinksRoutes, { prefix: '/api/document-links' });
+
+  // Photo attachment routes (shared infrastructure for EPIC-13 and EPIC-16)
+  await app.register(photoRoutes, { prefix: '/api/photos' });
 
   // User preferences routes (EPIC-09 Story #470: User Preferences Infrastructure)
   await app.register(preferencesRoutes, { prefix: '/api/users/me/preferences' });

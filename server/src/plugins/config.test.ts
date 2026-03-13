@@ -30,6 +30,8 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         paperlessApiToken: undefined,
         paperlessFilterTag: undefined,
         paperlessEnabled: false,
+        photoStoragePath: '/app/data/photos',
+        photoMaxFileSizeMb: 20,
       });
     });
 
@@ -61,6 +63,8 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         paperlessApiToken: undefined,
         paperlessFilterTag: undefined,
         paperlessEnabled: false,
+        photoStoragePath: '/app/data/photos',
+        photoMaxFileSizeMb: 20,
       });
     });
   });
@@ -94,6 +98,8 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         paperlessApiToken: undefined,
         paperlessFilterTag: undefined,
         paperlessEnabled: false,
+        photoStoragePath: '/custom/path/photos',
+        photoMaxFileSizeMb: 20,
       });
     });
 
@@ -122,6 +128,8 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         paperlessApiToken: undefined,
         paperlessFilterTag: undefined,
         paperlessEnabled: false,
+        photoStoragePath: '/app/data/photos',
+        photoMaxFileSizeMb: 20,
       });
     });
   });

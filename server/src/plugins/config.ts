@@ -1,4 +1,5 @@
 import fp from 'fastify-plugin';
+import path from 'node:path';
 
 // Type-safe configuration interface
 export interface AppConfig {
@@ -20,6 +21,8 @@ export interface AppConfig {
   paperlessApiToken?: string;
   paperlessFilterTag?: string;
   paperlessEnabled: boolean;
+  photoStoragePath: string;
+  photoMaxFileSizeMb: number;
 }
 
 // Type augmentation: makes fastify.config available across all routes/plugins
@@ -153,6 +156,17 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
   // Paperless-ngx filter tag (optional, tag name string)
   const paperlessFilterTag = getValue('PAPERLESS_FILTER_TAG');
 
+  // Photo storage configuration
+  const photoMaxFileSizeMbStr = getValue('PHOTO_MAX_FILE_SIZE_MB') ?? '20';
+  const photoMaxFileSizeMb = parseInt(photoMaxFileSizeMbStr, 10);
+  if (isNaN(photoMaxFileSizeMb)) {
+    errors.push(`PHOTO_MAX_FILE_SIZE_MB must be a valid number, got: ${photoMaxFileSizeMbStr}`);
+  } else if (photoMaxFileSizeMb <= 0) {
+    errors.push(`PHOTO_MAX_FILE_SIZE_MB must be greater than 0, got: ${photoMaxFileSizeMb}`);
+  }
+
+  const photoStoragePath = getValue('PHOTO_STORAGE_PATH') ?? path.join(path.dirname(databaseUrl), 'photos');
+
   // If there are any validation errors, throw a single error listing all of them
   if (errors.length > 0) {
     throw new Error(`Configuration validation failed:\n  - ${errors.join('\n  - ')}`);
@@ -177,6 +191,8 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     paperlessApiToken,
     paperlessFilterTag,
     paperlessEnabled,
+    photoStoragePath,
+    photoMaxFileSizeMb,
   };
 }
 
@@ -201,6 +217,8 @@ export default fp(
         paperlessEnabled: config.paperlessEnabled,
         paperlessUrl: config.paperlessUrl,
         paperlessFilterTag: config.paperlessFilterTag,
+        photoStoragePath: config.photoStoragePath,
+        photoMaxFileSizeMb: config.photoMaxFileSizeMb,
       },
       'Configuration loaded',
     );
