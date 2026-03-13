@@ -99,7 +99,10 @@ function SourceBarChart({ source }: SourceBarChartProps) {
   const claimedVal = source.claimedAmount;
   const paidVal = Math.max(0, source.paidAmount - source.claimedAmount);
   const projectedVal = Math.max(0, source.projectedAmount - source.paidAmount);
-  const allocatedVal = Math.max(0, source.usedAmount - Math.max(source.projectedAmount, source.paidAmount));
+  const allocatedVal = Math.max(
+    0,
+    source.usedAmount - Math.max(source.projectedAmount, source.paidAmount),
+  );
 
   const maxValue = Math.max(source.totalAmount, source.projectedAmount, 1);
   const overflow = Math.max(0, source.projectedAmount - source.totalAmount);
@@ -162,7 +165,10 @@ function SourceBarChart({ source }: SourceBarChartProps) {
                   : '0.0% of total'}
               </span>
               <span className={styles.segmentTooltipPct}>
-                Remaining: {formatCurrency(source.totalAmount - (hoveredSegment.totalValue ?? hoveredSegment.value))}
+                Remaining:{' '}
+                {formatCurrency(
+                  source.totalAmount - (hoveredSegment.totalValue ?? hoveredSegment.value),
+                )}
               </span>
             </div>
           </div>
@@ -173,14 +179,24 @@ function SourceBarChart({ source }: SourceBarChartProps) {
         <div className={styles.barLegend}>
           {legendRows.map((seg) => (
             <div key={seg.key} className={styles.barLegendRow}>
-              <span className={styles.barLegendDot} style={{ backgroundColor: seg.color }} aria-hidden="true" />
+              <span
+                className={styles.barLegendDot}
+                style={{ backgroundColor: seg.color }}
+                aria-hidden="true"
+              />
               <span className={styles.barLegendLabel}>{seg.label}</span>
-              <span className={styles.barLegendValue}>{formatCurrency(seg.totalValue ?? seg.value)}</span>
+              <span className={styles.barLegendValue}>
+                {formatCurrency(seg.totalValue ?? seg.value)}
+              </span>
             </div>
           ))}
           {overflow > 0 && (
             <div className={styles.barLegendRow}>
-              <span className={styles.barLegendDot} style={{ backgroundColor: 'var(--color-budget-overflow)' }} aria-hidden="true" />
+              <span
+                className={styles.barLegendDot}
+                style={{ backgroundColor: 'var(--color-budget-overflow)' }}
+                aria-hidden="true"
+              />
               <span className={styles.barLegendLabel}>Overflow</span>
               <span className={styles.barLegendValue}>{formatCurrency(overflow)}</span>
             </div>
