@@ -90,9 +90,7 @@ Present the complete epic plan to the user:
 - **Architecture**: Summary of schema changes, new API endpoints, ADRs created
 - **Sprint plan**: Which stories are in the first sprint (Todo) vs backlog
 
-**AUTO_MODE override**: If AUTO_MODE is active (set by `/epic-run`), skip the user approval wait. Instead, post the plan as a comment on the epic GitHub Issue with the header "Epic Plan (AUTO_MODE — auto-approved)" and proceed immediately to step 6.
-
-**Interactive mode** (default): Wait for user approval. If the user requests changes, re-launch the appropriate agent (PO or architect) to address feedback and present again.
+Post the plan as a comment on the epic GitHub Issue and proceed immediately to step 6.
 
 ### 6. Handoff
 
