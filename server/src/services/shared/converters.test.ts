@@ -55,6 +55,7 @@ function makeBudgetSourceRow(
     terms: '20 years',
     notes: null,
     status: 'active',
+    isDiscretionary: false,
     createdBy: null,
     createdAt: '2025-01-01T00:00:00.000Z',
     updatedAt: '2025-01-01T00:00:00.000Z',

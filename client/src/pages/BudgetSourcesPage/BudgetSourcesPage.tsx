@@ -415,11 +415,13 @@ export function BudgetSourcesPage() {
                     className={styles.select}
                     disabled={isCreating}
                   >
-                    {Object.entries(SOURCE_TYPE_LABELS).map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
+                    {Object.entries(SOURCE_TYPE_LABELS)
+                      .filter(([value]) => value !== 'discretionary')
+                      .map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
                   </select>
                 </div>
 
