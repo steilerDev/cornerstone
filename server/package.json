@@ -21,8 +21,10 @@
     "drizzle-orm": "0.45.1",
     "fastify": "5.8.2",
     "fastify-plugin": "5.1.0",
+    "ical-generator": "10.0.0",
     "openid-client": "6.8.2",
-    "sharp": "0.34.2"
+    "sharp": "0.34.2",
+    "vcard-creator": "0.4.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "7.6.13"
