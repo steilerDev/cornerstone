@@ -9,12 +9,12 @@ interface MiniGanttCardProps {
 }
 
 // Mini gantt layout constants
-const ROW_HEIGHT = 36;
-const BAR_HEIGHT = 24;
-const BAR_OFFSET_Y = 6;
-const HEADER_HEIGHT = 32;
+const ROW_HEIGHT = 44;
+const BAR_HEIGHT = 30;
+const BAR_OFFSET_Y = 7;
+const HEADER_HEIGHT = 36;
 const CHART_WIDTH = 600;
-const CHART_DAYS = 7;
+const CHART_DAYS = 5;
 
 /**
  * Reads a computed CSS custom property value from the document root.
@@ -90,37 +90,35 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
     return () => observer.disconnect();
   }, []);
 
-  // Week start: Monday of the current week (at noon UTC)
-  const weekStart = useMemo(() => {
+  // Window start: 2 days before today (at noon UTC)
+  const windowStart = useMemo(() => {
     const now = new Date();
     const d = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0, 0);
-    const dayOfWeek = d.getDay(); // 0=Sun, 1=Mon...6=Sat
-    const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-    d.setDate(d.getDate() + daysToMonday);
+    d.setDate(d.getDate() - 2);
     return d;
   }, []);
 
-  // Week end: Sunday of the current week
-  const weekEnd = useMemo(() => addDays(weekStart, 6), [weekStart]);
+  // Window end: 2 days after today
+  const windowEnd = useMemo(() => addDays(windowStart, 4), [windowStart]);
 
-  // Filter work items that overlap the weekly window
+  // Filter work items that overlap the window
   const filteredWorkItems = useMemo(() => {
     return timeline.workItems.filter((item) => {
       if (!item.startDate || !item.endDate) return false;
       const start = toUtcMidnight(item.startDate);
       const end = toUtcMidnight(item.endDate);
-      // Overlap check: item.start <= weekEnd AND item.end >= weekStart
-      return start <= weekEnd && end >= weekStart;
+      // Overlap check: item.start <= windowEnd AND item.end >= windowStart
+      return start <= windowEnd && end >= windowStart;
     });
-  }, [timeline.workItems, weekStart, weekEnd]);
+  }, [timeline.workItems, windowStart, windowEnd]);
 
-  // Filter milestones that fall within the week
+  // Filter milestones that fall within the window
   const visibleMilestones = useMemo(() => {
     return timeline.milestones.filter((m) => {
       const targetDate = toUtcMidnight(m.targetDate);
-      return targetDate >= weekStart && targetDate <= weekEnd;
+      return targetDate >= windowStart && targetDate <= windowEnd;
     });
-  }, [timeline.milestones, weekStart, weekEnd]);
+  }, [timeline.milestones, windowStart, windowEnd]);
 
   // SVG dimensions
   const svgHeight = useMemo(() => {
@@ -135,7 +133,7 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
     }
   };
 
-  // If no work items in the week, show empty state
+  // If no work items in the window, show empty state
   if (filteredWorkItems.length === 0) {
     return (
       <div
@@ -147,7 +145,7 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
         aria-label="View full schedule"
       >
         <p className={styles.emptyState} data-testid="mini-gantt-empty">
-          No work items scheduled this week
+          No work items scheduled in this timeframe
         </p>
       </div>
     );
@@ -167,22 +165,22 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
         viewBox={`0 0 ${CHART_WIDTH} ${svgHeight}`}
         xmlns="http://www.w3.org/2000/svg"
         role="img"
-        aria-label={`Mini Gantt: ${filteredWorkItems.length} work item${filteredWorkItems.length === 1 ? '' : 's'} scheduled this week${visibleMilestones.length > 0 ? `, ${visibleMilestones.length} milestone${visibleMilestones.length === 1 ? '' : 's'}` : ''}`}
+        aria-label={`Mini Gantt: ${filteredWorkItems.length} work item${filteredWorkItems.length === 1 ? '' : 's'} scheduled${visibleMilestones.length > 0 ? `, ${visibleMilestones.length} milestone${visibleMilestones.length === 1 ? '' : 's'}` : ''}`}
       >
         {/* Header background */}
         <rect x="0" y="0" width={CHART_WIDTH} height={HEADER_HEIGHT} fill={colors.gridMajor} />
 
-        {/* Header day-of-week labels (Mon, Tue, Wed, Thu, Fri, Sat, Sun) */}
-        {Array.from({ length: 7 }).map((_, i) => {
-          const labelDate = addDays(weekStart, i);
-          const x = dateToX(labelDate, weekStart);
+        {/* Header day labels (5-day window) */}
+        {Array.from({ length: CHART_DAYS }).map((_, i) => {
+          const labelDate = addDays(windowStart, i);
+          const x = dateToX(labelDate, windowStart);
           const dayLabel = labelDate.toLocaleDateString('en-US', { weekday: 'short' });
           return (
             <text
               key={`header-${i}`}
               x={x + 4}
               y={HEADER_HEIGHT - 8}
-              fontSize="11"
+              fontSize="14"
               fill={colors.gridMinor}
               fontWeight="500"
             >
@@ -191,10 +189,10 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
           );
         })}
 
-        {/* Grid lines for day boundaries (8 lines for 7 days) */}
-        {Array.from({ length: 8 }).map((_, i) => {
-          const lineDate = addDays(weekStart, i);
-          const x = dateToX(lineDate, weekStart);
+        {/* Grid lines for day boundaries (6 lines for 5 days) */}
+        {Array.from({ length: CHART_DAYS + 1 }).map((_, i) => {
+          const lineDate = addDays(windowStart, i);
+          const x = dateToX(lineDate, windowStart);
           return (
             <line
               key={`grid-${i}`}
@@ -245,8 +243,8 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
           // Compute bar position
           const startDate = toUtcMidnight(item.startDate!);
           const endDate = toUtcMidnight(item.endDate!);
-          const x = dateToX(startDate, weekStart);
-          const xEnd = dateToX(endDate, weekStart);
+          const x = dateToX(startDate, windowStart);
+          const xEnd = dateToX(endDate, windowStart);
           const rawWidth = xEnd - x;
           const barWidth = Math.max(rawWidth, 4); // Minimum 4px width
 
@@ -275,7 +273,7 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
                 <text
                   x={clampedX + 4}
                   y={barY + BAR_HEIGHT / 2 + 4}
-                  fontSize="11"
+                  fontSize="14"
                   fill={colors.barText}
                   fontWeight="500"
                 >
@@ -293,7 +291,7 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
         {/* Milestone diamonds */}
         {visibleMilestones.map((milestone) => {
           const targetDate = toUtcMidnight(milestone.targetDate);
-          const x = dateToX(targetDate, weekStart);
+          const x = dateToX(targetDate, windowStart);
           // Position milestone at the bottom of the chart area
           const mY = svgHeight - 8;
 
