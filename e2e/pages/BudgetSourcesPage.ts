@@ -316,4 +316,35 @@ export class BudgetSourcesPage {
       return null;
     }
   }
+
+  /**
+   * Find the source row that contains the given source name, scoped to non-editing display rows.
+   * The row must be visible and not in edit mode.
+   * No explicit timeout — uses project-level actionTimeout (15s for WebKit).
+   */
+  getSourceRowByName(name: string): import('@playwright/test').Locator {
+    return this.page.locator('[class*="sourceRow"]').filter({ hasText: name });
+  }
+
+  /**
+   * Get the "System" badge within the named source row.
+   * Returns null if the source is not found or has no system badge.
+   */
+  getSystemBadge(sourceName: string): import('@playwright/test').Locator {
+    return this.getSourceRowByName(sourceName).locator('[class*="systemBadge"]');
+  }
+
+  /**
+   * Get the inline edit type select for the source currently being edited (by source id).
+   */
+  getEditTypeSelect(sourceId: string): import('@playwright/test').Locator {
+    return this.page.locator(`#edit-type-${sourceId}`);
+  }
+
+  /**
+   * Get all "amountLabel" spans within a source row to verify presence of Projected/Paid labels.
+   */
+  getAmountLabelsInRow(sourceName: string): import('@playwright/test').Locator {
+    return this.getSourceRowByName(sourceName).locator('[class*="amountLabel"]');
+  }
 }
