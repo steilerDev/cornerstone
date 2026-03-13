@@ -90,7 +90,7 @@ describe('MiniGanttCard', () => {
 
     const el = screen.getByTestId('mini-gantt-empty');
     expect(el).toBeInTheDocument();
-    expect(el).toHaveTextContent('No work items scheduled this week');
+    expect(el).toHaveTextContent('No work items scheduled in this timeframe');
   });
 
   // ── Test 2: Empty state — items exist but outside the weekly window ──────────
