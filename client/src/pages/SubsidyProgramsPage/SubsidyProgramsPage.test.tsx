@@ -1413,7 +1413,7 @@ describe('SubsidyProgramsPage', () => {
       await user.click(screen.getByRole('button', { name: /add program/i }));
       await user.type(screen.getByLabelText(/name/i), 'Capped Subsidy');
       const reductionValueInput = screen.getByLabelText(/value \(%\)/i);
-      fireEvent.change(reductionValueInput, { target: { value: '3000' } });
+      fireEvent.change(reductionValueInput, { target: { value: '15' } });
       fireEvent.change(screen.getByLabelText(/maximum amount/i), { target: { value: '10000' } });
       await user.click(screen.getByRole('button', { name: /create program/i }));
 
