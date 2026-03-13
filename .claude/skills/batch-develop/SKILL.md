@@ -1,22 +1,14 @@
 ---
 name: batch-develop
-description: 'Reads /tmp/notes.md and runs /develop in AUTO_MODE for each line sequentially. Each line gets its own branch, PR, and full development cycle.'
+description: 'Reads /tmp/notes.md and runs /develop for each line sequentially. Each line gets its own branch, PR, and full development cycle. Skips /develop step 1 (Rebase) since it handles its own baseline reset.'
 ---
 
-# Batch Develop — Sequential AUTO_MODE Development from Notes File
+# Batch Develop — Sequential Development from Notes File
 
-You are the orchestrator running a sequential development pipeline. This skill reads `/tmp/notes.md` and invokes the `/develop` workflow in **AUTO_MODE** for each line, one at a time. Each line gets its own branch, PR, and full development cycle.
+You are the orchestrator running a sequential development pipeline. This skill reads `/tmp/notes.md` and invokes the `/develop` workflow for each line, one at a time. Each line gets its own branch, PR, and full development cycle.
 
-**When to use:** Processing a backlog of issues or bug descriptions listed in `/tmp/notes.md`, where each item should be developed independently with automatic approvals.
+**When to use:** Processing a backlog of issues or bug descriptions listed in `/tmp/notes.md`, where each item should be developed independently.
 **When NOT to use:** When items should be batched into a single PR (use `/develop @/tmp/notes.md` instead). When running a full epic lifecycle (use `/epic-run`).
-
-## AUTO_MODE Declaration
-
-This skill activates **AUTO_MODE** for the session. When AUTO_MODE is active:
-
-- Bug spec approval is auto-approved (PO spec created immediately)
-- PR merge is automatic after CI green + all reviewers approved
-- The only human gate is if retry budget (3) is exhausted for a single item
 
 ## Input
 
@@ -78,13 +70,9 @@ git checkout -B batch-dev-temp origin/beta
 
 #### 3b. Invoke /develop
 
-Invoke the `/develop` skill with the current item as `$ARGUMENTS` and **AUTO_MODE active**. This means:
+Invoke the `/develop` skill with the current item as `$ARGUMENTS`. The `/develop` skill handles the full cycle (steps 1–11): resolve issue → visual spec → branch → move to in progress → implement + test → verify PR → review → fix loop → merge → close.
 
-- Bug descriptions: PO spec is auto-approved, issue created immediately
-- PR merge: Automatic after CI green + all reviewers approved
-- No user approval gates
-
-The `/develop` skill handles the full cycle: resolve issue → branch → implement → test → review → merge → close.
+**Note:** Skip `/develop` step 1 (Rebase) — the baseline reset is already handled by step 3a above. Execute `/develop` steps 2–11 for each item.
 
 #### 3c. Track Result
 
