@@ -60,6 +60,10 @@ function buildLine(id: string, invoiceLink: BudgetLineInvoiceLink | null = null)
     createdBy: null,
     createdAt: '2025-01-01T00:00:00Z',
     updatedAt: '2025-01-01T00:00:00Z',
+    quantity: null,
+    unit: null,
+    unitPrice: null,
+    includesVat: null,
   };
 }
 

@@ -24,6 +24,10 @@ const makeLine = (overrides: Partial<TestBudgetLine> = {}): TestBudgetLine => ({
   createdBy: null,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
+  quantity: null,
+  unit: null,
+  unitPrice: null,
+  includesVat: null,
   ...overrides,
 });
 
@@ -60,6 +64,11 @@ beforeEach(async () => {
     budgetCategoryId: '',
     budgetSourceId: '',
     vendorId: '',
+    pricingMode: 'direct',
+    quantity: '',
+    unit: '',
+    unitPrice: '',
+    includesVat: true,
   });
   mockToPayload.mockReset().mockReturnValue({ plannedAmount: 1000 });
 });
@@ -156,6 +165,11 @@ describe('useBudgetSection — initial state', () => {
       budgetCategoryId: '',
       budgetSourceId: '',
       vendorId: '',
+      pricingMode: 'direct',
+      quantity: '',
+      unit: '',
+      unitPrice: '',
+      includesVat: true,
     });
   });
 });
@@ -201,6 +215,11 @@ describe('openAddBudgetForm', () => {
       budgetCategoryId: '',
       budgetSourceId: '',
       vendorId: '',
+      pricingMode: 'direct',
+      quantity: '',
+      unit: '',
+      unitPrice: '',
+      includesVat: true,
     });
   });
 
@@ -246,6 +265,11 @@ describe('openEditBudgetForm', () => {
       budgetCategoryId: 'cat-1',
       budgetSourceId: 'src-1',
       vendorId: 'v-1',
+      pricingMode: 'direct',
+      quantity: '',
+      unit: '',
+      unitPrice: '',
+      includesVat: true,
     });
 
     const { result } = renderHook(() => useBudgetSection(makeOptions()));
@@ -318,6 +342,11 @@ describe('closeBudgetForm', () => {
       budgetCategoryId: '',
       budgetSourceId: '',
       vendorId: '',
+      pricingMode: 'direct',
+      quantity: '',
+      unit: '',
+      unitPrice: '',
+      includesVat: true,
     });
   });
 
@@ -438,6 +467,11 @@ describe('handleSaveBudgetLine', () => {
       budgetCategoryId: '',
       budgetSourceId: '',
       vendorId: '',
+      pricingMode: 'direct',
+      quantity: '',
+      unit: '',
+      unitPrice: '',
+      includesVat: true,
     });
 
     const { result } = renderHook(() => useBudgetSection(makeOptions()));

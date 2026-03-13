@@ -260,6 +260,10 @@ describe('HouseholdItemDetailPage — unified Budget section (issue #566)', () =
       createdBy: null,
       createdAt: '2026-01-15T10:00:00Z',
       updatedAt: '2026-01-15T10:00:00Z',
+      quantity: null,
+      unit: null,
+      unitPrice: null,
+      includesVat: null,
       ...overrides,
     };
   }
