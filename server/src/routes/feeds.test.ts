@@ -294,7 +294,7 @@ describe('Feed Routes (CalDAV/CardDAV)', () => {
     });
 
     it('household item with delivery dates is included with (Delivery) suffix', async () => {
-      const categoryId = createHouseholdItemCategory('Furniture');
+      const categoryId = createHouseholdItemCategory(`TestCat-${randomUUID()}`);
       createTestHouseholdItem('Couch', categoryId, {
         earliestDeliveryDate: '2026-05-01',
         latestDeliveryDate: '2026-05-10',
@@ -311,7 +311,7 @@ describe('Feed Routes (CalDAV/CardDAV)', () => {
     });
 
     it('household item without delivery dates is excluded', async () => {
-      const categoryId = createHouseholdItemCategory('Furniture');
+      const categoryId = createHouseholdItemCategory(`TestCat-${randomUUID()}`);
       createTestHouseholdItem('Lamp', categoryId, {
         earliestDeliveryDate: null,
         latestDeliveryDate: null,
@@ -328,7 +328,7 @@ describe('Feed Routes (CalDAV/CardDAV)', () => {
     });
 
     it('household item with only targetDeliveryDate is included', async () => {
-      const categoryId = createHouseholdItemCategory('Fixtures');
+      const categoryId = createHouseholdItemCategory(`TestCat-${randomUUID()}`);
       createTestHouseholdItem('Light Fixture', categoryId, {
         targetDeliveryDate: '2026-05-15',
       });
@@ -343,7 +343,7 @@ describe('Feed Routes (CalDAV/CardDAV)', () => {
     });
 
     it('household item with actual delivery date overrides earliest/latest', async () => {
-      const categoryId = createHouseholdItemCategory('Appliances');
+      const categoryId = createHouseholdItemCategory(`TestCat-${randomUUID()}`);
       createTestHouseholdItem('Refrigerator', categoryId, {
         earliestDeliveryDate: '2026-05-01',
         latestDeliveryDate: '2026-05-10',

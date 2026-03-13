@@ -7,7 +7,9 @@
 import type { FastifyInstance } from 'fastify';
 import { createHash } from 'node:crypto';
 import ical from 'ical-generator';
-import VCardCreator from 'vcard-creator';
+// vcard-creator is CJS — default import gives the module namespace, class is at .default
+import VCardModule from 'vcard-creator';
+const VCardCreator = (VCardModule as unknown as { default: typeof VCardModule }).default ?? VCardModule;
 import { getTimeline } from '../services/timelineService.js';
 import { ensureDailyReschedule } from '../services/schedulingEngine.js';
 import { vendors } from '../db/schema.js';
