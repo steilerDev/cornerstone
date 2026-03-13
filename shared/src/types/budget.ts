@@ -92,6 +92,10 @@ export interface BaseBudgetLine {
   invoiceCount: number;
   /** The primary invoice link for this budget line (if linked to exactly one invoice). */
   invoiceLink: BudgetLineInvoiceLink | null;
+  quantity: number | null;
+  unit: string | null;
+  unitPrice: number | null;
+  includesVat: boolean | null;
   createdBy: UserSummary | null;
   createdAt: string;
   updatedAt: string;
@@ -108,6 +112,10 @@ export interface CreateBudgetLineRequest {
   budgetCategoryId?: string | null;
   budgetSourceId?: string | null;
   vendorId?: string | null;
+  quantity?: number | null;
+  unit?: string | null;
+  unitPrice?: number | null;
+  includesVat?: boolean | null;
 }
 
 /**
@@ -122,6 +130,10 @@ export interface UpdateBudgetLineRequest {
   budgetCategoryId?: string | null;
   budgetSourceId?: string | null;
   vendorId?: string | null;
+  quantity?: number | null;
+  unit?: string | null;
+  unitPrice?: number | null;
+  includesVat?: boolean | null;
 }
 
 /**

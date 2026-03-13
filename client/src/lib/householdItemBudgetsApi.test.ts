@@ -56,6 +56,10 @@ describe('householdItemBudgetsApi', () => {
         createdBy: null,
         createdAt: '2026-01-01T00:00:00.000Z',
         updatedAt: '2026-01-01T00:00:00.000Z',
+        quantity: null,
+        unit: null,
+        unitPrice: null,
+        includesVat: null,
       };
 
       mockFetch.mockResolvedValueOnce({
@@ -121,6 +125,10 @@ describe('householdItemBudgetsApi', () => {
         createdBy: null,
         createdAt: '2026-01-01T00:00:00.000Z',
         updatedAt: '2026-01-01T00:00:00.000Z',
+        quantity: null,
+        unit: null,
+        unitPrice: null,
+        includesVat: null,
       };
 
       mockFetch.mockResolvedValueOnce({
@@ -172,6 +180,10 @@ describe('householdItemBudgetsApi', () => {
         createdBy: null,
         createdAt: '2026-01-01T00:00:00.000Z',
         updatedAt: '2026-01-01T00:00:00.000Z',
+        quantity: null,
+        unit: null,
+        unitPrice: null,
+        includesVat: null,
       };
 
       mockFetch.mockResolvedValueOnce({
@@ -275,6 +287,10 @@ describe('householdItemBudgetsApi', () => {
         createdBy: null,
         createdAt: '2026-01-01T00:00:00.000Z',
         updatedAt: '2026-01-02T00:00:00.000Z',
+        quantity: null,
+        unit: null,
+        unitPrice: null,
+        includesVat: null,
       };
 
       mockFetch.mockResolvedValueOnce({

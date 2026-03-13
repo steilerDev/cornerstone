@@ -245,6 +245,11 @@ export default function WorkItemDetailPage() {
       budgetCategoryId: line.budgetCategory?.id ?? '',
       budgetSourceId: line.budgetSource?.id ?? '',
       vendorId: line.vendor?.id ?? '',
+      pricingMode: line.quantity !== null ? 'unit' : 'direct',
+      quantity: line.quantity !== null ? String(line.quantity) : '',
+      unit: line.unit ?? '',
+      unitPrice: line.unitPrice !== null ? String(line.unitPrice) : '',
+      includesVat: line.includesVat ?? true,
     }),
     toPayload: (form: BudgetLineFormState): CreateWorkItemBudgetRequest => ({
       description: form.description.trim() || null,
@@ -253,6 +258,10 @@ export default function WorkItemDetailPage() {
       budgetCategoryId: form.budgetCategoryId || null,
       budgetSourceId: form.budgetSourceId || null,
       vendorId: form.vendorId || null,
+      quantity: form.pricingMode === 'unit' && form.quantity ? parseFloat(form.quantity) : null,
+      unit: form.pricingMode === 'unit' && form.unit ? form.unit : null,
+      unitPrice: form.pricingMode === 'unit' && form.unitPrice ? parseFloat(form.unitPrice) : null,
+      includesVat: form.pricingMode === 'unit' ? form.includesVat : null,
     }),
     entityId: id ?? '',
   });
