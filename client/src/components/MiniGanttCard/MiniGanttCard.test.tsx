@@ -328,6 +328,53 @@ describe('MiniGanttCard', () => {
     expect(ariaLabel).toContain('1 milestone');
   });
 
+  // ── Test 11: Day labels use headerText color, not gridMinor color ────────────
+
+  it('day labels use --color-text-secondary fill, not --color-gantt-grid-minor fill', () => {
+    // Override getComputedStyle with distinct sentinel values so we can identify
+    // which CSS variable each SVG fill attribute was resolved from.
+    const savedGetComputedStyle = window.getComputedStyle;
+    window.getComputedStyle = ((element: Element) => {
+      // Pass through real calls that are not the document root (e.g. jsdom internals)
+      if (element !== document.documentElement) {
+        return savedGetComputedStyle(element);
+      }
+      return {
+        getPropertyValue: (prop: string) => {
+          if (prop === '--color-text-secondary') return '#374151';
+          if (prop === '--color-gantt-grid-minor') return '#e5e7eb';
+          return '#666666';
+        },
+      };
+    }) as unknown as typeof window.getComputedStyle;
+
+    const timeline: TimelineResponse = {
+      ...emptyTimeline,
+      workItems: [{ ...baseWorkItem }],
+    };
+
+    const { container } = renderWithRouter(<MiniGanttCard timeline={timeline} />);
+
+    // Restore immediately after render so afterEach can do its own restore cleanly
+    window.getComputedStyle = savedGetComputedStyle;
+
+    const textElements = container.querySelectorAll('svg text');
+    expect(textElements.length).toBeGreaterThan(0);
+
+    // No text element should carry the grid-minor sentinel color
+    const textsWithGridMinor = Array.from(textElements).filter(
+      (el) => el.getAttribute('fill') === '#e5e7eb',
+    );
+    expect(textsWithGridMinor.length).toBe(0);
+
+    // At least 5 day-label text elements must carry the headerText sentinel color
+    // (one per day in the 5-day window: Mon–Fri or equivalent)
+    const textsWithHeaderText = Array.from(textElements).filter(
+      (el) => el.getAttribute('fill') === '#374151',
+    );
+    expect(textsWithHeaderText.length).toBeGreaterThanOrEqual(5);
+  });
+
   // ── Test 10: Grid line count — 6 grid lines for 5-day window + today marker ──
 
   it('renders exactly 6 grid lines for day boundaries regardless of whether dependencies exist', () => {
