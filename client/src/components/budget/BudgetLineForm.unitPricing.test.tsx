@@ -124,7 +124,7 @@ describe('BudgetLineForm — direct mode rendering', () => {
 
     expect(screen.queryByLabelText(/Quantity/i)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/^Unit$/i)).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/^Price/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/^Price \*/i)).not.toBeInTheDocument();
   });
 });
 
@@ -135,7 +135,7 @@ describe('BudgetLineForm — unit pricing mode rendering', () => {
 
     expect(screen.getByLabelText(/Quantity/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/^Unit$/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/^Price/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Price \*/i)).toBeInTheDocument();
   });
 
   it('does NOT render "Planned Amount" input when pricingMode is "unit"', () => {
