@@ -301,7 +301,7 @@ describe('BudgetSourcesPage', () => {
 
       await waitFor(() => {
         expect(screen.getByText(/planned:/i)).toBeInTheDocument();
-        expect(screen.getByText(/€150,000\.00/)).toBeInTheDocument();
+        expect(screen.getAllByText(/€150,000\.00/).length).toBeGreaterThanOrEqual(1);
       });
     });
 
