@@ -1576,7 +1576,10 @@ describe('SubsidyProgramsPage', () => {
         subsidyPrograms: [sampleProgramWithCap],
       };
       mockFetchSubsidyPrograms.mockResolvedValueOnce(listWithCap);
-      mockUpdateSubsidyProgram.mockResolvedValueOnce({ ...sampleProgramWithCap, maximumAmount: null });
+      mockUpdateSubsidyProgram.mockResolvedValueOnce({
+        ...sampleProgramWithCap,
+        maximumAmount: null,
+      });
       const user = userEvent.setup();
 
       renderPage();

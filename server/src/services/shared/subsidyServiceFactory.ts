@@ -102,7 +102,10 @@ export function createSubsidyService(config: SubsidyServiceConfig): SubsidyServi
    * For fixed subsidies: count all links × reductionValue
    * For percentage subsidies: sum matching budget line amounts × rate
    */
-  function computeCurrentAllocation(db: DbType, program: typeof subsidyPrograms.$inferSelect): number {
+  function computeCurrentAllocation(
+    db: DbType,
+    program: typeof subsidyPrograms.$inferSelect,
+  ): number {
     if (program.reductionType === 'fixed') {
       const result = db
         .select({
@@ -138,7 +141,11 @@ export function createSubsidyService(config: SubsidyServiceConfig): SubsidyServi
    * For fixed: just reductionValue
    * For percentage: sum matching budget lines for this entity × rate
    */
-  function computeNewEntityContribution(db: DbType, entityId: string, program: typeof subsidyPrograms.$inferSelect): number {
+  function computeNewEntityContribution(
+    db: DbType,
+    entityId: string,
+    program: typeof subsidyPrograms.$inferSelect,
+  ): number {
     if (program.reductionType === 'fixed') {
       return program.reductionValue;
     }
@@ -209,14 +216,11 @@ export function createSubsidyService(config: SubsidyServiceConfig): SubsidyServi
       const projected = currentAllocation + newContribution;
 
       if (projected > program.maximumAmount) {
-        throw new SubsidyOversubscribedError(
-          'Subsidy program is oversubscribed',
-          {
-            currentAllocation,
-            maximumAmount: program.maximumAmount,
-            excess: projected - program.maximumAmount,
-          },
-        );
+        throw new SubsidyOversubscribedError('Subsidy program is oversubscribed', {
+          currentAllocation,
+          maximumAmount: program.maximumAmount,
+          excess: projected - program.maximumAmount,
+        });
       }
     }
 

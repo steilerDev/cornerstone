@@ -41,10 +41,7 @@ interface CreateSubsidyProgramApiData {
   maximumAmount?: number | null;
 }
 
-async function createProgramViaApi(
-  page: Page,
-  data: CreateSubsidyProgramApiData,
-): Promise<string> {
+async function createProgramViaApi(page: Page, data: CreateSubsidyProgramApiData): Promise<string> {
   const response = await page.request.post(API.subsidyPrograms, {
     data: {
       reductionType: 'percentage',

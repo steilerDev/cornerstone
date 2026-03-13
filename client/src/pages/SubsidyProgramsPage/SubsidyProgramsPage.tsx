@@ -295,7 +295,9 @@ export function SubsidyProgramsPage() {
         applicationStatus: editingProgram.applicationStatus,
         applicationDeadline: editingProgram.applicationDeadline || null,
         notes: editingProgram.notes.trim() || null,
-        maximumAmount: editingProgram.maximumAmount.trim() ? parseFloat(editingProgram.maximumAmount) : null,
+        maximumAmount: editingProgram.maximumAmount.trim()
+          ? parseFloat(editingProgram.maximumAmount)
+          : null,
         categoryIds: editingProgram.categoryIds,
       });
       setPrograms(programs.map((p) => (p.id === updated.id ? updated : p)));
@@ -817,7 +819,10 @@ export function SubsidyProgramsPage() {
 
                       {/* Edit Row 3: Maximum Amount */}
                       <div className={styles.field}>
-                        <label htmlFor={`edit-maximumamount-${program.id}`} className={styles.label}>
+                        <label
+                          htmlFor={`edit-maximumamount-${program.id}`}
+                          className={styles.label}
+                        >
                           Maximum Amount (€)
                         </label>
                         <input
