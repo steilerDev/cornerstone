@@ -6,6 +6,7 @@ import { eq } from 'drizzle-orm';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
 import * as userService from './userService.js';
+import { users } from '../db/schema.js';
 
 describe('User Service', () => {
   let sqlite: Database.Database;
@@ -46,6 +47,8 @@ describe('User Service', () => {
         createdAt: '2024-01-01T00:00:00.000Z',
         updatedAt: '2024-01-02T00:00:00.000Z',
         deactivatedAt: null,
+        failedLoginAttempts: 0,
+        lockedUntil: null,
       };
 
       // When: Converting to UserResponse
@@ -83,6 +86,8 @@ describe('User Service', () => {
         createdAt: '2024-01-01T00:00:00.000Z',
         updatedAt: '2024-01-01T00:00:00.000Z',
         deactivatedAt: null,
+        failedLoginAttempts: 0,
+        lockedUntil: null,
       };
 
       // When: Converting to response
@@ -107,6 +112,8 @@ describe('User Service', () => {
         createdAt: '2024-01-01T00:00:00.000Z',
         updatedAt: '2024-01-01T00:00:00.000Z',
         deactivatedAt: null,
+        failedLoginAttempts: 0,
+        lockedUntil: null,
       };
 
       // When: Converting to response
@@ -131,6 +138,8 @@ describe('User Service', () => {
         createdAt: '2024-01-01T00:00:00.000Z',
         updatedAt: '2024-01-01T00:00:00.000Z',
         deactivatedAt: '2024-06-01T10:00:00.000Z',
+        failedLoginAttempts: 0,
+        lockedUntil: null,
       };
 
       // When: Converting to response
@@ -1822,6 +1831,165 @@ describe('User Service', () => {
         .get();
       expect(deactivatedUser?.deactivatedAt).not.toBeNull();
       expect(deactivatedUser?.authProvider).toBe('oidc');
+    });
+  });
+});
+
+describe('Account Lockout Functions', () => {
+  let sqlite: Database.Database;
+  let db: BetterSQLite3Database<typeof schema>;
+
+  function createTestDb() {
+    const sqliteDb = new Database(':memory:');
+    sqliteDb.pragma('journal_mode = WAL');
+    sqliteDb.pragma('foreign_keys = ON');
+    runMigrations(sqliteDb);
+    return { sqlite: sqliteDb, db: drizzle(sqliteDb, { schema }) };
+  }
+
+  beforeEach(() => {
+    const testDb = createTestDb();
+    sqlite = testDb.sqlite;
+    db = testDb.db;
+  });
+
+  afterEach(() => {
+    sqlite.close();
+  });
+
+  /**
+   * Helper: Insert a user directly into the DB with lockout fields.
+   */
+  function insertUserWithLock(lockedUntil: string | null, failedLoginAttempts = 0): string {
+    const id = `user-lock-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    const now = new Date().toISOString();
+    db.insert(users)
+      .values({
+        id,
+        email: `${id}@example.com`,
+        displayName: 'Lock Test User',
+        role: 'member',
+        authProvider: 'local',
+        failedLoginAttempts,
+        lockedUntil,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    return id;
+  }
+
+  describe('getAccountLockStatus()', () => {
+    it('returns undefined when lockedUntil is null', () => {
+      // Given: User with no lockout
+      const result = userService.getAccountLockStatus({ lockedUntil: null });
+
+      // Then: undefined is returned
+      expect(result).toBeUndefined();
+    });
+
+    it('returns undefined when lockedUntil is in the past', () => {
+      // Given: Lock that already expired
+      const pastTime = new Date(Date.now() - 60 * 1000).toISOString(); // 1 minute ago
+      const result = userService.getAccountLockStatus({ lockedUntil: pastTime });
+
+      // Then: undefined is returned (lock has expired)
+      expect(result).toBeUndefined();
+    });
+
+    it('returns the ISO string when lock is in the future', () => {
+      // Given: Lock that expires in the future
+      const futureTime = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 minutes from now
+      const result = userService.getAccountLockStatus({ lockedUntil: futureTime });
+
+      // Then: The locked-until timestamp is returned
+      expect(result).toBe(futureTime);
+    });
+  });
+
+  describe('recordFailedLogin()', () => {
+    it('increments failedLoginAttempts by 1 when below threshold', async () => {
+      // Given: User with 3 failed attempts
+      const userId = insertUserWithLock(null, 3);
+
+      // When: Recording another failed login
+      userService.recordFailedLogin(db, userId);
+
+      // Then: Counter is incremented to 4
+      const user = db.select().from(users).where(eq(users.id, userId)).get();
+      expect(user?.failedLoginAttempts).toBe(4);
+      expect(user?.lockedUntil).toBeNull();
+    });
+
+    it('sets lockedUntil when reaching the threshold (10 attempts)', async () => {
+      // Given: User with 9 failed attempts (one away from lockout)
+      const userId = insertUserWithLock(null, 9);
+
+      // When: Recording the 10th failed login
+      userService.recordFailedLogin(db, userId);
+
+      // Then: failedLoginAttempts is 10 and lockedUntil is set
+      const user = db.select().from(users).where(eq(users.id, userId)).get();
+      expect(user?.failedLoginAttempts).toBe(10);
+      expect(user?.lockedUntil).not.toBeNull();
+
+      // And: lockedUntil is approximately 15 minutes in the future
+      const lockExpiry = new Date(user!.lockedUntil!).getTime();
+      const now = Date.now();
+      const diffMinutes = (lockExpiry - now) / (60 * 1000);
+      expect(diffMinutes).toBeGreaterThan(14); // at least ~14 min remaining
+      expect(diffMinutes).toBeLessThan(16); // at most ~16 min
+    });
+
+    it('does nothing when userId does not exist', () => {
+      // Given: Non-existent user ID
+      // When: Recording failed login
+      expect(() => userService.recordFailedLogin(db, 'non-existent-user')).not.toThrow();
+    });
+  });
+
+  describe('resetLoginAttempts()', () => {
+    it('sets failedLoginAttempts to 0 and clears lockedUntil', () => {
+      // Given: User who is locked
+      const futureTime = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+      const userId = insertUserWithLock(futureTime, 10);
+
+      // When: Resetting login attempts
+      userService.resetLoginAttempts(db, userId);
+
+      // Then: Counter and lock are cleared
+      const user = db.select().from(users).where(eq(users.id, userId)).get();
+      expect(user?.failedLoginAttempts).toBe(0);
+      expect(user?.lockedUntil).toBeNull();
+    });
+  });
+
+  describe('unlockUser()', () => {
+    it('sets failedLoginAttempts to 0 and clears lockedUntil', () => {
+      // Given: A locked user
+      const futureTime = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+      const userId = insertUserWithLock(futureTime, 10);
+
+      // When: Admin unlocks the user
+      userService.unlockUser(db, userId);
+
+      // Then: Both counter and lock are cleared
+      const user = db.select().from(users).where(eq(users.id, userId)).get();
+      expect(user?.failedLoginAttempts).toBe(0);
+      expect(user?.lockedUntil).toBeNull();
+    });
+
+    it('unlockUser is idempotent — works on already-unlocked users', () => {
+      // Given: A user that is not locked
+      const userId = insertUserWithLock(null, 0);
+
+      // When: Unlocking an already-unlocked user
+      expect(() => userService.unlockUser(db, userId)).not.toThrow();
+
+      // Then: User remains unlocked
+      const user = db.select().from(users).where(eq(users.id, userId)).get();
+      expect(user?.failedLoginAttempts).toBe(0);
+      expect(user?.lockedUntil).toBeNull();
     });
   });
 });
