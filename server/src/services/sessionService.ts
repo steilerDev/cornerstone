@@ -64,6 +64,8 @@ export function validateSession(db: DbType, sessionId: string): typeof users.$in
       passwordHash: users.passwordHash,
       oidcSubject: users.oidcSubject,
       deactivatedAt: users.deactivatedAt,
+      failedLoginAttempts: users.failedLoginAttempts,
+      lockedUntil: users.lockedUntil,
       createdAt: users.createdAt,
       updatedAt: users.updatedAt,
     })
