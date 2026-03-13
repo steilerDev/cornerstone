@@ -334,7 +334,11 @@ describe('Budget Source Routes', () => {
       // Story 5.11: no claimed or paid invoices → amounts are 0
       expect(source.claimedAmount).toBe(0);
       expect(source.unclaimedAmount).toBe(0);
+      expect(source.paidAmount).toBe(0);
       expect(source.actualAvailableAmount).toBe(75000);
+      // No pending budget lines → projectedAmount is 0
+      expect(source.projectedAmount).toBe(0);
+      expect(source.isDiscretionary).toBe(false);
       expect(source.interestRate).toBe(4.5);
       expect(source.terms).toBe('5-year revolving');
       expect(source.notes).toBe('Secondary credit');
@@ -1204,6 +1208,20 @@ describe('Budget Source Routes', () => {
       });
 
       expect(response.statusCode).toBe(204);
+    });
+
+    it('returns 409 DISCRETIONARY_SOURCE when deleting the seeded discretionary source', async () => {
+      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+
+      const response = await app.inject({
+        method: 'DELETE',
+        url: '/api/budget-sources/discretionary-system',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(409);
+      const body = response.json<ApiErrorResponse>();
+      expect(body.error.code).toBe('DISCRETIONARY_SOURCE');
     });
   });
 
