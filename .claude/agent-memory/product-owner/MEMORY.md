@@ -3,7 +3,6 @@
 ## Backlog State (as of 2026-03-13)
 
 - 16+ epics, 107+ user stories across all epics
-- EPIC-16 (#752): Floor Plans & Utility Tracking — 22 stories (#753-#775), all Backlog. See [epic-16-planning.md](epic-16-planning.md)
 - Sprint 1 COMPLETE: EPIC-01, EPIC-02, EPIC-11
 - Sprint 2 COMPLETE: EPIC-03, EPIC-12
 - Sprint 3 COMPLETE: EPIC-05 (v1.9.0), EPIC-06 (v1.10.0)
@@ -25,6 +24,7 @@
 - EPIC-08 (#8): Paperless-ngx Document Integration -- CLOSED (v1.11.0), all 6 stories
 - EPIC-14: Code Deduplication -- CLOSED (v1.13.0), promoted via PR #541
 - EPIC-15 (#602): Budget-Line Invoice Linking Rework -- 7 stories merged to beta, 3 UAT bugs (#622, #623, #624) created 2026-03-09
+- EPIC-16 (#752): Floor Plans & Utility Tracking (2.5D) -- 22 stories created (#753-#775), all Backlog. See [epic-16-planning.md](epic-16-planning.md)
 
 ## Epic Quick Reference
 
@@ -40,6 +40,7 @@
 - EPIC-10 (#10): UX Polish [Could, Sprint 5] -- depends on all
 - EPIC-11 (#12): CI/CD Infrastructure [Must, Sprint 1] -- depends on EPIC-02
 - EPIC-12 (#115): Design System Bootstrap [Must, Sprint 2] -- depends on EPIC-02, blocks EPIC-10
+- EPIC-16 (#752): Floor Plans & Utility Tracking [Should, Future] -- depends on 01, 02; 22 stories, 6 phases
 
 ## Completed Sprint Story References (condensed)
 
