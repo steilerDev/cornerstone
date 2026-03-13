@@ -4,6 +4,8 @@ import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
 import { requireRole } from '../plugins/auth.js';
 
+export { NotFoundError };
+
 // JSON schema for PATCH /api/users/me (update display name)
 const updateDisplayNameSchema = {
   body: {
@@ -101,7 +103,7 @@ export default async function userRoutes(fastify: FastifyInstance) {
    * OIDC users receive 403 FORBIDDEN.
    * Requires authentication.
    */
-  fastify.post('/me/password', { schema: changePasswordSchema }, async (request, reply) => {
+  fastify.post('/me/password', { schema: changePasswordSchema, config: { rateLimit: { max: 10, timeWindow: '15 minutes' } } }, async (request, reply) => {
     if (!request.user) {
       throw new UnauthorizedError('Authentication required');
     }
@@ -237,4 +239,27 @@ export default async function userRoutes(fastify: FastifyInstance) {
 
     return reply.status(204).send();
   });
+
+  /**
+   * POST /api/users/:id/unlock
+   * Admin-only: unlocks a locked user account.
+   */
+  fastify.post(
+    '/:id/unlock',
+    { preHandler: requireRole('admin') },
+    async (request, reply) => {
+      if (!request.user) {
+        throw new UnauthorizedError('Authentication required');
+      }
+
+      const { id } = request.params as { id: string };
+      const user = userService.findById(fastify.db, id);
+      if (!user) {
+        throw new NotFoundError('User not found');
+      }
+
+      userService.unlockUser(fastify.db, id);
+      return reply.status(204).send();
+    },
+  );
 }

@@ -41,7 +41,7 @@ export default async function feedsRoutes(fastify: FastifyInstance) {
    * Anonymous access (no auth required)
    * ETag support for conditional requests (304 Not Modified)
    */
-  fastify.get('/cal.ics', async (request, reply) => {
+  fastify.get('/cal.ics', { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } }, async (request, reply) => {
     // Ensure daily reschedule is run
     ensureDailyReschedule(fastify.db);
 
@@ -151,7 +151,7 @@ export default async function feedsRoutes(fastify: FastifyInstance) {
    * Anonymous access (no auth required)
    * ETag support for conditional requests (304 Not Modified)
    */
-  fastify.get('/contacts.vcf', async (request, reply) => {
+  fastify.get('/contacts.vcf', { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } }, async (request, reply) => {
     // Compute ETag BEFORE data fetch — cheap index scan
     const maxUpdatedRow = fastify.db.$client
       .prepare('SELECT MAX(updated_at) as m FROM vendors')

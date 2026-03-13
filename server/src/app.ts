@@ -13,6 +13,8 @@ import configPlugin from './plugins/config.js';
 import dbPlugin from './plugins/db.js';
 import errorHandlerPlugin from './plugins/errorHandler.js';
 import authPlugin from './plugins/auth.js';
+import helmetPlugin from './plugins/helmetPlugin.js';
+import rateLimitPlugin from './plugins/rateLimitPlugin.js';
 import authRoutes from './routes/auth.js';
 import oidcRoutes from './routes/oidc.js';
 import userRoutes from './routes/users.js';
@@ -83,6 +85,12 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Authentication & session management (after db, before routes)
   await app.register(authPlugin);
+
+  // Security headers (CSP, HSTS, X-Frame-Options, etc.)
+  await app.register(helmetPlugin);
+
+  // Rate limiting (global defaults, per-route overrides on auth endpoints)
+  await app.register(rateLimitPlugin);
 
   // Auth routes
   await app.register(authRoutes, { prefix: '/api/auth' });

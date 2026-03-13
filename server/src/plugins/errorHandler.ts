@@ -15,7 +15,7 @@ export default fp(
           error: {
             code: error.code,
             message: error.message,
-            ...(error.details && { details: error.details }),
+            ...(error.details && !error.suppressDetails && { details: error.details }),
           },
         };
         return reply.status(error.statusCode).send(response);

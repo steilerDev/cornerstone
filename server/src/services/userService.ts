@@ -370,3 +370,79 @@ export function deactivateUser(db: DbType, userId: string): void {
 
   db.update(users).set({ deactivatedAt: now }).where(eq(users.id, userId)).run();
 }
+
+const MAX_FAILED_ATTEMPTS = 10;
+const LOCKOUT_DURATION_MINUTES = 15;
+
+/**
+ * Check if a user account is currently locked.
+ * Returns the lockedUntil ISO string if locked, undefined otherwise.
+ */
+export function getAccountLockStatus(user: { lockedUntil: string | null }): string | undefined {
+  if (!user.lockedUntil) return undefined;
+  const lockExpiry = new Date(user.lockedUntil);
+  if (new Date() < lockExpiry) {
+    return user.lockedUntil;
+  }
+  return undefined; // Lock has expired
+}
+
+/**
+ * Increment failed login attempts counter.
+ * If threshold reached, set lockedUntil to 15 minutes from now.
+ */
+export function recordFailedLogin(db: DbType, userId: string): void {
+  const user = db.select().from(users).where(eq(users.id, userId)).get();
+  if (!user) return;
+
+  const now = new Date();
+  const newCount = (user.failedLoginAttempts ?? 0) + 1;
+
+  if (newCount >= MAX_FAILED_ATTEMPTS) {
+    const lockExpiry = new Date(now.getTime() + LOCKOUT_DURATION_MINUTES * 60 * 1000);
+    db.update(users)
+      .set({
+        failedLoginAttempts: newCount,
+        lockedUntil: lockExpiry.toISOString(),
+        updatedAt: now.toISOString(),
+      })
+      .where(eq(users.id, userId))
+      .run();
+  } else {
+    db.update(users)
+      .set({
+        failedLoginAttempts: newCount,
+        updatedAt: now.toISOString(),
+      })
+      .where(eq(users.id, userId))
+      .run();
+  }
+}
+
+/**
+ * Reset login attempts to 0 and clear lockout.
+ */
+export function resetLoginAttempts(db: DbType, userId: string): void {
+  db.update(users)
+    .set({
+      failedLoginAttempts: 0,
+      lockedUntil: null,
+      updatedAt: new Date().toISOString(),
+    })
+    .where(eq(users.id, userId))
+    .run();
+}
+
+/**
+ * Unlock a user account (admin operation).
+ */
+export function unlockUser(db: DbType, userId: string): void {
+  db.update(users)
+    .set({
+      failedLoginAttempts: 0,
+      lockedUntil: null,
+      updatedAt: new Date().toISOString(),
+    })
+    .where(eq(users.id, userId))
+    .run();
+}
