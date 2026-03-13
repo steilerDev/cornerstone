@@ -30,6 +30,7 @@ import {
   unlinkWorkItemSubsidy,
   fetchWorkItemSubsidyPayback,
 } from '../../lib/workItemsApi.js';
+import { ApiClientError } from '../../lib/apiClient.js';
 import {
   fetchWorkItemBudgets,
   createWorkItemBudget,
@@ -466,9 +467,14 @@ export default function WorkItemDetailPage() {
       await hookHandleLinkSubsidy();
       await reloadSubsidyPayback();
     } catch (err) {
-      const apiErr = err as { statusCode?: number; message?: string };
-      if (apiErr.statusCode === 409) {
-        setInlineError('This subsidy program is already linked');
+      if (err instanceof ApiClientError) {
+        if (err.error.code === 'SUBSIDY_OVERSUBSCRIBED') {
+          setInlineError(err.error.message);
+        } else if (err.statusCode === 409) {
+          setInlineError('This subsidy program is already linked');
+        } else {
+          setInlineError(err.error.message);
+        }
       } else {
         setInlineError('Failed to link subsidy program');
       }

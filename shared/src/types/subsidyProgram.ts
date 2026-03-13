@@ -37,6 +37,7 @@ export interface SubsidyProgram {
   applicationStatus: SubsidyApplicationStatus;
   applicationDeadline: string | null;
   notes: string | null;
+  maximumAmount: number | null;
   applicableCategories: BudgetCategory[];
   createdBy: UserSummary | null;
   createdAt: string;
@@ -55,6 +56,7 @@ export interface CreateSubsidyProgramRequest {
   applicationStatus?: SubsidyApplicationStatus;
   applicationDeadline?: string | null;
   notes?: string | null;
+  maximumAmount?: number | null;
   categoryIds?: string[];
 }
 
@@ -71,6 +73,7 @@ export interface UpdateSubsidyProgramRequest {
   applicationStatus?: SubsidyApplicationStatus;
   applicationDeadline?: string | null;
   notes?: string | null;
+  maximumAmount?: number | null;
   categoryIds?: string[];
 }
 

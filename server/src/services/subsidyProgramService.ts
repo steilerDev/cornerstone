@@ -101,6 +101,7 @@ function toSubsidyProgram(db: DbType, row: typeof subsidyPrograms.$inferSelect):
     applicationStatus: row.applicationStatus as SubsidyApplicationStatus,
     applicationDeadline: row.applicationDeadline ?? null,
     notes: row.notes ?? null,
+    maximumAmount: row.maximumAmount ?? null,
     applicableCategories,
     createdBy: toUserSummary(createdByUser),
     createdAt: row.createdAt,
@@ -207,6 +208,13 @@ export function createSubsidyProgram(
     );
   }
 
+  // Validate maximumAmount if provided
+  if (data.maximumAmount !== undefined && data.maximumAmount !== null) {
+    if (typeof data.maximumAmount !== 'number' || data.maximumAmount <= 0) {
+      throw new ValidationError('Maximum amount must be a positive number');
+    }
+  }
+
   // Validate categoryIds if provided
   const categoryIds = data.categoryIds ?? [];
   if (categoryIds.length > 0) {
@@ -228,6 +236,7 @@ export function createSubsidyProgram(
       applicationStatus,
       applicationDeadline: data.applicationDeadline ?? null,
       notes: data.notes ?? null,
+      maximumAmount: data.maximumAmount ?? null,
       createdBy: userId,
       createdAt: now,
       updatedAt: now,
@@ -268,6 +277,7 @@ export function updateSubsidyProgram(
     data.applicationStatus === undefined &&
     data.applicationDeadline === undefined &&
     data.notes === undefined &&
+    data.maximumAmount === undefined &&
     data.categoryIds === undefined
   ) {
     throw new ValidationError('At least one field must be provided');
@@ -328,6 +338,16 @@ export function updateSubsidyProgram(
   }
   if (data.notes !== undefined) {
     updates.notes = data.notes;
+  }
+
+  // Validate and add maximumAmount if provided
+  if (data.maximumAmount !== undefined) {
+    if (data.maximumAmount !== null) {
+      if (typeof data.maximumAmount !== 'number' || data.maximumAmount <= 0) {
+        throw new ValidationError('Maximum amount must be a positive number');
+      }
+    }
+    updates.maximumAmount = data.maximumAmount;
   }
 
   // Validate categoryIds if provided
