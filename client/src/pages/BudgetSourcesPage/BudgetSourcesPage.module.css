@@ -534,34 +534,7 @@
   color: var(--color-warning-badge-text);
 }
 
-/* ---- Amount breakdown ---- */
-
-.sourceAmounts {
-  display: flex;
-  gap: var(--spacing-4);
-  flex-wrap: wrap;
-}
-
-.amountGroup {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-0-5);
-}
-
-.amountLabel {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
-  font-weight: var(--font-weight-medium);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.amountValue {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-primary);
-  font-variant-numeric: tabular-nums;
-  font-weight: var(--font-weight-medium);
-}
+/* ---- Amount value styling (reused in summary row) ---- */
 
 .amountNegative {
   color: var(--color-danger);
@@ -577,11 +550,107 @@
   text-overflow: ellipsis;
 }
 
-/* Planned allocation reference line (below primary amounts) */
-.plannedAllocation {
+/* ---- Source bar chart ---- */
+
+.sourceBarSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.barWrapper {
+  position: relative;
+}
+
+.barTooltipAnchor {
+  position: absolute;
+  bottom: calc(100% + var(--spacing-2));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: var(--z-dropdown);
+  pointer-events: none;
+}
+
+.segmentTooltip {
+  background: var(--color-bg-inverse);
+  color: var(--color-text-inverse);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-2) var(--spacing-3);
+  white-space: nowrap;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-0-5);
+  box-shadow: var(--shadow-md);
+  font-size: var(--font-size-sm);
+}
+
+.segmentTooltipLabel {
+  font-weight: var(--font-weight-semibold);
+}
+
+.segmentTooltipValue {
+  font-variant-numeric: tabular-nums;
+}
+
+.segmentTooltipPct {
+  font-size: var(--font-size-xs);
+  opacity: 0.8;
+}
+
+.barLegend {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
+.barLegendRow {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--spacing-2);
+  font-size: var(--font-size-xs);
+}
+
+.barLegendDot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-circle);
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+.barLegendLabel {
+  color: var(--color-text-muted);
+}
+
+.barLegendValue {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
+  text-align: right;
+}
+
+.sourceSummaryRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-1-5);
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
-  font-variant-numeric: tabular-nums;
+}
+
+.summaryItem {
+  white-space: nowrap;
+}
+
+.summaryItem strong {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
+}
+
+.summaryDivider {
+  color: var(--color-border-strong);
+  user-select: none;
 }
 
 /* ---- Source actions (right side) ---- */
@@ -767,8 +836,8 @@
     flex: 1;
   }
 
-  .sourceAmounts {
-    gap: var(--spacing-3);
+  .barTooltipAnchor {
+    display: none;
   }
 
   .editActions {
