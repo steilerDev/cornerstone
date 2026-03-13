@@ -18,9 +18,7 @@ import type { UpdatePhotoRequest, ReorderPhotosRequest, PhotoEntityType } from '
 
 // ─── JSON schemas ─────────────────────────────────────────────────────────────
 
-const uploadPhotoSchema = {
-  consumes: ['multipart/form-data'],
-};
+// No JSON schema for upload — multipart body parsed via request.file()
 
 const listPhotosSchema = {
   querystring: {
@@ -87,7 +85,7 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
    *
    * Returns: 201 with { photo }
    */
-  fastify.post('/', { schema: uploadPhotoSchema }, async (request: FastifyRequest, reply: FastifyReply) => {
+  fastify.post('/', async (request: FastifyRequest, reply: FastifyReply) => {
     if (!request.user) throw new UnauthorizedError();
 
     // Get the uploaded file

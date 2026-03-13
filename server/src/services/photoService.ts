@@ -310,9 +310,9 @@ export function reorderPhotos(
 ): void {
   const now = new Date().toISOString();
 
-  db.transaction(() => {
+  db.transaction((tx) => {
     photoIds.forEach((photoId, index) => {
-      db.update(photos)
+      tx.update(photos)
         .set({ sortOrder: index, updatedAt: now })
         .where(
           and(
@@ -323,7 +323,7 @@ export function reorderPhotos(
         )
         .run();
     });
-  })();
+  });
 }
 
 /**
