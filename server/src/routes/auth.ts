@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { AppError } from '../errors/AppError.js';
+import { AppError, AccountLockedError } from '../errors/AppError.js';
 import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
 import { COOKIE_NAME } from '../constants.js';
@@ -73,7 +73,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
    * Creates the first admin user. Only works when no users exist.
    * After setup is complete, returns 403 SETUP_COMPLETE.
    */
-  fastify.post('/setup', { schema: setupSchema }, async (request, reply) => {
+  fastify.post('/setup', { schema: setupSchema, config: { rateLimit: { max: 5, timeWindow: '15 minutes' } } }, async (request, reply) => {
     const { email, displayName, password } = request.body as {
       email: string;
       displayName: string;
@@ -130,7 +130,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
    * Authenticates a local user with email and password.
    * Returns the user object on success and creates a session.
    */
-  fastify.post('/login', { schema: loginSchema }, async (request, reply) => {
+  fastify.post('/login', { schema: loginSchema, config: { rateLimit: { max: 20, timeWindow: '15 minutes' } } }, async (request, reply) => {
     const { email, password } = request.body as {
       email: string;
       password: string;
@@ -156,17 +156,29 @@ export default async function authRoutes(fastify: FastifyInstance) {
       throw new AppError('ACCOUNT_DEACTIVATED', 401, 'Account has been deactivated');
     }
 
+    // Check account lockout
+    const lockedUntil = userService.getAccountLockStatus(user);
+    if (lockedUntil) {
+      throw new AccountLockedError(lockedUntil);
+    }
+
     // Verify password
+    let passwordValid: boolean;
     try {
-      const passwordValid = await userService.verifyPassword(user.passwordHash, password);
-      if (!passwordValid) {
-        throw new AppError('INVALID_CREDENTIALS', 401, 'Invalid email or password');
-      }
+      passwordValid = await userService.verifyPassword(user.passwordHash, password);
     } catch (err) {
       if (err instanceof AppError) throw err;
       request.log.error({ err }, 'Failed during password verification');
       throw err;
     }
+
+    if (!passwordValid) {
+      userService.recordFailedLogin(fastify.db, user.id);
+      throw new AppError('INVALID_CREDENTIALS', 401, 'Invalid email or password');
+    }
+
+    // Successful login — reset failed attempts
+    userService.resetLoginAttempts(fastify.db, user.id);
 
     // Create session
     const sessionId = sessionService.createSession(

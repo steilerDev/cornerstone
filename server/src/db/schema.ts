@@ -34,6 +34,8 @@ export const users = sqliteTable(
     passwordHash: text('password_hash'),
     oidcSubject: text('oidc_subject'),
     deactivatedAt: text('deactivated_at'),
+    failedLoginAttempts: integer('failed_login_attempts').notNull().default(0),
+    lockedUntil: text('locked_until'),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
   },

@@ -6,6 +6,12 @@ import {
   UnauthorizedError,
   ForbiddenError,
   ConflictError,
+  VendorInUseError,
+  BudgetSourceInUseError,
+  SubsidyProgramInUseError,
+  BudgetLineInUseError,
+  CategoryInUseError,
+  AccountLockedError,
 } from './AppError.js';
 
 describe('AppError', () => {
@@ -95,5 +101,89 @@ describe('ConflictError', () => {
     expect(error.code).toBe('CONFLICT');
     expect(error.statusCode).toBe(409);
     expect(error.message).toBe('Resource conflict');
+  });
+});
+
+describe('AppError suppressDetails flag', () => {
+  it('AppError has suppressDetails set to false by default', () => {
+    const error = new AppError('INTERNAL_ERROR', 500, 'Something broke');
+
+    expect(error.suppressDetails).toBe(false);
+  });
+
+  it('AppError accepts suppressDetails=true explicitly', () => {
+    const error = new AppError('INTERNAL_ERROR', 500, 'Something broke', { foo: 'bar' }, true);
+
+    expect(error.suppressDetails).toBe(true);
+  });
+
+  it('VendorInUseError has suppressDetails set to true', () => {
+    const error = new VendorInUseError('Vendor in use', { invoiceCount: 2, budgetLineCount: 1 });
+
+    expect(error.suppressDetails).toBe(true);
+    expect(error.code).toBe('VENDOR_IN_USE');
+    expect(error.statusCode).toBe(409);
+  });
+
+  it('BudgetSourceInUseError has suppressDetails set to true', () => {
+    const error = new BudgetSourceInUseError('Budget source in use', { budgetLineCount: 3 });
+
+    expect(error.suppressDetails).toBe(true);
+    expect(error.code).toBe('BUDGET_SOURCE_IN_USE');
+    expect(error.statusCode).toBe(409);
+  });
+
+  it('SubsidyProgramInUseError has suppressDetails set to true', () => {
+    const error = new SubsidyProgramInUseError('Subsidy program in use', { workItemCount: 5 });
+
+    expect(error.suppressDetails).toBe(true);
+    expect(error.code).toBe('SUBSIDY_PROGRAM_IN_USE');
+    expect(error.statusCode).toBe(409);
+  });
+
+  it('BudgetLineInUseError has suppressDetails set to true', () => {
+    const error = new BudgetLineInUseError('Budget line in use', { invoiceCount: 1 });
+
+    expect(error.suppressDetails).toBe(true);
+    expect(error.code).toBe('BUDGET_LINE_IN_USE');
+    expect(error.statusCode).toBe(409);
+  });
+
+  it('CategoryInUseError has suppressDetails set to true', () => {
+    const error = new CategoryInUseError();
+
+    expect(error.suppressDetails).toBe(true);
+    expect(error.code).toBe('CATEGORY_IN_USE');
+    expect(error.statusCode).toBe(409);
+  });
+});
+
+describe('AccountLockedError', () => {
+  it('has statusCode 423, code ACCOUNT_LOCKED, and details.lockedUntil', () => {
+    const lockedUntil = '2026-03-13T12:00:00.000Z';
+    const error = new AccountLockedError(lockedUntil);
+
+    expect(error.name).toBe('AccountLockedError');
+    expect(error.code).toBe('ACCOUNT_LOCKED');
+    expect(error.statusCode).toBe(423);
+    expect(error.message).toBe(
+      'Account is temporarily locked due to too many failed login attempts',
+    );
+    expect(error.details).toBeDefined();
+    expect(error.details?.lockedUntil).toBe(lockedUntil);
+  });
+
+  it('AccountLockedError suppressDetails defaults to false (details are always shown)', () => {
+    const error = new AccountLockedError('2026-03-13T12:00:00.000Z');
+
+    // suppressDetails is false so the lockedUntil is surfaced to the client
+    expect(error.suppressDetails).toBe(false);
+  });
+
+  it('is an instance of AppError', () => {
+    const error = new AccountLockedError('2026-03-13T12:00:00.000Z');
+
+    expect(error).toBeInstanceOf(AppError);
+    expect(error).toBeInstanceOf(Error);
   });
 });
