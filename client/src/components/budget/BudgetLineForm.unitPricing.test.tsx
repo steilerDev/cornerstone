@@ -256,7 +256,9 @@ describe('BudgetLineForm — computed total display', () => {
 
   it('displays computed total with VAT multiplier when includesVat=false (qty=2, price=100 → 238)', () => {
     // qty=2, price=100, includesVat=false → total = 2 * 100 * 1.19 = 238.00
-    const props = buildProps(buildUnitForm({ quantity: '2', unitPrice: '100', includesVat: false }));
+    const props = buildProps(
+      buildUnitForm({ quantity: '2', unitPrice: '100', includesVat: false }),
+    );
     render(<BudgetLineForm {...props} />);
 
     expect(screen.getByText(/€238\.00/)).toBeInTheDocument();

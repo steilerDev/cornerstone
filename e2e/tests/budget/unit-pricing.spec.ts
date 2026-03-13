@@ -281,9 +281,7 @@ test.describe('Edit re-opens in unit pricing mode (Scenario 4)', () => {
       await submitBudgetLineForm(detailPage);
 
       // Click the "Edit" button on the newly created line
-      const editButton = detailPage.budgetSection
-        .locator('[class*="editButton"]')
-        .first();
+      const editButton = detailPage.budgetSection.locator('[class*="editButton"]').first();
       await editButton.click();
 
       // The mode toggle should show "Unit Pricing" as active
@@ -384,9 +382,7 @@ test.describe('No budget line form heading (Scenario 6)', () => {
       await submitBudgetLineForm(detailPage);
 
       // Open Edit form
-      const editButton = detailPage.budgetSection
-        .locator('[class*="editButton"]')
-        .first();
+      const editButton = detailPage.budgetSection.locator('[class*="editButton"]').first();
       await editButton.click();
       await page.getByLabel('Planned Amount (€) *').waitFor({ state: 'visible' });
 

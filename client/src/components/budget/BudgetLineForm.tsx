@@ -179,7 +179,9 @@ export function BudgetLineForm({
                 />
                 Price includes VAT (19%)
               </label>
-              {!form.includesVat && <div className={styles.vatNote}>+19% VAT will be added to the total</div>}
+              {!form.includesVat && (
+                <div className={styles.vatNote}>+19% VAT will be added to the total</div>
+              )}
             </div>
           </>
         )}
@@ -277,7 +279,12 @@ export function BudgetLineForm({
           <button
             type="submit"
             className={styles.submitButton}
-            disabled={isSaving || (form.pricingMode === 'direct' ? !form.plannedAmount : !form.quantity || !form.unitPrice)}
+            disabled={
+              isSaving ||
+              (form.pricingMode === 'direct'
+                ? !form.plannedAmount
+                : !form.quantity || !form.unitPrice)
+            }
           >
             {isSaving ? 'Saving...' : isEditing ? 'Save Changes' : 'Add Line'}
           </button>

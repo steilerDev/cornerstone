@@ -4,10 +4,7 @@ import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { runMigrations } from '../../db/migrate.js';
 import * as schema from '../../db/schema.js';
-import {
-  createWorkItemBudget,
-  updateWorkItemBudget,
-} from '../workItemBudgetService.js';
+import { createWorkItemBudget, updateWorkItemBudget } from '../workItemBudgetService.js';
 import {
   createHouseholdItemBudget,
   updateHouseholdItemBudget,
