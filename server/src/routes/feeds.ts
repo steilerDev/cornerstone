@@ -9,7 +9,8 @@ import { createHash } from 'node:crypto';
 import ical from 'ical-generator';
 // vcard-creator is CJS — default import gives the module namespace, class is at .default
 import VCardModule from 'vcard-creator';
-const VCardCreator = (VCardModule as unknown as { default: typeof VCardModule }).default ?? VCardModule;
+const VCardCreator =
+  (VCardModule as unknown as { default: typeof VCardModule }).default ?? VCardModule;
 import { getTimeline } from '../services/timelineService.js';
 import { ensureDailyReschedule } from '../services/schedulingEngine.js';
 import { vendors } from '../db/schema.js';
@@ -45,7 +46,9 @@ export default async function feedsRoutes(fastify: FastifyInstance) {
     ensureDailyReschedule(fastify.db);
 
     // Compute ETag BEFORE expensive data fetch — cheap index scan
-    const maxUpdatedRow = fastify.db.$client.prepare(`
+    const maxUpdatedRow = fastify.db.$client
+      .prepare(
+        `
       SELECT MAX(max_updated) as m FROM (
         SELECT MAX(updated_at) as max_updated FROM work_items
         UNION ALL
@@ -53,7 +56,9 @@ export default async function feedsRoutes(fastify: FastifyInstance) {
         UNION ALL
         SELECT MAX(updated_at) as max_updated FROM household_items
       )
-    `).get() as { m: string | null };
+    `,
+      )
+      .get() as { m: string | null };
 
     const etag = computeETag([maxUpdatedRow.m]);
 
@@ -148,9 +153,9 @@ export default async function feedsRoutes(fastify: FastifyInstance) {
    */
   fastify.get('/contacts.vcf', async (request, reply) => {
     // Compute ETag BEFORE data fetch — cheap index scan
-    const maxUpdatedRow = fastify.db.$client.prepare(
-      'SELECT MAX(updated_at) as m FROM vendors',
-    ).get() as { m: string | null };
+    const maxUpdatedRow = fastify.db.$client
+      .prepare('SELECT MAX(updated_at) as m FROM vendors')
+      .get() as { m: string | null };
 
     const etag = computeETag([maxUpdatedRow.m]);
 
