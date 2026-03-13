@@ -7,7 +7,7 @@ import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
 import type { FastifyInstance } from 'fastify';
 import type { ApiErrorResponse } from '@cornerstone/shared';
-import { subsidyPrograms, workItems } from '../db/schema.js';
+import { subsidyPrograms, workItems, workItemBudgets } from '../db/schema.js';
 
 describe('Work Item Subsidy Routes', () => {
   let app: FastifyInstance;
@@ -87,6 +87,7 @@ describe('Work Item Subsidy Routes', () => {
     options: {
       reductionType?: 'percentage' | 'fixed';
       reductionValue?: number;
+      maximumAmount?: number | null;
     } = {},
   ): { id: string; name: string } {
     const id = `subsidy-${++entityCounter}`;
@@ -104,6 +105,7 @@ describe('Work Item Subsidy Routes', () => {
         applicationStatus: 'eligible',
         applicationDeadline: null,
         notes: null,
+        maximumAmount: options.maximumAmount ?? null,
         createdBy: null,
         createdAt: timestamp,
         updatedAt: timestamp,
@@ -111,6 +113,30 @@ describe('Work Item Subsidy Routes', () => {
       .run();
 
     return { id, name };
+  }
+
+  function createTestWorkItemBudgetLine(
+    workItemId: string,
+    plannedAmount: number,
+    budgetCategoryId: string | null = null,
+  ): { id: string } {
+    const id = `wib-${++entityCounter}`;
+    const timestamp = new Date(Date.now() + entityCounter).toISOString();
+
+    app.db
+      .insert(workItemBudgets)
+      .values({
+        id,
+        workItemId,
+        plannedAmount,
+        budgetCategoryId,
+        confidence: 'own_estimate',
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      })
+      .run();
+
+    return { id };
   }
 
   // ─── GET /api/work-items/:workItemId/subsidies ─────────────────────────────
@@ -379,6 +405,158 @@ describe('Work Item Subsidy Routes', () => {
       expect(response.statusCode).toBe(409);
       const body = response.json<ApiErrorResponse>();
       expect(body.error.code).toBe('CONFLICT');
+    });
+
+    it('returns 409 SUBSIDY_OVERSUBSCRIBED when fixed subsidy would exceed maximumAmount', async () => {
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'Test User',
+        'password123',
+      );
+      // Subsidy: fixed 10000. Max = 15000. Link to first WI (alloc=10000). Second would → 20000 > 15000.
+      const subsidy = createTestSubsidyProgram('Fixed Cap Subsidy', {
+        reductionType: 'fixed',
+        reductionValue: 10000,
+        maximumAmount: 15000,
+      });
+      const workItem1 = createTestWorkItem('WI 1 Oversubscribed', userId);
+      const workItem2 = createTestWorkItem('WI 2 Oversubscribed', userId);
+
+      // First link succeeds
+      await app.inject({
+        method: 'POST',
+        url: `/api/work-items/${workItem1.id}/subsidies`,
+        headers: { cookie, 'content-type': 'application/json' },
+        body: JSON.stringify({ subsidyProgramId: subsidy.id }),
+      });
+
+      // Second link would exceed the cap
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/work-items/${workItem2.id}/subsidies`,
+        headers: { cookie, 'content-type': 'application/json' },
+        body: JSON.stringify({ subsidyProgramId: subsidy.id }),
+      });
+
+      expect(response.statusCode).toBe(409);
+      const body = response.json<ApiErrorResponse>();
+      expect(body.error.code).toBe('SUBSIDY_OVERSUBSCRIBED');
+    });
+
+    it('returns 409 SUBSIDY_OVERSUBSCRIBED with currentAllocation, maximumAmount, excess in details', async () => {
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'Test User',
+        'password123',
+      );
+      const subsidy = createTestSubsidyProgram('Details Cap Subsidy', {
+        reductionType: 'fixed',
+        reductionValue: 10000,
+        maximumAmount: 15000,
+      });
+      const workItem1 = createTestWorkItem('WI Details 1', userId);
+      const workItem2 = createTestWorkItem('WI Details 2', userId);
+
+      await app.inject({
+        method: 'POST',
+        url: `/api/work-items/${workItem1.id}/subsidies`,
+        headers: { cookie, 'content-type': 'application/json' },
+        body: JSON.stringify({ subsidyProgramId: subsidy.id }),
+      });
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/work-items/${workItem2.id}/subsidies`,
+        headers: { cookie, 'content-type': 'application/json' },
+        body: JSON.stringify({ subsidyProgramId: subsidy.id }),
+      });
+
+      expect(response.statusCode).toBe(409);
+      const body = response.json<ApiErrorResponse>();
+      expect(body.error.code).toBe('SUBSIDY_OVERSUBSCRIBED');
+      expect(body.error.details?.currentAllocation).toBe(10000);
+      expect(body.error.details?.maximumAmount).toBe(15000);
+      expect(body.error.details?.excess).toBe(5000);
+    });
+
+    it('links successfully when no maximumAmount is set', async () => {
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'Test User',
+        'password123',
+      );
+      const subsidy = createTestSubsidyProgram('Unlimited Subsidy', {
+        reductionType: 'fixed',
+        reductionValue: 50000,
+        maximumAmount: null,
+      });
+      const workItem1 = createTestWorkItem('WI Unlimited 1', userId);
+      const workItem2 = createTestWorkItem('WI Unlimited 2', userId);
+
+      await app.inject({
+        method: 'POST',
+        url: `/api/work-items/${workItem1.id}/subsidies`,
+        headers: { cookie, 'content-type': 'application/json' },
+        body: JSON.stringify({ subsidyProgramId: subsidy.id }),
+      });
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/work-items/${workItem2.id}/subsidies`,
+        headers: { cookie, 'content-type': 'application/json' },
+        body: JSON.stringify({ subsidyProgramId: subsidy.id }),
+      });
+
+      expect(response.statusCode).toBe(201);
+    });
+
+    it('links successfully when fixed subsidy does not exceed maximumAmount', async () => {
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'Test User',
+        'password123',
+      );
+      // 10000 < 25000 — first link fits below cap
+      const subsidy = createTestSubsidyProgram('Below Cap Subsidy', {
+        reductionType: 'fixed',
+        reductionValue: 10000,
+        maximumAmount: 25000,
+      });
+      const workItem = createTestWorkItem('WI Below Cap', userId);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/work-items/${workItem.id}/subsidies`,
+        headers: { cookie, 'content-type': 'application/json' },
+        body: JSON.stringify({ subsidyProgramId: subsidy.id }),
+      });
+
+      expect(response.statusCode).toBe(201);
+    });
+
+    it('links successfully when work item has no matching budget lines for percentage subsidy', async () => {
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'Test User',
+        'password123',
+      );
+      // Percentage subsidy with category filter — work item has no budget lines in that category
+      // so contribution = 0 < maximumAmount → success
+      const subsidy = createTestSubsidyProgram('Pct No Match', {
+        reductionType: 'percentage',
+        reductionValue: 50,
+        maximumAmount: 100,
+      });
+      const workItem = createTestWorkItem('WI No Budget Lines', userId);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/work-items/${workItem.id}/subsidies`,
+        headers: { cookie, 'content-type': 'application/json' },
+        body: JSON.stringify({ subsidyProgramId: subsidy.id }),
+      });
+
+      expect(response.statusCode).toBe(201);
     });
 
     it('strips unknown properties from the request body (additionalProperties: false)', async () => {

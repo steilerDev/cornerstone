@@ -10,8 +10,13 @@ const service = createSubsidyService({
   entityTable: workItems,
   entityIdColumn: workItems.id,
   junctionTable: workItemSubsidies,
+  junctionTableName: 'work_item_subsidies',
   junctionEntityIdColumn: workItemSubsidies.workItemId,
+  junctionEntityIdColumnName: 'work_item_id',
   junctionSubsidyProgramIdColumn: workItemSubsidies.subsidyProgramId,
+  junctionSubsidyProgramIdColumnName: 'subsidy_program_id',
+  budgetLinesTable: 'work_item_budgets',
+  budgetLinesEntityIdColumn: 'work_item_id',
   entityLabel: 'Work item',
   makeInsertValues: (workItemId, subsidyProgramId) => ({ workItemId, subsidyProgramId }),
 });

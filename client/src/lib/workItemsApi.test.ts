@@ -565,6 +565,7 @@ describe('workItemsApi', () => {
       applicationStatus: 'eligible',
       applicationDeadline: null,
       notes: null,
+      maximumAmount: null,
       applicableCategories: [],
       createdBy: null,
       createdAt: '2026-01-01T00:00:00.000Z',
