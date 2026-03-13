@@ -42,6 +42,7 @@ function resolveColors() {
     milestoneStroke: readCssVar('--color-milestone-incomplete-stroke'),
     gridMinor: readCssVar('--color-gantt-grid-minor'),
     gridMajor: readCssVar('--color-gantt-grid-major'),
+    headerText: readCssVar('--color-text-secondary'),
   };
 }
 
@@ -181,7 +182,7 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
               x={x + 4}
               y={HEADER_HEIGHT - 8}
               fontSize="14"
-              fill={colors.gridMinor}
+              fill={colors.headerText}
               fontWeight="500"
             >
               {dayLabel}
