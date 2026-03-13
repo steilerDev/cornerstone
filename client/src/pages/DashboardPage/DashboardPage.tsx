@@ -18,7 +18,6 @@ import { usePreferences } from '../../hooks/usePreferences.js';
 import { ProjectSubNav } from '../../components/ProjectSubNav/ProjectSubNav.js';
 import { DashboardCard } from '../../components/DashboardCard/DashboardCard.js';
 import { BudgetSummaryCard } from '../../components/BudgetSummaryCard/BudgetSummaryCard.js';
-import { BudgetAlertsCard } from '../../components/BudgetAlertsCard/BudgetAlertsCard.js';
 import { SourceUtilizationCard } from '../../components/SourceUtilizationCard/SourceUtilizationCard.js';
 import { UpcomingMilestonesCard } from '../../components/TimelineStatusCards/UpcomingMilestonesCard.js';
 import { WorkItemProgressCard } from '../../components/TimelineStatusCards/WorkItemProgressCard.js';
@@ -61,7 +60,6 @@ const CARD_DEFINITIONS: {
     section: 'primary',
     dataSource: 'budgetOverview',
   },
-  { id: 'budget-alerts', title: 'Budget Alerts', section: 'primary', dataSource: 'budgetOverview' },
   {
     id: 'source-utilization',
     title: 'Source Utilization',
@@ -374,8 +372,6 @@ export function DashboardPage() {
       >
         {card.id === 'budget-summary' && budgetOverview ? (
           <BudgetSummaryCard overview={budgetOverview} />
-        ) : card.id === 'budget-alerts' && budgetOverview ? (
-          <BudgetAlertsCard categorySummaries={budgetOverview.categorySummaries} />
         ) : card.id === 'source-utilization' ? (
           <SourceUtilizationCard sources={budgetSources} />
         ) : card.id === 'upcoming-milestones' && timelineData ? (
