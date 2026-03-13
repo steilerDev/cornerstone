@@ -297,7 +297,7 @@ test.describe('All cards render (Scenario 2)', { tag: '@responsive' }, () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Budget Summary card (Scenario 3)', { tag: '@responsive' }, () => {
-  test('Budget Summary card shows available funds amount', async ({ page }) => {
+  test('Budget Summary card shows remaining budget amount', async ({ page }) => {
     // Budget Summary is in the primary section on mobile (always visible), but
     // the card layout and data-testid availability is validated on desktop/tablet grid.
     const viewport = page.viewportSize();
@@ -314,46 +314,20 @@ test.describe('Budget Summary card (Scenario 3)', { tag: '@responsive' }, () => 
       await dashboardPage.goto();
       await dashboardPage.waitForCardsLoaded();
 
-      // Available funds metric is rendered with data-testid="available-funds"
-      const availableFunds = page.getByTestId('available-funds');
-      await expect(availableFunds.first()).toBeVisible();
+      // Remaining budget metric is rendered with data-testid="remaining-budget"
+      const remainingBudget = page.getByTestId('remaining-budget');
+      await expect(remainingBudget.first()).toBeVisible();
 
-      // With our mock data of 300000, it should show the formatted value
-      const text = await availableFunds.first().textContent();
+      // With our mock data, remainingVsActualCost = 115000 (300000 - 185000)
+      const text = await remainingBudget.first().textContent();
       expect(text).toBeTruthy();
       // The value should be a formatted currency amount
-      expect(text?.replace(/\s/g, '')).toMatch(/300[,.]?000/);
+      expect(text?.replace(/\s/g, '')).toMatch(/115[,.]?000/);
     } finally {
       await uninterceptDashboardApis(page);
     }
   });
 
-  test('Budget Summary card shows remaining percentage', async ({ page }) => {
-    // See comment in sibling test above — desktop/tablet grid specific assertion.
-    const viewport = page.viewportSize();
-    if (!viewport || viewport.width < 768) {
-      test.skip();
-      return;
-    }
-
-    const dashboardPage = new DashboardPage(page);
-
-    await interceptDashboardApis(page);
-
-    try {
-      await dashboardPage.goto();
-      await dashboardPage.waitForCardsLoaded();
-
-      // remaining-pct data-testid shows "xx.x% remaining"
-      const remainingPct = page.getByTestId('remaining-pct');
-      await expect(remainingPct.first()).toBeVisible();
-
-      const text = await remainingPct.first().textContent();
-      expect(text).toMatch(/remaining/i);
-    } finally {
-      await uninterceptDashboardApis(page);
-    }
-  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

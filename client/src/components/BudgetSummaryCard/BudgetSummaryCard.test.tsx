@@ -44,13 +44,13 @@ describe('BudgetSummaryCard', () => {
     }
   });
 
-  // ── Test 1: Available Funds ───────────────────────────────────────────────
+  // ── Test 1: Remaining Budget ──────────────────────────────────────────────
 
-  it('renders available funds formatted as EUR currency', () => {
-    renderWithRouter(<BudgetSummaryCard overview={{ ...baseOverview, availableFunds: 100000 }} />);
+  it('renders remaining budget formatted as EUR currency', () => {
+    renderWithRouter(<BudgetSummaryCard overview={{ ...baseOverview, remainingVsActualCost: 50000 }} />);
 
-    const el = screen.getByTestId('available-funds');
-    expect(el).toHaveTextContent('€100,000.00');
+    const el = screen.getByTestId('remaining-budget');
+    expect(el).toHaveTextContent('€50,000.00');
   });
 
   // ── Test 2: Planned Cost Range ────────────────────────────────────────────
@@ -74,84 +74,9 @@ describe('BudgetSummaryCard', () => {
     expect(el).toHaveTextContent('€50,000.00');
   });
 
-  // ── Test 4: Remaining pct — green (> 20%) ─────────────────────────────────
+  // ── Test 4: Subsidy savings shown when totalReductions > 0 ────────────────
 
-  it('shows green remaining percentage when remaining is above 20%', () => {
-    // remainingPct = (100000 - 70000) / 100000 * 100 = 30.0%
-    renderWithRouter(
-      <BudgetSummaryCard
-        overview={{
-          ...baseOverview,
-          availableFunds: 100000,
-          actualCost: 70000,
-          remainingVsActualCost: 30000,
-        }}
-      />,
-    );
-
-    const el = screen.getByTestId('remaining-pct');
-    expect(el).toHaveTextContent('30.0% remaining');
-    expect(el.className).toContain('remainingGreen');
-  });
-
-  // ── Test 5: Remaining pct — yellow (5–20%) ────────────────────────────────
-
-  it('shows yellow remaining percentage when remaining is between 5% and 20%', () => {
-    // remainingPct = (100000 - 88000) / 100000 * 100 = 12.0%
-    renderWithRouter(
-      <BudgetSummaryCard
-        overview={{
-          ...baseOverview,
-          availableFunds: 100000,
-          actualCost: 88000,
-          remainingVsActualCost: 12000,
-        }}
-      />,
-    );
-
-    const el = screen.getByTestId('remaining-pct');
-    expect(el).toHaveTextContent('12.0% remaining');
-    expect(el.className).toContain('remainingYellow');
-  });
-
-  // ── Test 6: Remaining pct — red (< 5%) ────────────────────────────────────
-
-  it('shows red remaining percentage when remaining is below 5%', () => {
-    // remainingPct = (100000 - 97000) / 100000 * 100 = 3.0%
-    renderWithRouter(
-      <BudgetSummaryCard
-        overview={{
-          ...baseOverview,
-          availableFunds: 100000,
-          actualCost: 97000,
-          remainingVsActualCost: 3000,
-        }}
-      />,
-    );
-
-    const el = screen.getByTestId('remaining-pct');
-    expect(el).toHaveTextContent('3.0% remaining');
-    expect(el.className).toContain('remainingRed');
-  });
-
-  // ── Test 7: Remaining pct — red (zero funds) ──────────────────────────────
-
-  it('shows red remaining percentage and 0.0% when availableFunds is zero', () => {
-    // remainingPct defaults to 0 when availableFunds === 0
-    renderWithRouter(
-      <BudgetSummaryCard
-        overview={{ ...baseOverview, availableFunds: 0, actualCost: 0, remainingVsActualCost: 0 }}
-      />,
-    );
-
-    const el = screen.getByTestId('remaining-pct');
-    expect(el).toHaveTextContent('0.0% remaining');
-    expect(el.className).toContain('remainingRed');
-  });
-
-  // ── Test 8: Subsidy impact shown when totalReductions > 0 ────────────────
-
-  it('renders subsidy impact section when totalReductions is greater than zero', () => {
+  it('renders subsidy savings section when totalReductions is greater than zero', () => {
     renderWithRouter(
       <BudgetSummaryCard
         overview={{
@@ -171,7 +96,7 @@ describe('BudgetSummaryCard', () => {
     expect(el).toHaveTextContent('€5,000.00');
   });
 
-  // ── Test 9: Subsidy impact hidden when totalReductions = 0 ───────────────
+  // ── Test 5: Subsidy savings hidden when totalReductions = 0 ───────────────
 
   it('does not render subsidy impact section when totalReductions is zero', () => {
     renderWithRouter(<BudgetSummaryCard overview={baseOverview} />);
@@ -179,7 +104,7 @@ describe('BudgetSummaryCard', () => {
     expect(screen.queryByTestId('subsidy-impact')).toBeNull();
   });
 
-  // ── Test 10: Footer link to /budget/overview ──────────────────────────────
+  // ── Test 6: Footer link to /budget/overview ───────────────────────────────
 
   it('renders a footer link to /budget/overview', () => {
     renderWithRouter(<BudgetSummaryCard overview={baseOverview} />);
@@ -189,7 +114,7 @@ describe('BudgetSummaryCard', () => {
     expect(link).toHaveAttribute('href', '/budget/overview');
   });
 
-  // ── Test 11: BudgetHealthIndicator — On Budget ────────────────────────────
+  // ── Test 7: BudgetHealthIndicator — On Budget ──────────────────────────────
 
   it('renders BudgetHealthIndicator showing On Budget when margin is above 10%', () => {
     // margin = remainingVsMaxPlanned / availableFunds = 15000 / 100000 = 0.15 > 0.10 → On Budget
@@ -202,7 +127,7 @@ describe('BudgetSummaryCard', () => {
     expect(screen.getByRole('status')).toHaveTextContent('On Budget');
   });
 
-  // ── Test 12: BudgetBar renders ────────────────────────────────────────────
+  // ── Test 8: BudgetBar renders ──────────────────────────────────────────────
 
   it('renders BudgetBar with role="img"', () => {
     renderWithRouter(<BudgetSummaryCard overview={baseOverview} />);

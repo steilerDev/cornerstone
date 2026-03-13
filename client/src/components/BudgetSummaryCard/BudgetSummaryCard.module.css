@@ -34,23 +34,6 @@
   gap: var(--spacing-2);
 }
 
-.remainingPct {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-}
-
-.remainingGreen {
-  color: var(--color-success);
-}
-
-.remainingYellow {
-  color: var(--color-warning);
-}
-
-.remainingRed {
-  color: var(--color-danger);
-}
-
 .metricsGrid {
   display: flex;
   flex-direction: column;

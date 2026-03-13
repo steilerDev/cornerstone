@@ -20,18 +20,6 @@ export function BudgetSummaryCard({ overview }: BudgetSummaryCardProps) {
     subsidySummary,
   } = overview;
 
-  // Calculate remaining percentage
-  const remainingPct =
-    availableFunds > 0 ? ((availableFunds - actualCost) / availableFunds) * 100 : 0;
-
-  // Determine color class based on remaining percentage
-  let remainingColorClass = styles.remainingGreen;
-  if (remainingPct < 5) {
-    remainingColorClass = styles.remainingRed;
-  } else if (remainingPct < 20) {
-    remainingColorClass = styles.remainingYellow;
-  }
-
   // Build budget bar segments
   const segments: BudgetBarSegment[] = [
     {
@@ -58,9 +46,9 @@ export function BudgetSummaryCard({ overview }: BudgetSummaryCardProps) {
     <div className={styles.content}>
       {/* Primary metric */}
       <div className={styles.primaryMetric}>
-        <span className={styles.metricLabel}>Available Funds</span>
-        <span className={styles.metricValue} data-testid="available-funds">
-          {formatCurrency(availableFunds)}
+        <span className={styles.metricLabel}>Remaining Budget</span>
+        <span className={styles.metricValue} data-testid="remaining-budget">
+          {formatCurrency(remainingVsActualCost)}
         </span>
       </div>
 
@@ -79,12 +67,6 @@ export function BudgetSummaryCard({ overview }: BudgetSummaryCardProps) {
           remainingVsProjectedMax={remainingVsMaxPlanned}
           availableFunds={availableFunds}
         />
-        <span
-          className={`${styles.remainingPct} ${remainingColorClass}`}
-          data-testid="remaining-pct"
-        >
-          {remainingPct.toFixed(1)}% remaining
-        </span>
       </div>
 
       {/* Metrics grid */}
@@ -105,9 +87,9 @@ export function BudgetSummaryCard({ overview }: BudgetSummaryCardProps) {
 
         {subsidySummary.totalReductions > 0 && (
           <div className={styles.metricItem}>
-            <dt className={styles.metricItemLabel}>Subsidy Impact</dt>
+            <dt className={styles.metricItemLabel}>Subsidy Savings</dt>
             <dd className={styles.metricItemValue} data-testid="subsidy-impact">
-              −{formatCurrency(subsidySummary.totalReductions)}
+              {formatCurrency(subsidySummary.totalReductions)}
             </dd>
           </div>
         )}
