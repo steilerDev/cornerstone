@@ -755,3 +755,35 @@ export const householdItemSubsidies = sqliteTable(
     ),
   }),
 );
+
+// ─── Photo Attachments ────────────────────────────────────────────────────────
+
+/**
+ * Photos table - stores photo attachment metadata for various entities.
+ * Uses entity_type + entity_id polymorphic pattern (same as document_links).
+ * Actual files stored on disk at {photoStoragePath}/{id}/original.{ext} + thumbnail.webp.
+ */
+export const photos = sqliteTable(
+  'photos',
+  {
+    id: text('id').primaryKey(),
+    entityType: text('entity_type').notNull(),
+    entityId: text('entity_id').notNull(),
+    filename: text('filename').notNull(),
+    originalFilename: text('original_filename').notNull(),
+    mimeType: text('mime_type').notNull(),
+    fileSize: integer('file_size').notNull(),
+    width: integer('width'),
+    height: integer('height'),
+    takenAt: text('taken_at'),
+    caption: text('caption'),
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => ({
+    entityIdx: index('idx_photos_entity').on(table.entityType, table.entityId),
+    createdAtIdx: index('idx_photos_created_at').on(table.createdAt),
+  }),
+);

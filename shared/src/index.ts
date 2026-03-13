@@ -280,3 +280,11 @@ export type {
   HouseholdItemSubsidyPaybackEntry,
   HouseholdItemSubsidyPaybackResponse,
 } from './types/householdItemBudget.js';
+
+// Photos
+export type {
+  PhotoEntityType,
+  Photo,
+  UpdatePhotoRequest,
+  ReorderPhotosRequest,
+} from './types/photo.js';
