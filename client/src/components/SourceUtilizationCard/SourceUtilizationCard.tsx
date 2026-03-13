@@ -12,6 +12,7 @@ const SOURCE_TYPE_LABELS: Record<BudgetSourceType, string> = {
   credit_line: 'Credit Line',
   savings: 'Savings',
   other: 'Other',
+  discretionary: 'Discretionary',
 };
 
 export function SourceUtilizationCard({ sources }: SourceUtilizationCardProps) {
@@ -83,6 +84,7 @@ function getTypeClass(sourceType: BudgetSourceType): string {
     credit_line: 'CreditLine',
     savings: 'Savings',
     other: 'Other',
+    discretionary: 'Discretionary',
   };
   return classMap[sourceType];
 }

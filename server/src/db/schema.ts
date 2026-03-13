@@ -241,12 +241,13 @@ export const vendors = sqliteTable(
 
 /**
  * Budget sources table - financing sources (bank loans, credit lines, savings, etc.).
+ * EPIC-16: Added is_discretionary flag and 'discretionary' source type for system-managed catch-all.
  */
 export const budgetSources = sqliteTable('budget_sources', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
   sourceType: text('source_type', {
-    enum: ['bank_loan', 'credit_line', 'savings', 'other'],
+    enum: ['bank_loan', 'credit_line', 'savings', 'other', 'discretionary'],
   }).notNull(),
   totalAmount: real('total_amount').notNull(),
   interestRate: real('interest_rate'),
@@ -255,6 +256,7 @@ export const budgetSources = sqliteTable('budget_sources', {
   status: text('status', { enum: ['active', 'exhausted', 'closed'] })
     .notNull()
     .default('active'),
+  isDiscretionary: integer('is_discretionary', { mode: 'boolean' }).notNull().default(false),
   createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
