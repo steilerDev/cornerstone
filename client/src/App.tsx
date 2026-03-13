@@ -65,7 +65,6 @@ const ProfilePage = lazy(() => import('./pages/ProfilePage/ProfilePage'));
 const UserManagementPage = lazy(() => import('./pages/UserManagementPage/UserManagementPage'));
 const InvoicesPage = lazy(() => import('./pages/InvoicesPage/InvoicesPage'));
 const InvoiceDetailPage = lazy(() => import('./pages/InvoiceDetailPage/InvoiceDetailPage'));
-const DevPhotosPage = lazy(() => import('./pages/DevPhotosPage/DevPhotosPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage/NotFoundPage'));
 
 export function App() {
@@ -146,16 +145,6 @@ export function App() {
                     <Route path="manage" element={<ManagePage />} />
                     <Route path="users" element={<UserManagementPage />} />
                   </Route>
-
-                  {/* Dev pages (not in navigation) */}
-                  <Route
-                    path="dev/photos"
-                    element={
-                      <Suspense fallback={<div>Loading...</div>}>
-                        <DevPhotosPage />
-                      </Suspense>
-                    }
-                  />
 
                   {/* Legacy redirects — preserve old bookmarks */}
                   <Route
