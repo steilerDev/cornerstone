@@ -116,7 +116,7 @@ export function createSubsidyService(config: SubsidyServiceConfig): SubsidyServi
     // Using raw SQL to support dynamic table names
     const query = sql`
       SELECT COALESCE(SUM(planned_amount), 0) as total
-      FROM ${sql.identifier([config.budgetLinesTable])} bl
+      FROM ${sql.identifier(config.budgetLinesTable)} bl
       INNER JOIN budget_categories bc ON bl.budget_category_id = bc.id
       INNER JOIN subsidy_program_categories spc ON spc.budget_category_id = bc.id
       WHERE spc.subsidy_program_id = ${program.id}
@@ -141,10 +141,10 @@ export function createSubsidyService(config: SubsidyServiceConfig): SubsidyServi
     // Using raw SQL to support dynamic table names
     const query = sql`
       SELECT COALESCE(SUM(planned_amount), 0) as total
-      FROM ${sql.identifier([config.budgetLinesTable])} bl
+      FROM ${sql.identifier(config.budgetLinesTable)} bl
       INNER JOIN budget_categories bc ON bl.budget_category_id = bc.id
       INNER JOIN subsidy_program_categories spc ON spc.budget_category_id = bc.id
-      WHERE bl.${sql.identifier([config.budgetLinesEntityIdColumn])} = ${entityId}
+      WHERE bl.${sql.identifier(config.budgetLinesEntityIdColumn)} = ${entityId}
         AND spc.subsidy_program_id = ${program.id}
     `;
 

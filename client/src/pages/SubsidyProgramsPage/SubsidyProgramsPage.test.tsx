@@ -1561,7 +1561,7 @@ describe('SubsidyProgramsPage', () => {
 
       await user.click(screen.getByRole('button', { name: /edit energy rebate/i }));
       fireEvent.change(screen.getByLabelText(/maximum amount/i), { target: { value: '8000' } });
-      await user.click(screen.getByRole('button', { name: /save changes/i }));
+      await user.click(screen.getByRole('button', { name: /^Save$/ }));
 
       await waitFor(() => {
         expect(mockUpdateSubsidyProgram).toHaveBeenCalledWith(
@@ -1588,7 +1588,7 @@ describe('SubsidyProgramsPage', () => {
       await user.click(screen.getByRole('button', { name: /edit capped subsidy/i }));
       // Clear the maximumAmount field
       fireEvent.change(screen.getByLabelText(/maximum amount/i), { target: { value: '' } });
-      await user.click(screen.getByRole('button', { name: /save changes/i }));
+      await user.click(screen.getByRole('button', { name: /^Save$/ }));
 
       await waitFor(() => {
         expect(mockUpdateSubsidyProgram).toHaveBeenCalledWith(
