@@ -1527,5 +1527,31 @@ describe('BudgetSourcesPage', () => {
         expect(screen.getByText('Discretionary')).toBeInTheDocument();
       });
     });
+
+    it('create form type select does not include "discretionary" as an option', async () => {
+      // Even when a discretionary source exists in the list, the create form must
+      // never expose "discretionary" as a user-selectable type.
+      mockFetchBudgetSources.mockResolvedValueOnce({
+        budgetSources: [discretionarySource],
+      });
+
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /add source/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /add source/i }));
+
+      const typeSelect = screen.getByLabelText(/^type/i);
+      const options = Array.from(typeSelect.querySelectorAll('option')) as HTMLOptionElement[];
+
+      const optionValues = options.map((o) => o.value);
+      const optionTexts = options.map((o) => o.text);
+
+      expect(optionValues).not.toContain('discretionary');
+      expect(optionTexts).not.toContain('Discretionary');
+    });
   });
 });
