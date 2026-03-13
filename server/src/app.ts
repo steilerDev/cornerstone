@@ -46,6 +46,7 @@ import householdItemRoutes from './routes/householdItems.js';
 import householdItemBudgetRoutes from './routes/householdItemBudgets.js';
 import householdItemSubsidyRoutes from './routes/householdItemSubsidies.js';
 import householdItemSubsidyPaybackRoutes from './routes/householdItemSubsidyPayback.js';
+import feedsRoutes from './routes/feeds.js';
 import { hashPassword, verifyPassword } from './services/userService.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -191,6 +192,9 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(householdItemSubsidyPaybackRoutes, {
     prefix: '/api/household-items/:householdItemId/subsidy-payback',
   });
+
+  // Feed routes (anonymous — iCal/vCard for external calendar/contact apps)
+  await app.register(feedsRoutes, { prefix: '/feeds' });
 
   // Health check endpoint (liveness)
   app.get('/api/health', async () => {
