@@ -294,7 +294,7 @@ describe('getBudgetOverview', () => {
       const result = getBudgetOverview(db);
 
       expect(result.availableFunds).toBe(0);
-      expect(result.sourceCount).toBe(0);
+      expect(result.sourceCount).toBe(1); // Discretionary Funding source is always seeded
       expect(result.minPlanned).toBe(0);
       expect(result.maxPlanned).toBe(0);
       expect(result.actualCost).toBe(0);
@@ -343,7 +343,7 @@ describe('getBudgetOverview', () => {
       const result = getBudgetOverview(db);
 
       expect(result.availableFunds).toBe(150000);
-      expect(result.sourceCount).toBe(2);
+      expect(result.sourceCount).toBe(3); // 2 user sources + discretionary
     });
 
     it('excludes exhausted and closed budget sources from availableFunds', () => {
@@ -354,7 +354,7 @@ describe('getBudgetOverview', () => {
       const result = getBudgetOverview(db);
 
       expect(result.availableFunds).toBe(100000);
-      expect(result.sourceCount).toBe(1);
+      expect(result.sourceCount).toBe(2); // 1 user source + discretionary
     });
 
     it('returns zero when no active sources exist', () => {
@@ -363,7 +363,7 @@ describe('getBudgetOverview', () => {
       const result = getBudgetOverview(db);
 
       expect(result.availableFunds).toBe(0);
-      expect(result.sourceCount).toBe(0);
+      expect(result.sourceCount).toBe(1); // discretionary is always active
     });
   });
 
@@ -1120,7 +1120,7 @@ describe('getBudgetOverview', () => {
 
       // Available funds
       expect(result.availableFunds).toBe(200000);
-      expect(result.sourceCount).toBe(1);
+      expect(result.sourceCount).toBe(2); // +1 for seeded discretionary source
 
       // Min/max planned (invoiced lines use actualCost):
       // wi1: has invoice (45000) → min=max=45000 (actualCost after subsidy reduction = 45000)
