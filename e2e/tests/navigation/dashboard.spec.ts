@@ -327,7 +327,6 @@ test.describe('Budget Summary card (Scenario 3)', { tag: '@responsive' }, () => 
       await uninterceptDashboardApis(page);
     }
   });
-
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

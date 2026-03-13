@@ -47,7 +47,9 @@ describe('BudgetSummaryCard', () => {
   // ── Test 1: Remaining Budget ──────────────────────────────────────────────
 
   it('renders remaining budget formatted as EUR currency', () => {
-    renderWithRouter(<BudgetSummaryCard overview={{ ...baseOverview, remainingVsActualCost: 50000 }} />);
+    renderWithRouter(
+      <BudgetSummaryCard overview={{ ...baseOverview, remainingVsActualCost: 50000 }} />,
+    );
 
     const el = screen.getByTestId('remaining-budget');
     expect(el).toHaveTextContent('€50,000.00');
