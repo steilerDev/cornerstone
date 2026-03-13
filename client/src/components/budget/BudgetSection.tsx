@@ -183,11 +183,7 @@ export function BudgetSection<T extends BaseBudgetLine>({
           vendors={vendors}
           budgetCategories={budgetCategories}
           staticCategoryLabel={staticCategoryLabel}
-        >
-          <h3 className={styles.subsectionTitle}>
-            {editingBudgetId ? 'Edit Budget Line' : 'New Budget Line'}
-          </h3>
-        </BudgetLineForm>
+        />
       )}
 
       {/* Add line button */}

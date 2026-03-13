@@ -509,6 +509,22 @@ export function createBudgetService<
         updates.vendorId = data.vendorId ?? null;
       }
 
+      if ('quantity' in data) {
+        updates.quantity = data.quantity ?? null;
+      }
+
+      if ('unit' in data) {
+        updates.unit = data.unit ?? null;
+      }
+
+      if ('unitPrice' in data) {
+        updates.unitPrice = data.unitPrice ?? null;
+      }
+
+      if ('includesVat' in data) {
+        updates.includesVat = data.includesVat ?? null;
+      }
+
       updates.updatedAt = new Date().toISOString();
       db.update(config.budgetTable).set(updates).where(eq(table.id, budgetId)).run();
       return toResult(

@@ -17,6 +17,11 @@ export interface BudgetLineFormState {
   budgetCategoryId: string;
   budgetSourceId: string;
   vendorId: string;
+  pricingMode: 'direct' | 'unit';
+  quantity: string;
+  unit: string;
+  unitPrice: string;
+  includesVat: boolean;
 }
 
 /**
@@ -128,6 +133,11 @@ export function useBudgetSection<T extends BaseBudgetLine>(
     budgetCategoryId: '',
     budgetSourceId: '',
     vendorId: '',
+    pricingMode: 'direct',
+    quantity: '',
+    unit: '',
+    unitPrice: '',
+    includesVat: true,
   };
 
   // Budget line form state
@@ -168,16 +178,39 @@ export function useBudgetSection<T extends BaseBudgetLine>(
   const handleSaveBudgetLine = async (event: FormEvent) => {
     event.preventDefault();
 
-    const plannedAmount = parseFloat(budgetForm.plannedAmount);
-    if (isNaN(plannedAmount) || plannedAmount < 0) {
-      setBudgetFormError('Planned amount must be a valid non-negative number.');
-      return;
+    let plannedAmount: number;
+
+    if (budgetForm.pricingMode === 'direct') {
+      plannedAmount = parseFloat(budgetForm.plannedAmount);
+      if (isNaN(plannedAmount) || plannedAmount < 0) {
+        setBudgetFormError('Planned amount must be a valid non-negative number.');
+        return;
+      }
+    } else {
+      // Unit pricing mode
+      const qty = parseFloat(budgetForm.quantity);
+      const price = parseFloat(budgetForm.unitPrice);
+
+      if (isNaN(qty) || qty <= 0) {
+        setBudgetFormError('Quantity must be a valid positive number.');
+        return;
+      }
+      if (isNaN(price) || price < 0) {
+        setBudgetFormError('Unit price must be a valid non-negative number.');
+        return;
+      }
+
+      // Calculate planned amount: qty * price * (includesVat ? 1 : 1.19)
+      const multiplier = budgetForm.includesVat ? 1 : 1.19;
+      plannedAmount = Math.round(qty * price * multiplier * 100) / 100;
     }
 
     setIsSavingBudget(true);
     setBudgetFormError(null);
 
-    const payload = toPayload(budgetForm);
+    // Override plannedAmount in form state for toPayload
+    const formWithAmount = { ...budgetForm, plannedAmount: String(plannedAmount) };
+    const payload = toPayload(formWithAmount);
 
     try {
       if (editingBudgetId) {

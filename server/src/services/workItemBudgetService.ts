@@ -42,6 +42,10 @@ function toWorkItemBudgetLine(
           itemizedAmount: rel.invoiceLink.itemizedAmount,
         }
       : null,
+    quantity: row.quantity ?? null,
+    unit: row.unit ?? null,
+    unitPrice: row.unitPrice ?? null,
+    includesVat: row.includesVat ?? null,
     createdBy: rel.createdBy,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -69,6 +73,10 @@ function buildInsertValues(
     budgetCategoryId: data.budgetCategoryId ?? null,
     budgetSourceId: data.budgetSourceId ?? null,
     vendorId: data.vendorId ?? null,
+    quantity: data.quantity ?? null,
+    unit: data.unit ?? null,
+    unitPrice: data.unitPrice ?? null,
+    includesVat: data.includesVat ?? null,
     createdBy: userId,
   };
 }
