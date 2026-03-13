@@ -23,8 +23,11 @@ export interface SubsidyServiceConfig {
   entityTable: SQLiteTable;
   entityIdColumn: SQLiteColumn;
   junctionTable: SQLiteTable;
+  junctionTableName: string;
   junctionEntityIdColumn: SQLiteColumn;
+  junctionEntityIdColumnName: string;
   junctionSubsidyProgramIdColumn: SQLiteColumn;
+  junctionSubsidyProgramIdColumnName: string;
   budgetLinesTable: string;
   budgetLinesEntityIdColumn: string;
   entityLabel: string;
@@ -113,12 +116,15 @@ export function createSubsidyService(config: SubsidyServiceConfig): SubsidyServi
     }
 
     // For percentage: sum matching budget line amounts × rate
-    // Using raw SQL to support dynamic table names
+    // Only count budget lines from entities already linked via the junction table
     const query = sql`
-      SELECT COALESCE(SUM(planned_amount), 0) as total
+      SELECT COALESCE(SUM(bl.planned_amount), 0) as total
       FROM ${sql.identifier(config.budgetLinesTable)} bl
       INNER JOIN budget_categories bc ON bl.budget_category_id = bc.id
       INNER JOIN subsidy_program_categories spc ON spc.budget_category_id = bc.id
+      INNER JOIN ${sql.identifier(config.junctionTableName)} jt
+        ON jt.${sql.identifier(config.junctionEntityIdColumnName)} = bl.${sql.identifier(config.budgetLinesEntityIdColumn)}
+        AND jt.${sql.identifier(config.junctionSubsidyProgramIdColumnName)} = spc.subsidy_program_id
       WHERE spc.subsidy_program_id = ${program.id}
     `;
 
