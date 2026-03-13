@@ -165,7 +165,8 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     errors.push(`PHOTO_MAX_FILE_SIZE_MB must be greater than 0, got: ${photoMaxFileSizeMb}`);
   }
 
-  const photoStoragePath = getValue('PHOTO_STORAGE_PATH') ?? path.join(path.dirname(databaseUrl), 'photos');
+  const photoStoragePath =
+    getValue('PHOTO_STORAGE_PATH') ?? path.join(path.dirname(databaseUrl), 'photos');
 
   // If there are any validation errors, throw a single error listing all of them
   if (errors.length > 0) {

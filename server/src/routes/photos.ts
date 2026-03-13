@@ -14,7 +14,11 @@ import { stat } from 'node:fs/promises';
 import path from 'node:path';
 import { NotFoundError, UnauthorizedError, ValidationError } from '../errors/AppError.js';
 import * as photoService from '../services/photoService.js';
-import type { UpdatePhotoRequest, ReorderPhotosRequest, PhotoEntityType } from '@cornerstone/shared';
+import type {
+  UpdatePhotoRequest,
+  ReorderPhotosRequest,
+  PhotoEntityType,
+} from '@cornerstone/shared';
 
 // ─── JSON schemas ─────────────────────────────────────────────────────────────
 
@@ -145,15 +149,19 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
    *
    * Returns: 200 with { photos }
    */
-  fastify.get('/', { schema: listPhotosSchema }, async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!request.user) throw new UnauthorizedError();
+  fastify.get(
+    '/',
+    { schema: listPhotosSchema },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      if (!request.user) throw new UnauthorizedError();
 
-    const { entityType, entityId } = request.query as { entityType: string; entityId: string };
+      const { entityType, entityId } = request.query as { entityType: string; entityId: string };
 
-    const photoList = photoService.getPhotosForEntity(fastify.db, entityType, entityId);
+      const photoList = photoService.getPhotosForEntity(fastify.db, entityType, entityId);
 
-    return reply.status(200).send({ photos: photoList });
-  });
+      return reply.status(200).send({ photos: photoList });
+    },
+  );
 
   /**
    * GET /:id
@@ -161,18 +169,22 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
    *
    * Returns: 200 with { photo } or 404
    */
-  fastify.get('/:id', { schema: getPhotoSchema }, async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!request.user) throw new UnauthorizedError();
+  fastify.get(
+    '/:id',
+    { schema: getPhotoSchema },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      if (!request.user) throw new UnauthorizedError();
 
-    const { id } = request.params as { id: string };
+      const { id } = request.params as { id: string };
 
-    const photo = photoService.getPhoto(fastify.db, id);
-    if (!photo) {
-      throw new NotFoundError('Photo not found');
-    }
+      const photo = photoService.getPhoto(fastify.db, id);
+      if (!photo) {
+        throw new NotFoundError('Photo not found');
+      }
 
-    return reply.status(200).send({ photo });
-  });
+      return reply.status(200).send({ photo });
+    },
+  );
 
   /**
    * GET /:id/file
@@ -180,28 +192,36 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
    *
    * Returns: 200 with file stream (Content-Type and Cache-Control headers set)
    */
-  fastify.get('/:id/file', { schema: getPhotoSchema }, async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!request.user) throw new UnauthorizedError();
+  fastify.get(
+    '/:id/file',
+    { schema: getPhotoSchema },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      if (!request.user) throw new UnauthorizedError();
 
-    const { id } = request.params as { id: string };
+      const { id } = request.params as { id: string };
 
-    const photo = photoService.getPhoto(fastify.db, id);
-    if (!photo) {
-      throw new NotFoundError('Photo not found');
-    }
+      const photo = photoService.getPhoto(fastify.db, id);
+      if (!photo) {
+        throw new NotFoundError('Photo not found');
+      }
 
-    const filePath = await photoService.getPhotoFilePath(fastify.config.photoStoragePath, id, 'original');
-    if (!filePath) {
-      throw new NotFoundError('Photo file not found');
-    }
+      const filePath = await photoService.getPhotoFilePath(
+        fastify.config.photoStoragePath,
+        id,
+        'original',
+      );
+      if (!filePath) {
+        throw new NotFoundError('Photo file not found');
+      }
 
-    // Set cache headers (immutable, 1 year)
-    reply.header('Cache-Control', 'public, max-age=31536000, immutable');
-    reply.header('Content-Type', photo.mimeType);
+      // Set cache headers (immutable, 1 year)
+      reply.header('Cache-Control', 'public, max-age=31536000, immutable');
+      reply.header('Content-Type', photo.mimeType);
 
-    const stream = createReadStream(filePath);
-    return reply.type(photo.mimeType).send(stream);
-  });
+      const stream = createReadStream(filePath);
+      return reply.type(photo.mimeType).send(stream);
+    },
+  );
 
   /**
    * GET /:id/thumbnail
@@ -209,28 +229,36 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
    *
    * Returns: 200 with thumbnail stream (WebP, Cache-Control headers set)
    */
-  fastify.get('/:id/thumbnail', { schema: getPhotoSchema }, async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!request.user) throw new UnauthorizedError();
+  fastify.get(
+    '/:id/thumbnail',
+    { schema: getPhotoSchema },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      if (!request.user) throw new UnauthorizedError();
 
-    const { id } = request.params as { id: string };
+      const { id } = request.params as { id: string };
 
-    const photo = photoService.getPhoto(fastify.db, id);
-    if (!photo) {
-      throw new NotFoundError('Photo not found');
-    }
+      const photo = photoService.getPhoto(fastify.db, id);
+      if (!photo) {
+        throw new NotFoundError('Photo not found');
+      }
 
-    const filePath = await photoService.getPhotoFilePath(fastify.config.photoStoragePath, id, 'thumbnail');
-    if (!filePath) {
-      throw new NotFoundError('Photo thumbnail not found');
-    }
+      const filePath = await photoService.getPhotoFilePath(
+        fastify.config.photoStoragePath,
+        id,
+        'thumbnail',
+      );
+      if (!filePath) {
+        throw new NotFoundError('Photo thumbnail not found');
+      }
 
-    // Set cache headers (immutable, 1 year)
-    reply.header('Cache-Control', 'public, max-age=31536000, immutable');
-    reply.header('Content-Type', 'image/webp');
+      // Set cache headers (immutable, 1 year)
+      reply.header('Cache-Control', 'public, max-age=31536000, immutable');
+      reply.header('Content-Type', 'image/webp');
 
-    const stream = createReadStream(filePath);
-    return reply.type('image/webp').send(stream);
-  });
+      const stream = createReadStream(filePath);
+      return reply.type('image/webp').send(stream);
+    },
+  );
 
   /**
    * PATCH /:id
@@ -286,18 +314,22 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
    *
    * Returns: 204 No Content or 404
    */
-  fastify.delete('/:id', { schema: getPhotoSchema }, async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!request.user) throw new UnauthorizedError();
+  fastify.delete(
+    '/:id',
+    { schema: getPhotoSchema },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      if (!request.user) throw new UnauthorizedError();
 
-    const { id } = request.params as { id: string };
+      const { id } = request.params as { id: string };
 
-    const photo = photoService.getPhoto(fastify.db, id);
-    if (!photo) {
-      throw new NotFoundError('Photo not found');
-    }
+      const photo = photoService.getPhoto(fastify.db, id);
+      if (!photo) {
+        throw new NotFoundError('Photo not found');
+      }
 
-    await photoService.deletePhoto(fastify.db, fastify.config.photoStoragePath, id);
+      await photoService.deletePhoto(fastify.db, fastify.config.photoStoragePath, id);
 
-    return reply.status(204).send();
-  });
+      return reply.status(204).send();
+    },
+  );
 }

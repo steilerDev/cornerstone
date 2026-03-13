@@ -41,7 +41,9 @@ export function uploadPhoto(
       }
     });
 
-    xhr.addEventListener('error', () => reject(new NetworkError('Network error during upload', null)));
+    xhr.addEventListener('error', () =>
+      reject(new NetworkError('Network error during upload', null)),
+    );
     xhr.addEventListener('abort', () => reject(new Error('Upload aborted')));
 
     const formData = new FormData();

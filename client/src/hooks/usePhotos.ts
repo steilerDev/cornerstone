@@ -12,7 +12,11 @@ export interface UsePhotosResult {
   photos: Photo[];
   loading: boolean;
   error: string | null;
-  uploadPhoto: (file: File, caption?: string, onProgress?: (percent: number) => void) => Promise<Photo>;
+  uploadPhoto: (
+    file: File,
+    caption?: string,
+    onProgress?: (percent: number) => void,
+  ) => Promise<Photo>;
   deletePhoto: (id: string) => Promise<void>;
   updatePhoto: (id: string, data: { caption?: string | null; sortOrder?: number }) => Promise<void>;
   refresh: () => void;

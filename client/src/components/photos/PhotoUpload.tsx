@@ -11,7 +11,13 @@ export interface PhotoUploadProps {
   onError?: (error: string) => void;
 }
 
-export function PhotoUpload({ entityType, entityId, onUpload, disabled, onError }: PhotoUploadProps) {
+export function PhotoUpload({
+  entityType,
+  entityId,
+  onUpload,
+  disabled,
+  onError,
+}: PhotoUploadProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);

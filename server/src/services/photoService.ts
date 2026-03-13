@@ -81,10 +81,7 @@ function toPhoto(
 /**
  * Resolve the user who created a photo.
  */
-function resolveCreatedBy(
-  db: DbType,
-  createdBy: string | null,
-): typeof users.$inferSelect | null {
+function resolveCreatedBy(db: DbType, createdBy: string | null): typeof users.$inferSelect | null {
   if (!createdBy) return null;
   return db.select().from(users).where(eq(users.id, createdBy)).get() ?? null;
 }
@@ -204,11 +201,7 @@ export async function uploadPhoto(
     db.insert(photos).values(row).run();
 
     // Fetch the inserted row with user info
-    const insertedRow = db
-      .select()
-      .from(photos)
-      .where(eq(photos.id, photoId))
-      .get();
+    const insertedRow = db.select().from(photos).where(eq(photos.id, photoId)).get();
 
     if (!insertedRow) {
       throw new Error('Failed to retrieve inserted photo');
@@ -245,11 +238,7 @@ export function getPhoto(db: DbType, id: string): Photo | null {
  *
  * @returns Array of Photo objects
  */
-export function getPhotosForEntity(
-  db: DbType,
-  entityType: string,
-  entityId: string,
-): Photo[] {
+export function getPhotosForEntity(db: DbType, entityType: string, entityId: string): Photo[] {
   const rows = db
     .select()
     .from(photos)
@@ -331,11 +320,7 @@ export function reorderPhotos(
  *
  * @param photoStoragePath Base directory for photo storage
  */
-export async function deletePhoto(
-  db: DbType,
-  photoStoragePath: string,
-  id: string,
-): Promise<void> {
+export async function deletePhoto(db: DbType, photoStoragePath: string, id: string): Promise<void> {
   // Delete DB record
   db.delete(photos).where(eq(photos.id, id)).run();
 
