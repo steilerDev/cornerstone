@@ -41,14 +41,17 @@ export default async function feedsRoutes(fastify: FastifyInstance) {
    * Anonymous access (no auth required)
    * ETag support for conditional requests (304 Not Modified)
    */
-  fastify.get('/cal.ics', { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } }, async (request, reply) => {
-    // Ensure daily reschedule is run
-    ensureDailyReschedule(fastify.db);
+  fastify.get(
+    '/cal.ics',
+    { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } },
+    async (request, reply) => {
+      // Ensure daily reschedule is run
+      ensureDailyReschedule(fastify.db);
 
-    // Compute ETag BEFORE expensive data fetch — cheap index scan
-    const maxUpdatedRow = fastify.db.$client
-      .prepare(
-        `
+      // Compute ETag BEFORE expensive data fetch — cheap index scan
+      const maxUpdatedRow = fastify.db.$client
+        .prepare(
+          `
       SELECT MAX(max_updated) as m FROM (
         SELECT MAX(updated_at) as max_updated FROM work_items
         UNION ALL
@@ -57,93 +60,94 @@ export default async function feedsRoutes(fastify: FastifyInstance) {
         SELECT MAX(updated_at) as max_updated FROM household_items
       )
     `,
-      )
-      .get() as { m: string | null };
+        )
+        .get() as { m: string | null };
 
-    const etag = computeETag([maxUpdatedRow.m]);
+      const etag = computeETag([maxUpdatedRow.m]);
 
-    // Check If-None-Match header for conditional request — avoid data fetch on cache hit
-    if (request.headers['if-none-match'] === etag) {
-      return reply.status(304).send();
-    }
-
-    // Fetch timeline data (only on cache miss)
-    const timeline = getTimeline(fastify.db);
-
-    // Build iCal calendar
-    const calendar = ical({
-      name: 'Cornerstone Project',
-      prodId: '//Cornerstone//Project Calendar//EN',
-    });
-
-    // Add work items as events
-    for (const wi of timeline.workItems) {
-      const startDate = wi.actualStartDate ?? wi.startDate;
-      const endDate = wi.actualEndDate ?? wi.endDate;
-
-      // Skip if neither resolved date is available
-      if (!startDate || !endDate) continue;
-
-      calendar.createEvent({
-        id: `wi-${wi.id}@cornerstone`,
-        summary: wi.title,
-        start: new Date(startDate),
-        end: new Date(endDate),
-        allDay: true,
-      });
-    }
-
-    // Add milestones as single-day all-day events
-    for (const milestone of timeline.milestones) {
-      const eventDate = milestone.completedAt
-        ? toDateOnly(milestone.completedAt)
-        : milestone.targetDate;
-
-      if (!eventDate) continue;
-
-      calendar.createEvent({
-        id: `milestone-${milestone.id}@cornerstone`,
-        summary: milestone.title,
-        start: new Date(eventDate),
-        end: new Date(eventDate),
-        allDay: true,
-      });
-    }
-
-    // Add household items as delivery events
-    for (const hi of timeline.householdItems) {
-      let startDate: string | null = null;
-      let endDate: string | null = null;
-
-      // Prefer actual delivery date if set
-      if (hi.actualDeliveryDate) {
-        startDate = toDateOnly(hi.actualDeliveryDate);
-        endDate = startDate;
-      } else {
-        // Use earliest/latest delivery date range, or target if those aren't set
-        startDate = hi.earliestDeliveryDate ?? hi.targetDeliveryDate;
-        endDate = hi.latestDeliveryDate ?? hi.targetDeliveryDate;
+      // Check If-None-Match header for conditional request — avoid data fetch on cache hit
+      if (request.headers['if-none-match'] === etag) {
+        return reply.status(304).send();
       }
 
-      // Skip if no delivery dates are available
-      if (!startDate || !endDate) continue;
+      // Fetch timeline data (only on cache miss)
+      const timeline = getTimeline(fastify.db);
 
-      calendar.createEvent({
-        id: `hi-${hi.id}@cornerstone`,
-        summary: `${hi.name} (Delivery)`,
-        start: new Date(startDate),
-        end: new Date(endDate),
-        allDay: true,
+      // Build iCal calendar
+      const calendar = ical({
+        name: 'Cornerstone Project',
+        prodId: '//Cornerstone//Project Calendar//EN',
       });
-    }
 
-    // Return iCal with appropriate headers
-    return reply
-      .header('Content-Type', 'text/calendar; charset=utf-8')
-      .header('Cache-Control', 'private, max-age=3600')
-      .header('ETag', etag)
-      .send(calendar.toString());
-  });
+      // Add work items as events
+      for (const wi of timeline.workItems) {
+        const startDate = wi.actualStartDate ?? wi.startDate;
+        const endDate = wi.actualEndDate ?? wi.endDate;
+
+        // Skip if neither resolved date is available
+        if (!startDate || !endDate) continue;
+
+        calendar.createEvent({
+          id: `wi-${wi.id}@cornerstone`,
+          summary: wi.title,
+          start: new Date(startDate),
+          end: new Date(endDate),
+          allDay: true,
+        });
+      }
+
+      // Add milestones as single-day all-day events
+      for (const milestone of timeline.milestones) {
+        const eventDate = milestone.completedAt
+          ? toDateOnly(milestone.completedAt)
+          : milestone.targetDate;
+
+        if (!eventDate) continue;
+
+        calendar.createEvent({
+          id: `milestone-${milestone.id}@cornerstone`,
+          summary: milestone.title,
+          start: new Date(eventDate),
+          end: new Date(eventDate),
+          allDay: true,
+        });
+      }
+
+      // Add household items as delivery events
+      for (const hi of timeline.householdItems) {
+        let startDate: string | null = null;
+        let endDate: string | null = null;
+
+        // Prefer actual delivery date if set
+        if (hi.actualDeliveryDate) {
+          startDate = toDateOnly(hi.actualDeliveryDate);
+          endDate = startDate;
+        } else {
+          // Use earliest/latest delivery date range, or target if those aren't set
+          startDate = hi.earliestDeliveryDate ?? hi.targetDeliveryDate;
+          endDate = hi.latestDeliveryDate ?? hi.targetDeliveryDate;
+        }
+
+        // Skip if no delivery dates are available
+        if (!startDate || !endDate) continue;
+
+        calendar.createEvent({
+          id: `hi-${hi.id}@cornerstone`,
+          summary: `${hi.name} (Delivery)`,
+          start: new Date(startDate),
+          end: new Date(endDate),
+          allDay: true,
+        });
+      }
+
+      // Return iCal with appropriate headers
+      return reply
+        .header('Content-Type', 'text/calendar; charset=utf-8')
+        .header('Cache-Control', 'private, max-age=3600')
+        .header('ETag', etag)
+        .send(calendar.toString());
+    },
+  );
 
   /**
    * GET /feeds/contacts.vcf
@@ -151,60 +155,64 @@ export default async function feedsRoutes(fastify: FastifyInstance) {
    * Anonymous access (no auth required)
    * ETag support for conditional requests (304 Not Modified)
    */
-  fastify.get('/contacts.vcf', { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } }, async (request, reply) => {
-    // Compute ETag BEFORE data fetch — cheap index scan
-    const maxUpdatedRow = fastify.db.$client
-      .prepare('SELECT MAX(updated_at) as m FROM vendors')
-      .get() as { m: string | null };
+  fastify.get(
+    '/contacts.vcf',
+    { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } },
+    async (request, reply) => {
+      // Compute ETag BEFORE data fetch — cheap index scan
+      const maxUpdatedRow = fastify.db.$client
+        .prepare('SELECT MAX(updated_at) as m FROM vendors')
+        .get() as { m: string | null };
 
-    const etag = computeETag([maxUpdatedRow.m]);
+      const etag = computeETag([maxUpdatedRow.m]);
 
-    // Check If-None-Match header — avoid data fetch on cache hit
-    if (request.headers['if-none-match'] === etag) {
-      return reply.status(304).send();
-    }
-
-    // Fetch all vendors (only on cache miss)
-    const allVendors = fastify.db.select().from(vendors).all();
-
-    // Build vCard file by concatenating individual vCards
-    const vcards: string[] = [];
-
-    for (const vendor of allVendors) {
-      const vcard = new VCardCreator();
-      vcard.addName('', vendor.name);
-
-      if (vendor.email) {
-        vcard.addEmail(vendor.email);
+      // Check If-None-Match header — avoid data fetch on cache hit
+      if (request.headers['if-none-match'] === etag) {
+        return reply.status(304).send();
       }
 
-      if (vendor.phone) {
-        vcard.addPhoneNumber(vendor.phone as unknown as number, 'WORK');
+      // Fetch all vendors (only on cache miss)
+      const allVendors = fastify.db.select().from(vendors).all();
+
+      // Build vCard file by concatenating individual vCards
+      const vcards: string[] = [];
+
+      for (const vendor of allVendors) {
+        const vcard = new VCardCreator();
+        vcard.addName('', vendor.name);
+
+        if (vendor.email) {
+          vcard.addEmail(vendor.email);
+        }
+
+        if (vendor.phone) {
+          vcard.addPhoneNumber(vendor.phone as unknown as number, 'WORK');
+        }
+
+        if (vendor.address) {
+          vcard.addAddress('', '', vendor.address, '', '', '', '');
+        }
+
+        if (vendor.specialty) {
+          vcard.addJobtitle(vendor.specialty);
+        }
+
+        if (vendor.notes) {
+          vcard.addNote(vendor.notes);
+        }
+
+        // Convert vcard to string (vcard-creator uses .toString() or .getOutput())
+        vcards.push(vcard.toString());
       }
 
-      if (vendor.address) {
-        vcard.addAddress('', '', vendor.address, '', '', '', '');
-      }
+      const vcfContent = vcards.join('\n');
 
-      if (vendor.specialty) {
-        vcard.addJobtitle(vendor.specialty);
-      }
-
-      if (vendor.notes) {
-        vcard.addNote(vendor.notes);
-      }
-
-      // Convert vcard to string (vcard-creator uses .toString() or .getOutput())
-      vcards.push(vcard.toString());
-    }
-
-    const vcfContent = vcards.join('\n');
-
-    // Return vCard with appropriate headers
-    return reply
-      .header('Content-Type', 'text/vcard; charset=utf-8')
-      .header('Cache-Control', 'private, max-age=3600')
-      .header('ETag', etag)
-      .send(vcfContent);
-  });
+      // Return vCard with appropriate headers
+      return reply
+        .header('Content-Type', 'text/vcard; charset=utf-8')
+        .header('Cache-Control', 'private, max-age=3600')
+        .header('ETag', etag)
+        .send(vcfContent);
+    },
+  );
 }

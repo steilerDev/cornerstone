@@ -958,7 +958,9 @@ describe('Vendor Routes', () => {
       expect(body.error.code).toBe('VENDOR_IN_USE');
       expect(body.error.details).toBeUndefined();
       // The suppressed fields must NOT appear in the response
-      expect((body.error as { details?: { invoiceCount?: number } }).details?.invoiceCount).toBeUndefined();
+      expect(
+        (body.error as { details?: { invoiceCount?: number } }).details?.invoiceCount,
+      ).toBeUndefined();
     });
 
     it('returns 401 without authentication', async () => {

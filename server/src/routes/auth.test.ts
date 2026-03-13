@@ -1225,7 +1225,11 @@ describe('Authentication Routes', () => {
       const pastTime = new Date(Date.now() - 60 * 1000).toISOString(); // 1 minute ago
       app.db
         .update(users)
-        .set({ lockedUntil: pastTime, failedLoginAttempts: 10, updatedAt: new Date().toISOString() })
+        .set({
+          lockedUntil: pastTime,
+          failedLoginAttempts: 10,
+          updatedAt: new Date().toISOString(),
+        })
         .where(eq(users.id, user.id))
         .run();
 
@@ -1270,11 +1274,7 @@ describe('Authentication Routes', () => {
       expect(response.statusCode).toBe(200);
 
       // And: failedLoginAttempts is reset to 0
-      const updatedUser = app.db
-        .select()
-        .from(users)
-        .where(eq(users.id, user.id))
-        .get();
+      const updatedUser = app.db.select().from(users).where(eq(users.id, user.id)).get();
       expect(updatedUser?.failedLoginAttempts).toBe(0);
       expect(updatedUser?.lockedUntil).toBeNull();
     });

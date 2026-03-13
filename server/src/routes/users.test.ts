@@ -1293,7 +1293,11 @@ describe('User Routes', () => {
       const futureTime = new Date(Date.now() + 15 * 60 * 1000).toISOString();
       app.db
         .update(users)
-        .set({ lockedUntil: futureTime, failedLoginAttempts: 10, updatedAt: new Date().toISOString() })
+        .set({
+          lockedUntil: futureTime,
+          failedLoginAttempts: 10,
+          updatedAt: new Date().toISOString(),
+        })
         .where(eq(users.id, lockedUser.id))
         .run();
 
@@ -1308,11 +1312,7 @@ describe('User Routes', () => {
       expect(response.statusCode).toBe(204);
 
       // And: User's lock fields are cleared
-      const updatedUser = app.db
-        .select()
-        .from(users)
-        .where(eq(users.id, lockedUser.id))
-        .get();
+      const updatedUser = app.db.select().from(users).where(eq(users.id, lockedUser.id)).get();
       expect(updatedUser?.failedLoginAttempts).toBe(0);
       expect(updatedUser?.lockedUntil).toBeNull();
     });
