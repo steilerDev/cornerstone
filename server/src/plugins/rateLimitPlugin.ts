@@ -4,7 +4,7 @@ import rateLimit from '@fastify/rate-limit';
 export default fp(
   async function rateLimitPlugin(fastify) {
     await fastify.register(rateLimit, {
-      global: true,
+      global: false,
       max: 200,
       timeWindow: '1 minute',
       errorResponseBuilder: (_request, context) => ({

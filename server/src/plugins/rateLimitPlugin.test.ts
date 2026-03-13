@@ -4,8 +4,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../app.js';
-import * as userService from '../services/userService.js';
-import * as sessionService from '../services/sessionService.js';
 
 describe('Rate Limit Plugin', () => {
   let app: FastifyInstance;
@@ -32,36 +30,32 @@ describe('Rate Limit Plugin', () => {
     }
   });
 
-  it('response includes standard rate-limit headers', async () => {
-    // When: Any authenticated API request is made
-    const user = await userService.createLocalUser(
-      app.db,
-      'user@test.com',
-      'User',
-      'password123456',
-    );
-    const sessionToken = sessionService.createSession(app.db, user.id, 3600);
-    const cookie = `cornerstone_session=${sessionToken}`;
-
+  it('rate-limited routes include standard rate-limit headers', async () => {
+    // The /api/auth/setup route has per-route rate limiting configured.
+    // Check that rate-limit headers are included in the response.
     const response = await app.inject({
-      method: 'GET',
-      url: '/api/users/me',
-      headers: { cookie },
+      method: 'POST',
+      url: '/api/auth/setup',
+      payload: {
+        email: 'admin@example.com',
+        displayName: 'Admin',
+        password: 'SecurePassword123',
+      },
     });
 
-    // Then: Rate-limit response headers are present
-    expect(response.statusCode).toBe(200);
+    // Setup succeeds (first user created) and includes rate-limit headers
+    expect(response.statusCode).toBe(201);
     expect(response.headers['x-ratelimit-limit']).toBeDefined();
     expect(response.headers['x-ratelimit-remaining']).toBeDefined();
     expect(response.headers['x-ratelimit-reset']).toBeDefined();
   });
 
   it('returns 429 with RATE_LIMIT_EXCEEDED when per-route limit is exceeded', async () => {
-    // The /api/auth/setup route has a strict limit of 10 per 15 minutes.
-    // We exceed it to trigger 429 without touching the global limit.
+    // The /api/auth/setup route has a strict limit of 5 per 15 minutes.
+    // We exceed it to trigger 429.
 
-    // Make 10 valid requests (limit is max=10)
-    for (let i = 0; i < 10; i++) {
+    // Make 5 requests (limit is max=5)
+    for (let i = 0; i < 5; i++) {
       await app.inject({
         method: 'POST',
         url: '/api/auth/setup',
@@ -73,7 +67,7 @@ describe('Rate Limit Plugin', () => {
       });
     }
 
-    // The 11th request should be rate-limited (or the first one after limit is hit)
+    // The 6th request should be rate-limited
     const response = await app.inject({
       method: 'POST',
       url: '/api/auth/setup',

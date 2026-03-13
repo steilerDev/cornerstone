@@ -73,7 +73,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
    * Creates the first admin user. Only works when no users exist.
    * After setup is complete, returns 403 SETUP_COMPLETE.
    */
-  fastify.post('/setup', { schema: setupSchema, config: { rateLimit: { max: 10, timeWindow: '15 minutes' } } }, async (request, reply) => {
+  fastify.post('/setup', { schema: setupSchema, config: { rateLimit: { max: 5, timeWindow: '15 minutes' } } }, async (request, reply) => {
     const { email, displayName, password } = request.body as {
       email: string;
       displayName: string;
@@ -130,7 +130,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
    * Authenticates a local user with email and password.
    * Returns the user object on success and creates a session.
    */
-  fastify.post('/login', { schema: loginSchema, config: { rateLimit: { max: 10, timeWindow: '15 minutes' } } }, async (request, reply) => {
+  fastify.post('/login', { schema: loginSchema, config: { rateLimit: { max: 20, timeWindow: '15 minutes' } } }, async (request, reply) => {
     const { email, password } = request.body as {
       email: string;
       password: string;

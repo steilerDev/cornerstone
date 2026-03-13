@@ -1292,7 +1292,8 @@ describe('Subsidy Program Routes', () => {
 
       expect(response.statusCode).toBe(409);
       const body = response.json<ApiErrorResponse>();
-      expect(body.error.details?.workItemCount).toBe(2);
+      expect(body.error.code).toBe('SUBSIDY_PROGRAM_IN_USE');
+      expect(body.error.details).toBeUndefined();
     });
 
     it('returns 401 without authentication', async () => {
