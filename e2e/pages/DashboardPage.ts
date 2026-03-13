@@ -12,7 +12,6 @@ export const DASHBOARD_ROUTE = '/project/overview';
 /** Card IDs as used in data-testid attributes. These match the DashboardCardId type in shared. */
 export type DashboardCardId =
   | 'budget-summary'
-  | 'budget-alerts'
   | 'source-utilization'
   | 'upcoming-milestones'
   | 'work-item-progress'
@@ -25,7 +24,6 @@ export type DashboardCardId =
 /** Expected visible card titles in order. */
 export const CARD_TITLES = [
   'Budget Summary',
-  'Budget Alerts',
   'Source Utilization',
   'Upcoming Milestones',
   'Work Item Progress',

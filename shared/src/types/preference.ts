@@ -25,7 +25,6 @@ export type PreferenceKey =
  */
 export type DashboardCardId =
   | 'budget-summary'
-  | 'budget-alerts'
   | 'source-utilization'
   | 'upcoming-milestones'
   | 'work-item-progress'

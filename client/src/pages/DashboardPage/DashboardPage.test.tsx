@@ -132,7 +132,6 @@ function buildPreferencesMock(
 /** All card titles defined in CARD_DEFINITIONS */
 const ALL_CARD_TITLES = [
   'Budget Summary',
-  'Budget Alerts',
   'Source Utilization',
   'Upcoming Milestones',
   'Work Item Progress',
@@ -193,9 +192,9 @@ describe('DashboardPage', () => {
     expect(screen.getByRole('navigation')).toBeInTheDocument();
   });
 
-  // ─── Test 13: All 10 cards render after data loads ───────────────────────
+  // ─── Test 13: All 9 cards render after data loads ───────────────────────
 
-  it('renders all 10 card titles after data loads', async () => {
+  it('renders all 9 card titles after data loads', async () => {
     renderPage();
 
     for (const title of ALL_CARD_TITLES) {
@@ -217,21 +216,21 @@ describe('DashboardPage', () => {
 
     renderPage();
 
-    // 5 data sources map to 9 cards with loading state:
-    //   budgetOverview → Budget Summary + Budget Alerts (2)
+    // 5 data sources map to 8 cards with loading state:
+    //   budgetOverview → Budget Summary (1)
     //   budgetSources  → Source Utilization (1)
     //   timeline       → Upcoming Milestones + Work Item Progress + Critical Path + Mini Gantt (4)
     //   invoices       → Invoice Pipeline (1)
     //   subsidyPrograms→ Subsidy Pipeline (1)
     // Quick Actions has no dataSource — renders children immediately, no skeleton
-    // Each card appears in both desktop grid and mobile section = 9 × 2 = 18
+    // Each card appears in both desktop grid and mobile section = 8 × 2 = 16
     const loadingEls = screen.getAllByRole('status', { name: /^Loading .+ data$/ });
-    expect(loadingEls.length).toBe(18);
+    expect(loadingEls.length).toBe(16);
   });
 
   // ─── Test 15: Error state when API fails ────────────────────────────────
 
-  it('shows error state for Budget Summary and Budget Alerts when budget overview API fails', async () => {
+  it('shows error state for Budget Summary when budget overview API fails', async () => {
     const apiError = new ApiClientError(500, {
       code: 'INTERNAL_ERROR',
       message: 'Server exploded',
@@ -240,15 +239,15 @@ describe('DashboardPage', () => {
 
     renderPage();
 
-    // budgetOverview maps to 2 cards → 2 error alerts
+    // budgetOverview maps to 1 card → 1 error alert
     await waitFor(() => {
       const alerts = screen.getAllByRole('alert');
-      expect(alerts.length).toBeGreaterThanOrEqual(2);
+      expect(alerts.length).toBeGreaterThanOrEqual(1);
     });
 
-    // The API error message surfaces in the cards
+    // The API error message surfaces in the card
     const errorMessages = screen.getAllByText('Server exploded');
-    expect(errorMessages.length).toBeGreaterThanOrEqual(2);
+    expect(errorMessages.length).toBeGreaterThanOrEqual(1);
   });
 
   it('uses generic fallback error message when a non-ApiClientError is thrown', async () => {
@@ -404,7 +403,7 @@ describe('DashboardPage', () => {
       buildPreferencesMock([
         {
           key: 'dashboard.hiddenCards',
-          value: JSON.stringify(['budget-alerts', 'quick-actions']),
+          value: JSON.stringify(['source-utilization', 'quick-actions']),
           updatedAt: '2026-01-01T00:00:00.000Z',
         },
       ]),
@@ -414,7 +413,7 @@ describe('DashboardPage', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Customize' }));
 
-    expect(screen.getByRole('menuitem', { name: 'Show Budget Alerts' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Show Source Utilization' })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: 'Show Quick Actions' })).toBeInTheDocument();
   });
 
@@ -423,7 +422,7 @@ describe('DashboardPage', () => {
       buildPreferencesMock([
         {
           key: 'dashboard.hiddenCards',
-          value: JSON.stringify(['budget-alerts']),
+          value: JSON.stringify(['source-utilization']),
           updatedAt: '2026-01-01T00:00:00.000Z',
         },
       ]),
@@ -441,7 +440,7 @@ describe('DashboardPage', () => {
       buildPreferencesMock([
         {
           key: 'dashboard.hiddenCards',
-          value: JSON.stringify(['budget-alerts', 'quick-actions']),
+          value: JSON.stringify(['source-utilization', 'quick-actions']),
           updatedAt: '2026-01-01T00:00:00.000Z',
         },
       ]),
@@ -450,14 +449,14 @@ describe('DashboardPage', () => {
     renderPage();
 
     await userEvent.click(screen.getByRole('button', { name: 'Customize' }));
-    await userEvent.click(screen.getByRole('menuitem', { name: 'Show Budget Alerts' }));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Show Source Utilization' }));
 
     await waitFor(() => {
       expect(mockUpsertPreference).toHaveBeenCalledTimes(1);
-      // budget-alerts must NOT appear in the serialized value
+      // source-utilization must NOT appear in the serialized value
       expect(mockUpsertPreference).not.toHaveBeenCalledWith(
         'dashboard.hiddenCards',
-        expect.stringContaining('budget-alerts'),
+        expect.stringContaining('source-utilization'),
       );
       // quick-actions must still be present in the serialized value
       expect(mockUpsertPreference).toHaveBeenCalledWith(
@@ -472,7 +471,7 @@ describe('DashboardPage', () => {
       buildPreferencesMock([
         {
           key: 'dashboard.hiddenCards',
-          value: JSON.stringify(['budget-alerts']),
+          value: JSON.stringify(['source-utilization']),
           updatedAt: '2026-01-01T00:00:00.000Z',
         },
       ]),
@@ -483,7 +482,7 @@ describe('DashboardPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Customize' }));
     expect(screen.getByRole('menu')).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('menuitem', { name: 'Show Budget Alerts' }));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Show Source Utilization' }));
 
     await waitFor(() => {
       expect(screen.queryByRole('menu')).not.toBeInTheDocument();
@@ -701,7 +700,7 @@ describe('DashboardPage', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: 'Project' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Customize' })).not.toBeInTheDocument();
-    // All 8 cards still visible
+    // All 9 cards still visible
     expect(screen.getAllByRole('heading', { name: 'Budget Summary' })[0]).toBeInTheDocument();
     expect(screen.getAllByRole('heading', { name: 'Quick Actions' })[0]).toBeInTheDocument();
   });
