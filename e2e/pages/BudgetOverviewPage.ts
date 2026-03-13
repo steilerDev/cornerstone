@@ -7,9 +7,7 @@
  * - Loading indicator while data is fetched
  * - Error card with a Retry button if the API fails
  * - Empty state when no budget data has been entered (all-zero response)
- * - Budget Health Hero card containing:
- *   - An h2 "Budget Health" heading
- *   - A BudgetHealthIndicator badge (role="status") showing "On Budget" / "At Risk" / "Over Budget"
+ * - Budget overview hero card containing:
  *   - A key metrics row: Available Funds, Projected Cost Range, Remaining
  *   - A BudgetBar stacked bar chart (role="img")
  *   - A footer showing subsidies and sources info
@@ -39,10 +37,8 @@ export class BudgetOverviewPage {
   // Empty state
   readonly emptyState: Locator;
 
-  // Budget Health Hero card
+  // Budget overview hero card
   readonly heroCard: Locator;
-  readonly heroTitle: Locator;
-  readonly healthBadge: Locator;
   readonly budgetBar: Locator;
   readonly categoryFilterButton: Locator;
 
@@ -66,14 +62,8 @@ export class BudgetOverviewPage {
     // whose class also starts with "emptyState", causing "resolved to 2 elements" errors.
     this.emptyState = page.locator('div[class*="emptyState"]').first();
 
-    // Budget Health Hero card: <section aria-labelledby="budget-health-heading">
-    this.heroCard = page.locator('[aria-labelledby="budget-health-heading"]');
-
-    // Hero title: <h2 id="budget-health-heading">Budget Health</h2>
-    this.heroTitle = page.locator('#budget-health-heading');
-
-    // Health badge: BudgetHealthIndicator with role="status" inside the hero card
-    this.healthBadge = this.heroCard.getByRole('status');
+    // Budget overview hero card: <section aria-label="Budget overview">
+    this.heroCard = page.locator('section[aria-label="Budget overview"]');
 
     // Budget bar: BudgetBar stacked bar chart with role="img"
     this.budgetBar = page.getByRole('img').filter({ has: page.locator('[class*="bar"]') });

@@ -1,13 +1,13 @@
 ---
 name: batch-develop
-description: 'Reads /tmp/notes.md and runs /develop in AUTO_MODE for each line sequentially. Each line gets its own branch, PR, and full development cycle.'
+description: 'Runs /develop in AUTO_MODE for a list of GitHub issues or lines from /tmp/notes.md. Each item gets its own branch, PR, and full development cycle.'
 ---
 
-# Batch Develop — Sequential AUTO_MODE Development from Notes File
+# Batch Develop — Sequential AUTO_MODE Development
 
-You are the orchestrator running a sequential development pipeline. This skill reads `/tmp/notes.md` and invokes the `/develop` workflow in **AUTO_MODE** for each line, one at a time. Each line gets its own branch, PR, and full development cycle.
+You are the orchestrator running a sequential development pipeline. This skill accepts a list of GitHub issue numbers (as arguments) or reads `/tmp/notes.md`, and invokes the `/develop` workflow in **AUTO_MODE** for each item, one at a time. Each item gets its own branch, PR, and full development cycle.
 
-**When to use:** Processing a backlog of issues or bug descriptions listed in `/tmp/notes.md`, where each item should be developed independently with automatic approvals.
+**When to use:** Processing a backlog of issues or bug descriptions, where each item should be developed independently with automatic approvals.
 **When NOT to use:** When items should be batched into a single PR (use `/develop @/tmp/notes.md` instead). When running a full epic lifecycle (use `/epic-run`).
 
 ## AUTO_MODE Declaration
@@ -20,11 +20,12 @@ This skill activates **AUTO_MODE** for the session. When AUTO_MODE is active:
 
 ## Input
 
-`$ARGUMENTS` is ignored — the input file is always `/tmp/notes.md`.
+`$ARGUMENTS` determines the input source:
 
-If `/tmp/notes.md` does not exist or is empty, ask the user to create it before proceeding.
+- **Issue list**: `$ARGUMENTS` contains issue numbers (e.g., `#741 #742 #743` or `741, 742, 743` or `#741 #742`). Any combination of `#N` or bare `N` separated by spaces, commas, or semicolons.
+- **File mode** (no arguments): When `$ARGUMENTS` is empty, falls back to reading `/tmp/notes.md`. If the file does not exist or is empty, ask the user to provide issue numbers or create the file before proceeding.
 
-## File Format
+### File Format (when using `/tmp/notes.md`)
 
 `/tmp/notes.md` contains one item per line:
 
@@ -37,7 +38,11 @@ If `/tmp/notes.md` does not exist or is empty, ask the user to create it before 
 
 ### 1. Read and Parse
 
-Read `/tmp/notes.md`. Parse each non-empty, non-comment line into an ordered **items queue**. Print the queue:
+**If `$ARGUMENTS` contains issue numbers:** Extract all issue numbers from the arguments (strip `#` prefixes, commas, semicolons). Each number becomes an item in the queue.
+
+**If `$ARGUMENTS` is empty:** Read `/tmp/notes.md`. Parse each non-empty, non-comment line into an ordered **items queue**.
+
+Print the queue:
 
 ```
 Batch Develop Queue:
@@ -90,8 +95,8 @@ The `/develop` skill handles the full cycle: resolve issue → branch → implem
 
 After `/develop` completes for the item:
 
-- **Success** (PR merged, issue closed): Remove the line from `/tmp/notes.md`, add to completed list
-- **Failure** (retry budget exhausted or error): Keep the line in `/tmp/notes.md`, add to failed list, continue to next item
+- **Success** (PR merged, issue closed): Add to completed list. If in file mode, remove the line from `/tmp/notes.md`.
+- **Failure** (retry budget exhausted or error): Add to failed list, continue to next item. If in file mode, keep the line in `/tmp/notes.md`.
 
 #### 3d. Progress Update
 
@@ -114,4 +119,4 @@ Failed:       N — #88 (reason)
 Remaining in /tmp/notes.md: N lines
 ```
 
-If all items succeeded, `/tmp/notes.md` will be empty (or contain only comments). If any failed, the file retains those lines for a future run.
+In file mode: if all items succeeded, `/tmp/notes.md` will be empty (or contain only comments). If any failed, the file retains those lines for a future run.

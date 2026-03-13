@@ -5,8 +5,7 @@
  * - Page loads with the correct h1 "Budget" heading
  * - Budget sub-navigation (tabs) is visible
  * - Empty state shown when no budget data exists
- * - Budget Health Hero card visible when data is present
- * - Health badge shows budget status
+ * - Budget overview hero card visible when data is present
  * - Budget bar (stacked chart) is visible
  * - Category filter button is accessible
  * - Error state with Retry button when API returns 500
@@ -189,10 +188,10 @@ test.describe('Empty state', { tag: '@responsive' }, () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Budget Health Hero
+// Hero card
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Budget Health Hero', { tag: '@responsive' }, () => {
-  test('Hero card is visible with Budget Health heading when data is present', async ({ page }) => {
+test.describe('Hero card', { tag: '@responsive' }, () => {
+  test('Hero card is visible when data is present', async ({ page }) => {
     const overviewPage = new BudgetOverviewPage(page);
 
     await page.route(`${API.budgetOverview}`, async (route) => {
@@ -213,36 +212,6 @@ test.describe('Budget Health Hero', { tag: '@responsive' }, () => {
 
       // Then: The hero card is visible
       await expect(overviewPage.heroCard).toBeVisible({ timeout: 8000 });
-
-      // And: The hero card has a "Budget Health" heading
-      await expect(overviewPage.heroTitle).toBeVisible();
-      await expect(overviewPage.heroTitle).toHaveText('Budget Health');
-    } finally {
-      await page.unroute(`${API.budgetOverview}`);
-    }
-  });
-
-  test('Health badge shows budget status', async ({ page }) => {
-    const overviewPage = new BudgetOverviewPage(page);
-
-    await page.route(`${API.budgetOverview}`, async (route) => {
-      if (route.request().method() === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ overview: populatedOverviewResponse() }),
-        });
-      } else {
-        await route.continue();
-      }
-    });
-
-    try {
-      await overviewPage.goto();
-      await overviewPage.waitForLoaded();
-
-      // Then: The health badge (role="status") is visible inside the hero card
-      await expect(overviewPage.healthBadge).toBeVisible({ timeout: 8000 });
     } finally {
       await page.unroute(`${API.budgetOverview}`);
     }
@@ -419,9 +388,6 @@ test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
 
       // Hero card visible in dark mode
       await expect(overviewPage.heroCard).toBeVisible({ timeout: 8000 });
-
-      // Hero title visible in dark mode
-      await expect(overviewPage.heroTitle).toBeVisible();
     } finally {
       await page.unroute(`${API.budgetOverview}`);
     }
