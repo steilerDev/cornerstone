@@ -44,10 +44,7 @@ export default async function feedsRoutes(fastify: FastifyInstance) {
     // Ensure daily reschedule is run
     ensureDailyReschedule(fastify.db);
 
-    // Fetch timeline data
-    const timeline = getTimeline(fastify.db);
-
-    // Compute ETag from MAX(updated_at) of work_items, milestones, and household_items
+    // Compute ETag BEFORE expensive data fetch — cheap index scan
     const maxUpdatedRow = fastify.db.$client.prepare(`
       SELECT MAX(max_updated) as m FROM (
         SELECT MAX(updated_at) as max_updated FROM work_items
@@ -60,10 +57,13 @@ export default async function feedsRoutes(fastify: FastifyInstance) {
 
     const etag = computeETag([maxUpdatedRow.m]);
 
-    // Check If-None-Match header for conditional request
+    // Check If-None-Match header for conditional request — avoid data fetch on cache hit
     if (request.headers['if-none-match'] === etag) {
       return reply.status(304).send();
     }
+
+    // Fetch timeline data (only on cache miss)
+    const timeline = getTimeline(fastify.db);
 
     // Build iCal calendar
     const calendar = ical({
@@ -135,7 +135,7 @@ export default async function feedsRoutes(fastify: FastifyInstance) {
     // Return iCal with appropriate headers
     return reply
       .header('Content-Type', 'text/calendar; charset=utf-8')
-      .header('Cache-Control', 'public, max-age=3600')
+      .header('Cache-Control', 'private, max-age=3600')
       .header('ETag', etag)
       .send(calendar.toString());
   });
@@ -147,20 +147,20 @@ export default async function feedsRoutes(fastify: FastifyInstance) {
    * ETag support for conditional requests (304 Not Modified)
    */
   fastify.get('/contacts.vcf', async (request, reply) => {
-    // Fetch all vendors
-    const allVendors = fastify.db.select().from(vendors).all();
-
-    // Compute ETag from MAX(updated_at) of vendors
+    // Compute ETag BEFORE data fetch — cheap index scan
     const maxUpdatedRow = fastify.db.$client.prepare(
       'SELECT MAX(updated_at) as m FROM vendors',
     ).get() as { m: string | null };
 
     const etag = computeETag([maxUpdatedRow.m]);
 
-    // Check If-None-Match header for conditional request
+    // Check If-None-Match header — avoid data fetch on cache hit
     if (request.headers['if-none-match'] === etag) {
       return reply.status(304).send();
     }
+
+    // Fetch all vendors (only on cache miss)
+    const allVendors = fastify.db.select().from(vendors).all();
 
     // Build vCard file by concatenating individual vCards
     const vcards: string[] = [];
@@ -198,7 +198,7 @@ export default async function feedsRoutes(fastify: FastifyInstance) {
     // Return vCard with appropriate headers
     return reply
       .header('Content-Type', 'text/vcard; charset=utf-8')
-      .header('Cache-Control', 'public, max-age=3600')
+      .header('Cache-Control', 'private, max-age=3600')
       .header('ETag', etag)
       .send(vcfContent);
   });

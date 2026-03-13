@@ -431,7 +431,7 @@ describe('Feed Routes (CalDAV/CardDAV)', () => {
       });
 
       expect(response.statusCode).toBe(200);
-      expect(response.headers['cache-control']).toBe('public, max-age=3600');
+      expect(response.headers['cache-control']).toBe('private, max-age=3600');
     });
 
     it('anonymous access does not require auth', async () => {
@@ -583,7 +583,7 @@ describe('Feed Routes (CalDAV/CardDAV)', () => {
       });
 
       expect(response.statusCode).toBe(200);
-      expect(response.headers['cache-control']).toBe('public, max-age=3600');
+      expect(response.headers['cache-control']).toBe('private, max-age=3600');
     });
 
     it('anonymous access does not require auth', async () => {
