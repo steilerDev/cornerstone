@@ -21,7 +21,7 @@
 
 .title {
   margin: 0;
-  font-size: var(--font-size-3xl);
+  font-size: var(--font-size-4xl);
   font-weight: var(--font-weight-bold);
   color: var(--color-text-primary);
 }
