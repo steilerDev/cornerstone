@@ -454,7 +454,11 @@ describe('App', () => {
     render(<App />);
 
     // Wait for lazy-loaded NotFound component to resolve
-    const heading = await screen.findByRole('heading', { name: /404.*not found/i }, { timeout: 5000 });
+    const heading = await screen.findByRole(
+      'heading',
+      { name: /404.*not found/i },
+      { timeout: 5000 },
+    );
     expect(heading).toBeInTheDocument();
   });
 });
