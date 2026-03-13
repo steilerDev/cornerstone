@@ -38,11 +38,14 @@ describe('BudgetSourcesPage', () => {
     availableAmount: 200000,
     claimedAmount: 0,
     unclaimedAmount: 0,
+    paidAmount: 0,
     actualAvailableAmount: 200000,
+    projectedAmount: 0,
     interestRate: 3.5,
     terms: '30-year fixed',
     notes: 'Primary financing',
     status: 'active',
+    isDiscretionary: false,
     createdBy: null,
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
@@ -57,11 +60,14 @@ describe('BudgetSourcesPage', () => {
     availableAmount: 50000,
     claimedAmount: 0,
     unclaimedAmount: 0,
+    paidAmount: 0,
     actualAvailableAmount: 50000,
+    projectedAmount: 0,
     interestRate: null,
     terms: null,
     notes: null,
     status: 'active',
+    isDiscretionary: false,
     createdBy: null,
     createdAt: '2026-01-02T00:00:00.000Z',
     updatedAt: '2026-01-02T00:00:00.000Z',
@@ -1338,6 +1344,187 @@ describe('BudgetSourcesPage', () => {
         expect(
           screen.getByText(/budget source "updated loan" updated successfully/i),
         ).toBeInTheDocument();
+      });
+    });
+  });
+
+  // ─── Discretionary source UI (Issue #727) ────────────────────────────────
+
+  describe('discretionary source UI behaviour', () => {
+    const discretionarySource: BudgetSource = {
+      id: 'discretionary-system',
+      name: 'Discretionary Funding',
+      sourceType: 'discretionary',
+      totalAmount: 0,
+      usedAmount: 0,
+      availableAmount: 0,
+      claimedAmount: 0,
+      unclaimedAmount: 0,
+      paidAmount: 0,
+      actualAvailableAmount: 0,
+      projectedAmount: 0,
+      interestRate: null,
+      terms: null,
+      notes: null,
+      status: 'active',
+      isDiscretionary: true,
+      createdBy: null,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+
+    it('discretionary source shows "System" badge', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({
+        budgetSources: [discretionarySource],
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('System')).toBeInTheDocument();
+      });
+    });
+
+    it('non-discretionary source does NOT show "System" badge', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({
+        budgetSources: [sampleSource1],
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Home Loan')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByText('System')).not.toBeInTheDocument();
+    });
+
+    it('discretionary source does NOT show Delete button', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({
+        budgetSources: [discretionarySource],
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Discretionary Funding')).toBeInTheDocument();
+      });
+
+      expect(
+        screen.queryByRole('button', { name: /delete discretionary funding/i }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('non-discretionary source DOES show Delete button', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({
+        budgetSources: [sampleSource1],
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole('button', { name: /delete home loan/i }),
+        ).toBeInTheDocument();
+      });
+    });
+
+    it('discretionary source edit form has disabled sourceType selector', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({
+        budgetSources: [discretionarySource],
+      });
+
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole('button', { name: /edit discretionary funding/i }),
+        ).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /edit discretionary funding/i }));
+
+      const typeSelect = screen.getByLabelText(/^type/i);
+      expect(typeSelect).toBeDisabled();
+    });
+
+    it('non-discretionary source edit form has enabled sourceType selector', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({
+        budgetSources: [sampleSource1],
+      });
+
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /edit home loan/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /edit home loan/i }));
+
+      const typeSelect = screen.getByLabelText(/^type/i);
+      expect(typeSelect).not.toBeDisabled();
+    });
+
+    it('displays Projected amount for a source', async () => {
+      const sourceWithProjected: BudgetSource = {
+        ...sampleSource1,
+        projectedAmount: 240000,
+      };
+      mockFetchBudgetSources.mockResolvedValueOnce({
+        budgetSources: [sourceWithProjected],
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Projected')).toBeInTheDocument();
+        expect(screen.getByText('€240,000.00')).toBeInTheDocument();
+      });
+    });
+
+    it('displays Paid amount for a source', async () => {
+      const sourceWithPaid: BudgetSource = {
+        ...sampleSource1,
+        claimedAmount: 50000,
+        unclaimedAmount: 25000,
+        paidAmount: 75000,
+      };
+      mockFetchBudgetSources.mockResolvedValueOnce({
+        budgetSources: [sourceWithPaid],
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Paid')).toBeInTheDocument();
+        expect(screen.getByText('€75,000.00')).toBeInTheDocument();
+      });
+    });
+
+    it('displays both Projected and Paid labels together', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({
+        budgetSources: [sampleSource1],
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Projected')).toBeInTheDocument();
+        expect(screen.getByText('Paid')).toBeInTheDocument();
+      });
+    });
+
+    it('discretionary source type badge displays "Discretionary" label', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({
+        budgetSources: [discretionarySource],
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Discretionary')).toBeInTheDocument();
       });
     });
   });
