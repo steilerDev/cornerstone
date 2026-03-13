@@ -200,7 +200,7 @@ export function HouseholdItemDetailPage() {
       description: form.description.trim() || null,
       plannedAmount: parseFloat(form.plannedAmount),
       confidence: form.confidence,
-      budgetSourceId: form.budgetSourceId || null,
+      budgetSourceId: form.budgetSourceId,
       vendorId: form.vendorId || null,
       quantity: form.pricingMode === 'unit' && form.quantity ? parseFloat(form.quantity) : null,
       unit: form.pricingMode === 'unit' && form.unit ? form.unit : null,
@@ -208,6 +208,7 @@ export function HouseholdItemDetailPage() {
       includesVat: form.pricingMode === 'unit' ? form.includesVat : null,
     }),
     entityId: id ?? '',
+    defaultBudgetSourceId: budgetSources.find((s) => s.isDiscretionary)?.id,
   });
 
   useEffect(() => {

@@ -437,9 +437,10 @@ export function createBudgetService<
       if (data.budgetCategoryId) {
         validateBudgetCategoryId(db, data.budgetCategoryId);
       }
-      if (data.budgetSourceId) {
-        validateBudgetSourceId(db, data.budgetSourceId);
+      if (!data.budgetSourceId) {
+        throw new ValidationError('budgetSourceId is required');
       }
+      validateBudgetSourceId(db, data.budgetSourceId);
       if (data.vendorId) {
         validateVendorId(db, data.vendorId);
       }
@@ -496,10 +497,11 @@ export function createBudgetService<
       }
 
       if ('budgetSourceId' in data) {
-        if (data.budgetSourceId) {
-          validateBudgetSourceId(db, data.budgetSourceId);
+        if (!data.budgetSourceId) {
+          throw new ValidationError('budgetSourceId cannot be removed');
         }
-        updates.budgetSourceId = data.budgetSourceId ?? null;
+        validateBudgetSourceId(db, data.budgetSourceId);
+        updates.budgetSourceId = data.budgetSourceId;
       }
 
       if ('vendorId' in data) {
