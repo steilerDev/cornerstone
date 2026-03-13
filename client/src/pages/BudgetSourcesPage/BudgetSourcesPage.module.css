@@ -482,6 +482,12 @@
   color: var(--color-status-not-started-text);
 }
 
+/* Discretionary — neutral/gray */
+.typeDiscretionary {
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+}
+
 /* ---- Source status badge ---- */
 
 .statusBadge {
@@ -511,6 +517,21 @@
 .statusClosed {
   background-color: var(--color-bg-tertiary);
   color: var(--color-text-muted);
+}
+
+/* ---- System badge (for discretionary sources) ---- */
+
+.systemBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--spacing-0-5) var(--spacing-2);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.4;
+  white-space: nowrap;
+  background-color: var(--color-warning-badge-bg);
+  color: var(--color-warning-badge-text);
 }
 
 /* ---- Amount breakdown ---- */

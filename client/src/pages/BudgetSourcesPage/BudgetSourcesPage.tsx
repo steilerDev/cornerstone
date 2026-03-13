@@ -23,6 +23,7 @@ const SOURCE_TYPE_LABELS: Record<BudgetSourceType, string> = {
   credit_line: 'Credit Line',
   savings: 'Savings',
   other: 'Other',
+  discretionary: 'Discretionary',
 };
 
 const STATUS_LABELS: Record<BudgetSourceStatus, string> = {
@@ -37,6 +38,7 @@ function getSourceTypeClass(styles: Record<string, string>, sourceType: BudgetSo
     credit_line: styles.typeCreditLine ?? '',
     savings: styles.typeSavings ?? '',
     other: styles.typeOther ?? '',
+    discretionary: styles.typeDiscretionary ?? '',
   };
   return map[sourceType] ?? '';
 }
@@ -591,7 +593,7 @@ export function BudgetSourcesPage() {
                               })
                             }
                             className={styles.select}
-                            disabled={isUpdating}
+                            disabled={isUpdating || source.isDiscretionary}
                           >
                             {Object.entries(SOURCE_TYPE_LABELS).map(([value, label]) => (
                               <option key={value} value={value}>
@@ -738,6 +740,9 @@ export function BudgetSourcesPage() {
                             >
                               {STATUS_LABELS[source.status]}
                             </span>
+                            {source.isDiscretionary && (
+                              <span className={styles.systemBadge}>System</span>
+                            )}
                           </div>
                         </div>
 
@@ -766,6 +771,18 @@ export function BudgetSourcesPage() {
                               className={`${styles.amountValue} ${source.actualAvailableAmount < 0 ? styles.amountNegative : ''}`}
                             >
                               {formatCurrency(source.actualAvailableAmount)}
+                            </span>
+                          </div>
+                          <div className={styles.amountGroup}>
+                            <span className={styles.amountLabel}>Projected</span>
+                            <span className={styles.amountValue}>
+                              {formatCurrency(source.projectedAmount)}
+                            </span>
+                          </div>
+                          <div className={styles.amountGroup}>
+                            <span className={styles.amountLabel}>Paid</span>
+                            <span className={styles.amountValue}>
+                              {formatCurrency(source.paidAmount)}
                             </span>
                           </div>
                           {source.interestRate != null && (
@@ -798,15 +815,17 @@ export function BudgetSourcesPage() {
                         >
                           Edit
                         </button>
-                        <button
-                          type="button"
-                          className={styles.deleteButton}
-                          onClick={() => openDeleteConfirm(source.id)}
-                          disabled={!!editingSource}
-                          aria-label={`Delete ${source.name}`}
-                        >
-                          Delete
-                        </button>
+                        {!source.isDiscretionary && (
+                          <button
+                            type="button"
+                            className={styles.deleteButton}
+                            onClick={() => openDeleteConfirm(source.id)}
+                            disabled={!!editingSource}
+                            aria-label={`Delete ${source.name}`}
+                          >
+                            Delete
+                          </button>
+                        )}
                       </div>
                     </>
                   )}
