@@ -787,9 +787,7 @@ test.describe('Discretionary Funding source', () => {
     // Fetch the current totalAmount so we can restore it after the test
     const respBefore = await page.request.get(API.budgetSources);
     const bodyBefore = (await respBefore.json()) as { budgetSources: BudgetSourceApiResponse[] };
-    const discretionaryBefore = bodyBefore.budgetSources.find(
-      (s) => s.name === DISCRETIONARY_NAME,
-    );
+    const discretionaryBefore = bodyBefore.budgetSources.find((s) => s.name === DISCRETIONARY_NAME);
     expect(
       discretionaryBefore,
       'Discretionary Funding source must exist before edit test',

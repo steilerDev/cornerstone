@@ -159,7 +159,10 @@ export class SubsidyOversubscribedError extends AppError {
 }
 
 export class DiscretionarySourceError extends AppError {
-  constructor(message = 'The Discretionary Funding source cannot be deleted', details?: Record<string, unknown>) {
+  constructor(
+    message = 'The Discretionary Funding source cannot be deleted',
+    details?: Record<string, unknown>,
+  ) {
     super('DISCRETIONARY_SOURCE', 409, message, details);
     this.name = 'DiscretionarySourceError';
   }

@@ -1791,7 +1791,11 @@ describe('Budget Source Service', () => {
     });
 
     it('deleteBudgetSource on regular source does not throw DiscretionarySourceError', () => {
-      const raw = insertRawSource({ name: 'Normal Source', sourceType: 'savings', totalAmount: 1000 });
+      const raw = insertRawSource({
+        name: 'Normal Source',
+        sourceType: 'savings',
+        totalAmount: 1000,
+      });
 
       expect(() => {
         budgetSourceService.deleteBudgetSource(db, raw.id);
@@ -1918,7 +1922,7 @@ describe('Budget Source Service', () => {
       const { budgetId: b1 } = insertRawWorkItemWithSource(raw.id, 30000);
       const { budgetId: b2 } = insertRawWorkItemWithSource(raw.id, 20000);
       insertClaimedInvoice(b1, 9000); // claimed
-      insertPaidInvoice(b2, 4000);    // unclaimed
+      insertPaidInvoice(b2, 4000); // unclaimed
 
       const result = budgetSourceService.getBudgetSourceById(db, raw.id);
 
@@ -2038,7 +2042,8 @@ describe('Budget Source Service', () => {
     it('discretionary source claimedAmount includes invoice remainder (amount not allocated to budget lines)', () => {
       // Invoice of €10000 with only €6000 allocated — €4000 remainder is discretionary
       const { budgetId } = insertRawWorkItemWithSource(
-        insertRawSource({ name: 'Non-disc Source', sourceType: 'bank_loan', totalAmount: 50000 }).id,
+        insertRawSource({ name: 'Non-disc Source', sourceType: 'bank_loan', totalAmount: 50000 })
+          .id,
         6000,
       );
       insertInvoiceWithRemainder('claimed', 10000, [
@@ -2051,12 +2056,14 @@ describe('Budget Source Service', () => {
 
     it('discretionary source unclaimedAmount includes invoice remainder from paid invoices', () => {
       const { budgetId } = insertRawWorkItemWithSource(
-        insertRawSource({ name: 'Source For Paid Remainder', sourceType: 'savings', totalAmount: 20000 }).id,
+        insertRawSource({
+          name: 'Source For Paid Remainder',
+          sourceType: 'savings',
+          totalAmount: 20000,
+        }).id,
         3000,
       );
-      insertInvoiceWithRemainder('paid', 5000, [
-        { budgetLineId: budgetId, itemizedAmount: 3000 },
-      ]);
+      insertInvoiceWithRemainder('paid', 5000, [{ budgetLineId: budgetId, itemizedAmount: 3000 }]);
 
       const disc = getDiscretionarySource();
       expect(disc.unclaimedAmount).toBeGreaterThanOrEqual(2000);

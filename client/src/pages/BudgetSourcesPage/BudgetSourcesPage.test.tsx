@@ -1423,9 +1423,7 @@ describe('BudgetSourcesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(
-          screen.getByRole('button', { name: /delete home loan/i }),
-        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /delete home loan/i })).toBeInTheDocument();
       });
     });
 
