@@ -219,7 +219,7 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
             0,
             0,
           );
-          const x = dateToX(todayNoon, weekStart);
+          const x = dateToX(todayNoon, windowStart);
           if (x < 0 || x > CHART_WIDTH) return null;
           return (
             <line
