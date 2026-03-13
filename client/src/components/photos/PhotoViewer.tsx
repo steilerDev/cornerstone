@@ -94,7 +94,7 @@ export function PhotoViewer({ photos, initialIndex, onClose }: PhotoViewerProps)
             <button
               type="button"
               onClick={handlePrevious}
-              className={styles.navButton}
+              className={`${styles.navButton} ${styles.navButtonLeft}`}
               aria-label="Previous photo"
               data-testid="photo-viewer-prev"
             >
@@ -103,7 +103,7 @@ export function PhotoViewer({ photos, initialIndex, onClose }: PhotoViewerProps)
             <button
               type="button"
               onClick={handleNext}
-              className={styles.navButton}
+              className={`${styles.navButton} ${styles.navButtonRight}`}
               aria-label="Next photo"
               data-testid="photo-viewer-next"
             >

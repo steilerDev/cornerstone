@@ -1,4 +1,4 @@
-import { get, patch, del, getBaseUrl, ApiClientError, NetworkError } from './apiClient.js';
+import { get, patch, del, getBaseUrl, NetworkError } from './apiClient.js';
 import type { Photo, UpdatePhotoRequest } from '@cornerstone/shared';
 
 /**

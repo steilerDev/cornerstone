@@ -41,5 +41,7 @@ export interface UpdatePhotoRequest {
  * Request to reorder photos for an entity.
  */
 export interface ReorderPhotosRequest {
+  entityType: string;
+  entityId: string;
   photoIds: string[];
 }

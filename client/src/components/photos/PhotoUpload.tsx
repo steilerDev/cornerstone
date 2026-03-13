@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
 import type { Photo } from '@cornerstone/shared';
+import { uploadPhoto } from '../../lib/photoApi.js';
 import styles from './PhotoUpload.module.css';
 
 export interface PhotoUploadProps {
@@ -19,7 +20,6 @@ export function PhotoUpload({ entityType, entityId, onUpload, disabled, onError 
   const [isTouchDevice, setIsTouchDevice] = useState(false);
 
   useEffect(() => {
-    // Detect if device supports touch
     setIsTouchDevice(() => {
       if (typeof window === 'undefined') return false;
       return window.matchMedia('(hover: none)').matches;
@@ -75,63 +75,19 @@ export function PhotoUpload({ entityType, entityId, onUpload, disabled, onError 
     for (const file of files) {
       const fileName = file.name;
       try {
-        // Create FormData for the upload
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('entityType', entityType);
-        formData.append('entityId', entityId);
-
-        // Upload with progress tracking
-        const response = await new Promise<Photo>((resolve, reject) => {
-          const xhr = new XMLHttpRequest();
-
-          xhr.upload.addEventListener('progress', (e) => {
-            if (e.lengthComputable) {
-              const percent = Math.round((e.loaded / e.total) * 100);
-              setUploadProgress((prev) => {
-                const next = new Map(prev);
-                next.set(fileName, percent);
-                return next;
-              });
-            }
+        const photo = await uploadPhoto(entityType, entityId, file, undefined, (percent) => {
+          setUploadProgress((prev) => {
+            const next = new Map(prev);
+            next.set(fileName, percent);
+            return next;
           });
-
-          xhr.addEventListener('load', () => {
-            if (xhr.status === 201) {
-              try {
-                const data = JSON.parse(xhr.responseText) as { photo: Photo };
-                resolve(data.photo);
-              } catch {
-                reject(new Error('Failed to parse upload response'));
-              }
-            } else {
-              try {
-                const errBody = JSON.parse(xhr.responseText);
-                reject(new Error(errBody.error?.message ?? `Upload failed (${xhr.status})`));
-              } catch {
-                reject(new Error(`Upload failed (${xhr.status})`));
-              }
-            }
-          });
-
-          xhr.addEventListener('error', () => {
-            reject(new Error('Network error during upload'));
-          });
-
-          xhr.addEventListener('abort', () => {
-            reject(new Error('Upload aborted'));
-          });
-
-          xhr.open('POST', '/api/photos');
-          xhr.send(formData);
         });
 
-        onUpload(response);
+        onUpload(photo);
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Unknown error';
         onError?.(`Failed to upload ${fileName}: ${message}`);
       } finally {
-        // Clear progress for this file
         setUploadProgress((prev) => {
           const next = new Map(prev);
           next.delete(fileName);
@@ -157,6 +113,7 @@ export function PhotoUpload({ entityType, entityId, onUpload, disabled, onError 
         onDrop={handleDrop}
         role="region"
         aria-label="Photo upload drop zone"
+        data-testid="photo-upload-zone"
       >
         <div className={styles.dropZoneContent}>
           <p className={styles.dropZoneText}>Drag photos here or</p>

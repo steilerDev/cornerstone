@@ -3,23 +3,12 @@ import { usePhotos } from '../../hooks/usePhotos.js';
 import { PhotoUpload } from '../../components/photos/PhotoUpload.js';
 import { PhotoGrid } from '../../components/photos/PhotoGrid.js';
 import { PhotoViewer } from '../../components/photos/PhotoViewer.js';
-import type { Photo } from '@cornerstone/shared';
 import styles from './DevPhotosPage.module.css';
 
 export default function DevPhotosPage() {
-  const { photos, loading, error, uploadPhoto, deletePhoto, refresh } = usePhotos('test', 'test-1');
+  const { photos, loading, error, deletePhoto, refresh } = usePhotos('test', 'test-1');
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
-
-  const handleUpload = async (file: File, caption?: string) => {
-    try {
-      setUploadError(null);
-      await uploadPhoto(file, caption);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      setUploadError(`Upload failed: ${message}`);
-    }
-  };
 
   return (
     <div className={styles.page}>
@@ -56,10 +45,7 @@ export default function DevPhotosPage() {
         <PhotoUpload
           entityType="test"
           entityId="test-1"
-          onUpload={(photo) => {
-            // The hook already added it to the list
-            console.log('Photo uploaded:', photo);
-          }}
+          onUpload={() => refresh()}
           onError={(err) => setUploadError(err)}
         />
       </section>

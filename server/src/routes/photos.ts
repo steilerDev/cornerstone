@@ -99,19 +99,19 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
     // Read file buffer
     const fileBuffer = await file.toBuffer();
 
-    // Get form fields
-    const data = file.fields;
-    const entityTypeField = data.get('entityType');
-    const entityIdField = data.get('entityId');
-    const captionField = data.get('caption');
+    // Get form fields — fields is an object keyed by field name
+    const fields = file.fields as Record<string, { value?: string } | undefined>;
+    const entityTypeField = fields['entityType'];
+    const entityIdField = fields['entityId'];
+    const captionField = fields['caption'];
 
-    if (!entityTypeField || !entityIdField) {
+    if (!entityTypeField?.value || !entityIdField?.value) {
       throw new ValidationError('Missing required fields: entityType, entityId');
     }
 
     const entityType = entityTypeField.value as PhotoEntityType;
-    const entityId = entityIdField.value as string;
-    const caption = captionField ? (captionField.value as string) : undefined;
+    const entityId = entityIdField.value;
+    const caption = captionField?.value ?? undefined;
 
     // Validate file size against config limit
     const maxFileSizeBytes = fastify.config.photoMaxFileSizeMb * 1024 * 1024;
@@ -244,7 +244,7 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
    */
   fastify.patch(
     '/:id',
-    { schema: { ...getPhotoSchema, ...updatePhotoSchema } },
+    { schema: { params: getPhotoSchema.params, body: updatePhotoSchema.body } },
     async (request: FastifyRequest, reply: FastifyReply) => {
       if (!request.user) throw new UnauthorizedError();
 
