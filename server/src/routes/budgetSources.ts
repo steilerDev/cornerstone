@@ -28,6 +28,7 @@ const createBudgetSourceSchema = {
 };
 
 // JSON schema for PATCH /api/budget-sources/:id (update source)
+// Note: sourceType enum excludes 'discretionary' to prevent user assignment of system-managed type
 const updateBudgetSourceSchema = {
   body: {
     type: 'object',
@@ -37,7 +38,7 @@ const updateBudgetSourceSchema = {
         type: 'string',
         enum: ['bank_loan', 'credit_line', 'savings', 'other'],
       },
-      totalAmount: { type: 'number', exclusiveMinimum: 0 },
+      totalAmount: { type: 'number', minimum: 0 },
       interestRate: { type: ['number', 'null'], minimum: 0, maximum: 100 },
       terms: { type: ['string', 'null'] },
       notes: { type: ['string', 'null'] },
