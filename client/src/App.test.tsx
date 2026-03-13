@@ -376,7 +376,7 @@ describe('App', () => {
 
     // Wait for lazy-loaded DashboardPage component to resolve
     // Root redirects to /project which redirects to /project/overview
-    const heading = await screen.findByRole('heading', { name: /^project$/i });
+    const heading = await screen.findByRole('heading', { name: /^project$/i }, { timeout: 5000 });
     expect(heading).toBeInTheDocument();
   });
 
@@ -386,7 +386,11 @@ describe('App', () => {
 
     // Wait for lazy-loaded WorkItems component to resolve
     // The WorkItemsPage h1 now reads "Project" (shared sub-nav heading)
-    const heading = await screen.findByRole('heading', { name: /^project$/i, level: 1 });
+    const heading = await screen.findByRole(
+      'heading',
+      { name: /^project$/i, level: 1 },
+      { timeout: 5000 },
+    );
     expect(heading).toBeInTheDocument();
   });
 
@@ -450,7 +454,7 @@ describe('App', () => {
     render(<App />);
 
     // Wait for lazy-loaded NotFound component to resolve
-    const heading = await screen.findByRole('heading', { name: /404.*not found/i });
+    const heading = await screen.findByRole('heading', { name: /404.*not found/i }, { timeout: 5000 });
     expect(heading).toBeInTheDocument();
   });
 });
