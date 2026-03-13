@@ -5,7 +5,7 @@ description: 'Close an epic: refinement, E2E validation, UAT, documentation, and
 
 # Epic Close — Refinement, UAT & Promotion Workflow
 
-You are the orchestrator running the closing phase for a completed epic. Follow these 12 steps in order. **Do NOT skip steps.** The orchestrator delegates all work — never write production code, tests, or architectural artifacts directly.
+You are the orchestrator running the closing phase for a completed epic. Follow these 13 steps in order. **Do NOT skip steps.** The orchestrator delegates all work — never write production code, tests, or architectural artifacts directly.
 
 **When to use:** After all user stories in an epic have been merged to `beta` and are closed. This skill handles refinement, E2E validation, UAT, documentation, and promotion to `main`.
 **When NOT to use:** Planning a new epic (use `/epic-start`). Implementing a single story or bug fix (use `/develop`).
@@ -49,7 +49,7 @@ Include:
 - Total PRs, average fix loops per PR, % of PRs requiring fix loops
 - Total findings breakdown by severity
 
-Post this report as a comment on the epic GitHub Issue. Include it in the promotion PR body (Step 8).
+Post this report as a comment on the epic GitHub Issue. Include it in the promotion PR body (Step 9).
 
 ### 2b. Lint Health Check
 
@@ -110,21 +110,13 @@ Launch the **e2e-test-engineer** agent to:
 - Open a PR targeting `beta` to trigger the full sharded E2E suite in CI (if it does not yet exist)
 - Wait for the full E2E suite to pass (not just smoke tests)
 
-This approval is **required** before proceeding to manual UAT validation.
+This approval is **required** before proceeding to UAT validation.
 
 ### 6. UAT Validation
 
-Launch the **product-owner** agent to produce UAT scenarios, then the orchestrator coordinates validation:
+Launch the **product-owner** agent to produce UAT scenarios. The e2e-test-engineer must have already covered these scenarios in step 5. E2E pass + e2e-test-engineer report = sufficient validation. Post the UAT report as a comment on the epic issue and proceed to step 7.
 
-- Produce a UAT Validation Report covering all stories in the epic
-- Provide step-by-step manual validation instructions to the user
-
-**AUTO_MODE override**: If AUTO_MODE is active (set by `/epic-run`), treat E2E pass + e2e-test-engineer report as sufficient validation. Post the UAT report as a comment on the epic issue and proceed to step 7 without waiting for user walkthrough.
-
-**Interactive mode** (default): Present the report to the user. The user walks through each scenario:
-
-- **All pass** → proceed to step 7
-- **Any fail** → launch `/develop` for the failing issue(s), then loop back to step 5
+The UAT scenarios are included in the promotion PR (step 10) as a manual validation checklist so the user can spot-check during the promotion gate.
 
 ### 7. Documentation
 
@@ -142,44 +134,88 @@ gh pr create --base beta --title "docs: update documentation for epic #<epic-num
 
 Wait for CI, then squash merge.
 
-### 8. Epic Promotion
+### 8. Branch Sync
 
-Create a PR from `beta` to `main` using a **merge commit** (not squash):
+Check if `main` has commits that `beta` doesn't (e.g., hotfixes cherry-picked to main):
+
+```bash
+git log origin/beta..origin/main --oneline
+```
+
+If so, create a sync PR (`main` → `beta`), wait for CI, merge before proceeding. This ensures the promotion PR merges cleanly.
+
+If no divergence, skip to step 9.
+
+### 9. Epic Promotion
+
+Create a PR from `beta` to `main` using a **merge commit** (not squash). The promotion PR is the single human checkpoint — include a comprehensive summary:
 
 ```bash
 gh pr create --base main --head beta --title "release: promote epic #<epic-number> to main" --body "$(cat <<'EOF'
-## Summary
+## Epic Summary
 <Epic title and description>
 
-## Stories Included
+### Stories Completed
 - #<story-1> — <title>
 - #<story-2> — <title>
 ...
 
-## UAT Validation
-All UAT scenarios passed. See validation report in comments below.
+### Findings & Fix Loops
+- Total PRs: N | Fix loops: N | Total findings: N (C/H/M/L/I breakdown)
+
+## Change Inventory
+
+### Backend (`server/`, `shared/`)
+<List of changed files grouped by area>
+
+### Frontend (`client/`)
+<List of changed files grouped by area>
+
+### E2E Tests (`e2e/`)
+<List of changed files>
+
+### Docs / Config
+<List of changed files>
+
+## Validation Report
+- E2E test results: <pass/fail summary>
+- Agent review metrics: <summary from epic metrics report>
+- Security findings: <summary of resolved/outstanding>
+
+## Manual Validation Checklist
+<UAT scenarios from step 6, presented as a checklist the user can walk through to spot-check>
+
+- [ ] <Scenario 1: page to visit, action to take, expected result>
+- [ ] <Scenario 2: ...>
+- ...
+
+## Testing
+- **DockerHub beta image**: `docker pull steilerdev/cornerstone:beta`
+- **PR-specific image**: `docker pull steilerdev/cornerstone:pr-<pr-number>`
 EOF
 )"
 ```
 
-### 9. Post UAT Criteria
+### 10. Post Detailed UAT Criteria
 
-Post UAT validation criteria and manual testing steps as comments on the promotion PR — this gives the user a single place to review what was built and how to validate it:
+Post detailed UAT validation criteria as a comment on the promotion PR — step-by-step instructions the user can follow to validate each story:
 
 ```bash
 gh pr comment <pr-number> --body "$(cat <<'EOF'
-## UAT Validation Criteria
+## Detailed UAT Validation
 
-<Copy the UAT validation report from step 6>
+### Story #<N>: <title>
+<Step-by-step manual validation instructions>
 
-## Manual Testing Steps
+### Story #<N>: <title>
+<Step-by-step manual validation instructions>
 
-<Step-by-step instructions for the user>
+...
 EOF
 )"
 ```
 
-### 10. CI Gate
+### 11. CI Gate
 
 Wait for all CI checks to pass on the promotion PR, including the full sharded E2E suite (runs on main-targeting PRs):
 
@@ -189,11 +225,17 @@ gh pr checks <pr-number> --watch
 
 If any check fails, investigate and resolve before proceeding.
 
-### 11. User Approval
+### 12. User Approval
 
-**Wait for explicit user approval** before merging. The user reviews the PR, validates the UAT scenarios, and approves. Do NOT merge without user confirmation.
+**Wait for explicit user approval** before merging. Present the user with:
 
-### 12. Merge & Post-Merge
+1. **Promotion PR link** — with the comprehensive summary, change inventory, and validation checklist
+2. **DockerHub beta image** — `docker pull steilerdev/cornerstone:beta` for manual testing
+3. **E2E + review summary** — confirmation that all automated validation passed
+
+The user reviews the PR, optionally tests with the beta image, and approves. Do NOT merge without user confirmation.
+
+### 13. Merge & Post-Merge
 
 After user approval:
 

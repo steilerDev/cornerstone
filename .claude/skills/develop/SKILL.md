@@ -70,21 +70,14 @@ Confirm the issue exists, note its labels (`user-story` or `bug`), and proceed t
   - **Actual behavior**: What currently happens
   - **Reproduction steps**: How to trigger the bug
   - **Acceptance criteria**: Given/When/Then format
-- Present the spec to the user for review and discussion
-- **Only after user approval**: Create a GitHub Issue labeled `bug`, add to Projects board in "Todo", and link as sub-issue of the parent epic if applicable
-
-**AUTO_MODE override**: If AUTO_MODE is active (set by `/epic-run`), skip the user approval wait for bug specs. Auto-approve the PO spec and create the GitHub Issue immediately.
-
-**Interactive mode** (default): Do NOT create the GitHub Issue until the user explicitly approves the spec.
+- Create a GitHub Issue labeled `bug`, add to Projects board in "Todo", and link as sub-issue of the parent epic if applicable
 
 #### Multi-item mode
 
 Process each entry in the items list:
 
 1. **Issue numbers**: Resolve each with `gh issue view <number>`. Record title, labels, and acceptance criteria.
-2. **Descriptions**: For each description entry, launch the **product-owner** agent to draft a spec (same format as single-item). Present each spec to the user for approval.
-   - **Approved**: Create a GitHub Issue immediately (labeled `bug` or `user-story`), add to Projects board, link to parent epic if applicable. Record the new issue number in the items list.
-   - **Rejected**: Drop the item from the items list.
+2. **Descriptions**: For each description entry, launch the **product-owner** agent to draft a spec (same format as single-item) and create a GitHub Issue immediately (labeled `bug` or `user-story`), add to Projects board, link to parent epic if applicable. Record the new issue number in the items list.
 
 If all items are rejected, abort the session. If at least one remains, continue.
 
@@ -340,9 +333,9 @@ If any reviewer identifies blocking issues:
 8. Increment `fixLoopCount` and record the new round's `REVIEW_METRICS`
 9. Repeat until all reviewers approve
 
-### 10. User Approval & Merge
+### 10. Merge
 
-Once all reviews are clean, wait for CI to go green before presenting the PR to the user:
+Once all reviews are clean, wait for CI to go green:
 
 ```
 gh pr checks <pr-number> --watch
@@ -366,16 +359,13 @@ In multi-item mode, present a **per-item summary table**:
 | #61   | Add export button to Gantt     | Resolved |
 ```
 
-**AUTO_MODE override**: If AUTO_MODE is active (set by `/epic-run`), skip the user approval wait. Once CI is green and all reviewers have approved, proceed directly to step 10a (persist metrics) and then merge.
+Once CI is green and all reviewers have approved, proceed to step 10a (persist metrics) and then merge.
 
-**Interactive mode** (default): Ask the user to approve the PR for merge. **Do NOT merge until the user explicitly approves.** Wait for explicit confirmation:
-
-- **User approves** → proceed to step 10a (persist metrics), then merge
-- **User reports issues** → take the user's feedback as new input and loop back to **step 6** (Implement + Test) on a new branch to address it
+If the user reports issues with a merged PR, take the user's feedback as new input and start a new `/develop` cycle to address it.
 
 ### 10a. Persist Metrics
 
-After user approval and **before merging**, collect PR metadata and append a record to `.claude/metrics/review-metrics.jsonl`:
+**Before merging**, collect PR metadata and append a record to `.claude/metrics/review-metrics.jsonl`:
 
 1. Fetch PR data:
 
