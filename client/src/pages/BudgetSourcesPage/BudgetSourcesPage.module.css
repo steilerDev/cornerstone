@@ -612,8 +612,8 @@
 }
 
 .barLegendDot {
-  width: 8px;
-  height: 8px;
+  width: var(--spacing-2);
+  height: var(--spacing-2);
   border-radius: var(--radius-circle);
   flex-shrink: 0;
   display: inline-block;
@@ -834,10 +834,6 @@
   .editButton,
   .deleteButton {
     flex: 1;
-  }
-
-  .barTooltipAnchor {
-    display: none;
   }
 
   .editActions {

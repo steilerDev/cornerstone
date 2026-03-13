@@ -92,6 +92,10 @@ function SourceBarChart({ source }: SourceBarChartProps) {
     setHoveredSegment(seg);
   }, []);
 
+  const handleSegmentClick = useCallback((seg: BudgetBarSegment | null) => {
+    setHoveredSegment((prev) => (prev?.key === seg?.key ? null : seg));
+  }, []);
+
   const claimedVal = source.claimedAmount;
   const paidVal = Math.max(0, source.paidAmount - source.claimedAmount);
   const projectedVal = Math.max(0, source.projectedAmount - source.paidAmount);
@@ -125,7 +129,7 @@ function SourceBarChart({ source }: SourceBarChartProps) {
     {
       key: 'allocated',
       value: allocatedVal,
-      color: 'color-mix(in srgb, var(--color-budget-projected) 50%, transparent)',
+      color: 'var(--color-budget-allocated)',
       label: 'Allocated (planned)',
       totalValue: source.usedAmount,
     },
@@ -142,10 +146,11 @@ function SourceBarChart({ source }: SourceBarChartProps) {
           overflow={overflow}
           height="sm"
           onSegmentHover={handleSegmentHover}
+          onSegmentClick={handleSegmentClick}
           formatValue={formatCurrency}
         />
         {hoveredSegment && (
-          <div className={styles.barTooltipAnchor} role="status" aria-live="polite">
+          <div className={styles.barTooltipAnchor} role="status" aria-atomic="true">
             <div className={styles.segmentTooltip}>
               <span className={styles.segmentTooltipLabel}>{hoveredSegment.label}</span>
               <span className={styles.segmentTooltipValue}>
