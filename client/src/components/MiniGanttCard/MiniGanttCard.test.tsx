@@ -40,17 +40,17 @@ function daysFromToday(n: number): string {
 }
 
 /**
- * Returns a YYYY-MM-DD string for Monday of the current week + n days.
- * n=0 → Monday, n=1 → Tuesday, ..., n=6 → Sunday.
+ * Returns a YYYY-MM-DD string for the window start + n days.
+ * Window starts 2 days before today, so:
+ * n=0 → 2 days ago, n=1 → 1 day ago, n=2 → today, n=3 → 1 day future, n=4 → 2 days future
  */
-function daysFromMonday(n: number): string {
-  const now = new Date();
-  const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon...6=Sat
-  const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-  const monday = new Date(now);
-  monday.setDate(now.getDate() + daysToMonday);
-  monday.setDate(monday.getDate() + n);
-  return `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`;
+function daysFromWindowStart(n: number): string {
+  const today = new Date();
+  const windowStart = new Date(today);
+  windowStart.setDate(today.getDate() - 2);
+  const targetDate = new Date(windowStart);
+  targetDate.setDate(windowStart.getDate() + n);
+  return `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}-${String(targetDate.getDate()).padStart(2, '0')}`;
 }
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
@@ -68,11 +68,11 @@ const baseWorkItem = {
   id: 'wi-001',
   title: 'Foundation Work',
   status: 'in_progress' as const,
-  startDate: daysFromMonday(1),
-  endDate: daysFromMonday(4),
+  startDate: daysFromWindowStart(1),
+  endDate: daysFromWindowStart(3),
   actualStartDate: null,
   actualEndDate: null,
-  durationDays: 3,
+  durationDays: 2,
   startAfter: null,
   startBefore: null,
   assignedUser: null,
@@ -90,7 +90,7 @@ describe('MiniGanttCard', () => {
 
     const el = screen.getByTestId('mini-gantt-empty');
     expect(el).toBeInTheDocument();
-    expect(el).toHaveTextContent('No work items scheduled this week');
+    expect(el).toHaveTextContent('No work items scheduled in this timeframe');
   });
 
   // ── Test 2: Empty state — items exist but outside the weekly window ──────────
@@ -137,15 +137,15 @@ describe('MiniGanttCard', () => {
           ...baseWorkItem,
           id: 'wi-001',
           title: 'Item 1',
-          startDate: daysFromMonday(1),
-          endDate: daysFromMonday(2),
+          startDate: daysFromWindowStart(1),
+          endDate: daysFromWindowStart(2),
         },
         {
           ...baseWorkItem,
           id: 'wi-002',
           title: 'Item 2',
-          startDate: daysFromMonday(3),
-          endDate: daysFromMonday(5),
+          startDate: daysFromWindowStart(2),
+          endDate: daysFromWindowStart(3),
         },
       ],
     };
@@ -176,7 +176,7 @@ describe('MiniGanttCard', () => {
 
   // ── Test 6: Milestone diamonds rendered as polygon elements ─────────────────
 
-  it('renders a polygon element for a milestone whose targetDate is within the weekly window', () => {
+  it('renders a polygon element for a milestone whose targetDate is within the window', () => {
     const timeline: TimelineResponse = {
       ...emptyTimeline,
       workItems: [{ ...baseWorkItem }],
@@ -184,7 +184,7 @@ describe('MiniGanttCard', () => {
         {
           id: 1,
           title: 'Foundation Complete',
-          targetDate: daysFromMonday(2),
+          targetDate: daysFromWindowStart(2),
           isCompleted: false,
           completedAt: null,
           color: null,
@@ -262,8 +262,8 @@ describe('MiniGanttCard', () => {
           ...baseWorkItem,
           id: 'wi-valid',
           title: 'Dated Item',
-          startDate: daysFromMonday(1),
-          endDate: daysFromMonday(3),
+          startDate: daysFromWindowStart(1),
+          endDate: daysFromWindowStart(2),
         },
       ],
     };
@@ -283,7 +283,7 @@ describe('MiniGanttCard', () => {
 
   // ── Story #478: SVG accessibility — role="img" and aria-label ───────────────
 
-  it('SVG has role="img" and aria-label containing work item count and "this week"', () => {
+  it('SVG has role="img" and aria-label containing work item count', () => {
     const timeline: TimelineResponse = {
       ...emptyTimeline,
       workItems: [
@@ -291,22 +291,22 @@ describe('MiniGanttCard', () => {
           ...baseWorkItem,
           id: 'wi-001',
           title: 'Item A',
-          startDate: daysFromMonday(1),
-          endDate: daysFromMonday(3),
+          startDate: daysFromWindowStart(1),
+          endDate: daysFromWindowStart(2),
         },
         {
           ...baseWorkItem,
           id: 'wi-002',
           title: 'Item B',
-          startDate: daysFromMonday(3),
-          endDate: daysFromMonday(5),
+          startDate: daysFromWindowStart(2),
+          endDate: daysFromWindowStart(3),
         },
       ],
       milestones: [
         {
           id: 1,
           title: 'Phase 1 Complete',
-          targetDate: daysFromMonday(4),
+          targetDate: daysFromWindowStart(2),
           isCompleted: false,
           completedAt: null,
           color: null,
@@ -326,12 +326,11 @@ describe('MiniGanttCard', () => {
     const ariaLabel = svg?.getAttribute('aria-label') ?? '';
     expect(ariaLabel).toContain('2 work items');
     expect(ariaLabel).toContain('1 milestone');
-    expect(ariaLabel).toContain('this week');
   });
 
-  // ── Test 10: Grid line count — 8 grid lines + today marker (no dependency arrows) ──
+  // ── Test 10: Grid line count — 6 grid lines for 5-day window + today marker ──
 
-  it('renders exactly 8 grid lines for day boundaries regardless of whether dependencies exist', () => {
+  it('renders exactly 6 grid lines for day boundaries regardless of whether dependencies exist', () => {
     // Without dependencies
     const timelineNoDeps: TimelineResponse = {
       ...emptyTimeline,
@@ -340,15 +339,15 @@ describe('MiniGanttCard', () => {
           ...baseWorkItem,
           id: 'wi-pred',
           title: 'Predecessor',
-          startDate: daysFromMonday(0),
-          endDate: daysFromMonday(2),
+          startDate: daysFromWindowStart(0),
+          endDate: daysFromWindowStart(1),
         },
         {
           ...baseWorkItem,
           id: 'wi-succ',
           title: 'Successor',
-          startDate: daysFromMonday(3),
-          endDate: daysFromMonday(5),
+          startDate: daysFromWindowStart(2),
+          endDate: daysFromWindowStart(3),
         },
       ],
       dependencies: [],
@@ -379,10 +378,10 @@ describe('MiniGanttCard', () => {
     );
     const linesWithDeps = containerWithDeps.querySelectorAll('svg line');
 
-    // 8 grid lines + 1 today marker = 9 maximum; dependency arrows are NOT rendered
+    // 6 grid lines + 1 today marker = 7 maximum; dependency arrows are NOT rendered
     expect(linesWithDeps.length).toBe(linesNoDeps.length);
 
-    // The grid alone must produce at least 8 lines
-    expect(linesNoDeps.length).toBeGreaterThanOrEqual(8);
+    // The grid alone must produce exactly 6 grid lines
+    expect(linesNoDeps.length).toBeGreaterThanOrEqual(6);
   });
 });
