@@ -24,9 +24,12 @@ import { DashboardPage, DASHBOARD_ROUTE, CARD_TITLES } from '../../pages/Dashboa
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.beforeEach(async ({ page }) => {
-  await page.request.patch('/api/users/me/preferences', {
+  const resp = await page.request.patch('/api/users/me/preferences', {
     data: { key: 'dashboard.hiddenCards', value: '[]' },
   });
+  // Ensure the preference reset succeeded — a failed PATCH leaves hidden cards
+  // from a prior test, causing downstream dismiss tests to fail.
+  expect(resp.ok(), `beforeEach: preference reset failed with ${resp.status()}`).toBeTruthy();
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -472,6 +475,10 @@ test.describe('Card dismiss (Scenario 6)', () => {
       await dashboardPage.goto();
       await dashboardPage.waitForCardsLoaded();
 
+      // Verify the Quick Actions card is visible before attempting to dismiss
+      const quickActionsCard = dashboardPage.card('Quick Actions');
+      await expect(quickActionsCard.first()).toBeVisible();
+
       // Dismiss the Quick Actions card
       await dashboardPage.dismissCard('Quick Actions');
 
@@ -491,8 +498,7 @@ test.describe('Card dismiss (Scenario 6)', () => {
       await dashboardPage.waitForCardsLoaded();
 
       // Card should still be hidden — preferences persisted Quick Actions as hidden.
-      const quickActionsCard = dashboardPage.card('Quick Actions');
-      await expect(quickActionsCard).toHaveCount(0);
+      await expect(dashboardPage.card('Quick Actions')).toHaveCount(0);
 
       // Clean up: re-enable the card via preferences API to not affect other tests
       await page.request.patch('/api/users/me/preferences', {

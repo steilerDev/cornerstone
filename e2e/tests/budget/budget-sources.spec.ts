@@ -806,9 +806,18 @@ test.describe('Discretionary Funding source', () => {
       const amountInput = editForm.locator(`#edit-amount-${sourceId}`);
       await amountInput.fill('0');
 
+      // Verify the input accepted the value — fill() on number inputs can race
+      // with React's controlled component state update, leaving the button disabled.
+      await expect(amountInput).toHaveValue('0');
+
+      // Wait for Save button to be enabled before clicking
+      const saveButton = editForm.getByRole('button', { name: /^Save$|^Saving\.\.\.$/ });
+      await expect(saveButton).toBeEnabled();
+
       // Register response listener BEFORE clicking save (per waitForResponse-before-action pattern).
       const saveResponse = page.waitForResponse(
         (resp) => resp.url().includes('/api/budget-sources') && resp.status() === 200,
+        { timeout: 15000 },
       );
       await sourcesPage.saveEdit(DISCRETIONARY_NAME);
       await saveResponse;
