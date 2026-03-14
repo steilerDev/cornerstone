@@ -6,6 +6,7 @@ import { ApiClientError } from '../../lib/apiClient.js';
 import { DiaryFilterBar } from '../../components/diary/DiaryFilterBar/DiaryFilterBar.js';
 import { DiaryEntryTypeSwitcher } from '../../components/diary/DiaryEntryTypeSwitcher/DiaryEntryTypeSwitcher.js';
 import { DiaryDateGroup } from '../../components/diary/DiaryDateGroup/DiaryDateGroup.js';
+import { DiaryExportDialog } from '../../components/diary/DiaryExportDialog/DiaryExportDialog.js';
 import shared from '../../styles/shared.module.css';
 import styles from './DiaryPage.module.css';
 
@@ -29,6 +30,7 @@ export default function DiaryPage() {
   const [entries, setEntries] = useState<DiaryEntrySummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showExportDialog, setShowExportDialog] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -226,9 +228,18 @@ export default function DiaryPage() {
 
       <div className={styles.controls}>
         <DiaryEntryTypeSwitcher value={filterMode} onChange={handleFilterModeChange} />
-        <Link to="/diary/new" className={`${shared.btnPrimary} ${styles.createButton}`}>
-          + New Entry
-        </Link>
+        <div className={styles.actionButtons}>
+          <button
+            type="button"
+            className={`${shared.btnSecondary} ${styles.exportButton}`}
+            onClick={() => setShowExportDialog(true)}
+          >
+            📥 Export
+          </button>
+          <Link to="/diary/new" className={`${shared.btnPrimary} ${styles.createButton}`}>
+            + New Entry
+          </Link>
+        </div>
       </div>
 
       {isLoading && <div className={shared.loading}>Loading entries...</div>}
@@ -285,6 +296,9 @@ export default function DiaryPage() {
           </button>
         </div>
       )}
+
+      {/* Export Dialog */}
+      <DiaryExportDialog isOpen={showExportDialog} onClose={() => setShowExportDialog(false)} />
     </div>
   );
 }

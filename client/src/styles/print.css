@@ -1,0 +1,177 @@
+/**
+ * Print Stylesheet
+ * Hides UI chrome and optimizes diary content for printing
+ */
+
+@media print {
+  /* Hide sidebar and navigation chrome */
+  [role='navigation'],
+  .sidebar,
+  .navbar,
+  .header,
+  .footer,
+  nav,
+  aside {
+    display: none !important;
+  }
+
+  /* Hide filter bar, buttons, and pagination */
+  [data-testid='diary-filter-bar'],
+  .controls,
+  .actionButtons,
+  .pagination,
+  .topBar,
+  .backButton,
+  .printButton,
+  .editButton,
+  .deleteButton,
+  button,
+  [class*='Button'],
+  [class*='button'] {
+    display: none !important;
+  }
+
+  /* Optimize body layout */
+  body {
+    background-color: white;
+    color: black;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Make main content full-width */
+  main,
+  [role='main'],
+  #root > * {
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Page setup */
+  @page {
+    margin: 0.5in;
+    size: letter;
+  }
+
+  /* Preserve text content */
+  .page,
+  .card,
+  .timeline,
+  .entry,
+  article {
+    page-break-inside: avoid;
+    background-color: white;
+    border: none;
+    box-shadow: none;
+  }
+
+  /* Diary entry styling */
+  .card {
+    page-break-inside: avoid;
+    margin-bottom: 2rem;
+    padding: 0;
+    border: none;
+  }
+
+  .header {
+    display: block !important;
+    page-break-after: avoid;
+    margin-bottom: 1rem;
+    border-bottom: 2px solid #000;
+    padding-bottom: 1rem;
+  }
+
+  .title {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.5rem;
+    font-weight: bold;
+  }
+
+  .meta {
+    font-size: 0.85rem;
+    color: #333;
+    margin: 0;
+  }
+
+  .body {
+    font-size: 1rem;
+    line-height: 1.6;
+    margin: 1rem 0;
+    color: #000;
+  }
+
+  /* Hide photos in print (optional - set to block to include) */
+  [class*='photo'],
+  .photoSection {
+    display: none !important;
+  }
+
+  /* Preserve links as text */
+  a {
+    text-decoration: none;
+    color: #000;
+  }
+
+  a::after {
+    content: ' (' attr(href) ')';
+    font-size: 0.85rem;
+  }
+
+  /* Hide document links section */
+  .sourceSection {
+    display: none !important;
+  }
+
+  /* Hide metadata visualization */
+  .metadataSection {
+    display: block !important;
+    page-break-inside: avoid;
+    background-color: white;
+    border: none;
+    padding: 0;
+  }
+
+  /* Signature display */
+  .signatureSection {
+    display: block !important;
+    page-break-inside: avoid;
+    margin: 2rem 0 0 0;
+    padding-top: 1rem;
+    border-top: 1px solid #ccc;
+  }
+
+  /* Timestamps */
+  .timestamps {
+    display: none !important;
+  }
+
+  /* Remove live regions */
+  [role='status'],
+  [role='alert'],
+  .liveRegion {
+    display: none !important;
+  }
+
+  /* Ensure text is readable */
+  * {
+    background-color: transparent !important;
+    text-shadow: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+
+  /* Print-friendly spacing */
+  p,
+  div {
+    orphans: 2;
+    widows: 2;
+  }
+
+  /* Prevent content from being cut off */
+  body,
+  html {
+    height: auto;
+    overflow: visible;
+  }
+}

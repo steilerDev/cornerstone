@@ -155,20 +155,29 @@ export default function DiaryEntryDetailPage() {
         >
           ← Back
         </button>
-        {!entry.isAutomatic && (
-          <div className={styles.actionButtons}>
-            <Link to={`/diary/${entry.id}/edit`} className={styles.editButton}>
-              Edit
-            </Link>
-            <button
-              type="button"
-              className={styles.deleteButton}
-              onClick={() => setShowDeleteModal(true)}
-            >
-              Delete
-            </button>
-          </div>
-        )}
+        <div className={styles.actionButtons}>
+          <button
+            type="button"
+            className={styles.printButton}
+            onClick={() => window.print()}
+          >
+            🖨️ Print
+          </button>
+          {!entry.isAutomatic && (
+            <>
+              <Link to={`/diary/${entry.id}/edit`} className={styles.editButton}>
+                Edit
+              </Link>
+              <button
+                type="button"
+                className={styles.deleteButton}
+                onClick={() => setShowDeleteModal(true)}
+              >
+                Delete
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       <div className={styles.card}>

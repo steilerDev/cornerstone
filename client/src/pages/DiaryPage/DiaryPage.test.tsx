@@ -18,6 +18,7 @@ jest.unstable_mockModule('../../lib/diaryApi.js', () => ({
   createDiaryEntry: jest.fn(),
   updateDiaryEntry: jest.fn(),
   deleteDiaryEntry: jest.fn(),
+  exportDiaryPdf: jest.fn(),
 }));
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
