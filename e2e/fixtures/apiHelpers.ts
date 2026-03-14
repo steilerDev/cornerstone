@@ -155,3 +155,27 @@ export async function createHouseholdItemViaApi(
 export async function deleteHouseholdItemViaApi(page: Page, id: string): Promise<void> {
   await page.request.delete(`${API.householdItems}/${id}`);
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Diary Entries
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function createDiaryEntryViaApi(
+  page: Page,
+  data: {
+    entryType: 'daily_log' | 'site_visit' | 'delivery' | 'issue' | 'general_note';
+    entryDate: string;
+    body: string;
+    title?: string | null;
+    metadata?: Record<string, unknown> | null;
+  },
+): Promise<string> {
+  const response = await page.request.post(API.diaryEntries, { data });
+  expect(response.ok()).toBeTruthy();
+  const body = (await response.json()) as { id: string };
+  return body.id;
+}
+
+export async function deleteDiaryEntryViaApi(page: Page, id: string): Promise<void> {
+  await page.request.delete(`${API.diaryEntries}/${id}`);
+}

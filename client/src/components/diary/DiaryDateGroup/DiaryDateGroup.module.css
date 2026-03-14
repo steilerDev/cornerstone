@@ -1,0 +1,18 @@
+.group {
+  margin-bottom: var(--spacing-8);
+}
+
+.dateHeader {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-4);
+  padding-bottom: var(--spacing-3);
+  border-bottom: 2px solid var(--color-border-strong);
+}
+
+.entriesList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
