@@ -257,7 +257,7 @@ export default function WorkItemDetailPage() {
       plannedAmount: parseFloat(form.plannedAmount),
       confidence: form.confidence,
       budgetCategoryId: form.budgetCategoryId || null,
-      budgetSourceId: form.budgetSourceId || null,
+      budgetSourceId: form.budgetSourceId,
       vendorId: form.vendorId || null,
       quantity: form.pricingMode === 'unit' && form.quantity ? parseFloat(form.quantity) : null,
       unit: form.pricingMode === 'unit' && form.unit ? form.unit : null,
@@ -265,6 +265,7 @@ export default function WorkItemDetailPage() {
       includesVat: form.pricingMode === 'unit' ? form.includesVat : null,
     }),
     entityId: id ?? '',
+    defaultBudgetSourceId: budgetSources.find((s) => s.isDiscretionary)?.id,
   });
 
   // Local state for duration/constraint inputs (onBlur save pattern to avoid race conditions)

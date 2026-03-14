@@ -166,6 +166,7 @@ describe('Work Item Budget Routes', () => {
           description: 'Initial budget estimate',
           plannedAmount: 5000,
           confidence: 'own_estimate',
+          budgetSourceId: 'discretionary-system',
         }),
       });
 
@@ -282,6 +283,7 @@ describe('Work Item Budget Routes', () => {
         headers: { cookie, 'content-type': 'application/json' },
         body: JSON.stringify({
           plannedAmount: 250,
+          budgetSourceId: 'discretionary-system',
         }),
       });
 
@@ -291,7 +293,7 @@ describe('Work Item Budget Routes', () => {
       expect(body.budget.description).toBeNull();
       expect(body.budget.confidence).toBe('own_estimate');
       expect(body.budget.budgetCategory).toBeNull();
-      expect(body.budget.budgetSource).toBeNull();
+      expect(body.budget.budgetSource).not.toBeNull();
       expect(body.budget.vendor).toBeNull();
     });
 
@@ -368,6 +370,7 @@ describe('Work Item Budget Routes', () => {
         headers: { cookie, 'content-type': 'application/json' },
         body: JSON.stringify({
           plannedAmount: 500,
+          budgetSourceId: 'discretionary-system',
           extraField: 'should-be-stripped',
           anotherExtra: 'also-stripped',
         }),
@@ -390,6 +393,7 @@ describe('Work Item Budget Routes', () => {
         headers: { cookie, 'content-type': 'application/json' },
         body: JSON.stringify({
           plannedAmount: 0,
+          budgetSourceId: 'discretionary-system',
         }),
       });
 
@@ -418,7 +422,7 @@ describe('Work Item Budget Routes', () => {
           cookie: `cornerstone_session=${sessionService.createSession(app.db, userId, 3600)}`,
           'content-type': 'application/json',
         },
-        body: JSON.stringify({ plannedAmount: 300 }),
+        body: JSON.stringify({ plannedAmount: 300, budgetSourceId: 'discretionary-system' }),
       });
       const budgetId = createResp.json<{ budget: WorkItemBudgetLine }>().budget.id;
 
@@ -447,6 +451,7 @@ describe('Work Item Budget Routes', () => {
         body: JSON.stringify({
           description: 'Original description',
           plannedAmount: 3000,
+          budgetSourceId: 'discretionary-system',
         }),
       });
       const budgetId = createResp.json<{ budget: WorkItemBudgetLine }>().budget.id;
@@ -481,6 +486,7 @@ describe('Work Item Budget Routes', () => {
         body: JSON.stringify({
           description: 'Budget line',
           plannedAmount: 3000,
+          budgetSourceId: 'discretionary-system',
         }),
       });
       const budgetId = createResp.json<{ budget: WorkItemBudgetLine }>().budget.id;
@@ -515,6 +521,7 @@ describe('Work Item Budget Routes', () => {
         body: JSON.stringify({
           plannedAmount: 3000,
           confidence: 'own_estimate',
+          budgetSourceId: 'discretionary-system',
         }),
       });
       const budgetId = createResp.json<{ budget: WorkItemBudgetLine }>().budget.id;
@@ -551,6 +558,7 @@ describe('Work Item Budget Routes', () => {
           description: 'Some desc',
           plannedAmount: 1000,
           budgetCategoryId: category.id,
+          budgetSourceId: 'discretionary-system',
         }),
       });
       const budgetId = createResp.json<{ budget: WorkItemBudgetLine }>().budget.id;
@@ -629,7 +637,7 @@ describe('Work Item Budget Routes', () => {
           cookie: `cornerstone_session=${sessionService.createSession(app.db, userId, 3600)}`,
           'content-type': 'application/json',
         },
-        body: JSON.stringify({ plannedAmount: 300 }),
+        body: JSON.stringify({ plannedAmount: 300, budgetSourceId: 'discretionary-system' }),
       });
       const budgetId = createResp.json<{ budget: WorkItemBudgetLine }>().budget.id;
 
@@ -653,7 +661,7 @@ describe('Work Item Budget Routes', () => {
         method: 'POST',
         url: `/api/work-items/${workItem.id}/budgets`,
         headers: { cookie, 'content-type': 'application/json' },
-        body: JSON.stringify({ plannedAmount: 300 }),
+        body: JSON.stringify({ plannedAmount: 300, budgetSourceId: 'discretionary-system' }),
       });
       const budgetId = createResp.json<{ budget: WorkItemBudgetLine }>().budget.id;
 
@@ -726,7 +734,7 @@ describe('Work Item Budget Routes', () => {
         method: 'POST',
         url: `/api/work-items/${workItem.id}/budgets`,
         headers: { cookie, 'content-type': 'application/json' },
-        body: JSON.stringify({ plannedAmount: 5000 }),
+        body: JSON.stringify({ plannedAmount: 5000, budgetSourceId: 'discretionary-system' }),
       });
       const budgetId = createResp.json<{ budget: WorkItemBudgetLine }>().budget.id;
 

@@ -153,6 +153,7 @@ describe('Household Item Budget Routes', () => {
           description: 'Initial budget estimate',
           plannedAmount: 500,
           confidence: 'own_estimate',
+          budgetSourceId: 'discretionary-system',
         }),
       });
 
@@ -264,6 +265,7 @@ describe('Household Item Budget Routes', () => {
         headers: { cookie, 'content-type': 'application/json' },
         body: JSON.stringify({
           plannedAmount: 250,
+          budgetSourceId: 'discretionary-system',
         }),
       });
 
@@ -274,7 +276,7 @@ describe('Household Item Budget Routes', () => {
       expect(body.budget.confidence).toBe('own_estimate');
       // budgetCategoryId is auto-assigned to 'bc-household-items' by the service
       expect(body.budget.budgetCategory?.id).toBe('bc-household-items');
-      expect(body.budget.budgetSource).toBeNull();
+      expect(body.budget.budgetSource).not.toBeNull();
       expect(body.budget.vendor).toBeNull();
     });
 
@@ -351,6 +353,7 @@ describe('Household Item Budget Routes', () => {
         headers: { cookie, 'content-type': 'application/json' },
         body: JSON.stringify({
           plannedAmount: 500,
+          budgetSourceId: 'discretionary-system',
           extraField: 'should-be-stripped',
           anotherExtra: 'also-stripped',
         }),
@@ -379,7 +382,7 @@ describe('Household Item Budget Routes', () => {
           cookie: `cornerstone_session=${sessionService.createSession(app.db, userId, 3600)}`,
           'content-type': 'application/json',
         },
-        body: JSON.stringify({ plannedAmount: 300 }),
+        body: JSON.stringify({ plannedAmount: 300, budgetSourceId: 'discretionary-system' }),
       });
       const budgetId = createResp.json<{ budget: HouseholdItemBudgetLine }>().budget.id;
 
@@ -408,6 +411,7 @@ describe('Household Item Budget Routes', () => {
         body: JSON.stringify({
           description: 'Original description',
           plannedAmount: 300,
+          budgetSourceId: 'discretionary-system',
         }),
       });
       const budgetId = createResp.json<{ budget: HouseholdItemBudgetLine }>().budget.id;
@@ -442,6 +446,7 @@ describe('Household Item Budget Routes', () => {
         body: JSON.stringify({
           description: 'Budget line',
           plannedAmount: 300,
+          budgetSourceId: 'discretionary-system',
         }),
       });
       const budgetId = createResp.json<{ budget: HouseholdItemBudgetLine }>().budget.id;
@@ -515,6 +520,7 @@ describe('Household Item Budget Routes', () => {
         body: JSON.stringify({
           plannedAmount: 300,
           confidence: 'own_estimate',
+          budgetSourceId: 'discretionary-system',
         }),
       });
       const budgetId = createResp.json<{ budget: HouseholdItemBudgetLine }>().budget.id;
@@ -552,7 +558,7 @@ describe('Household Item Budget Routes', () => {
           cookie: `cornerstone_session=${sessionService.createSession(app.db, userId, 3600)}`,
           'content-type': 'application/json',
         },
-        body: JSON.stringify({ plannedAmount: 300 }),
+        body: JSON.stringify({ plannedAmount: 300, budgetSourceId: 'discretionary-system' }),
       });
       const budgetId = createResp.json<{ budget: HouseholdItemBudgetLine }>().budget.id;
 
@@ -576,7 +582,7 @@ describe('Household Item Budget Routes', () => {
         method: 'POST',
         url: `/api/household-items/${householdItem.id}/budgets`,
         headers: { cookie, 'content-type': 'application/json' },
-        body: JSON.stringify({ plannedAmount: 300 }),
+        body: JSON.stringify({ plannedAmount: 300, budgetSourceId: 'discretionary-system' }),
       });
       const budgetId = createResp.json<{ budget: HouseholdItemBudgetLine }>().budget.id;
 

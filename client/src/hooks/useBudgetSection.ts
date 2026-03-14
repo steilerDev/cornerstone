@@ -70,6 +70,12 @@ export interface UseBudgetSectionOptions<T extends BaseBudgetLine> {
    * Entity ID (work item or household item)
    */
   entityId: string;
+
+  /**
+   * Default budget source ID to use when opening a new budget form.
+   * If not provided, new forms will have an empty funding source.
+   */
+  defaultBudgetSourceId?: string;
 }
 
 /**
@@ -124,6 +130,7 @@ export function useBudgetSection<T extends BaseBudgetLine>(
     toFormState,
     toPayload,
     entityId,
+    defaultBudgetSourceId,
   } = options;
 
   const emptyForm: BudgetLineFormState = {
@@ -131,7 +138,7 @@ export function useBudgetSection<T extends BaseBudgetLine>(
     plannedAmount: '',
     confidence: 'own_estimate',
     budgetCategoryId: '',
-    budgetSourceId: '',
+    budgetSourceId: defaultBudgetSourceId ?? '',
     vendorId: '',
     pricingMode: 'direct',
     quantity: '',
@@ -156,7 +163,7 @@ export function useBudgetSection<T extends BaseBudgetLine>(
 
   const openAddBudgetForm = () => {
     setEditingBudgetId(null);
-    setBudgetForm(emptyForm);
+    setBudgetForm({ ...emptyForm, budgetSourceId: defaultBudgetSourceId ?? '' });
     setBudgetFormError(null);
     setShowBudgetForm(true);
   };
@@ -171,7 +178,7 @@ export function useBudgetSection<T extends BaseBudgetLine>(
   const closeBudgetForm = () => {
     setShowBudgetForm(false);
     setEditingBudgetId(null);
-    setBudgetForm(emptyForm);
+    setBudgetForm({ ...emptyForm, budgetSourceId: defaultBudgetSourceId ?? '' });
     setBudgetFormError(null);
   };
 

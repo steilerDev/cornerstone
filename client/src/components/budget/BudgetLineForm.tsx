@@ -243,7 +243,6 @@ export function BudgetLineForm({
             onChange={(e) => onFormChange({ budgetSourceId: e.target.value })}
             disabled={isSaving}
           >
-            <option value="">None</option>
             {budgetSources.map((src) => (
               <option key={src.id} value={src.id}>
                 {src.name}

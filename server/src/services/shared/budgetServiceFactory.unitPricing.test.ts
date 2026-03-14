@@ -100,6 +100,7 @@ describe('budgetServiceFactory — unit pricing fields', () => {
         unit: 'm²',
         unitPrice: 100,
         includesVat: true,
+        budgetSourceId: 'discretionary-system',
       });
 
       expect(result.quantity).toBe(2);
@@ -117,6 +118,7 @@ describe('budgetServiceFactory — unit pricing fields', () => {
         unit: 'pcs',
         unitPrice: 100,
         includesVat: false,
+        budgetSourceId: 'discretionary-system',
       });
 
       expect(result.includesVat).toBe(false);
@@ -127,6 +129,7 @@ describe('budgetServiceFactory — unit pricing fields', () => {
 
       const result = createWorkItemBudget(db, workItemId, 'user-001', {
         plannedAmount: 500,
+        budgetSourceId: 'discretionary-system',
       });
 
       expect(result.quantity).toBeNull();
@@ -144,6 +147,7 @@ describe('budgetServiceFactory — unit pricing fields', () => {
         unit: 'kg',
         unitPrice: 150,
         includesVat: true,
+        budgetSourceId: 'discretionary-system',
       });
 
       const updated = updateWorkItemBudget(db, workItemId, created.id, {
@@ -165,6 +169,7 @@ describe('budgetServiceFactory — unit pricing fields', () => {
         unit: 'pcs',
         unitPrice: 100,
         includesVat: false,
+        budgetSourceId: 'discretionary-system',
       });
 
       const updated = updateWorkItemBudget(db, workItemId, created.id, {
@@ -189,6 +194,7 @@ describe('budgetServiceFactory — unit pricing fields', () => {
         unit: 'lm',
         unitPrice: 40,
         includesVat: true,
+        budgetSourceId: 'discretionary-system',
       });
 
       // Update only description — unit pricing should be untouched
@@ -215,6 +221,7 @@ describe('budgetServiceFactory — unit pricing fields', () => {
         unit: 'pcs',
         unitPrice: 150,
         includesVat: true,
+        budgetSourceId: 'discretionary-system',
       });
 
       expect(result.quantity).toBe(4);
@@ -228,6 +235,7 @@ describe('budgetServiceFactory — unit pricing fields', () => {
 
       const result = createHouseholdItemBudget(db, hiId, 'user-001', {
         plannedAmount: 250,
+        budgetSourceId: 'discretionary-system',
       });
 
       expect(result.quantity).toBeNull();
@@ -245,6 +253,7 @@ describe('budgetServiceFactory — unit pricing fields', () => {
         unit: 'm²',
         unitPrice: 400,
         includesVat: false,
+        budgetSourceId: 'discretionary-system',
       });
 
       const updated = updateHouseholdItemBudget(db, hiId, created.id, {
@@ -266,6 +275,7 @@ describe('budgetServiceFactory — unit pricing fields', () => {
         unit: 'pcs',
         unitPrice: 100,
         includesVat: true,
+        budgetSourceId: 'discretionary-system',
       });
 
       const updated = updateHouseholdItemBudget(db, hiId, created.id, {
