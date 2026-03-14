@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import type { DiaryEntryDetail } from '@cornerstone/shared';
-import { getDiaryEntry } from '../../lib/diaryApi.js';
+import { getDiaryEntry, deleteDiaryEntry } from '../../lib/diaryApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { useToast } from '../../components/Toast/ToastContext.js';
 import { formatDate, formatDateTime } from '../../lib/formatters.js';
 import { DiaryEntryTypeBadge } from '../../components/diary/DiaryEntryTypeBadge/DiaryEntryTypeBadge.js';
 import { DiaryMetadataSummary } from '../../components/diary/DiaryMetadataSummary/DiaryMetadataSummary.js';
@@ -12,10 +13,15 @@ import styles from './DiaryEntryDetailPage.module.css';
 export default function DiaryEntryDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
   const [entry, setEntry] = useState<DiaryEntryDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!id) {
@@ -48,6 +54,60 @@ export default function DiaryEntryDetailPage() {
     void loadEntry();
   }, [id]);
 
+  // Delete modal: focus trap and Escape key handler
+  useEffect(() => {
+    if (!showDeleteModal) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        closeDeleteModal();
+        return;
+      }
+      if (e.key === 'Tab' && modalRef.current) {
+        const focusable = modalRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        );
+        const focusableArray = Array.from(focusable);
+        if (focusableArray.length === 0) return;
+        const firstEl = focusableArray[0];
+        const lastEl = focusableArray[focusableArray.length - 1];
+        if (e.shiftKey) {
+          if (document.activeElement === firstEl) {
+            e.preventDefault();
+            lastEl.focus();
+          }
+        } else {
+          if (document.activeElement === lastEl) {
+            e.preventDefault();
+            firstEl.focus();
+          }
+        }
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [showDeleteModal, isDeleting, deleteError]);
+
+  const closeDeleteModal = () => {
+    setShowDeleteModal(false);
+    setDeleteError('');
+  };
+
+  const handleDelete = async () => {
+    if (!entry) return;
+    setIsDeleting(true);
+    setDeleteError('');
+
+    try {
+      await deleteDiaryEntry(entry.id);
+      showToast('success', 'Diary entry deleted successfully');
+      navigate('/diary');
+    } catch (err) {
+      setDeleteError('Failed to delete diary entry. Please try again.');
+      console.error('Failed to delete diary entry:', err);
+      setIsDeleting(false);
+    }
+  };
+
   if (isLoading) {
     return <div className={shared.loading}>Loading entry...</div>;
   }
@@ -78,14 +138,30 @@ export default function DiaryEntryDetailPage() {
 
   return (
     <div className={styles.page}>
-      <button
-        type="button"
-        className={styles.backButton}
-        onClick={() => navigate(-1)}
-        aria-label="Go back"
-      >
-        ← Back
-      </button>
+      <div className={styles.topBar}>
+        <button
+          type="button"
+          className={styles.backButton}
+          onClick={() => navigate(-1)}
+          aria-label="Go back"
+        >
+          ← Back
+        </button>
+        {!entry.isAutomatic && (
+          <div className={styles.actionButtons}>
+            <Link to={`/diary/${entry.id}/edit`} className={styles.editButton}>
+              Edit
+            </Link>
+            <button
+              type="button"
+              className={styles.deleteButton}
+              onClick={() => setShowDeleteModal(true)}
+            >
+              Delete
+            </button>
+          </div>
+        )}
+      </div>
 
       <div className={styles.card}>
         <header className={styles.header}>
@@ -143,6 +219,51 @@ export default function DiaryEntryDetailPage() {
       <Link to="/diary" className={shared.btnSecondary}>
         Back to Diary
       </Link>
+
+      {/* Delete confirmation modal */}
+      {showDeleteModal && (
+        <div
+          className={styles.modal}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-modal-title"
+        >
+          <div className={styles.modalBackdrop} onClick={closeDeleteModal} />
+          <div className={styles.modalContent} ref={modalRef}>
+            <h2 id="delete-modal-title" className={styles.modalTitle}>
+              Delete Diary Entry
+            </h2>
+            <p className={styles.modalText}>
+              Are you sure you want to delete this diary entry? This action cannot be undone.
+            </p>
+            {deleteError ? (
+              <div className={styles.errorBanner} role="alert">
+                {deleteError}
+              </div>
+            ) : null}
+            <div className={styles.modalActions}>
+              <button
+                type="button"
+                className={styles.cancelButton}
+                onClick={closeDeleteModal}
+                disabled={isDeleting}
+              >
+                Cancel
+              </button>
+              {!deleteError && (
+                <button
+                  type="button"
+                  className={styles.confirmDeleteButton}
+                  onClick={() => void handleDelete()}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? 'Deleting...' : 'Delete Entry'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

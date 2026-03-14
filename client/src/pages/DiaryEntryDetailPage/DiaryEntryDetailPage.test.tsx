@@ -7,17 +7,25 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import type * as DiaryApiTypes from '../../lib/diaryApi.js';
 import type { DiaryEntryDetail } from '@cornerstone/shared';
+import type React from 'react';
 
 // ── API mock ──────────────────────────────────────────────────────────────────
 
 const mockGetDiaryEntry = jest.fn<typeof DiaryApiTypes.getDiaryEntry>();
+const mockDeleteDiaryEntry = jest.fn<typeof DiaryApiTypes.deleteDiaryEntry>();
 
 jest.unstable_mockModule('../../lib/diaryApi.js', () => ({
   getDiaryEntry: mockGetDiaryEntry,
   listDiaryEntries: jest.fn(),
   createDiaryEntry: jest.fn(),
   updateDiaryEntry: jest.fn(),
-  deleteDiaryEntry: jest.fn(),
+  deleteDiaryEntry: mockDeleteDiaryEntry,
+}));
+
+// Mock ToastContext to avoid dual-React instance issues
+jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({
+  useToast: () => ({ toasts: [], showToast: jest.fn(), dismissToast: jest.fn() }),
+  ToastProvider: ({ children }: { children: unknown }) => children,
 }));
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -48,6 +56,7 @@ describe('DiaryEntryDetailPage', () => {
       DiaryEntryDetailPage = mod.default;
     }
     mockGetDiaryEntry.mockReset();
+    mockDeleteDiaryEntry.mockReset();
   });
 
   afterEach(() => {
@@ -59,6 +68,7 @@ describe('DiaryEntryDetailPage', () => {
       <MemoryRouter initialEntries={[`/diary/${id}`]}>
         <Routes>
           <Route path="/diary/:id" element={<DiaryEntryDetailPage />} />
+          <Route path="/diary" element={<div data-testid="diary-list">Diary List</div>} />
         </Routes>
       </MemoryRouter>,
     );
