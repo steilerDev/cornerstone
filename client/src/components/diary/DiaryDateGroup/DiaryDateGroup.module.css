@@ -16,3 +16,19 @@
   flex-direction: column;
   gap: var(--spacing-3);
 }
+
+/* Responsive */
+@media (max-width: 767px) {
+  .group {
+    margin-bottom: var(--spacing-6);
+  }
+
+  .dateHeader {
+    font-size: var(--font-size-base);
+    margin-bottom: var(--spacing-3);
+  }
+
+  .entriesList {
+    gap: var(--spacing-2);
+  }
+}

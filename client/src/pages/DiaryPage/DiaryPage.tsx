@@ -254,7 +254,7 @@ export default function DiaryPage() {
       )}
 
       {!isLoading && entries.length > 0 && (
-        <div className={styles.timeline}>
+        <div className={styles.timeline} role="feed" aria-label="Construction diary entries">
           {sortedDates.map((date) => (
             <DiaryDateGroup key={date} date={date} entries={groupedEntries[date]} />
           ))}

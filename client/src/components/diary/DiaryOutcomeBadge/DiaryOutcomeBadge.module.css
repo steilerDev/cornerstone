@@ -25,3 +25,11 @@
   background-color: var(--color-diary-outcome-conditional-bg);
   color: var(--color-diary-outcome-conditional-text);
 }
+
+/* Responsive */
+@media (max-width: 767px) {
+  .badge {
+    padding: var(--spacing-0-5) var(--spacing-2);
+    font-size: var(--font-size-2xs);
+  }
+}

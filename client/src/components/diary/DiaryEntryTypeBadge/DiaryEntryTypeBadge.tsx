@@ -56,6 +56,7 @@ export function DiaryEntryTypeBadge({ entryType, size = 'sm' }: DiaryEntryTypeBa
     <span
       className={`${styles.badge} ${sizeClass} ${BADGE_CLASS_MAP[entryType]}`}
       title={ENTRY_TYPE_LABELS[entryType]}
+      aria-label={`Entry type: ${ENTRY_TYPE_LABELS[entryType]}`}
       data-testid={`diary-type-badge-${entryType}`}
     >
       {emoji}

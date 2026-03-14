@@ -110,3 +110,32 @@
   outline: none;
   box-shadow: var(--shadow-focus-subtle);
 }
+
+/* Responsive */
+@media (max-width: 767px) {
+  .card {
+    padding: var(--spacing-3);
+  }
+
+  .header {
+    gap: var(--spacing-2);
+    margin-bottom: var(--spacing-2);
+  }
+
+  .title {
+    font-size: var(--font-size-sm);
+  }
+
+  .footer {
+    gap: var(--spacing-2);
+    flex-direction: column;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .sourceLink {
+    transition: none;
+  }
+}

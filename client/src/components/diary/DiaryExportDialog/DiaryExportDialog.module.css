@@ -137,7 +137,15 @@
     flex-direction: column-reverse;
   }
 
-  .cancelButton {
+  .cancelButton,
+  button {
     width: 100%;
+    min-height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .checkboxLabel {
+    transition: none;
   }
 }

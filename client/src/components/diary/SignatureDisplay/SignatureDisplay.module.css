@@ -56,5 +56,14 @@
 
   .signatureBox {
     aspect-ratio: 2 / 1;
+    min-height: 100px;
+  }
+
+  .label {
+    font-size: var(--font-size-sm);
+  }
+
+  .date {
+    font-size: var(--font-size-2xs);
   }
 }

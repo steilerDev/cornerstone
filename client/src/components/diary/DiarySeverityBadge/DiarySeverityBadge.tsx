@@ -14,7 +14,11 @@ const SEVERITY_LABELS: Record<DiaryIssueSeverity, string> = {
 
 export function DiarySeverityBadge({ severity }: DiarySeverityBadgeProps) {
   return (
-    <span className={`${styles.badge} ${styles[severity]}`} data-testid={`severity-${severity}`}>
+    <span
+      className={`${styles.badge} ${styles[severity]}`}
+      aria-label={`Severity: ${SEVERITY_LABELS[severity]}`}
+      data-testid={`severity-${severity}`}
+    >
       {SEVERITY_LABELS[severity]}
     </span>
   );

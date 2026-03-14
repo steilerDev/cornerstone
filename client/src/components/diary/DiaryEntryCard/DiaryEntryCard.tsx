@@ -58,6 +58,7 @@ export function DiaryEntryCard({ entry }: DiaryEntryCardProps) {
     <Link
       to={`/diary/${entry.id}`}
       className={cardClassName}
+      aria-label={`${entry.title || 'Diary entry'} on ${formatDate(entry.entryDate)}`}
       data-testid={`diary-card-${entry.id}`}
     >
       <div className={styles.header}>

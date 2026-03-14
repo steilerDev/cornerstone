@@ -145,5 +145,17 @@
 
   .typeChip {
     width: 100%;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobileToggle,
+  .typeChip,
+  .clearButton {
+    transition: none;
   }
 }

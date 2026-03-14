@@ -443,12 +443,37 @@
 
   .actionButtons {
     width: 100%;
+    flex-direction: column;
+    gap: var(--spacing-2);
   }
 
   .backButton,
+  .printButton,
   .editButton,
   .deleteButton {
     width: 100%;
+    min-height: 44px;
     justify-content: center;
+  }
+
+  .body {
+    font-size: var(--font-size-sm);
+  }
+
+  .photoSection,
+  .sourceSection,
+  .metadataSection {
+    padding: var(--spacing-3);
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .backButton,
+  .printButton,
+  .editButton,
+  .deleteButton,
+  .addPhotoLink {
+    transition: none;
   }
 }

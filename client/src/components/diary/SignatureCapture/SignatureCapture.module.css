@@ -173,11 +173,21 @@
 
   .buttonGroup {
     flex-direction: column;
+    gap: var(--spacing-2);
   }
 
   .clearButton,
   .acceptButton,
   .removeButton {
     width: 100%;
+    min-height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clearButton,
+  .acceptButton,
+  .removeButton {
+    transition: none;
   }
 }
