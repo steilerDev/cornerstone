@@ -306,7 +306,6 @@ export function SignatureCapture({
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
-          disabled={disabled}
           aria-label="Signature canvas"
         />
       </div>
