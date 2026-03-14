@@ -98,9 +98,7 @@ describe('DiaryEntryTypeSwitcher', () => {
 
   it('calls onChange with "manual" when ArrowRight is pressed while "all" is active', () => {
     const onChange = jest.fn();
-    const { container } = render(
-      <DiaryEntryTypeSwitcher value="all" onChange={onChange} />,
-    );
+    const { container } = render(<DiaryEntryTypeSwitcher value="all" onChange={onChange} />);
     const radiogroup = container.querySelector('[role="radiogroup"]')!;
 
     fireEvent.keyDown(radiogroup, { key: 'ArrowRight' });
@@ -110,9 +108,7 @@ describe('DiaryEntryTypeSwitcher', () => {
 
   it('calls onChange with "all" when ArrowLeft is pressed while "manual" is active', () => {
     const onChange = jest.fn();
-    const { container } = render(
-      <DiaryEntryTypeSwitcher value="manual" onChange={onChange} />,
-    );
+    const { container } = render(<DiaryEntryTypeSwitcher value="manual" onChange={onChange} />);
     const radiogroup = container.querySelector('[role="radiogroup"]')!;
 
     fireEvent.keyDown(radiogroup, { key: 'ArrowLeft' });
@@ -122,9 +118,7 @@ describe('DiaryEntryTypeSwitcher', () => {
 
   it('calls onChange with "automatic" when ArrowRight is pressed while "manual" is active', () => {
     const onChange = jest.fn();
-    const { container } = render(
-      <DiaryEntryTypeSwitcher value="manual" onChange={onChange} />,
-    );
+    const { container } = render(<DiaryEntryTypeSwitcher value="manual" onChange={onChange} />);
     const radiogroup = container.querySelector('[role="radiogroup"]')!;
 
     fireEvent.keyDown(radiogroup, { key: 'ArrowRight' });
@@ -134,9 +128,7 @@ describe('DiaryEntryTypeSwitcher', () => {
 
   it('does not call onChange when ArrowRight is pressed on the last option ("automatic")', () => {
     const onChange = jest.fn();
-    const { container } = render(
-      <DiaryEntryTypeSwitcher value="automatic" onChange={onChange} />,
-    );
+    const { container } = render(<DiaryEntryTypeSwitcher value="automatic" onChange={onChange} />);
     const radiogroup = container.querySelector('[role="radiogroup"]')!;
 
     fireEvent.keyDown(radiogroup, { key: 'ArrowRight' });
@@ -146,9 +138,7 @@ describe('DiaryEntryTypeSwitcher', () => {
 
   it('does not call onChange when ArrowLeft is pressed on the first option ("all")', () => {
     const onChange = jest.fn();
-    const { container } = render(
-      <DiaryEntryTypeSwitcher value="all" onChange={onChange} />,
-    );
+    const { container } = render(<DiaryEntryTypeSwitcher value="all" onChange={onChange} />);
     const radiogroup = container.querySelector('[role="radiogroup"]')!;
 
     fireEvent.keyDown(radiogroup, { key: 'ArrowLeft' });
@@ -158,9 +148,7 @@ describe('DiaryEntryTypeSwitcher', () => {
 
   it('does not call onChange for irrelevant key presses', () => {
     const onChange = jest.fn();
-    const { container } = render(
-      <DiaryEntryTypeSwitcher value="all" onChange={onChange} />,
-    );
+    const { container } = render(<DiaryEntryTypeSwitcher value="all" onChange={onChange} />);
     const radiogroup = container.querySelector('[role="radiogroup"]')!;
 
     fireEvent.keyDown(radiogroup, { key: 'Enter' });

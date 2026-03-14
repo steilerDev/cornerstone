@@ -31,7 +31,11 @@ const automaticEntry: DiaryEntrySummary = {
   entryDate: '2026-03-14',
   title: null,
   body: 'Work item "Kitchen Installation" changed status to in_progress.',
-  metadata: { changeSummary: 'Status changed to in_progress', previousValue: 'not_started', newValue: 'in_progress' },
+  metadata: {
+    changeSummary: 'Status changed to in_progress',
+    previousValue: 'not_started',
+    newValue: 'in_progress',
+  },
   isAutomatic: true,
   sourceEntityType: 'work_item',
   sourceEntityId: 'wi-kitchen-1',

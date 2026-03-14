@@ -55,14 +55,20 @@ export function DiaryEntryCard({ entry }: DiaryEntryCardProps) {
     .join(' ');
 
   return (
-    <Link to={`/diary/${entry.id}`} className={cardClassName} data-testid={`diary-card-${entry.id}`}>
+    <Link
+      to={`/diary/${entry.id}`}
+      className={cardClassName}
+      data-testid={`diary-card-${entry.id}`}
+    >
       <div className={styles.header}>
         <DiaryEntryTypeBadge entryType={entry.entryType} />
         <div className={styles.headerText}>
           {entry.title && <div className={styles.title}>{entry.title}</div>}
           <div className={styles.timestamp}>
             {formatTime(entry.createdAt)}
-            {entry.createdBy && <span className={styles.author}> by {entry.createdBy.displayName}</span>}
+            {entry.createdBy && (
+              <span className={styles.author}> by {entry.createdBy.displayName}</span>
+            )}
           </div>
         </div>
       </div>

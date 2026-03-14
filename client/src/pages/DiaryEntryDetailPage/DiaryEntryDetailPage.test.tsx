@@ -91,9 +91,7 @@ describe('DiaryEntryDetailPage', () => {
     mockGetDiaryEntry.mockResolvedValueOnce(baseDetail);
     renderDetailPage();
     await waitFor(() => {
-      expect(
-        screen.getByText('Poured concrete for the main foundation.'),
-      ).toBeInTheDocument();
+      expect(screen.getByText('Poured concrete for the main foundation.')).toBeInTheDocument();
     });
   });
 

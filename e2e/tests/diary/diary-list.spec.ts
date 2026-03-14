@@ -47,7 +47,12 @@ function makeMockEntry(overrides: Partial<Record<string, unknown>> = {}): Record
 
 function makePaginatedResponse(
   entries: Record<string, unknown>[],
-  overrides: Partial<{ page: number; pageSize: number; totalItems: number; totalPages: number }> = {},
+  overrides: Partial<{
+    page: number;
+    pageSize: number;
+    totalItems: number;
+    totalPages: number;
+  }> = {},
 ): Record<string, unknown> {
   return {
     data: entries,
@@ -180,10 +185,7 @@ test.describe(
       }
     });
 
-    test('Subtitle shows entry count > 0 after creating an entry', async ({
-      page,
-      testPrefix,
-    }) => {
+    test('Subtitle shows entry count > 0 after creating an entry', async ({ page, testPrefix }) => {
       const diaryPage = new DiaryPage(page);
       let createdId: string | null = null;
 
@@ -369,9 +371,7 @@ test.describe('Pagination (Scenario 7)', () => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify(
-            makePaginatedResponse(entries, { totalItems: 50, totalPages: 2 }),
-          ),
+          body: JSON.stringify(makePaginatedResponse(entries, { totalItems: 50, totalPages: 2 })),
         });
       } else {
         await route.continue();

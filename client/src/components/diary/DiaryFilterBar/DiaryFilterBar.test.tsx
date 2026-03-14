@@ -57,9 +57,17 @@ describe('DiaryFilterBar', () => {
   it('renders type filter chips for all entry types', () => {
     renderFilterBar();
     const expectedTypes: DiaryEntryType[] = [
-      'daily_log', 'site_visit', 'delivery', 'issue', 'general_note',
-      'work_item_status', 'invoice_status', 'milestone_delay', 'budget_breach',
-      'auto_reschedule', 'subsidy_status',
+      'daily_log',
+      'site_visit',
+      'delivery',
+      'issue',
+      'general_note',
+      'work_item_status',
+      'invoice_status',
+      'milestone_delay',
+      'budget_breach',
+      'auto_reschedule',
+      'subsidy_status',
     ];
     for (const type of expectedTypes) {
       expect(screen.getByTestId(`type-filter-${type}`)).toBeInTheDocument();

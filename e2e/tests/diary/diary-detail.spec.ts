@@ -55,10 +55,7 @@ test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
     },
   );
 
-  test('Entry title h1 is rendered when the entry has a title', async ({
-    page,
-    testPrefix,
-  }) => {
+  test('Entry title h1 is rendered when the entry has a title', async ({ page, testPrefix }) => {
     const detailPage = new DiaryEntryDetailPage(page);
     let createdId: string | null = null;
     const title = `${testPrefix} Detail Title Test`;
@@ -123,10 +120,7 @@ test.describe('Back button navigation (Scenario 2)', { tag: '@responsive' }, () 
 // Scenario 3: "Back to Diary" link navigates to /diary
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('"Back to Diary" link (Scenario 3)', { tag: '@responsive' }, () => {
-  test('"Back to Diary" link at the bottom navigates to /diary', async ({
-    page,
-    testPrefix,
-  }) => {
+  test('"Back to Diary" link at the bottom navigates to /diary', async ({ page, testPrefix }) => {
     const detailPage = new DiaryEntryDetailPage(page);
     let createdId: string | null = null;
 
@@ -193,10 +187,7 @@ test.describe('daily_log metadata (Scenario 4)', () => {
 // Scenario 5: site_visit outcome badge renders
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('site_visit outcome badge (Scenario 5)', () => {
-  test('site_visit entry shows outcome badge for "pass" result', async ({
-    page,
-    testPrefix,
-  }) => {
+  test('site_visit entry shows outcome badge for "pass" result', async ({ page, testPrefix }) => {
     const detailPage = new DiaryEntryDetailPage(page);
     let createdId: string | null = null;
 
@@ -252,10 +243,7 @@ test.describe('site_visit outcome badge (Scenario 5)', () => {
 // Scenario 6: issue severity badge renders
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('issue severity badge (Scenario 6)', () => {
-  test('issue entry shows severity badge for "critical" severity', async ({
-    page,
-    testPrefix,
-  }) => {
+  test('issue entry shows severity badge for "critical" severity', async ({ page, testPrefix }) => {
     const detailPage = new DiaryEntryDetailPage(page);
     let createdId: string | null = null;
 
@@ -331,9 +319,7 @@ test.describe('404 error state (Scenario 7)', { tag: '@responsive' }, () => {
 // Scenario 8: "Automatic" badge shown for system-generated entries (mock API)
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Automatic entry badge (Scenario 8)', () => {
-  test('Automatic system entry shows an "Automatic" badge in the detail view', async ({
-    page,
-  }) => {
+  test('Automatic system entry shows an "Automatic" badge in the detail view', async ({ page }) => {
     const detailPage = new DiaryEntryDetailPage(page);
     const mockId = 'mock-auto-entry-001';
 

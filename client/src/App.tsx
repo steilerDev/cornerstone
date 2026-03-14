@@ -66,7 +66,9 @@ const UserManagementPage = lazy(() => import('./pages/UserManagementPage/UserMan
 const InvoicesPage = lazy(() => import('./pages/InvoicesPage/InvoicesPage'));
 const InvoiceDetailPage = lazy(() => import('./pages/InvoiceDetailPage/InvoiceDetailPage'));
 const DiaryPage = lazy(() => import('./pages/DiaryPage/DiaryPage'));
-const DiaryEntryDetailPage = lazy(() => import('./pages/DiaryEntryDetailPage/DiaryEntryDetailPage'));
+const DiaryEntryDetailPage = lazy(
+  () => import('./pages/DiaryEntryDetailPage/DiaryEntryDetailPage'),
+);
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage/NotFoundPage'));
 
 export function App() {

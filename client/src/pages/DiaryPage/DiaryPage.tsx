@@ -83,14 +83,22 @@ export default function DiaryPage() {
       // Determine which types to query based on filter mode
       let queriableTypes: DiaryEntryType[] = activeTypes;
       if (filterMode === 'manual') {
-        queriableTypes = activeTypes.length > 0
-          ? activeTypes.filter((t) => MANUAL_TYPES.has(t as any))
-          : Array.from(MANUAL_TYPES) as DiaryEntryType[];
+        queriableTypes =
+          activeTypes.length > 0
+            ? activeTypes.filter((t) => MANUAL_TYPES.has(t as any))
+            : (Array.from(MANUAL_TYPES) as DiaryEntryType[]);
       } else if (filterMode === 'automatic') {
-        queriableTypes = activeTypes.length > 0
-          ? activeTypes.filter((t) => !MANUAL_TYPES.has(t as any))
-          : (['work_item_status', 'invoice_status', 'milestone_delay', 'budget_breach',
-              'auto_reschedule', 'subsidy_status'] as const as unknown as DiaryEntryType[]);
+        queriableTypes =
+          activeTypes.length > 0
+            ? activeTypes.filter((t) => !MANUAL_TYPES.has(t as any))
+            : ([
+                'work_item_status',
+                'invoice_status',
+                'milestone_delay',
+                'budget_breach',
+                'auto_reschedule',
+                'subsidy_status',
+              ] as const as unknown as DiaryEntryType[]);
       }
 
       const response = await listDiaryEntries({
@@ -237,11 +245,7 @@ export default function DiaryPage() {
       {!isLoading && entries.length > 0 && (
         <div className={styles.timeline}>
           {sortedDates.map((date) => (
-            <DiaryDateGroup
-              key={date}
-              date={date}
-              entries={groupedEntries[date]}
-            />
+            <DiaryDateGroup key={date} date={date} entries={groupedEntries[date]} />
           ))}
         </div>
       )}

@@ -85,11 +85,21 @@ export function DiaryMetadataSummary({ entryType, metadata }: DiaryMetadataSumma
     );
   }
 
-  if (entryType.startsWith('work_item_') || entryType.startsWith('invoice_') ||
-      entryType.startsWith('milestone_') || entryType.startsWith('budget_') ||
-      entryType.startsWith('auto_') || entryType.startsWith('subsidy_')) {
+  if (
+    entryType.startsWith('work_item_') ||
+    entryType.startsWith('invoice_') ||
+    entryType.startsWith('milestone_') ||
+    entryType.startsWith('budget_') ||
+    entryType.startsWith('auto_') ||
+    entryType.startsWith('subsidy_')
+  ) {
     // Automatic entry type
-    if (metadata && typeof metadata === 'object' && 'changeSummary' in metadata && metadata.changeSummary) {
+    if (
+      metadata &&
+      typeof metadata === 'object' &&
+      'changeSummary' in metadata &&
+      metadata.changeSummary
+    ) {
       return (
         <span className={styles.autoSummary} data-testid="auto-event-summary">
           {String((metadata as Record<string, unknown>).changeSummary)}

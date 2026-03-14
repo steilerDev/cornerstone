@@ -76,9 +76,10 @@ export class DiaryEntryDetailPage {
     this.backToDiaryLink = page.getByRole('link', { name: 'Back to Diary' });
 
     // Entry title h1 (conditional — only rendered when entry.title is set)
-    this.entryTitle = page.locator('[class*="title"]').filter({ has: page.locator('h1') }).or(
-      page.getByRole('heading', { level: 1 }),
-    );
+    this.entryTitle = page
+      .locator('[class*="title"]')
+      .filter({ has: page.locator('h1') })
+      .or(page.getByRole('heading', { level: 1 }));
 
     this.entryBody = page.locator('[class*="body"]').first();
     this.entryDate = page.locator('[class*="date"]').first();

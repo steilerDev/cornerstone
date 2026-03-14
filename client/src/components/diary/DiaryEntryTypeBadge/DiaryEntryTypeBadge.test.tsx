@@ -94,7 +94,10 @@ describe('DiaryEntryTypeBadge', () => {
 
   it('has title "Site Visit" for site_visit', () => {
     render(<DiaryEntryTypeBadge entryType="site_visit" />);
-    expect(screen.getByTestId('diary-type-badge-site_visit')).toHaveAttribute('title', 'Site Visit');
+    expect(screen.getByTestId('diary-type-badge-site_visit')).toHaveAttribute(
+      'title',
+      'Site Visit',
+    );
   });
 
   // ─── size prop ─────────────────────────────────────────────────────────────

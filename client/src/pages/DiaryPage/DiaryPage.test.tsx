@@ -83,11 +83,15 @@ describe('DiaryPage', () => {
   it('renders the "Construction Diary" h1 heading', async () => {
     mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
     renderPage();
-    expect(screen.getByRole('heading', { name: 'Construction Diary', level: 1 })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Construction Diary', level: 1 }),
+    ).toBeInTheDocument();
   });
 
   it('shows the total entry count in the subtitle', async () => {
-    mockListDiaryEntries.mockResolvedValueOnce(makeListResponse([makeSummary('1'), makeSummary('2')]));
+    mockListDiaryEntries.mockResolvedValueOnce(
+      makeListResponse([makeSummary('1'), makeSummary('2')]),
+    );
     renderPage();
     await waitFor(() => {
       expect(screen.getByText(/2 entries/i)).toBeInTheDocument();
@@ -202,9 +206,7 @@ describe('DiaryPage', () => {
     mockListDiaryEntries.mockRejectedValueOnce(new Error('Network error'));
     renderPage();
     await waitFor(() => {
-      expect(
-        screen.getByText(/failed to load diary entries/i),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/failed to load diary entries/i)).toBeInTheDocument();
     });
   });
 

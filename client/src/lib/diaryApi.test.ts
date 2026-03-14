@@ -76,10 +76,7 @@ describe('diaryApi', () => {
 
       await listDiaryEntries({ pageSize: 50 });
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        '/api/diary-entries?pageSize=50',
-        expect.any(Object),
-      );
+      expect(mockFetch).toHaveBeenCalledWith('/api/diary-entries?pageSize=50', expect.any(Object));
     });
 
     it('includes type param when provided', async () => {
@@ -146,10 +143,7 @@ describe('diaryApi', () => {
 
       await listDiaryEntries({ q: 'foundation' });
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        '/api/diary-entries?q=foundation',
-        expect.any(Object),
-      );
+      expect(mockFetch).toHaveBeenCalledWith('/api/diary-entries?q=foundation', expect.any(Object));
     });
 
     it('includes multiple params when provided', async () => {
