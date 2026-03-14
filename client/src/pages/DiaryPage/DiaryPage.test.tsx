@@ -56,23 +56,25 @@ function makeListResponse(entries: DiaryEntrySummary[], totalPages = 1): DiaryEn
 const emptyResponse = makeListResponse([]);
 
 describe('DiaryPage', () => {
-  let DiaryPage: { default: () => React.JSX.Element };
+  let DiaryPage: React.ComponentType;
 
   beforeEach(async () => {
     localStorage.setItem('theme', 'light');
-    jest.clearAllMocks();
-    DiaryPage = await import('./DiaryPage.js');
+    if (!DiaryPage) {
+      const mod = await import('./DiaryPage.js');
+      DiaryPage = mod.default;
+    }
+    mockListDiaryEntries.mockReset();
   });
 
   afterEach(() => {
     localStorage.clear();
-    jest.resetModules();
   });
 
   const renderPage = (initialEntries = ['/diary']) =>
     render(
       <MemoryRouter initialEntries={initialEntries}>
-        <DiaryPage.default />
+        <DiaryPage />
       </MemoryRouter>,
     );
 

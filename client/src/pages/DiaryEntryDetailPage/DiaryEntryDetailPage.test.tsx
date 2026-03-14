@@ -39,24 +39,26 @@ const baseDetail: DiaryEntryDetail = {
 };
 
 describe('DiaryEntryDetailPage', () => {
-  let DiaryEntryDetailPage: { default: () => React.JSX.Element };
+  let DiaryEntryDetailPage: React.ComponentType;
 
   beforeEach(async () => {
     localStorage.setItem('theme', 'light');
-    jest.clearAllMocks();
-    DiaryEntryDetailPage = await import('./DiaryEntryDetailPage.js');
+    if (!DiaryEntryDetailPage) {
+      const mod = await import('./DiaryEntryDetailPage.js');
+      DiaryEntryDetailPage = mod.default;
+    }
+    mockGetDiaryEntry.mockReset();
   });
 
   afterEach(() => {
     localStorage.clear();
-    jest.resetModules();
   });
 
   const renderDetailPage = (id = 'de-1') =>
     render(
       <MemoryRouter initialEntries={[`/diary/${id}`]}>
         <Routes>
-          <Route path="/diary/:id" element={<DiaryEntryDetailPage.default />} />
+          <Route path="/diary/:id" element={<DiaryEntryDetailPage />} />
         </Routes>
       </MemoryRouter>,
     );
