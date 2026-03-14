@@ -92,7 +92,7 @@ export function DiaryMetadataSummary({ entryType, metadata }: DiaryMetadataSumma
     if (metadata && typeof metadata === 'object' && 'changeSummary' in metadata && metadata.changeSummary) {
       return (
         <span className={styles.autoSummary} data-testid="auto-event-summary">
-          {(metadata as Record<string, unknown>).changeSummary}
+          {String((metadata as Record<string, unknown>).changeSummary)}
         </span>
       );
     }
