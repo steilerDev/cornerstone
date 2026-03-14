@@ -347,9 +347,9 @@ describe('diaryService', () => {
     });
 
     it('throws NotFoundError for unknown ID', () => {
-      expect(() =>
-        updateDiaryEntry(db, 'does-not-exist', { body: 'Updated' }),
-      ).toThrow(NotFoundError);
+      expect(() => updateDiaryEntry(db, 'does-not-exist', { body: 'Updated' })).toThrow(
+        NotFoundError,
+      );
     });
 
     it('throws ImmutableEntryError for an automatic entry', () => {
@@ -363,9 +363,9 @@ describe('diaryService', () => {
 
     it('throws InvalidMetadataError for invalid metadata on update', () => {
       const id = insertEntry({ entryType: 'site_visit' });
-      expect(() =>
-        updateDiaryEntry(db, id, { metadata: { outcome: 'maybe' } as any }),
-      ).toThrow(InvalidMetadataError);
+      expect(() => updateDiaryEntry(db, id, { metadata: { outcome: 'maybe' } as any })).toThrow(
+        InvalidMetadataError,
+      );
     });
 
     it('setting metadata to null clears it', () => {
@@ -414,7 +414,11 @@ describe('diaryService', () => {
         'work_item_status',
         '2026-03-14',
         'Work item status changed to completed',
-        { changeSummary: 'Status: in_progress → completed', previousValue: 'in_progress', newValue: 'completed' },
+        {
+          changeSummary: 'Status: in_progress → completed',
+          previousValue: 'in_progress',
+          newValue: 'completed',
+        },
         'work_item',
         'wi-123',
       );
@@ -456,7 +460,12 @@ describe('diaryService', () => {
         entryType: 'daily_log',
         entryDate: '2026-03-14',
         body: 'Sunny day',
-        metadata: { weather: 'sunny', temperatureCelsius: 22, workersOnSite: 4, hasSignature: true },
+        metadata: {
+          weather: 'sunny',
+          temperatureCelsius: 22,
+          workersOnSite: 4,
+          hasSignature: true,
+        },
       };
       expect(() => createDiaryEntry(db, testUserId, request)).not.toThrow();
     });
@@ -533,7 +542,11 @@ describe('diaryService', () => {
 
     it('null metadata is valid for any entry type', () => {
       const types: CreateDiaryEntryRequest['entryType'][] = [
-        'daily_log', 'site_visit', 'delivery', 'issue', 'general_note',
+        'daily_log',
+        'site_visit',
+        'delivery',
+        'issue',
+        'general_note',
       ];
       for (const entryType of types) {
         const request: CreateDiaryEntryRequest = {

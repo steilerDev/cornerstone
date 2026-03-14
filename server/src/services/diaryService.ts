@@ -104,7 +104,10 @@ function toDiarySummary(
  * Validate metadata structure for a given entry type.
  * @throws InvalidMetadataError if metadata does not match schema
  */
-function validateMetadata(entryType: string, metadata: DiaryEntryMetadata | null | undefined): void {
+function validateMetadata(
+  entryType: string,
+  metadata: DiaryEntryMetadata | null | undefined,
+): void {
   if (!metadata) return;
 
   const md = metadata as Record<string, unknown>;
@@ -117,7 +120,7 @@ function validateMetadata(entryType: string, metadata: DiaryEntryMetadata | null
         const validWeathers = ['sunny', 'cloudy', 'rainy', 'snowy', 'stormy', 'other'];
         if (!validWeathers.includes(dlm.weather)) {
           throw new InvalidMetadataError(
-            `daily_log weather must be one of: ${validWeathers.join(', ')}`
+            `daily_log weather must be one of: ${validWeathers.join(', ')}`,
           );
         }
       }
@@ -131,7 +134,7 @@ function validateMetadata(entryType: string, metadata: DiaryEntryMetadata | null
       if (dlm.workersOnSite !== undefined && dlm.workersOnSite !== null) {
         if (!Number.isInteger(dlm.workersOnSite) || dlm.workersOnSite < 0) {
           throw new InvalidMetadataError(
-            'daily_log workersOnSite must be a non-negative integer or null'
+            'daily_log workersOnSite must be a non-negative integer or null',
           );
         }
       }
@@ -155,7 +158,7 @@ function validateMetadata(entryType: string, metadata: DiaryEntryMetadata | null
         const validOutcomes = ['pass', 'fail', 'conditional'];
         if (!validOutcomes.includes(svm.outcome)) {
           throw new InvalidMetadataError(
-            `site_visit outcome must be one of: ${validOutcomes.join(', ')}`
+            `site_visit outcome must be one of: ${validOutcomes.join(', ')}`,
           );
         }
       }
@@ -197,7 +200,7 @@ function validateMetadata(entryType: string, metadata: DiaryEntryMetadata | null
         const validSeverities = ['low', 'medium', 'high', 'critical'];
         if (!validSeverities.includes(im.severity)) {
           throw new InvalidMetadataError(
-            `issue severity must be one of: ${validSeverities.join(', ')}`
+            `issue severity must be one of: ${validSeverities.join(', ')}`,
           );
         }
       }
@@ -206,7 +209,7 @@ function validateMetadata(entryType: string, metadata: DiaryEntryMetadata | null
         const validStatuses = ['open', 'in_progress', 'resolved'];
         if (!validStatuses.includes(im.resolutionStatus)) {
           throw new InvalidMetadataError(
-            `issue resolutionStatus must be one of: ${validStatuses.join(', ')}`
+            `issue resolutionStatus must be one of: ${validStatuses.join(', ')}`,
           );
         }
       }
@@ -238,7 +241,10 @@ export function listDiaryEntries(
 
   if (query.type) {
     type EntryTypeValue = typeof diaryEntries.entryType._.data;
-    const types = query.type.split(',').map((t) => t.trim()).filter(Boolean) as EntryTypeValue[];
+    const types = query.type
+      .split(',')
+      .map((t) => t.trim())
+      .filter(Boolean) as EntryTypeValue[];
     if (types.length === 1) {
       conditions.push(eq(diaryEntries.entryType, types[0]));
     } else if (types.length > 1) {
@@ -300,9 +306,7 @@ export function listDiaryEntries(
     const photoCount = db
       .select({ count: sql<number>`COUNT(*)` })
       .from(photos)
-      .where(
-        and(eq(photos.entityType, 'diary_entry'), eq(photos.entityId, row.entry.id)),
-      )
+      .where(and(eq(photos.entityType, 'diary_entry'), eq(photos.entityId, row.entry.id)))
       .get();
     return toDiarySummary(row.entry, row.user, photoCount?.count ?? 0);
   });
@@ -340,9 +344,7 @@ export function getDiaryEntry(db: DbType, id: string): DiaryEntryDetail {
   const photoCount = db
     .select({ count: sql<number>`COUNT(*)` })
     .from(photos)
-    .where(
-      and(eq(photos.entityType, 'diary_entry'), eq(photos.entityId, id)),
-    )
+    .where(and(eq(photos.entityType, 'diary_entry'), eq(photos.entityId, id)))
     .get();
 
   return toDiarySummary(row.entry, row.user, photoCount?.count ?? 0);
@@ -362,7 +364,7 @@ export function createDiaryEntry(
   // Validate entry type is manual
   if (!MANUAL_ENTRY_TYPES.has(data.entryType)) {
     throw new InvalidEntryTypeError(
-      'Only manual entry types can be created: daily_log, site_visit, delivery, issue, general_note'
+      'Only manual entry types can be created: daily_log, site_visit, delivery, issue, general_note',
     );
   }
 
@@ -483,9 +485,7 @@ export function updateDiaryEntry(
   const photoCount = db
     .select({ count: sql<number>`COUNT(*)` })
     .from(photos)
-    .where(
-      and(eq(photos.entityType, 'diary_entry'), eq(photos.entityId, id)),
-    )
+    .where(and(eq(photos.entityType, 'diary_entry'), eq(photos.entityId, id)))
     .get();
 
   return toDiarySummary(row!.entry, row!.user, photoCount?.count ?? 0);

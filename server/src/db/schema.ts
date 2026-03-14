@@ -814,9 +814,17 @@ export const diaryEntries = sqliteTable(
     id: text('id').primaryKey(),
     entryType: text('entry_type', {
       enum: [
-        'daily_log', 'site_visit', 'delivery', 'issue', 'general_note',
-        'work_item_status', 'invoice_status', 'milestone_delay',
-        'budget_breach', 'auto_reschedule', 'subsidy_status',
+        'daily_log',
+        'site_visit',
+        'delivery',
+        'issue',
+        'general_note',
+        'work_item_status',
+        'invoice_status',
+        'milestone_delay',
+        'budget_breach',
+        'auto_reschedule',
+        'subsidy_status',
       ],
     }).notNull(),
     entryDate: text('entry_date').notNull(),
@@ -834,6 +842,9 @@ export const diaryEntries = sqliteTable(
     entryDateIdx: index('idx_diary_entries_entry_date').on(table.entryDate, table.createdAt),
     entryTypeIdx: index('idx_diary_entries_entry_type').on(table.entryType),
     isAutomaticIdx: index('idx_diary_entries_is_automatic').on(table.isAutomatic),
-    sourceEntityIdx: index('idx_diary_entries_source_entity').on(table.sourceEntityType, table.sourceEntityId),
+    sourceEntityIdx: index('idx_diary_entries_source_entity').on(
+      table.sourceEntityType,
+      table.sourceEntityId,
+    ),
   }),
 );

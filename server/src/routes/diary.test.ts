@@ -221,7 +221,10 @@ describe('Diary Routes', () => {
       });
 
       expect(response.statusCode).toBe(200);
-      const body = response.json<{ items: DiaryEntrySummary[]; pagination: { page: number; pageSize: number; totalItems: number; totalPages: number } }>();
+      const body = response.json<{
+        items: DiaryEntrySummary[];
+        pagination: { page: number; pageSize: number; totalItems: number; totalPages: number };
+      }>();
       expect(body.items).toHaveLength(1);
       expect(body.pagination.page).toBe(2);
       expect(body.pagination.pageSize).toBe(2);
