@@ -820,24 +820,43 @@ test.describe('Discretionary Funding source', () => {
     }
   });
 
-  test('Projected and Paid amount labels are visible on source rows', async ({ page }) => {
+  test('Bar chart and summary row are visible on source rows', async ({ page }) => {
     const sourcesPage = new BudgetSourcesPage(page);
 
     await sourcesPage.goto();
     await sourcesPage.waitForSourcesLoaded();
 
-    // The Discretionary Funding row is always present — verify its amount labels
+    // The Discretionary Funding row is always present — verify its bar chart section renders
     const row = sourcesPage.getSourceRowByName(DISCRETIONARY_NAME);
     await expect(row).toBeVisible();
 
-    const allLabels = sourcesPage.getAmountLabelsInRow(DISCRETIONARY_NAME);
+    // The bar chart section (sourceBarSection) always renders regardless of amounts
+    const barSection = row.locator('[class*="sourceBarSection"]');
+    await expect(barSection).toBeVisible();
 
-    // Collect all label texts
-    const labelTexts = await allLabels.allTextContents();
-    const normalised = labelTexts.map((t) => t.trim());
+    // The summary row (Total / Available / Planned) always renders regardless of amounts
+    const summaryItems = row.locator('[class*="summaryItem"]');
+    const summaryCount = await summaryItems.count();
+    // At minimum: Total, Available, Planned (3 items; Rate only appears when interestRate set)
+    expect(summaryCount).toBeGreaterThanOrEqual(3);
 
-    expect(normalised).toContain('Projected');
-    expect(normalised).toContain('Paid');
+    // Collect all summary item texts and verify they contain expected labels
+    const summaryTexts = await summaryItems.allTextContents();
+    const summaryNormalised = summaryTexts.map((t) => t.trim());
+    expect(summaryNormalised.some((t) => t.includes('Total'))).toBe(true);
+    expect(summaryNormalised.some((t) => t.includes('Available'))).toBe(true);
+    expect(summaryNormalised.some((t) => t.includes('Planned'))).toBe(true);
+
+    // If there are budget lines (non-zero amounts), legend labels should also render
+    const legendLabels = sourcesPage.getAmountLabelsInRow(DISCRETIONARY_NAME);
+    const legendCount = await legendLabels.count();
+    if (legendCount > 0) {
+      const labelTexts = await legendLabels.allTextContents();
+      const normalised = labelTexts.map((t) => t.trim());
+      // Known legend label values from SourceBarChart component
+      const knownLabels = ['Claimed', 'Paid (unclaimed)', 'Projected', 'Allocated (planned)', 'Overflow'];
+      expect(normalised.every((l) => knownLabels.includes(l))).toBe(true);
+    }
   });
 
   test('Discretionary source appears last in the sources list', async ({ page }) => {

@@ -73,9 +73,14 @@ export class UserManagementPage {
 
   async goto(): Promise<void> {
     await this.page.goto(ROUTES.userManagement);
+    // Wait for heading and search input — on tablet the input may take longer to render
+    await this.heading.waitFor({ state: 'visible' });
+    await this.searchInput.waitFor({ state: 'visible' });
   }
 
   async searchUsers(query: string): Promise<void> {
+    await this.searchInput.waitFor({ state: 'visible' });
+    await this.searchInput.scrollIntoViewIfNeeded();
     await this.searchInput.fill(query);
     await this.page.waitForResponse(
       (resp) => resp.url().includes('/api/users') && resp.status() === 200,
