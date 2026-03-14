@@ -1,0 +1,59 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  border: none;
+  cursor: default;
+}
+
+.sizeSm {
+  width: var(--spacing-10); /* 40px */
+  height: var(--spacing-10);
+  font-size: 1.25rem; /* emoji size */
+}
+
+.sizeLg {
+  width: var(--spacing-12); /* 48px */
+  height: var(--spacing-12);
+  font-size: 1.5rem; /* emoji size */
+}
+
+/* Daily log (blue) */
+.dailyLog {
+  background-color: var(--color-diary-daily-log-bg);
+  color: var(--color-diary-daily-log-text);
+}
+
+/* Site visit (teal) */
+.siteVisit {
+  background-color: var(--color-diary-site-visit-bg);
+  color: var(--color-diary-site-visit-text);
+}
+
+/* Delivery (amber) */
+.delivery {
+  background-color: var(--color-diary-delivery-bg);
+  color: var(--color-diary-delivery-text);
+}
+
+/* Issue (red) */
+.issue {
+  background-color: var(--color-diary-issue-bg);
+  color: var(--color-diary-issue-text);
+}
+
+/* General note (gray) */
+.generalNote {
+  background-color: var(--color-diary-general-note-bg);
+  color: var(--color-diary-general-note-text);
+}
+
+/* Automatic entry (gray, muted) */
+.automatic {
+  background-color: var(--color-diary-automatic-bg);
+  color: var(--color-diary-automatic-text);
+  border: 1px solid var(--color-diary-automatic-border);
+}

@@ -60,6 +60,52 @@ export function formatDate(dateStr: string | null | undefined, fallback = '—')
 }
 
 /**
+ * Format an ISO timestamp as a localized time string (HH:MM).
+ *
+ * @param timestamp - An ISO timestamp string or null/undefined.
+ * @param fallback - Value returned when timestamp is null/undefined. Defaults to '—'.
+ * @returns A localized time string, e.g. "2:45 PM", or the fallback value.
+ */
+export function formatTime(timestamp: string | null | undefined, fallback = '—'): string {
+  if (!timestamp) return fallback;
+  try {
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+  } catch {
+    return fallback;
+  }
+}
+
+/**
+ * Format an ISO timestamp as a localized date and time string.
+ *
+ * @param timestamp - An ISO timestamp string or null/undefined.
+ * @param fallback - Value returned when timestamp is null/undefined. Defaults to '—'.
+ * @returns A localized date and time string, e.g. "Feb 27, 2026 at 2:45 PM", or the fallback value.
+ */
+export function formatDateTime(timestamp: string | null | undefined, fallback = '—'): string {
+  if (!timestamp) return fallback;
+  try {
+    const date = new Date(timestamp);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    }) + ' at ' + date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+  } catch {
+    return fallback;
+  }
+}
+
+/**
  * Computes the actual/effective duration in calendar days from start and end date strings.
  * For items in-progress with only a start date, computes elapsed days from start to today.
  * Returns null if the start date is not available.

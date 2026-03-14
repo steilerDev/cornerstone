@@ -1,0 +1,27 @@
+.badge {
+  display: inline-block;
+  padding: var(--spacing-1) var(--spacing-3);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  border: none;
+  cursor: default;
+}
+
+/* Pass (green) */
+.pass {
+  background-color: var(--color-diary-outcome-pass-bg);
+  color: var(--color-diary-outcome-pass-text);
+}
+
+/* Fail (red) */
+.fail {
+  background-color: var(--color-diary-outcome-fail-bg);
+  color: var(--color-diary-outcome-fail-text);
+}
+
+/* Conditional (amber) */
+.conditional {
+  background-color: var(--color-diary-outcome-conditional-bg);
+  color: var(--color-diary-outcome-conditional-text);
+}
