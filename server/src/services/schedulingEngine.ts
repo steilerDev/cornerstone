@@ -23,7 +23,7 @@ import {
   milestones,
 } from '../db/schema.js';
 import type { ScheduleResponse, ScheduleWarning } from '@cornerstone/shared';
-import { onMilestoneDelayed, onAutoRescheduleCompleted } from './diaryAutoEventService.js';
+import { onMilestoneDelayed } from './diaryAutoEventService.js';
 
 // ─── Input types for the pure scheduling engine ───────────────────────────────
 

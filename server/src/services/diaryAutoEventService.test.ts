@@ -82,6 +82,8 @@ describe('diaryAutoEventService', () => {
       expect(entry.sourceEntityType).toBe('work_item');
       expect(entry.sourceEntityId).toBe('wi-test-001');
       expect(entry.createdBy).toBeNull();
+      expect(entry.body).toContain('Foundation Work');
+      expect(entry.body).toContain('not_started');
       expect(entry.body).toContain('in_progress');
     });
 
@@ -142,6 +144,7 @@ describe('diaryAutoEventService', () => {
       expect(entry.sourceEntityType).toBe('invoice');
       expect(entry.sourceEntityId).toBe('inv-001');
       expect(entry.body).toContain('INV-2026-042');
+      expect(entry.body).toContain('pending');
       expect(entry.body).toContain('paid');
     });
 
@@ -174,6 +177,7 @@ describe('diaryAutoEventService', () => {
       );
 
       const entries = getAllEntries();
+      expect(entries).toHaveLength(1);
       const metadata = JSON.parse(entries[0].metadata ?? 'null');
       expect(metadata.previousValue).toBe('pending');
       expect(metadata.newValue).toBe('paid');
@@ -255,6 +259,7 @@ describe('diaryAutoEventService', () => {
       expect(entry.sourceEntityType).toBeNull();
       expect(entry.sourceEntityId).toBeNull();
       expect(entry.body).toContain('5');
+      expect(entry.body).toContain('updated');
     });
 
     it('stores metadata with itemCount equal to updatedCount', () => {

@@ -68,7 +68,7 @@ export function onWorkItemStatusChanged(
   previousStatus: string,
   newStatus: string,
 ): void {
-  const body = `Work Item: Status changed to ${newStatus}`;
+  const body = `[Work Item] "${workItemTitle}" status changed from ${previousStatus} to ${newStatus}`;
   const metadata: AutoEventMetadata = {
     changeSummary: `Status changed from ${previousStatus} to ${newStatus}`,
     previousValue: previousStatus,
@@ -96,7 +96,7 @@ export function onInvoiceStatusChanged(
   previousStatus: string,
   newStatus: string,
 ): void {
-  const body = `Invoice ${invoiceNumber || 'N/A'}: Status changed to ${newStatus}`;
+  const body = `[Invoice] ${invoiceNumber || 'N/A'} status changed from ${previousStatus} to ${newStatus}`;
   const metadata: AutoEventMetadata = {
     changeSummary: `Status changed from ${previousStatus} to ${newStatus}`,
     previousValue: previousStatus,
@@ -181,7 +181,7 @@ export function onAutoRescheduleCompleted(
 ): void {
   if (updatedCount === 0) return;
 
-  const body = `Schedule: Automatic rescheduling completed, ${updatedCount} work item(s) updated`;
+  const body = `[Schedule] Auto-reschedule completed — ${updatedCount} work item(s) updated`;
   const metadata: AutoEventMetadata = {
     changeSummary: `${updatedCount} work item(s) automatically rescheduled`,
     itemCount: updatedCount,
