@@ -8,50 +8,6 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import type * as DiaryApiTypes from '../../lib/diaryApi.js';
 import type { DiaryEntryDetail } from '@cornerstone/shared';
 
-// ── CSS Modules mocks ─────────────────────────────────────────────────────────
-
-jest.unstable_mockModule('./DiaryEntryDetailPage.module.css', () => ({
-  default: new Proxy(
-    {},
-    { get: (_t, prop) => (typeof prop === 'string' ? prop : '') },
-  ),
-}));
-
-jest.unstable_mockModule('../../styles/shared.module.css', () => ({
-  default: new Proxy(
-    {},
-    { get: (_t, prop) => (typeof prop === 'string' ? prop : '') },
-  ),
-}));
-
-jest.unstable_mockModule('../../components/diary/DiaryEntryTypeBadge/DiaryEntryTypeBadge.module.css', () => ({
-  default: new Proxy(
-    {},
-    { get: (_t, prop) => (typeof prop === 'string' ? prop : '') },
-  ),
-}));
-
-jest.unstable_mockModule('../../components/diary/DiaryMetadataSummary/DiaryMetadataSummary.module.css', () => ({
-  default: new Proxy(
-    {},
-    { get: (_t, prop) => (typeof prop === 'string' ? prop : '') },
-  ),
-}));
-
-jest.unstable_mockModule('../../components/diary/DiaryOutcomeBadge/DiaryOutcomeBadge.module.css', () => ({
-  default: new Proxy(
-    {},
-    { get: (_t, prop) => (typeof prop === 'string' ? prop : '') },
-  ),
-}));
-
-jest.unstable_mockModule('../../components/diary/DiarySeverityBadge/DiarySeverityBadge.module.css', () => ({
-  default: new Proxy(
-    {},
-    { get: (_t, prop) => (typeof prop === 'string' ? prop : '') },
-  ),
-}));
-
 // ── API mock ──────────────────────────────────────────────────────────────────
 
 const mockGetDiaryEntry = jest.fn<typeof DiaryApiTypes.getDiaryEntry>();

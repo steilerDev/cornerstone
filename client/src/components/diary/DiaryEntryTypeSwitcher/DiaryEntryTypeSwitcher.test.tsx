@@ -4,26 +4,15 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { screen, render, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type * as SwitcherTypes from './DiaryEntryTypeSwitcher.js';
-
-jest.unstable_mockModule('./DiaryEntryTypeSwitcher.module.css', () => ({
-  default: new Proxy(
-    {},
-    { get: (_t, prop) => (typeof prop === 'string' ? prop : '') },
-  ),
-}));
+import { DiaryEntryTypeSwitcher } from './DiaryEntryTypeSwitcher.js';
 
 describe('DiaryEntryTypeSwitcher', () => {
-  let DiaryEntryTypeSwitcher: typeof SwitcherTypes.DiaryEntryTypeSwitcher;
-
-  beforeEach(async () => {
+  beforeEach(() => {
     localStorage.setItem('theme', 'light');
-    ({ DiaryEntryTypeSwitcher } = await import('./DiaryEntryTypeSwitcher.js'));
   });
 
   afterEach(() => {
     localStorage.clear();
-    jest.resetModules();
   });
 
   const renderSwitcher = (value: 'all' | 'manual' | 'automatic' = 'all', onChange = jest.fn()) =>

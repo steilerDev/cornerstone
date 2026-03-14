@@ -1,28 +1,17 @@
 /**
  * @jest-environment jsdom
  */
-import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { screen, render } from '@testing-library/react';
-import type * as BadgeTypes from './DiarySeverityBadge.js';
-
-jest.unstable_mockModule('./DiarySeverityBadge.module.css', () => ({
-  default: new Proxy(
-    {},
-    { get: (_t, prop) => (typeof prop === 'string' ? prop : '') },
-  ),
-}));
+import { DiarySeverityBadge } from './DiarySeverityBadge.js';
 
 describe('DiarySeverityBadge', () => {
-  let DiarySeverityBadge: typeof BadgeTypes.DiarySeverityBadge;
-
-  beforeEach(async () => {
+  beforeEach(() => {
     localStorage.setItem('theme', 'light');
-    ({ DiarySeverityBadge } = await import('./DiarySeverityBadge.js'));
   });
 
   afterEach(() => {
     localStorage.clear();
-    jest.resetModules();
   });
 
   // ─── Labels ────────────────────────────────────────────────────────────────

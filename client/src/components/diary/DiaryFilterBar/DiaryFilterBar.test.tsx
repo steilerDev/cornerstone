@@ -5,27 +5,9 @@ import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals
 import { screen, render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { DiaryEntryType } from '@cornerstone/shared';
-import type * as FilterBarTypes from './DiaryFilterBar.js';
-
-// ── CSS Modules mocks ─────────────────────────────────────────────────────────
-
-jest.unstable_mockModule('./DiaryFilterBar.module.css', () => ({
-  default: new Proxy(
-    {},
-    { get: (_t, prop) => (typeof prop === 'string' ? prop : '') },
-  ),
-}));
-
-jest.unstable_mockModule('../../../styles/shared.module.css', () => ({
-  default: new Proxy(
-    {},
-    { get: (_t, prop) => (typeof prop === 'string' ? prop : '') },
-  ),
-}));
+import { DiaryFilterBar } from './DiaryFilterBar.js';
 
 describe('DiaryFilterBar', () => {
-  let DiaryFilterBar: typeof FilterBarTypes.DiaryFilterBar;
-
   const defaultProps = {
     searchQuery: '',
     onSearchChange: jest.fn<(q: string) => void>(),
@@ -38,15 +20,13 @@ describe('DiaryFilterBar', () => {
     onClearAll: jest.fn<() => void>(),
   };
 
-  beforeEach(async () => {
+  beforeEach(() => {
     localStorage.setItem('theme', 'light');
-    ({ DiaryFilterBar } = await import('./DiaryFilterBar.js'));
     jest.clearAllMocks();
   });
 
   afterEach(() => {
     localStorage.clear();
-    jest.resetModules();
   });
 
   const renderFilterBar = (overrides: Partial<typeof defaultProps> = {}) =>

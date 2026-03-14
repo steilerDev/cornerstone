@@ -1,48 +1,11 @@
 /**
  * @jest-environment jsdom
  */
-import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { screen, render } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { DiaryEntrySummary } from '@cornerstone/shared';
-import type * as CardTypes from './DiaryEntryCard.js';
-
-// ── CSS Modules mocks ─────────────────────────────────────────────────────────
-
-jest.unstable_mockModule('./DiaryEntryCard.module.css', () => ({
-  default: new Proxy(
-    {},
-    { get: (_t, prop) => (typeof prop === 'string' ? prop : '') },
-  ),
-}));
-
-jest.unstable_mockModule('../DiaryEntryTypeBadge/DiaryEntryTypeBadge.module.css', () => ({
-  default: new Proxy(
-    {},
-    { get: (_t, prop) => (typeof prop === 'string' ? prop : '') },
-  ),
-}));
-
-jest.unstable_mockModule('../DiaryMetadataSummary/DiaryMetadataSummary.module.css', () => ({
-  default: new Proxy(
-    {},
-    { get: (_t, prop) => (typeof prop === 'string' ? prop : '') },
-  ),
-}));
-
-jest.unstable_mockModule('../DiaryOutcomeBadge/DiaryOutcomeBadge.module.css', () => ({
-  default: new Proxy(
-    {},
-    { get: (_t, prop) => (typeof prop === 'string' ? prop : '') },
-  ),
-}));
-
-jest.unstable_mockModule('../DiarySeverityBadge/DiarySeverityBadge.module.css', () => ({
-  default: new Proxy(
-    {},
-    { get: (_t, prop) => (typeof prop === 'string' ? prop : '') },
-  ),
-}));
+import { DiaryEntryCard } from './DiaryEntryCard.js';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -79,17 +42,12 @@ const automaticEntry: DiaryEntrySummary = {
 };
 
 describe('DiaryEntryCard', () => {
-  let DiaryEntryCard: typeof CardTypes.DiaryEntryCard;
-
-  beforeEach(async () => {
+  beforeEach(() => {
     localStorage.setItem('theme', 'light');
-    const module = await import('./DiaryEntryCard.js');
-    DiaryEntryCard = module.DiaryEntryCard;
   });
 
   afterEach(() => {
     localStorage.clear();
-    jest.resetModules();
   });
 
   const renderCard = (entry: DiaryEntrySummary) =>

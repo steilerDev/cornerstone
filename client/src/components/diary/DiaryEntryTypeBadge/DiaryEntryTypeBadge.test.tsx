@@ -1,29 +1,17 @@
 /**
  * @jest-environment jsdom
  */
-import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { screen, render } from '@testing-library/react';
-import type * as BadgeTypes from './DiaryEntryTypeBadge.js';
-
-// CSS Modules mock
-jest.unstable_mockModule('./DiaryEntryTypeBadge.module.css', () => ({
-  default: new Proxy(
-    {},
-    { get: (_t, prop) => (typeof prop === 'string' ? prop : '') },
-  ),
-}));
+import { DiaryEntryTypeBadge } from './DiaryEntryTypeBadge.js';
 
 describe('DiaryEntryTypeBadge', () => {
-  let DiaryEntryTypeBadge: typeof BadgeTypes.DiaryEntryTypeBadge;
-
-  beforeEach(async () => {
+  beforeEach(() => {
     localStorage.setItem('theme', 'light');
-    ({ DiaryEntryTypeBadge } = await import('./DiaryEntryTypeBadge.js'));
   });
 
   afterEach(() => {
     localStorage.clear();
-    jest.resetModules();
   });
 
   // ─── Manual types — distinct emoji ─────────────────────────────────────────
