@@ -204,13 +204,14 @@ describe('diaryService', () => {
 
     it('returns correct offset for page 2', () => {
       // Insert 3 entries; page 2 with pageSize 2 should return 1
-      insertEntry({ entryDate: '2026-01-01' });
+      const oldestId = insertEntry({ entryDate: '2026-01-01' });
       insertEntry({ entryDate: '2026-01-02' });
-      const thirdId = insertEntry({ entryDate: '2026-01-03' });
+      insertEntry({ entryDate: '2026-01-03' });
 
+      // DESC order: 03, 02, 01 → page 1 has 03+02, page 2 has 01
       const result = listDiaryEntries(db, { page: 2, pageSize: 2 });
       expect(result.items).toHaveLength(1);
-      expect(result.items[0].id).toBe(thirdId); // Oldest (page 2 of DESC order)
+      expect(result.items[0].id).toBe(oldestId); // Oldest entry on page 2
       expect(result.pagination.page).toBe(2);
       expect(result.pagination.pageSize).toBe(2);
       expect(result.pagination.totalItems).toBe(3);
