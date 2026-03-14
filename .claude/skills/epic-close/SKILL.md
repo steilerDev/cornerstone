@@ -102,6 +102,7 @@ If no refinement items exist, skip to step 5.
 
 Launch the **e2e-test-engineer** agent to:
 
+- **Triage prior E2E failures** from recent beta PRs (the agent does this automatically per its "Before Starting Any Work" checklist — review the triage report before proceeding). If real regressions are found, address them before continuing.
 - Confirm all existing Playwright E2E tests pass
 - Verify every approved UAT scenario (from story issues) has E2E coverage
 - Write new E2E tests on a branch if coverage gaps exist

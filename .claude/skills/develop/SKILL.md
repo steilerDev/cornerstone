@@ -183,6 +183,7 @@ After implementation agents complete, launch both test agents in parallel:
 
 - The `## E2E Spec` section from the spec document
 - List of files created/modified by the backend and frontend agents
+- Reminder to triage prior E2E failures from recent beta PRs before writing new tests (the agent does this automatically per its "Before Starting Any Work" checklist)
 
 #### 6e. Code Review
 

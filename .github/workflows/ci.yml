@@ -95,24 +95,37 @@ jobs:
       - name: Check results
         run: |
           failed=0
-          for job in static-analysis test docker e2e-warmup e2e-smoke e2e e2e-merge-reports; do
-            result="${{ needs.static-analysis.result }}"
-            case "$job" in
-              static-analysis) result="${{ needs.static-analysis.result }}" ;;
-              test) result="${{ needs.test.result }}" ;;
-              docker) result="${{ needs.docker.result }}" ;;
-              e2e-warmup) result="${{ needs.e2e-warmup.result }}" ;;
-              e2e-smoke) result="${{ needs.e2e-smoke.result }}" ;;
-              e2e) result="${{ needs.e2e.result }}" ;;
-              e2e-merge-reports) result="${{ needs.e2e-merge-reports.result }}" ;;
-            esac
+
+          check_job() {
+            local job=$1
+            local result=$2
+            local blocking=$3
+
             if [ "$result" != "success" ] && [ "$result" != "skipped" ]; then
-              echo "❌ $job: $result"
-              failed=1
+              if [ "$blocking" = "true" ]; then
+                echo "❌ $job: $result (blocking)"
+                failed=1
+              else
+                echo "⚠️ $job: $result (non-blocking)"
+              fi
             else
               echo "✅ $job: $result"
             fi
-          done
+          }
+
+          IS_MAIN=${{ github.base_ref == 'main' }}
+
+          # Always-blocking jobs
+          check_job "static-analysis" "${{ needs.static-analysis.result }}" "true"
+          check_job "test" "${{ needs.test.result }}" "true"
+          check_job "docker" "${{ needs.docker.result }}" "true"
+          check_job "e2e-warmup" "${{ needs.e2e-warmup.result }}" "true"
+          check_job "e2e-smoke" "${{ needs.e2e-smoke.result }}" "true"
+
+          # Blocking only for main-targeted PRs
+          check_job "e2e" "${{ needs.e2e.result }}" "$IS_MAIN"
+          check_job "e2e-merge-reports" "${{ needs.e2e-merge-reports.result }}" "$IS_MAIN"
+
           if [ "$failed" = "1" ]; then
             exit 1
           fi
@@ -353,7 +366,7 @@ jobs:
     name: E2E Tests (Shard ${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
     runs-on: ubuntu-latest
     needs: [detect-changes, docker, e2e-warmup]
-    if: "github.base_ref == 'main' && (needs.detect-changes.outputs.app == 'true' || needs.detect-changes.outputs.e2e == 'true')"
+    if: needs.detect-changes.outputs.app == 'true' || needs.detect-changes.outputs.e2e == 'true'
     timeout-minutes: 15
     strategy:
       fail-fast: false
