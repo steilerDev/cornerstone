@@ -854,7 +854,13 @@ test.describe('Discretionary Funding source', () => {
       const labelTexts = await legendLabels.allTextContents();
       const normalised = labelTexts.map((t) => t.trim());
       // Known legend label values from SourceBarChart component
-      const knownLabels = ['Claimed', 'Paid (unclaimed)', 'Projected', 'Allocated (planned)', 'Overflow'];
+      const knownLabels = [
+        'Claimed',
+        'Paid (unclaimed)',
+        'Projected',
+        'Allocated (planned)',
+        'Overflow',
+      ];
       expect(normalised.every((l) => knownLabels.includes(l))).toBe(true);
     }
   });
