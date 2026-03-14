@@ -16,13 +16,10 @@ export default fp(
           objectSrc: ["'none'"],
           baseUri: ["'self'"],
           formAction: ["'self'"],
+          upgradeInsecureRequests: null, // Remove — app never terminates TLS
         },
       },
-      hsts: {
-        maxAge: 31536000,
-        includeSubDomains: true,
-        preload: false,
-      },
+      hsts: false, // App runs behind TLS-terminating proxy; HSTS belongs there
       frameguard: { action: 'sameorigin' },
       noSniff: true,
       xssFilter: true,
