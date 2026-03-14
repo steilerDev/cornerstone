@@ -28,6 +28,18 @@ jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({
   ToastProvider: ({ children }: { children: unknown }) => children,
 }));
 
+// Mock usePhotos to avoid real API calls
+jest.unstable_mockModule('../../hooks/usePhotos.js', () => ({
+  usePhotos: () => ({
+    photos: [],
+    loading: false,
+    upload: jest.fn(),
+    deletePhoto: jest.fn(),
+    reorderPhotos: jest.fn(),
+    updateCaption: jest.fn(),
+  }),
+}));
+
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
 const baseDetail: DiaryEntryDetail = {
