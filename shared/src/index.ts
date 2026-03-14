@@ -288,3 +288,29 @@ export type {
   UpdatePhotoRequest,
   ReorderPhotosRequest,
 } from './types/photo.js';
+
+// Diary (Construction Diary / Bautagebuch)
+export type {
+  ManualDiaryEntryType,
+  AutomaticDiaryEntryType,
+  DiaryEntryType,
+  DiaryWeather,
+  DiaryInspectionOutcome,
+  DiaryIssueSeverity,
+  DiaryIssueResolution,
+  DailyLogMetadata,
+  SiteVisitMetadata,
+  DeliveryMetadata,
+  IssueMetadata,
+  GeneralNoteMetadata,
+  AutoEventMetadata,
+  DiaryEntryMetadata,
+  DiarySourceEntityType,
+  DiaryUserSummary,
+  DiaryEntrySummary,
+  DiaryEntryDetail,
+  CreateDiaryEntryRequest,
+  UpdateDiaryEntryRequest,
+  DiaryEntryListQuery,
+  DiaryEntryListResponse,
+} from './types/diary.js';
