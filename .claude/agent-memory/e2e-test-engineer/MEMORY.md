@@ -102,3 +102,46 @@ POM helper `getSuccessBannerText()` wraps `waitFor` in try/catch, returns null o
 This masks failures: `expect(null).toContain(X)` throws confusing error. Use:
 `await expect(sourcesPage.successBanner).toBeVisible()` (uses expect.timeout with retry).
 Also add `waitForResponse` BEFORE save click — confirms API 200 before checking UI.
+
+## Diary Forms E2E (Story #805, 2026-03-14)
+
+Files: `e2e/pages/DiaryEntryCreatePage.ts`, `e2e/pages/DiaryEntryEditPage.ts`,
+`e2e/tests/diary/diary-forms.spec.ts`. DiaryEntryDetailPage.ts extended with edit/delete locators.
+
+Key selectors:
+- Create page type cards: `getByTestId('type-card-{type}')` — clicking immediately transitions to form
+- Create form: `#entry-date`, `#title`, `#body` (common); `#weather`, `#temperature`, `#workers`
+  (daily_log); `#inspector-name`, `#inspection-outcome` (site_visit); `#severity`,
+  `#resolution-status` (issue); `[name="material-input"]` (delivery)
+- Create submit: `getByRole('button', { name: /Create Entry|Creating\.\.\./i })`
+- Edit page: `getByRole('heading', { level: 1, name: 'Edit Diary Entry' })`
+- Edit back: `getByRole('button', { name: /← Back to Entry/i })`
+- Edit save: `getByRole('button', { name: /Save Changes|Saving\.\.\./i })`
+- Edit delete opens modal: `getByRole('button', { name: 'Delete Entry', exact: true })`
+- Detail Edit button: `getByRole('link', { name: 'Edit', exact: true })` (anchor, not button)
+- Detail Delete button: `getByRole('button', { name: 'Delete', exact: true })` (NOT "Delete Entry")
+- Modal: `getByRole('dialog')` — conditionally rendered; confirmDelete inside modal scope
+- Confirm delete: `modal.getByRole('button', { name: /Delete Entry|Deleting\.\.\./i })`
+- Edit/Delete buttons NOT rendered for automatic entries (`isAutomatic: true`)
+- DiaryEntryEditPage.save() registers waitForResponse (PATCH) BEFORE click — returns after API
+
+## Diary E2E (Story #804, 2026-03-14)
+
+Files: `e2e/pages/DiaryPage.ts`, `e2e/pages/DiaryEntryDetailPage.ts`,
+`e2e/tests/diary/diary-list.spec.ts`, `e2e/tests/diary/diary-detail.spec.ts`.
+
+Key selectors:
+- DiaryPage heading: `getByRole('heading', { level: 1, name: 'Construction Diary' })`
+- Filter bar: `getByTestId('diary-filter-bar')`, search: `getByTestId('diary-search-input')`
+- Type switcher: `getByTestId('type-switcher-all|manual|automatic')`
+- Entry cards: `getByTestId('diary-card-{id}')`, date groups: `getByTestId('date-group-{date}')`
+- Type chips: `getByTestId('type-filter-{entryType}')`, clear: `getByTestId('clear-filters-button')`
+- Pagination: `getByTestId('prev-page-button')` / `getByTestId('next-page-button')`
+- Detail back button: `getByTitle('Go back')` (title="Go back"), back link: `getByRole('link', { name: 'Back to Diary' })`
+- Metadata wrappers: `getByTestId('daily-log-metadata|site-visit-metadata|delivery-metadata|issue-metadata')`
+- Outcome badge: `getByTestId('outcome-{pass|fail|conditional}')`, severity: `getByTestId('severity-{level}')`
+- Automatic badge: `locator('[class*="badge"]').filter({ hasText: 'Automatic' })`
+
+API: `POST /api/diary-entries` returns `DiaryEntrySummary` with `id` at top level (not nested).
+Empty state uses shared.emptyState CSS module class (conditional render — use `.not.toBeVisible()` not `.toBeHidden()`).
+DiaryPage.waitForLoaded() races: timeline visible OR emptyState visible OR errorBanner visible.

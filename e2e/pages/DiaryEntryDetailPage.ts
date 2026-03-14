@@ -2,7 +2,11 @@
  * Page Object Model for the Diary Entry Detail page (/diary/:id)
  *
  * The page renders:
- * - A "← Back" button (type="button", class styles.backButton) that calls navigate(-1)
+ * - A top bar with:
+ *   - "← Back" button (aria-label="Go back") that calls navigate(-1)
+ *   - For non-automatic entries: action buttons —
+ *     - "Edit" link (<Link to="/diary/:id/edit">, class styles.editButton)
+ *     - "Delete" button (type="button", class styles.deleteButton) — opens delete modal
  * - A card container with:
  *   - A DiaryEntryTypeBadge (size="lg")
  *   - An optional h1 entry title (class styles.title) — only rendered when entry.title is set
@@ -15,9 +19,18 @@
  *   - Timestamps footer (Created / Updated)
  * - A "Back to Diary" link (shared.btnSecondary) navigating to /diary
  * - Error state: bannerError div + "Back to Diary" link — shown when 404 or other API error
+ * - Delete confirmation modal (role="dialog", aria-labelledby="delete-modal-title"):
+ *   - "Delete Diary Entry" heading
+ *   - Confirmation text
+ *   - Optional error banner (role="alert") if delete fails
+ *   - "Cancel" button (closes modal)
+ *   - "Delete Entry" / "Deleting..." confirm button (hidden when deleteError is set)
  *
  * Key DOM observations from source code:
- * - Back button: type="button", title="Go back" — use getByTitle or getByText('← Back')
+ * - Back button: aria-label="Go back" — use getByLabel('Go back')
+ * - Edit button: <Link> (anchor), use getByRole('link', { name: 'Edit' })
+ * - Delete button (page): <button>, use getByRole('button', { name: 'Delete' })
+ * - Action buttons (Edit + Delete) only rendered for non-automatic entries
  * - Entry title: only rendered if entry.title is non-null/non-empty
  * - "Back to Diary" is a <Link> (anchor), not a <button>
  * - Error div uses shared.bannerError CSS class
@@ -25,6 +38,8 @@
  *   issue-metadata) set by DiaryMetadataSummary component
  * - Outcome badge: data-testid="outcome-{pass|fail|conditional}" (DiaryOutcomeBadge)
  * - Severity badge: data-testid="severity-{low|medium|high|critical}" (DiarySeverityBadge)
+ * - Delete modal: conditionally rendered, role="dialog"
+ * - Confirm delete button: class styles.confirmDeleteButton, hidden after deleteError
  */
 
 import type { Page, Locator } from '@playwright/test';
@@ -37,6 +52,15 @@ export class DiaryEntryDetailPage {
   // Navigation
   readonly backButton: Locator;
   readonly backToDiaryLink: Locator;
+
+  // Edit / delete action buttons (only visible for non-automatic entries)
+  readonly editButton: Locator;
+  readonly deleteButton: Locator;
+
+  // Delete confirmation modal
+  readonly deleteModal: Locator;
+  readonly confirmDeleteButton: Locator;
+  readonly cancelDeleteButton: Locator;
 
   // Entry content
   readonly entryTitle: Locator;
@@ -74,6 +98,22 @@ export class DiaryEntryDetailPage {
 
     // "Back to Diary" link at bottom of page — a <Link> element
     this.backToDiaryLink = page.getByRole('link', { name: 'Back to Diary' });
+
+    // "Edit" is a <Link> rendered as an anchor — only visible for non-automatic entries
+    this.editButton = page.getByRole('link', { name: 'Edit', exact: true });
+
+    // "Delete" is a <button> in the top bar — opens the delete modal
+    // Note: "Delete Entry" is the button inside the modal — use exact match to distinguish
+    this.deleteButton = page.getByRole('button', { name: 'Delete', exact: true });
+
+    // Delete confirmation modal (role="dialog")
+    this.deleteModal = page.getByRole('dialog');
+    // Confirm inside the modal: "Delete Entry" / "Deleting..."
+    this.confirmDeleteButton = this.deleteModal.getByRole('button', {
+      name: /Delete Entry|Deleting\.\.\./i,
+    });
+    // Cancel inside the modal
+    this.cancelDeleteButton = this.deleteModal.getByRole('button', { name: 'Cancel', exact: true });
 
     // Entry title h1 (conditional — only rendered when entry.title is set)
     this.entryTitle = page
@@ -149,5 +189,26 @@ export class DiaryEntryDetailPage {
    */
   severityBadge(severity: 'low' | 'medium' | 'high' | 'critical'): Locator {
     return this.page.getByTestId(`severity-${severity}`);
+  }
+
+  /**
+   * Open the delete confirmation modal by clicking the "Delete" button in the top bar.
+   * Waits for the modal to become visible.
+   */
+  async openDeleteModal(): Promise<void> {
+    await this.deleteButton.click();
+    await this.deleteModal.waitFor({ state: 'visible' });
+  }
+
+  /**
+   * Confirm the deletion inside the modal.
+   * Waits for the API DELETE response before returning.
+   */
+  async confirmDelete(): Promise<void> {
+    const responsePromise = this.page.waitForResponse(
+      (resp) => resp.url().includes('/api/diary-entries/') && resp.request().method() === 'DELETE',
+    );
+    await this.confirmDeleteButton.click();
+    await responsePromise;
   }
 }

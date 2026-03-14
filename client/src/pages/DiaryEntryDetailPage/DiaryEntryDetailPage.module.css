@@ -7,8 +7,14 @@
   padding: var(--spacing-6);
 }
 
+.topBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+}
+
 .backButton {
-  align-self: flex-start;
   padding: var(--spacing-2) var(--spacing-3);
   background-color: transparent;
   border: 1px solid var(--color-border-strong);
@@ -27,6 +33,58 @@
 .backButton:focus-visible {
   outline: none;
   box-shadow: var(--shadow-focus);
+}
+
+.actionButtons {
+  display: flex;
+  gap: var(--spacing-2);
+}
+
+.editButton {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--spacing-2) var(--spacing-3);
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.editButton:hover {
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+}
+
+.editButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.deleteButton {
+  padding: var(--spacing-2) var(--spacing-3);
+  background: transparent;
+  color: var(--color-danger);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.deleteButton:hover {
+  background: var(--color-danger-bg);
+  border-color: var(--color-danger);
+}
+
+.deleteButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus-danger);
 }
 
 .card {
@@ -171,6 +229,123 @@
   color: var(--color-text-muted);
 }
 
+/* ============================================================
+ * Delete Modal
+ * ============================================================ */
+
+.modal {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modalBackdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--color-overlay);
+  cursor: pointer;
+}
+
+.modalContent {
+  position: relative;
+  z-index: 1001;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-6);
+  max-width: 400px;
+  width: 90%;
+  box-shadow: var(--shadow-lg);
+}
+
+.modalTitle {
+  margin: 0 0 var(--spacing-3) 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+}
+
+.modalText {
+  margin: 0 0 var(--spacing-4) 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+.errorBanner {
+  padding: var(--spacing-4);
+  margin-bottom: var(--spacing-4);
+  background: var(--color-danger-bg);
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-md);
+  color: var(--color-danger-active);
+  font-size: var(--font-size-sm);
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-3);
+  margin-top: var(--spacing-6);
+}
+
+.confirmDeleteButton {
+  padding: var(--spacing-2) var(--spacing-4);
+  background: var(--color-danger);
+  color: white;
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.confirmDeleteButton:hover:not(:disabled) {
+  background: var(--color-danger-active);
+  border-color: var(--color-danger-active);
+}
+
+.confirmDeleteButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus-danger);
+}
+
+.confirmDeleteButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cancelButton {
+  padding: var(--spacing-2) var(--spacing-3);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: var(--transition-button-border);
+}
+
+.cancelButton:hover:not(:disabled) {
+  background: var(--color-bg-tertiary);
+  border-color: var(--color-text-placeholder);
+}
+
+.cancelButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.cancelButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* Responsive */
 @media (max-width: 767px) {
   .page {
@@ -197,5 +372,21 @@
   .timestamps {
     flex-direction: column;
     gap: var(--spacing-4);
+  }
+
+  .topBar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .actionButtons {
+    width: 100%;
+  }
+
+  .backButton,
+  .editButton,
+  .deleteButton {
+    width: 100%;
+    justify-content: center;
   }
 }

@@ -69,6 +69,12 @@ const DiaryPage = lazy(() => import('./pages/DiaryPage/DiaryPage'));
 const DiaryEntryDetailPage = lazy(
   () => import('./pages/DiaryEntryDetailPage/DiaryEntryDetailPage'),
 );
+const DiaryEntryCreatePage = lazy(
+  () => import('./pages/DiaryEntryCreatePage/DiaryEntryCreatePage'),
+);
+const DiaryEntryEditPage = lazy(
+  () => import('./pages/DiaryEntryEditPage/DiaryEntryEditPage'),
+);
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage/NotFoundPage'));
 
 export function App() {
@@ -153,10 +159,26 @@ export function App() {
                       }
                     />
                     <Route
+                      path="new"
+                      element={
+                        <Suspense fallback={<div>Loading...</div>}>
+                          <DiaryEntryCreatePage />
+                        </Suspense>
+                      }
+                    />
+                    <Route
                       path=":id"
                       element={
                         <Suspense fallback={<div>Loading...</div>}>
                           <DiaryEntryDetailPage />
+                        </Suspense>
+                      }
+                    />
+                    <Route
+                      path=":id/edit"
+                      element={
+                        <Suspense fallback={<div>Loading...</div>}>
+                          <DiaryEntryEditPage />
                         </Suspense>
                       }
                     />
