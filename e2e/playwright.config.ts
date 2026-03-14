@@ -86,13 +86,13 @@ export default defineConfig({
       name: 'tablet',
       dependencies: ['auth-setup'],
       grep: /@responsive/,
-      timeout: 60_000, // WebKit is significantly slower than Chromium; multi-step tests need 40-50s
-      expect: { timeout: 15_000 }, // WebKit expect assertions need more time
+      timeout: 30_000, // 2x desktop — WebKit is slightly slower than Chromium
+      expect: { timeout: 10_000 }, // 2x desktop expect timeout
       use: {
         ...devices['iPad (gen 7)'],
         storageState: 'test-results/.auth/admin.json',
-        actionTimeout: 15_000, // WebKit click/fill actions need more time
-        navigationTimeout: 15_000, // WebKit page loads need more time
+        actionTimeout: 10_000, // 2x desktop action timeout
+        navigationTimeout: 10_000, // matches desktop navigation timeout
       },
     },
 
@@ -101,13 +101,13 @@ export default defineConfig({
       name: 'mobile',
       dependencies: ['auth-setup'],
       grep: /@responsive/,
-      timeout: 60_000, // WebKit is significantly slower than Chromium; multi-step tests need 40-50s
-      expect: { timeout: 15_000 }, // WebKit expect assertions need more time
+      timeout: 30_000, // 2x desktop — WebKit is slightly slower than Chromium
+      expect: { timeout: 10_000 }, // 2x desktop expect timeout
       use: {
         ...devices['iPhone 13'],
         storageState: 'test-results/.auth/admin.json',
-        actionTimeout: 15_000, // WebKit click/fill actions need more time
-        navigationTimeout: 15_000, // WebKit page loads need more time
+        actionTimeout: 10_000, // 2x desktop action timeout
+        navigationTimeout: 10_000, // matches desktop navigation timeout
       },
     },
   ],

@@ -41,19 +41,19 @@ describe('Helmet Plugin — security headers', () => {
     expect(response.headers['content-security-policy']).toBeDefined();
     expect(typeof response.headers['content-security-policy']).toBe('string');
     expect(response.headers['content-security-policy']).toContain("default-src 'self'");
+    // upgrade-insecure-requests must NOT be present (app never terminates TLS)
+    expect(response.headers['content-security-policy']).not.toContain('upgrade-insecure-requests');
   });
 
-  it('API response includes strict-transport-security header', async () => {
+  it('API response does not include strict-transport-security header (TLS terminates at proxy)', async () => {
     // When: Any API request is made
     const response = await app.inject({
       method: 'GET',
       url: '/api/health',
     });
 
-    // Then: HSTS header is present
-    expect(response.headers['strict-transport-security']).toBeDefined();
-    expect(response.headers['strict-transport-security']).toContain('max-age=');
-    expect(response.headers['strict-transport-security']).toContain('includeSubDomains');
+    // Then: HSTS header is NOT present (app runs behind TLS-terminating proxy)
+    expect(response.headers['strict-transport-security']).toBeUndefined();
   });
 
   it('API response includes x-frame-options header with value SAMEORIGIN', async () => {

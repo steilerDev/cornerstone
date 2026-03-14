@@ -6,19 +6,6 @@ import { test, expect } from '../../fixtures/auth.js';
 import { UserManagementPage } from '../../pages/UserManagementPage.js';
 import { TEST_ADMIN } from '../../fixtures/testData.js';
 
-// The user-management search input does not render reliably on the tablet
-// WebKit viewport (iPad gen 7, 810px) within the 15s actionTimeout. The
-// search feature works on desktop; tablet users are served the same layout
-// but the test environment cannot guarantee the input is interactive in time.
-// Skip this entire spec on tablet to prevent false-positive shard failures.
-test.beforeEach(async ({ page }) => {
-  const viewport = page.viewportSize();
-  // iPad gen 7 is 810px wide; iPhone 13 is 390px. Skip on any non-desktop viewport.
-  if (viewport && viewport.width < 1200) {
-    test.skip();
-  }
-});
-
 test.describe('Search Users', () => {
   test('Search filters by name', async ({ page }) => {
     const userManagementPage = new UserManagementPage(page);

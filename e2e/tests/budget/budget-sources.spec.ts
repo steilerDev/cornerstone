@@ -817,7 +817,6 @@ test.describe('Discretionary Funding source', () => {
       // Register response listener BEFORE clicking save (per waitForResponse-before-action pattern).
       const saveResponse = page.waitForResponse(
         (resp) => resp.url().includes('/api/budget-sources') && resp.status() === 200,
-        { timeout: 15000 },
       );
       await sourcesPage.saveEdit(DISCRETIONARY_NAME);
       await saveResponse;
