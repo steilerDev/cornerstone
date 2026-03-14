@@ -301,3 +301,63 @@
 .photosGridWrapper {
   margin-top: var(--spacing-4);
 }
+
+/* Responsive */
+@media (max-width: 767px) {
+  .container {
+    padding: var(--spacing-4);
+  }
+
+  .header {
+    margin-bottom: var(--spacing-6);
+  }
+
+  .title {
+    font-size: var(--font-size-2xl);
+  }
+
+  .titleRow {
+    flex-direction: column;
+    gap: var(--spacing-3);
+  }
+
+  .form {
+    padding: var(--spacing-4);
+  }
+
+  .formActions {
+    flex-direction: column;
+    gap: var(--spacing-2);
+  }
+
+  .actionGroup {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .deleteButton,
+  .cancelButton,
+  .submitButton,
+  .backButton {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .photosCard {
+    padding: var(--spacing-4);
+  }
+
+  .errorCard {
+    padding: var(--spacing-4);
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .deleteButton,
+  .cancelButton,
+  .submitButton,
+  .backButton {
+    transition: none;
+  }
+}

@@ -92,7 +92,29 @@
     align-items: stretch;
   }
 
+  .actionButtons {
+    flex-direction: column;
+    gap: var(--spacing-2);
+  }
+
+  .exportButton,
   .createButton {
     width: 100%;
+    min-height: 44px;
+  }
+
+  .pagination {
+    flex-direction: column;
+    gap: var(--spacing-2);
+  }
+
+  .pageInfo {
+    min-width: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .liveRegion {
+    /* Ensure live region is present for screen readers even with reduced motion */
   }
 }

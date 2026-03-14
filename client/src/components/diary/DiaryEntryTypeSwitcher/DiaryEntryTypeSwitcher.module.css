@@ -45,3 +45,22 @@
 .button.active:last-child {
   border-right: none;
 }
+
+/* Responsive */
+@media (max-width: 767px) {
+  .switcher {
+    width: 100%;
+  }
+
+  .button {
+    min-height: 44px;
+    min-width: 60px;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .button {
+    transition: none;
+  }
+}

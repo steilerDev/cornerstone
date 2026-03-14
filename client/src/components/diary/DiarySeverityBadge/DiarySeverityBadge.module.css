@@ -31,3 +31,11 @@
   background-color: var(--color-diary-severity-critical-bg);
   color: var(--color-diary-severity-critical-text);
 }
+
+/* Responsive */
+@media (max-width: 767px) {
+  .badge {
+    padding: var(--spacing-0-5) var(--spacing-2);
+    font-size: var(--font-size-2xs);
+  }
+}

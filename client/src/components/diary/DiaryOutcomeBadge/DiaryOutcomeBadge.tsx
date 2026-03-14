@@ -13,7 +13,11 @@ const OUTCOME_LABELS: Record<DiaryInspectionOutcome, string> = {
 
 export function DiaryOutcomeBadge({ outcome }: DiaryOutcomeBadgeProps) {
   return (
-    <span className={`${styles.badge} ${styles[outcome]}`} data-testid={`outcome-${outcome}`}>
+    <span
+      className={`${styles.badge} ${styles[outcome]}`}
+      aria-label={`Outcome: ${OUTCOME_LABELS[outcome]}`}
+      data-testid={`outcome-${outcome}`}
+    >
       {OUTCOME_LABELS[outcome]}
     </span>
   );

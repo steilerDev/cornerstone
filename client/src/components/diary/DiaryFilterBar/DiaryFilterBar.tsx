@@ -104,6 +104,12 @@ export function DiaryFilterBar({
             placeholder="Search entries..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape' && searchQuery) {
+                onSearchChange('');
+              }
+            }}
+            aria-label="Search diary entries"
             data-testid="diary-search-input"
           />
         </div>

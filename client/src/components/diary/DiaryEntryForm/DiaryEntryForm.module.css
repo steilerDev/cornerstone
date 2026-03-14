@@ -231,3 +231,49 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* Responsive */
+@media (max-width: 767px) {
+  .container {
+    gap: var(--spacing-4);
+  }
+
+  .formRow {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-3);
+  }
+
+  .input,
+  .select,
+  .textarea {
+    min-height: 44px;
+  }
+
+  .materialInputForm {
+    flex-direction: column;
+  }
+
+  .materialInputForm .input {
+    min-height: 44px;
+  }
+
+  .addButton {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .typeChips {
+    flex-direction: column;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .input,
+  .select,
+  .textarea,
+  .addButton,
+  .chipRemoveButton {
+    transition: none;
+  }
+}

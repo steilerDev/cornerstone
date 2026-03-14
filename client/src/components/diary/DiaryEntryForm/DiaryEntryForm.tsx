@@ -246,6 +246,7 @@ export function DiaryEntryForm({
                 type="number"
                 id="temperature"
                 className={styles.input}
+                inputMode="numeric"
                 value={dailyLogTemperature ?? ''}
                 onChange={(e) =>
                   onDailyLogTemperatureChange?.(
@@ -267,6 +268,7 @@ export function DiaryEntryForm({
                 type="number"
                 id="workers"
                 className={styles.input}
+                inputMode="numeric"
                 value={dailyLogWorkers ?? ''}
                 onChange={(e) =>
                   onDailyLogWorkersChange?.(e.target.value ? parseInt(e.target.value, 10) : null)

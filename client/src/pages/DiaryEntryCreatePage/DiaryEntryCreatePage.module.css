@@ -225,3 +225,58 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* Responsive */
+@media (max-width: 767px) {
+  .container {
+    padding: var(--spacing-4);
+  }
+
+  .header {
+    margin-bottom: var(--spacing-6);
+  }
+
+  .title {
+    font-size: var(--font-size-2xl);
+  }
+
+  .typeGrid {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-3);
+  }
+
+  .typeCard {
+    padding: var(--spacing-4);
+    min-height: 100px;
+  }
+
+  .typeSelector {
+    padding: var(--spacing-4);
+  }
+
+  .form {
+    padding: var(--spacing-4);
+  }
+
+  .formActions {
+    flex-direction: column-reverse;
+    gap: var(--spacing-2);
+  }
+
+  .cancelButton,
+  .submitButton,
+  .backButton {
+    width: 100%;
+    min-height: 44px;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .typeCard,
+  .submitButton,
+  .cancelButton,
+  .backButton {
+    transition: none;
+  }
+}
