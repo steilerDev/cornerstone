@@ -199,7 +199,9 @@ Cornerstone uses a two-tier release model:
 
 ### Branch Protection
 
-Both `main` and `beta` require PRs with passing `Quality Gates`, `Docker`, and `Merge E2E Reports` status checks. Force pushes and deletions are blocked on both branches.
+Both `main` and `beta` require PRs with passing `Quality Gates` and `Docker` status checks. Force pushes and deletions are blocked on both branches.
+
+Full E2E tests (16 shards × 3 viewports) run on all PRs. On `beta`-targeted PRs, E2E failures are **non-blocking** (informational only) — `Quality Gates` will still pass. On `main`-targeted PRs, E2E failures are **blocking** — `Quality Gates` will fail. Smoke tests remain blocking for all PRs.
 
 ## Tech Stack
 
