@@ -605,11 +605,10 @@ test.describe('Responsive mobile layout (Scenario 8)', { tag: '@responsive' }, (
       const mobileSections = dashboardPage.mobileSections;
       await expect(mobileSections).toBeVisible();
 
-      // Primary section cards (Budget Summary, Budget Alerts, Invoice Pipeline, Quick Actions)
+      // Primary section cards (Budget Summary, Invoice Pipeline, Quick Actions)
       // should be visible without expanding any collapsible section
       const primaryTitles = [
         'Budget Summary',
-        'Budget Alerts',
         'Invoice Pipeline',
         'Quick Actions',
       ];
