@@ -249,7 +249,7 @@ describe('DiaryPage', () => {
     // Render with URL param page=3
     render(
       <MemoryRouter initialEntries={['/diary?page=3']}>
-        <DiaryPage.default />
+        <DiaryPage />
       </MemoryRouter>,
     );
     await waitFor(() => {
