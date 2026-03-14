@@ -806,12 +806,18 @@ test.describe('Discretionary Funding source', () => {
       const amountInput = editForm.locator(`#edit-amount-${sourceId}`);
       await amountInput.fill('0');
 
+      // Register response listener BEFORE clicking save (per waitForResponse-before-action pattern).
+      const saveResponse = page.waitForResponse(
+        (resp) => resp.url().includes('/api/budget-sources') && resp.status() === 200,
+      );
       await sourcesPage.saveEdit(DISCRETIONARY_NAME);
+      await saveResponse;
 
-      // Success banner must appear (updated successfully)
-      // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
-      const successText = await sourcesPage.getSuccessBannerText();
-      expect(successText).toContain(DISCRETIONARY_NAME);
+      // Success banner must appear (updated successfully).
+      // Use expect() with project-level expect.timeout (7s desktop / 15s WebKit) rather than
+      // getSuccessBannerText() which catches timeouts and returns null, masking real failures.
+      await expect(sourcesPage.successBanner).toBeVisible();
+      await expect(sourcesPage.successBanner).toContainText(DISCRETIONARY_NAME);
     } finally {
       // Restore original totalAmount via API regardless of test outcome
       await page.request.patch(`${API.budgetSources}/${sourceId}`, {
