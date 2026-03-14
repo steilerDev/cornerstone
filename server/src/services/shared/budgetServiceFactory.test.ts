@@ -231,7 +231,10 @@ describe('budgetServiceFactory — createBudgetService()', () => {
       const workItemId = insertWorkItem();
       const hiId = insertHouseholdItem();
 
-      createWorkItemBudget(db, workItemId, 'user-001', { plannedAmount: 500 });
+      createWorkItemBudget(db, workItemId, 'user-001', {
+        plannedAmount: 500,
+        budgetSourceId: 'discretionary-system',
+      });
 
       expect(listWorkItemBudgets(db, workItemId)).toHaveLength(1);
       expect(listHouseholdItemBudgets(db, hiId)).toHaveLength(0);
@@ -253,10 +256,12 @@ describe('budgetServiceFactory — createBudgetService()', () => {
         const line1 = createWorkItemBudget(db, workItemId, 'user-001', {
           plannedAmount: 100,
           description: 'First line',
+          budgetSourceId: 'discretionary-system',
         });
         const line2 = createWorkItemBudget(db, workItemId, 'user-001', {
           plannedAmount: 200,
           description: 'Second line',
+          budgetSourceId: 'discretionary-system',
         });
 
         const result = listWorkItemBudgets(db, workItemId);
@@ -280,7 +285,10 @@ describe('budgetServiceFactory — createBudgetService()', () => {
         const workItemId1 = insertWorkItem('Item 1');
         const workItemId2 = insertWorkItem('Item 2');
 
-        createWorkItemBudget(db, workItemId2, 'user-001', { plannedAmount: 999 });
+        createWorkItemBudget(db, workItemId2, 'user-001', {
+          plannedAmount: 999,
+          budgetSourceId: 'discretionary-system',
+        });
 
         expect(listWorkItemBudgets(db, workItemId1)).toHaveLength(0);
       });
@@ -294,10 +302,12 @@ describe('budgetServiceFactory — createBudgetService()', () => {
         const lineA = createWorkItemBudget(db, workItemId, 'user-001', {
           plannedAmount: 300,
           description: 'Line A (paid)',
+          budgetSourceId: 'discretionary-system',
         });
         const lineB = createWorkItemBudget(db, workItemId, 'user-001', {
           plannedAmount: 200,
           description: 'Line B (pending)',
+          budgetSourceId: 'discretionary-system',
         });
         insertInvoiceForWorkItemBudget(lineA.id, vendorId, { amount: 150, status: 'paid' });
         insertInvoiceForWorkItemBudget(lineB.id, vendorId, { amount: 75, status: 'pending' });
@@ -338,14 +348,20 @@ describe('budgetServiceFactory — createBudgetService()', () => {
         const hiId1 = insertHouseholdItem('Sofa');
         const hiId2 = insertHouseholdItem('Fridge');
 
-        createHouseholdItemBudget(db, hiId2, 'user-001', { plannedAmount: 800 });
+        createHouseholdItemBudget(db, hiId2, 'user-001', {
+          plannedAmount: 800,
+          budgetSourceId: 'discretionary-system',
+        });
 
         expect(listHouseholdItemBudgets(db, hiId1)).toHaveLength(0);
       });
 
       it('does NOT include an invoices list on household item budget lines', () => {
         const hiId = insertHouseholdItem();
-        createHouseholdItemBudget(db, hiId, 'user-001', { plannedAmount: 300 });
+        createHouseholdItemBudget(db, hiId, 'user-001', {
+          plannedAmount: 300,
+          budgetSourceId: 'discretionary-system',
+        });
 
         const result = listHouseholdItemBudgets(db, hiId);
 
@@ -358,7 +374,10 @@ describe('budgetServiceFactory — createBudgetService()', () => {
         const hiId = insertHouseholdItem();
         const vendorId = insertVendor();
 
-        const line = createHouseholdItemBudget(db, hiId, 'user-001', { plannedAmount: 400 });
+        const line = createHouseholdItemBudget(db, hiId, 'user-001', {
+          plannedAmount: 400,
+          budgetSourceId: 'discretionary-system',
+        });
         insertInvoiceForHouseholdItemBudget(line.id, vendorId, { amount: 200, status: 'claimed' });
 
         const result = listHouseholdItemBudgets(db, hiId);
@@ -412,6 +431,7 @@ describe('budgetServiceFactory — createBudgetService()', () => {
 
         const result = createWorkItemBudget(db, workItemId, 'user-001', {
           plannedAmount: 500,
+          budgetSourceId: 'discretionary-system',
         });
 
         expect(result.confidence).toBe('own_estimate');
@@ -423,11 +443,12 @@ describe('budgetServiceFactory — createBudgetService()', () => {
 
         const result = createWorkItemBudget(db, workItemId, 'user-001', {
           plannedAmount: 100,
+          budgetSourceId: 'discretionary-system',
         });
 
         expect(result.description).toBeNull();
         expect(result.budgetCategory).toBeNull();
-        expect(result.budgetSource).toBeNull();
+        expect(result.budgetSource).not.toBeNull(); // discretionary-system is always present
         expect(result.vendor).toBeNull();
       });
 
@@ -436,6 +457,7 @@ describe('budgetServiceFactory — createBudgetService()', () => {
 
         const result = createWorkItemBudget(db, workItemId, 'user-001', {
           plannedAmount: 0,
+          budgetSourceId: 'discretionary-system',
         });
 
         expect(result.plannedAmount).toBe(0);
@@ -487,6 +509,7 @@ describe('budgetServiceFactory — createBudgetService()', () => {
         const result = createWorkItemBudget(db, workItemId, 'user-001', {
           plannedAmount: 100,
           description: 'x'.repeat(500),
+          budgetSourceId: 'discretionary-system',
         });
 
         expect(result.description).toBe('x'.repeat(500));
@@ -519,6 +542,72 @@ describe('budgetServiceFactory — createBudgetService()', () => {
             budgetSourceId: 'non-existent-source',
           });
         }).toThrow(ValidationError);
+      });
+
+      it('throws ValidationError when budgetSourceId is missing', () => {
+        const workItemId = insertWorkItem();
+
+        expect(() => {
+          createWorkItemBudget(db, workItemId, 'user-001', {
+            plannedAmount: 100,
+          });
+        }).toThrow(ValidationError);
+
+        expect(() => {
+          createWorkItemBudget(db, workItemId, 'user-001', {
+            plannedAmount: 100,
+          });
+        }).toThrow('budgetSourceId is required');
+      });
+
+      it('throws ValidationError when budgetSourceId is explicitly null', () => {
+        const workItemId = insertWorkItem();
+
+        expect(() => {
+          createWorkItemBudget(db, workItemId, 'user-001', {
+            plannedAmount: 100,
+            budgetSourceId: null as unknown as string,
+          });
+        }).toThrow(ValidationError);
+
+        expect(() => {
+          createWorkItemBudget(db, workItemId, 'user-001', {
+            plannedAmount: 100,
+            budgetSourceId: null as unknown as string,
+          });
+        }).toThrow('budgetSourceId is required');
+      });
+
+      it('throws ValidationError when budgetSourceId is empty string', () => {
+        const workItemId = insertWorkItem();
+
+        expect(() => {
+          createWorkItemBudget(db, workItemId, 'user-001', {
+            plannedAmount: 100,
+            budgetSourceId: '',
+          });
+        }).toThrow(ValidationError);
+
+        expect(() => {
+          createWorkItemBudget(db, workItemId, 'user-001', {
+            plannedAmount: 100,
+            budgetSourceId: '',
+          });
+        }).toThrow('budgetSourceId is required');
+      });
+
+      it('succeeds with valid budgetSourceId and returns line with budgetSource resolved', () => {
+        const workItemId = insertWorkItem();
+        const sourceId = insertBudgetSource('Primary Funding');
+
+        const result = createWorkItemBudget(db, workItemId, 'user-001', {
+          plannedAmount: 1500,
+          budgetSourceId: sourceId,
+        });
+
+        expect(result.budgetSource).not.toBeNull();
+        expect(result.budgetSource?.id).toBe(sourceId);
+        expect(result.budgetSource?.name).toBe('Primary Funding');
       });
 
       it('throws ValidationError when vendorId does not exist', () => {
@@ -556,7 +645,10 @@ describe('budgetServiceFactory — createBudgetService()', () => {
       it('includes invoiceLink field (null) when no invoices linked', () => {
         const workItemId = insertWorkItem();
 
-        const result = createWorkItemBudget(db, workItemId, 'user-001', { plannedAmount: 100 });
+        const result = createWorkItemBudget(db, workItemId, 'user-001', {
+          plannedAmount: 100,
+          budgetSourceId: 'discretionary-system',
+        });
 
         expect(result.invoiceLink).toBeNull();
       });
@@ -571,6 +663,7 @@ describe('budgetServiceFactory — createBudgetService()', () => {
         const result = createHouseholdItemBudget(db, hiId, 'user-001', {
           plannedAmount: 500,
           budgetCategoryId: otherCategoryId,
+          budgetSourceId: 'discretionary-system',
         });
 
         expect(result.budgetCategory?.id).toBe('bc-household-items');
@@ -581,6 +674,7 @@ describe('budgetServiceFactory — createBudgetService()', () => {
 
         const result = createHouseholdItemBudget(db, hiId, 'user-001', {
           plannedAmount: 500,
+          budgetSourceId: 'discretionary-system',
         });
 
         expect(result.budgetCategory?.id).toBe('bc-household-items');
@@ -608,6 +702,83 @@ describe('budgetServiceFactory — createBudgetService()', () => {
         expect(result.budgetCategory?.id).toBe('bc-household-items');
       });
 
+      it('throws ValidationError when budgetSourceId is missing', () => {
+        const hiId = insertHouseholdItem();
+
+        expect(() => {
+          createHouseholdItemBudget(db, hiId, 'user-001', {
+            plannedAmount: 100,
+          });
+        }).toThrow(ValidationError);
+
+        expect(() => {
+          createHouseholdItemBudget(db, hiId, 'user-001', {
+            plannedAmount: 100,
+          });
+        }).toThrow('budgetSourceId is required');
+      });
+
+      it('throws ValidationError when budgetSourceId is explicitly null', () => {
+        const hiId = insertHouseholdItem();
+
+        expect(() => {
+          createHouseholdItemBudget(db, hiId, 'user-001', {
+            plannedAmount: 100,
+            budgetSourceId: null as unknown as string,
+          });
+        }).toThrow(ValidationError);
+
+        expect(() => {
+          createHouseholdItemBudget(db, hiId, 'user-001', {
+            plannedAmount: 100,
+            budgetSourceId: null as unknown as string,
+          });
+        }).toThrow('budgetSourceId is required');
+      });
+
+      it('throws ValidationError when budgetSourceId is empty string', () => {
+        const hiId = insertHouseholdItem();
+
+        expect(() => {
+          createHouseholdItemBudget(db, hiId, 'user-001', {
+            plannedAmount: 100,
+            budgetSourceId: '',
+          });
+        }).toThrow(ValidationError);
+
+        expect(() => {
+          createHouseholdItemBudget(db, hiId, 'user-001', {
+            plannedAmount: 100,
+            budgetSourceId: '',
+          });
+        }).toThrow('budgetSourceId is required');
+      });
+
+      it('throws ValidationError when budgetSourceId does not exist', () => {
+        const hiId = insertHouseholdItem();
+
+        expect(() => {
+          createHouseholdItemBudget(db, hiId, 'user-001', {
+            plannedAmount: 100,
+            budgetSourceId: 'non-existent-source',
+          });
+        }).toThrow(ValidationError);
+      });
+
+      it('succeeds with valid budgetSourceId and returns line with budgetSource resolved', () => {
+        const hiId = insertHouseholdItem();
+        const sourceId = insertBudgetSource('Grant Program');
+
+        const result = createHouseholdItemBudget(db, hiId, 'user-001', {
+          plannedAmount: 800,
+          budgetSourceId: sourceId,
+        });
+
+        expect(result.budgetSource).not.toBeNull();
+        expect(result.budgetSource?.id).toBe(sourceId);
+        expect(result.budgetSource?.name).toBe('Grant Program');
+      });
+
       it('throws NotFoundError for missing household item', () => {
         expect(() => {
           createHouseholdItemBudget(db, 'non-existent-hi', 'user-001', { plannedAmount: 100 });
@@ -621,7 +792,10 @@ describe('budgetServiceFactory — createBudgetService()', () => {
       it('does NOT include invoices field on household item budget lines', () => {
         const hiId = insertHouseholdItem();
 
-        const result = createHouseholdItemBudget(db, hiId, 'user-001', { plannedAmount: 200 });
+        const result = createHouseholdItemBudget(db, hiId, 'user-001', {
+          plannedAmount: 200,
+          budgetSourceId: 'discretionary-system',
+        });
 
         expect((result as any).invoices).toBeUndefined();
       });
@@ -637,6 +811,7 @@ describe('budgetServiceFactory — createBudgetService()', () => {
         const line = createWorkItemBudget(db, workItemId, 'user-001', {
           plannedAmount: 500,
           description: 'Original description',
+          budgetSourceId: 'discretionary-system',
         });
 
         const updated = updateWorkItemBudget(db, workItemId, line.id, {
@@ -649,7 +824,10 @@ describe('budgetServiceFactory — createBudgetService()', () => {
 
       it('updates plannedAmount', () => {
         const workItemId = insertWorkItem();
-        const line = createWorkItemBudget(db, workItemId, 'user-001', { plannedAmount: 500 });
+        const line = createWorkItemBudget(db, workItemId, 'user-001', {
+          plannedAmount: 500,
+          budgetSourceId: 'discretionary-system',
+        });
 
         const updated = updateWorkItemBudget(db, workItemId, line.id, { plannedAmount: 750 });
 
@@ -661,6 +839,7 @@ describe('budgetServiceFactory — createBudgetService()', () => {
         const line = createWorkItemBudget(db, workItemId, 'user-001', {
           plannedAmount: 500,
           confidence: 'own_estimate',
+          budgetSourceId: 'discretionary-system',
         });
 
         const updated = updateWorkItemBudget(db, workItemId, line.id, {
@@ -678,6 +857,7 @@ describe('budgetServiceFactory — createBudgetService()', () => {
           plannedAmount: 500,
           description: 'Some description',
           budgetCategoryId: categoryId,
+          budgetSourceId: 'discretionary-system',
         });
 
         const updated = updateWorkItemBudget(db, workItemId, line.id, {
@@ -691,7 +871,10 @@ describe('budgetServiceFactory — createBudgetService()', () => {
 
       it('updates budgetCategoryId, budgetSourceId, vendorId', () => {
         const workItemId = insertWorkItem();
-        const line = createWorkItemBudget(db, workItemId, 'user-001', { plannedAmount: 100 });
+        const line = createWorkItemBudget(db, workItemId, 'user-001', {
+          plannedAmount: 100,
+          budgetSourceId: 'discretionary-system',
+        });
         const categoryId = insertBudgetCategory('Electrical');
         const sourceId = insertBudgetSource('Loan');
         const vendorId = insertVendor('Sparks Inc.');
@@ -727,7 +910,10 @@ describe('budgetServiceFactory — createBudgetService()', () => {
 
       it('throws ValidationError when updating plannedAmount to negative', () => {
         const workItemId = insertWorkItem();
-        const line = createWorkItemBudget(db, workItemId, 'user-001', { plannedAmount: 500 });
+        const line = createWorkItemBudget(db, workItemId, 'user-001', {
+          plannedAmount: 500,
+          budgetSourceId: 'discretionary-system',
+        });
 
         expect(() => {
           updateWorkItemBudget(db, workItemId, line.id, { plannedAmount: -50 });
@@ -736,7 +922,10 @@ describe('budgetServiceFactory — createBudgetService()', () => {
 
       it('throws ValidationError when updating description beyond 500 characters', () => {
         const workItemId = insertWorkItem();
-        const line = createWorkItemBudget(db, workItemId, 'user-001', { plannedAmount: 100 });
+        const line = createWorkItemBudget(db, workItemId, 'user-001', {
+          plannedAmount: 100,
+          budgetSourceId: 'discretionary-system',
+        });
 
         expect(() => {
           updateWorkItemBudget(db, workItemId, line.id, { description: 'x'.repeat(501) });
@@ -745,7 +934,10 @@ describe('budgetServiceFactory — createBudgetService()', () => {
 
       it('throws ValidationError for invalid confidence in update', () => {
         const workItemId = insertWorkItem();
-        const line = createWorkItemBudget(db, workItemId, 'user-001', { plannedAmount: 100 });
+        const line = createWorkItemBudget(db, workItemId, 'user-001', {
+          plannedAmount: 100,
+          budgetSourceId: 'discretionary-system',
+        });
 
         expect(() => {
           updateWorkItemBudget(db, workItemId, line.id, { confidence: 'bad_level' as any });
@@ -754,7 +946,10 @@ describe('budgetServiceFactory — createBudgetService()', () => {
 
       it('throws ValidationError when updating budgetCategoryId to non-existent', () => {
         const workItemId = insertWorkItem();
-        const line = createWorkItemBudget(db, workItemId, 'user-001', { plannedAmount: 100 });
+        const line = createWorkItemBudget(db, workItemId, 'user-001', {
+          plannedAmount: 100,
+          budgetSourceId: 'discretionary-system',
+        });
 
         expect(() => {
           updateWorkItemBudget(db, workItemId, line.id, {
@@ -763,10 +958,87 @@ describe('budgetServiceFactory — createBudgetService()', () => {
         }).toThrow(ValidationError);
       });
 
+      it('throws ValidationError when attempting to remove budgetSourceId (set to null)', () => {
+        const workItemId = insertWorkItem();
+        const sourceId = insertBudgetSource('Original Source');
+        const line = createWorkItemBudget(db, workItemId, 'user-001', {
+          plannedAmount: 100,
+          budgetSourceId: sourceId,
+        });
+
+        expect(() => {
+          updateWorkItemBudget(db, workItemId, line.id, {
+            budgetSourceId: null as unknown as string,
+          });
+        }).toThrow(ValidationError);
+
+        expect(() => {
+          updateWorkItemBudget(db, workItemId, line.id, {
+            budgetSourceId: null as unknown as string,
+          });
+        }).toThrow('budgetSourceId cannot be removed');
+      });
+
+      it('throws ValidationError when attempting to set budgetSourceId to empty string', () => {
+        const workItemId = insertWorkItem();
+        const sourceId = insertBudgetSource('Original Source');
+        const line = createWorkItemBudget(db, workItemId, 'user-001', {
+          plannedAmount: 100,
+          budgetSourceId: sourceId,
+        });
+
+        expect(() => {
+          updateWorkItemBudget(db, workItemId, line.id, {
+            budgetSourceId: '',
+          });
+        }).toThrow(ValidationError);
+
+        expect(() => {
+          updateWorkItemBudget(db, workItemId, line.id, {
+            budgetSourceId: '',
+          });
+        }).toThrow('budgetSourceId cannot be removed');
+      });
+
+      it('throws ValidationError when updating budgetSourceId to non-existent', () => {
+        const workItemId = insertWorkItem();
+        const sourceId = insertBudgetSource('Original Source');
+        const line = createWorkItemBudget(db, workItemId, 'user-001', {
+          plannedAmount: 100,
+          budgetSourceId: sourceId,
+        });
+
+        expect(() => {
+          updateWorkItemBudget(db, workItemId, line.id, {
+            budgetSourceId: 'non-existent-source',
+          });
+        }).toThrow(ValidationError);
+      });
+
+      it('allows changing budgetSourceId to a different valid source', () => {
+        const workItemId = insertWorkItem();
+        const sourceId1 = insertBudgetSource('Source 1');
+        const sourceId2 = insertBudgetSource('Source 2');
+        const line = createWorkItemBudget(db, workItemId, 'user-001', {
+          plannedAmount: 100,
+          budgetSourceId: sourceId1,
+        });
+
+        const updated = updateWorkItemBudget(db, workItemId, line.id, {
+          budgetSourceId: sourceId2,
+        });
+
+        expect(updated.budgetSource?.id).toBe(sourceId2);
+        expect(updated.budgetSource?.name).toBe('Source 2');
+      });
+
       it('cannot update a budget line belonging to a different work item', () => {
         const workItemId1 = insertWorkItem('Item 1');
         const workItemId2 = insertWorkItem('Item 2');
-        const line = createWorkItemBudget(db, workItemId1, 'user-001', { plannedAmount: 100 });
+        const line = createWorkItemBudget(db, workItemId1, 'user-001', {
+          plannedAmount: 100,
+          budgetSourceId: 'discretionary-system',
+        });
 
         // Attempt to update line using workItemId2 — should fail as NotFoundError
         expect(() => {
@@ -781,6 +1053,7 @@ describe('budgetServiceFactory — createBudgetService()', () => {
         const line = createHouseholdItemBudget(db, hiId, 'user-001', {
           plannedAmount: 300,
           description: 'Old description',
+          budgetSourceId: 'discretionary-system',
         });
 
         const updated = updateHouseholdItemBudget(db, hiId, line.id, {
@@ -793,7 +1066,10 @@ describe('budgetServiceFactory — createBudgetService()', () => {
       it('does NOT update budgetCategoryId even if present in request', () => {
         const hiId = insertHouseholdItem();
         const otherCategoryId = insertBudgetCategory('Plumbing');
-        const line = createHouseholdItemBudget(db, hiId, 'user-001', { plannedAmount: 200 });
+        const line = createHouseholdItemBudget(db, hiId, 'user-001', {
+          plannedAmount: 200,
+          budgetSourceId: 'discretionary-system',
+        });
 
         // bc-household-items should remain even after an update with a different category
         const updated = updateHouseholdItemBudget(db, hiId, line.id, {
@@ -818,6 +1094,80 @@ describe('budgetServiceFactory — createBudgetService()', () => {
           updateHouseholdItemBudget(db, hiId, 'non-existent-budget', { plannedAmount: 100 });
         }).toThrow(NotFoundError);
       });
+
+      it('throws ValidationError when attempting to remove budgetSourceId (set to null)', () => {
+        const hiId = insertHouseholdItem();
+        const sourceId = insertBudgetSource('Original Source');
+        const line = createHouseholdItemBudget(db, hiId, 'user-001', {
+          plannedAmount: 100,
+          budgetSourceId: sourceId,
+        });
+
+        expect(() => {
+          updateHouseholdItemBudget(db, hiId, line.id, {
+            budgetSourceId: null as unknown as string,
+          });
+        }).toThrow(ValidationError);
+
+        expect(() => {
+          updateHouseholdItemBudget(db, hiId, line.id, {
+            budgetSourceId: null as unknown as string,
+          });
+        }).toThrow('budgetSourceId cannot be removed');
+      });
+
+      it('throws ValidationError when attempting to set budgetSourceId to empty string', () => {
+        const hiId = insertHouseholdItem();
+        const sourceId = insertBudgetSource('Original Source');
+        const line = createHouseholdItemBudget(db, hiId, 'user-001', {
+          plannedAmount: 100,
+          budgetSourceId: sourceId,
+        });
+
+        expect(() => {
+          updateHouseholdItemBudget(db, hiId, line.id, {
+            budgetSourceId: '',
+          });
+        }).toThrow(ValidationError);
+
+        expect(() => {
+          updateHouseholdItemBudget(db, hiId, line.id, {
+            budgetSourceId: '',
+          });
+        }).toThrow('budgetSourceId cannot be removed');
+      });
+
+      it('throws ValidationError when updating budgetSourceId to non-existent', () => {
+        const hiId = insertHouseholdItem();
+        const sourceId = insertBudgetSource('Original Source');
+        const line = createHouseholdItemBudget(db, hiId, 'user-001', {
+          plannedAmount: 100,
+          budgetSourceId: sourceId,
+        });
+
+        expect(() => {
+          updateHouseholdItemBudget(db, hiId, line.id, {
+            budgetSourceId: 'non-existent-source',
+          });
+        }).toThrow(ValidationError);
+      });
+
+      it('allows changing budgetSourceId to a different valid source', () => {
+        const hiId = insertHouseholdItem();
+        const sourceId1 = insertBudgetSource('Source 1');
+        const sourceId2 = insertBudgetSource('Source 2');
+        const line = createHouseholdItemBudget(db, hiId, 'user-001', {
+          plannedAmount: 100,
+          budgetSourceId: sourceId1,
+        });
+
+        const updated = updateHouseholdItemBudget(db, hiId, line.id, {
+          budgetSourceId: sourceId2,
+        });
+
+        expect(updated.budgetSource?.id).toBe(sourceId2);
+        expect(updated.budgetSource?.name).toBe('Source 2');
+      });
     });
   });
 
@@ -827,7 +1177,10 @@ describe('budgetServiceFactory — createBudgetService()', () => {
     describe('work-item configuration (blockDeleteOnInvoices: true)', () => {
       it('deletes a budget line successfully', () => {
         const workItemId = insertWorkItem();
-        const line = createWorkItemBudget(db, workItemId, 'user-001', { plannedAmount: 500 });
+        const line = createWorkItemBudget(db, workItemId, 'user-001', {
+          plannedAmount: 500,
+          budgetSourceId: 'discretionary-system',
+        });
 
         deleteWorkItemBudget(db, workItemId, line.id);
 
@@ -855,7 +1208,10 @@ describe('budgetServiceFactory — createBudgetService()', () => {
       it('throws BudgetLineInUseError when invoices are linked', () => {
         const workItemId = insertWorkItem();
         const vendorId = insertVendor();
-        const line = createWorkItemBudget(db, workItemId, 'user-001', { plannedAmount: 500 });
+        const line = createWorkItemBudget(db, workItemId, 'user-001', {
+          plannedAmount: 500,
+          budgetSourceId: 'discretionary-system',
+        });
         insertInvoiceForWorkItemBudget(line.id, vendorId);
 
         expect(() => {
@@ -870,7 +1226,10 @@ describe('budgetServiceFactory — createBudgetService()', () => {
       it('throws BudgetLineInUseError with invoiceCount detail', () => {
         const workItemId = insertWorkItem();
         const vendorId = insertVendor();
-        const line = createWorkItemBudget(db, workItemId, 'user-001', { plannedAmount: 500 });
+        const line = createWorkItemBudget(db, workItemId, 'user-001', {
+          plannedAmount: 500,
+          budgetSourceId: 'discretionary-system',
+        });
         // Each budget line can only link to ONE invoice (partial UNIQUE index on work_item_budget_id)
         insertInvoiceForWorkItemBudget(line.id, vendorId);
 
@@ -889,7 +1248,10 @@ describe('budgetServiceFactory — createBudgetService()', () => {
       it('cannot delete a budget line belonging to a different work item', () => {
         const workItemId1 = insertWorkItem('Item 1');
         const workItemId2 = insertWorkItem('Item 2');
-        const line = createWorkItemBudget(db, workItemId1, 'user-001', { plannedAmount: 100 });
+        const line = createWorkItemBudget(db, workItemId1, 'user-001', {
+          plannedAmount: 100,
+          budgetSourceId: 'discretionary-system',
+        });
 
         expect(() => {
           deleteWorkItemBudget(db, workItemId2, line.id);
@@ -901,7 +1263,10 @@ describe('budgetServiceFactory — createBudgetService()', () => {
       it('deletes successfully even when invoices are linked', () => {
         const hiId = insertHouseholdItem();
         const vendorId = insertVendor();
-        const line = createHouseholdItemBudget(db, hiId, 'user-001', { plannedAmount: 300 });
+        const line = createHouseholdItemBudget(db, hiId, 'user-001', {
+          plannedAmount: 300,
+          budgetSourceId: 'discretionary-system',
+        });
         insertInvoiceForHouseholdItemBudget(line.id, vendorId);
 
         // Should NOT throw — HI budget deletion is allowed even with linked invoices
@@ -914,7 +1279,10 @@ describe('budgetServiceFactory — createBudgetService()', () => {
 
       it('deletes a budget line with no invoices successfully', () => {
         const hiId = insertHouseholdItem();
-        const line = createHouseholdItemBudget(db, hiId, 'user-001', { plannedAmount: 300 });
+        const line = createHouseholdItemBudget(db, hiId, 'user-001', {
+          plannedAmount: 300,
+          budgetSourceId: 'discretionary-system',
+        });
 
         deleteHouseholdItemBudget(db, hiId, line.id);
 
@@ -948,14 +1316,17 @@ describe('budgetServiceFactory — createBudgetService()', () => {
       const linePending = createWorkItemBudget(db, workItemId, 'user-001', {
         plannedAmount: 300,
         description: 'Pending line',
+        budgetSourceId: 'discretionary-system',
       });
       const linePaid = createWorkItemBudget(db, workItemId, 'user-001', {
         plannedAmount: 500,
         description: 'Paid line',
+        budgetSourceId: 'discretionary-system',
       });
       const lineClaimed = createWorkItemBudget(db, workItemId, 'user-001', {
         plannedAmount: 700,
         description: 'Claimed line',
+        budgetSourceId: 'discretionary-system',
       });
 
       insertInvoiceForWorkItemBudget(linePending.id, vendorId, { amount: 100, status: 'pending' });
@@ -976,7 +1347,10 @@ describe('budgetServiceFactory — createBudgetService()', () => {
 
     it('returns 0 for all aggregates when no invoices are linked', () => {
       const workItemId = insertWorkItem();
-      const line = createWorkItemBudget(db, workItemId, 'user-001', { plannedAmount: 500 });
+      const line = createWorkItemBudget(db, workItemId, 'user-001', {
+        plannedAmount: 500,
+        budgetSourceId: 'discretionary-system',
+      });
 
       // Confirm it's not null — already returned from create
       expect(line.actualCost).toBe(0);
@@ -987,7 +1361,10 @@ describe('budgetServiceFactory — createBudgetService()', () => {
     it('work item budget includes invoiceLink when invoice is linked', () => {
       const workItemId = insertWorkItem();
       const vendorId = insertVendor('Concrete Co.');
-      const line = createWorkItemBudget(db, workItemId, 'user-001', { plannedAmount: 500 });
+      const line = createWorkItemBudget(db, workItemId, 'user-001', {
+        plannedAmount: 500,
+        budgetSourceId: 'discretionary-system',
+      });
       insertInvoiceForWorkItemBudget(line.id, vendorId, { amount: 250, status: 'paid' });
 
       const result = listWorkItemBudgets(db, workItemId);
@@ -1007,6 +1384,7 @@ describe('budgetServiceFactory — createBudgetService()', () => {
       const result = createWorkItemBudget(db, workItemId, 'user-001', {
         plannedAmount: 100,
         confidence: 'own_estimate',
+        budgetSourceId: 'discretionary-system',
       });
       expect(result.confidenceMargin).toBe(0.2);
     });
@@ -1016,6 +1394,7 @@ describe('budgetServiceFactory — createBudgetService()', () => {
       const result = createWorkItemBudget(db, workItemId, 'user-001', {
         plannedAmount: 100,
         confidence: 'professional_estimate',
+        budgetSourceId: 'discretionary-system',
       });
       expect(result.confidenceMargin).toBe(0.1);
     });
@@ -1025,6 +1404,7 @@ describe('budgetServiceFactory — createBudgetService()', () => {
       const result = createWorkItemBudget(db, workItemId, 'user-001', {
         plannedAmount: 100,
         confidence: 'quote',
+        budgetSourceId: 'discretionary-system',
       });
       expect(result.confidenceMargin).toBe(0.05);
     });
@@ -1034,6 +1414,7 @@ describe('budgetServiceFactory — createBudgetService()', () => {
       const result = createWorkItemBudget(db, workItemId, 'user-001', {
         plannedAmount: 100,
         confidence: 'invoice',
+        budgetSourceId: 'discretionary-system',
       });
       expect(result.confidenceMargin).toBe(0);
     });
@@ -1434,6 +1815,7 @@ describe('resolveRelationsBatch()', () => {
       const line = createWorkItemBudget(db, workItemId, 'user-001', {
         plannedAmount: (i + 1) * 100,
         budgetCategoryId: catId,
+        budgetSourceId: 'discretionary-system',
       });
       lines.push({ line, catId });
     }

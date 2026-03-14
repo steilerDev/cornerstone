@@ -10,6 +10,14 @@
 - Always reference Layer 2 semantic tokens (e.g. `var(--color-bg-primary)`) in CSS Modules
 - Never use hardcoded hex values or Layer 1 palette tokens in `.module.css` files
 
+## PR #792 Review Findings — Budget Sources Bar Chart
+
+- `color-mix()` in inline `style` prop bypasses token system — dark mode override in `[data-theme="dark"]` cannot reach it; allocate a named token instead
+- Legend dot `8px` = `var(--spacing-2)` — always swap raw px dot sizes to the nearest spacing token
+- `role="status"` already implies `aria-live="polite"` — do not add both; use `role="status" aria-atomic="true"`
+- Inverse-surface tooltip (`--color-bg-inverse` / `--color-text-inverse`) works automatically via semantic token flipping — no `[data-theme="dark"]` block needed (unlike GanttTooltip which has local subdued-color properties)
+- `--color-border-strong` as text `color` for a pipe character is a semantic mismatch; `--color-text-muted` is more appropriate for separator text
+
 ## WorkItemDetailPage Patterns (client/src/pages/WorkItemDetailPage/)
 
 - Two-column grid at desktop (>= 1024px), single column below
@@ -218,3 +226,7 @@ Key decisions:
 - HI vs WI entity type pill: use `var(--color-role-member-bg)` / `var(--color-role-member-text)` for "HI" discriminator chip
 - Picker modal: `min(640px, calc(100vw - 2rem))` — between default and wide
 - InvoiceDetailPage.module.css uses `box-shadow: var(--shadow-sm)` for cards (NOT `border: 1px solid`) — diverges from WorkItemDetailPage pattern
+
+## Story 9.2 — Dashboard Layout & Data Shell (Issue #471)
+
+See `story-9-2-dashboard.md`. Key: 3/2/1 col grid, card = `<article>`, skeleton replaces body only (header+footer always visible), Customize button only when ≥1 hidden card, no new tokens needed.

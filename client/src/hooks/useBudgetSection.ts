@@ -17,6 +17,11 @@ export interface BudgetLineFormState {
   budgetCategoryId: string;
   budgetSourceId: string;
   vendorId: string;
+  pricingMode: 'direct' | 'unit';
+  quantity: string;
+  unit: string;
+  unitPrice: string;
+  includesVat: boolean;
 }
 
 /**
@@ -65,6 +70,12 @@ export interface UseBudgetSectionOptions<T extends BaseBudgetLine> {
    * Entity ID (work item or household item)
    */
   entityId: string;
+
+  /**
+   * Default budget source ID to use when opening a new budget form.
+   * If not provided, new forms will have an empty funding source.
+   */
+  defaultBudgetSourceId?: string;
 }
 
 /**
@@ -119,6 +130,7 @@ export function useBudgetSection<T extends BaseBudgetLine>(
     toFormState,
     toPayload,
     entityId,
+    defaultBudgetSourceId,
   } = options;
 
   const emptyForm: BudgetLineFormState = {
@@ -126,8 +138,13 @@ export function useBudgetSection<T extends BaseBudgetLine>(
     plannedAmount: '',
     confidence: 'own_estimate',
     budgetCategoryId: '',
-    budgetSourceId: '',
+    budgetSourceId: defaultBudgetSourceId ?? '',
     vendorId: '',
+    pricingMode: 'direct',
+    quantity: '',
+    unit: '',
+    unitPrice: '',
+    includesVat: true,
   };
 
   // Budget line form state
@@ -146,7 +163,7 @@ export function useBudgetSection<T extends BaseBudgetLine>(
 
   const openAddBudgetForm = () => {
     setEditingBudgetId(null);
-    setBudgetForm(emptyForm);
+    setBudgetForm({ ...emptyForm, budgetSourceId: defaultBudgetSourceId ?? '' });
     setBudgetFormError(null);
     setShowBudgetForm(true);
   };
@@ -161,23 +178,46 @@ export function useBudgetSection<T extends BaseBudgetLine>(
   const closeBudgetForm = () => {
     setShowBudgetForm(false);
     setEditingBudgetId(null);
-    setBudgetForm(emptyForm);
+    setBudgetForm({ ...emptyForm, budgetSourceId: defaultBudgetSourceId ?? '' });
     setBudgetFormError(null);
   };
 
   const handleSaveBudgetLine = async (event: FormEvent) => {
     event.preventDefault();
 
-    const plannedAmount = parseFloat(budgetForm.plannedAmount);
-    if (isNaN(plannedAmount) || plannedAmount < 0) {
-      setBudgetFormError('Planned amount must be a valid non-negative number.');
-      return;
+    let plannedAmount: number;
+
+    if (budgetForm.pricingMode === 'direct') {
+      plannedAmount = parseFloat(budgetForm.plannedAmount);
+      if (isNaN(plannedAmount) || plannedAmount < 0) {
+        setBudgetFormError('Planned amount must be a valid non-negative number.');
+        return;
+      }
+    } else {
+      // Unit pricing mode
+      const qty = parseFloat(budgetForm.quantity);
+      const price = parseFloat(budgetForm.unitPrice);
+
+      if (isNaN(qty) || qty <= 0) {
+        setBudgetFormError('Quantity must be a valid positive number.');
+        return;
+      }
+      if (isNaN(price) || price < 0) {
+        setBudgetFormError('Unit price must be a valid non-negative number.');
+        return;
+      }
+
+      // Calculate planned amount: qty * price * (includesVat ? 1 : 1.19)
+      const multiplier = budgetForm.includesVat ? 1 : 1.19;
+      plannedAmount = Math.round(qty * price * multiplier * 100) / 100;
     }
 
     setIsSavingBudget(true);
     setBudgetFormError(null);
 
-    const payload = toPayload(budgetForm);
+    // Override plannedAmount in form state for toPayload
+    const formWithAmount = { ...budgetForm, plannedAmount: String(plannedAmount) };
+    const payload = toPayload(formWithAmount);
 
     try {
       if (editingBudgetId) {

@@ -1,7 +1,34 @@
 # QA & Integration Tester — Agent Memory (Index)
 
 > Detailed notes live in topic files. This index links to them.
-> See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`
+> See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
+
+## UAT Fixes #729/#730/#731 Dashboard (2026-03-10)
+
+**Files changed**: deleted `AtRiskItemsCard.test.tsx`; updated `InvoicePipelineCard.test.tsx`, `UpcomingMilestonesCard.test.tsx`, `CriticalPathCard.test.tsx`, `MiniGanttCard.test.tsx`, `DashboardPage.test.tsx`.
+
+**Key patterns**:
+
+- **Python str manipulation breaks `describe` block**: Using `str.endswith('});')` and slicing off 2 chars before inserting new test splits the `}` and `});` — leaves a stray `}` before the new test. Use `Edit` tool directly instead.
+- **`daysFromMonday(n)` helper**: compute Monday of current week via `dayOfWeek === 0 ? -6 : 1 - dayOfWeek`, then add `n` days. Required when component uses Mon-Sun window instead of today+N.
+- **`data-testid="pending-total"` IS present** in the updated `InvoicePipelineCard.tsx` — the earlier memory note about no testid is now outdated (the component was updated; `data-testid="pending-total"` is on the footer div).
+- **MiniGanttCard grid lines**: 8 grid lines (day boundaries for 7-day week) + 1 today marker. Dependency arrows REMOVED. Assert `linesWithDeps.length === linesNoDeps.length` to confirm no dep arrows.
+- **DashboardPage skeleton count**: timeline source now maps to 4 cards (Upcoming Milestones + Work Item Progress + Critical Path + Mini Gantt). Total data-backed cards = 9. Skeleton count = 9 × 2 (desktop + mobile) = **18**.
+
+## Story #476 Invoice & Subsidy Pipeline Cards (2026-03-10)
+
+**Test files**: `InvoicePipelineCard.test.tsx` (12 tests), `SubsidyPipelineCard.test.tsx` (13 tests).
+
+**Key patterns**:
+
+- **No `data-testid` on pending total**: `InvoicePipelineCard` renders the footer total in a plain `div` with `className={styles.footerTotal}` — no testid. Test it with `getByText(/pending total/i, { exact: false })` and check `textContent` contains the amount.
+- **Early return on empty state**: `InvoicePipelineCard` returns `<p data-testid="invoice-empty">` when `pendingInvoices.length === 0` (before the footer renders), so the footer/total is not present in the empty state.
+- **Dynamic date tests**: Compute "yesterday", "+N days" using `new Date()` + `setDate()` + `formatDateStr()` helper. Never hardcode dates that become stale.
+- **`SubsidyPipelineCard` deadline logic**: inclusive boundary at 14 days (`daysUntilDeadline <= 14`). 14 days = warning, 15 days = no warning.
+- **Percentage reduction excluded from group-reduction**: `group-reduction` testid only shows fixed reductions. When only percentage programs exist, `totalFixedReduction = 0` so the `group-reduction` span is not rendered at all.
+- **Rejected group always last**: Component appends rejected group after the `lifecycleStatuses` loop — it always renders after eligible/applied/approved/received.
+- **`SubsidyProgram.applicableCategories`**: type is `BudgetCategory[]` (not `string[]`). Always set to `[]` in fixtures.
+- **`Invoice.budgetLines`**: type is `InvoiceBudgetLineSummary[]`. Always set to `[]` in fixtures. Also requires `remainingAmount: number`.
 
 ## Story #606 Invoice Budget Lines UI Tests (2026-03-08)
 

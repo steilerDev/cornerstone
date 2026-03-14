@@ -294,7 +294,7 @@ describe('getBudgetOverview', () => {
       const result = getBudgetOverview(db);
 
       expect(result.availableFunds).toBe(0);
-      expect(result.sourceCount).toBe(0);
+      expect(result.sourceCount).toBe(1); // Discretionary Funding source is always seeded
       expect(result.minPlanned).toBe(0);
       expect(result.maxPlanned).toBe(0);
       expect(result.actualCost).toBe(0);
@@ -343,7 +343,7 @@ describe('getBudgetOverview', () => {
       const result = getBudgetOverview(db);
 
       expect(result.availableFunds).toBe(150000);
-      expect(result.sourceCount).toBe(2);
+      expect(result.sourceCount).toBe(3); // 2 user sources + discretionary
     });
 
     it('excludes exhausted and closed budget sources from availableFunds', () => {
@@ -354,7 +354,7 @@ describe('getBudgetOverview', () => {
       const result = getBudgetOverview(db);
 
       expect(result.availableFunds).toBe(100000);
-      expect(result.sourceCount).toBe(1);
+      expect(result.sourceCount).toBe(2); // 1 user source + discretionary
     });
 
     it('returns zero when no active sources exist', () => {
@@ -363,7 +363,7 @@ describe('getBudgetOverview', () => {
       const result = getBudgetOverview(db);
 
       expect(result.availableFunds).toBe(0);
-      expect(result.sourceCount).toBe(0);
+      expect(result.sourceCount).toBe(1); // discretionary is always active
     });
   });
 
@@ -742,9 +742,10 @@ describe('getBudgetOverview', () => {
 
       const result = getBudgetOverview(db);
 
-      // Universal subsidy applies: 10000 * 20% = 2000 reduction; invoice confidence min=max=8000
-      expect(result.minPlanned).toBe(8000);
-      expect(result.maxPlanned).toBe(8000);
+      // Universal subsidy applies: 10000 * 20% = 2000 reduction
+      // minPlanned/maxPlanned = raw projected (no subsidy subtraction): invoice confidence min=max=10000
+      expect(result.minPlanned).toBe(10000);
+      expect(result.maxPlanned).toBe(10000);
       expect(result.subsidySummary.totalReductions).toBe(2000);
     });
 
@@ -834,10 +835,9 @@ describe('getBudgetOverview', () => {
       const result = getBudgetOverview(db);
 
       // reduction = 10000 * 0.15 = 1500
-      // raw_min = 10000 * 1.0 = 10000; min_planned = 10000 - 1500 = 8500
-      // raw_max = 10000 * 1.0 = 10000; max_planned = 10000 - 1500 = 8500
-      expect(result.minPlanned).toBeCloseTo(8500, 5);
-      expect(result.maxPlanned).toBeCloseTo(8500, 5);
+      // minPlanned/maxPlanned = raw projected (no subsidy subtraction): 10000
+      expect(result.minPlanned).toBeCloseTo(10000, 5);
+      expect(result.maxPlanned).toBeCloseTo(10000, 5);
       expect(result.subsidySummary.totalReductions).toBeCloseTo(1500, 5);
     });
 
@@ -874,9 +874,9 @@ describe('getBudgetOverview', () => {
       const result = getBudgetOverview(db);
 
       // 2 matching lines: 3000 / 2 = 1500 per line
-      // line1: 10000 - 1500 = 8500; line2: 5000 - 1500 = 3500
-      expect(result.minPlanned).toBeCloseTo(12000, 5); // 8500 + 3500
-      expect(result.maxPlanned).toBeCloseTo(12000, 5);
+      // minPlanned/maxPlanned = raw projected (no subsidy subtraction): 10000 + 5000 = 15000
+      expect(result.minPlanned).toBeCloseTo(15000, 5);
+      expect(result.maxPlanned).toBeCloseTo(15000, 5);
       expect(result.subsidySummary.totalReductions).toBeCloseTo(3000, 5);
     });
 
@@ -898,7 +898,8 @@ describe('getBudgetOverview', () => {
       const result = getBudgetOverview(db);
 
       // Only 1 matching line: 2000 / 1 = 2000 reduction
-      expect(result.minPlanned).toBeCloseTo(6000, 5); // 8000 - 2000
+      // minPlanned = raw projected (no subsidy subtraction): 8000
+      expect(result.minPlanned).toBeCloseTo(8000, 5);
       expect(result.subsidySummary.totalReductions).toBeCloseTo(2000, 5);
     });
 
@@ -919,8 +920,9 @@ describe('getBudgetOverview', () => {
 
       const result = getBudgetOverview(db);
 
-      expect(result.minPlanned).toBe(0);
-      expect(result.maxPlanned).toBe(0);
+      // minPlanned/maxPlanned = raw projected (no subsidy subtraction): 500
+      expect(result.minPlanned).toBe(500);
+      expect(result.maxPlanned).toBe(500);
     });
 
     it('subsidy only applies to lines whose category matches (not all lines of work item)', () => {
@@ -959,8 +961,8 @@ describe('getBudgetOverview', () => {
       const result = getBudgetOverview(db);
 
       // Only line1 (10000) gets the 10% reduction = 1000
-      // line1 min/max = 10000 - 1000 = 9000; line2 min/max = 5000 (no reduction)
-      expect(result.minPlanned).toBeCloseTo(14000, 5); // 9000 + 5000
+      // minPlanned/maxPlanned = raw projected (no subsidy subtraction): 10000 + 5000 = 15000
+      expect(result.minPlanned).toBeCloseTo(15000, 5);
       expect(result.subsidySummary.totalReductions).toBeCloseTo(1000, 5);
     });
 
@@ -982,9 +984,9 @@ describe('getBudgetOverview', () => {
       const result = getBudgetOverview(db);
       const cat = result.categorySummaries.find((c) => c.categoryId === catId);
 
-      // 10000 * (1 - 0.20) = 8000
-      expect(cat!.minPlanned).toBeCloseTo(8000, 5);
-      expect(cat!.maxPlanned).toBeCloseTo(8000, 5);
+      // minPlanned/maxPlanned = raw projected (no subsidy subtraction): 10000
+      expect(cat!.minPlanned).toBeCloseTo(10000, 5);
+      expect(cat!.maxPlanned).toBeCloseTo(10000, 5);
     });
 
     it('sums reductions from multiple work item-subsidy category matches', () => {
@@ -1054,8 +1056,7 @@ describe('getBudgetOverview', () => {
       // raw_min = 8000, raw_max = 12000
       // subsidy = 10% percentage on catId
       // reduction = 10000 * 0.10 = 1000
-      // min_planned = max(0, 8000 - 1000) = 7000
-      // max_planned = max(0, 12000 - 1000) = 11000
+      // minPlanned/maxPlanned = raw projected (no subsidy subtraction): 8000 / 12000
       const catId = insertBudgetCategory('Cat Margin + Subsidy');
       const { workItemId } = insertWorkItem({
         plannedAmount: 10000,
@@ -1072,8 +1073,8 @@ describe('getBudgetOverview', () => {
 
       const result = getBudgetOverview(db);
 
-      expect(result.minPlanned).toBeCloseTo(7000, 5);
-      expect(result.maxPlanned).toBeCloseTo(11000, 5);
+      expect(result.minPlanned).toBeCloseTo(8000, 5);
+      expect(result.maxPlanned).toBeCloseTo(12000, 5);
     });
   });
 
@@ -1119,7 +1120,7 @@ describe('getBudgetOverview', () => {
 
       // Available funds
       expect(result.availableFunds).toBe(200000);
-      expect(result.sourceCount).toBe(1);
+      expect(result.sourceCount).toBe(2); // +1 for seeded discretionary source
 
       // Min/max planned (invoiced lines use actualCost):
       // wi1: has invoice (45000) → min=max=45000 (actualCost after subsidy reduction = 45000)
@@ -1574,10 +1575,11 @@ describe('getBudgetOverview', () => {
     it('computes remainingVsMinPlannedWithPayback = availableFunds + minPayback - minPlanned', () => {
       // availableFunds = 10000
       // Work item: plannedAmount = 1000, invoice confidence → min=max=1000
-      // Subsidy: fixed 200 → subsidyReduction=200 → totalMinPlanned = 1000 - 200 = 800
-      //                    → minPayback = maxPayback = 200
-      // remainingVsMinPlanned = 10000 - 800 = 9200  (subsidy reduction lowers cost)
-      // remainingVsMinPlannedWithPayback = 10000 + 200 - 800 = 9400  (payback adds on top)
+      // Subsidy: fixed 200 → subsidyReduction=200
+      // minPlanned/maxPlanned = raw projected (no subsidy subtraction): 1000
+      // minPayback = maxPayback = 200
+      // remainingVsMinPlanned = 10000 - 1000 = 9000
+      // remainingVsMinPlannedWithPayback = 10000 + 200 - 1000 = 9200
       insertBudgetSource({ totalAmount: 10000 });
       const { workItemId } = insertWorkItem({ plannedAmount: 1000, confidence: 'invoice' });
       const subsidyId = insertSubsidyProgram({ reductionType: 'fixed', reductionValue: 200 });
@@ -1585,9 +1587,9 @@ describe('getBudgetOverview', () => {
 
       const result = getBudgetOverview(db);
 
-      expect(result.remainingVsMinPlanned).toBeCloseTo(9200); // subsidy reduces planned → remaining higher
-      expect(result.remainingVsMinPlannedWithPayback).toBeCloseTo(9400); // payback adds on top
-      expect(result.remainingVsMaxPlannedWithPayback).toBeCloseTo(9400); // fixed: min === max
+      expect(result.remainingVsMinPlanned).toBeCloseTo(9000);
+      expect(result.remainingVsMinPlannedWithPayback).toBeCloseTo(9200); // payback adds on top
+      expect(result.remainingVsMaxPlannedWithPayback).toBeCloseTo(9200); // fixed: min === max
     });
 
     it('equals non-adjusted remaining when no subsidies linked', () => {

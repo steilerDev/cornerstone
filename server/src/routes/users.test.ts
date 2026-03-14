@@ -8,7 +8,7 @@ import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
 import { users } from '../db/schema.js';
 import type { FastifyInstance } from 'fastify';
-import type { UserResponse } from '@cornerstone/shared';
+import type { UserResponse, ApiErrorResponse } from '@cornerstone/shared';
 
 describe('User Routes', () => {
   let app: FastifyInstance;
@@ -1269,6 +1269,125 @@ describe('User Routes', () => {
         headers: { cookie: targetCookie },
       });
       expect(postDeactivationCheck.statusCode).toBe(401);
+    });
+  });
+
+  describe('POST /api/users/:id/unlock', () => {
+    it('admin can unlock a locked user account (204)', async () => {
+      // Given: Admin with session
+      const { cookie: adminCookie } = await createUserWithSession(
+        'admin@unlock.com',
+        'Admin',
+        'password123456',
+        'admin',
+      );
+
+      // And: A locked user
+      const lockedUser = await userService.createLocalUser(
+        app.db,
+        'locked@example.com',
+        'Locked User',
+        'password123456',
+        'member',
+      );
+      const futureTime = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+      app.db
+        .update(users)
+        .set({
+          lockedUntil: futureTime,
+          failedLoginAttempts: 10,
+          updatedAt: new Date().toISOString(),
+        })
+        .where(eq(users.id, lockedUser.id))
+        .run();
+
+      // When: Admin unlocks the user
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/users/${lockedUser.id}/unlock`,
+        headers: { cookie: adminCookie },
+      });
+
+      // Then: Response is 204 No Content
+      expect(response.statusCode).toBe(204);
+
+      // And: User's lock fields are cleared
+      const updatedUser = app.db.select().from(users).where(eq(users.id, lockedUser.id)).get();
+      expect(updatedUser?.failedLoginAttempts).toBe(0);
+      expect(updatedUser?.lockedUntil).toBeNull();
+    });
+
+    it('non-admin user receives 403 when attempting to unlock', async () => {
+      // Given: Member user with session
+      const { cookie: memberCookie } = await createUserWithSession(
+        'member@unlock.com',
+        'Member',
+        'password123456',
+        'member',
+      );
+
+      // And: Another user
+      const targetUser = await userService.createLocalUser(
+        app.db,
+        'target@unlock.com',
+        'Target',
+        'password123456',
+        'member',
+      );
+
+      // When: Member tries to unlock
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/users/${targetUser.id}/unlock`,
+        headers: { cookie: memberCookie },
+      });
+
+      // Then: Response is 403 Forbidden
+      expect(response.statusCode).toBe(403);
+      const body = JSON.parse(response.body) as ApiErrorResponse;
+      expect(body.error.code).toBe('FORBIDDEN');
+    });
+
+    it('returns 404 when userId does not exist', async () => {
+      // Given: Admin with session
+      const { cookie: adminCookie } = await createUserWithSession(
+        'admin2@unlock.com',
+        'Admin',
+        'password123456',
+        'admin',
+      );
+
+      // When: Attempting to unlock a non-existent user
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/users/nonexistent-user-id/unlock',
+        headers: { cookie: adminCookie },
+      });
+
+      // Then: Response is 404
+      expect(response.statusCode).toBe(404);
+      const body = JSON.parse(response.body) as ApiErrorResponse;
+      expect(body.error.code).toBe('NOT_FOUND');
+    });
+
+    it('returns 401 without authentication', async () => {
+      // Given: A user
+      const targetUser = await userService.createLocalUser(
+        app.db,
+        'noauth@unlock.com',
+        'No Auth User',
+        'password123456',
+        'member',
+      );
+
+      // When: Unlock called without session
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/users/${targetUser.id}/unlock`,
+      });
+
+      // Then: Response is 401
+      expect(response.statusCode).toBe(401);
     });
   });
 });

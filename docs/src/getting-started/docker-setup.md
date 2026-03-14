@@ -49,6 +49,18 @@ SECURE_COOKIES=true
 
 `TRUST_PROXY` tells Cornerstone to read forwarded headers (`X-Forwarded-For`, `X-Forwarded-Proto`, etc.). This is required for secure cookies and OIDC redirects to work properly behind a proxy.
 
+:::tip Large file uploads
+
+Cornerstone supports photo uploads which can produce large request payloads. Most reverse proxies limit request body size by default (e.g., nginx defaults to 1 MB). Make sure your proxy is configured to allow sufficiently large uploads -- for example, in **nginx**:
+
+```nginx
+client_max_body_size 50M;
+```
+
+Refer to your reverse proxy's documentation for the equivalent setting.
+
+:::
+
 ## Data Persistence
 
 Cornerstone stores all data in a single SQLite database file at `/app/data/cornerstone.db` inside the container. Mount a Docker volume or bind-mount to `/app/data` to persist your data across container restarts:

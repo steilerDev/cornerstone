@@ -6,8 +6,14 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
 import * as budgetSourceService from './budgetSourceService.js';
-import { NotFoundError, ValidationError, BudgetSourceInUseError } from '../errors/AppError.js';
+import {
+  NotFoundError,
+  ValidationError,
+  BudgetSourceInUseError,
+  DiscretionarySourceError,
+} from '../errors/AppError.js';
 import type { CreateBudgetSourceRequest, UpdateBudgetSourceRequest } from '@cornerstone/shared';
+import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
 
 describe('Budget Source Service', () => {
   let sqlite: Database.Database;
@@ -51,7 +57,7 @@ describe('Budget Source Service', () => {
   function insertRawSource(
     overrides: Partial<typeof schema.budgetSources.$inferInsert> & {
       name: string;
-      sourceType?: 'bank_loan' | 'credit_line' | 'savings' | 'other';
+      sourceType?: 'bank_loan' | 'credit_line' | 'savings' | 'other' | 'discretionary';
       totalAmount?: number;
     } = { name: 'Test Source' },
   ) {
@@ -64,6 +70,7 @@ describe('Budget Source Service', () => {
         name: overrides.name,
         sourceType: overrides.sourceType ?? 'bank_loan',
         totalAmount: overrides.totalAmount ?? 100000,
+        isDiscretionary: overrides.isDiscretionary ?? false,
         interestRate: overrides.interestRate ?? null,
         terms: overrides.terms ?? null,
         notes: overrides.notes ?? null,
@@ -221,6 +228,125 @@ describe('Budget Source Service', () => {
       .run();
   }
 
+  /**
+   * Helper: Insert a claimed invoice against a household item budget line.
+   * Used for testing computeClaimedAmount including household items.
+   */
+  function insertClaimedInvoiceForHouseholdItem(budgetLineId: string, amount: number): void {
+    const ts = new Date(Date.now() + householdItemCounter).toISOString();
+    const vendorId = `vendor-hi-claimed-${++householdItemCounter}`;
+    db.insert(schema.vendors)
+      .values({ id: vendorId, name: `HI Claimed Vendor ${vendorId}`, createdAt: ts, updatedAt: ts })
+      .run();
+    const invoiceId = `inv-hi-claimed-${householdItemCounter}`;
+    db.insert(schema.invoices)
+      .values({
+        id: invoiceId,
+        vendorId,
+        amount,
+        date: '2026-01-01',
+        status: 'claimed',
+        createdAt: ts,
+        updatedAt: ts,
+      })
+      .run();
+    db.insert(schema.invoiceBudgetLines)
+      .values({
+        id: randomUUID(),
+        invoiceId,
+        householdItemBudgetId: budgetLineId,
+        itemizedAmount: amount,
+        createdAt: ts,
+        updatedAt: ts,
+      })
+      .run();
+  }
+
+  /**
+   * Helper: Insert a paid invoice against a household item budget line.
+   * Used for testing computeUnclaimedAmount including household items.
+   */
+  function insertPaidInvoiceForHouseholdItem(budgetLineId: string, amount: number): void {
+    const ts = new Date(Date.now() + householdItemCounter).toISOString();
+    const vendorId = `vendor-hi-paid-${++householdItemCounter}`;
+    db.insert(schema.vendors)
+      .values({ id: vendorId, name: `HI Paid Vendor ${vendorId}`, createdAt: ts, updatedAt: ts })
+      .run();
+    const invoiceId = `inv-hi-paid-${householdItemCounter}`;
+    db.insert(schema.invoices)
+      .values({
+        id: invoiceId,
+        vendorId,
+        amount,
+        date: '2026-01-01',
+        status: 'paid',
+        createdAt: ts,
+        updatedAt: ts,
+      })
+      .run();
+    db.insert(schema.invoiceBudgetLines)
+      .values({
+        id: randomUUID(),
+        invoiceId,
+        householdItemBudgetId: budgetLineId,
+        itemizedAmount: amount,
+        createdAt: ts,
+        updatedAt: ts,
+      })
+      .run();
+  }
+
+  /**
+   * Helper: Insert a vendor invoice that is NOT fully allocated to any budget line.
+   * Creates an invoice with a given amount and optionally links itemized amounts to existing budget lines.
+   * The remainder (invoice.amount - SUM(itemized)) becomes discretionary.
+   */
+  function insertInvoiceWithRemainder(
+    status: 'paid' | 'claimed',
+    invoiceAmount: number,
+    allocations: Array<{ budgetLineId: string; isHouseholdItem?: boolean; itemizedAmount: number }>,
+  ): string {
+    const ts = new Date(Date.now() + workItemCounter).toISOString();
+    const vendorId = `vendor-disc-${++workItemCounter}`;
+    db.insert(schema.vendors)
+      .values({ id: vendorId, name: `Disc Vendor ${vendorId}`, createdAt: ts, updatedAt: ts })
+      .run();
+    const invoiceId = `inv-disc-${workItemCounter}`;
+    db.insert(schema.invoices)
+      .values({
+        id: invoiceId,
+        vendorId,
+        amount: invoiceAmount,
+        date: '2026-01-01',
+        status,
+        createdAt: ts,
+        updatedAt: ts,
+      })
+      .run();
+    for (const alloc of allocations) {
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId,
+          ...(alloc.isHouseholdItem
+            ? { householdItemBudgetId: alloc.budgetLineId }
+            : { workItemBudgetId: alloc.budgetLineId }),
+          itemizedAmount: alloc.itemizedAmount,
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .run();
+    }
+    return invoiceId;
+  }
+
+  /**
+   * Get the discretionary system source inserted by migration 0021.
+   */
+  function getDiscretionarySource() {
+    return budgetSourceService.getBudgetSourceById(db, 'discretionary-system');
+  }
+
   beforeEach(() => {
     const testDb = createTestDb();
     sqlite = testDb.sqlite;
@@ -238,28 +364,35 @@ describe('Budget Source Service', () => {
   // ─── listBudgetSources() ───────────────────────────────────────────────────
 
   describe('listBudgetSources()', () => {
-    it('returns empty array when no sources exist', () => {
+    it('returns only the seeded discretionary source when no user sources exist', () => {
+      // Migration 0021 seeds the "Discretionary Funding" system row, so the list is never empty.
       const result = budgetSourceService.listBudgetSources(db);
-      expect(result).toEqual([]);
+      expect(result).toHaveLength(1);
+      expect(result[0].isDiscretionary).toBe(true);
     });
 
-    it('returns a single source after insertion', () => {
+    it('returns a single source after insertion (plus seeded discretionary source)', () => {
       insertRawSource({ name: 'Home Loan', sourceType: 'bank_loan', totalAmount: 200000 });
 
       const result = budgetSourceService.listBudgetSources(db);
-      expect(result).toHaveLength(1);
-      expect(result[0].name).toBe('Home Loan');
+      // 1 inserted + 1 seeded discretionary = 2
+      expect(result).toHaveLength(2);
+      const regular = result.find((s) => !s.isDiscretionary);
+      expect(regular?.name).toBe('Home Loan');
     });
 
-    it('returns sources sorted by name ascending', () => {
+    it('returns regular sources sorted by name ascending, discretionary last', () => {
       insertRawSource({ name: 'Zebra Fund', sourceType: 'savings', totalAmount: 5000 });
       insertRawSource({ name: 'Alpha Bank Loan', sourceType: 'bank_loan', totalAmount: 200000 });
       insertRawSource({ name: 'Mid Credit Line', sourceType: 'credit_line', totalAmount: 50000 });
 
       const result = budgetSourceService.listBudgetSources(db);
-      expect(result[0].name).toBe('Alpha Bank Loan');
-      expect(result[1].name).toBe('Mid Credit Line');
-      expect(result[2].name).toBe('Zebra Fund');
+      const nonDisc = result.filter((s) => !s.isDiscretionary);
+      expect(nonDisc[0].name).toBe('Alpha Bank Loan');
+      expect(nonDisc[1].name).toBe('Mid Credit Line');
+      expect(nonDisc[2].name).toBe('Zebra Fund');
+      // Discretionary is always last
+      expect(result[result.length - 1].isDiscretionary).toBe(true);
     });
 
     it('returns all expected fields for a source', () => {
@@ -275,9 +408,10 @@ describe('Budget Source Service', () => {
       });
 
       const result = budgetSourceService.listBudgetSources(db);
-      expect(result).toHaveLength(1);
+      // 1 inserted + 1 seeded discretionary = 2
+      expect(result).toHaveLength(2);
 
-      const source = result[0];
+      const source = result.find((s) => s.name === 'Primary Loan')!;
       expect(source.id).toBeDefined();
       expect(source.name).toBe('Primary Loan');
       expect(source.sourceType).toBe('bank_loan');
@@ -393,7 +527,8 @@ describe('Budget Source Service', () => {
       insertRawSource({ name: 'Savings B', sourceType: 'savings', totalAmount: 20000 });
 
       const result = budgetSourceService.listBudgetSources(db);
-      expect(result).toHaveLength(2);
+      // 2 inserted + 1 seeded discretionary = 3
+      expect(result).toHaveLength(3);
     });
 
     it('returns sources with null interestRate correctly', () => {
@@ -1638,6 +1773,348 @@ describe('Budget Source Service', () => {
       expect(resultA.availableAmount).toBe(32000);
       expect(resultB.usedAmount).toBe(12000);
       expect(resultB.availableAmount).toBe(48000);
+    });
+  });
+
+  // ─── Discretionary source protection (Issue #727) ────────────────────────
+
+  describe('Discretionary Funding source protection', () => {
+    it('deleteBudgetSource on discretionary source throws DiscretionarySourceError (409)', () => {
+      const err = new DiscretionarySourceError();
+      expect(err.statusCode).toBe(409);
+      expect(err.code).toBe('DISCRETIONARY_SOURCE');
+
+      // The seeded system row is protected
+      expect(() => {
+        budgetSourceService.deleteBudgetSource(db, 'discretionary-system');
+      }).toThrow(DiscretionarySourceError);
+    });
+
+    it('deleteBudgetSource on regular source does not throw DiscretionarySourceError', () => {
+      const raw = insertRawSource({
+        name: 'Normal Source',
+        sourceType: 'savings',
+        totalAmount: 1000,
+      });
+
+      expect(() => {
+        budgetSourceService.deleteBudgetSource(db, raw.id);
+      }).not.toThrow(DiscretionarySourceError);
+    });
+
+    it('updateBudgetSource with sourceType change on discretionary source throws ValidationError', () => {
+      expect(() => {
+        budgetSourceService.updateBudgetSource(db, 'discretionary-system', {
+          sourceType: 'bank_loan',
+        });
+      }).toThrow(ValidationError);
+
+      expect(() => {
+        budgetSourceService.updateBudgetSource(db, 'discretionary-system', {
+          sourceType: 'bank_loan',
+        });
+      }).toThrow('Cannot change the source type of the Discretionary Funding source');
+    });
+
+    it('updateBudgetSource with totalAmount: 0 on discretionary source succeeds', () => {
+      const result = budgetSourceService.updateBudgetSource(db, 'discretionary-system', {
+        totalAmount: 0,
+      });
+
+      expect(result.totalAmount).toBe(0);
+      expect(result.isDiscretionary).toBe(true);
+    });
+
+    it('updateBudgetSource with totalAmount: -1 on discretionary source throws ValidationError', () => {
+      expect(() => {
+        budgetSourceService.updateBudgetSource(db, 'discretionary-system', { totalAmount: -1 });
+      }).toThrow(ValidationError);
+
+      expect(() => {
+        budgetSourceService.updateBudgetSource(db, 'discretionary-system', { totalAmount: -1 });
+      }).toThrow('Total amount must be a non-negative number');
+    });
+  });
+
+  // ─── Sorting: discretionary source appears last (Issue #727) ─────────────
+
+  describe('listBudgetSources() — discretionary source sorting', () => {
+    it('returns discretionary source last even if its name sorts first alphabetically', () => {
+      // "Aardvark Fund" would sort before "Discretionary Funding" alphabetically,
+      // but we want regular sources first and discretionary last.
+      insertRawSource({ name: 'Aardvark Fund', sourceType: 'savings', totalAmount: 5000 });
+      insertRawSource({ name: 'Zebra Loan', sourceType: 'bank_loan', totalAmount: 100000 });
+
+      const results = budgetSourceService.listBudgetSources(db);
+
+      // At least 3 sources: Aardvark Fund, Zebra Loan, discretionary-system
+      expect(results.length).toBeGreaterThanOrEqual(3);
+      const last = results[results.length - 1];
+      expect(last.isDiscretionary).toBe(true);
+      expect(last.id).toBe('discretionary-system');
+    });
+
+    it('regular sources before discretionary source are sorted by name ascending', () => {
+      insertRawSource({ name: 'Mango Credit', sourceType: 'credit_line', totalAmount: 30000 });
+      insertRawSource({ name: 'Alpha Loan', sourceType: 'bank_loan', totalAmount: 50000 });
+
+      const results = budgetSourceService.listBudgetSources(db);
+      const regularSources = results.filter((s) => !s.isDiscretionary);
+
+      expect(regularSources[0].name).toBe('Alpha Loan');
+      expect(regularSources[1].name).toBe('Mango Credit');
+    });
+  });
+
+  // ─── New computed fields: projectedAmount, paidAmount, isDiscretionary ────
+
+  describe('new computed fields (Issue #727)', () => {
+    it('isDiscretionary is true for the seeded discretionary source', () => {
+      const result = getDiscretionarySource();
+      expect(result.isDiscretionary).toBe(true);
+    });
+
+    it('isDiscretionary is false for regular budget sources', () => {
+      const raw = insertRawSource({
+        name: 'Regular Source',
+        sourceType: 'bank_loan',
+        totalAmount: 10000,
+      });
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      expect(result.isDiscretionary).toBe(false);
+    });
+
+    it('projectedAmount with one budget line and no invoices equals plannedAmount * (1 + margin)', () => {
+      const raw = insertRawSource({
+        name: 'Projected No Invoice',
+        sourceType: 'savings',
+        totalAmount: 50000,
+      });
+      // Insert work item budget line with own_estimate confidence (margin = 0.2)
+      const { budgetId } = insertRawWorkItemWithSource(raw.id, 10000);
+      // No invoice attached — projectedAmount = 10000 * (1 + 0.2) = 12000
+      void budgetId;
+
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      expect(result.projectedAmount).toBeCloseTo(10000 * (1 + CONFIDENCE_MARGINS.own_estimate));
+    });
+
+    it('projectedAmount with one invoiced budget line equals the actual itemized invoice amount', () => {
+      const raw = insertRawSource({
+        name: 'Projected With Invoice',
+        sourceType: 'bank_loan',
+        totalAmount: 100000,
+      });
+      const { budgetId } = insertRawWorkItemWithSource(raw.id, 20000);
+      // Attach a paid invoice for 18500 — projectedAmount = actual cost = 18500
+      insertPaidInvoice(budgetId, 18500);
+
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      expect(result.projectedAmount).toBe(18500);
+    });
+
+    it('paidAmount equals claimedAmount + unclaimedAmount', () => {
+      const raw = insertRawSource({
+        name: 'Paid Amount Test',
+        sourceType: 'credit_line',
+        totalAmount: 200000,
+      });
+      const { budgetId: b1 } = insertRawWorkItemWithSource(raw.id, 30000);
+      const { budgetId: b2 } = insertRawWorkItemWithSource(raw.id, 20000);
+      insertClaimedInvoice(b1, 9000); // claimed
+      insertPaidInvoice(b2, 4000); // unclaimed
+
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+
+      expect(result.claimedAmount).toBe(9000);
+      expect(result.unclaimedAmount).toBe(4000);
+      expect(result.paidAmount).toBe(9000 + 4000);
+    });
+
+    it('paidAmount is 0 for a newly created source with no invoices', () => {
+      const raw = insertRawSource({ name: 'Zero Paid', sourceType: 'other', totalAmount: 5000 });
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      expect(result.paidAmount).toBe(0);
+    });
+
+    it('listBudgetSources returns isDiscretionary, projectedAmount, and paidAmount fields', () => {
+      const raw = insertRawSource({
+        name: 'List Fields Test',
+        sourceType: 'savings',
+        totalAmount: 40000,
+      });
+      const { budgetId } = insertRawWorkItemWithSource(raw.id, 15000);
+      insertClaimedInvoice(budgetId, 6000);
+
+      const results = budgetSourceService.listBudgetSources(db);
+      const source = results.find((s) => s.id === raw.id)!;
+
+      expect(source.isDiscretionary).toBe(false);
+      expect(typeof source.projectedAmount).toBe('number');
+      expect(source.paidAmount).toBe(6000);
+    });
+  });
+
+  // ─── Bug fix: claimedAmount/unclaimedAmount includes household item invoices ─
+
+  describe('claimedAmount and unclaimedAmount include household item budget line invoices (Issue #727)', () => {
+    it('claimedAmount includes household item budget line claimed invoices', () => {
+      const raw = insertRawSource({
+        name: 'HI Claimed Source',
+        sourceType: 'savings',
+        totalAmount: 80000,
+      });
+      const { budgetId: hiBudgetId } = insertRawHouseholdItemWithSource(raw.id, 15000);
+      insertClaimedInvoiceForHouseholdItem(hiBudgetId, 7500);
+
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      expect(result.claimedAmount).toBe(7500);
+      expect(result.actualAvailableAmount).toBe(72500); // 80000 - 7500
+    });
+
+    it('unclaimedAmount includes household item budget line paid invoices', () => {
+      const raw = insertRawSource({
+        name: 'HI Paid Source',
+        sourceType: 'credit_line',
+        totalAmount: 60000,
+      });
+      const { budgetId: hiBudgetId } = insertRawHouseholdItemWithSource(raw.id, 20000);
+      insertPaidInvoiceForHouseholdItem(hiBudgetId, 11000);
+
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      expect(result.unclaimedAmount).toBe(11000);
+    });
+
+    it('claimedAmount sums household item and work item claimed invoices together', () => {
+      const raw = insertRawSource({
+        name: 'Mixed Claimed Source',
+        sourceType: 'bank_loan',
+        totalAmount: 150000,
+      });
+      const { budgetId: wiBudgetId } = insertRawWorkItemWithSource(raw.id, 30000);
+      const { budgetId: hiBudgetId } = insertRawHouseholdItemWithSource(raw.id, 20000);
+      insertClaimedInvoice(wiBudgetId, 8000);
+      insertClaimedInvoiceForHouseholdItem(hiBudgetId, 5000);
+
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      expect(result.claimedAmount).toBe(13000); // 8000 + 5000
+      expect(result.actualAvailableAmount).toBe(137000); // 150000 - 13000
+    });
+
+    it('unclaimedAmount sums household item and work item paid invoices together', () => {
+      const raw = insertRawSource({
+        name: 'Mixed Paid Source',
+        sourceType: 'savings',
+        totalAmount: 100000,
+      });
+      const { budgetId: wiBudgetId } = insertRawWorkItemWithSource(raw.id, 25000);
+      const { budgetId: hiBudgetId } = insertRawHouseholdItemWithSource(raw.id, 18000);
+      insertPaidInvoice(wiBudgetId, 4500);
+      insertPaidInvoiceForHouseholdItem(hiBudgetId, 3200);
+
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      expect(result.unclaimedAmount).toBe(7700); // 4500 + 3200
+    });
+
+    it('household item claimed invoices for a different source do not count', () => {
+      const rawA = insertRawSource({
+        name: 'HI Claimed A',
+        sourceType: 'savings',
+        totalAmount: 50000,
+      });
+      const rawB = insertRawSource({
+        name: 'HI Claimed B',
+        sourceType: 'other',
+        totalAmount: 30000,
+      });
+
+      const { budgetId: hiBudgetId } = insertRawHouseholdItemWithSource(rawA.id, 10000);
+      insertClaimedInvoiceForHouseholdItem(hiBudgetId, 4000);
+
+      const resultB = budgetSourceService.getBudgetSourceById(db, rawB.id);
+      expect(resultB.claimedAmount).toBe(0);
+    });
+  });
+
+  // ─── Discretionary catch-all: invoice remainder and NULL source lines ──────
+
+  describe('Discretionary source catch-all amounts (Issue #727)', () => {
+    it('discretionary source claimedAmount includes invoice remainder (amount not allocated to budget lines)', () => {
+      // Invoice of €10000 with only €6000 allocated — €4000 remainder is discretionary
+      const { budgetId } = insertRawWorkItemWithSource(
+        insertRawSource({ name: 'Non-disc Source', sourceType: 'bank_loan', totalAmount: 50000 })
+          .id,
+        6000,
+      );
+      insertInvoiceWithRemainder('claimed', 10000, [
+        { budgetLineId: budgetId, itemizedAmount: 6000 },
+      ]);
+
+      const disc = getDiscretionarySource();
+      expect(disc.claimedAmount).toBeGreaterThanOrEqual(4000);
+    });
+
+    it('discretionary source unclaimedAmount includes invoice remainder from paid invoices', () => {
+      const { budgetId } = insertRawWorkItemWithSource(
+        insertRawSource({
+          name: 'Source For Paid Remainder',
+          sourceType: 'savings',
+          totalAmount: 20000,
+        }).id,
+        3000,
+      );
+      insertInvoiceWithRemainder('paid', 5000, [{ budgetLineId: budgetId, itemizedAmount: 3000 }]);
+
+      const disc = getDiscretionarySource();
+      expect(disc.unclaimedAmount).toBeGreaterThanOrEqual(2000);
+    });
+
+    it('discretionary source claimedAmount includes budget lines with NULL budget_source_id', () => {
+      // A work item budget line with no source assigned — its claimed invoice amount is discretionary
+      const wiId = `wi-null-src-${++workItemCounter}`;
+      const budgetId = `bud-null-src-${workItemCounter}`;
+      const ts = new Date().toISOString();
+      db.insert(schema.workItems)
+        .values({
+          id: wiId,
+          title: `Null Source WI ${workItemCounter}`,
+          status: 'not_started',
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .run();
+      db.insert(schema.workItemBudgets)
+        .values({
+          id: budgetId,
+          workItemId: wiId,
+          budgetSourceId: null, // no source assigned
+          plannedAmount: 8000,
+          confidence: 'own_estimate',
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .run();
+      insertClaimedInvoice(budgetId, 7000);
+
+      const disc = getDiscretionarySource();
+      expect(disc.claimedAmount).toBeGreaterThanOrEqual(7000);
+    });
+
+    it('discretionary source paidAmount equals its claimedAmount + unclaimedAmount', () => {
+      // Fully unallocated paid invoice → discretionary
+      insertInvoiceWithRemainder('paid', 3000, []);
+      // Fully unallocated claimed invoice → discretionary
+      insertInvoiceWithRemainder('claimed', 2000, []);
+
+      const disc = getDiscretionarySource();
+      expect(disc.paidAmount).toBe(disc.claimedAmount + disc.unclaimedAmount);
+    });
+
+    it('fully unallocated invoice contributes entire amount to discretionary source', () => {
+      insertInvoiceWithRemainder('claimed', 5500, []);
+
+      const disc = getDiscretionarySource();
+      expect(disc.claimedAmount).toBeGreaterThanOrEqual(5500);
     });
   });
 

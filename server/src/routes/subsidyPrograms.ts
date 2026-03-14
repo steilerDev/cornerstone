@@ -20,6 +20,7 @@ const createSubsidyProgramSchema = {
       },
       applicationDeadline: { type: ['string', 'null'] },
       notes: { type: ['string', 'null'] },
+      maximumAmount: { type: ['number', 'null'], exclusiveMinimum: 0 },
       categoryIds: {
         type: 'array',
         items: { type: 'string' },
@@ -45,6 +46,7 @@ const updateSubsidyProgramSchema = {
       },
       applicationDeadline: { type: ['string', 'null'] },
       notes: { type: ['string', 'null'] },
+      maximumAmount: { type: ['number', 'null'], exclusiveMinimum: 0 },
       categoryIds: {
         type: 'array',
         items: { type: 'string' },

@@ -278,7 +278,7 @@ describe('Budget Overview Routes', () => {
       expect(overview.remainingVsActualPaid).toBe(0);
       // 11 seeded categories (migration 0016 added 'bc-household-items')
       expect(overview.categorySummaries).toHaveLength(11);
-      expect(overview.sourceCount).toBe(0);
+      expect(overview.sourceCount).toBe(1); // seeded discretionary source
       expect(overview.subsidySummary.activeSubsidyCount).toBe(0);
     });
 
@@ -320,7 +320,7 @@ describe('Budget Overview Routes', () => {
       const { overview } = response.json<BudgetOverviewResponse>();
 
       expect(overview.availableFunds).toBe(100000);
-      expect(overview.sourceCount).toBe(1);
+      expect(overview.sourceCount).toBe(2); // 1 user source + discretionary
     });
 
     it('reflects invoice data in actualCost and actualCostPaid', async () => {

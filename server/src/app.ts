@@ -6,12 +6,15 @@ import { existsSync } from 'node:fs';
 import fastifyStatic from '@fastify/static';
 import fastifyCompress from '@fastify/compress';
 import fastifyCookie from '@fastify/cookie';
+import multipart from '@fastify/multipart';
 import { sql } from 'drizzle-orm';
 import type { ApiErrorResponse } from '@cornerstone/shared';
 import configPlugin from './plugins/config.js';
 import dbPlugin from './plugins/db.js';
 import errorHandlerPlugin from './plugins/errorHandler.js';
 import authPlugin from './plugins/auth.js';
+import helmetPlugin from './plugins/helmetPlugin.js';
+import rateLimitPlugin from './plugins/rateLimitPlugin.js';
 import authRoutes from './routes/auth.js';
 import oidcRoutes from './routes/oidc.js';
 import userRoutes from './routes/users.js';
@@ -38,11 +41,14 @@ import scheduleRoutes from './routes/schedule.js';
 import timelineRoutes from './routes/timeline.js';
 import paperlessRoutes from './routes/paperless.js';
 import documentLinksRoutes from './routes/documentLinks.js';
+import photoRoutes from './routes/photos.js';
+import preferencesRoutes from './routes/preferences.js';
 import householdItemCategoryRoutes from './routes/householdItemCategories.js';
 import householdItemRoutes from './routes/householdItems.js';
 import householdItemBudgetRoutes from './routes/householdItemBudgets.js';
 import householdItemSubsidyRoutes from './routes/householdItemSubsidies.js';
 import householdItemSubsidyPaybackRoutes from './routes/householdItemSubsidyPayback.js';
+import feedsRoutes from './routes/feeds.js';
 import { hashPassword, verifyPassword } from './services/userService.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -67,11 +73,24 @@ export async function buildApp(): Promise<FastifyInstance> {
   // Cookie parsing (required for session management)
   await app.register(fastifyCookie);
 
+  // Multipart form data parsing (for file uploads)
+  await app.register(multipart, {
+    limits: {
+      fileSize: 50 * 1024 * 1024, // 50MB hard cap; actual limit enforced per config in route
+    },
+  });
+
   // Database connection & migrations
   await app.register(dbPlugin);
 
   // Authentication & session management (after db, before routes)
   await app.register(authPlugin);
+
+  // Security headers (CSP, HSTS, X-Frame-Options, etc.)
+  await app.register(helmetPlugin);
+
+  // Rate limiting (global defaults, per-route overrides on auth endpoints)
+  await app.register(rateLimitPlugin);
 
   // Auth routes
   await app.register(authRoutes, { prefix: '/api/auth' });
@@ -155,6 +174,12 @@ export async function buildApp(): Promise<FastifyInstance> {
   // Document link routes (EPIC-08: Link Paperless-ngx documents to entities)
   await app.register(documentLinksRoutes, { prefix: '/api/document-links' });
 
+  // Photo attachment routes (shared infrastructure for EPIC-13 and EPIC-16)
+  await app.register(photoRoutes, { prefix: '/api/photos' });
+
+  // User preferences routes (EPIC-09 Story #470: User Preferences Infrastructure)
+  await app.register(preferencesRoutes, { prefix: '/api/users/me/preferences' });
+
   // Household item category routes (EPIC-09: Story #509 - Unified Tags & Categories Management)
   await app.register(householdItemCategoryRoutes, { prefix: '/api/household-item-categories' });
 
@@ -175,6 +200,9 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(householdItemSubsidyPaybackRoutes, {
     prefix: '/api/household-items/:householdItemId/subsidy-payback',
   });
+
+  // Feed routes (anonymous — iCal/vCard for external calendar/contact apps)
+  await app.register(feedsRoutes, { prefix: '/feeds' });
 
   // Health check endpoint (liveness)
   app.get('/api/health', async () => {

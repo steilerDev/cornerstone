@@ -546,6 +546,42 @@ describe('Vendor Routes', () => {
       const b2 = r2.json<{ vendor: Vendor }>();
       expect(b1.vendor.id).not.toBe(b2.vendor.id);
     });
+
+    it('returns 400 VALIDATION_ERROR for invalid email format on create', async () => {
+      // Given: Authenticated user
+      const { cookie } = await createUserWithSession('user@email-test.com', 'User', 'password');
+
+      // When: Creating vendor with invalid email
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/vendors',
+        headers: { cookie },
+        payload: { name: 'Email Test Vendor', email: 'not-an-email' },
+      });
+
+      // Then: 400 VALIDATION_ERROR
+      expect(response.statusCode).toBe(400);
+      const body = response.json<ApiErrorResponse>();
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('accepts null email on create (null is valid)', async () => {
+      // Given: Authenticated user
+      const { cookie } = await createUserWithSession('user@null-email.com', 'User', 'password');
+
+      // When: Creating vendor with null email
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/vendors',
+        headers: { cookie },
+        payload: { name: 'Null Email Vendor', email: null },
+      });
+
+      // Then: 201 Created
+      expect(response.statusCode).toBe(201);
+      const body = response.json<{ vendor: Vendor }>();
+      expect(body.vendor.email).toBeNull();
+    });
   });
 
   // ─── GET /api/vendors/:id ──────────────────────────────────────────────────
@@ -798,6 +834,25 @@ describe('Vendor Routes', () => {
       const body = response.json<{ vendor: VendorDetail }>();
       expect(body.vendor.name).toBe('Member Updated Vendor');
     });
+
+    it('returns 400 VALIDATION_ERROR for invalid email format on update', async () => {
+      // Given: Authenticated user with an existing vendor
+      const { cookie } = await createUserWithSession('user@patch-email.com', 'User', 'password');
+      const vendor = createTestVendor('Email Patch Vendor');
+
+      // When: Updating vendor with invalid email
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/vendors/${vendor.id}`,
+        headers: { cookie },
+        payload: { email: 'not-an-email' },
+      });
+
+      // Then: 400 VALIDATION_ERROR
+      expect(response.statusCode).toBe(400);
+      const body = response.json<ApiErrorResponse>();
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+    });
   });
 
   // ─── DELETE /api/vendors/:id ───────────────────────────────────────────────
@@ -882,24 +937,30 @@ describe('Vendor Routes', () => {
       expect(body.error.code).toBe('VENDOR_IN_USE');
     });
 
-    it('includes invoiceCount and budgetLineCount in 409 response details', async () => {
+    it('suppresses details in 409 VENDOR_IN_USE response (suppressDetails=true)', async () => {
+      // Given: Vendor with invoices and work item links
       const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
       const vendor = createTestVendor('Count Details Vendor');
       createTestInvoice(vendor.id, 'pending', 100);
       createTestInvoice(vendor.id, 'paid', 200);
       createWorkItemVendorLink(vendor.id);
 
+      // When: Attempting to delete the vendor
       const response = await app.inject({
         method: 'DELETE',
         url: `/api/vendors/${vendor.id}`,
         headers: { cookie },
       });
 
+      // Then: 409 is returned but details (invoiceCount, budgetLineCount) are suppressed
       expect(response.statusCode).toBe(409);
       const body = response.json<ApiErrorResponse>();
-      expect(body.error.details).toBeDefined();
-      expect(body.error.details?.invoiceCount).toBe(2);
-      expect(body.error.details?.budgetLineCount).toBe(1);
+      expect(body.error.code).toBe('VENDOR_IN_USE');
+      expect(body.error.details).toBeUndefined();
+      // The suppressed fields must NOT appear in the response
+      expect(
+        (body.error as { details?: { invoiceCount?: number } }).details?.invoiceCount,
+      ).toBeUndefined();
     });
 
     it('returns 401 without authentication', async () => {

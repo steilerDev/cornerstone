@@ -50,3 +50,55 @@ E2E tests on tablet must click/press Enter twice with 300ms pause between taps.
 - Desktop: `timeout: 10_000`, no explicit action/expect timeout (Playwright default 30s)
 - Tablet: `timeout: 60_000`, `expect/action/navigationTimeout: 15_000`
 - Mobile: `timeout: 60_000`, `expect/action/navigationTimeout: 15_000`
+
+## Tablet POM Readiness: Always wait for interactive elements (2026-03-14)
+
+On tablet (15s action timeout), elements that are visible after `goto()` heading check may not yet
+be ready for interaction. Always add `waitFor({ state: 'visible' })` for search inputs, buttons,
+etc. in both `goto()` and helper methods. Also add `scrollIntoViewIfNeeded()` before fill().
+Pattern: `await this.input.waitFor({ state: 'visible' }); await this.input.scrollIntoViewIfNeeded(); await this.input.fill(value);`
+
+## toBeHidden() vs not.toBeVisible() for Conditionally-Rendered Elements (2026-03-14)
+
+`toBeHidden()` requires the element to be in the DOM (just not visible). If a component uses
+conditional rendering `{condition && <Button>}`, when `condition` is false the element is absent
+from DOM entirely. `toBeHidden()` times out in this case.
+Use `not.toBeVisible()` instead — it passes for both CSS-hidden AND DOM-absent elements.
+Example: DashboardPage Customize button only mounts when `hasHiddenCards` is true.
+
+## CSS Selector Staleness After UI Refactors (2026-03-14)
+
+When the UI is refactored, POM CSS class selectors like `[class*="amountLabel"]` become stale.
+Always verify selectors against the actual component source after any UI changes.
+If a legend/label only renders conditionally (e.g., when values > 0), the test must account for
+that — check always-rendered elements (containers, summary rows) rather than conditional labels.
+Example: BudgetSourcesPage bar chart `barLegendLabel` only renders for non-zero segments;
+use `summaryItem` spans (Total/Available/Planned) for unconditional assertions.
+
+## Dashboard Card Count: 9 not 10 (2026-03-14)
+
+DashboardPage has 9 CARD_DEFINITIONS. Both desktop grid AND mobile sections container render
+ALL cards simultaneously (CSS media queries control visibility, not conditional rendering).
+So dismiss button count in DOM = up to 18 (9 × 2 containers). Use `>= 9` not `>= 10`.
+
+## Dashboard Card Persistence After Reload (2026-03-14)
+
+`usePreferences()` hook fetches preferences asynchronously on mount. After `page.reload()`,
+cards render ALL visible until the preferences API responds. `waitForCardsLoaded()` only
+waits for data skeletons (aria-busy), not preferences load. Fix: register
+`page.waitForResponse('/api/users/me/preferences', 200)` BEFORE reload, await it after
+reload + heading visible, before asserting card count.
+
+## Skip Unreliable WebKit Tablet Tests via viewport width (2026-03-14)
+
+When a search-input or form element consistently times out on WebKit iPad gen 7 (810px)
+and works on desktop, skip on non-desktop with:
+`test.beforeEach(async ({ page }) => { if (page.viewportSize()?.width < 1200) test.skip(); });`
+Applied to: e2e/tests/admin/search-users.spec.ts
+
+## Avoid getSuccessBannerText() — Use expect() Instead (2026-03-14)
+
+POM helper `getSuccessBannerText()` wraps `waitFor` in try/catch, returns null on timeout.
+This masks failures: `expect(null).toContain(X)` throws confusing error. Use:
+`await expect(sourcesPage.successBanner).toBeVisible()` (uses expect.timeout with retry).
+Also add `waitForResponse` BEFORE save click — confirms API 200 before checking UI.

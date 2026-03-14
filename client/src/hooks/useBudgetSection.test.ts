@@ -24,6 +24,10 @@ const makeLine = (overrides: Partial<TestBudgetLine> = {}): TestBudgetLine => ({
   createdBy: null,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
+  quantity: null,
+  unit: null,
+  unitPrice: null,
+  includesVat: null,
   ...overrides,
 });
 
@@ -60,6 +64,11 @@ beforeEach(async () => {
     budgetCategoryId: '',
     budgetSourceId: '',
     vendorId: '',
+    pricingMode: 'direct',
+    quantity: '',
+    unit: '',
+    unitPrice: '',
+    includesVat: true,
   });
   mockToPayload.mockReset().mockReturnValue({ plannedAmount: 1000 });
 });
@@ -156,6 +165,11 @@ describe('useBudgetSection — initial state', () => {
       budgetCategoryId: '',
       budgetSourceId: '',
       vendorId: '',
+      pricingMode: 'direct',
+      quantity: '',
+      unit: '',
+      unitPrice: '',
+      includesVat: true,
     });
   });
 });
@@ -201,6 +215,11 @@ describe('openAddBudgetForm', () => {
       budgetCategoryId: '',
       budgetSourceId: '',
       vendorId: '',
+      pricingMode: 'direct',
+      quantity: '',
+      unit: '',
+      unitPrice: '',
+      includesVat: true,
     });
   });
 
@@ -246,6 +265,11 @@ describe('openEditBudgetForm', () => {
       budgetCategoryId: 'cat-1',
       budgetSourceId: 'src-1',
       vendorId: 'v-1',
+      pricingMode: 'direct',
+      quantity: '',
+      unit: '',
+      unitPrice: '',
+      includesVat: true,
     });
 
     const { result } = renderHook(() => useBudgetSection(makeOptions()));
@@ -318,6 +342,11 @@ describe('closeBudgetForm', () => {
       budgetCategoryId: '',
       budgetSourceId: '',
       vendorId: '',
+      pricingMode: 'direct',
+      quantity: '',
+      unit: '',
+      unitPrice: '',
+      includesVat: true,
     });
   });
 
@@ -373,6 +402,11 @@ describe('setBudgetForm', () => {
       budgetCategoryId: 'cat-2',
       budgetSourceId: 'src-2',
       vendorId: 'v-2',
+      pricingMode: 'direct' as const,
+      quantity: '',
+      unit: '',
+      unitPrice: '',
+      includesVat: true,
     };
 
     act(() => {
@@ -438,6 +472,11 @@ describe('handleSaveBudgetLine', () => {
       budgetCategoryId: '',
       budgetSourceId: '',
       vendorId: '',
+      pricingMode: 'direct',
+      quantity: '',
+      unit: '',
+      unitPrice: '',
+      includesVat: true,
     });
 
     const { result } = renderHook(() => useBudgetSection(makeOptions()));
@@ -478,6 +517,11 @@ describe('handleSaveBudgetLine', () => {
       budgetCategoryId: 'cat-1',
       budgetSourceId: '',
       vendorId: '',
+      pricingMode: 'direct',
+      quantity: '',
+      unit: '',
+      unitPrice: '',
+      includesVat: true,
     });
     mockToPayload.mockReturnValue({ plannedAmount: 1500, description: 'Updated' });
 
@@ -503,6 +547,11 @@ describe('handleSaveBudgetLine', () => {
       budgetCategoryId: '',
       budgetSourceId: '',
       vendorId: '',
+      pricingMode: 'direct',
+      quantity: '',
+      unit: '',
+      unitPrice: '',
+      includesVat: true,
     });
 
     const { result } = renderHook(() => useBudgetSection(makeOptions()));
@@ -530,6 +579,11 @@ describe('handleSaveBudgetLine', () => {
       budgetCategoryId: '',
       budgetSourceId: '',
       vendorId: '',
+      pricingMode: 'direct',
+      quantity: '',
+      unit: '',
+      unitPrice: '',
+      includesVat: true,
     });
 
     const { result } = renderHook(() => useBudgetSection(makeOptions()));
@@ -556,6 +610,11 @@ describe('handleSaveBudgetLine', () => {
       budgetCategoryId: '',
       budgetSourceId: '',
       vendorId: '',
+      pricingMode: 'direct',
+      quantity: '',
+      unit: '',
+      unitPrice: '',
+      includesVat: true,
     });
 
     const { result } = renderHook(() => useBudgetSection(makeOptions()));
@@ -580,6 +639,11 @@ describe('handleSaveBudgetLine', () => {
       budgetCategoryId: '',
       budgetSourceId: '',
       vendorId: '',
+      pricingMode: 'direct',
+      quantity: '',
+      unit: '',
+      unitPrice: '',
+      includesVat: true,
     });
     mockUpdateBudget.mockRejectedValueOnce(new Error('Server rejected the request'));
 
@@ -605,6 +669,11 @@ describe('handleSaveBudgetLine', () => {
       budgetCategoryId: '',
       budgetSourceId: '',
       vendorId: '',
+      pricingMode: 'direct',
+      quantity: '',
+      unit: '',
+      unitPrice: '',
+      includesVat: true,
     });
     mockUpdateBudget.mockRejectedValueOnce({ statusCode: 500 }); // no message
 
@@ -629,6 +698,11 @@ describe('handleSaveBudgetLine', () => {
       budgetCategoryId: '',
       budgetSourceId: '',
       vendorId: '',
+      pricingMode: 'direct',
+      quantity: '',
+      unit: '',
+      unitPrice: '',
+      includesVat: true,
     });
 
     const { result } = renderHook(() => useBudgetSection(makeOptions()));
@@ -652,6 +726,11 @@ describe('handleSaveBudgetLine', () => {
       budgetCategoryId: '',
       budgetSourceId: '',
       vendorId: '',
+      pricingMode: 'direct',
+      quantity: '',
+      unit: '',
+      unitPrice: '',
+      includesVat: true,
     });
     mockUpdateBudget.mockRejectedValueOnce(new Error('fail'));
 

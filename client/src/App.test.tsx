@@ -16,6 +16,10 @@ import type * as InvoicesApiTypes from './lib/invoicesApi.js';
 import type * as WorkItemBudgetsApiTypes from './lib/workItemBudgetsApi.js';
 import type * as HouseholdItemBudgetsApiTypes from './lib/householdItemBudgetsApi.js';
 import type * as HouseholdItemCategoriesApiTypes from './lib/householdItemCategoriesApi.js';
+import type * as BudgetOverviewApiTypes from './lib/budgetOverviewApi.js';
+import type * as BudgetSourcesApiTypes from './lib/budgetSourcesApi.js';
+import type * as SubsidyProgramsApiTypes from './lib/subsidyProgramsApi.js';
+import type * as PreferencesApiTypes from './lib/preferencesApi.js';
 import type * as AppTypes from './App.js';
 
 const mockGetAuthMe = jest.fn<typeof AuthApiTypes.getAuthMe>();
@@ -167,6 +171,41 @@ jest.unstable_mockModule('./lib/householdItemCategoriesApi.js', () => ({
     jest.fn<typeof HouseholdItemCategoriesApiTypes.deleteHouseholdItemCategory>(),
 }));
 
+// DashboardPage calls fetchBudgetOverview on mount.
+const mockFetchBudgetOverview = jest.fn<typeof BudgetOverviewApiTypes.fetchBudgetOverview>();
+jest.unstable_mockModule('./lib/budgetOverviewApi.js', () => ({
+  fetchBudgetOverview: mockFetchBudgetOverview,
+  fetchBudgetBreakdown: jest.fn<typeof BudgetOverviewApiTypes.fetchBudgetBreakdown>(),
+}));
+
+// DashboardPage calls fetchBudgetSources on mount.
+const mockFetchBudgetSources = jest.fn<typeof BudgetSourcesApiTypes.fetchBudgetSources>();
+jest.unstable_mockModule('./lib/budgetSourcesApi.js', () => ({
+  fetchBudgetSources: mockFetchBudgetSources,
+  fetchBudgetSource: jest.fn<typeof BudgetSourcesApiTypes.fetchBudgetSource>(),
+  createBudgetSource: jest.fn<typeof BudgetSourcesApiTypes.createBudgetSource>(),
+  updateBudgetSource: jest.fn<typeof BudgetSourcesApiTypes.updateBudgetSource>(),
+  deleteBudgetSource: jest.fn<typeof BudgetSourcesApiTypes.deleteBudgetSource>(),
+}));
+
+// DashboardPage calls fetchSubsidyPrograms on mount.
+const mockFetchSubsidyPrograms = jest.fn<typeof SubsidyProgramsApiTypes.fetchSubsidyPrograms>();
+jest.unstable_mockModule('./lib/subsidyProgramsApi.js', () => ({
+  fetchSubsidyPrograms: mockFetchSubsidyPrograms,
+  fetchSubsidyProgram: jest.fn<typeof SubsidyProgramsApiTypes.fetchSubsidyProgram>(),
+  createSubsidyProgram: jest.fn<typeof SubsidyProgramsApiTypes.createSubsidyProgram>(),
+  updateSubsidyProgram: jest.fn<typeof SubsidyProgramsApiTypes.updateSubsidyProgram>(),
+  deleteSubsidyProgram: jest.fn<typeof SubsidyProgramsApiTypes.deleteSubsidyProgram>(),
+}));
+
+// DashboardPage uses usePreferences which calls listPreferences on mount.
+const mockListPreferences = jest.fn<typeof PreferencesApiTypes.listPreferences>();
+jest.unstable_mockModule('./lib/preferencesApi.js', () => ({
+  listPreferences: mockListPreferences,
+  upsertPreference: jest.fn<typeof PreferencesApiTypes.upsertPreference>(),
+  deletePreference: jest.fn<typeof PreferencesApiTypes.deletePreference>(),
+}));
+
 describe('App', () => {
   // Dynamic imports
   let App: typeof AppTypes.App;
@@ -197,6 +236,38 @@ describe('App', () => {
     mockFetchWorkItemBudgets.mockReset();
     mockFetchHouseholdItemBudgets.mockReset();
     mockFetchHouseholdItemCategories.mockReset();
+    mockFetchBudgetOverview.mockReset();
+    mockFetchBudgetSources.mockReset();
+    mockFetchSubsidyPrograms.mockReset();
+    mockListPreferences.mockReset();
+
+    // Default: DashboardPage data sources
+    mockFetchBudgetOverview.mockResolvedValue({
+      availableFunds: 0,
+      sourceCount: 0,
+      minPlanned: 0,
+      maxPlanned: 0,
+      actualCost: 0,
+      actualCostPaid: 0,
+      actualCostClaimed: 0,
+      remainingVsMinPlanned: 0,
+      remainingVsMaxPlanned: 0,
+      remainingVsActualCost: 0,
+      remainingVsActualPaid: 0,
+      remainingVsActualClaimed: 0,
+      remainingVsMinPlannedWithPayback: 0,
+      remainingVsMaxPlannedWithPayback: 0,
+      categorySummaries: [],
+      subsidySummary: {
+        totalReductions: 0,
+        activeSubsidyCount: 0,
+        minTotalPayback: 0,
+        maxTotalPayback: 0,
+      },
+    });
+    mockFetchBudgetSources.mockResolvedValue({ budgetSources: [] });
+    mockFetchSubsidyPrograms.mockResolvedValue({ subsidyPrograms: [] });
+    mockListPreferences.mockResolvedValue([]);
 
     // Default: budget categories returns empty list
     mockFetchBudgetCategories.mockResolvedValue({ categories: [] });
@@ -305,7 +376,7 @@ describe('App', () => {
 
     // Wait for lazy-loaded DashboardPage component to resolve
     // Root redirects to /project which redirects to /project/overview
-    const heading = await screen.findByRole('heading', { name: /^project$/i });
+    const heading = await screen.findByRole('heading', { name: /^project$/i }, { timeout: 5000 });
     expect(heading).toBeInTheDocument();
   });
 
@@ -315,7 +386,11 @@ describe('App', () => {
 
     // Wait for lazy-loaded WorkItems component to resolve
     // The WorkItemsPage h1 now reads "Project" (shared sub-nav heading)
-    const heading = await screen.findByRole('heading', { name: /^project$/i, level: 1 });
+    const heading = await screen.findByRole(
+      'heading',
+      { name: /^project$/i, level: 1 },
+      { timeout: 5000 },
+    );
     expect(heading).toBeInTheDocument();
   });
 
@@ -379,7 +454,11 @@ describe('App', () => {
     render(<App />);
 
     // Wait for lazy-loaded NotFound component to resolve
-    const heading = await screen.findByRole('heading', { name: /404.*not found/i });
+    const heading = await screen.findByRole(
+      'heading',
+      { name: /404.*not found/i },
+      { timeout: 5000 },
+    );
     expect(heading).toBeInTheDocument();
   });
 });

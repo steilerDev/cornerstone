@@ -762,8 +762,8 @@ describe('Budget Category Routes', () => {
 
       expect(response.statusCode).toBe(409);
       const body = response.json<ApiErrorResponse>();
-      expect(body.error.details).toBeDefined();
-      expect(body.error.details?.subsidyProgramCount).toBe(1);
+      expect(body.error.code).toBe('CATEGORY_IN_USE');
+      expect(body.error.details).toBeUndefined();
     });
 
     it('returns 401 without authentication', async () => {

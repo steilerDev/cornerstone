@@ -127,6 +127,9 @@ describe('BudgetOverviewPage', () => {
       claimedAmount: 0,
       unclaimedAmount: 0,
       actualAvailableAmount: opts.totalAmount ?? 80000,
+      paidAmount: 0,
+      projectedAmount: 0,
+      isDiscretionary: false,
       interestRate: null,
       terms: null,
       notes: null,
@@ -313,7 +316,7 @@ describe('BudgetOverviewPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('region', { name: /budget health/i })).toBeInTheDocument();
+        expect(screen.getByRole('region', { name: /budget overview/i })).toBeInTheDocument();
       });
     });
   });
@@ -327,76 +330,6 @@ describe('BudgetOverviewPage', () => {
 
       await waitFor(() => {
         expect(screen.getByRole('heading', { name: /^budget$/i, level: 1 })).toBeInTheDocument();
-      });
-    });
-  });
-
-  // ─── Budget Health Hero card ────────────────────────────────────────────────
-
-  describe('Budget Health Hero card', () => {
-    it('renders a section with "Budget Health" heading', async () => {
-      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
-      renderPage();
-
-      await waitFor(() => {
-        expect(
-          screen.getByRole('heading', { name: /budget health/i, level: 2 }),
-        ).toBeInTheDocument();
-      });
-    });
-
-    it('renders a BudgetHealthIndicator badge (role="status")', async () => {
-      // Use an overview with remainingVsMaxPlanned=40000 → margin 20% > 10% → On Budget
-      // (component passes remainingVsMaxPlanned as remainingVsProjectedMax to BudgetHealthIndicator
-      // when hasPayback=false)
-      const onBudgetOverview: BudgetOverview = {
-        ...richOverview,
-        remainingVsMaxPlanned: 40000,
-        remainingVsMaxPlannedWithPayback: 40000,
-      };
-      mockFetchBudgetOverview.mockResolvedValueOnce(onBudgetOverview);
-      renderPage();
-
-      // The health badge has role="status"; the loading indicator also had it but is gone now
-      await waitFor(() => {
-        const statusEl = screen.getByRole('status');
-        expect(statusEl).toBeInTheDocument();
-        // remainingVsMaxPlanned=40000, availableFunds=200000 → margin 20% → On Budget
-        expect(statusEl).toHaveTextContent(/on budget/i);
-      });
-    });
-
-    it('shows "Over Budget" when remaining vs max planned is negative', async () => {
-      // Component uses remainingVsMaxPlanned (or WithPayback when hasPayback) for health indicator.
-      // Set both to negative to trigger "Over Budget" status.
-      const overBudgetOverview: BudgetOverview = {
-        ...richOverview,
-        availableFunds: 100000,
-        remainingVsMaxPlanned: -50000, // negative → Over Budget
-        remainingVsMaxPlannedWithPayback: -50000,
-      };
-      mockFetchBudgetOverview.mockResolvedValueOnce(overBudgetOverview);
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('status')).toHaveTextContent(/over budget/i);
-      });
-    });
-
-    it('shows "At Risk" when margin <= 10%', async () => {
-      // Component uses remainingVsMaxPlanned for health indicator when hasPayback=false.
-      // margin = remainingVsMaxPlanned / availableFunds = 5000 / 100000 = 5% → At Risk
-      const atRiskOverview: BudgetOverview = {
-        ...richOverview,
-        availableFunds: 100000,
-        remainingVsMaxPlanned: 5000, // margin = 5000/100000 = 5% → At Risk
-        remainingVsMaxPlannedWithPayback: 5000,
-      };
-      mockFetchBudgetOverview.mockResolvedValueOnce(atRiskOverview);
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('status')).toHaveTextContent(/at risk/i);
       });
     });
   });
@@ -1231,59 +1164,9 @@ describe('BudgetOverviewPage', () => {
     });
   });
 
-  // ─── Health Indicator — Payback-Adjusted Remaining (Scenarios 31–33) ────────
+  // ─── Payback-Adjusted Remaining (Scenario 33) ──────────────────────────────
 
-  describe('health indicator payback-adjusted remaining', () => {
-    // Scenario 31: hasPayback true → health indicator receives payback-adjusted remaining
-    it('uses payback-adjusted remaining for health indicator when hasPayback is true', async () => {
-      // remainingVsMaxPlannedWithPayback = 25000 but remainingVsMaxPlanned = 20000
-      // When payback exists, we use the "WithPayback" value for health indicator
-      // margin = remainingVsMaxPlannedWithPayback / availableFunds = 25000 / 200000 = 12.5% > 10% → On Budget
-      const paybackOverview: BudgetOverview = {
-        ...richOverview,
-        remainingVsMinPlannedWithPayback: 85000,
-        remainingVsMaxPlannedWithPayback: 25000,
-        subsidySummary: {
-          totalReductions: 15000,
-          activeSubsidyCount: 3,
-          minTotalPayback: 5000,
-          maxTotalPayback: 5000,
-        },
-      };
-      mockFetchBudgetOverview.mockResolvedValueOnce(paybackOverview);
-      renderPage();
-
-      await waitFor(() => {
-        const statusEl = screen.getByRole('status');
-        expect(statusEl).toHaveTextContent(/on budget/i);
-      });
-    });
-
-    // Scenario 32: hasPayback false → health indicator receives filtered projected max remaining
-    it('uses remainingVsMaxPlanned for health indicator when hasPayback is false', async () => {
-      // richOverview has maxTotalPayback = 0 → hasPayback = false
-      // remainingVsMaxPlanned = 20000 → margin = 20000/200000 = 10% → At Risk (exactly 10%)
-      const noPaybackAtRisk: BudgetOverview = {
-        ...richOverview,
-        remainingVsMaxPlanned: 20000,
-        remainingVsMaxPlannedWithPayback: 20000,
-        subsidySummary: {
-          totalReductions: 0,
-          activeSubsidyCount: 0,
-          minTotalPayback: 0,
-          maxTotalPayback: 0,
-        },
-      };
-      mockFetchBudgetOverview.mockResolvedValueOnce(noPaybackAtRisk);
-      renderPage();
-
-      await waitFor(() => {
-        const statusEl = screen.getByRole('status');
-        // margin = 20000/200000 = 10% → exactly At Risk threshold
-        expect(statusEl).toHaveTextContent(/at risk/i);
-      });
-    });
-
+  describe('payback-adjusted remaining metric', () => {
     // Scenario 33: Remaining metric in hero card displays payback-adjusted values when payback exists
     it('Remaining metric shows payback-adjusted min/max when payback exists', async () => {
       // remainingVsMinPlannedWithPayback=85000 → €85K, remainingVsMaxPlannedWithPayback=25000 → €25K

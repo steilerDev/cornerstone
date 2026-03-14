@@ -77,6 +77,7 @@ describe('SubsidyProgramsPage', () => {
     applicationStatus: 'eligible',
     applicationDeadline: '2027-12-31',
     notes: 'Apply early',
+    maximumAmount: null,
     applicableCategories: [sampleCategory1],
     createdBy: null,
     createdAt: '2026-01-01T00:00:00.000Z',
@@ -93,10 +94,28 @@ describe('SubsidyProgramsPage', () => {
     applicationStatus: 'applied',
     applicationDeadline: null,
     notes: null,
+    maximumAmount: null,
     applicableCategories: [],
     createdBy: null,
     createdAt: '2026-01-02T00:00:00.000Z',
     updatedAt: '2026-01-02T00:00:00.000Z',
+  };
+
+  const sampleProgramWithCap: SubsidyProgram = {
+    id: 'prog-3',
+    name: 'Capped Subsidy',
+    description: null,
+    eligibility: null,
+    reductionType: 'fixed',
+    reductionValue: 3000,
+    applicationStatus: 'eligible',
+    applicationDeadline: null,
+    notes: null,
+    maximumAmount: 10000,
+    applicableCategories: [],
+    createdBy: null,
+    createdAt: '2026-01-03T00:00:00.000Z',
+    updatedAt: '2026-01-03T00:00:00.000Z',
   };
 
   const emptyProgramsResponse: SubsidyProgramListResponse = { subsidyPrograms: [] };
@@ -1342,6 +1361,243 @@ describe('SubsidyProgramsPage', () => {
       // Cancel button is disabled while deleting
       await waitFor(() => {
         expect(within(dialog).getByRole('button', { name: /cancel/i })).toBeDisabled();
+      });
+    });
+  });
+
+  // ─── Maximum Amount (cap) field ───────────────────────────────────────────
+
+  describe('maximumAmount — create form', () => {
+    it('shows "Maximum Amount (€)" input in the create form', async () => {
+      mockFetchSubsidyPrograms.mockResolvedValueOnce(emptyProgramsResponse);
+      const user = userEvent.setup();
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /add program/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /add program/i }));
+
+      expect(screen.getByLabelText(/maximum amount/i)).toBeInTheDocument();
+    });
+
+    it('create form "Maximum Amount (€)" input has placeholder "No limit"', async () => {
+      mockFetchSubsidyPrograms.mockResolvedValueOnce(emptyProgramsResponse);
+      const user = userEvent.setup();
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /add program/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /add program/i }));
+
+      const maxAmountInput = screen.getByLabelText(/maximum amount/i);
+      expect(maxAmountInput).toHaveAttribute('placeholder', 'No limit');
+    });
+
+    it('submits maximumAmount when filled in create form', async () => {
+      mockFetchSubsidyPrograms.mockResolvedValueOnce(emptyProgramsResponse);
+      mockCreateSubsidyProgram.mockResolvedValueOnce({ ...sampleProgramWithCap });
+      const user = userEvent.setup();
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /add program/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /add program/i }));
+      await user.type(screen.getByLabelText(/name/i), 'Capped Subsidy');
+      const reductionValueInput = screen.getByLabelText(/value \(%\)/i);
+      fireEvent.change(reductionValueInput, { target: { value: '15' } });
+      fireEvent.change(screen.getByLabelText(/maximum amount/i), { target: { value: '10000' } });
+      await user.click(screen.getByRole('button', { name: /create program/i }));
+
+      await waitFor(() => {
+        expect(mockCreateSubsidyProgram).toHaveBeenCalledWith(
+          expect.objectContaining({ maximumAmount: 10000 }),
+        );
+      });
+    });
+
+    it('submits maximumAmount as null when left empty in create form', async () => {
+      mockFetchSubsidyPrograms.mockResolvedValueOnce(emptyProgramsResponse);
+      mockCreateSubsidyProgram.mockResolvedValueOnce({ ...sampleProgram1 });
+      const user = userEvent.setup();
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /add program/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /add program/i }));
+      await user.type(screen.getByLabelText(/name/i), 'Energy Rebate');
+      const reductionValueInput = screen.getByLabelText(/value \(%\)/i);
+      fireEvent.change(reductionValueInput, { target: { value: '15' } });
+      // Leave maximumAmount empty
+      await user.click(screen.getByRole('button', { name: /create program/i }));
+
+      await waitFor(() => {
+        expect(mockCreateSubsidyProgram).toHaveBeenCalledWith(
+          expect.objectContaining({ maximumAmount: null }),
+        );
+      });
+    });
+  });
+
+  describe('maximumAmount — cap badge in program list', () => {
+    it('shows cap badge with formatted amount when maximumAmount is set', async () => {
+      const listWithCap: SubsidyProgramListResponse = {
+        subsidyPrograms: [sampleProgramWithCap],
+      };
+      mockFetchSubsidyPrograms.mockResolvedValueOnce(listWithCap);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText(/cap:/i)).toBeInTheDocument();
+      });
+
+      // The badge should display the formatted currency
+      expect(screen.getByText(/cap:/i).textContent).toMatch(/10[,.]?000/);
+    });
+
+    it('does not show cap badge when maximumAmount is null', async () => {
+      mockFetchSubsidyPrograms.mockResolvedValueOnce(listResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Energy Rebate')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByText(/cap:/i)).not.toBeInTheDocument();
+    });
+
+    it('shows cap badge only for programs that have maximumAmount set', async () => {
+      const mixedList: SubsidyProgramListResponse = {
+        subsidyPrograms: [sampleProgram1, sampleProgramWithCap],
+      };
+      mockFetchSubsidyPrograms.mockResolvedValueOnce(mixedList);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Energy Rebate')).toBeInTheDocument();
+        expect(screen.getByText('Capped Subsidy')).toBeInTheDocument();
+      });
+
+      // Only one cap badge should be present
+      expect(screen.getAllByText(/cap:/i)).toHaveLength(1);
+    });
+  });
+
+  describe('maximumAmount — edit form', () => {
+    it('shows "Maximum Amount (€)" input in the edit form', async () => {
+      mockFetchSubsidyPrograms.mockResolvedValueOnce(listResponse);
+      const user = userEvent.setup();
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /edit energy rebate/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /edit energy rebate/i }));
+
+      expect(screen.getByLabelText(/maximum amount/i)).toBeInTheDocument();
+    });
+
+    it('edit form pre-populates maximumAmount when program has a cap', async () => {
+      const listWithCap: SubsidyProgramListResponse = {
+        subsidyPrograms: [sampleProgramWithCap],
+      };
+      mockFetchSubsidyPrograms.mockResolvedValueOnce(listWithCap);
+      const user = userEvent.setup();
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /edit capped subsidy/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /edit capped subsidy/i }));
+
+      const maxAmountInput = screen.getByLabelText(/maximum amount/i);
+      expect((maxAmountInput as HTMLInputElement).value).toBe('10000');
+    });
+
+    it('edit form maximumAmount is empty when program has no cap', async () => {
+      mockFetchSubsidyPrograms.mockResolvedValueOnce(listResponse);
+      const user = userEvent.setup();
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /edit energy rebate/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /edit energy rebate/i }));
+
+      const maxAmountInput = screen.getByLabelText(/maximum amount/i);
+      expect((maxAmountInput as HTMLInputElement).value).toBe('');
+    });
+
+    it('submits maximumAmount in edit save call', async () => {
+      mockFetchSubsidyPrograms.mockResolvedValueOnce(listResponse);
+      mockUpdateSubsidyProgram.mockResolvedValueOnce({ ...sampleProgram1, maximumAmount: 8000 });
+      const user = userEvent.setup();
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /edit energy rebate/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /edit energy rebate/i }));
+      fireEvent.change(screen.getByLabelText(/maximum amount/i), { target: { value: '8000' } });
+      await user.click(screen.getByRole('button', { name: /^Save$/ }));
+
+      await waitFor(() => {
+        expect(mockUpdateSubsidyProgram).toHaveBeenCalledWith(
+          'prog-1',
+          expect.objectContaining({ maximumAmount: 8000 }),
+        );
+      });
+    });
+
+    it('submits maximumAmount as null when edit form field is cleared', async () => {
+      const listWithCap: SubsidyProgramListResponse = {
+        subsidyPrograms: [sampleProgramWithCap],
+      };
+      mockFetchSubsidyPrograms.mockResolvedValueOnce(listWithCap);
+      mockUpdateSubsidyProgram.mockResolvedValueOnce({
+        ...sampleProgramWithCap,
+        maximumAmount: null,
+      });
+      const user = userEvent.setup();
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /edit capped subsidy/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /edit capped subsidy/i }));
+      // Clear the maximumAmount field
+      fireEvent.change(screen.getByLabelText(/maximum amount/i), { target: { value: '' } });
+      await user.click(screen.getByRole('button', { name: /^Save$/ }));
+
+      await waitFor(() => {
+        expect(mockUpdateSubsidyProgram).toHaveBeenCalledWith(
+          'prog-3',
+          expect.objectContaining({ maximumAmount: null }),
+        );
       });
     });
   });

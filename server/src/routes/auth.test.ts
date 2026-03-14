@@ -8,7 +8,7 @@ import * as userService from '../services/userService.js';
 import * as schema from '../db/schema.js';
 import { users } from '../db/schema.js';
 import type { FastifyInstance } from 'fastify';
-import type { UserResponse } from '@cornerstone/shared';
+import type { UserResponse, ApiErrorResponse } from '@cornerstone/shared';
 
 describe('Authentication Routes', () => {
   let app: FastifyInstance;
@@ -1169,6 +1169,114 @@ describe('Authentication Routes', () => {
         const body = JSON.parse(response.body);
         expect(body.user).toBeDefined();
       });
+    });
+  });
+
+  describe('Account Lockout', () => {
+    /**
+     * Helper: Perform N failed login attempts for the given email/password.
+     */
+    async function performFailedLogins(email: string, count: number) {
+      for (let i = 0; i < count; i++) {
+        await app.inject({
+          method: 'POST',
+          url: '/api/auth/login',
+          payload: { email, password: 'WrongPassword' },
+        });
+      }
+    }
+
+    it('after 10 failed login attempts, returns 423 ACCOUNT_LOCKED with details.lockedUntil', async () => {
+      // Given: A valid user
+      const email = 'lockout@example.com';
+      await userService.createLocalUser(app.db, email, 'Lockout User', 'CorrectPassword123');
+
+      // When: 10 failed login attempts
+      await performFailedLogins(email, 10);
+
+      // Then: The next attempt is locked
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/auth/login',
+        payload: { email, password: 'WrongPassword' },
+      });
+
+      expect(response.statusCode).toBe(423);
+      const body = JSON.parse(response.body) as ApiErrorResponse;
+      expect(body.error.code).toBe('ACCOUNT_LOCKED');
+      expect(body.error.details).toBeDefined();
+      expect(body.error.details?.lockedUntil).toBeDefined();
+      // lockedUntil should be an ISO 8601 timestamp in the future
+      const lockExpiry = new Date(body.error.details!.lockedUntil as string).getTime();
+      expect(lockExpiry).toBeGreaterThan(Date.now());
+    });
+
+    it('after lockout expires, login succeeds normally', async () => {
+      // Given: A user that was locked but the lock has expired
+      const email = 'expired-lock@example.com';
+      const user = await userService.createLocalUser(
+        app.db,
+        email,
+        'Expired Lock User',
+        'CorrectPassword123',
+      );
+
+      // Set lockedUntil to the past to simulate expiry
+      const pastTime = new Date(Date.now() - 60 * 1000).toISOString(); // 1 minute ago
+      app.db
+        .update(users)
+        .set({
+          lockedUntil: pastTime,
+          failedLoginAttempts: 10,
+          updatedAt: new Date().toISOString(),
+        })
+        .where(eq(users.id, user.id))
+        .run();
+
+      // When: Logging in with correct password after lockout expiry
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/auth/login',
+        payload: { email, password: 'CorrectPassword123' },
+      });
+
+      // Then: Login succeeds
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body) as { user: UserResponse };
+      expect(body.user.email).toBe(email);
+    });
+
+    it('successful login resets failedLoginAttempts to 0', async () => {
+      // Given: A user with some failed attempts
+      const email = 'reset-attempts@example.com';
+      const user = await userService.createLocalUser(
+        app.db,
+        email,
+        'Reset User',
+        'CorrectPassword123',
+      );
+
+      // Set 5 failed attempts (not yet locked)
+      app.db
+        .update(users)
+        .set({ failedLoginAttempts: 5, updatedAt: new Date().toISOString() })
+        .where(eq(users.id, user.id))
+        .run();
+
+      // When: Logging in successfully
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/auth/login',
+        payload: { email, password: 'CorrectPassword123' },
+      });
+
+      // Then: Login succeeds
+      expect(response.statusCode).toBe(200);
+
+      // And: failedLoginAttempts is reset to 0
+      const updatedUser = app.db.select().from(users).where(eq(users.id, user.id)).get();
+      expect(updatedUser?.failedLoginAttempts).toBe(0);
+      expect(updatedUser?.lockedUntil).toBeNull();
     });
   });
 });

@@ -66,6 +66,7 @@ type EditingProgram = {
   applicationDeadline: string;
   notes: string;
   categoryIds: string[];
+  maximumAmount: string;
 };
 
 function programToEditState(program: SubsidyProgram): EditingProgram {
@@ -82,6 +83,7 @@ function programToEditState(program: SubsidyProgram): EditingProgram {
       : '',
     notes: program.notes ?? '',
     categoryIds: program.applicableCategories.map((c) => c.id),
+    maximumAmount: program.maximumAmount != null ? String(program.maximumAmount) : '',
   };
 }
 
@@ -105,6 +107,7 @@ export function SubsidyProgramsPage() {
     useState<SubsidyApplicationStatus>('eligible');
   const [newApplicationDeadline, setNewApplicationDeadline] = useState('');
   const [newNotes, setNewNotes] = useState('');
+  const [newMaximumAmount, setNewMaximumAmount] = useState('');
   const [newCategoryIds, setNewCategoryIds] = useState<string[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string>('');
@@ -154,6 +157,7 @@ export function SubsidyProgramsPage() {
     setNewApplicationStatus('eligible');
     setNewApplicationDeadline('');
     setNewNotes('');
+    setNewMaximumAmount('');
     // Default to all categories selected
     setNewCategoryIds(allCategories.map((c) => c.id));
     setCreateError('');
@@ -226,6 +230,7 @@ export function SubsidyProgramsPage() {
         applicationStatus: newApplicationStatus,
         applicationDeadline: newApplicationDeadline || null,
         notes: newNotes.trim() || null,
+        maximumAmount: newMaximumAmount.trim() ? parseFloat(newMaximumAmount) : null,
         categoryIds: newCategoryIds,
       });
       setPrograms([...programs, created]);
@@ -290,6 +295,9 @@ export function SubsidyProgramsPage() {
         applicationStatus: editingProgram.applicationStatus,
         applicationDeadline: editingProgram.applicationDeadline || null,
         notes: editingProgram.notes.trim() || null,
+        maximumAmount: editingProgram.maximumAmount.trim()
+          ? parseFloat(editingProgram.maximumAmount)
+          : null,
         categoryIds: editingProgram.categoryIds,
       });
       setPrograms(programs.map((p) => (p.id === updated.id ? updated : p)));
@@ -530,7 +538,25 @@ export function SubsidyProgramsPage() {
                 </div>
               </div>
 
-              {/* Row 3: Description */}
+              {/* Row 3: Maximum Amount */}
+              <div className={styles.field}>
+                <label htmlFor="maximumAmount" className={styles.label}>
+                  Maximum Amount (€)
+                </label>
+                <input
+                  type="number"
+                  id="maximumAmount"
+                  value={newMaximumAmount}
+                  onChange={(e) => setNewMaximumAmount(e.target.value)}
+                  className={styles.input}
+                  placeholder="No limit"
+                  min={0}
+                  step="0.01"
+                  disabled={isCreating}
+                />
+              </div>
+
+              {/* Row 4: Description */}
               <div className={styles.field}>
                 <label htmlFor="programDescription" className={styles.label}>
                   Description
@@ -791,7 +817,30 @@ export function SubsidyProgramsPage() {
                         </div>
                       </div>
 
-                      {/* Edit Row 3: Description */}
+                      {/* Edit Row 3: Maximum Amount */}
+                      <div className={styles.field}>
+                        <label
+                          htmlFor={`edit-maximumamount-${program.id}`}
+                          className={styles.label}
+                        >
+                          Maximum Amount (€)
+                        </label>
+                        <input
+                          type="number"
+                          id={`edit-maximumamount-${program.id}`}
+                          value={editingProgram.maximumAmount}
+                          onChange={(e) =>
+                            setEditingProgram({ ...editingProgram, maximumAmount: e.target.value })
+                          }
+                          className={styles.input}
+                          placeholder="No limit"
+                          min={0}
+                          step="0.01"
+                          disabled={isUpdating}
+                        />
+                      </div>
+
+                      {/* Edit Row 4: Description */}
                       <div className={styles.field}>
                         <label htmlFor={`edit-description-${program.id}`} className={styles.label}>
                           Description
@@ -927,6 +976,11 @@ export function SubsidyProgramsPage() {
                             <span className={styles.reductionBadge}>
                               {formatReduction(program.reductionType, program.reductionValue)}
                             </span>
+                            {program.maximumAmount != null && (
+                              <span className={styles.maxAmountBadge}>
+                                Cap: {formatCurrency(program.maximumAmount)}
+                              </span>
+                            )}
                           </div>
                         </div>
 

@@ -4,6 +4,8 @@ import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
 import { requireRole } from '../plugins/auth.js';
 
+export { NotFoundError };
+
 // JSON schema for PATCH /api/users/me (update display name)
 const updateDisplayNameSchema = {
   body: {
@@ -101,41 +103,45 @@ export default async function userRoutes(fastify: FastifyInstance) {
    * OIDC users receive 403 FORBIDDEN.
    * Requires authentication.
    */
-  fastify.post('/me/password', { schema: changePasswordSchema }, async (request, reply) => {
-    if (!request.user) {
-      throw new UnauthorizedError('Authentication required');
-    }
+  fastify.post(
+    '/me/password',
+    { schema: changePasswordSchema, config: { rateLimit: { max: 10, timeWindow: '15 minutes' } } },
+    async (request, reply) => {
+      if (!request.user) {
+        throw new UnauthorizedError('Authentication required');
+      }
 
-    // OIDC users cannot change password
-    if (request.user.authProvider === 'oidc') {
-      throw new ForbiddenError('OIDC users manage credentials through their identity provider');
-    }
+      // OIDC users cannot change password
+      if (request.user.authProvider === 'oidc') {
+        throw new ForbiddenError('OIDC users manage credentials through their identity provider');
+      }
 
-    const { currentPassword, newPassword } = request.body as {
-      currentPassword: string;
-      newPassword: string;
-    };
+      const { currentPassword, newPassword } = request.body as {
+        currentPassword: string;
+        newPassword: string;
+      };
 
-    // Verify current password
-    if (!request.user.passwordHash) {
-      throw new AppError('INVALID_CREDENTIALS', 401, 'Current password is incorrect');
-    }
+      // Verify current password
+      if (!request.user.passwordHash) {
+        throw new AppError('INVALID_CREDENTIALS', 401, 'Current password is incorrect');
+      }
 
-    const passwordValid = await userService.verifyPassword(
-      request.user.passwordHash,
-      currentPassword,
-    );
+      const passwordValid = await userService.verifyPassword(
+        request.user.passwordHash,
+        currentPassword,
+      );
 
-    if (!passwordValid) {
-      throw new AppError('INVALID_CREDENTIALS', 401, 'Current password is incorrect');
-    }
+      if (!passwordValid) {
+        throw new AppError('INVALID_CREDENTIALS', 401, 'Current password is incorrect');
+      }
 
-    // Hash new password and update
-    const newPasswordHash = await userService.hashPassword(newPassword);
-    userService.updatePassword(fastify.db, request.user.id, newPasswordHash);
+      // Hash new password and update
+      const newPasswordHash = await userService.hashPassword(newPassword);
+      userService.updatePassword(fastify.db, request.user.id, newPasswordHash);
 
-    return reply.status(204).send();
-  });
+      return reply.status(204).send();
+    },
+  );
 
   /**
    * GET /api/users
@@ -235,6 +241,25 @@ export default async function userRoutes(fastify: FastifyInstance) {
     // Invalidate all sessions for this user
     sessionService.destroyUserSessions(fastify.db, id);
 
+    return reply.status(204).send();
+  });
+
+  /**
+   * POST /api/users/:id/unlock
+   * Admin-only: unlocks a locked user account.
+   */
+  fastify.post('/:id/unlock', { preHandler: requireRole('admin') }, async (request, reply) => {
+    if (!request.user) {
+      throw new UnauthorizedError('Authentication required');
+    }
+
+    const { id } = request.params as { id: string };
+    const user = userService.findById(fastify.db, id);
+    if (!user) {
+      throw new NotFoundError('User not found');
+    }
+
+    userService.unlockUser(fastify.db, id);
     return reply.status(204).send();
   });
 }

@@ -145,6 +145,7 @@
 
   /* --- Warning (orange/amber) --- */
   --color-warning: var(--color-orange-400);
+  --color-warning-bg: #fff7ed;
 
   /* --- Success (green) --- */
   --color-success: var(--color-green-500);
@@ -332,6 +333,7 @@
   --color-budget-paid: var(--color-primary);
   --color-budget-pending: var(--color-primary-bg);
   --color-budget-projected: var(--color-primary-bg-hover);
+  --color-budget-allocated: rgba(59, 130, 246, 0.15);
   --color-budget-track: var(--color-bg-tertiary);
   --color-budget-overflow: var(--color-danger-bg-strong);
 
@@ -496,6 +498,7 @@
 
   /* --- Warning --- */
   --color-warning: var(--color-orange-300);
+  --color-warning-bg: rgba(251, 146, 60, 0.1);
 
   /* --- Danger / Error --- */
   --color-danger: var(--color-red-400);
@@ -591,6 +594,7 @@
   --color-budget-paid: var(--color-blue-400);
   --color-budget-pending: rgba(59, 130, 246, 0.15);
   --color-budget-projected: rgba(59, 130, 246, 0.25);
+  --color-budget-allocated: rgba(96, 165, 250, 0.35);
   --color-budget-track: var(--color-slate-600);
   --color-budget-overflow: rgba(239, 68, 68, 0.2);
 

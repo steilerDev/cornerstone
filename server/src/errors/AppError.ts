@@ -8,18 +8,21 @@ export class AppError extends Error {
   readonly code: ErrorCode;
   readonly statusCode: number;
   readonly details?: Record<string, unknown>;
+  readonly suppressDetails: boolean;
 
   constructor(
     code: ErrorCode,
     statusCode: number,
     message: string,
     details?: Record<string, unknown>,
+    suppressDetails = false,
   ) {
     super(message);
     this.name = 'AppError';
     this.code = code;
     this.statusCode = statusCode;
     this.details = details;
+    this.suppressDetails = suppressDetails;
   }
 }
 
@@ -63,7 +66,7 @@ export class CategoryInUseError extends AppError {
     message = 'Budget category is in use and cannot be deleted',
     details?: Record<string, unknown>,
   ) {
-    super('CATEGORY_IN_USE', 409, message, details);
+    super('CATEGORY_IN_USE', 409, message, details, true);
     this.name = 'CategoryInUseError';
   }
 }
@@ -73,7 +76,7 @@ export class VendorInUseError extends AppError {
     message = 'Vendor is in use and cannot be deleted',
     details?: { invoiceCount: number; budgetLineCount: number },
   ) {
-    super('VENDOR_IN_USE', 409, message, details);
+    super('VENDOR_IN_USE', 409, message, details, true);
     this.name = 'VendorInUseError';
   }
 }
@@ -83,7 +86,7 @@ export class BudgetSourceInUseError extends AppError {
     message = 'Budget source is in use and cannot be deleted',
     details?: { budgetLineCount: number },
   ) {
-    super('BUDGET_SOURCE_IN_USE', 409, message, details);
+    super('BUDGET_SOURCE_IN_USE', 409, message, details, true);
     this.name = 'BudgetSourceInUseError';
   }
 }
@@ -93,7 +96,7 @@ export class SubsidyProgramInUseError extends AppError {
     message = 'Subsidy program is in use and cannot be deleted',
     details?: { workItemCount: number },
   ) {
-    super('SUBSIDY_PROGRAM_IN_USE', 409, message, details);
+    super('SUBSIDY_PROGRAM_IN_USE', 409, message, details, true);
     this.name = 'SubsidyProgramInUseError';
   }
 }
@@ -103,7 +106,7 @@ export class BudgetLineInUseError extends AppError {
     message = 'Budget line has linked invoices and cannot be deleted',
     details?: { invoiceCount: number },
   ) {
-    super('BUDGET_LINE_IN_USE', 409, message, details);
+    super('BUDGET_LINE_IN_USE', 409, message, details, true);
     this.name = 'BudgetLineInUseError';
   }
 }
@@ -145,5 +148,37 @@ export class ItemizedSumExceedsInvoiceError extends AppError {
   ) {
     super('ITEMIZED_SUM_EXCEEDS_INVOICE', 400, message, details);
     this.name = 'ItemizedSumExceedsInvoiceError';
+  }
+}
+
+export class SubsidyOversubscribedError extends AppError {
+  constructor(
+    message = 'Subsidy program is oversubscribed',
+    details?: { currentAllocation: number; maximumAmount: number; excess: number },
+  ) {
+    super('SUBSIDY_OVERSUBSCRIBED', 409, message, details);
+    this.name = 'SubsidyOversubscribedError';
+  }
+}
+
+export class DiscretionarySourceError extends AppError {
+  constructor(
+    message = 'The Discretionary Funding source cannot be deleted',
+    details?: Record<string, unknown>,
+  ) {
+    super('DISCRETIONARY_SOURCE', 409, message, details);
+    this.name = 'DiscretionarySourceError';
+  }
+}
+
+export class AccountLockedError extends AppError {
+  constructor(lockedUntil: string) {
+    super(
+      'ACCOUNT_LOCKED',
+      423,
+      'Account is temporarily locked due to too many failed login attempts',
+      { lockedUntil },
+    );
+    this.name = 'AccountLockedError';
   }
 }

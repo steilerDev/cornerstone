@@ -1,5 +1,5 @@
 /**
- * E2E tests for Budget Sources management (Story #145)
+ * E2E tests for Budget Sources management (Story #145, Issue #727)
  *
  * UAT Scenarios covered:
  * - Page loads with h1 "Budget" and h2 "Sources"
@@ -14,6 +14,8 @@
  * - Delete blocked (409) — error shown, confirm button hidden
  * - Responsive layout: no horizontal scroll
  * - Dark mode rendering
+ * - Discretionary Funding source — system source presence, no delete, type locked, zero amount edit
+ * - Projected and Paid amount fields visible on source rows
  */
 
 import { test, expect } from '../../fixtures/auth.js';
@@ -711,6 +713,192 @@ test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
       await sourcesPage.cancelDelete();
     } finally {
       if (createdId) await deleteSourceViaApi(page, createdId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Discretionary Funding source (Issue #727)
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe('Discretionary Funding source', () => {
+  const DISCRETIONARY_NAME = 'Discretionary Funding';
+
+  test(
+    'Discretionary source is present on page load with System badge',
+    { tag: '@smoke' },
+    async ({ page }) => {
+      const sourcesPage = new BudgetSourcesPage(page);
+
+      await sourcesPage.goto();
+      await sourcesPage.waitForSourcesLoaded();
+
+      // The Discretionary Funding row must be visible
+      const row = sourcesPage.getSourceRowByName(DISCRETIONARY_NAME);
+      await expect(row).toBeVisible();
+
+      // It must carry a "System" badge
+      const systemBadge = sourcesPage.getSystemBadge(DISCRETIONARY_NAME);
+      await expect(systemBadge).toBeVisible();
+      await expect(systemBadge).toHaveText('System');
+    },
+  );
+
+  test('Discretionary source has no Delete button', async ({ page }) => {
+    const sourcesPage = new BudgetSourcesPage(page);
+
+    await sourcesPage.goto();
+    await sourcesPage.waitForSourcesLoaded();
+
+    const row = sourcesPage.getSourceRowByName(DISCRETIONARY_NAME);
+    await expect(row).toBeVisible();
+
+    // The Delete button aria-label pattern used by all other rows
+    const deleteButton = row.getByRole('button', { name: /^Delete /i });
+    await expect(deleteButton).not.toBeVisible();
+  });
+
+  test('Discretionary source edit form — sourceType selector is disabled', async ({ page }) => {
+    const sourcesPage = new BudgetSourcesPage(page);
+
+    await sourcesPage.goto();
+    await sourcesPage.waitForSourcesLoaded();
+
+    // Retrieve the source id by querying the API
+    const resp = await page.request.get(API.budgetSources);
+    const body = (await resp.json()) as { budgetSources: BudgetSourceApiResponse[] };
+    const discretionary = body.budgetSources.find((s) => s.name === DISCRETIONARY_NAME);
+    expect(discretionary, 'Discretionary Funding source must exist in API response').toBeTruthy();
+    const sourceId = discretionary!.id;
+
+    // Open the edit form for the discretionary source
+    await sourcesPage.startEdit(DISCRETIONARY_NAME);
+
+    // The sourceType select must be disabled
+    const typeSelect = sourcesPage.getEditTypeSelect(sourceId);
+    await expect(typeSelect).toBeDisabled();
+
+    // Clean up
+    await sourcesPage.cancelEdit(DISCRETIONARY_NAME);
+  });
+
+  test('Discretionary source edit — totalAmount can be set to 0 and saved', async ({ page }) => {
+    const sourcesPage = new BudgetSourcesPage(page);
+
+    // Fetch the current totalAmount so we can restore it after the test
+    const respBefore = await page.request.get(API.budgetSources);
+    const bodyBefore = (await respBefore.json()) as { budgetSources: BudgetSourceApiResponse[] };
+    const discretionaryBefore = bodyBefore.budgetSources.find((s) => s.name === DISCRETIONARY_NAME);
+    expect(
+      discretionaryBefore,
+      'Discretionary Funding source must exist before edit test',
+    ).toBeTruthy();
+    const sourceId = discretionaryBefore!.id;
+    const originalAmount = discretionaryBefore!.totalAmount;
+
+    try {
+      await sourcesPage.goto();
+      await sourcesPage.waitForSourcesLoaded();
+
+      await sourcesPage.startEdit(DISCRETIONARY_NAME);
+
+      // Set totalAmount to 0
+      const editForm = sourcesPage.getEditForm(DISCRETIONARY_NAME);
+      const amountInput = editForm.locator(`#edit-amount-${sourceId}`);
+      await amountInput.fill('0');
+
+      // Verify the input accepted the value — fill() on number inputs can race
+      // with React's controlled component state update, leaving the button disabled.
+      await expect(amountInput).toHaveValue('0');
+
+      // Wait for Save button to be enabled before clicking
+      const saveButton = editForm.getByRole('button', { name: /^Save$|^Saving\.\.\.$/ });
+      await expect(saveButton).toBeEnabled();
+
+      // Register response listener BEFORE clicking save (per waitForResponse-before-action pattern).
+      const saveResponse = page.waitForResponse(
+        (resp) => resp.url().includes('/api/budget-sources') && resp.status() === 200,
+      );
+      await sourcesPage.saveEdit(DISCRETIONARY_NAME);
+      await saveResponse;
+
+      // Success banner must appear (updated successfully).
+      // Use expect() with project-level expect.timeout (7s desktop / 15s WebKit) rather than
+      // getSuccessBannerText() which catches timeouts and returns null, masking real failures.
+      await expect(sourcesPage.successBanner).toBeVisible();
+      await expect(sourcesPage.successBanner).toContainText(DISCRETIONARY_NAME);
+    } finally {
+      // Restore original totalAmount via API regardless of test outcome
+      await page.request.patch(`${API.budgetSources}/${sourceId}`, {
+        data: { totalAmount: originalAmount },
+      });
+    }
+  });
+
+  test('Bar chart and summary row are visible on source rows', async ({ page }) => {
+    const sourcesPage = new BudgetSourcesPage(page);
+
+    await sourcesPage.goto();
+    await sourcesPage.waitForSourcesLoaded();
+
+    // The Discretionary Funding row is always present — verify its bar chart section renders
+    const row = sourcesPage.getSourceRowByName(DISCRETIONARY_NAME);
+    await expect(row).toBeVisible();
+
+    // The bar chart section (sourceBarSection) always renders regardless of amounts
+    const barSection = row.locator('[class*="sourceBarSection"]');
+    await expect(barSection).toBeVisible();
+
+    // The summary row (Total / Available / Planned) always renders regardless of amounts
+    const summaryItems = row.locator('[class*="summaryItem"]');
+    const summaryCount = await summaryItems.count();
+    // At minimum: Total, Available, Planned (3 items; Rate only appears when interestRate set)
+    expect(summaryCount).toBeGreaterThanOrEqual(3);
+
+    // Collect all summary item texts and verify they contain expected labels
+    const summaryTexts = await summaryItems.allTextContents();
+    const summaryNormalised = summaryTexts.map((t) => t.trim());
+    expect(summaryNormalised.some((t) => t.includes('Total'))).toBe(true);
+    expect(summaryNormalised.some((t) => t.includes('Available'))).toBe(true);
+    expect(summaryNormalised.some((t) => t.includes('Planned'))).toBe(true);
+
+    // If there are budget lines (non-zero amounts), legend labels should also render
+    const legendLabels = sourcesPage.getAmountLabelsInRow(DISCRETIONARY_NAME);
+    const legendCount = await legendLabels.count();
+    if (legendCount > 0) {
+      const labelTexts = await legendLabels.allTextContents();
+      const normalised = labelTexts.map((t) => t.trim());
+      // Known legend label values from SourceBarChart component
+      const knownLabels = [
+        'Claimed',
+        'Paid (unclaimed)',
+        'Projected',
+        'Allocated (planned)',
+        'Overflow',
+      ];
+      expect(normalised.every((l) => knownLabels.includes(l))).toBe(true);
+    }
+  });
+
+  test('Discretionary source appears last in the sources list', async ({ page }) => {
+    const sourcesPage = new BudgetSourcesPage(page);
+
+    // Create a temporary source so there are at least two rows
+    const tempName = 'ZZZ Temp Source For Order Check';
+    let tempId: string | null = null;
+
+    try {
+      tempId = await createSourceViaApi(page, { name: tempName, totalAmount: 1000 });
+
+      await sourcesPage.goto();
+      await sourcesPage.waitForSourcesLoaded();
+
+      const names = await sourcesPage.getSourceNames();
+      expect(names.length).toBeGreaterThanOrEqual(2);
+
+      // Discretionary Funding must be the last entry
+      expect(names[names.length - 1]).toBe(DISCRETIONARY_NAME);
+    } finally {
+      if (tempId) await deleteSourceViaApi(page, tempId);
     }
   });
 });

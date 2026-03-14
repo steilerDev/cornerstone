@@ -34,6 +34,8 @@ export const users = sqliteTable(
     passwordHash: text('password_hash'),
     oidcSubject: text('oidc_subject'),
     deactivatedAt: text('deactivated_at'),
+    failedLoginAttempts: integer('failed_login_attempts').notNull().default(0),
+    lockedUntil: text('locked_until'),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
   },
@@ -241,12 +243,13 @@ export const vendors = sqliteTable(
 
 /**
  * Budget sources table - financing sources (bank loans, credit lines, savings, etc.).
+ * EPIC-16: Added is_discretionary flag and 'discretionary' source type for system-managed catch-all.
  */
 export const budgetSources = sqliteTable('budget_sources', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
   sourceType: text('source_type', {
-    enum: ['bank_loan', 'credit_line', 'savings', 'other'],
+    enum: ['bank_loan', 'credit_line', 'savings', 'other', 'discretionary'],
   }).notNull(),
   totalAmount: real('total_amount').notNull(),
   interestRate: real('interest_rate'),
@@ -255,6 +258,7 @@ export const budgetSources = sqliteTable('budget_sources', {
   status: text('status', { enum: ['active', 'exhausted', 'closed'] })
     .notNull()
     .default('active'),
+  isDiscretionary: integer('is_discretionary', { mode: 'boolean' }).notNull().default(false),
   createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
@@ -286,6 +290,10 @@ export const workItemBudgets = sqliteTable(
       onDelete: 'set null',
     }),
     vendorId: text('vendor_id').references(() => vendors.id, { onDelete: 'set null' }),
+    quantity: real('quantity'),
+    unit: text('unit'),
+    unitPrice: real('unit_price'),
+    includesVat: integer('includes_vat', { mode: 'boolean' }),
     createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
@@ -384,6 +392,7 @@ export const subsidyPrograms = sqliteTable('subsidy_programs', {
     .default('eligible'),
   applicationDeadline: text('application_deadline'),
   notes: text('notes'),
+  maximumAmount: real('maximum_amount'),
   createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
@@ -664,6 +673,10 @@ export const householdItemBudgets = sqliteTable(
       onDelete: 'set null',
     }),
     vendorId: text('vendor_id').references(() => vendors.id, { onDelete: 'set null' }),
+    quantity: real('quantity'),
+    unit: text('unit'),
+    unitPrice: real('unit_price'),
+    includesVat: integer('includes_vat', { mode: 'boolean' }),
     createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
@@ -708,6 +721,32 @@ export const householdItemDeps = sqliteTable(
   }),
 );
 
+// ─── EPIC-09: Dashboard & Project Health Center ──────────────────────────────
+
+/**
+ * User preferences table - stores per-user UI preferences as key-value pairs.
+ * Used for dashboard customization (hidden cards, theme) and other user settings.
+ * Uses auto-incrementing integer PK (internal record, no external references).
+ * EPIC-09 Story #470: User Preferences Infrastructure
+ */
+export const userPreferences = sqliteTable(
+  'user_preferences',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    key: text('key').notNull(),
+    value: text('value').notNull(),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => ({
+    userKeyUnique: uniqueIndex('idx_user_preferences_user_key').on(table.userId, table.key),
+    userIdIdx: index('idx_user_preferences_user_id').on(table.userId),
+  }),
+);
+
 /**
  * Household item subsidies junction table - M:N relationship between household items and subsidy programs.
  * Links household items to applicable subsidy programs for cost reduction.
@@ -727,5 +766,37 @@ export const householdItemSubsidies = sqliteTable(
     subsidyProgramIdIdx: index('idx_household_item_subsidies_subsidy_program_id').on(
       table.subsidyProgramId,
     ),
+  }),
+);
+
+// ─── Photo Attachments ────────────────────────────────────────────────────────
+
+/**
+ * Photos table - stores photo attachment metadata for various entities.
+ * Uses entity_type + entity_id polymorphic pattern (same as document_links).
+ * Actual files stored on disk at {photoStoragePath}/{id}/original.{ext} + thumbnail.webp.
+ */
+export const photos = sqliteTable(
+  'photos',
+  {
+    id: text('id').primaryKey(),
+    entityType: text('entity_type').notNull(),
+    entityId: text('entity_id').notNull(),
+    filename: text('filename').notNull(),
+    originalFilename: text('original_filename').notNull(),
+    mimeType: text('mime_type').notNull(),
+    fileSize: integer('file_size').notNull(),
+    width: integer('width'),
+    height: integer('height'),
+    takenAt: text('taken_at'),
+    caption: text('caption'),
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => ({
+    entityIdx: index('idx_photos_entity').on(table.entityType, table.entityId),
+    createdAtIdx: index('idx_photos_created_at').on(table.createdAt),
   }),
 );

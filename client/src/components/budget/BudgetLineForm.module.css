@@ -127,6 +127,117 @@
   cursor: not-allowed;
 }
 
+.modeToggle {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  width: fit-content;
+}
+
+.modeBtn {
+  padding: var(--spacing-2) var(--spacing-4);
+  border: none;
+  background: var(--color-bg-primary);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    background var(--transition-normal),
+    color var(--transition-normal);
+}
+
+.modeBtn:not(:last-child) {
+  border-right: 1px solid var(--color-border-strong);
+}
+
+.modeBtnActive {
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+}
+
+.modeBtn:hover:not(:disabled):not(.modeBtnActive) {
+  background: var(--color-bg-tertiary);
+}
+
+.modeBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.unitPricingRow {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--spacing-3);
+  flex-wrap: wrap;
+}
+
+.unitField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  flex: 1;
+  min-width: 80px;
+}
+
+.unitSeparator {
+  font-size: var(--font-size-lg);
+  color: var(--color-text-muted);
+  padding-bottom: var(--spacing-2-5);
+  flex-shrink: 0;
+}
+
+.computedTotal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  flex-shrink: 0;
+}
+
+.computedValue {
+  padding: var(--spacing-2-5) var(--spacing-3);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  white-space: nowrap;
+}
+
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.vatNote {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-top: var(--spacing-1);
+}
+
+@media (max-width: 767px) {
+  .unitPricingRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .unitSeparator {
+    display: none;
+  }
+
+  .computedTotal {
+    align-self: flex-end;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .input,
   .select,

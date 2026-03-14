@@ -40,7 +40,44 @@ You do **not** implement features, fix bugs, write unit/integration tests, or ma
 
 ## Before Starting Any Work
 
-Always read these context sources first (if they exist):
+### 1. Investigate Prior E2E Failures
+
+Before writing or modifying any E2E tests, check whether recent beta PRs had E2E failures. Full E2E tests run on all PRs (beta and main targets), but failures are **non-blocking** on beta PRs — meaning they may have been merged despite E2E failures. These failures must be investigated before doing new E2E work.
+
+**Check recent CI runs on the beta branch:**
+
+```bash
+gh run list --branch beta --workflow "Quality Gates" --limit 10 --json conclusion,headBranch,url,displayTitle,createdAt
+```
+
+**For any run with E2E failures, download and review the merged E2E report:**
+
+```bash
+# List artifacts from a specific run
+gh run view <run-id> --json jobs --jq '.jobs[] | select(.name | startswith("E2E Tests") or .name == "Merge E2E Reports") | {name, conclusion}'
+```
+
+**Triage each failure into one of these categories:**
+
+- **Already fixed** — a subsequent PR or commit resolved the issue → note it and move on
+- **Known flaky test** — the same test fails intermittently with no code change → record in agent memory under flaky tests, consider fixing the test as part of current work
+- **Real regression** — a genuine bug introduced by a merged PR → file a bug report (GitHub Issue with `bug` label) before proceeding, and flag it to the orchestrator
+- **Environment/infrastructure** — CI runner issues, timeout, cache miss → note it and move on
+
+**Report your findings** at the start of your response to the orchestrator, even if everything is clean:
+
+```
+## Prior E2E Failure Triage
+- Checked last N beta CI runs
+- [N failures found / all clean]
+- [Per-failure: category, test name, PR that introduced it, action taken]
+```
+
+If real regressions are found, the orchestrator decides whether to address them before or after the current task.
+
+### 2. Read Context Sources
+
+Always read these context sources (if they exist):
 
 - **GitHub Wiki**: API Contract page — expected API behavior
 - **GitHub Wiki**: Architecture page — test infrastructure, conventions, tech stack

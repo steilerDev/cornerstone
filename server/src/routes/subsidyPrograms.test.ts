@@ -81,6 +81,7 @@ describe('Subsidy Program Routes', () => {
     eligibility?: string | null;
     applicationDeadline?: string | null;
     notes?: string | null;
+    maximumAmount?: number | null;
     createdBy?: string | null;
   }) {
     const id = `prog-${Date.now()}-${programCounter++}`;
@@ -98,6 +99,7 @@ describe('Subsidy Program Routes', () => {
         eligibility: options.eligibility ?? null,
         applicationDeadline: options.applicationDeadline ?? null,
         notes: options.notes ?? null,
+        maximumAmount: options.maximumAmount ?? null,
         createdBy: options.createdBy ?? null,
         createdAt: now,
         updatedAt: now,
@@ -226,6 +228,36 @@ describe('Subsidy Program Routes', () => {
       expect(prog.applicableCategories).toEqual([]);
     });
 
+    it('returns maximumAmount in list response when set', async () => {
+      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+      createTestProgram({ name: 'Capped Program', maximumAmount: 10000 });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/subsidy-programs',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<SubsidyProgramListResponse>();
+      expect(body.subsidyPrograms[0].maximumAmount).toBe(10000);
+    });
+
+    it('returns maximumAmount as null in list response when not set', async () => {
+      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+      createTestProgram({ name: 'Unlimited Program' });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/subsidy-programs',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<SubsidyProgramListResponse>();
+      expect(body.subsidyPrograms[0].maximumAmount).toBeNull();
+    });
+
     it('returns applicable categories for programs', async () => {
       const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
 
@@ -324,9 +356,91 @@ describe('Subsidy Program Routes', () => {
       expect(body.subsidyProgram.eligibility).toBeNull();
       expect(body.subsidyProgram.applicationDeadline).toBeNull();
       expect(body.subsidyProgram.notes).toBeNull();
+      expect(body.subsidyProgram.maximumAmount).toBeNull();
       expect(body.subsidyProgram.applicableCategories).toEqual([]);
       expect(body.subsidyProgram.createdAt).toBeDefined();
       expect(body.subsidyProgram.updatedAt).toBeDefined();
+    });
+
+    it('creates a program with maximumAmount set (201)', async () => {
+      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/subsidy-programs',
+        headers: { cookie },
+        payload: {
+          name: 'Capped Program',
+          reductionType: 'fixed',
+          reductionValue: 2000,
+          maximumAmount: 5000,
+        },
+      });
+
+      expect(response.statusCode).toBe(201);
+      const body = response.json<SubsidyProgramResponse>();
+      expect(body.subsidyProgram.name).toBe('Capped Program');
+      expect(body.subsidyProgram.maximumAmount).toBe(5000);
+    });
+
+    it('creates a program with maximumAmount explicitly null (201)', async () => {
+      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/subsidy-programs',
+        headers: { cookie },
+        payload: {
+          name: 'Unlimited Program',
+          reductionType: 'percentage',
+          reductionValue: 10,
+          maximumAmount: null,
+        },
+      });
+
+      expect(response.statusCode).toBe(201);
+      const body = response.json<SubsidyProgramResponse>();
+      expect(body.subsidyProgram.maximumAmount).toBeNull();
+    });
+
+    it('returns 400 VALIDATION_ERROR for maximumAmount of zero', async () => {
+      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/subsidy-programs',
+        headers: { cookie },
+        payload: {
+          name: 'Zero Cap',
+          reductionType: 'fixed',
+          reductionValue: 1000,
+          maximumAmount: 0,
+        },
+      });
+
+      expect(response.statusCode).toBe(400);
+      const body = response.json<ApiErrorResponse>();
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('returns 400 VALIDATION_ERROR for negative maximumAmount', async () => {
+      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/subsidy-programs',
+        headers: { cookie },
+        payload: {
+          name: 'Negative Cap',
+          reductionType: 'fixed',
+          reductionValue: 1000,
+          maximumAmount: -500,
+        },
+      });
+
+      expect(response.statusCode).toBe(400);
+      const body = response.json<ApiErrorResponse>();
+      expect(body.error.code).toBe('VALIDATION_ERROR');
     });
 
     it('creates a program with all optional fields (201)', async () => {
@@ -897,6 +1011,74 @@ describe('Subsidy Program Routes', () => {
       expect(body.error.code).toBe('NOT_FOUND');
     });
 
+    it('sets maximumAmount on an existing program (PATCH)', async () => {
+      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+      const prog = createTestProgram({ name: 'Set Max Amount' });
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/subsidy-programs/${prog.id}`,
+        headers: { cookie },
+        payload: { maximumAmount: 8000 },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<SubsidyProgramResponse>();
+      expect(body.subsidyProgram.maximumAmount).toBe(8000);
+    });
+
+    it('clears maximumAmount to null on an existing program (PATCH)', async () => {
+      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+      // Insert with maximumAmount set
+      const id = `prog-${Date.now()}-${programCounter++}`;
+      const now = new Date().toISOString();
+      app.db
+        .insert(subsidyPrograms)
+        .values({
+          id,
+          name: 'Has Max Amount',
+          reductionType: 'fixed',
+          reductionValue: 1000,
+          applicationStatus: 'eligible',
+          description: null,
+          eligibility: null,
+          applicationDeadline: null,
+          notes: null,
+          maximumAmount: 5000,
+          createdBy: null,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/subsidy-programs/${id}`,
+        headers: { cookie },
+        payload: { maximumAmount: null },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<SubsidyProgramResponse>();
+      expect(body.subsidyProgram.maximumAmount).toBeNull();
+    });
+
+    it('returns 400 VALIDATION_ERROR for maximumAmount of zero in PATCH', async () => {
+      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+      const prog = createTestProgram({ name: 'Valid Prog' });
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/subsidy-programs/${prog.id}`,
+        headers: { cookie },
+        payload: { maximumAmount: 0 },
+      });
+
+      expect(response.statusCode).toBe(400);
+      const body = response.json<ApiErrorResponse>();
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+    });
+
     it('returns 400 VALIDATION_ERROR for empty payload (minProperties constraint)', async () => {
       const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
       const prog = createTestProgram({ name: 'Valid Program' });
@@ -1110,7 +1292,8 @@ describe('Subsidy Program Routes', () => {
 
       expect(response.statusCode).toBe(409);
       const body = response.json<ApiErrorResponse>();
-      expect(body.error.details?.workItemCount).toBe(2);
+      expect(body.error.code).toBe('SUBSIDY_PROGRAM_IN_USE');
+      expect(body.error.details).toBeUndefined();
     });
 
     it('returns 401 without authentication', async () => {

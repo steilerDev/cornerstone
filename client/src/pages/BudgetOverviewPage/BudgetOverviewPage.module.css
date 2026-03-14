@@ -116,24 +116,6 @@
   gap: var(--spacing-5);
 }
 
-/* ---- Header row: title + health badge ---- */
-
-.heroHeader {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-3);
-  flex-wrap: wrap;
-}
-
-.heroTitle {
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-primary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin: 0;
-}
-
 /* ---- Key metrics row: 3-column grid (desktop), 4-column with payback ---- */
 
 .metricsRow {
@@ -601,13 +583,6 @@
   .heroCard {
     padding: var(--spacing-4);
     gap: var(--spacing-4);
-  }
-
-  /* Stack title + badge vertically on mobile */
-  .heroHeader {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--spacing-2);
   }
 
   /* Metrics: single column on mobile */

@@ -18,7 +18,13 @@ import type {
   UpdateBudgetSourceRequest,
   UserSummary,
 } from '@cornerstone/shared';
-import { NotFoundError, ValidationError, BudgetSourceInUseError } from '../errors/AppError.js';
+import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
+import {
+  NotFoundError,
+  ValidationError,
+  BudgetSourceInUseError,
+  DiscretionarySourceError,
+} from '../errors/AppError.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -39,7 +45,7 @@ function toUserSummary(user: typeof users.$inferSelect | null | undefined): User
 
 /**
  * Convert database budget source row to BudgetSource API shape.
- * usedAmount, claimedAmount, and unclaimedAmount are provided separately (computed from linked budget lines/invoices).
+ * usedAmount, claimedAmount, unclaimedAmount, and projectedAmount are provided separately (computed from linked budget lines/invoices).
  */
 function toBudgetSource(
   db: DbType,
@@ -47,6 +53,7 @@ function toBudgetSource(
   usedAmount: number,
   claimedAmount: number,
   unclaimedAmount: number,
+  projectedAmount: number,
 ): BudgetSource {
   const createdByUser = row.createdBy
     ? db.select().from(users).where(eq(users.id, row.createdBy)).get()
@@ -54,6 +61,7 @@ function toBudgetSource(
 
   const availableAmount = row.totalAmount - usedAmount;
   const actualAvailableAmount = row.totalAmount - claimedAmount;
+  const paidAmount = claimedAmount + unclaimedAmount;
 
   return {
     id: row.id,
@@ -64,11 +72,14 @@ function toBudgetSource(
     availableAmount,
     claimedAmount,
     unclaimedAmount,
+    paidAmount,
     actualAvailableAmount,
+    projectedAmount,
     interestRate: row.interestRate,
     terms: row.terms,
     notes: row.notes,
     status: row.status as BudgetSourceStatus,
+    isDiscretionary: row.isDiscretionary,
     createdBy: toUserSummary(createdByUser),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -95,34 +106,54 @@ function computeUsedAmount(db: DbType, sourceId: string): number {
 /**
  * Compute the claimed amount for a budget source.
  * Sums invoice amounts where status = 'claimed' and the invoice's budget line
- * references this source. Returns 0 if no claimed invoices exist.
+ * references this source (either work item OR household item budget). Returns 0 if no claimed invoices exist.
  */
 function computeClaimedAmount(db: DbType, sourceId: string): number {
-  // EPIC-15: Join through invoiceBudgetLines junction table instead of direct FK
-  const result = db
-    .select({ total: sql<number>`COALESCE(SUM(${invoiceBudgetLines.itemizedAmount}), 0)` })
-    .from(invoiceBudgetLines)
-    .innerJoin(invoices, eq(invoices.id, invoiceBudgetLines.invoiceId))
-    .innerJoin(workItemBudgets, eq(workItemBudgets.id, invoiceBudgetLines.workItemBudgetId))
-    .where(sql`${invoices.status} = 'claimed' AND ${workItemBudgets.budgetSourceId} = ${sourceId}`)
-    .get();
+  // EPIC-15: Join through invoiceBudgetLines junction table; fixed in EPIC-16 to include household items
+  const result = db.get<{ total: number }>(
+    sql`SELECT COALESCE(SUM(ibl.itemized_amount), 0) AS total
+    FROM invoice_budget_lines ibl
+    INNER JOIN invoices i ON i.id = ibl.invoice_id
+    WHERE i.status = 'claimed'
+      AND (
+        (ibl.work_item_budget_id IS NOT NULL AND EXISTS (
+          SELECT 1 FROM work_item_budgets wib
+          WHERE wib.id = ibl.work_item_budget_id AND wib.budget_source_id = ${sourceId}
+        ))
+        OR
+        (ibl.household_item_budget_id IS NOT NULL AND EXISTS (
+          SELECT 1 FROM household_item_budgets hib
+          WHERE hib.id = ibl.household_item_budget_id AND hib.budget_source_id = ${sourceId}
+        ))
+      )`,
+  );
   return result?.total ?? 0;
 }
 
 /**
  * Compute the unclaimed (paid but not claimed) amount for a budget source.
  * Sums invoice amounts where status = 'paid' and the invoice's budget line
- * references this source. Returns 0 if no paid invoices exist.
+ * references this source (either work item OR household item budget). Returns 0 if no paid invoices exist.
  */
 function computeUnclaimedAmount(db: DbType, sourceId: string): number {
-  // EPIC-15: Join through invoiceBudgetLines junction table instead of direct FK
-  const result = db
-    .select({ total: sql<number>`COALESCE(SUM(${invoiceBudgetLines.itemizedAmount}), 0)` })
-    .from(invoiceBudgetLines)
-    .innerJoin(invoices, eq(invoices.id, invoiceBudgetLines.invoiceId))
-    .innerJoin(workItemBudgets, eq(workItemBudgets.id, invoiceBudgetLines.workItemBudgetId))
-    .where(sql`${invoices.status} = 'paid' AND ${workItemBudgets.budgetSourceId} = ${sourceId}`)
-    .get();
+  // EPIC-15: Join through invoiceBudgetLines junction table; fixed in EPIC-16 to include household items
+  const result = db.get<{ total: number }>(
+    sql`SELECT COALESCE(SUM(ibl.itemized_amount), 0) AS total
+    FROM invoice_budget_lines ibl
+    INNER JOIN invoices i ON i.id = ibl.invoice_id
+    WHERE i.status = 'paid'
+      AND (
+        (ibl.work_item_budget_id IS NOT NULL AND EXISTS (
+          SELECT 1 FROM work_item_budgets wib
+          WHERE wib.id = ibl.work_item_budget_id AND wib.budget_source_id = ${sourceId}
+        ))
+        OR
+        (ibl.household_item_budget_id IS NOT NULL AND EXISTS (
+          SELECT 1 FROM household_item_budgets hib
+          WHERE hib.id = ibl.household_item_budget_id AND hib.budget_source_id = ${sourceId}
+        ))
+      )`,
+  );
   return result?.total ?? 0;
 }
 
@@ -143,19 +174,134 @@ function countBudgetLineReferences(db: DbType, sourceId: string): number {
 }
 
 /**
- * List all budget sources, sorted by name ascending.
+ * Compute the discretionary invoice amount for a given status.
+ * Includes:
+ * 1. Unallocated remainder: invoice.amount - SUM(itemized_amount) for invoices with this status
+ * 2. Lines with no budget_source: amount allocated to budget lines where source is NULL
+ */
+function computeDiscretionaryInvoiceAmount(db: DbType, status: string): number {
+  // 1. Unallocated remainder: invoice.amount - SUM(itemized_amount) for invoices with this status
+  const remainderResult = db.get<{ total: number }>(
+    sql`SELECT COALESCE(SUM(remainder), 0) AS total
+    FROM (
+      SELECT i.amount - COALESCE(SUM(ibl.itemized_amount), 0) AS remainder
+      FROM invoices i
+      LEFT JOIN invoice_budget_lines ibl ON ibl.invoice_id = i.id
+      WHERE i.status = ${status}
+      GROUP BY i.id
+    )
+    WHERE remainder > 0`,
+  );
+
+  // 2. Lines with no budget_source: amount allocated to budget lines where source is NULL
+  const noSourceResult = db.get<{ total: number }>(
+    sql`SELECT COALESCE(SUM(ibl.itemized_amount), 0) AS total
+    FROM invoice_budget_lines ibl
+    INNER JOIN invoices i ON i.id = ibl.invoice_id
+    WHERE i.status = ${status}
+      AND (
+        (ibl.work_item_budget_id IS NOT NULL AND EXISTS (
+          SELECT 1 FROM work_item_budgets wib
+          WHERE wib.id = ibl.work_item_budget_id AND wib.budget_source_id IS NULL
+        ))
+        OR
+        (ibl.household_item_budget_id IS NOT NULL AND EXISTS (
+          SELECT 1 FROM household_item_budgets hib
+          WHERE hib.id = ibl.household_item_budget_id AND hib.budget_source_id IS NULL
+        ))
+      )`,
+  );
+
+  return (remainderResult?.total ?? 0) + (noSourceResult?.total ?? 0);
+}
+
+/**
+ * Compute the projected amount for a budget source.
+ * For non-invoiced lines: planned_amount * (1 + confidence_margin)
+ * For invoiced lines: actual cost (sum of itemized amounts)
+ */
+function computeProjectedAmount(db: DbType, sourceId: string): number {
+  const lines = db.all<{
+    id: string;
+    plannedAmount: number;
+    confidence: string;
+  }>(
+    sql`SELECT id, planned_amount AS plannedAmount, confidence
+    FROM work_item_budgets WHERE budget_source_id = ${sourceId}
+    UNION ALL
+    SELECT id, planned_amount AS plannedAmount, confidence
+    FROM household_item_budgets WHERE budget_source_id = ${sourceId}`,
+  );
+
+  if (lines.length === 0) return 0;
+
+  let total = 0;
+  for (const line of lines) {
+    // Check if this line has any invoice allocations
+    const inv = db.get<{ total: number }>(
+      sql`SELECT COALESCE(SUM(ibl.itemized_amount), 0) AS total
+      FROM invoice_budget_lines ibl
+      WHERE ibl.work_item_budget_id = ${line.id}
+         OR ibl.household_item_budget_id = ${line.id}`,
+    );
+    const actualCost = inv?.total ?? 0;
+    if (actualCost > 0) {
+      total += actualCost;
+    } else {
+      const margin = CONFIDENCE_MARGINS[line.confidence as keyof typeof CONFIDENCE_MARGINS] ?? 0;
+      total += line.plannedAmount * (1 + margin);
+    }
+  }
+  return total;
+}
+
+/**
+ * Get all computed amounts for a budget source in one operation.
+ * Handles both regular and discretionary sources differently.
+ */
+function getSourceAmounts(
+  db: DbType,
+  row: typeof budgetSources.$inferSelect,
+): { usedAmount: number; claimedAmount: number; unclaimedAmount: number; projectedAmount: number } {
+  const usedAmount = computeUsedAmount(db, row.id);
+  const projectedAmount = computeProjectedAmount(db, row.id);
+
+  if (row.isDiscretionary) {
+    const claimedAmount = computeDiscretionaryInvoiceAmount(db, 'claimed');
+    const unclaimedAmount = computeDiscretionaryInvoiceAmount(db, 'paid');
+    return { usedAmount, claimedAmount, unclaimedAmount, projectedAmount };
+  }
+
+  return {
+    usedAmount,
+    claimedAmount: computeClaimedAmount(db, row.id),
+    unclaimedAmount: computeUnclaimedAmount(db, row.id),
+    projectedAmount,
+  };
+}
+
+/**
+ * List all budget sources, sorted by isDiscretionary (false first), then by name ascending.
+ * Ensures the Discretionary Funding source appears last in the list.
  */
 export function listBudgetSources(db: DbType): BudgetSource[] {
-  const rows = db.select().from(budgetSources).orderBy(asc(budgetSources.name)).all();
-  return rows.map((row) =>
-    toBudgetSource(
+  const rows = db
+    .select()
+    .from(budgetSources)
+    .orderBy(asc(budgetSources.isDiscretionary), asc(budgetSources.name))
+    .all();
+
+  return rows.map((row) => {
+    const amounts = getSourceAmounts(db, row);
+    return toBudgetSource(
       db,
       row,
-      computeUsedAmount(db, row.id),
-      computeClaimedAmount(db, row.id),
-      computeUnclaimedAmount(db, row.id),
-    ),
-  );
+      amounts.usedAmount,
+      amounts.claimedAmount,
+      amounts.unclaimedAmount,
+      amounts.projectedAmount,
+    );
+  });
 }
 
 /**
@@ -167,12 +313,15 @@ export function getBudgetSourceById(db: DbType, id: string): BudgetSource {
   if (!row) {
     throw new NotFoundError('Budget source not found');
   }
+
+  const amounts = getSourceAmounts(db, row);
   return toBudgetSource(
     db,
     row,
-    computeUsedAmount(db, id),
-    computeClaimedAmount(db, id),
-    computeUnclaimedAmount(db, id),
+    amounts.usedAmount,
+    amounts.claimedAmount,
+    amounts.unclaimedAmount,
+    amounts.projectedAmount,
   );
 }
 
@@ -241,7 +390,7 @@ export function createBudgetSource(
 /**
  * Update a budget source's fields.
  * @throws NotFoundError if source does not exist
- * @throws ValidationError if fields are invalid
+ * @throws ValidationError if fields are invalid or discretionary source constraints violated
  */
 export function updateBudgetSource(
   db: DbType,
@@ -267,6 +416,11 @@ export function updateBudgetSource(
     throw new ValidationError('At least one field must be provided');
   }
 
+  // Check discretionary source constraints
+  if (existing.isDiscretionary && data.sourceType !== undefined) {
+    throw new ValidationError('Cannot change the source type of the Discretionary Funding source');
+  }
+
   const updates: Partial<typeof budgetSources.$inferInsert> = {};
 
   // Validate and add name if provided
@@ -290,8 +444,13 @@ export function updateBudgetSource(
 
   // Validate and add totalAmount if provided
   if (data.totalAmount !== undefined) {
-    if (typeof data.totalAmount !== 'number' || data.totalAmount <= 0) {
-      throw new ValidationError('Total amount must be a positive number');
+    // Discretionary source: allow 0, others must be > 0
+    const minValue = existing.isDiscretionary ? 0 : 0.01;
+    if (typeof data.totalAmount !== 'number' || data.totalAmount < minValue) {
+      const msg = existing.isDiscretionary
+        ? 'Total amount must be a non-negative number'
+        : 'Total amount must be a positive number';
+      throw new ValidationError(msg);
     }
     updates.totalAmount = data.totalAmount;
   }
@@ -335,7 +494,9 @@ export function updateBudgetSource(
 /**
  * Delete a budget source.
  * Fails if any work item or household item budget lines reference this source.
+ * Fails if the source is the system Discretionary Funding source.
  * @throws NotFoundError if source does not exist
+ * @throws DiscretionarySourceError if attempting to delete the Discretionary Funding source
  * @throws BudgetSourceInUseError if referenced by work items
  */
 export function deleteBudgetSource(db: DbType, id: string): void {
@@ -343,6 +504,11 @@ export function deleteBudgetSource(db: DbType, id: string): void {
   const existing = db.select().from(budgetSources).where(eq(budgetSources.id, id)).get();
   if (!existing) {
     throw new NotFoundError('Budget source not found');
+  }
+
+  // Check if this is the Discretionary Funding source
+  if (existing.isDiscretionary) {
+    throw new DiscretionarySourceError();
   }
 
   // Check for budget line references

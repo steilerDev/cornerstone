@@ -9,7 +9,7 @@ import type { UserSummary } from './workItem.js';
 /**
  * The type/category of a financing source.
  */
-export type BudgetSourceType = 'bank_loan' | 'credit_line' | 'savings' | 'other';
+export type BudgetSourceType = 'bank_loan' | 'credit_line' | 'savings' | 'other' | 'discretionary';
 
 /**
  * The current lifecycle status of a budget source.
@@ -29,11 +29,14 @@ export interface BudgetSource {
   availableAmount: number; // totalAmount - usedAmount (planned perspective)
   claimedAmount: number; // actual drawdown: SUM(amount) of claimed invoices on linked budget lines
   unclaimedAmount: number; // paid but not claimed: SUM(amount) of paid invoices on linked budget lines
+  paidAmount: number; // paid and claimed: claimedAmount + unclaimedAmount
   actualAvailableAmount: number; // totalAmount - claimedAmount (actual perspective)
+  projectedAmount: number; // confidence-margined planned amount for non-invoiced lines + actual cost for invoiced
   interestRate: number | null;
   terms: string | null;
   notes: string | null;
   status: BudgetSourceStatus;
+  isDiscretionary: boolean;
   createdBy: UserSummary | null;
   createdAt: string;
   updatedAt: string;

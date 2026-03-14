@@ -12,7 +12,6 @@ import { formatCurrency } from '../../lib/formatters.js';
 import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
 import { BudgetBar } from '../../components/BudgetBar/BudgetBar.js';
 import type { BudgetBarSegment } from '../../components/BudgetBar/BudgetBar.js';
-import { BudgetHealthIndicator } from '../../components/BudgetHealthIndicator/BudgetHealthIndicator.js';
 import { Tooltip } from '../../components/Tooltip/Tooltip.js';
 import { CostBreakdownTable } from '../../components/CostBreakdownTable/CostBreakdownTable.js';
 import styles from './BudgetOverviewPage.module.css';
@@ -499,9 +498,6 @@ export function BudgetOverviewPage() {
     ? overview.remainingVsMaxPlannedWithPayback
     : overview.remainingVsMaxPlanned;
 
-  // BudgetHealthIndicator uses payback-adjusted remaining vs max projected
-  const healthRemainingVsProjectedMax = remainingMax;
-
   // Remaining perspectives detail items (uses filtered where sensible)
   const remainingDetailItems: RemainingDetail[] = [
     { label: 'Remaining vs Min Planned', value: overview.remainingVsMinPlanned },
@@ -564,18 +560,7 @@ export function BudgetOverviewPage() {
         {/* ========================================================
          * Budget Health Hero Card
          * ======================================================== */}
-        <section className={styles.heroCard} aria-labelledby="budget-health-heading">
-          {/* Header row */}
-          <div className={styles.heroHeader}>
-            <h2 id="budget-health-heading" className={styles.heroTitle}>
-              Budget Health
-            </h2>
-            <BudgetHealthIndicator
-              remainingVsProjectedMax={healthRemainingVsProjectedMax}
-              availableFunds={overview.availableFunds}
-            />
-          </div>
-
+        <section className={styles.heroCard} aria-label="Budget overview">
           {/* Key metrics row */}
           <div className={`${styles.metricsRow} ${hasPayback ? styles.metricsRowWithPayback : ''}`}>
             {/* Available Funds */}

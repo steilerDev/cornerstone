@@ -39,11 +39,12 @@ Cornerstone is designed for **homeowners managing a construction or renovation p
 - **Household Items** -- Track furniture, appliances, and fixtures with categories, delivery scheduling, budget integration, work item linking, and timeline dependencies
 - **Authentication** -- Local accounts with first-run setup wizard, plus OIDC single sign-on for existing identity providers
 - **User Management** -- Admin and Member roles with a dedicated admin panel
+- **Project Dashboard** -- At-a-glance project health with budget summary, timeline status, invoice and subsidy pipelines, mini Gantt preview, and customizable card layout
 - **Document Integration** -- Browse, search, and link documents from a connected [Paperless-ngx](https://docs.paperless-ngx.com/) instance to work items and invoices
 - **Dark Mode** -- Light, Dark, or System theme with instant switching
 - **Design System** -- Consistent visual language with CSS custom property tokens
 
-See the [Roadmap](roadmap) for upcoming features like reporting and dashboards.
+See the [Roadmap](roadmap) for upcoming features.
 
 ## Quick Links
 
@@ -52,6 +53,7 @@ See the [Roadmap](roadmap) for upcoming features like reporting and dashboards.
 - [Budget Guide](guides/budget) -- Track costs, invoices, and financing sources
 - [Timeline Guide](guides/timeline) -- Gantt chart, calendar view, and milestones
 - [Household Items Guide](guides/household-items) -- Manage furniture, appliances, and fixture purchases
+- [Dashboard Guide](guides/dashboard) -- Project health overview and card customization
 - [Documents Guide](guides/documents) -- Paperless-ngx integration for document linking
 - [OIDC Setup](guides/users/oidc-setup) -- Connect your identity provider
 - [Development](development) -- How Cornerstone is built by an AI agent team

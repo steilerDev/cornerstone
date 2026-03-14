@@ -190,15 +190,25 @@ export function HouseholdItemDetailPage() {
       budgetCategoryId: '', // Household items don't use budget categories
       budgetSourceId: line.budgetSource?.id ?? '',
       vendorId: line.vendor?.id ?? '',
+      pricingMode: line.quantity !== null ? 'unit' : 'direct',
+      quantity: line.quantity !== null ? String(line.quantity) : '',
+      unit: line.unit ?? '',
+      unitPrice: line.unitPrice !== null ? String(line.unitPrice) : '',
+      includesVat: line.includesVat ?? true,
     }),
     toPayload: (form: BudgetLineFormState) => ({
       description: form.description.trim() || null,
       plannedAmount: parseFloat(form.plannedAmount),
       confidence: form.confidence,
-      budgetSourceId: form.budgetSourceId || null,
+      budgetSourceId: form.budgetSourceId,
       vendorId: form.vendorId || null,
+      quantity: form.pricingMode === 'unit' && form.quantity ? parseFloat(form.quantity) : null,
+      unit: form.pricingMode === 'unit' && form.unit ? form.unit : null,
+      unitPrice: form.pricingMode === 'unit' && form.unitPrice ? parseFloat(form.unitPrice) : null,
+      includesVat: form.pricingMode === 'unit' ? form.includesVat : null,
     }),
     entityId: id ?? '',
+    defaultBudgetSourceId: budgetSources.find((s) => s.isDiscretionary)?.id,
   });
 
   useEffect(() => {
@@ -427,9 +437,14 @@ export function HouseholdItemDetailPage() {
       await hookHandleLinkSubsidy();
       await reloadSubsidyPayback();
     } catch (err) {
-      const apiErr = err as { statusCode?: number; message?: string };
-      if (apiErr.statusCode === 409) {
-        setInlineError('This subsidy program is already linked');
+      if (err instanceof ApiClientError) {
+        if (err.error.code === 'SUBSIDY_OVERSUBSCRIBED') {
+          setInlineError(err.error.message);
+        } else if (err.statusCode === 409) {
+          setInlineError('This subsidy program is already linked');
+        } else {
+          setInlineError(err.error.message);
+        }
       } else {
         setInlineError('Failed to link subsidy program');
       }

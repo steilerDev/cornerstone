@@ -81,17 +81,18 @@ export default defineConfig({
       },
     },
 
-    // Tablet (iPad Gen 7, webkit) — all tests, provides webkit engine coverage
+    // Tablet (iPad Gen 7, webkit) — @responsive tests, provides webkit engine + tablet layout coverage
     {
       name: 'tablet',
       dependencies: ['auth-setup'],
-      timeout: 60_000, // WebKit is significantly slower than Chromium; multi-step tests need 40-50s
-      expect: { timeout: 15_000 }, // WebKit expect assertions need more time
+      grep: /@responsive/,
+      timeout: 30_000, // 2x desktop — WebKit is slightly slower than Chromium
+      expect: { timeout: 10_000 }, // 2x desktop expect timeout
       use: {
         ...devices['iPad (gen 7)'],
         storageState: 'test-results/.auth/admin.json',
-        actionTimeout: 15_000, // WebKit click/fill actions need more time
-        navigationTimeout: 15_000, // WebKit page loads need more time
+        actionTimeout: 10_000, // 2x desktop action timeout
+        navigationTimeout: 10_000, // matches desktop navigation timeout
       },
     },
 
@@ -100,19 +101,23 @@ export default defineConfig({
       name: 'mobile',
       dependencies: ['auth-setup'],
       grep: /@responsive/,
-      timeout: 60_000, // WebKit is significantly slower than Chromium; multi-step tests need 40-50s
-      expect: { timeout: 15_000 }, // WebKit expect assertions need more time
+      timeout: 30_000, // 2x desktop — WebKit is slightly slower than Chromium
+      expect: { timeout: 10_000 }, // 2x desktop expect timeout
       use: {
         ...devices['iPhone 13'],
         storageState: 'test-results/.auth/admin.json',
-        actionTimeout: 15_000, // WebKit click/fill actions need more time
-        navigationTimeout: 15_000, // WebKit page loads need more time
+        actionTimeout: 10_000, // 2x desktop action timeout
+        navigationTimeout: 10_000, // matches desktop navigation timeout
       },
     },
   ],
 
   /* Test timeout — most passing tests complete in 2-5s; some multi-step tests need up to 15s */
   timeout: 15_000, // 15 seconds per test (desktop default)
+
+  /* On main-targeted PRs, stop the shard after the first non-recoverable failure
+     so fail-fast can cancel the remaining shards immediately. */
+  maxFailures: process.env.E2E_FAIL_FAST ? 1 : undefined,
 
   /* Global timeout: cap the entire suite at 30 minutes on CI to prevent stuck runs */
   globalTimeout: process.env.CI ? 30 * 60 * 1000 : undefined,
