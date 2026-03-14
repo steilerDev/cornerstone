@@ -89,7 +89,7 @@ jobs:
   quality-gates:
     name: Quality Gates
     runs-on: ubuntu-latest
-    needs: [static-analysis, test, docker, e2e-warmup, e2e-smoke, e2e, e2e-merge-reports]
+    needs: [static-analysis, test, docker, e2e-warmup, e2e-smoke]
     if: ${{ !cancelled() }}
     steps:
       - name: Check results
@@ -99,32 +99,50 @@ jobs:
           check_job() {
             local job=$1
             local result=$2
-            local blocking=$3
 
             if [ "$result" != "success" ] && [ "$result" != "skipped" ]; then
-              if [ "$blocking" = "true" ]; then
-                echo "❌ $job: $result (blocking)"
-                failed=1
-              else
-                echo "⚠️ $job: $result (non-blocking)"
-              fi
+              echo "❌ $job: $result"
+              failed=1
             else
               echo "✅ $job: $result"
             fi
           }
 
-          IS_MAIN=${{ github.base_ref == 'main' }}
+          check_job "static-analysis" "${{ needs.static-analysis.result }}"
+          check_job "test" "${{ needs.test.result }}"
+          check_job "docker" "${{ needs.docker.result }}"
+          check_job "e2e-warmup" "${{ needs.e2e-warmup.result }}"
+          check_job "e2e-smoke" "${{ needs.e2e-smoke.result }}"
 
-          # Always-blocking jobs
-          check_job "static-analysis" "${{ needs.static-analysis.result }}" "true"
-          check_job "test" "${{ needs.test.result }}" "true"
-          check_job "docker" "${{ needs.docker.result }}" "true"
-          check_job "e2e-warmup" "${{ needs.e2e-warmup.result }}" "true"
-          check_job "e2e-smoke" "${{ needs.e2e-smoke.result }}" "true"
+          if [ "$failed" = "1" ]; then
+            exit 1
+          fi
 
-          # Blocking only for main-targeted PRs
-          check_job "e2e" "${{ needs.e2e.result }}" "$IS_MAIN"
-          check_job "e2e-merge-reports" "${{ needs.e2e-merge-reports.result }}" "$IS_MAIN"
+  # Separate E2E gate — required check only on main, not on beta
+  e2e-gates:
+    name: E2E Gates
+    runs-on: ubuntu-latest
+    needs: [e2e, e2e-merge-reports]
+    if: ${{ !cancelled() }}
+    steps:
+      - name: Check E2E results
+        run: |
+          failed=0
+
+          check_job() {
+            local job=$1
+            local result=$2
+
+            if [ "$result" != "success" ] && [ "$result" != "skipped" ]; then
+              echo "❌ $job: $result"
+              failed=1
+            else
+              echo "✅ $job: $result"
+            fi
+          }
+
+          check_job "e2e" "${{ needs.e2e.result }}"
+          check_job "e2e-merge-reports" "${{ needs.e2e-merge-reports.result }}"
 
           if [ "$failed" = "1" ]; then
             exit 1
@@ -369,13 +387,14 @@ jobs:
     if: needs.detect-changes.outputs.app == 'true' || needs.detect-changes.outputs.e2e == 'true'
     timeout-minutes: 15
     strategy:
-      fail-fast: false
+      fail-fast: ${{ github.base_ref == 'main' }}
       matrix:
         shardIndex: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
         shardTotal: [16]
     env:
       SHARD_INDEX: ${{ matrix.shardIndex }}
       SHARD_TOTAL: ${{ matrix.shardTotal }}
+      E2E_FAIL_FAST: ${{ github.base_ref == 'main' && '1' || '' }}
 
     steps:
       - name: Checkout
