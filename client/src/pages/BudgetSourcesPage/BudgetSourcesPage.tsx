@@ -395,7 +395,11 @@ export function BudgetSourcesPage() {
     try {
       const updated = await updateBudgetSource(editingSource.id, {
         name: trimmedName,
-        sourceType: editingSource.sourceType,
+        // Omit sourceType for discretionary sources — the server PATCH enum
+        // does not include 'discretionary' (system-only type).
+        ...(editingSource.sourceType !== 'discretionary' && {
+          sourceType: editingSource.sourceType,
+        }),
         totalAmount: totalAmountValue,
         interestRate: interestRateValue,
         terms: editingSource.terms.trim() || null,
