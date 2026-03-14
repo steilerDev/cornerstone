@@ -199,9 +199,7 @@ export default function DiaryEntryDetailPage() {
         {/* Photos Section */}
         <div className={styles.photoSection}>
           <div className={styles.photoSectionHeader}>
-            <h2 className={styles.photoHeading}>
-              Photos ({photosResult.photos.length})
-            </h2>
+            <h2 className={styles.photoHeading}>Photos ({photosResult.photos.length})</h2>
           </div>
 
           {photosResult.photos.length === 0 ? (
