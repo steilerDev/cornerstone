@@ -80,11 +80,7 @@ export function SignatureCapture({
     img.src = signature;
   }, [signature]);
 
-  const drawSignatureLine = (
-    ctx: CanvasRenderingContext2D,
-    width: number,
-    height: number,
-  ) => {
+  const drawSignatureLine = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
     ctx.clearRect(0, 0, width, height);
 
     // Draw horizontal line at bottom third
@@ -103,9 +99,7 @@ export function SignatureCapture({
     ctx.fillText('Sign here', 16, lineY - 8);
   };
 
-  const getMousePos = (
-    e: React.MouseEvent<HTMLCanvasElement>,
-  ): { x: number; y: number } | null => {
+  const getMousePos = (e: React.MouseEvent<HTMLCanvasElement>): { x: number; y: number } | null => {
     const canvas = canvasRef.current;
     if (!canvas) return null;
 
@@ -117,9 +111,7 @@ export function SignatureCapture({
     };
   };
 
-  const getTouchPos = (
-    e: React.TouchEvent<HTMLCanvasElement>,
-  ): { x: number; y: number } | null => {
+  const getTouchPos = (e: React.TouchEvent<HTMLCanvasElement>): { x: number; y: number } | null => {
     const canvas = canvasRef.current;
     if (!canvas || !e.touches.length) return null;
 

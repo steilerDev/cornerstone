@@ -200,26 +200,30 @@ export default function DiaryEntryDetailPage() {
         {/* Signature Display */}
         {entry.metadata && (
           <>
-            {entry.entryType === 'daily_log' && (entry.metadata as DailyLogMetadata).signatureDataUrl && (
-              <div className={styles.signatureSection}>
-                <SignatureDisplay
-                  signatureDataUrl={(entry.metadata as DailyLogMetadata).signatureDataUrl!}
-                  signerName={entry.createdBy?.displayName || 'Unknown'}
-                  signedDate={formatDate(entry.entryDate)}
-                />
-              </div>
-            )}
-            {entry.entryType === 'site_visit' && (entry.metadata as SiteVisitMetadata).signatureDataUrl && (
-              <div className={styles.signatureSection}>
-                <SignatureDisplay
-                  signatureDataUrl={(entry.metadata as SiteVisitMetadata).signatureDataUrl!}
-                  signerName={
-                    (entry.metadata as SiteVisitMetadata).inspectorName || entry.createdBy?.displayName || 'Unknown'
-                  }
-                  signedDate={formatDate(entry.entryDate)}
-                />
-              </div>
-            )}
+            {entry.entryType === 'daily_log' &&
+              (entry.metadata as DailyLogMetadata).signatureDataUrl && (
+                <div className={styles.signatureSection}>
+                  <SignatureDisplay
+                    signatureDataUrl={(entry.metadata as DailyLogMetadata).signatureDataUrl!}
+                    signerName={entry.createdBy?.displayName || 'Unknown'}
+                    signedDate={formatDate(entry.entryDate)}
+                  />
+                </div>
+              )}
+            {entry.entryType === 'site_visit' &&
+              (entry.metadata as SiteVisitMetadata).signatureDataUrl && (
+                <div className={styles.signatureSection}>
+                  <SignatureDisplay
+                    signatureDataUrl={(entry.metadata as SiteVisitMetadata).signatureDataUrl!}
+                    signerName={
+                      (entry.metadata as SiteVisitMetadata).inspectorName ||
+                      entry.createdBy?.displayName ||
+                      'Unknown'
+                    }
+                    signedDate={formatDate(entry.entryDate)}
+                  />
+                </div>
+              )}
           </>
         )}
 
