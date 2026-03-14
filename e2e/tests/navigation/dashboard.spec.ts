@@ -475,12 +475,22 @@ test.describe('Card dismiss (Scenario 6)', () => {
       // Dismiss the Quick Actions card
       await dashboardPage.dismissCard('Quick Actions');
 
+      // Register preferences response listener BEFORE reload (per waitForResponse-before-action
+      // pattern). The preferences API is NOT intercepted, so the real server response arrives
+      // after reload. We must wait for it before asserting card visibility.
+      const prefsResponse = page.waitForResponse(
+        (resp) => resp.url().includes('/api/users/me/preferences') && resp.status() === 200,
+      );
+
       // Reload the page
       await page.reload();
       await dashboardPage.heading.waitFor({ state: 'visible' });
+
+      // Wait for preferences to be fetched and applied before checking card state.
+      await prefsResponse;
       await dashboardPage.waitForCardsLoaded();
 
-      // Card should still be hidden
+      // Card should still be hidden — preferences persisted Quick Actions as hidden.
       const quickActionsCard = dashboardPage.card('Quick Actions');
       await expect(quickActionsCard).toHaveCount(0);
 
