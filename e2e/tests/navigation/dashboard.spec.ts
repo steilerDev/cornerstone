@@ -498,8 +498,7 @@ test.describe('Card dismiss (Scenario 6)', () => {
       await dashboardPage.waitForCardsLoaded();
 
       // Card should still be hidden — preferences persisted Quick Actions as hidden.
-      const quickActionsCard = dashboardPage.card('Quick Actions');
-      await expect(quickActionsCard).toHaveCount(0);
+      await expect(dashboardPage.card('Quick Actions')).toHaveCount(0);
 
       // Clean up: re-enable the card via preferences API to not affect other tests
       await page.request.patch('/api/users/me/preferences', {
