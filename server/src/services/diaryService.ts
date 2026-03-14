@@ -493,9 +493,7 @@ export function updateDiaryEntry(
 
 /**
  * Delete a diary entry and cascade-delete associated photos.
- * Cannot delete automatic entries.
  * @throws NotFoundError if entry does not exist
- * @throws ImmutableEntryError if entry is automatic
  */
 export async function deleteDiaryEntry(
   db: DbType,
@@ -507,11 +505,6 @@ export async function deleteDiaryEntry(
 
   if (!entry) {
     throw new NotFoundError('Diary entry not found');
-  }
-
-  // Cannot delete automatic entries
-  if (entry.isAutomatic) {
-    throw new ImmutableEntryError();
   }
 
   // Delete associated photos

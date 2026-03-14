@@ -352,13 +352,20 @@ describe('diaryService', () => {
       );
     });
 
-    it('throws ImmutableEntryError for an automatic entry', () => {
+    it('throws ImmutableEntryError with statusCode 403 for an automatic entry', () => {
       const id = insertEntry({
         isAutomatic: true,
         entryType: 'work_item_status',
         createdBy: null,
       });
-      expect(() => updateDiaryEntry(db, id, { body: 'Should fail' })).toThrow(ImmutableEntryError);
+      let thrown: unknown;
+      try {
+        updateDiaryEntry(db, id, { body: 'Should fail' });
+      } catch (err) {
+        thrown = err;
+      }
+      expect(thrown).toBeInstanceOf(ImmutableEntryError);
+      expect((thrown as ImmutableEntryError).statusCode).toBe(403);
     });
 
     it('throws InvalidMetadataError for invalid metadata on update', () => {
@@ -395,13 +402,15 @@ describe('diaryService', () => {
       );
     });
 
-    it('throws ImmutableEntryError for an automatic entry', async () => {
+    it('successfully deletes an automatic entry', async () => {
       const id = insertEntry({
         isAutomatic: true,
         entryType: 'invoice_status',
         createdBy: null,
       });
-      await expect(deleteDiaryEntry(db, id, photoStoragePath)).rejects.toThrow(ImmutableEntryError);
+      // Automatic entries CAN be deleted (Story #808 changed this behavior)
+      await expect(deleteDiaryEntry(db, id, photoStoragePath)).resolves.toBeUndefined();
+      expect(() => getDiaryEntry(db, id)).toThrow(NotFoundError);
     });
   });
 
