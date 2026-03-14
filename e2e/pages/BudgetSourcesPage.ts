@@ -342,9 +342,10 @@ export class BudgetSourcesPage {
   }
 
   /**
-   * Get all "amountLabel" spans within a source row to verify presence of Projected/Paid labels.
+   * Get all legend label spans within a source row (the SourceBarChart bar legend labels).
+   * The app renders these with the `barLegendLabel` CSS module class.
    */
   getAmountLabelsInRow(sourceName: string): import('@playwright/test').Locator {
-    return this.getSourceRowByName(sourceName).locator('[class*="amountLabel"]');
+    return this.getSourceRowByName(sourceName).locator('[class*="barLegendLabel"]');
   }
 }

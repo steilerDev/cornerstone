@@ -100,6 +100,8 @@ test.describe('Search Users', () => {
     await userManagementPage.goto();
 
     // When: User types in search box
+    await userManagementPage.searchInput.waitFor({ state: 'visible' });
+    await userManagementPage.searchInput.scrollIntoViewIfNeeded();
     await userManagementPage.searchInput.fill('Ad');
     await page.waitForTimeout(400); // Wait for debounce
 

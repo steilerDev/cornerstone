@@ -509,7 +509,8 @@ test.describe('Card re-enable (Scenario 7)', () => {
       await dashboardPage.waitForCardsLoaded();
 
       // Verify Customize button is NOT visible before dismissing
-      await expect(dashboardPage.customizeButton).toBeHidden();
+      // The button is only rendered when cards are hidden, so it may be absent from the DOM entirely.
+      await expect(dashboardPage.customizeButton).not.toBeVisible();
 
       // Dismiss a card
       await dashboardPage.dismissCard('Quick Actions');
@@ -555,7 +556,8 @@ test.describe('Card re-enable (Scenario 7)', () => {
       await expect(quickActionsCard.first()).toBeVisible();
 
       // Customize button should disappear again (no more hidden cards)
-      await expect(dashboardPage.customizeButton).toBeHidden();
+      // The button is removed from the DOM entirely when all cards are visible.
+      await expect(dashboardPage.customizeButton).not.toBeVisible();
     } finally {
       await uninterceptDashboardApis(page);
     }
@@ -734,9 +736,10 @@ test.describe('Keyboard navigation (Scenario 9)', () => {
       // All dismiss buttons should be focusable
       const dismissButtons = page.getByRole('button', { name: /^Hide .+ card$/ });
       const count = await dismissButtons.count();
-      // We have 10 cards so there should be 10 dismiss buttons (on desktop/tablet grid)
-      // On mobile both grid and mobile sections render cards, so count may be 20
-      expect(count).toBeGreaterThanOrEqual(10);
+      // There are 9 cards defined (CARD_DEFINITIONS). Both the desktop grid and the mobile
+      // sections container render cards simultaneously (CSS controls visibility), so the DOM
+      // may contain up to 18 dismiss buttons. Expect at least 9 (one per card).
+      expect(count).toBeGreaterThanOrEqual(9);
     } finally {
       await uninterceptDashboardApis(page);
     }
