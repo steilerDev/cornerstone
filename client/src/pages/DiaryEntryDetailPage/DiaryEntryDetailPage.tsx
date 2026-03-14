@@ -82,7 +82,7 @@ export default function DiaryEntryDetailPage() {
         type="button"
         className={styles.backButton}
         onClick={() => navigate(-1)}
-        title="Go back"
+        aria-label="Go back"
       >
         ← Back
       </button>

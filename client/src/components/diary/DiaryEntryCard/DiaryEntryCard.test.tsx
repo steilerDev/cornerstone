@@ -83,7 +83,8 @@ describe('DiaryEntryCard', () => {
 
   beforeEach(async () => {
     localStorage.setItem('theme', 'light');
-    ({ DiaryEntryCard } = await import('./DiaryEntryCard.js'));
+    const module = await import('./DiaryEntryCard.js');
+    DiaryEntryCard = module.DiaryEntryCard;
   });
 
   afterEach(() => {
