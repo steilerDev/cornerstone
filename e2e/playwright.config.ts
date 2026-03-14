@@ -81,10 +81,11 @@ export default defineConfig({
       },
     },
 
-    // Tablet (iPad Gen 7, webkit) — all tests, provides webkit engine coverage
+    // Tablet (iPad Gen 7, webkit) — @responsive tests, provides webkit engine + tablet layout coverage
     {
       name: 'tablet',
       dependencies: ['auth-setup'],
+      grep: /@responsive/,
       timeout: 60_000, // WebKit is significantly slower than Chromium; multi-step tests need 40-50s
       expect: { timeout: 15_000 }, // WebKit expect assertions need more time
       use: {
