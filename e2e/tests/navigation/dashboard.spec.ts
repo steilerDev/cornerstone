@@ -607,11 +607,7 @@ test.describe('Responsive mobile layout (Scenario 8)', { tag: '@responsive' }, (
 
       // Primary section cards (Budget Summary, Invoice Pipeline, Quick Actions)
       // should be visible without expanding any collapsible section
-      const primaryTitles = [
-        'Budget Summary',
-        'Invoice Pipeline',
-        'Quick Actions',
-      ];
+      const primaryTitles = ['Budget Summary', 'Invoice Pipeline', 'Quick Actions'];
       for (const title of primaryTitles) {
         const heading = mobileSections.getByRole('heading', { name: title, level: 2 });
         await expect(heading.first()).toBeVisible();
