@@ -45,6 +45,7 @@ import photoRoutes from './routes/photos.js';
 import preferencesRoutes from './routes/preferences.js';
 import householdItemCategoryRoutes from './routes/householdItemCategories.js';
 import householdItemRoutes from './routes/householdItems.js';
+import diaryRoutes from './routes/diary.js';
 import householdItemBudgetRoutes from './routes/householdItemBudgets.js';
 import householdItemSubsidyRoutes from './routes/householdItemSubsidies.js';
 import householdItemSubsidyPaybackRoutes from './routes/householdItemSubsidyPayback.js';
@@ -203,6 +204,9 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Feed routes (anonymous — iCal/vCard for external calendar/contact apps)
   await app.register(feedsRoutes, { prefix: '/feeds' });
+
+  // Diary entry routes (EPIC-13: Construction Diary)
+  await app.register(diaryRoutes, { prefix: '/api/diary-entries' });
 
   // Health check endpoint (liveness)
   app.get('/api/health', async () => {
