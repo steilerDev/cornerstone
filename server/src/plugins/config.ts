@@ -172,7 +172,9 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
   // Parse and validate DIARY_AUTO_EVENTS
   const diaryAutoEventsStr = (getValue('DIARY_AUTO_EVENTS') ?? 'true').toLowerCase();
   if (diaryAutoEventsStr !== 'true' && diaryAutoEventsStr !== 'false') {
-    errors.push(`DIARY_AUTO_EVENTS must be 'true' or 'false', got: ${getValue('DIARY_AUTO_EVENTS')}`);
+    errors.push(
+      `DIARY_AUTO_EVENTS must be 'true' or 'false', got: ${getValue('DIARY_AUTO_EVENTS')}`,
+    );
   }
   const diaryAutoEvents = diaryAutoEventsStr === 'true';
 

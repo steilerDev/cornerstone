@@ -41,7 +41,15 @@ function tryCreateDiaryEntry(
 
   try {
     const entryDate = new Date().toISOString().slice(0, 10);
-    createAutomaticDiaryEntry(db, entryType, entryDate, body, metadata, sourceEntityType, sourceEntityId);
+    createAutomaticDiaryEntry(
+      db,
+      entryType,
+      entryDate,
+      body,
+      metadata,
+      sourceEntityType,
+      sourceEntityId,
+    );
   } catch (err) {
     console.warn('[diaryAutoEvent] Failed to create diary entry', {
       entryType,
@@ -155,15 +163,7 @@ export function onBudgetCategoryOverspend(
     changeSummary: 'Budget category overspend detected',
   };
 
-  tryCreateDiaryEntry(
-    db,
-    enabled,
-    'budget_breach',
-    body,
-    metadata,
-    'budget_source',
-    categoryId,
-  );
+  tryCreateDiaryEntry(db, enabled, 'budget_breach', body, metadata, 'budget_source', categoryId);
 }
 
 /**

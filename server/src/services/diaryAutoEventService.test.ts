@@ -126,14 +126,7 @@ describe('diaryAutoEventService', () => {
 
   describe('onInvoiceStatusChanged', () => {
     it('creates a diary entry with entryType=invoice_status, body contains invoice number', () => {
-      onInvoiceStatusChanged(
-        db,
-        true,
-        'inv-001',
-        'INV-2026-042',
-        'pending',
-        'paid',
-      );
+      onInvoiceStatusChanged(db, true, 'inv-001', 'INV-2026-042', 'pending', 'paid');
 
       const entries = getAllEntries();
       expect(entries).toHaveLength(1);
@@ -150,14 +143,7 @@ describe('diaryAutoEventService', () => {
 
     it('body uses invoiceNumber param (even if empty string, shows N/A)', () => {
       // When invoiceNumber is empty string, the service uses 'N/A' per the template
-      onInvoiceStatusChanged(
-        db,
-        true,
-        'inv-002',
-        '',
-        'pending',
-        'claimed',
-      );
+      onInvoiceStatusChanged(db, true, 'inv-002', '', 'pending', 'claimed');
 
       const entries = getAllEntries();
       expect(entries).toHaveLength(1);
@@ -167,14 +153,7 @@ describe('diaryAutoEventService', () => {
     });
 
     it('stores metadata with previousValue, newValue, and changeSummary', () => {
-      onInvoiceStatusChanged(
-        db,
-        true,
-        'inv-003',
-        'INV-2026-100',
-        'pending',
-        'paid',
-      );
+      onInvoiceStatusChanged(db, true, 'inv-003', 'INV-2026-100', 'pending', 'paid');
 
       const entries = getAllEntries();
       expect(entries).toHaveLength(1);
@@ -285,14 +264,7 @@ describe('diaryAutoEventService', () => {
 
   describe('onSubsidyStatusChanged', () => {
     it('creates a diary entry with entryType=subsidy_status, body contains subsidy name', () => {
-      onSubsidyStatusChanged(
-        db,
-        true,
-        'sub-kfw-001',
-        'KfW Energy Grant',
-        'applied',
-        'approved',
-      );
+      onSubsidyStatusChanged(db, true, 'sub-kfw-001', 'KfW Energy Grant', 'applied', 'approved');
 
       const entries = getAllEntries();
       expect(entries).toHaveLength(1);
