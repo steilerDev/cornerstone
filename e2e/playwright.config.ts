@@ -115,6 +115,10 @@ export default defineConfig({
   /* Test timeout — most passing tests complete in 2-5s; some multi-step tests need up to 15s */
   timeout: 15_000, // 15 seconds per test (desktop default)
 
+  /* On main-targeted PRs, stop the shard after the first non-recoverable failure
+     so fail-fast can cancel the remaining shards immediately. */
+  maxFailures: process.env.E2E_FAIL_FAST ? 1 : undefined,
+
   /* Global timeout: cap the entire suite at 30 minutes on CI to prevent stuck runs */
   globalTimeout: process.env.CI ? 30 * 60 * 1000 : undefined,
 });

@@ -369,13 +369,14 @@ jobs:
     if: needs.detect-changes.outputs.app == 'true' || needs.detect-changes.outputs.e2e == 'true'
     timeout-minutes: 15
     strategy:
-      fail-fast: false
+      fail-fast: ${{ github.base_ref == 'main' }}
       matrix:
         shardIndex: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
         shardTotal: [16]
     env:
       SHARD_INDEX: ${{ matrix.shardIndex }}
       SHARD_TOTAL: ${{ matrix.shardTotal }}
+      E2E_FAIL_FAST: ${{ github.base_ref == 'main' && '1' || '' }}
 
     steps:
       - name: Checkout
