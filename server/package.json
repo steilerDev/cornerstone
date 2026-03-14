@@ -25,10 +25,12 @@
     "fastify-plugin": "5.1.0",
     "ical-generator": "10.0.0",
     "openid-client": "6.8.2",
+    "pdfkit": "^0.17.2",
     "sharp": "0.34.2",
     "vcard-creator": "0.4.0"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "7.6.13"
+    "@types/better-sqlite3": "7.6.13",
+    "@types/pdfkit": "^0.17.5"
   }
 }

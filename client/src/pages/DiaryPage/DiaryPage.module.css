@@ -32,6 +32,17 @@
   flex-wrap: wrap;
 }
 
+.actionButtons {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  flex-wrap: wrap;
+}
+
+.exportButton {
+  flex-shrink: 0;
+}
+
 .createButton {
   flex-shrink: 0;
 }

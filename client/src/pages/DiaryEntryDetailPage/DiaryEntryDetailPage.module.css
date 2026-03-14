@@ -40,6 +40,30 @@
   gap: var(--spacing-2);
 }
 
+.printButton {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--spacing-2) var(--spacing-3);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.printButton:hover {
+  background: var(--color-bg-tertiary);
+  border-color: var(--color-text-placeholder);
+}
+
+.printButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
 .editButton {
   display: inline-flex;
   align-items: center;

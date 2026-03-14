@@ -203,3 +203,10 @@ export class InvalidEntryTypeError extends AppError {
     this.name = 'InvalidEntryTypeError';
   }
 }
+
+export class ExportEmptyError extends AppError {
+  constructor(message = 'No diary entries match the specified filters') {
+    super('EXPORT_EMPTY', 400, message);
+    this.name = 'ExportEmptyError';
+  }
+}
