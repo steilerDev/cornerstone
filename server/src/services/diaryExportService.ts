@@ -160,7 +160,7 @@ function queryDiaryEntriesForExport(
 /**
  * Fetch photos for an entity.
  */
-function getPhotosForEntity(db: DbType, entityId: string): typeof photos.$inferSelect[] {
+function getPhotosForEntity(db: DbType, entityId: string): (typeof photos.$inferSelect)[] {
   return db
     .select()
     .from(photos)
@@ -231,9 +231,10 @@ export async function generateDiaryPdf(
   doc.fontSize(28).font('Helvetica-Bold').text('Construction Diary', { align: 'center' });
   doc.moveDown(1);
 
-  const dateRangeText = options.dateFrom && options.dateTo
-    ? `${options.dateFrom} to ${options.dateTo}`
-    : 'Full History';
+  const dateRangeText =
+    options.dateFrom && options.dateTo
+      ? `${options.dateFrom} to ${options.dateTo}`
+      : 'Full History';
   doc.fontSize(14).font('Helvetica').text(dateRangeText, { align: 'center' });
   doc.moveDown(2);
 
@@ -317,10 +318,13 @@ export async function generateDiaryPdf(
     doc.moveDown(0.5);
 
     // Entry body
-    doc.fontSize(11).font('Helvetica').text(entry.body, {
-      align: 'left',
-      width: doc.page.width - 80,
-    });
+    doc
+      .fontSize(11)
+      .font('Helvetica')
+      .text(entry.body, {
+        align: 'left',
+        width: doc.page.width - 80,
+      });
 
     // Entry metadata (e.g., weather, severity, etc.)
     const entryMetadata = parseMetadata(entry.metadata);
@@ -351,13 +355,14 @@ export async function generateDiaryPdf(
 
         for (const photo of photosToInclude) {
           // Try to read the photo file
-          const ext = photo.mimeType.includes('jpeg') || photo.mimeType.includes('heic')
-            ? 'jpg'
-            : photo.mimeType.includes('png')
-              ? 'png'
-              : photo.mimeType.includes('webp')
-                ? 'webp'
-                : 'jpg';
+          const ext =
+            photo.mimeType.includes('jpeg') || photo.mimeType.includes('heic')
+              ? 'jpg'
+              : photo.mimeType.includes('png')
+                ? 'png'
+                : photo.mimeType.includes('webp')
+                  ? 'webp'
+                  : 'jpg';
 
           try {
             const photoBuffer = await readPhotoFile(photoStoragePath, photo.id, ext);
@@ -430,19 +435,19 @@ export async function generateDiaryPdf(
     doc.moveDown(1);
     const lineX = 40;
     const lineY = doc.y;
-    doc.moveTo(lineX, lineY).lineTo(doc.page.width - 40, lineY).stroke();
+    doc
+      .moveTo(lineX, lineY)
+      .lineTo(doc.page.width - 40, lineY)
+      .stroke();
   }
 
   // Add page numbers
   const pageCount = doc.bufferedPageRange().count;
   for (let i = 0; i < pageCount; i++) {
     doc.switchToPage(i);
-    doc.fontSize(9).text(
-      `Page ${i + 1} of ${pageCount}`,
-      40,
-      doc.page.height - 30,
-      { align: 'center' },
-    );
+    doc
+      .fontSize(9)
+      .text(`Page ${i + 1} of ${pageCount}`, 40, doc.page.height - 30, { align: 'center' });
   }
 
   // Finalize PDF

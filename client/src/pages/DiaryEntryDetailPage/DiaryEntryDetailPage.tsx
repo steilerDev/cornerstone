@@ -156,11 +156,7 @@ export default function DiaryEntryDetailPage() {
           ← Back
         </button>
         <div className={styles.actionButtons}>
-          <button
-            type="button"
-            className={styles.printButton}
-            onClick={() => window.print()}
-          >
+          <button type="button" className={styles.printButton} onClick={() => window.print()}>
             🖨️ Print
           </button>
           {!entry.isAutomatic && (

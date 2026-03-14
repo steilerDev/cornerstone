@@ -127,7 +127,12 @@ export function DiaryExportDialog({ isOpen, onClose }: DiaryExportDialogProps) {
   if (!isOpen) return null;
 
   return (
-    <div className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="export-modal-title">
+    <div
+      className={styles.modal}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="export-modal-title"
+    >
       <div className={styles.modalBackdrop} onClick={onClose} />
       <div className={styles.modalContent} ref={modalRef}>
         <h2 id="export-modal-title" className={styles.modalTitle}>

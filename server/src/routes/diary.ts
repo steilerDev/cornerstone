@@ -225,37 +225,33 @@ export default async function diaryRoutes(fastify: FastifyInstance) {
       includeAutomatic?: boolean;
       includePhotos?: boolean;
     };
-  }>(
-    '/export',
-    { schema: exportDiaryEntriesSchema },
-    async (request, reply) => {
-      if (!request.user) {
-        throw new UnauthorizedError();
-      }
+  }>('/export', { schema: exportDiaryEntriesSchema }, async (request, reply) => {
+    if (!request.user) {
+      throw new UnauthorizedError();
+    }
 
-      const pdfBuffer = await diaryExportService.generateDiaryPdf(
-        fastify.db,
-        fastify.config.photoStoragePath,
-        {
-          dateFrom: request.query.dateFrom,
-          dateTo: request.query.dateTo,
-          types: request.query.types,
-          includeAutomatic: request.query.includeAutomatic,
-          includePhotos: request.query.includePhotos,
-        },
-      );
+    const pdfBuffer = await diaryExportService.generateDiaryPdf(
+      fastify.db,
+      fastify.config.photoStoragePath,
+      {
+        dateFrom: request.query.dateFrom,
+        dateTo: request.query.dateTo,
+        types: request.query.types,
+        includeAutomatic: request.query.includeAutomatic,
+        includePhotos: request.query.includePhotos,
+      },
+    );
 
-      // Generate filename with date range
-      const dateRangeStr =
-        request.query.dateFrom && request.query.dateTo
-          ? `${request.query.dateFrom}-to-${request.query.dateTo}`
-          : new Date().toISOString().substring(0, 10);
-      const filename = `construction-diary-${dateRangeStr}.pdf`;
+    // Generate filename with date range
+    const dateRangeStr =
+      request.query.dateFrom && request.query.dateTo
+        ? `${request.query.dateFrom}-to-${request.query.dateTo}`
+        : new Date().toISOString().substring(0, 10);
+    const filename = `construction-diary-${dateRangeStr}.pdf`;
 
-      return reply
-        .header('Content-Type', 'application/pdf')
-        .header('Content-Disposition', `attachment; filename="${filename}"`)
-        .send(pdfBuffer);
-    },
-  );
+    return reply
+      .header('Content-Type', 'application/pdf')
+      .header('Content-Disposition', `attachment; filename="${filename}"`)
+      .send(pdfBuffer);
+  });
 }
