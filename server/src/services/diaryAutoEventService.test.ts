@@ -24,7 +24,7 @@ import {
   onAutoRescheduleCompleted,
   onSubsidyStatusChanged,
 } from './diaryAutoEventService.js';
-import * as diaryService from './diaryService.js';
+// diaryService is imported internally by diaryAutoEventService — not needed here
 
 // Suppress migration logs
 beforeEach(() => {
@@ -332,17 +332,15 @@ describe('diaryAutoEventService', () => {
   // ─── Fire-and-forget behavior ──────────────────────────────────────────────
 
   describe('fire-and-forget behavior', () => {
-    it('does not propagate errors and warns via console.warn when createAutomaticDiaryEntry throws', () => {
+    it('does not propagate errors and warns via console.warn when DB write fails', () => {
       // Restore the suppress-all spy and replace with one that captures calls
       jest.restoreAllMocks();
       const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
 
-      // Make createAutomaticDiaryEntry throw
-      jest.spyOn(diaryService, 'createAutomaticDiaryEntry').mockImplementation(() => {
-        throw new Error('DB write failed');
-      });
+      // Close the database to force an error in createAutomaticDiaryEntry
+      sqlite.close();
 
-      // Calling any event function must NOT throw
+      // Calling any event function must NOT throw even with a broken DB
       expect(() => {
         onWorkItemStatusChanged(db, true, 'wi-fail', 'Failing WI', 'not_started', 'in_progress');
       }).not.toThrow();
