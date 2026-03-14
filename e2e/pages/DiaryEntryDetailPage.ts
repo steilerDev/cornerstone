@@ -69,8 +69,8 @@ export class DiaryEntryDetailPage {
   constructor(page: Page) {
     this.page = page;
 
-    // Back button: <button type="button" title="Go back">← Back</button>
-    this.backButton = page.getByTitle('Go back');
+    // Back button: <button type="button" aria-label="Go back">← Back</button>
+    this.backButton = page.getByLabel('Go back');
 
     // "Back to Diary" link at bottom of page — a <Link> element
     this.backToDiaryLink = page.getByRole('link', { name: 'Back to Diary' });
