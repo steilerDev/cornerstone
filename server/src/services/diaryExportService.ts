@@ -17,6 +17,7 @@ import { diaryEntries, photos, users } from '../db/schema.js';
 import { ValidationError, ExportEmptyError } from '../errors/AppError.js';
 import type {
   DiaryEntryType,
+  DiaryEntrySummary,
   DiaryUserSummary,
   DiaryEntryMetadata,
 } from '@cornerstone/shared';
@@ -263,7 +264,7 @@ export async function generateDiaryPdf(
   }
 
   for (const toc of tocEntries) {
-    const label = toc.title.substring(0, 50);
+    const label = (toc.title ?? 'Untitled').substring(0, 50);
     doc.text(`${toc.date} - ${label}`);
   }
 
@@ -363,7 +364,7 @@ export async function generateDiaryPdf(
             if (photoBuffer) {
               const maxWidth = 150;
               const maxHeight = 150;
-              const aspectRatio = photo.width / photo.height;
+              const aspectRatio = (photo.width ?? 150) / (photo.height ?? 150);
               let imageWidth = maxWidth;
               let imageHeight = maxWidth / aspectRatio;
 
