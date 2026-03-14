@@ -249,7 +249,7 @@ describe('DiaryEntryDetailPage', () => {
     mockGetDiaryEntry.mockResolvedValueOnce(baseDetail);
     renderDetailPage();
     await waitFor(() => {
-      expect(screen.getByText(/photos/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /photos/i })).toBeInTheDocument();
     });
   });
 
