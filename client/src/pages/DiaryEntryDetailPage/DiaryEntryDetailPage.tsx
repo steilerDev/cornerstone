@@ -4,9 +4,12 @@ import type { DiaryEntryDetail } from '@cornerstone/shared';
 import { getDiaryEntry, deleteDiaryEntry } from '../../lib/diaryApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
+import { usePhotos } from '../../hooks/usePhotos.js';
 import { formatDate, formatDateTime } from '../../lib/formatters.js';
 import { DiaryEntryTypeBadge } from '../../components/diary/DiaryEntryTypeBadge/DiaryEntryTypeBadge.js';
 import { DiaryMetadataSummary } from '../../components/diary/DiaryMetadataSummary/DiaryMetadataSummary.js';
+import { PhotoGrid } from '../../components/photos/PhotoGrid.js';
+import { PhotoViewer } from '../../components/photos/PhotoViewer.js';
 import shared from '../../styles/shared.module.css';
 import styles from './DiaryEntryDetailPage.module.css';
 
@@ -22,6 +25,10 @@ export default function DiaryEntryDetailPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const modalRef = useRef<HTMLDivElement>(null);
+
+  // Photo state
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
+  const photosResult = usePhotos(id ? 'diary_entry' : '', id || '');
 
   useEffect(() => {
     if (!id) {
@@ -189,10 +196,44 @@ export default function DiaryEntryDetailPage() {
           </div>
         )}
 
-        {entry.photoCount > 0 && (
-          <div className={styles.photoSection}>
-            <p className={styles.photoLabel}>📷 {entry.photoCount} photo(s) attached</p>
+        {/* Photos Section */}
+        <div className={styles.photoSection}>
+          <div className={styles.photoSectionHeader}>
+            <h2 className={styles.photoHeading}>
+              Photos ({photosResult.photos.length})
+            </h2>
           </div>
+
+          {photosResult.photos.length === 0 ? (
+            <div className={styles.photoEmptyState}>
+              <p>No photos attached yet.</p>
+              {!entry.isAutomatic && (
+                <Link to={`/diary/${entry.id}/edit`} className={styles.addPhotoLink}>
+                  Add photos
+                </Link>
+              )}
+            </div>
+          ) : (
+            <>
+              <PhotoGrid
+                photos={photosResult.photos}
+                onPhotoClick={(photo) => {
+                  const index = photosResult.photos.findIndex((p) => p.id === photo.id);
+                  setSelectedPhotoIndex(index);
+                }}
+                loading={photosResult.loading}
+              />
+            </>
+          )}
+        </div>
+
+        {/* Photo Viewer Modal */}
+        {selectedPhotoIndex !== null && selectedPhotoIndex >= 0 && (
+          <PhotoViewer
+            photos={photosResult.photos}
+            initialIndex={selectedPhotoIndex}
+            onClose={() => setSelectedPhotoIndex(null)}
+          />
         )}
 
         {entry.sourceEntityType && entry.sourceEntityId && (

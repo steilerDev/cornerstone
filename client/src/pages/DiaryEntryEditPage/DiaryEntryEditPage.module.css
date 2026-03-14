@@ -271,3 +271,33 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* ============================================================
+ * Photos Section
+ * ============================================================ */
+
+.photosCard {
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-8);
+  margin-bottom: var(--spacing-6);
+}
+
+.photosSectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-4);
+}
+
+.photosHeading {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.photosGridWrapper {
+  margin-top: var(--spacing-4);
+}

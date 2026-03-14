@@ -15,8 +15,12 @@ import type {
 import { getDiaryEntry, updateDiaryEntry, deleteDiaryEntry } from '../../lib/diaryApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
+import { usePhotos } from '../../hooks/usePhotos.js';
 import { DiaryEntryTypeBadge } from '../../components/diary/DiaryEntryTypeBadge/DiaryEntryTypeBadge.js';
 import { DiaryEntryForm } from '../../components/diary/DiaryEntryForm/DiaryEntryForm.js';
+import { PhotoUpload } from '../../components/photos/PhotoUpload.js';
+import { PhotoGrid } from '../../components/photos/PhotoGrid.js';
+import { PhotoViewer } from '../../components/photos/PhotoViewer.js';
 import styles from './DiaryEntryEditPage.module.css';
 
 export default function DiaryEntryEditPage() {
@@ -36,6 +40,10 @@ export default function DiaryEntryEditPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const modalRef = useRef<HTMLDivElement>(null);
+
+  // Photo state
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
+  const photosResult = usePhotos(entry ? 'diary_entry' : '', entry?.id || '');
 
   // Form fields
   const [entryDate, setEntryDate] = useState('');
@@ -380,6 +388,53 @@ export default function DiaryEntryEditPage() {
           </div>
         </div>
       </form>
+
+      {/* Photos Section - only show after entry is saved */}
+      {entry && (
+        <div className={styles.photosCard}>
+          <div className={styles.photosSectionHeader}>
+            <h2 className={styles.photosHeading}>Photos</h2>
+          </div>
+
+          <PhotoUpload
+            entityType="diary_entry"
+            entityId={entry.id}
+            onUpload={() => {
+              /* Photo is automatically added to state by usePhotos */
+            }}
+            onError={(error) => {
+              showToast('error', error);
+            }}
+          />
+
+          {photosResult.photos.length > 0 && (
+            <>
+              <div className={styles.photosGridWrapper}>
+                <PhotoGrid
+                  photos={photosResult.photos}
+                  onPhotoClick={(photo) => {
+                    const index = photosResult.photos.findIndex((p) => p.id === photo.id);
+                    setSelectedPhotoIndex(index);
+                  }}
+                  onDelete={(photo) => {
+                    void photosResult.deletePhoto(photo.id);
+                  }}
+                  loading={photosResult.loading}
+                />
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Photo Viewer Modal */}
+      {selectedPhotoIndex !== null && selectedPhotoIndex >= 0 && (
+        <PhotoViewer
+          photos={photosResult.photos}
+          initialIndex={selectedPhotoIndex}
+          onClose={() => setSelectedPhotoIndex(null)}
+        />
+      )}
 
       {/* Delete confirmation modal */}
       {showDeleteModal && (

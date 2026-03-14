@@ -138,6 +138,21 @@
   margin-bottom: var(--spacing-6);
 }
 
+.photoNote {
+  padding: var(--spacing-4);
+  margin-bottom: var(--spacing-6);
+  background-color: var(--color-bg-secondary);
+  border-left: 3px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+}
+
+.photoNoteText {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
 .errorBanner {
   padding: var(--spacing-4);
   margin-bottom: var(--spacing-6);
