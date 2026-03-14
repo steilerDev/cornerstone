@@ -10,6 +10,7 @@ import type {
   DeliveryMetadata,
   IssueMetadata,
 } from '@cornerstone/shared';
+import { SignatureCapture } from '../SignatureCapture/SignatureCapture.js';
 import styles from './DiaryEntryForm.module.css';
 
 export interface DiaryEntryFormProps {
@@ -29,11 +30,15 @@ export interface DiaryEntryFormProps {
   onDailyLogTemperatureChange?: (temp: number | null) => void;
   dailyLogWorkers?: number | null;
   onDailyLogWorkersChange?: (workers: number | null) => void;
+  dailyLogSignature?: string | null;
+  onDailyLogSignatureChange?: (sig: string | null) => void;
   /** site_visit metadata */
   siteVisitInspectorName?: string | null;
   onSiteVisitInspectorNameChange?: (name: string | null) => void;
   siteVisitOutcome?: DiaryInspectionOutcome | null;
   onSiteVisitOutcomeChange?: (outcome: DiaryInspectionOutcome | null) => void;
+  siteVisitSignature?: string | null;
+  onSiteVisitSignatureChange?: (sig: string | null) => void;
   /** delivery metadata */
   deliveryVendor?: string | null;
   onDeliveryVendorChange?: (vendor: string | null) => void;
@@ -93,11 +98,15 @@ export function DiaryEntryForm({
   onDailyLogTemperatureChange,
   dailyLogWorkers,
   onDailyLogWorkersChange,
+  dailyLogSignature,
+  onDailyLogSignatureChange,
   // site_visit
   siteVisitInspectorName,
   onSiteVisitInspectorNameChange,
   siteVisitOutcome,
   onSiteVisitOutcomeChange,
+  siteVisitSignature,
+  onSiteVisitSignatureChange,
   // delivery
   deliveryVendor,
   onDeliveryVendorChange,
@@ -267,6 +276,15 @@ export function DiaryEntryForm({
               />
             </div>
           </div>
+
+          <div className={styles.signatureSection}>
+            <label className={styles.label}>Signature</label>
+            <SignatureCapture
+              signature={dailyLogSignature || null}
+              onSignatureChange={onDailyLogSignatureChange || (() => {})}
+              disabled={disabled}
+            />
+          </div>
         </div>
       )}
 
@@ -331,6 +349,15 @@ export function DiaryEntryForm({
                 </div>
               )}
             </div>
+          </div>
+
+          <div className={styles.signatureSection}>
+            <label className={styles.label}>Signature</label>
+            <SignatureCapture
+              signature={siteVisitSignature || null}
+              onSignatureChange={onSiteVisitSignatureChange || (() => {})}
+              disabled={disabled}
+            />
           </div>
         </div>
       )}

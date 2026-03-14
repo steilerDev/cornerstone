@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import type { DiaryEntryDetail } from '@cornerstone/shared';
+import type { DiaryEntryDetail, DailyLogMetadata, SiteVisitMetadata } from '@cornerstone/shared';
 import { getDiaryEntry, deleteDiaryEntry } from '../../lib/diaryApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
@@ -8,6 +8,7 @@ import { usePhotos } from '../../hooks/usePhotos.js';
 import { formatDate, formatDateTime } from '../../lib/formatters.js';
 import { DiaryEntryTypeBadge } from '../../components/diary/DiaryEntryTypeBadge/DiaryEntryTypeBadge.js';
 import { DiaryMetadataSummary } from '../../components/diary/DiaryMetadataSummary/DiaryMetadataSummary.js';
+import { SignatureDisplay } from '../../components/diary/SignatureDisplay/SignatureDisplay.js';
 import { PhotoGrid } from '../../components/photos/PhotoGrid.js';
 import { PhotoViewer } from '../../components/photos/PhotoViewer.js';
 import shared from '../../styles/shared.module.css';
@@ -194,6 +195,32 @@ export default function DiaryEntryDetailPage() {
           <div className={styles.metadataSection}>
             <DiaryMetadataSummary entryType={entry.entryType} metadata={entry.metadata} />
           </div>
+        )}
+
+        {/* Signature Display */}
+        {entry.metadata && (
+          <>
+            {entry.entryType === 'daily_log' && (entry.metadata as DailyLogMetadata).signatureDataUrl && (
+              <div className={styles.signatureSection}>
+                <SignatureDisplay
+                  signatureDataUrl={(entry.metadata as DailyLogMetadata).signatureDataUrl!}
+                  signerName={entry.createdBy?.displayName || 'Unknown'}
+                  signedDate={formatDate(entry.entryDate)}
+                />
+              </div>
+            )}
+            {entry.entryType === 'site_visit' && (entry.metadata as SiteVisitMetadata).signatureDataUrl && (
+              <div className={styles.signatureSection}>
+                <SignatureDisplay
+                  signatureDataUrl={(entry.metadata as SiteVisitMetadata).signatureDataUrl!}
+                  signerName={
+                    (entry.metadata as SiteVisitMetadata).inspectorName || entry.createdBy?.displayName || 'Unknown'
+                  }
+                  signedDate={formatDate(entry.entryDate)}
+                />
+              </div>
+            )}
+          </>
         )}
 
         {/* Photos Section */}

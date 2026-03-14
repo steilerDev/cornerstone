@@ -54,10 +54,12 @@ export default function DiaryEntryEditPage() {
   const [dailyLogWeather, setDailyLogWeather] = useState<DiaryWeather | null>(null);
   const [dailyLogTemperature, setDailyLogTemperature] = useState<number | null>(null);
   const [dailyLogWorkers, setDailyLogWorkers] = useState<number | null>(null);
+  const [dailyLogSignature, setDailyLogSignature] = useState<string | null>(null);
 
   // site_visit metadata
   const [siteVisitInspectorName, setSiteVisitInspectorName] = useState<string | null>(null);
   const [siteVisitOutcome, setSiteVisitOutcome] = useState<DiaryInspectionOutcome | null>(null);
+  const [siteVisitSignature, setSiteVisitSignature] = useState<string | null>(null);
 
   // delivery metadata
   const [deliveryVendor, setDeliveryVendor] = useState<string | null>(null);
@@ -144,10 +146,12 @@ export default function DiaryEntryEditPage() {
       setDailyLogWeather(m.weather || null);
       setDailyLogTemperature(m.temperatureCelsius || null);
       setDailyLogWorkers(m.workersOnSite || null);
+      setDailyLogSignature(m.signatureDataUrl || null);
     } else if (data.entryType === 'site_visit') {
       const m = data.metadata as SiteVisitMetadata;
       setSiteVisitInspectorName(m.inspectorName || null);
       setSiteVisitOutcome(m.outcome || null);
+      setSiteVisitSignature(m.signatureDataUrl || null);
     } else if (data.entryType === 'delivery') {
       const m = data.metadata as DeliveryMetadata;
       setDeliveryVendor(m.vendor || null);
@@ -199,6 +203,10 @@ export default function DiaryEntryEditPage() {
       if (dailyLogWeather) metadata.weather = dailyLogWeather;
       if (dailyLogTemperature !== null) metadata.temperatureCelsius = dailyLogTemperature;
       if (dailyLogWorkers !== null) metadata.workersOnSite = dailyLogWorkers;
+      if (dailyLogSignature) {
+        metadata.hasSignature = true;
+        metadata.signatureDataUrl = dailyLogSignature;
+      }
       return Object.keys(metadata).length > 0 ? metadata : null;
     }
 
@@ -206,6 +214,10 @@ export default function DiaryEntryEditPage() {
       const metadata: SiteVisitMetadata = {};
       if (siteVisitInspectorName) metadata.inspectorName = siteVisitInspectorName;
       if (siteVisitOutcome) metadata.outcome = siteVisitOutcome;
+      if (siteVisitSignature) {
+        metadata.hasSignature = true;
+        metadata.signatureDataUrl = siteVisitSignature;
+      }
       return Object.keys(metadata).length > 0 ? metadata : null;
     }
 
@@ -345,11 +357,15 @@ export default function DiaryEntryEditPage() {
           onDailyLogTemperatureChange={setDailyLogTemperature}
           dailyLogWorkers={dailyLogWorkers}
           onDailyLogWorkersChange={setDailyLogWorkers}
+          dailyLogSignature={dailyLogSignature}
+          onDailyLogSignatureChange={setDailyLogSignature}
           // site_visit
           siteVisitInspectorName={siteVisitInspectorName}
           onSiteVisitInspectorNameChange={setSiteVisitInspectorName}
           siteVisitOutcome={siteVisitOutcome}
           onSiteVisitOutcomeChange={setSiteVisitOutcome}
+          siteVisitSignature={siteVisitSignature}
+          onSiteVisitSignatureChange={setSiteVisitSignature}
           // delivery
           deliveryVendor={deliveryVendor}
           onDeliveryVendorChange={setDeliveryVendor}
