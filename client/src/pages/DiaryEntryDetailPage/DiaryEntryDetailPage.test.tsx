@@ -243,22 +243,21 @@ describe('DiaryEntryDetailPage', () => {
     });
   });
 
-  // ─── Photo count ─────────────────────────────────────────────────────────────
+  // ─── Photo section ─────────────────────────────────────────────────────────────
 
-  it('shows photo count section when photoCount > 0', async () => {
-    const entryWithPhotos: DiaryEntryDetail = { ...baseDetail, photoCount: 4 };
-    mockGetDiaryEntry.mockResolvedValueOnce(entryWithPhotos);
-    renderDetailPage();
-    await waitFor(() => {
-      expect(screen.getByText(/4 photo/i)).toBeInTheDocument();
-    });
-  });
-
-  it('does not show photo count section when photoCount is 0', async () => {
+  it('shows photo section with heading after entry loads', async () => {
     mockGetDiaryEntry.mockResolvedValueOnce(baseDetail);
     renderDetailPage();
     await waitFor(() => {
-      expect(screen.queryByText(/photo\(s\) attached/i)).not.toBeInTheDocument();
+      expect(screen.getByText(/photos/i)).toBeInTheDocument();
+    });
+  });
+
+  it('shows empty photo state when no photos attached', async () => {
+    mockGetDiaryEntry.mockResolvedValueOnce(baseDetail);
+    renderDetailPage();
+    await waitFor(() => {
+      expect(screen.getByText(/no photos attached/i)).toBeInTheDocument();
     });
   });
 
