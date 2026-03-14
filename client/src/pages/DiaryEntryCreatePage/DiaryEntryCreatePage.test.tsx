@@ -86,7 +86,9 @@ describe('DiaryEntryCreatePage', () => {
   describe('type selector step', () => {
     it('renders the "New Diary Entry" h1 heading', () => {
       renderPage();
-      expect(screen.getByRole('heading', { name: /new diary entry/i, level: 1 })).toBeInTheDocument();
+      expect(
+        screen.getByRole('heading', { name: /new diary entry/i, level: 1 }),
+      ).toBeInTheDocument();
     });
 
     it('renders the "Select Entry Type" sub-heading', () => {
@@ -246,9 +248,14 @@ describe('DiaryEntryCreatePage', () => {
       renderPage();
 
       await user.click(screen.getByTestId('type-card-daily_log'));
-      await waitFor(() => expect(screen.getByRole('textbox', { name: /^entry/i })).toBeInTheDocument());
+      await waitFor(() =>
+        expect(screen.getByRole('textbox', { name: /^entry/i })).toBeInTheDocument(),
+      );
 
-      await user.type(screen.getByRole('textbox', { name: /^entry/i }), 'Foundation work done today.');
+      await user.type(
+        screen.getByRole('textbox', { name: /^entry/i }),
+        'Foundation work done today.',
+      );
       await user.click(screen.getByRole('button', { name: /create entry/i }));
 
       await waitFor(() => {
@@ -265,7 +272,9 @@ describe('DiaryEntryCreatePage', () => {
       renderPage();
 
       await user.click(screen.getByTestId('type-card-daily_log'));
-      await waitFor(() => expect(screen.getByRole('textbox', { name: /^entry/i })).toBeInTheDocument());
+      await waitFor(() =>
+        expect(screen.getByRole('textbox', { name: /^entry/i })).toBeInTheDocument(),
+      );
 
       await user.type(screen.getByRole('textbox', { name: /^entry/i }), 'My log entry');
       await user.click(screen.getByRole('button', { name: /create entry/i }));
@@ -286,15 +295,15 @@ describe('DiaryEntryCreatePage', () => {
       renderPage();
 
       await user.click(screen.getByTestId('type-card-general_note'));
-      await waitFor(() => expect(screen.getByRole('textbox', { name: /^entry/i })).toBeInTheDocument());
+      await waitFor(() =>
+        expect(screen.getByRole('textbox', { name: /^entry/i })).toBeInTheDocument(),
+      );
 
       await user.type(screen.getByRole('textbox', { name: /^entry/i }), 'A note');
       await user.click(screen.getByRole('button', { name: /create entry/i }));
 
       await waitFor(() => {
-        expect(mockCreateDiaryEntry).toHaveBeenCalledWith(
-          expect.objectContaining({ title: null }),
-        );
+        expect(mockCreateDiaryEntry).toHaveBeenCalledWith(expect.objectContaining({ title: null }));
       });
     });
 
@@ -305,7 +314,9 @@ describe('DiaryEntryCreatePage', () => {
       renderPage();
 
       await user.click(screen.getByTestId('type-card-daily_log'));
-      await waitFor(() => expect(screen.getByRole('textbox', { name: /^entry/i })).toBeInTheDocument());
+      await waitFor(() =>
+        expect(screen.getByRole('textbox', { name: /^entry/i })).toBeInTheDocument(),
+      );
 
       await user.type(screen.getByRole('textbox', { name: /^entry/i }), 'Some text');
       await user.click(screen.getByRole('button', { name: /create entry/i }));
@@ -325,7 +336,9 @@ describe('DiaryEntryCreatePage', () => {
       renderPage();
 
       await user.click(screen.getByTestId('type-card-daily_log'));
-      await waitFor(() => expect(screen.getByRole('textbox', { name: /^entry/i })).toBeInTheDocument());
+      await waitFor(() =>
+        expect(screen.getByRole('textbox', { name: /^entry/i })).toBeInTheDocument(),
+      );
 
       await user.type(screen.getByRole('textbox', { name: /^entry/i }), 'Some text');
       await user.click(screen.getByRole('button', { name: /create entry/i }));
@@ -341,7 +354,9 @@ describe('DiaryEntryCreatePage', () => {
       renderPage();
 
       await user.click(screen.getByTestId('type-card-daily_log'));
-      await waitFor(() => expect(screen.getByRole('textbox', { name: /^entry/i })).toBeInTheDocument());
+      await waitFor(() =>
+        expect(screen.getByRole('textbox', { name: /^entry/i })).toBeInTheDocument(),
+      );
 
       await user.type(screen.getByRole('textbox', { name: /^entry/i }), 'Some text');
       await user.click(screen.getByRole('button', { name: /create entry/i }));

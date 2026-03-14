@@ -71,7 +71,11 @@ const deliveryEntry: DiaryEntryDetail = {
   entryType: 'delivery',
   title: 'Lumber Delivery',
   body: 'Lumber arrived on schedule.',
-  metadata: { vendor: 'TimberCo', materials: ['Oak planks', 'Pine beams'], deliveryConfirmed: true },
+  metadata: {
+    vendor: 'TimberCo',
+    materials: ['Oak planks', 'Pine beams'],
+    deliveryConfirmed: true,
+  },
 };
 
 const issueEntry: DiaryEntryDetail = {
@@ -257,7 +261,9 @@ describe('DiaryEntryEditPage', () => {
       mockGetDiaryEntry.mockResolvedValueOnce(baseDailyLogEntry);
       renderEditPage();
       await waitFor(() => {
-        expect(screen.getByRole('heading', { name: /edit diary entry/i, level: 1 })).toBeInTheDocument();
+        expect(
+          screen.getByRole('heading', { name: /edit diary entry/i, level: 1 }),
+        ).toBeInTheDocument();
       });
     });
 
@@ -321,7 +327,9 @@ describe('DiaryEntryEditPage', () => {
       mockGetDiaryEntry.mockResolvedValueOnce(baseDailyLogEntry);
       mockUpdateDiaryEntry.mockResolvedValueOnce(undefined as any);
       renderEditPage('de-1');
-      await waitFor(() => expect(screen.getByRole('textbox', { name: /^entry/i })).toBeInTheDocument());
+      await waitFor(() =>
+        expect(screen.getByRole('textbox', { name: /^entry/i })).toBeInTheDocument(),
+      );
 
       const textarea = screen.getByRole('textbox', { name: /^entry/i });
       await user.clear(textarea);
@@ -341,7 +349,9 @@ describe('DiaryEntryEditPage', () => {
       mockGetDiaryEntry.mockResolvedValueOnce(baseDailyLogEntry);
       mockUpdateDiaryEntry.mockResolvedValueOnce(undefined as any);
       renderEditPage('de-1');
-      await waitFor(() => expect(screen.getByRole('button', { name: /save changes/i })).toBeInTheDocument());
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /save changes/i })).toBeInTheDocument(),
+      );
 
       await user.click(screen.getByRole('button', { name: /save changes/i }));
 
@@ -357,7 +367,9 @@ describe('DiaryEntryEditPage', () => {
       // Never resolves during this check
       mockUpdateDiaryEntry.mockReturnValue(new Promise(() => undefined));
       renderEditPage('de-1');
-      await waitFor(() => expect(screen.getByRole('button', { name: /save changes/i })).toBeInTheDocument());
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /save changes/i })).toBeInTheDocument(),
+      );
 
       await user.click(screen.getByRole('button', { name: /save changes/i }));
 
@@ -375,7 +387,9 @@ describe('DiaryEntryEditPage', () => {
       mockGetDiaryEntry.mockResolvedValueOnce(baseDailyLogEntry);
       mockUpdateDiaryEntry.mockRejectedValueOnce(new Error('Server error'));
       renderEditPage('de-1');
-      await waitFor(() => expect(screen.getByRole('button', { name: /save changes/i })).toBeInTheDocument());
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /save changes/i })).toBeInTheDocument(),
+      );
 
       await user.click(screen.getByRole('button', { name: /save changes/i }));
 
@@ -409,9 +423,7 @@ describe('DiaryEntryEditPage', () => {
 
     it('modal has the "Delete Diary Entry" heading', async () => {
       await openDeleteModal();
-      expect(
-        screen.getByRole('heading', { name: /delete diary entry/i }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /delete diary entry/i })).toBeInTheDocument();
     });
 
     it('modal contains confirmation text', async () => {
@@ -443,8 +455,8 @@ describe('DiaryEntryEditPage', () => {
       const user = await openDeleteModal();
       // Click Cancel inside the dialog
       const dialog = screen.getByRole('dialog');
-      const cancelBtn = Array.from(dialog.querySelectorAll('button')).find(
-        (b) => /cancel/i.test(b.textContent ?? ''),
+      const cancelBtn = Array.from(dialog.querySelectorAll('button')).find((b) =>
+        /cancel/i.test(b.textContent ?? ''),
       );
       expect(cancelBtn).toBeTruthy();
       await user.click(cancelBtn!);

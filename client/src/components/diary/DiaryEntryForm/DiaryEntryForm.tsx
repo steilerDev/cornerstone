@@ -214,7 +214,9 @@ export function DiaryEntryForm({
                 className={styles.select}
                 value={dailyLogWeather || ''}
                 onChange={(e) =>
-                  onDailyLogWeatherChange?.(e.target.value ? (e.target.value as DiaryWeather) : null)
+                  onDailyLogWeatherChange?.(
+                    e.target.value ? (e.target.value as DiaryWeather) : null,
+                  )
                 }
                 disabled={disabled}
               >
@@ -237,7 +239,9 @@ export function DiaryEntryForm({
                 className={styles.input}
                 value={dailyLogTemperature ?? ''}
                 onChange={(e) =>
-                  onDailyLogTemperatureChange?.(e.target.value ? parseInt(e.target.value, 10) : null)
+                  onDailyLogTemperatureChange?.(
+                    e.target.value ? parseInt(e.target.value, 10) : null,
+                  )
                 }
                 disabled={disabled}
                 placeholder="-40 to 60"
@@ -286,9 +290,7 @@ export function DiaryEntryForm({
                 required
                 aria-invalid={!!validationErrors.siteVisitInspectorName}
                 aria-describedby={
-                  validationErrors.siteVisitInspectorName
-                    ? 'inspector-name-error'
-                    : undefined
+                  validationErrors.siteVisitInspectorName ? 'inspector-name-error' : undefined
                 }
               />
               {validationErrors.siteVisitInspectorName && (
@@ -307,7 +309,9 @@ export function DiaryEntryForm({
                 className={`${styles.select} ${validationErrors.siteVisitOutcome ? styles.selectError : ''}`}
                 value={siteVisitOutcome || ''}
                 onChange={(e) =>
-                  onSiteVisitOutcomeChange?.(e.target.value ? (e.target.value as DiaryInspectionOutcome) : null)
+                  onSiteVisitOutcomeChange?.(
+                    e.target.value ? (e.target.value as DiaryInspectionOutcome) : null,
+                  )
                 }
                 disabled={disabled}
                 required
@@ -428,7 +432,9 @@ export function DiaryEntryForm({
                 className={`${styles.select} ${validationErrors.issueSeverity ? styles.selectError : ''}`}
                 value={issueSeverity || ''}
                 onChange={(e) =>
-                  onIssueSeverityChange?.(e.target.value ? (e.target.value as DiaryIssueSeverity) : null)
+                  onIssueSeverityChange?.(
+                    e.target.value ? (e.target.value as DiaryIssueSeverity) : null,
+                  )
                 }
                 disabled={disabled}
                 required
@@ -458,7 +464,9 @@ export function DiaryEntryForm({
                 className={`${styles.select} ${validationErrors.issueResolutionStatus ? styles.selectError : ''}`}
                 value={issueResolutionStatus || ''}
                 onChange={(e) =>
-                  onIssueResolutionStatusChange?.(e.target.value ? (e.target.value as DiaryIssueResolution) : null)
+                  onIssueResolutionStatusChange?.(
+                    e.target.value ? (e.target.value as DiaryIssueResolution) : null,
+                  )
                 }
                 disabled={disabled}
                 required

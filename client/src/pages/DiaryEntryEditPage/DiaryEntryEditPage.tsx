@@ -58,7 +58,9 @@ export default function DiaryEntryEditPage() {
 
   // issue metadata
   const [issueSeverity, setIssueSeverity] = useState<DiaryIssueSeverity | null>(null);
-  const [issueResolutionStatus, setIssueResolutionStatus] = useState<DiaryIssueResolution | null>(null);
+  const [issueResolutionStatus, setIssueResolutionStatus] = useState<DiaryIssueResolution | null>(
+    null,
+  );
 
   // Load entry on mount
   useEffect(() => {
@@ -276,11 +278,7 @@ export default function DiaryEntryEditPage() {
         <div className={styles.errorCard}>
           <h2 className={styles.errorTitle}>Entry Not Found</h2>
           <p className={styles.errorMessage}>The diary entry you're looking for doesn't exist.</p>
-          <button
-            type="button"
-            className={styles.backButton}
-            onClick={() => navigate('/diary')}
-          >
+          <button type="button" className={styles.backButton} onClick={() => navigate('/diary')}>
             Back to Diary
           </button>
         </div>
@@ -294,11 +292,7 @@ export default function DiaryEntryEditPage() {
         <div className={styles.errorCard}>
           <h2 className={styles.errorTitle}>Error Loading Entry</h2>
           <p className={styles.errorMessage}>{error || 'An unexpected error occurred.'}</p>
-          <button
-            type="button"
-            className={styles.backButton}
-            onClick={() => navigate('/diary')}
-          >
+          <button type="button" className={styles.backButton} onClick={() => navigate('/diary')}>
             Back to Diary
           </button>
         </div>

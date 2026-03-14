@@ -76,7 +76,9 @@ export default function DiaryEntryCreatePage() {
 
   // issue metadata
   const [issueSeverity, setIssueSeverity] = useState<DiaryIssueSeverity | null>(null);
-  const [issueResolutionStatus, setIssueResolutionStatus] = useState<DiaryIssueResolution | null>(null);
+  const [issueResolutionStatus, setIssueResolutionStatus] = useState<DiaryIssueResolution | null>(
+    null,
+  );
 
   const handleTypeSelect = (type: ManualDiaryEntryType) => {
     setSelectedType(type);
@@ -189,11 +191,7 @@ export default function DiaryEntryCreatePage() {
     return (
       <div className={styles.container}>
         <div className={styles.header}>
-          <button
-            type="button"
-            className={styles.backButton}
-            onClick={() => navigate('/diary')}
-          >
+          <button type="button" className={styles.backButton} onClick={() => navigate('/diary')}>
             ← Back to Diary
           </button>
           <h1 className={styles.title}>New Diary Entry</h1>

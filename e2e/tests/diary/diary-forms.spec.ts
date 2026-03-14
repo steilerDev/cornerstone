@@ -668,9 +668,7 @@ test.describe('Responsive layout (Scenario 10)', { tag: '@responsive' }, () => {
     },
   );
 
-  test('Create page (form step) has no horizontal scroll on current viewport', async ({
-    page,
-  }) => {
+  test('Create page (form step) has no horizontal scroll on current viewport', async ({ page }) => {
     const createPage = new DiaryEntryCreatePage(page);
     await createPage.goto();
     await createPage.selectType('general_note');

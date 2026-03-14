@@ -131,18 +131,14 @@ describe('DiaryEntryForm', () => {
 
     it('shows body validation error text when present', () => {
       render(
-        <DiaryEntryForm
-          {...makeProps({ validationErrors: { body: 'Entry text is required' } })}
-        />,
+        <DiaryEntryForm {...makeProps({ validationErrors: { body: 'Entry text is required' } })} />,
       );
       expect(screen.getByText('Entry text is required')).toBeInTheDocument();
     });
 
     it('marks body textarea aria-invalid when body error is present', () => {
       render(
-        <DiaryEntryForm
-          {...makeProps({ validationErrors: { body: 'Entry text is required' } })}
-        />,
+        <DiaryEntryForm {...makeProps({ validationErrors: { body: 'Entry text is required' } })} />,
       );
       const textarea = screen.getByRole('textbox', { name: /^entry/i });
       expect(textarea).toHaveAttribute('aria-invalid', 'true');
@@ -259,9 +255,7 @@ describe('DiaryEntryForm', () => {
 
     it('shows the current weather value', () => {
       render(
-        <DiaryEntryForm
-          {...makeProps({ entryType: 'daily_log', dailyLogWeather: 'sunny' })}
-        />,
+        <DiaryEntryForm {...makeProps({ entryType: 'daily_log', dailyLogWeather: 'sunny' })} />,
       );
       const select = screen.getByLabelText(/weather/i) as HTMLSelectElement;
       expect(select.value).toBe('sunny');
@@ -270,9 +264,7 @@ describe('DiaryEntryForm', () => {
     it('calls onDailyLogWeatherChange when weather is changed', () => {
       const onDailyLogWeatherChange = jest.fn();
       render(
-        <DiaryEntryForm
-          {...makeProps({ entryType: 'daily_log', onDailyLogWeatherChange })}
-        />,
+        <DiaryEntryForm {...makeProps({ entryType: 'daily_log', onDailyLogWeatherChange })} />,
       );
       const select = screen.getByLabelText(/weather/i);
       fireEvent.change(select, { target: { value: 'rainy' } });
@@ -286,9 +278,7 @@ describe('DiaryEntryForm', () => {
 
     it('shows the current temperature value', () => {
       render(
-        <DiaryEntryForm
-          {...makeProps({ entryType: 'daily_log', dailyLogTemperature: 22 })}
-        />,
+        <DiaryEntryForm {...makeProps({ entryType: 'daily_log', dailyLogTemperature: 22 })} />,
       );
       const input = screen.getByLabelText(/temperature/i) as HTMLInputElement;
       expect(input.value).toBe('22');
@@ -297,9 +287,7 @@ describe('DiaryEntryForm', () => {
     it('calls onDailyLogTemperatureChange when temperature changes', () => {
       const onDailyLogTemperatureChange = jest.fn();
       render(
-        <DiaryEntryForm
-          {...makeProps({ entryType: 'daily_log', onDailyLogTemperatureChange })}
-        />,
+        <DiaryEntryForm {...makeProps({ entryType: 'daily_log', onDailyLogTemperatureChange })} />,
       );
       const input = screen.getByLabelText(/temperature/i);
       fireEvent.change(input, { target: { value: '15' } });
@@ -328,11 +316,7 @@ describe('DiaryEntryForm', () => {
     });
 
     it('shows the current workers value', () => {
-      render(
-        <DiaryEntryForm
-          {...makeProps({ entryType: 'daily_log', dailyLogWorkers: 7 })}
-        />,
-      );
+      render(<DiaryEntryForm {...makeProps({ entryType: 'daily_log', dailyLogWorkers: 7 })} />);
       const input = screen.getByLabelText(/workers on site/i) as HTMLInputElement;
       expect(input.value).toBe('7');
     });
@@ -340,9 +324,7 @@ describe('DiaryEntryForm', () => {
     it('calls onDailyLogWorkersChange when workers changes', () => {
       const onDailyLogWorkersChange = jest.fn();
       render(
-        <DiaryEntryForm
-          {...makeProps({ entryType: 'daily_log', onDailyLogWorkersChange })}
-        />,
+        <DiaryEntryForm {...makeProps({ entryType: 'daily_log', onDailyLogWorkersChange })} />,
       );
       const input = screen.getByLabelText(/workers on site/i);
       fireEvent.change(input, { target: { value: '3' } });
@@ -408,9 +390,7 @@ describe('DiaryEntryForm', () => {
 
     it('shows the current outcome value', () => {
       render(
-        <DiaryEntryForm
-          {...makeProps({ entryType: 'site_visit', siteVisitOutcome: 'pass' })}
-        />,
+        <DiaryEntryForm {...makeProps({ entryType: 'site_visit', siteVisitOutcome: 'pass' })} />,
       );
       const select = screen.getByLabelText(/inspection outcome/i) as HTMLSelectElement;
       expect(select.value).toBe('pass');
@@ -419,9 +399,7 @@ describe('DiaryEntryForm', () => {
     it('calls onSiteVisitOutcomeChange when outcome changes', () => {
       const onSiteVisitOutcomeChange = jest.fn();
       render(
-        <DiaryEntryForm
-          {...makeProps({ entryType: 'site_visit', onSiteVisitOutcomeChange })}
-        />,
+        <DiaryEntryForm {...makeProps({ entryType: 'site_visit', onSiteVisitOutcomeChange })} />,
       );
       const select = screen.getByLabelText(/inspection outcome/i);
       fireEvent.change(select, { target: { value: 'fail' } });
@@ -444,9 +422,7 @@ describe('DiaryEntryForm', () => {
 
     it('shows the current vendor value', () => {
       render(
-        <DiaryEntryForm
-          {...makeProps({ entryType: 'delivery', deliveryVendor: 'ACME Corp' })}
-        />,
+        <DiaryEntryForm {...makeProps({ entryType: 'delivery', deliveryVendor: 'ACME Corp' })} />,
       );
       const input = screen.getByLabelText(/^vendor$/i) as HTMLInputElement;
       expect(input.value).toBe('ACME Corp');
@@ -454,11 +430,7 @@ describe('DiaryEntryForm', () => {
 
     it('calls onDeliveryVendorChange when vendor changes', () => {
       const onDeliveryVendorChange = jest.fn();
-      render(
-        <DiaryEntryForm
-          {...makeProps({ entryType: 'delivery', onDeliveryVendorChange })}
-        />,
-      );
+      render(<DiaryEntryForm {...makeProps({ entryType: 'delivery', onDeliveryVendorChange })} />);
       const input = screen.getByLabelText(/^vendor$/i);
       fireEvent.change(input, { target: { value: 'Supplier X' } });
       expect(onDeliveryVendorChange).toHaveBeenCalledWith('Supplier X');
@@ -470,11 +442,7 @@ describe('DiaryEntryForm', () => {
     });
 
     it('checkbox reflects deliveryConfirmed=true', () => {
-      render(
-        <DiaryEntryForm
-          {...makeProps({ entryType: 'delivery', deliveryConfirmed: true })}
-        />,
-      );
+      render(<DiaryEntryForm {...makeProps({ entryType: 'delivery', deliveryConfirmed: true })} />);
       const checkbox = screen.getByLabelText(/delivery confirmed/i) as HTMLInputElement;
       expect(checkbox.checked).toBe(true);
     });
@@ -483,7 +451,11 @@ describe('DiaryEntryForm', () => {
       const onDeliveryConfirmedChange = jest.fn();
       render(
         <DiaryEntryForm
-          {...makeProps({ entryType: 'delivery', deliveryConfirmed: false, onDeliveryConfirmedChange })}
+          {...makeProps({
+            entryType: 'delivery',
+            deliveryConfirmed: false,
+            onDeliveryConfirmedChange,
+          })}
         />,
       );
       const checkbox = screen.getByLabelText(/delivery confirmed/i);
@@ -636,22 +608,14 @@ describe('DiaryEntryForm', () => {
     });
 
     it('shows the current severity value', () => {
-      render(
-        <DiaryEntryForm
-          {...makeProps({ entryType: 'issue', issueSeverity: 'high' })}
-        />,
-      );
+      render(<DiaryEntryForm {...makeProps({ entryType: 'issue', issueSeverity: 'high' })} />);
       const select = screen.getByLabelText(/severity/i) as HTMLSelectElement;
       expect(select.value).toBe('high');
     });
 
     it('calls onIssueSeverityChange when severity changes', () => {
       const onIssueSeverityChange = jest.fn();
-      render(
-        <DiaryEntryForm
-          {...makeProps({ entryType: 'issue', onIssueSeverityChange })}
-        />,
-      );
+      render(<DiaryEntryForm {...makeProps({ entryType: 'issue', onIssueSeverityChange })} />);
       const select = screen.getByLabelText(/severity/i);
       fireEvent.change(select, { target: { value: 'critical' } });
       expect(onIssueSeverityChange).toHaveBeenCalledWith('critical');
@@ -686,9 +650,7 @@ describe('DiaryEntryForm', () => {
     it('calls onIssueResolutionStatusChange when status changes', () => {
       const onIssueResolutionStatusChange = jest.fn();
       render(
-        <DiaryEntryForm
-          {...makeProps({ entryType: 'issue', onIssueResolutionStatusChange })}
-        />,
+        <DiaryEntryForm {...makeProps({ entryType: 'issue', onIssueResolutionStatusChange })} />,
       );
       const select = screen.getByLabelText(/resolution status/i);
       fireEvent.change(select, { target: { value: 'resolved' } });

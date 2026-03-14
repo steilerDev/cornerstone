@@ -72,9 +72,7 @@ const DiaryEntryDetailPage = lazy(
 const DiaryEntryCreatePage = lazy(
   () => import('./pages/DiaryEntryCreatePage/DiaryEntryCreatePage'),
 );
-const DiaryEntryEditPage = lazy(
-  () => import('./pages/DiaryEntryEditPage/DiaryEntryEditPage'),
-);
+const DiaryEntryEditPage = lazy(() => import('./pages/DiaryEntryEditPage/DiaryEntryEditPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage/NotFoundPage'));
 
 export function App() {

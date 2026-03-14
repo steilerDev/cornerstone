@@ -109,6 +109,7 @@ Files: `e2e/pages/DiaryEntryCreatePage.ts`, `e2e/pages/DiaryEntryEditPage.ts`,
 `e2e/tests/diary/diary-forms.spec.ts`. DiaryEntryDetailPage.ts extended with edit/delete locators.
 
 Key selectors:
+
 - Create page type cards: `getByTestId('type-card-{type}')` — clicking immediately transitions to form
 - Create form: `#entry-date`, `#title`, `#body` (common); `#weather`, `#temperature`, `#workers`
   (daily_log); `#inspector-name`, `#inspection-outcome` (site_visit); `#severity`,
@@ -131,6 +132,7 @@ Files: `e2e/pages/DiaryPage.ts`, `e2e/pages/DiaryEntryDetailPage.ts`,
 `e2e/tests/diary/diary-list.spec.ts`, `e2e/tests/diary/diary-detail.spec.ts`.
 
 Key selectors:
+
 - DiaryPage heading: `getByRole('heading', { level: 1, name: 'Construction Diary' })`
 - Filter bar: `getByTestId('diary-filter-bar')`, search: `getByTestId('diary-search-input')`
 - Type switcher: `getByTestId('type-switcher-all|manual|automatic')`
