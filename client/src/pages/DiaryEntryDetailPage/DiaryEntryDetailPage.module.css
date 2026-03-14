@@ -173,10 +173,44 @@
   border-radius: var(--radius-md);
 }
 
-.photoLabel {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
+.photoSectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-4);
+}
+
+.photoHeading {
   margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.photoEmptyState {
+  text-align: center;
+  padding: var(--spacing-4) 0;
+  color: var(--color-text-muted);
+}
+
+.photoEmptyState p {
+  margin: 0 0 var(--spacing-2) 0;
+  font-size: var(--font-size-sm);
+}
+
+.addPhotoLink {
+  display: inline-block;
+  padding: var(--spacing-1) var(--spacing-2);
+  background-color: var(--color-primary);
+  color: var(--color-primary-text);
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  font-size: var(--font-size-sm);
+  transition: var(--transition-normal);
+}
+
+.addPhotoLink:hover {
+  background-color: var(--color-primary-hover);
 }
 
 .sourceSection {

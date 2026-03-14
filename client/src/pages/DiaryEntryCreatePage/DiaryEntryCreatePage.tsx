@@ -305,6 +305,12 @@ export default function DiaryEntryCreatePage() {
           onIssueResolutionStatusChange={setIssueResolutionStatus}
         />
 
+        <div className={styles.photoNote}>
+          <p className={styles.photoNoteText}>
+            💡 Save the entry first, then add photos from the detail view.
+          </p>
+        </div>
+
         <div className={styles.formActions}>
           <button
             type="button"
