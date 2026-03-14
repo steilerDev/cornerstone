@@ -23,6 +23,7 @@ import {
   milestones,
 } from '../db/schema.js';
 import type { ScheduleResponse, ScheduleWarning } from '@cornerstone/shared';
+import { onMilestoneDelayed, onAutoRescheduleCompleted } from './diaryAutoEventService.js';
 
 // ─── Input types for the pure scheduling engine ───────────────────────────────
 
@@ -317,6 +318,18 @@ function buildDownstreamSet(anchorId: string, dependencies: SchedulingDependency
   }
 
   return visited;
+}
+
+// ─── Callback Options for Auto-Reschedule ─────────────────────────────────────
+
+/**
+ * Optional callbacks for autoReschedule to notify consumers of events.
+ */
+export interface AutoRescheduleOptions {
+  /** Callback when a milestone is detected as delayed beyond its target date. */
+  onMilestoneDelayed?: (milestoneId: number, milestoneName: string) => void;
+  /** Callback when auto-reschedule completes with updated count. */
+  onRescheduleCompleted?: (updatedCount: number) => void;
 }
 
 // ─── Main scheduling engine ────────────────────────────────────────────────────
@@ -674,9 +687,10 @@ type DbType = BetterSQLite3Database<typeof schemaTypes>;
  *   dependent WI and feed them into the CPM engine alongside the real dependencies.
  *
  * @param db - Drizzle database handle
+ * @param options - Optional callbacks for milestone delays and completion
  * @returns The count of work items whose dates were updated
  */
-export function autoReschedule(db: DbType): number {
+export function autoReschedule(db: DbType, options?: AutoRescheduleOptions): number {
   // ── 1. Fetch all work items ──────────────────────────────────────────────────
 
   const allWorkItems = db.select().from(workItems).all();
@@ -837,8 +851,19 @@ export function autoReschedule(db: DbType): number {
   const now = new Date().toISOString();
 
   for (const scheduled of result.scheduledItems) {
-    // Skip milestone nodes
+    // Process milestone nodes to detect delays
     if (scheduled.workItemId.startsWith('milestone:')) {
+      const milestoneIdStr = scheduled.workItemId.substring('milestone:'.length);
+      const milestoneId = parseInt(milestoneIdStr, 10);
+      const milestone = milestoneMap.get(milestoneId);
+
+      if (milestone && options?.onMilestoneDelayed) {
+        const scheduledEnd = scheduled.scheduledEndDate;
+        const targetDate = milestone.targetDate;
+        if (scheduledEnd > targetDate) {
+          options.onMilestoneDelayed(milestoneId, milestone.name);
+        }
+      }
       continue;
     }
 
@@ -1008,6 +1033,11 @@ export function autoReschedule(db: DbType): number {
         .run();
       updatedCount++;
     }
+  }
+
+  // Invoke completion callback if provided
+  if (options?.onRescheduleCompleted) {
+    options.onRescheduleCompleted(updatedCount);
   }
 
   return updatedCount;

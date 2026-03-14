@@ -150,6 +150,7 @@ export default async function subsidyProgramRoutes(fastify: FastifyInstance) {
         fastify.db,
         request.params.id,
         request.body,
+        fastify.config.diaryAutoEvents,
       );
       return reply.status(200).send({ subsidyProgram });
     },

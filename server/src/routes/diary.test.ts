@@ -438,7 +438,7 @@ describe('Diary Routes', () => {
       expect(error.error.code).toBe('NOT_FOUND');
     });
 
-    it('returns 400 IMMUTABLE_ENTRY when updating an automatic entry', async () => {
+    it('returns 403 IMMUTABLE_ENTRY when updating an automatic entry', async () => {
       const { cookie } = await createUserWithSession('user@test.com', 'Test User', 'password');
       const id = insertDiaryEntry({
         isAutomatic: true,
@@ -453,7 +453,8 @@ describe('Diary Routes', () => {
         payload: { body: 'Should not update' },
       });
 
-      expect(response.statusCode).toBe(400);
+      // ImmutableEntryError has statusCode 403 (Story #808)
+      expect(response.statusCode).toBe(403);
       const error = response.json<ApiErrorResponse>();
       expect(error.error.code).toBe('IMMUTABLE_ENTRY');
     });
@@ -507,7 +508,7 @@ describe('Diary Routes', () => {
       expect(error.error.code).toBe('NOT_FOUND');
     });
 
-    it('returns 400 IMMUTABLE_ENTRY when deleting an automatic entry', async () => {
+    it('returns 204 when deleting an automatic entry (automatic entries can be deleted)', async () => {
       const { cookie } = await createUserWithSession('user@test.com', 'Test User', 'password');
       const id = insertDiaryEntry({
         isAutomatic: true,
@@ -521,9 +522,17 @@ describe('Diary Routes', () => {
         headers: { cookie },
       });
 
-      expect(response.statusCode).toBe(400);
-      const error = response.json<ApiErrorResponse>();
-      expect(error.error.code).toBe('IMMUTABLE_ENTRY');
+      // Story #808: automatic entries can now be deleted
+      expect(response.statusCode).toBe(204);
+      expect(response.body).toBe('');
+
+      // Verify entry is gone
+      const getResponse = await app.inject({
+        method: 'GET',
+        url: `/api/diary-entries/${id}`,
+        headers: { cookie },
+      });
+      expect(getResponse.statusCode).toBe(404);
     });
   });
 });
