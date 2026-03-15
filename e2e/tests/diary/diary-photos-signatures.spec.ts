@@ -411,12 +411,15 @@ test.describe('Signature rendered in detail view (Scenario 8)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 9: Edit/Delete hidden for signed entries (isSigned=true)
+// Scenario 9: Edit hidden (but Delete still shown) for signed entries (isSigned=true)
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Edit/Delete hidden for signed entries (Scenario 9)', () => {
-  test('Edit and Delete buttons are NOT rendered for entries where isSigned is true (mock API)', async ({
+test.describe('Edit hidden for signed entries (Scenario 9)', () => {
+  test('Edit link is NOT rendered for signed entries; Delete is still shown (mock API)', async ({
     page,
   }) => {
+    // UAT fix #837: signed entries can still be deleted but cannot be edited.
+    // The Delete button IS rendered for isSigned=true entries.
+    // Only the Edit link is hidden.
     const detailPage = new DiaryEntryDetailPage(page);
     const mockId = 'mock-entry-signed-001';
     const mockEntry = makeMockEntryDetail({ id: mockId, isSigned: true });
@@ -450,9 +453,11 @@ test.describe('Edit/Delete hidden for signed entries (Scenario 9)', () => {
       await detailPage.goto(mockId);
       await expect(detailPage.backButton).toBeVisible();
 
-      // For isSigned=true: Edit and Delete buttons must NOT be rendered
+      // Edit must NOT be rendered for signed entries (cannot edit a signed entry)
       await expect(detailPage.editButton).not.toBeVisible();
-      await expect(detailPage.deleteButton).not.toBeVisible();
+
+      // Delete IS still rendered for signed entries (UAT fix #837 — signed entries can be deleted)
+      await expect(detailPage.deleteButton).toBeVisible();
     } finally {
       await page.unroute(`${API.diaryEntries}/${mockId}`);
       await page.unroute('**/api/photos*');
@@ -461,10 +466,12 @@ test.describe('Edit/Delete hidden for signed entries (Scenario 9)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 10: "Add photos" link hidden for signed entries
+// Scenario 10: "Add photos" link hidden only for automatic entries, not signed entries
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('"Add photos" hidden for signed entries (Scenario 10)', () => {
-  test('"Add photos" link is NOT shown in photo empty state for signed entries (mock API)', async ({
+test.describe('"Add photos" link visibility (Scenario 10)', () => {
+  // UAT fix #837: "Add photos" link is now only hidden for isAutomatic=true entries.
+  // Signed (isSigned=true) entries can still have photos added via the edit page.
+  test('"Add photos" link IS shown for signed entries (isSigned=true) (mock API)', async ({
     page,
   }) => {
     const detailPage = new DiaryEntryDetailPage(page);
@@ -500,10 +507,63 @@ test.describe('"Add photos" hidden for signed entries (Scenario 10)', () => {
       await detailPage.goto(mockId);
       await expect(detailPage.backButton).toBeVisible();
 
-      // Photo section empty state is still shown
+      // Photo section empty state is shown
       await expect(detailPage.photoEmptyState).toBeVisible();
 
-      // But "Add photos" link is NOT rendered (isSigned=true hides it per source code)
+      // "Add photos" link IS rendered for signed (non-automatic) entries
+      // UAT fix #837 changed the guard from !isAutomatic && !isSigned to just !isAutomatic
+      await expect(page.getByRole('link', { name: /Add photos/i })).toBeVisible();
+    } finally {
+      await page.unroute(`${API.diaryEntries}/${mockId}`);
+      await page.unroute('**/api/photos*');
+    }
+  });
+
+  test('"Add photos" link is NOT shown for automatic entries (isAutomatic=true) (mock API)', async ({
+    page,
+  }) => {
+    const detailPage = new DiaryEntryDetailPage(page);
+    const mockId = 'mock-entry-auto-nophoto-001';
+    const mockEntry = makeMockEntryDetail({
+      id: mockId,
+      isAutomatic: true,
+      isSigned: false,
+      photoCount: 0,
+    });
+
+    // The /api/photos endpoint returns { photos: [] } not [] directly
+    await page.route(`**/api/photos*`, async (route) => {
+      if (route.request().method() === 'GET') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ photos: [] }),
+        });
+      } else {
+        await route.continue();
+      }
+    });
+
+    await page.route(`${API.diaryEntries}/${mockId}`, async (route) => {
+      if (route.request().method() === 'GET') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(mockEntry),
+        });
+      } else {
+        await route.continue();
+      }
+    });
+
+    try {
+      await detailPage.goto(mockId);
+      await expect(detailPage.backButton).toBeVisible();
+
+      // Photo empty state is shown
+      await expect(detailPage.photoEmptyState).toBeVisible();
+
+      // "Add photos" link is NOT rendered for automatic entries
       await expect(page.getByRole('link', { name: /Add photos/i })).not.toBeVisible();
     } finally {
       await page.unroute(`${API.diaryEntries}/${mockId}`);

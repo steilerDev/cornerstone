@@ -184,9 +184,10 @@ Key selectors:
 - Photo section heading: `[class*="photoHeading"]` — text "Photos (N)"
 - Photo empty state: `[class*="photoEmptyState"]` — text "No photos attached yet."
 - Signature section: `[class*="signatureSection"]` — conditional render (isSigned entries)
-- Edit/Delete NOT rendered when `isSigned=true` (same as `isAutomatic=true`)
+- `isSigned=true` entries (UAT fix #837): Edit hidden, Delete VISIBLE, "Add photos" VISIBLE
+- `isAutomatic=true` entries: Edit hidden, Delete hidden, "Add photos" hidden
 - Auto events: must mock photos endpoint (`**/api/photos*`) when mocking diary detail entries
-- `isSigned=true` entries: hide Edit, Delete, and "Add photos" link simultaneously
+- "Add photos" guard is `!isAutomatic` (not `!isAutomatic && !isSigned` as it was before #837)
 
 ## Diary UAT Fixes E2E (2026-03-15)
 
