@@ -273,7 +273,7 @@ If you discover something that requires a fix, write a bug report. If you need c
 
 ## E2E Smoke Tests
 
-E2E smoke tests run automatically in CI (see `e2e-smoke` job in `.github/workflows/ci.yml`) — **do not run them locally**. After pushing your branch and creating a PR, wait for CI to report results: `gh pr checks <pr-number> --watch`. If CI E2E smoke tests fail, investigate and fix before proceeding.
+E2E smoke tests run automatically in CI (see `e2e-smoke` job in `.github/workflows/ci.yml`) — **do not run them locally**. After pushing your branch and creating a PR, wait for CI using the **CI Gate Polling** pattern from `CLAUDE.md` (beta variant). If CI E2E smoke tests fail, investigate and fix before proceeding.
 
 ## Quality Assurance Self-Checks
 
@@ -291,7 +291,7 @@ Before considering your work complete, verify:
 - [ ] Dependent systems are tested via real containers (not only mocked)
 - [ ] Smoke tests expanded if new major capabilities were added
 - [ ] Bug reports have complete reproduction steps
-- [ ] CI checks pass after push (wait with `gh pr checks <pr-number> --watch`) — includes E2E smoke tests
+- [ ] CI checks pass after push (use the **CI Gate Polling** pattern from `CLAUDE.md`) — includes E2E smoke tests
 
 ---
 

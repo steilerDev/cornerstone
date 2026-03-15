@@ -127,7 +127,35 @@ All commits follow [Conventional Commits](https://www.conventionalcommits.org/):
 - CI auto-fix bot: `npm run lint:fix` + `npm run format` + `npm audit fix` (runs on `beta` push, creates PR if changes needed)
 - CI Quality Gates: typecheck + test + build (runs on every PR)
 
-To validate your work: **commit and push**. After pushing, **only wait for the branch protection required checks to pass** — never wait for the full CI suite to finish. For beta PRs, wait only for `Quality Gates`. For main PRs, wait for `Quality Gates` + `E2E Gates`. Use `gh pr checks <pr-number> --watch` and proceed as soon as all required checks are green, even if optional checks (E2E shards, Docker PR Release, etc.) are still running.
+To validate your work: **commit and push**. After pushing, **always wait for the required CI gates to pass** before proceeding to the next step.
+
+#### CI Gate Polling (canonical pattern)
+
+`gh pr checks --watch` does not support GitHub Rulesets (only legacy branch protection). Use the polling loops below to watch the required gate checks by name.
+
+**Step 1 — Check for merge conflicts.** CI may not run (or silently hang) if the PR has conflicts. Always verify mergeability first:
+
+```bash
+state=$(gh pr view <PR> --repo steilerDev/cornerstone --json mergeable -q '.mergeable'); if [ "$state" != "MERGEABLE" ]; then echo "PR is not mergeable (state: $state) — resolve conflicts before waiting for CI"; exit 1; fi
+```
+
+If the state is `CONFLICTING`, rebase onto the target branch, force-push, and re-check. If the state is `UNKNOWN`, wait a few seconds and retry — GitHub may still be computing mergeability.
+
+**Step 2 — Poll for required gate checks.**
+
+**Beta PRs** (require `Quality Gates` only):
+
+```bash
+echo "Waiting for Quality Gates..."; while true; do bucket=$(gh pr checks <PR> --repo steilerDev/cornerstone --json name,bucket -q '.[] | select(.name == "Quality Gates") | .bucket' 2>/dev/null); case "$bucket" in pass) echo "Quality Gates passed"; break ;; fail) echo "Quality Gates FAILED"; exit 1 ;; *) sleep 30 ;; esac; done
+```
+
+**Main PRs** (require `Quality Gates` + `E2E Gates`):
+
+```bash
+echo "Waiting for Quality Gates + E2E Gates..."; while true; do qg=$(gh pr checks <PR> --repo steilerDev/cornerstone --json name,bucket -q '.[] | select(.name == "Quality Gates") | .bucket' 2>/dev/null); e2e=$(gh pr checks <PR> --repo steilerDev/cornerstone --json name,bucket -q '.[] | select(.name == "E2E Gates") | .bucket' 2>/dev/null); if [ "$qg" = "fail" ] || [ "$e2e" = "fail" ]; then echo "CI FAILED (QG=$qg, E2E=$e2e)"; exit 1; fi; if [ "$qg" = "pass" ] && [ "$e2e" = "pass" ]; then echo "All gates passed"; break; fi; sleep 30; done
+```
+
+Replace `<PR>` with the PR number. The polling loop handles the "checks not yet reported" edge case — an empty bucket means we retry after 30s.
 
 The only exception is the QA agent running a specific test file it just wrote (e.g., `npx jest path/to/new.test.ts`) to verify correctness before committing — but never `npm test` (the full suite).
 
