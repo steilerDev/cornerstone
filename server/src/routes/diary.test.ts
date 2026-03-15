@@ -2,7 +2,7 @@
  * Integration tests for /api/diary-entries route handlers.
  *
  * EPIC-13: Construction Diary — Story #803
- * Tests all 5 diary endpoints: GET list, POST create, GET by ID, PUT update, DELETE.
+ * Tests all 5 diary endpoints: GET list, POST create, GET by ID, PATCH update, DELETE.
  */
 
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
@@ -392,12 +392,12 @@ describe('Diary Routes', () => {
     });
   });
 
-  // ─── PUT /api/diary-entries/:id ───────────────────────────────────────────
+  // ─── PATCH /api/diary-entries/:id ─────────────────────────────────────────
 
-  describe('PUT /api/diary-entries/:id', () => {
+  describe('PATCH /api/diary-entries/:id', () => {
     it('returns 401 without authentication', async () => {
       const response = await app.inject({
-        method: 'PUT',
+        method: 'PATCH',
         url: '/api/diary-entries/some-id',
         payload: { body: 'Updated body' },
       });
@@ -411,7 +411,7 @@ describe('Diary Routes', () => {
       const id = insertDiaryEntry({ title: 'Original Title', body: 'Original body' });
 
       const response = await app.inject({
-        method: 'PUT',
+        method: 'PATCH',
         url: `/api/diary-entries/${id}`,
         headers: { cookie },
         payload: { title: 'Updated Title', body: 'Updated body content' },
@@ -427,7 +427,7 @@ describe('Diary Routes', () => {
       const { cookie } = await createUserWithSession('user@test.com', 'Test User', 'password');
 
       const response = await app.inject({
-        method: 'PUT',
+        method: 'PATCH',
         url: '/api/diary-entries/nonexistent-entry-id',
         headers: { cookie },
         payload: { body: 'Updated' },
@@ -447,7 +447,7 @@ describe('Diary Routes', () => {
       });
 
       const response = await app.inject({
-        method: 'PUT',
+        method: 'PATCH',
         url: `/api/diary-entries/${id}`,
         headers: { cookie },
         payload: { body: 'Should not update' },
@@ -457,6 +457,21 @@ describe('Diary Routes', () => {
       expect(response.statusCode).toBe(403);
       const error = response.json<ApiErrorResponse>();
       expect(error.error.code).toBe('IMMUTABLE_ENTRY');
+    });
+
+    it('old PUT method returns 404 (route no longer registered)', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'Test User', 'password');
+      const id = insertDiaryEntry({ title: 'Some Entry', body: 'Some body' });
+
+      const response = await app.inject({
+        method: 'PUT',
+        url: `/api/diary-entries/${id}`,
+        headers: { cookie },
+        payload: { title: 'Will not update', body: 'Will not update' },
+      });
+
+      // Fastify returns 404 for unregistered routes
+      expect(response.statusCode).toBe(404);
     });
   });
 

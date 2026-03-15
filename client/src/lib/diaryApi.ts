@@ -1,4 +1,4 @@
-import { get, post, put, del } from './apiClient.js';
+import { get, post, patch, del } from './apiClient.js';
 import type {
   DiaryEntrySummary,
   DiaryEntryDetail,
@@ -63,7 +63,7 @@ export function updateDiaryEntry(
   id: string,
   data: UpdateDiaryEntryRequest,
 ): Promise<DiaryEntryDetail> {
-  return put<DiaryEntryDetail>(`/diary-entries/${id}`, data);
+  return patch<DiaryEntryDetail>(`/diary-entries/${id}`, data);
 }
 
 /**

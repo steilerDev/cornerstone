@@ -16,7 +16,7 @@ import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
-import { users, diaryEntries } from '../db/schema.js';
+import { users, diaryEntries, photos } from '../db/schema.js';
 import {
   listDiaryEntries,
   getDiaryEntry,
@@ -202,6 +202,35 @@ describe('diaryService', () => {
       expect(result.items[0].id).toBe(matchId);
     });
 
+    it('returns photoCount=1 for an entry with one photo after batch query refactor', () => {
+      const id = insertEntry({ title: 'Entry with a photo' });
+      const now = new Date().toISOString();
+      db.insert(photos)
+        .values({
+          id: `photo-test-${Date.now()}`,
+          entityType: 'diary_entry',
+          entityId: id,
+          filename: 'photo.jpg',
+          originalFilename: 'photo.jpg',
+          mimeType: 'image/jpeg',
+          fileSize: 1024,
+          width: 800,
+          height: 600,
+          takenAt: null,
+          caption: null,
+          sortOrder: 0,
+          createdBy: testUserId,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+
+      const result = listDiaryEntries(db, {});
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].id).toBe(id);
+      expect(result.items[0].photoCount).toBe(1);
+    });
+
     it('returns correct offset for page 2', () => {
       // Insert 3 entries; page 2 with pageSize 2 should return 1
       const oldestId = insertEntry({ entryDate: '2026-01-01' });
@@ -315,6 +344,34 @@ describe('diaryService', () => {
       const result = createDiaryEntry(db, testUserId, request);
       expect(result.metadata).toEqual(metadata);
     });
+
+    it('throws ValidationError when metadata exceeds 4096 chars when serialized', () => {
+      // Build metadata whose JSON.stringify length > 4096
+      const request: CreateDiaryEntryRequest = {
+        entryType: 'general_note',
+        entryDate: '2026-03-14',
+        body: 'Oversized metadata',
+        metadata: { data: 'x'.repeat(4100) } as any,
+      };
+      expect(() => createDiaryEntry(db, testUserId, request)).toThrow(ValidationError);
+    });
+
+    it('accepts metadata at exactly 4096 chars when serialized', () => {
+      // {"data":"..."} — key+quotes+colon+quotes = 10 chars, so value length = 4096 - 10 = 4086
+      const prefix = '{"data":"';
+      const suffix = '"}';
+      const valueLen = 4096 - prefix.length - suffix.length;
+      const metadata = { data: 'x'.repeat(valueLen) } as any;
+      expect(JSON.stringify(metadata).length).toBe(4096);
+      const request: CreateDiaryEntryRequest = {
+        entryType: 'general_note',
+        entryDate: '2026-03-14',
+        body: 'Boundary metadata',
+        metadata,
+      };
+      const result = createDiaryEntry(db, testUserId, request);
+      expect(result.id).toBeDefined();
+    });
   });
 
   // ─── updateDiaryEntry ──────────────────────────────────────────────────────
@@ -384,6 +441,13 @@ describe('diaryService', () => {
       // When metadata is null, JSON.stringify(null) = 'null'; parseMetadata returns null for falsy
       // The service stores JSON.stringify(null) = 'null' — which parses back to null (falsy check)
       expect(result.metadata).toBeNull();
+    });
+
+    it('throws ValidationError when metadata exceeds 4096 chars when serialized', () => {
+      const id = insertEntry({ entryType: 'general_note' });
+      expect(() =>
+        updateDiaryEntry(db, id, { metadata: { data: 'x'.repeat(4100) } as any }),
+      ).toThrow(ValidationError);
     });
   });
 

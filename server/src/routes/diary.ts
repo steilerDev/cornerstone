@@ -66,7 +66,7 @@ const getDiaryEntrySchema = {
   },
 };
 
-/** JSON schema for PUT /api/diary-entries/:id (update entry) */
+/** JSON schema for PATCH /api/diary-entries/:id (update entry) */
 const updateDiaryEntrySchema = {
   body: {
     type: 'object',
@@ -170,12 +170,12 @@ export default async function diaryRoutes(fastify: FastifyInstance) {
   );
 
   /**
-   * PUT /api/diary-entries/:id
+   * PATCH /api/diary-entries/:id
    * Update a diary entry.
    * Auth required: Yes (both admin and member)
    * Note: entryType and isAutomatic are immutable and cannot be changed.
    */
-  fastify.put<{ Params: { id: string }; Body: UpdateDiaryEntryRequest }>(
+  fastify.patch<{ Params: { id: string }; Body: UpdateDiaryEntryRequest }>(
     '/:id',
     { schema: updateDiaryEntrySchema },
     async (request, reply) => {
