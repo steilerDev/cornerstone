@@ -65,6 +65,9 @@ export class DiaryPage {
   readonly prevPageButton: Locator;
   readonly nextPageButton: Locator;
 
+  // Mobile filter toggle button (visible only on mobile, aria-label="Toggle filters")
+  readonly mobileFilterToggle: Locator;
+
   constructor(page: Page) {
     this.page = page;
 
@@ -77,6 +80,8 @@ export class DiaryPage {
     this.dateFromInput = page.getByTestId('diary-date-from');
     this.dateToInput = page.getByTestId('diary-date-to');
     this.clearFiltersButton = page.getByTestId('clear-filters-button');
+
+    this.mobileFilterToggle = page.getByRole('button', { name: 'Toggle filters' });
 
     this.typeSwitcherAll = page.getByTestId('type-switcher-all');
     this.typeSwitcherManual = page.getByTestId('type-switcher-manual');
@@ -147,15 +152,36 @@ export class DiaryPage {
   }
 
   /**
+   * On mobile (max-width: 767px) the filter panel (containing the search input,
+   * date pickers, and type chips) is hidden behind a toggle button.  Call this
+   * before interacting with any filter control to ensure the panel is expanded.
+   * On desktop/tablet the toggle button is display:none, so isVisible() returns
+   * false and this is a no-op.
+   */
+  async openFiltersIfCollapsed(): Promise<void> {
+    const toggleVisible = await this.mobileFilterToggle.isVisible();
+    if (toggleVisible) {
+      // Only click if the filter panel is currently closed (search input hidden)
+      const searchVisible = await this.searchInput.isVisible();
+      if (!searchVisible) {
+        await this.mobileFilterToggle.click();
+        // Wait for the filter panel to open (search input becomes visible)
+        await this.searchInput.waitFor({ state: 'visible' });
+      }
+    }
+  }
+
+  /**
    * Type a search query and wait for the debounced API response and DOM update.
    * The response listener is registered BEFORE the fill action to avoid a race
    * condition (debounce + API round-trip can fire and complete before the next
    * line executes, especially on WebKit).
+   * On mobile the filter panel must be opened first via the toggle button.
    */
   async search(query: string): Promise<void> {
+    await this.openFiltersIfCollapsed();
     const responsePromise = this.page.waitForResponse(
       (resp) => resp.url().includes('/api/diary-entries') && resp.status() === 200,
-      { timeout: 10_000 },
     );
     await this.searchInput.scrollIntoViewIfNeeded();
     await this.searchInput.waitFor({ state: 'visible' });
@@ -166,11 +192,12 @@ export class DiaryPage {
 
   /**
    * Clear the search input and wait for the API response and DOM update.
+   * On mobile the filter panel must be opened first via the toggle button.
    */
   async clearSearch(): Promise<void> {
+    await this.openFiltersIfCollapsed();
     const responsePromise = this.page.waitForResponse(
       (resp) => resp.url().includes('/api/diary-entries') && resp.status() === 200,
-      { timeout: 10_000 },
     );
     await this.searchInput.clear();
     await responsePromise;

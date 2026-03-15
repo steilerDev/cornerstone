@@ -19,6 +19,7 @@
 
 import { test, expect } from '../../fixtures/auth.js';
 import { DiaryPage, DIARY_ROUTE } from '../../pages/DiaryPage.js';
+import { AppShellPage } from '../../pages/AppShellPage.js';
 import { API } from '../../fixtures/testData.js';
 import { createDiaryEntryViaApi, deleteDiaryEntryViaApi } from '../../fixtures/apiHelpers.js';
 
@@ -55,7 +56,7 @@ function makePaginatedResponse(
   }> = {},
 ): Record<string, unknown> {
   return {
-    data: entries,
+    items: entries,
     pagination: {
       page: 1,
       pageSize: 25,
@@ -96,13 +97,20 @@ test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
 test.describe('Sidebar navigation (Scenario 2)', { tag: '@responsive' }, () => {
   test('Navigating to /diary from sidebar lands on Construction Diary page', async ({ page }) => {
     const diaryPage = new DiaryPage(page);
+    const appShell = new AppShellPage(page);
 
     // Start from the home page and navigate via the sidebar "Diary" link
     await page.goto('/project/overview');
-    await page.waitForLoadState('networkidle');
 
-    // The sidebar link to /diary — look for an anchor with href containing "/diary"
-    const diaryNavLink = page.getByRole('link', { name: /diary/i }).first();
+    // On mobile/tablet the sidebar is hidden behind a hamburger menu — open it first
+    const viewport = page.viewportSize();
+    const isMobile = viewport !== null && viewport.width < 1024;
+    if (isMobile) {
+      await appShell.openSidebar();
+    }
+
+    // Click the "Diary" link inside the sidebar navigation
+    const diaryNavLink = appShell.sidebar.getByRole('link', { name: 'Diary', exact: true });
     await diaryNavLink.waitFor({ state: 'visible' });
     await diaryNavLink.click();
 
@@ -118,7 +126,7 @@ test.describe('Empty state (Scenario 3)', () => {
   test('Empty state is shown when the diary has no entries', async ({ page }) => {
     const diaryPage = new DiaryPage(page);
 
-    await page.route(`${API.diaryEntries}*`, async (route) => {
+    await page.route('**/api/diary-entries*', async (route) => {
       if (route.request().method() === 'GET') {
         await route.fulfill({
           status: 200,
@@ -144,7 +152,7 @@ test.describe('Empty state (Scenario 3)', () => {
       });
       await expect(ctaLink).toBeVisible();
     } finally {
-      await page.unroute(`${API.diaryEntries}*`);
+      await page.unroute('**/api/diary-entries*');
     }
   });
 });
@@ -222,7 +230,7 @@ test.describe('Date grouping (Scenario 5)', () => {
       makeMockEntry({ id: 'entry-b', entryDate: '2026-03-12', title: 'Entry B' }),
     ];
 
-    await page.route(`${API.diaryEntries}*`, async (route) => {
+    await page.route('**/api/diary-entries*', async (route) => {
       if (route.request().method() === 'GET') {
         await route.fulfill({
           status: 200,
@@ -250,7 +258,7 @@ test.describe('Date grouping (Scenario 5)', () => {
       const groupCount = await groups.count();
       expect(groupCount).toBeGreaterThanOrEqual(2);
     } finally {
-      await page.unroute(`${API.diaryEntries}*`);
+      await page.unroute('**/api/diary-entries*');
     }
   });
 });
@@ -366,7 +374,7 @@ test.describe('Pagination (Scenario 7)', () => {
       }),
     );
 
-    await page.route(`${API.diaryEntries}*`, async (route) => {
+    await page.route('**/api/diary-entries*', async (route) => {
       if (route.request().method() === 'GET') {
         await route.fulfill({
           status: 200,
@@ -391,14 +399,14 @@ test.describe('Pagination (Scenario 7)', () => {
       // Next button enabled on page 1
       await expect(diaryPage.nextPageButton).toBeEnabled();
     } finally {
-      await page.unroute(`${API.diaryEntries}*`);
+      await page.unroute('**/api/diary-entries*');
     }
   });
 
   test('Pagination is not shown when all entries fit on one page', async ({ page }) => {
     const diaryPage = new DiaryPage(page);
 
-    await page.route(`${API.diaryEntries}*`, async (route) => {
+    await page.route('**/api/diary-entries*', async (route) => {
       if (route.request().method() === 'GET') {
         await route.fulfill({
           status: 200,
@@ -420,7 +428,7 @@ test.describe('Pagination (Scenario 7)', () => {
       await expect(diaryPage.prevPageButton).not.toBeVisible();
       await expect(diaryPage.nextPageButton).not.toBeVisible();
     } finally {
-      await page.unroute(`${API.diaryEntries}*`);
+      await page.unroute('**/api/diary-entries*');
     }
   });
 });
@@ -472,7 +480,7 @@ test.describe('Type switcher (Scenario 9)', () => {
     // Capture API requests to assert the query params
     const requests: URL[] = [];
 
-    await page.route(`${API.diaryEntries}*`, async (route) => {
+    await page.route('**/api/diary-entries*', async (route) => {
       requests.push(new URL(route.request().url()));
       await route.fulfill({
         status: 200,
@@ -491,7 +499,6 @@ test.describe('Type switcher (Scenario 9)', () => {
       // Click the "Manual" switcher button and wait for the API call
       const responsePromise = page.waitForResponse(
         (resp) => resp.url().includes('/api/diary-entries') && resp.status() === 200,
-        { timeout: 10_000 },
       );
       await diaryPage.typeSwitcherManual.click();
       await responsePromise;
@@ -507,7 +514,7 @@ test.describe('Type switcher (Scenario 9)', () => {
         expect(typeParam).not.toContain('invoice_status');
       }
     } finally {
-      await page.unroute(`${API.diaryEntries}*`);
+      await page.unroute('**/api/diary-entries*');
     }
   });
 
