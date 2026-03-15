@@ -368,12 +368,13 @@ test.describe('Signature rendered in detail view (Scenario 8)', () => {
     });
 
     // Mock the photos endpoint to return empty (signature entry may still call photos)
+    // The /api/photos endpoint returns { photos: [] } not [] directly
     await page.route(`**/api/photos*`, async (route) => {
       if (route.request().method() === 'GET') {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify([]),
+          body: JSON.stringify({ photos: [] }),
         });
       } else {
         await route.continue();
@@ -416,9 +417,10 @@ test.describe('Edit/Delete hidden for signed entries (Scenario 9)', () => {
     const mockId = 'mock-entry-signed-001';
     const mockEntry = makeMockEntryDetail({ id: mockId, isSigned: true });
 
+    // The /api/photos endpoint returns { photos: [] } not [] directly
     await page.route(`**/api/photos*`, async (route) => {
       if (route.request().method() === 'GET') {
-        await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ photos: [] }) });
       } else {
         await route.continue();
       }
@@ -461,9 +463,10 @@ test.describe('"Add photos" hidden for signed entries (Scenario 10)', () => {
     const mockId = 'mock-entry-signed-nophoto-001';
     const mockEntry = makeMockEntryDetail({ id: mockId, isSigned: true, photoCount: 0 });
 
+    // The /api/photos endpoint returns { photos: [] } not [] directly
     await page.route(`**/api/photos*`, async (route) => {
       if (route.request().method() === 'GET') {
-        await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ photos: [] }) });
       } else {
         await route.continue();
       }

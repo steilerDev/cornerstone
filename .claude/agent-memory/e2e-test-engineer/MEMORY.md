@@ -125,6 +125,7 @@ Key selectors:
 - Confirm delete: `modal.getByRole('button', { name: /Delete Entry|Deleting\.\.\./i })`
 - Edit/Delete buttons NOT rendered for automatic entries (`isAutomatic: true`)
 - DiaryEntryEditPage.save() registers waitForResponse (PATCH) BEFORE click — returns after API
+  NOTE: PR #830 changed updateDiaryEntry from PUT to PATCH — save() was broken; fixed in PR #832
 
 ## Diary E2E (Story #804, 2026-03-14)
 
@@ -147,3 +148,24 @@ Key selectors:
 API: `POST /api/diary-entries` returns `DiaryEntrySummary` with `id` at top level (not nested).
 Empty state uses shared.emptyState CSS module class (conditional render — use `.not.toBeVisible()` not `.toBeHidden()`).
 DiaryPage.waitForLoaded() races: timeline visible OR emptyState visible OR errorBanner visible.
+
+## Diary E2E Extended (Stories #806-#809, 2026-03-15)
+
+Files: `diary-photos-signatures.spec.ts`, `diary-automatic-events.spec.ts`, `diary-export.spec.ts`
+POMs extended: DiaryEntryDetailPage (photoHeading, photoEmptyState, signatureSection, printButton, photoCountBadge),
+DiaryPage (exportButton, exportDialog, photoCountBadge).
+
+Key selectors:
+- Photo count badge on entry card: `data-testid="photo-count-{entryId}"` (only rendered when photoCount > 0)
+- Photo section heading: `[class*="photoHeading"]` — text "Photos (N)"
+- Photo empty state: `[class*="photoEmptyState"]` — text "No photos attached yet."
+- Signature section: `[class*="signatureSection"]` — conditional render (isSigned entries)
+- Edit/Delete NOT rendered when `isSigned=true` (same as `isAutomatic=true`)
+- Export button: `getByRole('button', { name: /Export/i })` on diary list page
+- Export dialog: `getByRole('dialog', { name: /Export/i })` — conditional render (return null when !isOpen)
+- Dialog title: h2 "Export Diary to PDF" (id="export-modal-title")
+- Generate PDF: `getByRole('button', { name: /Generate PDF/i })` inside dialog
+- Print button on detail page: `getByRole('button', { name: /Print/i })`
+- Auto events: must mock photos endpoint (`**/api/photos*`) when mocking diary detail entries
+- Export API: GET `/api/diary-entries/export` — returns application/pdf
+- `isSigned=true` entries: hide Edit, Delete, and "Add photos" link simultaneously
