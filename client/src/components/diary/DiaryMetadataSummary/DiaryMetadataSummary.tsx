@@ -100,7 +100,7 @@ export function DiaryMetadataSummary({ entryType, metadata }: DiaryMetadataSumma
         <div className={styles.autoSummary} data-testid="auto-event-summary">
           {m.changeSummary && <span>{String(m.changeSummary)}</span>}
           {m.newValue && (
-            <StatusPill value={String(m.newValue)} />
+            <StatusPill value={String(m.newValue) as string} />
           )}
         </div>
       );

@@ -45,6 +45,7 @@ const createdEntry = {
   body: 'Some body text',
   metadata: null,
   isAutomatic: false,
+  isSigned: false,
   sourceEntityType: null,
   sourceEntityId: null,
   photoCount: 0,

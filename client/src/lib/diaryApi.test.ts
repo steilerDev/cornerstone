@@ -19,6 +19,7 @@ describe('diaryApi', () => {
     body: 'Test body content',
     metadata: null,
     isAutomatic: false,
+    isSigned: false,
     sourceEntityType: null,
     sourceEntityId: null,
     photoCount: 0,
