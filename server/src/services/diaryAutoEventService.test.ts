@@ -23,6 +23,7 @@ import {
   onBudgetCategoryOverspend,
   onAutoRescheduleCompleted,
   onSubsidyStatusChanged,
+  onInvoiceCreated,
 } from './diaryAutoEventService.js';
 // diaryService is imported internally by diaryAutoEventService — not needed here
 
@@ -83,8 +84,8 @@ describe('diaryAutoEventService', () => {
       expect(entry.sourceEntityId).toBe('wi-test-001');
       expect(entry.createdBy).toBeNull();
       expect(entry.body).toContain('Foundation Work');
-      expect(entry.body).toContain('not_started');
-      expect(entry.body).toContain('in_progress');
+      expect(entry.body).toContain('Not Started');
+      expect(entry.body).toContain('In Progress');
     });
 
     it('does not create a diary entry when enabled=false', () => {
@@ -137,8 +138,8 @@ describe('diaryAutoEventService', () => {
       expect(entry.sourceEntityType).toBe('invoice');
       expect(entry.sourceEntityId).toBe('inv-001');
       expect(entry.body).toContain('INV-2026-042');
-      expect(entry.body).toContain('pending');
-      expect(entry.body).toContain('paid');
+      expect(entry.body).toContain('Pending');
+      expect(entry.body).toContain('Paid');
     });
 
     it('body uses invoiceNumber param (even if empty string, shows N/A)', () => {
@@ -160,8 +161,8 @@ describe('diaryAutoEventService', () => {
       const metadata = JSON.parse(entries[0].metadata ?? 'null');
       expect(metadata.previousValue).toBe('pending');
       expect(metadata.newValue).toBe('paid');
-      expect(metadata.changeSummary).toContain('pending');
-      expect(metadata.changeSummary).toContain('paid');
+      expect(metadata.changeSummary).toContain('Pending');
+      expect(metadata.changeSummary).toContain('Paid');
     });
 
     it('does not create entry when enabled=false', () => {
@@ -226,27 +227,12 @@ describe('diaryAutoEventService', () => {
   // ─── onAutoRescheduleCompleted ─────────────────────────────────────────────
 
   describe('onAutoRescheduleCompleted', () => {
-    it('creates a diary entry with entryType=auto_reschedule when count > 0', () => {
+    // onAutoRescheduleCompleted is currently a no-op — diary entries are created
+    // for individual item changes instead. All calls produce zero diary entries.
+
+    it('does not create any diary entry (suppressed — no-op)', () => {
       onAutoRescheduleCompleted(db, true, 5);
-
-      const entries = getAllEntries();
-      expect(entries).toHaveLength(1);
-
-      const entry = entries[0];
-      expect(entry.entryType).toBe('auto_reschedule');
-      expect(entry.isAutomatic).toBe(true);
-      expect(entry.sourceEntityType).toBeNull();
-      expect(entry.sourceEntityId).toBeNull();
-      expect(entry.body).toContain('5');
-      expect(entry.body).toContain('updated');
-    });
-
-    it('stores metadata with itemCount equal to updatedCount', () => {
-      onAutoRescheduleCompleted(db, true, 3);
-
-      const entries = getAllEntries();
-      const metadata = JSON.parse(entries[0].metadata ?? 'null');
-      expect(metadata.itemCount).toBe(3);
+      expect(getAllEntries()).toHaveLength(0);
     });
 
     it('does not create entry when count = 0', () => {
@@ -275,7 +261,7 @@ describe('diaryAutoEventService', () => {
       expect(entry.sourceEntityType).toBe('subsidy_program');
       expect(entry.sourceEntityId).toBe('sub-kfw-001');
       expect(entry.body).toContain('KfW Energy Grant');
-      expect(entry.body).toContain('approved');
+      expect(entry.body).toContain('Approved');
     });
 
     it('stores metadata with previousValue, newValue, and changeSummary', () => {
@@ -297,6 +283,40 @@ describe('diaryAutoEventService', () => {
 
     it('does not create entry when enabled=false', () => {
       onSubsidyStatusChanged(db, false, 'sub-001', 'Grant', 'applied', 'approved');
+      expect(getAllEntries()).toHaveLength(0);
+    });
+  });
+
+  // ─── onInvoiceCreated ─────────────────────────────────────────────────────
+
+  describe('onInvoiceCreated', () => {
+    it('creates a diary entry with entryType=invoice_created, body contains invoice number and vendor name', () => {
+      onInvoiceCreated(db, true, 'inv-100', 'INV-2026-100', 'Acme Builders');
+
+      const entries = getAllEntries();
+      expect(entries).toHaveLength(1);
+
+      const entry = entries[0];
+      expect(entry.entryType).toBe('invoice_created');
+      expect(entry.isAutomatic).toBe(true);
+      expect(entry.sourceEntityType).toBe('invoice');
+      expect(entry.sourceEntityId).toBe('inv-100');
+      expect(entry.body).toContain('INV-2026-100');
+      expect(entry.body).toContain('Acme Builders');
+    });
+
+    it('stores metadata with changeSummary', () => {
+      onInvoiceCreated(db, true, 'inv-101', 'INV-2026-101', 'Good Roof Co');
+
+      const entries = getAllEntries();
+      expect(entries).toHaveLength(1);
+      const metadata = JSON.parse(entries[0].metadata ?? 'null');
+      expect(metadata).not.toBeNull();
+      expect(typeof metadata.changeSummary).toBe('string');
+    });
+
+    it('does not create entry when enabled=false', () => {
+      onInvoiceCreated(db, false, 'inv-102', 'INV-2026-102', 'Some Vendor');
       expect(getAllEntries()).toHaveLength(0);
     });
   });
