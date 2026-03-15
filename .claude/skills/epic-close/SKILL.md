@@ -119,13 +119,17 @@ Launch the **product-owner** agent to produce UAT scenarios. The e2e-test-engine
 
 The UAT scenarios are included in the promotion PR (step 10) as a manual validation checklist so the user can spot-check during the promotion gate.
 
-### 7. Documentation
+### 7. Documentation & Env Drift Check
 
 Launch the **docs-writer** agent to:
 
 - Update the documentation site (`docs/`) with new feature guides
 - Update `README.md` with newly shipped capabilities
 - Write `RELEASE_SUMMARY.md` for the GitHub Release changelog enrichment
+- **Verify `.env.example` freshness**: Scan server source code for all `process.env.*` references (primarily `server/src/plugins/config.ts`), compare against `.env.example` entries, and fix any drift. Rules:
+  - Optional features (OIDC, Paperless, etc.) must remain **commented out** with example placeholder values
+  - Preserve inline `# Optional: ...` documentation comments
+  - Update the Environment Variables table in `CLAUDE.md` if new vars were added
 
 Commit documentation updates to `beta` via a PR:
 
