@@ -222,10 +222,11 @@ describe('DashboardPage', () => {
     //   timeline       → Upcoming Milestones + Work Item Progress + Critical Path + Mini Gantt (4)
     //   invoices       → Invoice Pipeline (1)
     //   subsidyPrograms→ Subsidy Pipeline (1)
+    //   diary          → Recent Diary (1)
     // Quick Actions has no dataSource — renders children immediately, no skeleton
-    // Each card appears in both desktop grid and mobile section = 8 × 2 = 16
+    // Each card appears in both desktop grid and mobile section = 9 × 2 = 18
     const loadingEls = screen.getAllByRole('status', { name: /^Loading .+ data$/ });
-    expect(loadingEls.length).toBe(16);
+    expect(loadingEls.length).toBe(18);
   });
 
   // ─── Test 15: Error state when API fails ────────────────────────────────

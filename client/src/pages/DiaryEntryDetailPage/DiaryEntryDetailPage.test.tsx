@@ -190,9 +190,8 @@ describe('DiaryEntryDetailPage', () => {
 
     // Created time/author appears in the timestamps section at bottom, not the header meta row
     // The header meta only has the entry date and optional automatic badge
-    // Verify "Alice Builder" is still rendered but only in timestamps area (not header)
-    // We can't easily distinguish sections here so we just confirm the date is shown
-    expect(screen.getByText(/2026/)).toBeInTheDocument();
+    // Multiple elements may contain "2026" (entry date + timestamps), so use getAllByText
+    expect(screen.getAllByText(/2026/).length).toBeGreaterThan(0);
   });
 
   it('sourceEntityTitle is displayed in source entity link when provided', async () => {
