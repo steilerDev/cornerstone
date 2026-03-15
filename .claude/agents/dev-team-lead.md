@@ -249,13 +249,13 @@ When test failures are present in the review input, walk through these steps for
 3. **Read the production code** — Trace the code path that produces the actual result.
 4. **Classify the root cause** — Use the table below:
 
-| Test matches spec? | Code matches spec? | Root cause         | Fix target          |
-|---------------------|---------------------|--------------------|---------------------|
-| Yes                 | No                  | `CODE_BUG`         | Production code     |
-| No                  | Yes                 | `TEST_BUG`         | Test code           |
-| No                  | No                  | `BOTH_WRONG`       | Both (code first)   |
-| Yes                 | Yes                 | `TEST_ENVIRONMENT` | Test setup/config   |
-| Ambiguous           | —                   | `SPEC_AMBIGUOUS`   | Escalate to architect |
+| Test matches spec? | Code matches spec? | Root cause         | Fix target            |
+| ------------------ | ------------------ | ------------------ | --------------------- |
+| Yes                | No                 | `CODE_BUG`         | Production code       |
+| No                 | Yes                | `TEST_BUG`         | Test code             |
+| No                 | No                 | `BOTH_WRONG`       | Both (code first)     |
+| Yes                | Yes                | `TEST_ENVIRONMENT` | Test setup/config     |
+| Ambiguous          | —                  | `SPEC_AMBIGUOUS`   | Escalate to architect |
 
 5. **Produce diagnosis** — For each failure, emit a structured diagnosis block (see format below).
 

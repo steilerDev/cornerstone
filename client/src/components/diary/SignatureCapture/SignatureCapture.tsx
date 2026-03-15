@@ -285,7 +285,9 @@ export function SignatureCapture({
       <div className={styles.container}>
         <div className={styles.signerInfo}>
           <span className={styles.signerName}>{signature.signerName}</span>
-          <span className={styles.signerType}>({signature.signerType === 'self' ? 'Self' : 'Vendor'})</span>
+          <span className={styles.signerType}>
+            ({signature.signerType === 'self' ? 'Self' : 'Vendor'})
+          </span>
         </div>
         <div className={styles.signatureDisplay}>
           <img

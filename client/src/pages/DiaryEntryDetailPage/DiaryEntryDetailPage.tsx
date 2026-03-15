@@ -1,6 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import type { DiaryEntryDetail, DailyLogMetadata, SiteVisitMetadata, DiarySignatureEntry } from '@cornerstone/shared';
+import type {
+  DiaryEntryDetail,
+  DailyLogMetadata,
+  SiteVisitMetadata,
+  DiarySignatureEntry,
+} from '@cornerstone/shared';
 import { getDiaryEntry, deleteDiaryEntry } from '../../lib/diaryApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useToast } from '../../components/Toast/ToastContext.js';

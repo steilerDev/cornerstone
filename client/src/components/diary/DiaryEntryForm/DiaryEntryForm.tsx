@@ -309,11 +309,14 @@ export function DiaryEntryForm({
               type="button"
               className={shared.btnSecondary}
               onClick={() => {
-                const newSigs = [...(dailyLogSignatures || []), {
-                  signerName: '',
-                  signerType: 'self' as const,
-                  signatureDataUrl: '',
-                }];
+                const newSigs = [
+                  ...(dailyLogSignatures || []),
+                  {
+                    signerName: '',
+                    signerType: 'self' as const,
+                    signatureDataUrl: '',
+                  },
+                ];
                 onDailyLogSignaturesChange?.(newSigs);
               }}
               disabled={disabled}
@@ -415,11 +418,14 @@ export function DiaryEntryForm({
               type="button"
               className={shared.btnSecondary}
               onClick={() => {
-                const newSigs = [...(siteVisitSignatures || []), {
-                  signerName: '',
-                  signerType: 'self' as const,
-                  signatureDataUrl: '',
-                }];
+                const newSigs = [
+                  ...(siteVisitSignatures || []),
+                  {
+                    signerName: '',
+                    signerType: 'self' as const,
+                    signatureDataUrl: '',
+                  },
+                ];
                 onSiteVisitSignaturesChange?.(newSigs);
               }}
               disabled={disabled}

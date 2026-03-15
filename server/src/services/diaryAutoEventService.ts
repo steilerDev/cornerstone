@@ -20,17 +20,17 @@ type DbType = BetterSQLite3Database<typeof schemaTypes>;
  * Human-readable status labels for automatic diary events.
  */
 const STATUS_LABELS: Record<string, string> = {
-  'not_started': 'Not Started',
-  'in_progress': 'In Progress',
-  'completed': 'Completed',
-  'pending': 'Pending',
-  'paid': 'Paid',
-  'claimed': 'Claimed',
-  'active': 'Active',
-  'paused': 'Paused',
-  'rejected': 'Rejected',
-  'approved': 'Approved',
-  'pending_approval': 'Pending Approval',
+  not_started: 'Not Started',
+  in_progress: 'In Progress',
+  completed: 'Completed',
+  pending: 'Pending',
+  paid: 'Paid',
+  claimed: 'Claimed',
+  active: 'Active',
+  paused: 'Paused',
+  rejected: 'Rejected',
+  approved: 'Approved',
+  pending_approval: 'Pending Approval',
 };
 
 /**
@@ -38,7 +38,9 @@ const STATUS_LABELS: Record<string, string> = {
  * Falls back to title-casing the status if no label is defined.
  */
 function toLabel(status: string): string {
-  return STATUS_LABELS[status] || status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  return (
+    STATUS_LABELS[status] || status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+  );
 }
 
 /**

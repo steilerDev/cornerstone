@@ -71,7 +71,9 @@ export default function DiaryEntryCreatePage() {
   // site_visit metadata
   const [siteVisitInspectorName, setSiteVisitInspectorName] = useState<string | null>(null);
   const [siteVisitOutcome, setSiteVisitOutcome] = useState<DiaryInspectionOutcome | null>(null);
-  const [siteVisitSignatures, setSiteVisitSignatures] = useState<DiarySignatureEntry[] | null>(null);
+  const [siteVisitSignatures, setSiteVisitSignatures] = useState<DiarySignatureEntry[] | null>(
+    null,
+  );
 
   // delivery metadata
   const [deliveryVendor, setDeliveryVendor] = useState<string | null>(null);
@@ -128,7 +130,8 @@ export default function DiaryEntryCreatePage() {
       if (dailyLogWeather) metadata.weather = dailyLogWeather;
       if (dailyLogTemperature !== null) metadata.temperatureCelsius = dailyLogTemperature;
       if (dailyLogWorkers !== null) metadata.workersOnSite = dailyLogWorkers;
-      if (dailyLogSignatures && dailyLogSignatures.length > 0) metadata.signatures = dailyLogSignatures;
+      if (dailyLogSignatures && dailyLogSignatures.length > 0)
+        metadata.signatures = dailyLogSignatures;
       return Object.keys(metadata).length > 0 ? metadata : null;
     }
 
@@ -136,7 +139,8 @@ export default function DiaryEntryCreatePage() {
       const metadata: SiteVisitMetadata = {};
       if (siteVisitInspectorName) metadata.inspectorName = siteVisitInspectorName;
       if (siteVisitOutcome) metadata.outcome = siteVisitOutcome;
-      if (siteVisitSignatures && siteVisitSignatures.length > 0) metadata.signatures = siteVisitSignatures;
+      if (siteVisitSignatures && siteVisitSignatures.length > 0)
+        metadata.signatures = siteVisitSignatures;
       return Object.keys(metadata).length > 0 ? metadata : null;
     }
 

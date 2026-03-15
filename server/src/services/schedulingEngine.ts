@@ -866,12 +866,7 @@ export function autoReschedule(db: DbType, options?: AutoRescheduleOptions): num
         const scheduledEnd = scheduled.scheduledEndDate;
         const targetDate = milestone.targetDate;
         if (scheduledEnd > targetDate) {
-          options.onMilestoneDelayed(
-            milestoneId,
-            milestone.title,
-            targetDate,
-            scheduledEnd,
-          );
+          options.onMilestoneDelayed(milestoneId, milestone.title, targetDate, scheduledEnd);
         }
       }
       continue;

@@ -99,9 +99,7 @@ export function DiaryMetadataSummary({ entryType, metadata }: DiaryMetadataSumma
       return (
         <div className={styles.autoSummary} data-testid="auto-event-summary">
           {m.changeSummary ? <span>{String(m.changeSummary)}</span> : null}
-          {m.newValue ? (
-            <StatusPill value={String(m.newValue)} />
-          ) : null}
+          {m.newValue ? <StatusPill value={String(m.newValue)} /> : null}
         </div>
       );
     }
@@ -115,13 +113,20 @@ function StatusPill({ value }: { value: string }) {
   let bgColor = 'var(--color-bg-tertiary)';
   let textColor = 'var(--color-text-primary)';
 
-  if (value.toLowerCase().includes('completed') || value.toLowerCase().includes('resolved') || value.toLowerCase().includes('paid')) {
+  if (
+    value.toLowerCase().includes('completed') ||
+    value.toLowerCase().includes('resolved') ||
+    value.toLowerCase().includes('paid')
+  ) {
     bgColor = 'var(--color-success-bg)';
     textColor = 'var(--color-success-text-on-light)';
   } else if (value.toLowerCase().includes('failed') || value.toLowerCase().includes('breach')) {
     bgColor = 'var(--color-danger-bg)';
     textColor = 'var(--color-danger-active)';
-  } else if (value.toLowerCase().includes('in progress') || value.toLowerCase().includes('in_progress')) {
+  } else if (
+    value.toLowerCase().includes('in progress') ||
+    value.toLowerCase().includes('in_progress')
+  ) {
     bgColor = 'var(--color-bg-secondary)';
     textColor = 'var(--color-text-primary)';
   }

@@ -86,9 +86,9 @@ function toDiarySummary(
   const metadata = parseMetadata(entry.metadata);
   const isSigned = Boolean(
     metadata &&
-      'signatures' in metadata &&
-      Array.isArray(metadata.signatures) &&
-      metadata.signatures.length > 0,
+    'signatures' in metadata &&
+    Array.isArray(metadata.signatures) &&
+    metadata.signatures.length > 0,
   );
 
   return {
@@ -163,7 +163,10 @@ function validateMetadata(
               'daily_log signature entry signerType must be "self" or "vendor"',
             );
           }
-          if (typeof sig.signatureDataUrl !== 'string' || sig.signatureDataUrl.trim().length === 0) {
+          if (
+            typeof sig.signatureDataUrl !== 'string' ||
+            sig.signatureDataUrl.trim().length === 0
+          ) {
             throw new InvalidMetadataError(
               'daily_log signature entry must have non-empty signatureDataUrl',
             );
@@ -206,7 +209,10 @@ function validateMetadata(
               'site_visit signature entry signerType must be "self" or "vendor"',
             );
           }
-          if (typeof sig.signatureDataUrl !== 'string' || sig.signatureDataUrl.trim().length === 0) {
+          if (
+            typeof sig.signatureDataUrl !== 'string' ||
+            sig.signatureDataUrl.trim().length === 0
+          ) {
             throw new InvalidMetadataError(
               'site_visit signature entry must have non-empty signatureDataUrl',
             );
@@ -496,9 +502,9 @@ export function updateDiaryEntry(
   const metadata = parseMetadata(entry.metadata);
   const isSigned = Boolean(
     metadata &&
-      'signatures' in metadata &&
-      Array.isArray(metadata.signatures) &&
-      metadata.signatures.length > 0,
+    'signatures' in metadata &&
+    Array.isArray(metadata.signatures) &&
+    metadata.signatures.length > 0,
   );
   if (isSigned) {
     throw new ImmutableEntryError('Signed diary entries cannot be modified');
