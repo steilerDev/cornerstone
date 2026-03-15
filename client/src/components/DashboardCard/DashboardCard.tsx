@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react';
+import { Skeleton } from '../Skeleton/index.js';
+import { EmptyState } from '../EmptyState/index.js';
 import styles from './DashboardCard.module.css';
 
 export interface DashboardCardProps {
@@ -60,18 +62,7 @@ export function DashboardCard({
       {/* Content area */}
       <div className={styles.cardContent}>
         {/* Loading state */}
-        {isLoading && (
-          <div
-            className={styles.skeleton}
-            role="status"
-            aria-busy="true"
-            aria-label={`Loading ${title} data`}
-          >
-            <div className={styles.skeletonLine} />
-            <div className={styles.skeletonLine} />
-            <div className={styles.skeletonLine} />
-          </div>
-        )}
+        {isLoading && <Skeleton loadingLabel={`Loading ${title} data`} />}
 
         {/* Error state */}
         {!isLoading && error && (
@@ -87,14 +78,10 @@ export function DashboardCard({
 
         {/* Empty state */}
         {!isLoading && !error && isEmpty && (
-          <div className={styles.emptyState}>
-            <p className={styles.emptyMessage}>{emptyMessage}</p>
-            {emptyAction && (
-              <a href={emptyAction.href} className={styles.emptyAction}>
-                {emptyAction.label}
-              </a>
-            )}
-          </div>
+          <EmptyState
+            message={emptyMessage || 'No data available'}
+            action={emptyAction ? { label: emptyAction.label, href: emptyAction.href } : undefined}
+          />
         )}
 
         {/* Normal content */}

@@ -1,0 +1,70 @@
+/* ============================================================
+ * EmptyState — Empty data display component
+ * ============================================================ */
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-3);
+  padding: var(--spacing-6) var(--spacing-3);
+  text-align: center;
+}
+
+.icon {
+  font-size: var(--font-size-3xl);
+  line-height: 1;
+}
+
+.message {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+.description {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+.action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-2) var(--spacing-4);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-primary);
+  background: none;
+  border: none;
+  text-decoration: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition-normal);
+}
+
+.action:hover {
+  color: var(--color-primary-hover);
+  text-decoration: underline;
+}
+
+.action:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+@media (max-width: 767px) {
+  .emptyState {
+    padding: var(--spacing-4);
+    gap: var(--spacing-2);
+  }
+
+  .action {
+    padding: var(--spacing-1-5) var(--spacing-3);
+    font-size: var(--font-size-xs);
+  }
+}
