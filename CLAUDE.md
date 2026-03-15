@@ -402,6 +402,15 @@ Any agent making a decision that affects other agents (e.g., a new naming conven
 
 When a code change invalidates information in agent memory (e.g., fixing a bug documented in memory, changing a public API, updating routes), the implementing agent must update the relevant agent memory files.
 
+### Test Failure Debugging Protocol
+
+When tests fail during development, a structured diagnostic protocol determines whether the failure is in the test, the production code, or the spec — preventing wasted fix loops (e.g., weakening a correct test to make broken code pass).
+
+- **Source-of-truth hierarchy**: Spec/Contract > Production code > Test code
+- **Rule**: Correct tests must not be weakened to accommodate buggy code; correct code must not be broken to satisfy a wrong test
+- **Protocol owner**: The `dev-team-lead` runs the diagnostic decision tree during `[MODE: review]` when test failures are present in the review input. See the dev-team-lead agent definition for the full classification table and escalation rules.
+- **Test agents report, not diagnose**: `qa-integration-tester` and `e2e-test-engineer` submit structured failure reports but do not determine whether the fault lies in code or tests — that judgment belongs to the dev-team-lead.
+
 ### Review Metrics
 
 All reviewing agents (product-architect, security-engineer, product-owner, ux-designer) must append a structured metrics block as an HTML comment at the end of every PR review body. This is invisible to GitHub readers but parsed by the orchestrator for performance tracking.

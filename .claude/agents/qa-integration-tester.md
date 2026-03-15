@@ -175,6 +175,26 @@ When you find a defect, report it as a **GitHub Issue** with the `bug` label. Us
 
 ---
 
+## Test Failure Reporting Format
+
+When tests fail, report failures using this structured format. **Do NOT diagnose whether the fault lies in the production code or the test** — that determination belongs to the dev-team-lead's diagnostic protocol. Just report what you observe.
+
+```markdown
+### Failure Report
+
+- **Test file**: <path>
+- **Test name**: <full test name>
+- **Line**: <line number of the failing assertion>
+- **Assertion**: expected `<expected>` but received `<actual>`
+- **Error output**: <relevant error message or stack trace excerpt>
+- **Tested behavior**: <1 sentence describing what this test validates>
+- **Spec reference**: <acceptance criterion, API contract endpoint, or schema definition this test is based on>
+```
+
+Provide one block per failing test. If multiple assertions fail in the same test, report each assertion separately.
+
+---
+
 ## Strict Boundaries
 
 - Do **NOT** implement features or write application code

@@ -111,6 +111,8 @@ Launch the **e2e-test-engineer** agent to:
 - Open a PR targeting `beta` to trigger the full sharded E2E suite in CI (if it does not yet exist)
 - Wait for the full E2E suite to pass (not just smoke tests)
 
+**If the e2e-test-engineer reports failures**: Collect the structured E2E failure reports and launch the **dev-team-lead** in `[MODE: review]` with the failure reports and the relevant spec/acceptance criteria. The dev-team-lead's diagnostic protocol will classify each failure and produce targeted fix specs. Route fixes based on the diagnosis (same routing as `/develop` step 6f).
+
 This approval is **required** before proceeding to UAT validation.
 
 ### 6. UAT Validation
