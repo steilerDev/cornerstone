@@ -149,6 +149,26 @@ API: `POST /api/diary-entries` returns `DiaryEntrySummary` with `id` at top leve
 Empty state uses shared.emptyState CSS module class (conditional render — use `.not.toBeVisible()` not `.toBeHidden()`).
 DiaryPage.waitForLoaded() races: timeline visible OR emptyState visible OR errorBanner visible.
 
+## Photos API Mock Must Return { photos: [] } Not [] (2026-03-15)
+
+`GET /api/photos?entityType=...&entityId=...` returns `{ photos: [] }` (wrapped object).
+`getPhotosForEntity()` in `photoApi.ts` does `.then(r => r.photos)` — if mock returns `[]`,
+`r.photos` is `undefined` → `setPhotos(undefined)` → `PhotoGrid` crashes on `photos.length`.
+ALWAYS mock photos as: `body: JSON.stringify({ photos: [] })` not `body: '[]'`.
+
+## Export API URL Bug: /diary-entries/export (not /api/) (2026-03-15)
+
+`exportDiaryPdf()` in `client/src/lib/diaryApi.ts` uses `fetch('/diary-entries/export')`
+missing `/api/` prefix. Tracked in GitHub Issue #834.
+E2E mocks for export must use `**/diary-entries/export*` (not `**/api/diary-entries/export*`)
+until the frontend bug is fixed.
+
+## waitForURL Timeout on WebKit Tablet — Use Explicit 15s (2026-03-15)
+
+`page.waitForURL('**/diary')` after `navigate(-1)` times out with default 10s
+navigationTimeout on WebKit iPad (tablet project). Fix: pass `{ timeout: 15_000 }`.
+Applied to: diary-detail.spec.ts Scenarios 2 and 3.
+
 ## Diary E2E Extended (Stories #806-#809, 2026-03-15)
 
 Files: `diary-photos-signatures.spec.ts`, `diary-automatic-events.spec.ts`, `diary-export.spec.ts`
