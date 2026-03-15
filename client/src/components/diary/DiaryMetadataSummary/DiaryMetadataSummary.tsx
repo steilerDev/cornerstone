@@ -98,10 +98,10 @@ export function DiaryMetadataSummary({ entryType, metadata }: DiaryMetadataSumma
       const m = metadata as Record<string, unknown>;
       return (
         <div className={styles.autoSummary} data-testid="auto-event-summary">
-          {m.changeSummary && <span>{String(m.changeSummary)}</span>}
-          {m.newValue && (
-            <StatusPill value={String(m.newValue) as string} />
-          )}
+          {m.changeSummary ? <span>{String(m.changeSummary)}</span> : null}
+          {m.newValue ? (
+            <StatusPill value={String(m.newValue)} />
+          ) : null}
         </div>
       );
     }

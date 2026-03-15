@@ -48,6 +48,7 @@ const baseDailyLogEntry: DiaryEntryDetail = {
   body: 'Poured concrete for the main foundation.',
   metadata: { weather: 'sunny', workersOnSite: 5 },
   isAutomatic: false,
+  isSigned: false,
   sourceEntityType: null,
   sourceEntityId: null,
   photoCount: 0,

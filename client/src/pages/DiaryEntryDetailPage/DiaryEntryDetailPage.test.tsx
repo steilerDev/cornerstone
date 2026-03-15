@@ -50,6 +50,7 @@ const baseDetail: DiaryEntryDetail = {
   body: 'Poured concrete for the main foundation.',
   metadata: null,
   isAutomatic: false,
+  isSigned: false,
   sourceEntityType: null,
   sourceEntityId: null,
   photoCount: 0,

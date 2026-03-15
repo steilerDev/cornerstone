@@ -32,6 +32,7 @@ function makeSummary(id: string, overrides: Partial<DiaryEntrySummary> = {}): Di
     body: `Body of entry ${id}`,
     metadata: null,
     isAutomatic: false,
+    isSigned: false,
     sourceEntityType: null,
     sourceEntityId: null,
     photoCount: 0,
