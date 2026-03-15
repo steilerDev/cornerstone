@@ -105,8 +105,9 @@ test.describe('Back button navigation (Scenario 2)', { tag: '@responsive' }, () 
 
       await detailPage.backButton.click();
 
-      // Should return to /diary
-      await page.waitForURL('**/diary');
+      // Should return to /diary — wait for the diary list heading to confirm navigation
+      // Using waitForURL with an explicit 15s timeout to handle slower WebKit tablet navigation
+      await page.waitForURL('**/diary', { timeout: 15_000 });
       expect(page.url()).toContain('/diary');
       // Should not be on the detail page
       expect(page.url()).not.toMatch(/\/diary\/[a-zA-Z0-9-]+$/);
@@ -146,8 +147,8 @@ test.describe('"← Back" button navigation (Scenario 3)', { tag: '@responsive' 
       // Click the back button
       await detailPage.backButton.click();
 
-      // Should return to /diary
-      await page.waitForURL('**/diary');
+      // Should return to /diary — explicit 15s to handle slower WebKit tablet navigation
+      await page.waitForURL('**/diary', { timeout: 15_000 });
       expect(page.url()).toContain('/diary');
       expect(page.url()).not.toMatch(/\/diary\/[a-zA-Z0-9-]+$/);
     } finally {
