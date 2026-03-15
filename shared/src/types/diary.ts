@@ -144,6 +144,7 @@ export interface DiaryEntrySummary {
   isSigned: boolean;
   sourceEntityType: DiarySourceEntityType | null;
   sourceEntityId: string | null;
+  sourceEntityTitle: string | null;
   photoCount: number;
   createdBy: DiaryUserSummary | null;
   createdAt: string;

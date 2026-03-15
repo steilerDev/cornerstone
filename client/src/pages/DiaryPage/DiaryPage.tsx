@@ -4,9 +4,7 @@ import type { DiaryEntryType, DiaryEntrySummary } from '@cornerstone/shared';
 import { listDiaryEntries } from '../../lib/diaryApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { DiaryFilterBar } from '../../components/diary/DiaryFilterBar/DiaryFilterBar.js';
-import { DiaryEntryTypeSwitcher } from '../../components/diary/DiaryEntryTypeSwitcher/DiaryEntryTypeSwitcher.js';
 import { DiaryDateGroup } from '../../components/diary/DiaryDateGroup/DiaryDateGroup.js';
-import { DiaryExportDialog } from '../../components/diary/DiaryExportDialog/DiaryExportDialog.js';
 import shared from '../../styles/shared.module.css';
 import styles from './DiaryPage.module.css';
 
@@ -30,7 +28,6 @@ export default function DiaryPage() {
   const [entries, setEntries] = useState<DiaryEntrySummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
-  const [showExportDialog, setShowExportDialog] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -181,13 +178,6 @@ export default function DiaryPage() {
     setSearchParams(newParams);
   };
 
-  const handleFilterModeChange = (mode: FilterMode) => {
-    const newParams = new URLSearchParams(searchParams);
-    newParams.set('filterMode', mode);
-    newParams.set('page', '1');
-    setSearchParams(newParams);
-  };
-
   const handleClearAll = () => {
     setSearchInput('');
     const newParams = new URLSearchParams();
@@ -216,7 +206,7 @@ export default function DiaryPage() {
       {error && <div className={shared.bannerError}>{error}</div>}
 
       <DiaryFilterBar
-        searchQuery={searchQuery}
+        searchQuery={searchInput}
         onSearchChange={handleSearchChange}
         dateFrom={dateFrom}
         onDateFromChange={handleDateFromChange}
@@ -228,19 +218,9 @@ export default function DiaryPage() {
       />
 
       <div className={styles.controls}>
-        <DiaryEntryTypeSwitcher value={filterMode} onChange={handleFilterModeChange} />
-        <div className={styles.actionButtons}>
-          <button
-            type="button"
-            className={`${shared.btnSecondary} ${styles.exportButton}`}
-            onClick={() => setShowExportDialog(true)}
-          >
-            📥 Export
-          </button>
-          <Link to="/diary/new" className={`${shared.btnPrimary} ${styles.createButton}`}>
-            + New Entry
-          </Link>
-        </div>
+        <Link to="/diary/new" className={`${shared.btnPrimary} ${styles.createButton}`}>
+          + New Entry
+        </Link>
       </div>
 
       {isLoading && <div className={shared.loading}>Loading entries...</div>}
@@ -306,8 +286,6 @@ export default function DiaryPage() {
         </div>
       )}
 
-      {/* Export Dialog */}
-      <DiaryExportDialog isOpen={showExportDialog} onClose={() => setShowExportDialog(false)} />
     </div>
   );
 }

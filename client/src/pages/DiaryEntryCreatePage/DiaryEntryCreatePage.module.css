@@ -153,6 +153,17 @@
   line-height: 1.5;
 }
 
+.infoNote {
+  padding: var(--spacing-3) var(--spacing-4);
+  margin-bottom: var(--spacing-4);
+  background-color: var(--color-bg-secondary);
+  border-left: 3px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
 .errorBanner {
   padding: var(--spacing-4);
   margin-bottom: var(--spacing-6);

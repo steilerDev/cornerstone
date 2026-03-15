@@ -475,6 +475,25 @@ describe('Diary Routes', () => {
     });
   });
 
+  // ─── GET /api/diary-entries/export — removed endpoint ─────────────────────
+
+  describe('GET /api/diary-entries/export', () => {
+    it('returns 404 because the export endpoint no longer exists', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'Test User', 'password');
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/diary-entries/export',
+        headers: { cookie },
+      });
+
+      // The /export route was removed in UAT fixes.
+      // Fastify interprets "export" as the :id param for GET /api/diary-entries/:id,
+      // so we get a 404 NOT_FOUND from the service (no entry with id "export").
+      expect(response.statusCode).toBe(404);
+    });
+  });
+
   // ─── DELETE /api/diary-entries/:id ────────────────────────────────────────
 
   describe('DELETE /api/diary-entries/:id', () => {

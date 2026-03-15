@@ -87,15 +87,15 @@ export function DiaryEntryCard({ entry }: DiaryEntryCardProps) {
           </span>
         )}
 
-        {route && sourceLabel && (
+        {route && (
           <Link
             to={route}
             className={styles.sourceLink}
             onClick={(e) => e.stopPropagation()}
-            title={sourceLabel}
+            title={entry.sourceEntityTitle ?? sourceLabel ?? undefined}
             data-testid={`source-link-${entry.sourceEntityId}`}
           >
-            {sourceLabel}
+            {entry.sourceEntityTitle ?? sourceLabel}
           </Link>
         )}
       </div>

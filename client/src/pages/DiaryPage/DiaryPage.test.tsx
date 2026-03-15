@@ -19,7 +19,6 @@ jest.unstable_mockModule('../../lib/diaryApi.js', () => ({
   createDiaryEntry: jest.fn(),
   updateDiaryEntry: jest.fn(),
   deleteDiaryEntry: jest.fn(),
-  exportDiaryPdf: jest.fn(),
 }));
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -36,6 +35,7 @@ function makeSummary(id: string, overrides: Partial<DiaryEntrySummary> = {}): Di
     isSigned: false,
     sourceEntityType: null,
     sourceEntityId: null,
+    sourceEntityTitle: null,
     photoCount: 0,
     createdBy: { id: 'user-1', displayName: 'Alice' },
     createdAt: '2026-03-14T09:00:00.000Z',
@@ -168,12 +168,6 @@ describe('DiaryPage', () => {
     expect(screen.getByTestId('diary-filter-bar')).toBeInTheDocument();
   });
 
-  it('renders the type switcher', async () => {
-    mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
-    renderPage();
-    expect(screen.getByRole('radiogroup', { name: /filter entries by type/i })).toBeInTheDocument();
-  });
-
   // ─── Empty state ────────────────────────────────────────────────────────────
 
   it('shows empty state when no entries exist', async () => {
@@ -285,5 +279,18 @@ describe('DiaryPage', () => {
     renderPage();
     const newEntryLink = screen.getByRole('link', { name: /new entry/i });
     expect(newEntryLink).toHaveAttribute('href', '/diary/new');
+  });
+
+  // ─── Export functionality removed ─────────────────────────────────────────
+
+  it('does not render an export or PDF button', async () => {
+    mockListDiaryEntries.mockResolvedValueOnce(makeListResponse([makeSummary('de-1')]));
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByTestId('diary-card-de-1')).toBeInTheDocument();
+    });
+    expect(screen.queryByRole('button', { name: /export/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /pdf/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /export/i })).not.toBeInTheDocument();
   });
 });

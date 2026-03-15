@@ -12,7 +12,7 @@ import { eq, desc, and, or, gte, lte, inArray, sql } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { diaryEntries, photos, users } from '../db/schema.js';
+import { diaryEntries, photos, users, workItems, invoices, milestones } from '../db/schema.js';
 import {
   NotFoundError,
   ValidationError,
@@ -77,6 +77,57 @@ function parseMetadata(metadata: string | null): DiaryEntryMetadata | null {
 }
 
 /**
+ * Resolve the title of a source entity based on its type and ID.
+ * Returns null if the entity type is null, the entity is not found, or the type is unknown.
+ */
+function resolveSourceEntityTitle(
+  db: DbType,
+  sourceEntityType: string | null,
+  sourceEntityId: string | null,
+): string | null {
+  if (!sourceEntityType || !sourceEntityId) {
+    return null;
+  }
+
+  try {
+    switch (sourceEntityType) {
+      case 'work_item': {
+        const result = db
+          .select({ title: workItems.title })
+          .from(workItems)
+          .where(eq(workItems.id, sourceEntityId))
+          .get();
+        return result?.title ?? null;
+      }
+
+      case 'invoice': {
+        const result = db
+          .select({ invoiceNumber: invoices.invoiceNumber })
+          .from(invoices)
+          .where(eq(invoices.id, sourceEntityId))
+          .get();
+        return result?.invoiceNumber ?? null;
+      }
+
+      case 'milestone': {
+        const result = db
+          .select({ title: milestones.title })
+          .from(milestones)
+          .where(eq(milestones.id, parseInt(sourceEntityId, 10)))
+          .get();
+        return result?.title ?? null;
+      }
+
+      default:
+        return null;
+    }
+  } catch {
+    // If query fails, return null
+    return null;
+  }
+}
+
+/**
  * Convert database diary entry row to DiaryEntrySummary shape.
  * Includes photo count aggregated from photos table.
  */
@@ -84,6 +135,7 @@ function toDiarySummary(
   entry: typeof diaryEntries.$inferSelect,
   user: typeof users.$inferSelect | null,
   photoCount: number,
+  sourceEntityTitle: string | null = null,
 ): DiaryEntrySummary {
   const metadata = parseMetadata(entry.metadata);
   const isSigned = Boolean(
@@ -104,6 +156,7 @@ function toDiarySummary(
     isSigned,
     sourceEntityType: entry.sourceEntityType as DiarySourceEntityType | null,
     sourceEntityId: entry.sourceEntityId,
+    sourceEntityTitle,
     photoCount,
     createdBy: toDiaryUserSummary(user),
     createdAt: entry.createdAt,
@@ -375,9 +428,15 @@ export function listDiaryEntries(
     photoCountMap = new Map(photoCounts.map((r) => [r.entityId, r.count]));
   }
 
-  const items = entryRows.map((row) =>
-    toDiarySummary(row.entry, row.user, photoCountMap.get(row.entry.id) ?? 0),
-  );
+  // Resolve source entity titles for all entries
+  const items = entryRows.map((row) => {
+    const sourceEntityTitle = resolveSourceEntityTitle(
+      db,
+      row.entry.sourceEntityType,
+      row.entry.sourceEntityId,
+    );
+    return toDiarySummary(row.entry, row.user, photoCountMap.get(row.entry.id) ?? 0, sourceEntityTitle);
+  });
 
   return {
     items,
@@ -415,7 +474,13 @@ export function getDiaryEntry(db: DbType, id: string): DiaryEntryDetail {
     .where(and(eq(photos.entityType, 'diary_entry'), eq(photos.entityId, id)))
     .get();
 
-  return toDiarySummary(row.entry, row.user, photoCount?.count ?? 0);
+  const sourceEntityTitle = resolveSourceEntityTitle(
+    db,
+    row.entry.sourceEntityType,
+    row.entry.sourceEntityId,
+  );
+
+  return toDiarySummary(row.entry, row.user, photoCount?.count ?? 0, sourceEntityTitle);
 }
 
 /**
@@ -493,6 +558,7 @@ export function createDiaryEntry(
     },
     user,
     0,
+    null,
   );
 }
 
@@ -582,7 +648,13 @@ export function updateDiaryEntry(
     .where(and(eq(photos.entityType, 'diary_entry'), eq(photos.entityId, id)))
     .get();
 
-  return toDiarySummary(row!.entry, row!.user, photoCount?.count ?? 0);
+  const sourceEntityTitle = resolveSourceEntityTitle(
+    db,
+    row!.entry.sourceEntityType,
+    row!.entry.sourceEntityId,
+  );
+
+  return toDiarySummary(row!.entry, row!.user, photoCount?.count ?? 0, sourceEntityTitle);
 }
 
 /**

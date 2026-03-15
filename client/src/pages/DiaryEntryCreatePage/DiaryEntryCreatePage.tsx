@@ -189,7 +189,7 @@ export default function DiaryEntryCreatePage() {
       });
 
       showToast('success', 'Diary entry created successfully');
-      navigate(`/diary/${entry.id}`);
+      navigate(`/diary/${entry.id}/edit`);
     } catch (err) {
       setError('Failed to create diary entry. Please try again.');
       console.error('Failed to create diary entry:', err);
@@ -275,6 +275,10 @@ export default function DiaryEntryCreatePage() {
       </div>
 
       {error && <div className={styles.errorBanner}>{error}</div>}
+
+      <div className={styles.infoNote}>
+        Photos can be added after saving.
+      </div>
 
       <form className={styles.form} onSubmit={handleSubmit}>
         <DiaryEntryForm

@@ -4,6 +4,8 @@
  * Scenarios covered:
  * 1.  Smoke: Dashboard page loads and shows h1 "Project"
  * 2.  All 10 card headings visible after data loads
+ *     (Budget Summary, Source Utilization, Upcoming Milestones, Work Item Progress,
+ *      Critical Path, Mini Gantt, Invoice Pipeline, Subsidy Pipeline, Recent Diary, Quick Actions)
  * 3.  Budget Summary card: shows available funds and remaining budget
  * 4.  Timeline cards: Upcoming Milestones, Work Item Progress, Critical Path
  * 5.  Quick Actions card: navigation links are clickable
@@ -157,6 +159,30 @@ function mockSubsidyPrograms() {
   };
 }
 
+function mockDiaryEntries() {
+  return {
+    items: [
+      {
+        id: 'diary-001',
+        entryType: 'general_note',
+        entryDate: '2026-03-14',
+        title: 'Foundation inspection complete',
+        body: 'All checks passed. Concrete mix approved.',
+        metadata: null,
+        isAutomatic: false,
+        sourceEntityType: null,
+        sourceEntityId: null,
+        sourceEntityTitle: null,
+        photoCount: 0,
+        createdBy: null,
+        createdAt: '2026-03-14T10:00:00.000Z',
+        updatedAt: '2026-03-14T10:00:00.000Z',
+      },
+    ],
+    pagination: { total: 1, page: 1, pageSize: 5, totalPages: 1, totalItems: 1 },
+  };
+}
+
 /**
  * Intercepts all dashboard data API calls and returns mock responses.
  * This ensures consistent data across all viewports and prevents flakiness
@@ -226,6 +252,18 @@ async function interceptDashboardApis(page: InstanceType<typeof DashboardPage>['
       await route.continue();
     }
   });
+
+  await page.route('**/api/diary-entries*', async (route) => {
+    if (route.request().method() === 'GET') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockDiaryEntries()),
+      });
+    } else {
+      await route.continue();
+    }
+  });
 }
 
 async function uninterceptDashboardApis(page: InstanceType<typeof DashboardPage>['page']) {
@@ -234,6 +272,7 @@ async function uninterceptDashboardApis(page: InstanceType<typeof DashboardPage>
   await page.unroute('**/api/timeline');
   await page.unroute('**/api/invoices*');
   await page.unroute('**/api/subsidy-programs');
+  await page.unroute('**/api/diary-entries*');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -268,7 +307,7 @@ test.describe('Smoke test (Scenario 1)', { tag: '@smoke' }, () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('All cards render (Scenario 2)', { tag: '@responsive' }, () => {
-  test('All 10 card headings are visible after data loads', async ({ page }) => {
+  test('All 10 card headings are visible after data loads (incl. Recent Diary)', async ({ page }) => {
     // On mobile, some cards are inside collapsed <details> sections and are not
     // all visible simultaneously. This test validates the desktop/tablet grid layout.
     const viewport = page.viewportSize();
@@ -747,10 +786,10 @@ test.describe('Keyboard navigation (Scenario 9)', () => {
       // All dismiss buttons should be focusable
       const dismissButtons = page.getByRole('button', { name: /^Hide .+ card$/ });
       const count = await dismissButtons.count();
-      // There are 9 cards defined (CARD_DEFINITIONS). Both the desktop grid and the mobile
+      // There are 10 cards defined (CARD_DEFINITIONS). Both the desktop grid and the mobile
       // sections container render cards simultaneously (CSS controls visibility), so the DOM
-      // may contain up to 18 dismiss buttons. Expect at least 9 (one per card).
-      expect(count).toBeGreaterThanOrEqual(9);
+      // may contain up to 20 dismiss buttons. Expect at least 10 (one per card).
+      expect(count).toBeGreaterThanOrEqual(10);
     } finally {
       await uninterceptDashboardApis(page);
     }
