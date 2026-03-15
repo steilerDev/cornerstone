@@ -19,6 +19,7 @@ export type DashboardCardId =
   | 'mini-gantt'
   | 'invoice-pipeline'
   | 'subsidy-pipeline'
+  | 'recent-diary'
   | 'quick-actions';
 
 /** Expected visible card titles in order. */
@@ -31,6 +32,7 @@ export const CARD_TITLES = [
   'Mini Gantt',
   'Invoice Pipeline',
   'Subsidy Pipeline',
+  'Recent Diary',
   'Quick Actions',
 ] as const;
 
@@ -160,5 +162,20 @@ export class DashboardPage {
    */
   miniGanttContainer(): Locator {
     return this.card('Mini Gantt').getByRole('button', { name: 'View full schedule' });
+  }
+
+  /**
+   * Returns the Recent Diary dashboard card article element.
+   * The card wraps a RecentDiaryCard component with entries, "View All", and "+ New Entry" links.
+   */
+  recentDiaryCard(): Locator {
+    return this.card('Recent Diary');
+  }
+
+  /**
+   * Returns the "View All" link inside the Recent Diary card that navigates to /diary.
+   */
+  recentDiaryViewAllLink(): Locator {
+    return this.recentDiaryCard().getByRole('link', { name: 'View All' });
   }
 }
