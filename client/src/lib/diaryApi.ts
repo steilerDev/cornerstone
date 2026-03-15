@@ -102,7 +102,9 @@ export async function exportDiaryPdf(params?: {
   }
 
   const queryString = queryParams.toString();
-  const path = queryString ? `/diary-entries/export?${queryString}` : '/diary-entries/export';
+  const path = queryString
+    ? `/api/diary-entries/export?${queryString}`
+    : '/api/diary-entries/export';
 
   const response = await fetch(path);
   if (!response.ok) {
