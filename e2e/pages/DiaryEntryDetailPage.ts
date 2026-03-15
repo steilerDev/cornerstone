@@ -3,17 +3,18 @@
  *
  * The page renders:
  * - A top bar with:
- *   - "← Back" button (aria-label="Go back") that calls navigate(-1)
- *   - For non-automatic entries: action buttons —
+ *   - "← Back" button (aria-label="Go back to diary") that navigates to /diary
+ *   - For non-automatic and non-signed entries: action buttons —
  *     - "Edit" link (<Link to="/diary/:id/edit">, class styles.editButton)
  *     - "Delete" button (type="button", class styles.deleteButton) — opens delete modal
+ *   - For signed entries: only "Delete" button
  * - A card container with:
  *   - A DiaryEntryTypeBadge (size="lg")
  *   - An optional h1 entry title (class styles.title) — only rendered when entry.title is set
- *   - Meta row: formatted entry date, formatted createdAt time, author display name,
- *     "Automatic" badge (when isAutomatic)
+ *   - Meta row: formatted entry date, "Automatic" badge (when isAutomatic)
  *   - Body text (class styles.body)
  *   - Optional DiaryMetadataSummary section (class styles.metadataSection)
+ *   - Optional signature sections (when metadata.signatures is non-empty)
  *   - Optional photo count paragraph (class styles.photoLabel) when photoCount > 0
  *   - Optional source entity section with a link (class styles.sourceSection)
  *   - Timestamps footer (Created / Updated)
@@ -27,10 +28,10 @@
  *   - "Delete Entry" / "Deleting..." confirm button (hidden when deleteError is set)
  *
  * Key DOM observations from source code:
- * - Back button: aria-label="Go back" — use getByLabel('Go back')
+ * - Back button: aria-label="Go back to diary" — use getByLabel('Go back to diary')
  * - Edit button: <Link> (anchor), use getByRole('link', { name: 'Edit' })
  * - Delete button (page): <button>, use getByRole('button', { name: 'Delete' })
- * - Action buttons (Edit + Delete) only rendered for non-automatic entries
+ * - Action buttons visibility depends on entry.isAutomatic and entry.isSigned
  * - Entry title: only rendered if entry.title is non-null/non-empty
  * - "Back to Diary" is a <Link> (anchor), not a <button>
  * - Error div uses shared.bannerError CSS class
@@ -85,9 +86,6 @@ export class DiaryEntryDetailPage {
 
   // Signature section
   readonly signatureSection: Locator;
-
-  // Print button
-  readonly printButton: Locator;
 
   // Source entity section
   readonly sourceSection: Locator;
@@ -155,9 +153,6 @@ export class DiaryEntryDetailPage {
     // Signature section — rendered when entry.metadata.signatures is non-empty.
     // Use first() as a precaution if multiple signatures are present.
     this.signatureSection = page.locator('[class*="signatureSection"]').first();
-
-    // Print button — "🖨️ Print"
-    this.printButton = page.getByRole('button', { name: /Print/i });
 
     // Source entity section
     this.sourceSection = page.locator('[class*="sourceSection"]');

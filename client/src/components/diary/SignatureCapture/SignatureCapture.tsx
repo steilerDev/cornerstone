@@ -49,14 +49,19 @@ export function SignatureCapture({
       if (ctx) {
         ctx.scale(dpr, dpr);
 
-        // Fill canvas with white background for signatures
-        ctx.fillStyle = 'white';
+        // Get CSS variable colors for dark mode support
+        const computedStyle = getComputedStyle(canvas);
+        const bgColor = computedStyle.getPropertyValue('--color-bg-primary').trim() || '#ffffff';
+        const strokeColor = computedStyle.getPropertyValue('--color-text-primary').trim() || '#000000';
+
+        // Fill canvas with background color from CSS variables
+        ctx.fillStyle = bgColor;
         ctx.fillRect(0, 0, rect.width, rect.height);
 
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         ctx.lineWidth = 2;
-        ctx.strokeStyle = '#000000'; // Always use black for signature strokes
+        ctx.strokeStyle = strokeColor;
 
         // Draw signature line if no signature yet
         if (!signature) {
@@ -126,8 +131,8 @@ export function SignatureCapture({
 
     const rect = canvas.getBoundingClientRect();
     return {
-      x: (e.clientX - rect.left) * (canvas.width / rect.width),
-      y: (e.clientY - rect.top) * (canvas.height / rect.height),
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
     };
   };
 
@@ -138,8 +143,8 @@ export function SignatureCapture({
     const rect = canvas.getBoundingClientRect();
     const touch = e.touches[0];
     return {
-      x: (touch.clientX - rect.left) * (canvas.width / rect.width),
-      y: (touch.clientY - rect.top) * (canvas.height / rect.height),
+      x: touch.clientX - rect.left,
+      y: touch.clientY - rect.top,
     };
   };
 

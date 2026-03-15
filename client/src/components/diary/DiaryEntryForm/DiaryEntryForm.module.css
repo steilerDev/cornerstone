@@ -250,6 +250,13 @@
   max-width: 220px;
 }
 
+/* Tablet width fix */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .dateInput {
+    max-width: 100%;
+  }
+}
+
 /* Responsive */
 @media (max-width: 767px) {
   .dateInput {

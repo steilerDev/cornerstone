@@ -155,15 +155,12 @@ export default function DiaryEntryDetailPage() {
         <button
           type="button"
           className={styles.backButton}
-          onClick={() => navigate(-1)}
-          aria-label="Go back"
+          onClick={() => navigate('/diary')}
+          aria-label="Go back to diary"
         >
           ← Back
         </button>
         <div className={styles.actionButtons}>
-          <button type="button" className={styles.printButton} onClick={() => window.print()}>
-            🖨️ Print
-          </button>
           {!entry.isAutomatic && !entry.isSigned && (
             <>
               <Link to={`/diary/${entry.id}/edit`} className={styles.editButton}>
@@ -178,6 +175,15 @@ export default function DiaryEntryDetailPage() {
               </button>
             </>
           )}
+          {entry.isSigned && (
+            <button
+              type="button"
+              className={styles.deleteButton}
+              onClick={() => setShowDeleteModal(true)}
+            >
+              Delete
+            </button>
+          )}
         </div>
       </div>
 
@@ -190,10 +196,6 @@ export default function DiaryEntryDetailPage() {
             {entry.title && <h1 className={styles.title}>{entry.title}</h1>}
             <div className={styles.meta}>
               <span className={styles.date}>{formatDate(entry.entryDate)}</span>
-              <span className={styles.time}>{formatDateTime(entry.createdAt)}</span>
-              {entry.createdBy && (
-                <span className={styles.author}>by {entry.createdBy.displayName}</span>
-              )}
               {entry.isAutomatic && <span className={styles.badge}>Automatic</span>}
             </div>
           </div>
@@ -230,7 +232,7 @@ export default function DiaryEntryDetailPage() {
           {photosResult.photos.length === 0 ? (
             <div className={styles.photoEmptyState}>
               <p>No photos attached yet.</p>
-              {!entry.isAutomatic && !entry.isSigned && (
+              {!entry.isAutomatic && (
                 <Link to={`/diary/${entry.id}/edit`} className={styles.addPhotoLink}>
                   Add photos
                 </Link>
@@ -262,7 +264,11 @@ export default function DiaryEntryDetailPage() {
         {entry.sourceEntityType && entry.sourceEntityId && (
           <div className={styles.sourceSection}>
             <p className={styles.sourceLabel}>Related to:</p>
-            <SourceEntityLink sourceType={entry.sourceEntityType} sourceId={entry.sourceEntityId} />
+            <SourceEntityLink
+              sourceType={entry.sourceEntityType}
+              sourceId={entry.sourceEntityId}
+              sourceTitle={entry.sourceEntityTitle}
+            />
           </div>
         )}
 
@@ -331,9 +337,10 @@ export default function DiaryEntryDetailPage() {
 interface SourceEntityLinkProps {
   sourceType: string;
   sourceId: string;
+  sourceTitle?: string | null;
 }
 
-function SourceEntityLink({ sourceType, sourceId }: SourceEntityLinkProps) {
+function SourceEntityLink({ sourceType, sourceId, sourceTitle }: SourceEntityLinkProps) {
   const getRoute = (): string | null => {
     switch (sourceType) {
       case 'work_item':
@@ -351,7 +358,7 @@ function SourceEntityLink({ sourceType, sourceId }: SourceEntityLinkProps) {
     }
   };
 
-  const getLabel = (): string => {
+  const getDefaultLabel = (): string => {
     switch (sourceType) {
       case 'work_item':
         return 'Work Item';
@@ -369,7 +376,7 @@ function SourceEntityLink({ sourceType, sourceId }: SourceEntityLinkProps) {
   };
 
   const route = getRoute();
-  const label = getLabel();
+  const label = sourceTitle ?? getDefaultLabel();
 
   if (!route) {
     return <span>{label}</span>;
