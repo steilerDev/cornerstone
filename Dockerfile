@@ -1,26 +1,27 @@
 # =============================================================================
 # Cornerstone - Multi-stage Docker build
 # =============================================================================
-# Stage 1 (client-builder): Runs on the BUILD HOST's native arch to avoid
-#   QEMU emulation. Installs pure-JS deps and builds shared types + client
-#   (webpack). No native addons needed — better-sqlite3 is skipped via
+# Stage 1 (app-builder): Runs on the BUILD HOST's native arch to avoid
+#   QEMU emulation. Installs pure-JS deps and builds everything that produces
+#   platform-independent output: shared types (tsc), client (webpack), and
+#   server (tsc). No native addons needed — better-sqlite3 is skipped via
 #   --ignore-scripts.
-# Stage 2 (builder): Runs on the TARGET arch (may use QEMU for ARM64).
-#   Installs deps with native addons (better-sqlite3), copies pre-built
-#   shared/client from stage 1, builds server (tsc only — lightweight).
+# Stage 2 (deps): Runs on the TARGET arch to install production deps with
+#   native addons. better-sqlite3 v12+ ships prebuilt binaries for
+#   linuxmusl-arm64, so no compilation tools are needed — prebuild-install
+#   downloads the correct binary during postinstall.
 # Stage 3 (production): Minimal runtime image, no npm/build tools/shell.
 # =============================================================================
 # Standard build: docker build -t cornerstone .
 # =============================================================================
 
 # ---------------------------------------------------------------------------
-# Stage 1: Client builder (native arch — no QEMU)
+# Stage 1: App builder (native arch — no QEMU)
 # ---------------------------------------------------------------------------
 # $BUILDPLATFORM resolves to the Docker host's native architecture (e.g.
-# linux/amd64 on GitHub Actions), so webpack runs without QEMU emulation.
-# This avoids intermittent "Illegal instruction" crashes (exit code 132)
-# caused by V8 JIT generating code that QEMU's ARM64 emulation can't handle.
-FROM --platform=$BUILDPLATFORM dhi.io/node:24-alpine3.23-dev AS client-builder
+# linux/amd64 on GitHub Actions), so webpack and tsc run without QEMU
+# emulation. All build output is platform-independent JS/CSS/HTML.
+FROM --platform=$BUILDPLATFORM dhi.io/node:24-alpine3.23-dev AS app-builder
 
 WORKDIR /app
 
@@ -32,7 +33,7 @@ COPY client/package.json client/
 
 # Install all dependencies, skipping postinstall scripts. This avoids
 # compiling better-sqlite3 (the only native addon) — it's not needed for
-# shared (tsc) or client (webpack) builds.
+# any build step (tsc/webpack produce platform-independent output).
 RUN --mount=type=cache,target=/root/.npm npm ci --ignore-scripts
 
 # Stamp the release version into package.json (webpack's DefinePlugin reads
@@ -40,23 +41,25 @@ RUN --mount=type=cache,target=/root/.npm npm ci --ignore-scripts
 ARG APP_VERSION=0.0.0-dev
 RUN npm pkg set "version=${APP_VERSION}"
 
-# Copy source for shared and client only (server not needed here)
+# Copy all source (shared, client, server)
 COPY tsconfig.base.json ./
 COPY shared/ shared/
 COPY client/ client/
+COPY server/ server/
 
-# Build shared types (tsc), then client (webpack)
-RUN npm run build -w shared && npm run build -w client
+# Build everything: shared types (tsc) → client (webpack) → server (tsc)
+# All output is platform-independent JS — safe to run on build host's arch.
+RUN npm run build -w shared && npm run build -w client && npm run build -w server
 
 # ---------------------------------------------------------------------------
-# Stage 2: Server builder (target arch — may use QEMU for ARM64)
+# Stage 2: Production dependencies (target arch)
 # ---------------------------------------------------------------------------
-FROM dhi.io/node:24-alpine3.23-dev AS builder
+# Runs on target platform so prebuild-install downloads the correct
+# architecture's prebuilt binary for better-sqlite3. No build tools needed —
+# the prebuild is fetched from GitHub Releases, not compiled.
+FROM dhi.io/node:24-alpine3.23-dev AS deps
 
 WORKDIR /app
-
-# Install build tools for better-sqlite3 native addon compilation
-RUN apk update && apk add --no-cache build-base python3
 
 # Copy package files for dependency installation
 COPY package.json package-lock.json ./
@@ -65,30 +68,10 @@ COPY server/package.json server/
 COPY client/package.json client/
 COPY docs/package.json docs/
 
-# Install all dependencies (including devDependencies for build).
-# Native addons (better-sqlite3) auto-detect musl libc and compile from
-# source when no matching prebuild is available — no --build-from-source needed.
-RUN --mount=type=cache,target=/root/.npm npm ci
-
-# Stamp the release version into package.json
-ARG APP_VERSION=0.0.0-dev
-RUN npm pkg set "version=${APP_VERSION}"
-
-# Copy pre-built shared types and client bundle from stage 1.
-# shared/tsconfig.json is needed for the server's project reference resolution.
-COPY --from=client-builder /app/shared/dist/ shared/dist/
-COPY --from=client-builder /app/client/dist/ client/dist/
-COPY shared/tsconfig.json shared/
-
-# Copy server source and base tsconfig (needed for tsc)
-COPY tsconfig.base.json ./
-COPY server/ server/
-
-# Build server only (tsc — lightweight, QEMU-safe)
-RUN npm run build -w server
-
-# Remove devDependencies, preserve built artifacts and compiled native addons
-RUN npm prune --omit=dev
+# Install production dependencies only. better-sqlite3's postinstall
+# (prebuild-install) downloads the matching prebuilt .node binary for the
+# target platform — no compilation, no build-base/python3 needed.
+RUN --mount=type=cache,target=/root/.npm npm ci --omit=dev
 
 # ---------------------------------------------------------------------------
 # Stage 3: Production (no shell — exec form only)
@@ -100,8 +83,8 @@ WORKDIR /app/data
 WORKDIR /app
 
 # Copy runtime libraries needed by native addons (better-sqlite3 requires libgcc/libstdc++)
-COPY --from=builder /usr/lib/libgcc_s.so.1 /usr/lib/
-COPY --from=builder /usr/lib/libstdc++.so.6* /usr/lib/
+COPY --from=deps /usr/lib/libgcc_s.so.1 /usr/lib/
+COPY --from=deps /usr/lib/libstdc++.so.6* /usr/lib/
 
 # Copy package files (needed for workspace resolution)
 COPY package.json ./
@@ -110,18 +93,18 @@ COPY server/package.json server/
 COPY client/package.json client/
 COPY docs/package.json docs/
 
-# Copy production node_modules from builder (npm hoists most deps to root,
+# Copy production node_modules from deps (npm hoists most deps to root,
 # but some may remain in workspace-specific node_modules due to version constraints)
-COPY --from=builder /app/node_modules/ node_modules/
-COPY --from=builder /app/server/node_modules/ server/node_modules/
+COPY --from=deps /app/node_modules/ node_modules/
+COPY --from=deps /app/server/node_modules/ server/node_modules/
 
-# Copy built artifacts from builder
-COPY --from=builder /app/shared/dist/ shared/dist/
-COPY --from=builder /app/server/dist/ server/dist/
-COPY --from=builder /app/client/dist/ client/dist/
+# Copy built artifacts from app-builder
+COPY --from=app-builder /app/shared/dist/ shared/dist/
+COPY --from=app-builder /app/server/dist/ server/dist/
+COPY --from=app-builder /app/client/dist/ client/dist/
 
 # Copy SQL migration files (tsc does not copy non-TS assets)
-COPY --from=builder /app/server/src/db/migrations/ server/dist/db/migrations/
+COPY --from=app-builder /app/server/src/db/migrations/ server/dist/db/migrations/
 
 # Expose server port
 EXPOSE 3000

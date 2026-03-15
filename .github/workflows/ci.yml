@@ -175,8 +175,8 @@ jobs:
           load: true
           tags: cornerstone:e2e
           build-args: APP_VERSION=pr-${{ github.event.pull_request.number }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=linux/amd64
+          cache-to: type=gha,mode=max,scope=linux/amd64
 
       - name: Save image
         run: docker save cornerstone:e2e -o cornerstone-e2e.tar
