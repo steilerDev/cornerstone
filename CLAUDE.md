@@ -97,13 +97,13 @@ The orchestrator uses four skills to drive work. Each skill contains the full op
 
 ## Acceptance & Validation
 
-Every epic follows a two-phase validation lifecycle. **Development phase** (`/develop`): PO defines acceptance criteria, QA + E2E + security review each story/bug PR — PRs auto-merge after CI green + all reviewers approved. **Epic validation phase** (`/epic-close`): refinement, E2E coverage confirmation, UAT scenarios fed to e2e-test-engineer, docs update, promotion. Use `/epic-run` to execute the entire lifecycle in a single session. The only human gate is promotion from `beta` → `main`, where the user reviews a comprehensive summary with change inventory, validation report, and manual validation checklist.
+Every epic follows a two-phase validation lifecycle. **Development phase** (`/develop`): PO defines acceptance criteria, QA + E2E + security review each story/bug PR — PRs auto-merge after CI green + all reviewers approved. **Epic validation phase** (`/epic-close`): refinement, E2E coverage confirmation, UAT scenarios fed to e2e-test-engineer, promotion, then docs update. Use `/epic-run` to execute the entire lifecycle in a single session. The only human gate is promotion from `beta` → `main`, where the user reviews a comprehensive summary with change inventory, validation report, and manual validation checklist. If the user provides feedback via `/tmp/notes.md`, fixes are applied autonomously (PO groups items into issues, `/develop` fixes each group) and the promotion PR is re-created — looping until the user approves. Documentation runs after approval to reflect the final state.
 
 ### Key Rules
 
 - **User approval required for promotion** — the user is the final authority on `beta` → `main` promotion
 - **Automated before manual** — all automated tests must be green before the user validates
-- **Iterate until right** — failed validation triggers a fix-and-revalidate loop
+- **Iterate until right** — failed validation triggers a fix-and-revalidate loop (user writes feedback to `/tmp/notes.md`, system fixes autonomously and re-presents)
 - **Acceptance criteria live on GitHub Issues** — stored on story issues, summarized on promotion PRs
 - **Security review required** — the `security-engineer` must review every story PR
 - **Test agents own all tests** — `qa-integration-tester` owns unit and integration tests; `e2e-test-engineer` owns Playwright E2E browser tests. Developer agents do not write tests.

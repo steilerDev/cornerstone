@@ -174,12 +174,12 @@ Execute `/epic-close` steps 2 through 13 in order. Step 1 (Rebase) is skipped �
 - **Step 4** (Refinement PR)
 - **Step 5** (E2E Validation)
 - **Step 6** (UAT Validation)
-- **Step 7** (Documentation)
-- **Step 8** (Branch Sync)
-- **Step 9** (Epic Promotion)
-- **Step 10** (Post Detailed UAT Criteria)
-- **Step 11** (CI Gate)
-- **Step 12** (User Approval) — **mandatory human gate**
+- **Step 7** (Branch Sync)
+- **Step 8** (Epic Promotion)
+- **Step 9** (Post Detailed UAT Criteria)
+- **Step 10** (CI Gate)
+- **Step 11** (Promotion Approval Loop) — **mandatory human gate** with autonomous feedback fix loop
+- **Step 12** (Documentation & Env Drift Check) — runs after user approval
 - **Step 13** (Merge & Post-Merge)
 
 If any step in `/epic-close` references "failed stories" or "excluded stories", use the `failedStories` list from Phase 2.
