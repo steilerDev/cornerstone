@@ -65,6 +65,12 @@ export class DiaryPage {
   readonly prevPageButton: Locator;
   readonly nextPageButton: Locator;
 
+  // Export button — "📥 Export" on the diary list page
+  readonly exportButton: Locator;
+
+  // Export dialog
+  readonly exportDialog: Locator;
+
   // Mobile filter toggle button (visible only on mobile, aria-label="Toggle filters")
   readonly mobileFilterToggle: Locator;
 
@@ -80,6 +86,11 @@ export class DiaryPage {
     this.dateFromInput = page.getByTestId('diary-date-from');
     this.dateToInput = page.getByTestId('diary-date-to');
     this.clearFiltersButton = page.getByTestId('clear-filters-button');
+
+    // Export button — "📥 Export" — a <button> in the diary page header
+    this.exportButton = page.getByRole('button', { name: /Export/i });
+    // Export dialog — role="dialog", aria-labelledby="export-modal-title"
+    this.exportDialog = page.getByRole('dialog', { name: /Export/i });
 
     this.mobileFilterToggle = page.getByRole('button', { name: 'Toggle filters' });
 
@@ -149,6 +160,14 @@ export class DiaryPage {
    */
   typeFilterChip(type: string): Locator {
     return this.page.getByTestId(`type-filter-${type}`);
+  }
+
+  /**
+   * Get the photo count badge on an entry card.
+   * data-testid="photo-count-{id}" — visible only when photoCount > 0.
+   */
+  photoCountBadge(entryId: string): Locator {
+    return this.page.getByTestId(`photo-count-${entryId}`);
   }
 
   /**

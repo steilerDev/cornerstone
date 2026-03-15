@@ -148,14 +148,15 @@ export class DiaryEntryEditPage {
 
   /**
    * Save the form by clicking "Save Changes".
-   * Waits for the API PUT response before returning so callers can
+   * Waits for the API PATCH response before returning so callers can
    * then assert navigation or UI state.
-   * The API contract specifies PUT /api/diary-entries/:id for updates.
+   * The API contract specifies PATCH /api/diary-entries/:id for updates
+   * (changed from PUT in PR #830 refinement).
    * No explicit timeout — uses project-level navigationTimeout.
    */
   async save(): Promise<void> {
     const responsePromise = this.page.waitForResponse(
-      (resp) => resp.url().includes('/api/diary-entries/') && resp.request().method() === 'PUT',
+      (resp) => resp.url().includes('/api/diary-entries/') && resp.request().method() === 'PATCH',
     );
     await this.submitButton.click();
     await responsePromise;
