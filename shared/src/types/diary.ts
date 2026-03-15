@@ -27,12 +27,20 @@ export type AutomaticDiaryEntryType =
   | 'milestone_delay'
   | 'budget_breach'
   | 'auto_reschedule'
-  | 'subsidy_status';
+  | 'subsidy_status'
+  | 'invoice_created';
 
 /** All diary entry types. */
 export type DiaryEntryType = ManualDiaryEntryType | AutomaticDiaryEntryType;
 
 // ─── Metadata Shapes (per entry type) ─────────────────────────────────────────
+
+/** Signature entry in diary metadata. */
+export interface DiarySignatureEntry {
+  signerName: string;
+  signerType: 'self' | 'vendor';
+  signatureDataUrl: string;
+}
 
 /** Weather conditions for daily logs. */
 export type DiaryWeather = 'sunny' | 'cloudy' | 'rainy' | 'snowy' | 'stormy' | 'other';
@@ -51,16 +59,14 @@ export interface DailyLogMetadata {
   weather?: DiaryWeather | null;
   temperatureCelsius?: number | null;
   workersOnSite?: number | null;
-  hasSignature?: boolean;
-  signatureDataUrl?: string | null;
+  signatures?: DiarySignatureEntry[] | null;
 }
 
 /** Metadata for site_visit entries. */
 export interface SiteVisitMetadata {
   inspectorName?: string | null;
   outcome?: DiaryInspectionOutcome | null;
-  hasSignature?: boolean;
-  signatureDataUrl?: string | null;
+  signatures?: DiarySignatureEntry[] | null;
 }
 
 /** Metadata for delivery entries. */
@@ -89,6 +95,12 @@ export interface AutoEventMetadata {
   previousValue?: string | null;
   /** New value (for status changes). */
   newValue?: string | null;
+  /** Target date for milestone (used in milestone delay events). */
+  targetDate?: string;
+  /** Projected date for milestone (used in milestone delay events). */
+  projectedDate?: string;
+  /** Number of days delayed (used in milestone delay events). */
+  delayDays?: number;
   /** Additional type-specific data. */
   [key: string]: unknown;
 }
@@ -129,6 +141,7 @@ export interface DiaryEntrySummary {
   body: string;
   metadata: DiaryEntryMetadata | null;
   isAutomatic: boolean;
+  isSigned: boolean;
   sourceEntityType: DiarySourceEntityType | null;
   sourceEntityId: string | null;
   photoCount: number;

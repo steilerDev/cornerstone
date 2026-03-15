@@ -7,6 +7,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import type * as DiaryApiTypes from '../../lib/diaryApi.js';
 import type { DiaryEntryListResponse, DiaryEntrySummary } from '@cornerstone/shared';
+import type React from 'react';
 
 // ── API mock ──────────────────────────────────────────────────────────────────
 
@@ -32,6 +33,7 @@ function makeSummary(id: string, overrides: Partial<DiaryEntrySummary> = {}): Di
     body: `Body of entry ${id}`,
     metadata: null,
     isAutomatic: false,
+    isSigned: false,
     sourceEntityType: null,
     sourceEntityId: null,
     photoCount: 0,

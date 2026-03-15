@@ -83,14 +83,23 @@ function toDiarySummary(
   user: typeof users.$inferSelect | null,
   photoCount: number,
 ): DiaryEntrySummary {
+  const metadata = parseMetadata(entry.metadata);
+  const isSigned = Boolean(
+    metadata &&
+      'signatures' in metadata &&
+      Array.isArray(metadata.signatures) &&
+      metadata.signatures.length > 0,
+  );
+
   return {
     id: entry.id,
     entryType: entry.entryType as any,
     entryDate: entry.entryDate,
     title: entry.title,
     body: entry.body,
-    metadata: parseMetadata(entry.metadata),
+    metadata,
     isAutomatic: entry.isAutomatic,
+    isSigned,
     sourceEntityType: entry.sourceEntityType as any,
     sourceEntityId: entry.sourceEntityId,
     photoCount,
@@ -138,9 +147,28 @@ function validateMetadata(
           );
         }
       }
-      // Validate hasSignature is boolean
-      if (dlm.hasSignature !== undefined && typeof dlm.hasSignature !== 'boolean') {
-        throw new InvalidMetadataError('daily_log hasSignature must be a boolean');
+      // Validate signatures array
+      if (dlm.signatures !== undefined && dlm.signatures !== null) {
+        if (!Array.isArray(dlm.signatures)) {
+          throw new InvalidMetadataError('daily_log signatures must be an array or null');
+        }
+        for (const sig of dlm.signatures) {
+          if (typeof sig.signerName !== 'string' || sig.signerName.trim().length === 0) {
+            throw new InvalidMetadataError(
+              'daily_log signature entry must have non-empty signerName',
+            );
+          }
+          if (!['self', 'vendor'].includes(sig.signerType)) {
+            throw new InvalidMetadataError(
+              'daily_log signature entry signerType must be "self" or "vendor"',
+            );
+          }
+          if (typeof sig.signatureDataUrl !== 'string' || sig.signatureDataUrl.trim().length === 0) {
+            throw new InvalidMetadataError(
+              'daily_log signature entry must have non-empty signatureDataUrl',
+            );
+          }
+        }
       }
       break;
     }
@@ -162,9 +190,28 @@ function validateMetadata(
           );
         }
       }
-      // Validate hasSignature is boolean
-      if (svm.hasSignature !== undefined && typeof svm.hasSignature !== 'boolean') {
-        throw new InvalidMetadataError('site_visit hasSignature must be a boolean');
+      // Validate signatures array
+      if (svm.signatures !== undefined && svm.signatures !== null) {
+        if (!Array.isArray(svm.signatures)) {
+          throw new InvalidMetadataError('site_visit signatures must be an array or null');
+        }
+        for (const sig of svm.signatures) {
+          if (typeof sig.signerName !== 'string' || sig.signerName.trim().length === 0) {
+            throw new InvalidMetadataError(
+              'site_visit signature entry must have non-empty signerName',
+            );
+          }
+          if (!['self', 'vendor'].includes(sig.signerType)) {
+            throw new InvalidMetadataError(
+              'site_visit signature entry signerType must be "self" or "vendor"',
+            );
+          }
+          if (typeof sig.signatureDataUrl !== 'string' || sig.signatureDataUrl.trim().length === 0) {
+            throw new InvalidMetadataError(
+              'site_visit signature entry must have non-empty signatureDataUrl',
+            );
+          }
+        }
       }
       break;
     }
@@ -443,6 +490,18 @@ export function updateDiaryEntry(
   // Cannot update automatic entries
   if (entry.isAutomatic) {
     throw new ImmutableEntryError();
+  }
+
+  // Cannot update signed entries
+  const metadata = parseMetadata(entry.metadata);
+  const isSigned = Boolean(
+    metadata &&
+      'signatures' in metadata &&
+      Array.isArray(metadata.signatures) &&
+      metadata.signatures.length > 0,
+  );
+  if (isSigned) {
+    throw new ImmutableEntryError('Signed diary entries cannot be modified');
   }
 
   // Validate body if provided

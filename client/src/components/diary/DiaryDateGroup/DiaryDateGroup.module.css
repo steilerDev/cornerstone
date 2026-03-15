@@ -17,6 +17,21 @@
   gap: var(--spacing-3);
 }
 
+.automaticSection {
+  margin-top: var(--spacing-6);
+  padding-top: var(--spacing-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.automaticHeader {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 var(--spacing-3) 0;
+}
+
 /* Responsive */
 @media (max-width: 767px) {
   .group {

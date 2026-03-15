@@ -298,6 +298,7 @@ export type {
   DiaryInspectionOutcome,
   DiaryIssueSeverity,
   DiaryIssueResolution,
+  DiarySignatureEntry,
   DailyLogMetadata,
   SiteVisitMetadata,
   DeliveryMetadata,

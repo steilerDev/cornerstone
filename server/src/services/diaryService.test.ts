@@ -305,7 +305,7 @@ describe('diaryService', () => {
     });
 
     it('stores metadata as JSON and returns it parsed', () => {
-      const metadata = { weather: 'sunny', workersOnSite: 3, hasSignature: true };
+      const metadata = { weather: 'sunny', workersOnSite: 3 };
       const request: CreateDiaryEntryRequest = {
         entryType: 'daily_log',
         entryDate: '2026-03-14',
@@ -473,7 +473,6 @@ describe('diaryService', () => {
           weather: 'sunny',
           temperatureCelsius: 22,
           workersOnSite: 4,
-          hasSignature: true,
         },
       };
       expect(() => createDiaryEntry(db, testUserId, request)).not.toThrow();
@@ -485,16 +484,6 @@ describe('diaryService', () => {
         entryDate: '2026-03-14',
         body: 'Bad weather',
         metadata: { weather: 'tornado' } as any,
-      };
-      expect(() => createDiaryEntry(db, testUserId, request)).toThrow(InvalidMetadataError);
-    });
-
-    it('daily_log: rejects non-boolean hasSignature', () => {
-      const request: CreateDiaryEntryRequest = {
-        entryType: 'daily_log',
-        entryDate: '2026-03-14',
-        body: 'Signature test',
-        metadata: { hasSignature: 'yes' } as any,
       };
       expect(() => createDiaryEntry(db, testUserId, request)).toThrow(InvalidMetadataError);
     });

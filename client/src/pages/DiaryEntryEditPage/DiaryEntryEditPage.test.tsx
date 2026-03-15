@@ -23,11 +23,16 @@ jest.unstable_mockModule('../../lib/diaryApi.js', () => ({
   deleteDiaryEntry: mockDeleteDiaryEntry,
 }));
 
+// Stable mock references — hoisted so useToast() returns the same function identity
+// on every render, preventing infinite re-render loops in useEffect dependency arrays.
+const mockShowToast = jest.fn();
+const mockDismissToast = jest.fn();
+
 // Mock ToastContext so useToast() works without a real ToastProvider.
 // This avoids the dual-React instance issue caused by statically importing ToastProvider
 // while the page component is dynamically imported (which loads its own React instance).
 jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({
-  useToast: () => ({ toasts: [], showToast: jest.fn(), dismissToast: jest.fn() }),
+  useToast: () => ({ toasts: [], showToast: mockShowToast, dismissToast: mockDismissToast }),
   ToastProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
@@ -48,6 +53,7 @@ const baseDailyLogEntry: DiaryEntryDetail = {
   body: 'Poured concrete for the main foundation.',
   metadata: { weather: 'sunny', workersOnSite: 5 },
   isAutomatic: false,
+  isSigned: false,
   sourceEntityType: null,
   sourceEntityId: null,
   photoCount: 0,

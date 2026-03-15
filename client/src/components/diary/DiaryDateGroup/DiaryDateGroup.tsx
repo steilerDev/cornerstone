@@ -19,14 +19,28 @@ function formatDateHeader(dateString: string): string {
 }
 
 export function DiaryDateGroup({ date, entries }: DiaryDateGroupProps) {
+  const manualEntries = entries.filter((e) => !e.isAutomatic);
+  const automaticEntries = entries.filter((e) => e.isAutomatic);
+
   return (
     <section className={styles.group} data-testid={`date-group-${date}`}>
       <h2 className={styles.dateHeader}>{formatDateHeader(date)}</h2>
       <div className={styles.entriesList}>
-        {entries.map((entry) => (
+        {manualEntries.map((entry) => (
           <DiaryEntryCard key={entry.id} entry={entry} />
         ))}
       </div>
+
+      {automaticEntries.length > 0 && (
+        <div className={styles.automaticSection}>
+          <h3 className={styles.automaticHeader}>Automatic events</h3>
+          <div className={styles.entriesList}>
+            {automaticEntries.map((entry) => (
+              <DiaryEntryCard key={entry.id} entry={entry} />
+            ))}
+          </div>
+        </div>
+      )}
     </section>
   );
 }

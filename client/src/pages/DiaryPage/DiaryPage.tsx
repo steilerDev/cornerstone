@@ -96,6 +96,7 @@ export default function DiaryPage() {
             : ([
                 'work_item_status',
                 'invoice_status',
+                'invoice_created',
                 'milestone_delay',
                 'budget_breach',
                 'auto_reschedule',
@@ -245,7 +246,15 @@ export default function DiaryPage() {
       {isLoading && <div className={shared.loading}>Loading entries...</div>}
 
       {!isLoading && entries.length === 0 && (
-        <div className={shared.emptyState}>
+        <div
+          className={shared.emptyState}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 'var(--spacing-3)',
+          }}
+        >
           <p>No diary entries yet.</p>
           <Link to="/diary/new" className={shared.btnPrimary}>
             Create your first entry

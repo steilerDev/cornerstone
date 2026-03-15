@@ -11,9 +11,11 @@ import type {
   SiteVisitMetadata,
   DeliveryMetadata,
   IssueMetadata,
+  DiarySignatureEntry,
 } from '@cornerstone/shared';
 import { createDiaryEntry } from '../../lib/diaryApi.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
+import shared from '../../styles/shared.module.css';
 import { DiaryEntryForm } from '../../components/diary/DiaryEntryForm/DiaryEntryForm.js';
 import styles from './DiaryEntryCreatePage.module.css';
 
@@ -64,12 +66,12 @@ export default function DiaryEntryCreatePage() {
   const [dailyLogWeather, setDailyLogWeather] = useState<DiaryWeather | null>(null);
   const [dailyLogTemperature, setDailyLogTemperature] = useState<number | null>(null);
   const [dailyLogWorkers, setDailyLogWorkers] = useState<number | null>(null);
-  const [dailyLogSignature, setDailyLogSignature] = useState<string | null>(null);
+  const [dailyLogSignatures, setDailyLogSignatures] = useState<DiarySignatureEntry[] | null>(null);
 
   // site_visit metadata
   const [siteVisitInspectorName, setSiteVisitInspectorName] = useState<string | null>(null);
   const [siteVisitOutcome, setSiteVisitOutcome] = useState<DiaryInspectionOutcome | null>(null);
-  const [siteVisitSignature, setSiteVisitSignature] = useState<string | null>(null);
+  const [siteVisitSignatures, setSiteVisitSignatures] = useState<DiarySignatureEntry[] | null>(null);
 
   // delivery metadata
   const [deliveryVendor, setDeliveryVendor] = useState<string | null>(null);
@@ -126,10 +128,7 @@ export default function DiaryEntryCreatePage() {
       if (dailyLogWeather) metadata.weather = dailyLogWeather;
       if (dailyLogTemperature !== null) metadata.temperatureCelsius = dailyLogTemperature;
       if (dailyLogWorkers !== null) metadata.workersOnSite = dailyLogWorkers;
-      if (dailyLogSignature) {
-        metadata.hasSignature = true;
-        metadata.signatureDataUrl = dailyLogSignature;
-      }
+      if (dailyLogSignatures && dailyLogSignatures.length > 0) metadata.signatures = dailyLogSignatures;
       return Object.keys(metadata).length > 0 ? metadata : null;
     }
 
@@ -137,10 +136,7 @@ export default function DiaryEntryCreatePage() {
       const metadata: SiteVisitMetadata = {};
       if (siteVisitInspectorName) metadata.inspectorName = siteVisitInspectorName;
       if (siteVisitOutcome) metadata.outcome = siteVisitOutcome;
-      if (siteVisitSignature) {
-        metadata.hasSignature = true;
-        metadata.signatureDataUrl = siteVisitSignature;
-      }
+      if (siteVisitSignatures && siteVisitSignatures.length > 0) metadata.signatures = siteVisitSignatures;
       return Object.keys(metadata).length > 0 ? metadata : null;
     }
 
@@ -294,15 +290,15 @@ export default function DiaryEntryCreatePage() {
           onDailyLogTemperatureChange={setDailyLogTemperature}
           dailyLogWorkers={dailyLogWorkers}
           onDailyLogWorkersChange={setDailyLogWorkers}
-          dailyLogSignature={dailyLogSignature}
-          onDailyLogSignatureChange={setDailyLogSignature}
+          dailyLogSignatures={dailyLogSignatures}
+          onDailyLogSignaturesChange={setDailyLogSignatures}
           // site_visit
           siteVisitInspectorName={siteVisitInspectorName}
           onSiteVisitInspectorNameChange={setSiteVisitInspectorName}
           siteVisitOutcome={siteVisitOutcome}
           onSiteVisitOutcomeChange={setSiteVisitOutcome}
-          siteVisitSignature={siteVisitSignature}
-          onSiteVisitSignatureChange={setSiteVisitSignature}
+          siteVisitSignatures={siteVisitSignatures}
+          onSiteVisitSignaturesChange={setSiteVisitSignatures}
           // delivery
           deliveryVendor={deliveryVendor}
           onDeliveryVendorChange={setDeliveryVendor}
@@ -317,22 +313,16 @@ export default function DiaryEntryCreatePage() {
           onIssueResolutionStatusChange={setIssueResolutionStatus}
         />
 
-        <div className={styles.photoNote}>
-          <p className={styles.photoNoteText}>
-            💡 Save the entry first, then add photos from the detail view.
-          </p>
-        </div>
-
         <div className={styles.formActions}>
           <button
             type="button"
-            className={styles.cancelButton}
+            className={shared.btnSecondary}
             onClick={() => setStep('type-selector')}
             disabled={isSubmitting}
           >
             Cancel
           </button>
-          <button type="submit" className={styles.submitButton} disabled={isSubmitting}>
+          <button type="submit" className={shared.btnPrimary} disabled={isSubmitting}>
             {isSubmitting ? 'Creating...' : 'Create Entry'}
           </button>
         </div>

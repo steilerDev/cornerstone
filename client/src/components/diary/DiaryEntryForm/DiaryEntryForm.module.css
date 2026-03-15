@@ -149,6 +149,20 @@
   margin-bottom: var(--spacing-3);
 }
 
+.signaturesList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+  margin-bottom: var(--spacing-3);
+}
+
+.signatureItem {
+  padding: var(--spacing-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-secondary);
+}
+
 /* ============================================================
  * Materials List & Input (Delivery)
  * ============================================================ */
@@ -232,8 +246,16 @@
   cursor: not-allowed;
 }
 
+.dateInput {
+  max-width: 220px;
+}
+
 /* Responsive */
 @media (max-width: 767px) {
+  .dateInput {
+    max-width: 100%;
+  }
+
   .container {
     gap: var(--spacing-4);
   }

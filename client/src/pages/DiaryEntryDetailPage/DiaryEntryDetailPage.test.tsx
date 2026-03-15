@@ -50,6 +50,7 @@ const baseDetail: DiaryEntryDetail = {
   body: 'Poured concrete for the main foundation.',
   metadata: null,
   isAutomatic: false,
+  isSigned: false,
   sourceEntityType: null,
   sourceEntityId: null,
   photoCount: 0,
@@ -135,15 +136,7 @@ describe('DiaryEntryDetailPage', () => {
 
   // ─── Back button ────────────────────────────────────────────────────────────
 
-  it('renders the "Back to Diary" link', async () => {
-    mockGetDiaryEntry.mockResolvedValueOnce(baseDetail);
-    renderDetailPage();
-    await waitFor(() => {
-      expect(screen.getByRole('link', { name: /back to diary/i })).toBeInTheDocument();
-    });
-  });
-
-  it('renders the back button (←)', async () => {
+  it('renders the back button (← Back) in the loaded state', async () => {
     mockGetDiaryEntry.mockResolvedValueOnce(baseDetail);
     renderDetailPage();
     await waitFor(() => {

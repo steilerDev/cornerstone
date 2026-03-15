@@ -9,7 +9,9 @@ import type {
   SiteVisitMetadata,
   DeliveryMetadata,
   IssueMetadata,
+  DiarySignatureEntry,
 } from '@cornerstone/shared';
+import shared from '../../../styles/shared.module.css';
 import { SignatureCapture } from '../SignatureCapture/SignatureCapture.js';
 import styles from './DiaryEntryForm.module.css';
 
@@ -30,15 +32,15 @@ export interface DiaryEntryFormProps {
   onDailyLogTemperatureChange?: (temp: number | null) => void;
   dailyLogWorkers?: number | null;
   onDailyLogWorkersChange?: (workers: number | null) => void;
-  dailyLogSignature?: string | null;
-  onDailyLogSignatureChange?: (sig: string | null) => void;
+  dailyLogSignatures?: DiarySignatureEntry[] | null;
+  onDailyLogSignaturesChange?: (sigs: DiarySignatureEntry[] | null) => void;
   /** site_visit metadata */
   siteVisitInspectorName?: string | null;
   onSiteVisitInspectorNameChange?: (name: string | null) => void;
   siteVisitOutcome?: DiaryInspectionOutcome | null;
   onSiteVisitOutcomeChange?: (outcome: DiaryInspectionOutcome | null) => void;
-  siteVisitSignature?: string | null;
-  onSiteVisitSignatureChange?: (sig: string | null) => void;
+  siteVisitSignatures?: DiarySignatureEntry[] | null;
+  onSiteVisitSignaturesChange?: (sigs: DiarySignatureEntry[] | null) => void;
   /** delivery metadata */
   deliveryVendor?: string | null;
   onDeliveryVendorChange?: (vendor: string | null) => void;
@@ -98,15 +100,15 @@ export function DiaryEntryForm({
   onDailyLogTemperatureChange,
   dailyLogWorkers,
   onDailyLogWorkersChange,
-  dailyLogSignature,
-  onDailyLogSignatureChange,
+  dailyLogSignatures,
+  onDailyLogSignaturesChange,
   // site_visit
   siteVisitInspectorName,
   onSiteVisitInspectorNameChange,
   siteVisitOutcome,
   onSiteVisitOutcomeChange,
-  siteVisitSignature,
-  onSiteVisitSignatureChange,
+  siteVisitSignatures,
+  onSiteVisitSignaturesChange,
   // delivery
   deliveryVendor,
   onDeliveryVendorChange,
@@ -150,7 +152,7 @@ export function DiaryEntryForm({
         <input
           type="date"
           id="entry-date"
-          className={`${styles.input} ${validationErrors.entryDate ? styles.inputError : ''}`}
+          className={`${styles.input} ${styles.dateInput} ${validationErrors.entryDate ? styles.inputError : ''}`}
           value={entryDate}
           onChange={(e) => onEntryDateChange(e.target.value)}
           disabled={disabled}
@@ -280,12 +282,44 @@ export function DiaryEntryForm({
           </div>
 
           <div className={styles.signatureSection}>
-            <label className={styles.label}>Signature</label>
-            <SignatureCapture
-              signature={dailyLogSignature || null}
-              onSignatureChange={onDailyLogSignatureChange || (() => {})}
+            <label className={styles.label}>Signatures</label>
+            {(dailyLogSignatures?.length ?? 0) > 0 && (
+              <div className={styles.signaturesList}>
+                {dailyLogSignatures!.map((sig, index) => (
+                  <div key={index} className={styles.signatureItem}>
+                    <SignatureCapture
+                      signature={sig}
+                      onSignatureChange={(updated) => {
+                        if (updated) {
+                          const newSigs = [...(dailyLogSignatures || [])];
+                          newSigs[index] = updated;
+                          onDailyLogSignaturesChange?.(newSigs);
+                        } else {
+                          const newSigs = (dailyLogSignatures || []).filter((_, i) => i !== index);
+                          onDailyLogSignaturesChange?.(newSigs.length > 0 ? newSigs : null);
+                        }
+                      }}
+                      disabled={disabled}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+            <button
+              type="button"
+              className={shared.btnSecondary}
+              onClick={() => {
+                const newSigs = [...(dailyLogSignatures || []), {
+                  signerName: '',
+                  signerType: 'self' as const,
+                  signatureDataUrl: '',
+                }];
+                onDailyLogSignaturesChange?.(newSigs);
+              }}
               disabled={disabled}
-            />
+            >
+              + Add Signature
+            </button>
           </div>
         </div>
       )}
@@ -354,12 +388,44 @@ export function DiaryEntryForm({
           </div>
 
           <div className={styles.signatureSection}>
-            <label className={styles.label}>Signature</label>
-            <SignatureCapture
-              signature={siteVisitSignature || null}
-              onSignatureChange={onSiteVisitSignatureChange || (() => {})}
+            <label className={styles.label}>Signatures</label>
+            {(siteVisitSignatures?.length ?? 0) > 0 && (
+              <div className={styles.signaturesList}>
+                {siteVisitSignatures!.map((sig, index) => (
+                  <div key={index} className={styles.signatureItem}>
+                    <SignatureCapture
+                      signature={sig}
+                      onSignatureChange={(updated) => {
+                        if (updated) {
+                          const newSigs = [...(siteVisitSignatures || [])];
+                          newSigs[index] = updated;
+                          onSiteVisitSignaturesChange?.(newSigs);
+                        } else {
+                          const newSigs = (siteVisitSignatures || []).filter((_, i) => i !== index);
+                          onSiteVisitSignaturesChange?.(newSigs.length > 0 ? newSigs : null);
+                        }
+                      }}
+                      disabled={disabled}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+            <button
+              type="button"
+              className={shared.btnSecondary}
+              onClick={() => {
+                const newSigs = [...(siteVisitSignatures || []), {
+                  signerName: '',
+                  signerType: 'self' as const,
+                  signatureDataUrl: '',
+                }];
+                onSiteVisitSignaturesChange?.(newSigs);
+              }}
               disabled={disabled}
-            />
+            >
+              + Add Signature
+            </button>
           </div>
         </div>
       )}
