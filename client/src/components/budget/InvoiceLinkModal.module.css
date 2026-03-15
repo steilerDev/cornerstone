@@ -3,11 +3,11 @@
 .errorBanner {
   background: var(--color-danger-bg);
   border: 1px solid var(--color-danger-border);
-  border-radius: 0.375rem;
-  padding: 0.625rem 0.875rem;
-  margin-bottom: 1rem;
+  border-radius: var(--radius-md);
+  padding: var(--spacing-2-5) var(--spacing-3);
+  margin-bottom: var(--spacing-4);
   color: var(--color-danger-active);
-  font-size: 0.875rem;
+  font-size: var(--font-size-sm);
 }
 
 /* ─── Form ────────────────────────────────────────────────────────────────── */
@@ -15,7 +15,7 @@
 .form {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: var(--spacing-4);
 }
 
 /* ─── Form Group ──────────────────────────────────────────────────────────── */
@@ -23,23 +23,23 @@
 .formGroup {
   display: flex;
   flex-direction: column;
-  gap: 0.375rem;
+  gap: var(--spacing-1-5);
 }
 
 .label {
-  font-size: 0.875rem;
-  font-weight: 500;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
   color: var(--color-text-primary);
 }
 
 .input,
 .searchInput {
-  padding: 0.625rem 0.75rem;
+  padding: var(--spacing-2-5) var(--spacing-3);
   border: 1px solid var(--color-border);
-  border-radius: 0.375rem;
+  border-radius: var(--radius-md);
   background: var(--color-bg-primary);
   color: var(--color-text-primary);
-  font-size: 0.9375rem;
+  font-size: var(--font-size-base);
   font-family: inherit;
   transition: var(--transition-button);
   width: 100%;
@@ -71,9 +71,9 @@
 /* ─── Field Error ─────────────────────────────────────────────────────────── */
 
 .fieldError {
-  font-size: 0.8125rem;
+  font-size: var(--font-size-2xs);
   color: var(--color-danger-active);
-  margin-top: 0.25rem;
+  margin-top: var(--spacing-1);
 }
 
 /* ─── Searchable Invoice Dropdown ──────────────────────────────────────── */
@@ -90,7 +90,7 @@
   background: var(--color-bg-primary);
   border: 1px solid var(--color-border);
   border-top: none;
-  border-radius: 0 0 0.375rem 0.375rem;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
   box-shadow: var(--shadow-md);
   max-height: 200px;
   overflow-y: auto;
@@ -100,13 +100,13 @@
 .dropdownItem {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  padding: 0.625rem 0.75rem;
+  gap: var(--spacing-1);
+  padding: var(--spacing-2-5) var(--spacing-3);
   width: 100%;
   border: none;
   background: transparent;
   color: var(--color-text-primary);
-  font-size: 0.875rem;
+  font-size: var(--font-size-sm);
   text-align: left;
   cursor: pointer;
   transition: var(--transition-button);
@@ -132,18 +132,18 @@
 }
 
 .dropdownItemNumber {
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: inherit;
 }
 
 .dropdownItemAmount {
-  font-size: 0.8125rem;
+  font-size: var(--font-size-2xs);
   color: inherit;
   opacity: 0.85;
 }
 
 .dropdownItemDescription {
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
   color: var(--color-text-muted);
   white-space: nowrap;
   overflow: hidden;
@@ -151,20 +151,20 @@
 }
 
 .dropdownEmpty {
-  padding: 1rem 0.75rem;
+  padding: var(--spacing-4) var(--spacing-3);
   text-align: center;
   color: var(--color-text-muted);
-  font-size: 0.875rem;
+  font-size: var(--font-size-sm);
 }
 
 /* ─── Remaining Amount Info ───────────────────────────────────────────── */
 
 .remainingAmountInfo {
-  margin-top: 0.5rem;
-  padding: 0.5rem 0.75rem;
+  margin-top: var(--spacing-2);
+  padding: var(--spacing-2) var(--spacing-3);
   background: var(--color-bg-secondary);
-  border-radius: 0.25rem;
-  font-size: 0.8125rem;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-2xs);
   color: var(--color-text-secondary);
 }
 
@@ -178,14 +178,14 @@
 .amountInputWrapper {
   display: flex;
   flex-direction: column;
-  gap: 0.375rem;
+  gap: var(--spacing-1-5);
 }
 
 .amountIndicator {
-  padding: 0.375rem 0.75rem;
+  padding: var(--spacing-1-5) var(--spacing-3);
   background: var(--color-bg-secondary);
-  border-radius: 0.25rem;
-  font-size: 0.8125rem;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-2xs);
   color: var(--color-text-secondary);
 }
 
@@ -198,27 +198,27 @@
 
 .loading,
 .emptyState {
-  padding: 1rem;
+  padding: var(--spacing-4);
   text-align: center;
   color: var(--color-text-muted);
-  font-size: 0.875rem;
+  font-size: var(--font-size-sm);
 }
 
 /* ─── Form Actions ────────────────────────────────────────────────────────── */
 
 .actions {
   display: flex;
-  gap: 0.75rem;
-  margin-top: 1rem;
+  gap: var(--spacing-3);
+  margin-top: var(--spacing-4);
   justify-content: flex-end;
 }
 
 .cancelButton,
 .submitButton {
-  padding: 0.625rem 1rem;
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
-  font-weight: 500;
+  padding: var(--spacing-2-5) var(--spacing-4);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
   cursor: pointer;
   border: none;
   transition: var(--transition-button);
@@ -254,7 +254,7 @@
 @media (max-width: 767px) {
   .actions {
     flex-direction: column;
-    gap: 0.5rem;
+    gap: var(--spacing-2);
   }
 
   .cancelButton,
