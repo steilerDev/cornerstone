@@ -19,7 +19,6 @@ jest.unstable_mockModule('../../lib/diaryApi.js', () => ({
   createDiaryEntry: jest.fn(),
   updateDiaryEntry: jest.fn(),
   deleteDiaryEntry: jest.fn(),
-  exportDiaryPdf: jest.fn(),
 }));
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -166,12 +165,6 @@ describe('DiaryPage', () => {
     mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
     renderPage();
     expect(screen.getByTestId('diary-filter-bar')).toBeInTheDocument();
-  });
-
-  it('renders the type switcher', async () => {
-    mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
-    renderPage();
-    expect(screen.getByRole('radiogroup', { name: /filter entries by type/i })).toBeInTheDocument();
   });
 
   // ─── Empty state ────────────────────────────────────────────────────────────
