@@ -127,7 +127,7 @@ All commits follow [Conventional Commits](https://www.conventionalcommits.org/):
 - CI auto-fix bot: `npm run lint:fix` + `npm run format` + `npm audit fix` (runs on `beta` push, creates PR if changes needed)
 - CI Quality Gates: typecheck + test + build (runs on every PR)
 
-To validate your work: **commit and push**. After pushing, **always wait for CI to go green** (`gh pr checks <pr-number> --watch`) before proceeding to the next step.
+To validate your work: **commit and push**. After pushing, **only wait for the branch protection required checks to pass** — never wait for the full CI suite to finish. For beta PRs, wait only for `Quality Gates`. For main PRs, wait for `Quality Gates` + `E2E Gates`. Use `gh pr checks <pr-number> --watch` and proceed as soon as all required checks are green, even if optional checks (E2E shards, Docker PR Release, etc.) are still running.
 
 The only exception is the QA agent running a specific test file it just wrote (e.g., `npx jest path/to/new.test.ts`) to verify correctness before committing — but never `npm test` (the full suite).
 
