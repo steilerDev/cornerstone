@@ -185,7 +185,7 @@ export default function DiaryEntryCreatePage() {
       });
 
       showToast('success', 'Diary entry created successfully');
-      navigate(`/diary/${entry.id}/edit`);
+      navigate(`/diary/${entry.id}`);
     } catch (err) {
       setError('Failed to create diary entry. Please try again.');
       console.error('Failed to create diary entry:', err);

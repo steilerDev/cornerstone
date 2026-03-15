@@ -117,10 +117,14 @@ test.describe('Back button navigation (Scenario 2)', { tag: '@responsive' }, () 
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 3: "Back to Diary" link navigates to /diary
+// Scenario 3: "← Back" button navigates to /diary (bottom link removed in UAT)
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('"Back to Diary" link (Scenario 3)', { tag: '@responsive' }, () => {
-  test('"Back to Diary" link at the bottom navigates to /diary', async ({ page, testPrefix }) => {
+test.describe('"← Back" button navigation (Scenario 3)', { tag: '@responsive' }, () => {
+  test('"← Back" button navigates back to /diary when navigated from the list', async ({
+    page,
+    testPrefix,
+  }) => {
+    const diaryPage = new DiaryPage(page);
     const detailPage = new DiaryEntryDetailPage(page);
     let createdId: string | null = null;
 
@@ -128,16 +132,24 @@ test.describe('"Back to Diary" link (Scenario 3)', { tag: '@responsive' }, () =>
       createdId = await createDiaryEntryViaApi(page, {
         entryType: 'general_note',
         entryDate: '2026-03-14',
-        body: `${testPrefix} back to diary link test`,
+        body: `${testPrefix} back button navigation test`,
       });
 
-      await detailPage.goto(createdId);
+      // Navigate to the diary list first to establish browser history
+      await diaryPage.goto();
+      await diaryPage.waitForLoaded();
 
-      await expect(detailPage.backToDiaryLink).toBeVisible();
-      await detailPage.backToDiaryLink.click();
+      // Then navigate to the detail page
+      await page.goto(`/diary/${createdId}`);
+      await detailPage.backButton.waitFor({ state: 'visible' });
 
+      // Click the back button
+      await detailPage.backButton.click();
+
+      // Should return to /diary
       await page.waitForURL('**/diary');
       expect(page.url()).toContain('/diary');
+      expect(page.url()).not.toMatch(/\/diary\/[a-zA-Z0-9-]+$/);
     } finally {
       if (createdId) await deleteDiaryEntryViaApi(page, createdId);
     }
