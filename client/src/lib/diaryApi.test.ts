@@ -296,7 +296,7 @@ describe('diaryApi', () => {
   // ─── updateDiaryEntry ──────────────────────────────────────────────────────
 
   describe('updateDiaryEntry', () => {
-    it('sends PATCH request to /api/diary-entries/:id', async () => {
+    it('sends PUT request to /api/diary-entries/:id', async () => {
       const updateData = { body: 'Updated body content.' };
       const updatedDetail: DiaryEntryDetail = { ...baseSummary, body: 'Updated body content.' };
 
@@ -310,7 +310,7 @@ describe('diaryApi', () => {
       expect(mockFetch).toHaveBeenCalledWith(
         '/api/diary-entries/de-1',
         expect.objectContaining({
-          method: 'PATCH',
+          method: 'PUT',
           body: JSON.stringify(updateData),
         }),
       );
