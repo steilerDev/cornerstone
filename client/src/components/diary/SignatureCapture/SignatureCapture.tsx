@@ -1,19 +1,29 @@
 import React, { useRef, useState, useEffect } from 'react';
+import type { DiarySignatureEntry } from '@cornerstone/shared';
 import styles from './SignatureCapture.module.css';
 
 export interface SignatureCaptureProps {
-  signature: string | null;
-  onSignatureChange: (sig: string | null) => void;
+  signature?: DiarySignatureEntry | null;
+  onSignatureChange: (sig: DiarySignatureEntry | null) => void;
   disabled?: boolean;
+  signerName?: string;
+  onSignerNameChange?: (name: string) => void;
+  signerType?: 'self' | 'vendor';
+  onSignerTypeChange?: (type: 'self' | 'vendor') => void;
 }
 
 export function SignatureCapture({
   signature,
   onSignatureChange,
   disabled = false,
+  signerName = '',
+  onSignerNameChange,
+  signerType = 'self',
+  onSignerTypeChange,
 }: SignatureCaptureProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const lastPosRef = useRef<{ x: number; y: number } | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasStrokes, setHasStrokes] = useState(false);
   const [sizeError, setSizeError] = useState<string | null>(null);
@@ -30,7 +40,7 @@ export function SignatureCapture({
       const rect = container.getBoundingClientRect();
       const dpr = window.devicePixelRatio || 1;
 
-      // Set canvas resolution
+      // Set canvas resolution for crisp rendering
       canvas.width = rect.width * dpr;
       canvas.height = rect.height * dpr;
 
@@ -38,10 +48,15 @@ export function SignatureCapture({
       const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.scale(dpr, dpr);
+
+        // Fill canvas with white background for signatures
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, rect.width, rect.height);
+
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         ctx.lineWidth = 2;
-        ctx.strokeStyle = 'var(--color-text-primary)';
+        ctx.strokeStyle = '#000000'; // Always use black for signature strokes
 
         // Draw signature line if no signature yet
         if (!signature) {
@@ -77,15 +92,21 @@ export function SignatureCapture({
 
       setHasStrokes(true);
     };
-    img.src = signature;
+    img.src = signature.signatureDataUrl;
   }, [signature]);
 
   const drawSignatureLine = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
     ctx.clearRect(0, 0, width, height);
 
+    // Get CSS variable values via computed style
+    const canvas = canvasRef.current;
+    const computedStyle = canvas ? getComputedStyle(canvas) : null;
+    const borderColor = computedStyle?.getPropertyValue('--color-border') || '#e5e7eb';
+    const textColor = computedStyle?.getPropertyValue('--color-text-muted') || '#9ca3af';
+
     // Draw horizontal line at bottom third
     const lineY = (height * 2) / 3;
-    ctx.strokeStyle = 'var(--color-border)';
+    ctx.strokeStyle = borderColor;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(0, lineY);
@@ -93,7 +114,7 @@ export function SignatureCapture({
     ctx.stroke();
 
     // Draw "Sign here" label
-    ctx.fillStyle = 'var(--color-text-muted)';
+    ctx.fillStyle = textColor;
     ctx.font = '12px system-ui, -apple-system, sans-serif';
     ctx.textAlign = 'left';
     ctx.fillText('Sign here', 16, lineY - 8);
@@ -104,10 +125,9 @@ export function SignatureCapture({
     if (!canvas) return null;
 
     const rect = canvas.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
     return {
-      x: (e.clientX - rect.left) / dpr,
-      y: (e.clientY - rect.top) / dpr,
+      x: (e.clientX - rect.left) * (canvas.width / rect.width),
+      y: (e.clientY - rect.top) * (canvas.height / rect.height),
     };
   };
 
@@ -116,11 +136,10 @@ export function SignatureCapture({
     if (!canvas || !e.touches.length) return null;
 
     const rect = canvas.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
     const touch = e.touches[0];
     return {
-      x: (touch.clientX - rect.left) / dpr,
-      y: (touch.clientY - rect.top) / dpr,
+      x: (touch.clientX - rect.left) * (canvas.width / rect.width),
+      y: (touch.clientY - rect.top) * (canvas.height / rect.height),
     };
   };
 
@@ -143,6 +162,7 @@ export function SignatureCapture({
     if (!pos) return;
 
     setIsDrawing(true);
+    lastPosRef.current = pos;
     drawLine(pos.x, pos.y, pos.x, pos.y);
   };
 
@@ -157,18 +177,13 @@ export function SignatureCapture({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    const last = lastPosRef.current || pos;
     ctx.beginPath();
-    ctx.moveTo(pos.x, pos.y);
-
-    // Draw to next position using current position
-    const rect = canvas.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    const nextPos = {
-      x: (e.clientX - rect.left - 1) / dpr,
-      y: (e.clientY - rect.top) / dpr,
-    };
-    ctx.lineTo(nextPos.x, nextPos.y);
+    ctx.moveTo(last.x, last.y);
+    ctx.lineTo(pos.x, pos.y);
     ctx.stroke();
+
+    lastPosRef.current = pos;
 
     if (!hasStrokes) {
       setHasStrokes(true);
@@ -177,6 +192,7 @@ export function SignatureCapture({
 
   const handleMouseUp = () => {
     setIsDrawing(false);
+    lastPosRef.current = null;
   };
 
   const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
@@ -186,6 +202,7 @@ export function SignatureCapture({
     if (!pos) return;
 
     setIsDrawing(true);
+    lastPosRef.current = pos;
     drawLine(pos.x, pos.y, pos.x, pos.y);
   };
 
@@ -199,24 +216,16 @@ export function SignatureCapture({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const rect = canvas.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    const touch = e.touches[0];
+    const pos = getTouchPos(e);
+    if (!pos) return;
 
-    const x = (touch.clientX - rect.left) / dpr;
-    const y = (touch.clientY - rect.top) / dpr;
-
+    const last = lastPosRef.current || pos;
     ctx.beginPath();
-    ctx.moveTo(x, y);
+    ctx.moveTo(last.x, last.y);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
 
-    // Draw to next touch position
-    if (e.touches.length > 0) {
-      const nextTouch = e.touches[0];
-      const nextX = (nextTouch.clientX - rect.left - 1) / dpr;
-      const nextY = (nextTouch.clientY - rect.top) / dpr;
-      ctx.lineTo(nextX, nextY);
-      ctx.stroke();
-    }
+    lastPosRef.current = pos;
 
     if (!hasStrokes) {
       setHasStrokes(true);
@@ -225,6 +234,7 @@ export function SignatureCapture({
 
   const handleTouchEnd = () => {
     setIsDrawing(false);
+    lastPosRef.current = null;
   };
 
   const handleClear = () => {
@@ -258,7 +268,11 @@ export function SignatureCapture({
     }
 
     setSizeError(null);
-    onSignatureChange(dataUrl);
+    onSignatureChange({
+      signerName,
+      signerType,
+      signatureDataUrl: dataUrl,
+    });
   };
 
   const handleRemove = () => {
@@ -269,10 +283,17 @@ export function SignatureCapture({
   if (signature) {
     return (
       <div className={styles.container}>
-        <div className={styles.signatureDisplay}>
-          <img src={signature} alt="Signature" className={styles.signatureImage} />
+        <div className={styles.signerInfo}>
+          <span className={styles.signerName}>{signature.signerName}</span>
+          <span className={styles.signerType}>({signature.signerType === 'self' ? 'Self' : 'Vendor'})</span>
         </div>
-        <div className={styles.signatureLabel}>Signature</div>
+        <div className={styles.signatureDisplay}>
+          <img
+            src={signature.signatureDataUrl}
+            alt={`Signature of ${signature.signerName}`}
+            className={styles.signatureImage}
+          />
+        </div>
         <button
           type="button"
           className={styles.removeButton}
@@ -287,6 +308,52 @@ export function SignatureCapture({
 
   return (
     <div className={styles.container}>
+      {/* Signer info section */}
+      <div className={styles.signerSection}>
+        <div className={styles.formGroup}>
+          <label htmlFor="signer-name" className={styles.label}>
+            Signer Name
+          </label>
+          <input
+            id="signer-name"
+            type="text"
+            className={styles.input}
+            value={signerName}
+            onChange={(e) => onSignerNameChange?.(e.target.value)}
+            disabled={disabled}
+            placeholder="Your name or vendor name"
+          />
+        </div>
+
+        <div className={styles.formGroup}>
+          <label className={styles.label}>Signer Type</label>
+          <div className={styles.radioGroup}>
+            <label className={styles.radioLabel}>
+              <input
+                type="radio"
+                name="signer-type"
+                value="self"
+                checked={signerType === 'self'}
+                onChange={() => onSignerTypeChange?.('self')}
+                disabled={disabled}
+              />
+              Self
+            </label>
+            <label className={styles.radioLabel}>
+              <input
+                type="radio"
+                name="signer-type"
+                value="vendor"
+                checked={signerType === 'vendor'}
+                onChange={() => onSignerTypeChange?.('vendor')}
+                disabled={disabled}
+              />
+              Vendor
+            </label>
+          </div>
+        </div>
+      </div>
+
       <div className={styles.canvasWrapper} ref={containerRef}>
         <canvas
           ref={canvasRef}

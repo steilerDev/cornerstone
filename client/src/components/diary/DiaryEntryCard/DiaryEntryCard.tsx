@@ -91,7 +91,7 @@ export function DiaryEntryCard({ entry }: DiaryEntryCardProps) {
           <Link
             to={route}
             className={styles.sourceLink}
-            onClick={(e) => e.preventDefault()}
+            onClick={(e) => e.stopPropagation()}
             title={sourceLabel}
             data-testid={`source-link-${entry.sourceEntityId}`}
           >

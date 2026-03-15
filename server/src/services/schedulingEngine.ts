@@ -327,7 +327,12 @@ function buildDownstreamSet(anchorId: string, dependencies: SchedulingDependency
  */
 export interface AutoRescheduleOptions {
   /** Callback when a milestone is detected as delayed beyond its target date. */
-  onMilestoneDelayed?: (milestoneId: number, milestoneName: string) => void;
+  onMilestoneDelayed?: (
+    milestoneId: number,
+    milestoneName: string,
+    targetDate: string,
+    projectedDate: string,
+  ) => void;
   /** Callback when auto-reschedule completes with updated count. */
   onRescheduleCompleted?: (updatedCount: number) => void;
 }
@@ -861,7 +866,12 @@ export function autoReschedule(db: DbType, options?: AutoRescheduleOptions): num
         const scheduledEnd = scheduled.scheduledEndDate;
         const targetDate = milestone.targetDate;
         if (scheduledEnd > targetDate) {
-          options.onMilestoneDelayed(milestoneId, milestone.title);
+          options.onMilestoneDelayed(
+            milestoneId,
+            milestone.title,
+            targetDate,
+            scheduledEnd,
+          );
         }
       }
       continue;

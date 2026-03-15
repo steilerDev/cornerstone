@@ -19,7 +19,8 @@
   color: var(--color-text-secondary);
   cursor: pointer;
   transition: var(--transition-normal);
-  min-width: 80px;
+  min-width: 100px;
+  white-space: nowrap;
 }
 
 .button:last-child {

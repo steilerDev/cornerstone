@@ -11,11 +11,13 @@ import type {
   DiaryInspectionOutcome,
   DiaryIssueSeverity,
   DiaryIssueResolution,
+  DiarySignatureEntry,
 } from '@cornerstone/shared';
 import { getDiaryEntry, updateDiaryEntry, deleteDiaryEntry } from '../../lib/diaryApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
 import { usePhotos } from '../../hooks/usePhotos.js';
+import shared from '../../styles/shared.module.css';
 import { DiaryEntryTypeBadge } from '../../components/diary/DiaryEntryTypeBadge/DiaryEntryTypeBadge.js';
 import { DiaryEntryForm } from '../../components/diary/DiaryEntryForm/DiaryEntryForm.js';
 import { PhotoUpload } from '../../components/photos/PhotoUpload.js';
@@ -54,12 +56,12 @@ export default function DiaryEntryEditPage() {
   const [dailyLogWeather, setDailyLogWeather] = useState<DiaryWeather | null>(null);
   const [dailyLogTemperature, setDailyLogTemperature] = useState<number | null>(null);
   const [dailyLogWorkers, setDailyLogWorkers] = useState<number | null>(null);
-  const [dailyLogSignature, setDailyLogSignature] = useState<string | null>(null);
+  const [dailyLogSignatures, setDailyLogSignatures] = useState<DiarySignatureEntry[] | null>(null);
 
   // site_visit metadata
   const [siteVisitInspectorName, setSiteVisitInspectorName] = useState<string | null>(null);
   const [siteVisitOutcome, setSiteVisitOutcome] = useState<DiaryInspectionOutcome | null>(null);
-  const [siteVisitSignature, setSiteVisitSignature] = useState<string | null>(null);
+  const [siteVisitSignatures, setSiteVisitSignatures] = useState<DiarySignatureEntry[] | null>(null);
 
   // delivery metadata
   const [deliveryVendor, setDeliveryVendor] = useState<string | null>(null);
@@ -84,6 +86,11 @@ export default function DiaryEntryEditPage() {
       setIsLoading(true);
       try {
         const data = await getDiaryEntry(id);
+        if (data.isSigned && !data.isAutomatic) {
+          showToast('info', 'Signed entries cannot be edited');
+          navigate(`/diary/${data.id}`);
+          return;
+        }
         setEntry(data);
         populateForm(data);
       } catch (err) {
@@ -99,7 +106,7 @@ export default function DiaryEntryEditPage() {
     };
 
     void loadEntry();
-  }, [id]);
+  }, [id, navigate, showToast]);
 
   // Delete modal: focus trap and Escape key handler
   useEffect(() => {
@@ -146,12 +153,12 @@ export default function DiaryEntryEditPage() {
       setDailyLogWeather(m.weather || null);
       setDailyLogTemperature(m.temperatureCelsius || null);
       setDailyLogWorkers(m.workersOnSite || null);
-      setDailyLogSignature(m.signatureDataUrl || null);
+      setDailyLogSignatures(m.signatures || null);
     } else if (data.entryType === 'site_visit') {
       const m = data.metadata as SiteVisitMetadata;
       setSiteVisitInspectorName(m.inspectorName || null);
       setSiteVisitOutcome(m.outcome || null);
-      setSiteVisitSignature(m.signatureDataUrl || null);
+      setSiteVisitSignatures(m.signatures || null);
     } else if (data.entryType === 'delivery') {
       const m = data.metadata as DeliveryMetadata;
       setDeliveryVendor(m.vendor || null);
@@ -203,10 +210,7 @@ export default function DiaryEntryEditPage() {
       if (dailyLogWeather) metadata.weather = dailyLogWeather;
       if (dailyLogTemperature !== null) metadata.temperatureCelsius = dailyLogTemperature;
       if (dailyLogWorkers !== null) metadata.workersOnSite = dailyLogWorkers;
-      if (dailyLogSignature) {
-        metadata.hasSignature = true;
-        metadata.signatureDataUrl = dailyLogSignature;
-      }
+      if (dailyLogSignatures && dailyLogSignatures.length > 0) metadata.signatures = dailyLogSignatures;
       return Object.keys(metadata).length > 0 ? metadata : null;
     }
 
@@ -214,10 +218,7 @@ export default function DiaryEntryEditPage() {
       const metadata: SiteVisitMetadata = {};
       if (siteVisitInspectorName) metadata.inspectorName = siteVisitInspectorName;
       if (siteVisitOutcome) metadata.outcome = siteVisitOutcome;
-      if (siteVisitSignature) {
-        metadata.hasSignature = true;
-        metadata.signatureDataUrl = siteVisitSignature;
-      }
+      if (siteVisitSignatures && siteVisitSignatures.length > 0) metadata.signatures = siteVisitSignatures;
       return Object.keys(metadata).length > 0 ? metadata : null;
     }
 
@@ -357,15 +358,15 @@ export default function DiaryEntryEditPage() {
           onDailyLogTemperatureChange={setDailyLogTemperature}
           dailyLogWorkers={dailyLogWorkers}
           onDailyLogWorkersChange={setDailyLogWorkers}
-          dailyLogSignature={dailyLogSignature}
-          onDailyLogSignatureChange={setDailyLogSignature}
+          dailyLogSignatures={dailyLogSignatures}
+          onDailyLogSignaturesChange={setDailyLogSignatures}
           // site_visit
           siteVisitInspectorName={siteVisitInspectorName}
           onSiteVisitInspectorNameChange={setSiteVisitInspectorName}
           siteVisitOutcome={siteVisitOutcome}
           onSiteVisitOutcomeChange={setSiteVisitOutcome}
-          siteVisitSignature={siteVisitSignature}
-          onSiteVisitSignatureChange={setSiteVisitSignature}
+          siteVisitSignatures={siteVisitSignatures}
+          onSiteVisitSignaturesChange={setSiteVisitSignatures}
           // delivery
           deliveryVendor={deliveryVendor}
           onDeliveryVendorChange={setDeliveryVendor}
@@ -383,7 +384,7 @@ export default function DiaryEntryEditPage() {
         <div className={styles.formActions}>
           <button
             type="button"
-            className={styles.deleteButton}
+            className={shared.btnDanger}
             onClick={() => setShowDeleteModal(true)}
             disabled={isSubmitting || isDeleting}
           >
@@ -392,13 +393,13 @@ export default function DiaryEntryEditPage() {
           <div className={styles.actionGroup}>
             <button
               type="button"
-              className={styles.cancelButton}
+              className={shared.btnSecondary}
               onClick={() => navigate(`/diary/${entry.id}`)}
               disabled={isSubmitting}
             >
               Cancel
             </button>
-            <button type="submit" className={styles.submitButton} disabled={isSubmitting}>
+            <button type="submit" className={shared.btnPrimary} disabled={isSubmitting}>
               {isSubmitting ? 'Saving...' : 'Save Changes'}
             </button>
           </div>
@@ -476,7 +477,7 @@ export default function DiaryEntryEditPage() {
             <div className={styles.modalActions}>
               <button
                 type="button"
-                className={styles.cancelButton}
+                className={shared.btnSecondary}
                 onClick={closeDeleteModal}
                 disabled={isDeleting}
               >
@@ -485,7 +486,7 @@ export default function DiaryEntryEditPage() {
               {!deleteError && (
                 <button
                   type="button"
-                  className={styles.confirmDeleteButton}
+                  className={shared.btnConfirmDelete}
                   onClick={() => void handleDelete()}
                   disabled={isDeleting}
                 >

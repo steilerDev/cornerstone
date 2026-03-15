@@ -825,6 +825,7 @@ export const diaryEntries = sqliteTable(
         'budget_breach',
         'auto_reschedule',
         'subsidy_status',
+        'invoice_created',
       ],
     }).notNull(),
     entryDate: text('entry_date').notNull(),

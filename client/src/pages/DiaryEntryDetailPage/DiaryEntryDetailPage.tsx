@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import type { DiaryEntryDetail, DailyLogMetadata, SiteVisitMetadata } from '@cornerstone/shared';
+import type { DiaryEntryDetail, DailyLogMetadata, SiteVisitMetadata, DiarySignatureEntry } from '@cornerstone/shared';
 import { getDiaryEntry, deleteDiaryEntry } from '../../lib/diaryApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
@@ -159,7 +159,7 @@ export default function DiaryEntryDetailPage() {
           <button type="button" className={styles.printButton} onClick={() => window.print()}>
             🖨️ Print
           </button>
-          {!entry.isAutomatic && (
+          {!entry.isAutomatic && !entry.isSigned && (
             <>
               <Link to={`/diary/${entry.id}/edit`} className={styles.editButton}>
                 Edit
@@ -203,34 +203,18 @@ export default function DiaryEntryDetailPage() {
         )}
 
         {/* Signature Display */}
-        {entry.metadata && (
-          <>
-            {entry.entryType === 'daily_log' &&
-              (entry.metadata as DailyLogMetadata).signatureDataUrl && (
-                <div className={styles.signatureSection}>
-                  <SignatureDisplay
-                    signatureDataUrl={(entry.metadata as DailyLogMetadata).signatureDataUrl!}
-                    signerName={entry.createdBy?.displayName || 'Unknown'}
-                    signedDate={formatDate(entry.entryDate)}
-                  />
-                </div>
-              )}
-            {entry.entryType === 'site_visit' &&
-              (entry.metadata as SiteVisitMetadata).signatureDataUrl && (
-                <div className={styles.signatureSection}>
-                  <SignatureDisplay
-                    signatureDataUrl={(entry.metadata as SiteVisitMetadata).signatureDataUrl!}
-                    signerName={
-                      (entry.metadata as SiteVisitMetadata).inspectorName ||
-                      entry.createdBy?.displayName ||
-                      'Unknown'
-                    }
-                    signedDate={formatDate(entry.entryDate)}
-                  />
-                </div>
-              )}
-          </>
-        )}
+        {entry.metadata &&
+          (entry.entryType === 'daily_log' || entry.entryType === 'site_visit') &&
+          Array.isArray((entry.metadata as { signatures?: DiarySignatureEntry[] }).signatures) &&
+          (entry.metadata as { signatures: DiarySignatureEntry[] }).signatures.map((sig, i) => (
+            <div key={i} className={styles.signatureSection}>
+              <SignatureDisplay
+                signatureDataUrl={sig.signatureDataUrl}
+                signerName={sig.signerName}
+                signedDate={formatDate(entry.entryDate)}
+              />
+            </div>
+          ))}
 
         {/* Photos Section */}
         <div className={styles.photoSection}>
@@ -241,7 +225,7 @@ export default function DiaryEntryDetailPage() {
           {photosResult.photos.length === 0 ? (
             <div className={styles.photoEmptyState}>
               <p>No photos attached yet.</p>
-              {!entry.isAutomatic && (
+              {!entry.isAutomatic && !entry.isSigned && (
                 <Link to={`/diary/${entry.id}/edit`} className={styles.addPhotoLink}>
                   Add photos
                 </Link>
@@ -291,10 +275,6 @@ export default function DiaryEntryDetailPage() {
         </div>
       </div>
 
-      <Link to="/diary" className={shared.btnSecondary}>
-        Back to Diary
-      </Link>
-
       {/* Delete confirmation modal */}
       {showDeleteModal && (
         <div
@@ -319,7 +299,7 @@ export default function DiaryEntryDetailPage() {
             <div className={styles.modalActions}>
               <button
                 type="button"
-                className={styles.cancelButton}
+                className={shared.btnSecondary}
                 onClick={closeDeleteModal}
                 disabled={isDeleting}
               >
@@ -328,7 +308,7 @@ export default function DiaryEntryDetailPage() {
               {!deleteError && (
                 <button
                   type="button"
-                  className={styles.confirmDeleteButton}
+                  className={shared.btnConfirmDelete}
                   onClick={() => void handleDelete()}
                   disabled={isDeleting}
                 >

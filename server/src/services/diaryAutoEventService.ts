@@ -17,6 +17,31 @@ import type { AutoEventMetadata } from '@cornerstone/shared';
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
 /**
+ * Human-readable status labels for automatic diary events.
+ */
+const STATUS_LABELS: Record<string, string> = {
+  'not_started': 'Not Started',
+  'in_progress': 'In Progress',
+  'completed': 'Completed',
+  'pending': 'Pending',
+  'paid': 'Paid',
+  'claimed': 'Claimed',
+  'active': 'Active',
+  'paused': 'Paused',
+  'rejected': 'Rejected',
+  'approved': 'Approved',
+  'pending_approval': 'Pending Approval',
+};
+
+/**
+ * Convert a status code to a human-readable label.
+ * Falls back to title-casing the status if no label is defined.
+ */
+function toLabel(status: string): string {
+  return STATUS_LABELS[status] || status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/**
  * Safely create a diary entry without propagating errors.
  * Logs warnings for any failures.
  *
@@ -76,9 +101,11 @@ export function onWorkItemStatusChanged(
   previousStatus: string,
   newStatus: string,
 ): void {
-  const body = `[Work Item] "${workItemTitle}" status changed from ${previousStatus} to ${newStatus}`;
+  const previousLabel = toLabel(previousStatus);
+  const newLabel = toLabel(newStatus);
+  const body = `[Work Item] "${workItemTitle}" status changed from ${previousLabel} to ${newLabel}`;
   const metadata: AutoEventMetadata = {
-    changeSummary: `Status changed from ${previousStatus} to ${newStatus}`,
+    changeSummary: `Status changed from ${previousLabel} to ${newLabel}`,
     previousValue: previousStatus,
     newValue: newStatus,
   };
@@ -104,9 +131,11 @@ export function onInvoiceStatusChanged(
   previousStatus: string,
   newStatus: string,
 ): void {
-  const body = `[Invoice] ${invoiceNumber || 'N/A'} status changed from ${previousStatus} to ${newStatus}`;
+  const previousLabel = toLabel(previousStatus);
+  const newLabel = toLabel(newStatus);
+  const body = `[Invoice] ${invoiceNumber || 'N/A'} status changed from ${previousLabel} to ${newLabel}`;
   const metadata: AutoEventMetadata = {
-    changeSummary: `Status changed from ${previousStatus} to ${newStatus}`,
+    changeSummary: `Status changed from ${previousLabel} to ${newLabel}`,
     previousValue: previousStatus,
     newValue: newStatus,
   };
@@ -121,16 +150,28 @@ export function onInvoiceStatusChanged(
  * @param enabled - Whether auto-events are enabled
  * @param milestoneId - ID of the milestone
  * @param milestoneName - Name of the milestone (for reference)
+ * @param targetDate - Target date for the milestone (YYYY-MM-DD)
+ * @param projectedDate - Projected date for the milestone (YYYY-MM-DD)
  */
 export function onMilestoneDelayed(
   db: DbType,
   enabled: boolean,
   milestoneId: number,
   milestoneName: string,
+  targetDate: string,
+  projectedDate: string,
 ): void {
-  const body = `Milestone: ${milestoneName} is delayed beyond target date`;
+  // Calculate delay days
+  const target = new Date(targetDate + 'T00:00:00Z');
+  const projected = new Date(projectedDate + 'T00:00:00Z');
+  const delayDays = Math.round((projected.getTime() - target.getTime()) / (24 * 60 * 60 * 1000));
+
+  const body = `Milestone: ${milestoneName} is delayed by ${delayDays} days (Target date ${targetDate}, new projected date ${projectedDate})`;
   const metadata: AutoEventMetadata = {
     changeSummary: 'Milestone delayed beyond target date',
+    targetDate,
+    projectedDate,
+    delayDays,
   };
 
   tryCreateDiaryEntry(
@@ -168,26 +209,19 @@ export function onBudgetCategoryOverspend(
 
 /**
  * Log completion of automatic rescheduling to the diary.
- * Only creates an entry if count > 0 (actual work items were rescheduled).
+ * Currently suppressed (no-op) — diary entries are created for individual item changes instead.
  *
  * @param db - Database connection
  * @param enabled - Whether auto-events are enabled
  * @param updatedCount - Number of work items that were rescheduled
  */
 export function onAutoRescheduleCompleted(
-  db: DbType,
-  enabled: boolean,
-  updatedCount: number,
+  _db: DbType,
+  _enabled: boolean,
+  _updatedCount: number,
 ): void {
-  if (updatedCount === 0) return;
-
-  const body = `[Schedule] Auto-reschedule completed — ${updatedCount} work item(s) updated`;
-  const metadata: AutoEventMetadata = {
-    changeSummary: `${updatedCount} work item(s) automatically rescheduled`,
-    itemCount: updatedCount,
-  };
-
-  tryCreateDiaryEntry(db, enabled, 'auto_reschedule', body, metadata, null, null);
+  // Suppress auto-reschedule completion events
+  return;
 }
 
 /**
@@ -208,12 +242,38 @@ export function onSubsidyStatusChanged(
   previousStatus: string,
   newStatus: string,
 ): void {
-  const body = `Subsidy: ${subsidyName} application status changed to ${newStatus}`;
+  const previousLabel = toLabel(previousStatus);
+  const newLabel = toLabel(newStatus);
+  const body = `Subsidy: ${subsidyName} application status changed from ${previousLabel} to ${newLabel}`;
   const metadata: AutoEventMetadata = {
-    changeSummary: `Application status changed from ${previousStatus} to ${newStatus}`,
+    changeSummary: `Application status changed from ${previousLabel} to ${newLabel}`,
     previousValue: previousStatus,
     newValue: newStatus,
   };
 
   tryCreateDiaryEntry(db, enabled, 'subsidy_status', body, metadata, 'subsidy_program', subsidyId);
+}
+
+/**
+ * Log an invoice creation to the diary.
+ *
+ * @param db - Database connection
+ * @param enabled - Whether auto-events are enabled
+ * @param invoiceId - ID of the invoice
+ * @param invoiceNumber - Invoice number (for reference)
+ * @param vendorName - Name of the vendor (for reference)
+ */
+export function onInvoiceCreated(
+  db: DbType,
+  enabled: boolean,
+  invoiceId: string,
+  invoiceNumber: string,
+  vendorName: string,
+): void {
+  const body = `[Invoice] ${invoiceNumber} created for ${vendorName}`;
+  const metadata: AutoEventMetadata = {
+    changeSummary: 'Invoice created',
+  };
+
+  tryCreateDiaryEntry(db, enabled, 'invoice_created', body, metadata, 'invoice', invoiceId);
 }

@@ -28,6 +28,7 @@ const ALL_ENTRY_TYPES: DiaryEntryType[] = [
   'budget_breach',
   'auto_reschedule',
   'subsidy_status',
+  'invoice_created',
 ];
 
 const TYPE_LABELS: Record<DiaryEntryType, string> = {
@@ -38,6 +39,7 @@ const TYPE_LABELS: Record<DiaryEntryType, string> = {
   general_note: 'Note',
   work_item_status: 'Work Item',
   invoice_status: 'Invoice',
+  invoice_created: 'Invoice Created',
   milestone_delay: 'Milestone',
   budget_breach: 'Budget',
   auto_reschedule: 'Schedule',
@@ -103,8 +105,12 @@ export function DiaryFilterBar({
             className={shared.input}
             placeholder="Search entries..."
             value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
+            onChange={(e) => {
+              e.stopPropagation();
+              onSearchChange(e.target.value);
+            }}
             onKeyDown={(e) => {
+              e.stopPropagation();
               if (e.key === 'Escape' && searchQuery) {
                 onSearchChange('');
               }

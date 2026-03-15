@@ -18,8 +18,15 @@
 }
 
 .autoSummary {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  flex-wrap: wrap;
   font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
+}
+
+.autoSummary span {
   font-style: italic;
 }
 

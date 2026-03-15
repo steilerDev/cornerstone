@@ -510,8 +510,8 @@ export function updateWorkItem(
 
   if (schedulingFieldChanged) {
     autoReschedule(db, {
-      onMilestoneDelayed: (milestoneId, milestoneName) => {
-        onMilestoneDelayed(db, diaryAutoEvents, milestoneId, milestoneName);
+      onMilestoneDelayed: (milestoneId, milestoneName, targetDate, projectedDate) => {
+        onMilestoneDelayed(db, diaryAutoEvents, milestoneId, milestoneName, targetDate, projectedDate);
       },
       onRescheduleCompleted: (updatedCount) => {
         onAutoRescheduleCompleted(db, diaryAutoEvents, updatedCount);

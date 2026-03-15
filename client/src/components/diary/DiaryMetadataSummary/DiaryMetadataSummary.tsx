@@ -94,19 +94,52 @@ export function DiaryMetadataSummary({ entryType, metadata }: DiaryMetadataSumma
     entryType.startsWith('subsidy_')
   ) {
     // Automatic entry type
-    if (
-      metadata &&
-      typeof metadata === 'object' &&
-      'changeSummary' in metadata &&
-      metadata.changeSummary
-    ) {
+    if (metadata && typeof metadata === 'object') {
+      const m = metadata as Record<string, unknown>;
       return (
-        <span className={styles.autoSummary} data-testid="auto-event-summary">
-          {String((metadata as Record<string, unknown>).changeSummary)}
-        </span>
+        <div className={styles.autoSummary} data-testid="auto-event-summary">
+          {m.changeSummary && <span>{String(m.changeSummary)}</span>}
+          {m.newValue && (
+            <StatusPill value={String(m.newValue)} />
+          )}
+        </div>
       );
     }
   }
 
   return null;
+}
+
+function StatusPill({ value }: { value: string }) {
+  // Determine color based on value
+  let bgColor = 'var(--color-bg-tertiary)';
+  let textColor = 'var(--color-text-primary)';
+
+  if (value.toLowerCase().includes('completed') || value.toLowerCase().includes('resolved') || value.toLowerCase().includes('paid')) {
+    bgColor = 'var(--color-success-bg)';
+    textColor = 'var(--color-success-text-on-light)';
+  } else if (value.toLowerCase().includes('failed') || value.toLowerCase().includes('breach')) {
+    bgColor = 'var(--color-danger-bg)';
+    textColor = 'var(--color-danger-active)';
+  } else if (value.toLowerCase().includes('in progress') || value.toLowerCase().includes('in_progress')) {
+    bgColor = 'var(--color-bg-secondary)';
+    textColor = 'var(--color-text-primary)';
+  }
+
+  return (
+    <span
+      style={{
+        display: 'inline-block',
+        padding: '0.25rem 0.75rem',
+        backgroundColor: bgColor,
+        color: textColor,
+        borderRadius: 'var(--radius-full)',
+        fontSize: 'var(--font-size-xs)',
+        fontWeight: 'var(--font-weight-medium)',
+        marginLeft: 'var(--spacing-2)',
+      }}
+    >
+      {value}
+    </span>
+  );
 }
