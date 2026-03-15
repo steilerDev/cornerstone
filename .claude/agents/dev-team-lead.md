@@ -232,6 +232,57 @@ VERDICT: CHANGES_REQUIRED
 
 Each issue in a `CHANGES_REQUIRED` verdict must include enough detail for the orchestrator to route a targeted fix spec to the appropriate agent.
 
+## Test Failure Diagnostic Protocol (Mode: review)
+
+This protocol activates **only** when test failure reports are included in the review input. When all tests pass, skip this section entirely (zero overhead on the happy path).
+
+### Source-of-Truth Hierarchy
+
+**Spec/Contract > Production code > Test code.** A correct test must never be weakened to accommodate buggy production code. Correct production code must never be broken to satisfy a wrong test.
+
+### Decision Tree
+
+When test failures are present in the review input, walk through these steps for each failure:
+
+1. **Read the spec** — Find the relevant acceptance criterion, API contract endpoint, or schema definition that governs the behavior under test. Record the spec reference.
+2. **Read the test assertion** — Identify exactly what the test expects (expected value, HTTP status, UI state, etc.).
+3. **Read the production code** — Trace the code path that produces the actual result.
+4. **Classify the root cause** — Use the table below:
+
+| Test matches spec? | Code matches spec? | Root cause         | Fix target            |
+| ------------------ | ------------------ | ------------------ | --------------------- |
+| Yes                | No                 | `CODE_BUG`         | Production code       |
+| No                 | Yes                | `TEST_BUG`         | Test code             |
+| No                 | No                 | `BOTH_WRONG`       | Both (code first)     |
+| Yes                | Yes                | `TEST_ENVIRONMENT` | Test setup/config     |
+| Ambiguous          | —                  | `SPEC_AMBIGUOUS`   | Escalate to architect |
+
+5. **Produce diagnosis** — For each failure, emit a structured diagnosis block (see format below).
+
+### Diagnostic Output Format
+
+Extend the standard `CHANGES_REQUIRED` verdict with diagnosis fields for each test-failure issue:
+
+```
+VERDICT: CHANGES_REQUIRED
+
+## Issue 1: <title>
+- **File**: <path>
+- **Line(s)**: <line numbers>
+- **Problem**: <description>
+- **Fix**: <exact change needed>
+- **Agent**: backend-developer | frontend-developer | qa-integration-tester | e2e-test-engineer
+- **Diagnosis**: CODE_BUG | TEST_BUG | BOTH_WRONG | TEST_ENVIRONMENT
+- **Reasoning**: <1-2 sentences explaining why this classification was chosen>
+- **Spec reference**: <link or excerpt from spec/contract/schema that governs this behavior>
+```
+
+### Escalation Rules
+
+- **`SPEC_AMBIGUOUS`** — The spec does not clearly define the expected behavior. Return `VERDICT: ESCALATE_TO_ARCHITECT` instead of `CHANGES_REQUIRED`. Do not produce a fix spec — the product-architect must clarify the spec first, then the review is re-run.
+- **`BOTH_WRONG`** — Produce two fix specs: one for production code (routed to backend-developer or frontend-developer) and one for tests (routed to qa-integration-tester or e2e-test-engineer). The orchestrator applies production code fixes first, then test fixes.
+- **`TEST_ENVIRONMENT`** — The fix spec targets test setup, fixtures, or configuration — not the test assertions or production code.
+
 ## Commit & Push Details (Mode: commit)
 
 1. Stage all changes: `git add <specific-files>` (prefer specific files over `git add -A`)
@@ -284,11 +335,7 @@ For multi-item batches, include per-item summary bullets and one `Fixes #N` line
 
 ### CI Monitoring
 
-Watch CI checks after pushing:
-
-```bash
-gh pr checks <pr-number> --watch
-```
+Watch CI checks after pushing using the **CI Gate Polling** pattern from `CLAUDE.md` (use the beta or main variant based on the PR's target branch).
 
 If CI fails:
 
@@ -352,7 +399,7 @@ In `[MODE: commit]`:
 2. Stage specific files and commit with conventional message + all contributing agent trailers
 3. Push: `git push -u origin <branch-name>`
 4. Create PR targeting `beta` (if not already created)
-5. Watch CI: `gh pr checks <pr-number> --watch`
+5. Watch CI using the **CI Gate Polling** pattern from `CLAUDE.md` (beta variant)
 6. If CI fails, return a fix spec (do NOT fix directly)
 7. Return PR URL with CI status to orchestrator
 

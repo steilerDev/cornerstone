@@ -420,6 +420,71 @@
   --color-toast-error-border: var(--color-red-200);
 
   /* ============================================================
+   * LAYER 2 — DIARY ENTRY TYPE TOKENS
+   * ============================================================ */
+
+  /* Entry type: daily_log (blue) */
+  --color-diary-daily-log-bg: var(--color-blue-100);
+  --color-diary-daily-log-text: var(--color-blue-800);
+
+  /* Entry type: site_visit (teal) */
+  --color-diary-site-visit-bg: #ccfbf1;
+  --color-diary-site-visit-text: #134e4a;
+
+  /* Entry type: delivery (amber) */
+  --color-diary-delivery-bg: var(--color-amber-100);
+  --color-diary-delivery-text: var(--color-amber-800);
+
+  /* Entry type: issue (red) */
+  --color-diary-issue-bg: var(--color-red-100);
+  --color-diary-issue-text: var(--color-red-700);
+
+  /* Entry type: general_note (gray) */
+  --color-diary-general-note-bg: var(--color-gray-100);
+  --color-diary-general-note-text: var(--color-gray-700);
+
+  /* Automatic entry type (all auto types use this) */
+  --color-diary-automatic-bg: var(--color-bg-tertiary);
+  --color-diary-automatic-text: var(--color-text-secondary);
+  --color-diary-automatic-border: var(--color-border-strong);
+
+  /* ============================================================
+   * LAYER 2 — DIARY OUTCOME BADGES
+   * ============================================================ */
+
+  /* Outcome: pass (green) */
+  --color-diary-outcome-pass-bg: var(--color-green-100);
+  --color-diary-outcome-pass-text: var(--color-green-900);
+
+  /* Outcome: fail (red) */
+  --color-diary-outcome-fail-bg: var(--color-red-100);
+  --color-diary-outcome-fail-text: var(--color-red-700);
+
+  /* Outcome: conditional (amber) */
+  --color-diary-outcome-conditional-bg: var(--color-amber-100);
+  --color-diary-outcome-conditional-text: var(--color-amber-800);
+
+  /* ============================================================
+   * LAYER 2 — DIARY SEVERITY BADGES
+   * ============================================================ */
+
+  /* Severity: low (green) */
+  --color-diary-severity-low-bg: var(--color-green-100);
+  --color-diary-severity-low-text: var(--color-green-900);
+
+  /* Severity: medium (amber) */
+  --color-diary-severity-medium-bg: var(--color-amber-100);
+  --color-diary-severity-medium-text: var(--color-amber-800);
+
+  /* Severity: high (orange) */
+  --color-diary-severity-high-bg: #fed7aa;
+  --color-diary-severity-high-text: #92400e;
+
+  /* Severity: critical (red) */
+  --color-diary-severity-critical-bg: var(--color-red-100);
+  --color-diary-severity-critical-text: var(--color-red-700);
+
+  /* ============================================================
    * LAYER 2 — CALENDAR ITEM PALETTE TOKENS
    * 8 visually distinct, brand-compatible colors for item differentiation.
    * Used as background fill for CalendarItem bars; text must remain readable.
@@ -652,6 +717,49 @@
   /* Toast: Error */
   --color-toast-error-bg: rgba(239, 68, 68, 0.1);
   --color-toast-error-border: rgba(239, 68, 68, 0.3);
+
+  /* --- Diary entry type tokens (dark mode) --- */
+  --color-diary-daily-log-bg: rgba(59, 130, 246, 0.2);
+  --color-diary-daily-log-text: var(--color-blue-300);
+
+  --color-diary-site-visit-bg: rgba(20, 184, 166, 0.15);
+  --color-diary-site-visit-text: #5eead4;
+
+  --color-diary-delivery-bg: rgba(245, 158, 11, 0.15);
+  --color-diary-delivery-text: var(--color-amber-300);
+
+  --color-diary-issue-bg: rgba(239, 68, 68, 0.15);
+  --color-diary-issue-text: var(--color-red-300);
+
+  --color-diary-general-note-bg: var(--color-slate-500);
+  --color-diary-general-note-text: var(--color-slate-100);
+
+  --color-diary-automatic-bg: var(--color-slate-600);
+  --color-diary-automatic-text: var(--color-slate-200);
+  --color-diary-automatic-border: var(--color-slate-500);
+
+  /* --- Diary outcome badges (dark mode) --- */
+  --color-diary-outcome-pass-bg: rgba(16, 185, 129, 0.15);
+  --color-diary-outcome-pass-text: var(--color-emerald-300);
+
+  --color-diary-outcome-fail-bg: rgba(239, 68, 68, 0.15);
+  --color-diary-outcome-fail-text: var(--color-red-300);
+
+  --color-diary-outcome-conditional-bg: rgba(245, 158, 11, 0.15);
+  --color-diary-outcome-conditional-text: var(--color-amber-300);
+
+  /* --- Diary severity badges (dark mode) --- */
+  --color-diary-severity-low-bg: rgba(16, 185, 129, 0.15);
+  --color-diary-severity-low-text: var(--color-emerald-300);
+
+  --color-diary-severity-medium-bg: rgba(245, 158, 11, 0.15);
+  --color-diary-severity-medium-text: var(--color-amber-300);
+
+  --color-diary-severity-high-bg: rgba(249, 115, 22, 0.2);
+  --color-diary-severity-high-text: #fdba74;
+
+  --color-diary-severity-critical-bg: rgba(239, 68, 68, 0.15);
+  --color-diary-severity-critical-text: var(--color-red-300);
 
   /* --- Calendar item palette (dark mode — muted semi-transparent fills) --- */
 

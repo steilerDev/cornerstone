@@ -102,3 +102,91 @@ POM helper `getSuccessBannerText()` wraps `waitFor` in try/catch, returns null o
 This masks failures: `expect(null).toContain(X)` throws confusing error. Use:
 `await expect(sourcesPage.successBanner).toBeVisible()` (uses expect.timeout with retry).
 Also add `waitForResponse` BEFORE save click — confirms API 200 before checking UI.
+
+## Diary Forms E2E (Story #805, 2026-03-14)
+
+Files: `e2e/pages/DiaryEntryCreatePage.ts`, `e2e/pages/DiaryEntryEditPage.ts`,
+`e2e/tests/diary/diary-forms.spec.ts`. DiaryEntryDetailPage.ts extended with edit/delete locators.
+
+Key selectors:
+
+- Create page type cards: `getByTestId('type-card-{type}')` — clicking immediately transitions to form
+- Create form: `#entry-date`, `#title`, `#body` (common); `#weather`, `#temperature`, `#workers`
+  (daily_log); `#inspector-name`, `#inspection-outcome` (site_visit); `#severity`,
+  `#resolution-status` (issue); `[name="material-input"]` (delivery)
+- Create submit: `getByRole('button', { name: /Create Entry|Creating\.\.\./i })`
+- Edit page: `getByRole('heading', { level: 1, name: 'Edit Diary Entry' })`
+- Edit back: `getByRole('button', { name: /← Back to Entry/i })`
+- Edit save: `getByRole('button', { name: /Save Changes|Saving\.\.\./i })`
+- Edit delete opens modal: `getByRole('button', { name: 'Delete Entry', exact: true })`
+- Detail Edit button: `getByRole('link', { name: 'Edit', exact: true })` (anchor, not button)
+- Detail Delete button: `getByRole('button', { name: 'Delete', exact: true })` (NOT "Delete Entry")
+- Modal: `getByRole('dialog')` — conditionally rendered; confirmDelete inside modal scope
+- Confirm delete: `modal.getByRole('button', { name: /Delete Entry|Deleting\.\.\./i })`
+- Edit/Delete buttons NOT rendered for automatic entries (`isAutomatic: true`)
+- DiaryEntryEditPage.save() registers waitForResponse (PATCH) BEFORE click — returns after API
+  NOTE: PR #830 changed updateDiaryEntry from PUT to PATCH — save() was broken; fixed in PR #832
+
+## Diary E2E (Story #804, 2026-03-14)
+
+Files: `e2e/pages/DiaryPage.ts`, `e2e/pages/DiaryEntryDetailPage.ts`,
+`e2e/tests/diary/diary-list.spec.ts`, `e2e/tests/diary/diary-detail.spec.ts`.
+
+Key selectors:
+
+- DiaryPage heading: `getByRole('heading', { level: 1, name: 'Construction Diary' })`
+- Filter bar: `getByTestId('diary-filter-bar')`, search: `getByTestId('diary-search-input')`
+- Type switcher: `getByTestId('type-switcher-all|manual|automatic')`
+- Entry cards: `getByTestId('diary-card-{id}')`, date groups: `getByTestId('date-group-{date}')`
+- Type chips: `getByTestId('type-filter-{entryType}')`, clear: `getByTestId('clear-filters-button')`
+- Pagination: `getByTestId('prev-page-button')` / `getByTestId('next-page-button')`
+- Detail back button: `getByTitle('Go back')` (title="Go back"), back link: `getByRole('link', { name: 'Back to Diary' })`
+- Metadata wrappers: `getByTestId('daily-log-metadata|site-visit-metadata|delivery-metadata|issue-metadata')`
+- Outcome badge: `getByTestId('outcome-{pass|fail|conditional}')`, severity: `getByTestId('severity-{level}')`
+- Automatic badge: `locator('[class*="badge"]').filter({ hasText: 'Automatic' })`
+
+API: `POST /api/diary-entries` returns `DiaryEntrySummary` with `id` at top level (not nested).
+Empty state uses shared.emptyState CSS module class (conditional render — use `.not.toBeVisible()` not `.toBeHidden()`).
+DiaryPage.waitForLoaded() races: timeline visible OR emptyState visible OR errorBanner visible.
+
+## Photos API Mock Must Return { photos: [] } Not [] (2026-03-15)
+
+`GET /api/photos?entityType=...&entityId=...` returns `{ photos: [] }` (wrapped object).
+`getPhotosForEntity()` in `photoApi.ts` does `.then(r => r.photos)` — if mock returns `[]`,
+`r.photos` is `undefined` → `setPhotos(undefined)` → `PhotoGrid` crashes on `photos.length`.
+ALWAYS mock photos as: `body: JSON.stringify({ photos: [] })` not `body: '[]'`.
+
+## Export API URL Bug: /diary-entries/export (not /api/) (2026-03-15)
+
+`exportDiaryPdf()` in `client/src/lib/diaryApi.ts` uses `fetch('/diary-entries/export')`
+missing `/api/` prefix. Tracked in GitHub Issue #834.
+E2E mocks for export must use `**/diary-entries/export*` (not `**/api/diary-entries/export*`)
+until the frontend bug is fixed.
+
+## waitForURL Timeout on WebKit Tablet — Use Explicit 15s (2026-03-15)
+
+`page.waitForURL('**/diary')` after `navigate(-1)` times out with default 10s
+navigationTimeout on WebKit iPad (tablet project). Fix: pass `{ timeout: 15_000 }`.
+Applied to: diary-detail.spec.ts Scenarios 2 and 3.
+
+## Diary E2E Extended (Stories #806-#809, 2026-03-15)
+
+Files: `diary-photos-signatures.spec.ts`, `diary-automatic-events.spec.ts`, `diary-export.spec.ts`
+POMs extended: DiaryEntryDetailPage (photoHeading, photoEmptyState, signatureSection, printButton, photoCountBadge),
+DiaryPage (exportButton, exportDialog, photoCountBadge).
+
+Key selectors:
+
+- Photo count badge on entry card: `data-testid="photo-count-{entryId}"` (only rendered when photoCount > 0)
+- Photo section heading: `[class*="photoHeading"]` — text "Photos (N)"
+- Photo empty state: `[class*="photoEmptyState"]` — text "No photos attached yet."
+- Signature section: `[class*="signatureSection"]` — conditional render (isSigned entries)
+- Edit/Delete NOT rendered when `isSigned=true` (same as `isAutomatic=true`)
+- Export button: `getByRole('button', { name: /Export/i })` on diary list page
+- Export dialog: `getByRole('dialog', { name: /Export/i })` — conditional render (return null when !isOpen)
+- Dialog title: h2 "Export Diary to PDF" (id="export-modal-title")
+- Generate PDF: `getByRole('button', { name: /Generate PDF/i })` inside dialog
+- Print button on detail page: `getByRole('button', { name: /Print/i })`
+- Auto events: must mock photos endpoint (`**/api/photos*`) when mocking diary detail entries
+- Export API: GET `/api/diary-entries/export` — returns application/pdf
+- `isSigned=true` entries: hide Edit, Delete, and "Add photos" link simultaneously

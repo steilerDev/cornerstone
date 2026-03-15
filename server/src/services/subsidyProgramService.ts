@@ -19,6 +19,7 @@ import type {
   UserSummary,
 } from '@cornerstone/shared';
 import { NotFoundError, ValidationError, SubsidyProgramInUseError } from '../errors/AppError.js';
+import { onSubsidyStatusChanged } from './diaryAutoEventService.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -255,11 +256,17 @@ export function createSubsidyProgram(
  * If categoryIds is provided, replaces all existing category links.
  * @throws NotFoundError if program does not exist
  * @throws ValidationError if fields are invalid
+ *
+ * @param db - Database connection
+ * @param id - Subsidy program ID
+ * @param data - Update request data
+ * @param diaryAutoEvents - Whether to create automatic diary entries (default: true)
  */
 export function updateSubsidyProgram(
   db: DbType,
   id: string,
   data: UpdateSubsidyProgramRequest,
+  diaryAutoEvents: boolean = true,
 ): SubsidyProgram {
   // Check program exists
   const existing = db.select().from(subsidyPrograms).where(eq(subsidyPrograms.id, id)).get();
@@ -316,6 +323,10 @@ export function updateSubsidyProgram(
     updates.reductionValue = data.reductionValue;
   }
 
+  let statusChanged = false;
+  let previousStatus: string | undefined;
+  let newStatus: string | undefined;
+
   // Validate and add applicationStatus if provided
   if (data.applicationStatus !== undefined) {
     if (!VALID_APPLICATION_STATUSES.includes(data.applicationStatus)) {
@@ -323,6 +334,9 @@ export function updateSubsidyProgram(
         `Invalid application status. Must be one of: ${VALID_APPLICATION_STATUSES.join(', ')}`,
       );
     }
+    statusChanged = data.applicationStatus !== existing.applicationStatus;
+    previousStatus = existing.applicationStatus;
+    newStatus = data.applicationStatus;
     updates.applicationStatus = data.applicationStatus;
   }
 
@@ -374,6 +388,11 @@ export function updateSubsidyProgram(
   // Replace category links if provided
   if (data.categoryIds !== undefined) {
     replaceCategoryLinks(db, id, data.categoryIds);
+  }
+
+  // Log applicationStatus change to diary if enabled
+  if (statusChanged && previousStatus !== undefined && newStatus !== undefined) {
+    onSubsidyStatusChanged(db, diaryAutoEvents, id, existing.name, previousStatus, newStatus);
   }
 
   return getSubsidyProgramById(db, id);

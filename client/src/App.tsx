@@ -65,6 +65,14 @@ const ProfilePage = lazy(() => import('./pages/ProfilePage/ProfilePage'));
 const UserManagementPage = lazy(() => import('./pages/UserManagementPage/UserManagementPage'));
 const InvoicesPage = lazy(() => import('./pages/InvoicesPage/InvoicesPage'));
 const InvoiceDetailPage = lazy(() => import('./pages/InvoiceDetailPage/InvoiceDetailPage'));
+const DiaryPage = lazy(() => import('./pages/DiaryPage/DiaryPage'));
+const DiaryEntryDetailPage = lazy(
+  () => import('./pages/DiaryEntryDetailPage/DiaryEntryDetailPage'),
+);
+const DiaryEntryCreatePage = lazy(
+  () => import('./pages/DiaryEntryCreatePage/DiaryEntryCreatePage'),
+);
+const DiaryEntryEditPage = lazy(() => import('./pages/DiaryEntryEditPage/DiaryEntryEditPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage/NotFoundPage'));
 
 export function App() {
@@ -136,6 +144,42 @@ export function App() {
                     <Route index element={<Navigate to="gantt" replace />} />
                     <Route path="gantt" element={<TimelinePage />} />
                     <Route path="calendar" element={<TimelinePage />} />
+                  </Route>
+
+                  {/* Diary section */}
+                  <Route path="diary">
+                    <Route
+                      index
+                      element={
+                        <Suspense fallback={<div>Loading...</div>}>
+                          <DiaryPage />
+                        </Suspense>
+                      }
+                    />
+                    <Route
+                      path="new"
+                      element={
+                        <Suspense fallback={<div>Loading...</div>}>
+                          <DiaryEntryCreatePage />
+                        </Suspense>
+                      }
+                    />
+                    <Route
+                      path=":id"
+                      element={
+                        <Suspense fallback={<div>Loading...</div>}>
+                          <DiaryEntryDetailPage />
+                        </Suspense>
+                      }
+                    />
+                    <Route
+                      path=":id/edit"
+                      element={
+                        <Suspense fallback={<div>Loading...</div>}>
+                          <DiaryEntryEditPage />
+                        </Suspense>
+                      }
+                    />
                   </Route>
 
                   {/* Settings section */}

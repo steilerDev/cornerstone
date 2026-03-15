@@ -182,3 +182,31 @@ export class AccountLockedError extends AppError {
     this.name = 'AccountLockedError';
   }
 }
+
+export class InvalidMetadataError extends AppError {
+  constructor(message = 'Metadata does not match schema for the entry type') {
+    super('INVALID_METADATA', 400, message);
+    this.name = 'InvalidMetadataError';
+  }
+}
+
+export class ImmutableEntryError extends AppError {
+  constructor(message = 'Automatic diary entries cannot be modified') {
+    super('IMMUTABLE_ENTRY', 403, message);
+    this.name = 'ImmutableEntryError';
+  }
+}
+
+export class InvalidEntryTypeError extends AppError {
+  constructor(message = 'Entry type must be a manual type for user-created entries') {
+    super('INVALID_ENTRY_TYPE', 400, message);
+    this.name = 'InvalidEntryTypeError';
+  }
+}
+
+export class ExportEmptyError extends AppError {
+  constructor(message = 'No diary entries match the specified filters') {
+    super('EXPORT_EMPTY', 400, message);
+    this.name = 'ExportEmptyError';
+  }
+}

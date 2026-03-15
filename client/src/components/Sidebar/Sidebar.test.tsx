@@ -64,13 +64,13 @@ describe('Sidebar', () => {
     onClose: mockOnClose,
   });
 
-  it('renders 3 navigation links plus 1 logo link plus 1 GitHub footer link', () => {
+  it('renders 4 navigation links plus 1 logo link plus 1 GitHub footer link', () => {
     renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
 
     const links = screen.getAllByRole('link');
-    // 3 main nav links (Project, Budget, Schedule) + 1 logo link (Go to project overview)
+    // 4 main nav links (Project, Budget, Schedule, Diary) + 1 logo link (Go to project overview)
     // + 1 GitHub link in the footer (Settings is now a button, not a link)
-    expect(links).toHaveLength(5);
+    expect(links).toHaveLength(6);
   });
 
   it('logo link navigates to /project and has aria-label', () => {
@@ -94,6 +94,7 @@ describe('Sidebar', () => {
     expect(screen.getByRole('link', { name: /^project$/i })).toHaveAttribute('href', '/project');
     expect(screen.getByRole('link', { name: /^budget$/i })).toHaveAttribute('href', '/budget');
     expect(screen.getByRole('link', { name: /^schedule$/i })).toHaveAttribute('href', '/schedule');
+    expect(screen.getByRole('link', { name: /^diary$/i })).toHaveAttribute('href', '/diary');
     // Settings is now a button (programmatic navigation), not a link
     expect(screen.getByRole('button', { name: /^settings$/i })).toBeInTheDocument();
   });
@@ -132,6 +133,15 @@ describe('Sidebar', () => {
 
     const scheduleLink = screen.getByRole('link', { name: /^schedule$/i });
     expect(scheduleLink).toHaveClass('active');
+  });
+
+  it('diary link is active at /diary', () => {
+    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />, {
+      initialEntries: ['/diary'],
+    });
+
+    const diaryLink = screen.getByRole('link', { name: /^diary$/i });
+    expect(diaryLink).toHaveClass('active');
   });
 
   it('settings button is active at /settings', () => {
@@ -217,6 +227,16 @@ describe('Sidebar', () => {
     expect(mockOnClose).toHaveBeenCalledTimes(1);
   });
 
+  it('clicking a nav link calls onClose (diary)', async () => {
+    const user = userEvent.setup();
+    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
+
+    const diaryLink = screen.getByRole('link', { name: /^diary$/i });
+    await user.click(diaryLink);
+
+    expect(mockOnClose).toHaveBeenCalledTimes(1);
+  });
+
   it('clicking settings button calls onClose', async () => {
     const user = userEvent.setup();
     renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
@@ -289,9 +309,9 @@ describe('Sidebar', () => {
     const links = screen.getAllByRole('link');
     const buttons = screen.getAllByRole('button');
 
-    // 3 main nav links (Project, Budget, Schedule) + 1 logo link + 1 GitHub link
+    // 4 main nav links (Project, Budget, Schedule, Diary) + 1 logo link + 1 GitHub link
     // (Settings is now a button, not a link)
-    expect(links).toHaveLength(5);
+    expect(links).toHaveLength(6);
     // 4 buttons: close button + theme toggle + settings button + logout button
     expect(buttons).toHaveLength(4);
     expect(buttons[0]).toHaveAttribute('aria-label', 'Close menu');

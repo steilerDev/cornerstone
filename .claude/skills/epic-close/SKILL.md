@@ -49,7 +49,7 @@ Include:
 - Total PRs, average fix loops per PR, % of PRs requiring fix loops
 - Total findings breakdown by severity
 
-Post this report as a comment on the epic GitHub Issue. Include it in the promotion PR body (Step 9).
+Post this report as a comment on the epic GitHub Issue. Include it in the promotion PR body (Step 8).
 
 ### 2b. Lint Health Check
 
@@ -93,7 +93,7 @@ If there are refinement items to address:
    ```
    gh pr create --base beta --title "chore: address refinement items for epic #<epic-number>" --body "..."
    ```
-8. Wait for CI: `gh pr checks <pr-number> --watch`
+8. Wait for CI using the **CI Gate Polling** pattern from `CLAUDE.md` (beta variant — wait for `Quality Gates` only)
 9. Squash merge: `gh pr merge --squash <pr-url>`
 
 If no refinement items exist, skip to step 5.
@@ -111,31 +111,17 @@ Launch the **e2e-test-engineer** agent to:
 - Open a PR targeting `beta` to trigger the full sharded E2E suite in CI (if it does not yet exist)
 - Wait for the full E2E suite to pass (not just smoke tests)
 
+**If the e2e-test-engineer reports failures**: Collect the structured E2E failure reports and launch the **dev-team-lead** in `[MODE: review]` with the failure reports and the relevant spec/acceptance criteria. The dev-team-lead's diagnostic protocol will classify each failure and produce targeted fix specs. Route fixes based on the diagnosis (same routing as `/develop` step 6f).
+
 This approval is **required** before proceeding to UAT validation.
 
 ### 6. UAT Validation
 
 Launch the **product-owner** agent to produce UAT scenarios. The e2e-test-engineer must have already covered these scenarios in step 5. E2E pass + e2e-test-engineer report = sufficient validation. Post the UAT report as a comment on the epic issue and proceed to step 7.
 
-The UAT scenarios are included in the promotion PR (step 10) as a manual validation checklist so the user can spot-check during the promotion gate.
+The UAT scenarios are included in the promotion PR (step 8) as a manual validation checklist so the user can spot-check during the promotion gate.
 
-### 7. Documentation
-
-Launch the **docs-writer** agent to:
-
-- Update the documentation site (`docs/`) with new feature guides
-- Update `README.md` with newly shipped capabilities
-- Write `RELEASE_SUMMARY.md` for the GitHub Release changelog enrichment
-
-Commit documentation updates to `beta` via a PR:
-
-```bash
-gh pr create --base beta --title "docs: update documentation for epic #<epic-number>" --body "..."
-```
-
-Wait for CI, then squash merge.
-
-### 8. Branch Sync
+### 7. Branch Sync
 
 Check if `main` has commits that `beta` doesn't (e.g., hotfixes cherry-picked to main):
 
@@ -145,9 +131,9 @@ git log origin/beta..origin/main --oneline
 
 If so, create a sync PR (`main` → `beta`), wait for CI, merge before proceeding. This ensures the promotion PR merges cleanly.
 
-If no divergence, skip to step 9.
+If no divergence, skip to step 8.
 
-### 9. Epic Promotion
+### 8. Epic Promotion
 
 Create a PR from `beta` to `main` using a **merge commit** (not squash). The promotion PR is the single human checkpoint — include a comprehensive summary:
 
@@ -197,7 +183,7 @@ EOF
 )"
 ```
 
-### 10. Post Detailed UAT Criteria
+### 9. Post Detailed UAT Criteria
 
 Post detailed UAT validation criteria as a comment on the promotion PR — step-by-step instructions the user can follow to validate each story:
 
@@ -216,25 +202,106 @@ EOF
 )"
 ```
 
-### 11. CI Gate
+### 10. CI Gate
 
-Wait for all CI checks to pass on the promotion PR, including the full sharded E2E suite (runs on main-targeting PRs):
+Wait for all required CI gates to pass on the promotion PR using the **CI Gate Polling** pattern from `CLAUDE.md` (main variant — wait for both `Quality Gates` + `E2E Gates`).
 
-```
-gh pr checks <pr-number> --watch
-```
+If any gate fails, investigate and resolve before proceeding.
 
-If any check fails, investigate and resolve before proceeding.
+### 11. Promotion Approval Loop
 
-### 12. User Approval
+Initialize `uatFeedbackRound = 0`. This step loops until the user explicitly approves.
 
-**Wait for explicit user approval** before merging. Present the user with:
+#### 11a. Present for Approval
+
+Present the user with:
 
 1. **Promotion PR link** — with the comprehensive summary, change inventory, and validation checklist
 2. **DockerHub beta image** — `docker pull steilerdev/cornerstone:beta` for manual testing
 3. **E2E + review summary** — confirmation that all automated validation passed
 
-The user reviews the PR, optionally tests with the beta image, and approves. Do NOT merge without user confirmation.
+If `uatFeedbackRound > 0`, also include a summary of changes made in the previous feedback round (issues created, PRs merged, what was fixed).
+
+Tell the user:
+
+- **To approve**: say "approved" (or similar confirmation) → proceed to step 12
+- **To provide feedback**: write feedback to `/tmp/notes.md` and say "feedback in notes" → fixes will be applied autonomously
+
+Do NOT merge without explicit user confirmation.
+
+#### 11b. Await Response
+
+Wait for the user's response. Branch:
+
+- If the user **approves** → proceed to step 12 (Documentation & Env Drift Check)
+- If the user says **"feedback in notes"** (or similar) → continue to 11c
+
+#### 11c. Read Feedback
+
+Read `/tmp/notes.md` and parse non-empty, non-comment lines. Print a numbered summary of the feedback items for the user to confirm.
+
+#### 11d. PO Grouping
+
+Launch the **product-owner** agent to:
+
+- Analyze the feedback items
+- Group related items that should be fixed together
+- Create a GitHub Issue for each group, labeled `bug`, linked as a sub-issue of the epic, and added to the Projects board in **Todo** status
+- Return the list of created issue numbers and their groupings
+
+#### 11e. Execute Fixes
+
+For each group of issues from 11d:
+
+1. Create a fresh branch from `origin/beta`: `git checkout -B fix/<issue-number>-<short-description> origin/beta`
+2. Execute `/develop` steps 2–11 (skipping step 1 Rebase and step 4 Branch — branch is already created)
+3. Track success/failure for each group
+
+If any group fails after retry budget exhaustion, report the failure to the user and ask whether to continue with remaining groups or pause.
+
+#### 11f. Update Promotion PR
+
+After all fix groups are merged to `beta`:
+
+1. Close the current promotion PR: `gh pr close <pr-number>`
+2. Re-run Branch Sync (step 7) to ensure `main` and `beta` are aligned
+3. Create a new promotion PR with:
+   - Updated change inventory reflecting all fixes
+   - A **Feedback Rounds** section listing each round's issues and PRs
+   - Reference to the superseded PR: `Supersedes #<old-pr-number>`
+4. Post updated detailed UAT criteria (step 9) on the new PR
+
+#### 11g. CI Gate
+
+Wait for all required CI gates to pass on the new promotion PR using the **CI Gate Polling** pattern from `CLAUDE.md` (main variant — wait for both `Quality Gates` + `E2E Gates`).
+
+If any gate fails, investigate and resolve before proceeding.
+
+#### 11h. Loop
+
+Increment `uatFeedbackRound`. Go to **11a** with the new promotion PR.
+
+### 12. Documentation & Env Drift Check
+
+Launch the **docs-writer** agent to:
+
+- Update the documentation site (`docs/`) with new feature guides
+- Update `README.md` with newly shipped capabilities
+- Write `RELEASE_SUMMARY.md` for the GitHub Release changelog enrichment
+- **Verify `.env.example` freshness**: Scan server source code for all `process.env.*` references (primarily `server/src/plugins/config.ts`), compare against `.env.example` entries, and fix any drift. Rules:
+  - Optional features (OIDC, Paperless, etc.) must remain **commented out** with example placeholder values
+  - Preserve inline `# Optional: ...` documentation comments
+  - Update the Environment Variables table in `CLAUDE.md` if new vars were added
+
+Commit documentation updates to `beta` via a PR:
+
+```bash
+gh pr create --base beta --title "docs: update documentation for epic #<epic-number>" --body "..."
+```
+
+Wait for CI, then squash merge.
+
+**Note:** Documentation runs after user approval (step 11) to ensure docs reflect the final state, including any changes from UAT feedback rounds.
 
 ### 13. Merge & Post-Merge
 

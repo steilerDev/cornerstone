@@ -53,6 +53,13 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         >
           Schedule
         </NavLink>
+        <NavLink
+          to="/diary"
+          className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
+          onClick={onClose}
+        >
+          Diary
+        </NavLink>
       </nav>
       <div className={styles.sidebarFooter}>
         <ThemeToggle />

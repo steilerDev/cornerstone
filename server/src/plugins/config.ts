@@ -23,6 +23,7 @@ export interface AppConfig {
   paperlessEnabled: boolean;
   photoStoragePath: string;
   photoMaxFileSizeMb: number;
+  diaryAutoEvents: boolean;
 }
 
 // Type augmentation: makes fastify.config available across all routes/plugins
@@ -168,6 +169,15 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
   const photoStoragePath =
     getValue('PHOTO_STORAGE_PATH') ?? path.join(path.dirname(databaseUrl), 'photos');
 
+  // Parse and validate DIARY_AUTO_EVENTS
+  const diaryAutoEventsStr = (getValue('DIARY_AUTO_EVENTS') ?? 'true').toLowerCase();
+  if (diaryAutoEventsStr !== 'true' && diaryAutoEventsStr !== 'false') {
+    errors.push(
+      `DIARY_AUTO_EVENTS must be 'true' or 'false', got: ${getValue('DIARY_AUTO_EVENTS')}`,
+    );
+  }
+  const diaryAutoEvents = diaryAutoEventsStr === 'true';
+
   // If there are any validation errors, throw a single error listing all of them
   if (errors.length > 0) {
     throw new Error(`Configuration validation failed:\n  - ${errors.join('\n  - ')}`);
@@ -194,6 +204,7 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     paperlessEnabled,
     photoStoragePath,
     photoMaxFileSizeMb,
+    diaryAutoEvents,
   };
 }
 
@@ -220,6 +231,7 @@ export default fp(
         paperlessFilterTag: config.paperlessFilterTag,
         photoStoragePath: config.photoStoragePath,
         photoMaxFileSizeMb: config.photoMaxFileSizeMb,
+        diaryAutoEvents: config.diaryAutoEvents,
       },
       'Configuration loaded',
     );
