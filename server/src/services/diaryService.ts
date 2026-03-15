@@ -35,6 +35,8 @@ import type {
   SiteVisitMetadata,
   DeliveryMetadata,
   IssueMetadata,
+  DiaryEntryType,
+  DiarySourceEntityType,
 } from '@cornerstone/shared';
 import type { PaginationMeta } from '@cornerstone/shared';
 
@@ -93,14 +95,14 @@ function toDiarySummary(
 
   return {
     id: entry.id,
-    entryType: entry.entryType as any,
+    entryType: entry.entryType as DiaryEntryType,
     entryDate: entry.entryDate,
     title: entry.title,
     body: entry.body,
     metadata,
     isAutomatic: entry.isAutomatic,
     isSigned,
-    sourceEntityType: entry.sourceEntityType as any,
+    sourceEntityType: entry.sourceEntityType as DiarySourceEntityType | null,
     sourceEntityId: entry.sourceEntityId,
     photoCount,
     createdBy: toDiaryUserSummary(user),
@@ -355,14 +357,32 @@ export function listDiaryEntries(
     .offset(offset)
     .all();
 
-  const items = entryRows.map((row) => {
-    const photoCount = db
-      .select({ count: sql<number>`COUNT(*)` })
+  // Batch query photo counts
+  const entryIds = entryRows.map((row) => row.entry.id);
+
+  let photoCountMap: Map<string, number> = new Map();
+  if (entryIds.length > 0) {
+    const photoCounts = db
+      .select({
+        entityId: photos.entityId,
+        count: sql<number>`COUNT(*)`,
+      })
       .from(photos)
-      .where(and(eq(photos.entityType, 'diary_entry'), eq(photos.entityId, row.entry.id)))
-      .get();
-    return toDiarySummary(row.entry, row.user, photoCount?.count ?? 0);
-  });
+      .where(
+        and(
+          eq(photos.entityType, 'diary_entry'),
+          inArray(photos.entityId, entryIds),
+        ),
+      )
+      .groupBy(photos.entityId)
+      .all();
+
+    photoCountMap = new Map(photoCounts.map((r) => [r.entityId, r.count]));
+  }
+
+  const items = entryRows.map((row) =>
+    toDiarySummary(row.entry, row.user, photoCountMap.get(row.entry.id) ?? 0),
+  );
 
   return {
     items,
@@ -429,6 +449,13 @@ export function createDiaryEntry(
 
   // Validate metadata
   validateMetadata(data.entryType, data.metadata);
+
+  // Validate metadata size
+  if (data.metadata !== null && data.metadata !== undefined) {
+    if (JSON.stringify(data.metadata).length > 4096) {
+      throw new ValidationError('Metadata must not exceed 4096 characters when serialized');
+    }
+  }
 
   // Create entry
   const id = randomUUID();
@@ -521,6 +548,13 @@ export function updateDiaryEntry(
   // Validate metadata if provided
   if (data.metadata !== undefined) {
     validateMetadata(entry.entryType, data.metadata);
+  }
+
+  // Validate metadata size
+  if (data.metadata !== null && data.metadata !== undefined) {
+    if (JSON.stringify(data.metadata).length > 4096) {
+      throw new ValidationError('Metadata must not exceed 4096 characters when serialized');
+    }
   }
 
   // Update entry

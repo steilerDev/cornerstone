@@ -311,7 +311,7 @@ describe('diaryApi', () => {
       expect(mockFetch).toHaveBeenCalledWith(
         '/api/diary-entries/de-1',
         expect.objectContaining({
-          method: 'PUT',
+          method: 'PATCH',
           body: JSON.stringify(updateData),
         }),
       );
