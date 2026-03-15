@@ -152,20 +152,12 @@ test.describe('Generate PDF triggers export API (Scenario 7)', () => {
   }) => {
     const diaryPage = new DiaryPage(page);
 
-    // NOTE: The frontend exportDiaryPdf() calls fetch('/diary-entries/export?...') —
-    // without the /api/ prefix. This is a known bug (see GitHub Issue for tracking).
-    // The correct URL should be /api/diary-entries/export.
-    // This mock intercepts the actual (currently buggy) URL so the test passes and
-    // validates the button click triggers a request. Once the frontend bug is fixed,
-    // update the URL pattern to '**/api/diary-entries/export*'.
-    //
     // registerBefore: waitForRequest must be registered BEFORE the action that triggers it
     const exportRequestPromise = page.waitForRequest(
-      (req) => req.url().includes('/diary-entries/export') && req.method() === 'GET',
+      (req) => req.url().includes('/api/diary-entries/export') && req.method() === 'GET',
     );
 
-    // Mock both the correct and the current (buggy) path so the test captures the request
-    await page.route('**/diary-entries/export*', async (route) => {
+    await page.route('**/api/diary-entries/export*', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/pdf',
@@ -186,9 +178,9 @@ test.describe('Generate PDF triggers export API (Scenario 7)', () => {
 
       // The export request must be sent (to some /diary-entries/export path)
       const exportRequest = await exportRequestPromise;
-      expect(exportRequest.url()).toContain('/diary-entries/export');
+      expect(exportRequest.url()).toContain('/api/diary-entries/export');
     } finally {
-      await page.unroute('**/diary-entries/export*');
+      await page.unroute('**/api/diary-entries/export*');
     }
   });
 });
@@ -200,9 +192,7 @@ test.describe('Export error handling (Scenario 8)', () => {
   test('API error during export shows an error banner inside the dialog', async ({ page }) => {
     const diaryPage = new DiaryPage(page);
 
-    // Mock both the correct path and the current (buggy) path without /api/ prefix
-    // See Scenario 7 comment for details on the frontend bug
-    await page.route('**/diary-entries/export*', async (route) => {
+    await page.route('**/api/diary-entries/export*', async (route) => {
       await route.fulfill({
         status: 400,
         contentType: 'application/json',
@@ -227,7 +217,7 @@ test.describe('Export error handling (Scenario 8)', () => {
       // Dialog should remain open after error
       await expect(diaryPage.exportDialog).toBeVisible();
     } finally {
-      await page.unroute('**/diary-entries/export*');
+      await page.unroute('**/api/diary-entries/export*');
     }
   });
 });
