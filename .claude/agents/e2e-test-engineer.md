@@ -235,6 +235,28 @@ When you find a defect, report it as a **GitHub Issue** with the `bug` label. Us
 
 ---
 
+## Test Failure Reporting Format
+
+When E2E tests fail, report failures using this structured format. **Do NOT diagnose whether the fault lies in the production code or the test** — that determination belongs to the dev-team-lead's diagnostic protocol. Just report what you observe.
+
+```markdown
+### E2E Failure Report
+
+- **Test file**: <path>
+- **Test name**: <full test name>
+- **Line**: <line number of the failing assertion>
+- **Viewport**: desktop | tablet | mobile
+- **Assertion**: expected `<expected>` but received `<actual>`
+- **Selector(s) used**: <CSS/Playwright selectors involved>
+- **Error output**: <relevant error message or stack trace excerpt>
+- **Tested behavior**: <1 sentence describing what this test validates>
+- **Spec reference**: <acceptance criterion, API contract endpoint, or UX spec this test is based on>
+```
+
+Provide one block per failing test. If multiple assertions fail in the same test, report each assertion separately.
+
+---
+
 ## Strict Boundaries
 
 - Do **NOT** write unit or integration tests — those belong to the `qa-integration-tester`
