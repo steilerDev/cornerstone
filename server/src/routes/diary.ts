@@ -10,7 +10,6 @@
 import type { FastifyInstance } from 'fastify';
 import { UnauthorizedError } from '../errors/AppError.js';
 import * as diaryService from '../services/diaryService.js';
-import * as diaryExportService from '../services/diaryExportService.js';
 import type {
   CreateDiaryEntryRequest,
   UpdateDiaryEntryRequest,
@@ -96,21 +95,6 @@ const deleteDiaryEntrySchema = {
     properties: {
       id: { type: 'string' },
     },
-  },
-};
-
-/** JSON schema for GET /api/diary-entries/export (export as PDF) */
-const exportDiaryEntriesSchema = {
-  querystring: {
-    type: 'object',
-    properties: {
-      dateFrom: { type: 'string' },
-      dateTo: { type: 'string' },
-      types: { type: 'string' },
-      includeAutomatic: { type: 'boolean' },
-      includePhotos: { type: 'boolean' },
-    },
-    additionalProperties: false,
   },
 };
 
@@ -210,48 +194,4 @@ export default async function diaryRoutes(fastify: FastifyInstance) {
       return reply.status(204).send();
     },
   );
-
-  /**
-   * GET /api/diary-entries/export
-   * Export diary entries as a PDF document.
-   * Supports filtering by date range, entry types, and automatic entries.
-   * Auth required: Yes (both admin and member)
-   */
-  fastify.get<{
-    Querystring: {
-      dateFrom?: string;
-      dateTo?: string;
-      types?: string;
-      includeAutomatic?: boolean;
-      includePhotos?: boolean;
-    };
-  }>('/export', { schema: exportDiaryEntriesSchema }, async (request, reply) => {
-    if (!request.user) {
-      throw new UnauthorizedError();
-    }
-
-    const pdfBuffer = await diaryExportService.generateDiaryPdf(
-      fastify.db,
-      fastify.config.photoStoragePath,
-      {
-        dateFrom: request.query.dateFrom,
-        dateTo: request.query.dateTo,
-        types: request.query.types,
-        includeAutomatic: request.query.includeAutomatic,
-        includePhotos: request.query.includePhotos,
-      },
-    );
-
-    // Generate filename with date range
-    const dateRangeStr =
-      request.query.dateFrom && request.query.dateTo
-        ? `${request.query.dateFrom}-to-${request.query.dateTo}`
-        : new Date().toISOString().substring(0, 10);
-    const filename = `construction-diary-${dateRangeStr}.pdf`;
-
-    return reply
-      .header('Content-Type', 'application/pdf')
-      .header('Content-Disposition', `attachment; filename="${filename}"`)
-      .send(pdfBuffer);
-  });
 }
