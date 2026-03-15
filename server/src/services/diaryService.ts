@@ -368,12 +368,7 @@ export function listDiaryEntries(
         count: sql<number>`COUNT(*)`,
       })
       .from(photos)
-      .where(
-        and(
-          eq(photos.entityType, 'diary_entry'),
-          inArray(photos.entityId, entryIds),
-        ),
-      )
+      .where(and(eq(photos.entityType, 'diary_entry'), inArray(photos.entityId, entryIds)))
       .groupBy(photos.entityId)
       .all();
 
