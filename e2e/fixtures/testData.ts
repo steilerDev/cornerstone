@@ -54,4 +54,5 @@ export const API = {
   schedule: '/api/schedule',
   householdItems: '/api/household-items',
   diaryEntries: '/api/diary-entries',
+  diaryExport: '/api/diary-entries/export',
 };

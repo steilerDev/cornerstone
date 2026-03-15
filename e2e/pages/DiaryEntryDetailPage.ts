@@ -78,8 +78,16 @@ export class DiaryEntryDetailPage {
   readonly deliveryMetadata: Locator;
   readonly issueMetadata: Locator;
 
-  // Photo count
+  // Photo section
   readonly photoSection: Locator;
+  readonly photoHeading: Locator;
+  readonly photoEmptyState: Locator;
+
+  // Signature section
+  readonly signatureSection: Locator;
+
+  // Print button
+  readonly printButton: Locator;
 
   // Source entity section
   readonly sourceSection: Locator;
@@ -135,8 +143,18 @@ export class DiaryEntryDetailPage {
     this.deliveryMetadata = page.getByTestId('delivery-metadata');
     this.issueMetadata = page.getByTestId('issue-metadata');
 
-    // Photo count section
+    // Photo section — the full section with heading and content
     this.photoSection = page.locator('[class*="photoSection"]');
+    // Photo heading: "Photos (N)" — always rendered
+    this.photoHeading = page.locator('[class*="photoHeading"]');
+    // Photo empty state — rendered when no photos are attached
+    this.photoEmptyState = page.locator('[class*="photoEmptyState"]');
+
+    // Signature section — rendered when entry.metadata.signatures is non-empty
+    this.signatureSection = page.locator('[class*="signatureSection"]');
+
+    // Print button — "🖨️ Print"
+    this.printButton = page.getByRole('button', { name: /Print/i });
 
     // Source entity section
     this.sourceSection = page.locator('[class*="sourceSection"]');
@@ -189,6 +207,15 @@ export class DiaryEntryDetailPage {
    */
   severityBadge(severity: 'low' | 'medium' | 'high' | 'critical'): Locator {
     return this.page.getByTestId(`severity-${severity}`);
+  }
+
+  /**
+   * Get the photo count badge locator for an entry card on the LIST page.
+   * data-testid="photo-count-{id}" — visible on DiaryEntryCard when photoCount > 0.
+   * Used from diary-list tests, not on the detail page.
+   */
+  photoCountBadge(entryId: string): Locator {
+    return this.page.getByTestId(`photo-count-${entryId}`);
   }
 
   /**
