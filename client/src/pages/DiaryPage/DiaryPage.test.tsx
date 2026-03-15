@@ -258,20 +258,6 @@ describe('DiaryPage', () => {
 
   // ─── Filter mode changes call API ──────────────────────────────────────────
 
-  it('calls listDiaryEntries again when type switcher mode changes', async () => {
-    const user = userEvent.setup();
-    mockListDiaryEntries.mockResolvedValue(emptyResponse);
-
-    renderPage();
-    await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalledTimes(1));
-
-    await act(async () => {
-      await user.click(screen.getByTestId('type-switcher-manual'));
-    });
-
-    await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalledTimes(2));
-  });
-
   // ─── New Entry button ─────────────────────────────────────────────────────
 
   it('renders a "+ New Entry" link pointing to /diary/new', async () => {

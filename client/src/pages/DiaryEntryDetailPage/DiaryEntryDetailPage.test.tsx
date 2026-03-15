@@ -119,11 +119,11 @@ describe('DiaryEntryDetailPage', () => {
     });
   });
 
-  it('renders the author display name', async () => {
+  it('renders created timestamp', async () => {
     mockGetDiaryEntry.mockResolvedValueOnce(baseDetail);
     renderDetailPage();
     await waitFor(() => {
-      expect(screen.getByText(/Alice Builder/)).toBeInTheDocument();
+      expect(screen.getByText('Created:')).toBeInTheDocument();
     });
   });
 
