@@ -44,9 +44,11 @@ describe('RecentDiaryCard', () => {
     localStorage.clear();
   });
 
-  const renderCard = (
-    props: { entries: DiaryEntrySummary[]; isLoading: boolean; error: string | null },
-  ) =>
+  const renderCard = (props: {
+    entries: DiaryEntrySummary[];
+    isLoading: boolean;
+    error: string | null;
+  }) =>
     render(
       <MemoryRouter>
         <RecentDiaryCard {...props} />
@@ -117,7 +119,11 @@ describe('RecentDiaryCard', () => {
   });
 
   it('renders entry title text', () => {
-    renderCard({ entries: [makeEntry('de-1', { title: 'Concrete Pour Day' })], isLoading: false, error: null });
+    renderCard({
+      entries: [makeEntry('de-1', { title: 'Concrete Pour Day' })],
+      isLoading: false,
+      error: null,
+    });
     expect(screen.getByText('Concrete Pour Day')).toBeInTheDocument();
   });
 

@@ -194,6 +194,7 @@ Key selectors:
 File: `e2e/tests/diary/diary-uat-fixes.spec.ts`
 
 Key behavioral changes validated:
+
 - Post-create navigation: `/diary/:id/edit` (NOT `/diary/:id`) — UAT fix #843
 - Detail back button: `getByLabel('Go back to diary')` navigates to `/diary` (NOT browser-back) — #842
 - Source link text: `data-testid="source-link-{sourceEntityId}"` shows `sourceEntityTitle` — #842

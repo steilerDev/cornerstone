@@ -276,9 +276,7 @@ export default function DiaryEntryCreatePage() {
 
       {error && <div className={styles.errorBanner}>{error}</div>}
 
-      <div className={styles.infoNote}>
-        Photos can be added after saving.
-      </div>
+      <div className={styles.infoNote}>Photos can be added after saving.</div>
 
       <form className={styles.form} onSubmit={handleSubmit}>
         <DiaryEntryForm

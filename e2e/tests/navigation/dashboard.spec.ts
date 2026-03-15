@@ -307,7 +307,9 @@ test.describe('Smoke test (Scenario 1)', { tag: '@smoke' }, () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('All cards render (Scenario 2)', { tag: '@responsive' }, () => {
-  test('All 10 card headings are visible after data loads (incl. Recent Diary)', async ({ page }) => {
+  test('All 10 card headings are visible after data loads (incl. Recent Diary)', async ({
+    page,
+  }) => {
     // On mobile, some cards are inside collapsed <details> sections and are not
     // all visible simultaneously. This test validates the desktop/tablet grid layout.
     const viewport = page.viewportSize();

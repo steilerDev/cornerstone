@@ -435,7 +435,12 @@ export function listDiaryEntries(
       row.entry.sourceEntityType,
       row.entry.sourceEntityId,
     );
-    return toDiarySummary(row.entry, row.user, photoCountMap.get(row.entry.id) ?? 0, sourceEntityTitle);
+    return toDiarySummary(
+      row.entry,
+      row.user,
+      photoCountMap.get(row.entry.id) ?? 0,
+      sourceEntityTitle,
+    );
   });
 
   return {

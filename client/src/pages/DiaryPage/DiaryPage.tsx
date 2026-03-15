@@ -285,7 +285,6 @@ export default function DiaryPage() {
           </button>
         </div>
       )}
-
     </div>
   );
 }

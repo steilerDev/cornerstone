@@ -52,7 +52,8 @@ export function SignatureCapture({
         // Get CSS variable colors for dark mode support
         const computedStyle = getComputedStyle(canvas);
         const bgColor = computedStyle.getPropertyValue('--color-bg-primary').trim() || '#ffffff';
-        const strokeColor = computedStyle.getPropertyValue('--color-text-primary').trim() || '#000000';
+        const strokeColor =
+          computedStyle.getPropertyValue('--color-text-primary').trim() || '#000000';
 
         // Fill canvas with background color from CSS variables
         ctx.fillStyle = bgColor;

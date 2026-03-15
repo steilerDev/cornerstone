@@ -72,4 +72,3 @@ export function updateDiaryEntry(
 export function deleteDiaryEntry(id: string): Promise<void> {
   return del<void>(`/diary-entries/${id}`);
 }
-

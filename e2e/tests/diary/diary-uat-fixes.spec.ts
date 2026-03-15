@@ -31,18 +31,14 @@ import { createDiaryEntryViaApi, deleteDiaryEntryViaApi } from '../../fixtures/a
 // Scenario 1: Diary list page renders without export button
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('No export button (Scenario 1)', { tag: '@responsive' }, () => {
-  test(
-    'Diary list page does not show an Export button',
-    { tag: '@smoke' },
-    async ({ page }) => {
-      const diaryPage = new DiaryPage(page);
-      await diaryPage.goto();
+  test('Diary list page does not show an Export button', { tag: '@smoke' }, async ({ page }) => {
+    const diaryPage = new DiaryPage(page);
+    await diaryPage.goto();
 
-      // UAT fix #845: export feature removed — no button with name matching /Export/i
-      const exportButton = page.getByRole('button', { name: /Export/i });
-      await expect(exportButton).not.toBeVisible();
-    },
-  );
+    // UAT fix #845: export feature removed — no button with name matching /Export/i
+    const exportButton = page.getByRole('button', { name: /Export/i });
+    await expect(exportButton).not.toBeVisible();
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -84,52 +80,48 @@ test.describe('Back button navigates to /diary (Scenario 2)', { tag: '@responsiv
 // Scenario 3: Dashboard "Recent Diary" card is visible
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Dashboard Recent Diary card (Scenario 3)', { tag: '@responsive' }, () => {
-  test(
-    'Dashboard page shows a "Recent Diary" card',
-    { tag: '@smoke' },
-    async ({ page }) => {
-      const dashboardPage = new DashboardPage(page);
+  test('Dashboard page shows a "Recent Diary" card', { tag: '@smoke' }, async ({ page }) => {
+    const dashboardPage = new DashboardPage(page);
 
-      // Mock diary entries so the card renders content reliably
-      await page.route('**/api/diary-entries*', async (route) => {
-        if (route.request().method() === 'GET') {
-          await route.fulfill({
-            status: 200,
-            contentType: 'application/json',
-            body: JSON.stringify({
-              items: [],
-              pagination: { total: 0, page: 1, pageSize: 5, totalPages: 0, totalItems: 0 },
-            }),
-          });
-        } else {
-          await route.continue();
-        }
+    // Mock diary entries so the card renders content reliably
+    await page.route('**/api/diary-entries*', async (route) => {
+      if (route.request().method() === 'GET') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            items: [],
+            pagination: { total: 0, page: 1, pageSize: 5, totalPages: 0, totalItems: 0 },
+          }),
+        });
+      } else {
+        await route.continue();
+      }
+    });
+
+    try {
+      // Reset hidden cards to ensure "Recent Diary" is visible
+      await page.request.patch('/api/users/me/preferences', {
+        data: { key: 'dashboard.hiddenCards', value: '[]' },
       });
 
-      try {
-        // Reset hidden cards to ensure "Recent Diary" is visible
-        await page.request.patch('/api/users/me/preferences', {
-          data: { key: 'dashboard.hiddenCards', value: '[]' },
-        });
+      await dashboardPage.goto();
+      await dashboardPage.waitForCardsLoaded();
 
-        await dashboardPage.goto();
-        await dashboardPage.waitForCardsLoaded();
+      // UAT fix #844: "Recent Diary" card added to dashboard
+      const recentDiaryCard = dashboardPage.recentDiaryCard();
+      await expect(recentDiaryCard.first()).toBeVisible();
 
-        // UAT fix #844: "Recent Diary" card added to dashboard
-        const recentDiaryCard = dashboardPage.recentDiaryCard();
-        await expect(recentDiaryCard.first()).toBeVisible();
-
-        // The card heading must be "Recent Diary"
-        const cardHeading = recentDiaryCard.first().getByRole('heading', {
-          name: 'Recent Diary',
-          level: 2,
-        });
-        await expect(cardHeading).toBeVisible();
-      } finally {
-        await page.unroute('**/api/diary-entries*');
-      }
-    },
-  );
+      // The card heading must be "Recent Diary"
+      const cardHeading = recentDiaryCard.first().getByRole('heading', {
+        name: 'Recent Diary',
+        level: 2,
+      });
+      await expect(cardHeading).toBeVisible();
+    } finally {
+      await page.unroute('**/api/diary-entries*');
+    }
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -298,8 +290,7 @@ test.describe('Create navigates to edit page (Scenario 6)', { tag: '@responsive'
 
         // Register response listener BEFORE submit
         const responsePromise = page.waitForResponse(
-          (resp) =>
-            resp.url().includes('/api/diary-entries') && resp.request().method() === 'POST',
+          (resp) => resp.url().includes('/api/diary-entries') && resp.request().method() === 'POST',
         );
 
         await createPage.submit();
