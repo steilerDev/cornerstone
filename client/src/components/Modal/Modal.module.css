@@ -33,7 +33,7 @@
   color: var(--color-text-muted);
   cursor: pointer;
   border-radius: var(--radius-sm);
-  transition: var(--transition-normal);
+  transition: var(--transition-button);
   flex-shrink: 0;
 }
 

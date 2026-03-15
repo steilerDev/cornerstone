@@ -94,7 +94,7 @@
   box-shadow: var(--shadow-md);
   max-height: 200px;
   overflow-y: auto;
-  z-index: 10;
+  z-index: var(--z-dropdown);
 }
 
 .dropdownItem {
@@ -209,7 +209,6 @@
 .actions {
   display: flex;
   gap: var(--spacing-3);
-  margin-top: var(--spacing-4);
   justify-content: flex-end;
 }
 
@@ -242,6 +241,12 @@
 
 .submitButton:hover:not(:disabled) {
   background: var(--color-primary-hover);
+}
+
+.cancelButton:focus-visible,
+.submitButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
 }
 
 .submitButton:disabled {
