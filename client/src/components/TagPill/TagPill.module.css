@@ -23,7 +23,7 @@
   margin: 0;
   background: none;
   border: none;
-  border-radius: 50%;
+  border-radius: var(--radius-circle);
   font-size: var(--font-size-lg);
   line-height: 1;
   cursor: pointer;
