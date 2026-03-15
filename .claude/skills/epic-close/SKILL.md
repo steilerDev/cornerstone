@@ -93,7 +93,7 @@ If there are refinement items to address:
    ```
    gh pr create --base beta --title "chore: address refinement items for epic #<epic-number>" --body "..."
    ```
-8. Wait for CI: `gh pr checks <pr-number> --watch`
+8. Wait for CI using the **CI Gate Polling** pattern from `CLAUDE.md` (beta variant — wait for `Quality Gates` only)
 9. Squash merge: `gh pr merge --squash <pr-url>`
 
 If no refinement items exist, skip to step 5.
@@ -204,13 +204,9 @@ EOF
 
 ### 10. CI Gate
 
-Wait for all CI checks to pass on the promotion PR, including the full sharded E2E suite (runs on main-targeting PRs):
+Wait for all required CI gates to pass on the promotion PR using the **CI Gate Polling** pattern from `CLAUDE.md` (main variant — wait for both `Quality Gates` + `E2E Gates`).
 
-```
-gh pr checks <pr-number> --watch
-```
-
-If any check fails, investigate and resolve before proceeding.
+If any gate fails, investigate and resolve before proceeding.
 
 ### 11. Promotion Approval Loop
 
@@ -277,13 +273,9 @@ After all fix groups are merged to `beta`:
 
 #### 11g. CI Gate
 
-Wait for all CI checks to pass on the new promotion PR:
+Wait for all required CI gates to pass on the new promotion PR using the **CI Gate Polling** pattern from `CLAUDE.md` (main variant — wait for both `Quality Gates` + `E2E Gates`).
 
-```
-gh pr checks <new-pr-number> --watch
-```
-
-If any check fails, investigate and resolve before proceeding.
+If any gate fails, investigate and resolve before proceeding.
 
 #### 11h. Loop
 

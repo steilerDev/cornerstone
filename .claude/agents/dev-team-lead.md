@@ -335,11 +335,7 @@ For multi-item batches, include per-item summary bullets and one `Fixes #N` line
 
 ### CI Monitoring
 
-Watch CI checks after pushing:
-
-```bash
-gh pr checks <pr-number> --watch
-```
+Watch CI checks after pushing using the **CI Gate Polling** pattern from `CLAUDE.md` (use the beta or main variant based on the PR's target branch).
 
 If CI fails:
 
@@ -403,7 +399,7 @@ In `[MODE: commit]`:
 2. Stage specific files and commit with conventional message + all contributing agent trailers
 3. Push: `git push -u origin <branch-name>`
 4. Create PR targeting `beta` (if not already created)
-5. Watch CI: `gh pr checks <pr-number> --watch`
+5. Watch CI using the **CI Gate Polling** pattern from `CLAUDE.md` (beta variant)
 6. If CI fails, return a fix spec (do NOT fix directly)
 7. Return PR URL with CI status to orchestrator
 

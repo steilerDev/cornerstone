@@ -133,7 +133,7 @@ For each piece of work, follow this order:
 Before considering any task complete, verify:
 
 - [ ] Pre-commit hook passes (triggers on commit: selective tests, typecheck, build, audit)
-- [ ] CI checks pass after push (wait with `gh pr checks <pr-number> --watch`)
+- [ ] CI checks pass after push (use the **CI Gate Polling** pattern from `CLAUDE.md`)
 - [ ] New code is structured for testability (clear interfaces, injectable dependencies)
 - [ ] API responses match the contract shapes exactly
 - [ ] Error responses use correct HTTP status codes and error shapes from the contract
@@ -169,7 +169,7 @@ Before considering any task complete, verify:
 3. Commit with conventional commit message and your Co-Authored-By trailer (the pre-commit hook runs all quality gates automatically — selective lint/format/tests on staged files + full typecheck/build/audit)
 4. Push: `git push -u origin <branch-name>`
 5. Create a PR targeting `beta`: `gh pr create --base beta --title "..." --body "..."`
-6. Wait for CI: `gh pr checks <pr-number> --watch`
+6. Wait for CI using the **CI Gate Polling** pattern from `CLAUDE.md` (beta variant)
 7. **Request review**: After CI passes, the orchestrator launches `product-architect` and `security-engineer` to review the PR. Both must approve before merge.
 8. **Address feedback**: If a reviewer requests changes, fix the issues on the same branch and push. The orchestrator will re-request review from the reviewer(s) that requested changes.
 9. After merge, clean up: `git checkout beta && git pull && git branch -d <branch-name>`

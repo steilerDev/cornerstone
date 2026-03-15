@@ -347,9 +347,7 @@ If any reviewer identifies blocking issues:
 
 Once all reviews are clean, wait for CI to go green:
 
-```
-gh pr checks <pr-number> --watch
-```
+Use the **CI Gate Polling** pattern from `CLAUDE.md` (beta variant — wait for `Quality Gates` only).
 
 After CI is green, present the user with:
 

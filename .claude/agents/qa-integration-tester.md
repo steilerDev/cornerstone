@@ -222,7 +222,7 @@ Before considering your work complete, verify:
 - [ ] Bug reports have complete reproduction steps
 - [ ] Performance metrics validated against baselines (bundle size, load time, API response time)
 - [ ] Docker deployment tested if applicable
-- [ ] CI checks pass after push (wait with `gh pr checks <pr-number> --watch`)
+- [ ] CI checks pass after push (use the **CI Gate Polling** pattern from `CLAUDE.md`)
 
 ---
 
