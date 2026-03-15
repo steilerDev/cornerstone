@@ -155,7 +155,6 @@ export class DiaryPage {
   async search(query: string): Promise<void> {
     const responsePromise = this.page.waitForResponse(
       (resp) => resp.url().includes('/api/diary-entries') && resp.status() === 200,
-      { timeout: 10_000 },
     );
     await this.searchInput.scrollIntoViewIfNeeded();
     await this.searchInput.waitFor({ state: 'visible' });
@@ -170,7 +169,6 @@ export class DiaryPage {
   async clearSearch(): Promise<void> {
     const responsePromise = this.page.waitForResponse(
       (resp) => resp.url().includes('/api/diary-entries') && resp.status() === 200,
-      { timeout: 10_000 },
     );
     await this.searchInput.clear();
     await responsePromise;
