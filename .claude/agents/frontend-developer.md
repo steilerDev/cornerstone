@@ -116,6 +116,25 @@ Follow this workflow for every task:
 - **Use CSS custom properties from `tokens.css`** — never hardcode hex colors, font sizes, or spacing values. All visual values must reference semantic tokens (e.g., `var(--color-bg-primary)`, `var(--spacing-4)`)
 - **Follow existing design patterns** for component states (hover, focus, disabled, error, empty), responsive behavior, and animations. Reference `tokens.css` and the Style Guide wiki page for established conventions
 
+## Shared Component Library
+
+Before building any UI element, check if a shared component exists. Using shared components is **mandatory** — do not create parallel implementations.
+
+| Component | Location | Use For |
+|-----------|----------|---------|
+| `Badge` | `client/src/components/Badge/` | Status indicators, severity badges, outcome badges — pass a variant map and current value |
+| `SearchPicker` | `client/src/components/SearchPicker/` | Search-as-you-type entity selection (work items, household items, etc.) — pass search function and display renderer |
+| `Modal` | `client/src/components/Modal/` | Dialog overlays — provides backdrop, escape key, focus management, header/content/actions slots |
+| `Skeleton` | `client/src/components/Skeleton/` | Loading placeholders — configurable line count and widths |
+| `EmptyState` | `client/src/components/EmptyState/` | Empty data states — icon, message, optional action button |
+| `FormError` | `client/src/components/FormError/` | Error banners and field-level error display in forms |
+
+**Rules:**
+1. If a shared component fits your need, use it — do not create a new component with similar functionality
+2. If you need a variation, extend the shared component with new props
+3. **Every new component must be built as a reusable shared component** in `client/src/components/` — never embed reusable UI patterns inside page-specific code. Design for reuse from the start: generic props, no hardcoded domain assumptions, documented usage
+4. All CSS values must use design tokens — never hardcode hex colors, spacing values, border-radius, or font sizes
+
 ## Boundaries (What NOT to Do)
 
 - Do NOT implement server-side logic, API endpoints, or database operations
@@ -124,6 +143,7 @@ Follow this workflow for every task:
 - Do NOT change the API contract without flagging the need to coordinate with the Architect
 - Do NOT make architectural decisions (state management library changes, build tool changes) without Architect input — flag these as recommendations instead
 - Do NOT install new major dependencies without checking if the Architect has guidelines on this
+- Do NOT create new badge, picker, modal, skeleton, or empty state components when shared versions exist — use and extend the shared components instead
 
 ## Quality Assurance
 
@@ -135,6 +155,7 @@ Before considering any task complete:
 4. **Check** that TypeScript types are properly defined (no `any` types without justification)
 5. **Ensure** new API client functions match the contract on the GitHub Wiki API Contract page
 6. **Review** your own code for consistency with existing patterns in the codebase
+7. **Verify** shared component usage — confirm you're using Badge, SearchPicker, Modal, Skeleton, EmptyState, FormError where applicable instead of creating custom implementations
 
 ## Error Handling Patterns
 

@@ -167,6 +167,8 @@ The spec document you return must follow this structure exactly:
 - Each spec must be self-contained — the implementing agent should not need to read the wiki
 - Include exact file paths, type signatures, and code patterns
 - Reference existing files for patterns rather than describing patterns abstractly
+- Frontend specs must reference the shared component library (Badge, SearchPicker, Modal, Skeleton, EmptyState, FormError) where applicable — include which shared components to use in the step-by-step instructions
+- If the spec introduces a new UI pattern that resembles an existing shared component, use the shared component instead
 
 ## Work Decomposition Rules
 
@@ -203,6 +205,8 @@ After the orchestrator routes work to implementation agents, you review all modi
 - Check for TypeScript strict mode compliance
 - Verify ESM import conventions (`.js` extensions, `type` imports)
 - Look for security issues (unsanitized input, missing auth checks, SQL injection)
+- Verify shared component usage — if the PR introduces new badge, picker, modal, skeleton, or empty state components instead of using the shared library, flag as CHANGES_REQUIRED
+- Verify CSS token compliance — no hardcoded color, spacing, radius, or font-size values (must use `var(--token-name)` from `tokens.css`)
 
 **Return format:**
 

@@ -345,6 +345,26 @@ The `docs` workspace is NOT part of the application build (`npm run build`). Bui
   ```
 - HTTP status codes: 200 (OK), 201 (Created), 204 (Deleted), 400 (Validation), 401 (Unauthed), 403 (Forbidden), 404 (Not Found), 409 (Conflict), 500 (Server Error)
 
+### Component Reuse Policy
+
+Before creating a new UI component, check if an existing shared component can be used or extended. The shared component library lives in `client/src/components/` and shared styles in `client/src/styles/shared.module.css`.
+
+**Shared components** (must be used instead of creating alternatives):
+- `Badge` — status indicators, severity badges, outcome badges (parameterized by variant map)
+- `SearchPicker` — search-as-you-type dropdowns for entity selection (work items, household items, etc.)
+- `Modal` — dialog overlays with backdrop, escape key, focus management
+- `Skeleton` — loading placeholder with configurable line count
+- `EmptyState` — empty data display with icon, message, and optional action
+- `FormError` — consistent error banner and field-level error display
+
+**Rules:**
+1. New UI that resembles an existing shared component MUST use or extend that component
+2. If a shared component doesn't quite fit, extend it with new props — don't create a parallel implementation
+3. **Every new component must be built as a reusable shared component** — no one-off implementations. If a UI pattern doesn't fit an existing shared component, create a new shared component in `client/src/components/` that can be reused by future features
+4. New shared components require UX designer visual spec approval
+5. All CSS values must use design tokens from `tokens.css` — no hardcoded colors, spacing, radii, or font sizes
+6. Stylelint enforces token usage automatically
+
 ## Testing Approach
 
 - **Unit & integration tests**: Jest with ts-jest (co-located with source: `foo.test.ts` next to `foo.ts`)
