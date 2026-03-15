@@ -1,0 +1,20 @@
+name: Env Drift
+
+on:
+  pull_request:
+    branches: [main, beta]
+  push:
+    branches: [main]
+
+jobs:
+  envdrift:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+      - name: Check .env.example drift (server)
+        run: npx -y github:jszzr/envdrift#v0.1.0 . --example .env.example --include server
