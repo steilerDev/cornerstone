@@ -27,7 +27,9 @@ import { createDiaryEntryViaApi, deleteDiaryEntryViaApi } from '../../fixtures/a
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-function makeMockEntryDetail(overrides: Partial<Record<string, unknown>> = {}): Record<string, unknown> {
+function makeMockEntryDetail(
+  overrides: Partial<Record<string, unknown>> = {},
+): Record<string, unknown> {
   return {
     id: 'mock-entry-photos-001',
     entryType: 'general_note',
@@ -47,7 +49,9 @@ function makeMockEntryDetail(overrides: Partial<Record<string, unknown>> = {}): 
   };
 }
 
-function makeMockListEntry(overrides: Partial<Record<string, unknown>> = {}): Record<string, unknown> {
+function makeMockListEntry(
+  overrides: Partial<Record<string, unknown>> = {},
+): Record<string, unknown> {
   return {
     id: 'mock-entry-photos-001',
     entryType: 'general_note',
@@ -420,7 +424,11 @@ test.describe('Edit/Delete hidden for signed entries (Scenario 9)', () => {
     // The /api/photos endpoint returns { photos: [] } not [] directly
     await page.route(`**/api/photos*`, async (route) => {
       if (route.request().method() === 'GET') {
-        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ photos: [] }) });
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ photos: [] }),
+        });
       } else {
         await route.continue();
       }
@@ -466,7 +474,11 @@ test.describe('"Add photos" hidden for signed entries (Scenario 10)', () => {
     // The /api/photos endpoint returns { photos: [] } not [] directly
     await page.route(`**/api/photos*`, async (route) => {
       if (route.request().method() === 'GET') {
-        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ photos: [] }) });
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ photos: [] }),
+        });
       } else {
         await route.continue();
       }

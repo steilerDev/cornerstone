@@ -162,7 +162,11 @@ test.describe('Automatic badge on detail page (Scenario 3)', { tag: '@responsive
 
     await page.route(`**/api/photos*`, async (route) => {
       if (route.request().method() === 'GET') {
-        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ photos: [] }) });
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ photos: [] }),
+        });
       } else {
         await route.continue();
       }
@@ -207,7 +211,11 @@ test.describe('No Edit/Delete for automatic entries (Scenario 4)', () => {
 
     await page.route(`**/api/photos*`, async (route) => {
       if (route.request().method() === 'GET') {
-        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ photos: [] }) });
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ photos: [] }),
+        });
       } else {
         await route.continue();
       }
@@ -256,7 +264,11 @@ test.describe('Source entity section (Scenario 5)', () => {
 
     await page.route(`**/api/photos*`, async (route) => {
       if (route.request().method() === 'GET') {
-        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ photos: [] }) });
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ photos: [] }),
+        });
       } else {
         await route.continue();
       }
@@ -340,7 +352,11 @@ test.describe('Automatic entry is read-only via API (Scenario 6)', () => {
     // Route the GET to return an automatic entry
     await page.route(`**/api/photos*`, async (route) => {
       if (route.request().method() === 'GET') {
-        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ photos: [] }) });
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ photos: [] }),
+        });
       } else {
         await route.continue();
       }
@@ -382,8 +398,12 @@ test.describe('Automatic entry is read-only via API (Scenario 6)', () => {
       // The frontend route still renders the edit page and the server enforces the constraint.
       // So we verify the page loads (heading visible or error visible).
       await Promise.race([
-        page.getByRole('heading', { level: 1, name: 'Edit Diary Entry' }).waitFor({ state: 'visible' }),
-        page.getByRole('heading', { level: 2, name: /Entry Not Found|Error Loading/i }).waitFor({ state: 'visible' }),
+        page
+          .getByRole('heading', { level: 1, name: 'Edit Diary Entry' })
+          .waitFor({ state: 'visible' }),
+        page
+          .getByRole('heading', { level: 2, name: /Entry Not Found|Error Loading/i })
+          .waitFor({ state: 'visible' }),
         page.locator('[class*="bannerError"]').waitFor({ state: 'visible' }),
       ]);
 
@@ -395,4 +415,3 @@ test.describe('Automatic entry is read-only via API (Scenario 6)', () => {
     }
   });
 });
-

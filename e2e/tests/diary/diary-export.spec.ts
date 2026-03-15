@@ -25,16 +25,12 @@ import { createDiaryEntryViaApi, deleteDiaryEntryViaApi } from '../../fixtures/a
 // Scenario 1: Export button visible on diary list page
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Export button visibility (Scenario 1)', { tag: '@responsive' }, () => {
-  test(
-    'Export button is visible on the diary list page',
-    { tag: '@smoke' },
-    async ({ page }) => {
-      const diaryPage = new DiaryPage(page);
-      await diaryPage.goto();
+  test('Export button is visible on the diary list page', { tag: '@smoke' }, async ({ page }) => {
+    const diaryPage = new DiaryPage(page);
+    await diaryPage.goto();
 
-      await expect(diaryPage.exportButton).toBeVisible();
-    },
-  );
+    await expect(diaryPage.exportButton).toBeVisible();
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -51,7 +47,9 @@ test.describe('Export dialog opens (Scenario 2)', { tag: '@responsive' }, () => 
     await expect(diaryPage.exportDialog).toBeVisible();
 
     // Dialog heading text
-    const dialogHeading = diaryPage.exportDialog.getByRole('heading', { name: /Export Diary to PDF/i });
+    const dialogHeading = diaryPage.exportDialog.getByRole('heading', {
+      name: /Export Diary to PDF/i,
+    });
     await expect(dialogHeading).toBeVisible();
   });
 });

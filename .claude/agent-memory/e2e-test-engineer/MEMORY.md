@@ -176,6 +176,7 @@ POMs extended: DiaryEntryDetailPage (photoHeading, photoEmptyState, signatureSec
 DiaryPage (exportButton, exportDialog, photoCountBadge).
 
 Key selectors:
+
 - Photo count badge on entry card: `data-testid="photo-count-{entryId}"` (only rendered when photoCount > 0)
 - Photo section heading: `[class*="photoHeading"]` — text "Photos (N)"
 - Photo empty state: `[class*="photoEmptyState"]` — text "No photos attached yet."
