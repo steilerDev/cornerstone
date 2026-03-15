@@ -35,6 +35,11 @@ export function usePhotos(entityType: string, entityId: string): UsePhotosResult
     let cancelled = false;
 
     async function loadPhotos() {
+      if (!entityType || !entityId) {
+        setPhotos([]);
+        return;
+      }
+
       setLoading(true);
       setError(null);
 
