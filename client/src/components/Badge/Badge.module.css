@@ -1,0 +1,95 @@
+/* Base styles — unified from StatusBadge, HouseholdItemStatusBadge, DiaryOutcomeBadge, DiarySeverityBadge */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--spacing-1) var(--spacing-2-5);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+  line-height: 1;
+  border: none;
+  cursor: default;
+}
+
+/* WorkItemStatus variants */
+.not_started {
+  background-color: var(--color-status-not-started-bg);
+  color: var(--color-status-not-started-text);
+}
+
+.in_progress {
+  background-color: var(--color-status-in-progress-bg);
+  color: var(--color-status-in-progress-text);
+}
+
+.completed {
+  background-color: var(--color-status-completed-bg);
+  color: var(--color-status-completed-text);
+}
+
+/* HouseholdItemStatus variants */
+.planned {
+  background-color: var(--color-hi-status-planned-bg);
+  color: var(--color-hi-status-planned-text);
+}
+
+.purchased {
+  background-color: var(--color-hi-status-purchased-bg);
+  color: var(--color-hi-status-purchased-text);
+}
+
+.scheduled {
+  background-color: var(--color-hi-status-scheduled-bg);
+  color: var(--color-hi-status-scheduled-text);
+}
+
+.arrived {
+  background-color: var(--color-hi-status-arrived-bg);
+  color: var(--color-hi-status-arrived-text);
+}
+
+/* DiaryInspectionOutcome variants */
+.pass {
+  background-color: var(--color-diary-outcome-pass-bg);
+  color: var(--color-diary-outcome-pass-text);
+}
+
+.fail {
+  background-color: var(--color-diary-outcome-fail-bg);
+  color: var(--color-diary-outcome-fail-text);
+}
+
+.conditional {
+  background-color: var(--color-diary-outcome-conditional-bg);
+  color: var(--color-diary-outcome-conditional-text);
+}
+
+/* DiaryIssueSeverity variants */
+.low {
+  background-color: var(--color-diary-severity-low-bg);
+  color: var(--color-diary-severity-low-text);
+}
+
+.medium {
+  background-color: var(--color-diary-severity-medium-bg);
+  color: var(--color-diary-severity-medium-text);
+}
+
+.high {
+  background-color: var(--color-diary-severity-high-bg);
+  color: var(--color-diary-severity-high-text);
+}
+
+.critical {
+  background-color: var(--color-diary-severity-critical-bg);
+  color: var(--color-diary-severity-critical-text);
+}
+
+/* Responsive */
+@media (max-width: 767px) {
+  .badge {
+    padding: var(--spacing-0-5) var(--spacing-2);
+    font-size: var(--font-size-2xs);
+  }
+}
