@@ -35,6 +35,7 @@ function makeSummary(id: string, overrides: Partial<DiaryEntrySummary> = {}): Di
     isSigned: false,
     sourceEntityType: null,
     sourceEntityId: null,
+    sourceEntityTitle: null,
     photoCount: 0,
     createdBy: { id: 'user-1', displayName: 'Alice' },
     createdAt: '2026-03-14T09:00:00.000Z',
@@ -278,5 +279,18 @@ describe('DiaryPage', () => {
     renderPage();
     const newEntryLink = screen.getByRole('link', { name: /new entry/i });
     expect(newEntryLink).toHaveAttribute('href', '/diary/new');
+  });
+
+  // ─── Export functionality removed ─────────────────────────────────────────
+
+  it('does not render an export or PDF button', async () => {
+    mockListDiaryEntries.mockResolvedValueOnce(makeListResponse([makeSummary('de-1')]));
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByTestId('diary-card-de-1')).toBeInTheDocument();
+    });
+    expect(screen.queryByRole('button', { name: /export/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /pdf/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /export/i })).not.toBeInTheDocument();
   });
 });

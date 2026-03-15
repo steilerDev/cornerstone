@@ -20,6 +20,7 @@ const manualEntry: DiaryEntrySummary = {
   isSigned: false,
   sourceEntityType: null,
   sourceEntityId: null,
+  sourceEntityTitle: null,
   photoCount: 0,
   createdBy: { id: 'user-1', displayName: 'Alice Builder' },
   createdAt: '2026-03-14T09:30:00.000Z',
@@ -41,6 +42,7 @@ const automaticEntry: DiaryEntrySummary = {
   isSigned: false,
   sourceEntityType: 'work_item',
   sourceEntityId: 'wi-kitchen-1',
+  sourceEntityTitle: null,
   photoCount: 0,
   createdBy: null,
   createdAt: '2026-03-14T10:00:00.000Z',
@@ -132,7 +134,50 @@ describe('DiaryEntryCard', () => {
     renderCard(automaticEntry);
     const sourceLink = screen.getByTestId('source-link-wi-kitchen-1');
     expect(sourceLink).toBeInTheDocument();
+    // sourceEntityTitle is null in this fixture, so falls back to type label
     expect(sourceLink).toHaveTextContent('Work Item');
+  });
+
+  // ─── sourceEntityTitle display ──────────────────────────────────────────────
+
+  it('uses sourceEntityTitle as link text when provided', () => {
+    const entryWithTitle: DiaryEntrySummary = {
+      ...automaticEntry,
+      id: 'de-titled-1',
+      sourceEntityType: 'work_item',
+      sourceEntityId: 'wi-kitchen-2',
+      sourceEntityTitle: 'Kitchen Renovation',
+    };
+    renderCard(entryWithTitle);
+    const sourceLink = screen.getByTestId('source-link-wi-kitchen-2');
+    expect(sourceLink).toHaveTextContent('Kitchen Renovation');
+  });
+
+  it('falls back to entity type label when sourceEntityTitle is null', () => {
+    const entryNoTitle: DiaryEntrySummary = {
+      ...automaticEntry,
+      id: 'de-notitle-1',
+      sourceEntityType: 'invoice',
+      sourceEntityId: 'inv-no-title',
+      sourceEntityTitle: null,
+    };
+    renderCard(entryNoTitle);
+    const sourceLink = screen.getByTestId('source-link-inv-no-title');
+    expect(sourceLink).toHaveTextContent('Invoice');
+  });
+
+  it('uses invoice sourceEntityTitle (invoice number) as link text', () => {
+    const invoiceEntryWithTitle: DiaryEntrySummary = {
+      ...automaticEntry,
+      id: 'de-inv-titled',
+      entryType: 'invoice_status',
+      sourceEntityType: 'invoice',
+      sourceEntityId: 'inv-456',
+      sourceEntityTitle: 'INV-2026-042',
+    };
+    renderCard(invoiceEntryWithTitle);
+    const sourceLink = screen.getByTestId('source-link-inv-456');
+    expect(sourceLink).toHaveTextContent('INV-2026-042');
   });
 
   it('source entity link for work_item points to /project/work-items/:sourceEntityId', () => {
@@ -148,6 +193,7 @@ describe('DiaryEntryCard', () => {
       entryType: 'invoice_status',
       sourceEntityType: 'invoice',
       sourceEntityId: 'inv-123',
+      sourceEntityTitle: null,
     };
     renderCard(invoiceEntry);
     const sourceLink = screen.getByTestId('source-link-inv-123');
@@ -162,6 +208,7 @@ describe('DiaryEntryCard', () => {
       entryType: 'milestone_delay',
       sourceEntityType: 'milestone',
       sourceEntityId: 'ms-456',
+      sourceEntityTitle: null,
     };
     renderCard(milestoneEntry);
     const sourceLink = screen.getByTestId('source-link-ms-456');

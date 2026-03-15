@@ -33,6 +33,7 @@ import {
   InvalidEntryTypeError,
 } from '../errors/AppError.js';
 import type { CreateDiaryEntryRequest, UpdateDiaryEntryRequest } from '@cornerstone/shared';
+import { workItems, invoices, milestones, vendors } from '../db/schema.js';
 
 // Suppress migration logs
 beforeEach(() => {
@@ -475,6 +476,144 @@ describe('diaryService', () => {
       // Automatic entries CAN be deleted (Story #808 changed this behavior)
       await expect(deleteDiaryEntry(db, id, photoStoragePath)).resolves.toBeUndefined();
       expect(() => getDiaryEntry(db, id)).toThrow(NotFoundError);
+    });
+  });
+
+  // ─── sourceEntityTitle resolution ─────────────────────────────────────────
+
+  describe('sourceEntityTitle resolution', () => {
+    it('getDiaryEntry returns sourceEntityTitle from work_item title', () => {
+      const now = new Date().toISOString();
+      db.insert(workItems)
+        .values({
+          id: 'wi-kitchen-01',
+          title: 'Kitchen Renovation',
+          status: 'not_started',
+          createdBy: testUserId,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+
+      const id = insertEntry({
+        isAutomatic: true,
+        entryType: 'work_item_status',
+        sourceEntityType: 'work_item',
+        sourceEntityId: 'wi-kitchen-01',
+        createdBy: null,
+      });
+
+      const result = getDiaryEntry(db, id);
+      expect(result.sourceEntityTitle).toBe('Kitchen Renovation');
+    });
+
+    it('getDiaryEntry returns sourceEntityTitle from invoice invoiceNumber', () => {
+      const now = new Date().toISOString();
+      db.insert(vendors)
+        .values({
+          id: 'vendor-01',
+          name: 'Test Vendor',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      db.insert(invoices)
+        .values({
+          id: 'inv-01',
+          vendorId: 'vendor-01',
+          invoiceNumber: 'INV-2026-001',
+          amount: 1000,
+          date: '2026-03-14',
+          status: 'pending',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+
+      const id = insertEntry({
+        isAutomatic: true,
+        entryType: 'invoice_status',
+        sourceEntityType: 'invoice',
+        sourceEntityId: 'inv-01',
+        createdBy: null,
+      });
+
+      const result = getDiaryEntry(db, id);
+      expect(result.sourceEntityTitle).toBe('INV-2026-001');
+    });
+
+    it('getDiaryEntry returns sourceEntityTitle from milestone title', () => {
+      const now = new Date().toISOString();
+      const milestone = db
+        .insert(milestones)
+        .values({
+          title: 'Foundation Complete',
+          targetDate: '2026-06-01',
+          isCompleted: false,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .returning({ id: milestones.id })
+        .get();
+
+      const milestoneId = String(milestone!.id);
+      const id = insertEntry({
+        isAutomatic: true,
+        entryType: 'milestone_delay',
+        sourceEntityType: 'milestone',
+        sourceEntityId: milestoneId,
+        createdBy: null,
+      });
+
+      const result = getDiaryEntry(db, id);
+      expect(result.sourceEntityTitle).toBe('Foundation Complete');
+    });
+
+    it('getDiaryEntry returns sourceEntityTitle=null when no source entity', () => {
+      const id = insertEntry({
+        sourceEntityType: null,
+        sourceEntityId: null,
+      });
+
+      const result = getDiaryEntry(db, id);
+      expect(result.sourceEntityTitle).toBeNull();
+    });
+
+    it('listDiaryEntries includes sourceEntityTitle on items with work_item source', () => {
+      const now = new Date().toISOString();
+      db.insert(workItems)
+        .values({
+          id: 'wi-roofing-02',
+          title: 'Roofing Work',
+          status: 'not_started',
+          createdBy: testUserId,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+
+      insertEntry({
+        isAutomatic: true,
+        entryType: 'work_item_status',
+        sourceEntityType: 'work_item',
+        sourceEntityId: 'wi-roofing-02',
+        createdBy: null,
+      });
+
+      const result = listDiaryEntries(db, {});
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].sourceEntityTitle).toBe('Roofing Work');
+    });
+
+    it('listDiaryEntries returns sourceEntityTitle=null for manual entries without source', () => {
+      insertEntry({
+        sourceEntityType: null,
+        sourceEntityId: null,
+      });
+
+      const result = listDiaryEntries(db, {});
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].sourceEntityTitle).toBeNull();
     });
   });
 
