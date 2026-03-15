@@ -124,7 +124,12 @@ jobs:
 
     permissions:
       contents: read
+      deployments: write
       id-token: write
+
+    environment:
+      name: ${{ needs.release.outputs.is-prerelease == 'true' && 'dockerhub-beta' || 'dockerhub-production' }}
+      url: https://hub.docker.com/r/steilerdev/cornerstone/tags?name=${{ needs.release.outputs.new-release-version }}
 
     steps:
       - name: Checkout
