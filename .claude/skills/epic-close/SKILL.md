@@ -225,6 +225,7 @@ Present the user with:
 If `uatFeedbackRound > 0`, also include a summary of changes made in the previous feedback round (issues created, PRs merged, what was fixed).
 
 Tell the user:
+
 - **To approve**: say "approved" (or similar confirmation) → proceed to step 12
 - **To provide feedback**: write feedback to `/tmp/notes.md` and say "feedback in notes" → fixes will be applied autonomously
 
@@ -233,6 +234,7 @@ Do NOT merge without explicit user confirmation.
 #### 11b. Await Response
 
 Wait for the user's response. Branch:
+
 - If the user **approves** → proceed to step 12 (Documentation & Env Drift Check)
 - If the user says **"feedback in notes"** (or similar) → continue to 11c
 
@@ -243,6 +245,7 @@ Read `/tmp/notes.md` and parse non-empty, non-comment lines. Print a numbered su
 #### 11d. PO Grouping
 
 Launch the **product-owner** agent to:
+
 - Analyze the feedback items
 - Group related items that should be fixed together
 - Create a GitHub Issue for each group, labeled `bug`, linked as a sub-issue of the epic, and added to the Projects board in **Todo** status
