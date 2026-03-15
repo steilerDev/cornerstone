@@ -143,15 +143,18 @@ export class DiaryEntryDetailPage {
     this.deliveryMetadata = page.getByTestId('delivery-metadata');
     this.issueMetadata = page.getByTestId('issue-metadata');
 
-    // Photo section — the full section with heading and content
-    this.photoSection = page.locator('[class*="photoSection"]');
-    // Photo heading: "Photos (N)" — always rendered
-    this.photoHeading = page.locator('[class*="photoHeading"]');
+    // Photo section — the full section with heading and content.
+    // Use first() to avoid strict-mode violation: [class*="photoSection"] also matches
+    // photoSectionHeader which is a child of photoSection in the same DOM tree.
+    this.photoSection = page.locator('[class*="photoSection"]').first();
+    // Photo heading: "Photos (N)" — always rendered; h2 element avoids ambiguity
+    this.photoHeading = page.locator('h2[class*="photoHeading"]');
     // Photo empty state — rendered when no photos are attached
-    this.photoEmptyState = page.locator('[class*="photoEmptyState"]');
+    this.photoEmptyState = page.locator('[class*="photoEmptyState"]').first();
 
-    // Signature section — rendered when entry.metadata.signatures is non-empty
-    this.signatureSection = page.locator('[class*="signatureSection"]');
+    // Signature section — rendered when entry.metadata.signatures is non-empty.
+    // Use first() as a precaution if multiple signatures are present.
+    this.signatureSection = page.locator('[class*="signatureSection"]').first();
 
     // Print button — "🖨️ Print"
     this.printButton = page.getByRole('button', { name: /Print/i });
