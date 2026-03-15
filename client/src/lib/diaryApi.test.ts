@@ -22,6 +22,7 @@ describe('diaryApi', () => {
     isSigned: false,
     sourceEntityType: null,
     sourceEntityId: null,
+    sourceEntityTitle: null,
     photoCount: 0,
     createdBy: { id: 'user-1', displayName: 'Alice' },
     createdAt: '2026-03-14T09:00:00.000Z',

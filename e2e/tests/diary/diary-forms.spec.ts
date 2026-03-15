@@ -5,7 +5,8 @@
  *
  * Scenarios covered:
  * 1.  [smoke] Type selector shows 5 type cards at /diary/new
- * 2.  [smoke] Create general_note — happy path (fill body, submit, verify detail)
+ * 2.  [smoke] Create general_note — happy path (fill body, submit, verify edit page)
+ *             Note: UAT fix #843 changed post-creation navigation from /diary/:id to /diary/:id/edit
  * 3.  Create daily_log with weather/temperature/workers metadata
  * 4.  Create site_visit with inspector name and outcome metadata
  * 5.  Validation error — empty body shows error, no navigation
@@ -67,11 +68,11 @@ test.describe('Type selector (Scenario 1)', { tag: '@responsive' }, () => {
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Create general_note — happy path (Scenario 2)', { tag: '@responsive' }, () => {
   test(
-    'Creates a general_note entry and navigates to the detail page',
+    'Creates a general_note entry and navigates to the edit page',
     { tag: '@smoke' },
     async ({ page, testPrefix }) => {
       const createPage = new DiaryEntryCreatePage(page);
-      const detailPage = new DiaryEntryDetailPage(page);
+      const editPage = new DiaryEntryEditPage(page);
       let createdId: string | null = null;
 
       try {
@@ -98,12 +99,13 @@ test.describe('Create general_note — happy path (Scenario 2)', { tag: '@respon
         const responseBody = (await response.json()) as { id: string };
         createdId = responseBody.id;
 
-        // Should navigate to the detail page
-        await page.waitForURL(`**/diary/${createdId}`);
-        expect(page.url()).toContain(`/diary/${createdId}`);
+        // UAT fix #843: after creation, the app navigates to /diary/:id/edit (not /diary/:id)
+        // so users can immediately attach photos
+        await page.waitForURL(`**/diary/${createdId}/edit`);
+        expect(page.url()).toContain(`/diary/${createdId}/edit`);
 
-        // Detail page should show the body text
-        await expect(detailPage.entryBody).toContainText(body);
+        // Edit page should be loaded (heading visible)
+        await expect(editPage.heading).toBeVisible();
       } finally {
         if (createdId) await deleteDiaryEntryViaApi(page, createdId);
       }
@@ -149,7 +151,11 @@ test.describe('Create daily_log with metadata (Scenario 3)', () => {
       const responseBody = (await response.json()) as { id: string };
       createdId = responseBody.id;
 
-      await page.waitForURL(`**/diary/${createdId}`);
+      // UAT fix #843: navigate to edit page after creation
+      await page.waitForURL(`**/diary/${createdId}/edit`);
+
+      // Navigate to the detail page to verify metadata
+      await detailPage.goto(createdId);
 
       // Verify metadata is shown on the detail page.
       // DiaryMetadataSummary for daily_log renders: weather emoji + label, and workers count.
@@ -204,7 +210,11 @@ test.describe('Create site_visit with metadata (Scenario 4)', () => {
       const responseBody = (await response.json()) as { id: string };
       createdId = responseBody.id;
 
-      await page.waitForURL(`**/diary/${createdId}`);
+      // UAT fix #843: navigate to edit page after creation
+      await page.waitForURL(`**/diary/${createdId}/edit`);
+
+      // Navigate to the detail page to verify metadata
+      await detailPage.goto(createdId);
 
       // Verify metadata on the detail page
       await detailPage.backButton.waitFor({ state: 'visible' });

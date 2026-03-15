@@ -37,5 +37,4 @@ export type ErrorCode =
   | 'ACCOUNT_LOCKED'
   | 'INVALID_METADATA'
   | 'INVALID_ENTRY_TYPE'
-  | 'IMMUTABLE_ENTRY'
-  | 'EXPORT_EMPTY';
+  | 'IMMUTABLE_ENTRY';

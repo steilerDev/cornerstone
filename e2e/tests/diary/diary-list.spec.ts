@@ -471,10 +471,14 @@ test.describe('Entry card navigation (Scenario 8)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 9: Type switcher filters to manual-only entries (mock API)
+// Scenario 9: Type chip filter sends correct type parameters to API
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Type switcher (Scenario 9)', () => {
-  test('Switching to "Manual" sends correct type filters to the API', async ({ page }) => {
+test.describe('Type chip filter (Scenario 9)', () => {
+  // UAT fix #840: DiaryEntryTypeSwitcher (all/manual/automatic tabs) was removed.
+  // Filtering is now done via individual type chip buttons in the filter bar.
+  test('Clicking "daily_log" type chip sends correct type parameter to the API', async ({
+    page,
+  }) => {
     const diaryPage = new DiaryPage(page);
 
     // Capture API requests to assert the query params
@@ -496,41 +500,43 @@ test.describe('Type switcher (Scenario 9)', () => {
       // Clear captured requests from the initial load
       requests.length = 0;
 
-      // Click the "Manual" switcher button and wait for the API call
+      // Register the response promise BEFORE clicking the chip (waitForResponse pattern)
       const responsePromise = page.waitForResponse(
         (resp) => resp.url().includes('/api/diary-entries') && resp.status() === 200,
       );
-      await diaryPage.typeSwitcherManual.click();
+
+      // Click the "daily_log" type chip filter button
+      const typeChip = diaryPage.typeFilterChip('daily_log');
+      await typeChip.waitFor({ state: 'visible' });
+      await typeChip.click();
       await responsePromise;
 
-      // The request should include a 'type' parameter with manual types only
+      // The request should include the daily_log type parameter
       const lastRequest = requests[requests.length - 1];
       expect(lastRequest).toBeDefined();
       const typeParam = lastRequest?.searchParams.get('type');
-      // Type param should contain manual types and NOT automatic types
+
+      // The type parameter must be set and contain daily_log
+      expect(typeParam).toBeTruthy();
       if (typeParam) {
-        expect(typeParam).toMatch(/daily_log|site_visit|delivery|issue|general_note/);
-        expect(typeParam).not.toContain('work_item_status');
-        expect(typeParam).not.toContain('invoice_status');
+        expect(typeParam).toContain('daily_log');
       }
     } finally {
       await page.unroute('**/api/diary-entries*');
     }
   });
 
-  test('Type switcher buttons are visible and accessible', async ({ page }) => {
+  test('Type chip filter buttons are visible in the filter bar', async ({ page }) => {
     const diaryPage = new DiaryPage(page);
 
     await diaryPage.goto();
+    await diaryPage.waitForLoaded();
 
-    await expect(diaryPage.typeSwitcherAll).toBeVisible();
-    await expect(diaryPage.typeSwitcherManual).toBeVisible();
-    await expect(diaryPage.typeSwitcherAutomatic).toBeVisible();
-
-    // "All" is the default active mode
-    await expect(diaryPage.typeSwitcherAll).toHaveAttribute('aria-checked', 'true');
-    await expect(diaryPage.typeSwitcherManual).toHaveAttribute('aria-checked', 'false');
-    await expect(diaryPage.typeSwitcherAutomatic).toHaveAttribute('aria-checked', 'false');
+    // UAT fix #840: type chips replace the old type switcher tabs.
+    // Verify that the manual entry type chips are visible in the filter bar.
+    await expect(diaryPage.typeFilterChip('daily_log')).toBeVisible();
+    await expect(diaryPage.typeFilterChip('general_note')).toBeVisible();
+    await expect(diaryPage.typeFilterChip('site_visit')).toBeVisible();
   });
 });
 

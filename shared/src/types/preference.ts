@@ -32,7 +32,8 @@ export type DashboardCardId =
   | 'mini-gantt'
   | 'invoice-pipeline'
   | 'subsidy-pipeline'
-  | 'quick-actions';
+  | 'quick-actions'
+  | 'recent-diary';
 
 /** Request body for PATCH /api/users/me/preferences */
 export interface UpsertPreferenceRequest {

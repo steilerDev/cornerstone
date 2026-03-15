@@ -5,7 +5,6 @@
  * - A page header with h1 "Construction Diary" and a subtitle with the total entry count
  * - A DiaryFilterBar with search input (data-testid="diary-search-input"), date range pickers,
  *   entry type chip filters, and a "Clear all" button
- * - A DiaryEntryTypeSwitcher segmented control (data-testid: type-switcher-all/manual/automatic)
  * - A "+ New Entry" link button navigating to /diary/new
  * - A timeline of DiaryDateGroup sections (data-testid="date-group-{date}"), each containing
  *   DiaryEntryCard links (data-testid="diary-card-{id}")
@@ -43,11 +42,6 @@ export class DiaryPage {
   readonly dateToInput: Locator;
   readonly clearFiltersButton: Locator;
 
-  // Type switcher
-  readonly typeSwitcherAll: Locator;
-  readonly typeSwitcherManual: Locator;
-  readonly typeSwitcherAutomatic: Locator;
-
   // "New Entry" button
   readonly newEntryButton: Locator;
 
@@ -65,12 +59,6 @@ export class DiaryPage {
   readonly prevPageButton: Locator;
   readonly nextPageButton: Locator;
 
-  // Export button — "📥 Export" on the diary list page
-  readonly exportButton: Locator;
-
-  // Export dialog
-  readonly exportDialog: Locator;
-
   // Mobile filter toggle button (visible only on mobile, aria-label="Toggle filters")
   readonly mobileFilterToggle: Locator;
 
@@ -87,16 +75,7 @@ export class DiaryPage {
     this.dateToInput = page.getByTestId('diary-date-to');
     this.clearFiltersButton = page.getByTestId('clear-filters-button');
 
-    // Export button — "📥 Export" — a <button> in the diary page header
-    this.exportButton = page.getByRole('button', { name: /Export/i });
-    // Export dialog — role="dialog", aria-labelledby="export-modal-title"
-    this.exportDialog = page.getByRole('dialog', { name: /Export/i });
-
     this.mobileFilterToggle = page.getByRole('button', { name: 'Toggle filters' });
-
-    this.typeSwitcherAll = page.getByTestId('type-switcher-all');
-    this.typeSwitcherManual = page.getByTestId('type-switcher-manual');
-    this.typeSwitcherAutomatic = page.getByTestId('type-switcher-automatic');
 
     this.newEntryButton = page.getByRole('link', { name: '+ New Entry' });
 

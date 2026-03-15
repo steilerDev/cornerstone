@@ -4,13 +4,16 @@
  * Story #808: Automatic system event logging to diary
  *
  * Scenarios covered:
- * 1.  [smoke] Automatic entries are visible in the diary list (mock API)
- * 2.  Type switcher "Automatic" shows only automatic entries
+ * 1.  [smoke] Automatic entries appear in a collapsible section in the diary timeline (mock API)
+ *             UAT fix #838: automatic events are inside a details/summary collapsible element
+ * 2.  Type chip filter for "work_item_status" sends correct type parameter to API
+ *             UAT fix #840: DiaryEntryTypeSwitcher (all/manual/automatic tabs) removed;
+ *             filtering is now done via individual type chip buttons in the filter bar
  * 3.  Automatic entry detail page renders the "Automatic" badge
  * 4.  Automatic entries do NOT render Edit or Delete buttons on detail page
  * 5.  Source entity section is rendered for entries with sourceEntityType/Id
  * 6.  PATCH to an automatic entry returns 403 (AUTOMATIC_ENTRY_READONLY) (mock API)
- * 7.  Automatic entry from the "Automatic" tab shows work_item_status type label
+ * 7.  Automatic entry from the list shows work_item_status type label
  */
 
 import { test, expect } from '../../fixtures/auth.js';
@@ -80,7 +83,15 @@ test.describe('Automatic entries in diary list (Scenario 1)', { tag: '@responsiv
         await diaryPage.goto();
         await diaryPage.waitForLoaded();
 
-        // Automatic entry card should be visible with the correct testid
+        // UAT fix #838: automatic entries are rendered inside a <details class="automaticSection">
+        // element that is closed by default. Must open the collapsible before asserting card visibility.
+        const automaticSection = page.locator('details').filter({
+          has: page.locator('summary').filter({ hasText: /Automatic Events/i }),
+        });
+        await automaticSection.first().waitFor({ state: 'visible' });
+        await automaticSection.first().locator('summary').click();
+
+        // After opening the collapsible, the entry card should be visible
         await expect(diaryPage.entryCard(mockId)).toBeVisible();
       } finally {
         await page.unroute('**/api/diary-entries*');
@@ -90,10 +101,15 @@ test.describe('Automatic entries in diary list (Scenario 1)', { tag: '@responsiv
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 2: "Automatic" type switcher filters API call
+// Scenario 2: Type chip filter for automatic entry type sends correct API params
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Automatic type switcher filter (Scenario 2)', () => {
-  test('Switching to "Automatic" tab sends correct type filters to the API', async ({ page }) => {
+test.describe('Type chip filter for automatic entries (Scenario 2)', () => {
+  test('Clicking "work_item_status" type chip sends correct type parameter to the API', async ({
+    page,
+  }) => {
+    // UAT fix #840: DiaryEntryTypeSwitcher (all/manual/automatic tabs) was removed.
+    // Filtering is now done via individual type chip buttons in the filter bar.
+    // This test verifies the type chip correctly sends the type query parameter.
     const diaryPage = new DiaryPage(page);
     const requests: URL[] = [];
 
@@ -116,34 +132,26 @@ test.describe('Automatic type switcher filter (Scenario 2)', () => {
       // Reset captured requests from initial load
       requests.length = 0;
 
-      // Click the "Automatic" switcher button and wait for the API response
+      // Register the response promise BEFORE clicking the chip (waitForResponse pattern)
       const responsePromise = page.waitForResponse(
         (resp) => resp.url().includes('/api/diary-entries') && resp.status() === 200,
       );
-      await diaryPage.typeSwitcherAutomatic.click();
+
+      // Click the "work_item_status" type chip filter button
+      const typeChip = diaryPage.typeFilterChip('work_item_status');
+      await typeChip.waitFor({ state: 'visible' });
+      await typeChip.click();
       await responsePromise;
 
-      // The request should include only automatic entry types
+      // The request should include the work_item_status type parameter
       const lastRequest = requests[requests.length - 1];
       expect(lastRequest).toBeDefined();
       const typeParam = lastRequest?.searchParams.get('type');
+
+      // The type parameter must be set and must include the work_item_status type
+      expect(typeParam).toBeTruthy();
       if (typeParam) {
-        // Automatic types should be present
-        const automaticTypes = [
-          'work_item_status',
-          'invoice_status',
-          'milestone_delay',
-          'budget_breach',
-          'auto_reschedule',
-          'subsidy_status',
-          'invoice_created',
-        ];
-        const hasAutoType = automaticTypes.some((t) => typeParam.includes(t));
-        expect(hasAutoType).toBe(true);
-        // Manual types should NOT be in the request
-        expect(typeParam).not.toContain('daily_log');
-        expect(typeParam).not.toContain('general_note');
-        expect(typeParam).not.toContain('site_visit');
+        expect(typeParam).toContain('work_item_status');
       }
     } finally {
       await page.unroute('**/api/diary-entries*');

@@ -75,11 +75,12 @@ that — check always-rendered elements (containers, summary rows) rather than c
 Example: BudgetSourcesPage bar chart `barLegendLabel` only renders for non-zero segments;
 use `summaryItem` spans (Total/Available/Planned) for unconditional assertions.
 
-## Dashboard Card Count: 9 not 10 (2026-03-14)
+## Dashboard Card Count: 10 (UAT fix #844 added Recent Diary, 2026-03-15)
 
-DashboardPage has 9 CARD_DEFINITIONS. Both desktop grid AND mobile sections container render
-ALL cards simultaneously (CSS media queries control visibility, not conditional rendering).
-So dismiss button count in DOM = up to 18 (9 × 2 containers). Use `>= 9` not `>= 10`.
+DashboardPage has 10 CARD_DEFINITIONS (added 'recent-diary' in UAT fix #844). Both desktop
+grid AND mobile sections container render ALL cards simultaneously (CSS media queries control
+visibility, not conditional rendering). Dismiss button count in DOM = up to 20 (10 × 2 containers).
+Use `>= 10`. DashboardPage POM CARD_TITLES and DashboardCardId type updated to include 'recent-diary'.
 
 ## Dashboard Card Persistence After Reload (2026-03-14)
 
@@ -136,11 +137,11 @@ Key selectors:
 
 - DiaryPage heading: `getByRole('heading', { level: 1, name: 'Construction Diary' })`
 - Filter bar: `getByTestId('diary-filter-bar')`, search: `getByTestId('diary-search-input')`
-- Type switcher: `getByTestId('type-switcher-all|manual|automatic')`
+- Type switcher: REMOVED from DiaryPage (UAT fix #840 removed DiaryEntryTypeSwitcher)
 - Entry cards: `getByTestId('diary-card-{id}')`, date groups: `getByTestId('date-group-{date}')`
 - Type chips: `getByTestId('type-filter-{entryType}')`, clear: `getByTestId('clear-filters-button')`
 - Pagination: `getByTestId('prev-page-button')` / `getByTestId('next-page-button')`
-- Detail back button: `getByTitle('Go back')` (title="Go back"), back link: `getByRole('link', { name: 'Back to Diary' })`
+- Detail back button: `getByLabel('Go back to diary')` (aria-label="Go back to diary"), back link: `getByRole('link', { name: 'Back to Diary' })`
 - Metadata wrappers: `getByTestId('daily-log-metadata|site-visit-metadata|delivery-metadata|issue-metadata')`
 - Outcome badge: `getByTestId('outcome-{pass|fail|conditional}')`, severity: `getByTestId('severity-{level}')`
 - Automatic badge: `locator('[class*="badge"]').filter({ hasText: 'Automatic' })`
@@ -171,9 +172,11 @@ Applied to: diary-detail.spec.ts Scenarios 2 and 3.
 
 ## Diary E2E Extended (Stories #806-#809, 2026-03-15)
 
-Files: `diary-photos-signatures.spec.ts`, `diary-automatic-events.spec.ts`, `diary-export.spec.ts`
-POMs extended: DiaryEntryDetailPage (photoHeading, photoEmptyState, signatureSection, printButton, photoCountBadge),
-DiaryPage (exportButton, exportDialog, photoCountBadge).
+Files: `diary-photos-signatures.spec.ts`, `diary-automatic-events.spec.ts`
+POMs extended: DiaryEntryDetailPage (photoHeading, photoEmptyState, signatureSection, photoCountBadge),
+DiaryPage (photoCountBadge).
+NOTE: diary-export.spec.ts DELETED (UAT fix #845 removed export/print feature).
+DiaryEntryDetailPage.printButton locator REMOVED. DiaryPage.exportButton/exportDialog REMOVED.
 
 Key selectors:
 
@@ -181,12 +184,21 @@ Key selectors:
 - Photo section heading: `[class*="photoHeading"]` — text "Photos (N)"
 - Photo empty state: `[class*="photoEmptyState"]` — text "No photos attached yet."
 - Signature section: `[class*="signatureSection"]` — conditional render (isSigned entries)
-- Edit/Delete NOT rendered when `isSigned=true` (same as `isAutomatic=true`)
-- Export button: `getByRole('button', { name: /Export/i })` on diary list page
-- Export dialog: `getByRole('dialog', { name: /Export/i })` — conditional render (return null when !isOpen)
-- Dialog title: h2 "Export Diary to PDF" (id="export-modal-title")
-- Generate PDF: `getByRole('button', { name: /Generate PDF/i })` inside dialog
-- Print button on detail page: `getByRole('button', { name: /Print/i })`
+- `isSigned=true` entries (UAT fix #837): Edit hidden, Delete VISIBLE, "Add photos" VISIBLE
+- `isAutomatic=true` entries: Edit hidden, Delete hidden, "Add photos" hidden
 - Auto events: must mock photos endpoint (`**/api/photos*`) when mocking diary detail entries
-- Export API: GET `/api/diary-entries/export` — returns application/pdf
-- `isSigned=true` entries: hide Edit, Delete, and "Add photos" link simultaneously
+- "Add photos" guard is `!isAutomatic` (not `!isAutomatic && !isSigned` as it was before #837)
+
+## Diary UAT Fixes E2E (2026-03-15)
+
+File: `e2e/tests/diary/diary-uat-fixes.spec.ts`
+
+Key behavioral changes validated:
+- Post-create navigation: `/diary/:id/edit` (NOT `/diary/:id`) — UAT fix #843
+- Detail back button: `getByLabel('Go back to diary')` navigates to `/diary` (NOT browser-back) — #842
+- Source link text: `data-testid="source-link-{sourceEntityId}"` shows `sourceEntityTitle` — #842
+- Automatic events: inside `<details class="automaticSection">` with summary "Automatic Events (N)" — #838
+- Dashboard "Recent Diary" card: title='Recent Diary', `recentDiaryCard()` helper in DashboardPage POM — #844
+- RecentDiaryCard "View All" link only rendered when `entries.length > 0` — mock with ≥1 entry
+
+diary-forms.spec.ts Scenarios 2/3/4 FIXED to expect /diary/:id/edit (not /diary/:id) after create.

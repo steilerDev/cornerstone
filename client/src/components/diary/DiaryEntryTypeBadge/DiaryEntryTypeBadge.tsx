@@ -12,13 +12,13 @@ const ENTRY_TYPE_LABELS: Record<DiaryEntryType, string> = {
   delivery: 'Delivery',
   issue: 'Issue',
   general_note: 'Note',
-  work_item_status: 'Work Item',
-  invoice_status: 'Invoice',
+  work_item_status: 'Work Item Status Changed',
+  invoice_status: 'Invoice Status Changed',
   invoice_created: 'Invoice Created',
-  milestone_delay: 'Milestone',
-  budget_breach: 'Budget',
-  auto_reschedule: 'Schedule',
-  subsidy_status: 'Subsidy',
+  milestone_delay: 'Milestone Delayed',
+  budget_breach: 'Budget Overspend',
+  auto_reschedule: 'Schedule Updated',
+  subsidy_status: 'Subsidy Status Changed',
 };
 
 const EMOJI_MAP: Record<DiaryEntryType, string> = {
