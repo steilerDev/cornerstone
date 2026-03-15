@@ -77,10 +77,22 @@ function toDiarySummary(
     sourceEntityType: entry.sourceEntityType as any,
     sourceEntityId: entry.sourceEntityId,
     photoCount,
+    isSigned: isEntrySignedFromMetadata(entry.entryType, entry.metadata),
     createdBy: toDiaryUserSummary(user),
     createdAt: entry.createdAt,
     updatedAt: entry.updatedAt,
   };
+}
+
+function isEntrySignedFromMetadata(entryType: string, metadata: string | null): boolean {
+  if (!metadata) return false;
+  if (entryType !== 'daily_log' && entryType !== 'site_visit') return false;
+  try {
+    const parsed = JSON.parse(metadata);
+    return Array.isArray(parsed?.signatures) && parsed.signatures.length > 0;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -94,6 +106,7 @@ const TYPE_LABELS: Record<DiaryEntryType, string> = {
   general_note: 'General Note',
   work_item_status: 'Work Item Status',
   invoice_status: 'Invoice Status',
+  invoice_created: 'Invoice Created',
   milestone_delay: 'Milestone Delay',
   budget_breach: 'Budget Breach',
   auto_reschedule: 'Auto Reschedule',

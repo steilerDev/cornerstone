@@ -174,7 +174,7 @@ describe('diaryAutoEventService', () => {
 
   describe('onMilestoneDelayed', () => {
     it('creates a diary entry with entryType=milestone_delay, body contains milestone name', () => {
-      onMilestoneDelayed(db, true, 42, 'Foundation Complete');
+      onMilestoneDelayed(db, true, 42, 'Foundation Complete', '2026-03-01', '2026-03-15');
 
       const entries = getAllEntries();
       expect(entries).toHaveLength(1);
@@ -188,14 +188,14 @@ describe('diaryAutoEventService', () => {
     });
 
     it('converts milestoneId (number) to string for sourceEntityId', () => {
-      onMilestoneDelayed(db, true, 999, 'Roof Complete');
+      onMilestoneDelayed(db, true, 999, 'Roof Complete', '2026-04-01', '2026-04-10');
 
       const entries = getAllEntries();
       expect(entries[0].sourceEntityId).toBe('999');
     });
 
     it('does not create entry when enabled=false', () => {
-      onMilestoneDelayed(db, false, 1, 'Some Milestone');
+      onMilestoneDelayed(db, false, 1, 'Some Milestone', '2026-01-01', '2026-01-15');
       expect(getAllEntries()).toHaveLength(0);
     });
   });
