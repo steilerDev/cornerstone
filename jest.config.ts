@@ -85,6 +85,7 @@ const config: Config = {
               moduleResolution: 'bundler',
               esModuleInterop: true,
               jsx: 'react-jsx',
+              resolveJsonModule: true,
               types: ['jest', '@testing-library/jest-dom'],
             },
           },
