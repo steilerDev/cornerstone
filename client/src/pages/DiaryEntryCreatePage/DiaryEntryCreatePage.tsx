@@ -96,7 +96,6 @@ export default function DiaryEntryCreatePage() {
   const [deliveryVendor, setDeliveryVendor] = useState<string | null>(null);
   const [deliveryMaterials, setDeliveryMaterials] = useState<string[] | null>(null);
 
-
   // issue metadata
   const [issueSeverity, setIssueSeverity] = useState<DiaryIssueSeverity | null>(null);
   const [issueResolutionStatus, setIssueResolutionStatus] = useState<DiaryIssueResolution | null>(

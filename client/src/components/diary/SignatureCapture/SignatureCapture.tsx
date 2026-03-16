@@ -285,8 +285,7 @@ export function SignatureCapture({
     const signedAt = now.toISOString();
 
     // Determine the display name for the signature
-    const displayName =
-      signerType === 'vendor' ? `${vendorName} (${signatoryName})` : signerName;
+    const displayName = signerType === 'vendor' ? `${vendorName} (${signatoryName})` : signerName;
 
     // Burn signer info and timestamp onto the canvas
     const ctx = canvas.getContext('2d');
@@ -489,7 +488,9 @@ export function SignatureCapture({
               placeholder="Name of person signing on behalf of vendor"
             />
             {isVendorInfoMissing && (
-              <div className={styles.validationHint}>Both vendor and signatory name are required</div>
+              <div className={styles.validationHint}>
+                Both vendor and signatory name are required
+              </div>
             )}
           </div>
         )}
