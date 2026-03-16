@@ -98,6 +98,12 @@ export function DiaryEntryCard({ entry }: DiaryEntryCardProps) {
             {entry.sourceEntityTitle ?? sourceLabel}
           </Link>
         )}
+
+        {entry.isSigned && (
+          <span className={styles.signedBadge} data-testid={`signed-badge-${entry.id}`}>
+            ✓ Signed
+          </span>
+        )}
       </div>
     </Link>
   );

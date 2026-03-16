@@ -14,6 +14,7 @@ import type {
   DiarySignatureEntry,
 } from '@cornerstone/shared';
 import { createDiaryEntry } from '../../lib/diaryApi.js';
+import { uploadPhoto } from '../../lib/photoApi.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
 import shared from '../../styles/shared.module.css';
 import { DiaryEntryForm } from '../../components/diary/DiaryEntryForm/DiaryEntryForm.js';
@@ -61,6 +62,7 @@ export default function DiaryEntryCreatePage() {
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
   // daily_log metadata
   const [dailyLogWeather, setDailyLogWeather] = useState<DiaryWeather | null>(null);
@@ -163,6 +165,13 @@ export default function DiaryEntryCreatePage() {
     return null;
   };
 
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    setPendingFiles((prev) => [...prev, ...files]);
+    // Reset input so the same file can be selected again
+    event.target.value = '';
+  };
+
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setError(null);
@@ -188,8 +197,20 @@ export default function DiaryEntryCreatePage() {
         metadata,
       });
 
+      // Upload pending files
+      if (pendingFiles.length > 0) {
+        try {
+          await Promise.all(
+            pendingFiles.map((file) => uploadPhoto('diary_entry', entry.id, file)),
+          );
+        } catch (uploadErr) {
+          console.error('Failed to upload photos:', uploadErr);
+          showToast('warning', 'Entry created but some photos failed to upload');
+        }
+      }
+
       showToast('success', 'Diary entry created successfully');
-      navigate(`/diary/${entry.id}/edit`);
+      navigate(`/diary/${entry.id}`);
     } catch (err) {
       setError('Failed to create diary entry. Please try again.');
       console.error('Failed to create diary entry:', err);
@@ -276,8 +297,6 @@ export default function DiaryEntryCreatePage() {
 
       {error && <div className={styles.errorBanner}>{error}</div>}
 
-      <div className={styles.infoNote}>Photos can be added after saving.</div>
-
       <form className={styles.form} onSubmit={handleSubmit}>
         <DiaryEntryForm
           entryType={selectedType}
@@ -318,6 +337,26 @@ export default function DiaryEntryCreatePage() {
           issueResolutionStatus={issueResolutionStatus}
           onIssueResolutionStatusChange={setIssueResolutionStatus}
         />
+
+        <div className={styles.photoQueue}>
+          <label className={styles.photoQueueLabel}>Attach Photos (optional)</label>
+          <p className={styles.photoQueueHint}>Photos will be uploaded after the entry is created.</p>
+          <input
+            type="file"
+            multiple
+            accept="image/*"
+            capture="environment"
+            onChange={handleFileSelect}
+            data-testid="create-photo-input"
+            disabled={isSubmitting}
+            className={styles.photoQueueInput}
+          />
+          {pendingFiles.length > 0 && (
+            <p className={styles.photoQueueCount} data-testid="pending-photo-count">
+              {pendingFiles.length} photo(s) queued
+            </p>
+          )}
+        </div>
 
         <div className={styles.formActions}>
           <button

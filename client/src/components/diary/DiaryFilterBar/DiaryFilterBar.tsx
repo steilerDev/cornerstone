@@ -3,6 +3,8 @@ import type { DiaryEntryType } from '@cornerstone/shared';
 import shared from '../../../styles/shared.module.css';
 import styles from './DiaryFilterBar.module.css';
 
+type FilterMode = 'all' | 'manual' | 'automatic';
+
 interface DiaryFilterBarProps {
   searchQuery: string;
   onSearchChange: (query: string) => void;
@@ -13,23 +15,30 @@ interface DiaryFilterBarProps {
   activeTypes: DiaryEntryType[];
   onTypesChange: (types: DiaryEntryType[]) => void;
   onClearAll: () => void;
+  filterMode?: FilterMode;
+  onFilterModeChange?: (mode: FilterMode) => void;
   isCollapsed?: boolean;
 }
 
-const ALL_ENTRY_TYPES: DiaryEntryType[] = [
+const MANUAL_ENTRY_TYPES: DiaryEntryType[] = [
   'daily_log',
   'site_visit',
   'delivery',
   'issue',
   'general_note',
+];
+
+const AUTOMATIC_ENTRY_TYPES: DiaryEntryType[] = [
   'work_item_status',
   'invoice_status',
+  'invoice_created',
   'milestone_delay',
   'budget_breach',
   'auto_reschedule',
   'subsidy_status',
-  'invoice_created',
 ];
+
+const ALL_ENTRY_TYPES: DiaryEntryType[] = [...MANUAL_ENTRY_TYPES, ...AUTOMATIC_ENTRY_TYPES];
 
 const TYPE_LABELS: Record<DiaryEntryType, string> = {
   daily_log: 'Daily Log',
@@ -56,9 +65,15 @@ export function DiaryFilterBar({
   activeTypes,
   onTypesChange,
   onClearAll,
+  filterMode = 'all',
+  onFilterModeChange,
   isCollapsed = false,
 }: DiaryFilterBarProps) {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+
+  const handleModeChange = (mode: FilterMode) => {
+    onFilterModeChange?.(mode);
+  };
 
   const handleTypeToggle = (type: DiaryEntryType) => {
     if (activeTypes.includes(type)) {
@@ -67,6 +82,10 @@ export function DiaryFilterBar({
       onTypesChange([...activeTypes, type]);
     }
   };
+
+  // Determine which types to display based on filter mode
+  const displayedTypes =
+    filterMode === 'manual' ? MANUAL_ENTRY_TYPES : filterMode === 'automatic' ? AUTOMATIC_ENTRY_TYPES : ALL_ENTRY_TYPES;
 
   const filterCount = [
     searchQuery ? 1 : 0,
@@ -94,6 +113,40 @@ export function DiaryFilterBar({
 
       {/* Filter content */}
       <div className={`${styles.filters} ${isMobileOpen ? styles.filtersOpen : ''}`}>
+        {/* Filter mode chips */}
+        <div className={styles.filterGroup}>
+          <label className={styles.label}>Filter Mode</label>
+          <div className={styles.modeChips} role="group" aria-label="Filter by entry mode">
+            <button
+              type="button"
+              className={`${styles.modeChip} ${filterMode === 'all' ? styles.modeChipActive : ''}`}
+              onClick={() => handleModeChange('all')}
+              aria-pressed={filterMode === 'all'}
+              data-testid="mode-filter-all"
+            >
+              All
+            </button>
+            <button
+              type="button"
+              className={`${styles.modeChip} ${filterMode === 'manual' ? styles.modeChipActive : ''}`}
+              onClick={() => handleModeChange('manual')}
+              aria-pressed={filterMode === 'manual'}
+              data-testid="mode-filter-manual"
+            >
+              Manual
+            </button>
+            <button
+              type="button"
+              className={`${styles.modeChip} ${filterMode === 'automatic' ? styles.modeChipActive : ''}`}
+              onClick={() => handleModeChange('automatic')}
+              aria-pressed={filterMode === 'automatic'}
+              data-testid="mode-filter-automatic"
+            >
+              Automatic
+            </button>
+          </div>
+        </div>
+
         {/* Search input */}
         <div className={styles.filterGroup}>
           <label htmlFor="diary-search" className={styles.label}>
@@ -153,7 +206,7 @@ export function DiaryFilterBar({
         <div className={styles.filterGroup}>
           <label className={styles.label}>Entry Types</label>
           <div className={styles.typeChips} role="group" aria-label="Filter by entry type">
-            {ALL_ENTRY_TYPES.map((type) => (
+            {displayedTypes.map((type) => (
               <button
                 key={type}
                 type="button"

@@ -32,16 +32,19 @@ export function DiaryDateGroup({ date, entries }: DiaryDateGroupProps) {
       </div>
 
       {automaticEntries.length > 0 && (
-        <details className={styles.automaticSection}>
-          <summary className={styles.automaticSummary}>
-            Automatic Events ({automaticEntries.length})
-          </summary>
+        <div className={styles.automaticSection} data-testid={`automatic-section-${date}`}>
+          <div className={styles.automaticHeader}>
+            <span className={styles.automaticIcon} aria-hidden="true">
+              ⚙
+            </span>
+            <span className={styles.automaticTitle}>Automated Events</span>
+          </div>
           <div className={styles.entriesList}>
             {automaticEntries.map((entry) => (
               <DiaryEntryCard key={entry.id} entry={entry} />
             ))}
           </div>
-        </details>
+        </div>
       )}
     </section>
   );

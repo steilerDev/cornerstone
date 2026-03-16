@@ -178,6 +178,14 @@ export default function DiaryPage() {
     setSearchParams(newParams);
   };
 
+  const handleFilterModeChange = (mode: FilterMode) => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set('filterMode', mode);
+    newParams.delete('types');
+    newParams.set('page', '1');
+    setSearchParams(newParams);
+  };
+
   const handleClearAll = () => {
     setSearchInput('');
     const newParams = new URLSearchParams();
@@ -215,11 +223,13 @@ export default function DiaryPage() {
         activeTypes={activeTypes}
         onTypesChange={handleTypesChange}
         onClearAll={handleClearAll}
+        filterMode={filterMode}
+        onFilterModeChange={handleFilterModeChange}
       />
 
       <div className={styles.controls}>
-        <Link to="/diary/new" className={`${shared.btnPrimary} ${styles.createButton}`}>
-          + New Entry
+        <Link to="/diary/new" className={`${shared.btnPrimary} ${styles.createButton}`} style={{ textDecoration: 'none' }}>
+          New Entry
         </Link>
       </div>
 

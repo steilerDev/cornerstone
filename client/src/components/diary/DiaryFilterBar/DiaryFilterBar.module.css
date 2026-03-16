@@ -52,7 +52,7 @@
   gap: var(--spacing-2);
 }
 
-.filterGroup:nth-child(4) {
+.filterGroup:nth-child(2) {
   grid-column: 1 / -1;
 }
 
@@ -60,10 +60,54 @@
   grid-column: 1 / -1;
 }
 
+.filterGroup:nth-child(6) {
+  grid-column: 1 / -1;
+}
+
 .label {
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
   color: var(--color-text-primary);
+}
+
+.modeChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+}
+
+.modeChip {
+  padding: var(--spacing-1) var(--spacing-3);
+  background-color: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: var(--transition-normal);
+  white-space: nowrap;
+}
+
+.modeChip:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.modeChip:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus-subtle);
+}
+
+.modeChipActive {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-primary-text);
+}
+
+.modeChip.modeChipActive:hover {
+  color: var(--color-primary-text);
+  background-color: var(--color-primary-hover);
 }
 
 .typeChips {
@@ -99,6 +143,11 @@
   background-color: var(--color-primary);
   border-color: var(--color-primary);
   color: var(--color-primary-text);
+}
+
+.typeChip.typeChipActive:hover {
+  color: var(--color-primary-text);
+  background-color: var(--color-primary-hover);
 }
 
 .clearButton {
