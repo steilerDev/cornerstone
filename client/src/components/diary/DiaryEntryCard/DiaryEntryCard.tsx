@@ -73,7 +73,7 @@ export function DiaryEntryCard({ entry }: DiaryEntryCardProps) {
               )}
               {entry.isSigned && (
                 <span className={styles.signedBadgeInline} data-testid={`signed-badge-${entry.id}`}>
-                  ✓
+                  ✓ Signed
                 </span>
               )}
             </div>

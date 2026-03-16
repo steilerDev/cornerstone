@@ -62,10 +62,10 @@
 }
 
 .signedBadgeInline {
-  display: inline-block;
-  margin-left: var(--spacing-2);
+  display: inline;
+  margin-left: var(--spacing-1);
   color: var(--color-success);
-  font-weight: var(--font-weight-bold);
+  font-weight: var(--font-weight-medium);
   font-size: var(--font-size-xs);
 }
 
