@@ -31,9 +31,7 @@ describe('Badge — work item status variants', () => {
   });
 
   it('renders "Completed" for completed status', () => {
-    const { container } = render(
-      <Badge variants={WORK_ITEM_STATUS_VARIANTS} value="completed" />,
-    );
+    const { container } = render(<Badge variants={WORK_ITEM_STATUS_VARIANTS} value="completed" />);
     expect(container.querySelector('span')?.textContent).toBe('Completed');
   });
 
@@ -54,9 +52,7 @@ describe('Badge — work item status variants', () => {
   });
 
   it('applies the badge base CSS class for completed', () => {
-    const { container } = render(
-      <Badge variants={WORK_ITEM_STATUS_VARIANTS} value="completed" />,
-    );
+    const { container } = render(<Badge variants={WORK_ITEM_STATUS_VARIANTS} value="completed" />);
     expect(container.querySelector('span')?.getAttribute('class') ?? '').toContain('badge');
   });
 
@@ -77,9 +73,7 @@ describe('Badge — work item status variants', () => {
   });
 
   it('applies completed CSS class for completed status', () => {
-    const { container } = render(
-      <Badge variants={WORK_ITEM_STATUS_VARIANTS} value="completed" />,
-    );
+    const { container } = render(<Badge variants={WORK_ITEM_STATUS_VARIANTS} value="completed" />);
     expect(container.querySelector('span')?.getAttribute('class') ?? '').toContain('completed');
   });
 

@@ -68,61 +68,33 @@ describe('Badge — diary severity variants', () => {
   // ─── CSS classes ───────────────────────────────────────────────────────────
 
   it('applies low CSS class for low severity', () => {
-    render(
-      <Badge
-        variants={DIARY_SEVERITY_VARIANTS}
-        value="low"
-        testId="severity-low"
-      />,
-    );
+    render(<Badge variants={DIARY_SEVERITY_VARIANTS} value="low" testId="severity-low" />);
     const badge = screen.getByTestId('severity-low');
     expect(badge.getAttribute('class') ?? '').toContain('low');
   });
 
   it('applies medium CSS class for medium severity', () => {
-    render(
-      <Badge
-        variants={DIARY_SEVERITY_VARIANTS}
-        value="medium"
-        testId="severity-medium"
-      />,
-    );
+    render(<Badge variants={DIARY_SEVERITY_VARIANTS} value="medium" testId="severity-medium" />);
     const badge = screen.getByTestId('severity-medium');
     expect(badge.getAttribute('class') ?? '').toContain('medium');
   });
 
   it('applies high CSS class for high severity', () => {
-    render(
-      <Badge
-        variants={DIARY_SEVERITY_VARIANTS}
-        value="high"
-        testId="severity-high"
-      />,
-    );
+    render(<Badge variants={DIARY_SEVERITY_VARIANTS} value="high" testId="severity-high" />);
     const badge = screen.getByTestId('severity-high');
     expect(badge.getAttribute('class') ?? '').toContain('high');
   });
 
   it('applies critical CSS class for critical severity', () => {
     render(
-      <Badge
-        variants={DIARY_SEVERITY_VARIANTS}
-        value="critical"
-        testId="severity-critical"
-      />,
+      <Badge variants={DIARY_SEVERITY_VARIANTS} value="critical" testId="severity-critical" />,
     );
     const badge = screen.getByTestId('severity-critical');
     expect(badge.getAttribute('class') ?? '').toContain('critical');
   });
 
   it('always applies the base badge class', () => {
-    render(
-      <Badge
-        variants={DIARY_SEVERITY_VARIANTS}
-        value="high"
-        testId="severity-high"
-      />,
-    );
+    render(<Badge variants={DIARY_SEVERITY_VARIANTS} value="high" testId="severity-high" />);
     const badge = screen.getByTestId('severity-high');
     expect(badge.getAttribute('class') ?? '').toContain('badge');
   });
@@ -183,45 +155,23 @@ describe('Badge — diary severity variants', () => {
   // ─── data-testid ────────────────────────────────────────────────────────────
 
   it('renders data-testid "severity-low" for low severity', () => {
-    render(
-      <Badge
-        variants={DIARY_SEVERITY_VARIANTS}
-        value="low"
-        testId="severity-low"
-      />,
-    );
+    render(<Badge variants={DIARY_SEVERITY_VARIANTS} value="low" testId="severity-low" />);
     expect(screen.getByTestId('severity-low')).toBeInTheDocument();
   });
 
   it('renders data-testid "severity-medium" for medium severity', () => {
-    render(
-      <Badge
-        variants={DIARY_SEVERITY_VARIANTS}
-        value="medium"
-        testId="severity-medium"
-      />,
-    );
+    render(<Badge variants={DIARY_SEVERITY_VARIANTS} value="medium" testId="severity-medium" />);
     expect(screen.getByTestId('severity-medium')).toBeInTheDocument();
   });
 
   it('renders data-testid "severity-high" for high severity', () => {
-    render(
-      <Badge
-        variants={DIARY_SEVERITY_VARIANTS}
-        value="high"
-        testId="severity-high"
-      />,
-    );
+    render(<Badge variants={DIARY_SEVERITY_VARIANTS} value="high" testId="severity-high" />);
     expect(screen.getByTestId('severity-high')).toBeInTheDocument();
   });
 
   it('renders data-testid "severity-critical" for critical severity', () => {
     render(
-      <Badge
-        variants={DIARY_SEVERITY_VARIANTS}
-        value="critical"
-        testId="severity-critical"
-      />,
+      <Badge variants={DIARY_SEVERITY_VARIANTS} value="critical" testId="severity-critical" />,
     );
     expect(screen.getByTestId('severity-critical')).toBeInTheDocument();
   });
@@ -230,11 +180,7 @@ describe('Badge — diary severity variants', () => {
 
   it('renders as a span element', () => {
     render(
-      <Badge
-        variants={DIARY_SEVERITY_VARIANTS}
-        value="critical"
-        testId="severity-critical"
-      />,
+      <Badge variants={DIARY_SEVERITY_VARIANTS} value="critical" testId="severity-critical" />,
     );
     const badge = screen.getByTestId('severity-critical');
     expect(badge.tagName.toLowerCase()).toBe('span');

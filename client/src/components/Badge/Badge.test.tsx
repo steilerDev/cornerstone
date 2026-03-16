@@ -88,7 +88,9 @@ describe('Badge', () => {
   // ─── data-testid ────────────────────────────────────────────────────────────
 
   it('renders testId as data-testid attribute when provided', () => {
-    const { container } = render(<Badge variants={SIMPLE_VARIANTS} value="foo" testId="my-badge" />);
+    const { container } = render(
+      <Badge variants={SIMPLE_VARIANTS} value="foo" testId="my-badge" />,
+    );
     const span = container.querySelector('span');
     expect(span).toHaveAttribute('data-testid', 'my-badge');
   });

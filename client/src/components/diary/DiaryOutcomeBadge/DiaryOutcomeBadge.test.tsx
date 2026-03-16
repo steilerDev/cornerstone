@@ -55,49 +55,27 @@ describe('Badge — diary outcome variants', () => {
   // ─── CSS classes ───────────────────────────────────────────────────────────
 
   it('applies pass CSS class for pass outcome', () => {
-    render(
-      <Badge
-        variants={DIARY_OUTCOME_VARIANTS}
-        value="pass"
-        testId="outcome-pass"
-      />,
-    );
+    render(<Badge variants={DIARY_OUTCOME_VARIANTS} value="pass" testId="outcome-pass" />);
     const badge = screen.getByTestId('outcome-pass');
     expect(badge.getAttribute('class') ?? '').toContain('pass');
   });
 
   it('applies fail CSS class for fail outcome', () => {
-    render(
-      <Badge
-        variants={DIARY_OUTCOME_VARIANTS}
-        value="fail"
-        testId="outcome-fail"
-      />,
-    );
+    render(<Badge variants={DIARY_OUTCOME_VARIANTS} value="fail" testId="outcome-fail" />);
     const badge = screen.getByTestId('outcome-fail');
     expect(badge.getAttribute('class') ?? '').toContain('fail');
   });
 
   it('applies conditional CSS class for conditional outcome', () => {
     render(
-      <Badge
-        variants={DIARY_OUTCOME_VARIANTS}
-        value="conditional"
-        testId="outcome-conditional"
-      />,
+      <Badge variants={DIARY_OUTCOME_VARIANTS} value="conditional" testId="outcome-conditional" />,
     );
     const badge = screen.getByTestId('outcome-conditional');
     expect(badge.getAttribute('class') ?? '').toContain('conditional');
   });
 
   it('always applies the base badge class', () => {
-    render(
-      <Badge
-        variants={DIARY_OUTCOME_VARIANTS}
-        value="pass"
-        testId="outcome-pass"
-      />,
-    );
+    render(<Badge variants={DIARY_OUTCOME_VARIANTS} value="pass" testId="outcome-pass" />);
     const badge = screen.getByTestId('outcome-pass');
     expect(badge.getAttribute('class') ?? '').toContain('badge');
   });
@@ -146,34 +124,18 @@ describe('Badge — diary outcome variants', () => {
   // ─── data-testid ────────────────────────────────────────────────────────────
 
   it('renders data-testid "outcome-pass" for pass outcome', () => {
-    render(
-      <Badge
-        variants={DIARY_OUTCOME_VARIANTS}
-        value="pass"
-        testId="outcome-pass"
-      />,
-    );
+    render(<Badge variants={DIARY_OUTCOME_VARIANTS} value="pass" testId="outcome-pass" />);
     expect(screen.getByTestId('outcome-pass')).toBeInTheDocument();
   });
 
   it('renders data-testid "outcome-fail" for fail outcome', () => {
-    render(
-      <Badge
-        variants={DIARY_OUTCOME_VARIANTS}
-        value="fail"
-        testId="outcome-fail"
-      />,
-    );
+    render(<Badge variants={DIARY_OUTCOME_VARIANTS} value="fail" testId="outcome-fail" />);
     expect(screen.getByTestId('outcome-fail')).toBeInTheDocument();
   });
 
   it('renders data-testid "outcome-conditional" for conditional outcome', () => {
     render(
-      <Badge
-        variants={DIARY_OUTCOME_VARIANTS}
-        value="conditional"
-        testId="outcome-conditional"
-      />,
+      <Badge variants={DIARY_OUTCOME_VARIANTS} value="conditional" testId="outcome-conditional" />,
     );
     expect(screen.getByTestId('outcome-conditional')).toBeInTheDocument();
   });
@@ -181,13 +143,7 @@ describe('Badge — diary outcome variants', () => {
   // ─── Element type ───────────────────────────────────────────────────────────
 
   it('renders as a span element', () => {
-    render(
-      <Badge
-        variants={DIARY_OUTCOME_VARIANTS}
-        value="pass"
-        testId="outcome-pass"
-      />,
-    );
+    render(<Badge variants={DIARY_OUTCOME_VARIANTS} value="pass" testId="outcome-pass" />);
     const badge = screen.getByTestId('outcome-pass');
     expect(badge.tagName.toLowerCase()).toBe('span');
   });

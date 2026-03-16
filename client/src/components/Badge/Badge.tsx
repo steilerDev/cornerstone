@@ -20,11 +20,7 @@ export function Badge({ variants, value, ariaLabel, testId, className }: BadgePr
   const combinedClass = [styles.badge, variant?.className, className].filter(Boolean).join(' ');
 
   return (
-    <span
-      className={combinedClass}
-      aria-label={ariaLabel}
-      data-testid={testId}
-    >
+    <span className={combinedClass} aria-label={ariaLabel} data-testid={testId}>
       {variant?.label ?? value}
     </span>
   );
