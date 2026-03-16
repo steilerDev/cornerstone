@@ -47,6 +47,9 @@ export function DiaryMetadataSummary({ entryType, metadata }: DiaryMetadataSumma
             {WEATHER_EMOJI[m.weather] || '🌡️'} {m.weather}
           </span>
         )}
+        {m.temperatureCelsius !== undefined && m.temperatureCelsius !== null && (
+          <span className={styles.item}>Temperature: {m.temperatureCelsius}°C</span>
+        )}
         {m.workersOnSite !== undefined && m.workersOnSite !== null && (
           <span className={styles.item}>{m.workersOnSite} workers</span>
         )}
@@ -83,7 +86,7 @@ export function DiaryMetadataSummary({ entryType, metadata }: DiaryMetadataSumma
         )}
         {m.materials && m.materials.length > 0 && (
           <div className={styles.deliveryItem}>
-            <span className={styles.deliveryLabel}>Description:</span>
+            <span className={styles.deliveryLabel}>Items:</span>
             <div className={styles.materialsList}>
               {m.materials.map((material, idx) => (
                 <span key={idx} className={styles.materialTag}>
