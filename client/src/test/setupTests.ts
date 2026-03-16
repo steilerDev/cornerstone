@@ -4,6 +4,11 @@
 /// <reference types="@testing-library/jest-dom" />
 import '@testing-library/jest-dom/jest-globals';
 
+// Initialize i18next with English translations for the test environment.
+// This ensures components using useTranslation() render translated strings
+// rather than raw translation keys.
+import '../i18n/index.js';
+
 // Polyfill TextEncoder/TextDecoder for jsdom (required by react-router)
 import { TextEncoder, TextDecoder } from 'node:util';
 
