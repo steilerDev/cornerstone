@@ -4,8 +4,8 @@
  * Story #808: Automatic system event logging to diary
  *
  * Scenarios covered:
- * 1.  [smoke] Automatic entries appear in a collapsible section in the diary timeline (mock API)
- *             UAT fix #838: automatic events are inside a details/summary collapsible element
+ * 1.  [smoke] Automatic entries appear in a flat "Automated Events" section in the diary timeline (mock API)
+ *             UAT R2 fix #868: automatic events moved from details/summary collapsible to flat bordered div
  * 2.  Type chip filter for "work_item_status" sends correct type parameter to API
  *             UAT fix #840: DiaryEntryTypeSwitcher (all/manual/automatic tabs) removed;
  *             filtering is now done via individual type chip buttons in the filter bar
@@ -83,15 +83,16 @@ test.describe('Automatic entries in diary list (Scenario 1)', { tag: '@responsiv
         await diaryPage.goto();
         await diaryPage.waitForLoaded();
 
-        // UAT fix #838: automatic entries are rendered inside a <details class="automaticSection">
-        // element that is closed by default. Must open the collapsible before asserting card visibility.
-        const automaticSection = page.locator('details').filter({
-          has: page.locator('summary').filter({ hasText: /Automatic Events/i }),
-        });
-        await automaticSection.first().waitFor({ state: 'visible' });
-        await automaticSection.first().locator('summary').click();
+        // UAT R2 fix #868: automatic events are now rendered inside a flat <div> (not a collapsible
+        // details/summary element). The section has data-testid="automatic-section-{date}" and
+        // contains a header with "Automated Events" text. No interaction needed to reveal the cards.
+        const automaticSection = page.getByTestId(`automatic-section-${mockEntry['entryDate'] as string}`);
+        await automaticSection.waitFor({ state: 'visible' });
 
-        // After opening the collapsible, the entry card should be visible
+        // The section header should contain "Automated Events"
+        await expect(automaticSection).toContainText('Automated Events');
+
+        // The entry card should be directly visible inside the section
         await expect(diaryPage.entryCard(mockId)).toBeVisible();
       } finally {
         await page.unroute('**/api/diary-entries*');

@@ -4,7 +4,7 @@
  * Issues addressed:
  * - #845: Remove PDF export and print functionality
  * - #842: Back button navigates to /diary; source entity links show entity title
- * - #838: Automatic events shown in collapsible details/summary section per date group
+ * - #838: Automatic events shown in section per date group (UAT R2 #868: now flat div, not collapsible)
  * - #843: After creating entry, navigate to /diary/:id/edit instead of detail page
  * - #844: Dashboard "Recent Diary" card showing latest entries
  *
@@ -13,8 +13,8 @@
  * 2.  [smoke] Diary detail back button navigates to /diary (not browser-back)
  * 3.  [smoke] Dashboard "Recent Diary" card is visible
  * 4.  Source entity title displayed in diary card source link
- * 5.  Automatic events are in a collapsible section per date group
- * 6.  Creating an entry navigates to /diary/:id/edit
+ * 5.  Automatic events are in a flat "Automated Events" section (UAT R2 #868: changed from collapsible) per date group
+ * 6.  Creating an entry navigates to /diary/:id (detail page) — UAT R2 #867 changed from /edit
  * 7.  Dashboard "Recent Diary" card "View All" link navigates to /diary
  * 8.  Diary detail page has no print button
  */
@@ -23,7 +23,6 @@ import { test, expect } from '../../fixtures/auth.js';
 import { DiaryPage, DIARY_ROUTE } from '../../pages/DiaryPage.js';
 import { DiaryEntryDetailPage } from '../../pages/DiaryEntryDetailPage.js';
 import { DiaryEntryCreatePage } from '../../pages/DiaryEntryCreatePage.js';
-import { DiaryEntryEditPage } from '../../pages/DiaryEntryEditPage.js';
 import { DashboardPage } from '../../pages/DashboardPage.js';
 import { createDiaryEntryViaApi, deleteDiaryEntryViaApi } from '../../fixtures/apiHelpers.js';
 
@@ -170,15 +169,10 @@ test.describe('Source entity title in diary card (Scenario 4)', () => {
       const diaryPage = new DiaryPage(page);
       await diaryPage.heading.waitFor({ state: 'visible' });
 
-      // The date group will render an Automatic Events collapsible section.
-      // Open the collapsible to reveal the automatic entry card.
-      const automaticDetails = page.locator('details').filter({
-        has: page.locator('summary').filter({ hasText: /Automatic Events/i }),
-      });
-      await automaticDetails.first().waitFor({ state: 'visible' });
-
-      // Click the summary to open the collapsible
-      await automaticDetails.first().locator('summary').click();
+      // UAT R2 fix #868: automatic events are now a flat bordered div (not a collapsible).
+      // The section is directly visible — no interaction needed to reveal its contents.
+      const automaticSection = page.getByTestId('automatic-section-2026-03-14');
+      await automaticSection.waitFor({ state: 'visible' });
 
       // The source link should display the work item title (UAT fix #842)
       const sourceLink = page.getByTestId(`source-link-wi-mock-001`);
@@ -193,8 +187,8 @@ test.describe('Source entity title in diary card (Scenario 4)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 5: Automatic events are in a collapsible section
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Automatic events collapsible (Scenario 5)', { tag: '@responsive' }, () => {
-  test('Date group renders automatic events inside a collapsible details/summary element', async ({
+test.describe('Automatic events flat section (Scenario 5)', { tag: '@responsive' }, () => {
+  test('Date group renders automatic events inside a flat "Automated Events" div section', async ({
     page,
   }) => {
     // Mock diary entries: one manual + one automatic on the same date
@@ -252,16 +246,18 @@ test.describe('Automatic events collapsible (Scenario 5)', { tag: '@responsive' 
       await diaryPage.heading.waitFor({ state: 'visible' });
       await diaryPage.waitForLoaded();
 
-      // UAT fix #838: automatic events are inside a <details> element
-      // with a <summary> containing "Automatic Events (N)"
-      const automaticDetails = page.locator('details').filter({
-        has: page.locator('summary').filter({ hasText: /Automatic Events/i }),
-      });
-      await expect(automaticDetails.first()).toBeVisible();
+      // UAT R2 fix #868: automatic events are now a flat bordered div (not a collapsible).
+      // The section has data-testid="automatic-section-{date}" and contains a header with
+      // "Automated Events" text.
+      const automaticSection = page.getByTestId('automatic-section-2026-03-14');
+      await expect(automaticSection).toBeVisible();
 
-      // Verify the summary text contains "Automatic Events"
-      const summary = automaticDetails.first().locator('summary');
-      await expect(summary).toContainText('Automatic Events');
+      // Verify the section contains the "Automated Events" heading text
+      await expect(automaticSection).toContainText('Automated Events');
+
+      // Verify it is a div, not a details element
+      const tagName = await automaticSection.evaluate((el) => el.tagName.toLowerCase());
+      expect(tagName).toBe('div');
     } finally {
       await page.unroute('**/api/diary-entries*');
     }
@@ -271,13 +267,12 @@ test.describe('Automatic events collapsible (Scenario 5)', { tag: '@responsive' 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 6: Creating an entry navigates to /diary/:id/edit
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Create navigates to edit page (Scenario 6)', { tag: '@responsive' }, () => {
+test.describe('Create navigates to detail page (Scenario 6)', { tag: '@responsive' }, () => {
   test(
-    'Submitting the create form navigates to /diary/:id/edit',
+    'Submitting the create form navigates to /diary/:id (detail page)',
     { tag: '@smoke' },
     async ({ page, testPrefix }) => {
       const createPage = new DiaryEntryCreatePage(page);
-      const editPage = new DiaryEntryEditPage(page);
       let createdId: string | null = null;
 
       try {
@@ -286,7 +281,7 @@ test.describe('Create navigates to edit page (Scenario 6)', { tag: '@responsive'
 
         await createPage.titleInput.waitFor({ state: 'visible' });
         await createPage.titleInput.fill(`${testPrefix} UAT Create Nav Test`);
-        await createPage.bodyTextarea.fill(`${testPrefix} create nav to edit body`);
+        await createPage.bodyTextarea.fill(`${testPrefix} create nav to detail body`);
 
         // Register response listener BEFORE submit
         const responsePromise = page.waitForResponse(
@@ -300,12 +295,15 @@ test.describe('Create navigates to edit page (Scenario 6)', { tag: '@responsive'
         const responseBody = (await response.json()) as { id: string };
         createdId = responseBody.id;
 
-        // UAT fix #843: navigates to edit page (not detail page)
-        await page.waitForURL(`**/diary/${createdId}/edit`);
-        expect(page.url()).toContain(`/diary/${createdId}/edit`);
+        // UAT R2 fix #867: navigates to detail page (not edit page) after creation
+        // Photo upload is now done during creation itself (on create form), so the
+        // edit page redirect is no longer needed.
+        await page.waitForURL(`**/diary/${createdId}`);
+        expect(page.url()).toMatch(new RegExp(`/diary/${createdId}$`));
 
-        // Edit page heading should be visible
-        await expect(editPage.heading).toBeVisible();
+        // Detail page back button should be visible (confirms we're on detail page)
+        const backButton = page.getByLabel('Go back to diary');
+        await expect(backButton).toBeVisible();
       } finally {
         if (createdId) await deleteDiaryEntryViaApi(page, createdId);
       }
