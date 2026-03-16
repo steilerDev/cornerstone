@@ -95,7 +95,7 @@ export default function DiaryEntryCreatePage() {
   // delivery metadata
   const [deliveryVendor, setDeliveryVendor] = useState<string | null>(null);
   const [deliveryMaterials, setDeliveryMaterials] = useState<string[] | null>(null);
-  const [deliveryConfirmed, setDeliveryConfirmed] = useState(false);
+
 
   // issue metadata
   const [issueSeverity, setIssueSeverity] = useState<DiaryIssueSeverity | null>(null);
@@ -165,7 +165,6 @@ export default function DiaryEntryCreatePage() {
       const metadata: DeliveryMetadata = {};
       if (deliveryVendor) metadata.vendor = deliveryVendor;
       if (deliveryMaterials && deliveryMaterials.length > 0) metadata.materials = deliveryMaterials;
-      if (deliveryConfirmed) metadata.deliveryConfirmed = deliveryConfirmed;
       return Object.keys(metadata).length > 0 ? metadata : null;
     }
 
@@ -342,8 +341,6 @@ export default function DiaryEntryCreatePage() {
           onDeliveryVendorChange={setDeliveryVendor}
           deliveryMaterials={deliveryMaterials}
           onDeliveryMaterialsChange={setDeliveryMaterials}
-          deliveryConfirmed={deliveryConfirmed}
-          onDeliveryConfirmedChange={setDeliveryConfirmed}
           // issue
           issueSeverity={issueSeverity}
           onIssueSeverityChange={setIssueSeverity}

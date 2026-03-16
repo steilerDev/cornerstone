@@ -111,7 +111,6 @@ const deliveryEntry: DiaryEntryDetail = {
   metadata: {
     vendor: 'TimberCo',
     materials: ['Oak planks', 'Pine beams'],
-    deliveryConfirmed: true,
   },
 };
 
