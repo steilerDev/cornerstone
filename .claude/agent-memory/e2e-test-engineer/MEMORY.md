@@ -157,17 +157,8 @@ DiaryPage.waitForLoaded() races: timeline visible OR emptyState visible OR error
 `r.photos` is `undefined` → `setPhotos(undefined)` → `PhotoGrid` crashes on `photos.length`.
 ALWAYS mock photos as: `body: JSON.stringify({ photos: [] })` not `body: '[]'`.
 
-## Export API URL Bug: /diary-entries/export (not /api/) (2026-03-15)
+## waitForURL on WebKit Tablet: pass `{ timeout: 15_000 }` for navigation after browser-back
 
-`exportDiaryPdf()` in `client/src/lib/diaryApi.ts` uses `fetch('/diary-entries/export')`
-missing `/api/` prefix. Tracked in GitHub Issue #834.
-E2E mocks for export must use `**/diary-entries/export*` (not `**/api/diary-entries/export*`)
-until the frontend bug is fixed.
-
-## waitForURL Timeout on WebKit Tablet — Use Explicit 15s (2026-03-15)
-
-`page.waitForURL('**/diary')` after `navigate(-1)` times out with default 10s
-navigationTimeout on WebKit iPad (tablet project). Fix: pass `{ timeout: 15_000 }`.
 Applied to: diary-detail.spec.ts Scenarios 2 and 3.
 
 ## Diary E2E Extended (Stories #806-#809, 2026-03-15)
@@ -195,11 +186,14 @@ File: `e2e/tests/diary/diary-uat-fixes.spec.ts`
 
 Key behavioral changes validated:
 
-- Post-create navigation: `/diary/:id/edit` (NOT `/diary/:id`) — UAT fix #843
+- Post-create navigation: `/diary/:id` (detail, NOT `/diary/:id/edit`) — UAT R2 fix #867 reverted #843
 - Detail back button: `getByLabel('Go back to diary')` navigates to `/diary` (NOT browser-back) — #842
 - Source link text: `data-testid="source-link-{sourceEntityId}"` shows `sourceEntityTitle` — #842
-- Automatic events: inside `<details class="automaticSection">` with summary "Automatic Events (N)" — #838
+- Automatic events: flat `<div data-testid="automatic-section-{date}">` with "Automated Events" heading — UAT R2 #868
+  (was collapsible `<details>/<summary>` in UAT R1 #838 — CHANGED in UAT R2)
 - Dashboard "Recent Diary" card: title='Recent Diary', `recentDiaryCard()` helper in DashboardPage POM — #844
 - RecentDiaryCard "View All" link only rendered when `entries.length > 0` — mock with ≥1 entry
-
-diary-forms.spec.ts Scenarios 2/3/4 FIXED to expect /diary/:id/edit (not /diary/:id) after create.
+- New Entry button: `getByRole('link', { name: 'New Entry', exact: true })` (no "+" prefix) — UAT R2 #866-C
+- Signed badge on cards: `data-testid="signed-badge-{entryId}"` text "✓ Signed" — UAT R2 #869
+- Mode filter chips: `data-testid="mode-filter-all/manual/automatic"` — UAT R2 #866-A
+- Photo input on create: `data-testid="create-photo-input"` (file, multiple, accept image/*)  — UAT R2 #867
