@@ -89,6 +89,27 @@ describe('Config Routes', () => {
       expect(response.statusCode).toBe(200);
     });
 
+    it('reflects CURRENCY env var in the response', async () => {
+      // Must create a custom app instance AFTER setting the env var so the
+      // config plugin reads the overridden value.
+      process.env.CURRENCY = 'CHF';
+      const customApp = await buildApp();
+
+      try {
+        const response = await customApp.inject({
+          method: 'GET',
+          url: '/api/config',
+        });
+
+        expect(response.statusCode).toBe(200);
+        const body = response.json<AppConfigResponse>();
+        expect(body.currency).toBe('CHF');
+      } finally {
+        await customApp.close();
+        delete process.env.CURRENCY;
+      }
+    });
+
     it('returns the exact AppConfigResponse shape with no extra fields', async () => {
       const response = await app.inject({
         method: 'GET',
