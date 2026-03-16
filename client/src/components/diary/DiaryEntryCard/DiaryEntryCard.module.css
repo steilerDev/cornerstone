@@ -61,6 +61,14 @@
   color: var(--color-text-secondary);
 }
 
+.signedBadgeInline {
+  display: inline-block;
+  margin-left: var(--spacing-2);
+  color: var(--color-success);
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-xs);
+}
+
 .body {
   font-size: var(--font-size-sm);
   color: var(--color-text-body);
@@ -87,6 +95,10 @@
   align-items: center;
   gap: var(--spacing-1);
   color: var(--color-text-secondary);
+}
+
+.autoEntityLink {
+  margin-top: var(--spacing-2);
 }
 
 .sourceLink {

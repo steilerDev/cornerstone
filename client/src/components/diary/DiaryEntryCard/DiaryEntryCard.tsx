@@ -71,6 +71,24 @@ export function DiaryEntryCard({ entry }: DiaryEntryCardProps) {
               {entry.createdBy && (
                 <span className={styles.author}> by {entry.createdBy.displayName}</span>
               )}
+              {entry.isSigned && (
+                <span className={styles.signedBadgeInline} data-testid={`signed-badge-${entry.id}`}>
+                  ✓
+                </span>
+              )}
+            </div>
+          )}
+          {entry.isAutomatic && route && (
+            <div className={styles.autoEntityLink}>
+              <Link
+                to={route}
+                className={styles.sourceLink}
+                onClick={(e) => e.stopPropagation()}
+                title={entry.sourceEntityTitle ?? sourceLabel ?? undefined}
+                data-testid={`source-link-${entry.sourceEntityId}`}
+              >
+                Go to related item
+              </Link>
             </div>
           )}
         </div>
@@ -89,7 +107,7 @@ export function DiaryEntryCard({ entry }: DiaryEntryCardProps) {
           </span>
         )}
 
-        {route && (
+        {!entry.isAutomatic && route && (
           <Link
             to={route}
             className={styles.sourceLink}
@@ -97,14 +115,8 @@ export function DiaryEntryCard({ entry }: DiaryEntryCardProps) {
             title={entry.sourceEntityTitle ?? sourceLabel ?? undefined}
             data-testid={`source-link-${entry.sourceEntityId}`}
           >
-            {entry.isAutomatic ? 'Go to related item' : (entry.sourceEntityTitle ?? sourceLabel)}
+            {entry.sourceEntityTitle ?? sourceLabel}
           </Link>
-        )}
-
-        {entry.isSigned && (
-          <span className={styles.signedBadge} data-testid={`signed-badge-${entry.id}`}>
-            ✓ Signed
-          </span>
         )}
       </div>
     </Link>
