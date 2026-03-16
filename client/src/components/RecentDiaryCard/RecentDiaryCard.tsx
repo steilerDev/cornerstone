@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import type { DiaryEntrySummary } from '@cornerstone/shared';
 import { formatDate, formatTime } from '../../lib/formatters.js';
 import { DiaryEntryTypeBadge } from '../diary/DiaryEntryTypeBadge/DiaryEntryTypeBadge.js';
+import { EmptyState } from '../EmptyState/index.js';
 import shared from '../../styles/shared.module.css';
 import styles from './RecentDiaryCard.module.css';
 
@@ -22,12 +23,14 @@ export function RecentDiaryCard({ entries, isLoading, error }: RecentDiaryCardPr
 
   if (entries.length === 0) {
     return (
-      <div className={styles.emptyState}>
-        <p>No diary entries yet.</p>
-        <Link to="/diary/new" className={shared.btnPrimary}>
-          Create first entry
-        </Link>
-      </div>
+      <EmptyState
+        message="No diary entries yet."
+        action={{
+          label: 'Create first entry',
+          href: '/diary/new',
+        }}
+        className={styles.emptyState}
+      />
     );
   }
 
