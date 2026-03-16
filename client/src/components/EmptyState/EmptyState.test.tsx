@@ -39,12 +39,7 @@ describe('EmptyState', () => {
   });
 
   it('renders a ReactNode icon (not just emoji strings)', () => {
-    render(
-      <EmptyState
-        message="Empty"
-        icon={<span data-testid="custom-icon">SVG</span>}
-      />,
-    );
+    render(<EmptyState message="Empty" icon={<span data-testid="custom-icon">SVG</span>} />);
 
     expect(screen.getByTestId('custom-icon')).toBeInTheDocument();
   });
@@ -70,10 +65,7 @@ describe('EmptyState', () => {
 
   it('renders an anchor tag when action.href is provided', () => {
     render(
-      <EmptyState
-        message="No items"
-        action={{ label: 'Add item', href: '/work-items/new' }}
-      />,
+      <EmptyState message="No items" action={{ label: 'Add item', href: '/work-items/new' }} />,
     );
 
     const link = screen.getByRole('link', { name: 'Add item' });
@@ -82,10 +74,7 @@ describe('EmptyState', () => {
 
   it('sets the correct href on the action link', () => {
     render(
-      <EmptyState
-        message="No items"
-        action={{ label: 'Add item', href: '/work-items/new' }}
-      />,
+      <EmptyState message="No items" action={{ label: 'Add item', href: '/work-items/new' }} />,
     );
 
     expect(screen.getByRole('link', { name: 'Add item' })).toHaveAttribute(
@@ -96,10 +85,7 @@ describe('EmptyState', () => {
 
   it('does not render a button when action.href is provided', () => {
     render(
-      <EmptyState
-        message="No items"
-        action={{ label: 'Add item', href: '/work-items/new' }}
-      />,
+      <EmptyState message="No items" action={{ label: 'Add item', href: '/work-items/new' }} />,
     );
 
     expect(screen.queryByRole('button')).toBeNull();
@@ -108,12 +94,7 @@ describe('EmptyState', () => {
   // ── action — button variant ───────────────────────────────────────────────
 
   it('renders a button when action.onClick is provided (no href)', () => {
-    render(
-      <EmptyState
-        message="No items"
-        action={{ label: 'Create one', onClick: jest.fn() }}
-      />,
-    );
+    render(<EmptyState message="No items" action={{ label: 'Create one', onClick: jest.fn() }} />);
 
     expect(screen.getByRole('button', { name: 'Create one' })).toBeInTheDocument();
   });
@@ -121,10 +102,7 @@ describe('EmptyState', () => {
   it('fires onClick when the action button is clicked', () => {
     const handleClick = jest.fn<() => void>();
     render(
-      <EmptyState
-        message="No items"
-        action={{ label: 'Create one', onClick: handleClick }}
-      />,
+      <EmptyState message="No items" action={{ label: 'Create one', onClick: handleClick }} />,
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Create one' }));
@@ -132,12 +110,7 @@ describe('EmptyState', () => {
   });
 
   it('does not render a link when action.onClick is provided without href', () => {
-    render(
-      <EmptyState
-        message="No items"
-        action={{ label: 'Create one', onClick: jest.fn() }}
-      />,
-    );
+    render(<EmptyState message="No items" action={{ label: 'Create one', onClick: jest.fn() }} />);
 
     expect(screen.queryByRole('link')).toBeNull();
   });
