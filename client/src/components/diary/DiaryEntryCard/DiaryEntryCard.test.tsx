@@ -134,8 +134,8 @@ describe('DiaryEntryCard', () => {
     renderCard(automaticEntry);
     const sourceLink = screen.getByTestId('source-link-wi-kitchen-1');
     expect(sourceLink).toBeInTheDocument();
-    // sourceEntityTitle is null in this fixture, so falls back to type label
-    expect(sourceLink).toHaveTextContent('Work Item');
+    // Automatic entries show "Go to related item" regardless of sourceEntityTitle
+    expect(sourceLink).toHaveTextContent('Go to related item');
   });
 
   // ─── sourceEntityTitle display ──────────────────────────────────────────────
@@ -150,7 +150,8 @@ describe('DiaryEntryCard', () => {
     };
     renderCard(entryWithTitle);
     const sourceLink = screen.getByTestId('source-link-wi-kitchen-2');
-    expect(sourceLink).toHaveTextContent('Kitchen Renovation');
+    // Automatic entries always show "Go to related item"
+    expect(sourceLink).toHaveTextContent('Go to related item');
   });
 
   it('falls back to entity type label when sourceEntityTitle is null', () => {
@@ -163,7 +164,8 @@ describe('DiaryEntryCard', () => {
     };
     renderCard(entryNoTitle);
     const sourceLink = screen.getByTestId('source-link-inv-no-title');
-    expect(sourceLink).toHaveTextContent('Invoice');
+    // Automatic entries always show "Go to related item"
+    expect(sourceLink).toHaveTextContent('Go to related item');
   });
 
   it('uses invoice sourceEntityTitle (invoice number) as link text', () => {
@@ -177,7 +179,8 @@ describe('DiaryEntryCard', () => {
     };
     renderCard(invoiceEntryWithTitle);
     const sourceLink = screen.getByTestId('source-link-inv-456');
-    expect(sourceLink).toHaveTextContent('INV-2026-042');
+    // Automatic entries always show "Go to related item"
+    expect(sourceLink).toHaveTextContent('Go to related item');
   });
 
   it('source entity link for work_item points to /project/work-items/:sourceEntityId', () => {
@@ -197,7 +200,7 @@ describe('DiaryEntryCard', () => {
     };
     renderCard(invoiceEntry);
     const sourceLink = screen.getByTestId('source-link-inv-123');
-    expect(sourceLink).toHaveTextContent('Invoice');
+    expect(sourceLink).toHaveTextContent('Go to related item');
     expect(sourceLink).toHaveAttribute('href', '/budget/invoices/inv-123');
   });
 
@@ -212,7 +215,7 @@ describe('DiaryEntryCard', () => {
     };
     renderCard(milestoneEntry);
     const sourceLink = screen.getByTestId('source-link-ms-456');
-    expect(sourceLink).toHaveTextContent('Milestone');
+    expect(sourceLink).toHaveTextContent('Go to related item');
     expect(sourceLink).toHaveAttribute('href', '/project/milestones/ms-456');
   });
 
