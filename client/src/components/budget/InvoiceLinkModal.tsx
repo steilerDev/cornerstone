@@ -8,6 +8,7 @@ import {
 import { formatCurrency } from '../../lib/formatters.js';
 import { useToast } from '../Toast/ToastContext.js';
 import { Modal } from '../Modal/index.js';
+import { FormError } from '../FormError/index.js';
 import styles from './InvoiceLinkModal.module.css';
 
 export interface InvoiceLinkModalProps {
@@ -224,9 +225,7 @@ export function InvoiceLinkModal({
       }
     >
       {error && error.message && !error.field && (
-        <div className={styles.errorBanner} role="alert">
-          {error.message}
-        </div>
+        <FormError message={error.message} variant="banner" />
       )}
 
       <form id="invoice-link-form" onSubmit={handleSubmit} className={styles.form}>
@@ -286,7 +285,7 @@ export function InvoiceLinkModal({
                 )}
               </div>
               {error?.field === 'invoice' && (
-                <div className={styles.fieldError}>{error.message}</div>
+                <FormError message={error.message} variant="field" />
               )}
               {selectedInvoice && !isLoadingRemaining && (
                 <div
@@ -361,7 +360,9 @@ export function InvoiceLinkModal({
               required
             />
           )}
-          {error?.field === 'amount' && <div className={styles.fieldError}>{error.message}</div>}
+          {error?.field === 'amount' && (
+            <FormError message={error.message} variant="field" />
+          )}
         </div>
       </form>
     </Modal>

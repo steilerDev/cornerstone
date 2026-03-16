@@ -1,0 +1,15 @@
+.banner {
+  background: var(--color-danger-bg);
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-2-5) var(--spacing-3);
+  margin-bottom: var(--spacing-4);
+  color: var(--color-danger-active);
+  font-size: var(--font-size-sm);
+}
+
+.field {
+  font-size: var(--font-size-2xs);
+  color: var(--color-danger-active);
+  margin-top: var(--spacing-1);
+}

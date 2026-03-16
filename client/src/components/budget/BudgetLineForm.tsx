@@ -1,6 +1,7 @@
 import { type FormEvent, type ReactNode } from 'react';
 import type { ConfidenceLevel, Vendor, BudgetSource, BudgetCategory } from '@cornerstone/shared';
 import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';
+import { FormError } from '../FormError/index.js';
 import styles from './BudgetLineForm.module.css';
 
 export interface BudgetLineFormProps {
@@ -37,11 +38,7 @@ export function BudgetLineForm({
   return (
     <div className={styles.container}>
       <form onSubmit={onSubmit} className={styles.form}>
-        {error && (
-          <div className={styles.errorBanner} role="alert">
-            {error}
-          </div>
-        )}
+        {error && <FormError message={error} variant="banner" />}
 
         <div className={styles.field}>
           <label className={styles.label} htmlFor="budget-description">
