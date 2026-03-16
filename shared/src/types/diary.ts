@@ -40,6 +40,7 @@ export interface DiarySignatureEntry {
   signerName: string;
   signerType: 'self' | 'vendor';
   signatureDataUrl: string;
+  signedAt?: string;
 }
 
 /** Weather conditions for daily logs. */

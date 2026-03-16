@@ -1,6 +1,7 @@
 import type { DiarySignatureEntry } from '@cornerstone/shared';
 import shared from '../../../styles/shared.module.css';
 import { SignatureCapture } from '../SignatureCapture/SignatureCapture.js';
+import type { VendorOption } from '../SignatureCapture/SignatureCapture.js';
 import styles from './SignatureSection.module.css';
 
 export interface SignatureSectionProps {
@@ -16,6 +17,10 @@ export interface SignatureSectionProps {
   disabled?: boolean;
   /** Section label */
   label?: string;
+  /** Current user's display name */
+  currentUserName?: string;
+  /** Available vendors for vendor signature type */
+  vendors?: VendorOption[];
 }
 
 export function SignatureSection({
@@ -25,6 +30,8 @@ export function SignatureSection({
   onSignaturesChange,
   disabled = false,
   label = 'Signatures',
+  currentUserName,
+  vendors,
 }: SignatureSectionProps) {
   const handleSignatureUpdate = (index: number, updated: DiarySignatureEntry | null) => {
     onSignatureChange(index, updated);
@@ -50,11 +57,25 @@ export function SignatureSection({
           {signatures!.map((sig, index) => (
             <div key={index} className={styles.signatureItem}>
               <SignatureCapture
-                signature={sig}
+                signature={sig.signatureDataUrl ? sig : null}
                 onSignatureChange={(updated) => {
                   handleSignatureUpdate(index, updated);
                 }}
+                signerName={sig.signerName}
+                onSignerNameChange={(name) => {
+                  onSignatureChange(index, { ...sig, signerName: name });
+                }}
+                signerType={sig.signerType}
+                onSignerTypeChange={(type) => {
+                  onSignatureChange(index, {
+                    ...sig,
+                    signerType: type,
+                    signerName: type === 'self' ? (currentUserName || '') : '',
+                  });
+                }}
                 disabled={disabled}
+                currentUserName={currentUserName}
+                vendors={vendors}
               />
             </div>
           ))}

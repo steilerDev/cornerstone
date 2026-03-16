@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type {
   ManualDiaryEntryType,
@@ -16,6 +16,9 @@ import type {
 import { createDiaryEntry } from '../../lib/diaryApi.js';
 import { uploadPhoto } from '../../lib/photoApi.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
+import { useAuth } from '../../contexts/AuthContext.js';
+import { fetchVendors } from '../../lib/vendorsApi.js';
+import type { VendorOption } from '../../components/diary/SignatureCapture/SignatureCapture.js';
 import shared from '../../styles/shared.module.css';
 import { DiaryEntryForm } from '../../components/diary/DiaryEntryForm/DiaryEntryForm.js';
 import styles from './DiaryEntryCreatePage.module.css';
@@ -49,6 +52,16 @@ function TypeCard({ type, emoji, label, description, isSelected, onSelect }: Typ
 export default function DiaryEntryCreatePage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { user } = useAuth();
+  const [vendorOptions, setVendorOptions] = useState<VendorOption[]>([]);
+
+  useEffect(() => {
+    void fetchVendors({ pageSize: 100 }).then((res) => {
+      setVendorOptions(res.vendors.map((v) => ({ id: v.id, name: v.name })));
+    }).catch(() => {
+      // Vendors are optional — gracefully degrade
+    });
+  }, []);
 
   const [step, setStep] = useState<Step>('type-selector');
 
@@ -334,6 +347,9 @@ export default function DiaryEntryCreatePage() {
           onIssueSeverityChange={setIssueSeverity}
           issueResolutionStatus={issueResolutionStatus}
           onIssueResolutionStatusChange={setIssueResolutionStatus}
+          // signature enhancements
+          currentUserName={user?.displayName}
+          vendors={vendorOptions}
         />
 
         <div className={styles.photoQueue}>

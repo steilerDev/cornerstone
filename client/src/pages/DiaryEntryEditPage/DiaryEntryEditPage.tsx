@@ -16,6 +16,9 @@ import type {
 import { getDiaryEntry, updateDiaryEntry, deleteDiaryEntry } from '../../lib/diaryApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
+import { useAuth } from '../../contexts/AuthContext.js';
+import { fetchVendors } from '../../lib/vendorsApi.js';
+import type { VendorOption } from '../../components/diary/SignatureCapture/SignatureCapture.js';
 import { usePhotos } from '../../hooks/usePhotos.js';
 import shared from '../../styles/shared.module.css';
 import { DiaryEntryTypeBadge } from '../../components/diary/DiaryEntryTypeBadge/DiaryEntryTypeBadge.js';
@@ -29,6 +32,16 @@ export default function DiaryEntryEditPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { showToast } = useToast();
+  const { user } = useAuth();
+  const [vendorOptions, setVendorOptions] = useState<VendorOption[]>([]);
+
+  useEffect(() => {
+    void fetchVendors({ pageSize: 100 }).then((res) => {
+      setVendorOptions(res.vendors.map((v) => ({ id: v.id, name: v.name })));
+    }).catch(() => {
+      // Vendors are optional — gracefully degrade
+    });
+  }, []);
 
   const [entry, setEntry] = useState<DiaryEntryDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -383,6 +396,9 @@ export default function DiaryEntryEditPage() {
           onIssueSeverityChange={setIssueSeverity}
           issueResolutionStatus={issueResolutionStatus}
           onIssueResolutionStatusChange={setIssueResolutionStatus}
+          // signature enhancements
+          currentUserName={user?.displayName}
+          vendors={vendorOptions}
         />
 
         <div className={styles.formActions}>

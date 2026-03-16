@@ -226,6 +226,11 @@ function validateMetadata(
               'daily_log signature entry must have non-empty signatureDataUrl',
             );
           }
+          if (sig.signedAt !== undefined && (typeof sig.signedAt !== 'string' || sig.signedAt.trim().length === 0)) {
+            throw new InvalidMetadataError(
+              'daily_log signature entry signedAt must be a non-empty string if provided',
+            );
+          }
         }
       }
       break;
@@ -270,6 +275,11 @@ function validateMetadata(
           ) {
             throw new InvalidMetadataError(
               'site_visit signature entry must have non-empty signatureDataUrl',
+            );
+          }
+          if (sig.signedAt !== undefined && (typeof sig.signedAt !== 'string' || sig.signedAt.trim().length === 0)) {
+            throw new InvalidMetadataError(
+              'site_visit signature entry signedAt must be a non-empty string if provided',
             );
           }
         }
@@ -517,8 +527,8 @@ export function createDiaryEntry(
 
   // Validate metadata size
   if (data.metadata !== null && data.metadata !== undefined) {
-    if (JSON.stringify(data.metadata).length > 4096) {
-      throw new ValidationError('Metadata must not exceed 4096 characters when serialized');
+    if (JSON.stringify(data.metadata).length > 2_097_152) {
+      throw new ValidationError('Metadata must not exceed 2MB when serialized');
     }
   }
 
@@ -618,8 +628,8 @@ export function updateDiaryEntry(
 
   // Validate metadata size
   if (data.metadata !== null && data.metadata !== undefined) {
-    if (JSON.stringify(data.metadata).length > 4096) {
-      throw new ValidationError('Metadata must not exceed 4096 characters when serialized');
+    if (JSON.stringify(data.metadata).length > 2_097_152) {
+      throw new ValidationError('Metadata must not exceed 2MB when serialized');
     }
   }
 
