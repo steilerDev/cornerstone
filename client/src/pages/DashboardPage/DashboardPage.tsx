@@ -183,12 +183,7 @@ export function DashboardPage() {
     return () => document.removeEventListener('keydown', handleKey);
   }, [customizeOpen]);
 
-  // Fetch all data sources in parallel
-  useEffect(() => {
-    void loadAllData();
-  }, []);
-
-  const loadAllData = async () => {
+  const loadAllData = useCallback(async () => {
     const results = await Promise.allSettled([
       fetchBudgetOverview(),
       fetchBudgetSources(),
@@ -358,7 +353,22 @@ export function DashboardPage() {
         },
       }));
     }
-  };
+  }, []);
+
+  // Fetch all data sources on mount with cancellation guard
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchData() {
+      await loadAllData();
+      if (cancelled) return;
+    }
+
+    void fetchData();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadAllData]);
 
   const handleDismissCard = useCallback(
     async (cardId: DashboardCardId) => {
@@ -436,9 +446,7 @@ export function DashboardPage() {
           />
         ) : card.id === 'quick-actions' ? (
           <QuickActionsCard />
-        ) : (
-          <p className={styles.cardPlaceholder}>Content coming soon.</p>
-        )}
+        ) : null}
       </DashboardCard>
     );
   };
