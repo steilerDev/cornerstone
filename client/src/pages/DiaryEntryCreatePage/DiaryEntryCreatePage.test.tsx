@@ -11,6 +11,7 @@ import type React from 'react';
 // ── API mocks ─────────────────────────────────────────────────────────────────
 
 const mockCreateDiaryEntry = jest.fn<typeof DiaryApiTypes.createDiaryEntry>();
+const mockUploadPhoto = jest.fn<() => Promise<unknown>>();
 
 jest.unstable_mockModule('../../lib/diaryApi.js', () => ({
   createDiaryEntry: mockCreateDiaryEntry,
@@ -18,6 +19,15 @@ jest.unstable_mockModule('../../lib/diaryApi.js', () => ({
   listDiaryEntries: jest.fn(),
   updateDiaryEntry: jest.fn(),
   deleteDiaryEntry: jest.fn(),
+}));
+
+jest.unstable_mockModule('../../lib/photoApi.js', () => ({
+  uploadPhoto: mockUploadPhoto,
+  getPhotosForEntity: jest.fn(),
+  updatePhoto: jest.fn(),
+  deletePhoto: jest.fn(),
+  getPhotoFileUrl: jest.fn(),
+  getPhotoThumbnailUrl: jest.fn(),
 }));
 
 // Mock ToastContext so useToast() works without a real ToastProvider.
@@ -65,6 +75,7 @@ describe('DiaryEntryCreatePage', () => {
       DiaryEntryCreatePage = mod.default;
     }
     mockCreateDiaryEntry.mockReset();
+    mockUploadPhoto.mockReset();
   });
 
   afterEach(() => {
@@ -326,6 +337,79 @@ describe('DiaryEntryCreatePage', () => {
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /creating.../i })).toBeInTheDocument();
       });
+    });
+  });
+
+  // ─── Photo file queue ────────────────────────────────────────────────────────
+
+  describe('photo file queue', () => {
+    async function advanceToFormStepWithUser(type = 'daily_log') {
+      const user = userEvent.setup();
+      renderPage();
+      await user.click(screen.getByTestId(`type-card-${type}`));
+      await waitFor(() =>
+        expect(screen.getByRole('textbox', { name: /^entry/i })).toBeInTheDocument(),
+      );
+      return user;
+    }
+
+    it('renders the photo file input on the form step', async () => {
+      await advanceToFormStepWithUser();
+      expect(screen.getByTestId('create-photo-input')).toBeInTheDocument();
+    });
+
+    it('photo input is a file input that accepts images', async () => {
+      await advanceToFormStepWithUser();
+      const input = screen.getByTestId('create-photo-input') as HTMLInputElement;
+      expect(input.type).toBe('file');
+      expect(input.accept).toBe('image/*');
+    });
+
+    it('does not show pending photo count when no files are queued', async () => {
+      await advanceToFormStepWithUser();
+      expect(screen.queryByTestId('pending-photo-count')).not.toBeInTheDocument();
+    });
+
+    it('does not render the old "Photos can be added after saving" hint text', async () => {
+      await advanceToFormStepWithUser();
+      expect(
+        screen.queryByText(/photos can be added after saving/i),
+      ).not.toBeInTheDocument();
+    });
+
+    it('shows pending photo count after files are selected', async () => {
+      await advanceToFormStepWithUser();
+      const input = screen.getByTestId('create-photo-input');
+      const file = new File(['img'], 'photo.jpg', { type: 'image/jpeg' });
+      fireEvent.change(input, { target: { files: [file] } });
+      await waitFor(() => {
+        expect(screen.getByTestId('pending-photo-count')).toBeInTheDocument();
+        expect(screen.getByTestId('pending-photo-count').textContent).toContain('1');
+      });
+    });
+  });
+
+  // ─── Successful submit (navigation destination) ───────────────────────────────
+
+  describe('post-submit navigation', () => {
+    it('navigates to /diary/:id (detail page), NOT /diary/:id/edit after successful submit', async () => {
+      const user = userEvent.setup();
+      mockCreateDiaryEntry.mockResolvedValueOnce(createdEntry);
+      renderPage();
+
+      await user.click(screen.getByTestId('type-card-daily_log'));
+      await waitFor(() =>
+        expect(screen.getByRole('textbox', { name: /^entry/i })).toBeInTheDocument(),
+      );
+
+      await user.type(screen.getByRole('textbox', { name: /^entry/i }), 'Site work done.');
+      await user.click(screen.getByRole('button', { name: /create entry/i }));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('location')).toHaveTextContent('/diary/de-new');
+      });
+      // Confirm it is NOT the edit route
+      expect(screen.getByTestId('location').textContent).not.toContain('/edit');
     });
   });
 
