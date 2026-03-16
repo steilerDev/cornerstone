@@ -237,4 +237,19 @@ describe('DiaryEntryCard', () => {
     const card = screen.getByTestId('diary-card-de-auto-1');
     expect(card.querySelector('[class*="title"]')).toBeNull();
   });
+
+  // ─── isSigned badge ─────────────────────────────────────────────────────────
+
+  it('shows "✓ Signed" badge when entry.isSigned is true', () => {
+    const signedEntry: DiaryEntrySummary = { ...manualEntry, id: 'de-signed-1', isSigned: true };
+    renderCard(signedEntry);
+    const badge = screen.getByTestId('signed-badge-de-signed-1');
+    expect(badge).toBeInTheDocument();
+    expect(badge.textContent).toContain('✓ Signed');
+  });
+
+  it('does not show signed badge when entry.isSigned is false', () => {
+    renderCard(manualEntry); // manualEntry has isSigned: false
+    expect(screen.queryByTestId('signed-badge-de-manual-1')).not.toBeInTheDocument();
+  });
 });

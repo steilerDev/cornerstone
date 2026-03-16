@@ -5,7 +5,7 @@
  * - A page header with h1 "Construction Diary" and a subtitle with the total entry count
  * - A DiaryFilterBar with search input (data-testid="diary-search-input"), date range pickers,
  *   entry type chip filters, and a "Clear all" button
- * - A "+ New Entry" link button navigating to /diary/new
+ * - A "New Entry" link button navigating to /diary/new
  * - A timeline of DiaryDateGroup sections (data-testid="date-group-{date}"), each containing
  *   DiaryEntryCard links (data-testid="diary-card-{id}")
  * - An empty state (class emptyState from shared.module.css) with a "Create your first entry" link
@@ -77,7 +77,7 @@ export class DiaryPage {
 
     this.mobileFilterToggle = page.getByRole('button', { name: 'Toggle filters' });
 
-    this.newEntryButton = page.getByRole('link', { name: '+ New Entry' });
+    this.newEntryButton = page.getByRole('link', { name: 'New Entry', exact: true });
 
     this.timeline = page.locator('[class*="timeline"]');
 

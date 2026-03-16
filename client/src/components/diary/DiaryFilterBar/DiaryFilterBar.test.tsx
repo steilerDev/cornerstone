@@ -18,6 +18,8 @@ describe('DiaryFilterBar', () => {
     activeTypes: [] as DiaryEntryType[],
     onTypesChange: jest.fn<(types: DiaryEntryType[]) => void>(),
     onClearAll: jest.fn<() => void>(),
+    filterMode: 'all' as 'all' | 'manual' | 'automatic',
+    onFilterModeChange: jest.fn<(mode: 'all' | 'manual' | 'automatic') => void>(),
   };
 
   beforeEach(() => {
@@ -64,12 +66,134 @@ describe('DiaryFilterBar', () => {
       'general_note',
       'work_item_status',
       'invoice_status',
+      'invoice_created',
       'milestone_delay',
       'budget_breach',
       'auto_reschedule',
       'subsidy_status',
     ];
     for (const type of expectedTypes) {
+      expect(screen.getByTestId(`type-filter-${type}`)).toBeInTheDocument();
+    }
+  });
+
+  // ─── Filter mode chips ─────────────────────────────────────────────────────
+
+  it('renders mode chips All, Manual and Automatic', () => {
+    renderFilterBar();
+    expect(screen.getByTestId('mode-filter-all')).toBeInTheDocument();
+    expect(screen.getByTestId('mode-filter-manual')).toBeInTheDocument();
+    expect(screen.getByTestId('mode-filter-automatic')).toBeInTheDocument();
+  });
+
+  it('All mode chip is active by default (aria-pressed="true")', () => {
+    renderFilterBar();
+    expect(screen.getByTestId('mode-filter-all')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('mode-filter-manual')).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByTestId('mode-filter-automatic')).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('active mode chip has modeChipActive CSS class', () => {
+    renderFilterBar({ filterMode: 'manual' });
+    expect(screen.getByTestId('mode-filter-manual').getAttribute('class') ?? '').toContain(
+      'modeChipActive',
+    );
+    expect(screen.getByTestId('mode-filter-all').getAttribute('class') ?? '').not.toContain(
+      'modeChipActive',
+    );
+  });
+
+  it('clicking Manual mode chip calls onFilterModeChange with "manual"', async () => {
+    const user = userEvent.setup();
+    const onFilterModeChange = jest.fn<(mode: 'all' | 'manual' | 'automatic') => void>();
+    renderFilterBar({ onFilterModeChange });
+
+    await user.click(screen.getByTestId('mode-filter-manual'));
+
+    expect(onFilterModeChange).toHaveBeenCalledWith('manual');
+  });
+
+  it('clicking Automatic mode chip calls onFilterModeChange with "automatic"', async () => {
+    const user = userEvent.setup();
+    const onFilterModeChange = jest.fn<(mode: 'all' | 'manual' | 'automatic') => void>();
+    renderFilterBar({ onFilterModeChange });
+
+    await user.click(screen.getByTestId('mode-filter-automatic'));
+
+    expect(onFilterModeChange).toHaveBeenCalledWith('automatic');
+  });
+
+  it('clicking All mode chip calls onFilterModeChange with "all"', async () => {
+    const user = userEvent.setup();
+    const onFilterModeChange = jest.fn<(mode: 'all' | 'manual' | 'automatic') => void>();
+    renderFilterBar({ filterMode: 'manual', onFilterModeChange });
+
+    await user.click(screen.getByTestId('mode-filter-all'));
+
+    expect(onFilterModeChange).toHaveBeenCalledWith('all');
+  });
+
+  it('when filterMode="manual", renders exactly 5 manual type chips', () => {
+    renderFilterBar({ filterMode: 'manual' });
+    const manualTypes: DiaryEntryType[] = [
+      'daily_log',
+      'site_visit',
+      'delivery',
+      'issue',
+      'general_note',
+    ];
+    for (const type of manualTypes) {
+      expect(screen.getByTestId(`type-filter-${type}`)).toBeInTheDocument();
+    }
+    // Automatic types should not be rendered
+    expect(screen.queryByTestId('type-filter-work_item_status')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('type-filter-invoice_status')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('type-filter-invoice_created')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('type-filter-milestone_delay')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('type-filter-budget_breach')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('type-filter-auto_reschedule')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('type-filter-subsidy_status')).not.toBeInTheDocument();
+  });
+
+  it('when filterMode="automatic", renders exactly 7 automatic type chips', () => {
+    renderFilterBar({ filterMode: 'automatic' });
+    const automaticTypes: DiaryEntryType[] = [
+      'work_item_status',
+      'invoice_status',
+      'invoice_created',
+      'milestone_delay',
+      'budget_breach',
+      'auto_reschedule',
+      'subsidy_status',
+    ];
+    for (const type of automaticTypes) {
+      expect(screen.getByTestId(`type-filter-${type}`)).toBeInTheDocument();
+    }
+    // Manual types should not be rendered
+    expect(screen.queryByTestId('type-filter-daily_log')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('type-filter-site_visit')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('type-filter-delivery')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('type-filter-issue')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('type-filter-general_note')).not.toBeInTheDocument();
+  });
+
+  it('when filterMode="all" (default), all 12 type chips are rendered', () => {
+    renderFilterBar({ filterMode: 'all' });
+    const allTypes: DiaryEntryType[] = [
+      'daily_log',
+      'site_visit',
+      'delivery',
+      'issue',
+      'general_note',
+      'work_item_status',
+      'invoice_status',
+      'invoice_created',
+      'milestone_delay',
+      'budget_breach',
+      'auto_reschedule',
+      'subsidy_status',
+    ];
+    for (const type of allTypes) {
       expect(screen.getByTestId(`type-filter-${type}`)).toBeInTheDocument();
     }
   });

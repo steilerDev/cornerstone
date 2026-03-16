@@ -41,7 +41,7 @@
  * - Type card buttons: data-testid="type-card-{type}"
  * - Clicking a type card immediately transitions to step 2 (handleTypeSelect)
  * - The "Cancel" button in step 2 goes back to the type selector, not /diary
- * - On success, navigates to /diary/:id/edit (UAT fix #843: navigate to edit page after creation)
+ * - On success, navigates to /diary/:id (detail page) — UAT R2 fix #867 changed from /edit to detail
  * - The material input uses name="material-input" (not an id)
  * - The "Add" button for materials is type="submit" inside a nested <form>
  */
