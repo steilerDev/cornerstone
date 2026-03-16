@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import styles from './SearchPicker.module.css';
 
@@ -32,18 +33,25 @@ export function SearchPicker<T>({
   onSelectItem,
   excludeIds,
   disabled = false,
-  placeholder = 'Search items...',
+  placeholder,
   searchFn,
   renderItem,
   getStatusBorderColor,
   specialOptions,
   showItemsOnFocus,
   initialTitle,
-  emptyHint = 'Type to search items',
-  noResultsMessage = 'No matching items found',
-  loadErrorMessage = 'Failed to load items',
-  searchErrorMessage = 'Failed to search items',
+  emptyHint,
+  noResultsMessage,
+  loadErrorMessage,
+  searchErrorMessage,
 }: SearchPickerProps<T>) {
+  const { t } = useTranslation('common');
+  const resolvedPlaceholder = placeholder ?? t('search.placeholder');
+  const resolvedEmptyHint = emptyHint ?? t('search.emptyHint');
+  const resolvedNoResults = noResultsMessage ?? t('search.noResults');
+  const resolvedLoadError = loadErrorMessage ?? t('search.loadError');
+  const resolvedSearchError = searchErrorMessage ?? t('search.searchError');
+
   const [searchTerm, setSearchTerm] = useState('');
   const [results, setResults] = useState<T[]>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -102,12 +110,12 @@ export function SearchPicker<T>({
       const response = await searchFn('', excludeIds);
       setResults(response);
     } catch {
-      setError(loadErrorMessage);
+      setError(resolvedLoadError);
       setResults([]);
     } finally {
       setIsLoading(false);
     }
-  }, [excludeIds, searchFn, loadErrorMessage]);
+  }, [excludeIds, searchFn, resolvedLoadError]);
 
   const performSearch = useCallback(
     async (query: string) => {
@@ -124,13 +132,13 @@ export function SearchPicker<T>({
         const response = await searchFn(query, excludeIds);
         setResults(response);
       } catch {
-        setError(searchErrorMessage);
+        setError(resolvedSearchError);
         setResults([]);
       } finally {
         setIsLoading(false);
       }
     },
-    [excludeIds, fetchInitialResults, searchFn, searchErrorMessage],
+    [excludeIds, fetchInitialResults, searchFn, resolvedSearchError],
   );
 
   const handleInputChange = (inputValue: string) => {
@@ -195,7 +203,7 @@ export function SearchPicker<T>({
             type="button"
             className={styles.clearButton}
             onClick={handleClear}
-            aria-label="Clear selection"
+            aria-label={t('aria.clearSelection')}
             disabled={disabled}
           >
             &times;
@@ -215,7 +223,7 @@ export function SearchPicker<T>({
             type="button"
             className={styles.clearButton}
             onClick={handleClear}
-            aria-label="Clear selection"
+            aria-label={t('aria.clearSelection')}
             disabled={disabled}
           >
             &times;
@@ -239,7 +247,7 @@ export function SearchPicker<T>({
             type="button"
             className={styles.clearButton}
             onClick={handleClear}
-            aria-label="Clear selection"
+            aria-label={t('aria.clearSelection')}
             disabled={disabled}
           >
             &times;
@@ -255,7 +263,7 @@ export function SearchPicker<T>({
         ref={inputRef}
         type="text"
         className={styles.input}
-        placeholder={placeholder}
+        placeholder={resolvedPlaceholder}
         value={searchTerm}
         onChange={(e) => handleInputChange(e.target.value)}
         onFocus={handleFocus}
@@ -288,7 +296,7 @@ export function SearchPicker<T>({
             </>
           )}
 
-          {isLoading && <div className={styles.stateMessage}>Searching...</div>}
+          {isLoading && <div className={styles.stateMessage}>{t('searching')}</div>}
 
           {!isLoading && error && <div className={styles.errorMessage}>{error}</div>}
 
@@ -312,7 +320,7 @@ export function SearchPicker<T>({
             })}
 
           {!isLoading && !error && results.length === 0 && searchTerm.trim() && (
-            <div className={styles.stateMessage}>{noResultsMessage}</div>
+            <div className={styles.stateMessage}>{resolvedNoResults}</div>
           )}
 
           {!isLoading &&
@@ -320,7 +328,7 @@ export function SearchPicker<T>({
             results.length === 0 &&
             !searchTerm.trim() &&
             (!specialOptions || specialOptions.length === 0) && (
-              <div className={styles.stateMessage}>{emptyHint}</div>
+              <div className={styles.stateMessage}>{resolvedEmptyHint}</div>
             )}
         </div>
       )}
