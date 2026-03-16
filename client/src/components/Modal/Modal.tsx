@@ -11,13 +11,7 @@ export interface ModalProps {
   className?: string;
 }
 
-export function Modal({
-  title,
-  onClose,
-  children,
-  footer,
-  className,
-}: ModalProps) {
+export function Modal({ title, onClose, children, footer, className }: ModalProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
 
@@ -45,17 +39,10 @@ export function Modal({
   }, []);
 
   return createPortal(
-    <div
-      className={sharedStyles.modal}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby={titleId}
-    >
+    <div className={sharedStyles.modal} role="dialog" aria-modal="true" aria-labelledby={titleId}>
       <div className={sharedStyles.modalBackdrop} onClick={onClose} />
       <div
-        className={[sharedStyles.modalContent, styles.content, className]
-          .filter(Boolean)
-          .join(' ')}
+        className={[sharedStyles.modalContent, styles.content, className].filter(Boolean).join(' ')}
         ref={contentRef}
       >
         <div className={styles.header}>
@@ -75,11 +62,7 @@ export function Modal({
         <div className={styles.body}>{children}</div>
 
         {footer && (
-          <div
-            className={[sharedStyles.modalActions, styles.footer]
-              .filter(Boolean)
-              .join(' ')}
-          >
+          <div className={[sharedStyles.modalActions, styles.footer].filter(Boolean).join(' ')}>
             {footer}
           </div>
         )}
