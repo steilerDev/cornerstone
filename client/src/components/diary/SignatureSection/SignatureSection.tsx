@@ -57,9 +57,17 @@ export function SignatureSection({
           {signatures!.map((sig, index) => (
             <div key={index} className={styles.signatureItem}>
               <SignatureCapture
-                signature={sig}
+                signature={sig.signatureDataUrl ? sig : null}
                 onSignatureChange={(updated) => {
                   handleSignatureUpdate(index, updated);
+                }}
+                signerName={sig.signerName}
+                onSignerNameChange={(name) => {
+                  onSignatureChange(index, { ...sig, signerName: name });
+                }}
+                signerType={sig.signerType}
+                onSignerTypeChange={(type) => {
+                  onSignatureChange(index, { ...sig, signerType: type });
                 }}
                 disabled={disabled}
                 currentUserName={currentUserName}
