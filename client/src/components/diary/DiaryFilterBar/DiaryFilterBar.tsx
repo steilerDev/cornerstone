@@ -38,6 +38,14 @@ const AUTOMATIC_ENTRY_TYPES: DiaryEntryType[] = [
   'subsidy_status',
 ];
 
+// invoice_created shares the "Invoice" chip with invoice_status
+const GROUPED_TYPES: Record<string, DiaryEntryType[]> = {
+  invoice_status: ['invoice_status', 'invoice_created'],
+};
+
+// Types to display as chips (invoice_created is hidden — grouped under invoice_status)
+const CHIP_HIDDEN_TYPES: DiaryEntryType[] = ['invoice_created'];
+
 const ALL_ENTRY_TYPES: DiaryEntryType[] = [...MANUAL_ENTRY_TYPES, ...AUTOMATIC_ENTRY_TYPES];
 
 const TYPE_LABELS: Record<DiaryEntryType, string> = {
@@ -76,20 +84,23 @@ export function DiaryFilterBar({
   };
 
   const handleTypeToggle = (type: DiaryEntryType) => {
-    if (activeTypes.includes(type)) {
-      onTypesChange(activeTypes.filter((t) => t !== type));
+    const group = GROUPED_TYPES[type] ?? [type];
+    const isActive = activeTypes.includes(type);
+    if (isActive) {
+      onTypesChange(activeTypes.filter((t) => !group.includes(t)));
     } else {
-      onTypesChange([...activeTypes, type]);
+      onTypesChange([...activeTypes, ...group.filter((t) => !activeTypes.includes(t))]);
     }
   };
 
-  // Determine which types to display based on filter mode
-  const displayedTypes =
+  // Determine which types to display based on filter mode (hide grouped types like invoice_created)
+  const baseTypes =
     filterMode === 'manual'
       ? MANUAL_ENTRY_TYPES
       : filterMode === 'automatic'
         ? AUTOMATIC_ENTRY_TYPES
         : ALL_ENTRY_TYPES;
+  const displayedTypes = baseTypes.filter((t) => !CHIP_HIDDEN_TYPES.includes(t));
 
   const filterCount = [
     searchQuery ? 1 : 0,

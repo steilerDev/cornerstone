@@ -19,31 +19,17 @@ function formatDateHeader(dateString: string): string {
 }
 
 export function DiaryDateGroup({ date, entries }: DiaryDateGroupProps) {
-  const manualEntries = entries.filter((e) => !e.isAutomatic);
-  const automaticEntries = entries.filter((e) => e.isAutomatic);
+  // Sort all entries by createdAt descending (newest first)
+  const sortedEntries = [...entries].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
 
   return (
     <section className={styles.group} data-testid={`date-group-${date}`}>
       <h2 className={styles.dateHeader}>{formatDateHeader(date)}</h2>
 
-      {automaticEntries.length > 0 && (
-        <div className={styles.automaticSection} data-testid={`automatic-section-${date}`}>
-          <div className={styles.automaticHeader}>
-            <span className={styles.automaticIcon} aria-hidden="true">
-              ⚙
-            </span>
-            <span className={styles.automaticTitle}>Automated Events</span>
-          </div>
-          <div className={styles.entriesList}>
-            {automaticEntries.map((entry) => (
-              <DiaryEntryCard key={entry.id} entry={entry} />
-            ))}
-          </div>
-        </div>
-      )}
-
       <div className={styles.entriesList}>
-        {manualEntries.map((entry) => (
+        {sortedEntries.map((entry) => (
           <DiaryEntryCard key={entry.id} entry={entry} />
         ))}
       </div>

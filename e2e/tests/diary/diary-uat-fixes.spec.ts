@@ -169,11 +169,7 @@ test.describe('Source entity title in diary card (Scenario 4)', () => {
       const diaryPage = new DiaryPage(page);
       await diaryPage.heading.waitFor({ state: 'visible' });
 
-      // UAT R2 fix #868: automatic events are now a flat bordered div (not a collapsible).
-      // The section is directly visible — no interaction needed to reveal its contents.
-      const automaticSection = page.getByTestId('automatic-section-2026-03-14');
-      await automaticSection.waitFor({ state: 'visible' });
-
+      // UAT R7: automatic entries are interleaved in chronological order
       // Automatic entries show "Go to related item" as link text (UAT fix #876)
       const sourceLink = page.getByTestId(`source-link-wi-mock-001`);
       await expect(sourceLink).toBeVisible();
@@ -187,11 +183,10 @@ test.describe('Source entity title in diary card (Scenario 4)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 5: Automatic events are in a collapsible section
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Automatic events flat section (Scenario 5)', { tag: '@responsive' }, () => {
-  test('Date group renders automatic events inside a flat "Automated Events" div section', async ({
+test.describe('Automatic events interleaved (Scenario 5)', { tag: '@responsive' }, () => {
+  test('Automatic and manual entries are interleaved in the same date group', async ({
     page,
   }) => {
-    // Mock diary entries: one manual + one automatic on the same date
     await page.route('**/api/diary-entries*', async (route) => {
       if (route.request().method() === 'GET') {
         await route.fulfill({
@@ -246,18 +241,9 @@ test.describe('Automatic events flat section (Scenario 5)', { tag: '@responsive'
       await diaryPage.heading.waitFor({ state: 'visible' });
       await diaryPage.waitForLoaded();
 
-      // UAT R2 fix #868: automatic events are now a flat bordered div (not a collapsible).
-      // The section has data-testid="automatic-section-{date}" and contains a header with
-      // "Automated Events" text.
-      const automaticSection = page.getByTestId('automatic-section-2026-03-14');
-      await expect(automaticSection).toBeVisible();
-
-      // Verify the section contains the "Automated Events" heading text
-      await expect(automaticSection).toContainText('Automated Events');
-
-      // Verify it is a div, not a details element
-      const tagName = await automaticSection.evaluate((el) => el.tagName.toLowerCase());
-      expect(tagName).toBe('div');
+      // Both entries should be visible in the same date group
+      await expect(diaryPage.entryCard('mock-manual-001')).toBeVisible();
+      await expect(diaryPage.entryCard('mock-auto-001')).toBeVisible();
     } finally {
       await page.unroute('**/api/diary-entries*');
     }
