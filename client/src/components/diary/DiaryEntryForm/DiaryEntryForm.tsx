@@ -12,7 +12,7 @@ import type {
   DiarySignatureEntry,
 } from '@cornerstone/shared';
 import shared from '../../../styles/shared.module.css';
-import { SignatureCapture } from '../SignatureCapture/SignatureCapture.js';
+import { SignatureSection } from '../SignatureSection/index.js';
 import styles from './DiaryEntryForm.module.css';
 
 export interface DiaryEntryFormProps {
@@ -281,49 +281,32 @@ export function DiaryEntryForm({
             </div>
           </div>
 
-          <div className={styles.signatureSection}>
-            <label className={styles.label}>Signatures</label>
-            {(dailyLogSignatures?.length ?? 0) > 0 && (
-              <div className={styles.signaturesList}>
-                {dailyLogSignatures!.map((sig, index) => (
-                  <div key={index} className={styles.signatureItem}>
-                    <SignatureCapture
-                      signature={sig}
-                      onSignatureChange={(updated) => {
-                        if (updated) {
-                          const newSigs = [...(dailyLogSignatures || [])];
-                          newSigs[index] = updated;
-                          onDailyLogSignaturesChange?.(newSigs);
-                        } else {
-                          const newSigs = (dailyLogSignatures || []).filter((_, i) => i !== index);
-                          onDailyLogSignaturesChange?.(newSigs.length > 0 ? newSigs : null);
-                        }
-                      }}
-                      disabled={disabled}
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-            <button
-              type="button"
-              className={shared.btnSecondary}
-              onClick={() => {
-                const newSigs = [
-                  ...(dailyLogSignatures || []),
-                  {
-                    signerName: '',
-                    signerType: 'self' as const,
-                    signatureDataUrl: '',
-                  },
-                ];
+          <SignatureSection
+            signatures={dailyLogSignatures}
+            onSignatureChange={(index, updated) => {
+              if (updated) {
+                const newSigs = [...(dailyLogSignatures || [])];
+                newSigs[index] = updated;
                 onDailyLogSignaturesChange?.(newSigs);
-              }}
-              disabled={disabled}
-            >
-              + Add Signature
-            </button>
-          </div>
+              } else {
+                const newSigs = (dailyLogSignatures || []).filter((_, i) => i !== index);
+                onDailyLogSignaturesChange?.(newSigs.length > 0 ? newSigs : null);
+              }
+            }}
+            onAddSignature={() => {
+              const newSigs = [
+                ...(dailyLogSignatures || []),
+                {
+                  signerName: '',
+                  signerType: 'self' as const,
+                  signatureDataUrl: '',
+                },
+              ];
+              onDailyLogSignaturesChange?.(newSigs);
+            }}
+            disabled={disabled}
+            label="Signatures"
+          />
         </div>
       )}
 
@@ -390,49 +373,32 @@ export function DiaryEntryForm({
             </div>
           </div>
 
-          <div className={styles.signatureSection}>
-            <label className={styles.label}>Signatures</label>
-            {(siteVisitSignatures?.length ?? 0) > 0 && (
-              <div className={styles.signaturesList}>
-                {siteVisitSignatures!.map((sig, index) => (
-                  <div key={index} className={styles.signatureItem}>
-                    <SignatureCapture
-                      signature={sig}
-                      onSignatureChange={(updated) => {
-                        if (updated) {
-                          const newSigs = [...(siteVisitSignatures || [])];
-                          newSigs[index] = updated;
-                          onSiteVisitSignaturesChange?.(newSigs);
-                        } else {
-                          const newSigs = (siteVisitSignatures || []).filter((_, i) => i !== index);
-                          onSiteVisitSignaturesChange?.(newSigs.length > 0 ? newSigs : null);
-                        }
-                      }}
-                      disabled={disabled}
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-            <button
-              type="button"
-              className={shared.btnSecondary}
-              onClick={() => {
-                const newSigs = [
-                  ...(siteVisitSignatures || []),
-                  {
-                    signerName: '',
-                    signerType: 'self' as const,
-                    signatureDataUrl: '',
-                  },
-                ];
+          <SignatureSection
+            signatures={siteVisitSignatures}
+            onSignatureChange={(index, updated) => {
+              if (updated) {
+                const newSigs = [...(siteVisitSignatures || [])];
+                newSigs[index] = updated;
                 onSiteVisitSignaturesChange?.(newSigs);
-              }}
-              disabled={disabled}
-            >
-              + Add Signature
-            </button>
-          </div>
+              } else {
+                const newSigs = (siteVisitSignatures || []).filter((_, i) => i !== index);
+                onSiteVisitSignaturesChange?.(newSigs.length > 0 ? newSigs : null);
+              }
+            }}
+            onAddSignature={() => {
+              const newSigs = [
+                ...(siteVisitSignatures || []),
+                {
+                  signerName: '',
+                  signerType: 'self' as const,
+                  signatureDataUrl: '',
+                },
+              ];
+              onSiteVisitSignaturesChange?.(newSigs);
+            }}
+            disabled={disabled}
+            label="Signatures"
+          />
         </div>
       )}
 
