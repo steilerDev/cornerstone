@@ -174,10 +174,10 @@ test.describe('Source entity title in diary card (Scenario 4)', () => {
       const automaticSection = page.getByTestId('automatic-section-2026-03-14');
       await automaticSection.waitFor({ state: 'visible' });
 
-      // The source link should display the work item title (UAT fix #842)
+      // Automatic entries show "Go to related item" as link text (UAT fix #876)
       const sourceLink = page.getByTestId(`source-link-wi-mock-001`);
       await expect(sourceLink).toBeVisible();
-      await expect(sourceLink).toHaveText(mockWorkItemTitle);
+      await expect(sourceLink).toHaveText('Go to related item');
     } finally {
       await page.unroute('**/api/diary-entries*');
     }
