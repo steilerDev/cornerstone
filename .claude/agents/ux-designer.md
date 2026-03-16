@@ -99,11 +99,11 @@ Before specifying any new UI element, audit the existing shared component librar
 
 Include a "Component Mapping" table in every visual spec:
 
-| UI Element | Shared Component | Props/Variant | Notes |
-|------------|-----------------|---------------|-------|
-| Status indicator | `Badge` | variant="workItemStatus" | Existing |
-| Item selector | `SearchPicker` | searchFn={searchWorkItems} | Existing |
-| Confirmation dialog | `Modal` | — | Existing |
+| UI Element          | Shared Component | Props/Variant              | Notes    |
+| ------------------- | ---------------- | -------------------------- | -------- |
+| Status indicator    | `Badge`          | variant="workItemStatus"   | Existing |
+| Item selector       | `SearchPicker`   | searchFn={searchWorkItems} | Existing |
+| Confirmation dialog | `Modal`          | —                          | Existing |
 
 ### 2. PR Design Review (Develop Step 8)
 

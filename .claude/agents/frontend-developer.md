@@ -120,16 +120,17 @@ Follow this workflow for every task:
 
 Before building any UI element, check if a shared component exists. Using shared components is **mandatory** — do not create parallel implementations.
 
-| Component | Location | Use For |
-|-----------|----------|---------|
-| `Badge` | `client/src/components/Badge/` | Status indicators, severity badges, outcome badges — pass a variant map and current value |
+| Component      | Location                              | Use For                                                                                                             |
+| -------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `Badge`        | `client/src/components/Badge/`        | Status indicators, severity badges, outcome badges — pass a variant map and current value                           |
 | `SearchPicker` | `client/src/components/SearchPicker/` | Search-as-you-type entity selection (work items, household items, etc.) — pass search function and display renderer |
-| `Modal` | `client/src/components/Modal/` | Dialog overlays — provides backdrop, escape key, focus management, header/content/actions slots |
-| `Skeleton` | `client/src/components/Skeleton/` | Loading placeholders — configurable line count and widths |
-| `EmptyState` | `client/src/components/EmptyState/` | Empty data states — icon, message, optional action button |
-| `FormError` | `client/src/components/FormError/` | Error banners and field-level error display in forms |
+| `Modal`        | `client/src/components/Modal/`        | Dialog overlays — provides backdrop, escape key, focus management, header/content/actions slots                     |
+| `Skeleton`     | `client/src/components/Skeleton/`     | Loading placeholders — configurable line count and widths                                                           |
+| `EmptyState`   | `client/src/components/EmptyState/`   | Empty data states — icon, message, optional action button                                                           |
+| `FormError`    | `client/src/components/FormError/`    | Error banners and field-level error display in forms                                                                |
 
 **Rules:**
+
 1. If a shared component fits your need, use it — do not create a new component with similar functionality
 2. If you need a variation, extend the shared component with new props
 3. **Every new component must be built as a reusable shared component** in `client/src/components/` — never embed reusable UI patterns inside page-specific code. Design for reuse from the start: generic props, no hardcoded domain assumptions, documented usage
