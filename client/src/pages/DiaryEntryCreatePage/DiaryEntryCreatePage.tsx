@@ -56,11 +56,13 @@ export default function DiaryEntryCreatePage() {
   const [vendorOptions, setVendorOptions] = useState<VendorOption[]>([]);
 
   useEffect(() => {
-    void fetchVendors({ pageSize: 100 }).then((res) => {
-      setVendorOptions(res.vendors.map((v) => ({ id: v.id, name: v.name })));
-    }).catch(() => {
-      // Vendors are optional — gracefully degrade
-    });
+    void fetchVendors({ pageSize: 100 })
+      .then((res) => {
+        setVendorOptions(res.vendors.map((v) => ({ id: v.id, name: v.name })));
+      })
+      .catch(() => {
+        // Vendors are optional — gracefully degrade
+      });
   }, []);
 
   const [step, setStep] = useState<Step>('type-selector');

@@ -226,7 +226,10 @@ function validateMetadata(
               'daily_log signature entry must have non-empty signatureDataUrl',
             );
           }
-          if (sig.signedAt !== undefined && (typeof sig.signedAt !== 'string' || sig.signedAt.trim().length === 0)) {
+          if (
+            sig.signedAt !== undefined &&
+            (typeof sig.signedAt !== 'string' || sig.signedAt.trim().length === 0)
+          ) {
             throw new InvalidMetadataError(
               'daily_log signature entry signedAt must be a non-empty string if provided',
             );
@@ -277,7 +280,10 @@ function validateMetadata(
               'site_visit signature entry must have non-empty signatureDataUrl',
             );
           }
-          if (sig.signedAt !== undefined && (typeof sig.signedAt !== 'string' || sig.signedAt.trim().length === 0)) {
+          if (
+            sig.signedAt !== undefined &&
+            (typeof sig.signedAt !== 'string' || sig.signedAt.trim().length === 0)
+          ) {
             throw new InvalidMetadataError(
               'site_visit signature entry signedAt must be a non-empty string if provided',
             );

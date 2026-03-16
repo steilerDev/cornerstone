@@ -70,7 +70,7 @@ export function SignatureSection({
                   onSignatureChange(index, {
                     ...sig,
                     signerType: type,
-                    signerName: type === 'self' ? (currentUserName || '') : '',
+                    signerName: type === 'self' ? currentUserName || '' : '',
                   });
                 }}
                 disabled={disabled}

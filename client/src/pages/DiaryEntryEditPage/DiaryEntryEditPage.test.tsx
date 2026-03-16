@@ -38,7 +38,14 @@ jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({
 
 jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
   useAuth: () => ({
-    user: { id: 'user-1', displayName: 'Alice Builder', email: 'alice@example.com', role: 'admin', authProvider: 'local', createdAt: '2026-01-01T00:00:00Z' },
+    user: {
+      id: 'user-1',
+      displayName: 'Alice Builder',
+      email: 'alice@example.com',
+      role: 'admin',
+      authProvider: 'local',
+      createdAt: '2026-01-01T00:00:00Z',
+    },
     oidcEnabled: false,
     isLoading: false,
     error: null,
@@ -49,7 +56,12 @@ jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
 }));
 
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
-  fetchVendors: jest.fn<() => Promise<any>>().mockResolvedValue({ vendors: [], pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 } }),
+  fetchVendors: jest
+    .fn<() => Promise<any>>()
+    .mockResolvedValue({
+      vendors: [],
+      pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
+    }),
   fetchVendor: jest.fn(),
   createVendor: jest.fn(),
   updateVendor: jest.fn(),

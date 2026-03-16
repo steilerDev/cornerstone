@@ -382,7 +382,8 @@ export function SignatureCapture({
   }
 
   const showVendorFreeform =
-    signerType === 'vendor' && (!vendors || vendors.length === 0 || selectedVendorId === '__other__');
+    signerType === 'vendor' &&
+    (!vendors || vendors.length === 0 || selectedVendorId === '__other__');
 
   return (
     <div className={styles.container}>

@@ -30,11 +30,13 @@ export default function DiaryEntryDetailPage() {
   const [vendorOptions, setVendorOptions] = useState<VendorOption[]>([]);
 
   useEffect(() => {
-    void fetchVendors({ pageSize: 100 }).then((res) => {
-      setVendorOptions(res.vendors.map((v) => ({ id: v.id, name: v.name })));
-    }).catch(() => {
-      // Vendors are optional — gracefully degrade
-    });
+    void fetchVendors({ pageSize: 100 })
+      .then((res) => {
+        setVendorOptions(res.vendors.map((v) => ({ id: v.id, name: v.name })));
+      })
+      .catch(() => {
+        // Vendors are optional — gracefully degrade
+      });
   }, []);
 
   const [entry, setEntry] = useState<DiaryEntryDetail | null>(null);
@@ -231,7 +233,9 @@ export default function DiaryEntryDetailPage() {
               <SignatureDisplay
                 signatureDataUrl={sig.signatureDataUrl}
                 signerName={sig.signerName}
-                signedDate={sig.signedAt ? formatDateTime(sig.signedAt) : formatDate(entry.entryDate)}
+                signedDate={
+                  sig.signedAt ? formatDateTime(sig.signedAt) : formatDate(entry.entryDate)
+                }
               />
             </div>
           ))}
