@@ -76,9 +76,7 @@ describe('FormError', () => {
     });
 
     it('applies custom className on field variant too', () => {
-      const { container } = render(
-        <FormError message="Error" variant="field" className="extra" />,
-      );
+      const { container } = render(<FormError message="Error" variant="field" className="extra" />);
       const el = container.firstChild as HTMLElement;
       expect(el.getAttribute('class')).toContain('extra');
     });

@@ -284,9 +284,7 @@ export function InvoiceLinkModal({
                   <div className={styles.dropdownEmpty}>No invoices match your search</div>
                 )}
               </div>
-              {error?.field === 'invoice' && (
-                <FormError message={error.message} variant="field" />
-              )}
+              {error?.field === 'invoice' && <FormError message={error.message} variant="field" />}
               {selectedInvoice && !isLoadingRemaining && (
                 <div
                   className={`${styles.remainingAmountInfo} ${remainingAmount < 0 ? styles.remainingAmountWarning : ''}`}
@@ -360,9 +358,7 @@ export function InvoiceLinkModal({
               required
             />
           )}
-          {error?.field === 'amount' && (
-            <FormError message={error.message} variant="field" />
-          )}
+          {error?.field === 'amount' && <FormError message={error.message} variant="field" />}
         </div>
       </form>
     </Modal>
