@@ -67,7 +67,11 @@ export function SignatureSection({
                 }}
                 signerType={sig.signerType}
                 onSignerTypeChange={(type) => {
-                  onSignatureChange(index, { ...sig, signerType: type });
+                  onSignatureChange(index, {
+                    ...sig,
+                    signerType: type,
+                    signerName: type === 'self' ? (currentUserName || '') : '',
+                  });
                 }}
                 disabled={disabled}
                 currentUserName={currentUserName}

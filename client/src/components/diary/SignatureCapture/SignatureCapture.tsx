@@ -331,13 +331,9 @@ export function SignatureCapture({
 
   const handleSignerTypeChange = (newType: 'self' | 'vendor') => {
     onSignerTypeChange?.(newType);
-    if (newType === 'self') {
-      onSignerNameChange?.(currentUserName || '');
-      setSelectedVendorId('');
-    } else {
-      onSignerNameChange?.('');
-      setSelectedVendorId('');
-    }
+    setSelectedVendorId('');
+    // Name changes for type switches are handled by the parent via onSignerTypeChange
+    // to avoid stale closure issues when both callbacks spread the same sig object
   };
 
   const handleVendorSelect = (vendorId: string) => {
