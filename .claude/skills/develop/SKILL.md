@@ -35,6 +35,29 @@ In multi-item mode, maintain an ordered **items list** throughout the workflow. 
 
 If the input was a `@`-prefixed file path, also store the **source file path** (without the `@` prefix) for use during cleanup in step 11.
 
+## Task Tracking
+
+At the start of each `/develop` invocation, create tasks to track progress. These tasks survive context compression and let you recover your place if context is lost.
+
+**Create these tasks upfront** (using `TaskCreate`):
+
+1. **Rebase onto beta** — Fetch and rebase worktree branch onto origin/beta
+2. **Resolve issues** — Read/create GitHub Issues for all items
+3. **Visual spec** — Launch ux-designer for UI-touching stories (skip if all bugs or backend-only)
+4. **Create branch** — Rename worktree branch to conventional name
+5. **Move to In Progress** — Update Projects board status
+6. **Implement + Test** — Full multi-phase cycle: spec → backend → frontend → QA/E2E → review → fix loop → commit → trailer verification
+7. **Verify PR** — Confirm PR exists targeting beta
+8. **Agent reviews** — Launch product-architect, security-engineer, product-owner, ux-designer reviews
+9. **Merge** — Wait for CI, persist metrics, squash merge to beta
+10. **Close issues & clean up** — Close issues, move to Done, clean up branch
+
+**Progress rule:** Before starting each step, mark its task `in_progress`. After completing, mark it `completed`. If a step is skipped (conditional), mark it `completed` with a note in the description.
+
+**Recovery rule:** If you lose track of progress (e.g., after context compression), run `TaskList` to see which tasks are completed and resume from the first pending task.
+
+**Dynamic task rule:** When a fix loop starts (step 6f or step 9), create a new task for each round (e.g., "Fix Loop Round 1", "Fix Loop Round 2") so iterations are tracked.
+
 ## Steps
 
 ### 1. Rebase

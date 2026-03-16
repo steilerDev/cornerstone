@@ -20,6 +20,7 @@ The dashboard is organized into cards, each focused on a specific aspect of your
 | **Mini Gantt** | A compact 30-day Gantt chart preview -- click it to open the full [Gantt chart](/guides/timeline/gantt-chart) |
 | **Invoice Pipeline** | Breakdown of invoices by status (pending, paid, claimed) |
 | **Subsidy Pipeline** | Status overview of your [subsidy programs](/guides/budget/subsidies) |
+| **Recent Diary** | Latest diary entries with scrollable list -- click to open the full [diary](/guides/diary/) |
 | **Quick Actions** | Navigation links to frequently used actions like creating work items or viewing the budget |
 
 ## Customizing Your Dashboard
@@ -37,7 +38,7 @@ Each user's dashboard layout is independent -- dismissing a card only affects yo
 
 On smaller screens, the dashboard switches from a flat grid to a sectioned layout:
 
-- **Primary cards** (Budget Summary, Budget Alerts, Invoice Pipeline, Quick Actions) are always visible
+- **Primary cards** (Budget Summary, Budget Alerts, Invoice Pipeline, Recent Diary, Quick Actions) are always visible
 - **Timeline cards** (Timeline Status, Mini Gantt) are grouped under a collapsible "Timeline" section with a summary line
 - **Budget Details cards** (Source Utilization, Subsidy Pipeline) are grouped under a collapsible "Budget Details" section
 

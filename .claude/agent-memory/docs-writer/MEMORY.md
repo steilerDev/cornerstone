@@ -22,7 +22,7 @@
 - Broken screenshot image refs exist across many guide pages (16+ refs) -- all resolve when screenshots are captured during stable release
 - Fixed via `markdown.hooks.onBrokenMarkdownImages: 'warn'` in docusaurus.config.js
 
-## Existing Pages (as of EPIC-14)
+## Existing Pages (as of EPIC-13)
 
 - `intro.md` -- Landing page (slug: /)
 - `roadmap.md` -- Feature roadmap checklist
@@ -33,6 +33,8 @@
 - `guides/timeline/` -- index, gantt-chart, milestones, calendar-view
 - `guides/documents/` -- index, setup, browsing-documents, linking-documents
 - `guides/household-items/` -- index, creating-editing-items, budget-and-invoices, work-item-linking, delivery-and-dependencies
+- `guides/diary/` -- index, manual-entries, automatic-events, signatures
+- `guides/dashboard/` -- index
 - `guides/appearance/` -- dark-mode
 - `development/` -- index, tech-stack, agentic/overview, agentic/agent-team, agentic/workflow, agentic/setup
 
@@ -47,10 +49,10 @@
 - Double dashes `--` used instead of em dashes in all existing content
 - Footer links in `docusaurus.config.js` should be updated when major features are added
 
-## Roadmap State (post EPIC-15)
+## Roadmap State (post EPIC-13)
 
-Completed: EPIC-02, EPIC-11(#12), EPIC-01, EPIC-03, EPIC-12(#115), EPIC-05, EPIC-06, EPIC-08, EPIC-04, EPIC-07, EPIC-10, EPIC-11(#444 tags), EPIC-12(#445 refinement), EPIC-14(#495), EPIC-15(#602)
-Planned: EPIC-09(#9 dashboard), EPIC-13(#446 construction diary)
+Completed: EPIC-02, EPIC-11(#12), EPIC-01, EPIC-03, EPIC-12(#115), EPIC-05, EPIC-06, EPIC-08, EPIC-04, EPIC-07, EPIC-10, EPIC-11(#444 tags), EPIC-12(#445 refinement), EPIC-14(#495), EPIC-15(#602), EPIC-09(#9), EPIC-13(#446)
+Planned: (none)
 
 Note: EPIC-11 and EPIC-12 each have two issues -- original (#12/#115) and new (#444/#445). Both pairs are completed.
 
