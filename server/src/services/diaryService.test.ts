@@ -346,24 +346,24 @@ describe('diaryService', () => {
       expect(result.metadata).toEqual(metadata);
     });
 
-    it('throws ValidationError when metadata exceeds 4096 chars when serialized', () => {
-      // Build metadata whose JSON.stringify length > 4096
+    it('throws ValidationError when metadata exceeds 2MB when serialized', () => {
+      // Build metadata whose JSON.stringify length > 2_097_152
       const request: CreateDiaryEntryRequest = {
         entryType: 'general_note',
         entryDate: '2026-03-14',
         body: 'Oversized metadata',
-        metadata: { data: 'x'.repeat(4100) } as any,
+        metadata: { data: 'x'.repeat(2_097_153) } as any,
       };
       expect(() => createDiaryEntry(db, testUserId, request)).toThrow(ValidationError);
     });
 
-    it('accepts metadata at exactly 4096 chars when serialized', () => {
-      // {"data":"..."} — key+quotes+colon+quotes = 10 chars, so value length = 4096 - 10 = 4086
+    it('accepts metadata at exactly 2MB when serialized', () => {
+      // {"data":"..."} — key+quotes+colon+quotes = 10 chars, so value length = 2_097_152 - 10 = 2_097_142
       const prefix = '{"data":"';
       const suffix = '"}';
-      const valueLen = 4096 - prefix.length - suffix.length;
+      const valueLen = 2_097_152 - prefix.length - suffix.length;
       const metadata = { data: 'x'.repeat(valueLen) } as any;
-      expect(JSON.stringify(metadata).length).toBe(4096);
+      expect(JSON.stringify(metadata).length).toBe(2_097_152);
       const request: CreateDiaryEntryRequest = {
         entryType: 'general_note',
         entryDate: '2026-03-14',
@@ -444,10 +444,10 @@ describe('diaryService', () => {
       expect(result.metadata).toBeNull();
     });
 
-    it('throws ValidationError when metadata exceeds 4096 chars when serialized', () => {
+    it('throws ValidationError when metadata exceeds 2MB when serialized', () => {
       const id = insertEntry({ entryType: 'general_note' });
       expect(() =>
-        updateDiaryEntry(db, id, { metadata: { data: 'x'.repeat(4100) } as any }),
+        updateDiaryEntry(db, id, { metadata: { data: 'x'.repeat(2_097_153) } as any }),
       ).toThrow(ValidationError);
     });
   });

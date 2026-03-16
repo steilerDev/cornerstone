@@ -2,6 +2,11 @@ import React, { useRef, useState, useEffect } from 'react';
 import type { DiarySignatureEntry } from '@cornerstone/shared';
 import styles from './SignatureCapture.module.css';
 
+export interface VendorOption {
+  id: string;
+  name: string;
+}
+
 export interface SignatureCaptureProps {
   signature?: DiarySignatureEntry | null;
   onSignatureChange: (sig: DiarySignatureEntry | null) => void;
@@ -10,6 +15,8 @@ export interface SignatureCaptureProps {
   onSignerNameChange?: (name: string) => void;
   signerType?: 'self' | 'vendor';
   onSignerTypeChange?: (type: 'self' | 'vendor') => void;
+  currentUserName?: string;
+  vendors?: VendorOption[];
 }
 
 export function SignatureCapture({
@@ -20,6 +27,8 @@ export function SignatureCapture({
   onSignerNameChange,
   signerType = 'self',
   onSignerTypeChange,
+  currentUserName,
+  vendors,
 }: SignatureCaptureProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -27,6 +36,14 @@ export function SignatureCapture({
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasStrokes, setHasStrokes] = useState(false);
   const [sizeError, setSizeError] = useState<string | null>(null);
+  const [selectedVendorId, setSelectedVendorId] = useState<string>('');
+
+  // Auto-populate signerName when type is 'self'
+  useEffect(() => {
+    if (signerType === 'self' && currentUserName && !signature) {
+      onSignerNameChange?.(currentUserName);
+    }
+  }, [signerType, currentUserName, signature]);
 
   // Initialize canvas on mount and on resize
   useEffect(() => {
@@ -262,6 +279,31 @@ export function SignatureCapture({
     const canvas = canvasRef.current;
     if (!canvas || !hasStrokes) return;
 
+    const now = new Date();
+    const signedAt = now.toISOString();
+
+    // Burn signer info and timestamp onto the canvas
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      const rect = canvas.getBoundingClientRect();
+      const formattedDate = now.toLocaleString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZoneName: 'short',
+      });
+      const labelText = `${signerName} \u2014 ${formattedDate}`;
+
+      ctx.save();
+      ctx.font = '10px system-ui, -apple-system, sans-serif';
+      ctx.fillStyle = '#666666';
+      ctx.textAlign = 'right';
+      ctx.fillText(labelText, rect.width - 8, rect.height - 6);
+      ctx.restore();
+    }
+
     const dataUrl = canvas.toDataURL('image/png');
 
     // Check size (500KB limit)
@@ -278,6 +320,7 @@ export function SignatureCapture({
       signerName,
       signerType,
       signatureDataUrl: dataUrl,
+      signedAt,
     });
   };
 
@@ -285,6 +328,34 @@ export function SignatureCapture({
     setSizeError(null);
     onSignatureChange(null);
   };
+
+  const handleSignerTypeChange = (newType: 'self' | 'vendor') => {
+    onSignerTypeChange?.(newType);
+    if (newType === 'self') {
+      onSignerNameChange?.(currentUserName || '');
+      setSelectedVendorId('');
+    } else {
+      onSignerNameChange?.('');
+      setSelectedVendorId('');
+    }
+  };
+
+  const handleVendorSelect = (vendorId: string) => {
+    setSelectedVendorId(vendorId);
+    if (vendorId === '__other__') {
+      onSignerNameChange?.('');
+    } else if (vendorId) {
+      const vendor = vendors?.find((v) => v.id === vendorId);
+      if (vendor) {
+        onSignerNameChange?.(vendor.name);
+      }
+    } else {
+      onSignerNameChange?.('');
+    }
+  };
+
+  const isVendorNameEmpty = signerType === 'vendor' && !signerName.trim();
+  const isAcceptDisabled = disabled || !hasStrokes || isVendorNameEmpty;
 
   if (signature) {
     return (
@@ -314,25 +385,13 @@ export function SignatureCapture({
     );
   }
 
+  const showVendorFreeform =
+    signerType === 'vendor' && (!vendors || vendors.length === 0 || selectedVendorId === '__other__');
+
   return (
     <div className={styles.container}>
       {/* Signer info section */}
       <div className={styles.signerSection}>
-        <div className={styles.formGroup}>
-          <label htmlFor="signer-name" className={styles.label}>
-            Signer Name
-          </label>
-          <input
-            id="signer-name"
-            type="text"
-            className={styles.input}
-            value={signerName}
-            onChange={(e) => onSignerNameChange?.(e.target.value)}
-            disabled={disabled}
-            placeholder="Your name or vendor name"
-          />
-        </div>
-
         <div className={styles.formGroup}>
           <label className={styles.label}>Signer Type</label>
           <div className={styles.radioGroup}>
@@ -342,7 +401,7 @@ export function SignatureCapture({
                 name="signer-type"
                 value="self"
                 checked={signerType === 'self'}
-                onChange={() => onSignerTypeChange?.('self')}
+                onChange={() => handleSignerTypeChange('self')}
                 disabled={disabled}
               />
               Self
@@ -353,12 +412,62 @@ export function SignatureCapture({
                 name="signer-type"
                 value="vendor"
                 checked={signerType === 'vendor'}
-                onChange={() => onSignerTypeChange?.('vendor')}
+                onChange={() => handleSignerTypeChange('vendor')}
                 disabled={disabled}
               />
               Vendor
             </label>
           </div>
+        </div>
+
+        <div className={styles.formGroup}>
+          <label htmlFor="signer-name" className={styles.label}>
+            Signer Name
+          </label>
+          {signerType === 'self' ? (
+            <div className={styles.readOnlyName}>{currentUserName || signerName || '—'}</div>
+          ) : vendors && vendors.length > 0 ? (
+            <>
+              <select
+                className={styles.select}
+                value={selectedVendorId}
+                onChange={(e) => handleVendorSelect(e.target.value)}
+                disabled={disabled}
+              >
+                <option value="">— Select Vendor —</option>
+                {vendors.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.name}
+                  </option>
+                ))}
+                <option value="__other__">Other...</option>
+              </select>
+              {selectedVendorId === '__other__' && (
+                <input
+                  id="signer-name"
+                  type="text"
+                  className={styles.input}
+                  value={signerName}
+                  onChange={(e) => onSignerNameChange?.(e.target.value)}
+                  disabled={disabled}
+                  placeholder="Enter vendor name"
+                />
+              )}
+            </>
+          ) : (
+            <input
+              id="signer-name"
+              type="text"
+              className={styles.input}
+              value={signerName}
+              onChange={(e) => onSignerNameChange?.(e.target.value)}
+              disabled={disabled}
+              placeholder="Enter vendor name"
+            />
+          )}
+          {isVendorNameEmpty && (
+            <div className={styles.validationHint}>Vendor name is required to accept signature</div>
+          )}
         </div>
       </div>
 
@@ -392,7 +501,7 @@ export function SignatureCapture({
           type="button"
           className={styles.acceptButton}
           onClick={handleAccept}
-          disabled={disabled || !hasStrokes}
+          disabled={isAcceptDisabled}
         >
           Accept Signature
         </button>

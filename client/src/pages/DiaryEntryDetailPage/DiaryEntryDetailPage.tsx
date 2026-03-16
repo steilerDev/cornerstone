@@ -9,6 +9,9 @@ import type {
 import { getDiaryEntry, deleteDiaryEntry } from '../../lib/diaryApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
+import { useAuth } from '../../contexts/AuthContext.js';
+import { fetchVendors } from '../../lib/vendorsApi.js';
+import type { VendorOption } from '../../components/diary/SignatureCapture/SignatureCapture.js';
 import { usePhotos } from '../../hooks/usePhotos.js';
 import { formatDate, formatDateTime } from '../../lib/formatters.js';
 import { DiaryEntryTypeBadge } from '../../components/diary/DiaryEntryTypeBadge/DiaryEntryTypeBadge.js';
@@ -23,6 +26,16 @@ export default function DiaryEntryDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { user } = useAuth();
+  const [vendorOptions, setVendorOptions] = useState<VendorOption[]>([]);
+
+  useEffect(() => {
+    void fetchVendors({ pageSize: 200 }).then((res) => {
+      setVendorOptions(res.vendors.map((v) => ({ id: v.id, name: v.name })));
+    }).catch(() => {
+      // Vendors are optional — gracefully degrade
+    });
+  }, []);
 
   const [entry, setEntry] = useState<DiaryEntryDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -218,7 +231,7 @@ export default function DiaryEntryDetailPage() {
               <SignatureDisplay
                 signatureDataUrl={sig.signatureDataUrl}
                 signerName={sig.signerName}
-                signedDate={formatDate(entry.entryDate)}
+                signedDate={sig.signedAt ? formatDateTime(sig.signedAt) : formatDate(entry.entryDate)}
               />
             </div>
           ))}

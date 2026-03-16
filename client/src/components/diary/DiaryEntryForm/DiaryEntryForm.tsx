@@ -13,6 +13,7 @@ import type {
 } from '@cornerstone/shared';
 import shared from '../../../styles/shared.module.css';
 import { SignatureSection } from '../SignatureSection/index.js';
+import type { VendorOption } from '../SignatureCapture/SignatureCapture.js';
 import styles from './DiaryEntryForm.module.css';
 
 export interface DiaryEntryFormProps {
@@ -53,6 +54,9 @@ export interface DiaryEntryFormProps {
   onIssueSeverityChange?: (severity: DiaryIssueSeverity | null) => void;
   issueResolutionStatus?: DiaryIssueResolution | null;
   onIssueResolutionStatusChange?: (status: DiaryIssueResolution | null) => void;
+  /** Signature UX enhancements */
+  currentUserName?: string;
+  vendors?: VendorOption[];
 }
 
 const WEATHER_OPTIONS: Array<{ value: DiaryWeather; label: string }> = [
@@ -121,6 +125,9 @@ export function DiaryEntryForm({
   onIssueSeverityChange,
   issueResolutionStatus,
   onIssueResolutionStatusChange,
+  // signature enhancements
+  currentUserName,
+  vendors,
 }: DiaryEntryFormProps) {
   const materialInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -297,7 +304,7 @@ export function DiaryEntryForm({
               const newSigs = [
                 ...(dailyLogSignatures || []),
                 {
-                  signerName: '',
+                  signerName: currentUserName || '',
                   signerType: 'self' as const,
                   signatureDataUrl: '',
                 },
@@ -306,6 +313,8 @@ export function DiaryEntryForm({
             }}
             disabled={disabled}
             label="Signatures"
+            currentUserName={currentUserName}
+            vendors={vendors}
           />
         </div>
       )}
@@ -389,7 +398,7 @@ export function DiaryEntryForm({
               const newSigs = [
                 ...(siteVisitSignatures || []),
                 {
-                  signerName: '',
+                  signerName: currentUserName || '',
                   signerType: 'self' as const,
                   signatureDataUrl: '',
                 },
@@ -398,6 +407,8 @@ export function DiaryEntryForm({
             }}
             disabled={disabled}
             label="Signatures"
+            currentUserName={currentUserName}
+            vendors={vendors}
           />
         </div>
       )}
