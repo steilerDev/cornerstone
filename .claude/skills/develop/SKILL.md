@@ -134,13 +134,13 @@ Move the issue(s) to **In Progress** on the Projects board.
 #### Single-item mode
 
 ```bash
-ITEM_ID=$(gh api graphql -f query='{ repository(owner: "steilerDev", name: "cornerstone") { issue(number: <issue-number>) { projectItems(first: 1) { nodes { id } } } } }' --jq '.data.repository.issue.projectItems.nodes[0].id')
-gh api graphql -f query='mutation { updateProjectV2ItemFieldValue(input: { projectId: "PVT_kwHOAGtLQM4BOlve", itemId: "'"$ITEM_ID"'", fieldId: "PVTSSF_lAHOAGtLQM4BOlvezg9P0yo", value: { singleSelectOptionId: "296eeabe" } }) { clientMutationId } }'
+ITEM_ID=$(gh project item-list 4 --owner steilerDev --format json --limit 1 --query "is:issue #<issue-number>" --jq '.items[0].id')
+gh project item-edit --id "$ITEM_ID" --project-id PVT_kwHOAGtLQM4BOlve --field-id PVTSSF_lAHOAGtLQM4BOlvezg9P0yo --single-select-option-id 296eeabe
 ```
 
 #### Multi-item mode
 
-Run the same GraphQL mutation for **each issue** in the items list.
+Run the same `gh project item-edit` command for **each issue** in the items list.
 
 ### 6. Implement + Test (Multi-Phase)
 
@@ -422,8 +422,8 @@ After merge:
    ```
 2. Move the issue to **Done** on the Projects board:
    ```bash
-   ITEM_ID=$(gh api graphql -f query='{ repository(owner: "steilerDev", name: "cornerstone") { issue(number: <issue-number>) { projectItems(first: 1) { nodes { id } } } } }' --jq '.data.repository.issue.projectItems.nodes[0].id')
-   gh api graphql -f query='mutation { updateProjectV2ItemFieldValue(input: { projectId: "PVT_kwHOAGtLQM4BOlve", itemId: "'"$ITEM_ID"'", fieldId: "PVTSSF_lAHOAGtLQM4BOlvezg9P0yo", value: { singleSelectOptionId: "c558f50d" } }) { clientMutationId } }'
+   ITEM_ID=$(gh project item-list 4 --owner steilerDev --format json --limit 1 --query "is:issue #<issue-number>" --jq '.items[0].id')
+   gh project item-edit --id "$ITEM_ID" --project-id PVT_kwHOAGtLQM4BOlve --field-id PVTSSF_lAHOAGtLQM4BOlvezg9P0yo --single-select-option-id c558f50d
    ```
 3. **Remove resolved line from source file** (only when input was a `@`-prefixed file path):
    - Remove the line from the source file that produced the resolved item (matched by original text).
@@ -443,7 +443,7 @@ After merge:
    ```
    gh issue close <issue-number>
    ```
-2. Move **each issue** to **Done** on the Projects board (run the GraphQL mutation for each).
+2. Move **each issue** to **Done** on the Projects board (run the `gh project item-edit` command for each).
 3. **Remove resolved lines from source file** (only when input was a `@`-prefixed file path):
    - For each closed issue, remove the line from the source file that produced it (matched by original text — the issue number or description as it appeared in the file).
    - Preserve comments (`#`-prefixed lines) and empty lines that were not part of the resolved items.

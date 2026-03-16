@@ -61,10 +61,10 @@ Launch the **product-owner** agent to:
 - Set board statuses: **Backlog** for future-sprint stories, **Todo** for first-sprint stories:
 
   ```bash
-  ITEM_ID=$(gh api graphql -f query='{ repository(owner: "steilerDev", name: "cornerstone") { issue(number: <issue-number>) { projectItems(first: 1) { nodes { id } } } } }' --jq '.data.repository.issue.projectItems.nodes[0].id')
+  ITEM_ID=$(gh project item-list 4 --owner steilerDev --format json --limit 1 --query "is:issue #<issue-number>" --jq '.items[0].id')
 
   # Move to Todo (dc74a3b0) or Backlog (7404f88c)
-  gh api graphql -f query='mutation { updateProjectV2ItemFieldValue(input: { projectId: "PVT_kwHOAGtLQM4BOlve", itemId: "'"$ITEM_ID"'", fieldId: "PVTSSF_lAHOAGtLQM4BOlvezg9P0yo", value: { singleSelectOptionId: "dc74a3b0" } }) { clientMutationId } }'
+  gh project item-edit --id "$ITEM_ID" --project-id PVT_kwHOAGtLQM4BOlve --field-id PVTSSF_lAHOAGtLQM4BOlvezg9P0yo --single-select-option-id dc74a3b0
   ```
 
 - Post acceptance criteria (Given/When/Then format) on each story issue
