@@ -130,10 +130,7 @@ describe('SearchPicker', () => {
       await user.type(input, 'Alpha');
 
       await waitFor(() => {
-        expect(mockSearchFn).toHaveBeenCalledWith(
-          expect.any(String),
-          ['item-1', 'item-2'],
-        );
+        expect(mockSearchFn).toHaveBeenCalledWith(expect.any(String), ['item-1', 'item-2']);
       });
     });
   });

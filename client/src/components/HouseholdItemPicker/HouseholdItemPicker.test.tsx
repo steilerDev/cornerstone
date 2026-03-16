@@ -150,9 +150,7 @@ describe('HouseholdItemPicker', () => {
       expect(screen.getByText('Dining Table')).toBeInTheDocument();
     });
 
-    expect(mockListHouseholdItems).toHaveBeenCalledWith(
-      expect.objectContaining({ pageSize: 15 }),
-    );
+    expect(mockListHouseholdItems).toHaveBeenCalledWith(expect.objectContaining({ pageSize: 15 }));
   });
 
   // ── 4. excludeIds filtering ───────────────────────────────────────────────
