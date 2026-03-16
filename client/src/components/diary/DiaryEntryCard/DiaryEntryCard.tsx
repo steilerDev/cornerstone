@@ -65,18 +65,20 @@ export function DiaryEntryCard({ entry }: DiaryEntryCardProps) {
         <DiaryEntryTypeBadge entryType={entry.entryType} />
         <div className={styles.headerText}>
           {entry.title && <div className={styles.title}>{entry.title}</div>}
-          <div className={styles.timestamp}>
-            {formatTime(entry.createdAt)}
-            {entry.createdBy && (
-              <span className={styles.author}> by {entry.createdBy.displayName}</span>
-            )}
-          </div>
+          {!entry.isAutomatic && (
+            <div className={styles.timestamp}>
+              {formatTime(entry.createdAt)}
+              {entry.createdBy && (
+                <span className={styles.author}> by {entry.createdBy.displayName}</span>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
       <div className={styles.body}>{entry.body}</div>
 
-      {entry.metadata && (
+      {!entry.isAutomatic && entry.metadata && (
         <DiaryMetadataSummary entryType={entry.entryType} metadata={entry.metadata} />
       )}
 
@@ -95,7 +97,7 @@ export function DiaryEntryCard({ entry }: DiaryEntryCardProps) {
             title={entry.sourceEntityTitle ?? sourceLabel ?? undefined}
             data-testid={`source-link-${entry.sourceEntityId}`}
           >
-            {entry.sourceEntityTitle ?? sourceLabel}
+            {entry.isAutomatic ? 'Go to related item' : (entry.sourceEntityTitle ?? sourceLabel)}
           </Link>
         )}
 

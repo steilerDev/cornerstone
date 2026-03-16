@@ -218,7 +218,7 @@ export default function DiaryEntryDetailPage() {
 
         <div className={styles.body}>{entry.body}</div>
 
-        {entry.metadata && (
+        {entry.metadata && Object.keys(entry.metadata).length > 0 && (
           <div className={styles.metadataSection}>
             <DiaryMetadataSummary entryType={entry.entryType} metadata={entry.metadata} />
           </div>
@@ -241,33 +241,35 @@ export default function DiaryEntryDetailPage() {
           ))}
 
         {/* Photos Section */}
-        <div className={styles.photoSection}>
-          <div className={styles.photoSectionHeader}>
-            <h2 className={styles.photoHeading}>Photos ({photosResult.photos.length})</h2>
-          </div>
-
-          {photosResult.photos.length === 0 ? (
-            <div className={styles.photoEmptyState}>
-              <p>No photos attached yet.</p>
-              {!entry.isAutomatic && (
-                <Link to={`/diary/${entry.id}/edit`} className={styles.addPhotoLink}>
-                  Add photos
-                </Link>
-              )}
+        {!(entry.isSigned && photosResult.photos.length === 0) && !entry.isAutomatic && (
+          <div className={styles.photoSection}>
+            <div className={styles.photoSectionHeader}>
+              <h2 className={styles.photoHeading}>Photos ({photosResult.photos.length})</h2>
             </div>
-          ) : (
-            <>
-              <PhotoGrid
-                photos={photosResult.photos}
-                onPhotoClick={(photo) => {
-                  const index = photosResult.photos.findIndex((p) => p.id === photo.id);
-                  setSelectedPhotoIndex(index);
-                }}
-                loading={photosResult.loading}
-              />
-            </>
-          )}
-        </div>
+
+            {photosResult.photos.length === 0 ? (
+              <div className={styles.photoEmptyState}>
+                <p>No photos attached yet.</p>
+                {!entry.isAutomatic && (
+                  <Link to={`/diary/${entry.id}/edit`} className={styles.addPhotoLink}>
+                    Add photos
+                  </Link>
+                )}
+              </div>
+            ) : (
+              <>
+                <PhotoGrid
+                  photos={photosResult.photos}
+                  onPhotoClick={(photo) => {
+                    const index = photosResult.photos.findIndex((p) => p.id === photo.id);
+                    setSelectedPhotoIndex(index);
+                  }}
+                  loading={photosResult.loading}
+                />
+              </>
+            )}
+          </div>
+        )}
 
         {/* Photo Viewer Modal */}
         {selectedPhotoIndex !== null && selectedPhotoIndex >= 0 && (
