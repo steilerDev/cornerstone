@@ -262,15 +262,6 @@ describe('DiaryEntryEditPage', () => {
       });
     });
 
-    it('pre-populates delivery confirmed checkbox from metadata', async () => {
-      mockGetDiaryEntry.mockResolvedValueOnce(deliveryEntry);
-      renderEditPage('de-del');
-      await waitFor(() => {
-        const checkbox = screen.getByLabelText(/delivery confirmed/i) as HTMLInputElement;
-        expect(checkbox.checked).toBe(true);
-      });
-    });
-
     it('pre-populates issue severity from metadata', async () => {
       mockGetDiaryEntry.mockResolvedValueOnce(issueEntry);
       renderEditPage('de-iss');

@@ -509,7 +509,7 @@ describe('DiaryEntryForm', () => {
           })}
         />,
       );
-      const materialInput = screen.getByPlaceholderText(/add material and press enter/i);
+      const materialInput = screen.getByPlaceholderText(/add item and press enter/i);
       await user.type(materialInput, 'Rebar');
       await user.click(screen.getByRole('button', { name: /^add$/i }));
       expect(onDeliveryMaterialsChange).toHaveBeenCalledWith(['Rebar']);
@@ -543,7 +543,7 @@ describe('DiaryEntryForm', () => {
           })}
         />,
       );
-      const materialInput = screen.getByPlaceholderText(/add material and press enter/i);
+      const materialInput = screen.getByPlaceholderText(/add item and press enter/i);
       await user.type(materialInput, 'Nails');
       await user.click(screen.getByRole('button', { name: /^add$/i }));
       expect(onDeliveryMaterialsChange).toHaveBeenCalledWith(['Lumber', 'Nails']);
