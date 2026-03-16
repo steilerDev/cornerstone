@@ -25,11 +25,6 @@ export function DiaryDateGroup({ date, entries }: DiaryDateGroupProps) {
   return (
     <section className={styles.group} data-testid={`date-group-${date}`}>
       <h2 className={styles.dateHeader}>{formatDateHeader(date)}</h2>
-      <div className={styles.entriesList}>
-        {manualEntries.map((entry) => (
-          <DiaryEntryCard key={entry.id} entry={entry} />
-        ))}
-      </div>
 
       {automaticEntries.length > 0 && (
         <div className={styles.automaticSection} data-testid={`automatic-section-${date}`}>
@@ -46,6 +41,12 @@ export function DiaryDateGroup({ date, entries }: DiaryDateGroupProps) {
           </div>
         </div>
       )}
+
+      <div className={styles.entriesList}>
+        {manualEntries.map((entry) => (
+          <DiaryEntryCard key={entry.id} entry={entry} />
+        ))}
+      </div>
     </section>
   );
 }
