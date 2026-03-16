@@ -205,7 +205,7 @@ export default function DiaryEntryCreatePage() {
           );
         } catch (uploadErr) {
           console.error('Failed to upload photos:', uploadErr);
-          showToast('warning', 'Entry created but some photos failed to upload');
+          showToast('error', 'Entry created but some photos failed to upload');
         }
       }
 

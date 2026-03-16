@@ -18,6 +18,8 @@ describe('DiaryFilterBar', () => {
     activeTypes: [] as DiaryEntryType[],
     onTypesChange: jest.fn<(types: DiaryEntryType[]) => void>(),
     onClearAll: jest.fn<() => void>(),
+    filterMode: 'all' as 'all' | 'manual' | 'automatic',
+    onFilterModeChange: jest.fn<(mode: 'all' | 'manual' | 'automatic') => void>(),
   };
 
   beforeEach(() => {
