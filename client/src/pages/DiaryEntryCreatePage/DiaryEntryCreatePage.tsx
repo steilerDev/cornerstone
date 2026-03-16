@@ -200,9 +200,7 @@ export default function DiaryEntryCreatePage() {
       // Upload pending files
       if (pendingFiles.length > 0) {
         try {
-          await Promise.all(
-            pendingFiles.map((file) => uploadPhoto('diary_entry', entry.id, file)),
-          );
+          await Promise.all(pendingFiles.map((file) => uploadPhoto('diary_entry', entry.id, file)));
         } catch (uploadErr) {
           console.error('Failed to upload photos:', uploadErr);
           showToast('error', 'Entry created but some photos failed to upload');
@@ -340,7 +338,9 @@ export default function DiaryEntryCreatePage() {
 
         <div className={styles.photoQueue}>
           <label className={styles.photoQueueLabel}>Attach Photos (optional)</label>
-          <p className={styles.photoQueueHint}>Photos will be uploaded after the entry is created.</p>
+          <p className={styles.photoQueueHint}>
+            Photos will be uploaded after the entry is created.
+          </p>
           <input
             type="file"
             multiple

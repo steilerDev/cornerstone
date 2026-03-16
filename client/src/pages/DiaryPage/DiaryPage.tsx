@@ -228,7 +228,11 @@ export default function DiaryPage() {
       />
 
       <div className={styles.controls}>
-        <Link to="/diary/new" className={`${shared.btnPrimary} ${styles.createButton}`} style={{ textDecoration: 'none' }}>
+        <Link
+          to="/diary/new"
+          className={`${shared.btnPrimary} ${styles.createButton}`}
+          style={{ textDecoration: 'none' }}
+        >
           New Entry
         </Link>
       </div>

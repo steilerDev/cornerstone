@@ -85,7 +85,11 @@ export function DiaryFilterBar({
 
   // Determine which types to display based on filter mode
   const displayedTypes =
-    filterMode === 'manual' ? MANUAL_ENTRY_TYPES : filterMode === 'automatic' ? AUTOMATIC_ENTRY_TYPES : ALL_ENTRY_TYPES;
+    filterMode === 'manual'
+      ? MANUAL_ENTRY_TYPES
+      : filterMode === 'automatic'
+        ? AUTOMATIC_ENTRY_TYPES
+        : ALL_ENTRY_TYPES;
 
   const filterCount = [
     searchQuery ? 1 : 0,

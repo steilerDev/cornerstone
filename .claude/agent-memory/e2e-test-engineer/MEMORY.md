@@ -196,4 +196,4 @@ Key behavioral changes validated:
 - New Entry button: `getByRole('link', { name: 'New Entry', exact: true })` (no "+" prefix) — UAT R2 #866-C
 - Signed badge on cards: `data-testid="signed-badge-{entryId}"` text "✓ Signed" — UAT R2 #869
 - Mode filter chips: `data-testid="mode-filter-all/manual/automatic"` — UAT R2 #866-A
-- Photo input on create: `data-testid="create-photo-input"` (file, multiple, accept image/*)  — UAT R2 #867
+- Photo input on create: `data-testid="create-photo-input"` (file, multiple, accept image/\*) — UAT R2 #867

@@ -372,9 +372,7 @@ describe('DiaryEntryCreatePage', () => {
 
     it('does not render the old "Photos can be added after saving" hint text', async () => {
       await advanceToFormStepWithUser();
-      expect(
-        screen.queryByText(/photos can be added after saving/i),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByText(/photos can be added after saving/i)).not.toBeInTheDocument();
     });
 
     it('shows pending photo count after files are selected', async () => {

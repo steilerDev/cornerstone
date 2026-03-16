@@ -24,6 +24,7 @@ type: project
 ### Milestone insert needs `.returning()` for auto-increment id
 
 Milestones table has `id: integer().primaryKey({ autoIncrement: true })`. To get the auto-generated ID:
+
 ```ts
 const milestone = db.insert(milestones).values({...}).returning({ id: milestones.id }).get();
 const milestoneId = String(milestone!.id);

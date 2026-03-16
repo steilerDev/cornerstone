@@ -86,7 +86,9 @@ test.describe('Automatic entries in diary list (Scenario 1)', { tag: '@responsiv
         // UAT R2 fix #868: automatic events are now rendered inside a flat <div> (not a collapsible
         // details/summary element). The section has data-testid="automatic-section-{date}" and
         // contains a header with "Automated Events" text. No interaction needed to reveal the cards.
-        const automaticSection = page.getByTestId(`automatic-section-${mockEntry['entryDate'] as string}`);
+        const automaticSection = page.getByTestId(
+          `automatic-section-${mockEntry['entryDate'] as string}`,
+        );
         await automaticSection.waitFor({ state: 'visible' });
 
         // The section header should contain "Automated Events"

@@ -57,9 +57,7 @@ function makeMockEntry(overrides: Partial<Record<string, unknown>> = {}): Record
   };
 }
 
-function makePaginatedResponse(
-  entries: Record<string, unknown>[],
-): Record<string, unknown> {
+function makePaginatedResponse(entries: Record<string, unknown>[]): Record<string, unknown> {
   return {
     items: entries,
     pagination: {
