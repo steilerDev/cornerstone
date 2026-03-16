@@ -17,7 +17,7 @@ function buildTFunction(translations: Record<string, string>): TFunction<'errors
     const found = translations[key];
     if (found !== undefined) return found;
     return options?.defaultValue ?? '';
-  }) as TFunction<'errors'>;
+  }) as unknown as TFunction<'errors'>;
 }
 
 const tEn = buildTFunction(enErrors);
@@ -166,9 +166,9 @@ describe('translateApiError', () => {
     it('does not call t with empty code', () => {
       const tSpy = jest.fn((_key: string, opts?: { defaultValue?: string }) => {
         return opts?.defaultValue ?? '';
-      }) as TFunction<'errors'>;
+      }) as unknown as TFunction<'errors'>;
 
-      const result = translateApiError('', tSpy as TFunction<'errors'>);
+      const result = translateApiError('', tSpy);
       // Empty code → all words are empty → join is empty string
       expect(typeof result).toBe('string');
     });
