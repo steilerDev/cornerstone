@@ -44,7 +44,7 @@ export function SignatureSection({
 
   return (
     <div className={styles.signatureSection}>
-      <label className={styles.label}>{label}</label>
+      <span className={styles.label}>{label}</span>
       {(signatures?.length ?? 0) > 0 && (
         <div className={styles.signaturesList}>
           {signatures!.map((sig, index) => (
@@ -65,6 +65,7 @@ export function SignatureSection({
         className={shared.btnSecondary}
         onClick={onAddSignature}
         disabled={disabled}
+        aria-label="Add signature"
       >
         + Add Signature
       </button>
