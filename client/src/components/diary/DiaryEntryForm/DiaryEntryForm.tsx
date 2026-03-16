@@ -435,7 +435,7 @@ export function DiaryEntryForm({
           </div>
 
           <div className={styles.formGroup}>
-            <label className={styles.label}>Description</label>
+            <label className={styles.label}>Items</label>
             {(deliveryMaterials?.length ?? 0) > 0 && (
               <div className={styles.materialsList}>
                 {deliveryMaterials!.map((material, index) => (

@@ -205,10 +205,21 @@ export default function DiaryPage() {
   return (
     <div className={styles.page}>
       <header className={styles.header}>
-        <h1 className={styles.title}>Construction Diary</h1>
-        <p className={styles.subtitle}>
-          {totalItems} {totalItems === 1 ? 'entry' : 'entries'}
-        </p>
+        <div className={styles.headerTop}>
+          <div>
+            <h1 className={styles.title}>Construction Diary</h1>
+            <p className={styles.subtitle}>
+              {totalItems} {totalItems === 1 ? 'entry' : 'entries'}
+            </p>
+          </div>
+          <Link
+            to="/diary/new"
+            className={`${shared.btnPrimary} ${styles.createButton}`}
+            style={{ textDecoration: 'none' }}
+          >
+            New Entry
+          </Link>
+        </div>
       </header>
 
       {error && <div className={shared.bannerError}>{error}</div>}
@@ -226,16 +237,6 @@ export default function DiaryPage() {
         filterMode={filterMode}
         onFilterModeChange={handleFilterModeChange}
       />
-
-      <div className={styles.controls}>
-        <Link
-          to="/diary/new"
-          className={`${shared.btnPrimary} ${styles.createButton}`}
-          style={{ textDecoration: 'none' }}
-        >
-          New Entry
-        </Link>
-      </div>
 
       {isLoading && <div className={shared.loading}>Loading entries...</div>}
 
