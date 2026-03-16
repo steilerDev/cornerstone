@@ -147,6 +147,7 @@
   flex-wrap: wrap;
   gap: var(--spacing-2);
   margin-bottom: var(--spacing-3);
+  margin-top: var(--spacing-2);
 }
 
 .materialChip {
@@ -188,6 +189,7 @@
 .materialInputForm {
   display: flex;
   gap: var(--spacing-2);
+  margin-top: var(--spacing-3);
 }
 
 .materialInputForm .input {
