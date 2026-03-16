@@ -7,6 +7,7 @@ import {
 } from '../../lib/invoiceBudgetLinesApi.js';
 import { formatCurrency } from '../../lib/formatters.js';
 import { useToast } from '../Toast/ToastContext.js';
+import { Modal } from '../Modal/index.js';
 import styles from './InvoiceLinkModal.module.css';
 
 export interface InvoiceLinkModalProps {
@@ -43,7 +44,6 @@ export function InvoiceLinkModal({
   const [isLoadingRemaining, setIsLoadingRemaining] = useState(false);
   const [error, setError] = useState<InvoiceLinkError | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
-  const modalRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const { showToast } = useToast();
@@ -137,34 +137,6 @@ export function InvoiceLinkModal({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Handle backdrop click
-  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
-  };
-
-  // Handle keyboard events (Escape to close)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
-
-  // Focus management
-  useEffect(() => {
-    if (modalRef.current) {
-      const firstInput = modalRef.current.querySelector(
-        'select, input[type="number"]',
-      ) as HTMLElement;
-      firstInput?.focus();
-    }
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -228,35 +200,37 @@ export function InvoiceLinkModal({
   };
 
   return (
-    <div
-      className={styles.modal}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="link-modal-title"
-    >
-      <div className={styles.backdrop} onClick={handleBackdropClick} />
-      <div className={styles.content} ref={modalRef}>
-        <div className={styles.header}>
-          <h2 id="link-modal-title" className={styles.title}>
-            Link to Invoice
-          </h2>
+    <Modal
+      title="Link to Invoice"
+      onClose={onClose}
+      footer={
+        <div className={styles.actions}>
           <button
             type="button"
-            className={styles.closeButton}
+            className={styles.cancelButton}
             onClick={onClose}
-            aria-label="Close dialog"
+            disabled={isSaving}
           >
-            ×
+            Cancel
+          </button>
+          <button
+            type="submit"
+            form="invoice-link-form"
+            className={styles.submitButton}
+            disabled={isSaving || invoices.length === 0}
+          >
+            {isSaving ? 'Linking...' : 'Link to Invoice'}
           </button>
         </div>
+      }
+    >
+      {error && error.message && !error.field && (
+        <div className={styles.errorBanner} role="alert">
+          {error.message}
+        </div>
+      )}
 
-        {error && error.message && !error.field && (
-          <div className={styles.errorBanner} role="alert">
-            {error.message}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className={styles.form}>
+      <form id="invoice-link-form" onSubmit={handleSubmit} className={styles.form}>
           {/* Invoice Search & Select */}
           <div className={styles.formGroup}>
             <label htmlFor="invoice-search" className={styles.label}>
@@ -390,27 +364,7 @@ export function InvoiceLinkModal({
             )}
             {error?.field === 'amount' && <div className={styles.fieldError}>{error.message}</div>}
           </div>
-
-          {/* Actions */}
-          <div className={styles.actions}>
-            <button
-              type="button"
-              className={styles.cancelButton}
-              onClick={onClose}
-              disabled={isSaving}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className={styles.submitButton}
-              disabled={isSaving || invoices.length === 0}
-            >
-              {isSaving ? 'Linking...' : 'Link to Invoice'}
-            </button>
-          </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }
