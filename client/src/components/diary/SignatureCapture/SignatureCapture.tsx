@@ -37,6 +37,8 @@ export function SignatureCapture({
   const [hasStrokes, setHasStrokes] = useState(false);
   const [sizeError, setSizeError] = useState<string | null>(null);
   const [selectedVendorId, setSelectedVendorId] = useState<string>('');
+  const [vendorName, setVendorName] = useState<string>('');
+  const [signatoryName, setSignatoryName] = useState<string>('');
 
   // Auto-populate signerName when type is 'self'
   useEffect(() => {
@@ -282,6 +284,10 @@ export function SignatureCapture({
     const now = new Date();
     const signedAt = now.toISOString();
 
+    // Determine the display name for the signature
+    const displayName =
+      signerType === 'vendor' ? `${vendorName} (${signatoryName})` : signerName;
+
     // Burn signer info and timestamp onto the canvas
     const ctx = canvas.getContext('2d');
     if (ctx) {
@@ -294,7 +300,7 @@ export function SignatureCapture({
         minute: '2-digit',
         timeZoneName: 'short',
       });
-      const labelText = `${signerName} \u2014 ${formattedDate}`;
+      const labelText = `${displayName} \u2014 ${formattedDate}`;
 
       ctx.save();
       ctx.font = '10px system-ui, -apple-system, sans-serif';
@@ -317,7 +323,7 @@ export function SignatureCapture({
 
     setSizeError(null);
     onSignatureChange({
-      signerName,
+      signerName: displayName,
       signerType,
       signatureDataUrl: dataUrl,
       signedAt,
@@ -332,26 +338,30 @@ export function SignatureCapture({
   const handleSignerTypeChange = (newType: 'self' | 'vendor') => {
     onSignerTypeChange?.(newType);
     setSelectedVendorId('');
+    setVendorName('');
+    setSignatoryName('');
     // Name changes for type switches are handled by the parent via onSignerTypeChange
     // to avoid stale closure issues when both callbacks spread the same sig object
   };
 
   const handleVendorSelect = (vendorId: string) => {
     setSelectedVendorId(vendorId);
+    setSignatoryName('');
     if (vendorId === '__other__') {
-      onSignerNameChange?.('');
+      setVendorName('');
     } else if (vendorId) {
       const vendor = vendors?.find((v) => v.id === vendorId);
       if (vendor) {
-        onSignerNameChange?.(vendor.name);
+        setVendorName(vendor.name);
       }
     } else {
-      onSignerNameChange?.('');
+      setVendorName('');
     }
   };
 
-  const isVendorNameEmpty = signerType === 'vendor' && !signerName.trim();
-  const isAcceptDisabled = disabled || !hasStrokes || isVendorNameEmpty;
+  const isVendorInfoMissing =
+    signerType === 'vendor' && (!vendorName.trim() || !signatoryName.trim());
+  const isAcceptDisabled = disabled || !hasStrokes || isVendorInfoMissing;
 
   if (signature) {
     return (
@@ -419,7 +429,7 @@ export function SignatureCapture({
 
         <div className={styles.formGroup}>
           <label htmlFor="signer-name" className={styles.label}>
-            Signer Name
+            {signerType === 'vendor' ? 'Vendor' : 'Signer Name'}
           </label>
           {signerType === 'self' ? (
             <div className={styles.readOnlyName}>{currentUserName || signerName || '—'}</div>
@@ -444,8 +454,8 @@ export function SignatureCapture({
                   id="signer-name"
                   type="text"
                   className={styles.input}
-                  value={signerName}
-                  onChange={(e) => onSignerNameChange?.(e.target.value)}
+                  value={vendorName}
+                  onChange={(e) => setVendorName(e.target.value)}
                   disabled={disabled}
                   placeholder="Enter vendor name"
                 />
@@ -456,16 +466,33 @@ export function SignatureCapture({
               id="signer-name"
               type="text"
               className={styles.input}
-              value={signerName}
-              onChange={(e) => onSignerNameChange?.(e.target.value)}
+              value={vendorName}
+              onChange={(e) => setVendorName(e.target.value)}
               disabled={disabled}
               placeholder="Enter vendor name"
             />
           )}
-          {isVendorNameEmpty && (
-            <div className={styles.validationHint}>Vendor name is required to accept signature</div>
-          )}
         </div>
+
+        {signerType === 'vendor' && (
+          <div className={styles.formGroup}>
+            <label htmlFor="signatory-name" className={styles.label}>
+              Signatory Name <span className={styles.required}>*</span>
+            </label>
+            <input
+              id="signatory-name"
+              type="text"
+              className={styles.input}
+              value={signatoryName}
+              onChange={(e) => setSignatoryName(e.target.value)}
+              disabled={disabled}
+              placeholder="Name of person signing on behalf of vendor"
+            />
+            {isVendorInfoMissing && (
+              <div className={styles.validationHint}>Both vendor and signatory name are required</div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className={styles.canvasWrapper} ref={containerRef}>

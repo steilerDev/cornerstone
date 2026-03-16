@@ -111,7 +111,6 @@ const deliveryEntry: DiaryEntryDetail = {
   metadata: {
     vendor: 'TimberCo',
     materials: ['Oak planks', 'Pine beams'],
-    deliveryConfirmed: true,
   },
 };
 
@@ -260,15 +259,6 @@ describe('DiaryEntryEditPage', () => {
       await waitFor(() => {
         expect(screen.getByText('Oak planks')).toBeInTheDocument();
         expect(screen.getByText('Pine beams')).toBeInTheDocument();
-      });
-    });
-
-    it('pre-populates delivery confirmed checkbox from metadata', async () => {
-      mockGetDiaryEntry.mockResolvedValueOnce(deliveryEntry);
-      renderEditPage('de-del');
-      await waitFor(() => {
-        const checkbox = screen.getByLabelText(/delivery confirmed/i) as HTMLInputElement;
-        expect(checkbox.checked).toBe(true);
       });
     });
 

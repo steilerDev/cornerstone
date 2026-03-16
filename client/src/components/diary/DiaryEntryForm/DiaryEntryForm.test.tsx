@@ -436,33 +436,6 @@ describe('DiaryEntryForm', () => {
       expect(onDeliveryVendorChange).toHaveBeenCalledWith('Supplier X');
     });
 
-    it('renders the delivery confirmed checkbox', () => {
-      render(<DiaryEntryForm {...makeProps({ entryType: 'delivery' })} />);
-      expect(screen.getByLabelText(/delivery confirmed/i)).toBeInTheDocument();
-    });
-
-    it('checkbox reflects deliveryConfirmed=true', () => {
-      render(<DiaryEntryForm {...makeProps({ entryType: 'delivery', deliveryConfirmed: true })} />);
-      const checkbox = screen.getByLabelText(/delivery confirmed/i) as HTMLInputElement;
-      expect(checkbox.checked).toBe(true);
-    });
-
-    it('calls onDeliveryConfirmedChange when checkbox toggled', () => {
-      const onDeliveryConfirmedChange = jest.fn();
-      render(
-        <DiaryEntryForm
-          {...makeProps({
-            entryType: 'delivery',
-            deliveryConfirmed: false,
-            onDeliveryConfirmedChange,
-          })}
-        />,
-      );
-      const checkbox = screen.getByLabelText(/delivery confirmed/i);
-      fireEvent.click(checkbox);
-      expect(onDeliveryConfirmedChange).toHaveBeenCalledWith(true);
-    });
-
     it('renders the Add button for materials', () => {
       render(<DiaryEntryForm {...makeProps({ entryType: 'delivery' })} />);
       expect(screen.getByRole('button', { name: /^add$/i })).toBeInTheDocument();
@@ -536,7 +509,7 @@ describe('DiaryEntryForm', () => {
           })}
         />,
       );
-      const materialInput = screen.getByPlaceholderText(/add material and press enter/i);
+      const materialInput = screen.getByPlaceholderText(/add item and press enter/i);
       await user.type(materialInput, 'Rebar');
       await user.click(screen.getByRole('button', { name: /^add$/i }));
       expect(onDeliveryMaterialsChange).toHaveBeenCalledWith(['Rebar']);
@@ -570,7 +543,7 @@ describe('DiaryEntryForm', () => {
           })}
         />,
       );
-      const materialInput = screen.getByPlaceholderText(/add material and press enter/i);
+      const materialInput = screen.getByPlaceholderText(/add item and press enter/i);
       await user.type(materialInput, 'Nails');
       await user.click(screen.getByRole('button', { name: /^add$/i }));
       expect(onDeliveryMaterialsChange).toHaveBeenCalledWith(['Lumber', 'Nails']);

@@ -625,12 +625,8 @@ describe('diaryService', () => {
         db,
         'work_item_status',
         '2026-03-14',
+        'Status changed from In Progress to Completed',
         'Work item status changed to completed',
-        {
-          changeSummary: 'Status: in_progress → completed',
-          previousValue: 'in_progress',
-          newValue: 'completed',
-        },
         'work_item',
         'wi-123',
       );
@@ -649,8 +645,8 @@ describe('diaryService', () => {
         db,
         'budget_breach',
         '2026-03-14',
+        'Budget category overspend detected',
         'Budget threshold exceeded',
-        null,
         null,
         null,
       );

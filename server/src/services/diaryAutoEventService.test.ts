@@ -102,7 +102,7 @@ describe('diaryAutoEventService', () => {
       expect(entries).toHaveLength(0);
     });
 
-    it('stores metadata with previousValue and newValue', () => {
+    it('stores title with status change summary and null metadata', () => {
       onWorkItemStatusChanged(
         db,
         true,
@@ -115,11 +115,10 @@ describe('diaryAutoEventService', () => {
       const entries = getAllEntries();
       expect(entries).toHaveLength(1);
 
-      const metadata = JSON.parse(entries[0].metadata ?? 'null');
-      expect(metadata).not.toBeNull();
-      expect(metadata.previousValue).toBe('not_started');
-      expect(metadata.newValue).toBe('completed');
-      expect(typeof metadata.changeSummary).toBe('string');
+      expect(entries[0].title).not.toBeNull();
+      expect(entries[0].title).toContain('Not Started');
+      expect(entries[0].title).toContain('Completed');
+      expect(entries[0].metadata).toBeNull();
     });
   });
 
@@ -153,16 +152,14 @@ describe('diaryAutoEventService', () => {
       expect(entries[0].body).toContain('N/A');
     });
 
-    it('stores metadata with previousValue, newValue, and changeSummary', () => {
+    it('stores title with status change summary and null metadata', () => {
       onInvoiceStatusChanged(db, true, 'inv-003', 'INV-2026-100', 'pending', 'paid');
 
       const entries = getAllEntries();
       expect(entries).toHaveLength(1);
-      const metadata = JSON.parse(entries[0].metadata ?? 'null');
-      expect(metadata.previousValue).toBe('pending');
-      expect(metadata.newValue).toBe('paid');
-      expect(metadata.changeSummary).toContain('Pending');
-      expect(metadata.changeSummary).toContain('Paid');
+      expect(entries[0].title).toContain('Pending');
+      expect(entries[0].title).toContain('Paid');
+      expect(entries[0].metadata).toBeNull();
     });
 
     it('does not create entry when enabled=false', () => {
@@ -264,7 +261,7 @@ describe('diaryAutoEventService', () => {
       expect(entry.body).toContain('Approved');
     });
 
-    it('stores metadata with previousValue, newValue, and changeSummary', () => {
+    it('stores title with status change summary and null metadata', () => {
       onSubsidyStatusChanged(
         db,
         true,
@@ -275,10 +272,9 @@ describe('diaryAutoEventService', () => {
       );
 
       const entries = getAllEntries();
-      const metadata = JSON.parse(entries[0].metadata ?? 'null');
-      expect(metadata.previousValue).toBe('applied');
-      expect(metadata.newValue).toBe('received');
-      expect(typeof metadata.changeSummary).toBe('string');
+      expect(entries[0].title).toContain('Applied');
+      expect(entries[0].title).toContain('Received');
+      expect(entries[0].metadata).toBeNull();
     });
 
     it('does not create entry when enabled=false', () => {
@@ -305,14 +301,13 @@ describe('diaryAutoEventService', () => {
       expect(entry.body).toContain('Acme Builders');
     });
 
-    it('stores metadata with changeSummary', () => {
+    it('stores title and null metadata', () => {
       onInvoiceCreated(db, true, 'inv-101', 'INV-2026-101', 'Good Roof Co');
 
       const entries = getAllEntries();
       expect(entries).toHaveLength(1);
-      const metadata = JSON.parse(entries[0].metadata ?? 'null');
-      expect(metadata).not.toBeNull();
-      expect(typeof metadata.changeSummary).toBe('string');
+      expect(entries[0].title).not.toBeNull();
+      expect(entries[0].metadata).toBeNull();
     });
 
     it('does not create entry when enabled=false', () => {
