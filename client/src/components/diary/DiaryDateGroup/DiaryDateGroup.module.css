@@ -17,38 +17,6 @@
   gap: var(--spacing-3);
 }
 
-.automaticSection {
-  margin-top: var(--spacing-4);
-  border: 1px solid var(--color-border);
-  border-left: 3px solid var(--color-text-muted);
-  border-radius: var(--radius-md);
-  background-color: var(--color-bg-secondary);
-  overflow: hidden;
-}
-
-.automaticHeader {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-2);
-  padding: var(--spacing-3) var(--spacing-4);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.automaticIcon {
-  font-size: var(--font-size-base);
-  color: var(--color-text-secondary);
-}
-
-.automaticTitle {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text-secondary);
-}
-
-.automaticSection .entriesList {
-  padding: var(--spacing-3);
-}
-
 /* Responsive */
 @media (max-width: 767px) {
   .group {

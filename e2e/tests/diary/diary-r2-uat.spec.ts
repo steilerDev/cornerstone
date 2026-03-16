@@ -330,9 +330,9 @@ test.describe('New Entry button text (Scenario 5)', { tag: '@responsive' }, () =
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 6: Automatic events section is a flat div, not a collapsible
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Automatic events as flat section (Scenario 6)', { tag: '@responsive' }, () => {
+test.describe('Automatic entries interleaved (Scenario 6)', { tag: '@responsive' }, () => {
   test(
-    'Automatic events section renders as a flat bordered div with "Automated Events" heading',
+    'Automatic and manual entries are interleaved in the same date group',
     { tag: '@smoke' },
     async ({ page }) => {
       const mockDate = '2026-03-16';
@@ -373,23 +373,9 @@ test.describe('Automatic events as flat section (Scenario 6)', { tag: '@responsi
         await diaryPage.heading.waitFor({ state: 'visible' });
         await diaryPage.waitForLoaded();
 
-        // The automatic section is identified by data-testid="automatic-section-{date}"
-        const automaticSection = page.getByTestId(`automatic-section-${mockDate}`);
-        await expect(automaticSection).toBeVisible();
-
-        // It must contain "Automated Events" text
-        await expect(automaticSection).toContainText('Automated Events');
-
-        // It must be a div (NOT a details element — UAT R2 #868 removed the collapsible)
-        const tagName = await automaticSection.evaluate((el) => el.tagName.toLowerCase());
-        expect(tagName).toBe('div');
-
-        // No details/summary element should exist in the automatic section
-        const detailsCount = await automaticSection.locator('details').count();
-        expect(detailsCount).toBe(0);
-
-        // The automatic entry card should be directly visible (no interaction needed)
+        // Both entries should be visible in the same date group (interleaved)
         await expect(diaryPage.entryCard('mock-auto-r2-001')).toBeVisible();
+        await expect(diaryPage.entryCard('mock-manual-r2-001')).toBeVisible();
       } finally {
         await page.unroute('**/api/diary-entries*');
       }

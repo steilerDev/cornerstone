@@ -56,7 +56,7 @@ describe('DiaryFilterBar', () => {
     expect(screen.getByTestId('diary-date-to')).toBeInTheDocument();
   });
 
-  it('renders type filter chips for all entry types', () => {
+  it('renders type filter chips for all entry types (invoice_created grouped under invoice_status)', () => {
     renderFilterBar();
     const expectedTypes: DiaryEntryType[] = [
       'daily_log',
@@ -66,7 +66,6 @@ describe('DiaryFilterBar', () => {
       'general_note',
       'work_item_status',
       'invoice_status',
-      'invoice_created',
       'milestone_delay',
       'budget_breach',
       'auto_reschedule',
@@ -75,6 +74,8 @@ describe('DiaryFilterBar', () => {
     for (const type of expectedTypes) {
       expect(screen.getByTestId(`type-filter-${type}`)).toBeInTheDocument();
     }
+    // invoice_created is grouped under invoice_status chip — no separate chip
+    expect(screen.queryByTestId('type-filter-invoice_created')).not.toBeInTheDocument();
   });
 
   // ─── Filter mode chips ─────────────────────────────────────────────────────
@@ -155,12 +156,11 @@ describe('DiaryFilterBar', () => {
     expect(screen.queryByTestId('type-filter-subsidy_status')).not.toBeInTheDocument();
   });
 
-  it('when filterMode="automatic", renders exactly 7 automatic type chips', () => {
+  it('when filterMode="automatic", renders automatic type chips (invoice_created hidden)', () => {
     renderFilterBar({ filterMode: 'automatic' });
     const automaticTypes: DiaryEntryType[] = [
       'work_item_status',
       'invoice_status',
-      'invoice_created',
       'milestone_delay',
       'budget_breach',
       'auto_reschedule',
@@ -169,6 +169,8 @@ describe('DiaryFilterBar', () => {
     for (const type of automaticTypes) {
       expect(screen.getByTestId(`type-filter-${type}`)).toBeInTheDocument();
     }
+    // invoice_created is grouped under invoice_status
+    expect(screen.queryByTestId('type-filter-invoice_created')).not.toBeInTheDocument();
     // Manual types should not be rendered
     expect(screen.queryByTestId('type-filter-daily_log')).not.toBeInTheDocument();
     expect(screen.queryByTestId('type-filter-site_visit')).not.toBeInTheDocument();
@@ -177,9 +179,9 @@ describe('DiaryFilterBar', () => {
     expect(screen.queryByTestId('type-filter-general_note')).not.toBeInTheDocument();
   });
 
-  it('when filterMode="all" (default), all 12 type chips are rendered', () => {
+  it('when filterMode="all" (default), all visible type chips are rendered (invoice_created hidden)', () => {
     renderFilterBar({ filterMode: 'all' });
-    const allTypes: DiaryEntryType[] = [
+    const visibleTypes: DiaryEntryType[] = [
       'daily_log',
       'site_visit',
       'delivery',
@@ -187,15 +189,15 @@ describe('DiaryFilterBar', () => {
       'general_note',
       'work_item_status',
       'invoice_status',
-      'invoice_created',
       'milestone_delay',
       'budget_breach',
       'auto_reschedule',
       'subsidy_status',
     ];
-    for (const type of allTypes) {
+    for (const type of visibleTypes) {
       expect(screen.getByTestId(`type-filter-${type}`)).toBeInTheDocument();
     }
+    expect(screen.queryByTestId('type-filter-invoice_created')).not.toBeInTheDocument();
   });
 
   // ─── Type chip interaction ─────────────────────────────────────────────────

@@ -83,18 +83,8 @@ test.describe('Automatic entries in diary list (Scenario 1)', { tag: '@responsiv
         await diaryPage.goto();
         await diaryPage.waitForLoaded();
 
-        // UAT R2 fix #868: automatic events are now rendered inside a flat <div> (not a collapsible
-        // details/summary element). The section has data-testid="automatic-section-{date}" and
-        // contains a header with "Automated Events" text. No interaction needed to reveal the cards.
-        const automaticSection = page.getByTestId(
-          `automatic-section-${mockEntry['entryDate'] as string}`,
-        );
-        await automaticSection.waitFor({ state: 'visible' });
-
-        // The section header should contain "Automated Events"
-        await expect(automaticSection).toContainText('Automated Events');
-
-        // The entry card should be directly visible inside the section
+        // UAT R7: automatic entries are now interleaved with manual entries in chronological order
+        // The entry card should be directly visible in the date group
         await expect(diaryPage.entryCard(mockId)).toBeVisible();
       } finally {
         await page.unroute('**/api/diary-entries*');
