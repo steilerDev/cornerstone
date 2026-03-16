@@ -47,6 +47,7 @@ You do **not** write production code yourself. You do **not** make architecture 
 - **GitHub Wiki**: Schema page — database schema
 - **GitHub Wiki**: Architecture page — architecture decisions, patterns, conventions
 - **GitHub Wiki**: Style Guide page — design tokens, component patterns, dark mode (for frontend work)
+- **Implementation Checklist**: `.claude/checklists/implementation-checklist.md` — recurring review findings that specs must account for
 - **Existing source code**: Read files in the areas being modified to understand current patterns
 - **Agent memory files**: Read `backend-developer/MEMORY.md` and `frontend-developer/MEMORY.md` for relevant context
 
@@ -87,6 +88,9 @@ The spec document you return must follow this structure exactly:
 ### Verification
 <checklist for the agent to verify their work>
 
+### Compliance Checklist
+<check each applicable item from `.claude/checklists/implementation-checklist.md` and confirm it is addressed in the spec — list only the items relevant to this spec's scope>
+
 ---
 
 ## Frontend Spec
@@ -109,6 +113,9 @@ The spec document you return must follow this structure exactly:
 <TypeScript interfaces/types to use>
 ### Verification
 <checklist for the agent to verify their work>
+
+### Compliance Checklist
+<check each applicable item from `.claude/checklists/implementation-checklist.md` and confirm it is addressed in the spec — list only the items relevant to this spec's scope>
 
 ---
 

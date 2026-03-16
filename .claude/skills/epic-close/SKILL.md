@@ -255,9 +255,16 @@ For each group of issues from 11d:
 
 1. Create a fresh branch from `origin/beta`: `git checkout -B fix/<issue-number>-<short-description> origin/beta`
 2. Execute `/develop` steps 2–11 (skipping step 1 Rebase and step 4 Branch — branch is already created)
-3. Track success/failure for each group
+3. **UAT fix batches MUST go through the standard review pipeline.** Launch at minimum:
+   - `product-architect` review
+   - `product-owner` review (if any items are user-story-adjacent or touch acceptance criteria)
+   - `ux-designer` review (if the fix touches `client/src/`)
+   - `security-engineer` review may be skipped for frontend-only UAT fixes (per Security Review Trigger Rules in `/develop` step 8)
+4. Track success/failure for each group
 
 If any group fails after retry budget exhaustion, report the failure to the user and ask whether to continue with remaining groups or pause.
+
+**Important**: Never bypass reviews for UAT fix batches regardless of urgency. Large unreviewed PRs are the highest-risk code path.
 
 #### 11f. Update Promotion PR
 
@@ -303,7 +310,29 @@ Wait for CI, then squash merge.
 
 **Note:** Documentation runs after user approval (step 11) to ensure docs reflect the final state, including any changes from UAT feedback rounds.
 
-### 13. Merge & Post-Merge
+### 13. Lessons Learned Sync
+
+After user approval and before merging, update the implementation checklist with patterns learned during this epic:
+
+1. Read agent memory files for reviewing agents:
+   - `product-owner/MEMORY.md` — recurring acceptance criteria gaps
+   - `ux-designer/MEMORY.md` — recurring token/pattern violations
+   - `product-architect/MEMORY.md` — recurring architecture deviations
+2. Read `.claude/metrics/review-metrics.jsonl` filtered for this epic's PRs
+3. Identify any new recurring patterns from this epic's fix loops that are NOT yet in `.claude/checklists/implementation-checklist.md`
+4. If new patterns found, add them to the checklist and commit:
+   ```bash
+   git add .claude/checklists/implementation-checklist.md
+   git commit -m "chore: update implementation checklist with lessons from epic #<epic-number>
+
+   Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
+   git push
+   ```
+5. If no new patterns, skip the commit
+
+This creates a flywheel: each epic's review findings reduce fix loops in subsequent epics.
+
+### 14. Merge & Post-Merge
 
 After user approval:
 
