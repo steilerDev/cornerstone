@@ -74,14 +74,24 @@ export function DiaryMetadataSummary({ entryType, metadata }: DiaryMetadataSumma
   if (entryType === 'delivery' && metadata) {
     const m = metadata as DeliveryMetadata;
     return (
-      <div className={styles.metadata} data-testid="delivery-metadata">
-        {m.materials && m.materials.length > 0 && (
-          <span className={styles.item}>{m.materials.length} materials</span>
+      <div className={styles.deliveryMetadata} data-testid="delivery-metadata">
+        {m.vendor && (
+          <div className={styles.deliveryItem}>
+            <span className={styles.deliveryLabel}>Vendor:</span>
+            <span className={styles.deliveryValue}>{m.vendor}</span>
+          </div>
         )}
-        {m.deliveryConfirmed !== undefined && (
-          <span className={`${styles.item} ${m.deliveryConfirmed ? styles.confirmed : ''}`}>
-            {m.deliveryConfirmed ? '✓ Confirmed' : '⏳ Pending'}
-          </span>
+        {m.materials && m.materials.length > 0 && (
+          <div className={styles.deliveryItem}>
+            <span className={styles.deliveryLabel}>Description:</span>
+            <div className={styles.materialsList}>
+              {m.materials.map((material, idx) => (
+                <span key={idx} className={styles.materialTag}>
+                  {material}
+                </span>
+              ))}
+            </div>
+          </div>
         )}
       </div>
     );

@@ -226,7 +226,7 @@ export default function DiaryEntryDetailPage() {
 
         {/* Signature Display */}
         {entry.metadata &&
-          (entry.entryType === 'daily_log' || entry.entryType === 'site_visit') &&
+          (entry.entryType === 'daily_log' || entry.entryType === 'site_visit' || entry.entryType === 'issue') &&
           Array.isArray((entry.metadata as { signatures?: DiarySignatureEntry[] }).signatures) &&
           (entry.metadata as { signatures: DiarySignatureEntry[] }).signatures.map((sig, i) => (
             <div key={i} className={styles.signatureSection}>

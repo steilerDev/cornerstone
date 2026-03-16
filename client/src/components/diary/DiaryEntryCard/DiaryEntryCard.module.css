@@ -123,6 +123,7 @@
   font-weight: var(--font-weight-medium);
   color: var(--color-success-text-on-light);
   white-space: nowrap;
+  margin-left: auto;
 }
 
 /* Responsive */

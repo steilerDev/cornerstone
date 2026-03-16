@@ -47,13 +47,13 @@ export interface DiaryEntryFormProps {
   onDeliveryVendorChange?: (vendor: string | null) => void;
   deliveryMaterials?: string[] | null;
   onDeliveryMaterialsChange?: (materials: string[] | null) => void;
-  deliveryConfirmed?: boolean;
-  onDeliveryConfirmedChange?: (confirmed: boolean) => void;
   /** issue metadata */
   issueSeverity?: DiaryIssueSeverity | null;
   onIssueSeverityChange?: (severity: DiaryIssueSeverity | null) => void;
   issueResolutionStatus?: DiaryIssueResolution | null;
   onIssueResolutionStatusChange?: (status: DiaryIssueResolution | null) => void;
+  issueSignatures?: DiarySignatureEntry[] | null;
+  onIssueSignaturesChange?: (sigs: DiarySignatureEntry[] | null) => void;
   /** Signature UX enhancements */
   currentUserName?: string;
   vendors?: VendorOption[];
@@ -118,13 +118,13 @@ export function DiaryEntryForm({
   onDeliveryVendorChange,
   deliveryMaterials,
   onDeliveryMaterialsChange,
-  deliveryConfirmed,
-  onDeliveryConfirmedChange,
   // issue
   issueSeverity,
   onIssueSeverityChange,
   issueResolutionStatus,
   onIssueResolutionStatusChange,
+  issueSignatures,
+  onIssueSignaturesChange,
   // signature enhancements
   currentUserName,
   vendors,
@@ -432,24 +432,10 @@ export function DiaryEntryForm({
                 placeholder="Vendor name"
               />
             </div>
-
-            <div className={styles.formGroup}>
-              <label htmlFor="delivery-confirmed" className={styles.checkboxLabel}>
-                <input
-                  type="checkbox"
-                  id="delivery-confirmed"
-                  checked={deliveryConfirmed || false}
-                  onChange={(e) => onDeliveryConfirmedChange?.(e.target.checked)}
-                  disabled={disabled}
-                  className={styles.checkbox}
-                />
-                Delivery Confirmed
-              </label>
-            </div>
           </div>
 
           <div className={styles.formGroup}>
-            <label className={styles.label}>Materials</label>
+            <label className={styles.label}>Description</label>
             {(deliveryMaterials?.length ?? 0) > 0 && (
               <div className={styles.materialsList}>
                 {deliveryMaterials!.map((material, index) => (
@@ -474,7 +460,7 @@ export function DiaryEntryForm({
                 ref={materialInputRef}
                 name="material-input"
                 className={styles.input}
-                placeholder="Add material and press enter"
+                placeholder="Add item and press enter"
                 disabled={disabled}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
@@ -567,6 +553,35 @@ export function DiaryEntryForm({
               )}
             </div>
           </div>
+
+          <SignatureSection
+            signatures={issueSignatures}
+            onSignatureChange={(index, updated) => {
+              if (updated) {
+                const newSigs = [...(issueSignatures || [])];
+                newSigs[index] = updated;
+                onIssueSignaturesChange?.(newSigs);
+              } else {
+                const newSigs = (issueSignatures || []).filter((_, i) => i !== index);
+                onIssueSignaturesChange?.(newSigs.length > 0 ? newSigs : null);
+              }
+            }}
+            onAddSignature={() => {
+              const newSigs = [
+                ...(issueSignatures || []),
+                {
+                  signerName: currentUserName || '',
+                  signerType: 'self' as const,
+                  signatureDataUrl: '',
+                },
+              ];
+              onIssueSignaturesChange?.(newSigs);
+            }}
+            disabled={disabled}
+            label="Signatures"
+            currentUserName={currentUserName}
+            vendors={vendors}
+          />
         </div>
       )}
 
