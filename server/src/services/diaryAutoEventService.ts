@@ -12,7 +12,6 @@
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import { createAutomaticDiaryEntry } from './diaryService.js';
-import type { AutoEventMetadata } from '@cornerstone/shared';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -50,8 +49,8 @@ function toLabel(status: string): string {
  * @param db - Database connection
  * @param enabled - Whether auto-events are enabled globally
  * @param entryType - Automatic entry type
- * @param body - Human-readable description
- * @param metadata - Type-specific metadata
+ * @param title - Human-readable summary
+ * @param body - Full description
  * @param sourceEntityType - Entity type that triggered the event (e.g., 'work_item')
  * @param sourceEntityId - ID of the entity that triggered the event
  */
@@ -59,8 +58,8 @@ function tryCreateDiaryEntry(
   db: DbType,
   enabled: boolean,
   entryType: string,
+  title: string,
   body: string,
-  metadata: AutoEventMetadata | null,
   sourceEntityType: string | null,
   sourceEntityId: string | null,
 ): void {
@@ -72,8 +71,8 @@ function tryCreateDiaryEntry(
       db,
       entryType,
       entryDate,
+      title,
       body,
-      metadata,
       sourceEntityType,
       sourceEntityId,
     );
@@ -105,14 +104,10 @@ export function onWorkItemStatusChanged(
 ): void {
   const previousLabel = toLabel(previousStatus);
   const newLabel = toLabel(newStatus);
-  const body = `[Work Item] "${workItemTitle}" status changed from ${previousLabel} to ${newLabel}`;
-  const metadata: AutoEventMetadata = {
-    changeSummary: `Status changed from ${previousLabel} to ${newLabel}`,
-    previousValue: previousStatus,
-    newValue: newStatus,
-  };
+  const title = `Status changed from ${previousLabel} to ${newLabel}`;
+  const body = `"${workItemTitle}" status changed from ${previousLabel} to ${newLabel}`;
 
-  tryCreateDiaryEntry(db, enabled, 'work_item_status', body, metadata, 'work_item', workItemId);
+  tryCreateDiaryEntry(db, enabled, 'work_item_status', title, body, 'work_item', workItemId);
 }
 
 /**
@@ -135,14 +130,10 @@ export function onInvoiceStatusChanged(
 ): void {
   const previousLabel = toLabel(previousStatus);
   const newLabel = toLabel(newStatus);
-  const body = `[Invoice] ${invoiceNumber || 'N/A'} status changed from ${previousLabel} to ${newLabel}`;
-  const metadata: AutoEventMetadata = {
-    changeSummary: `Status changed from ${previousLabel} to ${newLabel}`,
-    previousValue: previousStatus,
-    newValue: newStatus,
-  };
+  const title = `Status changed from ${previousLabel} to ${newLabel}`;
+  const body = `${invoiceNumber || 'N/A'} status changed from ${previousLabel} to ${newLabel}`;
 
-  tryCreateDiaryEntry(db, enabled, 'invoice_status', body, metadata, 'invoice', invoiceId);
+  tryCreateDiaryEntry(db, enabled, 'invoice_status', title, body, 'invoice', invoiceId);
 }
 
 /**
@@ -168,20 +159,15 @@ export function onMilestoneDelayed(
   const projected = new Date(projectedDate + 'T00:00:00Z');
   const delayDays = Math.round((projected.getTime() - target.getTime()) / (24 * 60 * 60 * 1000));
 
-  const body = `Milestone: ${milestoneName} is delayed by ${delayDays} days (Target date ${targetDate}, new projected date ${projectedDate})`;
-  const metadata: AutoEventMetadata = {
-    changeSummary: 'Milestone delayed beyond target date',
-    targetDate,
-    projectedDate,
-    delayDays,
-  };
+  const title = 'Milestone delayed beyond target date';
+  const body = `${milestoneName} is delayed by ${delayDays} days (Target date ${targetDate}, new projected date ${projectedDate})`;
 
   tryCreateDiaryEntry(
     db,
     enabled,
     'milestone_delay',
+    title,
     body,
-    metadata,
     'milestone',
     String(milestoneId),
   );
@@ -201,12 +187,10 @@ export function onBudgetCategoryOverspend(
   categoryId: string,
   categoryName: string,
 ): void {
-  const body = `Budget: Category ${categoryName} has exceeded planned amount`;
-  const metadata: AutoEventMetadata = {
-    changeSummary: 'Budget category overspend detected',
-  };
+  const title = 'Budget category overspend detected';
+  const body = `Category ${categoryName} has exceeded planned amount`;
 
-  tryCreateDiaryEntry(db, enabled, 'budget_breach', body, metadata, 'budget_source', categoryId);
+  tryCreateDiaryEntry(db, enabled, 'budget_breach', title, body, 'budget_source', categoryId);
 }
 
 /**
@@ -246,14 +230,10 @@ export function onSubsidyStatusChanged(
 ): void {
   const previousLabel = toLabel(previousStatus);
   const newLabel = toLabel(newStatus);
-  const body = `Subsidy: ${subsidyName} application status changed from ${previousLabel} to ${newLabel}`;
-  const metadata: AutoEventMetadata = {
-    changeSummary: `Application status changed from ${previousLabel} to ${newLabel}`,
-    previousValue: previousStatus,
-    newValue: newStatus,
-  };
+  const title = `Application status changed from ${previousLabel} to ${newLabel}`;
+  const body = `${subsidyName} application status changed from ${previousLabel} to ${newLabel}`;
 
-  tryCreateDiaryEntry(db, enabled, 'subsidy_status', body, metadata, 'subsidy_program', subsidyId);
+  tryCreateDiaryEntry(db, enabled, 'subsidy_status', title, body, 'subsidy_program', subsidyId);
 }
 
 /**
@@ -272,10 +252,8 @@ export function onInvoiceCreated(
   invoiceNumber: string,
   vendorName: string,
 ): void {
-  const body = `[Invoice] ${invoiceNumber} created for ${vendorName}`;
-  const metadata: AutoEventMetadata = {
-    changeSummary: 'Invoice created',
-  };
+  const title = 'Invoice created';
+  const body = `${invoiceNumber} created for ${vendorName}`;
 
-  tryCreateDiaryEntry(db, enabled, 'invoice_created', body, metadata, 'invoice', invoiceId);
+  tryCreateDiaryEntry(db, enabled, 'invoice_created', title, body, 'invoice', invoiceId);
 }
