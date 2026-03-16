@@ -6,21 +6,23 @@
  */
 
 /**
- * Format a number as a currency string in EUR.
+ * Format a number as a currency string.
  *
  * Uses `Intl.NumberFormat` so the output respects locale conventions for
  * thousands separators and decimal points while always showing 2 fraction
- * digits and the € symbol.
+ * digits and the currency symbol.
  *
  * Negative values are rendered correctly (e.g. −€1,234.56).
  *
  * @param amount - The numeric amount to format (may be negative).
+ * @param locale - The locale for number formatting (default: 'en-US').
+ * @param currency - The currency code (default: 'EUR').
  * @returns A locale-formatted currency string, e.g. "€1,234.56".
  */
-export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
+export function formatCurrency(amount: number, locale = 'en-US', currency = 'EUR'): string {
+  return new Intl.NumberFormat(locale, {
     style: 'currency',
-    currency: 'EUR',
+    currency,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(amount);
@@ -45,14 +47,15 @@ export function formatPercent(rate: number): string {
  * `new Date()` directly.
  *
  * @param dateStr - An ISO date string or null/undefined.
+ * @param locale - The locale for formatting (default: 'en-US').
  * @param fallback - Value returned when dateStr is null/undefined/invalid. Defaults to '—'.
  * @returns A localized date string, e.g. "Feb 27, 2026", or the fallback value.
  */
-export function formatDate(dateStr: string | null | undefined, fallback = '—'): string {
+export function formatDate(dateStr: string | null | undefined, locale = 'en-US', fallback = '—'): string {
   if (!dateStr) return fallback;
   const [year, month, day] = dateStr.slice(0, 10).split('-').map(Number);
   if (!year || !month || !day) return fallback;
-  return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+  return new Date(year, month - 1, day).toLocaleDateString(locale, {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -63,14 +66,15 @@ export function formatDate(dateStr: string | null | undefined, fallback = '—')
  * Format an ISO timestamp as a localized time string (HH:MM).
  *
  * @param timestamp - An ISO timestamp string or null/undefined.
+ * @param locale - The locale for formatting (default: 'en-US').
  * @param fallback - Value returned when timestamp is null/undefined. Defaults to '—'.
  * @returns A localized time string, e.g. "2:45 PM", or the fallback value.
  */
-export function formatTime(timestamp: string | null | undefined, fallback = '—'): string {
+export function formatTime(timestamp: string | null | undefined, locale = 'en-US', fallback = '—'): string {
   if (!timestamp) return fallback;
   try {
     const date = new Date(timestamp);
-    return date.toLocaleTimeString('en-US', {
+    return date.toLocaleTimeString(locale, {
       hour: 'numeric',
       minute: '2-digit',
       hour12: true,
@@ -84,21 +88,22 @@ export function formatTime(timestamp: string | null | undefined, fallback = '—
  * Format an ISO timestamp as a localized date and time string.
  *
  * @param timestamp - An ISO timestamp string or null/undefined.
+ * @param locale - The locale for formatting (default: 'en-US').
  * @param fallback - Value returned when timestamp is null/undefined. Defaults to '—'.
  * @returns A localized date and time string, e.g. "Feb 27, 2026 at 2:45 PM", or the fallback value.
  */
-export function formatDateTime(timestamp: string | null | undefined, fallback = '—'): string {
+export function formatDateTime(timestamp: string | null | undefined, locale = 'en-US', fallback = '—'): string {
   if (!timestamp) return fallback;
   try {
     const date = new Date(timestamp);
     return (
-      date.toLocaleDateString('en-US', {
+      date.toLocaleDateString(locale, {
         year: 'numeric',
         month: 'short',
         day: 'numeric',
       }) +
       ' at ' +
-      date.toLocaleTimeString('en-US', {
+      date.toLocaleTimeString(locale, {
         hour: 'numeric',
         minute: '2-digit',
         hour12: true,
@@ -130,3 +135,35 @@ export function computeActualDuration(
   const diffDays = Math.round((endMs - startMs) / (1000 * 60 * 60 * 24));
   return diffDays >= 0 ? diffDays : null;
 }
+
+/**
+ * To use locale-aware formatters in a component, import useLocale and call the
+ * formatting functions with resolvedLocale and currency from the context:
+ *
+ * ```tsx
+ * import { useLocale } from '../contexts/LocaleContext.js';
+ * import { formatCurrency, formatDate } from './formatters.js';
+ *
+ * function MyComponent() {
+ *   const { resolvedLocale, currency } = useLocale();
+ *   return <div>{formatCurrency(100, resolvedLocale, currency)}</div>;
+ * }
+ * ```
+ *
+ * Or create a simple wrapper hook in your component file:
+ *
+ * ```tsx
+ * function useFormatters() {
+ *   const { resolvedLocale, currency } = useLocale();
+ *   return {
+ *     formatCurrency: (amount: number) => formatCurrency(amount, resolvedLocale, currency),
+ *     formatDate: (dateStr: string | null | undefined, fallback?: string) =>
+ *       formatDate(dateStr, resolvedLocale, fallback),
+ *     formatTime: (timestamp: string | null | undefined, fallback?: string) =>
+ *       formatTime(timestamp, resolvedLocale, fallback),
+ *     formatDateTime: (timestamp: string | null | undefined, fallback?: string) =>
+ *       formatDateTime(timestamp, resolvedLocale, fallback),
+ *   };
+ * }
+ * ```
+ */

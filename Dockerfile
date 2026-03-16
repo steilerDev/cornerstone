@@ -118,6 +118,7 @@ ENV PORT=3000
 ENV HOST=0.0.0.0
 ENV DATABASE_URL=/app/data/cornerstone.db
 ENV LOG_LEVEL=info
+ENV CURRENCY=EUR
 
 # Health check — exec form required (DHI production image has no /bin/sh)
 # Uses /api/health/ready which verifies DB access and password hashing round-trip

@@ -315,3 +315,6 @@ export type {
   DiaryEntryListQuery,
   DiaryEntryListResponse,
 } from './types/diary.js';
+
+// Application Config
+export type { AppConfigResponse } from './types/config.js';

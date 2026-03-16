@@ -15,6 +15,7 @@ import errorHandlerPlugin from './plugins/errorHandler.js';
 import authPlugin from './plugins/auth.js';
 import helmetPlugin from './plugins/helmetPlugin.js';
 import rateLimitPlugin from './plugins/rateLimitPlugin.js';
+import configRoutes from './routes/config.js';
 import authRoutes from './routes/auth.js';
 import oidcRoutes from './routes/oidc.js';
 import userRoutes from './routes/users.js';
@@ -92,6 +93,9 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Rate limiting (global defaults, per-route overrides on auth endpoints)
   await app.register(rateLimitPlugin);
+
+  // Config routes (public — no auth required)
+  await app.register(configRoutes, { prefix: '/api/config' });
 
   // Auth routes
   await app.register(authRoutes, { prefix: '/api/auth' });

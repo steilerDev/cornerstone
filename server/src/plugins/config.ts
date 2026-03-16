@@ -24,6 +24,7 @@ export interface AppConfig {
   photoStoragePath: string;
   photoMaxFileSizeMb: number;
   diaryAutoEvents: boolean;
+  currency: string;
 }
 
 // Type augmentation: makes fastify.config available across all routes/plugins
@@ -178,6 +179,13 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
   }
   const diaryAutoEvents = diaryAutoEventsStr === 'true';
 
+  // CURRENCY — ISO 4217 currency code (e.g. EUR, USD, CHF)
+  const currencyRaw = (getValue('CURRENCY') ?? 'EUR').toUpperCase().trim();
+  if (!/^[A-Z]{3}$/.test(currencyRaw)) {
+    errors.push(`CURRENCY must be a 3-letter ISO 4217 code, got: ${getValue('CURRENCY')}`);
+  }
+  const currency = currencyRaw;
+
   // If there are any validation errors, throw a single error listing all of them
   if (errors.length > 0) {
     throw new Error(`Configuration validation failed:\n  - ${errors.join('\n  - ')}`);
@@ -205,6 +213,7 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     photoStoragePath,
     photoMaxFileSizeMb,
     diaryAutoEvents,
+    currency,
   };
 }
 
@@ -232,6 +241,7 @@ export default fp(
         photoStoragePath: config.photoStoragePath,
         photoMaxFileSizeMb: config.photoMaxFileSizeMb,
         diaryAutoEvents: config.diaryAutoEvents,
+        currency: config.currency,
       },
       'Configuration loaded',
     );
