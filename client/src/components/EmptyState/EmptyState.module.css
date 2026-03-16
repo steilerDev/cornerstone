@@ -44,7 +44,7 @@
   text-decoration: none;
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: var(--transition-normal);
+  transition: color var(--transition-normal), text-decoration-color var(--transition-normal);
 }
 
 .action:hover {

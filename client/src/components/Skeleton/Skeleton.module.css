@@ -9,7 +9,7 @@
 }
 
 .line {
-  height: 12px;
+  height: 12px; /* Intentional skeleton rail height — no spacing token equivalent */
   border-radius: var(--radius-sm);
   background: linear-gradient(
     90deg,
