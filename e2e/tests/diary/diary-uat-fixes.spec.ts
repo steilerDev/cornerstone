@@ -184,9 +184,7 @@ test.describe('Source entity title in diary card (Scenario 4)', () => {
 // Scenario 5: Automatic events are in a collapsible section
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Automatic events interleaved (Scenario 5)', { tag: '@responsive' }, () => {
-  test('Automatic and manual entries are interleaved in the same date group', async ({
-    page,
-  }) => {
+  test('Automatic and manual entries are interleaved in the same date group', async ({ page }) => {
     await page.route('**/api/diary-entries*', async (route) => {
       if (route.request().method() === 'GET') {
         await route.fulfill({
