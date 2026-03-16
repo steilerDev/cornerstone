@@ -5,7 +5,7 @@ import styles from './SignatureSection.module.css';
 
 export interface SignatureSectionProps {
   /** Existing signatures */
-  signatures: DiarySignatureEntry[] | null;
+  signatures: DiarySignatureEntry[] | null | undefined;
   /** Callback when a signature is updated or deleted */
   onSignatureChange: (index: number, updated: DiarySignatureEntry | null) => void;
   /** Callback to add a new signature */
