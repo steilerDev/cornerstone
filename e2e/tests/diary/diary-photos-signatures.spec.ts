@@ -466,19 +466,18 @@ test.describe('Edit hidden for signed entries (Scenario 9)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 10: "Add photos" link hidden only for automatic entries, not signed entries
+// Scenario 10: Photo section visibility for signed and automatic entries
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('"Add photos" link visibility (Scenario 10)', () => {
-  // UAT fix #837: "Add photos" link is now only hidden for isAutomatic=true entries.
-  // Signed (isSigned=true) entries can still have photos added via the edit page.
-  test('"Add photos" link IS shown for signed entries (isSigned=true) (mock API)', async ({
+test.describe('Photo section visibility (Scenario 10)', () => {
+  // UAT R3 fix #875: Photo section is hidden entirely when signed + no photos,
+  // and hidden entirely for automatic entries.
+  test('Photo section is hidden for signed entries with no photos (isSigned=true) (mock API)', async ({
     page,
   }) => {
     const detailPage = new DiaryEntryDetailPage(page);
     const mockId = 'mock-entry-signed-nophoto-001';
     const mockEntry = makeMockEntryDetail({ id: mockId, isSigned: true, photoCount: 0 });
 
-    // The /api/photos endpoint returns { photos: [] } not [] directly
     await page.route(`**/api/photos*`, async (route) => {
       if (route.request().method() === 'GET') {
         await route.fulfill({
@@ -507,12 +506,8 @@ test.describe('"Add photos" link visibility (Scenario 10)', () => {
       await detailPage.goto(mockId);
       await expect(detailPage.backButton).toBeVisible();
 
-      // Photo section empty state is shown
-      await expect(detailPage.photoEmptyState).toBeVisible();
-
-      // "Add photos" link IS rendered for signed (non-automatic) entries
-      // UAT fix #837 changed the guard from !isAutomatic && !isSigned to just !isAutomatic
-      await expect(page.getByRole('link', { name: /Add photos/i })).toBeVisible();
+      // Photo section should be entirely hidden for signed entries with no photos
+      await expect(page.getByRole('link', { name: /Add photos/i })).not.toBeVisible();
     } finally {
       await page.unroute(`${API.diaryEntries}/${mockId}`);
       await page.unroute('**/api/photos*');
@@ -560,10 +555,7 @@ test.describe('"Add photos" link visibility (Scenario 10)', () => {
       await detailPage.goto(mockId);
       await expect(detailPage.backButton).toBeVisible();
 
-      // Photo empty state is shown
-      await expect(detailPage.photoEmptyState).toBeVisible();
-
-      // "Add photos" link is NOT rendered for automatic entries
+      // UAT R3 fix #875: entire photo section is hidden for automatic entries
       await expect(page.getByRole('link', { name: /Add photos/i })).not.toBeVisible();
     } finally {
       await page.unroute(`${API.diaryEntries}/${mockId}`);
