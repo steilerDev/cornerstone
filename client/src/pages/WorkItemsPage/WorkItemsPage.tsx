@@ -6,7 +6,8 @@ import { listUsers } from '../../lib/usersApi.js';
 import { fetchTags } from '../../lib/tagsApi.js';
 import type { TagResponse } from '@cornerstone/shared';
 import { ApiClientError } from '../../lib/apiClient.js';
-import { StatusBadge } from '../../components/StatusBadge/StatusBadge.js';
+import { Badge } from '../../components/Badge/Badge.js';
+import badgeStyles from '../../components/Badge/Badge.module.css';
 import { TagPill } from '../../components/TagPill/TagPill.js';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import { KeyboardShortcutsHelp } from '../../components/KeyboardShortcutsHelp/KeyboardShortcutsHelp.js';
@@ -19,6 +20,12 @@ const STATUS_OPTIONS: { value: WorkItemStatus; label: string }[] = [
   { value: 'in_progress', label: 'In Progress' },
   { value: 'completed', label: 'Completed' },
 ];
+
+const WORK_ITEM_STATUS_VARIANTS = {
+  not_started: { label: 'Not Started', className: badgeStyles.not_started },
+  in_progress: { label: 'In Progress', className: badgeStyles.in_progress },
+  completed: { label: 'Completed', className: badgeStyles.completed },
+};
 
 const SORT_OPTIONS: { value: string; label: string }[] = [
   { value: 'title', label: 'Title' },
@@ -559,7 +566,7 @@ export function WorkItemsPage() {
                   >
                     <td className={styles.titleCell}>{item.title}</td>
                     <td>
-                      <StatusBadge status={item.status} />
+                      <Badge variants={WORK_ITEM_STATUS_VARIANTS} value={item.status} />
                     </td>
                     <td>{item.assignedUser?.displayName || '—'}</td>
                     <td>{formatDate(item.startDate)}</td>
@@ -649,7 +656,7 @@ export function WorkItemsPage() {
                 <div className={styles.cardBody}>
                   <div className={styles.cardRow}>
                     <span className={styles.cardLabel}>Status:</span>
-                    <StatusBadge status={item.status} />
+                    <Badge variants={WORK_ITEM_STATUS_VARIANTS} value={item.status} />
                   </div>
                   <div className={styles.cardRow}>
                     <span className={styles.cardLabel}>Assigned:</span>

@@ -6,8 +6,8 @@ import type {
   DeliveryMetadata,
   IssueMetadata,
 } from '@cornerstone/shared';
-import { DiaryOutcomeBadge } from '../DiaryOutcomeBadge/DiaryOutcomeBadge.js';
-import { DiarySeverityBadge } from '../DiarySeverityBadge/DiarySeverityBadge.js';
+import { Badge } from '../../Badge/Badge.js';
+import badgeStyles from '../../Badge/Badge.module.css';
 import styles from './DiaryMetadataSummary.module.css';
 
 interface DiaryMetadataSummaryProps {
@@ -22,6 +22,19 @@ const WEATHER_EMOJI: Record<string, string> = {
   snowy: '❄️',
   stormy: '⛈️',
   other: '🌡️',
+};
+
+const DIARY_OUTCOME_VARIANTS = {
+  pass: { label: 'Pass', className: badgeStyles.pass },
+  fail: { label: 'Fail', className: badgeStyles.fail },
+  conditional: { label: 'Conditional', className: badgeStyles.conditional },
+};
+
+const DIARY_SEVERITY_VARIANTS = {
+  low: { label: 'Low', className: badgeStyles.low },
+  medium: { label: 'Medium', className: badgeStyles.medium },
+  high: { label: 'High', className: badgeStyles.high },
+  critical: { label: 'Critical', className: badgeStyles.critical },
 };
 
 export function DiaryMetadataSummary({ entryType, metadata }: DiaryMetadataSummaryProps) {
@@ -45,7 +58,14 @@ export function DiaryMetadataSummary({ entryType, metadata }: DiaryMetadataSumma
     const m = metadata as SiteVisitMetadata;
     return (
       <div className={styles.metadata} data-testid="site-visit-metadata">
-        {m.outcome && <DiaryOutcomeBadge outcome={m.outcome} />}
+        {m.outcome && (
+          <Badge
+            variants={DIARY_OUTCOME_VARIANTS}
+            value={m.outcome}
+            ariaLabel={`Outcome: ${DIARY_OUTCOME_VARIANTS[m.outcome]?.label}`}
+            testId={`outcome-${m.outcome}`}
+          />
+        )}
         {m.inspectorName && <span className={styles.item}>{m.inspectorName}</span>}
       </div>
     );
@@ -71,7 +91,14 @@ export function DiaryMetadataSummary({ entryType, metadata }: DiaryMetadataSumma
     const m = metadata as IssueMetadata;
     return (
       <div className={styles.metadata} data-testid="issue-metadata">
-        {m.severity && <DiarySeverityBadge severity={m.severity} />}
+        {m.severity && (
+          <Badge
+            variants={DIARY_SEVERITY_VARIANTS}
+            value={m.severity}
+            ariaLabel={`Severity: ${DIARY_SEVERITY_VARIANTS[m.severity]?.label}`}
+            testId={`severity-${m.severity}`}
+          />
+        )}
         {m.resolutionStatus && (
           <span className={styles.item}>
             {m.resolutionStatus === 'open'

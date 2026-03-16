@@ -2,73 +2,91 @@
  * @jest-environment jsdom
  */
 import { describe, it, expect } from '@jest/globals';
-import { render, screen } from '@testing-library/react';
-import { HouseholdItemStatusBadge } from './HouseholdItemStatusBadge.js';
+import { render } from '@testing-library/react';
+import { Badge } from '../Badge/Badge.js';
+import badgeStyles from '../Badge/Badge.module.css';
 
-describe('HouseholdItemStatusBadge', () => {
-  it('renders "Planned" text for planned status', () => {
-    render(<HouseholdItemStatusBadge status="planned" />);
+// Variant map mirroring the production definition in HouseholdItemsPage.tsx
+const HI_STATUS_VARIANTS = {
+  planned: { label: 'Planned', className: badgeStyles.planned },
+  purchased: { label: 'Purchased', className: badgeStyles.purchased },
+  scheduled: { label: 'Scheduled', className: badgeStyles.scheduled },
+  arrived: { label: 'Arrived', className: badgeStyles.arrived },
+};
 
-    expect(screen.getByText('Planned')).toBeInTheDocument();
+describe('Badge — household item status variants', () => {
+  // ─── Labels ────────────────────────────────────────────────────────────────
+
+  it('renders "Planned" for planned status', () => {
+    const { container } = render(<Badge variants={HI_STATUS_VARIANTS} value="planned" />);
+    expect(container.querySelector('span')?.textContent).toBe('Planned');
   });
 
-  it('renders "Purchased" text for purchased status', () => {
-    render(<HouseholdItemStatusBadge status="purchased" />);
-
-    expect(screen.getByText('Purchased')).toBeInTheDocument();
+  it('renders "Purchased" for purchased status', () => {
+    const { container } = render(<Badge variants={HI_STATUS_VARIANTS} value="purchased" />);
+    expect(container.querySelector('span')?.textContent).toBe('Purchased');
   });
 
-  it('renders "Scheduled" text for scheduled status', () => {
-    render(<HouseholdItemStatusBadge status="scheduled" />);
-
-    expect(screen.getByText('Scheduled')).toBeInTheDocument();
+  it('renders "Scheduled" for scheduled status', () => {
+    const { container } = render(<Badge variants={HI_STATUS_VARIANTS} value="scheduled" />);
+    expect(container.querySelector('span')?.textContent).toBe('Scheduled');
   });
 
-  it('renders "Arrived" text for arrived status', () => {
-    render(<HouseholdItemStatusBadge status="arrived" />);
-
-    expect(screen.getByText('Arrived')).toBeInTheDocument();
+  it('renders "Arrived" for arrived status', () => {
+    const { container } = render(<Badge variants={HI_STATUS_VARIANTS} value="arrived" />);
+    expect(container.querySelector('span')?.textContent).toBe('Arrived');
   });
 
-  it('applies badge CSS class', () => {
-    const { container } = render(<HouseholdItemStatusBadge status="planned" />);
+  // ─── Base CSS class ─────────────────────────────────────────────────────────
 
-    const badge = container.querySelector('span');
-    expect(badge).toHaveClass('badge');
+  it('applies badge base CSS class for planned', () => {
+    const { container } = render(<Badge variants={HI_STATUS_VARIANTS} value="planned" />);
+    expect(container.querySelector('span')?.getAttribute('class') ?? '').toContain('badge');
   });
+
+  it('applies badge base CSS class for purchased', () => {
+    const { container } = render(<Badge variants={HI_STATUS_VARIANTS} value="purchased" />);
+    expect(container.querySelector('span')?.getAttribute('class') ?? '').toContain('badge');
+  });
+
+  it('applies badge base CSS class for scheduled', () => {
+    const { container } = render(<Badge variants={HI_STATUS_VARIANTS} value="scheduled" />);
+    expect(container.querySelector('span')?.getAttribute('class') ?? '').toContain('badge');
+  });
+
+  it('applies badge base CSS class for arrived', () => {
+    const { container } = render(<Badge variants={HI_STATUS_VARIANTS} value="arrived" />);
+    expect(container.querySelector('span')?.getAttribute('class') ?? '').toContain('badge');
+  });
+
+  // ─── Variant CSS class ──────────────────────────────────────────────────────
 
   it('applies planned CSS class for planned status', () => {
-    const { container } = render(<HouseholdItemStatusBadge status="planned" />);
-
-    const badge = container.querySelector('span');
-    expect(badge).toHaveClass('planned');
+    const { container } = render(<Badge variants={HI_STATUS_VARIANTS} value="planned" />);
+    expect(container.querySelector('span')?.getAttribute('class') ?? '').toContain('planned');
   });
 
   it('applies purchased CSS class for purchased status', () => {
-    const { container } = render(<HouseholdItemStatusBadge status="purchased" />);
-
-    const badge = container.querySelector('span');
-    expect(badge).toHaveClass('purchased');
+    const { container } = render(<Badge variants={HI_STATUS_VARIANTS} value="purchased" />);
+    expect(container.querySelector('span')?.getAttribute('class') ?? '').toContain('purchased');
   });
 
   it('applies scheduled CSS class for scheduled status', () => {
-    const { container } = render(<HouseholdItemStatusBadge status="scheduled" />);
-
-    const badge = container.querySelector('span');
-    expect(badge).toHaveClass('scheduled');
+    const { container } = render(<Badge variants={HI_STATUS_VARIANTS} value="scheduled" />);
+    expect(container.querySelector('span')?.getAttribute('class') ?? '').toContain('scheduled');
   });
 
   it('applies arrived CSS class for arrived status', () => {
-    const { container } = render(<HouseholdItemStatusBadge status="arrived" />);
-
-    const badge = container.querySelector('span');
-    expect(badge).toHaveClass('arrived');
+    const { container } = render(<Badge variants={HI_STATUS_VARIANTS} value="arrived" />);
+    expect(container.querySelector('span')?.getAttribute('class') ?? '').toContain('arrived');
   });
 
-  it('renders as a span element', () => {
-    const { container } = render(<HouseholdItemStatusBadge status="planned" />);
+  // ─── Element type ───────────────────────────────────────────────────────────
 
-    const badge = container.querySelector('span');
-    expect(badge).toBeInTheDocument();
+  it('renders as a span element', () => {
+    const { container } = render(<Badge variants={HI_STATUS_VARIANTS} value="planned" />);
+    const span = container.querySelector('span');
+    expect(span).toBeInTheDocument();
+    expect(span?.tagName.toLowerCase()).toBe('span');
   });
 });
