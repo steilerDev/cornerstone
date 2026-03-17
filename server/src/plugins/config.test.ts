@@ -33,6 +33,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         photoStoragePath: '/app/data/photos',
         photoMaxFileSizeMb: 20,
         diaryAutoEvents: true,
+        currency: 'EUR',
       });
     });
 
@@ -67,6 +68,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         photoStoragePath: '/app/data/photos',
         photoMaxFileSizeMb: 20,
         diaryAutoEvents: true,
+        currency: 'EUR',
       });
     });
   });
@@ -103,6 +105,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         photoStoragePath: '/custom/path/photos',
         photoMaxFileSizeMb: 20,
         diaryAutoEvents: true,
+        currency: 'EUR',
       });
     });
 
@@ -134,6 +137,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         photoStoragePath: '/app/data/photos',
         photoMaxFileSizeMb: 20,
         diaryAutoEvents: true,
+        currency: 'EUR',
       });
     });
   });
@@ -545,6 +549,68 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
           LOG_LEVEL: 'verbose',
         }),
       ).toThrow('LOG_LEVEL must be one of trace, debug, info, warn, error, fatal, got: verbose');
+    });
+  });
+
+  describe('CURRENCY Configuration', () => {
+    it('defaults to EUR when CURRENCY env is not set', () => {
+      const config = loadConfig({});
+      expect(config.currency).toBe('EUR');
+    });
+
+    it('accepts CHF as a valid 3-letter ISO 4217 code', () => {
+      const config = loadConfig({ CURRENCY: 'CHF' });
+      expect(config.currency).toBe('CHF');
+    });
+
+    it('accepts USD as a valid 3-letter ISO 4217 code', () => {
+      const config = loadConfig({ CURRENCY: 'USD' });
+      expect(config.currency).toBe('USD');
+    });
+
+    it('uppercases lowercase input (eur → EUR)', () => {
+      const config = loadConfig({ CURRENCY: 'eur' });
+      expect(config.currency).toBe('EUR');
+    });
+
+    it('uppercases mixed-case input (Chf → CHF)', () => {
+      const config = loadConfig({ CURRENCY: 'Chf' });
+      expect(config.currency).toBe('CHF');
+    });
+
+    it('rejects a code longer than 3 letters (TOOLONG)', () => {
+      expect(() => loadConfig({ CURRENCY: 'TOOLONG' })).toThrow(
+        'CURRENCY must be a 3-letter ISO 4217 code',
+      );
+    });
+
+    it('rejects a code shorter than 3 letters (EU)', () => {
+      expect(() => loadConfig({ CURRENCY: 'EU' })).toThrow(
+        'CURRENCY must be a 3-letter ISO 4217 code',
+      );
+    });
+
+    it('rejects a numeric string (123)', () => {
+      expect(() => loadConfig({ CURRENCY: '123' })).toThrow(
+        'CURRENCY must be a 3-letter ISO 4217 code',
+      );
+    });
+
+    it('rejects a code with digits mixed in (EU1)', () => {
+      expect(() => loadConfig({ CURRENCY: 'EU1' })).toThrow(
+        'CURRENCY must be a 3-letter ISO 4217 code',
+      );
+    });
+
+    it('treats empty string CURRENCY as missing and defaults to EUR', () => {
+      const config = loadConfig({ CURRENCY: '' });
+      expect(config.currency).toBe('EUR');
+    });
+
+    it('error message includes the invalid value that was provided', () => {
+      expect(() => loadConfig({ CURRENCY: 'TOOLONG' })).toThrow(
+        "got: TOOLONG",
+      );
     });
   });
 });

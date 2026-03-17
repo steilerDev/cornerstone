@@ -1,8 +1,10 @@
+import './i18n/index.js';
 import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { AppShell } from './components/AppShell/AppShell';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
+import { LocaleProvider, useLocale } from './contexts/LocaleContext';
 import { useAuth } from './contexts/AuthContext';
 import { AuthGuard } from './components/AuthGuard/AuthGuard';
 import { ToastProvider } from './components/Toast/ToastContext';
@@ -25,6 +27,23 @@ function ParamRedirect({ to }: { to: string }) {
 function ThemeServerSync() {
   const { user } = useAuth();
   const { syncWithServer } = useTheme();
+
+  useEffect(() => {
+    if (user) {
+      void syncWithServer(user.id);
+    }
+  }, [user, syncWithServer]);
+
+  return null;
+}
+
+/**
+ * Bridge component that syncs locale with server when user authenticates.
+ * Must be placed inside AuthProvider but outside Routes to access useAuth and useLocale.
+ */
+function LocaleServerSync() {
+  const { user } = useAuth();
+  const { syncWithServer } = useLocale();
 
   useEffect(() => {
     if (user) {
@@ -79,10 +98,12 @@ export function App() {
   return (
     <BrowserRouter>
       <ThemeProvider>
-        <ToastProvider>
-          <AuthProvider>
-            <ThemeServerSync />
-            <Routes>
+        <LocaleProvider>
+          <ToastProvider>
+            <AuthProvider>
+              <ThemeServerSync />
+              <LocaleServerSync />
+              <Routes>
               {/* Auth routes (no AppShell wrapper) */}
               <Route
                 path="setup"
@@ -234,10 +255,11 @@ export function App() {
                 </Route>
               </Route>
             </Routes>
-            {/* Toast notifications — rendered as a portal to document.body */}
-            <ToastList />
-          </AuthProvider>
-        </ToastProvider>
+              {/* Toast notifications — rendered as a portal to document.body */}
+              <ToastList />
+            </AuthProvider>
+          </ToastProvider>
+        </LocaleProvider>
       </ThemeProvider>
     </BrowserRouter>
   );

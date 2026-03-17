@@ -16,6 +16,7 @@ const PUBLIC_ROUTES = new Set([
   '/api/auth/me',
   '/api/auth/oidc/login',
   '/api/auth/oidc/callback',
+  '/api/config',
   '/api/health',
   '/api/health/ready',
 ]);

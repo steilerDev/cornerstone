@@ -1,0 +1,46 @@
+{
+  "nav": {
+    "project": "Project",
+    "budget": "Budget",
+    "schedule": "Schedule",
+    "diary": "Diary",
+    "settings": "Settings"
+  },
+  "button": {
+    "logout": "Logout",
+    "close": "Close",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "create": "Create",
+    "confirm": "Confirm",
+    "back": "Back",
+    "search": "Search"
+  },
+  "aria": {
+    "closeMenu": "Close menu",
+    "openMenu": "Open menu",
+    "goToOverview": "Go to project overview",
+    "closeDialog": "Close dialog",
+    "clearSelection": "Clear selection"
+  },
+  "loading": "Loading...",
+  "searching": "Searching...",
+  "appName": "Cornerstone",
+  "search": {
+    "placeholder": "Search items...",
+    "emptyHint": "Type to search items",
+    "noResults": "No matching items found",
+    "loadError": "Failed to load items",
+    "searchError": "Failed to search items"
+  },
+  "status": {
+    "notStarted": "Not Started",
+    "inProgress": "In Progress",
+    "completed": "Completed",
+    "onHold": "On Hold",
+    "cancelled": "Cancelled"
+  }
+}

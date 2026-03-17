@@ -1,0 +1,46 @@
+{
+  "nav": {
+    "project": "Projekt",
+    "budget": "Budget",
+    "schedule": "Zeitplan",
+    "diary": "Tagebuch",
+    "settings": "Einstellungen"
+  },
+  "button": {
+    "logout": "Abmelden",
+    "close": "Schließen",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "delete": "Löschen",
+    "edit": "Bearbeiten",
+    "add": "Hinzufügen",
+    "create": "Erstellen",
+    "confirm": "Bestätigen",
+    "back": "Zurück",
+    "search": "Suchen"
+  },
+  "aria": {
+    "closeMenu": "Menü schließen",
+    "openMenu": "Menü öffnen",
+    "goToOverview": "Zur Projektübersicht",
+    "closeDialog": "Dialog schließen",
+    "clearSelection": "Auswahl aufheben"
+  },
+  "loading": "Wird geladen...",
+  "searching": "Suche läuft...",
+  "appName": "Cornerstone",
+  "search": {
+    "placeholder": "Elemente suchen...",
+    "emptyHint": "Zum Suchen tippen",
+    "noResults": "Keine passenden Elemente gefunden",
+    "loadError": "Elemente konnten nicht geladen werden",
+    "searchError": "Suche fehlgeschlagen"
+  },
+  "status": {
+    "notStarted": "Nicht begonnen",
+    "inProgress": "In Bearbeitung",
+    "completed": "Abgeschlossen",
+    "onHold": "Pausiert",
+    "cancelled": "Abgebrochen"
+  }
+}

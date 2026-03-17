@@ -988,7 +988,7 @@ export function SubsidyProgramsPage() {
                           <div className={styles.programDeadline}>
                             <span className={styles.deadlineLabel}>Deadline:</span>{' '}
                             <span className={styles.deadlineValue}>
-                              {formatDate(program.applicationDeadline, '')}
+                              {formatDate(program.applicationDeadline)}
                             </span>
                           </div>
                         )}
