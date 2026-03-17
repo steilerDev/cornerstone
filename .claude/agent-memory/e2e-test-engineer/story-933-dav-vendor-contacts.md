@@ -7,16 +7,19 @@ type: project
 ## Story #933: CalDAV/CardDAV — Vendor Contacts and DAV Token E2E
 
 ### Test Files
+
 - `e2e/tests/vendors/vendor-contacts.spec.ts` — vendor contacts CRUD (5 scenarios, 1 smoke)
 - `e2e/tests/profile/dav-access.spec.ts` — DAV token lifecycle (7 scenarios, 1 smoke)
 
 ### POMs Extended
+
 - `e2e/pages/VendorDetailPage.ts` — contactsSection, createContactModal/editContactModal,
   contactsList, contactsEmptyState, plus 7 helper methods
 - `e2e/pages/ProfilePage.ts` — davSection, generate/regenerate/revokeTokenButton,
   tokenDisplay, downloadProfileLink, plus 4 helper methods + clearDavTokenViaApi()
 
 ### VendorContacts Key Selectors
+
 - Contacts section: `<section>` containing heading "Contacts" (exact)
 - Add Contact button: `getByRole('button', { name: 'Add Contact', exact: true })` inside section
 - Empty state: `getByText('No contacts added yet.')` — EmptyState component, conditionally rendered
@@ -33,12 +36,14 @@ type: project
 - Error banners: `[role="alert"]` inside the modal
 
 ### API paths for vendor contacts
+
 - `GET /api/vendors/:vendorId/contacts` — returns `{ contacts: [...] }`
 - `POST /api/vendors/:vendorId/contacts` — returns `{ contact: {...} }` (201)
 - `PATCH /api/vendors/:vendorId/contacts/:contactId` — returns `{ contact: {...} }` (200)
 - `DELETE /api/vendors/:vendorId/contacts/:contactId` — returns 204
 
 ### DAV Token Key Selectors
+
 - DAV section: parent of `getByRole('heading', { level: 2, name: 'DAV Access (Calendar & Contacts)' })`
 - Generate button: `getByRole('button', { name: 'Generate Token', exact: true })`
 - Regenerate button: `getByRole('button', { name: 'Regenerate Token', exact: true })`
@@ -49,21 +54,25 @@ type: project
 - Revoke uses `window.confirm` — register `page.once('dialog', d => d.accept())` BEFORE click
 
 ### API paths for DAV tokens
+
 - `GET /api/users/me/dav/token` — `{ hasToken: bool, createdAt: string|null }`
 - `POST /api/users/me/dav/token` — `{ token: string }` (200) — generates/regenerates
 - `DELETE /api/users/me/dav/token` — 204 — revoke (204 if active, 404 if none)
 - `GET /api/users/me/dav/profile` — downloads .mobileconfig (requires active token)
 
 ### Legacy feeds route
+
 - `/feeds/cal.ics` — NOT registered; returns 404 (verified via `page.request.get()`)
 - The server comment says "replaces legacy /feeds" but no redirect is set up
 
 ### Test isolation for DAV tests
+
 - `test.beforeEach`: DELETE `/api/users/me/dav/token` to clear any active token
 - `test.afterEach`: DELETE `/api/users/me/dav/token` to clean up
 - 404 on DELETE is acceptable (no token was active)
 
 ### Why edit-name ID conflict doesn't cause strict mode errors
+
 VendorDetailPage already uses `#edit-name` etc. for the vendor edit form (inline, not modal).
 The vendor edit form IDs and contact edit modal IDs share the same names but are never
 simultaneously in the DOM (vendor edit is inline in the info card; contact edit is in a Modal

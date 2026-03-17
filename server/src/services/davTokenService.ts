@@ -22,9 +22,7 @@ export function getTokenStatus(
 
   if (!row) return { hasToken: false };
 
-  return row.davToken
-    ? { hasToken: true, createdAt: row.updatedAt }
-    : { hasToken: false };
+  return row.davToken ? { hasToken: true, createdAt: row.updatedAt } : { hasToken: false };
 }
 
 /**
@@ -34,10 +32,7 @@ export function getTokenStatus(
 export function generateToken(db: DbType, userId: string): string {
   const token = randomBytes(32).toString('hex');
   const now = new Date().toISOString();
-  db.update(users)
-    .set({ davToken: token, updatedAt: now })
-    .where(eq(users.id, userId))
-    .run();
+  db.update(users).set({ davToken: token, updatedAt: now }).where(eq(users.id, userId)).run();
   return token;
 }
 
@@ -46,20 +41,14 @@ export function generateToken(db: DbType, userId: string): string {
  */
 export function revokeToken(db: DbType, userId: string): void {
   const now = new Date().toISOString();
-  db.update(users)
-    .set({ davToken: null, updatedAt: now })
-    .where(eq(users.id, userId))
-    .run();
+  db.update(users).set({ davToken: null, updatedAt: now }).where(eq(users.id, userId)).run();
 }
 
 /**
  * Validate a DAV token and return the associated user's ID and email.
  * Returns { userId, email } or null if token is invalid or does not exist.
  */
-export function validateToken(
-  db: DbType,
-  token: string,
-): { userId: string; email: string } | null {
+export function validateToken(db: DbType, token: string): { userId: string; email: string } | null {
   const row = db
     .select({ id: users.id, email: users.email, davToken: users.davToken })
     .from(users)

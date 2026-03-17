@@ -90,7 +90,11 @@ export async function buildApp(): Promise<FastifyInstance> {
   });
 
   // XML content type parser for WebDAV (CalDAV/CardDAV PROPFIND/REPORT bodies)
-  app.addContentTypeParser(['application/xml', 'text/xml'], { parseAs: 'string' }, async (_req: any, body: string) => body);
+  app.addContentTypeParser(
+    ['application/xml', 'text/xml'],
+    { parseAs: 'string' },
+    async (_req: any, body: string) => body,
+  );
 
   // Database connection & migrations
   await app.register(dbPlugin);

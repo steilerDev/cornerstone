@@ -8,6 +8,7 @@
 **Test files** (6 new): `vendorContactService.test.ts`, `davTokenService.test.ts`, `davXml.test.ts`, `vendorContacts.test.ts`, `davTokens.test.ts`, `dav.test.ts`. Branch: `feat/933-caldav-carddav-vendor-contacts`.
 
 **Key patterns**:
+
 - **DAV Basic Auth**: Only the password field of `user:token` matters; username is ignored. Test with `Buffer.from('any-name:${token}').toString('base64')`.
 - **PROPFIND/REPORT custom methods**: `app.addHttpMethod('PROPFIND', { hasBody: true })` and `REPORT` are registered in `buildApp()`. Use `app.inject({ method: 'PROPFIND', ... })` — Fastify handles them via `inject()`.
 - **Content-Type for XML bodies**: Send `'content-type': 'application/xml'` for PROPFIND/REPORT bodies so Fastify parses them as strings.

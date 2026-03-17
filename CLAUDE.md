@@ -425,19 +425,19 @@ Hand-written SQL files in `server/src/db/migrations/` with a numeric prefix (e.g
 
 ### Environment Variables
 
-| Variable                 | Default                    | Description                                                                         |
-| ------------------------ | -------------------------- | ----------------------------------------------------------------------------------- |
-| `PORT`                   | `3000`                     | Server port                                                                         |
-| `HOST`                   | `0.0.0.0`                  | Server bind address                                                                 |
-| `DATABASE_URL`           | `/app/data/cornerstone.db` | SQLite database path                                                                |
-| `LOG_LEVEL`              | `info`                     | Log level (trace/debug/info/warn/error/fatal)                                       |
-| `NODE_ENV`               | `production`               | Environment                                                                         |
-| `CLIENT_DEV_PORT`        | `5173`                     | Webpack dev server port (development only)                                          |
+| Variable                 | Default                    | Description                                                                           |
+| ------------------------ | -------------------------- | ------------------------------------------------------------------------------------- |
+| `PORT`                   | `3000`                     | Server port                                                                           |
+| `HOST`                   | `0.0.0.0`                  | Server bind address                                                                   |
+| `DATABASE_URL`           | `/app/data/cornerstone.db` | SQLite database path                                                                  |
+| `LOG_LEVEL`              | `info`                     | Log level (trace/debug/info/warn/error/fatal)                                         |
+| `NODE_ENV`               | `production`               | Environment                                                                           |
+| `CLIENT_DEV_PORT`        | `5173`                     | Webpack dev server port (development only)                                            |
 | `EXTERNAL_URL`           | (none)                     | Public-facing base URL (e.g., `https://myhouse.example.com`) for reverse-proxy setups |
-| `PAPERLESS_URL`          | (none)                     | Paperless-ngx instance base URL                                                     |
-| `PAPERLESS_API_TOKEN`    | (none)                     | Paperless-ngx API authentication token                                              |
-| `PAPERLESS_EXTERNAL_URL` | (none)                     | Browser-facing URL for Paperless-ngx links (falls back to `PAPERLESS_URL` if unset) |
-| `PAPERLESS_FILTER_TAG`   | (none)                     | Tag name for automatic document pre-filtering                                       |
+| `PAPERLESS_URL`          | (none)                     | Paperless-ngx instance base URL                                                       |
+| `PAPERLESS_API_TOKEN`    | (none)                     | Paperless-ngx API authentication token                                                |
+| `PAPERLESS_EXTERNAL_URL` | (none)                     | Browser-facing URL for Paperless-ngx links (falls back to `PAPERLESS_URL` if unset)   |
+| `PAPERLESS_FILTER_TAG`   | (none)                     | Tag name for automatic document pre-filtering                                         |
 
 Production images use Docker Hardened Images (DHI). See `Dockerfile` and `docker-compose.yml` for build/deploy details.
 

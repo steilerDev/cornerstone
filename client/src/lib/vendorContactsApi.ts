@@ -21,9 +21,7 @@ export function createVendorContact(
   vendorId: string,
   data: CreateVendorContactRequest,
 ): Promise<VendorContact> {
-  return post<VendorContactResponse>(`/vendors/${vendorId}/contacts`, data).then(
-    (r) => r.contact,
-  );
+  return post<VendorContactResponse>(`/vendors/${vendorId}/contacts`, data).then((r) => r.contact);
 }
 
 /**

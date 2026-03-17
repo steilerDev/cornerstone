@@ -202,8 +202,7 @@ export class ProfilePage {
    */
   async generateToken(): Promise<string> {
     const responsePromise = this.page.waitForResponse(
-      (r) =>
-        r.url().includes('/api/users/me/dav/token') && r.request().method() === 'POST',
+      (r) => r.url().includes('/api/users/me/dav/token') && r.request().method() === 'POST',
     );
     await this.generateTokenButton.click();
     await responsePromise;
@@ -217,8 +216,7 @@ export class ProfilePage {
    */
   async regenerateToken(): Promise<string> {
     const responsePromise = this.page.waitForResponse(
-      (r) =>
-        r.url().includes('/api/users/me/dav/token') && r.request().method() === 'POST',
+      (r) => r.url().includes('/api/users/me/dav/token') && r.request().method() === 'POST',
     );
     await this.regenerateTokenButton.click();
     await responsePromise;
@@ -233,8 +231,7 @@ export class ProfilePage {
   async revokeToken(): Promise<void> {
     this.page.once('dialog', (dialog) => void dialog.accept());
     const responsePromise = this.page.waitForResponse(
-      (r) =>
-        r.url().includes('/api/users/me/dav/token') && r.request().method() === 'DELETE',
+      (r) => r.url().includes('/api/users/me/dav/token') && r.request().method() === 'DELETE',
     );
     await this.revokeTokenButton.click();
     await responsePromise;

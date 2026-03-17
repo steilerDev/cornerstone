@@ -45,16 +45,19 @@ export function computeAddressBookETag(db: DbType): string {
  * Uses KIND:org to mark this as an organization vCard.
  * Injects UID and REV fields for CalDAV/CardDAV compatibility.
  */
-export function buildVendorVcard(vendor: {
-  id: string;
-  name: string;
-  specialty: string | null;
-  email: string | null;
-  phone: string | null;
-  address: string | null;
-  notes: string | null;
-  updatedAt: string;
-}, baseUrl?: string): string {
+export function buildVendorVcard(
+  vendor: {
+    id: string;
+    name: string;
+    specialty: string | null;
+    email: string | null;
+    phone: string | null;
+    address: string | null;
+    notes: string | null;
+    updatedAt: string;
+  },
+  baseUrl?: string,
+): string {
   const vcard = new VCardCreator();
   // For organizations: FN is the company name, N is minimal
   vcard.addName('', vendor.name);
@@ -90,10 +93,7 @@ export function buildVendorVcard(vendor: {
   const uid = `urn:uuid:vendor-${vendor.id}`;
   const rev = vendor.updatedAt;
   const endMarker = 'END:VCARD';
-  vcardStr = vcardStr.replace(
-    endMarker,
-    `KIND:org\r\nUID:${uid}\r\nREV:${rev}\r\n${endMarker}`,
-  );
+  vcardStr = vcardStr.replace(endMarker, `KIND:org\r\nUID:${uid}\r\nREV:${rev}\r\n${endMarker}`);
 
   return vcardStr;
 }
@@ -152,10 +152,7 @@ export function buildContactVcard(
   const uid = `urn:uuid:contact-${contact.id}`;
   const rev = contact.updatedAt;
   const endMarker = 'END:VCARD';
-  vcardStr = vcardStr.replace(
-    endMarker,
-    `UID:${uid}\r\nREV:${rev}\r\n${endMarker}`,
-  );
+  vcardStr = vcardStr.replace(endMarker, `UID:${uid}\r\nREV:${rev}\r\n${endMarker}`);
 
   return vcardStr;
 }

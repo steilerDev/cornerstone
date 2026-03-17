@@ -99,12 +99,8 @@ export function DavAccessCard() {
 
       {/* Server URL for Manual Setup */}
       <div className={styles.serverUrlSection}>
-        <div className={styles.serverUrlLabel}>
-          {t('dav.serverUrl')}:
-        </div>
-        <div className={styles.serverUrl}>
-          {window.location.origin}/dav/
-        </div>
+        <div className={styles.serverUrlLabel}>{t('dav.serverUrl')}:</div>
+        <div className={styles.serverUrl}>{window.location.origin}/dav/</div>
       </div>
 
       {/* Action Buttons */}

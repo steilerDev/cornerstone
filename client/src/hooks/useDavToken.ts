@@ -1,10 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { DavTokenStatus } from '@cornerstone/shared';
-import {
-  getDavTokenStatus,
-  generateDavToken,
-  revokeDavToken,
-} from '../lib/davTokensApi.js';
+import { getDavTokenStatus, generateDavToken, revokeDavToken } from '../lib/davTokensApi.js';
 import { ApiClientError } from '../lib/apiClient.js';
 
 export interface UseDavTokenResult {

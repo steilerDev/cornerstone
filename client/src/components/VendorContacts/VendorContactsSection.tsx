@@ -1,6 +1,10 @@
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { VendorContact, CreateVendorContactRequest, UpdateVendorContactRequest } from '@cornerstone/shared';
+import type {
+  VendorContact,
+  CreateVendorContactRequest,
+  UpdateVendorContactRequest,
+} from '@cornerstone/shared';
 import { useVendorContacts } from '../../hooks/useVendorContacts.js';
 import { Modal } from '../Modal/Modal.js';
 import { EmptyState } from '../EmptyState/EmptyState.js';
@@ -354,7 +358,9 @@ export function VendorContactsSection({ vendorId }: VendorContactsSectionProps) 
                 {t('vendors.contacts.cancel')}
               </button>
               <button type="submit" className={styles.submitButton} disabled={isCreating}>
-                {isCreating ? t('vendors.contacts.creating') : t('vendors.contacts.createContactSubmit')}
+                {isCreating
+                  ? t('vendors.contacts.creating')
+                  : t('vendors.contacts.createContactSubmit')}
               </button>
             </div>
           </form>

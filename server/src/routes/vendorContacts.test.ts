@@ -51,10 +51,7 @@ describe('Vendor Contact Routes', () => {
   function createTestVendor(name = 'Test Vendor') {
     const id = `vendor-${Date.now()}-${vendorOffset++}`;
     const now = new Date().toISOString();
-    app.db
-      .insert(vendors)
-      .values({ id, name, createdAt: now, updatedAt: now })
-      .run();
+    app.db.insert(vendors).values({ id, name, createdAt: now, updatedAt: now }).run();
     return id;
   }
 

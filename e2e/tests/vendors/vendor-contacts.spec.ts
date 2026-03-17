@@ -47,42 +47,38 @@ test.describe('Add vendor contact (Scenario 1)', () => {
     await deleteVendorViaApi(page, vendorId);
   });
 
-  test(
-    '[smoke] Add a vendor contact with all fields',
-    { tag: '@smoke' },
-    async ({ page }) => {
-      const vendorPage = new VendorDetailPage(page);
+  test('[smoke] Add a vendor contact with all fields', { tag: '@smoke' }, async ({ page }) => {
+    const vendorPage = new VendorDetailPage(page);
 
-      // Given: A vendor exists and the user is on the detail page
-      await vendorPage.goto(vendorId);
+    // Given: A vendor exists and the user is on the detail page
+    await vendorPage.goto(vendorId);
 
-      // When: User opens the Add Contact modal
-      await vendorPage.openAddContactModal();
+    // When: User opens the Add Contact modal
+    await vendorPage.openAddContactModal();
 
-      // And: Fills in all contact fields
-      await vendorPage.fillCreateContactForm({
-        firstName: 'Jane',
-        lastName: 'Smith',
-        role: 'Site Manager',
-        phone: '+49 123 456',
-        email: 'jane@example.com',
-      });
+    // And: Fills in all contact fields
+    await vendorPage.fillCreateContactForm({
+      firstName: 'Jane',
+      lastName: 'Smith',
+      role: 'Site Manager',
+      phone: '+49 123 456',
+      email: 'jane@example.com',
+    });
 
-      // And: Submits the form
-      await vendorPage.submitCreateContact();
+    // And: Submits the form
+    await vendorPage.submitCreateContact();
 
-      // Then: The contact appears in the contacts list
-      const contacts = await vendorPage.getContactItems();
-      expect(contacts.some((c) => c.name === 'Jane Smith')).toBe(true);
+    // Then: The contact appears in the contacts list
+    const contacts = await vendorPage.getContactItems();
+    expect(contacts.some((c) => c.name === 'Jane Smith')).toBe(true);
 
-      // And: The contacts list is visible (no longer showing empty state)
-      await expect(vendorPage.contactsEmptyState).not.toBeVisible();
+    // And: The contacts list is visible (no longer showing empty state)
+    await expect(vendorPage.contactsEmptyState).not.toBeVisible();
 
-      // And: The contact's role is shown
-      const jane = contacts.find((c) => c.name === 'Jane Smith');
-      expect(jane?.role).toBe('Site Manager');
-    },
-  );
+    // And: The contact's role is shown
+    const jane = contacts.find((c) => c.name === 'Jane Smith');
+    expect(jane?.role).toBe('Site Manager');
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

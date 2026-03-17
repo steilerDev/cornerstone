@@ -74,10 +74,7 @@ describe('DAV Routes', () => {
   function createTestVendor(name = 'ACME Corp') {
     const id = `vendor-${Date.now()}-${offset++}`;
     const now = new Date().toISOString();
-    app.db
-      .insert(vendors)
-      .values({ id, name, createdAt: now, updatedAt: now })
-      .run();
+    app.db.insert(vendors).values({ id, name, createdAt: now, updatedAt: now }).run();
     return id;
   }
 
@@ -712,7 +709,8 @@ describe('DAV Routes', () => {
       }) as any);
 
       // Extract ETags from both responses — they should both use "wi-<hash>" format
-      const propfindEtags = propfindRes.payload.match(/<D:getetag>"(wi-[^"]+)"<\/D:getetag>/g) || [];
+      const propfindEtags =
+        propfindRes.payload.match(/<D:getetag>"(wi-[^"]+)"<\/D:getetag>/g) || [];
       const reportEtags = reportRes.payload.match(/<D:getetag>"(wi-[^"]+)"<\/D:getetag>/g) || [];
 
       expect(propfindEtags.length).toBeGreaterThan(0);

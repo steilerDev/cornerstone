@@ -188,11 +188,7 @@ export function updateContact(
   }
 
   // Validate contact exists and belongs to vendor
-  const contact = db
-    .select()
-    .from(vendorContacts)
-    .where(eq(vendorContacts.id, contactId))
-    .get();
+  const contact = db.select().from(vendorContacts).where(eq(vendorContacts.id, contactId)).get();
   if (!contact || contact.vendorId !== vendorId) {
     throw new NotFoundError(`Contact with ID ${contactId} not found`);
   }
@@ -234,12 +230,12 @@ export function updateContact(
   }
 
   // Validate that at least one name part remains after update
-  const effectiveFirstName = data.firstName !== undefined
-    ? ((data.firstName ?? '').trim() || null)
-    : (contact.firstName ?? null);
-  const effectiveLastName = data.lastName !== undefined
-    ? ((data.lastName ?? '').trim() || null)
-    : (contact.lastName ?? null);
+  const effectiveFirstName =
+    data.firstName !== undefined
+      ? (data.firstName ?? '').trim() || null
+      : (contact.firstName ?? null);
+  const effectiveLastName =
+    data.lastName !== undefined ? (data.lastName ?? '').trim() || null : (contact.lastName ?? null);
 
   if (!effectiveFirstName && !effectiveLastName) {
     throw new ValidationError('At least first name or last name is required', {
@@ -293,10 +289,7 @@ export function updateContact(
   const now = new Date().toISOString();
   updates.updatedAt = now;
 
-  db.update(vendorContacts)
-    .set(updates)
-    .where(eq(vendorContacts.id, contactId))
-    .run();
+  db.update(vendorContacts).set(updates).where(eq(vendorContacts.id, contactId)).run();
 
   const updated = db.select().from(vendorContacts).where(eq(vendorContacts.id, contactId)).get();
   if (!updated) throw new Error('Failed to update contact');
@@ -316,11 +309,7 @@ export function deleteContact(db: DbType, vendorId: string, contactId: string): 
   }
 
   // Validate contact exists and belongs to vendor
-  const contact = db
-    .select()
-    .from(vendorContacts)
-    .where(eq(vendorContacts.id, contactId))
-    .get();
+  const contact = db.select().from(vendorContacts).where(eq(vendorContacts.id, contactId)).get();
   if (!contact || contact.vendorId !== vendorId) {
     throw new NotFoundError(`Contact with ID ${contactId} not found`);
   }

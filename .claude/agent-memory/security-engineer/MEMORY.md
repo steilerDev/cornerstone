@@ -88,7 +88,7 @@ See `review-history.md` for detailed findings per PR.
 | #709 | EPIC-09 Story #471 — Dashboard Layout & Data Shell                                                | COMMENTED (1 informational: emptyAction.href no protocol allowlist)                                                           | 2026-03-09 |
 | #713 | EPIC-09 Story #476 — Invoice & Subsidy Pipeline Cards                                             | COMMENTED (no findings)                                                                                                       | 2026-03-10 |
 | #732 | UAT round 10 — dashboard fixes: invoice click-through, timeline status split, mini Gantt redesign | COMMENTED (no findings)                                                                                                       | 2026-03-10 |
-| #936 | #933 CalDAV/CardDAV server with DAV token auth and vendor contacts                                 | COMMENTED (1 low: WWW-Authenticate; 3 informational)                                                                         | 2026-03-17 |
+| #936 | #933 CalDAV/CardDAV server with DAV token auth and vendor contacts                                | COMMENTED (1 low: WWW-Authenticate; 3 informational)                                                                          | 2026-03-17 |
 
 ## Known Open Recommendations (Low Priority)
 

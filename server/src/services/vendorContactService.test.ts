@@ -36,10 +36,7 @@ describe('vendorContactService', () => {
   function createTestVendor(name = 'Test Vendor') {
     const id = `vendor-${Date.now()}-${vendorOffset++}`;
     const now = new Date().toISOString();
-    app.db
-      .insert(vendors)
-      .values({ id, name, createdAt: now, updatedAt: now })
-      .run();
+    app.db.insert(vendors).values({ id, name, createdAt: now, updatedAt: now }).run();
     return id;
   }
 
@@ -53,14 +50,17 @@ describe('vendorContactService', () => {
     });
 
     it('throws NotFoundError for unknown vendorId', () => {
-      expect(() =>
-        vendorContactService.listContacts(app.db, 'does-not-exist'),
-      ).toThrow('not found');
+      expect(() => vendorContactService.listContacts(app.db, 'does-not-exist')).toThrow(
+        'not found',
+      );
     });
 
     it('returns contacts ordered by createdAt', async () => {
       const vendorId = createTestVendor();
-      vendorContactService.createContact(app.db, vendorId, { firstName: 'Alice', lastName: 'Smith' });
+      vendorContactService.createContact(app.db, vendorId, {
+        firstName: 'Alice',
+        lastName: 'Smith',
+      });
       await new Promise((r) => setTimeout(r, 5));
       vendorContactService.createContact(app.db, vendorId, { firstName: 'Bob', lastName: 'Jones' });
 
@@ -147,9 +147,9 @@ describe('vendorContactService', () => {
 
     it('throws ValidationError if neither first nor last name provided', () => {
       const vendorId = createTestVendor();
-      expect(() =>
-        vendorContactService.createContact(app.db, vendorId, {}),
-      ).toThrow('At least first name or last name');
+      expect(() => vendorContactService.createContact(app.db, vendorId, {})).toThrow(
+        'At least first name or last name',
+      );
     });
 
     it('trims whitespace from names', () => {
@@ -171,7 +171,9 @@ describe('vendorContactService', () => {
 
     it('persists to database (reachable via listContacts)', () => {
       const vendorId = createTestVendor();
-      const created = vendorContactService.createContact(app.db, vendorId, { firstName: 'Charlie' });
+      const created = vendorContactService.createContact(app.db, vendorId, {
+        firstName: 'Charlie',
+      });
       const listed = vendorContactService.listContacts(app.db, vendorId);
       expect(listed).toHaveLength(1);
       expect(listed[0].id).toBe(created.id);
@@ -212,16 +214,18 @@ describe('vendorContactService', () => {
       const vendorId = createTestVendor();
       const contact = vendorContactService.createContact(app.db, vendorId, { firstName: 'Alice' });
       expect(() =>
-        vendorContactService.updateContact(app.db, 'not-a-real-vendor', contact.id, { firstName: 'X' }),
+        vendorContactService.updateContact(app.db, 'not-a-real-vendor', contact.id, {
+          firstName: 'X',
+        }),
       ).toThrow('not found');
     });
 
     it('throws ValidationError if no fields provided', () => {
       const vendorId = createTestVendor();
       const contact = vendorContactService.createContact(app.db, vendorId, { firstName: 'Alice' });
-      expect(() =>
-        vendorContactService.updateContact(app.db, vendorId, contact.id, {}),
-      ).toThrow('At least one field');
+      expect(() => vendorContactService.updateContact(app.db, vendorId, contact.id, {})).toThrow(
+        'At least one field',
+      );
     });
 
     it('can null out optional fields', () => {
@@ -289,9 +293,9 @@ describe('vendorContactService', () => {
 
     it('throws NotFoundError for unknown contactId', () => {
       const vendorId = createTestVendor();
-      expect(() =>
-        vendorContactService.deleteContact(app.db, vendorId, 'not-real'),
-      ).toThrow('not found');
+      expect(() => vendorContactService.deleteContact(app.db, vendorId, 'not-real')).toThrow(
+        'not found',
+      );
     });
 
     it('throws NotFoundError for unknown vendorId', () => {

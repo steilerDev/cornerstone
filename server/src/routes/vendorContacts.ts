@@ -123,23 +123,19 @@ export default async function vendorContactRoutes(fastify: FastifyInstance) {
   fastify.patch<{
     Params: { vendorId: string; contactId: string };
     Body: UpdateVendorContactRequest;
-  }>(
-    '/:contactId',
-    { schema: updateContactSchema },
-    async (request, reply) => {
-      if (!request.user) {
-        throw new UnauthorizedError();
-      }
+  }>('/:contactId', { schema: updateContactSchema }, async (request, reply) => {
+    if (!request.user) {
+      throw new UnauthorizedError();
+    }
 
-      const contact = vendorContactService.updateContact(
-        fastify.db,
-        request.params.vendorId,
-        request.params.contactId,
-        request.body,
-      );
-      return reply.status(200).send({ contact });
-    },
-  );
+    const contact = vendorContactService.updateContact(
+      fastify.db,
+      request.params.vendorId,
+      request.params.contactId,
+      request.body,
+    );
+    return reply.status(200).send({ contact });
+  });
 
   /**
    * DELETE /api/vendors/:vendorId/contacts/:contactId

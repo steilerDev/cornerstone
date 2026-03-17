@@ -40,7 +40,9 @@ jest.unstable_mockModule('../../lib/invoicesApi.js', () => ({
 // network calls during VendorDetailPage tests, preventing spurious role="alert"
 // elements from a contacts-load failure interfering with editError assertions.
 jest.unstable_mockModule('../../lib/vendorContactsApi.js', () => ({
-  listVendorContacts: jest.fn<() => Promise<{ contacts: never[] }>>().mockResolvedValue({ contacts: [] }),
+  listVendorContacts: jest
+    .fn<() => Promise<{ contacts: never[] }>>()
+    .mockResolvedValue({ contacts: [] }),
   createVendorContact: jest.fn(),
   updateVendorContact: jest.fn(),
   deleteVendorContact: jest.fn(),

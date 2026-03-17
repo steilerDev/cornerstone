@@ -137,17 +137,14 @@ export default async function davTokenRoutes(fastify: FastifyInstance) {
    * Get the current DAV token status for the authenticated user.
    * Auth required: Yes (session-based)
    */
-  fastify.get(
-    '/token',
-    async (request, reply) => {
-      if (!request.user) {
-        throw new UnauthorizedError();
-      }
+  fastify.get('/token', async (request, reply) => {
+    if (!request.user) {
+      throw new UnauthorizedError();
+    }
 
-      const status = davTokenService.getTokenStatus(fastify.db, request.user.id);
-      return reply.status(200).send(status);
-    },
-  );
+    const status = davTokenService.getTokenStatus(fastify.db, request.user.id);
+    return reply.status(200).send(status);
+  });
 
   /**
    * POST /api/users/me/dav/token
@@ -173,93 +170,83 @@ export default async function davTokenRoutes(fastify: FastifyInstance) {
    * Revoke the DAV token.
    * Auth required: Yes (session-based)
    */
-  fastify.delete(
-    '/token',
-    async (request, reply) => {
-      if (!request.user) {
-        throw new UnauthorizedError();
-      }
+  fastify.delete('/token', async (request, reply) => {
+    if (!request.user) {
+      throw new UnauthorizedError();
+    }
 
-      davTokenService.revokeToken(fastify.db, request.user.id);
-      return reply.status(204).send();
-    },
-  );
+    davTokenService.revokeToken(fastify.db, request.user.id);
+    return reply.status(204).send();
+  });
 
   /**
    * GET /api/users/me/dav/profile
    * Get the Apple Configuration Profile for CalDAV/CardDAV.
    * Auth required: Yes (session-based), must have an active DAV token
    */
-  fastify.get(
-    '/profile',
-    async (request, reply) => {
-      if (!request.user) {
-        throw new UnauthorizedError();
-      }
+  fastify.get('/profile', async (request, reply) => {
+    if (!request.user) {
+      throw new UnauthorizedError();
+    }
 
-      const status = davTokenService.getTokenStatus(fastify.db, request.user.id);
-      if (!status.hasToken) {
-        return reply.status(404).send({
-          error: {
-            code: 'DAV_TOKEN_NOT_FOUND',
-            message: 'No DAV token configured',
-          },
-        });
-      }
-
-      // Fetch the user to get email and current token
-      const user = fastify.db
-        .select()
-        .from(users)
-        .where(eq(users.id, request.user!.id))
-        .get();
-
-      if (!user || !user.davToken) {
-        return reply.status(404).send({
-          error: {
-            code: 'DAV_TOKEN_NOT_FOUND',
-            message: 'No DAV token configured',
-          },
-        });
-      }
-
-      // Derive hostname, port, and SSL from EXTERNAL_URL or request
-      let hostname: string;
-      let port: number;
-      let useSSL: boolean;
-      let accountDescription: string;
-
-      if (fastify.config.externalUrl) {
-        const parsed = new URL(fastify.config.externalUrl);
-        hostname = parsed.hostname;
-        useSSL = parsed.protocol === 'https:';
-        port = parsed.port ? parseInt(parsed.port, 10) : useSSL ? 443 : 80;
-        accountDescription = `Cornerstone (${hostname})`;
-      } else {
-        const protocol = request.protocol === 'https' ? 'https' : 'http';
-        const hostParts = request.hostname.split(':');
-        hostname = hostParts[0];
-        useSSL = protocol === 'https';
-        port = hostParts[1] ? parseInt(hostParts[1], 10) : useSSL ? 443 : 80;
-        accountDescription = `Cornerstone (${hostname})`;
-      }
-
-      const principalPath = '/dav/principals/default/';
-
-      const mobileconfig = buildMobileConfig({
-        userName: user.email,
-        davToken: user.davToken,
-        hostname,
-        port,
-        useSSL,
-        principalPath,
-        accountDescription,
+    const status = davTokenService.getTokenStatus(fastify.db, request.user.id);
+    if (!status.hasToken) {
+      return reply.status(404).send({
+        error: {
+          code: 'DAV_TOKEN_NOT_FOUND',
+          message: 'No DAV token configured',
+        },
       });
+    }
 
-      return reply
-        .type('application/x-apple-aspen-config')
-        .header('Content-Disposition', 'attachment; filename="Cornerstone.mobileconfig"')
-        .send(mobileconfig);
-    },
-  );
+    // Fetch the user to get email and current token
+    const user = fastify.db.select().from(users).where(eq(users.id, request.user!.id)).get();
+
+    if (!user || !user.davToken) {
+      return reply.status(404).send({
+        error: {
+          code: 'DAV_TOKEN_NOT_FOUND',
+          message: 'No DAV token configured',
+        },
+      });
+    }
+
+    // Derive hostname, port, and SSL from EXTERNAL_URL or request
+    let hostname: string;
+    let port: number;
+    let useSSL: boolean;
+    let accountDescription: string;
+
+    if (fastify.config.externalUrl) {
+      const parsed = new URL(fastify.config.externalUrl);
+      hostname = parsed.hostname;
+      useSSL = parsed.protocol === 'https:';
+      port = parsed.port ? parseInt(parsed.port, 10) : useSSL ? 443 : 80;
+      accountDescription = `Cornerstone (${hostname})`;
+    } else {
+      const protocol = request.protocol === 'https' ? 'https' : 'http';
+      const hostParts = request.hostname.split(':');
+      hostname = hostParts[0];
+      useSSL = protocol === 'https';
+      port = hostParts[1] ? parseInt(hostParts[1], 10) : useSSL ? 443 : 80;
+      accountDescription = `Cornerstone (${hostname})`;
+    }
+
+    const principalPath = '/dav/principals/default/';
+
+    const mobileconfig = buildMobileConfig({
+      userName: user.email,
+      davToken: user.davToken,
+      hostname,
+      port,
+      useSSL,
+      principalPath,
+      accountDescription,
+    });
+
+    return reply
+      .type('application/x-apple-aspen-config')
+      .header('Content-Disposition', 'attachment; filename="Cornerstone.mobileconfig"')
+      .send(mobileconfig);
+  });
 }

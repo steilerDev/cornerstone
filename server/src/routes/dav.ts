@@ -57,17 +57,26 @@ const DAV_PREFIX = '/dav';
 function buildDescriptionMap(db: any): DescriptionMap {
   const map: DescriptionMap = new Map();
 
-  const wiRows = db.select({ id: workItems.id, description: workItems.description }).from(workItems).all();
+  const wiRows = db
+    .select({ id: workItems.id, description: workItems.description })
+    .from(workItems)
+    .all();
   for (const row of wiRows) {
     if (row.description) map.set(`wi-${row.id}`, row.description);
   }
 
-  const msRows = db.select({ id: milestones.id, description: milestones.description }).from(milestones).all();
+  const msRows = db
+    .select({ id: milestones.id, description: milestones.description })
+    .from(milestones)
+    .all();
   for (const row of msRows) {
     if (row.description) map.set(`milestone-${row.id}`, row.description);
   }
 
-  const hiRows = db.select({ id: householdItems.id, description: householdItems.description }).from(householdItems).all();
+  const hiRows = db
+    .select({ id: householdItems.id, description: householdItems.description })
+    .from(householdItems)
+    .all();
   for (const row of hiRows) {
     if (row.description) map.set(`hi-${row.id}`, row.description);
   }
@@ -93,16 +102,13 @@ export default async function davRoutes(fastify: FastifyInstance) {
    * OPTIONS /*
    * Advertise DAV capabilities.
    */
-  fastify.options<{ Params: { wildcard?: string } }>(
-    '/*',
-    async (request, reply) => {
-      return reply
-        .header('DAV', '1, 2, 3, calendar-access, addressbook')
-        .header('Allow', 'OPTIONS, GET, HEAD, PROPFIND, REPORT, PROPPATCH, PUT, DELETE, POST')
-        .status(200)
-        .send();
-    },
-  );
+  fastify.options<{ Params: { wildcard?: string } }>('/*', async (request, reply) => {
+    return reply
+      .header('DAV', '1, 2, 3, calendar-access, addressbook')
+      .header('Allow', 'OPTIONS, GET, HEAD, PROPFIND, REPORT, PROPPATCH, PUT, DELETE, POST')
+      .status(200)
+      .send();
+  });
 
   // ─── PROPFIND: Root ──────────────────────────────────────────────────────
 
@@ -110,66 +116,62 @@ export default async function davRoutes(fastify: FastifyInstance) {
    * PROPFIND /
    * Root collection: lists calendars and addressbooks.
    */
-  fastify.propfind<{ Body: string }>(
-    '/',
-    { preHandler: davAuth },
-    async (request, reply) => {
-      const depth = davXml.parseDepth(request.headers as any);
+  fastify.propfind<{ Body: string }>('/', { preHandler: davAuth }, async (request, reply) => {
+    const depth = davXml.parseDepth(request.headers as any);
 
-      const rootProps = `<D:resourcetype><D:collection/></D:resourcetype>
+    const rootProps = `<D:resourcetype><D:collection/></D:resourcetype>
 <D:displayname>Cornerstone</D:displayname>
 <D:current-user-principal><D:href>${DAV_PREFIX}/principals/default/</D:href></D:current-user-principal>`;
 
-      if (depth === 0) {
-        // Return root collection properties only
-        const resp = davXml.response(`${DAV_PREFIX}/`, davXml.propstat(rootProps));
-        return reply
-          .type('application/xml; charset=utf-8')
-          .status(207)
-          .send(davXml.multistatus([resp]));
-      }
-
-      // depth >= 1: return root + children
-      const responses: string[] = [];
-
-      // Root
-      responses.push(davXml.response(`${DAV_PREFIX}/`, davXml.propstat(rootProps)));
-
-      // Children: principals, calendars, addressbooks
-      responses.push(
-        davXml.response(
-          `${DAV_PREFIX}/principals/`,
-          davXml.propstat(
-            `<D:resourcetype><D:collection/></D:resourcetype>
-<D:displayname>Principals</D:displayname>`,
-          ),
-        ),
-      );
-      responses.push(
-        davXml.response(
-          `${DAV_PREFIX}/calendars/`,
-          davXml.propstat(
-            `<D:resourcetype><D:collection/></D:resourcetype>
-<D:displayname>Calendars</D:displayname>`,
-          ),
-        ),
-      );
-      responses.push(
-        davXml.response(
-          `${DAV_PREFIX}/addressbooks/`,
-          davXml.propstat(
-            `<D:resourcetype><D:collection/></D:resourcetype>
-<D:displayname>Address Books</D:displayname>`,
-          ),
-        ),
-      );
-
+    if (depth === 0) {
+      // Return root collection properties only
+      const resp = davXml.response(`${DAV_PREFIX}/`, davXml.propstat(rootProps));
       return reply
         .type('application/xml; charset=utf-8')
         .status(207)
-        .send(davXml.multistatus(responses));
-    },
-  );
+        .send(davXml.multistatus([resp]));
+    }
+
+    // depth >= 1: return root + children
+    const responses: string[] = [];
+
+    // Root
+    responses.push(davXml.response(`${DAV_PREFIX}/`, davXml.propstat(rootProps)));
+
+    // Children: principals, calendars, addressbooks
+    responses.push(
+      davXml.response(
+        `${DAV_PREFIX}/principals/`,
+        davXml.propstat(
+          `<D:resourcetype><D:collection/></D:resourcetype>
+<D:displayname>Principals</D:displayname>`,
+        ),
+      ),
+    );
+    responses.push(
+      davXml.response(
+        `${DAV_PREFIX}/calendars/`,
+        davXml.propstat(
+          `<D:resourcetype><D:collection/></D:resourcetype>
+<D:displayname>Calendars</D:displayname>`,
+        ),
+      ),
+    );
+    responses.push(
+      davXml.response(
+        `${DAV_PREFIX}/addressbooks/`,
+        davXml.propstat(
+          `<D:resourcetype><D:collection/></D:resourcetype>
+<D:displayname>Address Books</D:displayname>`,
+        ),
+      ),
+    );
+
+    return reply
+      .type('application/xml; charset=utf-8')
+      .status(207)
+      .send(davXml.multistatus(responses));
+  });
 
   // ─── PROPFIND: Principal ────────────────────────────────────────────────
 
@@ -227,7 +229,9 @@ export default async function davRoutes(fastify: FastifyInstance) {
         responses.push(
           davXml.response(
             `${DAV_PREFIX}/calendars/default/`,
-            davXml.propstat(davXml.CALENDAR_COLLECTION_PROPS.replace(/"calendar-etag"/g, `"${etag}"`)),
+            davXml.propstat(
+              davXml.CALENDAR_COLLECTION_PROPS.replace(/"calendar-etag"/g, `"${etag}"`),
+            ),
           ),
         );
       }
@@ -261,7 +265,9 @@ export default async function davRoutes(fastify: FastifyInstance) {
       responses.push(
         davXml.response(
           `${DAV_PREFIX}/calendars/default/`,
-          davXml.propstat(davXml.CALENDAR_COLLECTION_PROPS.replace(/"calendar-etag"/g, `"${etag}"`)),
+          davXml.propstat(
+            davXml.CALENDAR_COLLECTION_PROPS.replace(/"calendar-etag"/g, `"${etag}"`),
+          ),
         ),
       );
 
@@ -339,11 +345,15 @@ export default async function davRoutes(fastify: FastifyInstance) {
 
       // Build single-event iCal with description and URL
       const descMap = buildDescriptionMap(fastify.db);
-      const calendar = calendarIcal.buildCalendar({
-        workItems: type === 'wi' ? [event] : [],
-        milestones: type === 'milestone' ? [event] : [],
-        householdItems: type === 'hi' ? [event] : [],
-      }, descMap, baseUrl);
+      const calendar = calendarIcal.buildCalendar(
+        {
+          workItems: type === 'wi' ? [event] : [],
+          milestones: type === 'milestone' ? [event] : [],
+          householdItems: type === 'hi' ? [event] : [],
+        },
+        descMap,
+        baseUrl,
+      );
 
       const etag = calendarIcal.computeCalendarETag(fastify.db);
       return reply
@@ -365,11 +375,15 @@ export default async function davRoutes(fastify: FastifyInstance) {
     etag: string,
     descMap?: DescriptionMap,
   ): string {
-    const calendar = calendarIcal.buildCalendar({
-      workItems: type === 'wi' ? [event] : [],
-      milestones: type === 'milestone' ? [event] : [],
-      householdItems: type === 'hi' ? [event] : [],
-    }, descMap, baseUrl);
+    const calendar = calendarIcal.buildCalendar(
+      {
+        workItems: type === 'wi' ? [event] : [],
+        milestones: type === 'milestone' ? [event] : [],
+        householdItems: type === 'hi' ? [event] : [],
+      },
+      descMap,
+      baseUrl,
+    );
 
     // Use type-prefixed ETag to match PROPFIND depth 1 responses
     const typedEtag = `${type}-${etag}`;
@@ -490,7 +504,9 @@ export default async function davRoutes(fastify: FastifyInstance) {
         responses.push(
           davXml.response(
             `${DAV_PREFIX}/addressbooks/default/`,
-            davXml.propstat(davXml.ADDRESSBOOK_COLLECTION_PROPS.replace(/"addressbook-etag"/g, `"${etag}"`)),
+            davXml.propstat(
+              davXml.ADDRESSBOOK_COLLECTION_PROPS.replace(/"addressbook-etag"/g, `"${etag}"`),
+            ),
           ),
         );
       }
@@ -521,7 +537,9 @@ export default async function davRoutes(fastify: FastifyInstance) {
       responses.push(
         davXml.response(
           `${DAV_PREFIX}/addressbooks/default/`,
-          davXml.propstat(davXml.ADDRESSBOOK_COLLECTION_PROPS.replace(/"addressbook-etag"/g, `"${etag}"`)),
+          davXml.propstat(
+            davXml.ADDRESSBOOK_COLLECTION_PROPS.replace(/"addressbook-etag"/g, `"${etag}"`),
+          ),
         ),
       );
 
@@ -577,21 +595,14 @@ export default async function davRoutes(fastify: FastifyInstance) {
       const etag = vendorVcard.computeAddressBookETag(fastify.db);
 
       if (type === 'vendor') {
-        const vendor = fastify.db
-          .select()
-          .from(vendors)
-          .where(eq(vendors.id, id))
-          .get();
+        const vendor = fastify.db.select().from(vendors).where(eq(vendors.id, id)).get();
 
         if (!vendor) {
           throw new NotFoundError('Vendor not found');
         }
 
         const vcf = vendorVcard.buildVendorVcard(vendor, baseUrl);
-        return reply
-          .type('text/vcard; charset=utf-8')
-          .header('ETag', `"vendor-${etag}"`)
-          .send(vcf);
+        return reply.type('text/vcard; charset=utf-8').header('ETag', `"vendor-${etag}"`).send(vcf);
       } else if (type === 'contact') {
         const contact = fastify.db
           .select()
@@ -697,11 +708,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
           let displayName: string | null = null;
 
           if (type === 'vendor') {
-            const vendor = fastify.db
-              .select()
-              .from(vendors)
-              .where(eq(vendors.id, id))
-              .get();
+            const vendor = fastify.db.select().from(vendors).where(eq(vendors.id, id)).get();
 
             if (vendor) {
               vcf = vendorVcard.buildVendorVcard(vendor, baseUrl);
@@ -754,13 +761,17 @@ export default async function davRoutes(fastify: FastifyInstance) {
   function parsePropPatchProps(body: string): string[] {
     const props: string[] = [];
     // Match <D:set><D:prop>...</D:prop></D:set> sections
-    const setPropMatch = body.match(/<(?:[a-z]+:)?set[^>]*>[\s\S]*?<(?:[a-z]+:)?prop[^>]*>([\s\S]*?)<\/(?:[a-z]+:)?prop>/gi);
+    const setPropMatch = body.match(
+      /<(?:[a-z]+:)?set[^>]*>[\s\S]*?<(?:[a-z]+:)?prop[^>]*>([\s\S]*?)<\/(?:[a-z]+:)?prop>/gi,
+    );
     if (setPropMatch) {
       for (const section of setPropMatch) {
         const innerMatch = section.match(/<(?:[a-z]+:)?prop[^>]*>([\s\S]*?)<\/(?:[a-z]+:)?prop>/i);
         if (innerMatch) {
           // Extract all top-level element names from the prop section
-          const tagMatches = innerMatch[1].matchAll(/<([a-z]+:)?([a-z][-a-z]*)[^>]*(?:\/>|>[\s\S]*?<\/\1?\2>)/gi);
+          const tagMatches = innerMatch[1].matchAll(
+            /<([a-z]+:)?([a-z][-a-z]*)[^>]*(?:\/>|>[\s\S]*?<\/\1?\2>)/gi,
+          );
           for (const m of tagMatches) {
             props.push(`<${m[1] || 'D:'}${m[2]}/>`);
           }
@@ -785,10 +796,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
       // If we couldn't parse any props, return a generic acknowledgment
       const propXml = props.length > 0 ? props.join('\n') : '<D:displayname/>';
 
-      const resp = davXml.response(
-        `${DAV_PREFIX}/calendars/default/`,
-        davXml.propstat(propXml),
-      );
+      const resp = davXml.response(`${DAV_PREFIX}/calendars/default/`, davXml.propstat(propXml));
 
       return reply
         .type('application/xml; charset=utf-8')
@@ -806,10 +814,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
 
       const propXml = props.length > 0 ? props.join('\n') : '<D:displayname/>';
 
-      const resp = davXml.response(
-        `${DAV_PREFIX}/addressbooks/default/`,
-        davXml.propstat(propXml),
-      );
+      const resp = davXml.response(`${DAV_PREFIX}/addressbooks/default/`, davXml.propstat(propXml));
 
       return reply
         .type('application/xml; charset=utf-8')

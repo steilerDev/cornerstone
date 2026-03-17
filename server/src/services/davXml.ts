@@ -12,7 +12,9 @@ const NAMESPACE_CARDDAV = 'urn:ietf:params:xml:ns:carddav';
  * Parse the Depth header from a PROPFIND request.
  * Returns 0, 1, or 'infinity', defaults to 0 if missing.
  */
-export function parseDepth(headers: Record<string, string | string[] | undefined>): number | string {
+export function parseDepth(
+  headers: Record<string, string | string[] | undefined>,
+): number | string {
   const depth = headers.depth;
   if (!depth) return 0;
   const depthStr = Array.isArray(depth) ? depth[0] : depth;
