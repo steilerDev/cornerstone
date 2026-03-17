@@ -6,6 +6,7 @@
     "diary": "Tagebuch",
     "settings": "Einstellungen"
   },
+  "name": "Name",
   "button": {
     "logout": "Abmelden",
     "close": "Schließen",
