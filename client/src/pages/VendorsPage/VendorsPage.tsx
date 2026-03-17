@@ -285,7 +285,7 @@ export function VendorsPage() {
               onChange={(e) => handleSortChange(e.target.value)}
               className={styles.sortSelect}
             >
-              <option value="name">{t('common.name')}</option>
+              <option value="name">{t('common:name')}</option>
               <option value="specialty">{t('vendors.form.specialty')}</option>
               <option value="created_at">{t('vendors.dateAdded')}</option>
               <option value="updated_at">{t('vendors.lastUpdated')}</option>
@@ -347,7 +347,7 @@ export function VendorsPage() {
                           : 'none'
                       }
                     >
-                      {t('common.name')}
+                      {t('common:name')}
                       {renderSortIcon('name')}
                     </th>
                     <th
