@@ -8,6 +8,7 @@
 **Test files**: `server/src/routes/config.test.ts` (5), `server/src/plugins/config.test.ts` (+11 new, +4 snapshot fixes), `client/src/lib/configApi.test.ts` (5), `client/src/lib/errorTranslation.test.ts` (25), `client/src/lib/formatters.test.ts` (40), `client/src/contexts/LocaleContext.test.tsx` (45). All on branch `feat/916-i18n-infrastructure`.
 
 **Key patterns**:
+
 - **Snapshot tests break on new config fields**: When `AppConfig` gains a new field (e.g., `currency`), existing `toEqual` snapshot tests in `config.test.ts` fail. Must add the new field to ALL four full snapshot tests in `Scenario 1` and `Scenario 2`.
 - **`fetchConfig` mock path for LocaleContext**: `../lib/configApi.js` (relative from `contexts/`). Mock via `jest.unstable_mockModule('../lib/configApi.js', ...)`.
 - **i18n mock path**: `../i18n/index.js`. Mock the default export with `{ changeLanguage: mockFn }`. Use `jest.fn().mockResolvedValue(undefined)` for `changeLanguage`.

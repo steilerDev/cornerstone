@@ -51,7 +51,11 @@ export function formatPercent(rate: number): string {
  * @param fallback - Value returned when dateStr is null/undefined/invalid. Defaults to '—'.
  * @returns A localized date string, e.g. "Feb 27, 2026", or the fallback value.
  */
-export function formatDate(dateStr: string | null | undefined, locale = 'en-US', fallback = '—'): string {
+export function formatDate(
+  dateStr: string | null | undefined,
+  locale = 'en-US',
+  fallback = '—',
+): string {
   if (!dateStr) return fallback;
   const [year, month, day] = dateStr.slice(0, 10).split('-').map(Number);
   if (!year || !month || !day) return fallback;
@@ -70,7 +74,11 @@ export function formatDate(dateStr: string | null | undefined, locale = 'en-US',
  * @param fallback - Value returned when timestamp is null/undefined. Defaults to '—'.
  * @returns A localized time string, e.g. "2:45 PM", or the fallback value.
  */
-export function formatTime(timestamp: string | null | undefined, locale = 'en-US', fallback = '—'): string {
+export function formatTime(
+  timestamp: string | null | undefined,
+  locale = 'en-US',
+  fallback = '—',
+): string {
   if (!timestamp) return fallback;
   try {
     const date = new Date(timestamp);
@@ -92,7 +100,11 @@ export function formatTime(timestamp: string | null | undefined, locale = 'en-US
  * @param fallback - Value returned when timestamp is null/undefined. Defaults to '—'.
  * @returns A localized date and time string, e.g. "Feb 27, 2026 at 2:45 PM", or the fallback value.
  */
-export function formatDateTime(timestamp: string | null | undefined, locale = 'en-US', fallback = '—'): string {
+export function formatDateTime(
+  timestamp: string | null | undefined,
+  locale = 'en-US',
+  fallback = '—',
+): string {
   if (!timestamp) return fallback;
   try {
     const date = new Date(timestamp);

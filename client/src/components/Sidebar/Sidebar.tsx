@@ -85,7 +85,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           {t('button.logout')}
         </button>
         <div className={styles.projectInfo}>
-          <span>{t('appName')} v{__APP_VERSION__}</span>
+          <span>
+            {t('appName')} v{__APP_VERSION__}
+          </span>
           <a
             href="https://github.com/steilerDev/cornerstone"
             target="_blank"

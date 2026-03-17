@@ -234,6 +234,7 @@ See `story-9-2-dashboard.md`. Key: 3/2/1 col grid, card = `<article>`, skeleton 
 ## i18n Infrastructure (Story 17.1, Issue #916)
 
 Zero new tokens, zero new CSS, zero new components. Text replacement only. Key review checks:
+
 - `<html lang>` updated via `document.documentElement.setAttribute('lang', locale)` in LocaleContext (WCAG 3.1.1)
 - German sidebar label "Haushaltsartikel" — verify no visual overflow at 240px sidebar width
 - German currency trailing `€` with space may widen budget table cells — acceptable, no layout fix needed

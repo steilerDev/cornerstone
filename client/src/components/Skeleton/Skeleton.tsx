@@ -12,12 +12,7 @@ export interface SkeletonProps {
   className?: string;
 }
 
-export function Skeleton({
-  lines = 3,
-  widths,
-  loadingLabel,
-  className,
-}: SkeletonProps) {
+export function Skeleton({ lines = 3, widths, loadingLabel, className }: SkeletonProps) {
   const { t } = useTranslation('common');
   const resolvedLabel = loadingLabel ?? t('loading');
 

@@ -608,9 +608,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
     });
 
     it('error message includes the invalid value that was provided', () => {
-      expect(() => loadConfig({ CURRENCY: 'TOOLONG' })).toThrow(
-        "got: TOOLONG",
-      );
+      expect(() => loadConfig({ CURRENCY: 'TOOLONG' })).toThrow('got: TOOLONG');
     });
   });
 });
