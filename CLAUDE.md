@@ -143,19 +143,19 @@ If the state is `CONFLICTING`, rebase onto the target branch, force-push, and re
 
 **Step 2 — Poll for required gate checks.**
 
-**Beta PRs** (require `Quality Gates` only):
+**Beta PRs** (require `Quality Gates` only — expected ~5 minutes):
 
 ```bash
-echo "Waiting for Quality Gates..."; while true; do bucket=$(gh pr checks <PR> --repo steilerDev/cornerstone --json name,bucket -q '.[] | select(.name == "Quality Gates") | .bucket' 2>/dev/null); case "$bucket" in pass) echo "Quality Gates passed"; break ;; fail) echo "Quality Gates FAILED"; exit 1 ;; *) sleep 30 ;; esac; done
+echo "Waiting for Quality Gates..."; SECONDS=0; while true; do if [ $SECONDS -ge 300 ]; then echo "TIMEOUT: Quality Gates did not complete within 5 minutes"; exit 1; fi; bucket=$(gh pr checks <PR> --repo steilerDev/cornerstone --json name,bucket -q '.[] | select(.name == "Quality Gates") | .bucket' 2>/dev/null); case "$bucket" in pass) echo "Quality Gates passed"; break ;; fail) echo "Quality Gates FAILED"; exit 1 ;; *) sleep 30 ;; esac; done
 ```
 
-**Main PRs** (require `Quality Gates` + `E2E Gates`):
+**Main PRs** (require `Quality Gates` + `E2E Gates` — expected ~15 minutes):
 
 ```bash
-echo "Waiting for Quality Gates + E2E Gates..."; while true; do qg=$(gh pr checks <PR> --repo steilerDev/cornerstone --json name,bucket -q '.[] | select(.name == "Quality Gates") | .bucket' 2>/dev/null); e2e=$(gh pr checks <PR> --repo steilerDev/cornerstone --json name,bucket -q '.[] | select(.name == "E2E Gates") | .bucket' 2>/dev/null); if [ "$qg" = "fail" ] || [ "$e2e" = "fail" ]; then echo "CI FAILED (QG=$qg, E2E=$e2e)"; exit 1; fi; if [ "$qg" = "pass" ] && [ "$e2e" = "pass" ]; then echo "All gates passed"; break; fi; sleep 30; done
+echo "Waiting for Quality Gates + E2E Gates..."; SECONDS=0; while true; do if [ $SECONDS -ge 900 ]; then echo "TIMEOUT: CI gates did not complete within 15 minutes"; exit 1; fi; qg=$(gh pr checks <PR> --repo steilerDev/cornerstone --json name,bucket -q '.[] | select(.name == "Quality Gates") | .bucket' 2>/dev/null); e2e=$(gh pr checks <PR> --repo steilerDev/cornerstone --json name,bucket -q '.[] | select(.name == "E2E Gates") | .bucket' 2>/dev/null); if [ "$qg" = "fail" ] || [ "$e2e" = "fail" ]; then echo "CI FAILED (QG=$qg, E2E=$e2e)"; exit 1; fi; if [ "$qg" = "pass" ] && [ "$e2e" = "pass" ]; then echo "All gates passed"; break; fi; sleep 30; done
 ```
 
-Replace `<PR>` with the PR number. The polling loop handles the "checks not yet reported" edge case — an empty bucket means we retry after 30s.
+Replace `<PR>` with the PR number. The polling loop handles the "checks not yet reported" edge case — an empty bucket means we retry after 30s. Timeouts prevent agents from polling indefinitely if CI hangs.
 
 The only exception is the QA agent running a specific test file it just wrote (e.g., `npx jest path/to/new.test.ts`) to verify correctness before committing — but never `npm test` (the full suite).
 
