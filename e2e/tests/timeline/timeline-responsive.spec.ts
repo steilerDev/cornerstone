@@ -471,7 +471,8 @@ test.describe('ARIA roles and labels (Scenario 7)', { tag: '@responsive' }, () =
     const timelinePage = new TimelinePage(page);
     await timelinePage.goto();
 
-    const viewNav = page.getByRole('navigation', { name: 'Schedule view navigation' });
+    // i18n: aria-label is now "Gantt" (from schedule.navigation.gantt in schedule.json)
+    const viewNav = page.getByRole('navigation', { name: 'Gantt' });
     await expect(viewNav).toBeVisible();
   });
 

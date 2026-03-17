@@ -140,8 +140,10 @@ export class SubsidyProgramsPage {
     // Delete modal
     this.deleteModal = page.getByRole('dialog', { name: 'Delete Subsidy Program' });
     this.deleteModalTitle = page.locator('#delete-modal-title');
+    // i18n: button label is now just "Delete" / "Deleting..." (not "Delete Program")
+    // See budget.json subsidies.buttons.delete = "Delete"
     this.deleteConfirmButton = this.deleteModal.getByRole('button', {
-      name: /Delete Program|Deleting\.\.\./,
+      name: /^Delete$|Deleting\.\.\./,
     });
     this.deleteCancelButton = this.deleteModal.getByRole('button', {
       name: 'Cancel',

@@ -129,7 +129,8 @@ export class TimelinePage {
     this.calendarWeekButton = page.getByRole('button', { name: 'Week', exact: true });
     this.calendarPrevButton = page.getByLabel(/Previous month|Previous week/);
     this.calendarNextButton = page.getByLabel(/Next month|Next week/);
-    this.calendarTodayButton = page.getByLabel('Go to today');
+    // i18n: button label is now just "Today" (from calendar.navigation.today in schedule.json)
+    this.calendarTodayButton = page.getByLabel('Today');
     this.calendarPeriodLabel = page.locator('[class*="periodLabel"]');
     this.calendarGridArea = page.locator('[class*="gridArea"]');
   }
