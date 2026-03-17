@@ -1,1 +1,337 @@
-{}
+{
+  "list": {
+    "pageTitle": "Projekt",
+    "newWorkItem": "Neues Arbeitspaket",
+    "loading": "Arbeitspakete werden geladen...",
+    "search": {
+      "placeholder": "Arbeitspakete suchen...",
+      "ariaLabel": "Arbeitspakete suchen"
+    },
+    "filters": {
+      "status": "Status:",
+      "allStatuses": "Alle Status",
+      "assignedTo": "Zugewiesen an:",
+      "allUsers": "Alle Benutzer",
+      "tag": "Tag:",
+      "allTags": "Alle Tags",
+      "sortBy": "Sortieren nach:",
+      "sortAscending": "↑ Aufsteigend",
+      "sortDescending": "↓ Absteigend",
+      "toggleSortOrder": "Sortierreihenfolge umschalten"
+    },
+    "sortOptions": {
+      "title": "Titel",
+      "status": "Status",
+      "startDate": "Startdatum",
+      "endDate": "Enddatum",
+      "createdAt": "Erstellt",
+      "updatedAt": "Aktualisiert"
+    },
+    "empty": {
+      "noMatchTitle": "Keine Arbeitspakete entsprechen Ihren Filtern",
+      "noMatchText": "Versuchen Sie, Ihre Suche oder Filterkriterien anzupassen.",
+      "clearFilters": "Alle Filter löschen",
+      "noItemsTitle": "Noch keine Arbeitspakete",
+      "noItemsText": "Erstellen Sie Ihr erstes Arbeitspaket, um Bauaufgaben zu verfolgen.",
+      "createFirst": "Erstes Arbeitspaket erstellen"
+    },
+    "table": {
+      "title": "Titel",
+      "status": "Status",
+      "assignedTo": "Zugewiesen an",
+      "startDate": "Startdatum",
+      "endDate": "Enddatum",
+      "tags": "Tags",
+      "actions": "Aktionen"
+    },
+    "card": {
+      "status": "Status:",
+      "assigned": "Zugewiesen:",
+      "start": "Start:",
+      "end": "Ende:",
+      "tags": "Tags:"
+    },
+    "actions": {
+      "actionsMenu": "Aktionsmenü",
+      "edit": "Bearbeiten",
+      "delete": "Löschen"
+    },
+    "pagination": {
+      "showing": "Zeige {{from}} bis {{to}} von {{total}} Elementen",
+      "previous": "← Zurück",
+      "next": "Weiter →",
+      "previousAriaLabel": "Vorherige Seite",
+      "nextAriaLabel": "Nächste Seite"
+    },
+    "deleteModal": {
+      "title": "Arbeitspaket löschen",
+      "confirmation": "Sind Sie sicher, dass Sie \"{{title}}\" löschen möchten?",
+      "warning": "Dadurch werden auch alle zugehörigen Teilaufgaben, Abhängigkeiten und Kommentare gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.",
+      "cancel": "Abbrechen",
+      "deletingLabel": "Wird gelöscht...",
+      "deleteLabel": "Arbeitspaket löschen"
+    },
+    "errors": {
+      "loadFailed": "Arbeitspakete konnten nicht geladen werden. Bitte erneut versuchen.",
+      "deleteFailed": "Arbeitspaket konnte nicht gelöscht werden. Bitte erneut versuchen."
+    },
+    "shortcuts": {
+      "newWorkItem": "Neues Arbeitspaket",
+      "focusSearch": "Suche fokussieren",
+      "selectNext": "Nächstes Element auswählen",
+      "selectPrevious": "Vorheriges Element auswählen",
+      "openSelected": "Ausgewähltes Element öffnen",
+      "showShortcuts": "Tastaturkürzel anzeigen",
+      "closeOrCancel": "Dialog schließen oder abbrechen"
+    }
+  },
+  "create": {
+    "backToWorkItems": "← Zurück zu Arbeitspaketen",
+    "pageTitle": "Arbeitspaket erstellen",
+    "loading": "Wird geladen...",
+    "thisItemLabel": "Dieses Element",
+    "fields": {
+      "title": "Titel",
+      "titleRequired": "*",
+      "titlePlaceholder": "Titel des Arbeitspakets eingeben",
+      "titleRequiredError": "Titel ist erforderlich",
+      "description": "Beschreibung",
+      "descriptionPlaceholder": "Beschreiben Sie die zu erledigende Arbeit",
+      "status": "Status",
+      "statusOptions": {
+        "notStarted": "Nicht begonnen",
+        "inProgress": "In Bearbeitung",
+        "completed": "Abgeschlossen"
+      },
+      "assignedTo": "Zugewiesen an",
+      "unassigned": "Nicht zugewiesen",
+      "durationDays": "Dauer (Tage)",
+      "durationError": "Dauer muss eine positive Zahl sein",
+      "startAfter": "Frühestens ab",
+      "startBefore": "Spätestens ab",
+      "constraintsError": "Das Datum 'Frühestens ab' muss vor oder gleich dem Datum 'Spätestens ab' sein",
+      "tags": "Tags",
+      "dependencies": "Abhängigkeiten"
+    },
+    "pendingDeps": {
+      "ariaLabel": "Ausstehende Abhängigkeiten",
+      "thisItemPredecessor": "Dieses Element muss {{predecessorVerb}}, bevor \"{{otherItemTitle}}\" {{successorVerb}} kann",
+      "otherItemPredecessor": "\"{{otherItemTitle}}\" muss {{predecessorVerb}}, bevor dieses Element {{successorVerb}} kann",
+      "removeAriaLabel": "Abhängigkeit zu {{otherItemTitle}} entfernen"
+    },
+    "actions": {
+      "cancel": "Abbrechen",
+      "creating": "Wird erstellt...",
+      "create": "Arbeitspaket erstellen"
+    },
+    "errors": {
+      "loadFailed": "Formulardaten konnten nicht geladen werden. Bitte erneut versuchen.",
+      "createFailed": "Arbeitspaket konnte nicht erstellt werden. Bitte erneut versuchen."
+    }
+  },
+  "detail": {
+    "loading": "Arbeitspaket wird geladen...",
+    "notFound": {
+      "title": "Arbeitspaket nicht gefunden",
+      "back": "Zurück zu Arbeitspaketen"
+    },
+    "error": {
+      "title": "Fehler",
+      "fallback": "Beim Laden des Arbeitspakets ist ein Fehler aufgetreten.",
+      "back": "Zurück zu Arbeitspaketen",
+      "retry": "Erneut versuchen"
+    },
+    "nav": {
+      "backToSchedule": "← Zurück zum Zeitplan",
+      "toWorkItems": "Zu Arbeitspaketen",
+      "backToWorkItems": "← Zurück zu Arbeitspaketen",
+      "toSchedule": "Zum Zeitplan"
+    },
+    "titleEdit": {
+      "save": "Speichern",
+      "cancel": "Abbrechen"
+    },
+    "statusOptions": {
+      "notStarted": "Nicht begonnen",
+      "inProgress": "In Bearbeitung",
+      "completed": "Abgeschlossen"
+    },
+    "sections": {
+      "description": "Beschreibung",
+      "schedule": "Zeitplan",
+      "scheduleDescription": "Start- und Enddatum werden von der Planungsmaschine basierend auf Einschränkungen und Abhängigkeiten berechnet.",
+      "assignment": "Zuweisung",
+      "tags": "Tags",
+      "notes": "Notizen",
+      "subtasks": "Teilaufgaben",
+      "constraints": "Einschränkungen",
+      "dependentHouseholdItems": "Abhängige Haushaltsgegenstände"
+    },
+    "description": {
+      "noDescription": "Keine Beschreibung",
+      "clickToEdit": "Zum Bearbeiten klicken",
+      "save": "Speichern",
+      "cancel": "Abbrechen"
+    },
+    "schedule": {
+      "startDate": "Startdatum",
+      "endDate": "Enddatum",
+      "notScheduled": "Nicht geplant",
+      "delayed": "Verzögert um {{count}} {{unit}}",
+      "day": "Tag",
+      "days": "Tage"
+    },
+    "assignment": {
+      "assignedTo": "Zugewiesen an",
+      "unassigned": "Nicht zugewiesen"
+    },
+    "notes": {
+      "placeholder": "Notiz hinzufügen...",
+      "adding": "Wird hinzugefügt...",
+      "addNote": "Notiz hinzufügen",
+      "noNotes": "Noch keine Notizen. Fügen Sie oben eine hinzu.",
+      "save": "Speichern",
+      "cancel": "Abbrechen",
+      "edit": "Bearbeiten",
+      "delete": "Löschen",
+      "unknown": "Unbekannt"
+    },
+    "subtasks": {
+      "placeholder": "Teilaufgabe hinzufügen...",
+      "adding": "Wird hinzugefügt...",
+      "add": "Hinzufügen",
+      "noSubtasks": "Noch keine Teilaufgaben. Fügen Sie oben eine hinzu.",
+      "save": "Speichern",
+      "cancel": "Abbrechen",
+      "moveUp": "Nach oben",
+      "moveDown": "Nach unten"
+    },
+    "constraints": {
+      "duration": "Dauer",
+      "durationDays": "Dauer (Tage)",
+      "dateConstraints": "Datumsbeschränkungen",
+      "startAfter": "Frühestens ab",
+      "startBefore": "Spätestens ab",
+      "actualStart": "Tatsächlicher Start",
+      "actualEnd": "Tatsächliches Ende",
+      "clearStartAfter": "Datum 'Frühestens ab' löschen",
+      "clearStartBefore": "Datum 'Spätestens ab' löschen",
+      "clearActualStart": "Tatsächliches Startdatum löschen",
+      "clearActualEnd": "Tatsächliches Enddatum löschen",
+      "dependencies": "Abhängigkeiten",
+      "requiredMilestones": "Erforderliche Meilensteine",
+      "requiredMilestonesDesc": "Meilensteine, die abgeschlossen sein müssen, bevor dieses Arbeitspaket beginnen kann.",
+      "noRequiredMilestones": "Keine erforderlichen Meilensteine",
+      "linkedMilestones": "Verknüpfte Meilensteine",
+      "linkedMilestonesDesc": "Meilensteine, zu denen dieses Arbeitspaket beiträgt.",
+      "noLinkedMilestones": "Keine verknüpften Meilensteine",
+      "selectMilestone": "Meilenstein auswählen...",
+      "selectRequiredMilestoneAriaLabel": "Erforderlichen Meilenstein zum Hinzufügen auswählen",
+      "selectLinkedMilestoneAriaLabel": "Meilenstein zum Verknüpfen auswählen",
+      "addMilestone": "Hinzufügen",
+      "adding": "Wird hinzugefügt...",
+      "linkMilestone": "Verknüpfen",
+      "linking": "Wird verknüpft...",
+      "removeRequiredMilestoneAriaLabel": "Erforderlichen Meilenstein entfernen: {{name}}",
+      "removeLinkedMilestoneAriaLabel": "Verknüpften Meilenstein entfernen: {{name}}"
+    },
+    "householdItems": {
+      "noItems": "Keine Haushaltsgegenstände sind von diesem Arbeitspaket abhängig.",
+      "categories": {
+        "furniture": "Möbel",
+        "appliances": "Geräte",
+        "fixtures": "Einbauten",
+        "decor": "Dekor",
+        "electronics": "Elektronik",
+        "outdoor": "Außenbereich",
+        "storage": "Aufbewahrung",
+        "other": "Sonstiges"
+      },
+      "statuses": {
+        "planned": "Geplant",
+        "purchased": "Gekauft",
+        "scheduled": "Terminiert",
+        "arrived": "Angekommen"
+      }
+    },
+    "footer": {
+      "createdBy": "Erstellt von {{name}} am {{date}}",
+      "lastUpdated": "Zuletzt aktualisiert {{date}}",
+      "deleteWorkItem": "Arbeitspaket löschen"
+    },
+    "modals": {
+      "deleteWorkItem": {
+        "title": "Arbeitspaket löschen?",
+        "text": "Sind Sie sicher, dass Sie \"{{title}}\" löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
+        "cancel": "Abbrechen",
+        "deleting": "Wird gelöscht...",
+        "delete": "Löschen"
+      },
+      "deleteNote": {
+        "title": "Notiz löschen?",
+        "text": "Sind Sie sicher, dass Sie diese Notiz löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
+        "cancel": "Abbrechen",
+        "delete": "Löschen"
+      },
+      "deleteSubtask": {
+        "title": "Teilaufgabe löschen?",
+        "text": "Sind Sie sicher, dass Sie diese Teilaufgabe löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
+        "cancel": "Abbrechen",
+        "delete": "Löschen"
+      },
+      "removeDependency": {
+        "title": "Abhängigkeit entfernen?",
+        "textPredecessor": "Dieses Element wird nicht mehr von \"{{title}}\" abhängen. Diese Aktion kann nicht rückgängig gemacht werden.",
+        "textSuccessor": "Dieses Element wird \"{{title}}\" nicht mehr blockieren. Diese Aktion kann nicht rückgängig gemacht werden.",
+        "cancel": "Abbrechen",
+        "remove": "Entfernen"
+      },
+      "deleteBudgetLine": {
+        "title": "Budgetzeile löschen?",
+        "text": "Sind Sie sicher, dass Sie diese Budgetzeile löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
+        "cancel": "Abbrechen",
+        "delete": "Löschen"
+      }
+    },
+    "inlineErrors": {
+      "updateTitle": "Titel konnte nicht aktualisiert werden",
+      "updateDescription": "Beschreibung konnte nicht aktualisiert werden",
+      "updateStatus": "Status konnte nicht aktualisiert werden",
+      "updateAssignedUser": "Zugewiesener Benutzer konnte nicht aktualisiert werden",
+      "updateDuration": "Dauer konnte nicht aktualisiert werden",
+      "updateStartAfter": "Datum 'Frühestens ab' konnte nicht aktualisiert werden",
+      "updateStartBefore": "Datum 'Spätestens ab' konnte nicht aktualisiert werden",
+      "updateActualStartDate": "Tatsächliches Startdatum konnte nicht aktualisiert werden",
+      "updateActualEndDate": "Tatsächliches Enddatum konnte nicht aktualisiert werden",
+      "updateTags": "Tags konnten nicht aktualisiert werden",
+      "addNote": "Notiz konnte nicht hinzugefügt werden",
+      "updateNote": "Notiz konnte nicht aktualisiert werden",
+      "deleteNote": "Notiz konnte nicht gelöscht werden",
+      "addSubtask": "Teilaufgabe konnte nicht hinzugefügt werden",
+      "updateSubtask": "Teilaufgabe konnte nicht aktualisiert werden",
+      "deleteSubtask": "Teilaufgabe konnte nicht gelöscht werden",
+      "reorderSubtasks": "Teilaufgaben konnten nicht neu angeordnet werden",
+      "addDependency": "Abhängigkeit konnte nicht hinzugefügt werden",
+      "dependencyExists": "Diese Abhängigkeit existiert bereits oder würde eine zirkuläre Referenz erzeugen",
+      "removeDependency": "Abhängigkeit konnte nicht entfernt werden",
+      "addRequiredMilestone": "Erforderlicher Meilenstein konnte nicht hinzugefügt werden",
+      "requiredMilestoneAlreadyLinked": "Dieser Meilenstein ist bereits eine erforderliche Abhängigkeit",
+      "removeRequiredMilestone": "Erforderlicher Meilenstein konnte nicht entfernt werden",
+      "addLinkedMilestone": "Verknüpfter Meilenstein konnte nicht hinzugefügt werden",
+      "linkedMilestoneAlreadyLinked": "Dieser Meilenstein ist bereits verknüpft",
+      "removeLinkedMilestone": "Verknüpfter Meilenstein konnte nicht entfernt werden",
+      "loadFailed": "Arbeitspaket konnte nicht geladen werden. Bitte erneut versuchen.",
+      "unlinkSubsidy": "Förderprogramm konnte nicht aufgehoben werden",
+      "alreadyLinkedSubsidy": "Dieses Förderprogramm ist bereits verknüpft",
+      "unlinkInvoice": "Budgetzeile konnte nicht von Rechnung getrennt werden",
+      "deleteWorkItem": "Arbeitspaket konnte nicht gelöscht werden"
+    },
+    "dismissError": "Fehler ausblenden",
+    "shortcuts": {
+      "editTitle": "Titel bearbeiten",
+      "deleteWorkItem": "Arbeitspaket löschen (Entf / Rücktaste)",
+      "cancelOrClose": "Bearbeitung abbrechen oder Dialog schließen",
+      "showShortcuts": "Tastaturkürzel anzeigen"
+    }
+  }
+}

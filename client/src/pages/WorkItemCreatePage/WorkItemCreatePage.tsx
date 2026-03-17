@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type {
   TagResponse,
   UserResponse,
@@ -28,6 +29,7 @@ interface PendingDependency {
 
 export default function WorkItemCreatePage() {
   const navigate = useNavigate();
+  const { t } = useTranslation('workItems');
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -58,7 +60,7 @@ export default function WorkItemCreatePage() {
         setAvailableTags(tagsResponse.tags);
         setUsers(usersResponse.users.filter((u) => !u.deactivatedAt));
       } catch (err) {
-        setError('Failed to load form data. Please try again.');
+        setError(t('create.errors.loadFailed'));
         console.error('Failed to load data:', err);
       } finally {
         setIsLoadingData(false);
@@ -78,16 +80,16 @@ export default function WorkItemCreatePage() {
     const errors: Record<string, string> = {};
 
     if (!title.trim()) {
-      errors.title = 'Title is required';
+      errors.title = t('create.fields.titleRequiredError');
     }
 
     if (startAfter && startBefore && startAfter > startBefore) {
-      errors.constraints = 'Start after date must be before or equal to start before date';
+      errors.constraints = t('create.fields.constraintsError');
     }
 
     // Validate duration
     if (durationDays && (isNaN(Number(durationDays)) || Number(durationDays) < 0)) {
-      errors.durationDays = 'Duration must be a positive number';
+      errors.durationDays = t('create.fields.durationError');
     }
 
     setValidationErrors(errors);
@@ -178,7 +180,7 @@ export default function WorkItemCreatePage() {
         navigate(`/project/work-items/${workItem.id}`);
       }
     } catch (err) {
-      setError('Failed to create work item. Please try again.');
+      setError(t('create.errors.createFailed'));
       console.error('Failed to create work item:', err);
       setIsSubmitting(false);
     }
@@ -187,7 +189,7 @@ export default function WorkItemCreatePage() {
   if (isLoadingData) {
     return (
       <div className={styles.container}>
-        <div className={styles.loading}>Loading...</div>
+        <div className={styles.loading}>{t('create.loading')}</div>
       </div>
     );
   }
@@ -201,9 +203,9 @@ export default function WorkItemCreatePage() {
           onClick={() => navigate('/project/work-items')}
           disabled={isSubmitting}
         >
-          ← Back to Work Items
+          {t('create.backToWorkItems')}
         </button>
-        <h1 className={styles.title}>Create Work Item</h1>
+        <h1 className={styles.title}>{t('create.pageTitle')}</h1>
       </div>
 
       {error && <div className={styles.errorBanner}>{error}</div>}
@@ -211,7 +213,7 @@ export default function WorkItemCreatePage() {
       <form className={styles.form} onSubmit={handleSubmit}>
         <div className={styles.formGroup}>
           <label htmlFor="title" className={styles.label}>
-            Title <span className={styles.required}>*</span>
+            {t('create.fields.title')} <span className={styles.required}>{t('create.fields.titleRequired')}</span>
           </label>
           <input
             type="text"
@@ -220,7 +222,7 @@ export default function WorkItemCreatePage() {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             disabled={isSubmitting}
-            placeholder="Enter work item title"
+            placeholder={t('create.fields.titlePlaceholder')}
           />
           {validationErrors.title && (
             <div className={styles.errorText}>{validationErrors.title}</div>
@@ -229,7 +231,7 @@ export default function WorkItemCreatePage() {
 
         <div className={styles.formGroup}>
           <label htmlFor="description" className={styles.label}>
-            Description
+            {t('create.fields.description')}
           </label>
           <textarea
             id="description"
@@ -238,14 +240,14 @@ export default function WorkItemCreatePage() {
             onChange={(e) => setDescription(e.target.value)}
             disabled={isSubmitting}
             rows={4}
-            placeholder="Describe the work to be done"
+            placeholder={t('create.fields.descriptionPlaceholder')}
           />
         </div>
 
         <div className={styles.formRow}>
           <div className={styles.formGroup}>
             <label htmlFor="status" className={styles.label}>
-              Status
+              {t('create.fields.status')}
             </label>
             <select
               id="status"
@@ -254,15 +256,15 @@ export default function WorkItemCreatePage() {
               onChange={(e) => setStatus(e.target.value as WorkItemStatus)}
               disabled={isSubmitting}
             >
-              <option value="not_started">Not Started</option>
-              <option value="in_progress">In Progress</option>
-              <option value="completed">Completed</option>
+              <option value="not_started">{t('create.fields.statusOptions.notStarted')}</option>
+              <option value="in_progress">{t('create.fields.statusOptions.inProgress')}</option>
+              <option value="completed">{t('create.fields.statusOptions.completed')}</option>
             </select>
           </div>
 
           <div className={styles.formGroup}>
             <label htmlFor="assignedUserId" className={styles.label}>
-              Assigned To
+              {t('create.fields.assignedTo')}
             </label>
             <select
               id="assignedUserId"
@@ -271,7 +273,7 @@ export default function WorkItemCreatePage() {
               onChange={(e) => setAssignedUserId(e.target.value)}
               disabled={isSubmitting}
             >
-              <option value="">Unassigned</option>
+              <option value="">{t('create.fields.unassigned')}</option>
               {users.map((user) => (
                 <option key={user.id} value={user.id}>
                   {user.displayName}
@@ -284,7 +286,7 @@ export default function WorkItemCreatePage() {
         <div className={styles.formRow}>
           <div className={styles.formGroup}>
             <label htmlFor="durationDays" className={styles.label}>
-              Duration (days)
+              {t('create.fields.durationDays')}
             </label>
             <input
               type="number"
@@ -303,7 +305,7 @@ export default function WorkItemCreatePage() {
 
           <div className={styles.formGroup}>
             <label htmlFor="startAfter" className={styles.label}>
-              Start After
+              {t('create.fields.startAfter')}
             </label>
             <input
               type="date"
@@ -317,7 +319,7 @@ export default function WorkItemCreatePage() {
 
           <div className={styles.formGroup}>
             <label htmlFor="startBefore" className={styles.label}>
-              Start Before
+              {t('create.fields.startBefore')}
             </label>
             <input
               type="date"
@@ -335,7 +337,7 @@ export default function WorkItemCreatePage() {
         )}
 
         <div className={styles.formGroup}>
-          <label className={styles.label}>Tags</label>
+          <label className={styles.label}>{t('create.fields.tags')}</label>
           <TagPicker
             availableTags={availableTags}
             selectedTagIds={selectedTagIds}
@@ -347,12 +349,12 @@ export default function WorkItemCreatePage() {
 
         {/* Dependencies Section */}
         <div className={styles.formGroup}>
-          <label className={styles.label}>Dependencies</label>
+          <label className={styles.label}>{t('create.fields.dependencies')}</label>
           <div className={styles.dependenciesSection}>
             {/* Sentence builder */}
             <DependencySentenceBuilder
               thisItemId={THIS_ITEM_ID}
-              thisItemLabel="This item"
+              thisItemLabel={t('create.thisItemLabel')}
               excludeIds={excludedDepIds}
               disabled={isSubmitting}
               onAdd={handleAddPendingDependency}
@@ -360,15 +362,23 @@ export default function WorkItemCreatePage() {
 
             {/* Pending dependencies list */}
             {pendingDependencies.length > 0 && (
-              <ul className={styles.pendingDependenciesList} aria-label="Pending dependencies">
+              <ul className={styles.pendingDependenciesList} aria-label={t('create.pendingDeps.ariaLabel')}>
                 {pendingDependencies.map((dep) => {
                   const { predecessorVerb, successorVerb } = dependencyTypeToVerbs(
                     dep.dependencyType,
                   );
                   const isThisItemPredecessor = dep.predecessorId === THIS_ITEM_ID;
                   const sentence = isThisItemPredecessor
-                    ? `This item must ${predecessorVerb} before "${dep.otherItemTitle}" can ${successorVerb}`
-                    : `"${dep.otherItemTitle}" must ${predecessorVerb} before this item can ${successorVerb}`;
+                    ? t('create.pendingDeps.thisItemPredecessor', {
+                        predecessorVerb,
+                        successorVerb,
+                        otherItemTitle: dep.otherItemTitle,
+                      })
+                    : t('create.pendingDeps.otherItemPredecessor', {
+                        predecessorVerb,
+                        successorVerb,
+                        otherItemTitle: dep.otherItemTitle,
+                      });
 
                   return (
                     <li key={dep.otherItemId} className={styles.pendingDependencyChip}>
@@ -377,7 +387,9 @@ export default function WorkItemCreatePage() {
                         type="button"
                         className={styles.chipRemove}
                         onClick={() => handleRemovePendingDependency(dep.otherItemId)}
-                        aria-label={`Remove dependency involving ${dep.otherItemTitle}`}
+                        aria-label={t('create.pendingDeps.removeAriaLabel', {
+                          otherItemTitle: dep.otherItemTitle,
+                        })}
                         disabled={isSubmitting}
                       >
                         &times;
@@ -397,10 +409,10 @@ export default function WorkItemCreatePage() {
             onClick={() => navigate('/project/work-items')}
             disabled={isSubmitting}
           >
-            Cancel
+            {t('create.actions.cancel')}
           </button>
           <button type="submit" className={styles.submitButton} disabled={isSubmitting}>
-            {isSubmitting ? 'Creating...' : 'Create Work Item'}
+            {isSubmitting ? t('create.actions.creating') : t('create.actions.create')}
           </button>
         </div>
       </form>

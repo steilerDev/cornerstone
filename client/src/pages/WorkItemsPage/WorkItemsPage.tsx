@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type { WorkItemSummary, WorkItemStatus, UserResponse } from '@cornerstone/shared';
 import { listWorkItems, deleteWorkItem } from '../../lib/workItemsApi.js';
 import { listUsers } from '../../lib/usersApi.js';
@@ -15,30 +16,10 @@ import { formatDate } from '../../lib/formatters.js';
 import { ProjectSubNav } from '../../components/ProjectSubNav/ProjectSubNav.js';
 import styles from './WorkItemsPage.module.css';
 
-const STATUS_OPTIONS: { value: WorkItemStatus; label: string }[] = [
-  { value: 'not_started', label: 'Not Started' },
-  { value: 'in_progress', label: 'In Progress' },
-  { value: 'completed', label: 'Completed' },
-];
-
-const WORK_ITEM_STATUS_VARIANTS = {
-  not_started: { label: 'Not Started', className: badgeStyles.not_started },
-  in_progress: { label: 'In Progress', className: badgeStyles.in_progress },
-  completed: { label: 'Completed', className: badgeStyles.completed },
-};
-
-const SORT_OPTIONS: { value: string; label: string }[] = [
-  { value: 'title', label: 'Title' },
-  { value: 'status', label: 'Status' },
-  { value: 'start_date', label: 'Start Date' },
-  { value: 'end_date', label: 'End Date' },
-  { value: 'created_at', label: 'Created' },
-  { value: 'updated_at', label: 'Updated' },
-];
-
 export function WorkItemsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { t } = useTranslation('workItems');
 
   // Data state
   const [workItems, setWorkItems] = useState<WorkItemSummary[]>([]);
@@ -164,7 +145,7 @@ export function WorkItemsPage() {
         if (err instanceof ApiClientError) {
           setError(err.error.message);
         } else {
-          setError('Failed to load work items. Please try again.');
+          setError(t('list.errors.loadFailed'));
         }
       } finally {
         setIsLoading(false);
@@ -214,7 +195,7 @@ export function WorkItemsPage() {
       if (err instanceof ApiClientError) {
         setError(err.error.message);
       } else {
-        setError('Failed to load work items. Please try again.');
+        setError(t('list.errors.loadFailed'));
       }
     } finally {
       setIsLoading(false);
@@ -279,7 +260,7 @@ export function WorkItemsPage() {
       if (err instanceof ApiClientError) {
         setError(err.error.message);
       } else {
-        setError('Failed to delete work item. Please try again.');
+        setError(t('list.errors.deleteFailed'));
       }
     } finally {
       setIsDeleting(false);
@@ -297,12 +278,12 @@ export function WorkItemsPage() {
       {
         key: 'n',
         handler: () => navigate('/project/work-items/new'),
-        description: 'New work item',
+        description: t('list.shortcuts.newWorkItem'),
       },
       {
         key: '/',
         handler: () => searchInputRef.current?.focus(),
-        description: 'Focus search',
+        description: t('list.shortcuts.focusSearch'),
       },
       {
         key: 'ArrowDown',
@@ -313,7 +294,7 @@ export function WorkItemsPage() {
             );
           }
         },
-        description: 'Select next item',
+        description: t('list.shortcuts.selectNext'),
       },
       {
         key: 'ArrowUp',
@@ -322,7 +303,7 @@ export function WorkItemsPage() {
             setSelectedIndex((prev) => (prev === -1 ? 0 : Math.max(prev - 1, 0)));
           }
         },
-        description: 'Select previous item',
+        description: t('list.shortcuts.selectPrevious'),
       },
       {
         key: 'Enter',
@@ -331,12 +312,12 @@ export function WorkItemsPage() {
             navigate(`/project/work-items/${workItems[selectedIndex].id}`);
           }
         },
-        description: 'Open selected item',
+        description: t('list.shortcuts.openSelected'),
       },
       {
         key: '?',
         handler: () => setShowShortcutsHelp(true),
-        description: 'Show keyboard shortcuts',
+        description: t('list.shortcuts.showShortcuts'),
       },
       {
         key: 'Escape',
@@ -351,10 +332,10 @@ export function WorkItemsPage() {
             setSelectedIndex(-1);
           }
         },
-        description: 'Close dialog or cancel',
+        description: t('list.shortcuts.closeOrCancel'),
       },
     ],
-    [navigate, workItems, selectedIndex, showShortcutsHelp, deletingWorkItem, activeMenuId],
+    [navigate, workItems, selectedIndex, showShortcutsHelp, deletingWorkItem, activeMenuId, t],
   );
 
   useKeyboardShortcuts(shortcuts);
@@ -366,10 +347,41 @@ export function WorkItemsPage() {
     }
   }, [workItems.length, selectedIndex]);
 
+  // Build status options inside component
+  const STATUS_OPTIONS: { value: WorkItemStatus; label: string }[] = useMemo(
+    () => [
+      { value: 'not_started', label: t('list.sortOptions.status') },
+      { value: 'in_progress', label: t('create.fields.statusOptions.inProgress') },
+      { value: 'completed', label: t('create.fields.statusOptions.completed') },
+    ],
+    [t],
+  );
+
+  const WORK_ITEM_STATUS_VARIANTS = useMemo(
+    () => ({
+      not_started: { label: t('create.fields.statusOptions.notStarted'), className: badgeStyles.not_started },
+      in_progress: { label: t('create.fields.statusOptions.inProgress'), className: badgeStyles.in_progress },
+      completed: { label: t('create.fields.statusOptions.completed'), className: badgeStyles.completed },
+    }),
+    [t],
+  );
+
+  const SORT_OPTIONS: { value: string; label: string }[] = useMemo(
+    () => [
+      { value: 'title', label: t('list.sortOptions.title') },
+      { value: 'status', label: t('list.sortOptions.status') },
+      { value: 'start_date', label: t('list.sortOptions.startDate') },
+      { value: 'end_date', label: t('list.sortOptions.endDate') },
+      { value: 'created_at', label: t('list.sortOptions.createdAt') },
+      { value: 'updated_at', label: t('list.sortOptions.updatedAt') },
+    ],
+    [t],
+  );
+
   if (isLoading && workItems.length === 0) {
     return (
       <div className={styles.container}>
-        <div className={styles.loading}>Loading work items...</div>
+        <div className={styles.loading}>{t('list.loading')}</div>
       </div>
     );
   }
@@ -377,13 +389,13 @@ export function WorkItemsPage() {
   return (
     <div className={styles.container} ref={containerRef}>
       <div className={styles.header}>
-        <h1 className={styles.pageTitle}>Project</h1>
+        <h1 className={styles.pageTitle}>{t('list.pageTitle')}</h1>
         <button
           type="button"
           className={styles.primaryButton}
           onClick={() => navigate('/project/work-items/new')}
         >
-          New Work Item
+          {t('list.newWorkItem')}
         </button>
       </div>
       <ProjectSubNav />
@@ -400,18 +412,18 @@ export function WorkItemsPage() {
           <input
             ref={searchInputRef}
             type="search"
-            placeholder="Search work items..."
+            placeholder={t('list.search.placeholder')}
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             className={styles.searchInput}
-            aria-label="Search work items"
+            aria-label={t('list.search.ariaLabel')}
           />
         </div>
 
         <div className={styles.filtersRow}>
           <div className={styles.filter}>
             <label htmlFor="status-filter" className={styles.filterLabel}>
-              Status:
+              {t('list.filters.status')}
             </label>
             <select
               id="status-filter"
@@ -419,7 +431,7 @@ export function WorkItemsPage() {
               onChange={(e) => handleStatusFilterChange(e.target.value)}
               className={styles.filterSelect}
             >
-              <option value="">All Statuses</option>
+              <option value="">{t('list.filters.allStatuses')}</option>
               {STATUS_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
@@ -430,7 +442,7 @@ export function WorkItemsPage() {
 
           <div className={styles.filter}>
             <label htmlFor="user-filter" className={styles.filterLabel}>
-              Assigned to:
+              {t('list.filters.assignedTo')}
             </label>
             <select
               id="user-filter"
@@ -438,7 +450,7 @@ export function WorkItemsPage() {
               onChange={(e) => handleUserFilterChange(e.target.value)}
               className={styles.filterSelect}
             >
-              <option value="">All Users</option>
+              <option value="">{t('list.filters.allUsers')}</option>
               {users.map((user) => (
                 <option key={user.id} value={user.id}>
                   {user.displayName}
@@ -449,7 +461,7 @@ export function WorkItemsPage() {
 
           <div className={styles.filter}>
             <label htmlFor="tag-filter" className={styles.filterLabel}>
-              Tag:
+              {t('list.filters.tag')}
             </label>
             <select
               id="tag-filter"
@@ -457,7 +469,7 @@ export function WorkItemsPage() {
               onChange={(e) => handleTagFilterChange(e.target.value)}
               className={styles.filterSelect}
             >
-              <option value="">All Tags</option>
+              <option value="">{t('list.filters.allTags')}</option>
               {tags.map((tag) => (
                 <option key={tag.id} value={tag.id}>
                   {tag.name}
@@ -468,7 +480,7 @@ export function WorkItemsPage() {
 
           <div className={styles.filter}>
             <label htmlFor="sort-filter" className={styles.filterLabel}>
-              Sort by:
+              {t('list.filters.sortBy')}
             </label>
             <select
               id="sort-filter"
@@ -488,9 +500,9 @@ export function WorkItemsPage() {
             type="button"
             className={styles.secondaryButton}
             onClick={() => handleSortChange(sortBy)}
-            aria-label="Toggle sort order"
+            aria-label={t('list.filters.toggleSortOrder')}
           >
-            {sortOrder === 'asc' ? '↑ Asc' : '↓ Desc'}
+            {sortOrder === 'asc' ? t('list.filters.sortAscending') : t('list.filters.sortDescending')}
           </button>
         </div>
       </div>
@@ -500,8 +512,8 @@ export function WorkItemsPage() {
         <div className={styles.emptyState}>
           {searchQuery || statusFilter || assignedUserFilter || tagFilter ? (
             <>
-              <h2>No work items match your filters</h2>
-              <p>Try adjusting your search or filter criteria.</p>
+              <h2>{t('list.empty.noMatchTitle')}</h2>
+              <p>{t('list.empty.noMatchText')}</p>
               <button
                 type="button"
                 className={styles.secondaryButton}
@@ -510,19 +522,19 @@ export function WorkItemsPage() {
                   setSearchParams(new URLSearchParams());
                 }}
               >
-                Clear All Filters
+                {t('list.empty.clearFilters')}
               </button>
             </>
           ) : (
             <>
-              <h2>No work items yet</h2>
-              <p>Get started by creating your first work item to track construction tasks.</p>
+              <h2>{t('list.empty.noItemsTitle')}</h2>
+              <p>{t('list.empty.noItemsText')}</p>
               <button
                 type="button"
                 className={styles.primaryButton}
                 onClick={() => navigate('/project/work-items/new')}
               >
-                Create First Work Item
+                {t('list.empty.createFirst')}
               </button>
             </>
           )}
@@ -535,26 +547,26 @@ export function WorkItemsPage() {
               <thead>
                 <tr>
                   <th className={styles.sortableHeader} onClick={() => handleSortChange('title')}>
-                    Title{renderSortIcon('title')}
+                    {t('list.table.title')}{renderSortIcon('title')}
                   </th>
                   <th className={styles.sortableHeader} onClick={() => handleSortChange('status')}>
-                    Status{renderSortIcon('status')}
+                    {t('list.table.status')}{renderSortIcon('status')}
                   </th>
-                  <th>Assigned To</th>
+                  <th>{t('list.table.assignedTo')}</th>
                   <th
                     className={styles.sortableHeader}
                     onClick={() => handleSortChange('start_date')}
                   >
-                    Start Date{renderSortIcon('start_date')}
+                    {t('list.table.startDate')}{renderSortIcon('start_date')}
                   </th>
                   <th
                     className={styles.sortableHeader}
                     onClick={() => handleSortChange('end_date')}
                   >
-                    End Date{renderSortIcon('end_date')}
+                    {t('list.table.endDate')}{renderSortIcon('end_date')}
                   </th>
-                  <th>Tags</th>
-                  <th className={styles.actionsColumn}>Actions</th>
+                  <th>{t('list.table.tags')}</th>
+                  <th className={styles.actionsColumn}>{t('list.table.actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -586,7 +598,7 @@ export function WorkItemsPage() {
                           type="button"
                           className={styles.menuButton}
                           onClick={() => setActiveMenuId(activeMenuId === item.id ? null : item.id)}
-                          aria-label="Actions menu"
+                          aria-label={t('list.actions.actionsMenu')}
                         >
                           ⋮
                         </button>
@@ -597,14 +609,14 @@ export function WorkItemsPage() {
                               className={styles.menuItem}
                               onClick={() => navigate(`/project/work-items/${item.id}`)}
                             >
-                              Edit
+                              {t('list.actions.edit')}
                             </button>
                             <button
                               type="button"
                               className={`${styles.menuItem} ${styles.menuItemDanger}`}
                               onClick={(e) => handleDeleteClick(item, e)}
                             >
-                              Delete
+                              {t('list.actions.delete')}
                             </button>
                           </div>
                         )}
@@ -628,7 +640,7 @@ export function WorkItemsPage() {
                         type="button"
                         className={styles.menuButton}
                         onClick={() => setActiveMenuId(activeMenuId === item.id ? null : item.id)}
-                        aria-label="Actions menu"
+                        aria-label={t('list.actions.actionsMenu')}
                       >
                         ⋮
                       </button>
@@ -639,14 +651,14 @@ export function WorkItemsPage() {
                             className={styles.menuItem}
                             onClick={() => navigate(`/project/work-items/${item.id}`)}
                           >
-                            Edit
+                            {t('list.actions.edit')}
                           </button>
                           <button
                             type="button"
                             className={`${styles.menuItem} ${styles.menuItemDanger}`}
                             onClick={(e) => handleDeleteClick(item, e)}
                           >
-                            Delete
+                            {t('list.actions.delete')}
                           </button>
                         </div>
                       )}
@@ -655,24 +667,24 @@ export function WorkItemsPage() {
                 </div>
                 <div className={styles.cardBody}>
                   <div className={styles.cardRow}>
-                    <span className={styles.cardLabel}>Status:</span>
+                    <span className={styles.cardLabel}>{t('list.card.status')}</span>
                     <Badge variants={WORK_ITEM_STATUS_VARIANTS} value={item.status} />
                   </div>
                   <div className={styles.cardRow}>
-                    <span className={styles.cardLabel}>Assigned:</span>
+                    <span className={styles.cardLabel}>{t('list.card.assigned')}</span>
                     <span>{item.assignedUser?.displayName || '—'}</span>
                   </div>
                   <div className={styles.cardRow}>
-                    <span className={styles.cardLabel}>Start:</span>
+                    <span className={styles.cardLabel}>{t('list.card.start')}</span>
                     <span>{formatDate(item.startDate)}</span>
                   </div>
                   <div className={styles.cardRow}>
-                    <span className={styles.cardLabel}>End:</span>
+                    <span className={styles.cardLabel}>{t('list.card.end')}</span>
                     <span>{formatDate(item.endDate)}</span>
                   </div>
                   {item.tags.length > 0 && (
                     <div className={styles.cardRow}>
-                      <span className={styles.cardLabel}>Tags:</span>
+                      <span className={styles.cardLabel}>{t('list.card.tags')}</span>
                       <div className={styles.tagsCell}>
                         {item.tags.map((tag) => (
                           <TagPill key={tag.id} name={tag.name} color={tag.color} />
@@ -689,8 +701,11 @@ export function WorkItemsPage() {
           {totalPages > 1 && (
             <div className={styles.pagination}>
               <div className={styles.paginationInfo}>
-                Showing {(currentPage - 1) * pageSize + 1} to{' '}
-                {Math.min(currentPage * pageSize, totalItems)} of {totalItems} items
+                {t('list.pagination.showing', {
+                  from: (currentPage - 1) * pageSize + 1,
+                  to: Math.min(currentPage * pageSize, totalItems),
+                  total: totalItems,
+                })}
               </div>
               <div className={styles.paginationControls}>
                 <button
@@ -698,9 +713,9 @@ export function WorkItemsPage() {
                   className={styles.paginationButton}
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1}
-                  aria-label="Previous page"
+                  aria-label={t('list.pagination.previousAriaLabel')}
                 >
-                  ← Previous
+                  {t('list.pagination.previous')}
                 </button>
                 <div className={styles.paginationPages}>
                   {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
@@ -733,9 +748,9 @@ export function WorkItemsPage() {
                   className={styles.paginationButton}
                   onClick={() => handlePageChange(currentPage + 1)}
                   disabled={currentPage === totalPages}
-                  aria-label="Next page"
+                  aria-label={t('list.pagination.nextAriaLabel')}
                 >
-                  Next →
+                  {t('list.pagination.next')}
                 </button>
               </div>
             </div>
@@ -751,14 +766,12 @@ export function WorkItemsPage() {
             onClick={() => !isDeleting && setDeletingWorkItem(null)}
           />
           <div className={styles.modalContent}>
-            <h2 className={styles.modalTitle}>Delete Work Item</h2>
+            <h2 className={styles.modalTitle}>{t('list.deleteModal.title')}</h2>
             <p className={styles.modalText}>
-              Are you sure you want to delete &quot;<strong>{deletingWorkItem.title}</strong>
-              &quot;?
+              {t('list.deleteModal.confirmation', { title: deletingWorkItem.title })}
             </p>
             <p className={styles.modalWarning}>
-              This will also delete all associated subtasks, dependencies, and comments. This action
-              cannot be undone.
+              {t('list.deleteModal.warning')}
             </p>
             <div className={styles.modalActions}>
               <button
@@ -767,7 +780,7 @@ export function WorkItemsPage() {
                 onClick={() => setDeletingWorkItem(null)}
                 disabled={isDeleting}
               >
-                Cancel
+                {t('list.deleteModal.cancel')}
               </button>
               <button
                 type="button"
@@ -775,7 +788,7 @@ export function WorkItemsPage() {
                 onClick={confirmDelete}
                 disabled={isDeleting}
               >
-                {isDeleting ? 'Deleting...' : 'Delete Work Item'}
+                {isDeleting ? t('list.deleteModal.deletingLabel') : t('list.deleteModal.deleteLabel')}
               </button>
             </div>
           </div>

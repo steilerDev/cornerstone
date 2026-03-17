@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type { DiaryEntrySummary } from '@cornerstone/shared';
 import { formatDate, formatTime } from '../../lib/formatters.js';
 import { DiaryEntryTypeBadge } from '../diary/DiaryEntryTypeBadge/DiaryEntryTypeBadge.js';
@@ -13,8 +14,10 @@ interface RecentDiaryCardProps {
 }
 
 export function RecentDiaryCard({ entries, isLoading, error }: RecentDiaryCardProps) {
+  const { t } = useTranslation('dashboard');
+
   if (isLoading) {
-    return <div className={shared.loading}>Loading entries...</div>;
+    return <div className={shared.loading}>{t('cards.recentDiary.loadingEntries')}</div>;
   }
 
   if (error) {
@@ -24,9 +27,9 @@ export function RecentDiaryCard({ entries, isLoading, error }: RecentDiaryCardPr
   if (entries.length === 0) {
     return (
       <EmptyState
-        message="No diary entries yet."
+        message={t('cards.recentDiary.emptyMessage')}
         action={{
-          label: 'Create first entry',
+          label: t('cards.recentDiary.emptyAction'),
           href: '/diary/new',
         }}
         className={styles.emptyState}
@@ -46,7 +49,7 @@ export function RecentDiaryCard({ entries, isLoading, error }: RecentDiaryCardPr
           >
             <div className={styles.entryHeader}>
               <DiaryEntryTypeBadge entryType={entry.entryType} size="sm" />
-              <div className={styles.entryTitle}>{entry.title || 'Untitled'}</div>
+              <div className={styles.entryTitle}>{entry.title || t('cards.recentDiary.untitled')}</div>
             </div>
             <div className={styles.entryPreview}>{entry.body.substring(0, 100)}</div>
             <div className={styles.entryMeta}>
@@ -59,10 +62,10 @@ export function RecentDiaryCard({ entries, isLoading, error }: RecentDiaryCardPr
 
       <div className={styles.footer}>
         <Link to="/diary/new" className={styles.addLink}>
-          + New Entry
+          {t('cards.recentDiary.newEntry')}
         </Link>
         <Link to="/diary" className={styles.viewAllLink}>
-          View All
+          {t('cards.recentDiary.viewAll')}
         </Link>
       </div>
     </div>
