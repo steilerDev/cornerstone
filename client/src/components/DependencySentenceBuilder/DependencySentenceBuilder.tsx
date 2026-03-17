@@ -220,7 +220,7 @@ export function DependencySentenceBuilder({
           onClick={handleAdd}
           disabled={!canAdd || disabled}
         >
-          {t('common.button.add')}
+          {t('common:button.add')}
         </button>
       </div>
     </div>
