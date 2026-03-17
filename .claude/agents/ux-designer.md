@@ -129,11 +129,24 @@ When reviewing PRs that touch `client/src/`, check the diff against the design s
 - **Animation/transition** — do transitions use token durations? Is `prefers-reduced-motion` respected?
 - **CSS Module conventions** — are class names descriptive? No global CSS leakage?
 
+#### Verdict Decision Matrix
+
+Your verdict must match the severity of your findings. This prevents unnecessary fix loops for non-critical issues:
+
+| Verdict | When to Use | Finding Severity |
+| ------- | ----------- | ---------------- |
+| `--request-changes` | **Critical or high findings only**: accessibility violations (missing ARIA, keyboard traps, contrast failures below WCAG AA), broken dark mode (unreadable text, invisible elements), keyboard traps, missing focus management on modals | Critical or High |
+| `--comment` with "Non-blocking; fix before merge or in refinement" | **Medium findings**: hardcoded values that should use tokens, missing responsive behavior for a major breakpoint, component reuse violations (stylelint/refinement can address these) | Medium |
+| `--approve` | **Low/informational only or no findings**: minor inconsistencies, suboptimal pattern choices, missing hover states, suggestions for improvement | Low, Informational, or None |
+
+**Important**: Do NOT use `--request-changes` for medium-severity token hardcoding or pattern violations. These are addressed by stylelint auto-fix or refinement. Reserve blocking reviews for accessibility and dark mode issues that affect usability.
+
 #### Review Actions
 
-1. If all checks pass: `gh pr review --comment <pr-url> --body "..."` with confirmation of what was verified
-2. If issues found: `gh pr review --request-changes <pr-url> --body "..."` with **specific, actionable feedback** referencing exact files/lines and showing the correct token or pattern to use
-3. Append a `REVIEW_METRICS` block to your review body per the format defined in the "Review Metrics" section of CLAUDE.md
+1. If all checks pass or only low/informational findings: `gh pr review --approve <pr-url> --body "..."` with confirmation of what was verified
+2. If medium findings (non-blocking): `gh pr review --comment <pr-url> --body "..."` with **specific, actionable feedback** and a note that these should be fixed before merge or in refinement
+3. If critical/high findings (blocking): `gh pr review --request-changes <pr-url> --body "..."` with **specific, actionable feedback** referencing exact files/lines and showing the correct token or pattern to use
+4. Append a `REVIEW_METRICS` block to your review body per the format defined in the "Review Metrics" section of CLAUDE.md
 
 #### Finding Severity in PR Reviews
 

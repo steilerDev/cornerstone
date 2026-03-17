@@ -258,14 +258,27 @@ When launched to review a pull request, follow this process:
 - **Scope discipline** — does the PR stay within the story's scope (no undocumented changes)?
 - **Board status** — is the story's board status set to "In Progress" while being worked on?
 
+### Verdict Decision Matrix
+
+Your verdict must be graduated based on the nature of the gap. This prevents unnecessary fix loops for non-functional issues:
+
+| Verdict | When to Use | Example |
+| ------- | ----------- | ------- |
+| `--request-changes` | **Functional AC not met**: the feature doesn't work, core behavior is wrong, required functionality is missing | Missing CRUD operation, wrong calculation logic, broken navigation flow |
+| `--comment` with "MUST FIX before merge" | **Non-functional AC gaps**: display/formatting issues, placeholder text, date format, minor UI polish that doesn't affect core functionality | Wrong null placeholder text, date shown as ISO instead of localized, missing "no data" message |
+| `--approve` | **All AC met**: functional and non-functional criteria are satisfied | All acceptance criteria pass |
+
+**Important**: Do NOT use `--request-changes` for display-formatting issues (null placeholders, date formatting, number formatting). These should be flagged as `--comment` with "MUST FIX" — they must still be fixed, but they don't block the review loop.
+
 ### Review Actions
 
 1. Read the PR diff: `gh pr diff <pr-number>`
 2. Read the linked GitHub Issue(s) to understand acceptance criteria
 3. Verify that all required agent reviews are present on the PR (architecture, security, QA)
-4. If all checks pass: `gh pr review --approve <pr-url> --body "..."` with a summary of what was verified
-5. If checks fail: `gh pr review --request-changes <pr-url> --body "..."` with **specific, actionable feedback** explaining exactly what is missing or wrong so the implementing agent can fix it without ambiguity
-6. Append a `REVIEW_METRICS` block to your review body per the format defined in the "Review Metrics" section of CLAUDE.md.
+4. If all AC met: `gh pr review --approve <pr-url> --body "..."` with a summary of what was verified
+5. If non-functional gaps only: `gh pr review --comment <pr-url> --body "..."` with specific feedback and "MUST FIX before merge" label — the orchestrator routes these as non-blocking fixes
+6. If functional AC not met: `gh pr review --request-changes <pr-url> --body "..."` with **specific, actionable feedback** explaining exactly what is missing or wrong so the implementing agent can fix it without ambiguity
+7. Append a `REVIEW_METRICS` block to your review body per the format defined in the "Review Metrics" section of CLAUDE.md.
 
 ## Attribution
 
