@@ -26,6 +26,27 @@ You are the orchestrator running a sequential development pipeline. This skill a
 - **Empty lines**: Skipped
 - **Comment lines** (starting with `#`): Skipped — but note that `#42` (digits after `#`) is treated as an issue number, not a comment
 
+## Task Tracking
+
+Use tasks to track progress across the batch. Tasks survive context compression — after any compression event, run `TaskList` to recover your place.
+
+**Create these tasks upfront** (using `TaskCreate`):
+
+1. **Read and parse queue** — Parse input arguments or /tmp/notes.md into items queue
+2. **Session setup** — Fetch latest beta, sync wiki
+
+**After parsing** — create one task per item in the queue:
+
+3–N. **Item #\<issue-number\>: \<title or description\>** — Full /develop cycle for this item
+
+**After all items complete:**
+
+- **Print summary** — Final batch results summary
+
+**Progress rule:** Before starting each item, mark its task `in_progress`. After completing (merged + closed), mark it `completed`. If an item fails, mark it `completed` with a note describing the failure.
+
+**Recovery rule:** If you lose track of progress (e.g., after context compression), run `TaskList` to see which tasks are completed and resume from the first pending task.
+
 ## Steps
 
 ### 1. Read and Parse

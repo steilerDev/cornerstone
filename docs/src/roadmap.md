@@ -24,13 +24,9 @@ Cornerstone is under active development. Here is the current state of planned fe
 - [x] **EPIC-12: Codebase Refinement and Consistency** ([#445](https://github.com/steilerDev/cornerstone/issues/445)) -- Shared route factories, standardized API clients, consolidated error handling, reusable modal component
 - [x] **EPIC-14: Cross-Entity Code Deduplication** ([#495](https://github.com/steilerDev/cornerstone/issues/495)) -- Shared service factories, unified React components for budget and subsidy logic, accessibility improvements, harmonized design tokens
 - [x] **EPIC-15: Budget-Line Invoice Linking Rework** ([#602](https://github.com/steilerDev/cornerstone/issues/602)) -- Many-to-many invoice-budget-line linking with itemized amounts, bidirectional linking UI, invoice groups on item detail pages, subsidy recalculation using itemized amounts
-
 - [x] **EPIC-09: Dashboard and Overview** ([#9](https://github.com/steilerDev/cornerstone/issues/9)) -- Project dashboard with budget summary, timeline status, invoice and subsidy pipelines, mini Gantt preview, and customizable card layout
+- [x] **EPIC-13: Construction Diary** ([#446](https://github.com/steilerDev/cornerstone/issues/446)) -- Construction diary with manual entries, automatic system events, photo attachments, and signature capture
 
 ## Planned
 
-- [ ] **EPIC-13: Construction Diary** ([#446](https://github.com/steilerDev/cornerstone/issues/446)) -- Project-level construction diary with automatic system events and manual entries
-
-## Live Tracking
-
-Track progress in real-time on the [GitHub Projects board](https://github.com/users/steilerDev/projects/4).
+No epics are currently planned. Track progress in real-time on the [GitHub Projects board](https://github.com/users/steilerDev/projects/4).

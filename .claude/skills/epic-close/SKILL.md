@@ -14,6 +14,32 @@ You are the orchestrator running the closing phase for a completed epic. Follow 
 
 `$ARGUMENTS` contains the epic issue number. If empty, ask the user to provide the epic issue number before proceeding.
 
+## Task Tracking
+
+At the start of each `/epic-close` invocation, create tasks to track progress. These tasks survive context compression and let you recover your place if context is lost.
+
+**Create these tasks upfront** (using `TaskCreate`):
+
+1. **Rebase** — Fetch and rebase worktree branch onto origin/beta
+2. **Verify all stories merged** — Confirm all sub-issues are closed
+3. **Epic metrics + lint check** — Generate metrics report (step 2a) and lint health check (step 2b)
+4. **Collect refinement items** — Review story PRs for non-blocking observations
+5. **Refinement PR** — Address refinement items via implementation agents (skip if none)
+6. **E2E validation** — Launch e2e-test-engineer to verify coverage and pass rate
+7. **UAT validation** — Launch product-owner for UAT scenarios
+8. **Branch sync** — Sync main→beta if diverged (skip if no divergence)
+9. **Epic promotion PR + UAT criteria** — Create promotion PR, post detailed UAT criteria
+10. **CI gate** — Wait for all CI checks including full E2E suite
+11. **Promotion approval loop** — Present to user, handle feedback rounds if needed
+12. **Documentation** — Launch docs-writer to update docs site, README, RELEASE_SUMMARY, and .env.example
+13. **Lessons learned + merge** — Update implementation checklist, merge, close epic
+
+**Progress rule:** Before starting each step, mark its task `in_progress`. After completing, mark it `completed`. If a step is skipped (conditional), mark it `completed` with a note in the description.
+
+**Recovery rule:** If you lose track of progress (e.g., after context compression), run `TaskList` to see which tasks are completed and resume from the first pending task.
+
+**Dynamic task rule:** When a UAT fix round or E2E fix cycle starts, create a new task for each round (e.g., "UAT Fix Round 1", "E2E Fix Round 1") so iterations are tracked.
+
 ## Steps
 
 ### 1. Rebase

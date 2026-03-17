@@ -42,6 +42,39 @@ Merged PRs and closed issues are durable state. If the session crashes:
 - Phase 2 detects already-closed stories and skips them
 - An in-progress story may have an open PR; the user can finish it with `/develop` then re-run `/epic-run`
 
+## Task Tracking
+
+Use tasks to track progress across the entire epic lifecycle. Tasks survive context compression — after any compression event, run `TaskList` to recover your place.
+
+**Phase 0 — create these tasks immediately:**
+
+1. **Session setup** — Rebase onto beta + wiki sync + initialize tracking state
+2. **Planning phase** — Execute /epic-start steps 3–5 (PO + architect + present to user)
+3. **Build story queue** — Topologically sort stories and post execution order
+
+**After story queue is built** — create one task per story:
+
+4–N. **Story #\<number\>: \<title\>** — Full /develop cycle for this story
+
+**After all stories complete** — create closing tasks:
+
+- **Pre-check** — Handle failed stories (if any)
+- **Verify all stories merged** — Confirm all sub-issues closed
+- **Epic metrics + lint check** — Generate metrics report and lint health check
+- **Refinement PR** — Address refinement items (skip if none)
+- **E2E validation** — Confirm E2E coverage and pass rate
+- **UAT validation** — Product-owner UAT scenarios
+- **Branch sync + promotion** — Sync main→beta if needed, create promotion PR + UAT criteria
+- **CI gate + promotion approval** — Wait for CI, present to user, handle feedback rounds
+- **Documentation + lessons learned** — Update docs/README/RELEASE_SUMMARY, sync implementation checklist
+- **Merge & post-merge** — Merge to main, close epic
+
+**Progress rule:** Before starting each step, mark its task `in_progress`. After completing, mark it `completed`. If a step is skipped, mark it `completed` with a note.
+
+**Recovery rule:** If you lose track of progress (e.g., after context compression), run `TaskList` to see which tasks are completed and resume from the first pending task.
+
+**Dynamic task rule:** When fix loops, UAT rounds, or E2E fix cycles start, create a new task for each round so iterations are tracked.
+
 ---
 
 ## Phase 0: Session Setup
