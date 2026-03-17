@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { PaperlessDocumentSearchResult } from '@cornerstone/shared';
 import { getDocumentThumbnailUrl } from '../../lib/paperlessApi.js';
 import styles from './DocumentDetailPanel.module.css';
@@ -14,6 +15,7 @@ export function DocumentDetailPanel({
   onClose,
   paperlessBaseUrl,
 }: DocumentDetailPanelProps) {
+  const { t } = useTranslation('documents');
   const thumbUrl = getDocumentThumbnailUrl(document.id);
   const paperlessDocUrl = paperlessBaseUrl
     ? `${paperlessBaseUrl}/documents/${document.id}/details`
@@ -24,7 +26,7 @@ export function DocumentDetailPanel({
       id="detail-panel"
       className={styles.panel}
       role="region"
-      aria-label={`Details for ${document.title}`}
+      aria-label={t('documentDetail.detailsLabel', { title: document.title })}
     >
       <div className={styles.header}>
         <h3 className={styles.panelTitle}>{document.title}</h3>
@@ -32,7 +34,7 @@ export function DocumentDetailPanel({
           type="button"
           className={styles.closeButton}
           onClick={onClose}
-          aria-label="Close document details"
+          aria-label={t('documentDetail.closeDetails')}
         >
           &#x2715;
         </button>
@@ -45,7 +47,7 @@ export function DocumentDetailPanel({
           <dl className={styles.metaList}>
             {document.created && (
               <>
-                <dt className={styles.metaLabel}>Created</dt>
+                <dt className={styles.metaLabel}>{t('documentDetail.created')}</dt>
                 <dd className={styles.metaValue}>
                   {new Date(document.created).toLocaleDateString('en-US', {
                     year: 'numeric',
@@ -57,32 +59,32 @@ export function DocumentDetailPanel({
             )}
             {document.correspondent && (
               <>
-                <dt className={styles.metaLabel}>Correspondent</dt>
+                <dt className={styles.metaLabel}>{t('documentDetail.correspondent')}</dt>
                 <dd className={styles.metaValue}>{document.correspondent}</dd>
               </>
             )}
             {document.documentType && (
               <>
-                <dt className={styles.metaLabel}>Document Type</dt>
+                <dt className={styles.metaLabel}>{t('documentDetail.documentType')}</dt>
                 <dd className={styles.metaValue}>{document.documentType}</dd>
               </>
             )}
             {document.archiveSerialNumber !== null &&
               document.archiveSerialNumber !== undefined && (
                 <>
-                  <dt className={styles.metaLabel}>Archive #</dt>
+                  <dt className={styles.metaLabel}>{t('documentDetail.archiveNumber')}</dt>
                   <dd className={styles.metaValue}>{document.archiveSerialNumber}</dd>
                 </>
               )}
             {document.pageCount !== null && document.pageCount !== undefined && (
               <>
-                <dt className={styles.metaLabel}>Pages</dt>
+                <dt className={styles.metaLabel}>{t('documentDetail.pages')}</dt>
                 <dd className={styles.metaValue}>{document.pageCount}</dd>
               </>
             )}
             {document.tags.length > 0 && (
               <>
-                <dt className={styles.metaLabel}>Tags</dt>
+                <dt className={styles.metaLabel}>{t('documentDetail.tags')}</dt>
                 <dd className={styles.metaValue}>
                   <div className={styles.tags}>
                     {document.tags.map((tag) => (
@@ -97,7 +99,7 @@ export function DocumentDetailPanel({
           </dl>
           {document.content && (
             <div className={styles.contentSnippet}>
-              <h4 className={styles.snippetLabel}>Content Preview</h4>
+              <h4 className={styles.snippetLabel}>{t('documentDetail.contentPreview')}</h4>
               <p className={styles.snippetText}>
                 {document.content.slice(0, 300)}
                 {document.content.length > 300 ? '...' : ''}
@@ -111,7 +113,7 @@ export function DocumentDetailPanel({
               rel="noopener noreferrer"
               className={styles.externalLink}
             >
-              View in Paperless-ngx &#x2197;
+              {t('documentDetail.viewInPaperless')}
             </a>
           )}
         </div>

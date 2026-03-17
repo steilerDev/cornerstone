@@ -160,7 +160,7 @@ describe('LinkedDocumentCard', () => {
         onUnlink={jest.fn()}
       />,
     );
-    fireEvent.click(screen.getByRole('button', { name: /View document: Invoice March/i }));
+    fireEvent.click(screen.getByRole('button', { name: /View: Invoice March/i }));
     expect(onView).toHaveBeenCalledWith(link);
   });
 

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { PaperlessDocumentSearchResult } from '@cornerstone/shared';
 import { usePaperless } from '../../hooks/usePaperless.js';
 import { DocumentCard } from './DocumentCard.js';
@@ -21,6 +22,7 @@ export function DocumentBrowser({
   onSelect,
   linkedDocumentIds = [],
 }: DocumentBrowserProps) {
+  const { t } = useTranslation('documents');
   const hook = usePaperless();
   const [selectedDoc, setSelectedDoc] = useState<PaperlessDocumentSearchResult | null>(null);
   const [searchInput, setSearchInput] = useState('');
@@ -66,7 +68,7 @@ export function DocumentBrowser({
     return (
       <div className={styles.browser}>
         <div className={styles.infoState} aria-busy="true">
-          <p className={styles.infoText}>Checking Paperless-ngx connection...</p>
+          <p className={styles.infoText}>{t('browser.checkingConnection')}</p>
         </div>
       </div>
     );
@@ -77,12 +79,9 @@ export function DocumentBrowser({
     return (
       <div className={styles.browser}>
         <div className={styles.infoState}>
-          <h2 className={styles.infoTitle}>Paperless-ngx Not Configured</h2>
+          <h2 className={styles.infoTitle}>{t('browser.notConfigured')}</h2>
           <p className={styles.infoText}>
-            To use the document browser, configure your Paperless-ngx integration by setting the{' '}
-            <code className={styles.inlineCode}>PAPERLESS_URL</code> and{' '}
-            <code className={styles.inlineCode}>PAPERLESS_API_TOKEN</code> environment variables and
-            restarting Cornerstone.
+            {t('browser.notConfiguredMessage')}
           </p>
         </div>
       </div>
@@ -94,13 +93,12 @@ export function DocumentBrowser({
     return (
       <div className={styles.browser}>
         <div className={styles.errorState} role="alert">
-          <h2 className={styles.errorTitle}>Paperless-ngx Unreachable</h2>
+          <h2 className={styles.errorTitle}>{t('browser.unreachable')}</h2>
           <p className={styles.errorText}>
-            Unable to connect to your Paperless-ngx instance. Please check your configuration and
-            ensure Paperless-ngx is running.
+            {t('browser.unreachableMessage')}
           </p>
           <button type="button" className={styles.retryButton} onClick={hook.refresh}>
-            Try Again
+            {t('browser.tryAgain')}
           </button>
         </div>
       </div>
@@ -115,10 +113,10 @@ export function DocumentBrowser({
         <input
           type="search"
           className={styles.searchInput}
-          placeholder="Search documents..."
+          placeholder={t('browser.searchPlaceholder')}
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
-          aria-label="Search documents"
+          aria-label={t('browser.searchDocumentsAriaLabel')}
           aria-controls={GRID_ID}
         />
         {linkedDocumentIds.length > 0 && (
@@ -129,16 +127,16 @@ export function DocumentBrowser({
               onChange={(e) => setHideLinked(e.target.checked)}
               className={styles.hideLinkedCheckbox}
             />
-            <span className={styles.hideLinkedLabel}>Hide linked</span>
+            <span className={styles.hideLinkedLabel}>{t('browser.hideLinked')}</span>
           </label>
         )}
       </div>
 
       {/* Server-side filter tag indicator */}
       {hook.status.filterTag && (
-        <div className={styles.filterBanner} role="note" aria-label="Active document filter">
+        <div className={styles.filterBanner} role="note" aria-label={t('browser.filterBannerLabel')}>
           <span className={styles.filterBannerText}>
-            Showing only documents tagged{' '}
+            {t('browser.showingOnlyTag')}{' '}
             <span className={styles.filterBannerTag}>{hook.status.filterTag}</span>
           </span>
         </div>
@@ -146,7 +144,7 @@ export function DocumentBrowser({
 
       {/* Tag filter strip */}
       {hook.tags.length > 0 && (
-        <div className={styles.tagStrip} role="group" aria-label="Filter by tag">
+        <div className={styles.tagStrip} role="group" aria-label={t('browser.filterByTag')}>
           {hook.tags.map((tag) => {
             const isChecked = hook.selectedTags.includes(tag.id);
             const count = hook.tagCountMap.get(tag.id) ?? tag.documentCount;
@@ -156,7 +154,7 @@ export function DocumentBrowser({
                 className={`${styles.tagChip} ${isChecked ? styles.tagChipActive : ''}`}
                 role="checkbox"
                 aria-checked={isChecked}
-                aria-label={`Filter by tag: ${tag.name} (${count} documents)`}
+                aria-label={`${t('browser.filterByTag')}: ${tag.name} (${t('browser.documentsCount', { count })})`}
                 tabIndex={0}
                 onClick={() => hook.toggleTag(tag.id)}
                 onKeyDown={(e) => handleTagKeyDown(e, tag.id)}
@@ -171,24 +169,24 @@ export function DocumentBrowser({
 
       {/* Document grid */}
       {hook.isLoading ? (
-        <div className={gridClass} role="list" id={GRID_ID} aria-label="Documents" aria-busy="true">
+        <div className={gridClass} role="list" id={GRID_ID} aria-label={t('browser.documentsGridLabel')} aria-busy="true">
           <DocumentSkeleton count={mode === 'modal' ? 4 : 6} />
         </div>
       ) : hook.error ? (
         <div className={styles.errorState} role="alert">
           <p className={styles.errorText}>{hook.error}</p>
           <button type="button" className={styles.retryButton} onClick={hook.refresh}>
-            Try Again
+            {t('browser.tryAgain')}
           </button>
         </div>
       ) : filteredDocuments.length === 0 ? (
         <div className={styles.emptyState}>
           <p className={styles.emptyText}>
             {hideLinked && linkedDocumentIds.length > 0
-              ? 'No additional documents available to link.'
+              ? t('browser.noAdditionalDocuments')
               : hook.query || hook.selectedTags.length > 0
-                ? 'No documents match your search.'
-                : 'No documents found.'}
+                ? t('browser.noDocumentsMatch')
+                : t('browser.noDocuments')}
           </p>
           {(hook.query || hook.selectedTags.length > 0 || hideLinked) && (
             <button
@@ -200,7 +198,7 @@ export function DocumentBrowser({
                 setHideLinked(false);
               }}
             >
-              Clear Filters
+              {t('browser.clearFilters')}
             </button>
           )}
         </div>
@@ -209,7 +207,7 @@ export function DocumentBrowser({
           className={gridClass}
           role="list"
           id={GRID_ID}
-          aria-label="Documents"
+          aria-label={t('browser.documentsGridLabel')}
           aria-busy="false"
         >
           {filteredDocuments.map((doc) => (
@@ -242,21 +240,21 @@ export function DocumentBrowser({
             className={styles.pageButton}
             onClick={() => hook.setPage(hook.pagination!.page - 1)}
             disabled={hook.pagination.page === 1}
-            aria-label="Previous page"
+            aria-label={t('browser.previousPage')}
           >
-            &#x2190; Previous
+            &#x2190; {t('browser.previous')}
           </button>
           <span className={styles.pageInfo}>
-            Page {hook.pagination.page} of {hook.pagination.totalPages}
+            {t('browser.pageInfo', { page: hook.pagination.page, totalPages: hook.pagination.totalPages })}
           </span>
           <button
             type="button"
             className={styles.pageButton}
             onClick={() => hook.setPage(hook.pagination!.page + 1)}
             disabled={hook.pagination.page === hook.pagination.totalPages}
-            aria-label="Next page"
+            aria-label={t('browser.nextPage')}
           >
-            Next &#x2192;
+            {t('browser.next')} &#x2192;
           </button>
         </nav>
       )}
