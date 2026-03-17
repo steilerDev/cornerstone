@@ -799,7 +799,7 @@ export function MilestoneDetailPage() {
               onClick={() => setShowDeleteConfirm(true)}
               data-testid="delete-milestone-button"
             >
-              {t('milestones.detail.view.deleteButton')}
+              {t('milestones.detail.deleteButton')}
             </button>
           </div>
         </div>

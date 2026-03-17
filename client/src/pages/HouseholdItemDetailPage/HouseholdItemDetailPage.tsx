@@ -762,7 +762,7 @@ export function HouseholdItemDetailPage() {
               {t('detail.edit')}
             </button>
             <button type="button" className={styles.deleteButton} onClick={openDeleteModal}>
-              {t('detail.delete')}
+              {t('detail.delete.delete')}
             </button>
           </div>
         </div>
