@@ -18,11 +18,42 @@
  * screen.getAllByRole(), so we query them directly via the DOM using
  * document.querySelector('[data-testid="gantt-arrows"] [role="graphics-symbol"]').
  */
-import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { jest, describe, it, expect, beforeAll, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { GanttChart } from './GanttChart.js';
-import type { GanttChartProps } from './GanttChart.js';
+import type { GanttChart as GanttChartType, GanttChartProps } from './GanttChart.js';
 import type { TimelineResponse } from '@cornerstone/shared';
+
+// ─── Mock: LocaleContext — GanttHeader (rendered by GanttChart) uses useLocale() ──
+
+jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
+  useLocale: jest.fn(() => ({
+    locale: 'en' as const,
+    resolvedLocale: 'en' as const,
+    currency: 'EUR',
+    setLocale: jest.fn(),
+    syncWithServer: jest.fn(),
+  })),
+  LocaleProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
+// ─── Mock: formatters — provides computeActualDuration ──────────────────────
+
+jest.unstable_mockModule('../../lib/formatters.js', () => ({
+  computeActualDuration: jest.fn(() => null),
+  useFormatters: jest.fn(() => ({
+    formatCurrency: (n: number) => `€${n.toFixed(2)}`,
+    formatDate: (d: string | null) => d ?? '—',
+    formatTime: (d: string | null) => d ?? '—',
+    formatDateTime: (d: string | null) => d ?? '—',
+    formatPercent: (n: number) => `${n.toFixed(2)}%`,
+  })),
+  formatCurrency: (n: number) => `€${n.toFixed(2)}`,
+  formatDate: (d: string | null) => d ?? '—',
+  formatPercent: (n: number) => `${n.toFixed(2)}%`,
+}));
+
+// Dynamic import — must happen after jest.unstable_mockModule calls.
+let GanttChart: typeof GanttChartType;
 
 // ---------------------------------------------------------------------------
 // Minimal TimelineResponse fixture
@@ -153,6 +184,11 @@ function getArrowGroups(): Element[] {
 // ---------------------------------------------------------------------------
 // Test setup
 // ---------------------------------------------------------------------------
+
+beforeAll(async () => {
+  const module = await import('./GanttChart.js');
+  GanttChart = module.GanttChart;
+});
 
 beforeEach(() => {
   jest.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {

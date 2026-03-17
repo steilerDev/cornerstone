@@ -231,9 +231,9 @@ describe('DiaryEntryForm', () => {
   // ─── daily_log metadata ─────────────────────────────────────────────────────
 
   describe('daily_log metadata section', () => {
-    it('shows "Daily Log Details" section heading', () => {
+    it('shows daily_log section heading as first field label h3 ("Weather")', () => {
       render(<DiaryEntryForm {...makeProps({ entryType: 'daily_log' })} />);
-      expect(screen.getByText('Daily Log Details')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { level: 3, name: 'Weather' })).toBeInTheDocument();
     });
 
     it('renders the weather select', () => {
@@ -310,14 +310,14 @@ describe('DiaryEntryForm', () => {
       expect(onDailyLogTemperatureChange).toHaveBeenCalledWith(null);
     });
 
-    it('renders the workers on site input', () => {
+    it('renders the number of workers input', () => {
       render(<DiaryEntryForm {...makeProps({ entryType: 'daily_log' })} />);
-      expect(screen.getByLabelText(/workers on site/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/number of workers/i)).toBeInTheDocument();
     });
 
     it('shows the current workers value', () => {
       render(<DiaryEntryForm {...makeProps({ entryType: 'daily_log', dailyLogWorkers: 7 })} />);
-      const input = screen.getByLabelText(/workers on site/i) as HTMLInputElement;
+      const input = screen.getByLabelText(/number of workers/i) as HTMLInputElement;
       expect(input.value).toBe('7');
     });
 
@@ -326,7 +326,7 @@ describe('DiaryEntryForm', () => {
       render(
         <DiaryEntryForm {...makeProps({ entryType: 'daily_log', onDailyLogWorkersChange })} />,
       );
-      const input = screen.getByLabelText(/workers on site/i);
+      const input = screen.getByLabelText(/number of workers/i);
       fireEvent.change(input, { target: { value: '3' } });
       expect(onDailyLogWorkersChange).toHaveBeenCalledWith(3);
     });
@@ -335,9 +335,9 @@ describe('DiaryEntryForm', () => {
   // ─── site_visit metadata ────────────────────────────────────────────────────
 
   describe('site_visit metadata section', () => {
-    it('shows "Site Visit Details" section heading', () => {
+    it('shows site_visit section heading as first field label h3 ("Inspector Name")', () => {
       render(<DiaryEntryForm {...makeProps({ entryType: 'site_visit' })} />);
-      expect(screen.getByText('Site Visit Details')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { level: 3, name: 'Inspector Name' })).toBeInTheDocument();
     });
 
     it('renders the inspector name input with required marker', () => {
@@ -410,9 +410,9 @@ describe('DiaryEntryForm', () => {
   // ─── delivery metadata ──────────────────────────────────────────────────────
 
   describe('delivery metadata section', () => {
-    it('shows "Delivery Details" section heading', () => {
+    it('shows delivery section heading as first field label h3 ("Vendor")', () => {
       render(<DiaryEntryForm {...makeProps({ entryType: 'delivery' })} />);
-      expect(screen.getByText('Delivery Details')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { level: 3, name: 'Vendor' })).toBeInTheDocument();
     });
 
     it('renders the vendor input', () => {
@@ -558,9 +558,9 @@ describe('DiaryEntryForm', () => {
   // ─── issue metadata ─────────────────────────────────────────────────────────
 
   describe('issue metadata section', () => {
-    it('shows "Issue Details" section heading', () => {
+    it('shows issue section heading as first field label h3 ("Issue Severity")', () => {
       render(<DiaryEntryForm {...makeProps({ entryType: 'issue' })} />);
-      expect(screen.getByText('Issue Details')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { level: 3, name: 'Issue Severity' })).toBeInTheDocument();
     });
 
     it('renders the severity select with required attribute', () => {
@@ -636,10 +636,10 @@ describe('DiaryEntryForm', () => {
   describe('general_note type', () => {
     it('does not render any type-specific metadata section', () => {
       render(<DiaryEntryForm {...makeProps({ entryType: 'general_note' })} />);
-      expect(screen.queryByText('Daily Log Details')).not.toBeInTheDocument();
-      expect(screen.queryByText('Site Visit Details')).not.toBeInTheDocument();
-      expect(screen.queryByText('Delivery Details')).not.toBeInTheDocument();
-      expect(screen.queryByText('Issue Details')).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { level: 3, name: 'Weather' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { level: 3, name: 'Inspector Name' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { level: 3, name: 'Vendor' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { level: 3, name: 'Issue Severity' })).not.toBeInTheDocument();
     });
 
     it('still renders date, title, body fields', () => {
@@ -653,19 +653,19 @@ describe('DiaryEntryForm', () => {
   // ─── metadata sections are exclusive ────────────────────────────────────────
 
   describe('type exclusivity', () => {
-    it('daily_log does not show site_visit section', () => {
+    it('daily_log does not show site_visit section heading', () => {
       render(<DiaryEntryForm {...makeProps({ entryType: 'daily_log' })} />);
-      expect(screen.queryByText('Site Visit Details')).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { level: 3, name: 'Inspector Name' })).not.toBeInTheDocument();
     });
 
-    it('site_visit does not show daily_log section', () => {
+    it('site_visit does not show daily_log section heading', () => {
       render(<DiaryEntryForm {...makeProps({ entryType: 'site_visit' })} />);
-      expect(screen.queryByText('Daily Log Details')).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { level: 3, name: 'Weather' })).not.toBeInTheDocument();
     });
 
-    it('delivery does not show issue section', () => {
+    it('delivery does not show issue section heading', () => {
       render(<DiaryEntryForm {...makeProps({ entryType: 'delivery' })} />);
-      expect(screen.queryByText('Issue Details')).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { level: 3, name: 'Issue Severity' })).not.toBeInTheDocument();
     });
   });
 });

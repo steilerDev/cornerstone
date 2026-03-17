@@ -60,23 +60,27 @@ function formatCost(amount: number, fc: (n: number) => string): string {
  * Renders net value (payback - cost).
  * At item/category level, uses neutral text color (still an expense).
  * At sum level, uses green/red coloring (surplus vs deficit).
+ *
+ * Accepts formatCurrency as a parameter so it can be called from both
+ * React components (inside FormatterContext.Provider) and from the root
+ * CostBreakdownTable render (outside the provider).
  */
 function renderNet(
   rawCost: number,
   payback: number,
   cssStyles: typeof styles,
+  fc: (n: number) => string,
   colored: boolean = false,
 ): React.ReactNode {
-  const formatCurrencyFn = useFormatterContext();
   const net = payback - rawCost;
   if (colored) {
     return (
       <span className={net >= 0 ? cssStyles.valuePositive : cssStyles.valueNegative}>
-        {formatCurrencyFn(net)}
+        {fc(net)}
       </span>
     );
   }
-  return <span>{formatCurrencyFn(net)}</span>;
+  return <span>{fc(net)}</span>;
 }
 
 /**
@@ -258,7 +262,7 @@ function WorkItemRow({
           {item.subsidyPayback > 0 ? formatCurrencyFn(resolvedPayback) : '—'}
         </td>
         <td className={styles.colRemaining}>
-          {renderNet(resolvedRawCost, resolvedPayback, styles)}
+          {renderNet(resolvedRawCost, resolvedPayback, styles, formatCurrencyFn)}
         </td>
       </tr>
 
@@ -323,7 +327,7 @@ function WorkItemCategorySection({
           {category.subsidyPayback > 0 ? formatCurrencyFn(resolvedPayback) : '—'}
         </td>
         <td className={styles.colRemaining}>
-          {renderNet(resolvedRawCost, resolvedPayback, styles)}
+          {renderNet(resolvedRawCost, resolvedPayback, styles, formatCurrencyFn)}
         </td>
       </tr>
 
@@ -416,7 +420,7 @@ function HouseholdItemRow({
           {item.subsidyPayback > 0 ? formatCurrencyFn(resolvedPayback) : '—'}
         </td>
         <td className={styles.colRemaining}>
-          {renderNet(resolvedRawCost, resolvedPayback, styles)}
+          {renderNet(resolvedRawCost, resolvedPayback, styles, formatCurrencyFn)}
         </td>
       </tr>
 
@@ -481,7 +485,7 @@ function HouseholdItemCategorySection({
           {category.subsidyPayback > 0 ? formatCurrencyFn(resolvedPayback) : '—'}
         </td>
         <td className={styles.colRemaining}>
-          {renderNet(resolvedRawCost, resolvedPayback, styles)}
+          {renderNet(resolvedRawCost, resolvedPayback, styles, formatCurrencyFn)}
         </td>
       </tr>
 
@@ -725,6 +729,7 @@ export function CostBreakdownTable({
                         perspective,
                       ),
                       styles,
+                      formatCurrency,
                     )}
                   </td>
                 </tr>
@@ -799,6 +804,7 @@ export function CostBreakdownTable({
                         perspective,
                       ),
                       styles,
+                      formatCurrency,
                     )}
                   </td>
                 </tr>
@@ -842,7 +848,7 @@ export function CostBreakdownTable({
                 )}
               </td>
               <td className={styles.colRemaining}>
-                {renderNet(totalRawProjected, resolvedTotalPayback, styles)}
+                {renderNet(totalRawProjected, resolvedTotalPayback, styles, formatCurrency)}
               </td>
             </tr>
 

@@ -11,21 +11,30 @@ import type { Invoice, InvoiceStatusBreakdown } from '@cornerstone/shared';
 
 // ─── Mock: formatters — provides useFormatters() hook used by this component ──
 
-jest.unstable_mockModule('../../lib/formatters.js', () => ({
-  formatDate: (d: string | null | undefined) => d ?? '—',
-  formatCurrency: (n: number) => `$${n.toFixed(2)}`,
-  formatTime: (d: string | null | undefined) => d ?? '—',
-  formatDateTime: (d: string | null | undefined) => d ?? '—',
-  formatPercent: (n: number) => `${n.toFixed(2)}%`,
-  computeActualDuration: () => null,
-  useFormatters: () => ({
-    formatCurrency: (n: number) => `$${n.toFixed(2)}`,
+jest.unstable_mockModule('../../lib/formatters.js', () => {
+  const fmtCurrency = (n: number) =>
+    new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'EUR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(n);
+  return {
     formatDate: (d: string | null | undefined) => d ?? '—',
+    formatCurrency: fmtCurrency,
     formatTime: (d: string | null | undefined) => d ?? '—',
     formatDateTime: (d: string | null | undefined) => d ?? '—',
     formatPercent: (n: number) => `${n.toFixed(2)}%`,
-  }),
-}));
+    computeActualDuration: () => null,
+    useFormatters: () => ({
+      formatCurrency: fmtCurrency,
+      formatDate: (d: string | null | undefined) => d ?? '—',
+      formatTime: (d: string | null | undefined) => d ?? '—',
+      formatDateTime: (d: string | null | undefined) => d ?? '—',
+      formatPercent: (n: number) => `${n.toFixed(2)}%`,
+    }),
+  };
+});
 
 // Dynamic import — must happen after any jest.unstable_mockModule calls.
 let InvoicePipelineCard: typeof CardTypes.InvoicePipelineCard;

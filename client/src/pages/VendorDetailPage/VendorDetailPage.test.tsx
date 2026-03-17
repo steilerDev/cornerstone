@@ -276,18 +276,18 @@ describe('VendorDetailPage', () => {
 
       await waitFor(() => {
         expect(screen.getByText(/outstanding balance/i)).toBeInTheDocument();
-        // $2,500.00 formatted via Intl.NumberFormat
-        expect(screen.getByText(/\$2,500\.00/)).toBeInTheDocument();
+        // €2,500.00 formatted via Intl.NumberFormat (EUR)
+        expect(screen.getByText(/€2,500\.00/)).toBeInTheDocument();
       });
     });
 
-    it('renders $0.00 outstanding balance when vendor has no invoices', async () => {
+    it('renders €0.00 outstanding balance when vendor has no invoices', async () => {
       mockFetchVendor.mockResolvedValueOnce(vendorWithNoStats);
 
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText(/\$0\.00/)).toBeInTheDocument();
+        expect(screen.getByText(/€0\.00/)).toBeInTheDocument();
       });
     });
 
@@ -948,7 +948,7 @@ describe('VendorDetailPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByText(/\$1,500\.00/).length).toBeGreaterThan(0);
+        expect(screen.getAllByText(/€1,500\.00/).length).toBeGreaterThan(0);
       });
     });
 
@@ -1021,31 +1021,31 @@ describe('VendorDetailPage', () => {
 
     it('renders the outstanding balance badge when invoices exist', async () => {
       mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      // pending ($1500) + claimed ($800) = $2300 outstanding
+      // pending (€1500) + claimed (€800) = €2300 outstanding
       mockFetchInvoices.mockResolvedValueOnce([sampleInvoice, claimedInvoice]);
 
       renderPage();
 
       await waitFor(() => {
         expect(screen.getByText(/outstanding:/i)).toBeInTheDocument();
-        expect(screen.getByText(/\$2,300\.00/)).toBeInTheDocument();
+        expect(screen.getByText(/€2,300\.00/)).toBeInTheDocument();
       });
     });
 
     it('outstanding balance excludes paid invoices', async () => {
       mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      // paid ($2500) is excluded; only pending ($1500) counts
+      // paid (€2500) is excluded; only pending (€1500) counts
       mockFetchInvoices.mockResolvedValueOnce([sampleInvoice, paidInvoice]);
 
       renderPage();
 
       await waitFor(() => {
         // Outstanding badge is the <strong> element showing the computed outstanding
-        // $1,500.00 appears in both the outstanding badge and the table row (both ok)
-        const outstandingElements = screen.getAllByText(/\$1,500\.00/);
+        // €1,500.00 appears in both the outstanding badge and the table row (both ok)
+        const outstandingElements = screen.getAllByText(/€1,500\.00/);
         expect(outstandingElements.length).toBeGreaterThan(0);
-        // Verify it's NOT $4,000.00 (which would be the total if paid was included)
-        expect(screen.queryByText(/\$4,000\.00/)).not.toBeInTheDocument();
+        // Verify it's NOT €4,000.00 (which would be the total if paid was included)
+        expect(screen.queryByText(/€4,000\.00/)).not.toBeInTheDocument();
       });
     });
 
@@ -1081,9 +1081,9 @@ describe('VendorDetailPage', () => {
 
       await waitFor(() => {
         // All 3 amounts should appear (desktop table + mobile cards = 6 occurrences total)
-        expect(screen.getAllByText(/\$1,500\.00/).length).toBeGreaterThan(0);
-        expect(screen.getAllByText(/\$2,500\.00/).length).toBeGreaterThan(0);
-        expect(screen.getAllByText(/\$800\.00/).length).toBeGreaterThan(0);
+        expect(screen.getAllByText(/€1,500\.00/).length).toBeGreaterThan(0);
+        expect(screen.getAllByText(/€2,500\.00/).length).toBeGreaterThan(0);
+        expect(screen.getAllByText(/€800\.00/).length).toBeGreaterThan(0);
       });
     });
   });
@@ -1143,7 +1143,7 @@ describe('VendorDetailPage', () => {
       await user.click(screen.getByRole('button', { name: /retry/i }));
 
       await waitFor(() => {
-        expect(screen.getAllByText(/\$1,500\.00/).length).toBeGreaterThan(0);
+        expect(screen.getAllByText(/€1,500\.00/).length).toBeGreaterThan(0);
       });
     });
   });
@@ -1618,7 +1618,7 @@ describe('VendorDetailPage', () => {
       await user.click(screen.getByRole('button', { name: /delete invoice INV-001/i }));
 
       const dialog = screen.getByRole('dialog');
-      expect(dialog).toHaveTextContent('$1,500.00');
+      expect(dialog).toHaveTextContent('€1,500.00');
     });
 
     it('closes the delete invoice modal when Cancel is clicked', async () => {
@@ -1666,7 +1666,7 @@ describe('VendorDetailPage', () => {
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
       });
 
-      // The amount $1,500.00 should no longer be in the list (only appears in the delete modal)
+      // The amount €1,500.00 should no longer be in the list (only appears in the delete modal)
       await waitFor(() => {
         expect(screen.queryByText(/INV-001/)).not.toBeInTheDocument();
       });

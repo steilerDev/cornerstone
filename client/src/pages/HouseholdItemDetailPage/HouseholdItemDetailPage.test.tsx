@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
@@ -826,10 +826,10 @@ describe('HouseholdItemDetailPage', () => {
       await user.click(screen.getByRole('button', { name: /delete/i }));
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /delete item/i })).toBeInTheDocument();
+        expect(within(screen.getByRole('dialog')).getByRole('button', { name: /delete item/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /delete item/i }));
+      await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: /delete item/i }));
 
       await waitFor(() => {
         expect(mockDeleteHouseholdItem).toHaveBeenCalledWith('item-1');
@@ -861,10 +861,10 @@ describe('HouseholdItemDetailPage', () => {
       await user.click(screen.getByRole('button', { name: /delete/i }));
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /delete item/i })).toBeInTheDocument();
+        expect(within(screen.getByRole('dialog')).getByRole('button', { name: /delete item/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /delete item/i }));
+      await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: /delete item/i }));
 
       await waitFor(() => {
         expect(mockDeleteHouseholdItem).toHaveBeenCalledWith('item-abc-123');
@@ -885,10 +885,10 @@ describe('HouseholdItemDetailPage', () => {
       await user.click(screen.getByRole('button', { name: /delete/i }));
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /delete item/i })).toBeInTheDocument();
+        expect(within(screen.getByRole('dialog')).getByRole('button', { name: /delete item/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /delete item/i }));
+      await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: /delete item/i }));
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /deleting/i })).toBeInTheDocument();
@@ -911,12 +911,12 @@ describe('HouseholdItemDetailPage', () => {
       await user.click(screen.getByRole('button', { name: /delete/i }));
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /delete item/i })).toBeInTheDocument();
+        expect(within(screen.getByRole('dialog')).getByRole('button', { name: /delete item/i })).toBeInTheDocument();
       });
 
       // Note: Component checks instanceof ApiClientError to display error message.
       // Plain Error objects show generic fallback message instead.
-      await user.click(screen.getByRole('button', { name: /delete item/i }));
+      await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: /delete item/i }));
 
       // Modal remains open after error
       await waitFor(() => {
@@ -938,10 +938,10 @@ describe('HouseholdItemDetailPage', () => {
       await user.click(screen.getByRole('button', { name: /delete/i }));
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /delete item/i })).toBeInTheDocument();
+        expect(within(screen.getByRole('dialog')).getByRole('button', { name: /delete item/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /delete item/i }));
+      await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: /delete item/i }));
 
       // Modal should still be open
       await waitFor(() => {
@@ -966,11 +966,11 @@ describe('HouseholdItemDetailPage', () => {
       await user.click(screen.getByRole('button', { name: /delete/i }));
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /delete item/i })).toBeInTheDocument();
+        expect(within(screen.getByRole('dialog')).getByRole('button', { name: /delete item/i })).toBeInTheDocument();
       });
 
       // First attempt fails
-      await user.click(screen.getByRole('button', { name: /delete item/i }));
+      await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: /delete item/i }));
 
       await waitFor(() => {
         // Error message shows and confirm button is hidden
@@ -980,7 +980,7 @@ describe('HouseholdItemDetailPage', () => {
       // Verify deleteHouseholdItem was called once
       expect(mockDeleteHouseholdItem).toHaveBeenCalledTimes(1);
       // Confirm button should be hidden after error (user must close and re-open to retry)
-      expect(screen.queryByRole('button', { name: /delete item/i })).not.toBeInTheDocument();
+      expect(within(screen.getByRole('dialog')).queryByRole('button', { name: /delete item/i })).not.toBeInTheDocument();
     });
   });
 
