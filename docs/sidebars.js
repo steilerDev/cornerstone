@@ -86,6 +86,12 @@ const sidebars = {
         'guides/diary/signatures',
       ],
     },
+    {
+      type: 'category',
+      label: 'Calendar & Contact Feeds',
+      link: { type: 'doc', id: 'guides/feeds/index' },
+      items: ['guides/feeds/subscribing'],
+    },
     'guides/dashboard/index',
     'guides/appearance/dark-mode',
     'roadmap',
