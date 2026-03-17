@@ -1,1 +1,494 @@
-{}
+{
+  "overview": {
+    "title": "Budget",
+    "loading": "Loading budget overview...",
+    "error": "Error",
+    "errorMessage": "Failed to load budget overview. Please try again.",
+    "retry": "Retry",
+    "emptyStateTitle": "No budget data yet",
+    "emptyStateDescription": "Start by adding budget categories, work items with planned costs, and financing sources. Your project budget overview will appear here once data is entered.",
+    "availableFunds": "Available Funds",
+    "projectedCostRange": "Projected Cost Range",
+    "expectedPayback": "Expected Payback",
+    "remaining": "Remaining",
+    "remainingDetail": "Remaining budget — tap for details",
+    "categories": "Categories",
+    "allCategories": "All categories",
+    "noCategories": "No categories",
+    "selectAll": "Select All",
+    "clearAll": "Clear All",
+    "bars": {
+      "claimedInvoices": "Claimed Invoices",
+      "paidInvoices": "Paid Invoices",
+      "pendingInvoices": "Pending Invoices",
+      "projectedOptimistic": "Projected (optimistic)",
+      "projectedPessimistic": "Projected (pessimistic)",
+      "overflow": "Overflow"
+    },
+    "remainingPerspectives": {
+      "vsMinPlanned": "Remaining vs Min Planned",
+      "vsMaxPlanned": "Remaining vs Max Planned",
+      "vsProjectedMin": "Remaining vs Projected Min",
+      "vsProjectedMax": "Remaining vs Projected Max",
+      "vsActualCost": "Remaining vs Actual Cost",
+      "vsActualPaid": "Remaining vs Actual Paid",
+      "vsMinPlannedWithPayback": "Remaining vs Min Planned (incl. payback)",
+      "vsMaxPlannedWithPayback": "Remaining vs Max Planned (incl. payback)"
+    },
+    "ofAvailableFunds": "of available funds",
+    "costBreakdown": {
+      "loading": "Loading cost breakdown…"
+    }
+  },
+  "sources": {
+    "title": "Budget",
+    "sectionTitle": "Sources",
+    "addSource": "Add Source",
+    "loading": "Loading budget sources...",
+    "error": "Error",
+    "errorMessage": "Failed to load budget sources. Please try again.",
+    "retry": "Retry",
+    "newBudgetSource": "New Budget Source",
+    "newBudgetSourceDescription": "Budget sources represent financing for your project (e.g., bank loans, credit lines, savings).",
+    "form": {
+      "name": "Name",
+      "type": "Type",
+      "status": "Status",
+      "totalAmount": "Total Amount ($)",
+      "interestRate": "Interest Rate (%)",
+      "terms": "Terms",
+      "notes": "Notes",
+      "required": "*",
+      "placeholders": {
+        "name": "e.g., Primary Bank Loan",
+        "interestRate": "e.g., 3.50",
+        "terms": "e.g., 30-year fixed, monthly payments",
+        "notes": "Optional notes"
+      }
+    },
+    "validation": {
+      "nameRequired": "Source name is required",
+      "amountRequired": "Total amount must be a non-negative number",
+      "interestRateInvalid": "Interest rate must be a non-negative number"
+    },
+    "buttons": {
+      "create": "Create Source",
+      "creating": "Creating...",
+      "save": "Save",
+      "saving": "Saving...",
+      "cancel": "Cancel",
+      "edit": "Edit",
+      "delete": "Delete",
+      "deleting": "Deleting...",
+      "deleteConfirm": "Delete Source"
+    },
+    "sourcesList": {
+      "title": "Sources",
+      "empty": "No budget sources yet. Add your first financing source to start tracking project funding.",
+      "system": "System"
+    },
+    "deleteModal": {
+      "title": "Delete Budget Source",
+      "confirm": "Are you sure you want to delete the budget source \"{{name}}\"?",
+      "warning": "This action cannot be undone. The source will be permanently removed.",
+      "conflictError": "This budget source cannot be deleted because it is currently referenced by one or more budget entries."
+    },
+    "messages": {
+      "created": "Budget source \"{{name}}\" created successfully",
+      "updated": "Budget source \"{{name}}\" updated successfully",
+      "deleted": "Budget source \"{{name}}\" deleted successfully",
+      "createError": "Failed to create budget source. Please try again.",
+      "updateError": "Failed to update budget source. Please try again.",
+      "deleteError": "Failed to delete budget source. Please try again."
+    },
+    "sourceTypes": {
+      "bank_loan": "Bank Loan",
+      "credit_line": "Credit Line",
+      "savings": "Savings",
+      "other": "Other",
+      "discretionary": "Discretionary"
+    },
+    "sourceStatus": {
+      "active": "Active",
+      "exhausted": "Exhausted",
+      "closed": "Closed"
+    },
+    "barChart": {
+      "claimed": "Claimed",
+      "paidUnclaimed": "Paid (unclaimed)",
+      "projected": "Projected",
+      "allocated": "Allocated (planned)",
+      "total": "Total",
+      "available": "Available",
+      "planned": "Planned",
+      "rate": "Rate",
+      "ofTotal": "of total",
+      "remaining": "Remaining",
+      "overflow": "Overflow"
+    }
+  },
+  "vendors": {
+    "title": "Budget",
+    "sectionTitle": "Vendors",
+    "addVendor": "Add Vendor",
+    "addFirstVendor": "Add First Vendor",
+    "loading": "Loading vendors...",
+    "error": "Error",
+    "errorMessage": "Failed to load vendors. Please try again.",
+    "retry": "Retry",
+    "noVendorsTitle": "No vendors yet",
+    "noVendorsDescription": "Add your first vendor or contractor to track who is working on your project.",
+    "searchPlaceholder": "Search vendors by name or specialty...",
+    "sortBy": "Sort by:",
+    "sortAsc": "↑ Asc",
+    "sortDesc": "↓ Desc",
+    "dateAdded": "Date Added",
+    "lastUpdated": "Last Updated",
+    "noSearchResults": "No vendors match your search",
+    "tryDifferentSearch": "Try different search terms or clear the search to see all vendors.",
+    "clearSearch": "Clear Search",
+    "pagination": "Showing {{from}} to {{to}} of {{total}} vendors",
+    "previous": "Previous",
+    "next": "Next",
+    "form": {
+      "name": "Name",
+      "specialty": "Specialty",
+      "phone": "Phone",
+      "email": "Email",
+      "address": "Address",
+      "notes": "Notes",
+      "required": "*",
+      "placeholders": {
+        "name": "e.g., Smith Plumbing Co.",
+        "specialty": "e.g., Plumbing, Electrical, Roofing",
+        "phone": "e.g., +1 555-123-4567",
+        "email": "e.g., contact@smithplumbing.com",
+        "address": "e.g., 123 Main St, Springfield, IL 62701",
+        "notes": "Any additional notes about this vendor..."
+      }
+    },
+    "validation": {
+      "nameRequired": "Vendor name is required.",
+      "nameTooLong": "Vendor name must be 200 characters or less."
+    },
+    "buttons": {
+      "create": "Add Vendor",
+      "creating": "Adding...",
+      "save": "Save Changes",
+      "saving": "Saving...",
+      "cancel": "Cancel",
+      "edit": "Edit",
+      "delete": "Delete",
+      "deleting": "Deleting...",
+      "view": "View",
+      "viewDetails": "View Details"
+    },
+    "modal": {
+      "title": "Add Vendor",
+      "description": "Add a vendor or contractor involved in your construction project.",
+      "deleteTitle": "Delete Vendor",
+      "deleteConfirm": "Are you sure you want to delete \"{{name}}\"?",
+      "deleteWarning": "This action cannot be undone.",
+      "deleteError": "This vendor cannot be deleted because they have associated invoices or work items. Remove those references first."
+    },
+    "messages": {
+      "createError": "Failed to create vendor. Please try again.",
+      "updateError": "Failed to update vendor. Please try again.",
+      "deleteError": "Failed to delete vendor. Please try again."
+    }
+  },
+  "vendorDetail": {
+    "loading": "Loading vendor...",
+    "error": "Error",
+    "backToVendors": "Back to Vendors",
+    "retry": "Retry",
+    "vendorNotFound": "Vendor not found. It may have been deleted.",
+    "vendorInformation": "Vendor Information",
+    "totalInvoices": "Total Invoices",
+    "outstandingBalance": "Outstanding Balance",
+    "invoices": "Invoices",
+    "addInvoice": "Add Invoice",
+    "invoicesLoading": "Loading invoices...",
+    "noInvoicesYet": "No invoices yet.",
+    "noInvoicesHint": "Click \"Add Invoice\" to record the first invoice for this vendor.",
+    "outstanding": "Outstanding:",
+    "createdBy": "Created by",
+    "form": {
+      "placeholders": {
+        "specialty": "e.g., Plumbing, Electrical, Roofing",
+        "phone": "e.g., +1 555-123-4567",
+        "email": "e.g., contact@vendor.com",
+        "address": "e.g., 123 Main St, Springfield, IL 62701"
+      }
+    },
+    "buttons": {
+      "edit": "Edit",
+      "delete": "Delete",
+      "save": "Save Changes",
+      "saving": "Saving...",
+      "cancel": "Cancel"
+    },
+    "invoiceStatusLabels": {
+      "pending": "Pending",
+      "paid": "Paid",
+      "claimed": "Claimed"
+    },
+    "invoiceTable": {
+      "invoiceNumber": "Invoice #",
+      "amount": "Amount",
+      "date": "Date",
+      "dueDate": "Due Date",
+      "status": "Status"
+    },
+    "invoiceCard": {
+      "noInvoiceNumber": "No Invoice #"
+    },
+    "modal": {
+      "addInvoiceTitle": "Add Invoice",
+      "editInvoiceTitle": "Edit Invoice",
+      "deleteInvoiceTitle": "Delete Invoice",
+      "deleteInvoiceConfirm": "Are you sure you want to delete invoice {{number}}?",
+      "deleteInvoiceWarning": "This action cannot be undone."
+    },
+    "messages": {
+      "updateError": "Failed to update vendor. Please try again.",
+      "deleteError": "Failed to delete vendor. Please try again.",
+      "invoiceCreateError": "Failed to create invoice. Please try again.",
+      "invoiceUpdateError": "Failed to update invoice. Please try again.",
+      "invoiceDeleteError": "Failed to delete invoice. Please try again."
+    }
+  },
+  "invoices": {
+    "title": "Budget",
+    "sectionTitle": "Invoices",
+    "addInvoice": "Add Invoice",
+    "addFirstInvoice": "Add First Invoice",
+    "loading": "Loading invoices...",
+    "error": "Error",
+    "errorMessage": "Failed to load invoices. Please try again.",
+    "retry": "Retry",
+    "noInvoicesTitle": "No invoices yet",
+    "noInvoicesDescription": "Add your first invoice to start tracking vendor payments.",
+    "searchPlaceholder": "Search by invoice number...",
+    "summaryPending": "Pending",
+    "summaryPaid": "Paid",
+    "summaryClaimed": "Claimed",
+    "filterByStatus": "Filter by status",
+    "filterByVendor": "Filter by vendor",
+    "allStatuses": "All Statuses",
+    "allVendors": "All Vendors",
+    "sortLabel": "Sort:",
+    "sortDate": "Date",
+    "sortAmount": "Amount",
+    "sortStatus": "Status",
+    "sortVendor": "Vendor",
+    "sortDueDate": "Due Date",
+    "sortAsc": "↑ Asc",
+    "sortDesc": "↓ Desc",
+    "noFilterResults": "No invoices match your filters",
+    "tryDifferentFilters": "Try different filters or clear them to see all invoices.",
+    "clearFilters": "Clear Filters",
+    "pagination": "Showing {{from}} to {{to}} of {{total}} invoices",
+    "previous": "Previous",
+    "next": "Next",
+    "tableHeaders": {
+      "date": "Date",
+      "invoiceNumber": "Invoice #",
+      "vendor": "Vendor",
+      "amount": "Amount",
+      "allocated": "Allocated",
+      "dueDate": "Due Date",
+      "status": "Status"
+    },
+    "form": {
+      "vendor": "Vendor",
+      "invoiceNumber": "Invoice #",
+      "amount": "Amount",
+      "invoiceDate": "Invoice Date",
+      "dueDate": "Due Date",
+      "status": "Status",
+      "notes": "Notes",
+      "required": "*",
+      "placeholders": {
+        "vendor": "Select a vendor...",
+        "invoiceNumber": "e.g., INV-001",
+        "amount": "0.00"
+      }
+    },
+    "validation": {
+      "vendorRequired": "Please select a vendor.",
+      "amountRequired": "Amount must be a positive number.",
+      "dateRequired": "Invoice date is required."
+    },
+    "buttons": {
+      "create": "Add Invoice",
+      "creating": "Adding...",
+      "save": "Save Changes",
+      "saving": "Saving...",
+      "cancel": "Cancel",
+      "view": "View"
+    },
+    "statusLabels": {
+      "pending": "Pending",
+      "paid": "Paid",
+      "claimed": "Claimed"
+    },
+    "modal": {
+      "title": "Add Invoice",
+      "deleteTitle": "Delete Invoice",
+      "deleteConfirm": "Are you sure you want to delete invoice {{number}} for {{amount}}?",
+      "deleteWarning": "This action cannot be undone."
+    },
+    "messages": {
+      "createError": "Failed to create invoice. Please try again.",
+      "updateError": "Failed to update invoice. Please try again.",
+      "deleteError": "Failed to delete invoice. Please try again."
+    }
+  },
+  "invoiceDetail": {
+    "loading": "Loading invoice...",
+    "error": "Error",
+    "backToInvoices": "Back to Invoices",
+    "retry": "Retry",
+    "invoiceNotFound": "Invoice not found. It may have been deleted.",
+    "invoiceDetails": "Invoice Details",
+    "createdBy": "Created by",
+    "form": {
+      "invoiceNumber": "Invoice #",
+      "vendor": "Vendor",
+      "amount": "Amount",
+      "date": "Date",
+      "dueDate": "Due Date",
+      "status": "Status",
+      "notes": "Notes",
+      "required": "*",
+      "placeholders": {
+        "invoiceNumber": "e.g., INV-001"
+      }
+    },
+    "validation": {
+      "amountRequired": "Amount must be a positive number.",
+      "dateRequired": "Invoice date is required."
+    },
+    "buttons": {
+      "edit": "Edit",
+      "delete": "Delete",
+      "save": "Save Changes",
+      "saving": "Saving...",
+      "cancel": "Cancel"
+    },
+    "statusLabels": {
+      "pending": "Pending",
+      "paid": "Paid",
+      "claimed": "Claimed"
+    },
+    "modal": {
+      "editTitle": "Edit Invoice",
+      "deleteTitle": "Delete Invoice",
+      "deleteConfirm": "Are you sure you want to delete invoice {{number}} for {{amount}}?",
+      "deleteWarning": "This action cannot be undone."
+    },
+    "messages": {
+      "updateError": "Failed to update invoice. Please try again.",
+      "deleteError": "Failed to delete invoice. Please try again."
+    }
+  },
+  "subsidies": {
+    "title": "Budget",
+    "sectionTitle": "Subsidy Programs",
+    "addProgram": "Add Program",
+    "loading": "Loading subsidy programs...",
+    "error": "Error",
+    "errorMessage": "Failed to load subsidy programs. Please try again.",
+    "retry": "Retry",
+    "noProgramsTitle": "No subsidy programs yet",
+    "noProgramsDescription": "Add your first program to start tracking available subsidies and government incentives for your project.",
+    "programsCount": "Programs ({{count}})",
+    "newSubsidyProgram": "New Subsidy Program",
+    "subsidyDescription": "Subsidy programs represent government or institutional programs that reduce construction costs through percentage or fixed-amount reductions.",
+    "form": {
+      "name": "Name",
+      "reductionType": "Reduction Type",
+      "reductionValue": "Reduction Value",
+      "valuePercentage": "Value (%)",
+      "valueFixed": "Value ($)",
+      "applicationStatus": "Application Status",
+      "deadline": "Deadline",
+      "maximumAmount": "Maximum Amount (€)",
+      "description": "Description",
+      "eligibility": "Eligibility Requirements",
+      "notes": "Notes",
+      "applicableCategories": "Applicable Budget Categories",
+      "selectAll": "Select All",
+      "deselectAll": "Deselect All",
+      "required": "*",
+      "placeholders": {
+        "name": "e.g., Energy Efficiency Rebate Program",
+        "reductionValuePercentage": "15",
+        "reductionValueFixed": "5000",
+        "description": "Optional description of this program",
+        "eligibility": "Optional eligibility criteria or requirements",
+        "notes": "Optional additional notes",
+        "maximumAmount": "No limit"
+      }
+    },
+    "validation": {
+      "nameRequired": "Program name is required",
+      "reductionValueRequired": "Reduction value must be a non-negative number",
+      "percentageMax": "Percentage reduction cannot exceed 100%"
+    },
+    "reductionTypeLabels": {
+      "percentage": "Percentage (%)",
+      "fixed": "Fixed Amount (€)"
+    },
+    "statusLabels": {
+      "eligible": "Eligible",
+      "applied": "Applied",
+      "approved": "Approved",
+      "received": "Received",
+      "rejected": "Rejected"
+    },
+    "buttons": {
+      "create": "Create Program",
+      "creating": "Creating...",
+      "save": "Save",
+      "saving": "Saving...",
+      "cancel": "Cancel",
+      "edit": "Edit",
+      "delete": "Delete",
+      "deleting": "Deleting...",
+      "selectAll": "Select All",
+      "deselectAll": "Deselect All"
+    },
+    "modal": {
+      "deleteTitle": "Delete Subsidy Program",
+      "deleteConfirm": "Are you sure you want to delete the program \"{{name}}\"?",
+      "deleteWarning": "This action cannot be undone. The program will be permanently removed.",
+      "deleteError": "This subsidy program cannot be deleted because it is currently referenced by one or more budget entries."
+    },
+    "messages": {
+      "createError": "Failed to create subsidy program. Please try again.",
+      "updateError": "Failed to update subsidy program. Please try again.",
+      "deleteError": "Failed to delete subsidy program. Please try again.",
+      "created": "Subsidy program \"{{name}}\" created successfully",
+      "updated": "Subsidy program \"{{name}}\" updated successfully",
+      "deleted": "Subsidy program \"{{name}}\" deleted successfully"
+    }
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "retry": "Retry",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "create": "Create",
+    "update": "Update",
+    "remove": "Remove",
+    "close": "Close",
+    "submit": "Submit",
+    "required": "*"
+  }
+}

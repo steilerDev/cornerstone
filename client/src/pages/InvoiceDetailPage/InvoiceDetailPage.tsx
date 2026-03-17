@@ -1,5 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type { Invoice, InvoiceStatus } from '@cornerstone/shared';
 import { fetchInvoiceById, updateInvoice, deleteInvoice } from '../../lib/invoicesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
@@ -8,11 +9,7 @@ import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumen
 import { InvoiceBudgetLinesSection } from './InvoiceBudgetLinesSection.js';
 import styles from './InvoiceDetailPage.module.css';
 
-const STATUS_LABELS: Record<InvoiceStatus, string> = {
-  pending: 'Pending',
-  paid: 'Paid',
-  claimed: 'Claimed',
-};
+// STATUS_LABELS will be dynamically generated from i18n
 
 interface InvoiceFormState {
   invoiceNumber: string;
@@ -24,6 +21,7 @@ interface InvoiceFormState {
 }
 
 export function InvoiceDetailPage() {
+  const { t } = useTranslation('budget');
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
@@ -65,12 +63,12 @@ export function InvoiceDetailPage() {
     } catch (err) {
       if (err instanceof ApiClientError) {
         if (err.statusCode === 404) {
-          setError('Invoice not found. It may have been deleted.');
+          setError(t('invoiceDetail.invoiceNotFound'));
         } else {
           setError(err.error.message);
         }
       } else {
-        setError('Failed to load invoice. Please try again.');
+        setError(t('invoiceDetail.invoiceNotFound'));
       }
     } finally {
       setIsLoading(false);
@@ -103,11 +101,11 @@ export function InvoiceDetailPage() {
     if (!invoice) return;
     const amount = parseFloat(editForm.amount);
     if (isNaN(amount) || amount <= 0) {
-      setEditError('Amount must be a positive number.');
+      setEditError(t('invoiceDetail.validation.amountRequired'));
       return;
     }
     if (!editForm.date) {
-      setEditError('Invoice date is required.');
+      setEditError(t('invoiceDetail.validation.dateRequired'));
       return;
     }
     setIsUpdating(true);
@@ -127,7 +125,7 @@ export function InvoiceDetailPage() {
       if (err instanceof ApiClientError) {
         setEditError(err.error.message);
       } else {
-        setEditError('Failed to update invoice. Please try again.');
+        setEditError(t('invoiceDetail.messages.updateError'));
       }
     } finally {
       setIsUpdating(false);
@@ -157,7 +155,7 @@ export function InvoiceDetailPage() {
       if (err instanceof ApiClientError) {
         setDeleteError(err.error.message);
       } else {
-        setDeleteError('Failed to delete invoice. Please try again.');
+        setDeleteError(t('invoiceDetail.messages.deleteError'));
       }
     } finally {
       setIsDeleting(false);
@@ -167,7 +165,7 @@ export function InvoiceDetailPage() {
   if (isLoading) {
     return (
       <div className={styles.container}>
-        <div className={styles.loading}>Loading invoice...</div>
+        <div className={styles.loading}>{t('invoiceDetail.loading')}</div>
       </div>
     );
   }
@@ -176,18 +174,18 @@ export function InvoiceDetailPage() {
     return (
       <div className={styles.container}>
         <div className={styles.errorCard} role="alert">
-          <h2 className={styles.errorTitle}>Error</h2>
-          <p>{error ?? 'Invoice not found.'}</p>
+          <h2 className={styles.errorTitle}>{t('invoiceDetail.error')}</h2>
+          <p>{error ?? t('invoiceDetail.invoiceNotFound')}</p>
           <div className={styles.errorActions}>
             <button
               type="button"
               className={styles.secondaryButton}
               onClick={() => navigate('/budget/invoices')}
             >
-              Back to Invoices
+              {t('invoiceDetail.backToInvoices')}
             </button>
             <button type="button" className={styles.button} onClick={() => void loadInvoice()}>
-              Retry
+              {t('invoiceDetail.retry')}
             </button>
           </div>
         </div>
@@ -205,7 +203,7 @@ export function InvoiceDetailPage() {
             className={styles.backButton}
             onClick={() => navigate('/budget/invoices')}
           >
-            ← Back to Invoices
+            ← {t('invoiceDetail.backToInvoices')}
           </button>
         </div>
 
@@ -213,18 +211,18 @@ export function InvoiceDetailPage() {
         <div className={styles.headerRow}>
           <div className={styles.pageHeading}>
             <h1 className={styles.pageTitle}>
-              {invoice.invoiceNumber ? `#${invoice.invoiceNumber}` : 'Invoice'}
+              {invoice.invoiceNumber ? `#${invoice.invoiceNumber}` : t('invoiceDetail.invoiceDetails')}
             </h1>
             <span className={`${styles.statusBadge} ${styles[`status_${invoice.status}`]}`}>
-              {STATUS_LABELS[invoice.status]}
+              {t(`invoiceDetail.statusLabels.${invoice.status}`)}
             </span>
           </div>
           <div className={styles.pageActions}>
             <button type="button" className={styles.editButton} onClick={openEditModal}>
-              Edit
+              {t('invoiceDetail.buttons.edit')}
             </button>
             <button type="button" className={styles.deleteButton} onClick={openDeleteModal}>
-              Delete
+              {t('invoiceDetail.buttons.delete')}
             </button>
           </div>
         </div>
@@ -232,7 +230,7 @@ export function InvoiceDetailPage() {
         {/* Detail card */}
         <section className={styles.card}>
           <div className={styles.cardHeader}>
-            <h2 className={styles.cardTitle}>Invoice Details</h2>
+            <h2 className={styles.cardTitle}>{t('invoiceDetail.invoiceDetails')}</h2>
           </div>
           <dl className={styles.infoList}>
             <div className={styles.infoRow}>
@@ -267,7 +265,7 @@ export function InvoiceDetailPage() {
               <dt className={styles.infoLabel}>Status</dt>
               <dd className={styles.infoValue}>
                 <span className={`${styles.statusBadge} ${styles[`status_${invoice.status}`]}`}>
-                  {STATUS_LABELS[invoice.status]}
+                  {t(`invoiceDetail.statusLabels.${invoice.status}`)}
                 </span>
               </dd>
             </div>
