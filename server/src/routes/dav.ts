@@ -165,14 +165,57 @@ export default async function davRoutes(fastify: FastifyInstance) {
       const props = `<D:resourcetype><D:principal/></D:resourcetype>
 <D:displayname>${(request as any).davUser.email}</D:displayname>
 <D:principal-URL><D:href>${href}</D:href></D:principal-URL>
-<C:calendar-home-set><D:href>${DAV_PREFIX}/calendars/default/</D:href></C:calendar-home-set>
-<A:addressbook-home-set><D:href>${DAV_PREFIX}/addressbooks/default/</D:href></A:addressbook-home-set>`;
+<C:calendar-home-set><D:href>${DAV_PREFIX}/calendars/</D:href></C:calendar-home-set>
+<A:addressbook-home-set><D:href>${DAV_PREFIX}/addressbooks/</D:href></A:addressbook-home-set>`;
 
       const resp = davXml.response(href, davXml.propstat(props));
       return reply
         .type('application/xml; charset=utf-8')
         .status(207)
         .send(davXml.multistatus([resp]));
+    },
+  );
+
+  // ─── PROPFIND: Calendar Home Set ────────────────────────────────────────
+
+  /**
+   * PROPFIND /calendars/
+   * Calendar home set: contains calendar collections.
+   * iOS PROPFINDs this at depth 1 to discover calendars.
+   */
+  fastify.propfind<{ Body: string }>(
+    '/calendars/',
+    { preHandler: davAuth },
+    async (request, reply) => {
+      const depth = davXml.parseDepth(request.headers as any);
+      const responses: string[] = [];
+
+      // The home set itself is a plain collection
+      responses.push(
+        davXml.response(
+          `${DAV_PREFIX}/calendars/`,
+          davXml.propstat(
+            `<D:resourcetype><D:collection/></D:resourcetype>
+<D:displayname>Calendars</D:displayname>`,
+          ),
+        ),
+      );
+
+      if (depth !== 0) {
+        // depth 1: reveal the default calendar collection
+        const etag = calendarIcal.computeCalendarETag(fastify.db);
+        responses.push(
+          davXml.response(
+            `${DAV_PREFIX}/calendars/default/`,
+            davXml.propstat(davXml.CALENDAR_COLLECTION_PROPS.replace(/"calendar-etag"/g, `"${etag}"`)),
+          ),
+        );
+      }
+
+      return reply
+        .type('application/xml; charset=utf-8')
+        .status(207)
+        .send(davXml.multistatus(responses));
     },
   );
 
@@ -384,6 +427,49 @@ export default async function davRoutes(fastify: FastifyInstance) {
 
           responses.push(buildCalendarEventResponse(href, type, event, etag));
         }
+      }
+
+      return reply
+        .type('application/xml; charset=utf-8')
+        .status(207)
+        .send(davXml.multistatus(responses));
+    },
+  );
+
+  // ─── PROPFIND: Address Book Home Set ────────────────────────────────────
+
+  /**
+   * PROPFIND /addressbooks/
+   * Address book home set: contains address book collections.
+   * iOS PROPFINDs this at depth 1 to discover address books.
+   */
+  fastify.propfind<{ Body: string }>(
+    '/addressbooks/',
+    { preHandler: davAuth },
+    async (request, reply) => {
+      const depth = davXml.parseDepth(request.headers as any);
+      const responses: string[] = [];
+
+      // The home set itself is a plain collection
+      responses.push(
+        davXml.response(
+          `${DAV_PREFIX}/addressbooks/`,
+          davXml.propstat(
+            `<D:resourcetype><D:collection/></D:resourcetype>
+<D:displayname>Address Books</D:displayname>`,
+          ),
+        ),
+      );
+
+      if (depth !== 0) {
+        // depth 1: reveal the default address book collection
+        const etag = vendorVcard.computeAddressBookETag(fastify.db);
+        responses.push(
+          davXml.response(
+            `${DAV_PREFIX}/addressbooks/default/`,
+            davXml.propstat(davXml.ADDRESSBOOK_COLLECTION_PROPS.replace(/"addressbook-etag"/g, `"${etag}"`)),
+          ),
+        );
       }
 
       return reply

@@ -144,7 +144,11 @@ export const CALENDAR_COLLECTION_PROPS = `<D:resourcetype><D:collection/><C:cale
 <D:supported-report-set>
 <D:supported-report><D:report><C:calendar-multiget/></D:report></D:supported-report>
 <D:supported-report><D:report><C:calendar-query/></D:report></D:supported-report>
-</D:supported-report-set>`;
+</D:supported-report-set>
+<D:current-user-privilege-set>
+<D:privilege><D:read/></D:privilege>
+<D:privilege><D:read-current-user-privilege-set/></D:privilege>
+</D:current-user-privilege-set>`;
 
 /**
  * Address book collection properties (for PROPFIND depth 0).
@@ -157,4 +161,8 @@ export const ADDRESSBOOK_COLLECTION_PROPS = `<D:resourcetype><D:collection/><A:a
 <D:supported-report-set>
 <D:supported-report><D:report><A:addressbook-multiget/></D:report></D:supported-report>
 <D:supported-report><D:report><A:addressbook-query/></D:report></D:supported-report>
-</D:supported-report-set>`;
+</D:supported-report-set>
+<D:current-user-privilege-set>
+<D:privilege><D:read/></D:privilege>
+<D:privilege><D:read-current-user-privilege-set/></D:privilege>
+</D:current-user-privilege-set>`;
