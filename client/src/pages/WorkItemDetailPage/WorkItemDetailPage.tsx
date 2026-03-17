@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo, type FormEvent } from 'react';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type {
   WorkItemDetail,
   WorkItemStatus,
@@ -89,24 +90,6 @@ interface DeletingDependency {
   title: string;
 }
 
-const HOUSEHOLD_ITEM_CATEGORY_LABELS: Record<HouseholdItemCategory, string> = {
-  furniture: 'Furniture',
-  appliances: 'Appliances',
-  fixtures: 'Fixtures',
-  decor: 'Decor',
-  electronics: 'Electronics',
-  outdoor: 'Outdoor',
-  storage: 'Storage',
-  other: 'Other',
-};
-
-const HOUSEHOLD_ITEM_STATUS_LABELS: Record<HouseholdItemStatus, string> = {
-  planned: 'Planned',
-  purchased: 'Purchased',
-  scheduled: 'Scheduled',
-  arrived: 'Arrived',
-};
-
 export default function WorkItemDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -115,6 +98,32 @@ export default function WorkItemDetailPage() {
   const fromTimeline = locationState?.from === 'schedule';
   const fromView = locationState?.view;
   const { user } = useAuth();
+  const { t } = useTranslation('workItems');
+
+  // Household item labels (moved from module level to use i18n)
+  const HOUSEHOLD_ITEM_CATEGORY_LABELS: Record<HouseholdItemCategory, string> = useMemo(
+    () => ({
+      furniture: t('detail.householdItems.categories.furniture'),
+      appliances: t('detail.householdItems.categories.appliances'),
+      fixtures: t('detail.householdItems.categories.fixtures'),
+      decor: t('detail.householdItems.categories.decor'),
+      electronics: t('detail.householdItems.categories.electronics'),
+      outdoor: t('detail.householdItems.categories.outdoor'),
+      storage: t('detail.householdItems.categories.storage'),
+      other: t('detail.householdItems.categories.other'),
+    }),
+    [t],
+  );
+
+  const HOUSEHOLD_ITEM_STATUS_LABELS: Record<HouseholdItemStatus, string> = useMemo(
+    () => ({
+      planned: t('detail.householdItems.statuses.planned'),
+      purchased: t('detail.householdItems.statuses.purchased'),
+      scheduled: t('detail.householdItems.statuses.scheduled'),
+      arrived: t('detail.householdItems.statuses.arrived'),
+    }),
+    [t],
+  );
 
   const [workItem, setWorkItem] = useState<WorkItemDetail | null>(null);
   const [notes, setNotes] = useState<NoteResponse[]>([]);
@@ -1087,7 +1096,7 @@ export default function WorkItemDetailPage() {
     return (
       <div className={styles.container}>
         <div className={styles.loading} role="status">
-          Loading work item...
+          {t('detail.loading')}
         </div>
       </div>
     );
@@ -1097,14 +1106,14 @@ export default function WorkItemDetailPage() {
     return (
       <div className={styles.container}>
         <div className={styles.errorCard} role="alert">
-          <h2 className={styles.errorTitle}>Work Item Not Found</h2>
+          <h2 className={styles.errorTitle}>{t('detail.notFound.title')}</h2>
           <div className={styles.errorActions}>
             <button
               type="button"
               className={styles.backButton}
               onClick={() => navigate('/project/work-items')}
             >
-              Back to Work Items
+              {t('detail.notFound.back')}
             </button>
           </div>
         </div>
@@ -1116,18 +1125,18 @@ export default function WorkItemDetailPage() {
     return (
       <div className={styles.container}>
         <div className={styles.errorCard} role="alert">
-          <h2 className={styles.errorTitle}>Error</h2>
-          <p>{error || 'An error occurred while loading the work item.'}</p>
+          <h2 className={styles.errorTitle}>{t('detail.error.title')}</h2>
+          <p>{error || t('detail.error.fallback')}</p>
           <div className={styles.errorActions}>
             <button
               type="button"
               className={styles.backButton}
               onClick={() => navigate('/project/work-items')}
             >
-              Back to Work Items
+              {t('detail.error.back')}
             </button>
             <button type="button" className={styles.backButton} onClick={() => navigate(0)}>
-              Retry
+              {t('detail.error.retry')}
             </button>
           </div>
         </div>
@@ -1151,7 +1160,7 @@ export default function WorkItemDetailPage() {
             type="button"
             className={styles.closeError}
             onClick={() => setInlineError(null)}
-            aria-label="Dismiss error"
+            aria-label={t('detail.dismissError')}
           >
             ×
           </button>
@@ -1168,14 +1177,14 @@ export default function WorkItemDetailPage() {
                 className={styles.backButton}
                 onClick={() => navigate(fromView ? `/schedule?view=${fromView}` : '/schedule')}
               >
-                ← Back to Schedule
+                {t('detail.nav.backToSchedule')}
               </button>
               <button
                 type="button"
                 className={styles.secondaryNavButton}
                 onClick={() => navigate('/project/work-items')}
               >
-                To Work Items
+                {t('detail.nav.toWorkItems')}
               </button>
             </>
           ) : (
@@ -1185,14 +1194,14 @@ export default function WorkItemDetailPage() {
                 className={styles.backButton}
                 onClick={() => navigate('/project/work-items')}
               >
-                ← Back to Work Items
+                {t('detail.nav.backToWorkItems')}
               </button>
               <button
                 type="button"
                 className={styles.secondaryNavButton}
                 onClick={() => navigate('/schedule')}
               >
-                To Schedule
+                {t('detail.nav.toSchedule')}
               </button>
             </>
           )}
@@ -1235,9 +1244,9 @@ export default function WorkItemDetailPage() {
               value={workItem.status}
               onChange={(e) => handleStatusChange(e.target.value as WorkItemStatus)}
             >
-              <option value="not_started">Not Started</option>
-              <option value="in_progress">In Progress</option>
-              <option value="completed">Completed</option>
+              <option value="not_started">{t('detail.statusOptions.notStarted')}</option>
+              <option value="in_progress">{t('detail.statusOptions.inProgress')}</option>
+              <option value="completed">{t('detail.statusOptions.completed')}</option>
             </select>
           </div>
         </div>
@@ -1332,7 +1341,7 @@ export default function WorkItemDetailPage() {
                 value={workItem.assignedUser?.id || ''}
                 onChange={(e) => handleAssignedUserChange(e.target.value)}
               >
-                <option value="">Unassigned</option>
+                <option value="">{t('create.fields.unassigned')}</option>
                 {users.map((u) => (
                   <option key={u.id} value={u.id}>
                     {u.displayName}

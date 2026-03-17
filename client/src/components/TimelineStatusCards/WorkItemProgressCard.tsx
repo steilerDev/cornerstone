@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { TimelineWorkItem } from '@cornerstone/shared';
 import styles from './TimelineStatusCards.module.css';
 
@@ -6,10 +7,13 @@ interface WorkItemProgressCardProps {
 }
 
 export function WorkItemProgressCard({ workItems }: WorkItemProgressCardProps) {
+  const { t } = useTranslation('dashboard');
+  const { t: tWorkItems } = useTranslation('workItems');
+
   if (workItems.length === 0) {
     return (
       <p data-testid="progress-empty" className={styles.emptyState}>
-        No work items
+        {t('cards.workItemProgress.emptyMessage')}
       </p>
     );
   }
@@ -67,9 +71,9 @@ export function WorkItemProgressCard({ workItems }: WorkItemProgressCardProps) {
   });
 
   const statusLabels = {
-    not_started: 'Not Started',
-    in_progress: 'In Progress',
-    completed: 'Completed',
+    not_started: tWorkItems('create.fields.statusOptions.notStarted'),
+    in_progress: tWorkItems('create.fields.statusOptions.inProgress'),
+    completed: tWorkItems('create.fields.statusOptions.completed'),
   };
 
   const statusColors = {
@@ -86,7 +90,11 @@ export function WorkItemProgressCard({ workItems }: WorkItemProgressCardProps) {
         height="120"
         data-testid="progress-donut"
         role="img"
-        aria-label={`Work item progress: ${counts.completed} completed, ${counts.in_progress} in progress, ${counts.not_started} not started`}
+        aria-label={t('cards.workItemProgress.ariaLabel', {
+          completed: counts.completed,
+          inProgress: counts.in_progress,
+          notStarted: counts.not_started,
+        })}
       >
         {/* Background circle */}
         <circle cx="52" cy="52" r="40" fill="none" stroke="var(--color-border)" strokeWidth="24" />

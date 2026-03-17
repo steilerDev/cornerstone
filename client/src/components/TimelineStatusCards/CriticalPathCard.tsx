@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type { TimelineWorkItem } from '@cornerstone/shared';
 import { formatDate } from '../../lib/formatters.js';
 import styles from './TimelineStatusCards.module.css';
@@ -9,13 +10,15 @@ interface CriticalPathCardProps {
 }
 
 export function CriticalPathCard({ criticalPath, workItems }: CriticalPathCardProps) {
+  const { t } = useTranslation('dashboard');
+
   // Filter work items to those on the critical path
   const criticalItems = workItems.filter((item) => criticalPath.includes(item.id));
 
   if (criticalItems.length === 0) {
     return (
       <p data-testid="critical-empty" className={styles.emptyState}>
-        No critical path defined
+        {t('cards.criticalPath.emptyNoDefined')}
       </p>
     );
   }
@@ -28,7 +31,7 @@ export function CriticalPathCard({ criticalPath, workItems }: CriticalPathCardPr
   if (incompleteCritical.length === 0) {
     return (
       <p data-testid="critical-empty" className={styles.emptyState}>
-        All critical items completed
+        {t('cards.criticalPath.emptyAllCompleted')}
       </p>
     );
   }
@@ -50,23 +53,23 @@ export function CriticalPathCard({ criticalPath, workItems }: CriticalPathCardPr
 
   // Determine health indicator
   let healthClass = styles.badgeGreen; // green >14 days
-  let healthLabel = 'On Track';
+  let healthLabel = t('cards.criticalPath.health.onTrack');
   if (daysRemaining < 0) {
     healthClass = styles.badgeRed; // red: overdue
-    healthLabel = 'Overdue';
+    healthLabel = t('cards.criticalPath.health.overdue');
   } else if (daysRemaining < 7) {
     healthClass = styles.badgeRed; // red <7 days
-    healthLabel = 'Critical';
+    healthLabel = t('cards.criticalPath.health.critical');
   } else if (daysRemaining <= 14) {
     healthClass = styles.badgeYellow; // yellow 7-14 days
-    healthLabel = 'Warning';
+    healthLabel = t('cards.criticalPath.health.warning');
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-3)' }}>
       <div>
         <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-xs)' }}>
-          Items on Path
+          {t('cards.criticalPath.itemsOnPath')}
         </span>
         <div
           data-testid="critical-count"
@@ -78,7 +81,7 @@ export function CriticalPathCard({ criticalPath, workItems }: CriticalPathCardPr
 
       <div>
         <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-xs)' }}>
-          Next Deadline
+          {t('cards.criticalPath.nextDeadline')}
         </span>
         <div
           data-testid="critical-deadline"
@@ -93,7 +96,7 @@ export function CriticalPathCard({ criticalPath, workItems }: CriticalPathCardPr
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
           <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-xs)' }}>
-            Days Remaining
+            {t('cards.criticalPath.daysRemaining')}
           </span>
           <div
             data-testid="critical-days"
