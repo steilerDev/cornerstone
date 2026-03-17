@@ -59,7 +59,7 @@ Wiki pages are markdown files in `wiki/`. Sync before reading: `git submodule up
 
 ### Board & Issue Relationships
 
-The GitHub Projects board uses 4 statuses: Backlog, Todo, In Progress, Done. All stories must be linked as sub-issues of their parent epic, and dependency relationships must be maintained. Board IDs, GraphQL mutations, and exact commands are in the skill files.
+The GitHub Projects board uses 5 statuses: Backlog, Todo, In Progress, Done, Wont-Do. All stories must be linked as sub-issues of their parent epic, and dependency relationships must be maintained. Use native `gh project` CLI commands for board status management (`gh project item-list`, `gh project item-edit`, `gh project item-add`). GraphQL mutations are still needed for `addSubIssue` and `addBlockedBy`. Board IDs and exact commands are in the skill files and agent definitions.
 
 ## Agile Workflow
 

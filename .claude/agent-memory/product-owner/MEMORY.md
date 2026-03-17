@@ -97,9 +97,13 @@ All 12 stories merged. Paperless-ngx links for invoices are EPIC-08; budget repo
 - Board name: "Cornerstone Backlog", project number 4, owner steilerDev
 - Project ID: `PVT_kwHOAGtLQM4BOlve`
 - Status Field ID: `PVTSSF_lAHOAGtLQM4BOlvezg9P0yo`
-- Status Option IDs: Backlog=`7404f88c`, Todo=`dc74a3b0`, In Progress=`296eeabe`, Done=`c558f50d`
+- Status Option IDs: Backlog=`7404f88c`, Todo=`dc74a3b0`, In Progress=`296eeabe`, Done=`c558f50d`, Wont-Do=`90c1bc33`
+- Use native `gh project` commands for board management (not raw GraphQL):
+  - Query items: `gh project item-list 4 --owner steilerDev --format json --query "is:issue #<N>"`
+  - Set status: `gh project item-edit --id <ITEM_ID> --project-id PVT_kwHOAGtLQM4BOlve --field-id PVTSSF_lAHOAGtLQM4BOlvezg9P0yo --single-select-option-id <STATUS_ID>`
+  - Add to board: `gh project item-add 4 --owner steilerDev --url <issue-url>`
+- GraphQL still needed for: `addSubIssue`, `addBlockedBy` (no native CLI equivalent yet)
 - GraphQL: `addBlockedBy` uses `blockingIssueId` (NOT `blockedByIssueId`)
-- Epic node IDs: EPIC-05=`I_kwDORK8WYc7pGysn`, EPIC-06=`I_kwDORK8WYc7pGy3a`
 
 ## User Feedback Batch (2026-02-27)
 
