@@ -405,9 +405,9 @@ test.describe('Vendor detail page (Scenario 5)', { tag: '@responsive' }, () => {
       const invoiceCount = await detailPage.getTotalInvoices();
       expect(invoiceCount?.trim()).toBe('0');
 
-      // And: Outstanding balance shows $0.00
+      // And: Outstanding balance shows 0.00 (currency symbol is locale-dependent — match digits only)
       const balance = await detailPage.getOutstandingBalance();
-      expect(balance?.trim()).toMatch(/\$0\.00/);
+      expect(balance?.trim()).toMatch(/0\.00/);
 
       // And: Invoices section is visible with empty state (no invoices yet)
       await expect(detailPage.invoicesSection).toBeVisible();
