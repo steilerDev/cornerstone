@@ -205,6 +205,9 @@ describe('DAV Routes', () => {
       expect(response.payload).toContain('<D:multistatus');
       expect(response.payload).toContain('urn:ietf:params:xml:ns:caldav');
       expect(response.payload).toContain('Cornerstone Project Calendar');
+      // Must include getctag for iOS change detection
+      expect(response.payload).toContain('getctag');
+      expect(response.payload).toContain('http://calendarserver.org/ns/');
     });
 
     it('returns calendar collection with work item entries at depth 1', async () => {
@@ -437,6 +440,75 @@ describe('DAV Routes', () => {
       }) as any);
 
       expect(response.statusCode).toBe(401);
+    });
+  });
+
+  // ─── REPORT calendar-query /dav/calendars/default/ ──────────────────────
+
+  describe('REPORT calendar-query /dav/calendars/default/', () => {
+    it('returns all events for calendar-query REPORT', async () => {
+      const { basicAuth } = await createUserWithToken();
+      createTestWorkItem('Query Test Item');
+
+      const queryBody = `<?xml version="1.0" encoding="utf-8"?>
+<C:calendar-query xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+  <D:prop>
+    <D:getetag/>
+    <C:calendar-data/>
+  </D:prop>
+  <C:filter>
+    <C:comp-filter name="VCALENDAR">
+      <C:comp-filter name="VEVENT"/>
+    </C:comp-filter>
+  </C:filter>
+</C:calendar-query>`;
+
+      const response = await (app.inject({
+        method: 'REPORT' as any,
+        url: '/dav/calendars/default/',
+        headers: {
+          Authorization: basicAuth,
+          'content-type': 'application/xml',
+        },
+        payload: queryBody,
+      }) as any);
+
+      expect(response.statusCode).toBe(207);
+      expect(response.payload).toContain('<D:multistatus');
+      expect(response.payload).toContain('Query Test Item');
+      expect(response.payload).toContain('calendar-data');
+    });
+  });
+
+  // ─── REPORT addressbook-query /dav/addressbooks/default/ ──────────────
+
+  describe('REPORT addressbook-query /dav/addressbooks/default/', () => {
+    it('returns all contacts for addressbook-query REPORT', async () => {
+      const { basicAuth } = await createUserWithToken();
+      createTestVendor('Query Vendor');
+
+      const queryBody = `<?xml version="1.0" encoding="utf-8"?>
+<A:addressbook-query xmlns:D="DAV:" xmlns:A="urn:ietf:params:xml:ns:carddav">
+  <D:prop>
+    <D:getetag/>
+    <A:address-data/>
+  </D:prop>
+</A:addressbook-query>`;
+
+      const response = await (app.inject({
+        method: 'REPORT' as any,
+        url: '/dav/addressbooks/default/',
+        headers: {
+          Authorization: basicAuth,
+          'content-type': 'application/xml',
+        },
+        payload: queryBody,
+      }) as any);
+
+      expect(response.statusCode).toBe(207);
+      expect(response.payload).toContain('<D:multistatus');
+      expect(response.payload).toContain('Query Vendor');
+      expect(response.payload).toContain('address-data');
     });
   });
 

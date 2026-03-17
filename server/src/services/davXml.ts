@@ -60,6 +60,16 @@ export function parseReportHrefs(body: string): string[] {
 }
 
 /**
+ * Detect the REPORT type from the body.
+ * Returns 'multiget', 'query', or 'unknown'.
+ */
+export function detectReportType(body: string): 'multiget' | 'query' | 'unknown' {
+  if (/calendar-multiget|addressbook-multiget/i.test(body)) return 'multiget';
+  if (/calendar-query|addressbook-query/i.test(body)) return 'query';
+  return 'unknown';
+}
+
+/**
  * Build a multistatus response wrapper.
  */
 export function multistatus(responses: string[]): string {
@@ -121,18 +131,30 @@ export function escapeXml(text: string): string {
 
 /**
  * Calendar collection properties (for PROPFIND depth 0).
+ * Includes getctag (Calendar Server extension) required by iOS for change detection.
  */
 export const CALENDAR_COLLECTION_PROPS = `<D:resourcetype><D:collection/><C:calendar xmlns:C="urn:ietf:params:xml:ns:caldav"/></D:resourcetype>
 <D:displayname>Cornerstone Project Calendar</D:displayname>
 <D:getetag>"calendar-etag"</D:getetag>
+<CS:getctag xmlns:CS="http://calendarserver.org/ns/">"calendar-etag"</CS:getctag>
 <C:supported-calendar-component-set xmlns:C="urn:ietf:params:xml:ns:caldav">
 <C:comp name="VEVENT"/>
 <C:comp name="VTODO"/>
-</C:supported-calendar-component-set>`;
+</C:supported-calendar-component-set>
+<D:supported-report-set>
+<D:supported-report><D:report><C:calendar-multiget xmlns:C="urn:ietf:params:xml:ns:caldav"/></D:report></D:supported-report>
+<D:supported-report><D:report><C:calendar-query xmlns:C="urn:ietf:params:xml:ns:caldav"/></D:report></D:supported-report>
+</D:supported-report-set>`;
 
 /**
  * Address book collection properties (for PROPFIND depth 0).
+ * Includes getctag (Calendar Server extension) required by iOS for change detection.
  */
 export const ADDRESSBOOK_COLLECTION_PROPS = `<D:resourcetype><D:collection/><A:addressbook xmlns:A="urn:ietf:params:xml:ns:carddav"/></D:resourcetype>
 <D:displayname>Cornerstone Contacts</D:displayname>
-<D:getetag>"addressbook-etag"</D:getetag>`;
+<D:getetag>"addressbook-etag"</D:getetag>
+<CS:getctag xmlns:CS="http://calendarserver.org/ns/">"addressbook-etag"</CS:getctag>
+<D:supported-report-set>
+<D:supported-report><D:report><A:addressbook-multiget xmlns:A="urn:ietf:params:xml:ns:carddav"/></D:report></D:supported-report>
+<D:supported-report><D:report><A:addressbook-query xmlns:A="urn:ietf:params:xml:ns:carddav"/></D:report></D:supported-report>
+</D:supported-report-set>`;

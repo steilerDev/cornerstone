@@ -189,7 +189,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
       responses.push(
         davXml.response(
           `${DAV_PREFIX}/calendars/default/`,
-          davXml.propstat(davXml.CALENDAR_COLLECTION_PROPS.replace('"calendar-etag"', `"${etag}"`)),
+          davXml.propstat(davXml.CALENDAR_COLLECTION_PROPS.replaceAll('"calendar-etag"', `"${etag}"`)),
         ),
       );
 
@@ -280,74 +280,99 @@ export default async function davRoutes(fastify: FastifyInstance) {
     },
   );
 
-  // ─── REPORT: calendar-multiget ──────────────────────────────────────────
+  // ─── REPORT: calendar-multiget / calendar-query ────────────────────────
 
   /**
-   * REPORT /calendars/default/
-   * calendar-multiget: fetch multiple calendar events in one request.
+   * Helper: build a calendar event response for REPORT results.
    */
-  fastify.report<{ Body: string }>(
-    '/calendars/default/',
-    { preHandler: davAuth },
-    async (request, reply) => {
-      const body = request.body;
-      const hrefs = davXml.parseReportHrefs(body);
+  function buildCalendarEventResponse(
+    href: string,
+    type: string,
+    event: any,
+    etag: string,
+  ): string {
+    const calendar = calendarIcal.buildCalendar({
+      workItems: type === 'wi' ? [event] : [],
+      milestones: type === 'milestone' ? [event] : [],
+      householdItems: type === 'hi' ? [event] : [],
+    });
 
-      if (hrefs.length === 0) {
-        return reply
-          .type('application/xml; charset=utf-8')
-          .status(207)
-          .send(davXml.multistatus([]));
-      }
-
-      ensureDailyReschedule(fastify.db);
-      const timeline = getTimeline(fastify.db);
-      const etag = calendarIcal.computeCalendarETag(fastify.db);
-      const responses: string[] = [];
-
-      for (const href of hrefs) {
-        // Parse href like /dav/calendars/default/wi-xxx.ics (or legacy /calendars/default/...)
-        const match = href.match(/\/calendars\/default\/([^/]+)\.ics$/);
-        if (!match) continue;
-
-        const uid = match[1];
-        const typeMatch = uid.match(/^(wi|milestone|hi)-(.+)$/);
-        if (!typeMatch) continue;
-
-        const [, type, id] = typeMatch;
-        let event: any = null;
-
-        if (type === 'wi') {
-          event = (timeline.workItems as any[]).find((wi: any) => wi.id === id);
-        } else if (type === 'milestone') {
-          event = (timeline.milestones as any[]).find((m: any) => String(m.id) === id);
-        } else if (type === 'hi') {
-          event = (timeline.householdItems as any[]).find((hi: any) => hi.id === id);
-        }
-
-        if (!event) {
-          // Not found: return 404 propstat
-          const notFoundProps = davXml.propstatNotFound(['getetag']);
-          responses.push(davXml.response(href, notFoundProps));
-          continue;
-        }
-
-        // Build single-event iCal
-        const calendar = calendarIcal.buildCalendar({
-          workItems: type === 'wi' ? [event] : [],
-          milestones: type === 'milestone' ? [event] : [],
-          householdItems: type === 'hi' ? [event] : [],
-        });
-
-        const props = `<D:getetag>"${etag}"</D:getetag>
+    const props = `<D:getetag>"${etag}"</D:getetag>
 <D:resourcetype/>
 <D:displayname>${escapeXml(event.title || event.name)}</D:displayname>
 <D:getcontentlength>${calendar.length}</D:getcontentlength>
 <D:getcontenttype>text/calendar; charset=utf-8</D:getcontenttype>
 <C:calendar-data xmlns:C="urn:ietf:params:xml:ns:caldav">${escapeXml(calendar)}</C:calendar-data>`;
 
-        const propstat = davXml.propstat(props);
-        responses.push(davXml.response(href, propstat));
+    return davXml.response(href, davXml.propstat(props));
+  }
+
+  /**
+   * REPORT /calendars/default/
+   * Handles calendar-multiget (fetch by href) and calendar-query (return all matching).
+   */
+  fastify.report<{ Body: string }>(
+    '/calendars/default/',
+    { preHandler: davAuth },
+    async (request, reply) => {
+      const body = request.body;
+      const reportType = davXml.detectReportType(body);
+
+      ensureDailyReschedule(fastify.db);
+      const timeline = getTimeline(fastify.db);
+      const etag = calendarIcal.computeCalendarETag(fastify.db);
+      const responses: string[] = [];
+
+      if (reportType === 'query') {
+        // calendar-query: return all events (read-only calendar, no filtering needed)
+        for (const wi of timeline.workItems as any[]) {
+          if (!wi.startDate || !wi.endDate) continue;
+          const href = `${DAV_PREFIX}/calendars/default/wi-${wi.id}.ics`;
+          responses.push(buildCalendarEventResponse(href, 'wi', wi, etag));
+        }
+
+        for (const milestone of timeline.milestones as any[]) {
+          if (!milestone.targetDate && !milestone.completedAt) continue;
+          const href = `${DAV_PREFIX}/calendars/default/milestone-${milestone.id}.ics`;
+          responses.push(buildCalendarEventResponse(href, 'milestone', milestone, etag));
+        }
+
+        for (const hi of timeline.householdItems as any[]) {
+          if (!hi.targetDeliveryDate && !hi.actualDeliveryDate) continue;
+          const href = `${DAV_PREFIX}/calendars/default/hi-${hi.id}.ics`;
+          responses.push(buildCalendarEventResponse(href, 'hi', hi, etag));
+        }
+      } else {
+        // calendar-multiget: fetch specific events by href
+        const hrefs = davXml.parseReportHrefs(body);
+
+        for (const href of hrefs) {
+          const match = href.match(/\/calendars\/default\/([^/]+)\.ics$/);
+          if (!match) continue;
+
+          const uid = match[1];
+          const typeMatch = uid.match(/^(wi|milestone|hi)-(.+)$/);
+          if (!typeMatch) continue;
+
+          const [, type, id] = typeMatch;
+          let event: any = null;
+
+          if (type === 'wi') {
+            event = (timeline.workItems as any[]).find((wi: any) => wi.id === id);
+          } else if (type === 'milestone') {
+            event = (timeline.milestones as any[]).find((m: any) => String(m.id) === id);
+          } else if (type === 'hi') {
+            event = (timeline.householdItems as any[]).find((hi: any) => hi.id === id);
+          }
+
+          if (!event) {
+            const notFoundProps = davXml.propstatNotFound(['getetag']);
+            responses.push(davXml.response(href, notFoundProps));
+            continue;
+          }
+
+          responses.push(buildCalendarEventResponse(href, type, event, etag));
+        }
       }
 
       return reply
@@ -376,7 +401,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
       responses.push(
         davXml.response(
           `${DAV_PREFIX}/addressbooks/default/`,
-          davXml.propstat(davXml.ADDRESSBOOK_COLLECTION_PROPS.replace('"addressbook-etag"', `"${etag}"`)),
+          davXml.propstat(davXml.ADDRESSBOOK_COLLECTION_PROPS.replaceAll('"addressbook-etag"', `"${etag}"`)),
         ),
       );
 
@@ -479,90 +504,115 @@ export default async function davRoutes(fastify: FastifyInstance) {
     },
   );
 
-  // ─── REPORT: addressbook-multiget ───────────────────────────────────────
+  // ─── REPORT: addressbook-multiget / addressbook-query ──────────────────
+
+  /**
+   * Helper: build a vCard response for REPORT results.
+   */
+  function buildVcardResponse(
+    href: string,
+    vcf: string,
+    displayName: string,
+    etag: string,
+  ): string {
+    const props = `<D:getetag>"${etag}"</D:getetag>
+<D:resourcetype/>
+<D:displayname>${escapeXml(displayName)}</D:displayname>
+<D:getcontentlength>${vcf.length}</D:getcontentlength>
+<D:getcontenttype>text/vcard; charset=utf-8</D:getcontenttype>
+<A:address-data xmlns:A="urn:ietf:params:xml:ns:carddav">${escapeXml(vcf)}</A:address-data>`;
+
+    return davXml.response(href, davXml.propstat(props));
+  }
 
   /**
    * REPORT /addressbooks/default/
-   * addressbook-multiget: fetch multiple vCards in one request.
+   * Handles addressbook-multiget (fetch by href) and addressbook-query (return all).
    */
   fastify.report<{ Body: string }>(
     '/addressbooks/default/',
     { preHandler: davAuth },
     async (request, reply) => {
       const body = request.body;
-      const hrefs = davXml.parseReportHrefs(body);
-
-      if (hrefs.length === 0) {
-        return reply
-          .type('application/xml; charset=utf-8')
-          .status(207)
-          .send(davXml.multistatus([]));
-      }
+      const reportType = davXml.detectReportType(body);
 
       const etag = vendorVcard.computeAddressBookETag(fastify.db);
       const responses: string[] = [];
 
-      for (const href of hrefs) {
-        // Parse href like /dav/addressbooks/default/vendor-xxx.vcf (or legacy /addressbooks/default/...)
-        const match = href.match(/\/addressbooks\/default\/([^/]+)\.vcf$/);
-        if (!match) continue;
+      if (reportType === 'query') {
+        // addressbook-query: return all contacts (read-only address book)
+        const allVendors = fastify.db.select().from(vendors).all();
 
-        const uid = match[1];
-        const typeMatch = uid.match(/^(vendor|contact)-(.+)$/);
-        if (!typeMatch) continue;
+        for (const vendor of allVendors as any[]) {
+          const href = `${DAV_PREFIX}/addressbooks/default/vendor-${vendor.id}.vcf`;
+          const vcf = vendorVcard.buildVendorVcard(vendor);
+          responses.push(buildVcardResponse(href, vcf, vendor.name, etag));
+        }
 
-        const [, type, id] = typeMatch;
-        let vcf: string | null = null;
-        let displayName: string | null = null;
+        const allContacts = fastify.db.select().from(vendorContacts).all();
+        for (const contact of allContacts as any[]) {
+          const vendor = (allVendors as any[]).find((v: any) => v.id === contact.vendorId);
+          if (!vendor) continue;
+          const href = `${DAV_PREFIX}/addressbooks/default/contact-${contact.id}.vcf`;
+          const vcf = vendorVcard.buildContactVcard(contact, vendor.name);
+          responses.push(buildVcardResponse(href, vcf, contact.name, etag));
+        }
+      } else {
+        // addressbook-multiget: fetch specific contacts by href
+        const hrefs = davXml.parseReportHrefs(body);
 
-        if (type === 'vendor') {
-          const vendor = fastify.db
-            .select()
-            .from(vendors)
-            .where(eq(vendors.id, id))
-            .get();
+        for (const href of hrefs) {
+          const match = href.match(/\/addressbooks\/default\/([^/]+)\.vcf$/);
+          if (!match) continue;
 
-          if (vendor) {
-            vcf = vendorVcard.buildVendorVcard(vendor);
-            displayName = vendor.name;
-          }
-        } else if (type === 'contact') {
-          const contact = fastify.db
-            .select()
-            .from(vendorContacts)
-            .where(eq(vendorContacts.id, id))
-            .get();
+          const uid = match[1];
+          const typeMatch = uid.match(/^(vendor|contact)-(.+)$/);
+          if (!typeMatch) continue;
 
-          if (contact) {
+          const [, type, id] = typeMatch;
+          let vcf: string | null = null;
+          let displayName: string | null = null;
+
+          if (type === 'vendor') {
             const vendor = fastify.db
               .select()
               .from(vendors)
-              .where(eq(vendors.id, contact.vendorId))
+              .where(eq(vendors.id, id))
               .get();
 
             if (vendor) {
-              vcf = vendorVcard.buildContactVcard(contact, vendor.name);
-              displayName = contact.name;
+              vcf = vendorVcard.buildVendorVcard(vendor);
+              displayName = vendor.name;
+            }
+          } else if (type === 'contact') {
+            const contact = fastify.db
+              .select()
+              .from(vendorContacts)
+              .where(eq(vendorContacts.id, id))
+              .get();
+
+            if (contact) {
+              const vendor = fastify.db
+                .select()
+                .from(vendors)
+                .where(eq(vendors.id, contact.vendorId))
+                .get();
+
+              if (vendor) {
+                vcf = vendorVcard.buildContactVcard(contact, vendor.name);
+                displayName = contact.name;
+              }
             }
           }
+
+          if (!vcf) {
+            const notFoundProps = davXml.propstatNotFound(['getetag']);
+            responses.push(davXml.response(href, notFoundProps));
+            continue;
+          }
+
+          responses.push(buildVcardResponse(href, vcf, displayName || '', etag));
         }
-
-        if (!vcf) {
-          // Not found: return 404 propstat
-          const notFoundProps = davXml.propstatNotFound(['getetag']);
-          responses.push(davXml.response(href, notFoundProps));
-          continue;
-        }
-
-        const props = `<D:getetag>"${etag}"</D:getetag>
-<D:resourcetype/>
-<D:displayname>${escapeXml(displayName || '')}</D:displayname>
-<D:getcontentlength>${vcf.length}</D:getcontentlength>
-<D:getcontenttype>text/vcard; charset=utf-8</D:getcontenttype>
-<A:address-data xmlns:A="urn:ietf:params:xml:ns:carddav">${escapeXml(vcf)}</A:address-data>`;
-
-        const propstat = davXml.propstat(props);
-        responses.push(davXml.response(href, propstat));
       }
 
       return reply
