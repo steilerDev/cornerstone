@@ -80,6 +80,21 @@
       "saveIdle": "Speichern",
       "savePending": "Wird gespeichert...",
       "cancel": "Abbrechen",
+      "validation": {
+        "nameRequired": "Tag-Name ist erforderlich",
+        "nameTooLong": "Tag-Name darf maximal 50 Zeichen lang sein"
+      },
+      "error": {
+        "load": "Tags konnten nicht geladen werden. Bitte erneut versuchen.",
+        "create": "Tag konnte nicht erstellt werden. Bitte erneut versuchen.",
+        "update": "Tag konnte nicht aktualisiert werden. Bitte erneut versuchen.",
+        "delete": "Tag konnte nicht gelöscht werden. Bitte erneut versuchen."
+      },
+      "toast": {
+        "created": "Tag \"{{name}}\" erfolgreich erstellt",
+        "updated": "Tag \"{{name}}\" erfolgreich aktualisiert",
+        "deleted": "Tag \"{{name}}\" erfolgreich gelöscht"
+      },
       "deleteModal": {
         "title": "Tag löschen",
         "text": "Möchten Sie den Tag \"{{name}}\" wirklich löschen?",
@@ -105,19 +120,25 @@
       "listTitle": "Kategorien ({{count}})",
       "addButton": "Kategorie hinzufügen",
       "empty": "Noch keine Budgetkategorien. Fügen Sie Ihre erste Kategorie hinzu, um Ihr Projektbudget zu organisieren.",
-      "nameRequired": "Kategoriename ist erforderlich",
-      "nameTooLong": "Kategoriename darf maximal 100 Zeichen lang sein",
       "saveIdle": "Speichern",
       "savePending": "Wird gespeichert...",
       "edit": "Bearbeiten",
       "delete": "Löschen",
-      "createSuccess": "Kategorie \"{{name}}\" erfolgreich erstellt",
-      "updateSuccess": "Kategorie \"{{name}}\" erfolgreich aktualisiert",
-      "deleteSuccess": "Kategorie \"{{name}}\" erfolgreich gelöscht",
-      "failedLoad": "Budgetkategorien konnten nicht geladen werden. Bitte erneut versuchen.",
-      "failedCreate": "Kategorie konnte nicht erstellt werden. Bitte erneut versuchen.",
-      "failedUpdate": "Kategorie konnte nicht aktualisiert werden. Bitte erneut versuchen.",
-      "failedDelete": "Kategorie konnte nicht gelöscht werden. Bitte erneut versuchen.",
+      "validation": {
+        "nameRequired": "Kategoriename ist erforderlich",
+        "nameTooLong": "Kategoriename darf maximal 100 Zeichen lang sein"
+      },
+      "error": {
+        "load": "Budgetkategorien konnten nicht geladen werden. Bitte erneut versuchen.",
+        "create": "Kategorie konnte nicht erstellt werden. Bitte erneut versuchen.",
+        "update": "Kategorie konnte nicht aktualisiert werden. Bitte erneut versuchen.",
+        "delete": "Kategorie konnte nicht gelöscht werden. Bitte erneut versuchen."
+      },
+      "toast": {
+        "created": "Kategorie \"{{name}}\" erfolgreich erstellt",
+        "updated": "Kategorie \"{{name}}\" erfolgreich aktualisiert",
+        "deleted": "Kategorie \"{{name}}\" erfolgreich gelöscht"
+      },
       "inUseError": "Diese Kategorie kann nicht gelöscht werden, da sie von einem oder mehreren Budgeteinträgen verwendet wird.",
       "deleteModal": {
         "title": "Kategorie löschen",
@@ -142,19 +163,25 @@
       "listTitle": "Kategorien ({{count}})",
       "addButton": "Kategorie hinzufügen",
       "empty": "Noch keine Haushaltsgegenstands-Kategorien. Fügen Sie Ihre erste Kategorie hinzu, um Ihre Möbel und Geräte zu organisieren.",
-      "nameRequired": "Kategoriename ist erforderlich",
-      "nameTooLong": "Kategoriename darf maximal 100 Zeichen lang sein",
       "saveIdle": "Speichern",
       "savePending": "Wird gespeichert...",
       "edit": "Bearbeiten",
       "delete": "Löschen",
-      "createSuccess": "Kategorie \"{{name}}\" erfolgreich erstellt",
-      "updateSuccess": "Kategorie \"{{name}}\" erfolgreich aktualisiert",
-      "deleteSuccess": "Kategorie \"{{name}}\" erfolgreich gelöscht",
-      "failedLoad": "Haushaltsgegenstands-Kategorien konnten nicht geladen werden. Bitte erneut versuchen.",
-      "failedCreate": "Kategorie konnte nicht erstellt werden. Bitte erneut versuchen.",
-      "failedUpdate": "Kategorie konnte nicht aktualisiert werden. Bitte erneut versuchen.",
-      "failedDelete": "Kategorie konnte nicht gelöscht werden. Bitte erneut versuchen.",
+      "validation": {
+        "nameRequired": "Kategoriename ist erforderlich",
+        "nameTooLong": "Kategoriename darf maximal 100 Zeichen lang sein"
+      },
+      "error": {
+        "load": "Haushaltsgegenstands-Kategorien konnten nicht geladen werden. Bitte erneut versuchen.",
+        "create": "Kategorie konnte nicht erstellt werden. Bitte erneut versuchen.",
+        "update": "Kategorie konnte nicht aktualisiert werden. Bitte erneut versuchen.",
+        "delete": "Kategorie konnte nicht gelöscht werden. Bitte erneut versuchen."
+      },
+      "toast": {
+        "created": "Kategorie \"{{name}}\" erfolgreich erstellt",
+        "updated": "Kategorie \"{{name}}\" erfolgreich aktualisiert",
+        "deleted": "Kategorie \"{{name}}\" erfolgreich gelöscht"
+      },
       "inUseError": "Diese Kategorie kann nicht gelöscht werden, da sie von einem oder mehreren Haushaltsgegenständen verwendet wird.",
       "deleteModal": {
         "title": "Kategorie löschen",

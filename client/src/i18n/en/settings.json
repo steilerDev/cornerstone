@@ -80,6 +80,21 @@
       "saveIdle": "Save",
       "savePending": "Saving...",
       "cancel": "Cancel",
+      "validation": {
+        "nameRequired": "Tag name is required",
+        "nameTooLong": "Tag name must be 50 characters or less"
+      },
+      "error": {
+        "load": "Failed to load tags. Please try again.",
+        "create": "Failed to create tag. Please try again.",
+        "update": "Failed to update tag. Please try again.",
+        "delete": "Failed to delete tag. Please try again."
+      },
+      "toast": {
+        "created": "Tag \"{{name}}\" created successfully",
+        "updated": "Tag \"{{name}}\" updated successfully",
+        "deleted": "Tag \"{{name}}\" deleted successfully"
+      },
       "deleteModal": {
         "title": "Delete Tag",
         "text": "Are you sure you want to delete the tag \"{{name}}\"?",
@@ -105,19 +120,25 @@
       "listTitle": "Categories ({{count}})",
       "addButton": "Add Category",
       "empty": "No budget categories yet. Add your first category to start organizing your project budget.",
-      "nameRequired": "Category name is required",
-      "nameTooLong": "Category name must be 100 characters or less",
       "saveIdle": "Save",
       "savePending": "Saving...",
       "edit": "Edit",
       "delete": "Delete",
-      "createSuccess": "Category \"{{name}}\" created successfully",
-      "updateSuccess": "Category \"{{name}}\" updated successfully",
-      "deleteSuccess": "Category \"{{name}}\" deleted successfully",
-      "failedLoad": "Failed to load budget categories. Please try again.",
-      "failedCreate": "Failed to create category. Please try again.",
-      "failedUpdate": "Failed to update category. Please try again.",
-      "failedDelete": "Failed to delete category. Please try again.",
+      "validation": {
+        "nameRequired": "Category name is required",
+        "nameTooLong": "Category name must be 100 characters or less"
+      },
+      "error": {
+        "load": "Failed to load budget categories. Please try again.",
+        "create": "Failed to create category. Please try again.",
+        "update": "Failed to update category. Please try again.",
+        "delete": "Failed to delete category. Please try again."
+      },
+      "toast": {
+        "created": "Category \"{{name}}\" created successfully",
+        "updated": "Category \"{{name}}\" updated successfully",
+        "deleted": "Category \"{{name}}\" deleted successfully"
+      },
       "inUseError": "This category cannot be deleted because it is currently in use by one or more budget entries.",
       "deleteModal": {
         "title": "Delete Category",
@@ -142,19 +163,25 @@
       "listTitle": "Categories ({{count}})",
       "addButton": "Add Category",
       "empty": "No household item categories yet. Add your first category to start organizing your furniture and appliances.",
-      "nameRequired": "Category name is required",
-      "nameTooLong": "Category name must be 100 characters or less",
       "saveIdle": "Save",
       "savePending": "Saving...",
       "edit": "Edit",
       "delete": "Delete",
-      "createSuccess": "Category \"{{name}}\" created successfully",
-      "updateSuccess": "Category \"{{name}}\" updated successfully",
-      "deleteSuccess": "Category \"{{name}}\" deleted successfully",
-      "failedLoad": "Failed to load household item categories. Please try again.",
-      "failedCreate": "Failed to create category. Please try again.",
-      "failedUpdate": "Failed to update category. Please try again.",
-      "failedDelete": "Failed to delete category. Please try again.",
+      "validation": {
+        "nameRequired": "Category name is required",
+        "nameTooLong": "Category name must be 100 characters or less"
+      },
+      "error": {
+        "load": "Failed to load household item categories. Please try again.",
+        "create": "Failed to create category. Please try again.",
+        "update": "Failed to update category. Please try again.",
+        "delete": "Failed to delete category. Please try again."
+      },
+      "toast": {
+        "created": "Category \"{{name}}\" created successfully",
+        "updated": "Category \"{{name}}\" updated successfully",
+        "deleted": "Category \"{{name}}\" deleted successfully"
+      },
       "inUseError": "This category cannot be deleted because it is currently in use by one or more household items.",
       "deleteModal": {
         "title": "Delete Category",
