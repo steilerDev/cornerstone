@@ -142,14 +142,14 @@ describe('vendorContactService', () => {
       const vendorId = createTestVendor();
       expect(() =>
         vendorContactService.createContact(app.db, vendorId, { firstName: '', lastName: '' }),
-      ).toThrow('at least first name or last name');
+      ).toThrow('At least first name or last name');
     });
 
     it('throws ValidationError if neither first nor last name provided', () => {
       const vendorId = createTestVendor();
       expect(() =>
         vendorContactService.createContact(app.db, vendorId, {}),
-      ).toThrow('at least first name or last name');
+      ).toThrow('At least first name or last name');
     });
 
     it('trims whitespace from names', () => {
@@ -166,7 +166,7 @@ describe('vendorContactService', () => {
       const vendorId = createTestVendor();
       expect(() =>
         vendorContactService.createContact(app.db, vendorId, { firstName: '   ', lastName: '  ' }),
-      ).toThrow('at least first name or last name');
+      ).toThrow('At least first name or last name');
     });
 
     it('persists to database (reachable via listContacts)', () => {
@@ -247,7 +247,7 @@ describe('vendorContactService', () => {
         vendorContactService.updateContact(app.db, vendorId, contact.id, {
           firstName: null,
         }),
-      ).toThrow('at least first name or last name');
+      ).toThrow('At least first name or last name');
     });
 
     it('updates updatedAt timestamp', async () => {

@@ -85,7 +85,7 @@ describe('Vendor Contact Routes', () => {
         method: 'POST',
         url: `/api/vendors/${vendorId}/contacts`,
         headers: { cookie, 'content-type': 'application/json' },
-        payload: { name: 'Alice Smith' },
+        payload: { firstName: 'Alice', lastName: 'Smith' },
       });
 
       const response = await app.inject({
@@ -97,6 +97,8 @@ describe('Vendor Contact Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<{ contacts: VendorContact[] }>();
       expect(body.contacts).toHaveLength(1);
+      expect(body.contacts[0].firstName).toBe('Alice');
+      expect(body.contacts[0].lastName).toBe('Smith');
       expect(body.contacts[0].name).toBe('Alice Smith');
     });
 
@@ -136,7 +138,8 @@ describe('Vendor Contact Routes', () => {
         url: `/api/vendors/${vendorId}/contacts`,
         headers: { cookie, 'content-type': 'application/json' },
         payload: {
-          name: 'Bob Jones',
+          firstName: 'Bob',
+          lastName: 'Jones',
           role: 'Project Manager',
           phone: '555-1234',
           email: 'bob@example.com',
@@ -148,6 +151,8 @@ describe('Vendor Contact Routes', () => {
       const body = response.json<{ contact: VendorContact }>();
       expect(body.contact.id).toBeDefined();
       expect(body.contact.vendorId).toBe(vendorId);
+      expect(body.contact.firstName).toBe('Bob');
+      expect(body.contact.lastName).toBe('Jones');
       expect(body.contact.name).toBe('Bob Jones');
       expect(body.contact.role).toBe('Project Manager');
       expect(body.contact.phone).toBe('555-1234');
@@ -155,7 +160,7 @@ describe('Vendor Contact Routes', () => {
       expect(body.contact.notes).toBe('Primary contact');
     });
 
-    it('returns 201 with required name only', async () => {
+    it('returns 201 with first name only', async () => {
       const { cookie } = await createUserWithSession('user@test.com', 'User', 'pass');
       const vendorId = createTestVendor();
 
@@ -163,11 +168,13 @@ describe('Vendor Contact Routes', () => {
         method: 'POST',
         url: `/api/vendors/${vendorId}/contacts`,
         headers: { cookie, 'content-type': 'application/json' },
-        payload: { name: 'Alice' },
+        payload: { firstName: 'Alice' },
       });
 
       expect(response.statusCode).toBe(201);
       const body = response.json<{ contact: VendorContact }>();
+      expect(body.contact.firstName).toBe('Alice');
+      expect(body.contact.lastName).toBeNull();
       expect(body.contact.name).toBe('Alice');
       expect(body.contact.role).toBeNull();
       expect(body.contact.phone).toBeNull();
@@ -175,7 +182,7 @@ describe('Vendor Contact Routes', () => {
       expect(body.contact.notes).toBeNull();
     });
 
-    it('returns 400 for missing name', async () => {
+    it('returns 400 for missing both first and last name', async () => {
       const { cookie } = await createUserWithSession('user@test.com', 'User', 'pass');
       const vendorId = createTestVendor();
 
@@ -189,20 +196,6 @@ describe('Vendor Contact Routes', () => {
       expect(response.statusCode).toBe(400);
     });
 
-    it('returns 400 for empty name', async () => {
-      const { cookie } = await createUserWithSession('user@test.com', 'User', 'pass');
-      const vendorId = createTestVendor();
-
-      const response = await app.inject({
-        method: 'POST',
-        url: `/api/vendors/${vendorId}/contacts`,
-        headers: { cookie, 'content-type': 'application/json' },
-        payload: { name: '' },
-      });
-
-      expect(response.statusCode).toBe(400);
-    });
-
     it('returns 404 for unknown vendorId', async () => {
       const { cookie } = await createUserWithSession('user@test.com', 'User', 'pass');
 
@@ -210,7 +203,7 @@ describe('Vendor Contact Routes', () => {
         method: 'POST',
         url: '/api/vendors/nonexistent-vendor/contacts',
         headers: { cookie, 'content-type': 'application/json' },
-        payload: { name: 'Alice' },
+        payload: { firstName: 'Alice' },
       });
 
       expect(response.statusCode).toBe(404);
@@ -223,7 +216,7 @@ describe('Vendor Contact Routes', () => {
         method: 'POST',
         url: `/api/vendors/${vendorId}/contacts`,
         headers: { 'content-type': 'application/json' },
-        payload: { name: 'Alice' },
+        payload: { firstName: 'Alice' },
       });
 
       expect(response.statusCode).toBe(401);
@@ -241,7 +234,7 @@ describe('Vendor Contact Routes', () => {
         method: 'POST',
         url: `/api/vendors/${vendorId}/contacts`,
         headers: { cookie, 'content-type': 'application/json' },
-        payload: { name: 'Alice', role: 'Engineer' },
+        payload: { firstName: 'Alice', lastName: 'Smith', role: 'Engineer' },
       });
       const { contact } = createRes.json<{ contact: VendorContact }>();
 
@@ -255,7 +248,7 @@ describe('Vendor Contact Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<{ contact: VendorContact }>();
       expect(body.contact.id).toBe(contact.id);
-      expect(body.contact.name).toBe('Alice');
+      expect(body.contact.name).toBe('Alice Smith');
       expect(body.contact.role).toBe('Engineer');
       expect(body.contact.phone).toBe('555-9999');
     });
@@ -268,7 +261,7 @@ describe('Vendor Contact Routes', () => {
         method: 'POST',
         url: `/api/vendors/${vendorId}/contacts`,
         headers: { cookie, 'content-type': 'application/json' },
-        payload: { name: 'Alice' },
+        payload: { firstName: 'Alice' },
       });
       const { contact } = createRes.json<{ contact: VendorContact }>();
 
@@ -290,7 +283,7 @@ describe('Vendor Contact Routes', () => {
         method: 'PATCH',
         url: `/api/vendors/${vendorId}/contacts/not-a-real-contact`,
         headers: { cookie, 'content-type': 'application/json' },
-        payload: { name: 'Updated' },
+        payload: { firstName: 'Updated' },
       });
 
       expect(response.statusCode).toBe(404);
@@ -303,7 +296,7 @@ describe('Vendor Contact Routes', () => {
         method: 'PATCH',
         url: `/api/vendors/${vendorId}/contacts/some-id`,
         headers: { 'content-type': 'application/json' },
-        payload: { name: 'Updated' },
+        payload: { firstName: 'Updated' },
       });
 
       expect(response.statusCode).toBe(401);
@@ -321,7 +314,7 @@ describe('Vendor Contact Routes', () => {
         method: 'POST',
         url: `/api/vendors/${vendorId}/contacts`,
         headers: { cookie, 'content-type': 'application/json' },
-        payload: { name: 'Alice' },
+        payload: { firstName: 'Alice' },
       });
       const { contact } = createRes.json<{ contact: VendorContact }>();
 
@@ -342,7 +335,7 @@ describe('Vendor Contact Routes', () => {
         method: 'POST',
         url: `/api/vendors/${vendorId}/contacts`,
         headers: { cookie, 'content-type': 'application/json' },
-        payload: { name: 'Alice' },
+        payload: { firstName: 'Alice' },
       });
       const { contact } = createRes.json<{ contact: VendorContact }>();
 
@@ -414,14 +407,14 @@ describe('Vendor Contact Routes', () => {
         method: 'POST',
         url: `/api/vendors/${vendorId}/contacts`,
         headers: { cookie, 'content-type': 'application/json' },
-        payload: { name: 'Alice', role: 'PM' },
+        payload: { firstName: 'Alice', role: 'PM' },
       });
 
       await app.inject({
         method: 'POST',
         url: `/api/vendors/${vendorId}/contacts`,
         headers: { cookie, 'content-type': 'application/json' },
-        payload: { name: 'Bob' },
+        payload: { firstName: 'Bob' },
       });
 
       const response = await app.inject({
