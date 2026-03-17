@@ -436,7 +436,7 @@ describe('LinkedDocumentsSection', () => {
         ).toBeInTheDocument(),
       );
 
-      fireEvent.click(screen.getByRole('button', { name: /Dismiss error/i }));
+      fireEvent.click(screen.getByRole('button', { name: /^Dismiss$/i }));
       expect(
         screen.queryByText(/This document is already linked to this work item/i),
       ).not.toBeInTheDocument();
