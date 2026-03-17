@@ -400,13 +400,14 @@ describe('WorkItemCreatePage', () => {
         expect(screen.getByLabelText(/title/i)).toBeInTheDocument();
       });
 
-      // Focus slot 1 picker to open it
+      // Focus slot 1 picker to open it — use role query since placeholder may be translated
       let pickerInputs: HTMLElement[] = [];
       await waitFor(() => {
-        pickerInputs = screen.getAllByPlaceholderText('Search work items...');
+        pickerInputs = screen.getAllByRole('textbox');
         expect(pickerInputs.length).toBeGreaterThan(0);
       });
-      await user.click(pickerInputs[0]);
+      // The dependency builder has 2 textboxes (slot 1 and slot 2); click the first
+      await user.click(pickerInputs[pickerInputs.length - 2] ?? pickerInputs[0]);
 
       await waitFor(() => {
         expect(screen.getByText('Foundation')).toBeInTheDocument();
