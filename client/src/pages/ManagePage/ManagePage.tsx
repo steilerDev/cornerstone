@@ -1,6 +1,5 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
 import type {
   TagResponse,
   BudgetCategory,
@@ -43,7 +42,6 @@ type EditingTag = {
 };
 
 function TagsTab() {
-  const { t } = useTranslation('settings');
   const [tags, setTags] = useState<TagResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
@@ -86,7 +84,7 @@ function TagsTab() {
       if (err instanceof ApiClientError) {
         setError(err.error.message);
       } else {
-        setError(t('manage.tags.error.load'));
+        setError('Failed to load tags. Please try again.');
       }
     } finally {
       setIsLoading(false);
@@ -100,12 +98,12 @@ function TagsTab() {
 
     const trimmedName = newTagName.trim();
     if (!trimmedName) {
-      setCreateError(t('manage.tags.validation.nameRequired'));
+      setCreateError('Tag name is required');
       return;
     }
 
     if (trimmedName.length > 50) {
-      setCreateError(t('manage.tags.validation.nameTooLong'));
+      setCreateError('Tag name must be 50 characters or less');
       return;
     }
 
@@ -116,12 +114,12 @@ function TagsTab() {
       setTags([...tags, newTag].sort((a, b) => a.name.localeCompare(b.name)));
       setNewTagName('');
       setNewTagColor('#3b82f6');
-      setSuccessMessage(t('manage.tags.toast.created', { name: newTag.name }));
+      setSuccessMessage(`Tag "${newTag.name}" created successfully`);
     } catch (err) {
       if (err instanceof ApiClientError) {
         setCreateError(err.error.message);
       } else {
-        setCreateError(t('manage.tags.error.create'));
+        setCreateError('Failed to create tag. Please try again.');
       }
     } finally {
       setIsCreating(false);
@@ -152,12 +150,12 @@ function TagsTab() {
 
     const trimmedName = editingTag.name.trim();
     if (!trimmedName) {
-      setUpdateError(t('manage.tags.validation.nameRequired'));
+      setUpdateError('Tag name is required');
       return;
     }
 
     if (trimmedName.length > 50) {
-      setUpdateError(t('manage.tags.validation.nameTooLong'));
+      setUpdateError('Tag name must be 50 characters or less');
       return;
     }
 
@@ -174,12 +172,12 @@ function TagsTab() {
           .sort((a, b) => a.name.localeCompare(b.name)),
       );
       setEditingTag(null);
-      setSuccessMessage(t('manage.tags.toast.updated', { name: updatedTag.name }));
+      setSuccessMessage(`Tag "${updatedTag.name}" updated successfully`);
     } catch (err) {
       if (err instanceof ApiClientError) {
         setUpdateError(err.error.message);
       } else {
-        setUpdateError(t('manage.tags.error.update'));
+        setUpdateError('Failed to update tag. Please try again.');
       }
     } finally {
       setIsUpdating(false);
@@ -195,12 +193,12 @@ function TagsTab() {
       const deletedTag = tags.find((tag) => tag.id === tagId);
       setTags(tags.filter((tag) => tag.id !== tagId));
       setDeletingTagId(null);
-      setSuccessMessage(t('manage.tags.toast.deleted', { name: deletedTag?.name }));
+      setSuccessMessage(`Tag "${deletedTag?.name}" deleted successfully`);
     } catch (err) {
       if (err instanceof ApiClientError) {
         setError(err.error.message);
       } else {
-        setError(t('manage.tags.error.delete'));
+        setError('Failed to delete tag. Please try again.');
       }
     } finally {
       setIsDeleting(false);
@@ -208,16 +206,16 @@ function TagsTab() {
   };
 
   if (isLoading) {
-    return <div className={styles.loading}>{t('manage.tags.loadingTags')}</div>;
+    return <div className={styles.loading}>Loading tags...</div>;
   }
 
   if (error && tags.length === 0) {
     return (
       <div className={styles.errorCard} role="alert">
-        <h2 className={styles.errorTitle}>{t('manage.error.title')}</h2>
+        <h2 className={styles.errorTitle}>Error</h2>
         <p>{error}</p>
         <button type="button" className={styles.button} onClick={loadTags}>
-          {t('manage.error.retry')}
+          Retry
         </button>
       </div>
     );
@@ -239,8 +237,10 @@ function TagsTab() {
 
       {/* Create new tag */}
       <section className={styles.card}>
-        <h2 className={styles.cardTitle}>{t('manage.tags.createSection')}</h2>
-        <p className={styles.cardDescription}>{t('manage.tags.createDescription')}</p>
+        <h2 className={styles.cardTitle}>Create New Tag</h2>
+        <p className={styles.cardDescription}>
+          Tags help you organize and categorize work items. Choose a name and color for your tag.
+        </p>
 
         {createError && (
           <div className={styles.errorBanner} role="alert">
@@ -252,7 +252,7 @@ function TagsTab() {
           <div className={styles.formRow}>
             <div className={styles.field}>
               <label htmlFor="tagName" className={styles.label}>
-                {t('manage.tags.nameLabel')}
+                Tag Name
               </label>
               <input
                 type="text"
@@ -268,7 +268,7 @@ function TagsTab() {
 
             <div className={styles.field}>
               <label htmlFor="tagColor" className={styles.label}>
-                {t('manage.tags.colorLabel')}
+                Color
               </label>
               <input
                 type="color"
@@ -282,8 +282,8 @@ function TagsTab() {
           </div>
 
           <div className={styles.previewRow}>
-            <span className={styles.previewLabel}>{t('manage.tags.previewLabel')}</span>
-            <TagPill name={newTagName || t('manage.tags.previewDefault')} color={newTagColor} />
+            <span className={styles.previewLabel}>Preview:</span>
+            <TagPill name={newTagName || 'Tag Name'} color={newTagColor} />
           </div>
 
           <button
@@ -291,19 +291,19 @@ function TagsTab() {
             className={styles.button}
             disabled={isCreating || !newTagName.trim()}
           >
-            {isCreating ? t('manage.tags.submitPending') : t('manage.tags.submitIdle')}
+            {isCreating ? 'Creating...' : 'Create Tag'}
           </button>
         </form>
       </section>
 
       {/* Tags list */}
       <section className={styles.card}>
-        <h2 className={styles.cardTitle}>
-          {t('manage.tags.existingTitle', { count: tags.length })}
-        </h2>
+        <h2 className={styles.cardTitle}>Existing Tags ({tags.length})</h2>
 
         {tags.length === 0 ? (
-          <p className={styles.emptyState}>{t('manage.tags.empty')}</p>
+          <p className={styles.emptyState}>
+            No tags yet. Create your first tag to start organizing your work items.
+          </p>
         ) : (
           <div className={styles.itemsList}>
             {tags.map((tag) => (
@@ -338,7 +338,7 @@ function TagsTab() {
                         className={styles.saveButton}
                         disabled={isUpdating || !editingTag.name.trim()}
                       >
-                        {isUpdating ? t('manage.tags.savePending') : t('manage.tags.saveIdle')}
+                        {isUpdating ? 'Saving...' : 'Save'}
                       </button>
                       <button
                         type="button"
@@ -346,7 +346,7 @@ function TagsTab() {
                         onClick={cancelEdit}
                         disabled={isUpdating}
                       >
-                        {t('manage.tags.cancel')}
+                        Cancel
                       </button>
                     </div>
                   </form>
@@ -362,7 +362,7 @@ function TagsTab() {
                         onClick={() => startEdit(tag)}
                         disabled={!!editingTag}
                       >
-                        {t('manage.tags.edit')}
+                        Edit
                       </button>
                       <button
                         type="button"
@@ -370,7 +370,7 @@ function TagsTab() {
                         onClick={() => setDeletingTagId(tag.id)}
                         disabled={!!editingTag}
                       >
-                        {t('manage.tags.delete')}
+                        Delete
                       </button>
                     </div>
                   </>
@@ -389,13 +389,14 @@ function TagsTab() {
             onClick={() => !isDeleting && setDeletingTagId(null)}
           />
           <div className={styles.modalContent}>
-            <h2 className={styles.modalTitle}>{t('manage.tags.deleteModal.title')}</h2>
+            <h2 className={styles.modalTitle}>Delete Tag</h2>
             <p className={styles.modalText}>
-              {t('manage.tags.deleteModal.text', {
-                name: tags.find((t) => t.id === deletingTagId)?.name,
-              })}
+              Are you sure you want to delete the tag &quot;
+              <strong>{tags.find((t) => t.id === deletingTagId)?.name}</strong>&quot;?
             </p>
-            <p className={styles.modalWarning}>{t('manage.tags.deleteModal.warning')}</p>
+            <p className={styles.modalWarning}>
+              This tag will be removed from all work items that reference it.
+            </p>
             <div className={styles.modalActions}>
               <button
                 type="button"
@@ -403,7 +404,7 @@ function TagsTab() {
                 onClick={() => setDeletingTagId(null)}
                 disabled={isDeleting}
               >
-                {t('manage.tags.deleteModal.cancel')}
+                Cancel
               </button>
               <button
                 type="button"
@@ -411,9 +412,7 @@ function TagsTab() {
                 onClick={() => handleDeleteTag(deletingTagId)}
                 disabled={isDeleting}
               >
-                {isDeleting
-                  ? t('manage.tags.deleteModal.submitPending')
-                  : t('manage.tags.deleteModal.submitIdle')}
+                {isDeleting ? 'Deleting...' : 'Delete Tag'}
               </button>
             </div>
           </div>
@@ -436,7 +435,6 @@ type EditingBudgetCategory = {
 };
 
 function BudgetCategoriesTab() {
-  const { t } = useTranslation('settings');
   const [categories, setCategories] = useState<BudgetCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
@@ -476,7 +474,7 @@ function BudgetCategoriesTab() {
       if (err instanceof ApiClientError) {
         setError(err.error.message);
       } else {
-        setError(t('manage.budgetCategories.error.load'));
+        setError('Failed to load budget categories. Please try again.');
       }
     } finally {
       setIsLoading(false);
@@ -490,12 +488,12 @@ function BudgetCategoriesTab() {
 
     const trimmedName = newName.trim();
     if (!trimmedName) {
-      setCreateError(t('manage.budgetCategories.validation.nameRequired'));
+      setCreateError('Category name is required');
       return;
     }
 
     if (trimmedName.length > 100) {
-      setCreateError(t('manage.budgetCategories.validation.nameTooLong'));
+      setCreateError('Category name must be 100 characters or less');
       return;
     }
 
@@ -520,12 +518,12 @@ function BudgetCategoriesTab() {
       setNewColor(DEFAULT_COLOR);
       setNewSortOrder('');
       setShowCreateForm(false);
-      setSuccessMessage(t('manage.budgetCategories.toast.created', { name: created.name }));
+      setSuccessMessage(`Category "${created.name}" created successfully`);
     } catch (err) {
       if (err instanceof ApiClientError) {
         setCreateError(err.error.message);
       } else {
-        setCreateError(t('manage.budgetCategories.error.create'));
+        setCreateError('Failed to create category. Please try again.');
       }
     } finally {
       setIsCreating(false);
@@ -558,12 +556,12 @@ function BudgetCategoriesTab() {
 
     const trimmedName = editingCategory.name.trim();
     if (!trimmedName) {
-      setUpdateError(t('manage.budgetCategories.validation.nameRequired'));
+      setUpdateError('Category name is required');
       return;
     }
 
     if (trimmedName.length > 100) {
-      setUpdateError(t('manage.budgetCategories.validation.nameTooLong'));
+      setUpdateError('Category name must be 100 characters or less');
       return;
     }
 
@@ -582,12 +580,12 @@ function BudgetCategoriesTab() {
           .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name)),
       );
       setEditingCategory(null);
-      setSuccessMessage(t('manage.budgetCategories.toast.updated', { name: updated.name }));
+      setSuccessMessage(`Category "${updated.name}" updated successfully`);
     } catch (err) {
       if (err instanceof ApiClientError) {
         setUpdateError(err.error.message);
       } else {
-        setUpdateError(t('manage.budgetCategories.error.update'));
+        setUpdateError('Failed to update category. Please try again.');
       }
     } finally {
       setIsUpdating(false);
@@ -616,16 +614,18 @@ function BudgetCategoriesTab() {
       const deleted = categories.find((cat) => cat.id === categoryId);
       setCategories(categories.filter((cat) => cat.id !== categoryId));
       setDeletingCategoryId(null);
-      setSuccessMessage(t('manage.budgetCategories.toast.deleted', { name: deleted?.name }));
+      setSuccessMessage(`Category "${deleted?.name}" deleted successfully`);
     } catch (err) {
       if (err instanceof ApiClientError) {
         if (err.statusCode === 409) {
-          setDeleteError(t('manage.budgetCategories.inUseError'));
+          setDeleteError(
+            'This category cannot be deleted because it is currently in use by one or more budget entries.',
+          );
         } else {
           setDeleteError(err.error.message);
         }
       } else {
-        setDeleteError(t('manage.budgetCategories.error.delete'));
+        setDeleteError('Failed to delete category. Please try again.');
       }
     } finally {
       setIsDeleting(false);
@@ -633,16 +633,16 @@ function BudgetCategoriesTab() {
   };
 
   if (isLoading) {
-    return <div className={styles.loading}>{t('manage.budgetCategories.loadingCategories')}</div>;
+    return <div className={styles.loading}>Loading budget categories...</div>;
   }
 
   if (error && categories.length === 0) {
     return (
       <div className={styles.errorCard} role="alert">
-        <h2 className={styles.errorTitle}>{t('manage.error.title')}</h2>
+        <h2 className={styles.errorTitle}>Error</h2>
         <p>{error}</p>
         <button type="button" className={styles.button} onClick={() => void loadCategories()}>
-          {t('manage.error.retry')}
+          Retry
         </button>
       </div>
     );
@@ -665,8 +665,10 @@ function BudgetCategoriesTab() {
       {/* Create form */}
       {showCreateForm && (
         <section className={styles.card}>
-          <h2 className={styles.cardTitle}>{t('manage.budgetCategories.newSection')}</h2>
-          <p className={styles.cardDescription}>{t('manage.budgetCategories.newDescription')}</p>
+          <h2 className={styles.cardTitle}>New Budget Category</h2>
+          <p className={styles.cardDescription}>
+            Budget categories group your construction costs (e.g., Materials, Labor, Permits).
+          </p>
 
           {createError && (
             <div className={styles.errorBanner} role="alert">
@@ -678,8 +680,7 @@ function BudgetCategoriesTab() {
             <div className={styles.formRow}>
               <div className={styles.fieldGrow}>
                 <label htmlFor="categoryName" className={styles.label}>
-                  {t('manage.budgetCategories.nameLabel')}{' '}
-                  <span className={styles.required}>*</span>
+                  Name <span className={styles.required}>*</span>
                 </label>
                 <input
                   type="text"
@@ -687,7 +688,7 @@ function BudgetCategoriesTab() {
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   className={styles.input}
-                  placeholder={t('manage.budgetCategories.namePlaceholder')}
+                  placeholder="e.g., Materials, Labor, Permits"
                   maxLength={100}
                   disabled={isCreating}
                   autoFocus
@@ -696,7 +697,7 @@ function BudgetCategoriesTab() {
 
               <div className={styles.fieldFixed}>
                 <label htmlFor="categoryColor" className={styles.label}>
-                  {t('manage.budgetCategories.colorLabel')}
+                  Color
                 </label>
                 <div className={styles.colorWrapper}>
                   <input
@@ -717,7 +718,7 @@ function BudgetCategoriesTab() {
 
               <div className={styles.fieldNarrow}>
                 <label htmlFor="categorySortOrder" className={styles.label}>
-                  {t('manage.budgetCategories.sortOrderLabel')}
+                  Sort Order
                 </label>
                 <input
                   type="number"
@@ -734,7 +735,7 @@ function BudgetCategoriesTab() {
 
             <div className={styles.field}>
               <label htmlFor="categoryDescription" className={styles.label}>
-                {t('manage.budgetCategories.descriptionLabel')}
+                Description
               </label>
               <input
                 type="text"
@@ -742,7 +743,7 @@ function BudgetCategoriesTab() {
                 value={newDescription}
                 onChange={(e) => setNewDescription(e.target.value)}
                 className={styles.input}
-                placeholder={t('manage.budgetCategories.descriptionPlaceholder')}
+                placeholder="Optional description"
                 maxLength={500}
                 disabled={isCreating}
               />
@@ -754,9 +755,7 @@ function BudgetCategoriesTab() {
                 className={styles.button}
                 disabled={isCreating || !newName.trim()}
               >
-                {isCreating
-                  ? t('manage.budgetCategories.createPending')
-                  : t('manage.budgetCategories.createIdle')}
+                {isCreating ? 'Creating...' : 'Create Category'}
               </button>
               <button
                 type="button"
@@ -771,7 +770,7 @@ function BudgetCategoriesTab() {
                 }}
                 disabled={isCreating}
               >
-                {t('manage.budgetCategories.cancel')}
+                Cancel
               </button>
             </div>
           </form>
@@ -781,9 +780,7 @@ function BudgetCategoriesTab() {
       {/* Categories list */}
       <section className={styles.card}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 className={styles.cardTitle}>
-            {t('manage.budgetCategories.listTitle', { count: categories.length })}
-          </h2>
+          <h2 className={styles.cardTitle}>Categories ({categories.length})</h2>
           <button
             type="button"
             className={styles.button}
@@ -793,12 +790,15 @@ function BudgetCategoriesTab() {
             }}
             disabled={showCreateForm}
           >
-            {t('manage.budgetCategories.addButton')}
+            Add Category
           </button>
         </div>
 
         {categories.length === 0 ? (
-          <p className={styles.emptyState}>{t('manage.budgetCategories.empty')}</p>
+          <p className={styles.emptyState}>
+            No budget categories yet. Add your first category to start organizing your project
+            budget.
+          </p>
         ) : (
           <div className={styles.itemsList}>
             {categories.map((category) => (
@@ -817,8 +817,7 @@ function BudgetCategoriesTab() {
                     <div className={styles.editFormRow}>
                       <div className={styles.fieldGrow}>
                         <label htmlFor={`edit-name-${category.id}`} className={styles.label}>
-                          {t('manage.budgetCategories.nameLabel')}{' '}
-                          <span className={styles.required}>*</span>
+                          Name <span className={styles.required}>*</span>
                         </label>
                         <input
                           type="text"
@@ -836,7 +835,7 @@ function BudgetCategoriesTab() {
 
                       <div className={styles.fieldFixed}>
                         <label htmlFor={`edit-color-${category.id}`} className={styles.label}>
-                          {t('manage.budgetCategories.colorLabel')}
+                          Color
                         </label>
                         <div className={styles.colorWrapper}>
                           <input
@@ -859,7 +858,7 @@ function BudgetCategoriesTab() {
 
                       <div className={styles.fieldNarrow}>
                         <label htmlFor={`edit-sortorder-${category.id}`} className={styles.label}>
-                          {t('manage.budgetCategories.sortOrderLabel')}
+                          Sort Order
                         </label>
                         <input
                           type="number"
@@ -880,7 +879,7 @@ function BudgetCategoriesTab() {
 
                     <div className={styles.field}>
                       <label htmlFor={`edit-description-${category.id}`} className={styles.label}>
-                        {t('manage.budgetCategories.descriptionLabel')}
+                        Description
                       </label>
                       <input
                         type="text"
@@ -893,7 +892,7 @@ function BudgetCategoriesTab() {
                           })
                         }
                         className={styles.input}
-                        placeholder={t('manage.budgetCategories.descriptionPlaceholder')}
+                        placeholder="Optional description"
                         maxLength={500}
                         disabled={isUpdating}
                       />
@@ -905,9 +904,7 @@ function BudgetCategoriesTab() {
                         className={styles.saveButton}
                         disabled={isUpdating || !editingCategory.name.trim()}
                       >
-                        {isUpdating
-                          ? t('manage.budgetCategories.savePending')
-                          : t('manage.budgetCategories.saveIdle')}
+                        {isUpdating ? 'Saving...' : 'Save'}
                       </button>
                       <button
                         type="button"
@@ -915,7 +912,7 @@ function BudgetCategoriesTab() {
                         onClick={cancelEdit}
                         disabled={isUpdating}
                       >
-                        {t('manage.budgetCategories.cancel')}
+                        Cancel
                       </button>
                     </div>
                   </form>
@@ -945,7 +942,7 @@ function BudgetCategoriesTab() {
                         disabled={!!editingCategory}
                         aria-label={`Edit ${category.name}`}
                       >
-                        {t('manage.budgetCategories.edit')}
+                        Edit
                       </button>
                       <button
                         type="button"
@@ -954,7 +951,7 @@ function BudgetCategoriesTab() {
                         disabled={!!editingCategory}
                         aria-label={`Delete ${category.name}`}
                       >
-                        {t('manage.budgetCategories.delete')}
+                        Delete
                       </button>
                     </div>
                   </>
@@ -976,12 +973,12 @@ function BudgetCategoriesTab() {
           <div className={styles.modalBackdrop} onClick={closeDeleteConfirm} />
           <div className={styles.modalContent}>
             <h2 id="delete-modal-title" className={styles.modalTitle}>
-              {t('manage.budgetCategories.deleteModal.title')}
+              Delete Category
             </h2>
             <p className={styles.modalText}>
-              {t('manage.budgetCategories.deleteModal.text', {
-                name: categories.find((c) => c.id === deletingCategoryId)?.name,
-              })}
+              Are you sure you want to delete the category &quot;
+              <strong>{categories.find((c) => c.id === deletingCategoryId)?.name}</strong>
+              &quot;?
             </p>
 
             {deleteError ? (
@@ -990,7 +987,7 @@ function BudgetCategoriesTab() {
               </div>
             ) : (
               <p className={styles.modalWarning}>
-                {t('manage.budgetCategories.deleteModal.warning')}
+                This action cannot be undone. The category will be permanently removed.
               </p>
             )}
 
@@ -1001,7 +998,7 @@ function BudgetCategoriesTab() {
                 onClick={closeDeleteConfirm}
                 disabled={isDeleting}
               >
-                {t('manage.budgetCategories.deleteModal.cancel')}
+                Cancel
               </button>
               {!deleteError && (
                 <button
@@ -1010,9 +1007,7 @@ function BudgetCategoriesTab() {
                   onClick={() => void handleDeleteCategory(deletingCategoryId)}
                   disabled={isDeleting}
                 >
-                  {isDeleting
-                    ? t('manage.budgetCategories.deleteModal.submitPending')
-                    : t('manage.budgetCategories.deleteModal.submitIdle')}
+                  {isDeleting ? 'Deleting...' : 'Delete Category'}
                 </button>
               )}
             </div>
@@ -1035,7 +1030,6 @@ type EditingHICategory = {
 };
 
 function HouseholdItemCategoriesTab() {
-  const { t } = useTranslation('settings');
   const [categories, setCategories] = useState<HouseholdItemCategoryEntity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
@@ -1074,7 +1068,7 @@ function HouseholdItemCategoriesTab() {
       if (err instanceof ApiClientError) {
         setError(err.error.message);
       } else {
-        setError(t('manage.hiCategories.error.load'));
+        setError('Failed to load household item categories. Please try again.');
       }
     } finally {
       setIsLoading(false);
@@ -1088,12 +1082,12 @@ function HouseholdItemCategoriesTab() {
 
     const trimmedName = newName.trim();
     if (!trimmedName) {
-      setCreateError(t('manage.hiCategories.validation.nameRequired'));
+      setCreateError('Category name is required');
       return;
     }
 
     if (trimmedName.length > 100) {
-      setCreateError(t('manage.hiCategories.validation.nameTooLong'));
+      setCreateError('Category name must be 100 characters or less');
       return;
     }
 
@@ -1116,12 +1110,12 @@ function HouseholdItemCategoriesTab() {
       setNewColor(DEFAULT_COLOR);
       setNewSortOrder('');
       setShowCreateForm(false);
-      setSuccessMessage(t('manage.hiCategories.toast.created', { name: created.name }));
+      setSuccessMessage(`Category "${created.name}" created successfully`);
     } catch (err) {
       if (err instanceof ApiClientError) {
         setCreateError(err.error.message);
       } else {
-        setCreateError(t('manage.hiCategories.error.create'));
+        setCreateError('Failed to create category. Please try again.');
       }
     } finally {
       setIsCreating(false);
@@ -1153,12 +1147,12 @@ function HouseholdItemCategoriesTab() {
 
     const trimmedName = editingCategory.name.trim();
     if (!trimmedName) {
-      setUpdateError(t('manage.hiCategories.validation.nameRequired'));
+      setUpdateError('Category name is required');
       return;
     }
 
     if (trimmedName.length > 100) {
-      setUpdateError(t('manage.hiCategories.validation.nameTooLong'));
+      setUpdateError('Category name must be 100 characters or less');
       return;
     }
 
@@ -1176,12 +1170,12 @@ function HouseholdItemCategoriesTab() {
           .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name)),
       );
       setEditingCategory(null);
-      setSuccessMessage(t('manage.hiCategories.toast.updated', { name: updated.name }));
+      setSuccessMessage(`Category "${updated.name}" updated successfully`);
     } catch (err) {
       if (err instanceof ApiClientError) {
         setUpdateError(err.error.message);
       } else {
-        setUpdateError(t('manage.hiCategories.error.update'));
+        setUpdateError('Failed to update category. Please try again.');
       }
     } finally {
       setIsUpdating(false);
@@ -1210,16 +1204,18 @@ function HouseholdItemCategoriesTab() {
       const deleted = categories.find((cat) => cat.id === categoryId);
       setCategories(categories.filter((cat) => cat.id !== categoryId));
       setDeletingCategoryId(null);
-      setSuccessMessage(t('manage.hiCategories.toast.deleted', { name: deleted?.name }));
+      setSuccessMessage(`Category "${deleted?.name}" deleted successfully`);
     } catch (err) {
       if (err instanceof ApiClientError) {
         if (err.statusCode === 409) {
-          setDeleteError(t('manage.hiCategories.inUseError'));
+          setDeleteError(
+            'This category cannot be deleted because it is currently in use by one or more household items.',
+          );
         } else {
           setDeleteError(err.error.message);
         }
       } else {
-        setDeleteError(t('manage.hiCategories.error.delete'));
+        setDeleteError('Failed to delete category. Please try again.');
       }
     } finally {
       setIsDeleting(false);
@@ -1227,16 +1223,16 @@ function HouseholdItemCategoriesTab() {
   };
 
   if (isLoading) {
-    return <div className={styles.loading}>{t('manage.hiCategories.loadingCategories')}</div>;
+    return <div className={styles.loading}>Loading household item categories...</div>;
   }
 
   if (error && categories.length === 0) {
     return (
       <div className={styles.errorCard} role="alert">
-        <h2 className={styles.errorTitle}>{t('manage.error.title')}</h2>
+        <h2 className={styles.errorTitle}>Error</h2>
         <p>{error}</p>
         <button type="button" className={styles.button} onClick={() => void loadCategories()}>
-          {t('manage.error.retry')}
+          Retry
         </button>
       </div>
     );
@@ -1259,8 +1255,11 @@ function HouseholdItemCategoriesTab() {
       {/* Create form */}
       {showCreateForm && (
         <section className={styles.card}>
-          <h2 className={styles.cardTitle}>{t('manage.hiCategories.newSection')}</h2>
-          <p className={styles.cardDescription}>{t('manage.hiCategories.newDescription')}</p>
+          <h2 className={styles.cardTitle}>New Household Item Category</h2>
+          <p className={styles.cardDescription}>
+            Categories organize your household items and furniture purchases (e.g., Furniture,
+            Appliances, Fixtures).
+          </p>
 
           {createError && (
             <div className={styles.errorBanner} role="alert">
@@ -1272,7 +1271,7 @@ function HouseholdItemCategoriesTab() {
             <div className={styles.formRow}>
               <div className={styles.fieldGrow}>
                 <label htmlFor="categoryName" className={styles.label}>
-                  {t('manage.hiCategories.nameLabel')} <span className={styles.required}>*</span>
+                  Name <span className={styles.required}>*</span>
                 </label>
                 <input
                   type="text"
@@ -1280,7 +1279,7 @@ function HouseholdItemCategoriesTab() {
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   className={styles.input}
-                  placeholder={t('manage.hiCategories.namePlaceholder')}
+                  placeholder="e.g., Furniture, Appliances, Fixtures"
                   maxLength={100}
                   disabled={isCreating}
                   autoFocus
@@ -1289,7 +1288,7 @@ function HouseholdItemCategoriesTab() {
 
               <div className={styles.fieldFixed}>
                 <label htmlFor="categoryColor" className={styles.label}>
-                  {t('manage.hiCategories.colorLabel')}
+                  Color
                 </label>
                 <div className={styles.colorWrapper}>
                   <input
@@ -1310,7 +1309,7 @@ function HouseholdItemCategoriesTab() {
 
               <div className={styles.fieldNarrow}>
                 <label htmlFor="categorySortOrder" className={styles.label}>
-                  {t('manage.hiCategories.sortOrderLabel')}
+                  Sort Order
                 </label>
                 <input
                   type="number"
@@ -1331,9 +1330,7 @@ function HouseholdItemCategoriesTab() {
                 className={styles.button}
                 disabled={isCreating || !newName.trim()}
               >
-                {isCreating
-                  ? t('manage.hiCategories.createPending')
-                  : t('manage.hiCategories.createIdle')}
+                {isCreating ? 'Creating...' : 'Create Category'}
               </button>
               <button
                 type="button"
@@ -1347,7 +1344,7 @@ function HouseholdItemCategoriesTab() {
                 }}
                 disabled={isCreating}
               >
-                {t('manage.hiCategories.cancel')}
+                Cancel
               </button>
             </div>
           </form>
@@ -1357,9 +1354,7 @@ function HouseholdItemCategoriesTab() {
       {/* Categories list */}
       <section className={styles.card}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 className={styles.cardTitle}>
-            {t('manage.hiCategories.listTitle', { count: categories.length })}
-          </h2>
+          <h2 className={styles.cardTitle}>Categories ({categories.length})</h2>
           <button
             type="button"
             className={styles.button}
@@ -1369,12 +1364,15 @@ function HouseholdItemCategoriesTab() {
             }}
             disabled={showCreateForm}
           >
-            {t('manage.hiCategories.addButton')}
+            Add Category
           </button>
         </div>
 
         {categories.length === 0 ? (
-          <p className={styles.emptyState}>{t('manage.hiCategories.empty')}</p>
+          <p className={styles.emptyState}>
+            No household item categories yet. Add your first category to start organizing your
+            furniture and appliances.
+          </p>
         ) : (
           <div className={styles.itemsList}>
             {categories.map((category) => (
@@ -1393,8 +1391,7 @@ function HouseholdItemCategoriesTab() {
                     <div className={styles.editFormRow}>
                       <div className={styles.fieldGrow}>
                         <label htmlFor={`edit-name-${category.id}`} className={styles.label}>
-                          {t('manage.hiCategories.nameLabel')}{' '}
-                          <span className={styles.required}>*</span>
+                          Name <span className={styles.required}>*</span>
                         </label>
                         <input
                           type="text"
@@ -1412,7 +1409,7 @@ function HouseholdItemCategoriesTab() {
 
                       <div className={styles.fieldFixed}>
                         <label htmlFor={`edit-color-${category.id}`} className={styles.label}>
-                          {t('manage.hiCategories.colorLabel')}
+                          Color
                         </label>
                         <div className={styles.colorWrapper}>
                           <input
@@ -1435,7 +1432,7 @@ function HouseholdItemCategoriesTab() {
 
                       <div className={styles.fieldNarrow}>
                         <label htmlFor={`edit-sortorder-${category.id}`} className={styles.label}>
-                          {t('manage.hiCategories.sortOrderLabel')}
+                          Sort Order
                         </label>
                         <input
                           type="number"
@@ -1460,9 +1457,7 @@ function HouseholdItemCategoriesTab() {
                         className={styles.saveButton}
                         disabled={isUpdating || !editingCategory.name.trim()}
                       >
-                        {isUpdating
-                          ? t('manage.hiCategories.savePending')
-                          : t('manage.hiCategories.saveIdle')}
+                        {isUpdating ? 'Saving...' : 'Save'}
                       </button>
                       <button
                         type="button"
@@ -1470,7 +1465,7 @@ function HouseholdItemCategoriesTab() {
                         onClick={cancelEdit}
                         disabled={isUpdating}
                       >
-                        {t('manage.hiCategories.cancel')}
+                        Cancel
                       </button>
                     </div>
                   </form>
@@ -1497,7 +1492,7 @@ function HouseholdItemCategoriesTab() {
                         disabled={!!editingCategory}
                         aria-label={`Edit ${category.name}`}
                       >
-                        {t('manage.hiCategories.edit')}
+                        Edit
                       </button>
                       <button
                         type="button"
@@ -1506,7 +1501,7 @@ function HouseholdItemCategoriesTab() {
                         disabled={!!editingCategory}
                         aria-label={`Delete ${category.name}`}
                       >
-                        {t('manage.hiCategories.delete')}
+                        Delete
                       </button>
                     </div>
                   </>
@@ -1528,12 +1523,12 @@ function HouseholdItemCategoriesTab() {
           <div className={styles.modalBackdrop} onClick={closeDeleteConfirm} />
           <div className={styles.modalContent}>
             <h2 id="delete-modal-title" className={styles.modalTitle}>
-              {t('manage.hiCategories.deleteModal.title')}
+              Delete Category
             </h2>
             <p className={styles.modalText}>
-              {t('manage.hiCategories.deleteModal.text', {
-                name: categories.find((c) => c.id === deletingCategoryId)?.name,
-              })}
+              Are you sure you want to delete the category &quot;
+              <strong>{categories.find((c) => c.id === deletingCategoryId)?.name}</strong>
+              &quot;?
             </p>
 
             {deleteError ? (
@@ -1541,7 +1536,9 @@ function HouseholdItemCategoriesTab() {
                 {deleteError}
               </div>
             ) : (
-              <p className={styles.modalWarning}>{t('manage.hiCategories.deleteModal.warning')}</p>
+              <p className={styles.modalWarning}>
+                This action cannot be undone. The category will be permanently removed.
+              </p>
             )}
 
             <div className={styles.modalActions}>
@@ -1551,7 +1548,7 @@ function HouseholdItemCategoriesTab() {
                 onClick={closeDeleteConfirm}
                 disabled={isDeleting}
               >
-                {t('manage.hiCategories.deleteModal.cancel')}
+                Cancel
               </button>
               {!deleteError && (
                 <button
@@ -1560,9 +1557,7 @@ function HouseholdItemCategoriesTab() {
                   onClick={() => void handleDeleteCategory(deletingCategoryId)}
                   disabled={isDeleting}
                 >
-                  {isDeleting
-                    ? t('manage.hiCategories.deleteModal.submitPending')
-                    : t('manage.hiCategories.deleteModal.submitIdle')}
+                  {isDeleting ? 'Deleting...' : 'Delete Category'}
                 </button>
               )}
             </div>
@@ -1578,7 +1573,6 @@ function HouseholdItemCategoriesTab() {
 // ============================================================
 
 export default function ManagePage() {
-  const { t } = useTranslation('settings');
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = searchParams.get('tab') ?? 'tags';
 
@@ -1612,7 +1606,7 @@ export default function ManagePage() {
   return (
     <div className={styles.container}>
       <div className={styles.content}>
-        <h1 className={styles.pageTitle}>{t('manage.pageTitle')}</h1>
+        <h1 className={styles.pageTitle}>Manage</h1>
         <SettingsSubNav />
 
         <div role="tablist" className={styles.tabList} onKeyDown={handleTabKeyDown}>
@@ -1625,7 +1619,7 @@ export default function ManagePage() {
             onClick={() => handleTabChange('tags')}
             className={`${styles.tab} ${tab === 'tags' ? styles.tabActive : ''}`}
           >
-            {t('manage.tabs.tags')}
+            Tags
           </button>
           <button
             role="tab"
@@ -1636,7 +1630,7 @@ export default function ManagePage() {
             onClick={() => handleTabChange('budget-categories')}
             className={`${styles.tab} ${tab === 'budget-categories' ? styles.tabActive : ''}`}
           >
-            {t('manage.tabs.budgetCategories')}
+            Budget Categories
           </button>
           <button
             role="tab"
@@ -1647,7 +1641,7 @@ export default function ManagePage() {
             onClick={() => handleTabChange('hi-categories')}
             className={`${styles.tab} ${tab === 'hi-categories' ? styles.tabActive : ''}`}
           >
-            {t('manage.tabs.hiCategories')}
+            Household Item Categories
           </button>
         </div>
 

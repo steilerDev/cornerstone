@@ -22,7 +22,7 @@ describe('OIDC Routes', () => {
     delete process.env.OIDC_ISSUER;
     delete process.env.OIDC_CLIENT_ID;
     delete process.env.OIDC_CLIENT_SECRET;
-    delete process.env.OIDC_REDIRECT_URI;
+    delete process.env.EXTERNAL_URL;
   });
 
   afterEach(async () => {

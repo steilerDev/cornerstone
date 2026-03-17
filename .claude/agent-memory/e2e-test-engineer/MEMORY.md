@@ -1,7 +1,7 @@
 # E2E Test Engineer — Agent Memory (Index)
 
 > Detailed notes live in topic files. This index links to them.
-> See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`
+> See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`
 
 ## E2E Parallel Isolation (2026-02-20)
 

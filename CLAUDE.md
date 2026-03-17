@@ -433,6 +433,7 @@ Hand-written SQL files in `server/src/db/migrations/` with a numeric prefix (e.g
 | `LOG_LEVEL`              | `info`                     | Log level (trace/debug/info/warn/error/fatal)                                       |
 | `NODE_ENV`               | `production`               | Environment                                                                         |
 | `CLIENT_DEV_PORT`        | `5173`                     | Webpack dev server port (development only)                                          |
+| `EXTERNAL_URL`           | (none)                     | Public-facing base URL (e.g., `https://myhouse.example.com`) for reverse-proxy setups |
 | `PAPERLESS_URL`          | (none)                     | Paperless-ngx instance base URL                                                     |
 | `PAPERLESS_API_TOKEN`    | (none)                     | Paperless-ngx API authentication token                                              |
 | `PAPERLESS_EXTERNAL_URL` | (none)                     | Browser-facing URL for Paperless-ngx links (falls back to `PAPERLESS_URL` if unset) |

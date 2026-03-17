@@ -1,0 +1,292 @@
+.card {
+  background: var(--color-bg-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--spacing-6);
+  margin-top: var(--spacing-6);
+  position: relative;
+}
+
+.cardTitle {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0 0 var(--spacing-2) 0;
+}
+
+.cardDescription {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  margin: 0 0 var(--spacing-6) 0;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100px;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.statusSection {
+  margin: var(--spacing-6) 0;
+  padding: var(--spacing-4);
+  background-color: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+  border-left: 4px solid var(--color-primary);
+}
+
+.statusMessage {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.tokenDisplaySection {
+  margin: var(--spacing-6) 0;
+  padding: var(--spacing-4);
+  background-color: var(--color-success-bg);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-success-border);
+}
+
+.tokenWarning {
+  font-size: var(--font-size-sm);
+  color: var(--color-danger);
+  font-weight: var(--font-weight-medium);
+  margin-bottom: var(--spacing-3);
+}
+
+.tokenDisplayBox {
+  display: flex;
+  gap: var(--spacing-3);
+  align-items: stretch;
+}
+
+.tokenValue {
+  flex: 1;
+  padding: var(--spacing-3);
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-2xs);
+  font-family: 'Courier New', monospace;
+  color: var(--color-text-primary);
+  word-break: break-all;
+  overflow-wrap: break-word;
+}
+
+.copyButton {
+  padding: var(--spacing-2) var(--spacing-4);
+  background-color: var(--color-primary);
+  color: var(--color-primary-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition-button);
+  white-space: nowrap;
+}
+
+.copyButton:hover {
+  background-color: var(--color-primary-hover);
+}
+
+.copyButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .copyButton {
+    transition: none;
+  }
+}
+
+.serverUrlSection {
+  margin: var(--spacing-6) 0;
+  padding: var(--spacing-3);
+  background-color: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+}
+
+.serverUrlLabel {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-muted);
+  margin-bottom: var(--spacing-1);
+}
+
+.serverUrl {
+  font-size: var(--font-size-sm);
+  font-family: 'Courier New', monospace;
+  color: var(--color-text-primary);
+  word-break: break-all;
+}
+
+.actionButtons {
+  display: flex;
+  gap: var(--spacing-3);
+  margin: var(--spacing-6) 0;
+  flex-wrap: wrap;
+}
+
+.generateButton,
+.regenerateButton,
+.revokeButton {
+  padding: var(--spacing-2-5) var(--spacing-4);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition-button);
+}
+
+.generateButton,
+.regenerateButton {
+  background-color: var(--color-primary);
+  color: var(--color-primary-text);
+}
+
+.generateButton:hover:not(:disabled),
+.regenerateButton:hover:not(:disabled) {
+  background-color: var(--color-primary-hover);
+}
+
+.generateButton:focus-visible,
+.regenerateButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .generateButton,
+  .regenerateButton,
+  .revokeButton {
+    transition: none;
+  }
+}
+
+.revokeButton {
+  background-color: transparent;
+  color: var(--color-danger);
+  border: 1px solid var(--color-danger);
+}
+
+.revokeButton:hover:not(:disabled) {
+  background-color: var(--color-danger-bg);
+}
+
+.revokeButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.generateButton:disabled,
+.regenerateButton:disabled,
+.revokeButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.downloadSection {
+  margin: var(--spacing-6) 0 0 0;
+  padding-top: var(--spacing-6);
+  border-top: 1px solid var(--color-border);
+}
+
+.downloadLink {
+  display: inline-block;
+  padding: var(--spacing-2-5) var(--spacing-4);
+  background-color: var(--color-bg-secondary);
+  color: var(--color-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  cursor: pointer;
+  transition: var(--transition-button);
+}
+
+.downloadLink:hover {
+  background-color: var(--color-primary);
+  color: var(--color-primary-text);
+}
+
+.downloadLink:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .downloadLink {
+    transition: none;
+  }
+}
+
+.hideTokenButton {
+  position: absolute;
+  top: var(--spacing-4);
+  right: var(--spacing-4);
+  width: var(--spacing-8);
+  height: var(--spacing-8);
+  padding: 0;
+  background: none;
+  border: none;
+  font-size: var(--font-size-xl);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition-normal);
+}
+
+.hideTokenButton:hover {
+  color: var(--color-text-primary);
+}
+
+.hideTokenButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hideTokenButton {
+    transition: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .card {
+    padding: var(--spacing-4);
+  }
+
+  .tokenDisplayBox {
+    flex-direction: column;
+  }
+
+  .copyButton {
+    width: 100%;
+  }
+
+  .actionButtons {
+    flex-direction: column;
+  }
+
+  .generateButton,
+  .regenerateButton,
+  .revokeButton {
+    width: 100%;
+  }
+
+  .downloadLink {
+    width: 100%;
+    text-align: center;
+    display: block;
+  }
+}

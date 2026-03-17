@@ -21,6 +21,7 @@ function makeUserRow(
     authProvider: 'local',
     passwordHash: null,
     oidcSubject: null,
+    davToken: null,
     deactivatedAt: null,
     failedLoginAttempts: 0,
     lockedUntil: null,

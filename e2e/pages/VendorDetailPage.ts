@@ -7,6 +7,7 @@
  * - Stats cards: Total Invoices and Outstanding Balance
  * - An info card (dl/dt/dd list) with all vendor fields — read view
  * - An inline edit form inside the info card when isEditing is true
+ * - A Contacts section with add/edit/delete contact modals
  * - An Invoices placeholder section ("coming soon")
  * - A delete confirmation modal (role="dialog", aria-labelledby="delete-modal-title")
  */
@@ -52,6 +53,36 @@ export class VendorDetailPage {
   readonly saveChangesButton: Locator;
   readonly cancelEditButton: Locator;
   readonly editErrorBanner: Locator;
+
+  // Contacts section
+  readonly contactsSection: Locator;
+  readonly addContactButton: Locator;
+  readonly contactsList: Locator;
+  readonly contactsEmptyState: Locator;
+
+  // Contact create modal
+  readonly createContactModal: Locator;
+  readonly createContactFirstNameInput: Locator;
+  readonly createContactLastNameInput: Locator;
+  readonly createContactRoleInput: Locator;
+  readonly createContactPhoneInput: Locator;
+  readonly createContactEmailInput: Locator;
+  readonly createContactNotesInput: Locator;
+  readonly createContactSubmitButton: Locator;
+  readonly createContactCancelButton: Locator;
+  readonly createContactErrorBanner: Locator;
+
+  // Contact edit modal
+  readonly editContactModal: Locator;
+  readonly editContactFirstNameInput: Locator;
+  readonly editContactLastNameInput: Locator;
+  readonly editContactRoleInput: Locator;
+  readonly editContactPhoneInput: Locator;
+  readonly editContactEmailInput: Locator;
+  readonly editContactNotesInput: Locator;
+  readonly editContactSubmitButton: Locator;
+  readonly editContactCancelButton: Locator;
+  readonly editContactErrorBanner: Locator;
 
   // Invoices section
   readonly invoicesSection: Locator;
@@ -104,6 +135,52 @@ export class VendorDetailPage {
     this.saveChangesButton = page.getByRole('button', { name: /Save Changes|Saving\.\.\./ });
     this.cancelEditButton = page.getByRole('button', { name: 'Cancel', exact: true });
     this.editErrorBanner = page.locator('[class*="form"]').locator('[role="alert"]');
+
+    // Contacts section — <section> rendered by VendorContactsSection
+    this.contactsSection = page.locator('section').filter({
+      has: page.getByRole('heading', { name: 'Contacts', exact: true }),
+    });
+    this.addContactButton = this.contactsSection.getByRole('button', {
+      name: 'Add Contact',
+      exact: true,
+    });
+    this.contactsList = this.contactsSection.locator('[class*="contactsList"]');
+    // EmptyState uses a shared CSS module class; use text match for robustness
+    this.contactsEmptyState = this.contactsSection.getByText('No contacts added yet.');
+
+    // Contact create modal — opened via "Add Contact" button
+    this.createContactModal = page.getByRole('dialog', { name: 'Add Contact' });
+    this.createContactFirstNameInput = page.locator('#create-firstName');
+    this.createContactLastNameInput = page.locator('#create-lastName');
+    this.createContactRoleInput = page.locator('#create-role');
+    this.createContactPhoneInput = page.locator('#create-phone');
+    this.createContactEmailInput = page.locator('#create-email');
+    this.createContactNotesInput = page.locator('#create-notes');
+    this.createContactSubmitButton = page.getByRole('button', {
+      name: /Create Contact|Creating\.\.\./,
+    });
+    this.createContactCancelButton = this.createContactModal.getByRole('button', {
+      name: 'Cancel',
+      exact: true,
+    });
+    this.createContactErrorBanner = this.createContactModal.locator('[role="alert"]');
+
+    // Contact edit modal — opened via "Edit Contact" button on a contact card
+    this.editContactModal = page.getByRole('dialog', { name: 'Edit Contact' });
+    this.editContactFirstNameInput = page.locator('#edit-firstName');
+    this.editContactLastNameInput = page.locator('#edit-lastName');
+    this.editContactRoleInput = page.locator('#edit-role');
+    this.editContactPhoneInput = page.locator('#edit-phone');
+    this.editContactEmailInput = page.locator('#edit-email');
+    this.editContactNotesInput = page.locator('#edit-notes');
+    this.editContactSubmitButton = page.getByRole('button', {
+      name: /Save Changes|Saving\.\.\./,
+    });
+    this.editContactCancelButton = this.editContactModal.getByRole('button', {
+      name: 'Cancel',
+      exact: true,
+    });
+    this.editContactErrorBanner = this.editContactModal.locator('[role="alert"]');
 
     // Invoices section — <section> without aria-label has no implicit 'region' role
     this.invoicesSection = page.locator('section').filter({
@@ -270,5 +347,156 @@ export class VendorDetailPage {
     } catch {
       return null;
     }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Contacts helpers
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Returns all contact cards currently visible in the contacts list.
+   * Each entry contains the name text and optional role text.
+   */
+  async getContactItems(): Promise<{ name: string; role: string | null }[]> {
+    const cards = await this.contactsList.locator('[class*="contactCard"]').all();
+    const results: { name: string; role: string | null }[] = [];
+    for (const card of cards) {
+      const name = (await card.locator('[class*="contactName"]').textContent()) ?? '';
+      const roleLocator = card.locator('[class*="contactRole"]');
+      const roleVisible = await roleLocator.isVisible();
+      const role = roleVisible ? ((await roleLocator.textContent()) ?? null) : null;
+      results.push({ name: name.trim(), role: role?.trim() ?? null });
+    }
+    return results;
+  }
+
+  /**
+   * Open the "Add Contact" modal by clicking the "Add Contact" button.
+   * Waits for the modal to be visible.
+   */
+  async openAddContactModal(): Promise<void> {
+    await this.addContactButton.click();
+    await this.createContactModal.waitFor({ state: 'visible' });
+  }
+
+  /**
+   * Fill the contact create/edit form. Only provided fields are written.
+   * Uses the create-* IDs when the create modal is open; callers must ensure
+   * the correct modal is visible before calling.
+   */
+  async fillCreateContactForm(data: {
+    firstName?: string;
+    lastName?: string;
+    role?: string;
+    phone?: string;
+    email?: string;
+    notes?: string;
+  }): Promise<void> {
+    if (data.firstName !== undefined) {
+      await this.createContactFirstNameInput.fill(data.firstName);
+    }
+    if (data.lastName !== undefined) {
+      await this.createContactLastNameInput.fill(data.lastName);
+    }
+    if (data.role !== undefined) {
+      await this.createContactRoleInput.fill(data.role);
+    }
+    if (data.phone !== undefined) {
+      await this.createContactPhoneInput.fill(data.phone);
+    }
+    if (data.email !== undefined) {
+      await this.createContactEmailInput.fill(data.email);
+    }
+    if (data.notes !== undefined) {
+      await this.createContactNotesInput.fill(data.notes);
+    }
+  }
+
+  /**
+   * Submit the create contact form and wait for the modal to close.
+   * Registers a waitForResponse on POST /api/vendors/.../contacts before clicking.
+   */
+  async submitCreateContact(): Promise<void> {
+    const responsePromise = this.page.waitForResponse(
+      (r) => r.url().includes('/contacts') && r.request().method() === 'POST',
+    );
+    await this.createContactSubmitButton.click();
+    await responsePromise;
+    await this.createContactModal.waitFor({ state: 'hidden' });
+  }
+
+  /**
+   * Open the edit modal for the contact with the given name.
+   * Clicks the "Edit Contact" button on the matching contact card.
+   */
+  async openEditContactModal(contactName: string): Promise<void> {
+    const card = this.contactsList
+      .locator('[class*="contactCard"]')
+      .filter({ has: this.page.locator('[class*="contactName"]', { hasText: contactName }) });
+    await card.getByRole('button', { name: 'Edit Contact', exact: true }).click();
+    await this.editContactModal.waitFor({ state: 'visible' });
+  }
+
+  /**
+   * Fill the edit contact form fields. Only provided fields are written.
+   */
+  async fillEditContactForm(data: {
+    firstName?: string;
+    lastName?: string;
+    role?: string;
+    phone?: string;
+    email?: string;
+    notes?: string;
+  }): Promise<void> {
+    if (data.firstName !== undefined) {
+      await this.editContactFirstNameInput.clear();
+      await this.editContactFirstNameInput.fill(data.firstName);
+    }
+    if (data.lastName !== undefined) {
+      await this.editContactLastNameInput.clear();
+      await this.editContactLastNameInput.fill(data.lastName);
+    }
+    if (data.role !== undefined) {
+      await this.editContactRoleInput.fill(data.role);
+    }
+    if (data.phone !== undefined) {
+      await this.editContactPhoneInput.fill(data.phone);
+    }
+    if (data.email !== undefined) {
+      await this.editContactEmailInput.fill(data.email);
+    }
+    if (data.notes !== undefined) {
+      await this.editContactNotesInput.fill(data.notes);
+    }
+  }
+
+  /**
+   * Submit the edit contact form. Registers a waitForResponse on PATCH before clicking.
+   */
+  async submitEditContact(): Promise<void> {
+    const responsePromise = this.page.waitForResponse(
+      (r) => r.url().includes('/contacts/') && r.request().method() === 'PATCH',
+    );
+    await this.editContactSubmitButton.click();
+    await responsePromise;
+    await this.editContactModal.waitFor({ state: 'hidden' });
+  }
+
+  /**
+   * Delete the contact with the given name by clicking its "Delete Contact" button
+   * and confirming the browser dialog.
+   */
+  async deleteContactByName(contactName: string): Promise<void> {
+    const card = this.contactsList
+      .locator('[class*="contactCard"]')
+      .filter({ has: this.page.locator('[class*="contactName"]', { hasText: contactName }) });
+
+    // The delete uses window.confirm — accept it before clicking
+    this.page.once('dialog', (dialog) => void dialog.accept());
+    const responsePromise = this.page.waitForResponse(
+      (r) => r.url().includes('/contacts/') && r.request().method() === 'DELETE',
+    );
+    await card.getByRole('button', { name: 'Delete Contact', exact: true }).click();
+    await responsePromise;
   }
 }

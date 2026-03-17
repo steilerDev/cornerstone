@@ -3,6 +3,20 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## Story #933 CalDAV/CardDAV + Vendor Contacts (2026-03-17)
+
+**Test files** (6 new): `vendorContactService.test.ts`, `davTokenService.test.ts`, `davXml.test.ts`, `vendorContacts.test.ts`, `davTokens.test.ts`, `dav.test.ts`. Branch: `feat/933-caldav-carddav-vendor-contacts`.
+
+**Key patterns**:
+- **DAV Basic Auth**: Only the password field of `user:token` matters; username is ignored. Test with `Buffer.from('any-name:${token}').toString('base64')`.
+- **PROPFIND/REPORT custom methods**: `app.addHttpMethod('PROPFIND', { hasBody: true })` and `REPORT` are registered in `buildApp()`. Use `app.inject({ method: 'PROPFIND', ... })` — Fastify handles them via `inject()`.
+- **Content-Type for XML bodies**: Send `'content-type': 'application/xml'` for PROPFIND/REPORT bodies so Fastify parses them as strings.
+- **`parsePropfindProps` returns `['allprop']` (not null)** for bodies with no `<prop>` block. The QA spec description was informal; always follow actual implementation.
+- **Well-known redirects**: `GET /.well-known/caldav` and `GET /.well-known/carddav` → 301 to `/dav/`. Both `GET` and `PROPFIND` variants are registered.
+- **DAV token format**: 64-char hex string (`randomBytes(32).toString('hex')`). `validateToken` looks up by `davToken` column equality.
+- **`getTokenStatus` createdAt**: Returns `updatedAt` from users table (not a separate column) when token exists.
+- **Vendor cascade delete**: `vendorContacts` table has `onDelete: 'cascade'` on `vendorId`. Verify by querying `vendorContacts` directly after deleting vendor row.
+
 ## Story #916 i18n Infrastructure (2026-03-16)
 
 **Test files**: `server/src/routes/config.test.ts` (5), `server/src/plugins/config.test.ts` (+11 new, +4 snapshot fixes), `client/src/lib/configApi.test.ts` (5), `client/src/lib/errorTranslation.test.ts` (25), `client/src/lib/formatters.test.ts` (40), `client/src/contexts/LocaleContext.test.tsx` (45). All on branch `feat/916-i18n-infrastructure`.

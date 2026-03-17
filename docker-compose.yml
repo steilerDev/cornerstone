@@ -9,6 +9,7 @@ services:
       - .env
     # Optional configuration — add to your .env file:
     # environment:
+    #   - EXTERNAL_URL=https://myhouse.example.com               # Public-facing base URL (required behind reverse proxy)
     #   - CURRENCY=EUR                                          # ISO 4217 currency code for display (default: EUR)
     #   - PAPERLESS_URL=http://paperless:8000          # Internal URL used by the server for API calls
     #   - PAPERLESS_API_TOKEN=your-paperless-api-token

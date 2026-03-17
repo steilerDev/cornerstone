@@ -4,6 +4,7 @@
  */
 
 import type { UserSummary } from './workItem.js';
+import type { VendorContact } from './vendorContact.js';
 
 /**
  * Vendor entity as returned by the API in list responses.
@@ -28,6 +29,7 @@ export interface Vendor {
 export interface VendorDetail extends Vendor {
   invoiceCount: number;
   outstandingBalance: number;
+  contacts: VendorContact[];
 }
 
 /**

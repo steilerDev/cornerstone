@@ -36,6 +36,16 @@ jest.unstable_mockModule('../../lib/invoicesApi.js', () => ({
   deleteInvoice: mockDeleteInvoice,
 }));
 
+// Mock the vendor contacts API module so VendorContactsSection does not make real
+// network calls during VendorDetailPage tests, preventing spurious role="alert"
+// elements from a contacts-load failure interfering with editError assertions.
+jest.unstable_mockModule('../../lib/vendorContactsApi.js', () => ({
+  listVendorContacts: jest.fn<() => Promise<{ contacts: never[] }>>().mockResolvedValue({ contacts: [] }),
+  createVendorContact: jest.fn(),
+  updateVendorContact: jest.fn(),
+  deleteVendorContact: jest.fn(),
+}));
+
 describe('VendorDetailPage', () => {
   let VendorDetailPage: React.ComponentType;
 
@@ -52,6 +62,7 @@ describe('VendorDetailPage', () => {
     createdBy: { id: 'user-1', displayName: 'Admin User', email: 'admin@example.com' },
     invoiceCount: 3,
     outstandingBalance: 2500.0,
+    contacts: [],
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
   };
@@ -67,6 +78,7 @@ describe('VendorDetailPage', () => {
     createdBy: null,
     invoiceCount: 0,
     outstandingBalance: 0,
+    contacts: [],
     createdAt: '2026-01-02T00:00:00.000Z',
     updatedAt: '2026-01-02T00:00:00.000Z',
   };
