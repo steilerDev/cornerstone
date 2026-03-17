@@ -472,9 +472,7 @@ describe('HouseholdItemCreatePage', () => {
       await user.click(screen.getByRole('button', { name: /create item/i }));
 
       await waitFor(() => {
-        expect(
-          screen.getByText('Failed to load form data. Please try again.'),
-        ).toBeInTheDocument();
+        expect(screen.getByText('Failed to load form data. Please try again.')).toBeInTheDocument();
       });
     });
   });

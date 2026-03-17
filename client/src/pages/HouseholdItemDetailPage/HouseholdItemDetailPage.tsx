@@ -885,7 +885,9 @@ export function HouseholdItemDetailPage() {
             {/* Schedule row showing target or actual date */}
             <div className={styles.infoRow}>
               <dt className={styles.infoLabel}>
-                {item.actualDeliveryDate ? t('detail.datesDelivery.actualDate') : t('detail.datesDelivery.targetDate')}
+                {item.actualDeliveryDate
+                  ? t('detail.datesDelivery.actualDate')
+                  : t('detail.datesDelivery.targetDate')}
               </dt>
               <dd className={styles.infoValue}>
                 {item.actualDeliveryDate ? (
@@ -956,7 +958,9 @@ export function HouseholdItemDetailPage() {
             {/* Actual Delivery Date - inline editable */}
             <div className={styles.infoRow}>
               <dt className={styles.infoLabel}>
-                <label htmlFor="hi-actual-delivery">{t('detail.datesDelivery.actualDelivery')}</label>
+                <label htmlFor="hi-actual-delivery">
+                  {t('detail.datesDelivery.actualDelivery')}
+                </label>
               </dt>
               <dd className={styles.infoValue}>
                 <div className={styles.inlineFieldWrapper}>
@@ -1016,7 +1020,9 @@ export function HouseholdItemDetailPage() {
           <dl className={styles.infoList}>
             <div className={styles.infoRow}>
               <dt className={styles.infoLabel}>
-                <label htmlFor="hi-earliest-delivery">{t('detail.datesDelivery.earliestDelivery')}</label>
+                <label htmlFor="hi-earliest-delivery">
+                  {t('detail.datesDelivery.earliestDelivery')}
+                </label>
                 {item.isLate && item.status !== 'arrived' && (
                   <span className={styles.lateChip}>{t('detail.status.late')}</span>
                 )}
@@ -1069,7 +1075,9 @@ export function HouseholdItemDetailPage() {
 
             <div className={styles.infoRow}>
               <dt className={styles.infoLabel}>
-                <label htmlFor="hi-latest-delivery">{t('detail.datesDelivery.latestDelivery')}</label>
+                <label htmlFor="hi-latest-delivery">
+                  {t('detail.datesDelivery.latestDelivery')}
+                </label>
               </dt>
               <dd className={styles.infoValue}>
                 <div className={styles.inlineFieldWrapper}>
@@ -1115,9 +1123,7 @@ export function HouseholdItemDetailPage() {
 
           {/* Dependency list */}
           {dependencies.length === 0 ? (
-            <p className={styles.emptyState}>
-              {t('detail.dependencies.noDependencies')}
-            </p>
+            <p className={styles.emptyState}>{t('detail.dependencies.noDependencies')}</p>
           ) : (
             <ul role="list" className={styles.depList}>
               {dependencies.map((dep) => {
@@ -1132,7 +1138,9 @@ export function HouseholdItemDetailPage() {
                       }
                     >
                       {dep.predecessorType === 'milestone' && <MilestoneIconSvg />}
-                      {dep.predecessorType === 'work_item' ? t('detail.dependencies.workItem') : t('detail.dependencies.milestone')}
+                      {dep.predecessorType === 'work_item'
+                        ? t('detail.dependencies.workItem')
+                        : t('detail.dependencies.milestone')}
                     </span>
                     {dep.predecessorType === 'work_item' ? (
                       <Link
@@ -1214,7 +1222,9 @@ export function HouseholdItemDetailPage() {
                       onClick={() => void handleAddDepInline('work_item', wi.id)}
                       disabled={isAddingDep}
                     >
-                      <span className={styles.itemTypeBadge}>{t('detail.dependencies.workItem')}</span>
+                      <span className={styles.itemTypeBadge}>
+                        {t('detail.dependencies.workItem')}
+                      </span>
                       <span>{wi.title}</span>
                     </button>
                   ))}
@@ -1237,7 +1247,9 @@ export function HouseholdItemDetailPage() {
                       onClick={() => void handleAddDepInline('milestone', String(ms.id))}
                       disabled={isAddingDep}
                     >
-                      <span className={styles.itemTypeBadgeMilestone}>{t('detail.dependencies.milestone')}</span>
+                      <span className={styles.itemTypeBadgeMilestone}>
+                        {t('detail.dependencies.milestone')}
+                      </span>
                       <span>{ms.title}</span>
                     </button>
                   ))}
@@ -1255,7 +1267,9 @@ export function HouseholdItemDetailPage() {
                           d.predecessorType === 'milestone' && d.predecessorId === String(ms.id),
                       ) && ms.title.toLowerCase().includes(depSearchInput.toLowerCase()),
                   ).length === 0 && (
-                    <div className={styles.searchDropdownEmpty}>{t('detail.dependencies.noMatches')}</div>
+                    <div className={styles.searchDropdownEmpty}>
+                      {t('detail.dependencies.noMatches')}
+                    </div>
                   )}
               </div>
             )}

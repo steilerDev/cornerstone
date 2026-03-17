@@ -268,7 +268,9 @@ export function MilestonesPage() {
                           milestone.isCompleted ? styles.statusCompleted : styles.statusPending
                         }`}
                       >
-                        {milestone.isCompleted ? t('milestones.status.completed') : t('milestones.status.pending')}
+                        {milestone.isCompleted
+                          ? t('milestones.status.completed')
+                          : t('milestones.status.pending')}
                       </span>
                     </td>
                     <td className={styles.descriptionCell}>
@@ -373,7 +375,9 @@ export function MilestonesPage() {
                         milestone.isCompleted ? styles.statusCompleted : styles.statusPending
                       }`}
                     >
-                      {milestone.isCompleted ? t('milestones.status.completed') : t('milestones.status.pending')}
+                      {milestone.isCompleted
+                        ? t('milestones.status.completed')
+                        : t('milestones.status.pending')}
                     </span>
                   </div>
                   {milestone.description && (

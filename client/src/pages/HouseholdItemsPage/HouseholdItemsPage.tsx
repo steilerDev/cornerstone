@@ -594,7 +594,8 @@ export function HouseholdItemsPage() {
         </div>
 
         <p className={styles.srAnnouncement} aria-live="polite" aria-atomic="true">
-          {!isLoading && `${totalItems} ${totalItems !== 1 ? t('results.itemsFound') : t('results.itemFound')}`}
+          {!isLoading &&
+            `${totalItems} ${totalItems !== 1 ? t('results.itemsFound') : t('results.itemFound')}`}
         </p>
       </div>
 
@@ -657,7 +658,8 @@ export function HouseholdItemsPage() {
                         : undefined
                     }
                   >
-                    {t('table.headers.name')}{renderSortIcon('name')}
+                    {t('table.headers.name')}
+                    {renderSortIcon('name')}
                   </th>
                   <th
                     className={styles.sortableHeader}
@@ -678,7 +680,8 @@ export function HouseholdItemsPage() {
                         : undefined
                     }
                   >
-                    {t('table.headers.category')}{renderSortIcon('category')}
+                    {t('table.headers.category')}
+                    {renderSortIcon('category')}
                   </th>
                   <th
                     className={styles.sortableHeader}
@@ -699,7 +702,8 @@ export function HouseholdItemsPage() {
                         : undefined
                     }
                   >
-                    {t('table.headers.status')}{renderSortIcon('status')}
+                    {t('table.headers.status')}
+                    {renderSortIcon('status')}
                   </th>
                   <th>{t('table.headers.room')}</th>
                   <th>{t('table.headers.vendor')}</th>
@@ -723,7 +727,8 @@ export function HouseholdItemsPage() {
                         : undefined
                     }
                   >
-                    {t('table.headers.targetDelivery')}{renderSortIcon('target_delivery_date')}
+                    {t('table.headers.targetDelivery')}
+                    {renderSortIcon('target_delivery_date')}
                   </th>
                   <th className={styles.actionsColumn}>{t('table.headers.actions')}</th>
                 </tr>
@@ -902,7 +907,8 @@ export function HouseholdItemsPage() {
             <div className={styles.pagination}>
               <div className={styles.paginationInfo}>
                 {t('pagination.showing')} {(currentPage - 1) * pageSize + 1} {t('pagination.to')}{' '}
-                {Math.min(currentPage * pageSize, totalItems)} {t('pagination.of')} {totalItems} {t('pagination.items')}
+                {Math.min(currentPage * pageSize, totalItems)} {t('pagination.of')} {totalItems}{' '}
+                {t('pagination.items')}
               </div>
               <div className={styles.paginationControls}>
                 <button

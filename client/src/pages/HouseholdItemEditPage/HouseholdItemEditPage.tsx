@@ -168,9 +168,7 @@ export function HouseholdItemEditPage() {
           </button>
           <h1 className={styles.title}>{t('edit.notFound')}</h1>
         </div>
-        <div className={styles.errorBanner}>
-          {t('edit.notFoundMessage')}
-        </div>
+        <div className={styles.errorBanner}>{t('edit.notFoundMessage')}</div>
       </div>
     );
   }
@@ -194,7 +192,8 @@ export function HouseholdItemEditPage() {
       <form className={styles.form} onSubmit={handleSubmit}>
         <div className={styles.formGroup}>
           <label htmlFor="name" className={styles.label}>
-            {t('edit.form.name.label')} <span className={styles.required}>{t('edit.form.name.required')}</span>
+            {t('edit.form.name.label')}{' '}
+            <span className={styles.required}>{t('edit.form.name.required')}</span>
           </label>
           <input
             type="text"
@@ -233,7 +232,8 @@ export function HouseholdItemEditPage() {
         <div className={styles.formRow}>
           <div className={styles.formGroup}>
             <label htmlFor="category" className={styles.label}>
-              {t('edit.form.category.label')} <span className={styles.required}>{t('edit.form.category.required')}</span>
+              {t('edit.form.category.label')}{' '}
+              <span className={styles.required}>{t('edit.form.category.required')}</span>
             </label>
             <select
               id="category"

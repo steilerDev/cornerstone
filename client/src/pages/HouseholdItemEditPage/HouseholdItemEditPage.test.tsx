@@ -491,9 +491,7 @@ describe('HouseholdItemEditPage', () => {
       await user.click(screen.getByRole('button', { name: /save changes/i }));
 
       await waitFor(() => {
-        expect(
-          screen.getByText('Failed to load form data. Please try again.'),
-        ).toBeInTheDocument();
+        expect(screen.getByText('Failed to load form data. Please try again.')).toBeInTheDocument();
       });
     });
 

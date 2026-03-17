@@ -521,7 +521,9 @@ export function MilestoneDetailPage() {
                   milestone.isCompleted ? styles.statusCompleted : styles.statusPending
                 }`}
               >
-                {milestone.isCompleted ? t('milestones.detail.view.status.completed') : t('milestones.detail.view.status.pending')}
+                {milestone.isCompleted
+                  ? t('milestones.detail.view.status.completed')
+                  : t('milestones.detail.view.status.pending')}
               </span>
             </div>
             <button
@@ -542,17 +544,27 @@ export function MilestoneDetailPage() {
 
             {projectedDate && (
               <div className={styles.viewField}>
-                <label className={styles.fieldLabel}>{t('milestones.detail.view.projectedDate')}</label>
+                <label className={styles.fieldLabel}>
+                  {t('milestones.detail.view.projectedDate')}
+                </label>
                 <p className={styles.fieldValue}>
                   {formatDate(projectedDate)}
                   {delayDays > 0 && (
                     <span className={styles.delayBadge}>
-                      {delayDays} {delayDays !== 1 ? t('milestones.detail.delay.days') : t('milestones.detail.delay.day')} {t('milestones.detail.delay.late')}
+                      {delayDays}{' '}
+                      {delayDays !== 1
+                        ? t('milestones.detail.delay.days')
+                        : t('milestones.detail.delay.day')}{' '}
+                      {t('milestones.detail.delay.late')}
                     </span>
                   )}
                   {delayDays < 0 && (
                     <span className={styles.aheadBadge}>
-                      {Math.abs(delayDays)} {Math.abs(delayDays) !== 1 ? t('milestones.detail.delay.days') : t('milestones.detail.delay.day')} {t('milestones.detail.delay.ahead')}
+                      {Math.abs(delayDays)}{' '}
+                      {Math.abs(delayDays) !== 1
+                        ? t('milestones.detail.delay.days')
+                        : t('milestones.detail.delay.day')}{' '}
+                      {t('milestones.detail.delay.ahead')}
                     </span>
                   )}
                 </p>
@@ -561,14 +573,18 @@ export function MilestoneDetailPage() {
 
             {milestone.description && (
               <div className={styles.viewField}>
-                <label className={styles.fieldLabel}>{t('milestones.detail.view.description')}</label>
+                <label className={styles.fieldLabel}>
+                  {t('milestones.detail.view.description')}
+                </label>
                 <p className={styles.fieldValue}>{milestone.description}</p>
               </div>
             )}
 
             {milestone.completedAt && (
               <div className={styles.viewField}>
-                <label className={styles.fieldLabel}>{t('milestones.detail.view.completedAt')}</label>
+                <label className={styles.fieldLabel}>
+                  {t('milestones.detail.view.completedAt')}
+                </label>
                 <p className={styles.fieldValue}>{formatDate(milestone.completedAt)}</p>
               </div>
             )}
@@ -582,7 +598,9 @@ export function MilestoneDetailPage() {
                 <ul className={styles.linkedWorkItemsList}>
                   {milestone.workItems.map((item) => (
                     <li key={`wi-${item.id}`} className={styles.linkedWorkItem}>
-                      <span className={styles.itemTypeBadge}>{t('milestones.detail.workItem')}</span>
+                      <span className={styles.itemTypeBadge}>
+                        {t('milestones.detail.workItem')}
+                      </span>
                       <Link to={`/project/work-items/${item.id}`} className={styles.workItemLink}>
                         {item.title}
                       </Link>
@@ -600,7 +618,9 @@ export function MilestoneDetailPage() {
                   ))}
                   {linkedHouseholdItems.map((item) => (
                     <li key={`hi-${item.id}`} className={styles.linkedWorkItem}>
-                      <span className={styles.itemTypeBadge}>{t('milestones.detail.householdItem')}</span>
+                      <span className={styles.itemTypeBadge}>
+                        {t('milestones.detail.householdItem')}
+                      </span>
                       <Link
                         to={`/project/household-items/${item.id}`}
                         className={styles.workItemLink}
@@ -652,7 +672,9 @@ export function MilestoneDetailPage() {
                           onClick={() => handleQuickLinkWorkItem(item.id)}
                           disabled={isLinkingItem}
                         >
-                          <span className={styles.itemTypeBadge}>{t('milestones.detail.workItem')}</span>
+                          <span className={styles.itemTypeBadge}>
+                            {t('milestones.detail.workItem')}
+                          </span>
                           <span>{item.title}</span>
                         </button>
                       ))}
@@ -669,7 +691,9 @@ export function MilestoneDetailPage() {
                           onClick={() => handleQuickLinkHouseholdItem(item.id)}
                           disabled={isLinkingItem}
                         >
-                          <span className={styles.itemTypeBadge}>{t('milestones.detail.householdItem')}</span>
+                          <span className={styles.itemTypeBadge}>
+                            {t('milestones.detail.householdItem')}
+                          </span>
                           <span>{item.name}</span>
                         </button>
                       ))}
@@ -679,7 +703,9 @@ export function MilestoneDetailPage() {
                       availableHouseholdItems.filter((item) =>
                         item.name.toLowerCase().includes(itemSearchInput.toLowerCase()),
                       ).length === 0 && (
-                        <div className={styles.searchDropdownEmpty}>{t('milestones.detail.noMatches')}</div>
+                        <div className={styles.searchDropdownEmpty}>
+                          {t('milestones.detail.noMatches')}
+                        </div>
                       )}
                   </div>
                 )}
@@ -800,7 +826,8 @@ export function MilestoneDetailPage() {
 
           <div className={styles.formGroup}>
             <label htmlFor="targetDate" className={styles.label}>
-              {t('milestones.detail.form.targetDateLabel')} <span className={styles.required}>*</span>
+              {t('milestones.detail.form.targetDateLabel')}{' '}
+              <span className={styles.required}>*</span>
             </label>
             <input
               type="date"

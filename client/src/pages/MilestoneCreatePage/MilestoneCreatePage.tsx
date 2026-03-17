@@ -83,7 +83,8 @@ export function MilestoneCreatePage() {
 
         <div className={styles.formGroup}>
           <label htmlFor="title" className={styles.label}>
-            {t('milestones.create.form.title.label')} <span className={styles.required}>{t('milestones.create.form.title.required')}</span>
+            {t('milestones.create.form.title.label')}{' '}
+            <span className={styles.required}>{t('milestones.create.form.title.required')}</span>
           </label>
           <input
             type="text"
@@ -101,7 +102,10 @@ export function MilestoneCreatePage() {
 
         <div className={styles.formGroup}>
           <label htmlFor="targetDate" className={styles.label}>
-            {t('milestones.create.form.targetDate.label')} <span className={styles.required}>{t('milestones.create.form.targetDate.required')}</span>
+            {t('milestones.create.form.targetDate.label')}{' '}
+            <span className={styles.required}>
+              {t('milestones.create.form.targetDate.required')}
+            </span>
           </label>
           <input
             type="date"

@@ -179,7 +179,8 @@ export function HouseholdItemCreatePage() {
       <form className={styles.form} onSubmit={handleSubmit}>
         <div className={styles.formGroup}>
           <label htmlFor="name" className={styles.label}>
-            {t('create.form.name.label')} <span className={styles.required}>{t('create.form.name.required')}</span>
+            {t('create.form.name.label')}{' '}
+            <span className={styles.required}>{t('create.form.name.required')}</span>
           </label>
           <input
             type="text"
@@ -218,7 +219,8 @@ export function HouseholdItemCreatePage() {
         <div className={styles.formRow}>
           <div className={styles.formGroup}>
             <label htmlFor="category" className={styles.label}>
-              {t('create.form.category.label')} <span className={styles.required}>{t('create.form.category.required')}</span>
+              {t('create.form.category.label')}{' '}
+              <span className={styles.required}>{t('create.form.category.required')}</span>
             </label>
             <select
               id="category"
