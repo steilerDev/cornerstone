@@ -22,17 +22,7 @@ const emptyCategories = new Set<string | null>();
 
 // ---- Helpers ----
 
-function formatShort(value: number): string {
-  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
-  const abs = Math.abs(value);
-  if (abs >= 1_000_000) {
-    return `€${(value / 1_000_000).toFixed(1)}M`;
-  }
-  if (abs >= 1_000) {
-    return `€${(value / 1_000).toFixed(0)}K`;
-  }
-  return formatCurrency(value);
-}
+// formatShort is defined inside the component to access formatCurrency from useFormatters()
 
 function formatPct(value: number, total: number): string {
   if (total <= 0) return '0.0%';
@@ -307,6 +297,15 @@ function computeFilteredTotals(
 
 export function BudgetOverviewPage() {
   const { t } = useTranslation('budget');
+  const { formatCurrency } = useFormatters();
+
+  function formatShort(value: number): string {
+    const abs = Math.abs(value);
+    if (abs >= 1_000_000) return `€${(value / 1_000_000).toFixed(1)}M`;
+    if (abs >= 1_000) return `€${(value / 1_000).toFixed(0)}K`;
+    return formatCurrency(value);
+  }
+
   const [overview, setOverview] = useState<BudgetOverview | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');

@@ -19,13 +19,13 @@ export interface BudgetCostOverviewProps {
   subsidyPayback: SubsidyPaybackData | null;
 }
 
-function formatRange(min: number, max: number): string {
-  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
-  if (Math.abs(max - min) < 0.01) return formatCurrency(min);
-  return `${formatCurrency(min)} – ${formatCurrency(max)}`;
+function formatRange(min: number, max: number, fc: (n: number) => string): string {
+  if (Math.abs(max - min) < 0.01) return fc(min);
+  return `${fc(min)} – ${fc(max)}`;
 }
 
 export function BudgetCostOverview({ budgetLines, subsidyPayback }: BudgetCostOverviewProps) {
+  const { formatCurrency } = useFormatters();
   if (budgetLines.length === 0) return null;
 
   const { totalPlanned, totalMinPlanned, totalMaxPlanned, hasPlannedRange, allInvoiced } =
@@ -60,7 +60,7 @@ export function BudgetCostOverview({ budgetLines, subsidyPayback }: BudgetCostOv
         <div className={styles.summaryRow}>
           <span className={styles.summaryLabel}>Expected Cost</span>
           <span className={hasSubsidyPayback ? styles.budgetValueHighlighted : styles.budgetValue}>
-            {formatRange(expectedCostMin, expectedCostMax)}
+            {formatRange(expectedCostMin, expectedCostMax, formatCurrency)}
           </span>
         </div>
 
@@ -88,7 +88,7 @@ export function BudgetCostOverview({ budgetLines, subsidyPayback }: BudgetCostOv
                   : `Expected subsidy payback: ${formatCurrency(effectivePaybackMin)} to ${formatCurrency(effectivePaybackMax)}`
               }
             >
-              {formatRange(effectivePaybackMin, effectivePaybackMax)}
+              {formatRange(effectivePaybackMin, effectivePaybackMax, formatCurrency)}
             </span>
           </div>
         )}
