@@ -11,7 +11,8 @@ import { listHouseholdItems, deleteHouseholdItem } from '../../lib/householdItem
 import { fetchVendors } from '../../lib/vendorsApi.js';
 import { fetchHouseholdItemCategories } from '../../lib/householdItemCategoriesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
-import { HouseholdItemStatusBadge } from '../../components/HouseholdItemStatusBadge/HouseholdItemStatusBadge.js';
+import { Badge } from '../../components/Badge/Badge.js';
+import badgeStyles from '../../components/Badge/Badge.module.css';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import { KeyboardShortcutsHelp } from '../../components/KeyboardShortcutsHelp/KeyboardShortcutsHelp.js';
 import { formatDate, formatCurrency } from '../../lib/formatters.js';
@@ -24,6 +25,13 @@ const STATUS_OPTIONS: { value: HouseholdItemStatus; label: string }[] = [
   { value: 'scheduled', label: 'Scheduled' },
   { value: 'arrived', label: 'Arrived' },
 ];
+
+const HI_STATUS_VARIANTS = {
+  planned: { label: 'Planned', className: badgeStyles.planned },
+  purchased: { label: 'Purchased', className: badgeStyles.purchased },
+  scheduled: { label: 'Scheduled', className: badgeStyles.scheduled },
+  arrived: { label: 'Arrived', className: badgeStyles.arrived },
+};
 
 const SORT_OPTIONS: { value: string; label: string }[] = [
   { value: 'name', label: 'Name' },
@@ -728,7 +736,7 @@ export function HouseholdItemsPage() {
                     <td className={styles.titleCell}>{item.name}</td>
                     <td>{categoryNameMap.get(item.category) ?? item.category}</td>
                     <td>
-                      <HouseholdItemStatusBadge status={item.status} />
+                      <Badge variants={HI_STATUS_VARIANTS} value={item.status} />
                     </td>
                     <td>{item.room || '—'}</td>
                     <td>{item.vendor?.name || '—'}</td>
@@ -864,7 +872,7 @@ export function HouseholdItemsPage() {
                   </div>
                   <div className={styles.cardRow}>
                     <span className={styles.cardLabel}>Status:</span>
-                    <HouseholdItemStatusBadge status={item.status} />
+                    <Badge variants={HI_STATUS_VARIANTS} value={item.status} />
                   </div>
                   <div className={styles.cardRow}>
                     <span className={styles.cardLabel}>Room:</span>

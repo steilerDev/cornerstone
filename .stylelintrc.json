@@ -1,0 +1,53 @@
+{
+  "extends": "stylelint-config-standard",
+  "rules": {
+    "declaration-property-value-no-unknown": null,
+    "custom-property-pattern": null,
+    "property-no-unknown": null,
+    "selector-class-pattern": null,
+    "value-keyword-case": null,
+    "declaration-no-important": null,
+    "import-notation": null,
+    "property-no-vendor-prefix": null,
+    "at-rule-descriptor-no-unknown": null,
+    "shorthand-property-no-redundant-values": null,
+    "no-descending-specificity": null,
+    "color-hex-length": null,
+    "keyframes-name-pattern": null,
+    "rule-empty-line-before": null,
+    "comment-empty-line-before": null,
+    "media-feature-range-notation": null,
+    "color-function-notation": null,
+    "declaration-block-no-redundant-longhand-properties": null,
+    "custom-property-empty-line-before": null,
+    "alpha-value-notation": null,
+    "declaration-property-value-keyword-no-deprecated": null,
+    "declaration-block-no-shorthand-property-overrides": null,
+    "color-no-hex": true,
+    "function-disallowed-list": ["rgb", "rgba", "hsl", "hsla"],
+    "declaration-property-value-disallowed-list": {
+      "font-weight": ["/^\\d+$/"],
+      "z-index": ["/^\\d+$/"]
+    }
+  },
+  "overrides": [
+    {
+      "files": ["**/tokens.css"],
+      "rules": {
+        "color-no-hex": null,
+        "function-disallowed-list": null,
+        "declaration-property-value-disallowed-list": null
+      }
+    },
+    {
+      "files": ["docs/**/*.css", "docs/**/*.module.css"],
+      "rules": {
+        "color-no-hex": null,
+        "function-disallowed-list": null,
+        "declaration-property-value-disallowed-list": null,
+        "declaration-no-important": null
+      }
+    }
+  ],
+  "ignoreFiles": ["node_modules/**", "**/dist/**", "**/build/**", "docs/**"]
+}

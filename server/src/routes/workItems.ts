@@ -192,7 +192,12 @@ export default async function workItemRoutes(fastify: FastifyInstance) {
     const { id } = request.params as { id: string };
     const data = request.body as UpdateWorkItemRequest;
 
-    const workItem = workItemService.updateWorkItem(fastify.db, id, data);
+    const workItem = workItemService.updateWorkItem(
+      fastify.db,
+      id,
+      data,
+      fastify.config.diaryAutoEvents,
+    );
 
     return reply.status(200).send(workItem);
   });

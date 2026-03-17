@@ -185,6 +185,8 @@ After implementation agents complete, launch both test agents in parallel:
 - List of files created/modified by the backend and frontend agents
 - Reminder to triage prior E2E failures from recent beta PRs before writing new tests (the agent does this automatically per its "Before Starting Any Work" checklist)
 
+**If test agents report failures**: Collect structured failure reports (see the agents' "Test Failure Reporting Format" sections) and include them verbatim in the review input for step 6e. This triggers the dev-team-lead's diagnostic protocol.
+
 #### 6e. Code Review
 
 Launch the **dev-team-lead** in `[MODE: review]` with:
@@ -197,16 +199,23 @@ Launch the **dev-team-lead** in `[MODE: review]` with:
 
 **If `VERDICT: CHANGES_REQUIRED`** → proceed to step 6f
 
+**If `VERDICT: ESCALATE_TO_ARCHITECT`** → The spec is ambiguous. Launch the **product-architect** agent to clarify the spec (provide the ambiguous spec reference and the dev-team-lead's reasoning). After the architect clarifies, re-launch the **dev-team-lead** in `[MODE: review]` with the clarified spec. Then proceed based on the new verdict.
+
 #### 6f. Fix Loop (max 3 iterations)
 
 Track `internalFixCount` (starts at 0). For each iteration:
 
-1. Parse the fix specs from the review verdict — each fix specifies which agent should handle it
-2. Re-launch the appropriate agent(s) with targeted fix specs:
-   - Backend fixes → **backend-developer** (Haiku)
-   - Frontend fixes → **frontend-developer** (Haiku)
-   - Unit/integration test fixes → **qa-integration-tester**
-   - E2E test fixes → **e2e-test-engineer**
+1. Parse the fix specs from the review verdict — each fix specifies which agent should handle it and includes a `Diagnosis` classification when test failures are involved
+2. Route fixes based on diagnosis:
+   - `CODE_BUG` → production code fix to **backend-developer** or **frontend-developer** (Haiku)
+   - `TEST_BUG` → test fix to **qa-integration-tester** or **e2e-test-engineer**
+   - `BOTH_WRONG` → apply production code fixes **first**, then test fixes (two sequential rounds)
+   - `TEST_ENVIRONMENT` → test setup fix to **qa-integration-tester** or **e2e-test-engineer**
+   - Non-test issues (no diagnosis) → route as before:
+     - Backend fixes → **backend-developer** (Haiku)
+     - Frontend fixes → **frontend-developer** (Haiku)
+     - Unit/integration test fixes → **qa-integration-tester**
+     - E2E test fixes → **e2e-test-engineer**
 3. After fixes complete, re-launch **dev-team-lead** in `[MODE: review]` with updated file list
 4. Increment `internalFixCount`
 5. If `VERDICT: APPROVED` → proceed to step 6g
@@ -338,9 +347,7 @@ If any reviewer identifies blocking issues:
 
 Once all reviews are clean, wait for CI to go green:
 
-```
-gh pr checks <pr-number> --watch
-```
+Use the **CI Gate Polling** pattern from `CLAUDE.md` (beta variant — wait for `Quality Gates` only).
 
 After CI is green, present the user with:
 

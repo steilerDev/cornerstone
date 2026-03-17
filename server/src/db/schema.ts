@@ -800,3 +800,52 @@ export const photos = sqliteTable(
     createdAtIdx: index('idx_photos_created_at').on(table.createdAt),
   }),
 );
+
+// ─── EPIC-13: Construction Diary ─────────────────────────────────────────────
+
+/**
+ * Diary entries table - stores construction diary log entries (Bautagebuch).
+ * Entries can be manual (user-created) or automatic (system-generated on state changes).
+ * Type-specific fields stored as JSON in metadata column.
+ */
+export const diaryEntries = sqliteTable(
+  'diary_entries',
+  {
+    id: text('id').primaryKey(),
+    entryType: text('entry_type', {
+      enum: [
+        'daily_log',
+        'site_visit',
+        'delivery',
+        'issue',
+        'general_note',
+        'work_item_status',
+        'invoice_status',
+        'milestone_delay',
+        'budget_breach',
+        'auto_reschedule',
+        'subsidy_status',
+        'invoice_created',
+      ],
+    }).notNull(),
+    entryDate: text('entry_date').notNull(),
+    title: text('title'),
+    body: text('body').notNull(),
+    metadata: text('metadata'),
+    isAutomatic: integer('is_automatic', { mode: 'boolean' }).notNull().default(false),
+    sourceEntityType: text('source_entity_type'),
+    sourceEntityId: text('source_entity_id'),
+    createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => ({
+    entryDateIdx: index('idx_diary_entries_entry_date').on(table.entryDate, table.createdAt),
+    entryTypeIdx: index('idx_diary_entries_entry_type').on(table.entryType),
+    isAutomaticIdx: index('idx_diary_entries_is_automatic').on(table.isAutomatic),
+    sourceEntityIdx: index('idx_diary_entries_source_entity').on(
+      table.sourceEntityType,
+      table.sourceEntityId,
+    ),
+  }),
+);

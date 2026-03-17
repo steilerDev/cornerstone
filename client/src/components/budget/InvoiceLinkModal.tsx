@@ -7,6 +7,8 @@ import {
 } from '../../lib/invoiceBudgetLinesApi.js';
 import { formatCurrency } from '../../lib/formatters.js';
 import { useToast } from '../Toast/ToastContext.js';
+import { Modal } from '../Modal/index.js';
+import { FormError } from '../FormError/index.js';
 import styles from './InvoiceLinkModal.module.css';
 
 export interface InvoiceLinkModalProps {
@@ -43,7 +45,6 @@ export function InvoiceLinkModal({
   const [isLoadingRemaining, setIsLoadingRemaining] = useState(false);
   const [error, setError] = useState<InvoiceLinkError | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
-  const modalRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const { showToast } = useToast();
@@ -137,35 +138,6 @@ export function InvoiceLinkModal({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Handle backdrop click
-  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
-  };
-
-  // Handle keyboard events (Escape to close)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
-
-  // Focus management
-  useEffect(() => {
-    if (modalRef.current) {
-      const firstInput = modalRef.current.querySelector(
-        'select, input[type="number"]',
-      ) as HTMLElement;
-      firstInput?.focus();
-    }
-  }, []);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -228,149 +200,111 @@ export function InvoiceLinkModal({
   };
 
   return (
-    <div
-      className={styles.modal}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="link-modal-title"
-    >
-      <div className={styles.backdrop} onClick={handleBackdropClick} />
-      <div className={styles.content} ref={modalRef}>
-        <div className={styles.header}>
-          <h2 id="link-modal-title" className={styles.title}>
-            Link to Invoice
-          </h2>
+    <Modal
+      title="Link to Invoice"
+      onClose={onClose}
+      footer={
+        <div className={styles.actions}>
           <button
             type="button"
-            className={styles.closeButton}
+            className={styles.cancelButton}
             onClick={onClose}
-            aria-label="Close dialog"
+            disabled={isSaving}
           >
-            ×
+            Cancel
+          </button>
+          <button
+            type="submit"
+            form="invoice-link-form"
+            className={styles.submitButton}
+            disabled={isSaving || invoices.length === 0}
+          >
+            {isSaving ? 'Linking...' : 'Link to Invoice'}
           </button>
         </div>
+      }
+    >
+      {error && error.message && !error.field && (
+        <FormError message={error.message} variant="banner" />
+      )}
 
-        {error && error.message && !error.field && (
-          <div className={styles.errorBanner} role="alert">
-            {error.message}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className={styles.form}>
-          {/* Invoice Search & Select */}
-          <div className={styles.formGroup}>
-            <label htmlFor="invoice-search" className={styles.label}>
-              Invoice
-            </label>
-            {isLoading ? (
-              <div className={styles.loading}>Loading invoices...</div>
-            ) : invoices.length === 0 ? (
-              <div className={styles.emptyState}>No invoices available</div>
-            ) : (
-              <>
-                <div className={styles.searchWrapper} ref={dropdownRef}>
-                  <input
-                    id="invoice-search"
-                    ref={searchInputRef}
-                    type="text"
-                    placeholder="Search by invoice number or description..."
-                    value={
-                      selectedInvoice && !searchInput
-                        ? `#${selectedInvoice.invoiceNumber || selectedInvoice.id.slice(0, 8)}`
-                        : searchInput
-                    }
-                    onChange={(e) => handleSearchChange(e.target.value)}
-                    onFocus={() => setShowDropdown(true)}
-                    className={`${styles.searchInput} ${error?.field === 'invoice' ? styles.inputError : ''}`}
-                    disabled={isSaving}
-                  />
-                  {showDropdown && filteredInvoices.length > 0 && (
-                    <div className={styles.dropdownList}>
-                      {filteredInvoices.map((inv) => (
-                        <button
-                          key={inv.id}
-                          type="button"
-                          className={`${styles.dropdownItem} ${selectedInvoiceId === inv.id ? styles.dropdownItemActive : ''}`}
-                          onClick={() => handleSelectInvoice(inv)}
-                        >
-                          <span className={styles.dropdownItemNumber}>
-                            {inv.invoiceNumber
-                              ? `#${inv.invoiceNumber}`
-                              : `Invoice ${inv.id.slice(0, 8)}`}
-                          </span>
-                          <span className={styles.dropdownItemAmount}>
-                            {formatCurrency(inv.amount)}
-                          </span>
-                          {inv.notes && (
-                            <span className={styles.dropdownItemDescription}>{inv.notes}</span>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {showDropdown && searchInput && filteredInvoices.length === 0 && (
-                    <div className={styles.dropdownEmpty}>No invoices match your search</div>
-                  )}
-                </div>
-                {error?.field === 'invoice' && (
-                  <div className={styles.fieldError}>{error.message}</div>
-                )}
-                {selectedInvoice && !isLoadingRemaining && (
-                  <div
-                    className={`${styles.remainingAmountInfo} ${remainingAmount < 0 ? styles.remainingAmountWarning : ''}`}
-                  >
-                    {remainingAmount >= 0
-                      ? `${formatCurrency(remainingAmount)} available on this invoice`
-                      : `Over-allocated by ${formatCurrency(Math.abs(remainingAmount))}`}
+      <form id="invoice-link-form" onSubmit={handleSubmit} className={styles.form}>
+        {/* Invoice Search & Select */}
+        <div className={styles.formGroup}>
+          <label htmlFor="invoice-search" className={styles.label}>
+            Invoice
+          </label>
+          {isLoading ? (
+            <div className={styles.loading}>Loading invoices...</div>
+          ) : invoices.length === 0 ? (
+            <div className={styles.emptyState}>No invoices available</div>
+          ) : (
+            <>
+              <div className={styles.searchWrapper} ref={dropdownRef}>
+                <input
+                  id="invoice-search"
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder="Search by invoice number or description..."
+                  value={
+                    selectedInvoice && !searchInput
+                      ? `#${selectedInvoice.invoiceNumber || selectedInvoice.id.slice(0, 8)}`
+                      : searchInput
+                  }
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  onFocus={() => setShowDropdown(true)}
+                  className={`${styles.searchInput} ${error?.field === 'invoice' ? styles.inputError : ''}`}
+                  disabled={isSaving}
+                />
+                {showDropdown && filteredInvoices.length > 0 && (
+                  <div className={styles.dropdownList}>
+                    {filteredInvoices.map((inv) => (
+                      <button
+                        key={inv.id}
+                        type="button"
+                        className={`${styles.dropdownItem} ${selectedInvoiceId === inv.id ? styles.dropdownItemActive : ''}`}
+                        onClick={() => handleSelectInvoice(inv)}
+                      >
+                        <span className={styles.dropdownItemNumber}>
+                          {inv.invoiceNumber
+                            ? `#${inv.invoiceNumber}`
+                            : `Invoice ${inv.id.slice(0, 8)}`}
+                        </span>
+                        <span className={styles.dropdownItemAmount}>
+                          {formatCurrency(inv.amount)}
+                        </span>
+                        {inv.notes && (
+                          <span className={styles.dropdownItemDescription}>{inv.notes}</span>
+                        )}
+                      </button>
+                    ))}
                   </div>
                 )}
-              </>
-            )}
-          </div>
-
-          {/* Amount Input */}
-          <div className={styles.formGroup}>
-            <label htmlFor="amount-input" className={styles.label}>
-              Itemized Amount
-            </label>
-            {selectedInvoice && (
-              <div className={styles.amountInputWrapper}>
-                <input
-                  id="amount-input"
-                  type="number"
-                  value={itemizedAmount}
-                  onChange={(e) => {
-                    setItemizedAmount(e.target.value);
-                    if (error?.field === 'amount') {
-                      setError(null);
-                    }
-                  }}
-                  step="0.01"
-                  min="0"
-                  className={`${styles.input} ${error?.field === 'amount' ? styles.inputError : ''}`}
-                  disabled={isSaving}
-                  required
-                />
-                {(() => {
-                  const amount = parseFloat(itemizedAmount);
-                  if (isNaN(amount)) {
-                    return null;
-                  }
-                  const available = remainingAmount - amount;
-                  const isOverLimit = available < 0;
-                  return (
-                    <div
-                      className={`${styles.amountIndicator} ${isOverLimit ? styles.amountIndicatorWarning : ''}`}
-                    >
-                      {isOverLimit
-                        ? `${formatCurrency(Math.abs(available))} over available`
-                        : `${formatCurrency(available)} will remain`}
-                    </div>
-                  );
-                })()}
+                {showDropdown && searchInput && filteredInvoices.length === 0 && (
+                  <div className={styles.dropdownEmpty}>No invoices match your search</div>
+                )}
               </div>
-            )}
-            {!selectedInvoice && (
+              {error?.field === 'invoice' && <FormError message={error.message} variant="field" />}
+              {selectedInvoice && !isLoadingRemaining && (
+                <div
+                  className={`${styles.remainingAmountInfo} ${remainingAmount < 0 ? styles.remainingAmountWarning : ''}`}
+                >
+                  {remainingAmount >= 0
+                    ? `${formatCurrency(remainingAmount)} available on this invoice`
+                    : `Over-allocated by ${formatCurrency(Math.abs(remainingAmount))}`}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Amount Input */}
+        <div className={styles.formGroup}>
+          <label htmlFor="amount-input" className={styles.label}>
+            Itemized Amount
+          </label>
+          {selectedInvoice && (
+            <div className={styles.amountInputWrapper}>
               <input
                 id="amount-input"
                 type="number"
@@ -387,30 +321,46 @@ export function InvoiceLinkModal({
                 disabled={isSaving}
                 required
               />
-            )}
-            {error?.field === 'amount' && <div className={styles.fieldError}>{error.message}</div>}
-          </div>
-
-          {/* Actions */}
-          <div className={styles.actions}>
-            <button
-              type="button"
-              className={styles.cancelButton}
-              onClick={onClose}
+              {(() => {
+                const amount = parseFloat(itemizedAmount);
+                if (isNaN(amount)) {
+                  return null;
+                }
+                const available = remainingAmount - amount;
+                const isOverLimit = available < 0;
+                return (
+                  <div
+                    className={`${styles.amountIndicator} ${isOverLimit ? styles.amountIndicatorWarning : ''}`}
+                  >
+                    {isOverLimit
+                      ? `${formatCurrency(Math.abs(available))} over available`
+                      : `${formatCurrency(available)} will remain`}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+          {!selectedInvoice && (
+            <input
+              id="amount-input"
+              type="number"
+              value={itemizedAmount}
+              onChange={(e) => {
+                setItemizedAmount(e.target.value);
+                if (error?.field === 'amount') {
+                  setError(null);
+                }
+              }}
+              step="0.01"
+              min="0"
+              className={`${styles.input} ${error?.field === 'amount' ? styles.inputError : ''}`}
               disabled={isSaving}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className={styles.submitButton}
-              disabled={isSaving || invoices.length === 0}
-            >
-              {isSaving ? 'Linking...' : 'Link to Invoice'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+              required
+            />
+          )}
+          {error?.field === 'amount' && <FormError message={error.message} variant="field" />}
+        </div>
+      </form>
+    </Modal>
   );
 }

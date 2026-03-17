@@ -54,13 +54,21 @@ import {
 } from '../../lib/invoiceBudgetLinesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { formatDate, formatCurrency } from '../../lib/formatters.js';
-import { HouseholdItemStatusBadge } from '../../components/HouseholdItemStatusBadge/HouseholdItemStatusBadge.js';
+import { Badge } from '../../components/Badge/Badge.js';
+import badgeStyles from '../../components/Badge/Badge.module.css';
 import { useToast } from '../../components/Toast/ToastContext.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
 import { useBudgetSection, type BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 import { BudgetSection } from '../../components/budget/BudgetSection.js';
 import { InvoiceLinkModal } from '../../components/budget/InvoiceLinkModal.js';
 import styles from './HouseholdItemDetailPage.module.css';
+
+const HI_STATUS_VARIANTS = {
+  planned: { label: 'Planned', className: badgeStyles.planned },
+  purchased: { label: 'Purchased', className: badgeStyles.purchased },
+  scheduled: { label: 'Scheduled', className: badgeStyles.scheduled },
+  arrived: { label: 'Arrived', className: badgeStyles.arrived },
+};
 
 export function HouseholdItemDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -739,7 +747,7 @@ export function HouseholdItemDetailPage() {
               <span className={styles.categoryBadge}>
                 {categories.find((c) => c.id === item.category)?.name ?? item.category}
               </span>
-              <HouseholdItemStatusBadge status={item.status} />
+              <Badge variants={HI_STATUS_VARIANTS} value={item.status} />
             </div>
           </div>
           <div className={styles.pageActions}>

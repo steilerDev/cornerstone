@@ -105,305 +105,259 @@ describe('HouseholdItemPicker', () => {
     return render(<HouseholdItemPicker value="" onChange={jest.fn()} excludeIds={[]} {...props} />);
   }
 
-  describe('default rendering', () => {
-    it('renders search input with default placeholder', () => {
-      renderPicker();
+  // ── 1. Default placeholder ────────────────────────────────────────────────
+
+  it('renders with default placeholder "Search household items..."', () => {
+    renderPicker();
+    expect(screen.getByPlaceholderText('Search household items...')).toBeInTheDocument();
+  });
+
+  // ── 2. onSelectItem adapter ───────────────────────────────────────────────
+
+  it('onSelectItem receives { id, name } (not { id, label }) — adapter works', async () => {
+    const user = userEvent.setup();
+    const onChange = jest.fn<(id: string) => void>();
+    const onSelectItem = jest.fn<(item: { id: string; name: string }) => void>();
+
+    renderPicker({
+      showItemsOnFocus: true,
+      onChange: onChange as ReturnType<typeof jest.fn>,
+      onSelectItem: onSelectItem as ReturnType<typeof jest.fn>,
+    });
+
+    const input = screen.getByPlaceholderText('Search household items...');
+    await user.click(input);
+
+    await waitFor(() => expect(screen.getByText('Sofa')).toBeInTheDocument());
+    await user.click(screen.getByText('Sofa'));
+
+    // Adapter must map { id, label } → { id, name }
+    expect(onSelectItem).toHaveBeenCalledWith({ id: 'hi-1', name: 'Sofa' });
+    expect(onSelectItem).not.toHaveBeenCalledWith(expect.objectContaining({ label: 'Sofa' }));
+  });
+
+  // ── 3. showItemsOnFocus loads items ──────────────────────────────────────
+
+  it('showItemsOnFocus loads items immediately on focus', async () => {
+    const user = userEvent.setup();
+    renderPicker({ showItemsOnFocus: true });
+
+    const input = screen.getByPlaceholderText('Search household items...');
+    await user.click(input);
+
+    await waitFor(() => {
+      expect(screen.getByText('Sofa')).toBeInTheDocument();
+      expect(screen.getByText('Dining Table')).toBeInTheDocument();
+    });
+
+    expect(mockListHouseholdItems).toHaveBeenCalledWith(expect.objectContaining({ pageSize: 15 }));
+  });
+
+  // ── 4. excludeIds filtering ───────────────────────────────────────────────
+
+  it('excludeIds filtering works: excluded items not shown in results', async () => {
+    const user = userEvent.setup();
+    renderPicker({ showItemsOnFocus: true, excludeIds: ['hi-1'] });
+
+    const input = screen.getByPlaceholderText('Search household items...');
+    await user.click(input);
+
+    await waitFor(() => {
+      expect(screen.getByText('Dining Table')).toBeInTheDocument();
+      expect(screen.queryByText('Sofa')).not.toBeInTheDocument();
+    });
+  });
+
+  // ── 5. initialTitle displayed correctly ──────────────────────────────────
+
+  it('initialTitle displayed correctly when value and initialTitle are provided', async () => {
+    renderPicker({ value: 'hi-existing', initialTitle: 'Living Room Sofa' });
+
+    await waitFor(() => {
+      expect(screen.getByText('Living Room Sofa')).toBeInTheDocument();
+    });
+    expect(screen.queryByPlaceholderText('Search household items...')).not.toBeInTheDocument();
+  });
+
+  it('clicking clear from initialTitle state restores search input and calls onChange("")', async () => {
+    const user = userEvent.setup();
+    const onChange = jest.fn<(id: string) => void>();
+    renderPicker({
+      value: 'hi-existing',
+      initialTitle: 'Living Room Sofa',
+      onChange: onChange as ReturnType<typeof jest.fn>,
+    });
+
+    await waitFor(() => expect(screen.getByText('Living Room Sofa')).toBeInTheDocument());
+
+    const clearBtn = screen.getByRole('button', { name: /clear selection/i });
+    await user.click(clearBtn);
+
+    expect(screen.getByPlaceholderText('Search household items...')).toBeInTheDocument();
+    expect(screen.queryByText('Living Room Sofa')).not.toBeInTheDocument();
+    expect(onChange).toHaveBeenCalledWith('');
+  });
+
+  it('initialTitle not shown when value is empty string', () => {
+    renderPicker({ value: '', initialTitle: 'Living Room Sofa' });
+    expect(screen.queryByText('Living Room Sofa')).not.toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Search household items...')).toBeInTheDocument();
+  });
+
+  // ── 6. Error message string ───────────────────────────────────────────────
+
+  it('error message reads "Failed to load household items"', async () => {
+    mockListHouseholdItems.mockRejectedValue(new Error('Network error'));
+    const user = userEvent.setup();
+    renderPicker({ showItemsOnFocus: true });
+
+    const input = screen.getByPlaceholderText('Search household items...');
+    await user.click(input);
+
+    await waitFor(() => {
+      expect(screen.getByText('Failed to load household items')).toBeInTheDocument();
+    });
+  });
+
+  // ── 7. No-results message string ─────────────────────────────────────────
+
+  it('no-results message reads "No matching household items found"', async () => {
+    mockListHouseholdItems.mockResolvedValue(emptyListResponse);
+    const user = userEvent.setup();
+    renderPicker();
+
+    const input = screen.getByPlaceholderText('Search household items...');
+    await user.type(input, 'XYZ');
+
+    await waitFor(() => {
+      expect(screen.getByText('No matching household items found')).toBeInTheDocument();
+    });
+  });
+
+  // ── 8. Backward-compatibility: no-op focus without showItemsOnFocus ───────
+
+  it('does not open dropdown on focus without showItemsOnFocus', async () => {
+    mockListHouseholdItems.mockResolvedValue(emptyListResponse);
+    const user = userEvent.setup();
+    renderPicker();
+
+    const input = screen.getByPlaceholderText('Search household items...');
+    await user.click(input);
+
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    expect(mockListHouseholdItems).not.toHaveBeenCalled();
+  });
+
+  // ── 9. Clear selected item ────────────────────────────────────────────────
+
+  it('clears selected item and calls onChange with empty string', async () => {
+    const user = userEvent.setup();
+    const onChange = jest.fn<(id: string) => void>();
+    renderPicker({
+      showItemsOnFocus: true,
+      onChange: onChange as ReturnType<typeof jest.fn>,
+    });
+
+    const input = screen.getByPlaceholderText('Search household items...');
+    await user.click(input);
+
+    await waitFor(() => expect(screen.getByText('Sofa')).toBeInTheDocument());
+    await user.click(screen.getByText('Sofa'));
+
+    await waitFor(() => {
+      expect(screen.queryByPlaceholderText('Search household items...')).not.toBeInTheDocument();
+    });
+
+    const clearButton = screen.getByRole('button', { name: /clear selection/i });
+    await user.click(clearButton);
+
+    expect(onChange).toHaveBeenLastCalledWith('');
+    expect(screen.getByPlaceholderText('Search household items...')).toBeInTheDocument();
+  });
+
+  // ── 10. External value reset ──────────────────────────────────────────────
+
+  it('resets to search input when value is externally set to empty string', async () => {
+    const user = userEvent.setup();
+    const onChange = jest.fn<(id: string) => void>();
+    const { HouseholdItemPicker } = HouseholdItemPickerModule;
+
+    const { rerender } = render(
+      <HouseholdItemPicker
+        value=""
+        onChange={onChange as ReturnType<typeof jest.fn>}
+        excludeIds={[]}
+        showItemsOnFocus={true}
+      />,
+    );
+
+    const input = screen.getByPlaceholderText('Search household items...');
+    await user.click(input);
+    await waitFor(() => expect(screen.getByText('Sofa')).toBeInTheDocument());
+    await user.click(screen.getByText('Sofa'));
+
+    await waitFor(() => {
+      expect(screen.queryByPlaceholderText('Search household items...')).not.toBeInTheDocument();
+    });
+
+    // Simulate parent updating value after onChange
+    rerender(
+      <HouseholdItemPicker
+        value="hi-1"
+        onChange={onChange as ReturnType<typeof jest.fn>}
+        excludeIds={[]}
+        showItemsOnFocus={true}
+      />,
+    );
+
+    // Parent resets value to empty (e.g. form submission)
+    rerender(
+      <HouseholdItemPicker
+        value=""
+        onChange={onChange as ReturnType<typeof jest.fn>}
+        excludeIds={[]}
+        showItemsOnFocus={true}
+      />,
+    );
+
+    await waitFor(() => {
       expect(screen.getByPlaceholderText('Search household items...')).toBeInTheDocument();
     });
+  });
 
-    it('does not open dropdown on focus without showItemsOnFocus', async () => {
-      mockListHouseholdItems.mockResolvedValue(emptyListResponse);
-      const user = userEvent.setup();
-      renderPicker();
+  // ── 11. Selected item display after selection ─────────────────────────────
 
-      const input = screen.getByPlaceholderText('Search household items...');
-      await user.click(input);
+  it('shows selected-display with item name after selection', async () => {
+    const user = userEvent.setup();
+    renderPicker({ showItemsOnFocus: true });
 
-      // Without showItemsOnFocus, focusing does NOT open the dropdown
-      expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
-      // API should not be called on mere focus
-      expect(mockListHouseholdItems).not.toHaveBeenCalled();
-    });
+    const input = screen.getByPlaceholderText('Search household items...');
+    await user.click(input);
 
-    it('fetches and shows items after typing', async () => {
-      const user = userEvent.setup();
-      renderPicker();
+    await waitFor(() => expect(screen.getByText('Sofa')).toBeInTheDocument());
+    await user.click(screen.getByText('Sofa'));
 
-      const input = screen.getByPlaceholderText('Search household items...');
-      await user.type(input, 'Sofa');
-
-      await waitFor(() => {
-        expect(screen.getByText('Sofa')).toBeInTheDocument();
-      });
-
-      expect(mockListHouseholdItems).toHaveBeenCalledWith(
-        expect.objectContaining({ q: 'Sofa', pageSize: 15 }),
-      );
-    });
-
-    it("shows 'No matching household items found' when empty results returned", async () => {
-      mockListHouseholdItems.mockResolvedValue(emptyListResponse);
-      const user = userEvent.setup();
-      renderPicker();
-
-      const input = screen.getByPlaceholderText('Search household items...');
-      await user.type(input, 'XYZ');
-
-      await waitFor(() => {
-        expect(screen.getByText('No matching household items found')).toBeInTheDocument();
-      });
-    });
-
-    it("shows 'Type to search household items' hint when focused with empty search", async () => {
-      const user = userEvent.setup();
-      // Open dropdown by typing then clearing
-      renderPicker({ showItemsOnFocus: false });
-
-      const input = screen.getByPlaceholderText('Search household items...');
-      await user.type(input, 'S');
-
-      // Now clear the text so searchTerm is empty but dropdown stays open
-      await user.clear(input);
-
-      await waitFor(() => {
-        expect(screen.getByText('Type to search household items')).toBeInTheDocument();
-      });
+    await waitFor(() => {
+      expect(screen.queryByPlaceholderText('Search household items...')).not.toBeInTheDocument();
+      expect(screen.getByText('Sofa')).toBeInTheDocument();
     });
   });
 
-  describe('showItemsOnFocus prop', () => {
-    it('fetches and shows items immediately on focus', async () => {
-      const user = userEvent.setup();
-      renderPicker({ showItemsOnFocus: true });
+  // ── 12. Search results show item names ───────────────────────────────────
 
-      const input = screen.getByPlaceholderText('Search household items...');
-      await user.click(input);
+  it('shows item names in search results after typing', async () => {
+    const user = userEvent.setup();
+    renderPicker();
 
-      await waitFor(() => {
-        expect(screen.getByText('Sofa')).toBeInTheDocument();
-        expect(screen.getByText('Dining Table')).toBeInTheDocument();
-      });
+    const input = screen.getByPlaceholderText('Search household items...');
+    await user.type(input, 'Sofa');
 
-      expect(mockListHouseholdItems).toHaveBeenCalledWith(
-        expect.objectContaining({ pageSize: 15 }),
-      );
+    await waitFor(() => {
+      expect(screen.getByText('Sofa')).toBeInTheDocument();
     });
 
-    it('shows loading state while fetching on focus', async () => {
-      // Delay the API response so we can see the loading state
-      let resolveListItems: (
-        value: Awaited<ReturnType<typeof HouseholdItemsApiTypes.listHouseholdItems>>,
-      ) => void;
-      mockListHouseholdItems.mockReturnValue(
-        new Promise((res) => {
-          resolveListItems = res;
-        }),
-      );
-
-      const user = userEvent.setup();
-      renderPicker({ showItemsOnFocus: true });
-
-      const input = screen.getByPlaceholderText('Search household items...');
-      await user.click(input);
-
-      expect(screen.getByText('Searching...')).toBeInTheDocument();
-
-      // Resolve and verify results appear
-      resolveListItems!({
-        items: sampleItems,
-        pagination: { page: 1, pageSize: 15, totalItems: 2, totalPages: 1 },
-      });
-
-      await waitFor(() => {
-        expect(screen.queryByText('Searching...')).not.toBeInTheDocument();
-        expect(screen.getByText('Sofa')).toBeInTheDocument();
-      });
-    });
-  });
-
-  describe('item selection', () => {
-    it('calls onChange with item id when selecting a result', async () => {
-      const user = userEvent.setup();
-      const onChange = jest.fn<(id: string) => void>();
-      renderPicker({ onChange: onChange as ReturnType<typeof jest.fn> });
-
-      const input = screen.getByPlaceholderText('Search household items...');
-      await user.type(input, 'Sofa');
-
-      await waitFor(() => expect(screen.getByText('Sofa')).toBeInTheDocument());
-
-      await user.click(screen.getByText('Sofa'));
-
-      expect(onChange).toHaveBeenCalledWith('hi-1');
-    });
-
-    it('shows selected-display with item name after selection', async () => {
-      const user = userEvent.setup();
-      renderPicker({ showItemsOnFocus: true });
-
-      const input = screen.getByPlaceholderText('Search household items...');
-      await user.click(input);
-
-      await waitFor(() => expect(screen.getByText('Sofa')).toBeInTheDocument());
-
-      await user.click(screen.getByText('Sofa'));
-
-      // After selection: search input hidden, item name shown
-      await waitFor(() => {
-        expect(screen.queryByPlaceholderText('Search household items...')).not.toBeInTheDocument();
-        expect(screen.getByText('Sofa')).toBeInTheDocument();
-      });
-    });
-  });
-
-  describe('clear selection', () => {
-    it('clears selected item and calls onChange with empty string', async () => {
-      const user = userEvent.setup();
-      const onChange = jest.fn<(id: string) => void>();
-      renderPicker({
-        showItemsOnFocus: true,
-        onChange: onChange as ReturnType<typeof jest.fn>,
-      });
-
-      const input = screen.getByPlaceholderText('Search household items...');
-      await user.click(input);
-
-      await waitFor(() => expect(screen.getByText('Sofa')).toBeInTheDocument());
-
-      // Select an item
-      await user.click(screen.getByText('Sofa'));
-
-      // Should now show the selected display (no search input)
-      await waitFor(() => {
-        expect(screen.queryByPlaceholderText('Search household items...')).not.toBeInTheDocument();
-      });
-
-      // Click clear
-      const clearButton = screen.getByRole('button', { name: /clear selection/i });
-      await user.click(clearButton);
-
-      expect(onChange).toHaveBeenLastCalledWith('');
-      // Input should be visible again
-      expect(screen.getByPlaceholderText('Search household items...')).toBeInTheDocument();
-    });
-  });
-
-  describe('initialTitle prop', () => {
-    it('shows the initialTitle text when value and initialTitle are provided', async () => {
-      renderPicker({ value: 'hi-existing', initialTitle: 'Living Room Sofa' });
-      // Should render in selected-display mode showing the initialTitle
-      await waitFor(() => {
-        expect(screen.getByText('Living Room Sofa')).toBeInTheDocument();
-      });
-    });
-
-    it('switches to search input when clear button is clicked from initialTitle state', async () => {
-      const user = userEvent.setup();
-      const onChange = jest.fn<(id: string) => void>();
-      renderPicker({
-        value: 'hi-existing',
-        initialTitle: 'Living Room Sofa',
-        onChange: onChange as ReturnType<typeof jest.fn>,
-      });
-
-      await waitFor(() => expect(screen.getByText('Living Room Sofa')).toBeInTheDocument());
-
-      const clearBtn = screen.getByRole('button', { name: /clear selection/i });
-      await user.click(clearBtn);
-
-      // After clearing, should show the search input again
-      expect(screen.getByPlaceholderText('Search household items...')).toBeInTheDocument();
-      expect(screen.queryByText('Living Room Sofa')).not.toBeInTheDocument();
-      expect(onChange).toHaveBeenCalledWith('');
-    });
-
-    it('does NOT show initialTitle when value is empty string', () => {
-      renderPicker({ value: '', initialTitle: 'Living Room Sofa' });
-      // Empty value: picker is in search mode, not selected-display mode
-      expect(screen.queryByText('Living Room Sofa')).not.toBeInTheDocument();
-      expect(screen.getByPlaceholderText('Search household items...')).toBeInTheDocument();
-    });
-  });
-
-  describe('excludeIds filtering', () => {
-    it('filters out excluded IDs from results', async () => {
-      const user = userEvent.setup();
-      renderPicker({ showItemsOnFocus: true, excludeIds: ['hi-1'] });
-
-      const input = screen.getByPlaceholderText('Search household items...');
-      await user.click(input);
-
-      await waitFor(() => {
-        expect(screen.getByText('Dining Table')).toBeInTheDocument();
-        expect(screen.queryByText('Sofa')).not.toBeInTheDocument();
-      });
-    });
-  });
-
-  describe('error handling', () => {
-    it('shows error message when API call fails', async () => {
-      mockListHouseholdItems.mockRejectedValue(new Error('Network error'));
-      const user = userEvent.setup();
-      renderPicker({ showItemsOnFocus: true });
-
-      const input = screen.getByPlaceholderText('Search household items...');
-      await user.click(input);
-
-      await waitFor(() => {
-        expect(screen.getByText('Failed to load household items')).toBeInTheDocument();
-      });
-    });
-  });
-
-  describe('external value reset', () => {
-    it('resets to search input when value is externally set to empty string', async () => {
-      const user = userEvent.setup();
-      const onChange = jest.fn<(id: string) => void>();
-      const { HouseholdItemPicker } = HouseholdItemPickerModule;
-
-      const { rerender } = render(
-        <HouseholdItemPicker
-          value=""
-          onChange={onChange as ReturnType<typeof jest.fn>}
-          excludeIds={[]}
-          showItemsOnFocus={true}
-        />,
-      );
-
-      const input = screen.getByPlaceholderText('Search household items...');
-      await user.click(input);
-      await waitFor(() => expect(screen.getByText('Sofa')).toBeInTheDocument());
-
-      // Select an item
-      await user.click(screen.getByText('Sofa'));
-      await waitFor(() => {
-        expect(screen.queryByPlaceholderText('Search household items...')).not.toBeInTheDocument();
-      });
-
-      // Simulate parent updating value after onChange (like real form state)
-      rerender(
-        <HouseholdItemPicker
-          value="hi-1"
-          onChange={onChange as ReturnType<typeof jest.fn>}
-          excludeIds={[]}
-          showItemsOnFocus={true}
-        />,
-      );
-
-      // Parent resets value to empty (e.g. form submission)
-      rerender(
-        <HouseholdItemPicker
-          value=""
-          onChange={onChange as ReturnType<typeof jest.fn>}
-          excludeIds={[]}
-          showItemsOnFocus={true}
-        />,
-      );
-
-      // Should show search input again
-      await waitFor(() => {
-        expect(screen.getByPlaceholderText('Search household items...')).toBeInTheDocument();
-      });
-    });
+    expect(mockListHouseholdItems).toHaveBeenCalledWith(
+      expect.objectContaining({ q: 'Sofa', pageSize: 15 }),
+    );
   });
 });

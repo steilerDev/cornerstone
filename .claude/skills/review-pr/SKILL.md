@@ -129,11 +129,7 @@ Present the blocking findings to the user. **Do NOT wait for CI.**
 
 Post a consolidated `gh pr review --approve` comment on the PR summarizing the review outcome.
 
-Wait for CI to complete:
-
-```bash
-gh pr checks <pr-number> --watch
-```
+Wait for CI using the **CI Gate Polling** pattern from `CLAUDE.md` (use the beta or main variant based on the PR's target branch).
 
 If CI fails, report the specific failures to the user. **Do NOT merge.**
 

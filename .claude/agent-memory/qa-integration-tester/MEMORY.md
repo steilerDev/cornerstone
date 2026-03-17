@@ -3,6 +3,16 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## Modal Component Testing Patterns (2026-03-15, PR #856)
+
+**Test file**: `client/src/components/Modal/Modal.test.tsx` (16 tests)
+
+**Critical: createPortal changes query scope**. `Modal` uses `createPortal(…, document.body)`. The `container` from `render()` is the React root div — it does NOT contain portal content. Use `document.querySelector()` or `baseElement.querySelector()` for portal content. `screen` queries work fine because they query `document.body`.
+
+**Critical: `contentRef` includes the header close button**. The `ref` is on the whole content panel div, which wraps header (close button) + body + footer. `querySelectorAll('button, ...')` on `contentRef.current` finds the close button FIRST (DOM order). So `firstFocusable` is always the close button, not any inputs/buttons in the body children. Do NOT write tests expecting a body input to receive focus on mount.
+
+**Backdrop selector**: `document.querySelector('[class*="modalBackdrop"]')` — identity-obj-proxy returns class names as-is (`modalBackdrop` not a hashed string).
+
 ## UAT Fixes #729/#730/#731 Dashboard (2026-03-10)
 
 **Files changed**: deleted `AtRiskItemsCard.test.tsx`; updated `InvoicePipelineCard.test.tsx`, `UpcomingMilestonesCard.test.tsx`, `CriticalPathCard.test.tsx`, `MiniGanttCard.test.tsx`, `DashboardPage.test.tsx`.

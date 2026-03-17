@@ -16,6 +16,7 @@ import type {
 import { NotFoundError, ValidationError } from '../errors/AppError.js';
 import { deleteLinksForEntity } from './documentLinkService.js';
 import { getInvoiceBudgetLinesForInvoice } from './invoiceBudgetLineService.js';
+import { onInvoiceStatusChanged } from './diaryAutoEventService.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -300,12 +301,19 @@ export function createInvoice(
  * Validates same rules as createInvoice for any provided fields.
  * @throws NotFoundError if vendor or invoice not found, or if invoice doesn't belong to vendor
  * @throws ValidationError if any provided field is invalid
+ *
+ * @param db - Database connection
+ * @param vendorId - Vendor ID
+ * @param invoiceId - Invoice ID
+ * @param data - Update request data
+ * @param diaryAutoEvents - Whether to create automatic diary entries (default: true)
  */
 export function updateInvoice(
   db: DbType,
   vendorId: string,
   invoiceId: string,
   data: UpdateInvoiceRequest,
+  diaryAutoEvents: boolean = true,
 ): Invoice {
   const vendorName = assertVendorExists(db, vendorId);
 
@@ -355,7 +363,14 @@ export function updateInvoice(
     updates.invoiceNumber = data.invoiceNumber;
   }
 
+  let statusChanged = false;
+  let previousStatus: string | undefined;
+  let newStatus: string | undefined;
+
   if (data.status !== undefined) {
+    statusChanged = data.status !== existing.status;
+    previousStatus = existing.status;
+    newStatus = data.status;
     updates.status = data.status;
   }
 
@@ -367,6 +382,18 @@ export function updateInvoice(
   updates.updatedAt = now;
 
   db.update(invoices).set(updates).where(eq(invoices.id, invoiceId)).run();
+
+  // Log status change to diary if enabled
+  if (statusChanged && previousStatus !== undefined && newStatus !== undefined) {
+    onInvoiceStatusChanged(
+      db,
+      diaryAutoEvents,
+      invoiceId,
+      existing.invoiceNumber || 'N/A',
+      previousStatus,
+      newStatus,
+    );
+  }
 
   const updated = db.select().from(invoices).where(eq(invoices.id, invoiceId)).get()!;
   return toInvoice(db, updated, vendorName);

@@ -75,304 +75,236 @@ describe('WorkItemPicker', () => {
     return render(<WorkItemPicker value="" onChange={jest.fn()} excludeIds={[]} {...props} />);
   }
 
-  describe('backward compatibility (no new props)', () => {
-    it('renders input without special options', () => {
-      renderPicker();
-      expect(screen.getByPlaceholderText('Search work items...')).toBeInTheDocument();
+  // ── 1. Default placeholder ────────────────────────────────────────────────
+
+  it('renders with default placeholder "Search work items..."', () => {
+    renderPicker();
+    expect(screen.getByPlaceholderText('Search work items...')).toBeInTheDocument();
+  });
+
+  // ── 2. onSelectItem adapter ───────────────────────────────────────────────
+
+  it('onSelectItem receives { id, title } (not { id, label }) — adapter works', async () => {
+    const user = userEvent.setup();
+    const onChange = jest.fn<(id: string) => void>();
+    const onSelectItem = jest.fn<(item: { id: string; title: string }) => void>();
+
+    renderPicker({
+      showItemsOnFocus: true,
+      onChange: onChange as ReturnType<typeof jest.fn>,
+      onSelectItem: onSelectItem as ReturnType<typeof jest.fn>,
     });
 
-    it('does not open dropdown on focus without showItemsOnFocus or specialOptions', async () => {
-      mockListWorkItems.mockResolvedValue(emptyListResponse);
-      const user = userEvent.setup();
-      renderPicker();
+    const input = screen.getByPlaceholderText('Search work items...');
+    await user.click(input);
 
-      const input = screen.getByPlaceholderText('Search work items...');
-      await user.click(input);
+    await waitFor(() => expect(screen.getByText('Foundation')).toBeInTheDocument());
+    await user.click(screen.getByText('Foundation'));
 
-      // Without showItemsOnFocus or specialOptions, focusing does NOT open the dropdown
-      expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
-      // API should not be called on mere focus
-      expect(mockListWorkItems).not.toHaveBeenCalled();
-    });
+    // Adapter must map { id, label } → { id, title }
+    expect(onSelectItem).toHaveBeenCalledWith({ id: 'wi-1', title: 'Foundation' });
+    expect(onSelectItem).not.toHaveBeenCalledWith(expect.objectContaining({ label: 'Foundation' }));
+  });
 
-    it('fetches and shows items after typing', async () => {
-      const user = userEvent.setup();
-      renderPicker();
+  // ── 3. specialOptions pass-through ───────────────────────────────────────
 
-      const input = screen.getByPlaceholderText('Search work items...');
-      await user.type(input, 'Found');
+  it('specialOptions pass-through works: special option shown in dropdown', async () => {
+    const user = userEvent.setup();
+    const specialOptions = [{ id: '__THIS_ITEM__', label: 'This item' }];
+    renderPicker({ specialOptions });
 
-      await waitFor(() => {
-        expect(screen.getByText('Foundation')).toBeInTheDocument();
-      });
+    const input = screen.getByPlaceholderText('Search work items...');
+    await user.click(input);
 
-      expect(mockListWorkItems).toHaveBeenCalledWith(
-        expect.objectContaining({ q: 'Found', pageSize: 15 }),
-      );
-    });
-
-    it('calls onChange with item id when selecting a search result', async () => {
-      const user = userEvent.setup();
-      const onChange = jest.fn<(id: string) => void>();
-      renderPicker({ onChange: onChange as ReturnType<typeof jest.fn> });
-
-      const input = screen.getByPlaceholderText('Search work items...');
-      await user.type(input, 'Foundation');
-
-      await waitFor(() => expect(screen.getByText('Foundation')).toBeInTheDocument());
-
-      await user.click(screen.getByText('Foundation'));
-
-      expect(onChange).toHaveBeenCalledWith('wi-1');
+    await waitFor(() => {
+      expect(screen.getByRole('option', { name: 'This item' })).toBeInTheDocument();
     });
   });
 
-  describe('specialOptions prop', () => {
-    it('shows special options at top of dropdown on focus', async () => {
-      const user = userEvent.setup();
-      const specialOptions = [{ id: '__THIS_ITEM__', label: 'This item' }];
-      renderPicker({ specialOptions });
+  it('selecting special option calls onSelectItem with { id, title } (adapter applies)', async () => {
+    const user = userEvent.setup();
+    const onChange = jest.fn<(id: string) => void>();
+    const onSelectItem = jest.fn<(item: { id: string; title: string }) => void>();
+    const specialOptions = [{ id: '__THIS_ITEM__', label: 'This item' }];
 
-      const input = screen.getByPlaceholderText('Search work items...');
-      await user.click(input);
-
-      await waitFor(() => {
-        expect(screen.getByRole('option', { name: 'This item' })).toBeInTheDocument();
-      });
+    renderPicker({
+      specialOptions,
+      onChange: onChange as ReturnType<typeof jest.fn>,
+      onSelectItem: onSelectItem as ReturnType<typeof jest.fn>,
     });
 
-    it('calls onChange and onSelectItem with special option when clicked', async () => {
-      const user = userEvent.setup();
-      const onChange = jest.fn<(id: string) => void>();
-      const onSelectItem = jest.fn<(item: { id: string; title: string }) => void>();
-      const specialOptions = [{ id: '__THIS_ITEM__', label: 'This item' }];
-      renderPicker({
-        specialOptions,
-        onChange: onChange as ReturnType<typeof jest.fn>,
-        onSelectItem: onSelectItem as ReturnType<typeof jest.fn>,
-      });
+    const input = screen.getByPlaceholderText('Search work items...');
+    await user.click(input);
 
-      const input = screen.getByPlaceholderText('Search work items...');
-      await user.click(input);
+    await waitFor(() =>
+      expect(screen.getByRole('option', { name: 'This item' })).toBeInTheDocument(),
+    );
 
-      await waitFor(() =>
-        expect(screen.getByRole('option', { name: 'This item' })).toBeInTheDocument(),
-      );
+    await user.click(screen.getByRole('option', { name: 'This item' }));
 
-      await user.click(screen.getByRole('option', { name: 'This item' }));
+    expect(onChange).toHaveBeenCalledWith('__THIS_ITEM__');
+    expect(onSelectItem).toHaveBeenCalledWith({ id: '__THIS_ITEM__', title: 'This item' });
+  });
 
-      expect(onChange).toHaveBeenCalledWith('__THIS_ITEM__');
-      expect(onSelectItem).toHaveBeenCalledWith({ id: '__THIS_ITEM__', title: 'This item' });
+  // ── 4. showItemsOnFocus loads items ──────────────────────────────────────
+
+  it('showItemsOnFocus loads items immediately on focus', async () => {
+    const user = userEvent.setup();
+    renderPicker({ showItemsOnFocus: true });
+
+    const input = screen.getByPlaceholderText('Search work items...');
+    await user.click(input);
+
+    await waitFor(() => {
+      expect(screen.getByText('Foundation')).toBeInTheDocument();
+      expect(screen.getByText('Framing')).toBeInTheDocument();
     });
 
-    it('shows selected special option in display mode with italic style class', () => {
-      const specialOptions = [{ id: '__THIS_ITEM__', label: 'This item' }];
-      const onChange = jest.fn<(id: string) => void>();
+    expect(mockListWorkItems).toHaveBeenCalledWith(expect.objectContaining({ pageSize: 15 }));
+  });
 
-      // First render with empty value, then simulate controlled parent setting value
-      const { rerender } = render(
-        <WorkItemPickerModule.WorkItemPicker
-          value=""
-          onChange={onChange as ReturnType<typeof jest.fn>}
-          excludeIds={[]}
-          specialOptions={specialOptions}
-        />,
-      );
+  // ── 5. excludeIds filtering ───────────────────────────────────────────────
 
-      // Simulate that parent set value to the special option
-      rerender(
-        <WorkItemPickerModule.WorkItemPicker
-          value="__THIS_ITEM__"
-          onChange={onChange as ReturnType<typeof jest.fn>}
-          excludeIds={[]}
-          specialOptions={specialOptions}
-        />,
-      );
+  it('excludeIds filtering works: excluded items not shown in results', async () => {
+    const user = userEvent.setup();
+    renderPicker({ showItemsOnFocus: true, excludeIds: ['wi-1'] });
 
-      // Should show the selected special option label
-      expect(screen.getByText('This item')).toBeInTheDocument();
-      // Should show a clear button
-      expect(screen.getByRole('button', { name: /clear selection/i })).toBeInTheDocument();
-    });
+    const input = screen.getByPlaceholderText('Search work items...');
+    await user.click(input);
 
-    it('renders a divider between special options and search results', async () => {
-      const user = userEvent.setup();
-      const specialOptions = [{ id: '__THIS_ITEM__', label: 'This item' }];
-      renderPicker({ specialOptions });
-
-      const input = screen.getByPlaceholderText('Search work items...');
-      await user.click(input);
-
-      // Wait for search results to load (items from API)
-      await waitFor(() => {
-        expect(screen.getByText('Foundation')).toBeInTheDocument();
-      });
-
-      // Divider should be present (rendered as a separator element)
-      const separator = document.querySelector('[role="separator"]');
-      expect(separator).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('Framing')).toBeInTheDocument();
+      expect(screen.queryByText('Foundation')).not.toBeInTheDocument();
     });
   });
 
-  describe('showItemsOnFocus prop', () => {
-    it('fetches and shows items immediately on focus without typing', async () => {
-      const user = userEvent.setup();
-      renderPicker({ showItemsOnFocus: true });
+  // ── 6. initialTitle displayed correctly ──────────────────────────────────
 
-      const input = screen.getByPlaceholderText('Search work items...');
-      await user.click(input);
+  it('initialTitle displayed correctly when value and initialTitle are provided', async () => {
+    renderPicker({ value: 'wi-existing', initialTitle: 'Foundation Work' });
 
-      await waitFor(() => {
-        expect(screen.getByText('Foundation')).toBeInTheDocument();
-        expect(screen.getByText('Framing')).toBeInTheDocument();
-      });
+    await waitFor(() => {
+      expect(screen.getByText('Foundation Work')).toBeInTheDocument();
+    });
+    expect(screen.queryByPlaceholderText('Search work items...')).not.toBeInTheDocument();
+  });
 
-      expect(mockListWorkItems).toHaveBeenCalledWith(expect.objectContaining({ pageSize: 15 }));
+  it('clicking clear from initialTitle state restores search input and calls onChange("")', async () => {
+    const user = userEvent.setup();
+    const onChange = jest.fn<(id: string) => void>();
+    renderPicker({
+      value: 'wi-existing',
+      initialTitle: 'Foundation Work',
+      onChange: onChange as ReturnType<typeof jest.fn>,
     });
 
-    it('shows loading state while fetching on focus', async () => {
-      // Delay the API response so we can see the loading state
-      let resolveListItems: (
-        value: Awaited<ReturnType<typeof WorkItemsApiTypes.listWorkItems>>,
-      ) => void;
-      mockListWorkItems.mockReturnValue(
-        new Promise((res) => {
-          resolveListItems = res;
-        }),
-      );
+    await waitFor(() => expect(screen.getByText('Foundation Work')).toBeInTheDocument());
 
-      const user = userEvent.setup();
-      renderPicker({ showItemsOnFocus: true });
+    const clearBtn = screen.getByRole('button', { name: /clear selection/i });
+    await user.click(clearBtn);
 
-      const input = screen.getByPlaceholderText('Search work items...');
-      await user.click(input);
+    expect(screen.getByPlaceholderText('Search work items...')).toBeInTheDocument();
+    expect(screen.queryByText('Foundation Work')).not.toBeInTheDocument();
+    expect(onChange).toHaveBeenCalledWith('');
+  });
 
-      expect(screen.getByText('Searching...')).toBeInTheDocument();
+  // ── 7. Error message string ───────────────────────────────────────────────
 
-      // Resolve and verify results appear
-      resolveListItems!({
-        items: sampleItems,
-        pagination: { page: 1, pageSize: 15, totalItems: 2, totalPages: 1 },
-      });
+  it('error message reads "Failed to load work items"', async () => {
+    mockListWorkItems.mockRejectedValue(new Error('Network error'));
+    const user = userEvent.setup();
+    renderPicker({ showItemsOnFocus: true });
 
-      await waitFor(() => {
-        expect(screen.queryByText('Searching...')).not.toBeInTheDocument();
-        expect(screen.getByText('Foundation')).toBeInTheDocument();
-      });
+    const input = screen.getByPlaceholderText('Search work items...');
+    await user.click(input);
+
+    await waitFor(() => {
+      expect(screen.getByText('Failed to load work items')).toBeInTheDocument();
     });
   });
 
-  describe('excludeIds filtering', () => {
-    it('filters out excluded IDs from results', async () => {
-      const user = userEvent.setup();
-      renderPicker({ showItemsOnFocus: true, excludeIds: ['wi-1'] });
+  // ── 8. No-results message string ─────────────────────────────────────────
 
-      const input = screen.getByPlaceholderText('Search work items...');
-      await user.click(input);
+  it('no-results message reads "No matching work items found"', async () => {
+    mockListWorkItems.mockResolvedValue(emptyListResponse);
+    const user = userEvent.setup();
+    renderPicker();
 
-      await waitFor(() => {
-        expect(screen.getByText('Framing')).toBeInTheDocument();
-        expect(screen.queryByText('Foundation')).not.toBeInTheDocument();
-      });
+    const input = screen.getByPlaceholderText('Search work items...');
+    await user.type(input, 'XYZ');
+
+    await waitFor(() => {
+      expect(screen.getByText('No matching work items found')).toBeInTheDocument();
     });
   });
 
-  describe('clear selection', () => {
-    it('clears selected item and calls onChange with empty string', async () => {
-      const user = userEvent.setup();
-      const onChange = jest.fn<(id: string) => void>();
-      renderPicker({
-        showItemsOnFocus: true,
-        onChange: onChange as ReturnType<typeof jest.fn>,
-      });
+  // ── 9. Backward-compatibility: no-op focus without showItemsOnFocus ───────
 
-      const input = screen.getByPlaceholderText('Search work items...');
-      await user.click(input);
+  it('does not open dropdown on focus without showItemsOnFocus or specialOptions', async () => {
+    mockListWorkItems.mockResolvedValue(emptyListResponse);
+    const user = userEvent.setup();
+    renderPicker();
 
-      await waitFor(() => expect(screen.getByText('Foundation')).toBeInTheDocument());
+    const input = screen.getByPlaceholderText('Search work items...');
+    await user.click(input);
 
-      // Select an item
-      await user.click(screen.getByText('Foundation'));
-
-      // Should now show the selected display
-      await waitFor(() => {
-        expect(screen.queryByPlaceholderText('Search work items...')).not.toBeInTheDocument();
-      });
-
-      // Click clear
-      const clearButton = screen.getByRole('button', { name: /clear selection/i });
-      await user.click(clearButton);
-
-      expect(onChange).toHaveBeenLastCalledWith('');
-      // Input should be visible again
-      expect(screen.getByPlaceholderText('Search work items...')).toBeInTheDocument();
-    });
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    expect(mockListWorkItems).not.toHaveBeenCalled();
   });
 
-  describe('error handling', () => {
-    it('shows error message when API call fails', async () => {
-      mockListWorkItems.mockRejectedValue(new Error('Network error'));
-      const user = userEvent.setup();
-      renderPicker({ showItemsOnFocus: true });
+  // ── 10. Clear selected item ───────────────────────────────────────────────
 
-      const input = screen.getByPlaceholderText('Search work items...');
-      await user.click(input);
-
-      await waitFor(() => {
-        expect(screen.getByText('Failed to load work items')).toBeInTheDocument();
-      });
+  it('clears selected item and calls onChange with empty string', async () => {
+    const user = userEvent.setup();
+    const onChange = jest.fn<(id: string) => void>();
+    renderPicker({
+      showItemsOnFocus: true,
+      onChange: onChange as ReturnType<typeof jest.fn>,
     });
+
+    const input = screen.getByPlaceholderText('Search work items...');
+    await user.click(input);
+
+    await waitFor(() => expect(screen.getByText('Foundation')).toBeInTheDocument());
+    await user.click(screen.getByText('Foundation'));
+
+    await waitFor(() => {
+      expect(screen.queryByPlaceholderText('Search work items...')).not.toBeInTheDocument();
+    });
+
+    const clearButton = screen.getByRole('button', { name: /clear selection/i });
+    await user.click(clearButton);
+
+    expect(onChange).toHaveBeenLastCalledWith('');
+    expect(screen.getByPlaceholderText('Search work items...')).toBeInTheDocument();
   });
 
-  // ── initialTitle prop (#338) ──────────────────────────────────────────────
+  // ── 11. Selected special option display ──────────────────────────────────
 
-  describe('initialTitle prop', () => {
-    it('shows the initialTitle text when value and initialTitle are provided (no selectedItem yet)', async () => {
-      renderPicker({ value: 'wi-existing', initialTitle: 'Foundation Work' });
-      // Should render in selected-display mode showing the initialTitle
-      await waitFor(() => {
-        expect(screen.getByText('Foundation Work')).toBeInTheDocument();
-      });
-    });
+  it('shows selected special option in display mode after value set to special id', () => {
+    const specialOptions = [{ id: '__THIS_ITEM__', label: 'This item' }];
+    const onChange = jest.fn<(id: string) => void>();
 
-    it('shows a clear button when initialTitle is displayed', async () => {
-      renderPicker({ value: 'wi-existing', initialTitle: 'Foundation Work' });
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /clear selection/i })).toBeInTheDocument();
-      });
-    });
+    const { rerender } = render(
+      <WorkItemPickerModule.WorkItemPicker
+        value=""
+        onChange={onChange as ReturnType<typeof jest.fn>}
+        excludeIds={[]}
+        specialOptions={specialOptions}
+      />,
+    );
 
-    it('switches to search input when clear button is clicked', async () => {
-      const user = userEvent.setup();
-      const onChange = jest.fn<(id: string) => void>();
-      renderPicker({
-        value: 'wi-existing',
-        initialTitle: 'Foundation Work',
-        onChange: onChange as ReturnType<typeof jest.fn>,
-      });
+    rerender(
+      <WorkItemPickerModule.WorkItemPicker
+        value="__THIS_ITEM__"
+        onChange={onChange as ReturnType<typeof jest.fn>}
+        excludeIds={[]}
+        specialOptions={specialOptions}
+      />,
+    );
 
-      await waitFor(() => expect(screen.getByText('Foundation Work')).toBeInTheDocument());
-
-      const clearBtn = screen.getByRole('button', { name: /clear selection/i });
-      await user.click(clearBtn);
-
-      // After clearing, should show the search input again
-      expect(screen.getByPlaceholderText('Search work items...')).toBeInTheDocument();
-      expect(screen.queryByText('Foundation Work')).not.toBeInTheDocument();
-      expect(onChange).toHaveBeenCalledWith('');
-    });
-
-    it('does NOT show initialTitle when value is empty string', () => {
-      renderPicker({ value: '', initialTitle: 'Foundation Work' });
-      // Empty value: picker is in search mode, not selected-display mode
-      expect(screen.queryByText('Foundation Work')).not.toBeInTheDocument();
-      expect(screen.getByPlaceholderText('Search work items...')).toBeInTheDocument();
-    });
-
-    it('does NOT show initialTitle when initialTitle prop is not provided', () => {
-      renderPicker({ value: 'wi-existing' });
-      // No initialTitle: falls through to search input (no selectedItem in state)
-      expect(screen.getByPlaceholderText('Search work items...')).toBeInTheDocument();
-    });
+    expect(screen.getByText('This item')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /clear selection/i })).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText('Search work items...')).not.toBeInTheDocument();
   });
 });

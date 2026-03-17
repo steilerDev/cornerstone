@@ -31,6 +31,7 @@ export const ROUTES = {
   householdItemsNew: '/project/household-items/new',
   profile: '/settings/profile',
   userManagement: '/settings/users',
+  diary: '/diary',
 };
 
 export const API = {
@@ -52,4 +53,6 @@ export const API = {
   timeline: '/api/timeline',
   schedule: '/api/schedule',
   householdItems: '/api/household-items',
+  diaryEntries: '/api/diary-entries',
+  diaryExport: '/api/diary-entries/export',
 };

@@ -7,12 +7,14 @@ import type {
   Invoice,
   InvoiceStatusBreakdown,
   SubsidyProgram,
+  DiaryEntrySummary,
 } from '@cornerstone/shared';
 import { fetchBudgetOverview } from '../../lib/budgetOverviewApi.js';
 import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { fetchSubsidyPrograms } from '../../lib/subsidyProgramsApi.js';
 import { getTimeline } from '../../lib/timelineApi.js';
 import { fetchAllInvoices } from '../../lib/invoicesApi.js';
+import { listDiaryEntries } from '../../lib/diaryApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { usePreferences } from '../../hooks/usePreferences.js';
 import { ProjectSubNav } from '../../components/ProjectSubNav/ProjectSubNav.js';
@@ -26,6 +28,7 @@ import { MiniGanttCard } from '../../components/MiniGanttCard/MiniGanttCard.js';
 import { QuickActionsCard } from '../../components/QuickActionsCard/QuickActionsCard.js';
 import { InvoicePipelineCard } from '../../components/InvoicePipelineCard/InvoicePipelineCard.js';
 import { SubsidyPipelineCard } from '../../components/SubsidyPipelineCard/SubsidyPipelineCard.js';
+import { RecentDiaryCard } from '../../components/RecentDiaryCard/RecentDiaryCard.js';
 import styles from './DashboardPage.module.css';
 
 type DataSourceKey =
@@ -33,7 +36,8 @@ type DataSourceKey =
   | 'budgetSources'
   | 'timeline'
   | 'invoices'
-  | 'subsidyPrograms';
+  | 'subsidyPrograms'
+  | 'diaryEntries';
 
 type DashboardSection = 'primary' | 'timeline' | 'budget-details';
 
@@ -99,6 +103,12 @@ const CARD_DEFINITIONS: {
     emptyMessage: 'No subsidy programs found',
     emptyAction: { label: 'Add a subsidy program', href: '/budget/subsidies' },
   },
+  {
+    id: 'recent-diary',
+    title: 'Recent Diary',
+    section: 'primary',
+    dataSource: 'diaryEntries',
+  },
   { id: 'quick-actions', title: 'Quick Actions', section: 'primary' },
 ];
 
@@ -125,6 +135,7 @@ export function DashboardPage() {
     subsidyPrograms: { isLoading: true, error: null, isEmpty: false },
     timeline: { isLoading: true, error: null, isEmpty: false },
     invoices: { isLoading: true, error: null, isEmpty: false },
+    diaryEntries: { isLoading: true, error: null, isEmpty: false },
   });
   const [budgetOverview, setBudgetOverview] = useState<BudgetOverview | null>(null);
   const [budgetSources, setBudgetSources] = useState<BudgetSource[]>([]);
@@ -132,6 +143,7 @@ export function DashboardPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [invoiceSummary, setInvoiceSummary] = useState<InvoiceStatusBreakdown | null>(null);
   const [subsidyPrograms, setSubsidyPrograms] = useState<SubsidyProgram[]>([]);
+  const [diaryEntries, setDiaryEntries] = useState<DiaryEntrySummary[]>([]);
 
   const { preferences, upsert: upsertPreference } = usePreferences();
   const [customizeOpen, setCustomizeOpen] = useState(false);
@@ -171,18 +183,14 @@ export function DashboardPage() {
     return () => document.removeEventListener('keydown', handleKey);
   }, [customizeOpen]);
 
-  // Fetch all data sources in parallel
-  useEffect(() => {
-    void loadAllData();
-  }, []);
-
-  const loadAllData = async () => {
+  const loadAllData = useCallback(async () => {
     const results = await Promise.allSettled([
       fetchBudgetOverview(),
       fetchBudgetSources(),
       fetchSubsidyPrograms(),
       getTimeline(),
       fetchAllInvoices({ pageSize: 10 }),
+      listDiaryEntries({ pageSize: 5 }),
     ]);
 
     const [
@@ -191,6 +199,7 @@ export function DashboardPage() {
       subsidyProgramsResult,
       timelineResult,
       invoicesResult,
+      diaryEntriesResult,
     ] = results;
 
     // Update budget overview state
@@ -319,7 +328,47 @@ export function DashboardPage() {
         },
       }));
     }
-  };
+
+    // Update diary entries state
+    if (diaryEntriesResult.status === 'fulfilled') {
+      setDiaryEntries(diaryEntriesResult.value.items);
+      setDataStates((prev) => ({
+        ...prev,
+        diaryEntries: {
+          isLoading: false,
+          error: null,
+          isEmpty: diaryEntriesResult.value.items.length === 0,
+        },
+      }));
+    } else {
+      const error = diaryEntriesResult.reason;
+      const message =
+        error instanceof ApiClientError ? error.error.message : 'Failed to load diary entries';
+      setDataStates((prev) => ({
+        ...prev,
+        diaryEntries: {
+          isLoading: false,
+          error: message,
+          isEmpty: false,
+        },
+      }));
+    }
+  }, []);
+
+  // Fetch all data sources on mount with cancellation guard
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchData() {
+      await loadAllData();
+      if (cancelled) return;
+    }
+
+    void fetchData();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadAllData]);
 
   const handleDismissCard = useCallback(
     async (cardId: DashboardCardId) => {
@@ -389,11 +438,15 @@ export function DashboardPage() {
           <InvoicePipelineCard invoices={invoices} summary={invoiceSummary} />
         ) : card.id === 'subsidy-pipeline' ? (
           <SubsidyPipelineCard subsidyPrograms={subsidyPrograms} />
+        ) : card.id === 'recent-diary' ? (
+          <RecentDiaryCard
+            entries={diaryEntries}
+            isLoading={dataState?.isLoading ?? false}
+            error={dataState?.error ?? null}
+          />
         ) : card.id === 'quick-actions' ? (
           <QuickActionsCard />
-        ) : (
-          <p className={styles.cardPlaceholder}>Content coming soon.</p>
-        )}
+        ) : null}
       </DashboardCard>
     );
   };

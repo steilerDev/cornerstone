@@ -1,8 +1,6 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
 import type { HouseholdItemSummary, HouseholdItemStatus } from '@cornerstone/shared';
 import { listHouseholdItems } from '../../lib/householdItemsApi.js';
-
-import styles from './HouseholdItemPicker.module.css';
+import { SearchPicker } from '../SearchPicker/index.js';
 
 /** Maps household item status values to their CSS custom property for the left-border color. */
 const STATUS_BORDER_COLORS: Record<HouseholdItemStatus, string> = {
@@ -12,7 +10,7 @@ const STATUS_BORDER_COLORS: Record<HouseholdItemStatus, string> = {
   arrived: 'var(--color-status-completed-text)',
 };
 
-interface HouseholdItemPickerProps {
+export interface HouseholdItemPickerProps {
   value: string;
   onChange: (id: string) => void;
   onSelectItem?: (item: { id: string; name: string }) => void;
@@ -40,220 +38,33 @@ export function HouseholdItemPicker({
   showItemsOnFocus,
   initialTitle,
 }: HouseholdItemPickerProps) {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [results, setResults] = useState<HouseholdItemSummary[]>([]);
-  const [isOpen, setIsOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedItem, setSelectedItem] = useState<HouseholdItemSummary | null>(null);
-  // Track whether the user has explicitly cleared an initialTitle-based selection
-  const [initialTitleCleared, setInitialTitleCleared] = useState(false);
-
-  const containerRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Close dropdown on click outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    }
-
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isOpen]);
-
-  // Reset when value is cleared externally (e.g. after form submission)
-  useEffect(() => {
-    if (value === '') {
-      setSelectedItem(null);
-      setSearchTerm('');
-      setInitialTitleCleared(false);
-    }
-  }, [value]);
-
-  // Cleanup debounce on unmount
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-      }
-    };
-  }, []);
-
-  const fetchInitialResults = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await listHouseholdItems({ pageSize: 15 });
-      const filtered = response.items.filter((item) => !excludeIds.includes(item.id));
-      setResults(filtered);
-    } catch {
-      setError('Failed to load household items');
-      setResults([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [excludeIds]);
-
-  const searchHouseholdItems = useCallback(
-    async (query: string) => {
-      // If query is empty and dropdown is open, show initial results
-      if (!query.trim()) {
-        await fetchInitialResults();
-        return;
-      }
-
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        const response = await listHouseholdItems({ q: query, pageSize: 15 });
-        const filtered = response.items.filter((item) => !excludeIds.includes(item.id));
-        setResults(filtered);
-      } catch {
-        setError('Failed to search household items');
-        setResults([]);
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [excludeIds, fetchInitialResults],
-  );
-
-  const handleInputChange = (inputValue: string) => {
-    setSearchTerm(inputValue);
-    setIsOpen(true);
-
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
-
-    debounceRef.current = setTimeout(() => {
-      searchHouseholdItems(inputValue);
-    }, 300);
+  const handleSelectItem = (item: { id: string; label: string }) => {
+    onSelectItem?.({ id: item.id, name: item.label });
   };
-
-  const handleFocus = () => {
-    if (showItemsOnFocus) {
-      setIsOpen(true);
-      fetchInitialResults();
-    } else if (searchTerm.trim()) {
-      setIsOpen(true);
-    }
-  };
-
-  const handleSelect = (item: HouseholdItemSummary) => {
-    setSelectedItem(item);
-    onChange(item.id);
-    onSelectItem?.({ id: item.id, name: item.name });
-    setIsOpen(false);
-    setSearchTerm('');
-    setResults([]);
-  };
-
-  const handleClear = () => {
-    setSelectedItem(null);
-    setInitialTitleCleared(true);
-    onChange('');
-    setSearchTerm('');
-    setResults([]);
-    inputRef.current?.focus();
-  };
-
-  // Show initialTitle when value is pre-populated and not yet changed by the user
-  if (initialTitle && value && !selectedItem && !initialTitleCleared) {
-    return (
-      <div className={styles.container} ref={containerRef}>
-        <div className={styles.selectedDisplay}>
-          <span className={styles.selectedTitle}>{initialTitle}</span>
-          <button
-            type="button"
-            className={styles.clearButton}
-            onClick={handleClear}
-            aria-label="Clear selection"
-            disabled={disabled}
-          >
-            &times;
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (selectedItem) {
-    return (
-      <div className={styles.container} ref={containerRef}>
-        <div
-          className={styles.selectedDisplay}
-          style={{ borderLeftColor: STATUS_BORDER_COLORS[selectedItem.status] }}
-        >
-          <span className={styles.selectedTitle}>{selectedItem.name}</span>
-          <button
-            type="button"
-            className={styles.clearButton}
-            onClick={handleClear}
-            aria-label="Clear selection"
-            disabled={disabled}
-          >
-            &times;
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div className={styles.container} ref={containerRef}>
-      <input
-        ref={inputRef}
-        type="text"
-        className={styles.input}
-        placeholder={placeholder}
-        value={searchTerm}
-        onChange={(e) => handleInputChange(e.target.value)}
-        onFocus={handleFocus}
-        disabled={disabled}
-      />
-
-      {isOpen && (
-        <div className={styles.dropdown} role="listbox">
-          {isLoading && <div className={styles.stateMessage}>Searching...</div>}
-
-          {!isLoading && error && <div className={styles.errorMessage}>{error}</div>}
-
-          {!isLoading &&
-            !error &&
-            results.length > 0 &&
-            results.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                role="option"
-                aria-selected={false}
-                className={styles.resultOption}
-                onClick={() => handleSelect(item)}
-              >
-                <span className={styles.resultTitle}>{item.name}</span>
-              </button>
-            ))}
-
-          {!isLoading && !error && results.length === 0 && searchTerm.trim() && (
-            <div className={styles.stateMessage}>No matching household items found</div>
-          )}
-
-          {!isLoading && !error && results.length === 0 && !searchTerm.trim() && (
-            <div className={styles.stateMessage}>Type to search household items</div>
-          )}
-        </div>
-      )}
-    </div>
+    <SearchPicker<HouseholdItemSummary>
+      value={value}
+      onChange={onChange}
+      onSelectItem={handleSelectItem}
+      excludeIds={excludeIds}
+      disabled={disabled}
+      placeholder={placeholder}
+      searchFn={async (query: string, ids: string[]) => {
+        const response = await listHouseholdItems({
+          q: query || undefined,
+          pageSize: 15,
+        });
+        return response.items.filter((item) => !ids.includes(item.id));
+      }}
+      renderItem={(item) => ({ id: item.id, label: item.name })}
+      getStatusBorderColor={(item) => STATUS_BORDER_COLORS[item.status]}
+      showItemsOnFocus={showItemsOnFocus}
+      initialTitle={initialTitle}
+      emptyHint="Type to search household items"
+      noResultsMessage="No matching household items found"
+      loadErrorMessage="Failed to load household items"
+      searchErrorMessage="Failed to search household items"
+    />
   );
 }

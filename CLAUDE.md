@@ -97,13 +97,13 @@ The orchestrator uses four skills to drive work. Each skill contains the full op
 
 ## Acceptance & Validation
 
-Every epic follows a two-phase validation lifecycle. **Development phase** (`/develop`): PO defines acceptance criteria, QA + E2E + security review each story/bug PR — PRs auto-merge after CI green + all reviewers approved. **Epic validation phase** (`/epic-close`): refinement, E2E coverage confirmation, UAT scenarios fed to e2e-test-engineer, docs update, promotion. Use `/epic-run` to execute the entire lifecycle in a single session. The only human gate is promotion from `beta` → `main`, where the user reviews a comprehensive summary with change inventory, validation report, and manual validation checklist.
+Every epic follows a two-phase validation lifecycle. **Development phase** (`/develop`): PO defines acceptance criteria, QA + E2E + security review each story/bug PR — PRs auto-merge after CI green + all reviewers approved. **Epic validation phase** (`/epic-close`): refinement, E2E coverage confirmation, UAT scenarios fed to e2e-test-engineer, promotion, then docs update. Use `/epic-run` to execute the entire lifecycle in a single session. The only human gate is promotion from `beta` → `main`, where the user reviews a comprehensive summary with change inventory, validation report, and manual validation checklist. If the user provides feedback via `/tmp/notes.md`, fixes are applied autonomously (PO groups items into issues, `/develop` fixes each group) and the promotion PR is re-created — looping until the user approves. Documentation runs after approval to reflect the final state.
 
 ### Key Rules
 
 - **User approval required for promotion** — the user is the final authority on `beta` → `main` promotion
 - **Automated before manual** — all automated tests must be green before the user validates
-- **Iterate until right** — failed validation triggers a fix-and-revalidate loop
+- **Iterate until right** — failed validation triggers a fix-and-revalidate loop (user writes feedback to `/tmp/notes.md`, system fixes autonomously and re-presents)
 - **Acceptance criteria live on GitHub Issues** — stored on story issues, summarized on promotion PRs
 - **Security review required** — the `security-engineer` must review every story PR
 - **Test agents own all tests** — `qa-integration-tester` owns unit and integration tests; `e2e-test-engineer` owns Playwright E2E browser tests. Developer agents do not write tests.
@@ -127,7 +127,35 @@ All commits follow [Conventional Commits](https://www.conventionalcommits.org/):
 - CI auto-fix bot: `npm run lint:fix` + `npm run format` + `npm audit fix` (runs on `beta` push, creates PR if changes needed)
 - CI Quality Gates: typecheck + test + build (runs on every PR)
 
-To validate your work: **commit and push**. After pushing, **always wait for CI to go green** (`gh pr checks <pr-number> --watch`) before proceeding to the next step.
+To validate your work: **commit and push**. After pushing, **always wait for the required CI gates to pass** before proceeding to the next step.
+
+#### CI Gate Polling (canonical pattern)
+
+`gh pr checks --watch` does not support GitHub Rulesets (only legacy branch protection). Use the polling loops below to watch the required gate checks by name.
+
+**Step 1 — Check for merge conflicts.** CI may not run (or silently hang) if the PR has conflicts. Always verify mergeability first:
+
+```bash
+state=$(gh pr view <PR> --repo steilerDev/cornerstone --json mergeable -q '.mergeable'); if [ "$state" != "MERGEABLE" ]; then echo "PR is not mergeable (state: $state) — resolve conflicts before waiting for CI"; exit 1; fi
+```
+
+If the state is `CONFLICTING`, rebase onto the target branch, force-push, and re-check. If the state is `UNKNOWN`, wait a few seconds and retry — GitHub may still be computing mergeability.
+
+**Step 2 — Poll for required gate checks.**
+
+**Beta PRs** (require `Quality Gates` only):
+
+```bash
+echo "Waiting for Quality Gates..."; while true; do bucket=$(gh pr checks <PR> --repo steilerDev/cornerstone --json name,bucket -q '.[] | select(.name == "Quality Gates") | .bucket' 2>/dev/null); case "$bucket" in pass) echo "Quality Gates passed"; break ;; fail) echo "Quality Gates FAILED"; exit 1 ;; *) sleep 30 ;; esac; done
+```
+
+**Main PRs** (require `Quality Gates` + `E2E Gates`):
+
+```bash
+echo "Waiting for Quality Gates + E2E Gates..."; while true; do qg=$(gh pr checks <PR> --repo steilerDev/cornerstone --json name,bucket -q '.[] | select(.name == "Quality Gates") | .bucket' 2>/dev/null); e2e=$(gh pr checks <PR> --repo steilerDev/cornerstone --json name,bucket -q '.[] | select(.name == "E2E Gates") | .bucket' 2>/dev/null); if [ "$qg" = "fail" ] || [ "$e2e" = "fail" ]; then echo "CI FAILED (QG=$qg, E2E=$e2e)"; exit 1; fi; if [ "$qg" = "pass" ] && [ "$e2e" = "pass" ]; then echo "All gates passed"; break; fi; sleep 30; done
+```
+
+Replace `<PR>` with the PR number. The polling loop handles the "checks not yet reported" edge case — an empty bucket means we retry after 30s.
 
 The only exception is the QA agent running a specific test file it just wrote (e.g., `npx jest path/to/new.test.ts`) to verify correctness before committing — but never `npm test` (the full suite).
 
@@ -317,6 +345,28 @@ The `docs` workspace is NOT part of the application build (`npm run build`). Bui
   ```
 - HTTP status codes: 200 (OK), 201 (Created), 204 (Deleted), 400 (Validation), 401 (Unauthed), 403 (Forbidden), 404 (Not Found), 409 (Conflict), 500 (Server Error)
 
+### Component Reuse Policy
+
+Before creating a new UI component, check if an existing shared component can be used or extended. The shared component library lives in `client/src/components/` and shared styles in `client/src/styles/shared.module.css`.
+
+**Shared components** (must be used instead of creating alternatives):
+
+- `Badge` — status indicators, severity badges, outcome badges (parameterized by variant map)
+- `SearchPicker` — search-as-you-type dropdowns for entity selection (work items, household items, etc.)
+- `Modal` — dialog overlays with backdrop, escape key, focus management
+- `Skeleton` — loading placeholder with configurable line count
+- `EmptyState` — empty data display with icon, message, and optional action
+- `FormError` — consistent error banner and field-level error display
+
+**Rules:**
+
+1. New UI that resembles an existing shared component MUST use or extend that component
+2. If a shared component doesn't quite fit, extend it with new props — don't create a parallel implementation
+3. **Every new component must be built as a reusable shared component** — no one-off implementations. If a UI pattern doesn't fit an existing shared component, create a new shared component in `client/src/components/` that can be reused by future features
+4. New shared components require UX designer visual spec approval
+5. All CSS values must use design tokens from `tokens.css` — no hardcoded colors, spacing, radii, or font sizes
+6. Stylelint enforces token usage automatically
+
 ## Testing Approach
 
 - **Unit & integration tests**: Jest with ts-jest (co-located with source: `foo.test.ts` next to `foo.ts`)
@@ -401,6 +451,15 @@ Any agent making a decision that affects other agents (e.g., a new naming conven
 ### Agent Memory Maintenance
 
 When a code change invalidates information in agent memory (e.g., fixing a bug documented in memory, changing a public API, updating routes), the implementing agent must update the relevant agent memory files.
+
+### Test Failure Debugging Protocol
+
+When tests fail during development, a structured diagnostic protocol determines whether the failure is in the test, the production code, or the spec — preventing wasted fix loops (e.g., weakening a correct test to make broken code pass).
+
+- **Source-of-truth hierarchy**: Spec/Contract > Production code > Test code
+- **Rule**: Correct tests must not be weakened to accommodate buggy code; correct code must not be broken to satisfy a wrong test
+- **Protocol owner**: The `dev-team-lead` runs the diagnostic decision tree during `[MODE: review]` when test failures are present in the review input. See the dev-team-lead agent definition for the full classification table and escalation rules.
+- **Test agents report, not diagnose**: `qa-integration-tester` and `e2e-test-engineer` submit structured failure reports but do not determine whether the fault lies in code or tests — that judgment belongs to the dev-team-lead.
 
 ### Review Metrics
 

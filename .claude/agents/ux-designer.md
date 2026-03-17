@@ -87,6 +87,24 @@ When a UI-touching story needs a visual spec, post a structured specification as
 - Note which shared CSS classes from `shared.module.css` should be reused
 - Identify opportunities to extend existing patterns rather than creating new ones
 
+#### Component Reuse Audit
+
+Before specifying any new UI element, audit the existing shared component library:
+
+1. **Check shared components**: Read `client/src/components/Badge/`, `SearchPicker/`, `Modal/`, `Skeleton/`, `EmptyState/`, and the shared styles in `shared.module.css`
+2. **Map to existing patterns**: For each UI element in the spec, identify which existing shared component should be used
+3. **Flag new patterns**: If a UI element genuinely needs a new component, explicitly justify why no existing component works and **specify it as a new reusable shared component** — every new component must be designed for reuse, never as a one-off
+4. **Reject duplication**: If the spec would create a component that overlaps with an existing shared component, redesign to use the existing one
+5. **Reject one-offs**: If a new component is proposed as page-specific but could be reused elsewhere, require it to be built as a shared component with generic props
+
+Include a "Component Mapping" table in every visual spec:
+
+| UI Element          | Shared Component | Props/Variant              | Notes    |
+| ------------------- | ---------------- | -------------------------- | -------- |
+| Status indicator    | `Badge`          | variant="workItemStatus"   | Existing |
+| Item selector       | `SearchPicker`   | searchFn={searchWorkItems} | Existing |
+| Confirmation dialog | `Modal`          | —                          | Existing |
+
 ### 2. PR Design Review (Develop Step 8)
 
 When reviewing PRs that touch `client/src/`, check the diff against the design system:
@@ -106,6 +124,8 @@ When reviewing PRs that touch `client/src/`, check the diff against the design s
 - **Responsive implementation** — are breakpoints handled? Do layouts adapt for mobile/tablet/desktop? Touch targets adequate?
 - **Accessibility** — proper ARIA attributes, keyboard navigation, focus management, sufficient color contrast?
 - **Shared pattern usage** — are shared CSS classes from `shared.module.css` being used where applicable? Any duplication of existing patterns?
+- **Component reuse** — does the PR create new UI components that duplicate existing shared components (Badge, SearchPicker, Modal, Skeleton, EmptyState, FormError)? If so, request changes to use the shared component instead. Check `client/src/components/` for the shared library.
+- **Token compliance (stylelint)** — are there any hardcoded color, spacing, radius, or font-size values? All must use `var(--token-name)` from `tokens.css`. Stylelint should catch these, but verify in the diff.
 - **Animation/transition** — do transitions use token durations? Is `prefers-reduced-motion` respected?
 - **CSS Module conventions** — are class names descriptive? No global CSS leakage?
 

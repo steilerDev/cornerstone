@@ -14,6 +14,11 @@ import {
 import { listWorkItemBudgets } from './workItemBudgetService.js';
 import { autoReschedule } from './schedulingEngine.js';
 import { deleteLinksForEntity } from './documentLinkService.js';
+import {
+  onWorkItemStatusChanged,
+  onMilestoneDelayed,
+  onAutoRescheduleCompleted,
+} from './diaryAutoEventService.js';
 import { toUserSummary, toTagResponse } from './shared/converters.js';
 import { validateTagIds } from './shared/validators.js';
 import type {
@@ -349,11 +354,17 @@ export function getWorkItemDetail(db: DbType, id: string): WorkItemDetail {
 /**
  * Update a work item.
  * Throws NotFoundError if work item does not exist.
+ *
+ * @param db - Database connection
+ * @param id - Work item ID
+ * @param data - Update request data
+ * @param diaryAutoEvents - Whether to create automatic diary entries (default: true)
  */
 export function updateWorkItem(
   db: DbType,
   id: string,
   data: UpdateWorkItemRequest,
+  diaryAutoEvents: boolean = true,
 ): WorkItemDetail {
   const workItem = findWorkItemById(db, id);
   if (!workItem) {
@@ -430,10 +441,15 @@ export function updateWorkItem(
   // Auto-populate actual dates on status transitions.
   // Only auto-populate if the actual date is currently null AND not being explicitly set
   // in this same request.
+  let statusChanged = false;
+  let previousStatus: string | undefined;
+  let newStatus: string | undefined;
+
   if ('status' in data && data.status !== workItem.status) {
     const today = new Date().toISOString().slice(0, 10);
-    const newStatus = data.status;
-    const previousStatus = workItem.status;
+    newStatus = data.status;
+    previousStatus = workItem.status;
+    statusChanged = true;
 
     const isExplicitActualStart = 'actualStartDate' in data;
     const isExplicitActualEnd = 'actualEndDate' in data;
@@ -493,7 +509,26 @@ export function updateWorkItem(
     'status' in data;
 
   if (schedulingFieldChanged) {
-    autoReschedule(db);
+    autoReschedule(db, {
+      onMilestoneDelayed: (milestoneId, milestoneName, targetDate, projectedDate) => {
+        onMilestoneDelayed(
+          db,
+          diaryAutoEvents,
+          milestoneId,
+          milestoneName,
+          targetDate,
+          projectedDate,
+        );
+      },
+      onRescheduleCompleted: (updatedCount) => {
+        onAutoRescheduleCompleted(db, diaryAutoEvents, updatedCount);
+      },
+    });
+  }
+
+  // Log status change to diary if enabled
+  if (statusChanged && previousStatus !== undefined && newStatus !== undefined) {
+    onWorkItemStatusChanged(db, diaryAutoEvents, id, workItem.title, previousStatus, newStatus);
   }
 
   // Fetch and return the updated work item

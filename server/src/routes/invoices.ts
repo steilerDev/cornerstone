@@ -1,6 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import { UnauthorizedError } from '../errors/AppError.js';
 import * as invoiceService from '../services/invoiceService.js';
+import * as vendorService from '../services/vendorService.js';
+import { onInvoiceCreated } from '../services/diaryAutoEventService.js';
 import type { CreateInvoiceRequest, UpdateInvoiceRequest } from '@cornerstone/shared';
 
 // JSON schema for GET /api/vendors/:vendorId/invoices (list invoices)
@@ -113,6 +115,17 @@ export default async function invoiceRoutes(fastify: FastifyInstance) {
         request.body,
         request.user.id,
       );
+
+      // Log invoice creation to diary
+      const vendor = vendorService.getVendorById(fastify.db, request.params.vendorId);
+      onInvoiceCreated(
+        fastify.db,
+        fastify.config.diaryAutoEvents,
+        invoice.id,
+        invoice.invoiceNumber || 'N/A',
+        vendor.name,
+      );
+
       return reply.status(201).send({ invoice });
     },
   );
@@ -135,6 +148,7 @@ export default async function invoiceRoutes(fastify: FastifyInstance) {
         request.params.vendorId,
         request.params.invoiceId,
         request.body,
+        fastify.config.diaryAutoEvents,
       );
       return reply.status(200).send({ invoice });
     },
