@@ -97,8 +97,9 @@ export class HouseholdItemsPage {
     // Pagination — use `.first()` because `[class*="pagination"]` matches the outer container
     // and child elements (paginationInfo, paginationButton, etc.)
     this.pagination = page.locator('[class*="pagination"]').first();
-    this.prevPageButton = page.getByLabel('Previous page');
-    this.nextPageButton = page.getByLabel('Next page');
+    // i18n: labels are now "← Previous" and "Next →" (from pagination.previous/next in householdItems.json)
+    this.prevPageButton = page.getByLabel('← Previous');
+    this.nextPageButton = page.getByLabel('Next →');
 
     // Empty state — use .first() to avoid strict mode: child elements such as
     // emptyStateTitle/emptyStateDescription also contain "emptyState" in their class names.
@@ -187,6 +188,11 @@ export class HouseholdItemsPage {
   /**
    * Open the delete modal for the item with the given name.
    * Uses the table on desktop and falls back to cards on mobile.
+   *
+   * NOTE: The actions button aria-label is currently broken (bug #944) — it renders as
+   * "Actions for" without the item name due to a missing {{name}} interpolation in
+   * householdItems.json. We use a locator that matches the button within the matching row/card.
+   * When bug #944 is fixed, update to: `[aria-label="Actions for ${name}"]`
    */
   async openDeleteModal(name: string): Promise<void> {
     const tableVisible = await this.tableContainer.isVisible();
@@ -196,7 +202,8 @@ export class HouseholdItemsPage {
       for (const row of rows) {
         const rowText = await row.textContent();
         if (rowText?.includes(name)) {
-          await row.locator(`[aria-label="Actions for ${name}"]`).click();
+          // Use button containing "⋮" (aria-label="Actions for") scoped to this row
+          await row.locator('[aria-label^="Actions for"]').click();
           await row.getByRole('menuitem', { name: 'Delete' }).click();
           await this.deleteModal.waitFor({ state: 'visible' });
           return;
@@ -209,7 +216,7 @@ export class HouseholdItemsPage {
     for (const card of cards) {
       const cardText = await card.textContent();
       if (cardText?.includes(name)) {
-        await card.locator(`[aria-label="Actions for ${name}"]`).click();
+        await card.locator('[aria-label^="Actions for"]').click();
         await card.getByRole('menuitem', { name: 'Delete' }).click();
         await this.deleteModal.waitFor({ state: 'visible' });
         return;

@@ -118,8 +118,10 @@ export class VendorDetailPage {
     // Delete modal
     this.deleteModal = page.getByRole('dialog', { name: 'Delete Vendor' });
     this.deleteModalTitle = page.locator('#delete-modal-title');
+    // i18n: button label is now just "Delete" / "Deleting..." (not "Delete Vendor")
+    // See budget.json vendors.buttons.delete = "Delete"
     this.deleteConfirmButton = this.deleteModal.getByRole('button', {
-      name: /Delete Vendor|Deleting\.\.\./,
+      name: /^Delete$|Deleting\.\.\./,
     });
     this.deleteCancelButton = this.deleteModal.getByRole('button', {
       name: 'Cancel',
