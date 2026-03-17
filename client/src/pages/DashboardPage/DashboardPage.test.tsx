@@ -238,9 +238,9 @@ describe('DashboardPage', () => {
     //   subsidyPrograms→ Subsidy Pipeline (1)
     //   diaryEntries   → Recent Diary (1)
     // Quick Actions has no dataSource — renders children immediately, no skeleton
-    // Each card appears in both desktop grid and mobile section = 10 × 2 = 20
+    // Each card appears in both desktop grid and mobile section = 9 × 2 = 18
     const loadingEls = screen.getAllByRole('status', { name: /^Loading .+ data$/ });
-    expect(loadingEls.length).toBe(20);
+    expect(loadingEls.length).toBe(18);
   });
 
   // ─── Test 15: Error state when API fails ────────────────────────────────

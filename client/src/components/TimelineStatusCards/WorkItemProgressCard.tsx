@@ -8,6 +8,7 @@ interface WorkItemProgressCardProps {
 
 export function WorkItemProgressCard({ workItems }: WorkItemProgressCardProps) {
   const { t } = useTranslation('dashboard');
+  const { t: tWorkItems } = useTranslation('workItems');
 
   if (workItems.length === 0) {
     return (
@@ -70,9 +71,9 @@ export function WorkItemProgressCard({ workItems }: WorkItemProgressCardProps) {
   });
 
   const statusLabels = {
-    not_started: t('create.fields.statusOptions.notStarted'),
-    in_progress: t('create.fields.statusOptions.inProgress'),
-    completed: t('create.fields.statusOptions.completed'),
+    not_started: tWorkItems('create.fields.statusOptions.notStarted'),
+    in_progress: tWorkItems('create.fields.statusOptions.inProgress'),
+    completed: tWorkItems('create.fields.statusOptions.completed'),
   };
 
   const statusColors = {
