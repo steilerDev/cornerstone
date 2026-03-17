@@ -299,6 +299,16 @@
       "arrived": "Arrived",
       "late": "Late",
       "updateFailed": "Failed to update status. Please try again."
+    },
+    "budget": {
+      "title": "Budget",
+      "emptyState": "No budget lines yet. Add the first line to start tracking costs.",
+      "addLineButton": "+ Add Line",
+      "linkInvoiceButton": "Link to Invoice",
+      "confidenceLabel": "Confidence:",
+      "plannedAmountLabel": "Planned Amount",
+      "actualCostLabel": "Actual Cost",
+      "paybackLabel": "Payback"
     }
   }
 }

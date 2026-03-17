@@ -16,6 +16,7 @@ import type {
   TimelineMilestone,
   TimelineHouseholdItem,
 } from '@cornerstone/shared';
+import { useLocale } from '../../contexts/LocaleContext.js';
 import { CalendarItem, LANE_HEIGHT_FULL } from './CalendarItem.js';
 import { CalendarMilestone } from './CalendarMilestone.js';
 import { CalendarHouseholdItem } from './CalendarHouseholdItem.js';
@@ -29,6 +30,7 @@ import {
   allocateLanes,
   getItemColor,
   getContrastTextColor,
+  getDayName,
   DAY_NAMES,
   getMonthName,
   formatDateForAria,
@@ -83,6 +85,8 @@ export function WeekGrid({
   activeTouchId = null,
   onTouchTap,
 }: WeekGridProps) {
+  const { resolvedLocale } = useLocale();
+  const localeString = resolvedLocale === 'de' ? 'de-DE' : 'en-US';
   const days = useMemo(() => getWeekDates(weekDate), [weekDate]);
 
   // Lane allocation for the entire week
@@ -113,15 +117,16 @@ export function WeekGrid({
       {/* Day column headers */}
       <div className={styles.headerRow} role="row">
         {days.map((day, i) => {
-          const monthName = getMonthName(day.date.getUTCMonth() + 1);
+          const monthName = getMonthName(day.date.getUTCMonth() + 1, localeString);
+          const dayName = getDayName(i, localeString);
           return (
             <div
               key={day.dateStr}
               className={[styles.headerCell, day.isToday ? styles.headerCellToday : ''].join(' ')}
               role="columnheader"
-              aria-label={`${DAY_NAMES[i]} ${day.dayOfMonth} ${monthName}`}
+              aria-label={`${dayName} ${day.dayOfMonth} ${monthName}`}
             >
-              <span className={styles.dayName}>{DAY_NAMES[i]}</span>
+              <span className={styles.dayName}>{dayName}</span>
               <span
                 className={[styles.dayNumber, day.isToday ? styles.dayNumberToday : ''].join(' ')}
               >

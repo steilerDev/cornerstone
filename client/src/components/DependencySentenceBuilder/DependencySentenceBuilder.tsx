@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { DependencyType } from '@cornerstone/shared';
 import { WorkItemPicker } from '../WorkItemPicker/WorkItemPicker.js';
 import { verbsToDependencyType } from './dependencyVerbs.js';
@@ -28,6 +29,8 @@ export function DependencySentenceBuilder({
   disabled = false,
   onAdd,
 }: DependencySentenceBuilderProps) {
+  const { t } = useTranslation('workItems');
+
   // Slot 1: predecessor (left side)
   const [slot1Id, setSlot1Id] = useState('');
   const [slot1Title, setSlot1Title] = useState('');
@@ -165,7 +168,7 @@ export function DependencySentenceBuilder({
           />
         </div>
 
-        <span className={styles.conjunction}>must</span>
+        <span className={styles.conjunction}>{t('detail.constraints.dependencyBuilder.must')}</span>
 
         {/* Predecessor verb dropdown */}
         <select
@@ -175,11 +178,11 @@ export function DependencySentenceBuilder({
           disabled={disabled}
           aria-label="Predecessor verb"
         >
-          <option value="finish">finish</option>
-          <option value="start">start</option>
+          <option value="finish">{t('detail.constraints.dependencyBuilder.finish')}</option>
+          <option value="start">{t('detail.constraints.dependencyBuilder.start')}</option>
         </select>
 
-        <span className={styles.conjunction}>before</span>
+        <span className={styles.conjunction}>{t('detail.constraints.dependencyBuilder.before')}</span>
 
         {/* Slot 2: successor */}
         <div className={styles.pickerSlot}>
@@ -195,7 +198,7 @@ export function DependencySentenceBuilder({
           />
         </div>
 
-        <span className={styles.conjunction}>can</span>
+        <span className={styles.conjunction}>{t('detail.constraints.dependencyBuilder.can')}</span>
 
         {/* Successor verb dropdown */}
         <select
@@ -205,8 +208,8 @@ export function DependencySentenceBuilder({
           disabled={disabled}
           aria-label="Successor verb"
         >
-          <option value="start">start</option>
-          <option value="finish">finish</option>
+          <option value="start">{t('detail.constraints.dependencyBuilder.start')}</option>
+          <option value="finish">{t('detail.constraints.dependencyBuilder.finish')}</option>
         </select>
 
         <button

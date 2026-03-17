@@ -395,7 +395,7 @@ export function SubsidyProgramsPage() {
 
         {/* Section header */}
         <div className={styles.sectionHeader}>
-          <h2 className={styles.sectionTitle}>Subsidy Programs</h2>
+          <h2 className={styles.sectionTitle}>{t('subsidies.title')}</h2>
           <button
             type="button"
             className={styles.button}

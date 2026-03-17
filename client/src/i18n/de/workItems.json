@@ -219,6 +219,13 @@
       "clearActualStart": "Tatsächliches Startdatum löschen",
       "clearActualEnd": "Tatsächliches Enddatum löschen",
       "dependencies": "Abhängigkeiten",
+      "dependencyBuilder": {
+        "finish": "beenden",
+        "start": "starten",
+        "before": "bevor",
+        "can": "kann",
+        "must": "muss"
+      },
       "requiredMilestones": "Erforderliche Meilensteine",
       "requiredMilestonesDesc": "Meilensteine, die abgeschlossen sein müssen, bevor dieses Arbeitspaket beginnen kann.",
       "noRequiredMilestones": "Keine erforderlichen Meilensteine",
@@ -226,6 +233,7 @@
       "linkedMilestonesDesc": "Meilensteine, zu denen dieses Arbeitspaket beiträgt.",
       "noLinkedMilestones": "Keine verknüpften Meilensteine",
       "selectMilestone": "Meilenstein auswählen...",
+      "selectMilestonePlaceholder": "Meilenstein auswählen...",
       "selectRequiredMilestoneAriaLabel": "Erforderlichen Meilenstein zum Hinzufügen auswählen",
       "selectLinkedMilestoneAriaLabel": "Meilenstein zum Verknüpfen auswählen",
       "addMilestone": "Hinzufügen",

@@ -37,7 +37,20 @@
     },
     "ofAvailableFunds": "of available funds",
     "costBreakdown": {
-      "loading": "Loading cost breakdown…"
+      "loading": "Loading cost breakdown…",
+      "title": "Cost Breakdown",
+      "emptyState": "No budget data to display",
+      "workItems": "Work Items",
+      "householdItems": "Household Items",
+      "sum": "Sum",
+      "availableFunds": "Available funds",
+      "remainingBudget": "Remaining Budget",
+      "tableHeaders": {
+        "name": "Name",
+        "cost": "Cost",
+        "payback": "Payback",
+        "net": "Net"
+      }
     }
   },
   "sources": {
@@ -426,7 +439,7 @@
     }
   },
   "subsidies": {
-    "title": "Budget",
+    "title": "Subsidy Programs",
     "sectionTitle": "Subsidy Programs",
     "addProgram": "Add Program",
     "loading": "Loading subsidy programs...",
