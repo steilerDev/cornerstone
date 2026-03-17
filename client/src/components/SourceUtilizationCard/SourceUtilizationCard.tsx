@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import type { BudgetSource, BudgetSourceType } from '@cornerstone/shared';
 import { BudgetBar } from '../BudgetBar/BudgetBar.js';
-import { formatCurrency } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import styles from './SourceUtilizationCard.module.css';
 
 interface SourceUtilizationCardProps {
@@ -10,6 +10,7 @@ interface SourceUtilizationCardProps {
 
 export function SourceUtilizationCard({ sources }: SourceUtilizationCardProps) {
   const { t } = useTranslation('dashboard');
+  const { formatCurrency } = useFormatters();
 
   const SOURCE_TYPE_LABELS: Record<BudgetSourceType, string> = {
     bank_loan: t('cards.sourceUtilization.sourceTypes.bank_loan'),

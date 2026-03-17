@@ -18,6 +18,7 @@ import type {
   TimelineDependency,
   TimelineHouseholdItem,
 } from '@cornerstone/shared';
+import { useLocale } from '../../contexts/LocaleContext.js';
 import { useTouchTooltip } from '../../hooks/useTouchTooltip.js';
 import { MonthGrid } from './MonthGrid.js';
 import { WeekGrid } from './WeekGrid.js';
@@ -36,6 +37,7 @@ import {
   prevWeek,
   nextWeek,
   getMonthName,
+  getDayName,
   DAY_NAMES,
   getWeekDates,
 } from './calendarUtils.js';
@@ -141,6 +143,8 @@ export function CalendarView({
   onMilestoneClick,
 }: CalendarViewProps) {
   const { t } = useTranslation('schedule');
+  const { resolvedLocale } = useLocale();
+  const localeString = resolvedLocale === 'de' ? 'de-DE' : 'en-US';
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Track which item is hovered for cross-cell highlighting
@@ -518,13 +522,13 @@ export function CalendarView({
 
   let navLabel: string;
   if (calendarMode === 'month') {
-    navLabel = `${getMonthName(displayMonth)} ${displayYear}`;
+    navLabel = `${getMonthName(displayMonth, localeString)} ${displayYear}`;
   } else {
     const weekDays = getWeekDates(weekDate);
     const first = weekDays[0];
     const last = weekDays[6];
-    const firstMonth = getMonthName(first.date.getUTCMonth() + 1);
-    const lastMonth = getMonthName(last.date.getUTCMonth() + 1);
+    const firstMonth = getMonthName(first.date.getUTCMonth() + 1, localeString);
+    const lastMonth = getMonthName(last.date.getUTCMonth() + 1, localeString);
     if (firstMonth === lastMonth) {
       navLabel = `${firstMonth} ${first.dayOfMonth}–${last.dayOfMonth}, ${first.date.getUTCFullYear()}`;
     } else {
@@ -538,7 +542,7 @@ export function CalendarView({
 
   // Determine the current week label for accessibility
   const weekDayLabels = getWeekDates(weekDate)
-    .map((d) => `${DAY_NAMES[d.date.getUTCDay()]} ${d.dayOfMonth}`)
+    .map((d) => `${getDayName(d.date.getUTCDay(), localeString)} ${d.dayOfMonth}`)
     .join(', ');
 
   return (
@@ -606,7 +610,7 @@ export function CalendarView({
             aria-pressed={calendarMode === 'month'}
             onClick={() => setMode('month')}
           >
-            Month
+            {t('calendar.modes.month')}
           </button>
           <button
             type="button"
@@ -614,7 +618,7 @@ export function CalendarView({
             aria-pressed={calendarMode === 'week'}
             onClick={() => setMode('week')}
           >
-            Week
+            {t('calendar.modes.week')}
           </button>
         </div>
       </div>
@@ -625,7 +629,7 @@ export function CalendarView({
         aria-label={
           calendarMode === 'week'
             ? `Week of ${weekDayLabels}`
-            : `${getMonthName(displayMonth)} ${displayYear}`
+            : `${getMonthName(displayMonth, localeString)} ${displayYear}`
         }
       >
         {calendarMode === 'month' ? (

@@ -54,7 +54,7 @@ import {
   deleteInvoiceBudgetLine,
 } from '../../lib/invoiceBudgetLinesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
-import { formatDate, formatCurrency } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import { Badge } from '../../components/Badge/Badge.js';
 import badgeStyles from '../../components/Badge/Badge.module.css';
 import { useToast } from '../../components/Toast/ToastContext.js';
@@ -72,6 +72,7 @@ const HI_STATUS_VARIANTS = {
 };
 
 export function HouseholdItemDetailPage() {
+  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
   const { t } = useTranslation('householdItems');
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();

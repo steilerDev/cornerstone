@@ -15,12 +15,13 @@ import {
   deleteInvoice,
 } from '../../lib/invoicesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
-import { formatDate } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import { VendorContactsSection } from '../../components/VendorContacts/VendorContactsSection.js';
 import styles from './VendorDetailPage.module.css';
 
 // TODO: use i18n currency format (EPIC-17) - should use formatCurrency from lib/formatters.ts with locale and currency from i18n context
 function formatCurrency(amount: number): string {
+  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
@@ -493,7 +494,7 @@ export function VendorDetailPage() {
 
               <div className={styles.field}>
                 <label htmlFor="edit-name" className={styles.label}>
-                  Name <span className={styles.required}>*</span>
+                  {t('vendorDetail.form.name')} <span className={styles.required}>{t('vendorDetail.form.required')}</span>
                 </label>
                 <input
                   type="text"
@@ -509,7 +510,7 @@ export function VendorDetailPage() {
 
               <div className={styles.field}>
                 <label htmlFor="edit-specialty" className={styles.label}>
-                  Specialty
+                  {t('vendorDetail.form.specialty')}
                 </label>
                 <input
                   type="text"
@@ -517,7 +518,7 @@ export function VendorDetailPage() {
                   value={(editForm.specialty as string) ?? ''}
                   onChange={(e) => setEditForm({ ...editForm, specialty: e.target.value })}
                   className={styles.input}
-                  placeholder="e.g., Plumbing, Electrical, Roofing"
+                  placeholder={t('vendorDetail.form.placeholders.specialty')}
                   maxLength={100}
                   disabled={isUpdating}
                 />
@@ -526,7 +527,7 @@ export function VendorDetailPage() {
               <div className={styles.formRow}>
                 <div className={styles.fieldGrow}>
                   <label htmlFor="edit-phone" className={styles.label}>
-                    Phone
+                    {t('vendorDetail.form.phone')}
                   </label>
                   <input
                     type="tel"
@@ -534,14 +535,14 @@ export function VendorDetailPage() {
                     value={(editForm.phone as string) ?? ''}
                     onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
                     className={styles.input}
-                    placeholder="e.g., +1 555-123-4567"
+                    placeholder={t('vendorDetail.form.placeholders.phone')}
                     maxLength={50}
                     disabled={isUpdating}
                   />
                 </div>
                 <div className={styles.fieldGrow}>
                   <label htmlFor="edit-email" className={styles.label}>
-                    Email
+                    {t('vendorDetail.form.email')}
                   </label>
                   <input
                     type="email"
@@ -549,7 +550,7 @@ export function VendorDetailPage() {
                     value={(editForm.email as string) ?? ''}
                     onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
                     className={styles.input}
-                    placeholder="e.g., contact@vendor.com"
+                    placeholder={t('vendorDetail.form.placeholders.email')}
                     maxLength={255}
                     disabled={isUpdating}
                   />
@@ -558,7 +559,7 @@ export function VendorDetailPage() {
 
               <div className={styles.field}>
                 <label htmlFor="edit-address" className={styles.label}>
-                  Address
+                  {t('vendorDetail.form.address')}
                 </label>
                 <input
                   type="text"
@@ -566,7 +567,7 @@ export function VendorDetailPage() {
                   value={(editForm.address as string) ?? ''}
                   onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
                   className={styles.input}
-                  placeholder="e.g., 123 Main St, Springfield, IL 62701"
+                  placeholder={t('vendorDetail.form.placeholders.address')}
                   maxLength={500}
                   disabled={isUpdating}
                 />
@@ -574,7 +575,7 @@ export function VendorDetailPage() {
 
               <div className={styles.field}>
                 <label htmlFor="edit-notes" className={styles.label}>
-                  Notes
+                  {t('vendorDetail.form.notes')}
                 </label>
                 <textarea
                   id="edit-notes"
@@ -607,15 +608,15 @@ export function VendorDetailPage() {
           ) : (
             <dl className={styles.infoList}>
               <div className={styles.infoRow}>
-                <dt className={styles.infoLabel}>Name</dt>
+                <dt className={styles.infoLabel}>{t('vendorDetail.detailFields.name')}</dt>
                 <dd className={styles.infoValue}>{vendor.name}</dd>
               </div>
               <div className={styles.infoRow}>
-                <dt className={styles.infoLabel}>Specialty</dt>
+                <dt className={styles.infoLabel}>{t('vendorDetail.detailFields.specialty')}</dt>
                 <dd className={styles.infoValue}>{vendor.specialty || '—'}</dd>
               </div>
               <div className={styles.infoRow}>
-                <dt className={styles.infoLabel}>Phone</dt>
+                <dt className={styles.infoLabel}>{t('vendorDetail.detailFields.phone')}</dt>
                 <dd className={styles.infoValue}>
                   {vendor.phone ? (
                     <a href={`tel:${vendor.phone}`} className={styles.infoLink}>
@@ -627,7 +628,7 @@ export function VendorDetailPage() {
                 </dd>
               </div>
               <div className={styles.infoRow}>
-                <dt className={styles.infoLabel}>Email</dt>
+                <dt className={styles.infoLabel}>{t('vendorDetail.detailFields.email')}</dt>
                 <dd className={styles.infoValue}>
                   {vendor.email ? (
                     <a href={`mailto:${vendor.email}`} className={styles.infoLink}>
@@ -639,17 +640,17 @@ export function VendorDetailPage() {
                 </dd>
               </div>
               <div className={styles.infoRow}>
-                <dt className={styles.infoLabel}>Address</dt>
+                <dt className={styles.infoLabel}>{t('vendorDetail.detailFields.address')}</dt>
                 <dd className={styles.infoValue}>{vendor.address || '—'}</dd>
               </div>
               <div className={styles.infoRow}>
-                <dt className={styles.infoLabel}>Notes</dt>
+                <dt className={styles.infoLabel}>{t('vendorDetail.detailFields.notes')}</dt>
                 <dd className={`${styles.infoValue} ${vendor.notes ? styles.infoValueNotes : ''}`}>
                   {vendor.notes || '—'}
                 </dd>
               </div>
               <div className={styles.infoRow}>
-                <dt className={styles.infoLabel}>Created by</dt>
+                <dt className={styles.infoLabel}>{t('vendorDetail.detailFields.createdBy')}</dt>
                 <dd className={styles.infoValue}>{vendor.createdBy?.displayName ?? '—'}</dd>
               </div>
             </dl>
@@ -710,13 +711,13 @@ export function VendorDetailPage() {
                 <table className={styles.invoiceTable}>
                   <thead>
                     <tr>
-                      <th className={styles.tableHeader}>Invoice #</th>
-                      <th className={`${styles.tableHeader} ${styles.tableHeaderRight}`}>Amount</th>
-                      <th className={styles.tableHeader}>Date</th>
-                      <th className={styles.tableHeader}>Due Date</th>
-                      <th className={styles.tableHeader}>Status</th>
+                      <th className={styles.tableHeader}>{t('vendorDetail.invoiceTable.invoiceNumber')}</th>
+                      <th className={`${styles.tableHeader} ${styles.tableHeaderRight}`}>{t('vendorDetail.invoiceTable.amount')}</th>
+                      <th className={styles.tableHeader}>{t('vendorDetail.invoiceTable.date')}</th>
+                      <th className={styles.tableHeader}>{t('vendorDetail.invoiceTable.dueDate')}</th>
+                      <th className={styles.tableHeader}>{t('vendorDetail.invoiceTable.status')}</th>
                       <th className={`${styles.tableHeader} ${styles.tableHeaderRight}`}>
-                        Actions
+                        {t('vendorDetail.invoiceTable.actions')}
                       </th>
                     </tr>
                   </thead>
@@ -754,7 +755,7 @@ export function VendorDetailPage() {
                               onClick={() => openEditInvoiceModal(invoice)}
                               aria-label={`Edit invoice ${invoice.invoiceNumber ?? invoice.id}`}
                             >
-                              Edit
+                              {t('vendorDetail.buttons.editRow')}
                             </button>
                             <button
                               type="button"
@@ -762,7 +763,7 @@ export function VendorDetailPage() {
                               onClick={() => openDeleteInvoiceConfirm(invoice)}
                               aria-label={`Delete invoice ${invoice.invoiceNumber ?? invoice.id}`}
                             >
-                              Delete
+                              {t('vendorDetail.buttons.deleteRow')}
                             </button>
                           </div>
                         </td>

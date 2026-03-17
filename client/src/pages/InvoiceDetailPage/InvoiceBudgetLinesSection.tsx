@@ -18,7 +18,7 @@ import {
 } from '../../lib/householdItemBudgetsApi.js';
 import { fetchBudgetCategories } from '../../lib/budgetCategoriesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
-import { formatCurrency } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import { WorkItemPicker } from '../../components/WorkItemPicker/WorkItemPicker.js';
 import { HouseholdItemPicker } from '../../components/HouseholdItemPicker/HouseholdItemPicker.js';
 import styles from './InvoiceBudgetLinesSection.module.css';
@@ -53,6 +53,7 @@ interface PickerState {
 }
 
 export function InvoiceBudgetLinesSection({
+  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
   invoiceId,
   invoiceTotal,
 }: InvoiceBudgetLinesSectionProps) {

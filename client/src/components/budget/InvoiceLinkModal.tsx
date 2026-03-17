@@ -5,7 +5,7 @@ import {
   createInvoiceBudgetLine,
   fetchInvoiceBudgetLines,
 } from '../../lib/invoiceBudgetLinesApi.js';
-import { formatCurrency } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import { useToast } from '../Toast/ToastContext.js';
 import { Modal } from '../Modal/index.js';
 import { FormError } from '../FormError/index.js';
@@ -26,6 +26,7 @@ type InvoiceLinkError = {
 };
 
 export function InvoiceLinkModal({
+  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
   budgetLineId,
   budgetLineType,
   vendorId,

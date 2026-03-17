@@ -1,6 +1,6 @@
 import type { BaseBudgetLine } from '@cornerstone/shared';
 import { computeBudgetTotals } from '../../lib/budgetConstants.js';
-import { formatCurrency } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import styles from './BudgetCostOverview.module.css';
 
 export interface SubsidyPaybackData {
@@ -20,6 +20,7 @@ export interface BudgetCostOverviewProps {
 }
 
 function formatRange(min: number, max: number): string {
+  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
   if (Math.abs(max - min) < 0.01) return formatCurrency(min);
   return `${formatCurrency(min)} – ${formatCurrency(max)}`;
 }

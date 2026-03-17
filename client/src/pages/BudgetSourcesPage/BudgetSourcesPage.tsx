@@ -13,7 +13,7 @@ import {
   deleteBudgetSource,
 } from '../../lib/budgetSourcesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
-import { formatCurrency, formatPercent } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
 import { BudgetBar } from '../../components/BudgetBar/BudgetBar.js';
 import type { BudgetBarSegment } from '../../components/BudgetBar/BudgetBar.js';
@@ -22,6 +22,7 @@ import styles from './BudgetSourcesPage.module.css';
 // ---- Display helpers ----
 
 function getSourceTypeClass(styles: Record<string, string>, sourceType: BudgetSourceType): string {
+  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
   const map: Record<BudgetSourceType, string> = {
     bank_loan: styles.typeBankLoan ?? '',
     credit_line: styles.typeCreditLine ?? '',

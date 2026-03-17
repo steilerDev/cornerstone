@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { SubsidyProgram } from '@cornerstone/shared';
-import { formatCurrency } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import styles from './SubsidyPipelineCard.module.css';
 
 interface SubsidyPipelineCardProps {
@@ -19,6 +19,7 @@ interface StatusGroup {
 
 export function SubsidyPipelineCard({ subsidyPrograms }: SubsidyPipelineCardProps) {
   const { t } = useTranslation('dashboard');
+  const { formatCurrency } = useFormatters();
 
   // Helper to check if deadline is within 14 days (inclusive) from today and >= 0 days in future
   const isUpcomingDeadline = (deadline: string | null): boolean => {

@@ -9,7 +9,7 @@ import type {
 import { fetchBudgetOverview, fetchBudgetBreakdown } from '../../lib/budgetOverviewApi.js';
 import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
-import { formatCurrency } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
 import { BudgetBar } from '../../components/BudgetBar/BudgetBar.js';
 import type { BudgetBarSegment } from '../../components/BudgetBar/BudgetBar.js';
@@ -23,6 +23,7 @@ const emptyCategories = new Set<string | null>();
 // ---- Helpers ----
 
 function formatShort(value: number): string {
+  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
   const abs = Math.abs(value);
   if (abs >= 1_000_000) {
     return `€${(value / 1_000_000).toFixed(1)}M`;

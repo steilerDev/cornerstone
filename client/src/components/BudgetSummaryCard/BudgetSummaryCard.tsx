@@ -11,6 +11,7 @@ interface BudgetSummaryCardProps {
 }
 
 export function BudgetSummaryCard({ overview }: BudgetSummaryCardProps) {
+  const { formatCurrency } = useFormatters();
   const { t } = useTranslation('dashboard');
 
   const {

@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { useLocale } from '../../contexts/LocaleContext.js';
 import type { HeaderCell, ZoomLevel } from './ganttUtils.js';
 import styles from './GanttHeader.module.css';
 
@@ -26,6 +27,9 @@ export const GanttHeader = memo(function GanttHeader({
   todayX,
   todayColor,
 }: GanttHeaderProps) {
+  const { resolvedLocale } = useLocale();
+  const localeString = resolvedLocale === 'de' ? 'de-DE' : 'en-US';
+
   return (
     <div
       className={styles.header}
@@ -41,7 +45,7 @@ export const GanttHeader = memo(function GanttHeader({
               key={idx}
               className={`${styles.headerCell} ${cell.isToday ? styles.headerCellToday : ''}`}
               style={{ left: cell.x, width: cell.width }}
-              aria-label={cell.date.toLocaleDateString('en-US', {
+              aria-label={cell.date.toLocaleDateString(localeString, {
                 weekday: 'short',
                 month: 'short',
                 day: 'numeric',

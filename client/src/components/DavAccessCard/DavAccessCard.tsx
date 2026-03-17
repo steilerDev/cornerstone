@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDavToken } from '../../hooks/useDavToken.js';
-import { formatDate } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import { FormError } from '../FormError/FormError.js';
 import styles from './DavAccessCard.module.css';
 
 export function DavAccessCard() {
   const { t } = useTranslation('settings');
+  const { formatDate } = useFormatters();
   const { status, isLoading, error, newToken, generate, revoke, clearNewToken } = useDavToken();
   const [isGenerating, setIsGenerating] = useState(false);
   const [isRevoking, setIsRevoking] = useState(false);

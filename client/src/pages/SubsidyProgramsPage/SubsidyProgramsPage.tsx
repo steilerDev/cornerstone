@@ -14,7 +14,7 @@ import {
 } from '../../lib/subsidyProgramsApi.js';
 import { fetchBudgetCategories } from '../../lib/budgetCategoriesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
-import { formatCurrency, formatDate } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
 import styles from './SubsidyProgramsPage.module.css';
 
@@ -23,6 +23,7 @@ import styles from './SubsidyProgramsPage.module.css';
 // STATUS_LABELS and REDUCTION_TYPE_LABELS will be dynamically generated from i18n
 
 function formatReduction(reductionType: SubsidyReductionType, reductionValue: number): string {
+  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
   if (reductionType === 'percentage') {
     return `${reductionValue}%`;
   }

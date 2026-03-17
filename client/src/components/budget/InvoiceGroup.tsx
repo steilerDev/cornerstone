@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import type { BaseBudgetLine } from '@cornerstone/shared';
-import { formatCurrency } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import { BudgetLineCard } from './BudgetLineCard.js';
 import styles from './InvoiceGroup.module.css';
 

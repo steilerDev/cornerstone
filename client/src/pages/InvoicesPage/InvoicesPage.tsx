@@ -10,7 +10,7 @@ import type {
 import { fetchAllInvoices, createInvoice } from '../../lib/invoicesApi.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
-import { formatDate, formatCurrency } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
 import styles from './InvoicesPage.module.css';
 
@@ -37,6 +37,7 @@ const EMPTY_FORM: InvoiceFormState = {
 };
 
 function getAttributionLabel(invoice: Invoice): string {
+  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
   if (invoice.budgetLines.length === 0) return '\u2014';
   const totalItemized = invoice.budgetLines.reduce((sum, bl) => sum + bl.itemizedAmount, 0);
   if (invoice.amount === 0) return `${invoice.budgetLines.length} lines`;

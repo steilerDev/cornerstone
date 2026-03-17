@@ -56,6 +56,7 @@ interface MilestonePanelProps {
 // ---------------------------------------------------------------------------
 
 function SmallDiamond({ completed, late }: { completed: boolean; late?: boolean }) {
+  const { formatDate } = useFormatters();
   let className: string;
   if (completed) {
     className = styles.diamondComplete;

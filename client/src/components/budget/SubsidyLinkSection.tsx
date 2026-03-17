@@ -1,6 +1,6 @@
 import { type ReactNode } from 'react';
 import type { SubsidyProgram } from '@cornerstone/shared';
-import { formatCurrency } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import styles from './SubsidyLinkSection.module.css';
 
 export interface SubsidyLinkSectionProps {
@@ -15,6 +15,7 @@ export interface SubsidyLinkSectionProps {
 }
 
 export function SubsidyLinkSection({
+  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
   linkedSubsidies,
   availableSubsidies,
   selectedSubsidyId,

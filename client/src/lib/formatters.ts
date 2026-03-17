@@ -148,34 +148,51 @@ export function computeActualDuration(
   return diffDays >= 0 ? diffDays : null;
 }
 
+import { useLocale } from '../contexts/LocaleContext.js';
+
 /**
- * To use locale-aware formatters in a component, import useLocale and call the
- * formatting functions with resolvedLocale and currency from the context:
+ * Hook that provides locale-aware formatting functions.
+ * Uses the user's current locale and currency preferences.
  *
+ * Usage:
  * ```tsx
- * import { useLocale } from '../contexts/LocaleContext.js';
- * import { formatCurrency, formatDate } from './formatters.js';
- *
- * function MyComponent() {
- *   const { resolvedLocale, currency } = useLocale();
- *   return <div>{formatCurrency(100, resolvedLocale, currency)}</div>;
- * }
- * ```
- *
- * Or create a simple wrapper hook in your component file:
- *
- * ```tsx
- * function useFormatters() {
- *   const { resolvedLocale, currency } = useLocale();
- *   return {
- *     formatCurrency: (amount: number) => formatCurrency(amount, resolvedLocale, currency),
- *     formatDate: (dateStr: string | null | undefined, fallback?: string) =>
- *       formatDate(dateStr, resolvedLocale, fallback),
- *     formatTime: (timestamp: string | null | undefined, fallback?: string) =>
- *       formatTime(timestamp, resolvedLocale, fallback),
- *     formatDateTime: (timestamp: string | null | undefined, fallback?: string) =>
- *       formatDateTime(timestamp, resolvedLocale, fallback),
- *   };
- * }
+ * const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
+ * // Use these functions — they automatically apply the user's locale and currency
  * ```
  */
+export function useFormatters() {
+  const { resolvedLocale, currency } = useLocale();
+
+  // Map 'en' to 'en-US' and 'de' to 'de-DE'
+  const localeString = resolvedLocale === 'de' ? 'de-DE' : 'en-US';
+
+  return {
+    /**
+     * Format a number as a currency string using the user's locale and currency.
+     */
+    formatCurrency: (amount: number) => formatCurrency(amount, localeString, currency),
+
+    /**
+     * Format a date string using the user's locale.
+     */
+    formatDate: (dateStr: string | null | undefined, fallback?: string) =>
+      formatDate(dateStr, localeString, fallback),
+
+    /**
+     * Format a time string using the user's locale.
+     */
+    formatTime: (timestamp: string | null | undefined, fallback?: string) =>
+      formatTime(timestamp, localeString, fallback),
+
+    /**
+     * Format a datetime string using the user's locale.
+     */
+    formatDateTime: (timestamp: string | null | undefined, fallback?: string) =>
+      formatDateTime(timestamp, localeString, fallback),
+
+    /**
+     * Format a percentage number.
+     */
+    formatPercent,
+  };
+}

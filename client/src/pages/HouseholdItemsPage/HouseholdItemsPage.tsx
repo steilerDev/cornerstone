@@ -16,11 +16,12 @@ import { Badge } from '../../components/Badge/Badge.js';
 import badgeStyles from '../../components/Badge/Badge.module.css';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import { KeyboardShortcutsHelp } from '../../components/KeyboardShortcutsHelp/KeyboardShortcutsHelp.js';
-import { formatDate, formatCurrency } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import { ProjectSubNav } from '../../components/ProjectSubNav/ProjectSubNav.js';
 import styles from './HouseholdItemsPage.module.css';
 
 export function HouseholdItemsPage() {
+  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
   const { t } = useTranslation('householdItems');
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
