@@ -5,6 +5,8 @@
 import '@testing-library/jest-dom/jest-globals';
 
 // Suppress i18next promo messages and other noisy info output in tests.
+import { jest } from '@jest/globals';
+
 jest.spyOn(console, 'info').mockImplementation(() => undefined);
 
 // Initialize i18next with English translations for the test environment.
