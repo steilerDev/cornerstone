@@ -219,7 +219,9 @@ test.describe('i18n: German Locale — Responsive Layout', () => {
 
     // Then: The section heading is in German
     // budget.json vendors.sectionTitle = "Auftragnehmer" (German for Vendors/Contractors)
-    await expect(page.getByRole('heading', { level: 2, name: 'Auftragnehmer' }).first()).toBeVisible();
+    await expect(
+      page.getByRole('heading', { level: 2, name: 'Auftragnehmer' }).first(),
+    ).toBeVisible();
   });
 
   test('German text renders on work items page', async ({ page }) => {
