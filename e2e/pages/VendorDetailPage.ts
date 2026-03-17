@@ -62,7 +62,8 @@ export class VendorDetailPage {
 
   // Contact create modal
   readonly createContactModal: Locator;
-  readonly createContactNameInput: Locator;
+  readonly createContactFirstNameInput: Locator;
+  readonly createContactLastNameInput: Locator;
   readonly createContactRoleInput: Locator;
   readonly createContactPhoneInput: Locator;
   readonly createContactEmailInput: Locator;
@@ -73,7 +74,8 @@ export class VendorDetailPage {
 
   // Contact edit modal
   readonly editContactModal: Locator;
-  readonly editContactNameInput: Locator;
+  readonly editContactFirstNameInput: Locator;
+  readonly editContactLastNameInput: Locator;
   readonly editContactRoleInput: Locator;
   readonly editContactPhoneInput: Locator;
   readonly editContactEmailInput: Locator;
@@ -148,7 +150,8 @@ export class VendorDetailPage {
 
     // Contact create modal — opened via "Add Contact" button
     this.createContactModal = page.getByRole('dialog', { name: 'Add Contact' });
-    this.createContactNameInput = page.locator('#create-name');
+    this.createContactFirstNameInput = page.locator('#create-firstName');
+    this.createContactLastNameInput = page.locator('#create-lastName');
     this.createContactRoleInput = page.locator('#create-role');
     this.createContactPhoneInput = page.locator('#create-phone');
     this.createContactEmailInput = page.locator('#create-email');
@@ -164,7 +167,8 @@ export class VendorDetailPage {
 
     // Contact edit modal — opened via "Edit Contact" button on a contact card
     this.editContactModal = page.getByRole('dialog', { name: 'Edit Contact' });
-    this.editContactNameInput = page.locator('#edit-name');
+    this.editContactFirstNameInput = page.locator('#edit-firstName');
+    this.editContactLastNameInput = page.locator('#edit-lastName');
     this.editContactRoleInput = page.locator('#edit-role');
     this.editContactPhoneInput = page.locator('#edit-phone');
     this.editContactEmailInput = page.locator('#edit-email');
@@ -379,14 +383,18 @@ export class VendorDetailPage {
    * the correct modal is visible before calling.
    */
   async fillCreateContactForm(data: {
-    name?: string;
+    firstName?: string;
+    lastName?: string;
     role?: string;
     phone?: string;
     email?: string;
     notes?: string;
   }): Promise<void> {
-    if (data.name !== undefined) {
-      await this.createContactNameInput.fill(data.name);
+    if (data.firstName !== undefined) {
+      await this.createContactFirstNameInput.fill(data.firstName);
+    }
+    if (data.lastName !== undefined) {
+      await this.createContactLastNameInput.fill(data.lastName);
     }
     if (data.role !== undefined) {
       await this.createContactRoleInput.fill(data.role);
@@ -431,15 +439,20 @@ export class VendorDetailPage {
    * Fill the edit contact form fields. Only provided fields are written.
    */
   async fillEditContactForm(data: {
-    name?: string;
+    firstName?: string;
+    lastName?: string;
     role?: string;
     phone?: string;
     email?: string;
     notes?: string;
   }): Promise<void> {
-    if (data.name !== undefined) {
-      await this.editContactNameInput.clear();
-      await this.editContactNameInput.fill(data.name);
+    if (data.firstName !== undefined) {
+      await this.editContactFirstNameInput.clear();
+      await this.editContactFirstNameInput.fill(data.firstName);
+    }
+    if (data.lastName !== undefined) {
+      await this.editContactLastNameInput.clear();
+      await this.editContactLastNameInput.fill(data.lastName);
     }
     if (data.role !== undefined) {
       await this.editContactRoleInput.fill(data.role);

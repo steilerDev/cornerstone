@@ -61,7 +61,8 @@ test.describe('Add vendor contact (Scenario 1)', () => {
 
       // And: Fills in all contact fields
       await vendorPage.fillCreateContactForm({
-        name: 'Jane Smith',
+        firstName: 'Jane',
+        lastName: 'Smith',
         role: 'Site Manager',
         phone: '+49 123 456',
         email: 'jane@example.com',
@@ -95,7 +96,7 @@ test.describe('Edit vendor contact (Scenario 2)', () => {
     vendorId = await createVendorViaApi(page, `${testPrefix} Edit Contact Vendor`);
     // Pre-create a contact via API
     await page.request.post(`${API.vendors}/${vendorId}/contacts`, {
-      data: { name: 'Jane Smith', role: 'Site Manager' },
+      data: { firstName: 'Jane', lastName: 'Smith', role: 'Site Manager' },
     });
   });
 
@@ -116,8 +117,8 @@ test.describe('Edit vendor contact (Scenario 2)', () => {
     // When: User opens the edit modal for the contact
     await vendorPage.openEditContactModal('Jane Smith');
 
-    // And: Changes the name
-    await vendorPage.fillEditContactForm({ name: 'Jane Doe' });
+    // And: Changes the last name
+    await vendorPage.fillEditContactForm({ lastName: 'Doe' });
 
     // And: Saves the changes
     await vendorPage.submitEditContact();
@@ -141,7 +142,7 @@ test.describe('Delete vendor contact (Scenario 3)', () => {
   test.beforeEach(async ({ page, testPrefix }) => {
     vendorId = await createVendorViaApi(page, `${testPrefix} Delete Contact Vendor`);
     await page.request.post(`${API.vendors}/${vendorId}/contacts`, {
-      data: { name: 'Delete Me' },
+      data: { firstName: 'Delete', lastName: 'Me' },
     });
   });
 
