@@ -1,0 +1,74 @@
+{
+  "link.title.Guides": {
+    "message": "Anleitungen",
+    "description": "The label for the footer column with label in list for Guides"
+  },
+  "link.item.label.Getting Started": {
+    "message": "Erste Schritte",
+    "description": "Footer link label"
+  },
+  "link.item.label.Work Items": {
+    "message": "Arbeitselemente",
+    "description": "Footer link label"
+  },
+  "link.item.label.Budget": {
+    "message": "Budget",
+    "description": "Footer link label"
+  },
+  "link.item.label.Timeline": {
+    "message": "Zeitplan",
+    "description": "Footer link label"
+  },
+  "link.item.label.Household Items": {
+    "message": "Haushaltsgegenstände",
+    "description": "Footer link label"
+  },
+  "link.item.label.Documents": {
+    "message": "Dokumente",
+    "description": "Footer link label"
+  },
+  "link.item.label.Diary": {
+    "message": "Bautagebuch",
+    "description": "Footer link label"
+  },
+  "link.item.label.Roadmap": {
+    "message": "Roadmap",
+    "description": "Footer link label"
+  },
+  "link.title.Development": {
+    "message": "Entwicklung",
+    "description": "The label for the footer column with label in list for Development"
+  },
+  "link.item.label.Agent Team": {
+    "message": "Agent Team",
+    "description": "Footer link label"
+  },
+  "link.item.label.Workflow": {
+    "message": "Workflow",
+    "description": "Footer link label"
+  },
+  "link.item.label.Tech Stack": {
+    "message": "Tech Stack",
+    "description": "Footer link label"
+  },
+  "link.title.More": {
+    "message": "Mehr",
+    "description": "The label for the footer column with label in list for More"
+  },
+  "link.item.label.GitHub": {
+    "message": "GitHub",
+    "description": "Footer link label"
+  },
+  "link.item.label.Wiki": {
+    "message": "Wiki",
+    "description": "Footer link label"
+  },
+  "link.item.label.Project Board": {
+    "message": "Projekt-Board",
+    "description": "Footer link label"
+  },
+  "copyright": {
+    "message": "Copyright © 2026 steilerDev. Gebaut mit Docusaurus.",
+    "description": "The copyright notice in the footer"
+  }
+}

@@ -24,7 +24,15 @@ const config = {
 
   i18n: {
     defaultLocale: 'en',
-    locales: ['en'],
+    locales: ['en', 'de'],
+    localeConfigs: {
+      en: {
+        label: 'English',
+      },
+      de: {
+        label: 'Deutsch',
+      },
+    },
   },
 
   presets: [
@@ -67,6 +75,10 @@ const config = {
             sidebarId: 'development',
             position: 'left',
             label: 'Development',
+          },
+          {
+            type: 'localeDropdown',
+            position: 'right',
           },
           {
             href: 'https://github.com/steilerDev/cornerstone',
