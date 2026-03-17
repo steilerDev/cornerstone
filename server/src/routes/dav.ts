@@ -189,7 +189,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
       responses.push(
         davXml.response(
           `${DAV_PREFIX}/calendars/default/`,
-          davXml.propstat(davXml.CALENDAR_COLLECTION_PROPS.replaceAll('"calendar-etag"', `"${etag}"`)),
+          davXml.propstat(davXml.CALENDAR_COLLECTION_PROPS.replace(/"calendar-etag"/g, `"${etag}"`)),
         ),
       );
 
@@ -401,7 +401,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
       responses.push(
         davXml.response(
           `${DAV_PREFIX}/addressbooks/default/`,
-          davXml.propstat(davXml.ADDRESSBOOK_COLLECTION_PROPS.replaceAll('"addressbook-etag"', `"${etag}"`)),
+          davXml.propstat(davXml.ADDRESSBOOK_COLLECTION_PROPS.replace(/"addressbook-etag"/g, `"${etag}"`)),
         ),
       );
 
