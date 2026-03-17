@@ -1,7 +1,9 @@
 import { useState, useEffect, type FormEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import { updateProfile, changePassword } from '../../lib/usersApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useAuth } from '../../contexts/AuthContext.js';
+import { useLocale, type LocalePreference } from '../../contexts/LocaleContext.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { SettingsSubNav } from '../../components/SettingsSubNav/SettingsSubNav.js';
 import { DavAccessCard } from '../../components/DavAccessCard/DavAccessCard.js';
@@ -14,8 +16,10 @@ interface PasswordFormErrors {
 }
 
 export function ProfilePage() {
+  const { t } = useTranslation('settings');
   const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
   const { user, isLoading, error: loadError, refreshAuth } = useAuth();
+  const { locale, setLocale } = useLocale();
 
   // Display name state
   const [displayName, setDisplayName] = useState('');
@@ -341,6 +345,26 @@ export function ProfilePage() {
             </p>
           </section>
         )}
+
+        {/* Preferences Card */}
+        <section className={styles.card}>
+          <h2 className={styles.cardTitle}>{t('profile.preferences')}</h2>
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor="languageSelect">
+              {t('profile.language')}
+            </label>
+            <select
+              id="languageSelect"
+              className={styles.input}
+              value={locale}
+              onChange={(e) => setLocale(e.target.value as LocalePreference)}
+            >
+              <option value="en">English</option>
+              <option value="de">Deutsch</option>
+              <option value="system">{t('profile.systemLanguage')}</option>
+            </select>
+          </div>
+        </section>
 
         {/* DAV Access Card */}
         <DavAccessCard />

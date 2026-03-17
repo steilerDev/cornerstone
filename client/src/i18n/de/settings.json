@@ -1,4 +1,9 @@
 {
+  "profile": {
+    "preferences": "Einstellungen",
+    "language": "Sprache",
+    "systemLanguage": "System (automatisch)"
+  },
   "dav": {
     "heading": "DAV-Zugang (Kalender & Kontakte)",
     "description": "Verbinden Sie Ihre Kalender- und Kontakte-App über CalDAV und CardDAV. Generieren Sie ein Token zur Authentifizierung.",
