@@ -140,3 +140,4 @@
 {"pr":938,"issues":[919],"epic":915,"type":"feat","mergedAt":"2026-03-17T14:30:00Z","filesChanged":15,"linesChanged":1661,"fixLoopCount":1,"reviews":[],"totalFindings":{"critical":0,"high":0,"medium":0,"low":0,"informational":0}}
 {"pr":939,"issues":[920],"epic":915,"type":"feat","mergedAt":"2026-03-17T16:00:00Z","filesChanged":18,"linesChanged":1756,"fixLoopCount":3,"reviews":[],"totalFindings":{"critical":0,"high":0,"medium":0,"low":0,"informational":0}}
 {"pr":941,"issues":[921],"epic":915,"type":"feat","mergedAt":"2026-03-17T17:00:00Z","filesChanged":23,"linesChanged":1562,"fixLoopCount":2,"reviews":[],"totalFindings":{"critical":0,"high":0,"medium":0,"low":0,"informational":0}}
+{"pr":942,"issues":[922],"epic":915,"type":"feat","mergedAt":"2026-03-17T17:30:00Z","filesChanged":14,"linesChanged":365,"fixLoopCount":1,"reviews":[],"totalFindings":{"critical":0,"high":0,"medium":0,"low":0,"informational":0}}
