@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useTheme, type ThemePreference } from '../../contexts/ThemeContext.js';
 import styles from './ThemeToggle.module.css';
 
@@ -69,12 +70,6 @@ function MonitorIcon() {
 
 const THEME_CYCLE: ThemePreference[] = ['light', 'dark', 'system'];
 
-const THEME_LABELS: Record<ThemePreference, string> = {
-  light: 'Light',
-  dark: 'Dark',
-  system: 'System',
-};
-
 const NEXT_THEME: Record<ThemePreference, ThemePreference> = {
   light: 'dark',
   dark: 'system',
@@ -83,28 +78,35 @@ const NEXT_THEME: Record<ThemePreference, ThemePreference> = {
 
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme();
+  const { t } = useTranslation('common');
+
+  const themeLabels: Record<ThemePreference, string> = {
+    light: t('theme.light'),
+    dark: t('theme.dark'),
+    system: t('theme.system'),
+  };
 
   const handleClick = () => {
     setTheme(NEXT_THEME[theme]);
   };
 
   const nextTheme = NEXT_THEME[theme];
-  const nextLabel = THEME_LABELS[nextTheme];
+  const nextLabel = themeLabels[nextTheme];
 
   return (
     <button
       type="button"
       className={styles.themeToggle}
       onClick={handleClick}
-      aria-label={`Switch to ${nextLabel} mode`}
-      title={`Current: ${THEME_LABELS[theme]} — click to switch to ${nextLabel}`}
+      aria-label={t('theme.switchTo', { mode: nextLabel })}
+      title={t('theme.current', { current: themeLabels[theme], next: nextLabel })}
     >
       <span className={styles.icon}>
         {theme === 'light' && <SunIcon />}
         {theme === 'dark' && <MoonIcon />}
         {theme === 'system' && <MonitorIcon />}
       </span>
-      <span className={styles.label}>{THEME_LABELS[theme]}</span>
+      <span className={styles.label}>{themeLabels[theme]}</span>
     </button>
   );
 }

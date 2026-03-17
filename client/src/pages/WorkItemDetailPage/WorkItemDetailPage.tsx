@@ -1814,12 +1814,12 @@ export default function WorkItemDetailPage() {
                 {t('detail.constraints.requiredMilestones')}
               </h3>
               <p className={styles.constraintSubsectionDesc}>
-                Milestones that must be completed before this work item can start.
+                {t('detail.constraints.requiredMilestonesDesc')}
               </p>
 
               <div className={styles.milestoneChips}>
                 {workItemMilestones.required.length === 0 && (
-                  <div className={styles.emptyState}>No required milestones</div>
+                  <div className={styles.emptyState}>{t('detail.constraints.noRequiredMilestones')}</div>
                 )}
                 {workItemMilestones.required.map((ms) => (
                   <div key={ms.id} className={styles.milestoneChip}>
@@ -1863,7 +1863,7 @@ export default function WorkItemDetailPage() {
                       onClick={handleAddRequiredMilestone}
                       disabled={!selectedRequiredMilestoneId || isAddingRequiredMilestone}
                     >
-                      {isAddingRequiredMilestone ? 'Adding...' : 'Add'}
+                      {isAddingRequiredMilestone ? t('detail.constraints.adding') : t('detail.constraints.addMilestone')}
                     </button>
                   </div>
                 ) : null;
@@ -1874,12 +1874,12 @@ export default function WorkItemDetailPage() {
             <div className={styles.constraintSubsection}>
               <h3 className={styles.subsectionTitle}>{t('detail.constraints.linkedMilestones')}</h3>
               <p className={styles.constraintSubsectionDesc}>
-                Milestones this work item contributes to.
+                {t('detail.constraints.linkedMilestonesDesc')}
               </p>
 
               <div className={styles.milestoneChips}>
                 {workItemMilestones.linked.length === 0 && (
-                  <div className={styles.emptyState}>No linked milestones</div>
+                  <div className={styles.emptyState}>{t('detail.constraints.noLinkedMilestones')}</div>
                 )}
                 {workItemMilestones.linked.map((ms) => (
                   <div
@@ -1926,7 +1926,7 @@ export default function WorkItemDetailPage() {
                       onClick={handleAddLinkedMilestone}
                       disabled={!selectedLinkedMilestoneId || isAddingLinkedMilestone}
                     >
-                      {isAddingLinkedMilestone ? 'Adding...' : 'Link'}
+                      {isAddingLinkedMilestone ? t('detail.constraints.linking') : t('detail.constraints.linkMilestone')}
                     </button>
                   </div>
                 ) : null;
@@ -1945,7 +1945,7 @@ export default function WorkItemDetailPage() {
           )}
         </h2>
         {linkedHouseholdItems.length === 0 ? (
-          <p className={styles.emptyText}>No household items depend on this work item.</p>
+          <p className={styles.emptyText}>{t('detail.householdItems.noItems')}</p>
         ) : (
           <ul className={styles.householdItemLinkList}>
             {linkedHouseholdItems.map((hi) => (
@@ -1986,10 +1986,12 @@ export default function WorkItemDetailPage() {
       <footer className={styles.footer}>
         <div className={styles.timestamps}>
           <div>
-            Created by {workItem.createdBy?.displayName || 'Unknown'} on{' '}
-            {formatDate(workItem.createdAt)}
+            {t('detail.footer.createdBy', {
+              name: workItem.createdBy?.displayName || 'Unknown',
+              date: formatDate(workItem.createdAt),
+            })}
           </div>
-          <div>Last updated {formatDate(workItem.updatedAt)}</div>
+          <div>{t('detail.footer.lastUpdated', { date: formatDate(workItem.updatedAt) })}</div>
         </div>
 
         <button
@@ -1997,7 +1999,7 @@ export default function WorkItemDetailPage() {
           className={styles.deleteWorkItemButton}
           onClick={() => setShowDeleteConfirm(true)}
         >
-          Delete Work Item
+          {t('detail.footer.deleteWorkItem')}
         </button>
       </footer>
 
@@ -2009,10 +2011,9 @@ export default function WorkItemDetailPage() {
             onClick={() => !isDeleting && setShowDeleteConfirm(false)}
           />
           <div className={styles.modalContent}>
-            <h2 className={styles.modalTitle}>Delete Work Item?</h2>
+            <h2 className={styles.modalTitle}>{t('detail.modals.deleteWorkItem.title')}</h2>
             <p className={styles.modalText}>
-              Are you sure you want to delete &ldquo;{workItem.title}&rdquo;? This action cannot be
-              undone.
+              {t('detail.modals.deleteWorkItem.text', { title: workItem.title })}
             </p>
             <div className={styles.modalActions}>
               <button
@@ -2021,7 +2022,7 @@ export default function WorkItemDetailPage() {
                 onClick={() => setShowDeleteConfirm(false)}
                 disabled={isDeleting}
               >
-                Cancel
+                {t('detail.modals.deleteWorkItem.cancel')}
               </button>
               <button
                 type="button"
@@ -2029,7 +2030,7 @@ export default function WorkItemDetailPage() {
                 onClick={handleDeleteWorkItem}
                 disabled={isDeleting}
               >
-                {isDeleting ? 'Deleting...' : 'Delete'}
+                {isDeleting ? t('detail.modals.deleteWorkItem.deleting') : t('detail.modals.deleteWorkItem.delete')}
               </button>
             </div>
           </div>
@@ -2046,9 +2047,9 @@ export default function WorkItemDetailPage() {
         <div className={styles.modal}>
           <div className={styles.modalBackdrop} onClick={() => setDeletingNoteId(null)} />
           <div className={styles.modalContent}>
-            <h2 className={styles.modalTitle}>Delete Note?</h2>
+            <h2 className={styles.modalTitle}>{t('detail.modals.deleteNote.title')}</h2>
             <p className={styles.modalText}>
-              Are you sure you want to delete this note? This action cannot be undone.
+              {t('detail.modals.deleteNote.text')}
             </p>
             <div className={styles.modalActions}>
               <button
@@ -2056,14 +2057,14 @@ export default function WorkItemDetailPage() {
                 className={styles.modalCancelButton}
                 onClick={() => setDeletingNoteId(null)}
               >
-                Cancel
+                {t('detail.modals.deleteNote.cancel')}
               </button>
               <button
                 type="button"
                 className={styles.modalDeleteButton}
                 onClick={confirmDeleteNote}
               >
-                Delete
+                {t('detail.modals.deleteNote.delete')}
               </button>
             </div>
           </div>

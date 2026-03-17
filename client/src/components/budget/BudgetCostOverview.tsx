@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { BaseBudgetLine } from '@cornerstone/shared';
 import { computeBudgetTotals } from '../../lib/budgetConstants.js';
 import { useFormatters } from '../../lib/formatters.js';
@@ -25,6 +26,7 @@ function formatRange(min: number, max: number, fc: (n: number) => string): strin
 }
 
 export function BudgetCostOverview({ budgetLines, subsidyPayback }: BudgetCostOverviewProps) {
+  const { t } = useTranslation('budget');
   const { formatCurrency } = useFormatters();
   if (budgetLines.length === 0) return null;
 
@@ -77,7 +79,7 @@ export function BudgetCostOverview({ budgetLines, subsidyPayback }: BudgetCostOv
         {/* Expected Payback — shown below planned range when subsidies apply */}
         {hasSubsidyPayback && (
           <div className={styles.summaryRow}>
-            <span className={styles.summaryLabel}>Expected Payback</span>
+            <span className={styles.summaryLabel}>{t('overview.expectedPayback')}</span>
             <span
               className={styles.budgetValuePayback}
               aria-live="polite"

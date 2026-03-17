@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import type { DependencyResponse, DependencyType } from '@cornerstone/shared';
 import { dependencyTypeToVerbs } from './dependencyVerbs.js';
@@ -32,11 +33,12 @@ export function DependencySentenceDisplay({
   thisItemLabel = 'this',
   onDelete,
 }: DependencySentenceDisplayProps) {
+  const { t } = useTranslation('workItems');
   const predecessorGroups = groupByType(predecessors);
   const successorGroups = groupByType(successors);
 
   if (predecessors.length === 0 && successors.length === 0) {
-    return <p className={styles.emptyState}>No dependencies</p>;
+    return null;
   }
 
   return (
