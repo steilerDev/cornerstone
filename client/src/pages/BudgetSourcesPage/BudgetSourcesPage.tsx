@@ -202,7 +202,8 @@ function SourceBarChart({ source }: SourceBarChartProps) {
         <span
           className={`${styles.summaryItem} ${source.actualAvailableAmount < 0 ? styles.amountNegative : ''}`}
         >
-          {t('sources.barChart.available')} <strong>{formatCurrency(source.actualAvailableAmount)}</strong>
+          {t('sources.barChart.available')}{' '}
+          <strong>{formatCurrency(source.actualAvailableAmount)}</strong>
         </span>
         <span className={styles.summaryDivider} aria-hidden="true">
           |
@@ -539,9 +540,7 @@ export function BudgetSourcesPage() {
         {showCreateForm && (
           <section className={styles.card}>
             <h2 className={styles.cardTitle}>{t('sources.newBudgetSource')}</h2>
-            <p className={styles.cardDescription}>
-              {t('sources.newBudgetSourceDescription')}
-            </p>
+            <p className={styles.cardDescription}>{t('sources.newBudgetSourceDescription')}</p>
 
             {createError && (
               <div className={styles.errorBanner} role="alert">
@@ -553,7 +552,8 @@ export function BudgetSourcesPage() {
               <div className={styles.formRow}>
                 <div className={styles.fieldGrow}>
                   <label htmlFor="sourceName" className={styles.label}>
-                    {t('sources.form.name')} <span className={styles.required}>{t('sources.form.required')}</span>
+                    {t('sources.form.name')}{' '}
+                    <span className={styles.required}>{t('sources.form.required')}</span>
                   </label>
                   <input
                     type="text"
@@ -570,7 +570,8 @@ export function BudgetSourcesPage() {
 
                 <div className={styles.fieldSelect}>
                   <label htmlFor="sourceType" className={styles.label}>
-                    {t('sources.form.type')} <span className={styles.required}>{t('sources.form.required')}</span>
+                    {t('sources.form.type')}{' '}
+                    <span className={styles.required}>{t('sources.form.required')}</span>
                   </label>
                   <select
                     id="sourceType"
@@ -612,7 +613,8 @@ export function BudgetSourcesPage() {
               <div className={styles.formRow}>
                 <div className={styles.fieldGrow}>
                   <label htmlFor="sourceTotalAmount" className={styles.label}>
-                    {t('sources.form.totalAmount')} <span className={styles.required}>{t('sources.form.required')}</span>
+                    {t('sources.form.totalAmount')}{' '}
+                    <span className={styles.required}>{t('sources.form.required')}</span>
                   </label>
                   <input
                     type="number"
@@ -703,12 +705,12 @@ export function BudgetSourcesPage() {
 
         {/* Sources list */}
         <section className={styles.card}>
-          <h2 className={styles.cardTitle}>{t('sources.sourcesList.title')} ({sources.length})</h2>
+          <h2 className={styles.cardTitle}>
+            {t('sources.sourcesList.title')} ({sources.length})
+          </h2>
 
           {sources.length === 0 ? (
-            <p className={styles.emptyState}>
-              {t('sources.sourcesList.empty')}
-            </p>
+            <p className={styles.emptyState}>{t('sources.sourcesList.empty')}</p>
           ) : (
             <div className={styles.sourcesList}>
               {sources.map((source) => (
@@ -728,7 +730,8 @@ export function BudgetSourcesPage() {
                       <div className={styles.editFormRow}>
                         <div className={styles.fieldGrow}>
                           <label htmlFor={`edit-name-${source.id}`} className={styles.label}>
-                            {t('sources.form.name')} <span className={styles.required}>{t('sources.form.required')}</span>
+                            {t('sources.form.name')}{' '}
+                            <span className={styles.required}>{t('sources.form.required')}</span>
                           </label>
                           <input
                             type="text"
@@ -796,7 +799,8 @@ export function BudgetSourcesPage() {
                       <div className={styles.editFormRow}>
                         <div className={styles.fieldGrow}>
                           <label htmlFor={`edit-amount-${source.id}`} className={styles.label}>
-                            {t('sources.form.totalAmount')} <span className={styles.required}>{t('sources.form.required')}</span>
+                            {t('sources.form.totalAmount')}{' '}
+                            <span className={styles.required}>{t('sources.form.required')}</span>
                           </label>
                           <input
                             type="number"
@@ -906,7 +910,9 @@ export function BudgetSourcesPage() {
                               {STATUS_LABELS[source.status]}
                             </span>
                             {source.isDiscretionary && (
-                              <span className={styles.systemBadge}>{t('sources.sourcesList.system')}</span>
+                              <span className={styles.systemBadge}>
+                                {t('sources.sourcesList.system')}
+                              </span>
                             )}
                           </div>
                         </div>
@@ -975,9 +981,7 @@ export function BudgetSourcesPage() {
                 {deleteError}
               </div>
             ) : (
-              <p className={styles.modalWarning}>
-                {t('sources.deleteModal.warning')}
-              </p>
+              <p className={styles.modalWarning}>{t('sources.deleteModal.warning')}</p>
             )}
 
             <div className={styles.modalActions}>

@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useTimeline } from '../../hooks/useTimeline.js';
 import { GanttChart, GanttChartSkeleton } from '../../components/GanttChart/GanttChart.js';
 import { CalendarView } from '../../components/calendar/CalendarView.js';
@@ -149,11 +150,7 @@ export function serializeFilterParam(active: ReadonlySet<EntityType>): string {
   return ALL_ENTITY_TYPES.filter((t) => active.has(t)).join(',');
 }
 
-const ZOOM_OPTIONS: { value: ZoomLevel; label: string }[] = [
-  { value: 'day', label: 'Day' },
-  { value: 'week', label: 'Week' },
-  { value: 'month', label: 'Month' },
-];
+// Zoom options defined inside component to access translations
 
 // ---------------------------------------------------------------------------
 // TimelinePage
@@ -179,12 +176,19 @@ function computeDefaultColumnWidth(zoom: ZoomLevel, chartAreaWidth: number): num
 const ZOOM_STEP_FACTOR = 0.2; // 20% per step
 
 export function TimelinePage() {
+  const { t } = useTranslation('schedule');
   const [zoom, setZoom] = useState<ZoomLevel>('month');
   const [showArrows, setShowArrows] = useState(true);
   const [highlightCriticalPath, setHighlightCriticalPath] = useState(true);
   const { data, isLoading, error, refetch } = useTimeline();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+
+  const zoomOptions: { value: ZoomLevel; label: string }[] = [
+    { value: 'day', label: t('timeline.zoomOptions.day') },
+    { value: 'week', label: t('timeline.zoomOptions.week') },
+    { value: 'month', label: t('timeline.zoomOptions.month') },
+  ];
 
   // ---- Column width state for zoom in/out ----
   const chartAreaRef = useRef<HTMLDivElement>(null);
@@ -293,27 +297,36 @@ export function TimelinePage() {
     <div className={styles.page} data-testid="timeline-page">
       {/* Page header: title + toolbar */}
       <div className={styles.pageHeader}>
-        <h1 className={styles.pageTitle}>Schedule</h1>
+        <h1 className={styles.pageTitle}>{t('timeline.page.title')}</h1>
 
         <div className={styles.toolbar}>
           {/* Entity filter toggle — shown in both views */}
           <div
             className={styles.entityFilterToggle}
             role="group"
-            aria-label="Entity filter"
+            aria-label={t('timeline.toolbar.entityFilter')}
             data-testid="entity-filter-group"
           >
             {(
               [
-                { type: 'work-items' as EntityType, label: 'Work Items', Icon: WorkItemsIcon },
-                { type: 'milestones' as EntityType, label: 'Milestones', Icon: MilestonesIcon },
+                {
+                  type: 'work-items' as EntityType,
+                  labelKey: 'timeline.toolbar.workItems',
+                  Icon: WorkItemsIcon,
+                },
+                {
+                  type: 'milestones' as EntityType,
+                  labelKey: 'timeline.toolbar.milestones',
+                  Icon: MilestonesIcon,
+                },
                 {
                   type: 'household-items' as EntityType,
-                  label: 'Household Items',
+                  labelKey: 'timeline.toolbar.householdItems',
                   Icon: HouseholdItemsIcon,
                 },
               ] as const
-            ).map(({ type, label, Icon }) => {
+            ).map(({ type, labelKey, Icon }) => {
+              const label = t(labelKey);
               const isActive = activeEntities.has(type);
               const isLastActive = isActive && activeEntities.size === 1;
               return (
@@ -324,13 +337,13 @@ export function TimelinePage() {
                     isActive ? styles.entityFilterButtonActive : ''
                   }`}
                   aria-pressed={isActive}
-                  aria-label={`${label}: ${isActive ? 'shown' : 'hidden'}`}
+                  aria-label={`${label}: ${isActive ? t('timeline.toolbar.hideLabel') : t('timeline.toolbar.showLabel')}`}
                   title={
                     isLastActive
-                      ? `${label} (cannot hide last type)`
+                      ? `${label} (${t('timeline.toolbar.cannotHideLastType')})`
                       : isActive
-                        ? `Hide ${label}`
-                        : `Show ${label}`
+                        ? `${t('timeline.toolbar.hideLabel')} ${label}`
+                        : `${t('timeline.toolbar.showLabel')} ${label}`
                   }
                   onClick={() => toggleEntity(type)}
                   disabled={isLastActive}
@@ -351,9 +364,17 @@ export function TimelinePage() {
                 type="button"
                 className={`${styles.arrowsToggle} ${showArrows ? styles.arrowsToggleActive : ''}`}
                 aria-pressed={showArrows}
-                aria-label={showArrows ? 'Hide dependency arrows' : 'Show dependency arrows'}
+                aria-label={
+                  showArrows
+                    ? t('timeline.toolbar.hideDependencyArrows')
+                    : t('timeline.toolbar.showDependencyArrows')
+                }
                 onClick={() => setShowArrows((v) => !v)}
-                title={showArrows ? 'Hide dependency arrows' : 'Show dependency arrows'}
+                title={
+                  showArrows
+                    ? t('timeline.toolbar.hideDependencyArrows')
+                    : t('timeline.toolbar.showDependencyArrows')
+                }
               >
                 <ArrowsIcon active={showArrows} />
               </button>
@@ -365,14 +386,14 @@ export function TimelinePage() {
                 aria-pressed={highlightCriticalPath}
                 aria-label={
                   highlightCriticalPath
-                    ? 'Hide critical path highlighting'
-                    : 'Show critical path highlighting'
+                    ? t('timeline.toolbar.hideCriticalPath')
+                    : t('timeline.toolbar.showCriticalPath')
                 }
                 onClick={() => setHighlightCriticalPath((v) => !v)}
                 title={
                   highlightCriticalPath
-                    ? 'Hide critical path highlighting'
-                    : 'Show critical path highlighting'
+                    ? t('timeline.toolbar.hideCriticalPath')
+                    : t('timeline.toolbar.showCriticalPath')
                 }
                 data-testid="critical-path-toggle"
               >
@@ -398,7 +419,11 @@ export function TimelinePage() {
               </button>
 
               {/* Zoom level toggle */}
-              <div className={styles.zoomToggle} role="toolbar" aria-label="Zoom level">
+              <div
+                className={styles.zoomToggle}
+                role="toolbar"
+                aria-label={t('timeline.toolbar.zoomLevel')}
+              >
                 {ZOOM_OPTIONS.map(({ value, label }) => (
                   <button
                     key={value}
@@ -416,15 +441,15 @@ export function TimelinePage() {
               <div
                 className={styles.columnZoomGroup}
                 role="group"
-                aria-label="Column zoom"
-                title="Adjust column width (Ctrl+scroll or Ctrl+=/−)"
+                aria-label={t('timeline.toolbar.columnZoom')}
+                title={t('timeline.toolbar.adjustColumnWidth')}
               >
                 <button
                   type="button"
                   className={styles.columnZoomButton}
                   onClick={() => adjustColumnWidth(-1)}
                   disabled={isAtMinZoom}
-                  aria-label="Zoom out columns"
+                  aria-label={t('timeline.toolbar.zoomOutColumns')}
                   title="Zoom out (Ctrl+−)"
                 >
                   −
@@ -434,7 +459,7 @@ export function TimelinePage() {
                   className={styles.columnZoomButton}
                   onClick={() => adjustColumnWidth(1)}
                   disabled={isAtMaxZoom}
-                  aria-label="Zoom in columns"
+                  aria-label={t('timeline.toolbar.zoomInColumns')}
                   title="Zoom in (Ctrl+=)"
                 >
                   +
@@ -471,7 +496,7 @@ export function TimelinePage() {
             </svg>
             <span>{error}</span>
             <button type="button" className={styles.errorBannerRetry} onClick={refetch}>
-              Try again
+              {t('timeline.errorBanner.tryAgain')}
             </button>
           </div>
         )}
@@ -494,12 +519,12 @@ export function TimelinePage() {
                 d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
               />
             </svg>
-            <h2 className={styles.emptyStateTitle}>No work items to display</h2>
+            <h2 className={styles.emptyStateTitle}>{t('timeline.emptyState.noItems')}</h2>
             <p className={styles.emptyStateDescription}>
-              Add work items with start and end dates to see them on the timeline.
+              {t('timeline.emptyState.noItemsMessage')}
             </p>
             <Link to="/project/work-items" className={styles.emptyStateLink}>
-              Go to Work Items
+              {t('timeline.emptyState.goToWorkItems')}
             </Link>
           </div>
         )}
@@ -527,13 +552,12 @@ export function TimelinePage() {
                   d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
                 />
               </svg>
-              <h2 className={styles.emptyStateTitle}>No scheduled work items</h2>
+              <h2 className={styles.emptyStateTitle}>{t('timeline.emptyState.noScheduled')}</h2>
               <p className={styles.emptyStateDescription}>
-                Your work items don&apos;t have start and end dates yet. Set dates on your work
-                items to see them positioned on the timeline.
+                {t('timeline.emptyState.noScheduledMessage')}
               </p>
               <Link to="/project/work-items" className={styles.emptyStateLink}>
-                Go to Work Items
+                {t('timeline.emptyState.goToWorkItems')}
               </Link>
             </div>
           )}

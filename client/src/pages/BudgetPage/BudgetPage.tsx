@@ -7,9 +7,7 @@ export function BudgetPage() {
   return (
     <div className={styles.page}>
       <h1 className={styles.title}>{t('overview.title')}</h1>
-      <p className={styles.description}>
-        {t('overview.emptyStateDescription')}
-      </p>
+      <p className={styles.description}>{t('overview.emptyStateDescription')}</p>
     </div>
   );
 }

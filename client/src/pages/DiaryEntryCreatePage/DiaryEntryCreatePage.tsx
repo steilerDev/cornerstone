@@ -1,5 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type {
   ManualDiaryEntryType,
   DiaryWeather,
@@ -51,6 +52,7 @@ function TypeCard({ type, emoji, label, description, isSelected, onSelect }: Typ
 
 export default function DiaryEntryCreatePage() {
   const navigate = useNavigate();
+  const { t } = useTranslation('diary');
   const { showToast } = useToast();
   const { user } = useAuth();
   const [vendorOptions, setVendorOptions] = useState<VendorOption[]>([]);
@@ -111,28 +113,28 @@ export default function DiaryEntryCreatePage() {
     const errors: Record<string, string> = {};
 
     if (!entryDate) {
-      errors.entryDate = 'Entry date is required';
+      errors.entryDate = t('create.entryDateRequired');
     }
 
     if (!body.trim()) {
-      errors.body = 'Entry text is required';
+      errors.body = t('create.bodyRequired');
     }
 
     if (selectedType === 'site_visit') {
       if (!siteVisitInspectorName?.trim()) {
-        errors.siteVisitInspectorName = 'Inspector name is required';
+        errors.siteVisitInspectorName = t('createPage.siteVisitInspectorNameRequired');
       }
       if (!siteVisitOutcome) {
-        errors.siteVisitOutcome = 'Inspection outcome is required';
+        errors.siteVisitOutcome = t('create.inspectionOutcomeRequired');
       }
     }
 
     if (selectedType === 'issue') {
       if (!issueSeverity) {
-        errors.issueSeverity = 'Severity is required';
+        errors.issueSeverity = t('createPage.issueValidationRequired.severity');
       }
       if (!issueResolutionStatus) {
-        errors.issueResolutionStatus = 'Resolution status is required';
+        errors.issueResolutionStatus = t('createPage.issueValidationRequired.resolutionStatus');
       }
     }
 
@@ -194,7 +196,7 @@ export default function DiaryEntryCreatePage() {
     }
 
     if (!selectedType) {
-      setError('Please select an entry type');
+      setError(t('createPage.selectTypeError'));
       return;
     }
 
@@ -216,14 +218,14 @@ export default function DiaryEntryCreatePage() {
           await Promise.all(pendingFiles.map((file) => uploadPhoto('diary_entry', entry.id, file)));
         } catch (uploadErr) {
           console.error('Failed to upload photos:', uploadErr);
-          showToast('error', 'Entry created but some photos failed to upload');
+          showToast('error', t('create.photoUploadError'));
         }
       }
 
-      showToast('success', 'Diary entry created successfully');
+      showToast('success', t('create.successMessage'));
       navigate(`/diary/${entry.id}`);
     } catch (err) {
-      setError('Failed to create diary entry. Please try again.');
+      setError(t('create.errorMessage'));
       console.error('Failed to create diary entry:', err);
       setIsSubmitting(false);
     }
@@ -234,51 +236,51 @@ export default function DiaryEntryCreatePage() {
       <div className={styles.container}>
         <div className={styles.header}>
           <button type="button" className={styles.backButton} onClick={() => navigate('/diary')}>
-            ← Back to Diary
+            {t('createPage.backLink')}
           </button>
-          <h1 className={styles.title}>New Diary Entry</h1>
+          <h1 className={styles.title}>{t('createPage.title')}</h1>
         </div>
 
         <div className={styles.typeSelector}>
-          <h2 className={styles.sectionTitle}>Select Entry Type</h2>
+          <h2 className={styles.sectionTitle}>{t('createPage.selectEntryType')}</h2>
           <div className={styles.typeGrid}>
             <TypeCard
               type="daily_log"
               emoji="📋"
-              label="Daily Log"
-              description="Record daily site conditions and worker presence"
+              label={t('createPage.typeCardDaily')}
+              description={t('createPage.typeCardDailyDesc')}
               isSelected={selectedType === 'daily_log'}
               onSelect={() => handleTypeSelect('daily_log')}
             />
             <TypeCard
               type="site_visit"
               emoji="🔍"
-              label="Site Visit"
-              description="Document an inspection with inspector info and outcome"
+              label={t('createPage.typeCardSiteVisit')}
+              description={t('createPage.typeCardSiteVisitDesc')}
               isSelected={selectedType === 'site_visit'}
               onSelect={() => handleTypeSelect('site_visit')}
             />
             <TypeCard
               type="delivery"
               emoji="📦"
-              label="Delivery"
-              description="Record delivery of materials or equipment"
+              label={t('createPage.typeCardDelivery')}
+              description={t('createPage.typeCardDeliveryDesc')}
               isSelected={selectedType === 'delivery'}
               onSelect={() => handleTypeSelect('delivery')}
             />
             <TypeCard
               type="issue"
               emoji="⚠️"
-              label="Issue"
-              description="Report a problem or concern on the site"
+              label={t('createPage.typeCardIssue')}
+              description={t('createPage.typeCardIssueDesc')}
               isSelected={selectedType === 'issue'}
               onSelect={() => handleTypeSelect('issue')}
             />
             <TypeCard
               type="general_note"
               emoji="📝"
-              label="General Note"
-              description="Add any other relevant information"
+              label={t('createPage.typeCardGeneralNote')}
+              description={t('createPage.typeCardGeneralNoteDesc')}
               isSelected={selectedType === 'general_note'}
               onSelect={() => handleTypeSelect('general_note')}
             />
@@ -301,9 +303,9 @@ export default function DiaryEntryCreatePage() {
           onClick={() => setStep('type-selector')}
           disabled={isSubmitting}
         >
-          ← Back
+          {t('createPage.backButtonForm')}
         </button>
-        <h1 className={styles.title}>New Diary Entry</h1>
+        <h1 className={styles.title}>{t('createPage.title')}</h1>
       </div>
 
       {error && <div className={styles.errorBanner}>{error}</div>}
@@ -351,10 +353,8 @@ export default function DiaryEntryCreatePage() {
         />
 
         <div className={styles.photoQueue}>
-          <label className={styles.photoQueueLabel}>Attach Photos (optional)</label>
-          <p className={styles.photoQueueHint}>
-            Photos will be uploaded after the entry is created.
-          </p>
+          <label className={styles.photoQueueLabel}>{t('createPage.attachPhotosLabel')}</label>
+          <p className={styles.photoQueueHint}>{t('createPage.attachPhotosHint')}</p>
           <input
             type="file"
             multiple
@@ -367,7 +367,7 @@ export default function DiaryEntryCreatePage() {
           />
           {pendingFiles.length > 0 && (
             <p className={styles.photoQueueCount} data-testid="pending-photo-count">
-              {pendingFiles.length} photo(s) queued
+              {t('createPage.photosQueued', { count: pendingFiles.length })}
             </p>
           )}
         </div>
@@ -379,10 +379,10 @@ export default function DiaryEntryCreatePage() {
             onClick={() => setStep('type-selector')}
             disabled={isSubmitting}
           >
-            Cancel
+            {t('create.cancelButton')}
           </button>
           <button type="submit" className={shared.btnPrimary} disabled={isSubmitting}>
-            {isSubmitting ? 'Creating...' : 'Create Entry'}
+            {isSubmitting ? t('create.submittingButton') : t('create.submitButton')}
           </button>
         </div>
       </form>

@@ -307,9 +307,7 @@ export function VendorsPage() {
             {searchQuery ? (
               <>
                 <h2 className={styles.emptyTitle}>{t('vendors.noSearchResults')}</h2>
-                <p className={styles.emptyText}>
-                  {t('vendors.tryDifferentSearch')}
-                </p>
+                <p className={styles.emptyText}>{t('vendors.tryDifferentSearch')}</p>
                 <button
                   type="button"
                   className={styles.secondaryButton}
@@ -324,9 +322,7 @@ export function VendorsPage() {
             ) : (
               <>
                 <h2 className={styles.emptyTitle}>{t('vendors.noVendorsTitle')}</h2>
-                <p className={styles.emptyText}>
-                  {t('vendors.noVendorsDescription')}
-                </p>
+                <p className={styles.emptyText}>{t('vendors.noVendorsDescription')}</p>
                 <button type="button" className={styles.button} onClick={openCreateModal}>
                   {t('vendors.addFirstVendor')}
                 </button>
@@ -351,7 +347,8 @@ export function VendorsPage() {
                           : 'none'
                       }
                     >
-                      {t('common.name')}{renderSortIcon('name')}
+                      {t('common.name')}
+                      {renderSortIcon('name')}
                     </th>
                     <th
                       className={styles.sortableHeader}
@@ -364,7 +361,8 @@ export function VendorsPage() {
                           : 'none'
                       }
                     >
-                      {t('vendors.form.specialty')}{renderSortIcon('specialty')}
+                      {t('vendors.form.specialty')}
+                      {renderSortIcon('specialty')}
                     </th>
                     <th>{t('vendors.form.phone')}</th>
                     <th>{t('vendors.form.email')}</th>
@@ -550,9 +548,7 @@ export function VendorsPage() {
             <h2 id="create-modal-title" className={styles.modalTitle}>
               {t('vendors.modal.title')}
             </h2>
-            <p className={styles.modalDescription}>
-              {t('vendors.modal.description')}
-            </p>
+            <p className={styles.modalDescription}>{t('vendors.modal.description')}</p>
 
             {createError && (
               <div className={styles.errorBanner} role="alert">
@@ -563,7 +559,8 @@ export function VendorsPage() {
             <form onSubmit={handleCreateVendor} className={styles.form} noValidate>
               <div className={styles.field}>
                 <label htmlFor="vendor-name" className={styles.label}>
-                  {t('vendors.form.name')} <span className={styles.required}>{t('vendors.form.required')}</span>
+                  {t('vendors.form.name')}{' '}
+                  <span className={styles.required}>{t('vendors.form.required')}</span>
                 </label>
                 <input
                   type="text"

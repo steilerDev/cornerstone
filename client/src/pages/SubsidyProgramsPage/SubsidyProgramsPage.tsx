@@ -455,7 +455,8 @@ export function SubsidyProgramsPage() {
               <div className={styles.formRow}>
                 <div className={styles.fieldSelect}>
                   <label htmlFor="reductionType" className={styles.label}>
-                    {t('subsidies.form.reductionType')} <span className={styles.required}>{t('subsidies.form.required')}</span>
+                    {t('subsidies.form.reductionType')}{' '}
+                    <span className={styles.required}>{t('subsidies.form.required')}</span>
                   </label>
                   <select
                     id="reductionType"
@@ -465,9 +466,9 @@ export function SubsidyProgramsPage() {
                     disabled={isCreating}
                   >
                     {Object.entries({
-                        percentage: t('subsidies.reductionTypeLabels.percentage'),
-                        fixed: t('subsidies.reductionTypeLabels.fixed'),
-                      }).map(([value, label]) => (
+                      percentage: t('subsidies.reductionTypeLabels.percentage'),
+                      fixed: t('subsidies.reductionTypeLabels.fixed'),
+                    }).map(([value, label]) => (
                       <option key={value} value={value}>
                         {label}
                       </option>
@@ -477,7 +478,9 @@ export function SubsidyProgramsPage() {
 
                 <div className={styles.fieldNarrow}>
                   <label htmlFor="reductionValue" className={styles.label}>
-                    {newReductionType === 'percentage' ? t('subsidies.form.valuePercentage') : t('subsidies.form.valueFixed')}{' '}
+                    {newReductionType === 'percentage'
+                      ? t('subsidies.form.valuePercentage')
+                      : t('subsidies.form.valueFixed')}{' '}
                     <span className={styles.required}>{t('subsidies.form.required')}</span>
                   </label>
                   <input
@@ -508,12 +511,12 @@ export function SubsidyProgramsPage() {
                     disabled={isCreating}
                   >
                     {Object.entries({
-                        eligible: t('subsidies.statusLabels.eligible'),
-                        applied: t('subsidies.statusLabels.applied'),
-                        approved: t('subsidies.statusLabels.approved'),
-                        received: t('subsidies.statusLabels.received'),
-                        rejected: t('subsidies.statusLabels.rejected'),
-                      }).map(([value, label]) => (
+                      eligible: t('subsidies.statusLabels.eligible'),
+                      applied: t('subsidies.statusLabels.applied'),
+                      approved: t('subsidies.statusLabels.approved'),
+                      received: t('subsidies.statusLabels.received'),
+                      rejected: t('subsidies.statusLabels.rejected'),
+                    }).map(([value, label]) => (
                       <option key={value} value={value}>
                         {label}
                       </option>
@@ -736,9 +739,9 @@ export function SubsidyProgramsPage() {
                             disabled={isUpdating}
                           >
                             {Object.entries({
-                                percentage: t('subsidies.reductionTypeLabels.percentage'),
-                                fixed: t('subsidies.reductionTypeLabels.fixed'),
-                              }).map(([value, label]) => (
+                              percentage: t('subsidies.reductionTypeLabels.percentage'),
+                              fixed: t('subsidies.reductionTypeLabels.fixed'),
+                            }).map(([value, label]) => (
                               <option key={value} value={value}>
                                 {label}
                               </option>
@@ -791,12 +794,12 @@ export function SubsidyProgramsPage() {
                             disabled={isUpdating}
                           >
                             {Object.entries({
-                                eligible: t('subsidies.statusLabels.eligible'),
-                                applied: t('subsidies.statusLabels.applied'),
-                                approved: t('subsidies.statusLabels.approved'),
-                                received: t('subsidies.statusLabels.received'),
-                                rejected: t('subsidies.statusLabels.rejected'),
-                              }).map(([value, label]) => (
+                              eligible: t('subsidies.statusLabels.eligible'),
+                              applied: t('subsidies.statusLabels.applied'),
+                              approved: t('subsidies.statusLabels.approved'),
+                              received: t('subsidies.statusLabels.received'),
+                              rejected: t('subsidies.statusLabels.rejected'),
+                            }).map(([value, label]) => (
                               <option key={value} value={value}>
                                 {label}
                               </option>
@@ -908,7 +911,9 @@ export function SubsidyProgramsPage() {
                       {allCategories.length > 0 && (
                         <div className={styles.field}>
                           <div className={styles.categoryFieldHeader}>
-                            <span className={styles.label}>{t('subsidies.form.applicableCategories')}</span>
+                            <span className={styles.label}>
+                              {t('subsidies.form.applicableCategories')}
+                            </span>
                             <button
                               type="button"
                               className={styles.selectAllToggle}

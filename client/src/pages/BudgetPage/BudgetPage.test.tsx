@@ -11,8 +11,6 @@ describe('BudgetPage', () => {
   it('renders descriptive message about tracking budget', () => {
     render(<BudgetPage />);
 
-    expect(
-      screen.getByText(/budget categories.*financing sources/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/budget categories.*financing sources/i)).toBeInTheDocument();
   });
 });

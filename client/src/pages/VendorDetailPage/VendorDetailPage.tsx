@@ -661,7 +661,7 @@ export function VendorDetailPage() {
             <div className={styles.invoiceHeaderRight}>
               {invoices.length > 0 && (
                 <span className={styles.outstandingBalance}>
-                  {t('vendorDetail.outstanding')} {' '}
+                  {t('vendorDetail.outstanding')}{' '}
                   <strong
                     className={
                       computedOutstandingBalance > 0 ? styles.outstandingAmount : undefined
@@ -677,7 +677,9 @@ export function VendorDetailPage() {
             </div>
           </div>
 
-          {invoicesLoading && <p className={styles.invoicesLoading}>{t('vendorDetail.invoicesLoading')}</p>}
+          {invoicesLoading && (
+            <p className={styles.invoicesLoading}>{t('vendorDetail.invoicesLoading')}</p>
+          )}
 
           {invoicesError && !invoicesLoading && (
             <div className={styles.invoicesError} role="alert">
@@ -695,9 +697,7 @@ export function VendorDetailPage() {
           {!invoicesLoading && !invoicesError && invoices.length === 0 && (
             <div className={styles.invoicesEmpty}>
               <p className={styles.invoicesEmptyText}>{t('vendorDetail.noInvoicesYet')}</p>
-              <p className={styles.invoicesEmptyHint}>
-                {t('vendorDetail.noInvoicesHint')}
-              </p>
+              <p className={styles.invoicesEmptyHint}>{t('vendorDetail.noInvoicesHint')}</p>
             </div>
           )}
 

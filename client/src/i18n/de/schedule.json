@@ -1,4 +1,124 @@
 {
+  "timeline": {
+    "page": {
+      "title": "Zeitplan"
+    },
+    "toolbar": {
+      "entityFilter": "Entity-Filter",
+      "workItems": "Arbeitsgegenstände",
+      "milestones": "Meilensteine",
+      "householdItems": "Haushaltsartikel",
+      "cannotHideLastType": "letzte Art kann nicht ausgeblendet werden",
+      "hideLabel": "Ausblenden",
+      "showLabel": "Anzeigen",
+      "dependencyArrows": "Abhängigkeitspfeile",
+      "hideDependencyArrows": "Abhängigkeitspfeile ausblenden",
+      "showDependencyArrows": "Abhängigkeitspfeile anzeigen",
+      "criticalPath": "Hervorhebung kritischer Pfad",
+      "hideCriticalPath": "Hervorhebung kritischer Pfad ausblenden",
+      "showCriticalPath": "Hervorhebung kritischer Pfad anzeigen",
+      "zoomLevel": "Zoomstufe",
+      "columnZoom": "Spalten-Zoom",
+      "zoomOutColumns": "Spalten verkleinern",
+      "zoomInColumns": "Spalten vergrößern",
+      "adjustColumnWidth": "Spaltenbreite anpassen (Strg+Bildlauf oder Strg+=/−)"
+    },
+    "zoomOptions": {
+      "day": "Tag",
+      "week": "Woche",
+      "month": "Monat"
+    },
+    "errorBanner": {
+      "title": "Fehler beim Laden des Zeitplans. Bitte versuchen Sie es erneut.",
+      "tryAgain": "Erneut versuchen"
+    },
+    "emptyState": {
+      "noItems": "Keine Arbeitsgegenstände zum Anzeigen",
+      "noItemsMessage": "Fügen Sie Arbeitsgegenstände mit Start- und Enddaten hinzu, um sie im Zeitplan anzuzeigen.",
+      "noScheduled": "Keine geplanten Arbeitsgegenstände",
+      "noScheduledMessage": "Ihre Arbeitsgegenstände haben noch kein Start- und Enddatum. Legen Sie Daten für Ihre Arbeitsgegenstände fest, um sie im Zeitplan zu sehen.",
+      "goToWorkItems": "Zu Arbeitsgegenständen gehen"
+    }
+  },
+  "schedule": {
+    "navigation": {
+      "gantt": "Gantt-Diagramm",
+      "calendar": "Kalender"
+    }
+  },
+  "gantt": {
+    "tooltip": {
+      "status": {
+        "not_started": "Nicht begonnen",
+        "in_progress": "In Arbeit",
+        "completed": "Abgeschlossen"
+      },
+      "duration": {
+        "label": "Dauer",
+        "planned": "Geplant",
+        "actual": "Tatsächlich",
+        "variance": "Abweichung",
+        "onPlan": "Planmäßig",
+        "day": "Tag",
+        "days": "Tage"
+      },
+      "workItem": {
+        "startLabel": "Anfang",
+        "endLabel": "Ende",
+        "ownerLabel": "Verantwortlicher",
+        "dependencies": "Abhängigkeiten",
+        "more": "weitere"
+      },
+      "milestone": {
+        "targetLabel": "Zielangabe",
+        "projectedLabel": "Voraussichtlich",
+        "doneLabel": "Fertig",
+        "contributing": "Beitrag",
+        "blockedByThis": "Wird von diesem blockiert",
+        "linkedItems": "Verknüpfte Elemente",
+        "none": "Keine"
+      },
+      "householdItem": {
+        "statusLabel": "Status",
+        "earliestLabel": "Früheste",
+        "targetLabel": "Zielangabe",
+        "latestLabel": "Späteste",
+        "actualLabel": "Tatsächlich",
+        "flooredToToday": "Heute begrenzt",
+        "linkedItems": "Verknüpfte Elemente"
+      },
+      "dependency": {
+        "finishToStart": "Finish-to-Start",
+        "startToStart": "Start-to-Start",
+        "finishToFinish": "Finish-to-Finish",
+        "startToFinish": "Start-to-Finish"
+      },
+      "navigation": {
+        "viewItem": "Artikel ansehen"
+      }
+    },
+    "status": {
+      "completed": "Abgeschlossen",
+      "late": "Verspätet",
+      "onTrack": "Im Plan"
+    },
+    "skeleton": {
+      "loading": "Diagramm wird geladen..."
+    }
+  },
+  "calendar": {
+    "navigation": {
+      "previousMonth": "Vorheriger Monat",
+      "nextMonth": "Nächster Monat",
+      "previousWeek": "Vorherige Woche",
+      "nextWeek": "Nächste Woche",
+      "today": "Heute"
+    },
+    "modes": {
+      "month": "Monat",
+      "week": "Woche"
+    }
+  },
   "milestones": {
     "page": {
       "title": "Projekt"
