@@ -74,7 +74,7 @@
     "clearAllFilters": "Clear All Filters"
   },
   "menu": {
-    "actions": "Actions for",
+    "actions": "Actions for {{name}}",
     "edit": "Edit",
     "delete": "Delete"
   },

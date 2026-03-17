@@ -6,6 +6,7 @@
     "diary": "Diary",
     "settings": "Settings"
   },
+  "name": "Name",
   "button": {
     "logout": "Logout",
     "close": "Close",
