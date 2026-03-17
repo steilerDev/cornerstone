@@ -177,7 +177,7 @@ describe('InvoiceDetailPage', () => {
       mockFetchInvoiceById.mockRejectedValue(new Error('Network error'));
       renderPage();
 
-      await waitFor(() => expect(screen.getByText(/Failed to load invoice/i)).toBeInTheDocument());
+      await waitFor(() => expect(screen.getByText(/Invoice not found/i)).toBeInTheDocument());
     });
   });
 

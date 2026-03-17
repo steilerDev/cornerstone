@@ -1,4 +1,5 @@
 import { useState, useEffect, type FormEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import type {
   SubsidyProgram,
   SubsidyApplicationStatus,
@@ -19,18 +20,7 @@ import styles from './SubsidyProgramsPage.module.css';
 
 // ---- Display helpers ----
 
-const STATUS_LABELS: Record<SubsidyApplicationStatus, string> = {
-  eligible: 'Eligible',
-  applied: 'Applied',
-  approved: 'Approved',
-  received: 'Received',
-  rejected: 'Rejected',
-};
-
-const REDUCTION_TYPE_LABELS: Record<SubsidyReductionType, string> = {
-  percentage: 'Percentage (%)',
-  fixed: 'Fixed Amount (€)',
-};
+// STATUS_LABELS and REDUCTION_TYPE_LABELS will be dynamically generated from i18n
 
 function formatReduction(reductionType: SubsidyReductionType, reductionValue: number): string {
   if (reductionType === 'percentage') {
@@ -90,6 +80,7 @@ function programToEditState(program: SubsidyProgram): EditingProgram {
 // ---- Component ----
 
 export function SubsidyProgramsPage() {
+  const { t } = useTranslation('budget');
   const [programs, setPrograms] = useState<SubsidyProgram[]>([]);
   const [allCategories, setAllCategories] = useState<BudgetCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -141,7 +132,7 @@ export function SubsidyProgramsPage() {
       if (err instanceof ApiClientError) {
         setError(err.error.message);
       } else {
-        setError('Failed to load subsidy programs. Please try again.');
+        setError(t('subsidies.errorMessage'));
       }
     } finally {
       setIsLoading(false);
@@ -203,18 +194,18 @@ export function SubsidyProgramsPage() {
 
     const trimmedName = newName.trim();
     if (!trimmedName) {
-      setCreateError('Program name is required');
+      setCreateError(t('subsidies.validation.nameRequired'));
       return;
     }
 
     const reductionValueNum = parseFloat(newReductionValue);
     if (isNaN(reductionValueNum) || reductionValueNum < 0) {
-      setCreateError('Reduction value must be a non-negative number');
+      setCreateError(t('subsidies.validation.reductionValueRequired'));
       return;
     }
 
     if (newReductionType === 'percentage' && reductionValueNum > 100) {
-      setCreateError('Percentage reduction cannot exceed 100%');
+      setCreateError(t('subsidies.validation.percentageMax'));
       return;
     }
 
@@ -236,12 +227,12 @@ export function SubsidyProgramsPage() {
       setPrograms([...programs, created]);
       resetCreateForm();
       setShowCreateForm(false);
-      setSuccessMessage(`Subsidy program "${created.name}" created successfully`);
+      setSuccessMessage(t('subsidies.messages.created', { name: created.name }));
     } catch (err) {
       if (err instanceof ApiClientError) {
         setCreateError(err.error.message);
       } else {
-        setCreateError('Failed to create subsidy program. Please try again.');
+        setCreateError(t('subsidies.messages.createError'));
       }
     } finally {
       setIsCreating(false);
@@ -268,18 +259,18 @@ export function SubsidyProgramsPage() {
 
     const trimmedName = editingProgram.name.trim();
     if (!trimmedName) {
-      setUpdateError('Program name is required');
+      setUpdateError(t('subsidies.validation.nameRequired'));
       return;
     }
 
     const reductionValueNum = parseFloat(editingProgram.reductionValue);
     if (isNaN(reductionValueNum) || reductionValueNum < 0) {
-      setUpdateError('Reduction value must be a non-negative number');
+      setUpdateError(t('subsidies.validation.reductionValueRequired'));
       return;
     }
 
     if (editingProgram.reductionType === 'percentage' && reductionValueNum > 100) {
-      setUpdateError('Percentage reduction cannot exceed 100%');
+      setUpdateError(t('subsidies.validation.percentageMax'));
       return;
     }
 
@@ -302,12 +293,12 @@ export function SubsidyProgramsPage() {
       });
       setPrograms(programs.map((p) => (p.id === updated.id ? updated : p)));
       setEditingProgram(null);
-      setSuccessMessage(`Subsidy program "${updated.name}" updated successfully`);
+      setSuccessMessage(t('subsidies.messages.updated', { name: updated.name }));
     } catch (err) {
       if (err instanceof ApiClientError) {
         setUpdateError(err.error.message);
       } else {
-        setUpdateError('Failed to update subsidy program. Please try again.');
+        setUpdateError(t('subsidies.messages.updateError'));
       }
     } finally {
       setIsUpdating(false);
@@ -336,18 +327,16 @@ export function SubsidyProgramsPage() {
       const deleted = programs.find((p) => p.id === programId);
       setPrograms(programs.filter((p) => p.id !== programId));
       setDeletingProgramId(null);
-      setSuccessMessage(`Subsidy program "${deleted?.name}" deleted successfully`);
+      setSuccessMessage(t('subsidies.messages.deleted', { name: deleted?.name }));
     } catch (err) {
       if (err instanceof ApiClientError) {
         if (err.statusCode === 409) {
-          setDeleteError(
-            'This subsidy program cannot be deleted because it is currently referenced by one or more budget entries.',
-          );
+          setDeleteError(t('subsidies.modal.deleteError'));
         } else {
           setDeleteError(err.error.message);
         }
       } else {
-        setDeleteError('Failed to delete subsidy program. Please try again.');
+        setDeleteError(t('subsidies.messages.deleteError'));
       }
     } finally {
       setIsDeleting(false);
@@ -466,7 +455,7 @@ export function SubsidyProgramsPage() {
               <div className={styles.formRow}>
                 <div className={styles.fieldSelect}>
                   <label htmlFor="reductionType" className={styles.label}>
-                    Reduction Type <span className={styles.required}>*</span>
+                    {t('subsidies.form.reductionType')} <span className={styles.required}>{t('subsidies.form.required')}</span>
                   </label>
                   <select
                     id="reductionType"
@@ -475,7 +464,10 @@ export function SubsidyProgramsPage() {
                     className={styles.select}
                     disabled={isCreating}
                   >
-                    {Object.entries(REDUCTION_TYPE_LABELS).map(([value, label]) => (
+                    {Object.entries({
+                        percentage: t('subsidies.reductionTypeLabels.percentage'),
+                        fixed: t('subsidies.reductionTypeLabels.fixed'),
+                      }).map(([value, label]) => (
                       <option key={value} value={value}>
                         {label}
                       </option>
@@ -485,8 +477,8 @@ export function SubsidyProgramsPage() {
 
                 <div className={styles.fieldNarrow}>
                   <label htmlFor="reductionValue" className={styles.label}>
-                    {newReductionType === 'percentage' ? 'Value (%)' : 'Value ($)'}{' '}
-                    <span className={styles.required}>*</span>
+                    {newReductionType === 'percentage' ? t('subsidies.form.valuePercentage') : t('subsidies.form.valueFixed')}{' '}
+                    <span className={styles.required}>{t('subsidies.form.required')}</span>
                   </label>
                   <input
                     type="number"
@@ -504,7 +496,7 @@ export function SubsidyProgramsPage() {
 
                 <div className={styles.fieldSelect}>
                   <label htmlFor="applicationStatus" className={styles.label}>
-                    Application Status
+                    {t('subsidies.form.applicationStatus')}
                   </label>
                   <select
                     id="applicationStatus"
@@ -515,7 +507,13 @@ export function SubsidyProgramsPage() {
                     className={styles.select}
                     disabled={isCreating}
                   >
-                    {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                    {Object.entries({
+                        eligible: t('subsidies.statusLabels.eligible'),
+                        applied: t('subsidies.statusLabels.applied'),
+                        approved: t('subsidies.statusLabels.approved'),
+                        received: t('subsidies.statusLabels.received'),
+                        rejected: t('subsidies.statusLabels.rejected'),
+                      }).map(([value, label]) => (
                       <option key={value} value={value}>
                         {label}
                       </option>
@@ -525,7 +523,7 @@ export function SubsidyProgramsPage() {
 
                 <div className={styles.fieldNarrow}>
                   <label htmlFor="applicationDeadline" className={styles.label}>
-                    Deadline
+                    {t('subsidies.form.deadline')}
                   </label>
                   <input
                     type="date"
@@ -541,7 +539,7 @@ export function SubsidyProgramsPage() {
               {/* Row 3: Maximum Amount */}
               <div className={styles.field}>
                 <label htmlFor="maximumAmount" className={styles.label}>
-                  Maximum Amount (€)
+                  {t('subsidies.form.maximumAmount')}
                 </label>
                 <input
                   type="number"
@@ -549,7 +547,7 @@ export function SubsidyProgramsPage() {
                   value={newMaximumAmount}
                   onChange={(e) => setNewMaximumAmount(e.target.value)}
                   className={styles.input}
-                  placeholder="No limit"
+                  placeholder={t('subsidies.form.placeholders.maximumAmount')}
                   min={0}
                   step="0.01"
                   disabled={isCreating}
@@ -559,7 +557,7 @@ export function SubsidyProgramsPage() {
               {/* Row 4: Description */}
               <div className={styles.field}>
                 <label htmlFor="programDescription" className={styles.label}>
-                  Description
+                  {t('subsidies.form.description')}
                 </label>
                 <textarea
                   id="programDescription"
@@ -576,7 +574,7 @@ export function SubsidyProgramsPage() {
               {/* Row 4: Eligibility */}
               <div className={styles.field}>
                 <label htmlFor="programEligibility" className={styles.label}>
-                  Eligibility Requirements
+                  {t('subsidies.form.eligibility')}
                 </label>
                 <textarea
                   id="programEligibility"
@@ -593,7 +591,7 @@ export function SubsidyProgramsPage() {
               {/* Row 5: Notes */}
               <div className={styles.field}>
                 <label htmlFor="programNotes" className={styles.label}>
-                  Notes
+                  {t('subsidies.form.notes')}
                 </label>
                 <textarea
                   id="programNotes"
@@ -611,7 +609,7 @@ export function SubsidyProgramsPage() {
               {allCategories.length > 0 && (
                 <div className={styles.field}>
                   <div className={styles.categoryFieldHeader}>
-                    <span className={styles.label}>Applicable Budget Categories</span>
+                    <span className={styles.label}>{t('subsidies.form.applicableCategories')}</span>
                     <button
                       type="button"
                       className={styles.selectAllToggle}
@@ -619,8 +617,8 @@ export function SubsidyProgramsPage() {
                       disabled={isCreating}
                     >
                       {newCategoryIds.length === allCategories.length
-                        ? 'Deselect All'
-                        : 'Select All'}
+                        ? t('subsidies.form.deselectAll')
+                        : t('subsidies.form.selectAll')}
                     </button>
                   </div>
                   <div className={styles.categoryCheckboxList}>
@@ -654,7 +652,7 @@ export function SubsidyProgramsPage() {
                   className={styles.button}
                   disabled={isCreating || !newName.trim() || !newReductionValue.trim()}
                 >
-                  {isCreating ? 'Creating...' : 'Create Program'}
+                  {isCreating ? t('subsidies.buttons.creating') : t('subsidies.buttons.create')}
                 </button>
                 <button
                   type="button"
@@ -665,7 +663,7 @@ export function SubsidyProgramsPage() {
                   }}
                   disabled={isCreating}
                 >
-                  Cancel
+                  {t('subsidies.buttons.cancel')}
                 </button>
               </div>
             </form>
@@ -737,7 +735,10 @@ export function SubsidyProgramsPage() {
                             className={styles.select}
                             disabled={isUpdating}
                           >
-                            {Object.entries(REDUCTION_TYPE_LABELS).map(([value, label]) => (
+                            {Object.entries({
+                                percentage: t('subsidies.reductionTypeLabels.percentage'),
+                                fixed: t('subsidies.reductionTypeLabels.fixed'),
+                              }).map(([value, label]) => (
                               <option key={value} value={value}>
                                 {label}
                               </option>
@@ -751,8 +752,8 @@ export function SubsidyProgramsPage() {
                             className={styles.label}
                           >
                             {editingProgram.reductionType === 'percentage'
-                              ? 'Value (%)'
-                              : 'Value ($)'}{' '}
+                              ? t('subsidies.form.valuePercentage')
+                              : t('subsidies.form.valueFixed')}{' '}
                             <span className={styles.required}>*</span>
                           </label>
                           <input
@@ -789,7 +790,13 @@ export function SubsidyProgramsPage() {
                             className={styles.select}
                             disabled={isUpdating}
                           >
-                            {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                            {Object.entries({
+                                eligible: t('subsidies.statusLabels.eligible'),
+                                applied: t('subsidies.statusLabels.applied'),
+                                approved: t('subsidies.statusLabels.approved'),
+                                received: t('subsidies.statusLabels.received'),
+                                rejected: t('subsidies.statusLabels.rejected'),
+                              }).map(([value, label]) => (
                               <option key={value} value={value}>
                                 {label}
                               </option>
@@ -843,7 +850,7 @@ export function SubsidyProgramsPage() {
                       {/* Edit Row 4: Description */}
                       <div className={styles.field}>
                         <label htmlFor={`edit-description-${program.id}`} className={styles.label}>
-                          Description
+                          {t('subsidies.form.description')}
                         </label>
                         <textarea
                           id={`edit-description-${program.id}`}
@@ -862,7 +869,7 @@ export function SubsidyProgramsPage() {
                       {/* Edit Row 4: Eligibility */}
                       <div className={styles.field}>
                         <label htmlFor={`edit-eligibility-${program.id}`} className={styles.label}>
-                          Eligibility Requirements
+                          {t('subsidies.form.eligibility')}
                         </label>
                         <textarea
                           id={`edit-eligibility-${program.id}`}
@@ -881,7 +888,7 @@ export function SubsidyProgramsPage() {
                       {/* Edit Row 5: Notes */}
                       <div className={styles.field}>
                         <label htmlFor={`edit-notes-${program.id}`} className={styles.label}>
-                          Notes
+                          {t('subsidies.form.notes')}
                         </label>
                         <textarea
                           id={`edit-notes-${program.id}`}
@@ -901,7 +908,7 @@ export function SubsidyProgramsPage() {
                       {allCategories.length > 0 && (
                         <div className={styles.field}>
                           <div className={styles.categoryFieldHeader}>
-                            <span className={styles.label}>Applicable Budget Categories</span>
+                            <span className={styles.label}>{t('subsidies.form.applicableCategories')}</span>
                             <button
                               type="button"
                               className={styles.selectAllToggle}
@@ -909,8 +916,8 @@ export function SubsidyProgramsPage() {
                               disabled={isUpdating}
                             >
                               {editingProgram.categoryIds.length === allCategories.length
-                                ? 'Deselect All'
-                                : 'Select All'}
+                                ? t('subsidies.form.deselectAll')
+                                : t('subsidies.form.selectAll')}
                             </button>
                           </div>
                           <div className={styles.categoryCheckboxList}>
@@ -950,7 +957,7 @@ export function SubsidyProgramsPage() {
                             !editingProgram.reductionValue.trim()
                           }
                         >
-                          {isUpdating ? 'Saving...' : 'Save'}
+                          {isUpdating ? t('subsidies.buttons.saving') : t('subsidies.buttons.save')}
                         </button>
                         <button
                           type="button"
@@ -958,7 +965,7 @@ export function SubsidyProgramsPage() {
                           onClick={cancelEdit}
                           disabled={isUpdating}
                         >
-                          Cancel
+                          {t('subsidies.buttons.cancel')}
                         </button>
                       </div>
                     </form>
@@ -971,7 +978,7 @@ export function SubsidyProgramsPage() {
                             <span
                               className={`${styles.statusBadge} ${getStatusClassName(styles, program.applicationStatus)}`}
                             >
-                              {STATUS_LABELS[program.applicationStatus]}
+                              {t(`subsidies.statusLabels.${program.applicationStatus}`)}
                             </span>
                             <span className={styles.reductionBadge}>
                               {formatReduction(program.reductionType, program.reductionValue)}
@@ -1087,7 +1094,7 @@ export function SubsidyProgramsPage() {
                   onClick={() => void handleDeleteProgram(deletingProgramId)}
                   disabled={isDeleting}
                 >
-                  {isDeleting ? 'Deleting...' : 'Delete Program'}
+                  {isDeleting ? t('subsidies.buttons.deleting') : t('subsidies.buttons.delete')}
                 </button>
               )}
             </div>

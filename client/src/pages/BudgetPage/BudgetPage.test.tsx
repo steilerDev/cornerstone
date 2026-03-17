@@ -12,7 +12,7 @@ describe('BudgetPage', () => {
     render(<BudgetPage />);
 
     expect(
-      screen.getByText(/track your project budget.*expenses.*financial sources/i),
+      screen.getByText(/budget categories.*financing sources/i),
     ).toBeInTheDocument();
   });
 });

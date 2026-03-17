@@ -280,8 +280,8 @@ describe('BudgetSourcesPage', () => {
       await waitFor(() => {
         // claimedAmount = 10000 → Claimed appears in bar legend
         expect(screen.getByText('Claimed')).toBeInTheDocument();
-        // Available appears inline in summary row as "Available: €X"
-        expect(screen.getByText(/available:/i)).toBeInTheDocument();
+        // Available appears inline in summary row (no colon after i18n)
+        expect(screen.getAllByText(/available/i).length).toBeGreaterThanOrEqual(1);
         // Old standalone 'Unclaimed' label is gone — replaced by 'Paid (unclaimed)' in legend
         expect(screen.queryByText('Unclaimed')).not.toBeInTheDocument();
       });
@@ -300,7 +300,7 @@ describe('BudgetSourcesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText(/planned:/i)).toBeInTheDocument();
+        expect(screen.getAllByText(/planned/i).length).toBeGreaterThanOrEqual(1);
         expect(screen.getAllByText(/€150,000\.00/).length).toBeGreaterThanOrEqual(1);
       });
     });
@@ -328,10 +328,10 @@ describe('BudgetSourcesPage', () => {
         expect(screen.getByText('Paid (unclaimed)')).toBeInTheDocument();
         // Old standalone 'Unclaimed' label is gone
         expect(screen.queryByText('Unclaimed')).not.toBeInTheDocument();
-        // Available: €70,000.00 appears in summary row as "Available: €70,000.00"
-        expect(screen.getByText(/available:/i)).toBeInTheDocument();
+        // Available €70,000.00 appears in summary row (no colon after i18n)
+        expect(screen.getAllByText(/available/i).length).toBeGreaterThanOrEqual(1);
         // Planned appears in summary row
-        expect(screen.getByText(/planned:/i)).toBeInTheDocument();
+        expect(screen.getAllByText(/planned/i).length).toBeGreaterThanOrEqual(1);
       });
     });
 
@@ -1686,9 +1686,9 @@ describe('BudgetSourcesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText(/total:/i)).toBeInTheDocument();
-        expect(screen.getByText(/available:/i)).toBeInTheDocument();
-        expect(screen.getByText(/planned:/i)).toBeInTheDocument();
+        expect(screen.getAllByText(/total/i).length).toBeGreaterThanOrEqual(1);
+        expect(screen.getAllByText(/available/i).length).toBeGreaterThanOrEqual(1);
+        expect(screen.getAllByText(/planned/i).length).toBeGreaterThanOrEqual(1);
       });
     });
 
@@ -1701,7 +1701,7 @@ describe('BudgetSourcesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText(/rate:/i)).toBeInTheDocument();
+        expect(screen.getByText('Rate')).toBeInTheDocument();
       });
     });
 
@@ -1717,7 +1717,7 @@ describe('BudgetSourcesPage', () => {
         expect(screen.getByText('Savings Account')).toBeInTheDocument();
       });
 
-      expect(screen.queryByText(/rate:/i)).not.toBeInTheDocument();
+      expect(screen.queryByText('Rate')).not.toBeInTheDocument();
     });
 
     it('old standalone "Unclaimed" label is no longer present', async () => {

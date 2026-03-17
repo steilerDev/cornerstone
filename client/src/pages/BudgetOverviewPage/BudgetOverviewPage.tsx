@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import type {
   BudgetOverview,
   BudgetBreakdown,
@@ -46,6 +47,7 @@ interface CategoryFilterProps {
 }
 
 function CategoryFilter({ categories, selectedIds, onChange }: CategoryFilterProps) {
+  const { t } = useTranslation('budget');
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const allSelected = selectedIds.size === categories.length;
@@ -93,9 +95,9 @@ function CategoryFilter({ categories, selectedIds, onChange }: CategoryFilterPro
   // Button label
   let label: string;
   if (allSelected) {
-    label = 'All categories';
+    label = t('overview.allCategories');
   } else if (selectedIds.size === 0) {
-    label = 'No categories';
+    label = t('overview.noCategories');
   } else if (selectedIds.size <= 2) {
     label = categories
       .filter((c) => selectedIds.has(c.categoryId))
@@ -114,7 +116,7 @@ function CategoryFilter({ categories, selectedIds, onChange }: CategoryFilterPro
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
-        <span>Categories: {label}</span>
+        <span>{t('overview.categories')}: {label}</span>
         <span className={styles.categoryFilterChevron} aria-hidden="true">
           {open ? '▲' : '▼'}
         </span>
@@ -125,10 +127,10 @@ function CategoryFilter({ categories, selectedIds, onChange }: CategoryFilterPro
           {/* Select All / Clear All */}
           <div className={styles.categoryDropdownActions}>
             <button type="button" className={styles.dropdownAction} onClick={selectAll}>
-              Select All
+              {t('overview.selectAll')}
             </button>
             <button type="button" className={styles.dropdownAction} onClick={clearAll}>
-              Clear All
+              {t('overview.clearAll')}
             </button>
           </div>
 
@@ -205,6 +207,7 @@ interface MobileBarDetailProps {
 }
 
 function MobileBarDetail({ segments, overflow, availableFunds }: MobileBarDetailProps) {
+  const { t } = useTranslation('budget');
   const rows = segments.filter((s) => s.value > 0);
   return (
     <div className={styles.mobileBarDetail}>
@@ -232,7 +235,7 @@ function MobileBarDetail({ segments, overflow, availableFunds }: MobileBarDetail
             style={{ backgroundColor: 'var(--color-budget-overflow)' }}
             aria-hidden="true"
           />
-          <span className={styles.mobileBarDetailLabel}>Overflow</span>
+          <span className={styles.mobileBarDetailLabel}>{t('overview.bars.overflow')}</span>
           <span className={styles.mobileBarDetailValue}>{formatCurrency(overflow)}</span>
           <span className={styles.mobileBarDetailPct}>({formatPct(overflow, availableFunds)})</span>
         </div>
@@ -249,13 +252,14 @@ interface SegmentTooltipProps {
 }
 
 function SegmentTooltipContent({ segment, availableFunds }: SegmentTooltipProps) {
+  const { t } = useTranslation('budget');
   const displayValue = segment.totalValue ?? segment.value;
   return (
     <div className={styles.segmentTooltip}>
       <span className={styles.segmentTooltipLabel}>{segment.label}</span>
       <span className={styles.segmentTooltipValue}>{formatCurrency(displayValue)}</span>
       <span className={styles.segmentTooltipPct}>
-        {formatPct(displayValue, availableFunds)} of available funds
+        {formatPct(displayValue, availableFunds)} {t('overview.ofAvailableFunds')}
       </span>
     </div>
   );
@@ -299,6 +303,7 @@ function computeFilteredTotals(
 // ---- Main component ----
 
 export function BudgetOverviewPage() {
+  const { t } = useTranslation('budget');
   const [overview, setOverview] = useState<BudgetOverview | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
@@ -365,7 +370,7 @@ export function BudgetOverviewPage() {
       if (err instanceof ApiClientError) {
         setError(err.error.message);
       } else {
-        setError('Failed to load budget overview. Please try again.');
+        setError(t('overview.errorMessage'));
       }
     } finally {
       setIsLoading(false);
@@ -386,11 +391,11 @@ export function BudgetOverviewPage() {
       <div className={styles.container}>
         <div className={styles.content}>
           <div className={styles.pageHeader}>
-            <h1 className={styles.pageTitle}>Budget</h1>
+            <h1 className={styles.pageTitle}>{t('overview.title')}</h1>
           </div>
           <BudgetSubNav />
-          <div className={styles.loading} role="status" aria-label="Loading budget overview">
-            Loading budget overview...
+          <div className={styles.loading} role="status" aria-label={t('overview.loading')}>
+            {t('overview.loading')}
           </div>
         </div>
       </div>
@@ -403,18 +408,18 @@ export function BudgetOverviewPage() {
       <div className={styles.container}>
         <div className={styles.content}>
           <div className={styles.pageHeader}>
-            <h1 className={styles.pageTitle}>Budget</h1>
+            <h1 className={styles.pageTitle}>{t('overview.title')}</h1>
           </div>
           <BudgetSubNav />
           <div className={styles.errorCard} role="alert">
-            <h2 className={styles.errorTitle}>Error</h2>
+            <h2 className={styles.errorTitle}>{t('overview.error')}</h2>
             <p>{error}</p>
             <button
               type="button"
               className={styles.retryButton}
               onClick={() => void loadOverview()}
             >
-              Retry
+              {t('overview.retry')}
             </button>
           </div>
         </div>
@@ -453,28 +458,28 @@ export function BudgetOverviewPage() {
       key: 'claimed',
       value: claimedVal,
       color: 'var(--color-budget-claimed)',
-      label: 'Claimed Invoices',
+      label: t('overview.bars.claimedInvoices'),
       totalValue: filtered.actualCostClaimed,
     },
     {
       key: 'paid',
       value: paidVal,
       color: 'var(--color-budget-paid)',
-      label: 'Paid Invoices',
+      label: t('overview.bars.paidInvoices'),
       totalValue: filtered.actualCostPaid,
     },
     {
       key: 'pending',
       value: pendingVal,
       color: 'var(--color-budget-pending)',
-      label: 'Pending Invoices',
+      label: t('overview.bars.pendingInvoices'),
       totalValue: filtered.actualCost,
     },
     {
       key: 'proj-min',
       value: projMinVal,
       color: 'var(--color-budget-projected)',
-      label: 'Projected (optimistic)',
+      label: t('overview.bars.projectedOptimistic'),
       totalValue: filtered.minPlanned,
     },
     {
@@ -482,7 +487,7 @@ export function BudgetOverviewPage() {
       value: projMaxVal,
       // Projected max layer is fainter — achieved via inline opacity on color
       color: 'var(--color-budget-projected)',
-      label: 'Projected (pessimistic)',
+      label: t('overview.bars.projectedPessimistic'),
       totalValue: filtered.maxPlanned,
     },
   ];
@@ -500,20 +505,20 @@ export function BudgetOverviewPage() {
 
   // Remaining perspectives detail items (uses filtered where sensible)
   const remainingDetailItems: RemainingDetail[] = [
-    { label: 'Remaining vs Min Planned', value: overview.remainingVsMinPlanned },
-    { label: 'Remaining vs Max Planned', value: overview.remainingVsMaxPlanned },
-    { label: 'Remaining vs Projected Min', value: filteredRemainingVsProjectedMin },
-    { label: 'Remaining vs Projected Max', value: filteredRemainingVsProjectedMax },
-    { label: 'Remaining vs Actual Cost', value: overview.remainingVsActualCost },
-    { label: 'Remaining vs Actual Paid', value: overview.remainingVsActualPaid },
+    { label: t('overview.remainingPerspectives.vsMinPlanned'), value: overview.remainingVsMinPlanned },
+    { label: t('overview.remainingPerspectives.vsMaxPlanned'), value: overview.remainingVsMaxPlanned },
+    { label: t('overview.remainingPerspectives.vsProjectedMin'), value: filteredRemainingVsProjectedMin },
+    { label: t('overview.remainingPerspectives.vsProjectedMax'), value: filteredRemainingVsProjectedMax },
+    { label: t('overview.remainingPerspectives.vsActualCost'), value: overview.remainingVsActualCost },
+    { label: t('overview.remainingPerspectives.vsActualPaid'), value: overview.remainingVsActualPaid },
     ...(hasPayback
       ? [
           {
-            label: 'Remaining vs Min Planned (incl. payback)',
+            label: t('overview.remainingPerspectives.vsMinPlannedWithPayback'),
             value: overview.remainingVsMinPlannedWithPayback,
           },
           {
-            label: 'Remaining vs Max Planned (incl. payback)',
+            label: t('overview.remainingPerspectives.vsMaxPlannedWithPayback'),
             value: overview.remainingVsMaxPlannedWithPayback,
           },
         ]
@@ -540,7 +545,7 @@ export function BudgetOverviewPage() {
       <div className={styles.content}>
         {/* Page header */}
         <div className={styles.pageHeader}>
-          <h1 className={styles.pageTitle}>Budget</h1>
+          <h1 className={styles.pageTitle}>{t('overview.title')}</h1>
         </div>
 
         {/* Budget sub-navigation */}
@@ -549,10 +554,9 @@ export function BudgetOverviewPage() {
         {/* Empty state */}
         {!hasData && (
           <div className={styles.emptyState}>
-            <p className={styles.emptyStateTitle}>No budget data yet</p>
+            <p className={styles.emptyStateTitle}>{t('overview.emptyStateTitle')}</p>
             <p className={styles.emptyStateDescription}>
-              Start by adding budget categories, work items with planned costs, and financing
-              sources. Your project budget overview will appear here once data is entered.
+              {t('overview.emptyStateDescription')}
             </p>
           </div>
         )}
@@ -565,13 +569,13 @@ export function BudgetOverviewPage() {
           <div className={`${styles.metricsRow} ${hasPayback ? styles.metricsRowWithPayback : ''}`}>
             {/* Available Funds */}
             <div className={styles.metricGroup}>
-              <span className={styles.metricLabel}>Available Funds</span>
+              <span className={styles.metricLabel}>{t('overview.availableFunds')}</span>
               <span className={styles.metricValue}>{formatCurrency(overview.availableFunds)}</span>
             </div>
 
             {/* Projected Cost Range */}
             <div className={styles.metricGroup}>
-              <span className={styles.metricLabel}>Projected Cost Range</span>
+              <span className={styles.metricLabel}>{t('overview.projectedCostRange')}</span>
               <span className={styles.metricValue}>
                 <span className={styles.metricRange}>
                   {formatShort(filtered.minPlanned)}
@@ -584,7 +588,7 @@ export function BudgetOverviewPage() {
             {/* Expected Payback (only when hasPayback) */}
             {hasPayback && (
               <div className={styles.metricGroup}>
-                <span className={styles.metricLabel}>Expected Payback</span>
+                <span className={styles.metricLabel}>{t('overview.expectedPayback')}</span>
                 <span
                   className={`${styles.metricValue} ${styles.metricPaybackValue}`}
                   aria-live="polite"
@@ -606,12 +610,12 @@ export function BudgetOverviewPage() {
 
             {/* Remaining (best/worst) — with detail on hover/tap */}
             <div className={styles.metricGroup}>
-              <span className={styles.metricLabel}>Remaining</span>
+              <span className={styles.metricLabel}>{t('overview.remaining')}</span>
               <Tooltip content={remainingTooltipContent}>
                 <button
                   type="button"
                   className={`${styles.metricValue} ${styles.metricValueInteractive}`}
-                  aria-label="Remaining budget — tap for details"
+                  aria-label={t('overview.remainingDetail')}
                   onClick={() => setRemainingDetailOpen((v) => !v)}
                 >
                   <span
@@ -694,9 +698,9 @@ export function BudgetOverviewPage() {
             <div
               className={styles.breakdownLoading}
               role="status"
-              aria-label="Loading cost breakdown"
+              aria-label={t('overview.costBreakdown.loading')}
             >
-              <p>Loading cost breakdown…</p>
+              <p>{t('overview.costBreakdown.loading')}</p>
             </div>
           ) : breakdown ? (
             <CostBreakdownTable

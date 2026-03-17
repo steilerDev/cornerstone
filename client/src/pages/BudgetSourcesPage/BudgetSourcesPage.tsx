@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, type FormEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import type {
   BudgetSource,
   BudgetSourceType,
@@ -19,20 +20,6 @@ import type { BudgetBarSegment } from '../../components/BudgetBar/BudgetBar.js';
 import styles from './BudgetSourcesPage.module.css';
 
 // ---- Display helpers ----
-
-const SOURCE_TYPE_LABELS: Record<BudgetSourceType, string> = {
-  bank_loan: 'Bank Loan',
-  credit_line: 'Credit Line',
-  savings: 'Savings',
-  other: 'Other',
-  discretionary: 'Discretionary',
-};
-
-const STATUS_LABELS: Record<BudgetSourceStatus, string> = {
-  active: 'Active',
-  exhausted: 'Exhausted',
-  closed: 'Closed',
-};
 
 function getSourceTypeClass(styles: Record<string, string>, sourceType: BudgetSourceType): string {
   const map: Record<BudgetSourceType, string> = {
@@ -87,6 +74,7 @@ interface SourceBarChartProps {
 }
 
 function SourceBarChart({ source }: SourceBarChartProps) {
+  const { t } = useTranslation('budget');
   const [hoveredSegment, setHoveredSegment] = useState<BudgetBarSegment | null>(null);
   const handleSegmentHover = useCallback((seg: BudgetBarSegment | null) => {
     setHoveredSegment(seg);
@@ -112,28 +100,28 @@ function SourceBarChart({ source }: SourceBarChartProps) {
       key: 'claimed',
       value: claimedVal,
       color: 'var(--color-budget-claimed)',
-      label: 'Claimed',
+      label: t('sources.barChart.claimed'),
       totalValue: source.claimedAmount,
     },
     {
       key: 'paid',
       value: paidVal,
       color: 'var(--color-budget-paid)',
-      label: 'Paid (unclaimed)',
+      label: t('sources.barChart.paidUnclaimed'),
       totalValue: source.paidAmount,
     },
     {
       key: 'projected',
       value: projectedVal,
       color: 'var(--color-budget-projected)',
-      label: 'Projected',
+      label: t('sources.barChart.projected'),
       totalValue: source.projectedAmount,
     },
     {
       key: 'allocated',
       value: allocatedVal,
       color: 'var(--color-budget-allocated)',
-      label: 'Allocated (planned)',
+      label: t('sources.barChart.allocated'),
       totalValue: source.usedAmount,
     },
   ];
@@ -161,11 +149,11 @@ function SourceBarChart({ source }: SourceBarChartProps) {
               </span>
               <span className={styles.segmentTooltipPct}>
                 {source.totalAmount > 0
-                  ? `${(((hoveredSegment.totalValue ?? hoveredSegment.value) / source.totalAmount) * 100).toFixed(1)}% of total`
-                  : '0.0% of total'}
+                  ? `${(((hoveredSegment.totalValue ?? hoveredSegment.value) / source.totalAmount) * 100).toFixed(1)}% ${t('sources.barChart.ofTotal')}`
+                  : `0.0% ${t('sources.barChart.ofTotal')}`}
               </span>
               <span className={styles.segmentTooltipPct}>
-                Remaining:{' '}
+                {t('sources.barChart.remaining')}{' '}
                 {formatCurrency(
                   source.totalAmount - (hoveredSegment.totalValue ?? hoveredSegment.value),
                 )}
@@ -197,7 +185,7 @@ function SourceBarChart({ source }: SourceBarChartProps) {
                 style={{ backgroundColor: 'var(--color-budget-overflow)' }}
                 aria-hidden="true"
               />
-              <span className={styles.barLegendLabel}>Overflow</span>
+              <span className={styles.barLegendLabel}>{t('sources.barChart.overflow')}</span>
               <span className={styles.barLegendValue}>{formatCurrency(overflow)}</span>
             </div>
           )}
@@ -206,7 +194,7 @@ function SourceBarChart({ source }: SourceBarChartProps) {
 
       <div className={styles.sourceSummaryRow}>
         <span className={styles.summaryItem}>
-          Total: <strong>{formatCurrency(source.totalAmount)}</strong>
+          {t('sources.barChart.total')} <strong>{formatCurrency(source.totalAmount)}</strong>
         </span>
         <span className={styles.summaryDivider} aria-hidden="true">
           |
@@ -214,13 +202,13 @@ function SourceBarChart({ source }: SourceBarChartProps) {
         <span
           className={`${styles.summaryItem} ${source.actualAvailableAmount < 0 ? styles.amountNegative : ''}`}
         >
-          Available: <strong>{formatCurrency(source.actualAvailableAmount)}</strong>
+          {t('sources.barChart.available')} <strong>{formatCurrency(source.actualAvailableAmount)}</strong>
         </span>
         <span className={styles.summaryDivider} aria-hidden="true">
           |
         </span>
         <span className={styles.summaryItem}>
-          Planned: <strong>{formatCurrency(source.usedAmount)}</strong>
+          {t('sources.barChart.planned')} <strong>{formatCurrency(source.usedAmount)}</strong>
         </span>
         {source.interestRate != null && (
           <>
@@ -228,7 +216,7 @@ function SourceBarChart({ source }: SourceBarChartProps) {
               |
             </span>
             <span className={styles.summaryItem}>
-              Rate: <strong>{formatPercent(source.interestRate)}</strong>
+              {t('sources.barChart.rate')} <strong>{formatPercent(source.interestRate)}</strong>
             </span>
           </>
         )}
@@ -240,6 +228,7 @@ function SourceBarChart({ source }: SourceBarChartProps) {
 // ---- Component ----
 
 export function BudgetSourcesPage() {
+  const { t } = useTranslation('budget');
   const [sources, setSources] = useState<BudgetSource[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
@@ -267,6 +256,21 @@ export function BudgetSourcesPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string>('');
 
+  // Translation-dependent label maps
+  const SOURCE_TYPE_LABELS: Record<BudgetSourceType, string> = {
+    bank_loan: t('sources.sourceTypes.bank_loan'),
+    credit_line: t('sources.sourceTypes.credit_line'),
+    savings: t('sources.sourceTypes.savings'),
+    other: t('sources.sourceTypes.other'),
+    discretionary: t('sources.sourceTypes.discretionary'),
+  };
+
+  const STATUS_LABELS: Record<BudgetSourceStatus, string> = {
+    active: t('sources.sourceStatus.active'),
+    exhausted: t('sources.sourceStatus.exhausted'),
+    closed: t('sources.sourceStatus.closed'),
+  };
+
   useEffect(() => {
     void loadSources();
   }, []);
@@ -282,7 +286,7 @@ export function BudgetSourcesPage() {
       if (err instanceof ApiClientError) {
         setError(err.error.message);
       } else {
-        setError('Failed to load budget sources. Please try again.');
+        setError(t('sources.errorMessage'));
       }
     } finally {
       setIsLoading(false);
@@ -307,20 +311,20 @@ export function BudgetSourcesPage() {
 
     const trimmedName = newName.trim();
     if (!trimmedName) {
-      setCreateError('Source name is required');
+      setCreateError(t('sources.validation.nameRequired'));
       return;
     }
 
     const totalAmountValue = parseFloat(newTotalAmount);
     if (isNaN(totalAmountValue) || totalAmountValue < 0) {
-      setCreateError('Total amount must be a non-negative number');
+      setCreateError(t('sources.validation.amountRequired'));
       return;
     }
 
     const interestRateValue =
       newInterestRate.trim() !== '' ? parseFloat(newInterestRate) : undefined;
     if (interestRateValue !== undefined && (isNaN(interestRateValue) || interestRateValue < 0)) {
-      setCreateError('Interest rate must be a non-negative number');
+      setCreateError(t('sources.validation.interestRateInvalid'));
       return;
     }
 
@@ -341,12 +345,12 @@ export function BudgetSourcesPage() {
       setSources([...sources, created]);
       resetCreateForm();
       setShowCreateForm(false);
-      setSuccessMessage(`Budget source "${created.name}" created successfully`);
+      setSuccessMessage(t('sources.messages.created', { name: created.name }));
     } catch (err) {
       if (err instanceof ApiClientError) {
         setCreateError(err.error.message);
       } else {
-        setCreateError('Failed to create budget source. Please try again.');
+        setCreateError(t('sources.messages.createError'));
       }
     } finally {
       setIsCreating(false);
@@ -373,20 +377,20 @@ export function BudgetSourcesPage() {
 
     const trimmedName = editingSource.name.trim();
     if (!trimmedName) {
-      setUpdateError('Source name is required');
+      setUpdateError(t('sources.validation.nameRequired'));
       return;
     }
 
     const totalAmountValue = parseFloat(editingSource.totalAmount);
     if (isNaN(totalAmountValue) || totalAmountValue < 0) {
-      setUpdateError('Total amount must be a non-negative number');
+      setUpdateError(t('sources.validation.amountRequired'));
       return;
     }
 
     const interestRateValue =
       editingSource.interestRate.trim() !== '' ? parseFloat(editingSource.interestRate) : null;
     if (interestRateValue !== null && (isNaN(interestRateValue) || interestRateValue < 0)) {
-      setUpdateError('Interest rate must be a non-negative number');
+      setUpdateError(t('sources.validation.interestRateInvalid'));
       return;
     }
 
@@ -408,12 +412,12 @@ export function BudgetSourcesPage() {
       });
       setSources(sources.map((s) => (s.id === updated.id ? updated : s)));
       setEditingSource(null);
-      setSuccessMessage(`Budget source "${updated.name}" updated successfully`);
+      setSuccessMessage(t('sources.messages.updated', { name: updated.name }));
     } catch (err) {
       if (err instanceof ApiClientError) {
         setUpdateError(err.error.message);
       } else {
-        setUpdateError('Failed to update budget source. Please try again.');
+        setUpdateError(t('sources.messages.updateError'));
       }
     } finally {
       setIsUpdating(false);
@@ -442,18 +446,16 @@ export function BudgetSourcesPage() {
       const deleted = sources.find((s) => s.id === sourceId);
       setSources(sources.filter((s) => s.id !== sourceId));
       setDeletingSourceId(null);
-      setSuccessMessage(`Budget source "${deleted?.name}" deleted successfully`);
+      setSuccessMessage(t('sources.messages.deleted', { name: deleted?.name }));
     } catch (err) {
       if (err instanceof ApiClientError) {
         if (err.statusCode === 409) {
-          setDeleteError(
-            'This budget source cannot be deleted because it is currently referenced by one or more budget entries.',
-          );
+          setDeleteError(t('sources.deleteModal.conflictError'));
         } else {
           setDeleteError(err.error.message);
         }
       } else {
-        setDeleteError('Failed to delete budget source. Please try again.');
+        setDeleteError(t('sources.messages.deleteError'));
       }
     } finally {
       setIsDeleting(false);
@@ -465,10 +467,10 @@ export function BudgetSourcesPage() {
       <div className={styles.container}>
         <div className={styles.content}>
           <div className={styles.pageHeader}>
-            <h1 className={styles.pageTitle}>Budget</h1>
+            <h1 className={styles.pageTitle}>{t('sources.title')}</h1>
           </div>
           <BudgetSubNav />
-          <div className={styles.loading}>Loading budget sources...</div>
+          <div className={styles.loading}>{t('sources.loading')}</div>
         </div>
       </div>
     );
@@ -479,14 +481,14 @@ export function BudgetSourcesPage() {
       <div className={styles.container}>
         <div className={styles.content}>
           <div className={styles.pageHeader}>
-            <h1 className={styles.pageTitle}>Budget</h1>
+            <h1 className={styles.pageTitle}>{t('sources.title')}</h1>
           </div>
           <BudgetSubNav />
           <div className={styles.errorCard} role="alert">
-            <h2 className={styles.errorTitle}>Error</h2>
+            <h2 className={styles.errorTitle}>{t('sources.error')}</h2>
             <p>{error}</p>
             <button type="button" className={styles.button} onClick={() => void loadSources()}>
-              Retry
+              {t('sources.retry')}
             </button>
           </div>
         </div>
@@ -499,7 +501,7 @@ export function BudgetSourcesPage() {
       <div className={styles.content}>
         {/* Page header */}
         <div className={styles.pageHeader}>
-          <h1 className={styles.pageTitle}>Budget</h1>
+          <h1 className={styles.pageTitle}>{t('sources.title')}</h1>
         </div>
 
         {/* Budget sub-navigation */}
@@ -507,7 +509,7 @@ export function BudgetSourcesPage() {
 
         {/* Section header */}
         <div className={styles.sectionHeader}>
-          <h2 className={styles.sectionTitle}>Sources</h2>
+          <h2 className={styles.sectionTitle}>{t('sources.sectionTitle')}</h2>
           <button
             type="button"
             className={styles.button}
@@ -517,7 +519,7 @@ export function BudgetSourcesPage() {
             }}
             disabled={showCreateForm}
           >
-            Add Source
+            {t('sources.addSource')}
           </button>
         </div>
 
@@ -536,10 +538,9 @@ export function BudgetSourcesPage() {
         {/* Create form */}
         {showCreateForm && (
           <section className={styles.card}>
-            <h2 className={styles.cardTitle}>New Budget Source</h2>
+            <h2 className={styles.cardTitle}>{t('sources.newBudgetSource')}</h2>
             <p className={styles.cardDescription}>
-              Budget sources represent financing for your project (e.g., bank loans, credit lines,
-              savings).
+              {t('sources.newBudgetSourceDescription')}
             </p>
 
             {createError && (
@@ -552,7 +553,7 @@ export function BudgetSourcesPage() {
               <div className={styles.formRow}>
                 <div className={styles.fieldGrow}>
                   <label htmlFor="sourceName" className={styles.label}>
-                    Name <span className={styles.required}>*</span>
+                    {t('sources.form.name')} <span className={styles.required}>{t('sources.form.required')}</span>
                   </label>
                   <input
                     type="text"
@@ -560,7 +561,7 @@ export function BudgetSourcesPage() {
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
                     className={styles.input}
-                    placeholder="e.g., Primary Bank Loan"
+                    placeholder={t('sources.form.placeholders.name')}
                     maxLength={200}
                     disabled={isCreating}
                     autoFocus
@@ -569,7 +570,7 @@ export function BudgetSourcesPage() {
 
                 <div className={styles.fieldSelect}>
                   <label htmlFor="sourceType" className={styles.label}>
-                    Type <span className={styles.required}>*</span>
+                    {t('sources.form.type')} <span className={styles.required}>{t('sources.form.required')}</span>
                   </label>
                   <select
                     id="sourceType"
@@ -590,7 +591,7 @@ export function BudgetSourcesPage() {
 
                 <div className={styles.fieldSelect}>
                   <label htmlFor="sourceStatus" className={styles.label}>
-                    Status
+                    {t('sources.form.status')}
                   </label>
                   <select
                     id="sourceStatus"
@@ -611,7 +612,7 @@ export function BudgetSourcesPage() {
               <div className={styles.formRow}>
                 <div className={styles.fieldGrow}>
                   <label htmlFor="sourceTotalAmount" className={styles.label}>
-                    Total Amount ($) <span className={styles.required}>*</span>
+                    {t('sources.form.totalAmount')} <span className={styles.required}>{t('sources.form.required')}</span>
                   </label>
                   <input
                     type="number"
@@ -628,7 +629,7 @@ export function BudgetSourcesPage() {
 
                 <div className={styles.fieldNarrow}>
                   <label htmlFor="sourceInterestRate" className={styles.label}>
-                    Interest Rate (%)
+                    {t('sources.form.interestRate')}
                   </label>
                   <input
                     type="number"
@@ -636,7 +637,7 @@ export function BudgetSourcesPage() {
                     value={newInterestRate}
                     onChange={(e) => setNewInterestRate(e.target.value)}
                     className={styles.input}
-                    placeholder="e.g., 3.50"
+                    placeholder={t('sources.form.placeholders.interestRate')}
                     min={0}
                     step="0.01"
                     disabled={isCreating}
@@ -646,7 +647,7 @@ export function BudgetSourcesPage() {
 
               <div className={styles.field}>
                 <label htmlFor="sourceTerms" className={styles.label}>
-                  Terms
+                  {t('sources.form.terms')}
                 </label>
                 <input
                   type="text"
@@ -654,7 +655,7 @@ export function BudgetSourcesPage() {
                   value={newTerms}
                   onChange={(e) => setNewTerms(e.target.value)}
                   className={styles.input}
-                  placeholder="e.g., 30-year fixed, monthly payments"
+                  placeholder={t('sources.form.placeholders.terms')}
                   maxLength={500}
                   disabled={isCreating}
                 />
@@ -662,14 +663,14 @@ export function BudgetSourcesPage() {
 
               <div className={styles.field}>
                 <label htmlFor="sourceNotes" className={styles.label}>
-                  Notes
+                  {t('sources.form.notes')}
                 </label>
                 <textarea
                   id="sourceNotes"
                   value={newNotes}
                   onChange={(e) => setNewNotes(e.target.value)}
                   className={styles.textarea}
-                  placeholder="Optional notes"
+                  placeholder={t('sources.form.placeholders.notes')}
                   maxLength={2000}
                   disabled={isCreating}
                   rows={3}
@@ -682,7 +683,7 @@ export function BudgetSourcesPage() {
                   className={styles.button}
                   disabled={isCreating || !newName.trim() || !newTotalAmount.trim()}
                 >
-                  {isCreating ? 'Creating...' : 'Create Source'}
+                  {isCreating ? t('sources.buttons.creating') : t('sources.buttons.create')}
                 </button>
                 <button
                   type="button"
@@ -693,7 +694,7 @@ export function BudgetSourcesPage() {
                   }}
                   disabled={isCreating}
                 >
-                  Cancel
+                  {t('sources.buttons.cancel')}
                 </button>
               </div>
             </form>
@@ -702,12 +703,11 @@ export function BudgetSourcesPage() {
 
         {/* Sources list */}
         <section className={styles.card}>
-          <h2 className={styles.cardTitle}>Sources ({sources.length})</h2>
+          <h2 className={styles.cardTitle}>{t('sources.sourcesList.title')} ({sources.length})</h2>
 
           {sources.length === 0 ? (
             <p className={styles.emptyState}>
-              No budget sources yet. Add your first financing source to start tracking project
-              funding.
+              {t('sources.sourcesList.empty')}
             </p>
           ) : (
             <div className={styles.sourcesList}>
@@ -728,7 +728,7 @@ export function BudgetSourcesPage() {
                       <div className={styles.editFormRow}>
                         <div className={styles.fieldGrow}>
                           <label htmlFor={`edit-name-${source.id}`} className={styles.label}>
-                            Name <span className={styles.required}>*</span>
+                            {t('sources.form.name')} <span className={styles.required}>{t('sources.form.required')}</span>
                           </label>
                           <input
                             type="text"
@@ -746,7 +746,7 @@ export function BudgetSourcesPage() {
 
                         <div className={styles.fieldSelect}>
                           <label htmlFor={`edit-type-${source.id}`} className={styles.label}>
-                            Type
+                            {t('sources.form.type')}
                           </label>
                           <select
                             id={`edit-type-${source.id}`}
@@ -770,7 +770,7 @@ export function BudgetSourcesPage() {
 
                         <div className={styles.fieldSelect}>
                           <label htmlFor={`edit-status-${source.id}`} className={styles.label}>
-                            Status
+                            {t('sources.form.status')}
                           </label>
                           <select
                             id={`edit-status-${source.id}`}
@@ -796,7 +796,7 @@ export function BudgetSourcesPage() {
                       <div className={styles.editFormRow}>
                         <div className={styles.fieldGrow}>
                           <label htmlFor={`edit-amount-${source.id}`} className={styles.label}>
-                            Total Amount ($) <span className={styles.required}>*</span>
+                            {t('sources.form.totalAmount')} <span className={styles.required}>{t('sources.form.required')}</span>
                           </label>
                           <input
                             type="number"
@@ -814,7 +814,7 @@ export function BudgetSourcesPage() {
 
                         <div className={styles.fieldNarrow}>
                           <label htmlFor={`edit-rate-${source.id}`} className={styles.label}>
-                            Interest Rate (%)
+                            {t('sources.form.interestRate')}
                           </label>
                           <input
                             type="number"
@@ -833,7 +833,7 @@ export function BudgetSourcesPage() {
 
                       <div className={styles.field}>
                         <label htmlFor={`edit-terms-${source.id}`} className={styles.label}>
-                          Terms
+                          {t('sources.form.terms')}
                         </label>
                         <input
                           type="text"
@@ -851,7 +851,7 @@ export function BudgetSourcesPage() {
 
                       <div className={styles.field}>
                         <label htmlFor={`edit-notes-${source.id}`} className={styles.label}>
-                          Notes
+                          {t('sources.form.notes')}
                         </label>
                         <textarea
                           id={`edit-notes-${source.id}`}
@@ -877,7 +877,7 @@ export function BudgetSourcesPage() {
                             !editingSource.totalAmount.trim()
                           }
                         >
-                          {isUpdating ? 'Saving...' : 'Save'}
+                          {isUpdating ? t('sources.buttons.saving') : t('sources.buttons.save')}
                         </button>
                         <button
                           type="button"
@@ -885,7 +885,7 @@ export function BudgetSourcesPage() {
                           onClick={cancelEdit}
                           disabled={isUpdating}
                         >
-                          Cancel
+                          {t('sources.buttons.cancel')}
                         </button>
                       </div>
                     </form>
@@ -906,7 +906,7 @@ export function BudgetSourcesPage() {
                               {STATUS_LABELS[source.status]}
                             </span>
                             {source.isDiscretionary && (
-                              <span className={styles.systemBadge}>System</span>
+                              <span className={styles.systemBadge}>{t('sources.sourcesList.system')}</span>
                             )}
                           </div>
                         </div>
@@ -926,9 +926,9 @@ export function BudgetSourcesPage() {
                           className={styles.editButton}
                           onClick={() => startEdit(source)}
                           disabled={!!editingSource}
-                          aria-label={`Edit ${source.name}`}
+                          aria-label={`${t('sources.buttons.edit')} ${source.name}`}
                         >
-                          Edit
+                          {t('sources.buttons.edit')}
                         </button>
                         {!source.isDiscretionary && (
                           <button
@@ -936,9 +936,9 @@ export function BudgetSourcesPage() {
                             className={styles.deleteButton}
                             onClick={() => openDeleteConfirm(source.id)}
                             disabled={!!editingSource}
-                            aria-label={`Delete ${source.name}`}
+                            aria-label={`${t('sources.buttons.delete')} ${source.name}`}
                           >
-                            Delete
+                            {t('sources.buttons.delete')}
                           </button>
                         )}
                       </div>
@@ -962,12 +962,12 @@ export function BudgetSourcesPage() {
           <div className={styles.modalBackdrop} onClick={closeDeleteConfirm} />
           <div className={styles.modalContent}>
             <h2 id="delete-modal-title" className={styles.modalTitle}>
-              Delete Budget Source
+              {t('sources.deleteModal.title')}
             </h2>
             <p className={styles.modalText}>
-              Are you sure you want to delete the budget source &quot;
-              <strong>{sources.find((s) => s.id === deletingSourceId)?.name}</strong>
-              &quot;?
+              {t('sources.deleteModal.confirm', {
+                name: sources.find((s) => s.id === deletingSourceId)?.name,
+              })}
             </p>
 
             {deleteError ? (
@@ -976,7 +976,7 @@ export function BudgetSourcesPage() {
               </div>
             ) : (
               <p className={styles.modalWarning}>
-                This action cannot be undone. The source will be permanently removed.
+                {t('sources.deleteModal.warning')}
               </p>
             )}
 
@@ -987,7 +987,7 @@ export function BudgetSourcesPage() {
                 onClick={closeDeleteConfirm}
                 disabled={isDeleting}
               >
-                Cancel
+                {t('sources.buttons.cancel')}
               </button>
               {!deleteError && (
                 <button
@@ -996,7 +996,7 @@ export function BudgetSourcesPage() {
                   onClick={() => void handleDeleteSource(deletingSourceId)}
                   disabled={isDeleting}
                 >
-                  {isDeleting ? 'Deleting...' : 'Delete Source'}
+                  {isDeleting ? t('sources.buttons.deleting') : t('sources.buttons.deleteConfirm')}
                 </button>
               )}
             </div>
