@@ -1,5 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type {
   TagResponse,
   BudgetCategory,
@@ -42,6 +43,7 @@ type EditingTag = {
 };
 
 function TagsTab() {
+  const { t } = useTranslation('settings');
   const [tags, setTags] = useState<TagResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
@@ -283,7 +285,7 @@ function TagsTab() {
 
           <div className={styles.previewRow}>
             <span className={styles.previewLabel}>Preview:</span>
-            <TagPill name={newTagName || 'Tag Name'} color={newTagColor} />
+            <TagPill name={newTagName || t('manage.tags.previewDefault')} color={newTagColor} />
           </div>
 
           <button
@@ -338,7 +340,7 @@ function TagsTab() {
                         className={styles.saveButton}
                         disabled={isUpdating || !editingTag.name.trim()}
                       >
-                        {isUpdating ? 'Saving...' : 'Save'}
+                        {isUpdating ? 'Saving...' : t('manage.tags.saveIdle')}
                       </button>
                       <button
                         type="button"
@@ -435,6 +437,7 @@ type EditingBudgetCategory = {
 };
 
 function BudgetCategoriesTab() {
+  const { t } = useTranslation('settings');
   const [categories, setCategories] = useState<BudgetCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
@@ -904,7 +907,7 @@ function BudgetCategoriesTab() {
                         className={styles.saveButton}
                         disabled={isUpdating || !editingCategory.name.trim()}
                       >
-                        {isUpdating ? 'Saving...' : 'Save'}
+                        {isUpdating ? 'Saving...' : t('manage.tags.saveIdle')}
                       </button>
                       <button
                         type="button"
@@ -1030,6 +1033,7 @@ type EditingHICategory = {
 };
 
 function HouseholdItemCategoriesTab() {
+  const { t } = useTranslation('settings');
   const [categories, setCategories] = useState<HouseholdItemCategoryEntity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
@@ -1457,7 +1461,7 @@ function HouseholdItemCategoriesTab() {
                         className={styles.saveButton}
                         disabled={isUpdating || !editingCategory.name.trim()}
                       >
-                        {isUpdating ? 'Saving...' : 'Save'}
+                        {isUpdating ? 'Saving...' : t('manage.tags.saveIdle')}
                       </button>
                       <button
                         type="button"
@@ -1573,6 +1577,7 @@ function HouseholdItemCategoriesTab() {
 // ============================================================
 
 export default function ManagePage() {
+  const { t } = useTranslation('settings');
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = searchParams.get('tab') ?? 'tags';
 
@@ -1606,7 +1611,7 @@ export default function ManagePage() {
   return (
     <div className={styles.container}>
       <div className={styles.content}>
-        <h1 className={styles.pageTitle}>Manage</h1>
+        <h1 className={styles.pageTitle}>{t('manage.pageTitle')}</h1>
         <SettingsSubNav />
 
         <div role="tablist" className={styles.tabList} onKeyDown={handleTabKeyDown}>
@@ -1619,7 +1624,7 @@ export default function ManagePage() {
             onClick={() => handleTabChange('tags')}
             className={`${styles.tab} ${tab === 'tags' ? styles.tabActive : ''}`}
           >
-            Tags
+            {t('manage.tabs.tags')}
           </button>
           <button
             role="tab"
@@ -1630,7 +1635,7 @@ export default function ManagePage() {
             onClick={() => handleTabChange('budget-categories')}
             className={`${styles.tab} ${tab === 'budget-categories' ? styles.tabActive : ''}`}
           >
-            Budget Categories
+            {t('manage.tabs.budgetCategories')}
           </button>
           <button
             role="tab"
@@ -1641,7 +1646,7 @@ export default function ManagePage() {
             onClick={() => handleTabChange('hi-categories')}
             className={`${styles.tab} ${tab === 'hi-categories' ? styles.tabActive : ''}`}
           >
-            Household Item Categories
+            {t('manage.tabs.hiCategories')}
           </button>
         </div>
 

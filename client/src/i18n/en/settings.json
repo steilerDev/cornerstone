@@ -1,1 +1,226 @@
-{}
+{
+  "profile": {
+    "pageTitle": "Profile",
+    "loading": "Loading profile...",
+    "errorTitle": "Error",
+    "info": {
+      "sectionTitle": "Profile Information",
+      "emailLabel": "Email",
+      "roleLabel": "Role",
+      "authLabel": "Authentication",
+      "memberSinceLabel": "Member Since",
+      "roleAdmin": "Administrator",
+      "roleMember": "Member",
+      "authLocal": "Local Account",
+      "authOidc": "Single Sign-On (OIDC)"
+    },
+    "displayName": {
+      "sectionTitle": "Display Name",
+      "description": "This is the name that will be displayed throughout the application.",
+      "label": "Display Name",
+      "required": "Display name is required",
+      "tooLong": "Display name must be 100 characters or less",
+      "submitIdle": "Save Changes",
+      "submitPending": "Saving...",
+      "success": "Display name updated successfully",
+      "failedGeneric": "Failed to update display name. Please try again."
+    },
+    "password": {
+      "sectionTitle": "Change Password",
+      "description": "Update your password to keep your account secure. Password must be at least 12 characters.",
+      "oidcSectionTitle": "Password",
+      "oidcMessage": "Your credentials are managed by your identity provider.",
+      "currentLabel": "Current Password",
+      "currentRequired": "Current password is required",
+      "newLabel": "New Password",
+      "newRequired": "New password is required",
+      "newMinLength": "New password must be at least 12 characters",
+      "confirmLabel": "Confirm New Password",
+      "confirmRequired": "Please confirm your new password",
+      "mismatch": "Passwords do not match",
+      "submitIdle": "Change Password",
+      "submitPending": "Changing Password...",
+      "success": "Password changed successfully",
+      "failedGeneric": "Failed to change password. Please try again."
+    },
+    "preferences": {
+      "sectionTitle": "Preferences",
+      "languageLabel": "Language",
+      "languageEn": "English",
+      "languageDe": "Deutsch",
+      "languageSystem": "System"
+    }
+  },
+  "manage": {
+    "pageTitle": "Manage",
+    "tabs": {
+      "tags": "Tags",
+      "budgetCategories": "Budget Categories",
+      "hiCategories": "Household Item Categories"
+    },
+    "error": {
+      "title": "Error",
+      "retry": "Retry"
+    },
+    "tags": {
+      "loadingTags": "Loading tags...",
+      "createSection": "Create New Tag",
+      "createDescription": "Tags help you organize and categorize work items. Choose a name and color for your tag.",
+      "nameLabel": "Tag Name",
+      "namePlaceholder": "e.g., Plumbing, Electrical, Kitchen",
+      "colorLabel": "Color",
+      "previewLabel": "Preview:",
+      "previewDefault": "Tag Name",
+      "submitIdle": "Create Tag",
+      "submitPending": "Creating...",
+      "existingTitle": "Existing Tags ({{count}})",
+      "empty": "No tags yet. Create your first tag to start organizing your work items.",
+      "edit": "Edit",
+      "delete": "Delete",
+      "saveIdle": "Save",
+      "savePending": "Saving...",
+      "cancel": "Cancel",
+      "deleteModal": {
+        "title": "Delete Tag",
+        "text": "Are you sure you want to delete the tag \"{{name}}\"?",
+        "warning": "This tag will be removed from all work items that reference it.",
+        "cancel": "Cancel",
+        "submitIdle": "Delete Tag",
+        "submitPending": "Deleting..."
+      }
+    },
+    "budgetCategories": {
+      "loadingCategories": "Loading budget categories...",
+      "newSection": "New Budget Category",
+      "newDescription": "Budget categories group your construction costs (e.g., Materials, Labor, Permits).",
+      "nameLabel": "Name",
+      "colorLabel": "Color",
+      "sortOrderLabel": "Sort Order",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "Optional description",
+      "namePlaceholder": "e.g., Materials, Labor, Permits",
+      "createIdle": "Create Category",
+      "createPending": "Creating...",
+      "cancel": "Cancel",
+      "listTitle": "Categories ({{count}})",
+      "addButton": "Add Category",
+      "empty": "No budget categories yet. Add your first category to start organizing your project budget.",
+      "nameRequired": "Category name is required",
+      "nameTooLong": "Category name must be 100 characters or less",
+      "saveIdle": "Save",
+      "savePending": "Saving...",
+      "edit": "Edit",
+      "delete": "Delete",
+      "createSuccess": "Category \"{{name}}\" created successfully",
+      "updateSuccess": "Category \"{{name}}\" updated successfully",
+      "deleteSuccess": "Category \"{{name}}\" deleted successfully",
+      "failedLoad": "Failed to load budget categories. Please try again.",
+      "failedCreate": "Failed to create category. Please try again.",
+      "failedUpdate": "Failed to update category. Please try again.",
+      "failedDelete": "Failed to delete category. Please try again.",
+      "inUseError": "This category cannot be deleted because it is currently in use by one or more budget entries.",
+      "deleteModal": {
+        "title": "Delete Category",
+        "text": "Are you sure you want to delete the category \"{{name}}\"?",
+        "warning": "This action cannot be undone. The category will be permanently removed.",
+        "cancel": "Cancel",
+        "submitIdle": "Delete Category",
+        "submitPending": "Deleting..."
+      }
+    },
+    "hiCategories": {
+      "loadingCategories": "Loading household item categories...",
+      "newSection": "New Household Item Category",
+      "newDescription": "Categories organize your household items and furniture purchases (e.g., Furniture, Appliances, Fixtures).",
+      "nameLabel": "Name",
+      "colorLabel": "Color",
+      "sortOrderLabel": "Sort Order",
+      "namePlaceholder": "e.g., Furniture, Appliances, Fixtures",
+      "createIdle": "Create Category",
+      "createPending": "Creating...",
+      "cancel": "Cancel",
+      "listTitle": "Categories ({{count}})",
+      "addButton": "Add Category",
+      "empty": "No household item categories yet. Add your first category to start organizing your furniture and appliances.",
+      "nameRequired": "Category name is required",
+      "nameTooLong": "Category name must be 100 characters or less",
+      "saveIdle": "Save",
+      "savePending": "Saving...",
+      "edit": "Edit",
+      "delete": "Delete",
+      "createSuccess": "Category \"{{name}}\" created successfully",
+      "updateSuccess": "Category \"{{name}}\" updated successfully",
+      "deleteSuccess": "Category \"{{name}}\" deleted successfully",
+      "failedLoad": "Failed to load household item categories. Please try again.",
+      "failedCreate": "Failed to create category. Please try again.",
+      "failedUpdate": "Failed to update category. Please try again.",
+      "failedDelete": "Failed to delete category. Please try again.",
+      "inUseError": "This category cannot be deleted because it is currently in use by one or more household items.",
+      "deleteModal": {
+        "title": "Delete Category",
+        "text": "Are you sure you want to delete the category \"{{name}}\"?",
+        "warning": "This action cannot be undone. The category will be permanently removed.",
+        "cancel": "Cancel",
+        "submitIdle": "Delete Category",
+        "submitPending": "Deleting..."
+      }
+    }
+  },
+  "userManagement": {
+    "pageTitle": "User Management",
+    "loading": "Loading users...",
+    "errorTitle": "Error",
+    "searchPlaceholder": "Search by name or email...",
+    "noUsersFound": "No users found.",
+    "noUsersFoundSearch": "No users found matching your search.",
+    "table": {
+      "name": "Name",
+      "email": "Email",
+      "role": "Role",
+      "authProvider": "Auth Provider",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "role": {
+      "admin": "Administrator",
+      "member": "Member"
+    },
+    "authProvider": {
+      "local": "Local",
+      "oidc": "OIDC"
+    },
+    "status": {
+      "active": "Active",
+      "deactivated": "Deactivated"
+    },
+    "editButton": "Edit",
+    "deactivateButton": "Deactivate",
+    "failedLoad": "Failed to load users. Please try again.",
+    "editModal": {
+      "title": "Edit User",
+      "close": "Close",
+      "displayNameLabel": "Display Name",
+      "displayNameRequired": "Display name is required",
+      "displayNameTooLong": "Display name must be 100 characters or less",
+      "emailLabel": "Email",
+      "emailRequired": "Email is required",
+      "emailInvalid": "Please enter a valid email address",
+      "roleLabel": "Role",
+      "roleMember": "Member",
+      "roleAdmin": "Administrator",
+      "cancel": "Cancel",
+      "saveIdle": "Save Changes",
+      "savePending": "Saving...",
+      "failedUpdate": "Failed to update user. Please try again."
+    },
+    "deactivateModal": {
+      "title": "Deactivate User",
+      "close": "Close",
+      "text": "Are you sure you want to deactivate {{name}}? Their sessions will be terminated immediately.",
+      "cancel": "Cancel",
+      "submitIdle": "Deactivate",
+      "submitPending": "Deactivating...",
+      "failedDeactivate": "Failed to deactivate user. Please try again."
+    }
+  }
+}
