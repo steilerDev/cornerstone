@@ -492,7 +492,7 @@ describe('HouseholdItemEditPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Failed to update household item. Please try again.'),
+          screen.getByText('Failed to load form data. Please try again.'),
         ).toBeInTheDocument();
       });
     });

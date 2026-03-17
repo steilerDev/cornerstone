@@ -1,5 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type {
   TagResponse,
   HouseholdItemCategory,
@@ -14,13 +15,6 @@ import { TagPicker } from '../../components/TagPicker/TagPicker.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
 import styles from './HouseholdItemCreatePage.module.css';
 
-const STATUSES: Array<{ value: HouseholdItemStatus; label: string }> = [
-  { value: 'planned', label: 'Planned' },
-  { value: 'purchased', label: 'Purchased' },
-  { value: 'scheduled', label: 'Scheduled' },
-  { value: 'arrived', label: 'Arrived' },
-];
-
 interface Vendor {
   id: string;
   name: string;
@@ -29,6 +23,14 @@ interface Vendor {
 export function HouseholdItemCreatePage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { t } = useTranslation('householdItems');
+
+  const STATUSES: Array<{ value: HouseholdItemStatus; label: string }> = [
+    { value: 'planned', label: t('status.planned') },
+    { value: 'purchased', label: t('status.purchased') },
+    { value: 'scheduled', label: t('status.scheduled') },
+    { value: 'arrived', label: t('status.arrived') },
+  ];
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -91,24 +93,23 @@ export function HouseholdItemCreatePage() {
     const errors: Record<string, string> = {};
 
     if (!name.trim()) {
-      errors.name = 'Name is required';
+      errors.name = t('create.form.name.error');
     }
 
     if (!category) {
-      errors.category = 'Category is required';
+      errors.category = t('create.form.category.error');
     }
 
     if (quantity < 1) {
-      errors.quantity = 'Quantity must be at least 1';
+      errors.quantity = t('create.form.quantity.error');
     }
 
     if (actualDeliveryDate && orderDate && actualDeliveryDate < orderDate) {
-      errors.deliveryDates = 'Actual delivery date must be after or equal to order date';
+      errors.deliveryDates = t('create.form.deliveryDates.error');
     }
 
     if (earliestDeliveryDate && latestDeliveryDate && earliestDeliveryDate > latestDeliveryDate) {
-      errors.deliveryWindow =
-        'Earliest delivery date must be before or equal to latest delivery date';
+      errors.deliveryWindow = t('create.form.deliveryWindow.error');
     }
 
     setValidationErrors(errors);
@@ -142,10 +143,10 @@ export function HouseholdItemCreatePage() {
         tagIds: selectedTagIds,
       });
 
-      showToast('success', 'Household item created successfully');
+      showToast('success', t('create.success'));
       navigate(`/project/household-items/${item.id}`);
     } catch (err) {
-      setError('Failed to create household item. Please try again.');
+      setError(t('create.errorBanner'));
       console.error('Failed to create household item:', err);
       setIsSubmitting(false);
     }
@@ -154,7 +155,7 @@ export function HouseholdItemCreatePage() {
   if (isLoadingData) {
     return (
       <div className={styles.container}>
-        <div className={styles.loading}>Loading...</div>
+        <div className={styles.loading}>{t('create.loading')}</div>
       </div>
     );
   }
@@ -168,9 +169,9 @@ export function HouseholdItemCreatePage() {
           onClick={() => navigate('/project/household-items')}
           disabled={isSubmitting}
         >
-          ← Back to Household Items
+          {t('create.backButton')}
         </button>
-        <h1 className={styles.title}>New Household Item</h1>
+        <h1 className={styles.title}>{t('create.title')}</h1>
       </div>
 
       {error && <div className={styles.errorBanner}>{error}</div>}
@@ -178,7 +179,7 @@ export function HouseholdItemCreatePage() {
       <form className={styles.form} onSubmit={handleSubmit}>
         <div className={styles.formGroup}>
           <label htmlFor="name" className={styles.label}>
-            Name <span className={styles.required}>*</span>
+            {t('create.form.name.label')} <span className={styles.required}>{t('create.form.name.required')}</span>
           </label>
           <input
             type="text"
@@ -187,7 +188,7 @@ export function HouseholdItemCreatePage() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             disabled={isSubmitting}
-            placeholder="Enter item name"
+            placeholder={t('create.form.name.placeholder')}
             aria-required="true"
             aria-invalid={!!validationErrors.name}
             aria-describedby={validationErrors.name ? 'hi-create-name-error' : undefined}
@@ -201,7 +202,7 @@ export function HouseholdItemCreatePage() {
 
         <div className={styles.formGroup}>
           <label htmlFor="description" className={styles.label}>
-            Description
+            {t('create.form.description.label')}
           </label>
           <textarea
             id="description"
@@ -210,14 +211,14 @@ export function HouseholdItemCreatePage() {
             onChange={(e) => setDescription(e.target.value)}
             disabled={isSubmitting}
             rows={4}
-            placeholder="Describe the item"
+            placeholder={t('create.form.description.placeholder')}
           />
         </div>
 
         <div className={styles.formRow}>
           <div className={styles.formGroup}>
             <label htmlFor="category" className={styles.label}>
-              Category <span className={styles.required}>*</span>
+              {t('create.form.category.label')} <span className={styles.required}>{t('create.form.category.required')}</span>
             </label>
             <select
               id="category"
@@ -229,7 +230,7 @@ export function HouseholdItemCreatePage() {
               aria-invalid={!!validationErrors.category}
               aria-describedby={validationErrors.category ? 'hi-create-category-error' : undefined}
             >
-              <option value="">— Select Category —</option>
+              <option value="">{t('create.form.category.placeholder')}</option>
               {categories.map((cat) => (
                 <option key={cat.id} value={cat.id}>
                   {cat.name}
@@ -245,7 +246,7 @@ export function HouseholdItemCreatePage() {
 
           <div className={styles.formGroup}>
             <label htmlFor="status" className={styles.label}>
-              Purchase Status
+              {t('create.form.status.label')}
             </label>
             <select
               id="status"
@@ -265,7 +266,7 @@ export function HouseholdItemCreatePage() {
 
           <div className={styles.formGroup}>
             <label htmlFor="quantity" className={styles.label}>
-              Quantity
+              {t('create.form.quantity.label')}
             </label>
             <input
               type="number"
@@ -289,7 +290,7 @@ export function HouseholdItemCreatePage() {
 
         <div className={styles.formGroup}>
           <label htmlFor="vendorId" className={styles.label}>
-            Vendor
+            {t('create.form.vendor.label')}
           </label>
           <select
             id="vendorId"
@@ -298,7 +299,7 @@ export function HouseholdItemCreatePage() {
             onChange={(e) => setVendorId(e.target.value)}
             disabled={isSubmitting}
           >
-            <option value="">No vendor</option>
+            <option value="">{t('create.form.vendor.placeholder')}</option>
             {vendors.map((vendor) => (
               <option key={vendor.id} value={vendor.id}>
                 {vendor.name}
@@ -309,7 +310,7 @@ export function HouseholdItemCreatePage() {
 
         <div className={styles.formGroup}>
           <label htmlFor="url" className={styles.label}>
-            URL
+            {t('create.form.url.label')}
           </label>
           <input
             type="url"
@@ -318,13 +319,13 @@ export function HouseholdItemCreatePage() {
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             disabled={isSubmitting}
-            placeholder="https://example.com"
+            placeholder={t('create.form.url.placeholder')}
           />
         </div>
 
         <div className={styles.formGroup}>
           <label htmlFor="room" className={styles.label}>
-            Room
+            {t('create.form.room.label')}
           </label>
           <input
             type="text"
@@ -333,14 +334,14 @@ export function HouseholdItemCreatePage() {
             value={room}
             onChange={(e) => setRoom(e.target.value)}
             disabled={isSubmitting}
-            placeholder="e.g., Kitchen, Bedroom"
+            placeholder={t('create.form.room.placeholder')}
           />
         </div>
 
         <div className={styles.formRow}>
           <div className={styles.formGroup}>
             <label htmlFor="orderDate" className={styles.label}>
-              Order Date
+              {t('create.form.orderDate.label')}
             </label>
             <input
               type="date"
@@ -354,7 +355,7 @@ export function HouseholdItemCreatePage() {
 
           <div className={styles.formGroup}>
             <label htmlFor="earliestDeliveryDate" className={styles.label}>
-              Earliest Delivery
+              {t('create.form.earliestDelivery.label')}
             </label>
             <input
               type="date"
@@ -372,7 +373,7 @@ export function HouseholdItemCreatePage() {
 
           <div className={styles.formGroup}>
             <label htmlFor="latestDeliveryDate" className={styles.label}>
-              Latest Delivery
+              {t('create.form.latestDelivery.label')}
             </label>
             <input
               type="date"
@@ -397,7 +398,7 @@ export function HouseholdItemCreatePage() {
         <div className={styles.formRow}>
           <div className={styles.formGroup}>
             <label htmlFor="actualDeliveryDate" className={styles.label}>
-              Actual Delivery
+              {t('create.form.actualDelivery.label')}
             </label>
             <input
               type="date"
@@ -420,7 +421,7 @@ export function HouseholdItemCreatePage() {
         </div>
 
         <div className={styles.formGroup}>
-          <label className={styles.label}>Tags</label>
+          <label className={styles.label}>{t('create.form.tags.label')}</label>
           <TagPicker
             availableTags={availableTags}
             selectedTagIds={selectedTagIds}
@@ -437,10 +438,10 @@ export function HouseholdItemCreatePage() {
             onClick={() => navigate('/project/household-items')}
             disabled={isSubmitting}
           >
-            Cancel
+            {t('create.cancel')}
           </button>
           <button type="submit" className={styles.submitButton} disabled={isSubmitting}>
-            {isSubmitting ? 'Creating...' : 'Create Item'}
+            {isSubmitting ? t('create.submitting') : t('create.submit')}
           </button>
         </div>
       </form>

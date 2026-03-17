@@ -1,1 +1,189 @@
-{}
+{
+  "milestones": {
+    "page": {
+      "title": "Project"
+    },
+    "newButton": "New Milestone",
+    "empty": {
+      "noItems": "No milestones yet",
+      "noItemsMessage": "Create your first milestone to mark major project progress points.",
+      "createFirst": "Create First Milestone"
+    },
+    "table": {
+      "headers": {
+        "title": "Title",
+        "targetDate": "Target Date",
+        "status": "Status",
+        "description": "Description",
+        "actions": "Actions"
+      }
+    },
+    "status": {
+      "completed": "Completed",
+      "pending": "Pending"
+    },
+    "card": {
+      "targetDate": "Target Date:",
+      "status": "Status:",
+      "description": "Description:"
+    },
+    "menu": {
+      "actions": "Actions menu",
+      "edit": "Edit",
+      "delete": "Delete"
+    },
+    "delete": {
+      "confirm": "Delete Milestone",
+      "message": "Are you sure you want to delete",
+      "cancel": "Cancel",
+      "delete": "Delete Milestone",
+      "deleting": "Deleting..."
+    },
+    "loading": "Loading milestones...",
+    "error": "Failed to load milestones. Please try again.",
+    "deleteError": "Failed to delete milestone. Please try again.",
+    "keyboard": {
+      "newMilestone": "New milestone",
+      "selectNext": "Select next item",
+      "selectPrevious": "Select previous item",
+      "openSelected": "Open selected item",
+      "showShortcuts": "Show keyboard shortcuts",
+      "closeDialog": "Close dialog or cancel"
+    },
+    "create": {
+      "title": "Create Milestone",
+      "backLink": "← Milestones",
+      "form": {
+        "title": {
+          "label": "Title",
+          "required": "*",
+          "placeholder": "Enter milestone title",
+          "error": "Title is required."
+        },
+        "targetDate": {
+          "label": "Target Date",
+          "required": "*",
+          "error": "Target date is required."
+        },
+        "description": {
+          "label": "Description",
+          "placeholder": "Optional description for this milestone"
+        }
+      },
+      "cancel": "Cancel",
+      "submit": "Create Milestone",
+      "submitting": "Creating..."
+    },
+    "detail": {
+      "backButton": "← Back to Milestones",
+      "toSchedule": "To Schedule",
+      "backToSchedule": "← Back to Schedule",
+      "toMilestones": "To Milestones",
+      "loading": "Loading milestone...",
+      "notFound": "Milestone not found",
+      "notFoundMessage": "The milestone you're looking for doesn't exist.",
+      "backLink": "Back to Milestones",
+      "edit": "Edit",
+      "view": {
+        "targetDate": "Target Date",
+        "projectedDate": "Projected Date",
+        "description": "Description",
+        "completedAt": "Completed At",
+        "linkedItems": "Linked Items",
+        "workItem": "Work Item",
+        "householdItem": "Household Item",
+        "noItems": "No items linked",
+        "dependentItems": "Dependent Work Items",
+        "noDependentItems": "No dependent work items",
+        "searchPlaceholder": "Search work items or household items to link...",
+        "depSearchPlaceholder": "Search work items to add as dependent...",
+        "noMatches": "No items match your search",
+        "noDepMatches": "No work items match your search",
+        "deleteButton": "Delete Milestone"
+      },
+      "edit": {
+        "title": "Edit Milestone",
+        "form": {
+          "title": {
+            "label": "Title",
+            "required": "*",
+            "placeholder": "Milestone title"
+          },
+          "targetDate": {
+            "label": "Target Date",
+            "required": "*"
+          },
+          "description": {
+            "label": "Description",
+            "placeholder": "Optional description"
+          },
+          "isCompleted": {
+            "label": "Mark as completed"
+          }
+        },
+        "save": "Save Changes",
+        "saving": "Saving...",
+        "cancel": "Cancel"
+      },
+      "delete": {
+        "confirm": "Delete Milestone",
+        "message": "Are you sure you want to delete",
+        "cancel": "Cancel",
+        "delete": "Delete Milestone",
+        "deleting": "Deleting..."
+      },
+      "delay": {
+        "late": "late",
+        "ahead": "ahead",
+        "day": "day",
+        "days": "days"
+      },
+      "unlinkButton": "Remove this work item from the milestone",
+      "unlinkHouseholdButton": "Remove this household item from the milestone",
+      "removeDependentButton": "Remove this dependent work item from the milestone",
+      "linkedItems": "Linked Items",
+      "noItemsLinked": "No items linked",
+      "dependentItems": "Dependent Work Items",
+      "noDependentItems": "No dependent work items",
+      "workItem": "Work Item",
+      "householdItem": "Household Item",
+      "searchPlaceholder": "Search work items or household items to link...",
+      "depSearchPlaceholder": "Search work items to add as dependent...",
+      "noMatches": "No items match your search",
+      "noDepMatches": "No work items match your search",
+      "form": {
+        "title": "Edit Milestone",
+        "titleLabel": "Title",
+        "targetDateLabel": "Target Date",
+        "descriptionLabel": "Description",
+        "markCompleted": "Mark as completed",
+        "placeholderTitle": "Milestone title",
+        "placeholderDescription": "Optional description",
+        "save": "Save Changes",
+        "saving": "Saving...",
+        "cancel": "Cancel"
+      },
+      "view": {
+        "targetDate": "Target Date",
+        "projectedDate": "Projected Date",
+        "description": "Description",
+        "completedAt": "Completed At",
+        "status": {
+          "completed": "Completed",
+          "pending": "Pending"
+        }
+      },
+      "failedLink": "Failed to link work item. Please try again.",
+      "failedUnlink": "Failed to unlink work item. Please try again.",
+      "failedAddDependent": "Failed to add dependent work item. Please try again.",
+      "failedRemoveDependent": "Failed to remove dependent work item. Please try again.",
+      "failedSave": "Failed to save milestone. Please try again.",
+      "failedDelete": "Failed to delete milestone. Please try again.",
+      "deleteConfirm": "Delete Milestone",
+      "deleteMessage": "Are you sure you want to delete",
+      "deleteCancel": "Cancel",
+      "deleteButton": "Delete Milestone",
+      "deleting": "Deleting..."
+    }
+  }
+}

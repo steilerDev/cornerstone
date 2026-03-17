@@ -1,12 +1,14 @@
 import type { FormEvent } from 'react';
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { createMilestone } from '../../lib/milestonesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { ProjectSubNav } from '../../components/ProjectSubNav/ProjectSubNav.js';
 import styles from './MilestoneCreatePage.module.css';
 
 export function MilestoneCreatePage() {
+  const { t } = useTranslation('schedule');
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
@@ -27,12 +29,12 @@ export function MilestoneCreatePage() {
     e.preventDefault();
 
     if (!formData.title.trim()) {
-      setError('Title is required.');
+      setError(t('milestones.create.form.title.error'));
       return;
     }
 
     if (!formData.targetDate.trim()) {
-      setError('Target date is required.');
+      setError(t('milestones.create.form.targetDate.error'));
       return;
     }
 
@@ -63,15 +65,15 @@ export function MilestoneCreatePage() {
       <div className={styles.header}>
         <div className={styles.headerTitle}>
           <Link to="/project/milestones" className={styles.backLink}>
-            ← Milestones
+            {t('milestones.create.backLink')}
           </Link>
-          <h1 className={styles.pageTitle}>Project</h1>
+          <h1 className={styles.pageTitle}>{t('milestones.page.title')}</h1>
         </div>
       </div>
       <ProjectSubNav />
 
       <form onSubmit={handleSubmit} className={styles.formCard}>
-        <h2 className={styles.formTitle}>Create Milestone</h2>
+        <h2 className={styles.formTitle}>{t('milestones.create.title')}</h2>
 
         {error && (
           <div className={styles.errorBanner} role="alert">
@@ -81,7 +83,7 @@ export function MilestoneCreatePage() {
 
         <div className={styles.formGroup}>
           <label htmlFor="title" className={styles.label}>
-            Title <span className={styles.required}>*</span>
+            {t('milestones.create.form.title.label')} <span className={styles.required}>{t('milestones.create.form.title.required')}</span>
           </label>
           <input
             type="text"
@@ -90,7 +92,7 @@ export function MilestoneCreatePage() {
             value={formData.title}
             onChange={handleInputChange}
             className={styles.input}
-            placeholder="Enter milestone title"
+            placeholder={t('milestones.create.form.title.placeholder')}
             required
             data-testid="milestone-title-input"
             autoFocus
@@ -99,7 +101,7 @@ export function MilestoneCreatePage() {
 
         <div className={styles.formGroup}>
           <label htmlFor="targetDate" className={styles.label}>
-            Target Date <span className={styles.required}>*</span>
+            {t('milestones.create.form.targetDate.label')} <span className={styles.required}>{t('milestones.create.form.targetDate.required')}</span>
           </label>
           <input
             type="date"
@@ -115,7 +117,7 @@ export function MilestoneCreatePage() {
 
         <div className={styles.formGroup}>
           <label htmlFor="description" className={styles.label}>
-            Description
+            {t('milestones.create.form.description.label')}
           </label>
           <textarea
             id="description"
@@ -123,7 +125,7 @@ export function MilestoneCreatePage() {
             value={formData.description}
             onChange={handleInputChange}
             className={styles.textarea}
-            placeholder="Optional description for this milestone"
+            placeholder={t('milestones.create.form.description.placeholder')}
             rows={4}
             data-testid="milestone-description-input"
           />
@@ -136,10 +138,10 @@ export function MilestoneCreatePage() {
             disabled={isSubmitting}
             data-testid="create-milestone-button"
           >
-            {isSubmitting ? 'Creating...' : 'Create Milestone'}
+            {isSubmitting ? t('milestones.create.submitting') : t('milestones.create.submit')}
           </button>
           <Link to="/project/milestones" className={styles.cancelLink}>
-            Cancel
+            {t('milestones.create.cancel')}
           </Link>
         </div>
       </form>
