@@ -1,6 +1,7 @@
 import type { FormEvent } from 'react';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type {
   MilestoneDetail,
   WorkItemSummary,
@@ -24,6 +25,7 @@ import { formatDate } from '../../lib/formatters.js';
 import styles from './MilestoneDetailPage.module.css';
 
 export function MilestoneDetailPage() {
+  const { t } = useTranslation('schedule');
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
@@ -122,7 +124,7 @@ export function MilestoneDetailPage() {
         } else if (err instanceof ApiClientError) {
           setError(err.error.message);
         } else {
-          setError('Failed to load milestone. Please try again.');
+          setError(t('milestones.detail.error'));
         }
       } finally {
         setIsLoading(false);
@@ -130,7 +132,8 @@ export function MilestoneDetailPage() {
     };
 
     loadMilestone();
-  }, [milestoneId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [milestoneId, t]);
 
   // Load available work items and household items, and linked household items
   useEffect(() => {
@@ -189,7 +192,7 @@ export function MilestoneDetailPage() {
       if (err instanceof ApiClientError) {
         setError(err.error.message);
       } else {
-        setError('Failed to link work item. Please try again.');
+        setError(t('milestones.detail.failedLink'));
       }
     } finally {
       setIsLinkingItem(false);
@@ -222,7 +225,7 @@ export function MilestoneDetailPage() {
       if (err instanceof ApiClientError) {
         setError(err.error.message);
       } else {
-        setError('Failed to link household item. Please try again.');
+        setError(t('milestones.detail.failedLink'));
       }
     } finally {
       setIsLinkingItem(false);
@@ -249,7 +252,7 @@ export function MilestoneDetailPage() {
       if (err instanceof ApiClientError) {
         setError(err.error.message);
       } else {
-        setError('Failed to unlink work item. Please try again.');
+        setError(t('milestones.detail.failedUnlink'));
       }
     } finally {
       setIsUnlinkingItem((prev) => ({ ...prev, [`wi-${workItemId}`]: false }));
@@ -277,7 +280,7 @@ export function MilestoneDetailPage() {
       if (err instanceof ApiClientError) {
         setError(err.error.message);
       } else {
-        setError('Failed to unlink household item. Please try again.');
+        setError(t('milestones.detail.failedUnlink'));
       }
     } finally {
       setIsUnlinkingItem((prev) => ({ ...prev, [`hi-${householdItemId}`]: false }));
@@ -301,7 +304,7 @@ export function MilestoneDetailPage() {
       if (err instanceof ApiClientError) {
         setError(err.error.message);
       } else {
-        setError('Failed to add dependent work item. Please try again.');
+        setError(t('milestones.detail.failedAddDependent'));
       }
     } finally {
       setIsManagingDeps(false);
@@ -323,7 +326,7 @@ export function MilestoneDetailPage() {
       if (err instanceof ApiClientError) {
         setError(err.error.message);
       } else {
-        setError('Failed to remove dependent work item. Please try again.');
+        setError(t('milestones.detail.failedRemoveDependent'));
       }
     } finally {
       setIsRemovingDep((prev) => ({ ...prev, [workItemId]: false }));
@@ -381,12 +384,12 @@ export function MilestoneDetailPage() {
     if (!milestone) return;
 
     if (!formData.title.trim()) {
-      setError('Title is required.');
+      setError(t('milestones.create.form.title.error'));
       return;
     }
 
     if (!formData.targetDate.trim()) {
-      setError('Target date is required.');
+      setError(t('milestones.create.form.targetDate.error'));
       return;
     }
 
@@ -409,7 +412,7 @@ export function MilestoneDetailPage() {
       if (err instanceof ApiClientError) {
         setError(err.error.message);
       } else {
-        setError('Failed to save milestone. Please try again.');
+        setError(t('milestones.detail.failedSave'));
       }
     } finally {
       setIsSaving(false);
@@ -429,7 +432,7 @@ export function MilestoneDetailPage() {
       if (err instanceof ApiClientError) {
         setError(err.error.message);
       } else {
-        setError('Failed to delete milestone. Please try again.');
+        setError(t('milestones.detail.failedDelete'));
       }
       setIsDeleting(false);
     }
@@ -438,7 +441,7 @@ export function MilestoneDetailPage() {
   if (isLoading) {
     return (
       <div className={styles.container}>
-        <div className={styles.loading}>Loading milestone...</div>
+        <div className={styles.loading}>{t('milestones.detail.loading')}</div>
       </div>
     );
   }
@@ -447,10 +450,10 @@ export function MilestoneDetailPage() {
     return (
       <div className={styles.container}>
         <div className={styles.notFound}>
-          <h2>Milestone not found</h2>
-          <p>The milestone you're looking for doesn't exist.</p>
+          <h2>{t('milestones.detail.notFound')}</h2>
+          <p>{t('milestones.detail.notFoundMessage')}</p>
           <Link to="/project/milestones" className={styles.linkButton}>
-            Back to Milestones
+            {t('milestones.detail.backLink')}
           </Link>
         </div>
       </div>
@@ -468,14 +471,14 @@ export function MilestoneDetailPage() {
                 className={styles.backButton}
                 onClick={() => navigate(fromView ? `/schedule?view=${fromView}` : '/schedule')}
               >
-                ← Back to Schedule
+                {t('milestones.detail.backToSchedule')}
               </button>
               <button
                 type="button"
                 className={styles.secondaryNavButton}
                 onClick={() => navigate('/project/milestones')}
               >
-                To Milestones
+                {t('milestones.detail.toMilestones')}
               </button>
             </>
           ) : (
@@ -485,14 +488,14 @@ export function MilestoneDetailPage() {
                 className={styles.backButton}
                 onClick={() => navigate('/project/milestones')}
               >
-                ← Back to Milestones
+                {t('milestones.detail.backButton')}
               </button>
               <button
                 type="button"
                 className={styles.secondaryNavButton}
                 onClick={() => navigate('/schedule')}
               >
-                To Schedule
+                {t('milestones.detail.toSchedule')}
               </button>
             </>
           )}
@@ -518,7 +521,9 @@ export function MilestoneDetailPage() {
                   milestone.isCompleted ? styles.statusCompleted : styles.statusPending
                 }`}
               >
-                {milestone.isCompleted ? 'Completed' : 'Pending'}
+                {milestone.isCompleted
+                  ? t('milestones.detail.view.status.completed')
+                  : t('milestones.detail.view.status.pending')}
               </span>
             </div>
             <button
@@ -527,29 +532,39 @@ export function MilestoneDetailPage() {
               onClick={() => setIsEditing(true)}
               data-testid="edit-milestone-button"
             >
-              Edit
+              {t('milestones.detail.edit')}
             </button>
           </div>
 
           <div className={styles.viewBody}>
             <div className={styles.viewField}>
-              <label className={styles.fieldLabel}>Target Date</label>
+              <label className={styles.fieldLabel}>{t('milestones.detail.view.targetDate')}</label>
               <p className={styles.fieldValue}>{formatDate(milestone.targetDate)}</p>
             </div>
 
             {projectedDate && (
               <div className={styles.viewField}>
-                <label className={styles.fieldLabel}>Projected Date</label>
+                <label className={styles.fieldLabel}>
+                  {t('milestones.detail.view.projectedDate')}
+                </label>
                 <p className={styles.fieldValue}>
                   {formatDate(projectedDate)}
                   {delayDays > 0 && (
                     <span className={styles.delayBadge}>
-                      {delayDays} day{delayDays !== 1 ? 's' : ''} late
+                      {delayDays}{' '}
+                      {delayDays !== 1
+                        ? t('milestones.detail.delay.days')
+                        : t('milestones.detail.delay.day')}{' '}
+                      {t('milestones.detail.delay.late')}
                     </span>
                   )}
                   {delayDays < 0 && (
                     <span className={styles.aheadBadge}>
-                      {Math.abs(delayDays)} day{Math.abs(delayDays) !== 1 ? 's' : ''} ahead
+                      {Math.abs(delayDays)}{' '}
+                      {Math.abs(delayDays) !== 1
+                        ? t('milestones.detail.delay.days')
+                        : t('milestones.detail.delay.day')}{' '}
+                      {t('milestones.detail.delay.ahead')}
                     </span>
                   )}
                 </p>
@@ -558,28 +573,34 @@ export function MilestoneDetailPage() {
 
             {milestone.description && (
               <div className={styles.viewField}>
-                <label className={styles.fieldLabel}>Description</label>
+                <label className={styles.fieldLabel}>
+                  {t('milestones.detail.view.description')}
+                </label>
                 <p className={styles.fieldValue}>{milestone.description}</p>
               </div>
             )}
 
             {milestone.completedAt && (
               <div className={styles.viewField}>
-                <label className={styles.fieldLabel}>Completed At</label>
+                <label className={styles.fieldLabel}>
+                  {t('milestones.detail.view.completedAt')}
+                </label>
                 <p className={styles.fieldValue}>{formatDate(milestone.completedAt)}</p>
               </div>
             )}
 
             {/* Linked Items Section */}
             <div className={styles.viewField}>
-              <label className={styles.fieldLabel}>Linked Items</label>
+              <label className={styles.fieldLabel}>{t('milestones.detail.linkedItems')}</label>
               {milestone.workItems.length === 0 && linkedHouseholdItems.length === 0 ? (
-                <p className={styles.fieldValue}>No items linked</p>
+                <p className={styles.fieldValue}>{t('milestones.detail.noItemsLinked')}</p>
               ) : (
                 <ul className={styles.linkedWorkItemsList}>
                   {milestone.workItems.map((item) => (
                     <li key={`wi-${item.id}`} className={styles.linkedWorkItem}>
-                      <span className={styles.itemTypeBadge}>Work Item</span>
+                      <span className={styles.itemTypeBadge}>
+                        {t('milestones.detail.workItem')}
+                      </span>
                       <Link to={`/project/work-items/${item.id}`} className={styles.workItemLink}>
                         {item.title}
                       </Link>
@@ -588,7 +609,7 @@ export function MilestoneDetailPage() {
                         className={styles.unlinkButton}
                         onClick={() => handleUnlinkWorkItem(item.id)}
                         disabled={isUnlinkingItem[`wi-${item.id}`]}
-                        title="Remove this work item from the milestone"
+                        title={t('milestones.detail.unlinkButton')}
                         data-testid={`unlink-work-item-${item.id}`}
                       >
                         ✕
@@ -597,7 +618,9 @@ export function MilestoneDetailPage() {
                   ))}
                   {linkedHouseholdItems.map((item) => (
                     <li key={`hi-${item.id}`} className={styles.linkedWorkItem}>
-                      <span className={styles.itemTypeBadge}>Household Item</span>
+                      <span className={styles.itemTypeBadge}>
+                        {t('milestones.detail.householdItem')}
+                      </span>
                       <Link
                         to={`/project/household-items/${item.id}`}
                         className={styles.workItemLink}
@@ -609,7 +632,7 @@ export function MilestoneDetailPage() {
                         className={styles.unlinkButton}
                         onClick={() => handleUnlinkHouseholdItem(item.id)}
                         disabled={isUnlinkingItem[`hi-${item.id}`]}
-                        title="Remove this household item from the milestone"
+                        title={t('milestones.detail.unlinkHouseholdButton')}
                         data-testid={`unlink-household-item-${item.id}`}
                       >
                         ✕
@@ -623,7 +646,7 @@ export function MilestoneDetailPage() {
               <div className={styles.inlineSearch} ref={dropdownRef}>
                 <input
                   type="text"
-                  placeholder="Search work items or household items to link..."
+                  placeholder={t('milestones.detail.searchPlaceholder')}
                   value={itemSearchInput}
                   onChange={(e) => {
                     setItemSearchInput(e.target.value);
@@ -649,7 +672,9 @@ export function MilestoneDetailPage() {
                           onClick={() => handleQuickLinkWorkItem(item.id)}
                           disabled={isLinkingItem}
                         >
-                          <span className={styles.itemTypeBadge}>Work Item</span>
+                          <span className={styles.itemTypeBadge}>
+                            {t('milestones.detail.workItem')}
+                          </span>
                           <span>{item.title}</span>
                         </button>
                       ))}
@@ -666,7 +691,9 @@ export function MilestoneDetailPage() {
                           onClick={() => handleQuickLinkHouseholdItem(item.id)}
                           disabled={isLinkingItem}
                         >
-                          <span className={styles.itemTypeBadge}>Household Item</span>
+                          <span className={styles.itemTypeBadge}>
+                            {t('milestones.detail.householdItem')}
+                          </span>
                           <span>{item.name}</span>
                         </button>
                       ))}
@@ -676,7 +703,9 @@ export function MilestoneDetailPage() {
                       availableHouseholdItems.filter((item) =>
                         item.name.toLowerCase().includes(itemSearchInput.toLowerCase()),
                       ).length === 0 && (
-                        <div className={styles.searchDropdownEmpty}>No items match your search</div>
+                        <div className={styles.searchDropdownEmpty}>
+                          {t('milestones.detail.noMatches')}
+                        </div>
                       )}
                   </div>
                 )}
@@ -684,7 +713,7 @@ export function MilestoneDetailPage() {
             </div>
 
             <div className={styles.viewField} data-testid="dependent-items-section">
-              <label className={styles.fieldLabel}>Dependent Work Items</label>
+              <label className={styles.fieldLabel}>{t('milestones.detail.dependentItems')}</label>
               {milestone.dependentWorkItems.length > 0 && (
                 <ul className={styles.linkedWorkItemsList}>
                   {milestone.dependentWorkItems.map((item) => (
@@ -697,7 +726,7 @@ export function MilestoneDetailPage() {
                         className={styles.unlinkButton}
                         onClick={() => handleRemoveDependentWorkItem(item.id)}
                         disabled={isRemovingDep[item.id]}
-                        title="Remove this dependent work item from the milestone"
+                        title={t('milestones.detail.removeDependentButton')}
                         data-testid={`remove-dep-work-item-${item.id}`}
                       >
                         ✕
@@ -707,14 +736,14 @@ export function MilestoneDetailPage() {
                 </ul>
               )}
               {milestone.dependentWorkItems.length === 0 && (
-                <p className={styles.emptyMessage}>No dependent work items</p>
+                <p className={styles.emptyMessage}>{t('milestones.detail.noDependentItems')}</p>
               )}
 
               {/* Inline search to add dependent work items */}
               <div className={styles.inlineSearch} ref={depDropdownRef}>
                 <input
                   type="text"
-                  placeholder="Search work items to add as dependent..."
+                  placeholder={t('milestones.detail.depSearchPlaceholder')}
                   value={depSearchInput}
                   onChange={(e) => {
                     setDepSearchInput(e.target.value);
@@ -753,7 +782,7 @@ export function MilestoneDetailPage() {
                         (item) => !milestone.dependentWorkItems.find((dep) => dep.id === item.id),
                       ).length === 0 && (
                       <div className={styles.searchDropdownEmpty}>
-                        No work items match your search
+                        {t('milestones.detail.noDepMatches')}
                       </div>
                     )}
                   </div>
@@ -769,18 +798,18 @@ export function MilestoneDetailPage() {
               onClick={() => setShowDeleteConfirm(true)}
               data-testid="delete-milestone-button"
             >
-              Delete Milestone
+              {t('milestones.detail.view.deleteButton')}
             </button>
           </div>
         </div>
       ) : (
         // Edit mode
         <form onSubmit={handleSave} className={styles.editCard}>
-          <h2 className={styles.editTitle}>Edit Milestone</h2>
+          <h2 className={styles.editTitle}>{t('milestones.detail.form.title')}</h2>
 
           <div className={styles.formGroup}>
             <label htmlFor="title" className={styles.label}>
-              Title <span className={styles.required}>*</span>
+              {t('milestones.detail.form.titleLabel')} <span className={styles.required}>*</span>
             </label>
             <input
               type="text"
@@ -789,7 +818,7 @@ export function MilestoneDetailPage() {
               value={formData.title}
               onChange={handleInputChange}
               className={styles.input}
-              placeholder="Milestone title"
+              placeholder={t('milestones.detail.form.placeholderTitle')}
               required
               data-testid="milestone-title-input"
             />
@@ -797,7 +826,8 @@ export function MilestoneDetailPage() {
 
           <div className={styles.formGroup}>
             <label htmlFor="targetDate" className={styles.label}>
-              Target Date <span className={styles.required}>*</span>
+              {t('milestones.detail.form.targetDateLabel')}{' '}
+              <span className={styles.required}>*</span>
             </label>
             <input
               type="date"
@@ -813,7 +843,7 @@ export function MilestoneDetailPage() {
 
           <div className={styles.formGroup}>
             <label htmlFor="description" className={styles.label}>
-              Description
+              {t('milestones.detail.form.descriptionLabel')}
             </label>
             <textarea
               id="description"
@@ -821,7 +851,7 @@ export function MilestoneDetailPage() {
               value={formData.description}
               onChange={handleInputChange}
               className={styles.textarea}
-              placeholder="Optional description"
+              placeholder={t('milestones.detail.form.placeholderDescription')}
               rows={4}
               data-testid="milestone-description-input"
             />
@@ -837,7 +867,7 @@ export function MilestoneDetailPage() {
                 onChange={handleInputChange}
                 data-testid="milestone-completed-checkbox"
               />
-              <span>Mark as completed</span>
+              <span>{t('milestones.detail.form.markCompleted')}</span>
             </label>
           </div>
 
@@ -848,7 +878,7 @@ export function MilestoneDetailPage() {
               disabled={isSaving}
               data-testid="save-milestone-button"
             >
-              {isSaving ? 'Saving...' : 'Save Changes'}
+              {isSaving ? t('milestones.detail.form.saving') : t('milestones.detail.form.save')}
             </button>
             <button
               type="button"
@@ -856,7 +886,7 @@ export function MilestoneDetailPage() {
               onClick={() => setIsEditing(false)}
               disabled={isSaving}
             >
-              Cancel
+              {t('milestones.detail.form.cancel')}
             </button>
           </div>
         </form>
@@ -870,9 +900,9 @@ export function MilestoneDetailPage() {
             onClick={() => !isDeleting && setShowDeleteConfirm(false)}
           />
           <div className={styles.modalContent}>
-            <h2 className={styles.modalTitle}>Delete Milestone</h2>
+            <h2 className={styles.modalTitle}>{t('milestones.detail.deleteConfirm')}</h2>
             <p className={styles.modalText}>
-              Are you sure you want to delete &quot;<strong>{milestone.title}</strong>&quot;?
+              {t('milestones.detail.deleteMessage')} &quot;<strong>{milestone.title}</strong>&quot;?
             </p>
             <div className={styles.modalActions}>
               <button
@@ -881,7 +911,7 @@ export function MilestoneDetailPage() {
                 onClick={() => setShowDeleteConfirm(false)}
                 disabled={isDeleting}
               >
-                Cancel
+                {t('milestones.detail.deleteCancel')}
               </button>
               <button
                 type="button"
@@ -890,7 +920,7 @@ export function MilestoneDetailPage() {
                 disabled={isDeleting}
                 data-testid="confirm-delete-milestone"
               >
-                {isDeleting ? 'Deleting...' : 'Delete Milestone'}
+                {isDeleting ? t('milestones.detail.deleting') : t('milestones.detail.deleteButton')}
               </button>
             </div>
           </div>

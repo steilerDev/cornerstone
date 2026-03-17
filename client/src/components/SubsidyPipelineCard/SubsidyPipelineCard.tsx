@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type { SubsidyProgram } from '@cornerstone/shared';
 import { formatCurrency } from '../../lib/formatters.js';
 import styles from './SubsidyPipelineCard.module.css';
@@ -17,6 +18,8 @@ interface StatusGroup {
 }
 
 export function SubsidyPipelineCard({ subsidyPrograms }: SubsidyPipelineCardProps) {
+  const { t } = useTranslation('dashboard');
+
   // Helper to check if deadline is within 14 days (inclusive) from today and >= 0 days in future
   const isUpcomingDeadline = (deadline: string | null): boolean => {
     if (!deadline) return false;
@@ -51,10 +54,10 @@ export function SubsidyPipelineCard({ subsidyPrograms }: SubsidyPipelineCardProp
       };
 
       const labelMap: Record<string, string> = {
-        eligible: 'Eligible',
-        applied: 'Applied',
-        approved: 'Approved',
-        received: 'Received',
+        eligible: t('cards.subsidyPipeline.statuses.eligible'),
+        applied: t('cards.subsidyPipeline.statuses.applied'),
+        approved: t('cards.subsidyPipeline.statuses.approved'),
+        received: t('cards.subsidyPipeline.statuses.received'),
       };
 
       statusGroups.push({
@@ -73,7 +76,7 @@ export function SubsidyPipelineCard({ subsidyPrograms }: SubsidyPipelineCardProp
   if (rejectedPrograms.length > 0) {
     statusGroups.push({
       status: 'rejected',
-      label: 'Rejected',
+      label: t('cards.subsidyPipeline.statuses.rejected'),
       count: rejectedPrograms.length,
       totalFixedReduction: 0,
       hasUpcomingDeadline: false,
@@ -85,7 +88,7 @@ export function SubsidyPipelineCard({ subsidyPrograms }: SubsidyPipelineCardProp
   if (statusGroups.length === 0) {
     return (
       <p data-testid="subsidy-empty" className={styles.emptyState}>
-        No subsidy programs found
+        {t('cards.subsidyPipeline.noPrograms')}
       </p>
     );
   }
@@ -99,7 +102,8 @@ export function SubsidyPipelineCard({ subsidyPrograms }: SubsidyPipelineCardProp
               {group.label}
             </span>
             <span data-testid="group-count" className={styles.groupCount}>
-              {group.count} {group.count === 1 ? 'program' : 'programs'}
+              {group.count}{' '}
+              {t(`cards.subsidyPipeline.program_${group.count === 1 ? 'one' : 'other'}`)}
             </span>
             {group.totalFixedReduction > 0 && (
               <span data-testid="group-reduction" className={styles.groupReduction}>
@@ -108,7 +112,7 @@ export function SubsidyPipelineCard({ subsidyPrograms }: SubsidyPipelineCardProp
             )}
             {group.hasUpcomingDeadline && (
               <span data-testid="deadline-warning" className={styles.deadlineWarning}>
-                Deadline soon
+                {t('cards.subsidyPipeline.deadlineSoon')}
               </span>
             )}
           </li>
@@ -117,7 +121,7 @@ export function SubsidyPipelineCard({ subsidyPrograms }: SubsidyPipelineCardProp
 
       <div className={styles.footer}>
         <Link to="/budget/subsidies" className={styles.link}>
-          View all subsidies
+          {t('cards.subsidyPipeline.viewAllSubsidies')}
         </Link>
       </div>
     </>

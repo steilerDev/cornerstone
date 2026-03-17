@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type { TimelineResponse, WorkItemStatus } from '@cornerstone/shared';
 import { toUtcMidnight, addDays, daysBetween } from '../GanttChart/ganttUtils.js';
 import styles from './MiniGanttCard.module.css';
@@ -75,6 +76,7 @@ function dateToX(date: Date, weekStart: Date): number {
  */
 export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
   const navigate = useNavigate();
+  const { t } = useTranslation('dashboard');
 
   // CSS color values read from computed styles (updated on theme change)
   const [colors, setColors] = useState<ReturnType<typeof resolveColors>>(() => resolveColors());
@@ -143,10 +145,10 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
         onKeyDown={handleKeyDown}
         role="button"
         tabIndex={0}
-        aria-label="View full schedule"
+        aria-label={t('cards.miniGantt.ariaViewFullSchedule')}
       >
         <p className={styles.emptyState} data-testid="mini-gantt-empty">
-          No work items scheduled in this timeframe
+          {t('cards.miniGantt.emptyMessage')}
         </p>
       </div>
     );
@@ -159,14 +161,28 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
       onKeyDown={handleKeyDown}
       role="button"
       tabIndex={0}
-      aria-label="View full schedule"
+      aria-label={t('cards.miniGantt.ariaViewFullSchedule')}
     >
       <svg
         className={styles.svg}
         viewBox={`0 0 ${CHART_WIDTH} ${svgHeight}`}
         xmlns="http://www.w3.org/2000/svg"
         role="img"
-        aria-label={`Mini Gantt: ${filteredWorkItems.length} work item${filteredWorkItems.length === 1 ? '' : 's'} scheduled${visibleMilestones.length > 0 ? `, ${visibleMilestones.length} milestone${visibleMilestones.length === 1 ? '' : 's'}` : ''}`}
+        aria-label={
+          visibleMilestones.length > 0
+            ? filteredWorkItems.length === 1
+              ? t('cards.miniGantt.ariaChartWithMilestones_one', {
+                  count: 1,
+                  milestones: visibleMilestones.length,
+                })
+              : t('cards.miniGantt.ariaChartWithMilestones_other', {
+                  count: filteredWorkItems.length,
+                  milestones: visibleMilestones.length,
+                })
+            : filteredWorkItems.length === 1
+              ? t('cards.miniGantt.ariaChartItems_one', { count: 1 })
+              : t('cards.miniGantt.ariaChartItems_other', { count: filteredWorkItems.length })
+        }
       >
         {/* Header background */}
         <rect x="0" y="0" width={CHART_WIDTH} height={HEADER_HEIGHT} fill={colors.gridMajor} />

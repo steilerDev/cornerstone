@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import type {
   DashboardCardId,
   BudgetOverview,
@@ -47,88 +48,78 @@ interface DataSourceState {
   isEmpty: boolean;
 }
 
-const CARD_DEFINITIONS: {
-  id: DashboardCardId;
-  title: string;
-  section: DashboardSection;
-  dataSource?: DataSourceKey;
-  emptyMessage?: string;
-  emptyAction?: {
-    label: string;
-    href: string;
-  };
-}[] = [
-  {
-    id: 'budget-summary',
-    title: 'Budget Summary',
-    section: 'primary',
-    dataSource: 'budgetOverview',
-  },
-  {
-    id: 'source-utilization',
-    title: 'Source Utilization',
-    section: 'budget-details',
-    dataSource: 'budgetSources',
-    emptyMessage: 'No budget sources configured',
-    emptyAction: { label: 'Add a budget source', href: '/budget/sources' },
-  },
-  {
-    id: 'upcoming-milestones',
-    title: 'Upcoming Milestones',
-    section: 'timeline',
-    dataSource: 'timeline',
-    emptyMessage: 'No upcoming milestones',
-  },
-  {
-    id: 'work-item-progress',
-    title: 'Work Item Progress',
-    section: 'timeline',
-    dataSource: 'timeline',
-  },
-  { id: 'critical-path', title: 'Critical Path', section: 'timeline', dataSource: 'timeline' },
-  { id: 'mini-gantt', title: 'Mini Gantt', section: 'timeline', dataSource: 'timeline' },
-  {
-    id: 'invoice-pipeline',
-    title: 'Invoice Pipeline',
-    section: 'primary',
-    dataSource: 'invoices',
-    emptyMessage: 'No invoices yet',
-    emptyAction: { label: 'Create an invoice', href: '/budget/invoices' },
-  },
-  {
-    id: 'subsidy-pipeline',
-    title: 'Subsidy Pipeline',
-    section: 'budget-details',
-    dataSource: 'subsidyPrograms',
-    emptyMessage: 'No subsidy programs found',
-    emptyAction: { label: 'Add a subsidy program', href: '/budget/subsidies' },
-  },
-  {
-    id: 'recent-diary',
-    title: 'Recent Diary',
-    section: 'primary',
-    dataSource: 'diaryEntries',
-  },
-  { id: 'quick-actions', title: 'Quick Actions', section: 'primary' },
-];
-
-function getTimelineSummary(isLoading: boolean, timeline: TimelineResponse | null): string {
-  if (isLoading) return '…';
-  const count = timeline?.workItems.length ?? 0;
-  return count === 0
-    ? 'No items scheduled'
-    : `${count} work item${count === 1 ? '' : 's'} scheduled`;
-}
-
-function getBudgetDetailsSummary(isLoading: boolean, sources: BudgetSource[]): string {
-  if (isLoading) return '…';
-  const count = sources.length;
-  return count === 0
-    ? 'No sources configured'
-    : `${count} source${count === 1 ? '' : 's'} configured`;
-}
-
 export function DashboardPage() {
+  const { t } = useTranslation('dashboard');
+
+  const CARD_DEFINITIONS = [
+    {
+      id: 'budget-summary' as DashboardCardId,
+      title: t('cards.budgetSummary.title'),
+      section: 'primary' as DashboardSection,
+      dataSource: 'budgetOverview' as DataSourceKey,
+    },
+    {
+      id: 'source-utilization' as DashboardCardId,
+      title: t('cards.sourceUtilization.title'),
+      section: 'budget-details' as DashboardSection,
+      dataSource: 'budgetSources' as DataSourceKey,
+      emptyMessage: t('cards.sourceUtilization.emptyMessage'),
+      emptyAction: { label: t('cards.sourceUtilization.emptyAction'), href: '/budget/sources' },
+    },
+    {
+      id: 'upcoming-milestones' as DashboardCardId,
+      title: t('cards.upcomingMilestones.title'),
+      section: 'timeline' as DashboardSection,
+      dataSource: 'timeline' as DataSourceKey,
+      emptyMessage: t('cards.upcomingMilestones.emptyMessage'),
+    },
+    {
+      id: 'work-item-progress' as DashboardCardId,
+      title: t('cards.workItemProgress.title'),
+      section: 'timeline' as DashboardSection,
+      dataSource: 'timeline' as DataSourceKey,
+    },
+    {
+      id: 'critical-path' as DashboardCardId,
+      title: t('cards.criticalPath.title'),
+      section: 'timeline' as DashboardSection,
+      dataSource: 'timeline' as DataSourceKey,
+    },
+    {
+      id: 'mini-gantt' as DashboardCardId,
+      title: t('cards.miniGantt.title'),
+      section: 'timeline' as DashboardSection,
+      dataSource: 'timeline' as DataSourceKey,
+    },
+    {
+      id: 'invoice-pipeline' as DashboardCardId,
+      title: t('cards.invoicePipeline.title'),
+      section: 'primary' as DashboardSection,
+      dataSource: 'invoices' as DataSourceKey,
+      emptyMessage: t('cards.invoicePipeline.emptyMessage'),
+      emptyAction: { label: t('cards.invoicePipeline.emptyAction'), href: '/budget/invoices' },
+    },
+    {
+      id: 'subsidy-pipeline' as DashboardCardId,
+      title: t('cards.subsidyPipeline.title'),
+      section: 'budget-details' as DashboardSection,
+      dataSource: 'subsidyPrograms' as DataSourceKey,
+      emptyMessage: t('cards.subsidyPipeline.emptyMessage'),
+      emptyAction: { label: t('cards.subsidyPipeline.emptyAction'), href: '/budget/subsidies' },
+    },
+    {
+      id: 'recent-diary' as DashboardCardId,
+      title: t('cards.recentDiary.title'),
+      section: 'primary' as DashboardSection,
+      dataSource: 'diaryEntries' as DataSourceKey,
+    },
+    {
+      id: 'quick-actions' as DashboardCardId,
+      title: t('cards.quickActions.title'),
+      section: 'primary' as DashboardSection,
+    },
+  ] as const;
+
   const [dataStates, setDataStates] = useState<Record<DataSourceKey, DataSourceState>>({
     budgetOverview: { isLoading: true, error: null, isEmpty: false },
     budgetSources: { isLoading: true, error: null, isEmpty: false },
@@ -405,7 +396,7 @@ export function DashboardPage() {
 
   // Helper to render a card
   const renderCard = (card: (typeof visibleCards)[number]) => {
-    const dataState = card.dataSource ? dataStates[card.dataSource] : undefined;
+    const dataState = 'dataSource' in card ? dataStates[card.dataSource] : undefined;
     return (
       <DashboardCard
         key={card.id}
@@ -416,8 +407,8 @@ export function DashboardPage() {
         error={dataState?.error}
         onRetry={() => void loadAllData()}
         isEmpty={dataState?.isEmpty}
-        emptyMessage={card.emptyMessage ?? 'No data available'}
-        emptyAction={card.emptyAction}
+        emptyMessage={'emptyMessage' in card ? card.emptyMessage : t('cards.common.emptyDefault')}
+        emptyAction={'emptyAction' in card ? card.emptyAction : undefined}
       >
         {card.id === 'budget-summary' && budgetOverview ? (
           <BudgetSummaryCard overview={budgetOverview} />
@@ -454,7 +445,7 @@ export function DashboardPage() {
   return (
     <div className={styles.page}>
       <div className={styles.pageHeader}>
-        <h1 className={styles.title}>Project</h1>
+        <h1 className={styles.title}>{t('page.title')}</h1>
         {hasHiddenCards && (
           <div className={styles.customizeContainer} ref={customizeRef}>
             <button
@@ -464,12 +455,12 @@ export function DashboardPage() {
               aria-haspopup="menu"
               aria-expanded={customizeOpen}
             >
-              Customize
+              {t('page.customize')}
             </button>
 
             {customizeOpen && (
               <div className={styles.customizeDropdown} role="menu">
-                <h3 className={styles.customizeHeading}>Hidden Cards</h3>
+                <h3 className={styles.customizeHeading}>{t('page.hiddenCards')}</h3>
                 {hiddenCards.map((card) => (
                   <button
                     key={card.id}
@@ -481,7 +472,7 @@ export function DashboardPage() {
                     }}
                     role="menuitem"
                   >
-                    Show {card.title}
+                    {t('page.showCard', { title: card.title })}
                   </button>
                 ))}
               </div>
@@ -495,7 +486,7 @@ export function DashboardPage() {
       {/* Desktop/tablet: flat grid */}
       <div
         role="region"
-        aria-label="Dashboard overview"
+        aria-label={t('aria.dashboardOverview')}
         aria-live="polite"
         aria-atomic="false"
         className={styles.grid}
@@ -507,7 +498,7 @@ export function DashboardPage() {
       <div
         className={styles.mobileSections}
         role="region"
-        aria-label="Dashboard overview"
+        aria-label={t('aria.dashboardOverview')}
         data-testid="dashboard-mobile-sections"
         aria-live="polite"
         aria-atomic="false"
@@ -521,9 +512,15 @@ export function DashboardPage() {
         {visibleCards.some((c) => c.section === 'timeline') && (
           <details className={styles.sectionDetails}>
             <summary className={styles.sectionSummary}>
-              <span className={styles.sectionSummaryTitle}>Timeline</span>
+              <span className={styles.sectionSummaryTitle}>{t('sections.timeline.title')}</span>
               <span className={styles.sectionSummaryText}>
-                {getTimelineSummary(dataStates.timeline.isLoading, timelineData)}
+                {dataStates.timeline.isLoading
+                  ? '…'
+                  : timelineData?.workItems.length === 0
+                    ? t('sections.timeline.summaryNoItems')
+                    : t('sections.timeline.summaryItems', {
+                        count: timelineData?.workItems.length ?? 0,
+                      })}
               </span>
               <span className={styles.sectionChevron} aria-hidden="true">
                 ›
@@ -539,9 +536,15 @@ export function DashboardPage() {
         {visibleCards.some((c) => c.section === 'budget-details') && (
           <details className={styles.sectionDetails}>
             <summary className={styles.sectionSummary}>
-              <span className={styles.sectionSummaryTitle}>Budget Details</span>
+              <span className={styles.sectionSummaryTitle}>
+                {t('sections.budgetDetails.title')}
+              </span>
               <span className={styles.sectionSummaryText}>
-                {getBudgetDetailsSummary(dataStates.budgetSources.isLoading, budgetSources)}
+                {dataStates.budgetSources.isLoading
+                  ? '…'
+                  : budgetSources.length === 0
+                    ? t('sections.budgetDetails.summaryNoSources')
+                    : t('sections.budgetDetails.summarySources', { count: budgetSources.length })}
               </span>
               <span className={styles.sectionChevron} aria-hidden="true">
                 ›

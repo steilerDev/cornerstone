@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type {
   HouseholdItemSummary,
   HouseholdItemCategory,
@@ -19,34 +20,35 @@ import { formatDate, formatCurrency } from '../../lib/formatters.js';
 import { ProjectSubNav } from '../../components/ProjectSubNav/ProjectSubNav.js';
 import styles from './HouseholdItemsPage.module.css';
 
-const STATUS_OPTIONS: { value: HouseholdItemStatus; label: string }[] = [
-  { value: 'planned', label: 'Planned' },
-  { value: 'purchased', label: 'Purchased' },
-  { value: 'scheduled', label: 'Scheduled' },
-  { value: 'arrived', label: 'Arrived' },
-];
-
-const HI_STATUS_VARIANTS = {
-  planned: { label: 'Planned', className: badgeStyles.planned },
-  purchased: { label: 'Purchased', className: badgeStyles.purchased },
-  scheduled: { label: 'Scheduled', className: badgeStyles.scheduled },
-  arrived: { label: 'Arrived', className: badgeStyles.arrived },
-};
-
-const SORT_OPTIONS: { value: string; label: string }[] = [
-  { value: 'name', label: 'Name' },
-  { value: 'category', label: 'Category' },
-  { value: 'status', label: 'Status' },
-  { value: 'room', label: 'Room' },
-  { value: 'order_date', label: 'Order Date' },
-  { value: 'target_delivery_date', label: 'Target Delivery' },
-  { value: 'created_at', label: 'Created' },
-  { value: 'updated_at', label: 'Updated' },
-];
-
 export function HouseholdItemsPage() {
+  const { t } = useTranslation('householdItems');
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+
+  const STATUS_OPTIONS: { value: HouseholdItemStatus; label: string }[] = [
+    { value: 'planned', label: t('status.planned') },
+    { value: 'purchased', label: t('status.purchased') },
+    { value: 'scheduled', label: t('status.scheduled') },
+    { value: 'arrived', label: t('status.arrived') },
+  ];
+
+  const HI_STATUS_VARIANTS = {
+    planned: { label: t('status.planned'), className: badgeStyles.planned },
+    purchased: { label: t('status.purchased'), className: badgeStyles.purchased },
+    scheduled: { label: t('status.scheduled'), className: badgeStyles.scheduled },
+    arrived: { label: t('status.arrived'), className: badgeStyles.arrived },
+  };
+
+  const SORT_OPTIONS: { value: string; label: string }[] = [
+    { value: 'name', label: t('sort.options.name') },
+    { value: 'category', label: t('sort.options.category') },
+    { value: 'status', label: t('sort.options.status') },
+    { value: 'room', label: t('sort.options.room') },
+    { value: 'order_date', label: t('sort.options.order_date') },
+    { value: 'target_delivery_date', label: t('sort.options.target_delivery_date') },
+    { value: 'created_at', label: t('sort.options.created_at') },
+    { value: 'updated_at', label: t('sort.options.updated_at') },
+  ];
 
   // Data state
   const [householdItems, setHouseholdItems] = useState<HouseholdItemSummary[]>([]);
@@ -372,12 +374,12 @@ export function HouseholdItemsPage() {
       {
         key: 'n',
         handler: () => navigate('/project/household-items/new'),
-        description: 'New household item',
+        description: t('keyboard.newItem'),
       },
       {
         key: '/',
         handler: () => searchInputRef.current?.focus(),
-        description: 'Focus search',
+        description: t('keyboard.focusSearch'),
       },
       {
         key: 'ArrowDown',
@@ -388,7 +390,7 @@ export function HouseholdItemsPage() {
             );
           }
         },
-        description: 'Select next item',
+        description: t('keyboard.selectNext'),
       },
       {
         key: 'ArrowUp',
@@ -397,7 +399,7 @@ export function HouseholdItemsPage() {
             setSelectedIndex((prev) => (prev === -1 ? 0 : Math.max(prev - 1, 0)));
           }
         },
-        description: 'Select previous item',
+        description: t('keyboard.selectPrevious'),
       },
       {
         key: 'Enter',
@@ -406,12 +408,12 @@ export function HouseholdItemsPage() {
             navigate(`/project/household-items/${householdItems[selectedIndex].id}`);
           }
         },
-        description: 'Open selected item',
+        description: t('keyboard.openSelected'),
       },
       {
         key: '?',
         handler: () => setShowShortcutsHelp(true),
-        description: 'Show keyboard shortcuts',
+        description: t('keyboard.showShortcuts'),
       },
       {
         key: 'Escape',
@@ -426,10 +428,10 @@ export function HouseholdItemsPage() {
             setSelectedIndex(-1);
           }
         },
-        description: 'Close dialog or cancel',
+        description: t('keyboard.closeDialog'),
       },
     ],
-    [navigate, householdItems, selectedIndex, showShortcutsHelp, deletingItem, activeMenuId],
+    [navigate, householdItems, selectedIndex, showShortcutsHelp, deletingItem, activeMenuId, t],
   );
 
   useKeyboardShortcuts(shortcuts);
@@ -444,7 +446,7 @@ export function HouseholdItemsPage() {
   if (isLoading && householdItems.length === 0) {
     return (
       <div className={styles.container}>
-        <div className={styles.loading}>Loading household items...</div>
+        <div className={styles.loading}>{t('loading')}</div>
       </div>
     );
   }
@@ -452,13 +454,13 @@ export function HouseholdItemsPage() {
   return (
     <div className={styles.container} ref={containerRef}>
       <div className={styles.header}>
-        <h1 className={styles.pageTitle}>Project</h1>
+        <h1 className={styles.pageTitle}>{t('page.title')}</h1>
         <button
           type="button"
           className={styles.primaryButton}
           onClick={() => navigate('/project/household-items/new')}
         >
-          New Household Item
+          {t('newButton')}
         </button>
       </div>
       <ProjectSubNav />
@@ -475,24 +477,24 @@ export function HouseholdItemsPage() {
           <input
             ref={searchInputRef}
             type="search"
-            placeholder="Search household items..."
+            placeholder={t('search.placeholder')}
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             className={styles.searchInput}
-            aria-label="Search household items"
+            aria-label={t('search.ariaLabel')}
           />
         </div>
 
         <div
           id="hi-filter-panel"
           role="search"
-          aria-label="Household item filters"
+          aria-label={t('filters.ariaLabel')}
           className={styles.filterPanel}
         >
           <div className={styles.filtersRow}>
             <div className={styles.filter}>
               <label htmlFor="category-filter" className={styles.filterLabel}>
-                Category:
+                {t('filters.category')}
               </label>
               <select
                 id="category-filter"
@@ -500,7 +502,7 @@ export function HouseholdItemsPage() {
                 onChange={(e) => handleCategoryFilterChange(e.target.value)}
                 className={styles.filterSelect}
               >
-                <option value="">All Categories</option>
+                <option value="">{t('filters.allCategories')}</option>
                 {categories.map((option) => (
                   <option key={option.id} value={option.id}>
                     {option.name}
@@ -511,7 +513,7 @@ export function HouseholdItemsPage() {
 
             <div className={styles.filter}>
               <label htmlFor="status-filter" className={styles.filterLabel}>
-                Status:
+                {t('filters.status')}
               </label>
               <select
                 id="status-filter"
@@ -519,7 +521,7 @@ export function HouseholdItemsPage() {
                 onChange={(e) => handleStatusFilterChange(e.target.value)}
                 className={styles.filterSelect}
               >
-                <option value="">All Statuses</option>
+                <option value="">{t('filters.allStatuses')}</option>
                 {STATUS_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
@@ -530,22 +532,22 @@ export function HouseholdItemsPage() {
 
             <div className={styles.filter}>
               <label htmlFor="room-input" className={styles.filterLabel}>
-                Room:
+                {t('filters.room')}
               </label>
               <input
                 id="room-input"
                 type="text"
-                placeholder="Filter by room..."
+                placeholder={t('filters.roomPlaceholder')}
                 value={roomInput}
                 onChange={(e) => setRoomInput(e.target.value)}
                 className={styles.filterSelect}
-                aria-label="Filter by room"
+                aria-label={t('filters.roomAriaLabel')}
               />
             </div>
 
             <div className={styles.filter}>
               <label htmlFor="vendor-filter" className={styles.filterLabel}>
-                Vendor:
+                {t('filters.vendor')}
               </label>
               <select
                 id="vendor-filter"
@@ -553,7 +555,7 @@ export function HouseholdItemsPage() {
                 onChange={(e) => handleVendorFilterChange(e.target.value)}
                 className={styles.filterSelect}
               >
-                <option value="">All Vendors</option>
+                <option value="">{t('filters.allVendors')}</option>
                 {vendors.map((vendor) => (
                   <option key={vendor.id} value={vendor.id}>
                     {vendor.name}
@@ -564,7 +566,7 @@ export function HouseholdItemsPage() {
 
             <div className={styles.filter}>
               <label htmlFor="sort-filter" className={styles.filterLabel}>
-                Sort by:
+                {t('filters.sortBy')}
               </label>
               <select
                 id="sort-filter"
@@ -584,15 +586,16 @@ export function HouseholdItemsPage() {
               type="button"
               className={styles.secondaryButton}
               onClick={() => handleSortChange(sortBy)}
-              aria-label="Toggle sort order"
+              aria-label={t('filters.toggleSort')}
             >
-              {sortOrder === 'asc' ? '↑ Asc' : '↓ Desc'}
+              {sortOrder === 'asc' ? t('sort.asc') : t('sort.desc')}
             </button>
           </div>
         </div>
 
         <p className={styles.srAnnouncement} aria-live="polite" aria-atomic="true">
-          {!isLoading && `${totalItems} household item${totalItems !== 1 ? 's' : ''} found`}
+          {!isLoading &&
+            `${totalItems} ${totalItems !== 1 ? t('results.itemsFound') : t('results.itemFound')}`}
         </p>
       </div>
 
@@ -601,8 +604,8 @@ export function HouseholdItemsPage() {
         <div className={styles.emptyState}>
           {searchQuery || categoryFilter || statusFilter || roomFilter || vendorFilter ? (
             <>
-              <h2>No household items match your filters</h2>
-              <p>Try adjusting your search or filter criteria.</p>
+              <h2>{t('empty.noResults')}</h2>
+              <p>{t('empty.noResultsMessage')}</p>
               <button
                 type="button"
                 className={styles.secondaryButton}
@@ -612,19 +615,19 @@ export function HouseholdItemsPage() {
                   setSearchParams(new URLSearchParams());
                 }}
               >
-                Clear All Filters
+                {t('empty.clearAllFilters')}
               </button>
             </>
           ) : (
             <>
-              <h2>No household items yet</h2>
-              <p>Get started by creating your first household item to track.</p>
+              <h2>{t('empty.noItems')}</h2>
+              <p>{t('empty.noItemsMessage')}</p>
               <button
                 type="button"
                 className={styles.primaryButton}
                 onClick={() => navigate('/project/household-items/new')}
               >
-                Create First Item
+                {t('empty.createFirstItem')}
               </button>
             </>
           )}
@@ -655,7 +658,8 @@ export function HouseholdItemsPage() {
                         : undefined
                     }
                   >
-                    Name{renderSortIcon('name')}
+                    {t('table.headers.name')}
+                    {renderSortIcon('name')}
                   </th>
                   <th
                     className={styles.sortableHeader}
@@ -676,7 +680,8 @@ export function HouseholdItemsPage() {
                         : undefined
                     }
                   >
-                    Category{renderSortIcon('category')}
+                    {t('table.headers.category')}
+                    {renderSortIcon('category')}
                   </th>
                   <th
                     className={styles.sortableHeader}
@@ -697,11 +702,12 @@ export function HouseholdItemsPage() {
                         : undefined
                     }
                   >
-                    Status{renderSortIcon('status')}
+                    {t('table.headers.status')}
+                    {renderSortIcon('status')}
                   </th>
-                  <th>Room</th>
-                  <th>Vendor</th>
-                  <th>Planned Cost</th>
+                  <th>{t('table.headers.room')}</th>
+                  <th>{t('table.headers.vendor')}</th>
+                  <th>{t('table.headers.plannedCost')}</th>
                   <th
                     className={styles.sortableHeader}
                     onClick={() => handleSortChange('target_delivery_date')}
@@ -721,9 +727,10 @@ export function HouseholdItemsPage() {
                         : undefined
                     }
                   >
-                    Target Delivery{renderSortIcon('target_delivery_date')}
+                    {t('table.headers.targetDelivery')}
+                    {renderSortIcon('target_delivery_date')}
                   </th>
-                  <th className={styles.actionsColumn}>Actions</th>
+                  <th className={styles.actionsColumn}>{t('table.headers.actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -748,7 +755,7 @@ export function HouseholdItemsPage() {
                           type="button"
                           className={styles.menuButton}
                           onClick={() => setActiveMenuId(activeMenuId === item.id ? null : item.id)}
-                          aria-label={`Actions for ${item.name}`}
+                          aria-label={t('menu.actions', { name: item.name })}
                         >
                           ⋮
                         </button>
@@ -784,7 +791,7 @@ export function HouseholdItemsPage() {
                               role="menuitem"
                               onClick={() => navigate(`/project/household-items/${item.id}`)}
                             >
-                              Edit
+                              {t('menu.edit')}
                             </button>
                             <button
                               type="button"
@@ -792,7 +799,7 @@ export function HouseholdItemsPage() {
                               role="menuitem"
                               onClick={(e) => handleDeleteClick(item, e)}
                             >
-                              Delete
+                              {t('menu.delete')}
                             </button>
                           </div>
                         )}
@@ -816,7 +823,7 @@ export function HouseholdItemsPage() {
                         type="button"
                         className={styles.menuButton}
                         onClick={() => setActiveMenuId(activeMenuId === item.id ? null : item.id)}
-                        aria-label={`Actions for ${item.name}`}
+                        aria-label={t('menu.actions', { name: item.name })}
                       >
                         ⋮
                       </button>
@@ -850,7 +857,7 @@ export function HouseholdItemsPage() {
                             role="menuitem"
                             onClick={() => navigate(`/project/household-items/${item.id}`)}
                           >
-                            Edit
+                            {t('menu.edit')}
                           </button>
                           <button
                             type="button"
@@ -858,7 +865,7 @@ export function HouseholdItemsPage() {
                             role="menuitem"
                             onClick={(e) => handleDeleteClick(item, e)}
                           >
-                            Delete
+                            {t('menu.delete')}
                           </button>
                         </div>
                       )}
@@ -867,27 +874,27 @@ export function HouseholdItemsPage() {
                 </div>
                 <div className={styles.cardBody}>
                   <div className={styles.cardRow}>
-                    <span className={styles.cardLabel}>Category:</span>
+                    <span className={styles.cardLabel}>{t('card.category')}</span>
                     <span>{categoryNameMap.get(item.category) ?? item.category}</span>
                   </div>
                   <div className={styles.cardRow}>
-                    <span className={styles.cardLabel}>Status:</span>
+                    <span className={styles.cardLabel}>{t('card.status')}</span>
                     <Badge variants={HI_STATUS_VARIANTS} value={item.status} />
                   </div>
                   <div className={styles.cardRow}>
-                    <span className={styles.cardLabel}>Room:</span>
+                    <span className={styles.cardLabel}>{t('card.room')}</span>
                     <span>{item.room || '—'}</span>
                   </div>
                   <div className={styles.cardRow}>
-                    <span className={styles.cardLabel}>Vendor:</span>
+                    <span className={styles.cardLabel}>{t('card.vendor')}</span>
                     <span>{item.vendor?.name || '—'}</span>
                   </div>
                   <div className={styles.cardRow}>
-                    <span className={styles.cardLabel}>Planned Cost:</span>
+                    <span className={styles.cardLabel}>{t('card.plannedCost')}</span>
                     <span>{formatCurrency(item.totalPlannedAmount)}</span>
                   </div>
                   <div className={styles.cardRow}>
-                    <span className={styles.cardLabel}>Target Delivery:</span>
+                    <span className={styles.cardLabel}>{t('card.targetDelivery')}</span>
                     <span>{formatDate(item.targetDeliveryDate)}</span>
                   </div>
                 </div>
@@ -899,8 +906,9 @@ export function HouseholdItemsPage() {
           {totalPages > 1 && (
             <div className={styles.pagination}>
               <div className={styles.paginationInfo}>
-                Showing {(currentPage - 1) * pageSize + 1} to{' '}
-                {Math.min(currentPage * pageSize, totalItems)} of {totalItems} items
+                {t('pagination.showing')} {(currentPage - 1) * pageSize + 1} {t('pagination.to')}{' '}
+                {Math.min(currentPage * pageSize, totalItems)} {t('pagination.of')} {totalItems}{' '}
+                {t('pagination.items')}
               </div>
               <div className={styles.paginationControls}>
                 <button
@@ -908,9 +916,9 @@ export function HouseholdItemsPage() {
                   className={styles.paginationButton}
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1}
-                  aria-label="Previous page"
+                  aria-label={t('pagination.previous')}
                 >
-                  ← Previous
+                  {t('pagination.previous')}
                 </button>
                 <div className={styles.paginationPages}>
                   {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
@@ -943,9 +951,9 @@ export function HouseholdItemsPage() {
                   className={styles.paginationButton}
                   onClick={() => handlePageChange(currentPage + 1)}
                   disabled={currentPage === totalPages}
-                  aria-label="Next page"
+                  aria-label={t('pagination.next')}
                 >
-                  Next →
+                  {t('pagination.next')}
                 </button>
               </div>
             </div>
@@ -967,12 +975,12 @@ export function HouseholdItemsPage() {
           />
           <div className={styles.modalContent} ref={modalRef} tabIndex={-1}>
             <h2 id="hi-delete-modal-title" className={styles.modalTitle}>
-              Delete Household Item
+              {t('delete.confirm')}
             </h2>
             <p className={styles.modalText}>
-              Are you sure you want to delete &quot;<strong>{deletingItem.name}</strong>&quot;?
+              {t('delete.message')} &quot;<strong>{deletingItem.name}</strong>&quot;?
             </p>
-            <p className={styles.modalWarning}>This action cannot be undone.</p>
+            <p className={styles.modalWarning}>{t('delete.warning')}</p>
             <div className={styles.modalActions}>
               <button
                 type="button"
@@ -980,7 +988,7 @@ export function HouseholdItemsPage() {
                 onClick={() => setDeletingItem(null)}
                 disabled={isDeleting}
               >
-                Cancel
+                {t('delete.cancel')}
               </button>
               <button
                 type="button"
@@ -988,7 +996,7 @@ export function HouseholdItemsPage() {
                 onClick={confirmDelete}
                 disabled={isDeleting}
               >
-                {isDeleting ? 'Deleting...' : 'Delete Item'}
+                {isDeleting ? t('delete.deleting') : t('delete.delete')}
               </button>
             </div>
           </div>

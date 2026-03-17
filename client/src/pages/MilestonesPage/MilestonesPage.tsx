@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type { MilestoneSummary } from '@cornerstone/shared';
 import { listMilestones, deleteMilestone } from '../../lib/milestonesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
@@ -10,6 +11,7 @@ import { ProjectSubNav } from '../../components/ProjectSubNav/ProjectSubNav.js';
 import styles from './MilestonesPage.module.css';
 
 export function MilestonesPage() {
+  const { t } = useTranslation('schedule');
   const navigate = useNavigate();
 
   // Data state
@@ -49,7 +51,7 @@ export function MilestonesPage() {
         if (err instanceof ApiClientError) {
           setError(err.error.message);
         } else {
-          setError('Failed to load milestones. Please try again.');
+          setError(t('milestones.error'));
         }
       } finally {
         setIsLoading(false);
@@ -57,7 +59,8 @@ export function MilestonesPage() {
     };
 
     loadMilestones();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [t]);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -87,7 +90,7 @@ export function MilestonesPage() {
       if (err instanceof ApiClientError) {
         setError(err.error.message);
       } else {
-        setError('Failed to load milestones. Please try again.');
+        setError(t('milestones.error'));
       }
     } finally {
       setIsLoading(false);
@@ -117,7 +120,7 @@ export function MilestonesPage() {
       if (err instanceof ApiClientError) {
         setError(err.error.message);
       } else {
-        setError('Failed to delete milestone. Please try again.');
+        setError(t('milestones.deleteError'));
       }
     } finally {
       setIsDeleting(false);
@@ -130,7 +133,7 @@ export function MilestonesPage() {
       {
         key: 'n',
         handler: () => navigate('/project/milestones/new'),
-        description: 'New milestone',
+        description: t('milestones.keyboard.newMilestone'),
       },
       {
         key: 'ArrowDown',
@@ -141,7 +144,7 @@ export function MilestonesPage() {
             );
           }
         },
-        description: 'Select next item',
+        description: t('milestones.keyboard.selectNext'),
       },
       {
         key: 'ArrowUp',
@@ -150,7 +153,7 @@ export function MilestonesPage() {
             setSelectedIndex((prev) => (prev === -1 ? 0 : Math.max(prev - 1, 0)));
           }
         },
-        description: 'Select previous item',
+        description: t('milestones.keyboard.selectPrevious'),
       },
       {
         key: 'Enter',
@@ -159,12 +162,12 @@ export function MilestonesPage() {
             navigate(`/project/milestones/${milestones[selectedIndex].id}`);
           }
         },
-        description: 'Open selected item',
+        description: t('milestones.keyboard.openSelected'),
       },
       {
         key: '?',
         handler: () => setShowShortcutsHelp(true),
-        description: 'Show keyboard shortcuts',
+        description: t('milestones.keyboard.showShortcuts'),
       },
       {
         key: 'Escape',
@@ -179,10 +182,10 @@ export function MilestonesPage() {
             setSelectedIndex(-1);
           }
         },
-        description: 'Close dialog or cancel',
+        description: t('milestones.keyboard.closeDialog'),
       },
     ],
-    [navigate, milestones, selectedIndex, showShortcutsHelp, deletingMilestone, activeMenuId],
+    [navigate, milestones, selectedIndex, showShortcutsHelp, deletingMilestone, activeMenuId, t],
   );
 
   useKeyboardShortcuts(shortcuts);
@@ -197,7 +200,7 @@ export function MilestonesPage() {
   if (isLoading && milestones.length === 0) {
     return (
       <div className={styles.container}>
-        <div className={styles.loading}>Loading milestones...</div>
+        <div className={styles.loading}>{t('milestones.loading')}</div>
       </div>
     );
   }
@@ -205,14 +208,14 @@ export function MilestonesPage() {
   return (
     <div className={styles.container} ref={containerRef}>
       <div className={styles.header}>
-        <h1 className={styles.pageTitle}>Project</h1>
+        <h1 className={styles.pageTitle}>{t('milestones.page.title')}</h1>
         <button
           type="button"
           className={styles.primaryButton}
           onClick={() => navigate('/project/milestones/new')}
           data-testid="new-milestone-button"
         >
-          New Milestone
+          {t('milestones.newButton')}
         </button>
       </div>
       <ProjectSubNav />
@@ -226,14 +229,14 @@ export function MilestonesPage() {
       {/* Milestones list */}
       {milestones.length === 0 ? (
         <div className={styles.emptyState}>
-          <h2>No milestones yet</h2>
-          <p>Create your first milestone to mark major project progress points.</p>
+          <h2>{t('milestones.empty.noItems')}</h2>
+          <p>{t('milestones.empty.noItemsMessage')}</p>
           <button
             type="button"
             className={styles.primaryButton}
             onClick={() => navigate('/project/milestones/new')}
           >
-            Create First Milestone
+            {t('milestones.empty.createFirst')}
           </button>
         </div>
       ) : (
@@ -243,11 +246,11 @@ export function MilestonesPage() {
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th>Title</th>
-                  <th>Target Date</th>
-                  <th>Status</th>
-                  <th>Description</th>
-                  <th className={styles.actionsColumn}>Actions</th>
+                  <th>{t('milestones.table.headers.title')}</th>
+                  <th>{t('milestones.table.headers.targetDate')}</th>
+                  <th>{t('milestones.table.headers.status')}</th>
+                  <th>{t('milestones.table.headers.description')}</th>
+                  <th className={styles.actionsColumn}>{t('milestones.table.headers.actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -265,7 +268,9 @@ export function MilestonesPage() {
                           milestone.isCompleted ? styles.statusCompleted : styles.statusPending
                         }`}
                       >
-                        {milestone.isCompleted ? 'Completed' : 'Pending'}
+                        {milestone.isCompleted
+                          ? t('milestones.status.completed')
+                          : t('milestones.status.pending')}
                       </span>
                     </td>
                     <td className={styles.descriptionCell}>
@@ -282,7 +287,7 @@ export function MilestonesPage() {
                           onClick={() =>
                             setActiveMenuId(activeMenuId === milestone.id ? null : milestone.id)
                           }
-                          aria-label="Actions menu"
+                          aria-label={t('milestones.menu.actions')}
                           data-testid={`milestone-menu-button-${milestone.id}`}
                         >
                           ⋮
@@ -295,7 +300,7 @@ export function MilestonesPage() {
                               onClick={() => navigate(`/project/milestones/${milestone.id}`)}
                               data-testid={`milestone-edit-${milestone.id}`}
                             >
-                              Edit
+                              {t('milestones.menu.edit')}
                             </button>
                             <button
                               type="button"
@@ -303,7 +308,7 @@ export function MilestonesPage() {
                               onClick={(e) => handleDeleteClick(milestone, e)}
                               data-testid={`milestone-delete-${milestone.id}`}
                             >
-                              Delete
+                              {t('milestones.menu.delete')}
                             </button>
                           </div>
                         )}
@@ -333,7 +338,7 @@ export function MilestonesPage() {
                         onClick={() =>
                           setActiveMenuId(activeMenuId === milestone.id ? null : milestone.id)
                         }
-                        aria-label="Actions menu"
+                        aria-label={t('milestones.menu.actions')}
                       >
                         ⋮
                       </button>
@@ -344,14 +349,14 @@ export function MilestonesPage() {
                             className={styles.menuItem}
                             onClick={() => navigate(`/project/milestones/${milestone.id}`)}
                           >
-                            Edit
+                            {t('milestones.menu.edit')}
                           </button>
                           <button
                             type="button"
                             className={`${styles.menuItem} ${styles.menuItemDanger}`}
                             onClick={(e) => handleDeleteClick(milestone, e)}
                           >
-                            Delete
+                            {t('milestones.menu.delete')}
                           </button>
                         </div>
                       )}
@@ -360,22 +365,24 @@ export function MilestonesPage() {
                 </div>
                 <div className={styles.cardBody}>
                   <div className={styles.cardRow}>
-                    <span className={styles.cardLabel}>Target Date:</span>
+                    <span className={styles.cardLabel}>{t('milestones.card.targetDate')}</span>
                     <span>{formatDate(milestone.targetDate)}</span>
                   </div>
                   <div className={styles.cardRow}>
-                    <span className={styles.cardLabel}>Status:</span>
+                    <span className={styles.cardLabel}>{t('milestones.card.status')}</span>
                     <span
                       className={`${styles.statusBadge} ${
                         milestone.isCompleted ? styles.statusCompleted : styles.statusPending
                       }`}
                     >
-                      {milestone.isCompleted ? 'Completed' : 'Pending'}
+                      {milestone.isCompleted
+                        ? t('milestones.status.completed')
+                        : t('milestones.status.pending')}
                     </span>
                   </div>
                   {milestone.description && (
                     <div className={styles.cardRow}>
-                      <span className={styles.cardLabel}>Description:</span>
+                      <span className={styles.cardLabel}>{t('milestones.card.description')}</span>
                       <span>
                         {milestone.description.substring(0, 60) +
                           (milestone.description.length > 60 ? '...' : '')}
@@ -397,9 +404,9 @@ export function MilestonesPage() {
             onClick={() => !isDeleting && setDeletingMilestone(null)}
           />
           <div className={styles.modalContent}>
-            <h2 className={styles.modalTitle}>Delete Milestone</h2>
+            <h2 className={styles.modalTitle}>{t('milestones.delete.confirm')}</h2>
             <p className={styles.modalText}>
-              Are you sure you want to delete &quot;<strong>{deletingMilestone.title}</strong>
+              {t('milestones.delete.message')} &quot;<strong>{deletingMilestone.title}</strong>
               &quot;?
             </p>
             <div className={styles.modalActions}>
@@ -409,7 +416,7 @@ export function MilestonesPage() {
                 onClick={() => setDeletingMilestone(null)}
                 disabled={isDeleting}
               >
-                Cancel
+                {t('milestones.delete.cancel')}
               </button>
               <button
                 type="button"
@@ -417,7 +424,7 @@ export function MilestonesPage() {
                 onClick={confirmDelete}
                 disabled={isDeleting}
               >
-                {isDeleting ? 'Deleting...' : 'Delete Milestone'}
+                {isDeleting ? t('milestones.delete.deleting') : t('milestones.delete.delete')}
               </button>
             </div>
           </div>

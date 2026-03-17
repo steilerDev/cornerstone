@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import styles from './QuickActionsCard.module.css';
 
@@ -7,29 +8,51 @@ import styles from './QuickActionsCard.module.css';
  * to common sections of the application.
  */
 export function QuickActionsCard() {
+  const { t } = useTranslation('dashboard');
+
   return (
     <div className={styles.container}>
       {/* Primary action: New Work Item */}
       <Link to="/project/work-items/new" className={styles.primaryAction}>
-        New Work Item
+        {t('cards.quickActions.newWorkItem')}
       </Link>
 
       {/* Quick navigation links grid */}
       <div className={styles.linksGrid}>
-        <Link to="/project/work-items" className={styles.quickLink} aria-label="Work Items">
-          Work Items
+        <Link
+          to="/project/work-items"
+          className={styles.quickLink}
+          aria-label={t('cards.quickActions.workItems')}
+        >
+          {t('cards.quickActions.workItems')}
         </Link>
-        <Link to="/schedule" className={styles.quickLink} aria-label="Timeline">
-          Timeline
+        <Link
+          to="/schedule"
+          className={styles.quickLink}
+          aria-label={t('cards.quickActions.timeline')}
+        >
+          {t('cards.quickActions.timeline')}
         </Link>
-        <Link to="/budget/overview" className={styles.quickLink} aria-label="Budget">
-          Budget
+        <Link
+          to="/budget/overview"
+          className={styles.quickLink}
+          aria-label={t('cards.quickActions.budget')}
+        >
+          {t('cards.quickActions.budget')}
         </Link>
-        <Link to="/budget/invoices" className={styles.quickLink} aria-label="Invoices">
-          Invoices
+        <Link
+          to="/budget/invoices"
+          className={styles.quickLink}
+          aria-label={t('cards.quickActions.invoices')}
+        >
+          {t('cards.quickActions.invoices')}
         </Link>
-        <Link to="/budget/vendors" className={styles.quickLink} aria-label="Vendors">
-          Vendors
+        <Link
+          to="/budget/vendors"
+          className={styles.quickLink}
+          aria-label={t('cards.quickActions.vendors')}
+        >
+          {t('cards.quickActions.vendors')}
         </Link>
       </div>
     </div>
