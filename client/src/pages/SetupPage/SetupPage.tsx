@@ -1,5 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Logo } from '../../components/Logo/Logo.js';
 import { setup, getAuthMe } from '../../lib/authApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
@@ -15,6 +16,7 @@ interface FormErrors {
 
 export function SetupPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation('auth');
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [password, setPassword] = useState('');
@@ -46,23 +48,23 @@ export function SetupPage() {
     const newErrors: FormErrors = {};
 
     if (!email) {
-      newErrors.email = 'Email is required';
+      newErrors.email = t('setup.emailRequired');
     }
 
     if (!displayName) {
-      newErrors.displayName = 'Display name is required';
+      newErrors.displayName = t('setup.displayNameRequired');
     } else if (displayName.length < 1 || displayName.length > 100) {
-      newErrors.displayName = 'Display name must be between 1 and 100 characters';
+      newErrors.displayName = t('setup.displayNameLength');
     }
 
     if (!password) {
-      newErrors.password = 'Password is required';
+      newErrors.password = t('setup.passwordRequired');
     } else if (password.length < 12) {
-      newErrors.password = 'Password must be at least 12 characters';
+      newErrors.password = t('setup.passwordMinLength');
     }
 
     if (password !== confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
+      newErrors.confirmPassword = t('setup.passwordMismatch');
     }
 
     setErrors(newErrors);
@@ -87,7 +89,7 @@ export function SetupPage() {
       if (error instanceof ApiClientError) {
         setApiError(error.error.message);
       } else {
-        setApiError('An unexpected error occurred. Please try again.');
+        setApiError(t('setup.unexpectedError'));
       }
     } finally {
       setIsSubmitting(false);
@@ -98,7 +100,7 @@ export function SetupPage() {
     return (
       <div className={sharedStyles.container}>
         <div className={sharedStyles.card}>
-          <p>Loading...</p>
+          <p>{t('setup.loading')}</p>
         </div>
       </div>
     );
@@ -108,9 +110,9 @@ export function SetupPage() {
     <div className={sharedStyles.container}>
       <div className={sharedStyles.card}>
         <Logo size={72} variant="full" className={sharedStyles.logo} />
-        <h1 className={sharedStyles.title}>Initial Setup</h1>
+        <h1 className={sharedStyles.title}>{t('setup.title')}</h1>
         <p className={sharedStyles.description}>
-          Create the admin account to get started with Cornerstone.
+          {t('setup.description')}
         </p>
 
         {apiError && (
@@ -122,7 +124,7 @@ export function SetupPage() {
         <form onSubmit={handleSubmit} className={sharedStyles.form} noValidate>
           <div className={sharedStyles.field}>
             <label htmlFor="email" className={sharedStyles.label}>
-              Email
+              {t('setup.emailLabel')}
             </label>
             <input
               type="email"
@@ -145,7 +147,7 @@ export function SetupPage() {
 
           <div className={sharedStyles.field}>
             <label htmlFor="displayName" className={sharedStyles.label}>
-              Display Name
+              {t('setup.displayNameLabel')}
             </label>
             <input
               type="text"
@@ -167,7 +169,7 @@ export function SetupPage() {
 
           <div className={sharedStyles.field}>
             <label htmlFor="password" className={sharedStyles.label}>
-              Password
+              {t('setup.passwordLabel')}
             </label>
             <input
               type="password"
@@ -186,12 +188,12 @@ export function SetupPage() {
                 {errors.password}
               </span>
             )}
-            <span className={styles.hint}>Minimum 12 characters</span>
+            <span className={styles.hint}>{t('setup.passwordHint')}</span>
           </div>
 
           <div className={sharedStyles.field}>
             <label htmlFor="confirmPassword" className={sharedStyles.label}>
-              Confirm Password
+              {t('setup.confirmPasswordLabel')}
             </label>
             <input
               type="password"
@@ -213,7 +215,7 @@ export function SetupPage() {
           </div>
 
           <button type="submit" className={sharedStyles.button} disabled={isSubmitting}>
-            {isSubmitting ? 'Creating Account...' : 'Create Admin Account'}
+            {isSubmitting ? t('setup.submitPending') : t('setup.submitIdle')}
           </button>
         </form>
       </div>

@@ -4,12 +4,20 @@ import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import type * as UsersApiTypes from '../../lib/usersApi.js';
 import type * as AuthContextTypes from '../../contexts/AuthContext.js';
+import type * as LocaleContextTypes from '../../contexts/LocaleContext.js';
 import type * as ProfilePageTypes from './ProfilePage.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 
 const mockUpdateProfile = jest.fn<typeof UsersApiTypes.updateProfile>();
 const mockChangePassword = jest.fn<typeof UsersApiTypes.changePassword>();
 const mockUseAuth = jest.fn<typeof AuthContextTypes.useAuth>();
+const mockUseLocale = jest.fn<typeof LocaleContextTypes.useLocale>().mockReturnValue({
+  locale: 'en' as const,
+  resolvedLocale: 'en' as const,
+  currency: 'EUR',
+  setLocale: jest.fn(),
+  syncWithServer: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+});
 
 // Mock usersApi before importing the component
 jest.unstable_mockModule('../../lib/usersApi.js', () => ({
@@ -21,6 +29,12 @@ jest.unstable_mockModule('../../lib/usersApi.js', () => ({
 jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
   useAuth: mockUseAuth,
   AuthProvider: ({ children }: { children: ReactNode }) => children,
+}));
+
+// Mock LocaleContext so useLocale() does not throw outside a LocaleProvider
+jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
+  useLocale: mockUseLocale,
+  LocaleProvider: ({ children }: { children: ReactNode }) => children,
 }));
 
 // Mock SettingsSubNav to avoid transitive dependency issues
@@ -65,6 +79,14 @@ describe('ProfilePage', () => {
     mockUseAuth.mockReset();
     mockUpdateProfile.mockReset();
     mockChangePassword.mockReset();
+    mockUseLocale.mockReset();
+    mockUseLocale.mockReturnValue({
+      locale: 'en' as const,
+      resolvedLocale: 'en' as const,
+      currency: 'EUR',
+      setLocale: jest.fn(),
+      syncWithServer: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    });
 
     // Default mock: return local user
     mockUseAuth.mockReturnValue({

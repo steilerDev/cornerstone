@@ -1,5 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Logo } from '../../components/Logo/Logo.js';
 import { login, getAuthMe } from '../../lib/authApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
@@ -11,17 +12,9 @@ interface FormErrors {
   password?: string;
 }
 
-const OIDC_ERROR_MESSAGES: Record<string, string> = {
-  oidc_not_configured: 'Single sign-on is not configured.',
-  oidc_error: 'Authentication failed. Please try again.',
-  invalid_state: 'Authentication session expired. Please try again.',
-  missing_email: 'Your identity provider did not provide an email address.',
-  email_conflict: 'This email is already associated with a different account.',
-  account_deactivated: 'Your account has been deactivated. Please contact an administrator.',
-};
-
 export function LoginPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation('auth');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
@@ -51,8 +44,13 @@ export function LoginPage() {
     // Check for OIDC error in URL
     const params = new URLSearchParams(window.location.search);
     const errorCode = params.get('error');
-    if (errorCode && OIDC_ERROR_MESSAGES[errorCode]) {
-      setApiError(OIDC_ERROR_MESSAGES[errorCode]);
+    if (errorCode) {
+      const oidcErrorKey = `login.oidcError.${errorCode}`;
+      const errorMessage = t(oidcErrorKey);
+      // Only set error if the key exists (t() returns the key itself if not found)
+      if (errorMessage !== oidcErrorKey) {
+        setApiError(errorMessage);
+      }
     }
 
     void loadConfig();
@@ -62,11 +60,11 @@ export function LoginPage() {
     const newErrors: FormErrors = {};
 
     if (!email) {
-      newErrors.email = 'Email is required';
+      newErrors.email = t('login.emailRequired');
     }
 
     if (!password) {
-      newErrors.password = 'Password is required';
+      newErrors.password = t('login.passwordRequired');
     }
 
     setErrors(newErrors);
@@ -91,7 +89,7 @@ export function LoginPage() {
       if (error instanceof ApiClientError) {
         setApiError(error.error.message);
       } else {
-        setApiError('An unexpected error occurred. Please try again.');
+        setApiError(t('login.unexpectedError'));
       }
       setIsSubmitting(false);
     }
@@ -105,8 +103,8 @@ export function LoginPage() {
     <div className={sharedStyles.container}>
       <div className={sharedStyles.card}>
         <Logo size={72} variant="full" className={sharedStyles.logo} />
-        <h1 className={sharedStyles.title}>Sign In</h1>
-        <p className={sharedStyles.description}>Sign in to your Cornerstone account.</p>
+        <h1 className={sharedStyles.title}>{t('login.title')}</h1>
+        <p className={sharedStyles.description}>{t('login.description')}</p>
 
         {apiError && (
           <div className={sharedStyles.errorBanner} role="alert">
@@ -122,11 +120,11 @@ export function LoginPage() {
               className={styles.ssoButton}
               disabled={isSubmitting}
             >
-              Login with SSO
+              {t('login.ssoButton')}
             </button>
 
             <div className={styles.divider}>
-              <span className={styles.dividerText}>or</span>
+              <span className={styles.dividerText}>{t('login.dividerOr')}</span>
             </div>
           </>
         )}
@@ -134,7 +132,7 @@ export function LoginPage() {
         <form onSubmit={handleSubmit} className={sharedStyles.form} noValidate>
           <div className={sharedStyles.field}>
             <label htmlFor="email" className={sharedStyles.label}>
-              Email
+              {t('login.emailLabel')}
             </label>
             <input
               type="email"
@@ -157,7 +155,7 @@ export function LoginPage() {
 
           <div className={sharedStyles.field}>
             <label htmlFor="password" className={sharedStyles.label}>
-              Password
+              {t('login.passwordLabel')}
             </label>
             <input
               type="password"
@@ -179,7 +177,7 @@ export function LoginPage() {
           </div>
 
           <button type="submit" className={sharedStyles.button} disabled={isSubmitting}>
-            {isSubmitting ? 'Signing In...' : 'Sign In'}
+            {isSubmitting ? t('login.submitPending') : t('login.submitIdle')}
           </button>
         </form>
       </div>

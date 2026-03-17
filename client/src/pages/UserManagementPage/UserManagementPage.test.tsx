@@ -664,8 +664,11 @@ describe('UserManagementPage', () => {
       await waitFor(() => {
         expect(screen.getByRole('heading', { name: /deactivate user/i })).toBeInTheDocument();
         expect(screen.getByText(/are you sure you want to deactivate/i)).toBeInTheDocument();
-        // Now "Member User" appears twice: once in table, once in modal <strong> tag
-        expect(screen.getAllByText('Member User')).toHaveLength(2);
+        // "Member User" appears in the table row and in the modal's confirmation text
+        // The modal renders the name inline via i18n interpolation, so we check the full sentence
+        expect(
+          screen.getByText(/are you sure you want to deactivate member user\?/i),
+        ).toBeInTheDocument();
       });
     });
 
