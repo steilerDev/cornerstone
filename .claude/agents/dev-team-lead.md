@@ -178,6 +178,7 @@ The spec document you return must follow this structure exactly:
 - Reference existing files for patterns rather than describing patterns abstractly
 - Frontend specs must reference the shared component library (Badge, SearchPicker, Modal, Skeleton, EmptyState, FormError) where applicable — include which shared components to use in the step-by-step instructions
 - If the spec introduces a new UI pattern that resembles an existing shared component, use the shared component instead
+- **Frontend specs must include i18n requirements**: list the translation namespace(s), specify the translation keys to add for both `en` and `de` locales, and note which strings need `t()` wrapping. Include `client/src/i18n/locales/en/<namespace>.json` and `client/src/i18n/locales/de/<namespace>.json` in the files-to-modify table
 
 ## Work Decomposition Rules
 
@@ -216,6 +217,7 @@ After the orchestrator routes work to implementation agents, you review all modi
 - Look for security issues (unsanitized input, missing auth checks, SQL injection)
 - Verify shared component usage — if the PR introduces new badge, picker, modal, skeleton, or empty state components instead of using the shared library, flag as CHANGES_REQUIRED
 - Verify CSS token compliance — no hardcoded color, spacing, radius, or font-size values (must use `var(--token-name)` from `tokens.css`)
+- **Verify i18n compliance** — all user-facing strings in frontend code must use `t()` from react-i18next (no hardcoded text in JSX). Translation keys must exist in both `en` and `de` locale files. API error responses must use `ErrorCode` enum values, not hardcoded messages. Date/currency/percent formatting must use the locale-aware formatters from `client/src/lib/formatters.ts`
 
 **Return format:**
 

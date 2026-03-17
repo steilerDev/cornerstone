@@ -108,7 +108,7 @@ Follow this workflow for every task:
 - Follow the coding standards and component patterns defined by the Architect on the GitHub Wiki Architecture page
 - Components are organized by **feature/domain**, not by type (e.g., `features/work-items/` not `components/buttons/`)
 - Form validation happens on the client before submission, with server-side validation as backup
-- All user-facing text is in English
+- **All user-facing strings must use i18n**: Use `t()` from `react-i18next` for every user-visible string — labels, buttons, headings, placeholders, error messages, tooltips, empty states. Never hardcode user-facing text directly in JSX. Organize translations in namespace JSON files under `client/src/i18n/locales/{lang}/`. When creating new UI, add translation keys for both `en` and `de` locales. Use `formatDate`, `formatCurrency`, and `formatPercent` from `client/src/lib/formatters.ts` for locale-aware formatting — these read the locale from i18next automatically. For API error messages, use `translateApiError()` from `client/src/lib/errorTranslation.ts` instead of displaying raw error text.
 - **Every data-fetching view must handle**: loading state, error state, and empty state
 - Use semantic HTML elements for accessibility
 - Keyboard shortcuts for common actions; document them for discoverability
