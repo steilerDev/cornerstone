@@ -5,7 +5,7 @@
     },
     "toolbar": {
       "entityFilter": "Entity-Filter",
-      "workItems": "Arbeitsgegenstände",
+      "workItems": "Arbeitspakete",
       "milestones": "Meilensteine",
       "householdItems": "Haushaltsartikel",
       "cannotHideLastType": "letzte Art kann nicht ausgeblendet werden",
@@ -33,11 +33,11 @@
       "tryAgain": "Erneut versuchen"
     },
     "emptyState": {
-      "noItems": "Keine Arbeitsgegenstände zum Anzeigen",
-      "noItemsMessage": "Fügen Sie Arbeitsgegenstände mit Start- und Enddaten hinzu, um sie im Zeitplan anzuzeigen.",
-      "noScheduled": "Keine geplanten Arbeitsgegenstände",
-      "noScheduledMessage": "Ihre Arbeitsgegenstände haben noch kein Start- und Enddatum. Legen Sie Daten für Ihre Arbeitsgegenstände fest, um sie im Zeitplan zu sehen.",
-      "goToWorkItems": "Zu Arbeitsgegenständen gehen"
+      "noItems": "Keine Arbeitspakete zum Anzeigen",
+      "noItemsMessage": "Fügen Sie Arbeitspakete mit Start- und Enddaten hinzu, um sie im Zeitplan anzuzeigen.",
+      "noScheduled": "Keine geplanten Arbeitspakete",
+      "noScheduledMessage": "Ihre Arbeitspakete haben noch kein Start- und Enddatum. Legen Sie Daten für Ihre Arbeitspakete fest, um sie im Zeitplan zu sehen.",
+      "goToWorkItems": "Zu Arbeitspaketen gehen"
     }
   },
   "schedule": {
@@ -210,15 +210,15 @@
         "description": "Beschreibung",
         "completedAt": "Abgeschlossen am",
         "linkedItems": "Verknüpfte Artikel",
-        "workItem": "Arbeitsgegenstand",
+        "workItem": "Arbeitspaket",
         "householdItem": "Haushaltsartikel",
         "noItems": "Keine Artikel verknüpft",
-        "dependentItems": "Abhängige Arbeitsgegenstände",
-        "noDependentItems": "Keine abhängigen Arbeitsgegenstände",
-        "searchPlaceholder": "Arbeitsgegenstände oder Haushaltsartikel zum Verknüpfen durchsuchen...",
-        "depSearchPlaceholder": "Arbeitsgegenstände zum Hinzufügen als abhängig durchsuchen...",
+        "dependentItems": "Abhängige Arbeitspakete",
+        "noDependentItems": "Keine abhängigen Arbeitspakete",
+        "searchPlaceholder": "Arbeitspakete oder Haushaltsartikel zum Verknüpfen durchsuchen...",
+        "depSearchPlaceholder": "Arbeitspakete zum Hinzufügen als abhängig durchsuchen...",
         "noMatches": "Keine Artikel entsprechen Ihrer Suche",
-        "noDepMatches": "Keine Arbeitsgegenstände entsprechen Ihrer Suche",
+        "noDepMatches": "Keine Arbeitspakete entsprechen Ihrer Suche",
         "deleteButton": "Meilenstein löschen"
       },
       "edit": {
@@ -258,19 +258,19 @@
         "day": "Tag",
         "days": "Tage"
       },
-      "unlinkButton": "Diesen Arbeitsgegenstand aus dem Meilenstein entfernen",
+      "unlinkButton": "Diesen Arbeitspaket aus dem Meilenstein entfernen",
       "unlinkHouseholdButton": "Diesen Haushaltsartikel aus dem Meilenstein entfernen",
-      "removeDependentButton": "Diesen abhängigen Arbeitsgegenstand aus dem Meilenstein entfernen",
+      "removeDependentButton": "Diesen abhängigen Arbeitspaket aus dem Meilenstein entfernen",
       "linkedItems": "Verknüpfte Artikel",
       "noItemsLinked": "Keine Artikel verknüpft",
-      "dependentItems": "Abhängige Arbeitsgegenstände",
-      "noDependentItems": "Keine abhängigen Arbeitsgegenstände",
-      "workItem": "Arbeitsgegenstand",
+      "dependentItems": "Abhängige Arbeitspakete",
+      "noDependentItems": "Keine abhängigen Arbeitspakete",
+      "workItem": "Arbeitspaket",
       "householdItem": "Haushaltsartikel",
-      "searchPlaceholder": "Arbeitsgegenstände oder Haushaltsartikel zum Verknüpfen durchsuchen...",
-      "depSearchPlaceholder": "Arbeitsgegenstände zum Hinzufügen als abhängig durchsuchen...",
+      "searchPlaceholder": "Arbeitspakete oder Haushaltsartikel zum Verknüpfen durchsuchen...",
+      "depSearchPlaceholder": "Arbeitspakete zum Hinzufügen als abhängig durchsuchen...",
       "noMatches": "Keine Artikel entsprechen Ihrer Suche",
-      "noDepMatches": "Keine Arbeitsgegenstände entsprechen Ihrer Suche",
+      "noDepMatches": "Keine Arbeitspakete entsprechen Ihrer Suche",
       "form": {
         "title": "Meilenstein bearbeiten",
         "titleLabel": "Titel",
@@ -293,10 +293,10 @@
           "pending": "Ausstehend"
         }
       },
-      "failedLink": "Fehler beim Verknüpfen des Arbeitsgegenstands. Bitte versuchen Sie es erneut.",
-      "failedUnlink": "Fehler beim Aufheben der Verknüpfung des Arbeitsgegenstands. Bitte versuchen Sie es erneut.",
-      "failedAddDependent": "Fehler beim Hinzufügen des abhängigen Arbeitsgegenstands. Bitte versuchen Sie es erneut.",
-      "failedRemoveDependent": "Fehler beim Entfernen des abhängigen Arbeitsgegenstands. Bitte versuchen Sie es erneut.",
+      "failedLink": "Fehler beim Verknüpfen des Arbeitspakets. Bitte versuchen Sie es erneut.",
+      "failedUnlink": "Fehler beim Aufheben der Verknüpfung des Arbeitspakets. Bitte versuchen Sie es erneut.",
+      "failedAddDependent": "Fehler beim Hinzufügen des abhängigen Arbeitspakets. Bitte versuchen Sie es erneut.",
+      "failedRemoveDependent": "Fehler beim Entfernen des abhängigen Arbeitspakets. Bitte versuchen Sie es erneut.",
       "failedSave": "Fehler beim Speichern des Meilensteins. Bitte versuchen Sie es erneut.",
       "failedDelete": "Fehler beim Löschen des Meilensteins. Bitte versuchen Sie es erneut.",
       "deleteConfirm": "Meilenstein löschen",

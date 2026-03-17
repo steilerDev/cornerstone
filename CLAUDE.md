@@ -10,7 +10,7 @@ Cornerstone is a web-based home building project management application designed
 
 ## Agent Team
 
-This project uses a team of 10 specialized Claude Code agents defined in `.claude/agents/`:
+This project uses a team of 11 specialized Claude Code agents defined in `.claude/agents/`:
 
 | Agent                   | Role                                                                                                                                    |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
@@ -20,6 +20,7 @@ This project uses a team of 10 specialized Claude Code agents defined in `.claud
 | `dev-team-lead`         | Spec-writer, reviewer, and committer (Sonnet): decomposes work into implementation specs, reviews agent output, commits and monitors CI |
 | `backend-developer`     | API endpoints, business logic, auth, database operations (Haiku, launched by orchestrator with dev-team-lead specs)                     |
 | `frontend-developer`    | UI components, pages, interactions, API client (Haiku, launched by orchestrator with dev-team-lead specs)                               |
+| `translator`            | Non-English translations, glossary enforcement (Sonnet, launched by orchestrator with dev-team-lead Translator Specs)                   |
 | `qa-integration-tester` | Unit test coverage (95%+ target), integration tests, performance testing, bug reports                                                   |
 | `e2e-test-engineer`     | Playwright E2E browser tests, page objects, smoke tests, responsive testing, dependent system integration testing                       |
 | `security-engineer`     | Security audits, vulnerability reports, remediation guidance                                                                            |
@@ -76,6 +77,7 @@ The GitHub Projects board uses 5 statuses: Backlog, Todo, In Progress, Done, Won
 - **Implementation specs** → `dev-team-lead` agent (produces specs, reviews code, commits)
 - **Backend code** → `backend-developer` agent (Haiku, launched by orchestrator with dev-team-lead specs)
 - **Frontend code** → `frontend-developer` agent (Haiku, launched by orchestrator with dev-team-lead specs)
+- **Non-English translations** → `translator` agent (Sonnet, launched by orchestrator with dev-team-lead Translator Specs)
 - **Unit/integration tests** → `qa-integration-tester` agent (launched by orchestrator with dev-team-lead specs)
 - **E2E browser tests** → `e2e-test-engineer` agent (launched by orchestrator with dev-team-lead specs)
 - **Visual specs, design tokens, brand assets, CSS files** → `ux-designer` agent
@@ -107,7 +109,7 @@ Every epic follows a two-phase validation lifecycle. **Development phase** (`/de
 - **Acceptance criteria live on GitHub Issues** — stored on story issues, summarized on promotion PRs
 - **Security review required** — the `security-engineer` must review every story PR
 - **Test agents own all tests** — `qa-integration-tester` owns unit and integration tests; `e2e-test-engineer` owns Playwright E2E browser tests. Developer agents do not write tests.
-- **Flat delegation model** — the orchestrator launches all agents directly. The `dev-team-lead` produces implementation specs, reviews agent output, and handles commits/CI. The orchestrator routes specs to `backend-developer`, `frontend-developer`, `qa-integration-tester`, and `e2e-test-engineer`.
+- **Flat delegation model** — the orchestrator launches all agents directly. The `dev-team-lead` produces implementation specs, reviews agent output, and handles commits/CI. The orchestrator routes specs to `backend-developer`, `frontend-developer`, `translator`, `qa-integration-tester`, and `e2e-test-engineer`.
 
 ## Git & Commit Conventions
 
@@ -181,10 +183,11 @@ The orchestrator launches all implementation agents directly using specs produce
 
 The orchestrator runs a **trailer verification** after every commit:
 
-1. Commit trailers must include Haiku co-authors for production file changes
+1. Commit trailers must include appropriate co-authors for production file changes
 2. Files under `server/` or `shared/` → must have `backend-developer` trailer
-3. Files under `client/` → must have `frontend-developer` trailer
-4. Files under `e2e/` → must have `e2e-test-engineer` trailer
+3. Files under `client/` (except `client/src/i18n/de/` and `client/src/i18n/glossary.json`) → must have `frontend-developer` trailer
+4. Files under `client/src/i18n/de/` or `client/src/i18n/glossary.json` → must have `translator` trailer
+5. Files under `e2e/` → must have `e2e-test-engineer` trailer
 
 Commits that change production files without the appropriate Haiku co-author trailers are rejected and re-committed with corrected trailers.
 
@@ -466,11 +469,21 @@ When tests fail during development, a structured diagnostic protocol determines 
 
 The application supports multiple locales (English and German) via `i18next` and `react-i18next`. All agents must follow these conventions:
 
-- **Frontend**: All user-facing strings must use `t()` from react-i18next — never hardcode text in JSX. Translation files live in `client/src/i18n/locales/{lang}/{namespace}.json`. Every new string needs keys in both `en` and `de`.
+- **Frontend**: All user-facing strings must use `t()` from react-i18next — never hardcode text in JSX. Translation files live in `client/src/i18n/{lang}/{namespace}.json`. Dev agents write English (`en`) keys only.
+- **Translator owns non-English locales**: The `translator` agent handles all non-English translations and enforces glossary compliance. Dev agents do not write German or other non-English translations.
 - **Backend**: API error responses must use `ErrorCode` enum values (machine-readable codes), not human-readable messages. The frontend translates error codes into locale-specific messages via `translateApiError()`. The `CURRENCY` env var (default: `EUR`) is exposed via `GET /api/config`.
 - **Formatting**: Use `formatDate`, `formatCurrency`, `formatPercent` from `client/src/lib/formatters.ts` — these read the locale from i18next automatically. Never use raw `toLocaleDateString()` or `Intl.NumberFormat` directly.
 - **Testing**: QA must verify translation keys exist in both locales. E2E tests must verify locale detection and switching behavior.
-- **Specs**: Dev-team-lead specs must include i18n requirements — translation namespace, keys to add, and locale files to modify.
+- **Specs**: Dev-team-lead specs must include i18n requirements — translation namespace, English keys to add, and a Translator Spec section for the translator agent.
+
+### Translation & Glossary Convention
+
+- **Glossary**: `client/src/i18n/glossary.json` — single source of truth for domain term translations (multi-locale)
+- **Dev agents write English only**: frontend-developer adds `en` keys. Never writes non-English translations.
+- **Translator owns all non-English locales**: translates new keys + enforces glossary compliance
+- **Glossary scope**: Domain-specific terms only (Work Item, Invoice, etc.), not common UI words
+- **Glossary updates**: Translator proposes additions for new domain terms; product-owner approves terminology
+- **Adding a locale**: Add locale code to `glossary.json` `_meta.locales`, add translations for all terms, create `client/src/i18n/{locale}/` directory with namespace files, register in `client/src/i18n/index.ts`
 
 ### Review Metrics
 

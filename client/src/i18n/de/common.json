@@ -52,8 +52,8 @@
   "subnav": {
     "project": {
       "overview": "Übersicht",
-      "workItems": "Arbeitselemente",
-      "householdItems": "Haushaltsgegenstände",
+      "workItems": "Arbeitspakete",
+      "householdItems": "Haushaltsartikel",
       "milestones": "Meilensteine"
     },
     "budget": {

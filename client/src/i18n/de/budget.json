@@ -6,7 +6,7 @@
     "errorMessage": "Budget-Übersicht konnte nicht geladen werden. Bitte versuchen Sie es später erneut.",
     "retry": "Erneut versuchen",
     "emptyStateTitle": "Noch keine Budgetdaten",
-    "emptyStateDescription": "Beginnen Sie mit dem Hinzufügen von Budgekategorien, Arbeitselementen mit geplanten Kosten und Finanzierungsquellen. Ihre Projektbudget-Übersicht wird hier angezeigt, sobald Daten eingegeben werden.",
+    "emptyStateDescription": "Beginnen Sie mit dem Hinzufügen von Budgekategorien, Arbeitspaketen mit geplanten Kosten und Finanzierungsquellen. Ihre Projektbudget-Übersicht wird hier angezeigt, sobald Daten eingegeben werden.",
     "availableFunds": "Verfügbare Mittel",
     "projectedCostRange": "Geplanter Kostenbereich",
     "expectedPayback": "Erwartete Rückzahlung",
@@ -40,8 +40,8 @@
       "loading": "Kostenaufschlüsselung wird geladen…",
       "title": "Kostenaufschlüsselung",
       "emptyState": "Keine Budgetdaten zum Anzeigen",
-      "workItems": "Arbeitselemente",
-      "householdItems": "Haushaltsgegenstände",
+      "workItems": "Arbeitspakete",
+      "householdItems": "Haushaltsartikel",
       "sum": "Summe",
       "availableFunds": "Verfügbare Mittel",
       "remainingBudget": "Verbleibendes Budget",
@@ -202,7 +202,7 @@
       "deleteTitle": "Auftragnehmer Löschen",
       "deleteConfirm": "Sind Sie sicher, dass Sie \"{{name}}\" löschen möchten?",
       "deleteWarning": "Diese Aktion kann nicht rückgängig gemacht werden.",
-      "deleteError": "Dieser Auftragnehmer kann nicht gelöscht werden, da er zugehörige Rechnungen oder Arbeitselemente hat. Entfernen Sie zuerst diese Verweise."
+      "deleteError": "Dieser Auftragnehmer kann nicht gelöscht werden, da er zugehörige Rechnungen oder Arbeitspakete hat. Entfernen Sie zuerst diese Verweise."
     },
     "messages": {
       "createError": "Auftragnehmer konnte nicht erstellt werden. Bitte versuchen Sie es später erneut.",
