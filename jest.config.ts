@@ -46,11 +46,13 @@ const config: Config = {
       displayName: 'server',
       testEnvironment: 'node',
       testMatch: ['<rootDir>/server/src/**/*.test.ts'],
+      setupFilesAfterEnv: ['<rootDir>/server/src/test/setupTests.ts'],
       transform: {
         '^.+\\.tsx?$': [
           'ts-jest',
           {
             useESM: true,
+            diagnostics: { ignoreCodes: [151002] },
             tsconfig: {
               module: 'NodeNext',
               moduleResolution: 'NodeNext',

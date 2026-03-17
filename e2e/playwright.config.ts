@@ -32,7 +32,7 @@ export default defineConfig({
      When sharding, use blob reporter so reports can be merged across shards. */
   reporter: process.env.SHARD_INDEX
     ? [['blob', { outputDir: 'blob-report' }], ['list']]
-    : [['html', { outputFolder: 'playwright-report' }], ['list']],
+    : [['html', { outputFolder: 'playwright-report' }], ['dot']],
 
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {

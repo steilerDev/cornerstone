@@ -48,12 +48,6 @@ export default async function globalTeardown(): Promise<void> {
           });
           await writeFile(`${LOGS_DIR}/${name}.log`, logs);
           console.log(`📋 ${name} logs saved (${logs.length} bytes)`);
-          // Print cornerstone logs directly to CI for immediate debugging
-          if (name === 'cornerstone') {
-            console.log(`--- ${name} container logs ---`);
-            console.log(logs);
-            console.log(`--- end ${name} container logs ---`);
-          }
         } catch {
           console.warn(`⚠️  Failed to capture ${name} logs`);
         }

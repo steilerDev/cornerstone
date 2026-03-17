@@ -221,9 +221,6 @@ function insertJunctionRow(
   ).run(id, invoiceId, workItemBudgetId, householdItemBudgetId, itemizedAmount, now, now);
 }
 
-// ── Suppress console.warn from runMigrations() ───────────────────────────────
-const originalWarn = console.warn;
-
 // ══════════════════════════════════════════════════════════════════════════════
 // Test suite
 // ══════════════════════════════════════════════════════════════════════════════
@@ -240,12 +237,10 @@ describe('Migration 0017: Invoice-Budget-Line Junction Table', () => {
   }
 
   beforeEach(() => {
-    console.warn = () => undefined;
     sqlite = createFullDb();
   });
 
   afterEach(() => {
-    console.warn = originalWarn;
     sqlite.close();
   });
 
@@ -461,7 +456,6 @@ describe('Migration 0017: Invoice-Budget-Line Junction Table', () => {
       const db = new Database(':memory:');
       db.pragma('journal_mode = WAL');
       db.pragma('foreign_keys = ON');
-      console.warn = () => undefined;
       setupPreMigrationDb(db);
 
       insertVendor(db, 'v-wib-1');
@@ -490,7 +484,6 @@ describe('Migration 0017: Invoice-Budget-Line Junction Table', () => {
       const db = new Database(':memory:');
       db.pragma('journal_mode = WAL');
       db.pragma('foreign_keys = ON');
-      console.warn = () => undefined;
       setupPreMigrationDb(db);
 
       insertVendor(db, 'v-amt-1');
@@ -516,7 +509,6 @@ describe('Migration 0017: Invoice-Budget-Line Junction Table', () => {
       const db = new Database(':memory:');
       db.pragma('journal_mode = WAL');
       db.pragma('foreign_keys = ON');
-      console.warn = () => undefined;
       setupPreMigrationDb(db);
 
       insertVendor(db, 'v-uuid-1');
@@ -543,7 +535,6 @@ describe('Migration 0017: Invoice-Budget-Line Junction Table', () => {
       const db = new Database(':memory:');
       db.pragma('journal_mode = WAL');
       db.pragma('foreign_keys = ON');
-      console.warn = () => undefined;
       setupPreMigrationDb(db);
 
       insertVendor(db, 'v-col-check-1');
@@ -567,7 +558,6 @@ describe('Migration 0017: Invoice-Budget-Line Junction Table', () => {
       const db = new Database(':memory:');
       db.pragma('journal_mode = WAL');
       db.pragma('foreign_keys = ON');
-      console.warn = () => undefined;
       setupPreMigrationDb(db);
 
       insertVendor(db, 'v-multi-wi-1');
@@ -610,7 +600,6 @@ describe('Migration 0017: Invoice-Budget-Line Junction Table', () => {
       const db = new Database(':memory:');
       db.pragma('journal_mode = WAL');
       db.pragma('foreign_keys = ON');
-      console.warn = () => undefined;
       setupPreMigrationDb(db);
 
       insertVendor(db, 'v-hib-1');
@@ -639,7 +628,6 @@ describe('Migration 0017: Invoice-Budget-Line Junction Table', () => {
       const db = new Database(':memory:');
       db.pragma('journal_mode = WAL');
       db.pragma('foreign_keys = ON');
-      console.warn = () => undefined;
       setupPreMigrationDb(db);
 
       insertVendor(db, 'v-hib-amt-1');
@@ -665,7 +653,6 @@ describe('Migration 0017: Invoice-Budget-Line Junction Table', () => {
       const db = new Database(':memory:');
       db.pragma('journal_mode = WAL');
       db.pragma('foreign_keys = ON');
-      console.warn = () => undefined;
       setupPreMigrationDb(db);
 
       insertVendor(db, 'v-hib-col-1');
@@ -693,7 +680,6 @@ describe('Migration 0017: Invoice-Budget-Line Junction Table', () => {
       const db = new Database(':memory:');
       db.pragma('journal_mode = WAL');
       db.pragma('foreign_keys = ON');
-      console.warn = () => undefined;
       setupPreMigrationDb(db);
 
       insertVendor(db, 'v-nofk-1');
@@ -715,7 +701,6 @@ describe('Migration 0017: Invoice-Budget-Line Junction Table', () => {
       const db = new Database(':memory:');
       db.pragma('journal_mode = WAL');
       db.pragma('foreign_keys = ON');
-      console.warn = () => undefined;
       setupPreMigrationDb(db);
 
       insertVendor(db, 'v-preserve-1');
@@ -739,7 +724,6 @@ describe('Migration 0017: Invoice-Budget-Line Junction Table', () => {
       const db = new Database(':memory:');
       db.pragma('journal_mode = WAL');
       db.pragma('foreign_keys = ON');
-      console.warn = () => undefined;
       setupPreMigrationDb(db);
 
       insertVendor(db, 'v-mix-1');
@@ -771,7 +755,6 @@ describe('Migration 0017: Invoice-Budget-Line Junction Table', () => {
       const db = new Database(':memory:');
       db.pragma('journal_mode = WAL');
       db.pragma('foreign_keys = ON');
-      console.warn = () => undefined;
       setupPreMigrationDb(db);
 
       insertVendor(db, 'v-dedup-wi');
@@ -809,7 +792,6 @@ describe('Migration 0017: Invoice-Budget-Line Junction Table', () => {
       const db = new Database(':memory:');
       db.pragma('journal_mode = WAL');
       db.pragma('foreign_keys = ON');
-      console.warn = () => undefined;
       setupPreMigrationDb(db);
 
       insertVendor(db, 'v-dedup-hi');
@@ -846,7 +828,6 @@ describe('Migration 0017: Invoice-Budget-Line Junction Table', () => {
       const db = new Database(':memory:');
       db.pragma('journal_mode = WAL');
       db.pragma('foreign_keys = ON');
-      console.warn = () => undefined;
       setupPreMigrationDb(db);
 
       insertVendor(db, 'v-dedup-mix');

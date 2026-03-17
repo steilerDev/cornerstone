@@ -63,10 +63,8 @@ function setupPreMigrationDb(db: Database.Database): void {
   }
 
   try {
-    console.warn = () => undefined;
     runMigrations(db, tempDir);
   } finally {
-    console.warn = console.error;
     for (const linkPath of symlinks) {
       if (existsSync(linkPath)) {
         unlinkSync(linkPath);
@@ -136,11 +134,9 @@ describe('Migration 0023: Require budgetSourceId', () => {
   // ─── Test 1: Fresh DB ────────────────────────────────────────────────────
 
   it('applies all migrations 0001-0023 without error on a fresh DB', () => {
-    console.warn = () => undefined;
     expect(() => {
       runMigrations(sqlite);
     }).not.toThrow();
-    console.warn = console.error;
   });
 
   // ─── Test 2-4: Data migration ────────────────────────────────────────────

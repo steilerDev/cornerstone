@@ -27,7 +27,7 @@ export async function startCornerstoneContainer(
   const environment = {
     DATABASE_URL: '/app/data/cornerstone.db',
     SECURE_COOKIES: 'false',
-    LOG_LEVEL: 'debug',
+    LOG_LEVEL: 'warn',
     NODE_ENV: 'production',
     TRUST_PROXY: 'true', // Enable proxy trust for X-Forwarded-* headers
   };
