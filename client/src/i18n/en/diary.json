@@ -14,7 +14,7 @@
   "pagination": {
     "previous": "Previous",
     "next": "Next",
-    "pageInfo": "Page {currentPage} of {totalPages}"
+    "pageInfo": "Page {{currentPage}} of {{totalPages}}"
   },
   "filterBar": {
     "search": "Search entries...",
@@ -106,7 +106,7 @@
     "editButton": "Edit"
   },
   "dateGroup": {
-    "groupLabel": "Entries on {date}"
+    "groupLabel": "Entries on {{date}}"
   },
   "form": {
     "weather": "Weather",
@@ -137,7 +137,7 @@
     "materials": "Materials Delivered",
     "materialsPlaceholder": "Add item and press enter",
     "addMaterialButton": "Add",
-    "removeMaterialLabel": "Remove {material}",
+    "removeMaterialLabel": "Remove {{material}}",
     "severity": "Issue Severity",
     "severityRequired": "Issue severity is required",
     "severityOptions": {
@@ -157,7 +157,7 @@
     "addSignatureButton": "Add Signature",
     "photos": "Photos",
     "addPhotosButton": "Add Photos",
-    "removePhotoLabel": "Remove photo {index}"
+    "removePhotoLabel": "Remove photo {{index}}"
   },
   "metadata": {
     "summary": "Entry Information",
@@ -218,7 +218,7 @@
     "backButtonForm": "← Back",
     "attachPhotosLabel": "Attach Photos (optional)",
     "attachPhotosHint": "Photos will be uploaded after the entry is created.",
-    "photosQueued": "{count} photo(s) queued",
+    "photosQueued": "{{count}} photo(s) queued",
     "selectTypeError": "Please select an entry type",
     "siteVisitInspectorNameRequired": "Inspector name is required",
     "issueValidationRequired": {
@@ -231,7 +231,7 @@
     "edit": "Edit",
     "delete": "Delete",
     "automatic": "Automatic",
-    "photosHeading": "Photos ({count})",
+    "photosHeading": "Photos ({{count}})",
     "photosEmpty": "No photos attached yet.",
     "addPhotos": "Add photos",
     "relatedTo": "Related to:",

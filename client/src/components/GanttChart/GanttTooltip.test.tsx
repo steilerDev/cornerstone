@@ -1141,7 +1141,7 @@ describe('GanttTooltip — touch device navigation affordance (#342)', () => {
       </MemoryRouter>,
     );
     const link = screen.getByText('View item');
-    expect(link).toHaveAttribute('aria-label', `View details for ${WORK_ITEM_DATA.title}`);
+    expect(link).toHaveAttribute('aria-label', `View item ${WORK_ITEM_DATA.title}`);
   });
 
   it('does not render "View item" when isTouchDevice is true but workItemId is absent', () => {

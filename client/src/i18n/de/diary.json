@@ -14,7 +14,7 @@
   "pagination": {
     "previous": "Zurück",
     "next": "Weiter",
-    "pageInfo": "Seite {currentPage} von {totalPages}"
+    "pageInfo": "Seite {{currentPage}} von {{totalPages}}"
   },
   "filterBar": {
     "search": "Einträge durchsuchen...",
@@ -106,7 +106,7 @@
     "editButton": "Bearbeiten"
   },
   "dateGroup": {
-    "groupLabel": "Einträge am {date}"
+    "groupLabel": "Einträge am {{date}}"
   },
   "form": {
     "weather": "Wetter",
@@ -137,7 +137,7 @@
     "materials": "Gelieferte Materialien",
     "materialsPlaceholder": "Element hinzufügen und Eingabetaste drücken",
     "addMaterialButton": "Hinzufügen",
-    "removeMaterialLabel": "{material} entfernen",
+    "removeMaterialLabel": "{{material}} entfernen",
     "severity": "Problemschweregrad",
     "severityRequired": "Problemschweregrad ist erforderlich",
     "severityOptions": {
@@ -157,7 +157,7 @@
     "addSignatureButton": "Unterschrift hinzufügen",
     "photos": "Fotos",
     "addPhotosButton": "Fotos hinzufügen",
-    "removePhotoLabel": "Foto {index} entfernen"
+    "removePhotoLabel": "Foto {{index}} entfernen"
   },
   "metadata": {
     "summary": "Eintragsinformationen",
@@ -218,7 +218,7 @@
     "backButtonForm": "← Zurück",
     "attachPhotosLabel": "Fotos hinzufügen (optional)",
     "attachPhotosHint": "Fotos werden nach dem Erstellen des Eintrags hochgeladen.",
-    "photosQueued": "{count} Foto(s) in der Warteschlange",
+    "photosQueued": "{{count}} Foto(s) in der Warteschlange",
     "selectTypeError": "Bitte wählen Sie einen Eintragstyp",
     "siteVisitInspectorNameRequired": "Name des Inspektors ist erforderlich",
     "issueValidationRequired": {
@@ -231,7 +231,7 @@
     "edit": "Bearbeiten",
     "delete": "Löschen",
     "automatic": "Automatisch",
-    "photosHeading": "Fotos ({count})",
+    "photosHeading": "Fotos ({{count}})",
     "photosEmpty": "Noch keine Fotos hinzugefügt.",
     "addPhotos": "Fotos hinzufügen",
     "relatedTo": "Bezogen auf:",
