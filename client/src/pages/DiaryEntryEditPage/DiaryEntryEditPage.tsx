@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type {
   DiaryEntryDetail,
   DiaryEntryMetadata,
@@ -31,6 +32,7 @@ import styles from './DiaryEntryEditPage.module.css';
 export default function DiaryEntryEditPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const { t } = useTranslation('diary');
   const { showToast } = useToast();
   const { user } = useAuth();
   const [vendorOptions, setVendorOptions] = useState<VendorOption[]>([]);
@@ -103,7 +105,7 @@ export default function DiaryEntryEditPage() {
       try {
         const data = await getDiaryEntry(id);
         if (data.isSigned && !data.isAutomatic) {
-          showToast('info', 'Signed entries cannot be edited');
+          showToast('info', t('editPage.signedEntriesError'));
           navigate(`/diary/${data.id}`);
           return;
         }
@@ -113,7 +115,7 @@ export default function DiaryEntryEditPage() {
         if (err instanceof ApiClientError && err.statusCode === 404) {
           setNotFound(true);
         } else {
-          setError('Failed to load diary entry. Please try again.');
+          setError(t('editPage.loadError'));
         }
         console.error('Failed to load diary entry:', err);
       } finally {
@@ -122,7 +124,7 @@ export default function DiaryEntryEditPage() {
     };
 
     void loadEntry();
-  }, [id, navigate, showToast]);
+  }, [id, navigate, showToast, t]);
 
   // Delete modal: focus trap and Escape key handler
   useEffect(() => {
@@ -190,28 +192,28 @@ export default function DiaryEntryEditPage() {
     const errors: Record<string, string> = {};
 
     if (!entryDate) {
-      errors.entryDate = 'Entry date is required';
+      errors.entryDate = t('edit.entryDateRequired');
     }
 
     if (!body.trim()) {
-      errors.body = 'Entry text is required';
+      errors.body = t('edit.bodyRequired');
     }
 
     if (entry?.entryType === 'site_visit') {
       if (!siteVisitInspectorName?.trim()) {
-        errors.siteVisitInspectorName = 'Inspector name is required';
+        errors.siteVisitInspectorName = t('createPage.siteVisitInspectorNameRequired');
       }
       if (!siteVisitOutcome) {
-        errors.siteVisitOutcome = 'Inspection outcome is required';
+        errors.siteVisitOutcome = t('edit.inspectionOutcomeRequired');
       }
     }
 
     if (entry?.entryType === 'issue') {
       if (!issueSeverity) {
-        errors.issueSeverity = 'Severity is required';
+        errors.issueSeverity = t('createPage.issueValidationRequired.severity');
       }
       if (!issueResolutionStatus) {
-        errors.issueResolutionStatus = 'Resolution status is required';
+        errors.issueResolutionStatus = t('createPage.issueValidationRequired.resolutionStatus');
       }
     }
 
@@ -275,10 +277,10 @@ export default function DiaryEntryEditPage() {
         metadata,
       });
 
-      showToast('success', 'Diary entry updated successfully');
+      showToast('success', t('editPage.updateSuccess'));
       navigate(`/diary/${entry.id}`);
     } catch (err) {
-      setError('Failed to update diary entry. Please try again.');
+      setError(t('editPage.updateError'));
       console.error('Failed to update diary entry:', err);
       setIsSubmitting(false);
     }
@@ -296,27 +298,27 @@ export default function DiaryEntryEditPage() {
 
     try {
       await deleteDiaryEntry(entry.id);
-      showToast('success', 'Diary entry deleted successfully');
+      showToast('success', t('editPage.deleteSuccess'));
       navigate('/diary');
     } catch (err) {
-      setDeleteError('Failed to delete diary entry. Please try again.');
+      setDeleteError(t('editPage.deleteError'));
       console.error('Failed to delete diary entry:', err);
       setIsDeleting(false);
     }
   };
 
   if (isLoading) {
-    return <div className={styles.loading}>Loading entry...</div>;
+    return <div className={styles.loading}>{t('editPage.loadingError')}</div>;
   }
 
   if (notFound) {
     return (
       <div className={styles.container}>
         <div className={styles.errorCard}>
-          <h2 className={styles.errorTitle}>Entry Not Found</h2>
-          <p className={styles.errorMessage}>The diary entry you're looking for doesn't exist.</p>
+          <h2 className={styles.errorTitle}>{t('editPage.notFoundTitle')}</h2>
+          <p className={styles.errorMessage}>{t('editPage.notFoundMessage')}</p>
           <button type="button" className={styles.backButton} onClick={() => navigate('/diary')}>
-            Back to Diary
+            {t('editPage.backButton')}
           </button>
         </div>
       </div>
@@ -327,10 +329,10 @@ export default function DiaryEntryEditPage() {
     return (
       <div className={styles.container}>
         <div className={styles.errorCard}>
-          <h2 className={styles.errorTitle}>Error Loading Entry</h2>
+          <h2 className={styles.errorTitle}>{t('editPage.errorTitle')}</h2>
           <p className={styles.errorMessage}>{error || 'An unexpected error occurred.'}</p>
           <button type="button" className={styles.backButton} onClick={() => navigate('/diary')}>
-            Back to Diary
+            {t('editPage.backButton')}
           </button>
         </div>
       </div>
@@ -346,10 +348,10 @@ export default function DiaryEntryEditPage() {
           onClick={() => navigate(`/diary/${entry.id}`)}
           disabled={isSubmitting}
         >
-          ← Back to Entry
+          {t('editPage.backLink')}
         </button>
         <div className={styles.titleRow}>
-          <h1 className={styles.title}>Edit Diary Entry</h1>
+          <h1 className={styles.title}>{t('editPage.title')}</h1>
           <DiaryEntryTypeBadge entryType={entry.entryType} size="sm" />
         </div>
       </div>
@@ -405,7 +407,7 @@ export default function DiaryEntryEditPage() {
             onClick={() => setShowDeleteModal(true)}
             disabled={isSubmitting || isDeleting}
           >
-            Delete Entry
+            {t('editPage.deleteButton')}
           </button>
           <div className={styles.actionGroup}>
             <button
@@ -414,10 +416,10 @@ export default function DiaryEntryEditPage() {
               onClick={() => navigate(`/diary/${entry.id}`)}
               disabled={isSubmitting}
             >
-              Cancel
+              {t('editPage.cancel')}
             </button>
             <button type="submit" className={shared.btnPrimary} disabled={isSubmitting}>
-              {isSubmitting ? 'Saving...' : 'Save Changes'}
+              {isSubmitting ? t('editPage.saving') : t('editPage.saveChanges')}
             </button>
           </div>
         </div>
@@ -427,7 +429,7 @@ export default function DiaryEntryEditPage() {
       {entry && (
         <div className={styles.photosCard}>
           <div className={styles.photosSectionHeader}>
-            <h2 className={styles.photosHeading}>Photos</h2>
+            <h2 className={styles.photosHeading}>{t('editPage.photosHeading')}</h2>
           </div>
 
           <PhotoUpload
@@ -481,11 +483,9 @@ export default function DiaryEntryEditPage() {
           <div className={styles.modalBackdrop} onClick={closeDeleteModal} />
           <div className={styles.modalContent} ref={modalRef}>
             <h2 id="delete-modal-title" className={styles.modalTitle}>
-              Delete Diary Entry
+              {t('editPage.deleteTitle')}
             </h2>
-            <p className={styles.modalText}>
-              Are you sure you want to delete this diary entry? This action cannot be undone.
-            </p>
+            <p className={styles.modalText}>{t('editPage.deleteMessage')}</p>
             {deleteError ? (
               <div className={styles.errorBanner} role="alert">
                 {deleteError}
@@ -498,7 +498,7 @@ export default function DiaryEntryEditPage() {
                 onClick={closeDeleteModal}
                 disabled={isDeleting}
               >
-                Cancel
+                {t('editPage.deleteCancel')}
               </button>
               {!deleteError && (
                 <button
@@ -507,7 +507,7 @@ export default function DiaryEntryEditPage() {
                   onClick={() => void handleDelete()}
                   disabled={isDeleting}
                 >
-                  {isDeleting ? 'Deleting...' : 'Delete Entry'}
+                  {isDeleting ? t('editPage.deleting') : t('editPage.deleteConfirm')}
                 </button>
               )}
             </div>

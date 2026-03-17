@@ -28,7 +28,7 @@ describe('ScheduleSubNav', () => {
     renderNav();
 
     expect(
-      screen.getByRole('navigation', { name: 'Schedule view navigation' }),
+      screen.getByRole('navigation', { name: 'Gantt' }),
     ).toBeInTheDocument();
   });
 

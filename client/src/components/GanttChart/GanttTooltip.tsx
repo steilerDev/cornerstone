@@ -1,5 +1,6 @@
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type { WorkItemStatus, DependencyType } from '@cornerstone/shared';
 import styles from './GanttTooltip.module.css';
 
@@ -134,12 +135,6 @@ interface GanttTooltipProps {
 // Helpers
 // ---------------------------------------------------------------------------
 
-const STATUS_LABELS: Record<WorkItemStatus, string> = {
-  not_started: 'Not started',
-  in_progress: 'In progress',
-  completed: 'Completed',
-};
-
 const STATUS_BADGE_CLASSES: Record<WorkItemStatus, string> = {
   not_started: styles.statusNotStarted,
   in_progress: styles.statusInProgress,
@@ -168,24 +163,6 @@ function formatDisplayDate(dateStr: string | null): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-function formatDuration(days: number | null): string {
-  if (days === null) return '—';
-  if (days === 1) return '1 day';
-  return `${days} days`;
-}
-
-// ---------------------------------------------------------------------------
-// Work item tooltip content
-// ---------------------------------------------------------------------------
-
-/** Human-readable labels for each dependency type. */
-const DEPENDENCY_TYPE_LABELS: Record<DependencyType, string> = {
-  finish_to_start: 'Finish-to-Start',
-  start_to_start: 'Start-to-Start',
-  finish_to_finish: 'Finish-to-Finish',
-  start_to_finish: 'Start-to-Finish',
-};
-
 function WorkItemTooltipContent({
   data,
   isTouchDevice,
@@ -193,6 +170,27 @@ function WorkItemTooltipContent({
   data: GanttTooltipWorkItemData;
   isTouchDevice?: boolean;
 }) {
+  const { t } = useTranslation('schedule');
+
+  const statusLabels: Record<WorkItemStatus, string> = {
+    not_started: t('gantt.tooltip.status.not_started'),
+    in_progress: t('gantt.tooltip.status.in_progress'),
+    completed: t('gantt.tooltip.status.completed'),
+  };
+
+  const dependencyTypeLabels: Record<DependencyType, string> = {
+    finish_to_start: t('gantt.tooltip.dependency.finishToStart'),
+    start_to_start: t('gantt.tooltip.dependency.startToStart'),
+    finish_to_finish: t('gantt.tooltip.dependency.finishToFinish'),
+    start_to_finish: t('gantt.tooltip.dependency.startToFinish'),
+  };
+
+  function formatDuration(days: number | null): string {
+    if (days === null) return '—';
+    if (days === 1) return `1 ${t('gantt.tooltip.duration.day')}`;
+    return `${days} ${t('gantt.tooltip.duration.days')}`;
+  }
+
   const dependencies = data.dependencies ?? [];
   const shownDeps = dependencies.slice(0, MAX_DEPS_SHOWN);
   const depsOverflowCount = dependencies.length - shownDeps.length;
@@ -214,7 +212,7 @@ function WorkItemTooltipContent({
       <div className={styles.header}>
         <span className={styles.title}>{data.title}</span>
         <span className={`${styles.statusBadge} ${STATUS_BADGE_CLASSES[data.status]}`}>
-          {STATUS_LABELS[data.status]}
+          {statusLabels[data.status]}
         </span>
       </div>
 
@@ -222,11 +220,11 @@ function WorkItemTooltipContent({
 
       {/* Date range */}
       <div className={styles.detailRow}>
-        <span className={styles.detailLabel}>Start</span>
+        <span className={styles.detailLabel}>{t('gantt.tooltip.workItem.startLabel')}</span>
         <span className={styles.detailValue}>{formatDisplayDate(data.startDate)}</span>
       </div>
       <div className={styles.detailRow}>
-        <span className={styles.detailLabel}>End</span>
+        <span className={styles.detailLabel}>{t('gantt.tooltip.workItem.endLabel')}</span>
         <span className={styles.detailValue}>{formatDisplayDate(data.endDate)}</span>
       </div>
 
@@ -235,13 +233,13 @@ function WorkItemTooltipContent({
         <>
           <div className={styles.separator} aria-hidden="true" />
           <div className={styles.detailRow}>
-            <span className={styles.detailLabel}>Planned</span>
+            <span className={styles.detailLabel}>{t('gantt.tooltip.duration.planned')}</span>
             <span className={styles.detailValue}>
               {formatDuration(data.plannedDurationDays ?? null)}
             </span>
           </div>
           <div className={styles.detailRow}>
-            <span className={styles.detailLabel}>Actual</span>
+            <span className={styles.detailLabel}>{t('gantt.tooltip.duration.actual')}</span>
             <span className={styles.detailValue}>
               {formatDuration(data.actualDurationDays ?? null)}
             </span>
@@ -251,19 +249,22 @@ function WorkItemTooltipContent({
             if (variance === 0) {
               return (
                 <div className={styles.detailRow}>
-                  <span className={styles.detailLabel}>Variance</span>
-                  <span className={styles.detailValue}>On plan</span>
+                  <span className={styles.detailLabel}>{t('gantt.tooltip.duration.variance')}</span>
+                  <span className={styles.detailValue}>{t('gantt.tooltip.duration.onPlan')}</span>
                 </div>
               );
             }
             const absVariance = Math.abs(variance);
             const label = variance > 0 ? `+${absVariance}` : `-${absVariance}`;
-            const dayWord = absVariance === 1 ? 'day' : 'days';
+            const dayWord =
+              absVariance === 1
+                ? t('gantt.tooltip.duration.day')
+                : t('gantt.tooltip.duration.days');
             const varianceClass =
               variance > 0 ? styles.detailValueOverPlan : styles.detailValueUnderPlan;
             return (
               <div className={styles.detailRow}>
-                <span className={styles.detailLabel}>Variance</span>
+                <span className={styles.detailLabel}>{t('gantt.tooltip.duration.variance')}</span>
                 <span className={`${styles.detailValue} ${varianceClass}`}>
                   {label} {dayWord}
                 </span>
@@ -273,17 +274,17 @@ function WorkItemTooltipContent({
         </>
       ) : data.plannedDurationDays != null ? (
         <div className={styles.detailRow}>
-          <span className={styles.detailLabel}>Planned</span>
+          <span className={styles.detailLabel}>{t('gantt.tooltip.duration.planned')}</span>
           <span className={styles.detailValue}>{formatDuration(data.plannedDurationDays)}</span>
         </div>
       ) : data.actualDurationDays != null ? (
         <div className={styles.detailRow}>
-          <span className={styles.detailLabel}>Duration</span>
+          <span className={styles.detailLabel}>{t('gantt.tooltip.duration.label')}</span>
           <span className={styles.detailValue}>{formatDuration(data.actualDurationDays)}</span>
         </div>
       ) : (
         <div className={styles.detailRow}>
-          <span className={styles.detailLabel}>Duration</span>
+          <span className={styles.detailLabel}>{t('gantt.tooltip.duration.label')}</span>
           <span className={styles.detailValue}>{formatDuration(data.durationDays)}</span>
         </div>
       )}
@@ -296,7 +297,7 @@ function WorkItemTooltipContent({
       {/* Assigned user */}
       {hasOwner && (
         <div className={styles.detailRow}>
-          <span className={styles.detailLabel}>Owner</span>
+          <span className={styles.detailLabel}>{t('gantt.tooltip.workItem.ownerLabel')}</span>
           <span className={styles.detailValue}>{data.assignedUserName}</span>
         </div>
       )}
@@ -306,18 +307,25 @@ function WorkItemTooltipContent({
         <>
           <div className={styles.separator} aria-hidden="true" />
           <div className={styles.linkedItemsSection}>
-            <span className={styles.linkedItemsLabel}>Dependencies ({dependencies.length})</span>
-            <ul className={styles.linkedItemsList} aria-label="Dependencies">
+            <span className={styles.linkedItemsLabel}>
+              {t('gantt.tooltip.workItem.dependencies')} ({dependencies.length})
+            </span>
+            <ul
+              className={styles.linkedItemsList}
+              aria-label={t('gantt.tooltip.workItem.dependencies')}
+            >
               {shownDeps.map((dep, idx) => (
                 <li key={`${dep.relatedTitle}-${idx}`} className={styles.linkedItem}>
                   <span className={styles.depTypeLabel}>
-                    {DEPENDENCY_TYPE_LABELS[dep.dependencyType]}
+                    {dependencyTypeLabels[dep.dependencyType]}
                   </span>{' '}
                   {dep.relatedTitle}
                 </li>
               ))}
               {depsOverflowCount > 0 && (
-                <li className={styles.linkedItemsOverflow}>+{depsOverflowCount} more</li>
+                <li className={styles.linkedItemsOverflow}>
+                  +{depsOverflowCount} {t('gantt.tooltip.workItem.more')}
+                </li>
               )}
             </ul>
           </div>
@@ -331,9 +339,9 @@ function WorkItemTooltipContent({
           <Link
             to={`/project/work-items/${data.workItemId}`}
             className={styles.viewItemLink}
-            aria-label={`View details for ${data.title}`}
+            aria-label={`${t('gantt.tooltip.navigation.viewItem')} ${data.title}`}
           >
-            View item
+            {t('gantt.tooltip.navigation.viewItem')}
           </Link>
         </>
       )}
@@ -356,16 +364,18 @@ function MilestoneTooltipContent({
   isTouchDevice?: boolean;
   onMilestoneNavigate?: (milestoneId: number) => void;
 }) {
+  const { t } = useTranslation('schedule');
+
   let statusLabel: string;
   let statusClass: string;
   if (data.isCompleted) {
-    statusLabel = 'Completed';
+    statusLabel = t('gantt.status.completed');
     statusClass = styles.statusCompleted;
   } else if (data.isLate) {
-    statusLabel = 'Late';
+    statusLabel = t('gantt.status.late');
     statusClass = styles.statusLate;
   } else {
-    statusLabel = 'On track';
+    statusLabel = t('gantt.status.onTrack');
     statusClass = styles.statusInProgress;
   }
 
@@ -402,14 +412,14 @@ function MilestoneTooltipContent({
 
       {/* Target date */}
       <div className={styles.detailRow}>
-        <span className={styles.detailLabel}>Target</span>
+        <span className={styles.detailLabel}>{t('gantt.tooltip.milestone.targetLabel')}</span>
         <span className={styles.detailValue}>{formatDisplayDate(data.targetDate)}</span>
       </div>
 
       {/* Projected date — show when available and milestone is not yet completed */}
       {!data.isCompleted && (
         <div className={styles.detailRow}>
-          <span className={styles.detailLabel}>Projected</span>
+          <span className={styles.detailLabel}>{t('gantt.tooltip.milestone.projectedLabel')}</span>
           <span className={`${styles.detailValue} ${data.isLate ? styles.detailValueLate : ''}`}>
             {data.projectedDate !== null ? formatDisplayDate(data.projectedDate) : '—'}
           </span>
@@ -419,7 +429,7 @@ function MilestoneTooltipContent({
       {/* Completion date */}
       {data.isCompleted && data.completedAt !== null && (
         <div className={styles.detailRow}>
-          <span className={styles.detailLabel}>Done</span>
+          <span className={styles.detailLabel}>{t('gantt.tooltip.milestone.doneLabel')}</span>
           <span className={styles.detailValue}>
             {formatDisplayDate(data.completedAt.slice(0, 10))}
           </span>
@@ -429,8 +439,8 @@ function MilestoneTooltipContent({
       {/* When both lists are empty, show a single "No linked items" row */}
       {hasBothEmpty ? (
         <div className={styles.detailRow}>
-          <span className={styles.detailLabel}>Linked</span>
-          <span className={styles.detailValue}>None</span>
+          <span className={styles.detailLabel}>{t('gantt.tooltip.milestone.linkedItems')}</span>
+          <span className={styles.detailValue}>{t('gantt.tooltip.milestone.none')}</span>
         </div>
       ) : (
         <>
@@ -438,13 +448,15 @@ function MilestoneTooltipContent({
           <div className={styles.separator} aria-hidden="true" />
           {linkedWorkItems.length === 0 ? (
             <div className={styles.detailRow}>
-              <span className={styles.detailLabel}>Contributing</span>
-              <span className={styles.detailValue}>None</span>
+              <span className={styles.detailLabel}>
+                {t('gantt.tooltip.milestone.contributing')}
+              </span>
+              <span className={styles.detailValue}>{t('gantt.tooltip.milestone.none')}</span>
             </div>
           ) : (
             <div className={styles.linkedItemsSection}>
               <span className={styles.linkedItemsLabel}>
-                Contributing ({linkedWorkItems.length})
+                {t('gantt.tooltip.milestone.contributing')} ({linkedWorkItems.length})
               </span>
               <ul
                 className={styles.linkedItemsList}
@@ -465,13 +477,15 @@ function MilestoneTooltipContent({
           {/* Dependent items — work items that depend on this milestone via requiredMilestoneIds */}
           {dependentWorkItems.length === 0 ? (
             <div className={styles.detailRow}>
-              <span className={styles.detailLabel}>Blocked by this</span>
-              <span className={styles.detailValue}>None</span>
+              <span className={styles.detailLabel}>
+                {t('gantt.tooltip.milestone.blockedByThis')}
+              </span>
+              <span className={styles.detailValue}>{t('gantt.tooltip.milestone.none')}</span>
             </div>
           ) : (
             <div className={styles.linkedItemsSection}>
               <span className={styles.linkedItemsLabel}>
-                Blocked by this ({dependentWorkItems.length})
+                {t('gantt.tooltip.milestone.blockedByThis')} ({dependentWorkItems.length})
               </span>
               <ul
                 className={styles.linkedItemsList}
@@ -499,9 +513,9 @@ function MilestoneTooltipContent({
             type="button"
             className={styles.viewItemLink}
             onClick={() => onMilestoneNavigate(data.milestoneId!)}
-            aria-label={`View details for milestone ${data.title}`}
+            aria-label={`${t('gantt.tooltip.navigation.viewItem')} ${data.title}`}
           >
-            View item
+            {t('gantt.tooltip.navigation.viewItem')}
           </button>
         </>
       )}
@@ -522,6 +536,8 @@ function HouseholdItemTooltipContent({
   isTouchDevice?: boolean;
   onNavigate?: (itemId: string) => void;
 }) {
+  const { t } = useTranslation('schedule');
+
   const statusLabel = data.status.replace(/_/g, ' ');
 
   // Select badge colors based on delivery status
@@ -550,14 +566,16 @@ function HouseholdItemTooltipContent({
 
       {/* Status */}
       <div className={styles.detailRow}>
-        <span className={styles.detailLabel}>Status</span>
+        <span className={styles.detailLabel}>{t('gantt.tooltip.householdItem.statusLabel')}</span>
         <span className={styles.detailValue}>{statusLabel}</span>
       </div>
 
       {/* Earliest delivery date */}
       {data.earliestDeliveryDate && (
         <div className={styles.detailRow}>
-          <span className={styles.detailLabel}>Earliest</span>
+          <span className={styles.detailLabel}>
+            {t('gantt.tooltip.householdItem.earliestLabel')}
+          </span>
           <span className={styles.detailValue}>{formatDisplayDate(data.earliestDeliveryDate)}</span>
         </div>
       )}
@@ -565,7 +583,7 @@ function HouseholdItemTooltipContent({
       {/* Target delivery date */}
       {data.targetDeliveryDate && (
         <div className={styles.detailRow}>
-          <span className={styles.detailLabel}>Target</span>
+          <span className={styles.detailLabel}>{t('gantt.tooltip.householdItem.targetLabel')}</span>
           <span className={styles.detailValue}>{formatDisplayDate(data.targetDeliveryDate)}</span>
         </div>
       )}
@@ -573,7 +591,7 @@ function HouseholdItemTooltipContent({
       {/* Latest delivery date */}
       {data.latestDeliveryDate && (
         <div className={styles.detailRow}>
-          <span className={styles.detailLabel}>Latest</span>
+          <span className={styles.detailLabel}>{t('gantt.tooltip.householdItem.latestLabel')}</span>
           <span className={styles.detailValue}>{formatDisplayDate(data.latestDeliveryDate)}</span>
         </div>
       )}
@@ -581,7 +599,7 @@ function HouseholdItemTooltipContent({
       {/* Actual delivery date */}
       {data.actualDeliveryDate && (
         <div className={styles.detailRow}>
-          <span className={styles.detailLabel}>Actual</span>
+          <span className={styles.detailLabel}>{t('gantt.tooltip.householdItem.actualLabel')}</span>
           <span className={styles.detailValue}>{formatDisplayDate(data.actualDeliveryDate)}</span>
         </div>
       )}
@@ -589,7 +607,9 @@ function HouseholdItemTooltipContent({
       {/* Floored to today note */}
       {data.isLate && (
         <div className={styles.detailRow}>
-          <span className={styles.detailValueFloored}>Floored to today</span>
+          <span className={styles.detailValueFloored}>
+            {t('gantt.tooltip.householdItem.flooredToToday')}
+          </span>
         </div>
       )}
 
@@ -599,9 +619,12 @@ function HouseholdItemTooltipContent({
           <div className={styles.separator} aria-hidden="true" />
           <div className={styles.linkedItemsSection}>
             <span className={styles.linkedItemsLabel}>
-              Linked Items ({data.linkedItems.length})
+              {t('gantt.tooltip.householdItem.linkedItems')} ({data.linkedItems.length})
             </span>
-            <ul className={styles.linkedItemsList} aria-label="Linked items">
+            <ul
+              className={styles.linkedItemsList}
+              aria-label={t('gantt.tooltip.householdItem.linkedItems')}
+            >
               {data.linkedItems.slice(0, MAX_LINKED_ITEMS_SHOWN).map((item) => (
                 <li key={`${item.type}-${item.id}`} className={styles.linkedItem}>
                   {item.title}
@@ -626,7 +649,7 @@ function HouseholdItemTooltipContent({
             className={styles.viewItemButton}
             onClick={() => onNavigate(data.householdItemId!)}
           >
-            View item
+            {t('gantt.tooltip.navigation.viewItem')}
           </button>
         </>
       )}

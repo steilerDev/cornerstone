@@ -1,4 +1,124 @@
 {
+  "timeline": {
+    "page": {
+      "title": "Schedule"
+    },
+    "toolbar": {
+      "entityFilter": "Entity filter",
+      "workItems": "Work Items",
+      "milestones": "Milestones",
+      "householdItems": "Household Items",
+      "cannotHideLastType": "cannot hide last type",
+      "hideLabel": "Hide",
+      "showLabel": "Show",
+      "dependencyArrows": "Dependency arrows",
+      "hideDependencyArrows": "Hide dependency arrows",
+      "showDependencyArrows": "Show dependency arrows",
+      "criticalPath": "Critical path highlighting",
+      "hideCriticalPath": "Hide critical path highlighting",
+      "showCriticalPath": "Show critical path highlighting",
+      "zoomLevel": "Zoom level",
+      "columnZoom": "Column zoom",
+      "zoomOutColumns": "Zoom out columns",
+      "zoomInColumns": "Zoom in columns",
+      "adjustColumnWidth": "Adjust column width (Ctrl+scroll or Ctrl+=/−)"
+    },
+    "zoomOptions": {
+      "day": "Day",
+      "week": "Week",
+      "month": "Month"
+    },
+    "errorBanner": {
+      "title": "Failed to load timeline. Please try again.",
+      "tryAgain": "Try again"
+    },
+    "emptyState": {
+      "noItems": "No work items to display",
+      "noItemsMessage": "Add work items with start and end dates to see them on the timeline.",
+      "noScheduled": "No scheduled work items",
+      "noScheduledMessage": "Your work items don't have start and end dates yet. Set dates on your work items to see them positioned on the timeline.",
+      "goToWorkItems": "Go to Work Items"
+    }
+  },
+  "schedule": {
+    "navigation": {
+      "gantt": "Gantt",
+      "calendar": "Calendar"
+    }
+  },
+  "gantt": {
+    "tooltip": {
+      "status": {
+        "not_started": "Not started",
+        "in_progress": "In progress",
+        "completed": "Completed"
+      },
+      "duration": {
+        "label": "Duration",
+        "planned": "Planned",
+        "actual": "Actual",
+        "variance": "Variance",
+        "onPlan": "On plan",
+        "day": "day",
+        "days": "days"
+      },
+      "workItem": {
+        "startLabel": "Start",
+        "endLabel": "End",
+        "ownerLabel": "Owner",
+        "dependencies": "Dependencies",
+        "more": "more"
+      },
+      "milestone": {
+        "targetLabel": "Target",
+        "projectedLabel": "Projected",
+        "doneLabel": "Done",
+        "contributing": "Contributing",
+        "blockedByThis": "Blocked by this",
+        "linkedItems": "Linked Items",
+        "none": "None"
+      },
+      "householdItem": {
+        "statusLabel": "Status",
+        "earliestLabel": "Earliest",
+        "targetLabel": "Target",
+        "latestLabel": "Latest",
+        "actualLabel": "Actual",
+        "flooredToToday": "Floored to today",
+        "linkedItems": "Linked Items"
+      },
+      "dependency": {
+        "finishToStart": "Finish-to-Start",
+        "startToStart": "Start-to-Start",
+        "finishToFinish": "Finish-to-Finish",
+        "startToFinish": "Start-to-Finish"
+      },
+      "navigation": {
+        "viewItem": "View item"
+      }
+    },
+    "status": {
+      "completed": "Completed",
+      "late": "Late",
+      "onTrack": "On track"
+    },
+    "skeleton": {
+      "loading": "Loading chart..."
+    }
+  },
+  "calendar": {
+    "navigation": {
+      "previousMonth": "Previous month",
+      "nextMonth": "Next month",
+      "previousWeek": "Previous week",
+      "nextWeek": "Next week",
+      "today": "Today"
+    },
+    "modes": {
+      "month": "Month",
+      "week": "Week"
+    }
+  },
   "milestones": {
     "page": {
       "title": "Project"

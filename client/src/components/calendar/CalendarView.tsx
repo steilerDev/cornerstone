@@ -11,6 +11,7 @@
 
 import { useState, useCallback, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type {
   TimelineWorkItem,
   TimelineMilestone,
@@ -139,6 +140,7 @@ export function CalendarView({
   dependencies = [],
   onMilestoneClick,
 }: CalendarViewProps) {
+  const { t } = useTranslation('schedule');
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Track which item is hovered for cross-cell highlighting
@@ -549,8 +551,16 @@ export function CalendarView({
             type="button"
             className={styles.navButton}
             onClick={handlePrev}
-            aria-label={calendarMode === 'month' ? 'Previous month' : 'Previous week'}
-            title={calendarMode === 'month' ? 'Previous month' : 'Previous week'}
+            aria-label={
+              calendarMode === 'month'
+                ? t('calendar.navigation.previousMonth')
+                : t('calendar.navigation.previousWeek')
+            }
+            title={
+              calendarMode === 'month'
+                ? t('calendar.navigation.previousMonth')
+                : t('calendar.navigation.previousWeek')
+            }
           >
             <ChevronLeftIcon />
           </button>
@@ -559,17 +569,25 @@ export function CalendarView({
             type="button"
             className={styles.todayButton}
             onClick={handleToday}
-            aria-label="Go to today"
+            aria-label={t('calendar.navigation.today')}
           >
-            Today
+            {t('calendar.navigation.today')}
           </button>
 
           <button
             type="button"
             className={styles.navButton}
             onClick={handleNext}
-            aria-label={calendarMode === 'month' ? 'Next month' : 'Next week'}
-            title={calendarMode === 'month' ? 'Next month' : 'Next week'}
+            aria-label={
+              calendarMode === 'month'
+                ? t('calendar.navigation.nextMonth')
+                : t('calendar.navigation.nextWeek')
+            }
+            title={
+              calendarMode === 'month'
+                ? t('calendar.navigation.nextMonth')
+                : t('calendar.navigation.nextWeek')
+            }
           >
             <ChevronRightIcon />
           </button>

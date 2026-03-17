@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type { DiaryEntryType, DiaryEntrySummary } from '@cornerstone/shared';
 import { listDiaryEntries } from '../../lib/diaryApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
@@ -23,6 +24,7 @@ const MANUAL_TYPES = new Set([
 ] as const);
 
 export default function DiaryPage() {
+  const { t } = useTranslation('diary');
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [entries, setEntries] = useState<DiaryEntrySummary[]>([]);
@@ -122,7 +124,7 @@ export default function DiaryPage() {
       if (err instanceof ApiClientError) {
         setError(err.error.message);
       } else {
-        setError('Failed to load diary entries. Please try again.');
+        setError(t('error'));
       }
     } finally {
       setIsLoading(false);
@@ -207,9 +209,10 @@ export default function DiaryPage() {
       <header className={styles.header}>
         <div className={styles.headerTop}>
           <div>
-            <h1 className={styles.title}>Construction Diary</h1>
+            <h1 className={styles.title}>{t('page.title')}</h1>
             <p className={styles.subtitle}>
-              {totalItems} {totalItems === 1 ? 'entry' : 'entries'}
+              {totalItems}{' '}
+              {totalItems === 1 ? t('page.entryCountSingular') : t('page.entryCountPlural')}
             </p>
           </div>
           <Link
@@ -217,7 +220,7 @@ export default function DiaryPage() {
             className={`${shared.btnPrimary} ${styles.createButton}`}
             style={{ textDecoration: 'none' }}
           >
-            New Entry
+            {t('page.newEntryButton')}
           </Link>
         </div>
       </header>
@@ -238,7 +241,7 @@ export default function DiaryPage() {
         onFilterModeChange={handleFilterModeChange}
       />
 
-      {isLoading && <div className={shared.loading}>Loading entries...</div>}
+      {isLoading && <div className={shared.loading}>{t('loading')}</div>}
 
       {!isLoading && entries.length === 0 && (
         <div
@@ -250,9 +253,9 @@ export default function DiaryPage() {
             gap: 'var(--spacing-3)',
           }}
         >
-          <p>No diary entries yet.</p>
+          <p>{t('empty.title')}</p>
           <Link to="/diary/new" className={shared.btnPrimary}>
-            Create your first entry
+            {t('empty.createButton')}
           </Link>
         </div>
       )}
@@ -284,10 +287,10 @@ export default function DiaryPage() {
             disabled={currentPage === 1}
             data-testid="prev-page-button"
           >
-            Previous
+            {t('pagination.previous')}
           </button>
           <span className={styles.pageInfo}>
-            Page {currentPage} of {totalPages}
+            {t('pagination.pageInfo', { currentPage, totalPages })}
           </span>
           <button
             type="button"
@@ -296,7 +299,7 @@ export default function DiaryPage() {
             disabled={currentPage === totalPages}
             data-testid="next-page-button"
           >
-            Next
+            {t('pagination.next')}
           </button>
         </div>
       )}

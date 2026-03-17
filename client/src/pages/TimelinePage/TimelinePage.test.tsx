@@ -282,10 +282,10 @@ describe('TimelinePage', () => {
   // ---------------------------------------------------------------------------
 
   describe('ScheduleSubNav integration', () => {
-    it('renders the ScheduleSubNav with aria-label "Schedule view navigation"', () => {
+    it('renders the ScheduleSubNav with aria-label "Gantt"', () => {
       renderWithRouter();
       expect(
-        screen.getByRole('navigation', { name: /schedule view navigation/i }),
+        screen.getByRole('navigation', { name: /^gantt$/i }),
       ).toBeInTheDocument();
     });
 
