@@ -45,10 +45,10 @@ export function LoginPage() {
     const params = new URLSearchParams(window.location.search);
     const errorCode = params.get('error');
     if (errorCode) {
-      const oidcErrorKey = `oidcError.${errorCode}`;
+      const oidcErrorKey = `login.oidcError.${errorCode}`;
       const errorMessage = t(oidcErrorKey);
-      // Only set error if the key exists (t() returns the key itself if not found, so check for ':')
-      if (!errorMessage.includes(oidcErrorKey.split('.')[0])) {
+      // Only set error if the key exists (t() returns the key itself if not found)
+      if (errorMessage !== oidcErrorKey) {
         setApiError(errorMessage);
       }
     }
