@@ -369,7 +369,7 @@ describe('VendorDetailPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText(/failed to load vendor/i)).toBeInTheDocument();
+        expect(screen.getByText(/vendor not found.*deleted/i)).toBeInTheDocument();
       });
     });
 

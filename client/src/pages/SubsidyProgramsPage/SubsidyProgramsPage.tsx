@@ -735,7 +735,10 @@ export function SubsidyProgramsPage() {
                             className={styles.select}
                             disabled={isUpdating}
                           >
-                            {Object.entries(REDUCTION_TYPE_LABELS).map(([value, label]) => (
+                            {Object.entries({
+                                percentage: t('subsidies.reductionTypeLabels.percentage'),
+                                fixed: t('subsidies.reductionTypeLabels.fixed'),
+                              }).map(([value, label]) => (
                               <option key={value} value={value}>
                                 {label}
                               </option>
@@ -787,7 +790,13 @@ export function SubsidyProgramsPage() {
                             className={styles.select}
                             disabled={isUpdating}
                           >
-                            {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                            {Object.entries({
+                                eligible: t('subsidies.statusLabels.eligible'),
+                                applied: t('subsidies.statusLabels.applied'),
+                                approved: t('subsidies.statusLabels.approved'),
+                                received: t('subsidies.statusLabels.received'),
+                                rejected: t('subsidies.statusLabels.rejected'),
+                              }).map(([value, label]) => (
                               <option key={value} value={value}>
                                 {label}
                               </option>
