@@ -1,0 +1,14 @@
+{
+  "item.label.Guides": {
+    "message": "Anleitungen",
+    "description": "Navbar item with label Guides"
+  },
+  "item.label.Development": {
+    "message": "Entwicklung",
+    "description": "Navbar item with label Development"
+  },
+  "item.label.GitHub": {
+    "message": "GitHub",
+    "description": "Navbar item with label GitHub"
+  }
+}
