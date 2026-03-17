@@ -473,7 +473,7 @@ describe('HouseholdItemCreatePage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Failed to create household item. Please try again.'),
+          screen.getByText('Failed to load form data. Please try again.'),
         ).toBeInTheDocument();
       });
     });

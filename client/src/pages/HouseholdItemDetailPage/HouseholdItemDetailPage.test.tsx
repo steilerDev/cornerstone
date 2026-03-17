@@ -1294,7 +1294,7 @@ describe('HouseholdItemDetailPage', () => {
       });
 
       // "Earliest Delivery" is an inline date input label in the Dependencies card
-      expect(screen.getByLabelText('Earliest delivery date')).toBeInTheDocument();
+      expect(screen.getByLabelText('Earliest Delivery')).toBeInTheDocument();
     });
 
     it('shows latestDeliveryDate label in Dependencies card', async () => {
@@ -1307,7 +1307,7 @@ describe('HouseholdItemDetailPage', () => {
       });
 
       // "Latest Delivery" is an inline date input label in the Dependencies card
-      expect(screen.getByLabelText('Latest delivery date')).toBeInTheDocument();
+      expect(screen.getByLabelText('Latest Delivery')).toBeInTheDocument();
     });
 
     it('shows "Late" chip near Earliest Delivery when item is planned and isLate is true', async () => {
