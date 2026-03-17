@@ -76,6 +76,9 @@ function buildDescriptionMap(db: any): DescriptionMap {
 }
 
 export default async function davRoutes(fastify: FastifyInstance) {
+  // External URL for linking back to the web UI from DAV elements
+  const baseUrl = fastify.config.externalUrl;
+
   // ─── WWW-Authenticate on 401 (RFC 7235 — required for iOS) ──────────────
 
   fastify.addHook('onError', async (_request, reply, error) => {
@@ -334,13 +337,13 @@ export default async function davRoutes(fastify: FastifyInstance) {
         throw new NotFoundError('Event not found');
       }
 
-      // Build single-event iCal with description
+      // Build single-event iCal with description and URL
       const descMap = buildDescriptionMap(fastify.db);
       const calendar = calendarIcal.buildCalendar({
         workItems: type === 'wi' ? [event] : [],
         milestones: type === 'milestone' ? [event] : [],
         householdItems: type === 'hi' ? [event] : [],
-      }, descMap);
+      }, descMap, baseUrl);
 
       const etag = calendarIcal.computeCalendarETag(fastify.db);
       return reply
@@ -366,7 +369,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
       workItems: type === 'wi' ? [event] : [],
       milestones: type === 'milestone' ? [event] : [],
       householdItems: type === 'hi' ? [event] : [],
-    }, descMap);
+    }, descMap, baseUrl);
 
     // Use type-prefixed ETag to match PROPFIND depth 1 responses
     const typedEtag = `${type}-${etag}`;
@@ -584,7 +587,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
           throw new NotFoundError('Vendor not found');
         }
 
-        const vcf = vendorVcard.buildVendorVcard(vendor);
+        const vcf = vendorVcard.buildVendorVcard(vendor, baseUrl);
         return reply
           .type('text/vcard; charset=utf-8')
           .header('ETag', `"vendor-${etag}"`)
@@ -610,7 +613,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
           throw new NotFoundError('Vendor not found');
         }
 
-        const vcf = vendorVcard.buildContactVcard(contact, vendor.name);
+        const vcf = vendorVcard.buildContactVcard(contact, vendor.name, baseUrl);
         return reply
           .type('text/vcard; charset=utf-8')
           .header('ETag', `"contact-${etag}"`)
@@ -665,7 +668,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
 
         for (const vendor of allVendors as any[]) {
           const href = `${DAV_PREFIX}/addressbooks/default/vendor-${vendor.id}.vcf`;
-          const vcf = vendorVcard.buildVendorVcard(vendor);
+          const vcf = vendorVcard.buildVendorVcard(vendor, baseUrl);
           responses.push(buildVcardResponse(href, 'vendor', vcf, vendor.name, etag));
         }
 
@@ -674,7 +677,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
           const vendor = (allVendors as any[]).find((v: any) => v.id === contact.vendorId);
           if (!vendor) continue;
           const href = `${DAV_PREFIX}/addressbooks/default/contact-${contact.id}.vcf`;
-          const vcf = vendorVcard.buildContactVcard(contact, vendor.name);
+          const vcf = vendorVcard.buildContactVcard(contact, vendor.name, baseUrl);
           responses.push(buildVcardResponse(href, 'contact', vcf, contact.name, etag));
         }
       } else {
@@ -701,7 +704,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
               .get();
 
             if (vendor) {
-              vcf = vendorVcard.buildVendorVcard(vendor);
+              vcf = vendorVcard.buildVendorVcard(vendor, baseUrl);
               displayName = vendor.name;
             }
           } else if (type === 'contact') {
@@ -719,7 +722,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
                 .get();
 
               if (vendor) {
-                vcf = vendorVcard.buildContactVcard(contact, vendor.name);
+                vcf = vendorVcard.buildContactVcard(contact, vendor.name, baseUrl);
                 displayName = contact.name;
               }
             }

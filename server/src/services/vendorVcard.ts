@@ -54,7 +54,7 @@ export function buildVendorVcard(vendor: {
   address: string | null;
   notes: string | null;
   updatedAt: string;
-}): string {
+}, baseUrl?: string): string {
   const vcard = new VCardCreator();
   // For organizations: FN is the company name, N is minimal
   vcard.addName('', vendor.name);
@@ -80,6 +80,10 @@ export function buildVendorVcard(vendor: {
     vcard.addNote(vendor.notes);
   }
 
+  if (baseUrl) {
+    vcard.addURL(`${baseUrl}/budget/vendors/${vendor.id}`, 'WORK');
+  }
+
   let vcardStr = vcard.toString();
 
   // Inject KIND:org, UID, and REV fields before END:VCARD
@@ -102,6 +106,7 @@ export function buildVendorVcard(vendor: {
 export function buildContactVcard(
   contact: {
     id: string;
+    vendorId: string;
     firstName: string | null;
     lastName: string | null;
     name: string;
@@ -112,6 +117,7 @@ export function buildContactVcard(
     updatedAt: string;
   },
   vendorName: string,
+  baseUrl?: string,
 ): string {
   const vcard = new VCardCreator();
   // addName(lastName, firstName) — maps to N:lastName;firstName;;;
@@ -135,6 +141,10 @@ export function buildContactVcard(
 
   // Add organization (vendor name)
   vcard.addCompany(vendorName);
+
+  if (baseUrl) {
+    vcard.addURL(`${baseUrl}/budget/vendors/${contact.vendorId}`, 'WORK');
+  }
 
   let vcardStr = vcard.toString();
 

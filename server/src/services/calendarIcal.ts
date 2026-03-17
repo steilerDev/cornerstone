@@ -56,10 +56,12 @@ export type DescriptionMap = Map<string, string>;
 /**
  * Build an iCal calendar from timeline data.
  * Optionally pass a descriptionMap to include DESCRIPTION fields on events.
+ * Optionally pass a baseUrl to include URL fields linking back to the web UI.
  */
 export function buildCalendar(
   timeline: Pick<TimelineResponse, 'workItems' | 'milestones' | 'householdItems'>,
   descriptionMap?: DescriptionMap,
+  baseUrl?: string,
 ): string {
   const calendar = ical({
     name: 'Cornerstone Project',
@@ -79,6 +81,7 @@ export function buildCalendar(
       id: `wi-${wi.id}@cornerstone`,
       summary: wi.title,
       description: wiDesc || undefined,
+      url: baseUrl ? `${baseUrl}/project/work-items/${wi.id}` : undefined,
       start: new Date(startDate),
       end: new Date(endDate),
       allDay: true,
@@ -98,6 +101,7 @@ export function buildCalendar(
       id: `milestone-${milestone.id}@cornerstone`,
       summary: milestone.title,
       description: msDesc || undefined,
+      url: baseUrl ? `${baseUrl}/project/milestones/${milestone.id}` : undefined,
       start: new Date(eventDate),
       end: new Date(eventDate),
       allDay: true,
@@ -127,6 +131,7 @@ export function buildCalendar(
       id: `hi-${hi.id}@cornerstone`,
       summary: `${hi.name} (Delivery)`,
       description: hiDesc || undefined,
+      url: baseUrl ? `${baseUrl}/project/household-items/${hi.id}` : undefined,
       start: new Date(startDate),
       end: new Date(endDate),
       allDay: true,
