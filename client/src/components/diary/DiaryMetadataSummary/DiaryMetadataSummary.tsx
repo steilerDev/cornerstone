@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type {
   DiaryEntryType,
   DiaryEntrySummary,
@@ -38,6 +39,7 @@ const DIARY_SEVERITY_VARIANTS = {
 };
 
 export function DiaryMetadataSummary({ entryType, metadata }: DiaryMetadataSummaryProps) {
+  const { t } = useTranslation('diary');
   if (entryType === 'daily_log' && metadata) {
     const m = metadata as DailyLogMetadata;
     return (
@@ -48,10 +50,10 @@ export function DiaryMetadataSummary({ entryType, metadata }: DiaryMetadataSumma
           </span>
         )}
         {m.temperatureCelsius !== undefined && m.temperatureCelsius !== null && (
-          <span className={styles.item}>Temperature: {m.temperatureCelsius}°C</span>
+          <span className={styles.item}>{t('metadata.temperature')} {m.temperatureCelsius}°C</span>
         )}
         {m.workersOnSite !== undefined && m.workersOnSite !== null && (
-          <span className={styles.item}>{m.workersOnSite} workers</span>
+          <span className={styles.item}>{m.workersOnSite} {t('metadata.workers')}</span>
         )}
       </div>
     );
@@ -80,13 +82,13 @@ export function DiaryMetadataSummary({ entryType, metadata }: DiaryMetadataSumma
       <div className={styles.deliveryMetadata} data-testid="delivery-metadata">
         {m.vendor && (
           <div className={styles.deliveryItem}>
-            <span className={styles.deliveryLabel}>Vendor:</span>
+            <span className={styles.deliveryLabel}>{t('entryForm.vendorLabel')}</span>
             <span className={styles.deliveryValue}>{m.vendor}</span>
           </div>
         )}
         {m.materials && m.materials.length > 0 && (
           <div className={styles.deliveryItem}>
-            <span className={styles.deliveryLabel}>Items:</span>
+            <span className={styles.deliveryLabel}>{t('entryForm.materialsLabel')}</span>
             <div className={styles.materialsList}>
               {m.materials.map((material, idx) => (
                 <span key={idx} className={styles.materialTag}>
@@ -115,10 +117,10 @@ export function DiaryMetadataSummary({ entryType, metadata }: DiaryMetadataSumma
         {m.resolutionStatus && (
           <span className={styles.item}>
             {m.resolutionStatus === 'open'
-              ? '🔴 Open'
+              ? t('metadata.resolutionStatusOpen')
               : m.resolutionStatus === 'in_progress'
-                ? '🟡 In Progress'
-                : '✅ Resolved'}
+                ? t('metadata.resolutionStatusInProgress')
+                : t('metadata.resolutionStatusResolved')}
           </span>
         )}
       </div>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { DiaryEntryType } from '@cornerstone/shared';
 import shared from '../../../styles/shared.module.css';
 import styles from './DiaryFilterBar.module.css';
@@ -77,6 +78,7 @@ export function DiaryFilterBar({
   onFilterModeChange,
   isCollapsed = false,
 }: DiaryFilterBarProps) {
+  const { t } = useTranslation('diary');
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   const handleModeChange = (mode: FilterMode) => {
@@ -130,7 +132,7 @@ export function DiaryFilterBar({
       <div className={`${styles.filters} ${isMobileOpen ? styles.filtersOpen : ''}`}>
         {/* Filter mode chips */}
         <div className={styles.filterGroup}>
-          <label className={styles.label}>Filter Mode</label>
+          <label className={styles.label}>{t('filterBar.filterMode')}</label>
           <div className={styles.modeChips} role="group" aria-label="Filter by entry mode">
             <button
               type="button"
@@ -139,7 +141,7 @@ export function DiaryFilterBar({
               aria-pressed={filterMode === 'all'}
               data-testid="mode-filter-all"
             >
-              All
+              {t('filterBar.filterModeAll')}
             </button>
             <button
               type="button"
@@ -148,7 +150,7 @@ export function DiaryFilterBar({
               aria-pressed={filterMode === 'manual'}
               data-testid="mode-filter-manual"
             >
-              Manual
+              {t('filterBar.filterModeManual')}
             </button>
             <button
               type="button"
@@ -157,7 +159,7 @@ export function DiaryFilterBar({
               aria-pressed={filterMode === 'automatic'}
               data-testid="mode-filter-automatic"
             >
-              Automatic
+              {t('filterBar.filterModeAutomatic')}
             </button>
           </div>
         </div>
@@ -165,13 +167,13 @@ export function DiaryFilterBar({
         {/* Search input */}
         <div className={styles.filterGroup}>
           <label htmlFor="diary-search" className={styles.label}>
-            Search
+            {t('filterBar.searchLabel')}
           </label>
           <input
             id="diary-search"
             type="text"
             className={shared.input}
-            placeholder="Search entries..."
+            placeholder={t('filterBar.searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => {
               e.stopPropagation();
@@ -191,7 +193,7 @@ export function DiaryFilterBar({
         {/* Date range */}
         <div className={styles.filterGroup}>
           <label htmlFor="diary-date-from" className={styles.label}>
-            From
+            {t('filterBar.fromLabel')}
           </label>
           <input
             id="diary-date-from"
@@ -205,7 +207,7 @@ export function DiaryFilterBar({
 
         <div className={styles.filterGroup}>
           <label htmlFor="diary-date-to" className={styles.label}>
-            To
+            {t('filterBar.toLabel')}
           </label>
           <input
             id="diary-date-to"
@@ -219,7 +221,7 @@ export function DiaryFilterBar({
 
         {/* Entry type filter chips */}
         <div className={styles.filterGroup}>
-          <label className={styles.label}>Entry Types</label>
+          <label className={styles.label}>{t('filterBar.entryTypesLabel')}</label>
           <div className={styles.typeChips} role="group" aria-label="Filter by entry type">
             {displayedTypes.map((type) => (
               <button
@@ -244,7 +246,7 @@ export function DiaryFilterBar({
             onClick={onClearAll}
             data-testid="clear-filters-button"
           >
-            Clear all
+            {t('filterBar.clearAllButton')}
           </button>
         )}
       </div>

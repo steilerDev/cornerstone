@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import type {
   ManualDiaryEntryType,
   DiaryWeather,
@@ -59,33 +60,46 @@ export interface DiaryEntryFormProps {
   vendors?: VendorOption[];
 }
 
-const WEATHER_OPTIONS: Array<{ value: DiaryWeather; label: string }> = [
-  { value: 'sunny', label: 'Sunny' },
-  { value: 'cloudy', label: 'Cloudy' },
-  { value: 'rainy', label: 'Rainy' },
-  { value: 'snowy', label: 'Snowy' },
-  { value: 'stormy', label: 'Stormy' },
-  { value: 'other', label: 'Other' },
-];
+// These will be built dynamically based on translations
+function useWeatherOptions() {
+  const { t } = useTranslation('diary');
+  return useMemo(() => [
+    { value: 'sunny' as DiaryWeather, label: t('form.weatherOptions.sunny') },
+    { value: 'cloudy' as DiaryWeather, label: t('form.weatherOptions.cloudy') },
+    { value: 'rainy' as DiaryWeather, label: t('form.weatherOptions.rainy') },
+    { value: 'snowy' as DiaryWeather, label: t('form.weatherOptions.snowy') },
+    { value: 'stormy' as DiaryWeather, label: t('form.weatherOptions.stormy') },
+    { value: 'other' as DiaryWeather, label: t('form.weatherOptions.other') },
+  ], [t]);
+}
 
-const INSPECTION_OUTCOME_OPTIONS: Array<{ value: DiaryInspectionOutcome; label: string }> = [
-  { value: 'pass', label: 'Pass' },
-  { value: 'fail', label: 'Fail' },
-  { value: 'conditional', label: 'Conditional' },
-];
+function useOutcomeOptions() {
+  const { t } = useTranslation('diary');
+  return useMemo(() => [
+    { value: 'pass' as DiaryInspectionOutcome, label: t('form.outcomeOptions.pass') },
+    { value: 'fail' as DiaryInspectionOutcome, label: t('form.outcomeOptions.fail') },
+    { value: 'conditional' as DiaryInspectionOutcome, label: t('form.outcomeOptions.conditional') },
+  ], [t]);
+}
 
-const SEVERITY_OPTIONS: Array<{ value: DiaryIssueSeverity; label: string }> = [
-  { value: 'low', label: 'Low' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'high', label: 'High' },
-  { value: 'critical', label: 'Critical' },
-];
+function useSeverityOptions() {
+  const { t } = useTranslation('diary');
+  return useMemo(() => [
+    { value: 'low' as DiaryIssueSeverity, label: t('form.severityOptions.low') },
+    { value: 'medium' as DiaryIssueSeverity, label: t('form.severityOptions.medium') },
+    { value: 'high' as DiaryIssueSeverity, label: t('form.severityOptions.high') },
+    { value: 'critical' as DiaryIssueSeverity, label: t('form.severityOptions.critical') },
+  ], [t]);
+}
 
-const RESOLUTION_STATUS_OPTIONS: Array<{ value: DiaryIssueResolution; label: string }> = [
-  { value: 'open', label: 'Open' },
-  { value: 'in_progress', label: 'In Progress' },
-  { value: 'resolved', label: 'Resolved' },
-];
+function useResolutionStatusOptions() {
+  const { t } = useTranslation('diary');
+  return useMemo(() => [
+    { value: 'open' as DiaryIssueResolution, label: t('form.resolutionOptions.open') },
+    { value: 'in_progress' as DiaryIssueResolution, label: t('form.resolutionOptions.in_progress') },
+    { value: 'resolved' as DiaryIssueResolution, label: t('form.resolutionOptions.resolved') },
+  ], [t]);
+}
 
 export function DiaryEntryForm({
   entryType,
@@ -129,6 +143,11 @@ export function DiaryEntryForm({
   currentUserName,
   vendors,
 }: DiaryEntryFormProps) {
+  const { t } = useTranslation('diary');
+  const weatherOptions = useWeatherOptions();
+  const outcomeOptions = useOutcomeOptions();
+  const severityOptions = useSeverityOptions();
+  const resolutionStatusOptions = useResolutionStatusOptions();
   const materialInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleAddMaterial = () => {
@@ -154,7 +173,7 @@ export function DiaryEntryForm({
       {/* Common fields */}
       <div className={styles.formGroup}>
         <label htmlFor="entry-date" className={styles.label}>
-          Entry Date <span className={styles.required}>*</span>
+          {t('entryForm.entryDate')} <span className={styles.required}>{t('entryForm.required')}</span>
         </label>
         <input
           type="date"
@@ -176,7 +195,7 @@ export function DiaryEntryForm({
 
       <div className={styles.formGroup}>
         <label htmlFor="title" className={styles.label}>
-          Title
+          {t('entryForm.title')}
         </label>
         <input
           type="text"
@@ -185,14 +204,14 @@ export function DiaryEntryForm({
           value={title}
           onChange={(e) => onTitleChange(e.target.value)}
           disabled={disabled}
-          placeholder="Optional title for this entry"
+          placeholder={t('entryForm.titlePlaceholder')}
           maxLength={200}
         />
       </div>
 
       <div className={styles.formGroup}>
         <label htmlFor="body" className={styles.label}>
-          Entry <span className={styles.required}>*</span>
+          {t('entryForm.body')} <span className={styles.required}>{t('entryForm.required')}</span>
         </label>
         <textarea
           id="body"
@@ -200,7 +219,7 @@ export function DiaryEntryForm({
           value={body}
           onChange={(e) => onBodyChange(e.target.value)}
           disabled={disabled}
-          placeholder="Describe what happened on the site"
+          placeholder={t('form.bodyDescription')}
           maxLength={10000}
           required
           aria-invalid={!!validationErrors.body}
@@ -220,12 +239,12 @@ export function DiaryEntryForm({
 
       {entryType === 'daily_log' && (
         <div className={styles.metadataSection}>
-          <h3 className={styles.metadataTitle}>Daily Log Details</h3>
+          <h3 className={styles.metadataTitle}>{t('form.weather')}</h3>
 
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
               <label htmlFor="weather" className={styles.label}>
-                Weather
+                {t('form.weather')}
               </label>
               <select
                 id="weather"
@@ -238,8 +257,8 @@ export function DiaryEntryForm({
                 }
                 disabled={disabled}
               >
-                <option value="">— Select Weather —</option>
-                {WEATHER_OPTIONS.map((opt) => (
+                <option value="">— {t('form.weatherPlaceholder')} —</option>
+                {weatherOptions.map((opt) => (
                   <option key={opt.value} value={opt.value}>
                     {opt.label}
                   </option>
@@ -249,7 +268,7 @@ export function DiaryEntryForm({
 
             <div className={styles.formGroup}>
               <label htmlFor="temperature" className={styles.label}>
-                Temperature (°C)
+                {t('entryForm.temperature')}
               </label>
               <input
                 type="number"
@@ -271,7 +290,7 @@ export function DiaryEntryForm({
 
             <div className={styles.formGroup}>
               <label htmlFor="workers" className={styles.label}>
-                Workers on Site
+                {t('form.workers')}
               </label>
               <input
                 type="number"
@@ -312,7 +331,7 @@ export function DiaryEntryForm({
               onDailyLogSignaturesChange?.(newSigs);
             }}
             disabled={disabled}
-            label="Signatures"
+            label={t('signature.signaturesLabel')}
             currentUserName={currentUserName}
             vendors={vendors}
           />
@@ -321,12 +340,12 @@ export function DiaryEntryForm({
 
       {entryType === 'site_visit' && (
         <div className={styles.metadataSection}>
-          <h3 className={styles.metadataTitle}>Site Visit Details</h3>
+          <h3 className={styles.metadataTitle}>{t('form.inspectorName')}</h3>
 
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
               <label htmlFor="inspector-name" className={styles.label}>
-                Inspector Name <span className={styles.required}>*</span>
+                {t('form.inspectorName')} <span className={styles.required}>{t('entryForm.required')}</span>
               </label>
               <input
                 type="text"
@@ -335,7 +354,7 @@ export function DiaryEntryForm({
                 value={siteVisitInspectorName || ''}
                 onChange={(e) => onSiteVisitInspectorNameChange?.(e.target.value || null)}
                 disabled={disabled}
-                placeholder="Name of inspector"
+                placeholder={t('form.inspectorPlaceholder')}
                 required
                 aria-invalid={!!validationErrors.siteVisitInspectorName}
                 aria-describedby={
@@ -351,7 +370,7 @@ export function DiaryEntryForm({
 
             <div className={styles.formGroup}>
               <label htmlFor="inspection-outcome" className={styles.label}>
-                Inspection Outcome <span className={styles.required}>*</span>
+                {t('form.inspectionOutcome')} <span className={styles.required}>{t('entryForm.required')}</span>
               </label>
               <select
                 id="inspection-outcome"
@@ -367,8 +386,8 @@ export function DiaryEntryForm({
                 aria-invalid={!!validationErrors.siteVisitOutcome}
                 aria-describedby={validationErrors.siteVisitOutcome ? 'outcome-error' : undefined}
               >
-                <option value="">— Select Outcome —</option>
-                {INSPECTION_OUTCOME_OPTIONS.map((opt) => (
+                <option value="">— {t('form.inspectionOutcomeRequired')} —</option>
+                {outcomeOptions.map((opt) => (
                   <option key={opt.value} value={opt.value}>
                     {opt.label}
                   </option>
@@ -406,7 +425,7 @@ export function DiaryEntryForm({
               onSiteVisitSignaturesChange?.(newSigs);
             }}
             disabled={disabled}
-            label="Signatures"
+            label={t('signature.signaturesLabel')}
             currentUserName={currentUserName}
             vendors={vendors}
           />
@@ -415,12 +434,12 @@ export function DiaryEntryForm({
 
       {entryType === 'delivery' && (
         <div className={styles.metadataSection}>
-          <h3 className={styles.metadataTitle}>Delivery Details</h3>
+          <h3 className={styles.metadataTitle}>{t('form.vendor')}</h3>
 
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
               <label htmlFor="vendor" className={styles.label}>
-                Vendor
+                {t('form.vendor')}
               </label>
               <input
                 type="text"
@@ -429,13 +448,13 @@ export function DiaryEntryForm({
                 value={deliveryVendor || ''}
                 onChange={(e) => onDeliveryVendorChange?.(e.target.value || null)}
                 disabled={disabled}
-                placeholder="Vendor name"
+                placeholder={t('form.vendorPlaceholder')}
               />
             </div>
           </div>
 
           <div className={styles.formGroup}>
-            <label className={styles.label}>Items</label>
+            <label className={styles.label}>{t('form.materials')}</label>
             {(deliveryMaterials?.length ?? 0) > 0 && (
               <div className={styles.materialsList}>
                 {deliveryMaterials!.map((material, index) => (
@@ -460,7 +479,7 @@ export function DiaryEntryForm({
                 ref={materialInputRef}
                 name="material-input"
                 className={styles.input}
-                placeholder="Add item and press enter"
+                placeholder={t('form.materialsPlaceholder')}
                 disabled={disabled}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
@@ -475,7 +494,7 @@ export function DiaryEntryForm({
                 disabled={disabled}
                 onClick={() => handleAddMaterial()}
               >
-                Add
+                {t('form.addMaterialButton')}
               </button>
             </div>
           </div>
@@ -484,12 +503,12 @@ export function DiaryEntryForm({
 
       {entryType === 'issue' && (
         <div className={styles.metadataSection}>
-          <h3 className={styles.metadataTitle}>Issue Details</h3>
+          <h3 className={styles.metadataTitle}>{t('form.severity')}</h3>
 
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
               <label htmlFor="severity" className={styles.label}>
-                Severity <span className={styles.required}>*</span>
+                {t('form.severity')} <span className={styles.required}>{t('entryForm.required')}</span>
               </label>
               <select
                 id="severity"
@@ -505,8 +524,8 @@ export function DiaryEntryForm({
                 aria-invalid={!!validationErrors.issueSeverity}
                 aria-describedby={validationErrors.issueSeverity ? 'severity-error' : undefined}
               >
-                <option value="">— Select Severity —</option>
-                {SEVERITY_OPTIONS.map((opt) => (
+                <option value="">— {t('form.severityRequired')} —</option>
+                {severityOptions.map((opt) => (
                   <option key={opt.value} value={opt.value}>
                     {opt.label}
                   </option>
@@ -521,7 +540,7 @@ export function DiaryEntryForm({
 
             <div className={styles.formGroup}>
               <label htmlFor="resolution-status" className={styles.label}>
-                Resolution Status <span className={styles.required}>*</span>
+                {t('form.resolutionStatus')} <span className={styles.required}>{t('entryForm.required')}</span>
               </label>
               <select
                 id="resolution-status"
@@ -539,8 +558,8 @@ export function DiaryEntryForm({
                   validationErrors.issueResolutionStatus ? 'resolution-error' : undefined
                 }
               >
-                <option value="">— Select Status —</option>
-                {RESOLUTION_STATUS_OPTIONS.map((opt) => (
+                <option value="">— {t('form.resolutionStatusRequired')} —</option>
+                {resolutionStatusOptions.map((opt) => (
                   <option key={opt.value} value={opt.value}>
                     {opt.label}
                   </option>
@@ -578,7 +597,7 @@ export function DiaryEntryForm({
               onIssueSignaturesChange?.(newSigs);
             }}
             disabled={disabled}
-            label="Signatures"
+            label={t('signature.signaturesLabel')}
             currentUserName={currentUserName}
             vendors={vendors}
           />
