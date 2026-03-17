@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import type {
   DocumentLinkWithMetadata,
   DocumentLinkEntityType,
@@ -19,34 +20,38 @@ interface LinkedDocumentsSectionProps {
 }
 
 export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocumentsSectionProps) {
+  const { t } = useTranslation('documents');
   const hook = useDocumentLinks(entityType, entityId);
 
   // Copy for different entity types
-  const entityCopy = {
+  const entityCopyKeys = {
     work_item: {
-      pickerSubtitle: 'Select a document from Paperless-ngx to link to this work item.',
-      unlinkBody: 'this work item',
-      emptyBody:
-        'Link receipts, contracts, and plans from Paperless-ngx to keep everything in one place.',
+      pickerSubtitle: 'selectDocumentSubtitle',
+      unlinkBody: 'workItemEntity',
+      emptyBody: 'workItemEmpty',
     },
     household_item: {
-      pickerSubtitle: 'Select a document from Paperless-ngx to link to this household item.',
-      unlinkBody: 'this household item',
-      emptyBody:
-        'Link receipts, warranties, and manuals from Paperless-ngx to keep everything in one place.',
+      pickerSubtitle: 'selectDocumentSubtitle',
+      unlinkBody: 'householdItemEntity',
+      emptyBody: 'householdItemEmpty',
     },
     invoice: {
-      pickerSubtitle: 'Select a document from Paperless-ngx to link to this invoice.',
-      unlinkBody: 'this invoice',
-      emptyBody:
-        'Link invoice PDFs, receipts, and related documents from Paperless-ngx to keep everything in one place.',
+      pickerSubtitle: 'selectDocumentSubtitle',
+      unlinkBody: 'invoiceEntity',
+      emptyBody: 'invoiceEmpty',
     },
   } as const satisfies Record<
     DocumentLinkEntityType,
     { pickerSubtitle: string; unlinkBody: string; emptyBody: string }
   >;
 
-  const copy = entityCopy[entityType];
+  const copyKeys = entityCopyKeys[entityType];
+  const entityLabel =
+    entityType === 'work_item'
+      ? t('linkedDocuments.workItemEntity')
+      : entityType === 'household_item'
+        ? t('linkedDocuments.householdItemEntity')
+        : t('linkedDocuments.invoiceEntity');
 
   // Paperless status state
   const [paperlessStatus, setPaperlessStatus] = useState<Awaited<
@@ -171,13 +176,13 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
       try {
         await hook.addLink(doc.id);
         // Announce success to screen readers
-        setAnnounceMessage(`Document linked: ${doc.title}`);
+        setAnnounceMessage(t('linkedDocuments.documentLinked', { title: doc.title }));
         setTimeout(() => setAnnounceMessage(''), 3000);
       } catch (err) {
         if (err instanceof ApiClientError && err.error.code === 'DUPLICATE_DOCUMENT_LINK') {
-          setLinkError(`This document is already linked to ${copy.unlinkBody}.`);
+          setLinkError(t('linkedDocuments.duplicateLink', { entity: entityLabel }));
         } else {
-          setLinkError('Failed to link document. Please try again.');
+          setLinkError(t('linkedDocuments.failedToLink'));
         }
       }
 
@@ -186,7 +191,7 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
         addButtonRef.current?.focus();
       }, 0);
     },
-    [hook, copy],
+    [hook, t, entityLabel],
   );
 
   const handleUnlink = useCallback(async () => {
@@ -196,10 +201,14 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
     try {
       await hook.removeLink(unlinkTarget.id);
       // Announce removal to screen readers
-      setAnnounceMessage(`Document unlinked: ${unlinkTarget.document?.title ?? 'document'}`);
+      setAnnounceMessage(
+        t('linkedDocuments.documentUnlinked', {
+          title: unlinkTarget.document?.title ?? 'document',
+        })
+      );
       setTimeout(() => setAnnounceMessage(''), 3000);
     } catch {
-      setLinkError('Failed to unlink document. Please try again.');
+      setLinkError(t('linkedDocuments.failedToUnlink'));
     } finally {
       setUnlinkTarget(null);
       setIsUnlinking(false);
@@ -208,17 +217,17 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
         addButtonRef.current?.focus();
       }, 0);
     }
-  }, [unlinkTarget, hook]);
+  }, [unlinkTarget, hook, t]);
 
   return (
     <section aria-labelledby="documents-section-title" className={styles.section}>
       <div className={styles.sectionHeader}>
         <h2 id="documents-section-title" className={styles.sectionTitle}>
-          Documents
+          {t('linkedDocuments.title')}
           {!hook.isLoading && hook.links.length > 0 && (
             <span
               className={styles.countBadge}
-              aria-label={`${hook.links.length} documents linked`}
+              aria-label={t('linkedDocuments.documentCount', { count: hook.links.length })}
             >
               {hook.links.length}
             </span>
@@ -233,9 +242,9 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
             setShowPicker(true);
             setLinkError(null);
           }}
-          title={!paperlessStatus?.configured ? 'Paperless-ngx is not configured' : undefined}
+          title={!paperlessStatus?.configured ? t('linkedDocuments.paperlessNotConfigured') : undefined}
         >
-          + Add Document
+          {t('linkedDocuments.addDocumentButton')}
         </button>
       </div>
 
@@ -252,9 +261,9 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
             type="button"
             className={styles.retryButton}
             onClick={() => setLinkError(null)}
-            aria-label="Dismiss error"
+            aria-label={t('linkedDocuments.dismiss')}
           >
-            Dismiss
+            {t('linkedDocuments.dismiss')}
           </button>
         </div>
       )}
@@ -271,7 +280,7 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
         <div className={styles.errorBanner} role="alert">
           <span>{hook.error}</span>
           <button type="button" className={styles.retryButton} onClick={hook.refresh}>
-            Retry
+            {t('linkedDocuments.retry')}
           </button>
         </div>
       )}
@@ -281,11 +290,8 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
         <div className={styles.notConfiguredBanner}>
           <span className={styles.notConfiguredIcon}>ℹ️</span>
           <div>
-            <p className={styles.notConfiguredTitle}>Paperless-ngx is not configured</p>
-            <p className={styles.notConfiguredBody}>
-              Set PAPERLESS_URL and PAPERLESS_API_TOKEN environment variables and restart
-              Cornerstone to enable document linking.
-            </p>
+            <p className={styles.notConfiguredTitle}>{t('linkedDocuments.paperlessNotConfigured')}</p>
+            <p className={styles.notConfiguredBody}>{t('linkedDocuments.configureMessage')}</p>
           </div>
         </div>
       )}
@@ -294,8 +300,8 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
       {!hook.isLoading && !hook.error && paperlessStatus?.configured && hook.links.length === 0 && (
         <div className={styles.emptyState}>
           <span className={styles.emptyIcon}>📄</span>
-          <p className={styles.emptyTitle}>No documents linked yet</p>
-          <p className={styles.emptyBody}>{copy.emptyBody}</p>
+          <p className={styles.emptyTitle}>{t('linkedDocuments.noDocumentsLinked')}</p>
+          <p className={styles.emptyBody}>{t(`linkedDocuments.${copyKeys.emptyBody}`)}</p>
         </div>
       )}
 
@@ -305,7 +311,7 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
           className={styles.cardStrip}
           id="document-strip"
           role="list"
-          aria-label="Linked documents"
+          aria-label={t('linkedDocuments.linkedDocumentsLabel')}
         >
           {hook.links.map((link) => (
             <div key={link.id} role="listitem">
@@ -346,15 +352,17 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
             <div className={styles.modalHeader}>
               <div>
                 <h2 id="picker-title" className={styles.modalTitle}>
-                  Add Document
+                  {t('linkedDocuments.addDocumentModal')}
                 </h2>
-                <p className={styles.modalSubtitle}>{copy.pickerSubtitle}</p>
+                <p className={styles.modalSubtitle}>
+                  {t(`linkedDocuments.${copyKeys.pickerSubtitle}`, { entity: entityLabel })}
+                </p>
               </div>
               <button
                 type="button"
                 className={styles.modalClose}
                 onClick={closePicker}
-                aria-label="Close document picker"
+                aria-label={t('linkedDocuments.closeDocumentPicker')}
               >
                 ×
               </button>
@@ -386,11 +394,12 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
             aria-labelledby="unlink-title"
           >
             <h2 id="unlink-title" className={styles.modalTitle}>
-              Unlink Document?
+              {t('linkedDocuments.unlinkDocument')}
             </h2>
             <p className={styles.modalText}>
-              &ldquo;{unlinkTarget.document?.title ?? 'This document'}&rdquo; will be removed from{' '}
-              {copy.unlinkBody}. The document will remain in Paperless-ngx.
+              &ldquo;{unlinkTarget.document?.title ?? 'This document'}&rdquo; {t('linkedDocuments.unlinkConfirmation', {
+                entity: entityLabel,
+              })}
             </p>
             <div className={styles.modalActions}>
               <button
@@ -400,7 +409,7 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
                 onClick={() => setUnlinkTarget(null)}
                 disabled={isUnlinking}
               >
-                Cancel
+                {t('button.cancel')}
               </button>
               <button
                 type="button"
@@ -408,7 +417,7 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
                 onClick={handleUnlink}
                 disabled={isUnlinking}
               >
-                {isUnlinking ? 'Unlinking…' : 'Unlink'}
+                {isUnlinking ? t('linkedDocuments.unlinking') : t('linkedDocuments.unlinkButton')}
               </button>
             </div>
           </div>

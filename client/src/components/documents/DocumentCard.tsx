@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { PaperlessDocumentSearchResult, PaperlessTag } from '@cornerstone/shared';
 import { getDocumentThumbnailUrl } from '../../lib/paperlessApi.js';
 import styles from './DocumentCard.module.css';
@@ -11,6 +12,7 @@ interface DocumentCardProps {
 }
 
 export function DocumentCard({ document, isSelected, onSelect, ariaControls }: DocumentCardProps) {
+  const { t } = useTranslation('documents');
   const thumbUrl = getDocumentThumbnailUrl(document.id);
 
   // Compute formatted date for aria-label (same format as the visible date)
@@ -38,7 +40,10 @@ export function DocumentCard({ document, isSelected, onSelect, ariaControls }: D
       tabIndex={0}
       aria-expanded={isSelected}
       aria-controls={ariaControls}
-      aria-label={`Document: ${document.title}${formattedDate ? `, ${formattedDate}` : ''}`}
+      aria-label={t('documentCard.documentLabel', {
+        title: document.title,
+        date: formattedDate ? `, ${formattedDate}` : ''
+      })}
     >
       <div className={styles.thumbContainer}>
         <img
