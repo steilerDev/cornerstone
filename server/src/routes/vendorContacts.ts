@@ -18,9 +18,9 @@ const listContactsSchema = {
 const createContactSchema = {
   body: {
     type: 'object',
-    required: ['name'],
     properties: {
-      name: { type: 'string', minLength: 1, maxLength: 200 },
+      firstName: { type: ['string', 'null'], maxLength: 100 },
+      lastName: { type: ['string', 'null'], maxLength: 100 },
       role: { type: ['string', 'null'], maxLength: 100 },
       phone: { type: ['string', 'null'], maxLength: 50 },
       email: { type: ['string', 'null'], maxLength: 255, format: 'email' },
@@ -42,7 +42,8 @@ const updateContactSchema = {
   body: {
     type: 'object',
     properties: {
-      name: { type: 'string', minLength: 1, maxLength: 200 },
+      firstName: { type: ['string', 'null'], maxLength: 100 },
+      lastName: { type: ['string', 'null'], maxLength: 100 },
       role: { type: ['string', 'null'], maxLength: 100 },
       phone: { type: ['string', 'null'], maxLength: 50 },
       email: { type: ['string', 'null'], maxLength: 255, format: 'email' },

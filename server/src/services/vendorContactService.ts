@@ -13,13 +13,25 @@ import { NotFoundError, ValidationError } from '../errors/AppError.js';
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
 /**
+ * Compute display name from firstName and lastName.
+ */
+function computeDisplayName(firstName: string | null, lastName: string | null): string {
+  const parts = [firstName, lastName].filter(Boolean);
+  return parts.join(' ') || 'Unnamed Contact';
+}
+
+/**
  * Convert database vendor contact row to VendorContact shape.
  */
 function toVendorContact(row: typeof vendorContacts.$inferSelect): VendorContact {
+  const firstName = row.firstName ?? null;
+  const lastName = row.lastName ?? null;
   return {
     id: row.id,
     vendorId: row.vendorId,
-    name: row.name,
+    firstName,
+    lastName,
+    name: computeDisplayName(firstName, lastName),
     role: row.role ?? null,
     phone: row.phone ?? null,
     email: row.email ?? null,
@@ -81,11 +93,25 @@ export function createContact(
     throw new NotFoundError(`Vendor with ID ${vendorId} not found`);
   }
 
-  // Validate name
-  const trimmedName = (data.name ?? '').trim();
-  if (!trimmedName || trimmedName.length > 200) {
-    throw new ValidationError('Contact name must be between 1 and 200 characters', {
-      name: 'name must be between 1 and 200 characters',
+  // Validate at least one name part is provided
+  const firstName = (data.firstName ?? '').trim() || null;
+  const lastName = (data.lastName ?? '').trim() || null;
+
+  if (!firstName && !lastName) {
+    throw new ValidationError('At least first name or last name is required', {
+      firstName: 'at least first name or last name is required',
+    });
+  }
+
+  if (firstName && firstName.length > 100) {
+    throw new ValidationError('First name must be 100 characters or less', {
+      firstName: 'first name must be 100 characters or less',
+    });
+  }
+
+  if (lastName && lastName.length > 100) {
+    throw new ValidationError('Last name must be 100 characters or less', {
+      lastName: 'last name must be 100 characters or less',
     });
   }
 
@@ -118,6 +144,7 @@ export function createContact(
     });
   }
 
+  const displayName = computeDisplayName(firstName, lastName);
   const id = randomUUID();
   const now = new Date().toISOString();
 
@@ -125,7 +152,9 @@ export function createContact(
     .values({
       id,
       vendorId,
-      name: trimmedName,
+      name: displayName,
+      firstName,
+      lastName,
       role,
       phone,
       email,
@@ -170,7 +199,8 @@ export function updateContact(
 
   // Check at least one field is provided
   const hasUpdate =
-    data.name !== undefined ||
+    data.firstName !== undefined ||
+    data.lastName !== undefined ||
     data.role !== undefined ||
     data.phone !== undefined ||
     data.email !== undefined ||
@@ -183,15 +213,42 @@ export function updateContact(
   // Validate and build update object
   const updates: Partial<typeof vendorContacts.$inferInsert> = {};
 
-  if (data.name !== undefined) {
-    const trimmedName = (data.name ?? '').trim();
-    if (!trimmedName || trimmedName.length > 200) {
-      throw new ValidationError('Contact name must be between 1 and 200 characters', {
-        name: 'name must be between 1 and 200 characters',
+  if (data.firstName !== undefined) {
+    const firstName = (data.firstName ?? '').trim() || null;
+    if (firstName && firstName.length > 100) {
+      throw new ValidationError('First name must be 100 characters or less', {
+        firstName: 'first name must be 100 characters or less',
       });
     }
-    updates.name = trimmedName;
+    updates.firstName = firstName;
   }
+
+  if (data.lastName !== undefined) {
+    const lastName = (data.lastName ?? '').trim() || null;
+    if (lastName && lastName.length > 100) {
+      throw new ValidationError('Last name must be 100 characters or less', {
+        lastName: 'last name must be 100 characters or less',
+      });
+    }
+    updates.lastName = lastName;
+  }
+
+  // Validate that at least one name part remains after update
+  const effectiveFirstName = data.firstName !== undefined
+    ? ((data.firstName ?? '').trim() || null)
+    : (contact.firstName ?? null);
+  const effectiveLastName = data.lastName !== undefined
+    ? ((data.lastName ?? '').trim() || null)
+    : (contact.lastName ?? null);
+
+  if (!effectiveFirstName && !effectiveLastName) {
+    throw new ValidationError('At least first name or last name is required', {
+      firstName: 'at least first name or last name is required',
+    });
+  }
+
+  // Update computed display name
+  updates.name = computeDisplayName(effectiveFirstName, effectiveLastName);
 
   if (data.role !== undefined) {
     const role = (data.role ?? '').trim() || null;

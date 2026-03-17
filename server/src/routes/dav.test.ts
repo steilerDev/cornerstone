@@ -343,7 +343,7 @@ describe('DAV Routes', () => {
         method: 'POST',
         url: `/api/vendors/${vendorId}/contacts`,
         headers: { cookie, 'content-type': 'application/json' },
-        payload: { name: 'Alice Smith', role: 'PM' },
+        payload: { firstName: 'Alice', lastName: 'Smith', role: 'PM' },
       });
       const { contact } = createRes.json<{ contact: { id: string } }>();
 

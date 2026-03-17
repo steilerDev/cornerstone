@@ -257,6 +257,8 @@ export const vendorContacts = sqliteTable(
       .notNull()
       .references(() => vendors.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
+    firstName: text('first_name'),
+    lastName: text('last_name'),
     role: text('role'),
     phone: text('phone'),
     email: text('email'),

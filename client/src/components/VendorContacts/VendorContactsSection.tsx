@@ -9,7 +9,8 @@ import { ApiClientError } from '../../lib/apiClient.js';
 import styles from './VendorContactsSection.module.css';
 
 interface ContactFormState {
-  name: string;
+  firstName: string;
+  lastName: string;
   role: string;
   phone: string;
   email: string;
@@ -17,7 +18,8 @@ interface ContactFormState {
 }
 
 const EMPTY_FORM: ContactFormState = {
-  name: '',
+  firstName: '',
+  lastName: '',
   role: '',
   phone: '',
   email: '',
@@ -64,8 +66,9 @@ export function VendorContactsSection({ vendorId }: VendorContactsSectionProps) 
   const handleCreateSubmit = async (event: FormEvent) => {
     event.preventDefault();
 
-    const trimmedName = createForm.name.trim();
-    if (!trimmedName) {
+    const trimmedFirst = createForm.firstName.trim();
+    const trimmedLast = createForm.lastName.trim();
+    if (!trimmedFirst && !trimmedLast) {
       setCreateError(t('vendors.contacts.nameRequired'));
       return;
     }
@@ -75,7 +78,8 @@ export function VendorContactsSection({ vendorId }: VendorContactsSectionProps) 
 
     try {
       const request: CreateVendorContactRequest = {
-        name: trimmedName,
+        firstName: trimmedFirst || null,
+        lastName: trimmedLast || null,
         role: createForm.role.trim() || null,
         phone: createForm.phone.trim() || null,
         email: createForm.email.trim() || null,
@@ -84,7 +88,8 @@ export function VendorContactsSection({ vendorId }: VendorContactsSectionProps) 
       await addContact(request);
       setShowCreateModal(false);
       setCreateForm(EMPTY_FORM);
-      setLiveAnnouncement(t('vendors.contacts.contactAdded', { name: trimmedName }));
+      const displayName = [trimmedFirst, trimmedLast].filter(Boolean).join(' ');
+      setLiveAnnouncement(t('vendors.contacts.contactAdded', { name: displayName }));
     } catch (err) {
       if (err instanceof ApiClientError) {
         setCreateError(err.error.message);
@@ -99,7 +104,8 @@ export function VendorContactsSection({ vendorId }: VendorContactsSectionProps) 
   const handleOpenEditModal = (contact: VendorContact) => {
     setEditingContact(contact);
     setEditForm({
-      name: contact.name,
+      firstName: contact.firstName ?? '',
+      lastName: contact.lastName ?? '',
       role: contact.role ?? '',
       phone: contact.phone ?? '',
       email: contact.email ?? '',
@@ -119,8 +125,9 @@ export function VendorContactsSection({ vendorId }: VendorContactsSectionProps) 
     event.preventDefault();
     if (!editingContact) return;
 
-    const trimmedName = editForm.name.trim();
-    if (!trimmedName) {
+    const trimmedFirst = editForm.firstName.trim();
+    const trimmedLast = editForm.lastName.trim();
+    if (!trimmedFirst && !trimmedLast) {
       setEditErrorMsg(t('vendors.contacts.nameRequired'));
       return;
     }
@@ -130,7 +137,8 @@ export function VendorContactsSection({ vendorId }: VendorContactsSectionProps) 
 
     try {
       const request: UpdateVendorContactRequest = {
-        name: trimmedName,
+        firstName: trimmedFirst || null,
+        lastName: trimmedLast || null,
         role: editForm.role.trim() || null,
         phone: editForm.phone.trim() || null,
         email: editForm.email.trim() || null,
@@ -138,7 +146,8 @@ export function VendorContactsSection({ vendorId }: VendorContactsSectionProps) 
       };
       await editContact(editingContact.id, request);
       setEditingContact(null);
-      setLiveAnnouncement(t('vendors.contacts.contactUpdated', { name: trimmedName }));
+      const displayName = [trimmedFirst, trimmedLast].filter(Boolean).join(' ');
+      setLiveAnnouncement(t('vendors.contacts.contactUpdated', { name: displayName }));
     } catch (err) {
       if (err instanceof ApiClientError) {
         setEditErrorMsg(err.error.message);
@@ -165,6 +174,44 @@ export function VendorContactsSection({ vendorId }: VendorContactsSectionProps) 
       </section>
     );
   }
+
+  const renderNameFields = (
+    prefix: string,
+    form: ContactFormState,
+    setForm: (f: ContactFormState) => void,
+    disabled: boolean,
+  ) => (
+    <div className={styles.nameRow}>
+      <div className={styles.field}>
+        <label htmlFor={`${prefix}-firstName`} className={styles.label}>
+          {t('vendors.contacts.firstName')}
+        </label>
+        <input
+          id={`${prefix}-firstName`}
+          type="text"
+          value={form.firstName}
+          onChange={(e) => setForm({ ...form, firstName: e.target.value })}
+          className={styles.input}
+          maxLength={100}
+          disabled={disabled}
+        />
+      </div>
+      <div className={styles.field}>
+        <label htmlFor={`${prefix}-lastName`} className={styles.label}>
+          {t('vendors.contacts.lastName')}
+        </label>
+        <input
+          id={`${prefix}-lastName`}
+          type="text"
+          value={form.lastName}
+          onChange={(e) => setForm({ ...form, lastName: e.target.value })}
+          className={styles.input}
+          maxLength={100}
+          disabled={disabled}
+        />
+      </div>
+    </div>
+  );
 
   return (
     <section className={styles.section}>
@@ -235,20 +282,7 @@ export function VendorContactsSection({ vendorId }: VendorContactsSectionProps) 
         <Modal title={t('vendors.contacts.addContact')} onClose={handleCloseCreateModal}>
           {createError && <FormError message={createError} />}
           <form onSubmit={handleCreateSubmit} className={styles.form}>
-            <div className={styles.field}>
-              <label htmlFor="create-name" className={styles.label}>
-                {t('vendors.contacts.name')}
-              </label>
-              <input
-                id="create-name"
-                type="text"
-                value={createForm.name}
-                onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
-                className={styles.input}
-                maxLength={200}
-                disabled={isCreating}
-              />
-            </div>
+            {renderNameFields('create', createForm, setCreateForm, isCreating)}
 
             <div className={styles.field}>
               <label htmlFor="create-role" className={styles.label}>
@@ -332,20 +366,7 @@ export function VendorContactsSection({ vendorId }: VendorContactsSectionProps) 
         <Modal title={t('vendors.contacts.editContact')} onClose={handleCloseEditModal}>
           {editErrorMsg && <FormError message={editErrorMsg} />}
           <form onSubmit={handleEditSubmit} className={styles.form}>
-            <div className={styles.field}>
-              <label htmlFor="edit-name" className={styles.label}>
-                {t('vendors.contacts.name')}
-              </label>
-              <input
-                id="edit-name"
-                type="text"
-                value={editForm.name}
-                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                className={styles.input}
-                maxLength={200}
-                disabled={isEditing}
-              />
-            </div>
+            {renderNameFields('edit', editForm, setEditForm, isEditing)}
 
             <div className={styles.field}>
               <label htmlFor="edit-role" className={styles.label}>

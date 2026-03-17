@@ -42,6 +42,7 @@ export function computeAddressBookETag(db: DbType): string {
 
 /**
  * Build a vCard for a vendor (company-level).
+ * Uses KIND:org to mark this as an organization vCard.
  * Injects UID and REV fields for CalDAV/CardDAV compatibility.
  */
 export function buildVendorVcard(vendor: {
@@ -55,10 +56,12 @@ export function buildVendorVcard(vendor: {
   updatedAt: string;
 }): string {
   const vcard = new VCardCreator();
+  // For organizations: FN is the company name, N is minimal
   vcard.addName('', vendor.name);
+  vcard.addCompany(vendor.name);
 
   if (vendor.email) {
-    vcard.addEmail(vendor.email);
+    vcard.addEmail(vendor.email, 'WORK');
   }
 
   if (vendor.phone) {
@@ -66,7 +69,7 @@ export function buildVendorVcard(vendor: {
   }
 
   if (vendor.address) {
-    vcard.addAddress('', '', vendor.address, '', '', '', '');
+    vcard.addAddress('', '', vendor.address, '', '', '', '', 'WORK');
   }
 
   if (vendor.specialty) {
@@ -79,13 +82,13 @@ export function buildVendorVcard(vendor: {
 
   let vcardStr = vcard.toString();
 
-  // Inject UID and REV fields before END:VCARD
+  // Inject KIND:org, UID, and REV fields before END:VCARD
   const uid = `urn:uuid:vendor-${vendor.id}`;
   const rev = vendor.updatedAt;
   const endMarker = 'END:VCARD';
   vcardStr = vcardStr.replace(
     endMarker,
-    `UID:${uid}\r\nREV:${rev}\r\n${endMarker}`,
+    `KIND:org\r\nUID:${uid}\r\nREV:${rev}\r\n${endMarker}`,
   );
 
   return vcardStr;
@@ -93,11 +96,14 @@ export function buildVendorVcard(vendor: {
 
 /**
  * Build a vCard for an individual contact at a vendor.
+ * Uses proper N:lastName;firstName structure.
  * Injects UID and REV fields for CalDAV/CardDAV compatibility.
  */
 export function buildContactVcard(
   contact: {
     id: string;
+    firstName: string | null;
+    lastName: string | null;
     name: string;
     role: string | null;
     email: string | null;
@@ -108,14 +114,15 @@ export function buildContactVcard(
   vendorName: string,
 ): string {
   const vcard = new VCardCreator();
-  vcard.addName('', contact.name);
+  // addName(lastName, firstName) — maps to N:lastName;firstName;;;
+  vcard.addName(contact.lastName ?? '', contact.firstName ?? '');
 
   if (contact.role) {
     vcard.addJobtitle(contact.role);
   }
 
   if (contact.email) {
-    vcard.addEmail(contact.email);
+    vcard.addEmail(contact.email, 'WORK');
   }
 
   if (contact.phone) {

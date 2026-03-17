@@ -48,10 +48,18 @@ export function computeCalendarETag(db: DbType): string {
 }
 
 /**
+ * Optional description map for enriching events with descriptions/notes.
+ * Keyed by event UID prefix and ID (e.g., 'wi-abc123', 'milestone-1', 'hi-xyz').
+ */
+export type DescriptionMap = Map<string, string>;
+
+/**
  * Build an iCal calendar from timeline data.
+ * Optionally pass a descriptionMap to include DESCRIPTION fields on events.
  */
 export function buildCalendar(
   timeline: Pick<TimelineResponse, 'workItems' | 'milestones' | 'householdItems'>,
+  descriptionMap?: DescriptionMap,
 ): string {
   const calendar = ical({
     name: 'Cornerstone Project',
@@ -66,9 +74,11 @@ export function buildCalendar(
     // Skip if neither resolved date is available
     if (!startDate || !endDate) continue;
 
+    const wiDesc = descriptionMap?.get(`wi-${wi.id}`);
     calendar.createEvent({
       id: `wi-${wi.id}@cornerstone`,
       summary: wi.title,
+      description: wiDesc || undefined,
       start: new Date(startDate),
       end: new Date(endDate),
       allDay: true,
@@ -83,9 +93,11 @@ export function buildCalendar(
 
     if (!eventDate) continue;
 
+    const msDesc = descriptionMap?.get(`milestone-${milestone.id}`);
     calendar.createEvent({
       id: `milestone-${milestone.id}@cornerstone`,
       summary: milestone.title,
+      description: msDesc || undefined,
       start: new Date(eventDate),
       end: new Date(eventDate),
       allDay: true,
@@ -110,9 +122,11 @@ export function buildCalendar(
     // Skip if no delivery dates are available
     if (!startDate || !endDate) continue;
 
+    const hiDesc = descriptionMap?.get(`hi-${hi.id}`);
     calendar.createEvent({
       id: `hi-${hi.id}@cornerstone`,
       summary: `${hi.name} (Delivery)`,
+      description: hiDesc || undefined,
       start: new Date(startDate),
       end: new Date(endDate),
       allDay: true,

@@ -3,12 +3,13 @@ import { eq } from 'drizzle-orm';
 import { UnauthorizedError, NotFoundError } from '../errors/AppError.js';
 import * as davTokenService from '../services/davTokenService.js';
 import * as calendarIcal from '../services/calendarIcal.js';
+import type { DescriptionMap } from '../services/calendarIcal.js';
 import * as vendorVcard from '../services/vendorVcard.js';
 import * as davXml from '../services/davXml.js';
 import { escapeXml } from '../services/davXml.js';
 import { getTimeline } from '../services/timelineService.js';
 import { ensureDailyReschedule } from '../services/schedulingEngine.js';
-import { vendors, vendorContacts } from '../db/schema.js';
+import { vendors, vendorContacts, workItems, milestones, householdItems } from '../db/schema.js';
 
 /**
  * DAV preHandler: validate Basic Auth using DAV token.
@@ -48,6 +49,31 @@ async function davAuth(request: any): Promise<void> {
 }
 
 const DAV_PREFIX = '/dav';
+
+/**
+ * Build a DescriptionMap from the database for CalDAV DESCRIPTION fields.
+ * Queries work_items.description, milestones.description, and household_items.description.
+ */
+function buildDescriptionMap(db: any): DescriptionMap {
+  const map: DescriptionMap = new Map();
+
+  const wiRows = db.select({ id: workItems.id, description: workItems.description }).from(workItems).all();
+  for (const row of wiRows) {
+    if (row.description) map.set(`wi-${row.id}`, row.description);
+  }
+
+  const msRows = db.select({ id: milestones.id, description: milestones.description }).from(milestones).all();
+  for (const row of msRows) {
+    if (row.description) map.set(`milestone-${row.id}`, row.description);
+  }
+
+  const hiRows = db.select({ id: householdItems.id, description: householdItems.description }).from(householdItems).all();
+  for (const row of hiRows) {
+    if (row.description) map.set(`hi-${row.id}`, row.description);
+  }
+
+  return map;
+}
 
 export default async function davRoutes(fastify: FastifyInstance) {
   // ─── WWW-Authenticate on 401 (RFC 7235 — required for iOS) ──────────────
@@ -308,12 +334,13 @@ export default async function davRoutes(fastify: FastifyInstance) {
         throw new NotFoundError('Event not found');
       }
 
-      // Build single-event iCal
+      // Build single-event iCal with description
+      const descMap = buildDescriptionMap(fastify.db);
       const calendar = calendarIcal.buildCalendar({
         workItems: type === 'wi' ? [event] : [],
         milestones: type === 'milestone' ? [event] : [],
         householdItems: type === 'hi' ? [event] : [],
-      });
+      }, descMap);
 
       const etag = calendarIcal.computeCalendarETag(fastify.db);
       return reply
@@ -333,12 +360,13 @@ export default async function davRoutes(fastify: FastifyInstance) {
     type: string,
     event: any,
     etag: string,
+    descMap?: DescriptionMap,
   ): string {
     const calendar = calendarIcal.buildCalendar({
       workItems: type === 'wi' ? [event] : [],
       milestones: type === 'milestone' ? [event] : [],
       householdItems: type === 'hi' ? [event] : [],
-    });
+    }, descMap);
 
     // Use type-prefixed ETag to match PROPFIND depth 1 responses
     const typedEtag = `${type}-${etag}`;
@@ -366,6 +394,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
       ensureDailyReschedule(fastify.db);
       const timeline = getTimeline(fastify.db);
       const etag = calendarIcal.computeCalendarETag(fastify.db);
+      const descMap = buildDescriptionMap(fastify.db);
       const responses: string[] = [];
 
       if (reportType === 'query') {
@@ -373,19 +402,19 @@ export default async function davRoutes(fastify: FastifyInstance) {
         for (const wi of timeline.workItems as any[]) {
           if (!wi.startDate || !wi.endDate) continue;
           const href = `${DAV_PREFIX}/calendars/default/wi-${wi.id}.ics`;
-          responses.push(buildCalendarEventResponse(href, 'wi', wi, etag));
+          responses.push(buildCalendarEventResponse(href, 'wi', wi, etag, descMap));
         }
 
         for (const milestone of timeline.milestones as any[]) {
           if (!milestone.targetDate && !milestone.completedAt) continue;
           const href = `${DAV_PREFIX}/calendars/default/milestone-${milestone.id}.ics`;
-          responses.push(buildCalendarEventResponse(href, 'milestone', milestone, etag));
+          responses.push(buildCalendarEventResponse(href, 'milestone', milestone, etag, descMap));
         }
 
         for (const hi of timeline.householdItems as any[]) {
           if (!hi.targetDeliveryDate && !hi.actualDeliveryDate) continue;
           const href = `${DAV_PREFIX}/calendars/default/hi-${hi.id}.ics`;
-          responses.push(buildCalendarEventResponse(href, 'hi', hi, etag));
+          responses.push(buildCalendarEventResponse(href, 'hi', hi, etag, descMap));
         }
       } else {
         // calendar-multiget: fetch specific events by href
@@ -416,7 +445,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
             continue;
           }
 
-          responses.push(buildCalendarEventResponse(href, type, event, etag));
+          responses.push(buildCalendarEventResponse(href, type, event, etag, descMap));
         }
       }
 

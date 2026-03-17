@@ -197,6 +197,18 @@
   }
 }
 
+.nameRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-4);
+}
+
+@media (max-width: 767px) {
+  .nameRow {
+    grid-template-columns: 1fr;
+  }
+}
+
 .form {
   display: flex;
   flex-direction: column;

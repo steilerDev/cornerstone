@@ -6,6 +6,9 @@
 export interface VendorContact {
   id: string;
   vendorId: string;
+  firstName: string | null;
+  lastName: string | null;
+  /** Computed display name: "firstName lastName" or whichever is available. */
   name: string;
   role: string | null;
   phone: string | null;
@@ -16,7 +19,8 @@ export interface VendorContact {
 }
 
 export interface CreateVendorContactRequest {
-  name: string;
+  firstName?: string | null;
+  lastName?: string | null;
   role?: string | null;
   phone?: string | null;
   email?: string | null;
@@ -24,7 +28,8 @@ export interface CreateVendorContactRequest {
 }
 
 export interface UpdateVendorContactRequest {
-  name?: string;
+  firstName?: string | null;
+  lastName?: string | null;
   role?: string | null;
   phone?: string | null;
   email?: string | null;
