@@ -179,7 +179,9 @@ export function ProfilePage() {
             <div className={styles.infoRow}>
               <span className={styles.infoLabel}>{t('profile.info.authLabel')}</span>
               <span className={styles.infoValue}>
-                {user.authProvider === 'local' ? t('profile.info.authLocal') : t('profile.info.authOidc')}
+                {user.authProvider === 'local'
+                  ? t('profile.info.authLocal')
+                  : t('profile.info.authOidc')}
               </span>
             </div>
             <div className={styles.infoRow}>
@@ -192,9 +194,7 @@ export function ProfilePage() {
         {/* Display Name Edit Card */}
         <section className={styles.card}>
           <h2 className={styles.cardTitle}>{t('profile.displayName.sectionTitle')}</h2>
-          <p className={styles.cardDescription}>
-            {t('profile.displayName.description')}
-          </p>
+          <p className={styles.cardDescription}>{t('profile.displayName.description')}</p>
 
           {displayNameSuccess && (
             <div className={styles.successBanner} role="alert">
@@ -230,7 +230,9 @@ export function ProfilePage() {
               className={styles.button}
               disabled={isUpdatingDisplayName || displayName.trim() === user.displayName}
             >
-              {isUpdatingDisplayName ? t('profile.displayName.submitPending') : t('profile.displayName.submitIdle')}
+              {isUpdatingDisplayName
+                ? t('profile.displayName.submitPending')
+                : t('profile.displayName.submitIdle')}
             </button>
           </form>
         </section>
@@ -239,9 +241,7 @@ export function ProfilePage() {
         {isLocalAuth ? (
           <section className={styles.card}>
             <h2 className={styles.cardTitle}>{t('profile.password.sectionTitle')}</h2>
-            <p className={styles.cardDescription}>
-              {t('profile.password.description')}
-            </p>
+            <p className={styles.cardDescription}>{t('profile.password.description')}</p>
 
             {passwordSuccess && (
               <div className={styles.successBanner} role="alert">
@@ -330,16 +330,16 @@ export function ProfilePage() {
               </div>
 
               <button type="submit" className={styles.button} disabled={isChangingPassword}>
-                {isChangingPassword ? t('profile.password.submitPending') : t('profile.password.submitIdle')}
+                {isChangingPassword
+                  ? t('profile.password.submitPending')
+                  : t('profile.password.submitIdle')}
               </button>
             </form>
           </section>
         ) : (
           <section className={styles.card}>
             <h2 className={styles.cardTitle}>{t('profile.password.oidcSectionTitle')}</h2>
-            <p className={styles.oidcMessage}>
-              {t('profile.password.oidcMessage')}
-            </p>
+            <p className={styles.oidcMessage}>{t('profile.password.oidcMessage')}</p>
           </section>
         )}
 

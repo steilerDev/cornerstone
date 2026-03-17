@@ -245,7 +245,11 @@ export function UserManagementPage() {
 
         {users.length === 0 ? (
           <div className={styles.emptyState}>
-            <p>{searchQuery ? t('userManagement.noUsersFoundSearch') : t('userManagement.noUsersFound')}</p>
+            <p>
+              {searchQuery
+                ? t('userManagement.noUsersFoundSearch')
+                : t('userManagement.noUsersFound')}
+            </p>
           </div>
         ) : (
           <div className={styles.tableWrapper}>
@@ -271,13 +275,21 @@ export function UserManagementPage() {
                         <span
                           className={user.role === 'admin' ? styles.roleAdmin : styles.roleMember}
                         >
-                          {user.role === 'admin' ? t('userManagement.role.admin') : t('userManagement.role.member')}
+                          {user.role === 'admin'
+                            ? t('userManagement.role.admin')
+                            : t('userManagement.role.member')}
                         </span>
                       </td>
-                      <td>{user.authProvider === 'local' ? t('userManagement.authProvider.local') : t('userManagement.authProvider.oidc')}</td>
+                      <td>
+                        {user.authProvider === 'local'
+                          ? t('userManagement.authProvider.local')
+                          : t('userManagement.authProvider.oidc')}
+                      </td>
                       <td>
                         <span className={isActive ? styles.statusActive : styles.statusInactive}>
-                          {isActive ? t('userManagement.status.active') : t('userManagement.status.deactivated')}
+                          {isActive
+                            ? t('userManagement.status.active')
+                            : t('userManagement.status.deactivated')}
                         </span>
                       </td>
                       <td>
@@ -406,7 +418,9 @@ export function UserManagementPage() {
                   {t('userManagement.editModal.cancel')}
                 </button>
                 <button type="submit" className={styles.saveButton} disabled={isUpdating}>
-                  {isUpdating ? t('userManagement.editModal.savePending') : t('userManagement.editModal.saveIdle')}
+                  {isUpdating
+                    ? t('userManagement.editModal.savePending')
+                    : t('userManagement.editModal.saveIdle')}
                 </button>
               </div>
             </form>
@@ -457,7 +471,9 @@ export function UserManagementPage() {
                 onClick={handleDeactivateConfirm}
                 disabled={isDeactivating}
               >
-                {isDeactivating ? t('userManagement.deactivateModal.submitPending') : t('userManagement.deactivateModal.submitIdle')}
+                {isDeactivating
+                  ? t('userManagement.deactivateModal.submitPending')
+                  : t('userManagement.deactivateModal.submitIdle')}
               </button>
             </div>
           </div>

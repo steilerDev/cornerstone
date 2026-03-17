@@ -111,9 +111,7 @@ export function SetupPage() {
       <div className={sharedStyles.card}>
         <Logo size={72} variant="full" className={sharedStyles.logo} />
         <h1 className={sharedStyles.title}>{t('setup.title')}</h1>
-        <p className={sharedStyles.description}>
-          {t('setup.description')}
-        </p>
+        <p className={sharedStyles.description}>{t('setup.description')}</p>
 
         {apiError && (
           <div className={sharedStyles.errorBanner} role="alert">

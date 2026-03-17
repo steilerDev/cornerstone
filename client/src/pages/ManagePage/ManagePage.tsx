@@ -240,9 +240,7 @@ function TagsTab() {
       {/* Create new tag */}
       <section className={styles.card}>
         <h2 className={styles.cardTitle}>{t('manage.tags.createSection')}</h2>
-        <p className={styles.cardDescription}>
-          {t('manage.tags.createDescription')}
-        </p>
+        <p className={styles.cardDescription}>{t('manage.tags.createDescription')}</p>
 
         {createError && (
           <div className={styles.errorBanner} role="alert">
@@ -300,12 +298,12 @@ function TagsTab() {
 
       {/* Tags list */}
       <section className={styles.card}>
-        <h2 className={styles.cardTitle}>{t('manage.tags.existingTitle', { count: tags.length })}</h2>
+        <h2 className={styles.cardTitle}>
+          {t('manage.tags.existingTitle', { count: tags.length })}
+        </h2>
 
         {tags.length === 0 ? (
-          <p className={styles.emptyState}>
-            {t('manage.tags.empty')}
-          </p>
+          <p className={styles.emptyState}>{t('manage.tags.empty')}</p>
         ) : (
           <div className={styles.itemsList}>
             {tags.map((tag) => (
@@ -393,11 +391,11 @@ function TagsTab() {
           <div className={styles.modalContent}>
             <h2 className={styles.modalTitle}>{t('manage.tags.deleteModal.title')}</h2>
             <p className={styles.modalText}>
-              {t('manage.tags.deleteModal.text', { name: tags.find((t) => t.id === deletingTagId)?.name })}
+              {t('manage.tags.deleteModal.text', {
+                name: tags.find((t) => t.id === deletingTagId)?.name,
+              })}
             </p>
-            <p className={styles.modalWarning}>
-              {t('manage.tags.deleteModal.warning')}
-            </p>
+            <p className={styles.modalWarning}>{t('manage.tags.deleteModal.warning')}</p>
             <div className={styles.modalActions}>
               <button
                 type="button"
@@ -413,7 +411,9 @@ function TagsTab() {
                 onClick={() => handleDeleteTag(deletingTagId)}
                 disabled={isDeleting}
               >
-                {isDeleting ? t('manage.tags.deleteModal.submitPending') : t('manage.tags.deleteModal.submitIdle')}
+                {isDeleting
+                  ? t('manage.tags.deleteModal.submitPending')
+                  : t('manage.tags.deleteModal.submitIdle')}
               </button>
             </div>
           </div>
@@ -666,9 +666,7 @@ function BudgetCategoriesTab() {
       {showCreateForm && (
         <section className={styles.card}>
           <h2 className={styles.cardTitle}>{t('manage.budgetCategories.newSection')}</h2>
-          <p className={styles.cardDescription}>
-            {t('manage.budgetCategories.newDescription')}
-          </p>
+          <p className={styles.cardDescription}>{t('manage.budgetCategories.newDescription')}</p>
 
           {createError && (
             <div className={styles.errorBanner} role="alert">
@@ -680,7 +678,8 @@ function BudgetCategoriesTab() {
             <div className={styles.formRow}>
               <div className={styles.fieldGrow}>
                 <label htmlFor="categoryName" className={styles.label}>
-                  {t('manage.budgetCategories.nameLabel')} <span className={styles.required}>*</span>
+                  {t('manage.budgetCategories.nameLabel')}{' '}
+                  <span className={styles.required}>*</span>
                 </label>
                 <input
                   type="text"
@@ -755,7 +754,9 @@ function BudgetCategoriesTab() {
                 className={styles.button}
                 disabled={isCreating || !newName.trim()}
               >
-                {isCreating ? t('manage.budgetCategories.createPending') : t('manage.budgetCategories.createIdle')}
+                {isCreating
+                  ? t('manage.budgetCategories.createPending')
+                  : t('manage.budgetCategories.createIdle')}
               </button>
               <button
                 type="button"
@@ -780,7 +781,9 @@ function BudgetCategoriesTab() {
       {/* Categories list */}
       <section className={styles.card}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 className={styles.cardTitle}>{t('manage.budgetCategories.listTitle', { count: categories.length })}</h2>
+          <h2 className={styles.cardTitle}>
+            {t('manage.budgetCategories.listTitle', { count: categories.length })}
+          </h2>
           <button
             type="button"
             className={styles.button}
@@ -795,9 +798,7 @@ function BudgetCategoriesTab() {
         </div>
 
         {categories.length === 0 ? (
-          <p className={styles.emptyState}>
-            {t('manage.budgetCategories.empty')}
-          </p>
+          <p className={styles.emptyState}>{t('manage.budgetCategories.empty')}</p>
         ) : (
           <div className={styles.itemsList}>
             {categories.map((category) => (
@@ -816,7 +817,8 @@ function BudgetCategoriesTab() {
                     <div className={styles.editFormRow}>
                       <div className={styles.fieldGrow}>
                         <label htmlFor={`edit-name-${category.id}`} className={styles.label}>
-                          {t('manage.budgetCategories.nameLabel')} <span className={styles.required}>*</span>
+                          {t('manage.budgetCategories.nameLabel')}{' '}
+                          <span className={styles.required}>*</span>
                         </label>
                         <input
                           type="text"
@@ -903,7 +905,9 @@ function BudgetCategoriesTab() {
                         className={styles.saveButton}
                         disabled={isUpdating || !editingCategory.name.trim()}
                       >
-                        {isUpdating ? t('manage.budgetCategories.savePending') : t('manage.budgetCategories.saveIdle')}
+                        {isUpdating
+                          ? t('manage.budgetCategories.savePending')
+                          : t('manage.budgetCategories.saveIdle')}
                       </button>
                       <button
                         type="button"
@@ -975,7 +979,9 @@ function BudgetCategoriesTab() {
               {t('manage.budgetCategories.deleteModal.title')}
             </h2>
             <p className={styles.modalText}>
-              {t('manage.budgetCategories.deleteModal.text', { name: categories.find((c) => c.id === deletingCategoryId)?.name })}
+              {t('manage.budgetCategories.deleteModal.text', {
+                name: categories.find((c) => c.id === deletingCategoryId)?.name,
+              })}
             </p>
 
             {deleteError ? (
@@ -1004,7 +1010,9 @@ function BudgetCategoriesTab() {
                   onClick={() => void handleDeleteCategory(deletingCategoryId)}
                   disabled={isDeleting}
                 >
-                  {isDeleting ? t('manage.budgetCategories.deleteModal.submitPending') : t('manage.budgetCategories.deleteModal.submitIdle')}
+                  {isDeleting
+                    ? t('manage.budgetCategories.deleteModal.submitPending')
+                    : t('manage.budgetCategories.deleteModal.submitIdle')}
                 </button>
               )}
             </div>
@@ -1252,9 +1260,7 @@ function HouseholdItemCategoriesTab() {
       {showCreateForm && (
         <section className={styles.card}>
           <h2 className={styles.cardTitle}>{t('manage.hiCategories.newSection')}</h2>
-          <p className={styles.cardDescription}>
-            {t('manage.hiCategories.newDescription')}
-          </p>
+          <p className={styles.cardDescription}>{t('manage.hiCategories.newDescription')}</p>
 
           {createError && (
             <div className={styles.errorBanner} role="alert">
@@ -1325,7 +1331,9 @@ function HouseholdItemCategoriesTab() {
                 className={styles.button}
                 disabled={isCreating || !newName.trim()}
               >
-                {isCreating ? t('manage.hiCategories.createPending') : t('manage.hiCategories.createIdle')}
+                {isCreating
+                  ? t('manage.hiCategories.createPending')
+                  : t('manage.hiCategories.createIdle')}
               </button>
               <button
                 type="button"
@@ -1349,7 +1357,9 @@ function HouseholdItemCategoriesTab() {
       {/* Categories list */}
       <section className={styles.card}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 className={styles.cardTitle}>{t('manage.hiCategories.listTitle', { count: categories.length })}</h2>
+          <h2 className={styles.cardTitle}>
+            {t('manage.hiCategories.listTitle', { count: categories.length })}
+          </h2>
           <button
             type="button"
             className={styles.button}
@@ -1364,9 +1374,7 @@ function HouseholdItemCategoriesTab() {
         </div>
 
         {categories.length === 0 ? (
-          <p className={styles.emptyState}>
-            {t('manage.hiCategories.empty')}
-          </p>
+          <p className={styles.emptyState}>{t('manage.hiCategories.empty')}</p>
         ) : (
           <div className={styles.itemsList}>
             {categories.map((category) => (
@@ -1385,7 +1393,8 @@ function HouseholdItemCategoriesTab() {
                     <div className={styles.editFormRow}>
                       <div className={styles.fieldGrow}>
                         <label htmlFor={`edit-name-${category.id}`} className={styles.label}>
-                          {t('manage.hiCategories.nameLabel')} <span className={styles.required}>*</span>
+                          {t('manage.hiCategories.nameLabel')}{' '}
+                          <span className={styles.required}>*</span>
                         </label>
                         <input
                           type="text"
@@ -1451,7 +1460,9 @@ function HouseholdItemCategoriesTab() {
                         className={styles.saveButton}
                         disabled={isUpdating || !editingCategory.name.trim()}
                       >
-                        {isUpdating ? t('manage.hiCategories.savePending') : t('manage.hiCategories.saveIdle')}
+                        {isUpdating
+                          ? t('manage.hiCategories.savePending')
+                          : t('manage.hiCategories.saveIdle')}
                       </button>
                       <button
                         type="button"
@@ -1520,7 +1531,9 @@ function HouseholdItemCategoriesTab() {
               {t('manage.hiCategories.deleteModal.title')}
             </h2>
             <p className={styles.modalText}>
-              {t('manage.hiCategories.deleteModal.text', { name: categories.find((c) => c.id === deletingCategoryId)?.name })}
+              {t('manage.hiCategories.deleteModal.text', {
+                name: categories.find((c) => c.id === deletingCategoryId)?.name,
+              })}
             </p>
 
             {deleteError ? (
@@ -1528,9 +1541,7 @@ function HouseholdItemCategoriesTab() {
                 {deleteError}
               </div>
             ) : (
-              <p className={styles.modalWarning}>
-                {t('manage.hiCategories.deleteModal.warning')}
-              </p>
+              <p className={styles.modalWarning}>{t('manage.hiCategories.deleteModal.warning')}</p>
             )}
 
             <div className={styles.modalActions}>
@@ -1549,7 +1560,9 @@ function HouseholdItemCategoriesTab() {
                   onClick={() => void handleDeleteCategory(deletingCategoryId)}
                   disabled={isDeleting}
                 >
-                  {isDeleting ? t('manage.hiCategories.deleteModal.submitPending') : t('manage.hiCategories.deleteModal.submitIdle')}
+                  {isDeleting
+                    ? t('manage.hiCategories.deleteModal.submitPending')
+                    : t('manage.hiCategories.deleteModal.submitIdle')}
                 </button>
               )}
             </div>
