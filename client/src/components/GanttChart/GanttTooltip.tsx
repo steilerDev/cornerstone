@@ -212,7 +212,7 @@ function WorkItemTooltipContent({
       <div className={styles.header}>
         <span className={styles.title}>{data.title}</span>
         <span className={`${styles.statusBadge} ${STATUS_BADGE_CLASSES[data.status]}`}>
-          {STATUS_LABELS[data.status]}
+          {statusLabels[data.status]}
         </span>
       </div>
 

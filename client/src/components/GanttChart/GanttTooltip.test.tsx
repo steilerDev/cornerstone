@@ -829,7 +829,7 @@ describe('GanttTooltip — milestone kind (no dependencies section)', () => {
   it('milestone tooltip with both lists empty shows a single "No linked items" row (None label)', () => {
     render(<GanttTooltip data={MILESTONE_DATA} position={{ x: 100, y: 200 }} />);
     // When both lists are empty, hasBothEmpty = true — shows single "Linked / None" row
-    expect(screen.getByText('Linked')).toBeInTheDocument();
+    expect(screen.getByText('Linked Items')).toBeInTheDocument();
     expect(screen.getByText('None')).toBeInTheDocument();
   });
 

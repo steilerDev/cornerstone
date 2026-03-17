@@ -150,7 +150,7 @@ describe('CalendarView', () => {
       renderCalendar({});
       // Prev / Today / Next buttons
       expect(screen.getByRole('button', { name: /previous month/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /go to today/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^today$/i })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /next month/i })).toBeInTheDocument();
     });
 
@@ -303,7 +303,7 @@ describe('CalendarView', () => {
       expect(screen.getByRole('heading', { level: 2 }).textContent).not.toBe(originalText);
 
       // Return to today
-      fireEvent.click(screen.getByRole('button', { name: /go to today/i }));
+      fireEvent.click(screen.getByRole('button', { name: /^today$/i }));
       expect(screen.getByRole('heading', { level: 2 }).textContent).toBe(originalText);
     });
 
@@ -376,7 +376,7 @@ describe('CalendarView', () => {
       expect(movedCells).not.toEqual(originalCells);
 
       // Return
-      fireEvent.click(screen.getByRole('button', { name: /go to today/i }));
+      fireEvent.click(screen.getByRole('button', { name: /^today$/i }));
 
       const returnedCells = screen
         .getAllByRole('gridcell')

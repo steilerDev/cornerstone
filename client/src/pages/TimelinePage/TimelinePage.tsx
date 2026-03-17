@@ -424,7 +424,7 @@ export function TimelinePage() {
                 role="toolbar"
                 aria-label={t('timeline.toolbar.zoomLevel')}
               >
-                {ZOOM_OPTIONS.map(({ value, label }) => (
+                {zoomOptions.map(({ value, label }) => (
                   <button
                     key={value}
                     type="button"
