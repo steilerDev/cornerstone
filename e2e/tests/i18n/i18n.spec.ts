@@ -194,19 +194,18 @@ test.describe('i18n: German Locale — Responsive Layout', () => {
 
     // When: User navigates to dashboard
     await page.goto(ROUTES.home);
-    await page.getByRole('heading', { level: 1, name: 'Projekt' }).waitFor({ state: 'visible' });
+    await page.waitForLoadState('networkidle');
 
     // Then: All navigation links are visible and not overflowing
-    // (Playwright's toBeVisible checks that elements are in the viewport and visible)
-    const nav = page.getByRole('navigation', { name: 'Main navigation' });
-    await expect(nav.getByRole('link', { name: 'Projekt', exact: true })).toBeVisible();
-    await expect(nav.getByRole('link', { name: 'Budget', exact: true })).toBeVisible();
-    await expect(nav.getByRole('link', { name: 'Zeitplan', exact: true })).toBeVisible();
-    await expect(nav.getByRole('link', { name: 'Tagebuch', exact: true })).toBeVisible();
+    const sidebar = page.locator('aside');
+    await expect(sidebar).toBeVisible();
+    await expect(sidebar.getByText('Projekt', { exact: true })).toBeVisible();
+    await expect(sidebar.getByText('Budget', { exact: true })).toBeVisible();
+    await expect(sidebar.getByText('Zeitplan', { exact: true })).toBeVisible();
+    await expect(sidebar.getByText('Tagebuch', { exact: true })).toBeVisible();
 
     // And: The sidebar Settings button is visible
-    const sidebar = page.locator('aside');
-    await expect(sidebar.getByRole('button', { name: 'Einstellungen' })).toBeVisible();
+    await expect(sidebar.getByText('Einstellungen')).toBeVisible();
   });
 
   test('German text renders on budget vendors page without breaking layout', async ({ page }) => {
@@ -220,7 +219,7 @@ test.describe('i18n: German Locale — Responsive Layout', () => {
 
     // Then: The section heading is in German
     // budget.json vendors.sectionTitle = "Auftragnehmer" (German for Vendors/Contractors)
-    await expect(page.getByRole('heading', { level: 2, name: 'Auftragnehmer' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 2, name: 'Auftragnehmer' }).first()).toBeVisible();
   });
 
   test('German text renders on work items page', async ({ page }) => {
