@@ -17,7 +17,6 @@ export interface BudgetLineCardProps {
 }
 
 export function BudgetLineCard({
-  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
   line,
   confidenceLabels,
   onEdit,
@@ -28,6 +27,7 @@ export function BudgetLineCard({
   children,
   unlinkAction,
 }: BudgetLineCardProps) {
+  const { formatCurrency } = useFormatters();
   const showInvoicedAmount = line.invoiceCount > 0;
 
   return (

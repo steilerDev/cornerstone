@@ -15,7 +15,6 @@ export interface SubsidyLinkSectionProps {
 }
 
 export function SubsidyLinkSection({
-  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
   linkedSubsidies,
   availableSubsidies,
   selectedSubsidyId,
@@ -25,6 +24,7 @@ export function SubsidyLinkSection({
   isLinking,
   children,
 }: SubsidyLinkSectionProps) {
+  const { formatCurrency } = useFormatters();
   return (
     <div className={styles.container}>
       {linkedSubsidies.length > 0 && (

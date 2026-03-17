@@ -53,10 +53,10 @@ interface PickerState {
 }
 
 export function InvoiceBudgetLinesSection({
-  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
   invoiceId,
   invoiceTotal,
 }: InvoiceBudgetLinesSectionProps) {
+  const { formatCurrency } = useFormatters();
   const [budgetLines, setBudgetLines] = useState<InvoiceBudgetLineDetailResponse[]>([]);
   const [remainingAmount, setRemainingAmount] = useState(invoiceTotal);
   const [isLoading, setIsLoading] = useState(true);

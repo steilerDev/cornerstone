@@ -26,7 +26,6 @@ type InvoiceLinkError = {
 };
 
 export function InvoiceLinkModal({
-  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
   budgetLineId,
   budgetLineType,
   vendorId,
@@ -34,6 +33,7 @@ export function InvoiceLinkModal({
   onSuccess,
   onClose,
 }: InvoiceLinkModalProps) {
+  const { formatCurrency, formatDate } = useFormatters();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [filteredInvoices, setFilteredInvoices] = useState<Invoice[]>([]);
   const [searchInput, setSearchInput] = useState<string>('');
