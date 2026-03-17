@@ -130,7 +130,10 @@ describe('davXml', () => {
     it('wraps responses in correct XML envelope', () => {
       const xml = multistatus(['<D:response>foo</D:response>']);
       expect(xml).toContain('<?xml version="1.0" encoding="utf-8"');
-      expect(xml).toContain('<D:multistatus xmlns:D="DAV:">');
+      expect(xml).toContain('<D:multistatus xmlns:D="DAV:"');
+      expect(xml).toContain('xmlns:C="urn:ietf:params:xml:ns:caldav"');
+      expect(xml).toContain('xmlns:A="urn:ietf:params:xml:ns:carddav"');
+      expect(xml).toContain('xmlns:CS="http://calendarserver.org/ns/"');
       expect(xml).toContain('<D:response>foo</D:response>');
       expect(xml).toContain('</D:multistatus>');
     });
@@ -200,8 +203,7 @@ describe('davXml', () => {
 
   describe('CALENDAR_COLLECTION_PROPS', () => {
     it('contains calendar resourcetype', () => {
-      expect(CALENDAR_COLLECTION_PROPS).toContain('urn:ietf:params:xml:ns:caldav');
-      expect(CALENDAR_COLLECTION_PROPS).toContain('<C:calendar');
+      expect(CALENDAR_COLLECTION_PROPS).toContain('<C:calendar/>');
     });
 
     it('contains supported calendar component set', () => {
@@ -217,8 +219,7 @@ describe('davXml', () => {
 
   describe('ADDRESSBOOK_COLLECTION_PROPS', () => {
     it('contains addressbook resourcetype', () => {
-      expect(ADDRESSBOOK_COLLECTION_PROPS).toContain('urn:ietf:params:xml:ns:carddav');
-      expect(ADDRESSBOOK_COLLECTION_PROPS).toContain('<A:addressbook');
+      expect(ADDRESSBOOK_COLLECTION_PROPS).toContain('<A:addressbook/>');
     });
 
     it('contains displayname', () => {
