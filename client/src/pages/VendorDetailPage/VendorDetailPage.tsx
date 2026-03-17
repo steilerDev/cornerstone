@@ -15,8 +15,10 @@ import {
 } from '../../lib/invoicesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { formatDate } from '../../lib/formatters.js';
+import { VendorContactsSection } from '../../components/VendorContacts/VendorContactsSection.js';
 import styles from './VendorDetailPage.module.css';
 
+// TODO: use i18n currency format (EPIC-17) - should use formatCurrency from lib/formatters.ts with locale and currency from i18n context
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -822,6 +824,9 @@ export function VendorDetailPage() {
             </>
           )}
         </section>
+
+        {/* Vendor Contacts Section */}
+        {vendor && id && <VendorContactsSection vendorId={id} />}
       </div>
 
       {/* Delete vendor confirmation modal */}

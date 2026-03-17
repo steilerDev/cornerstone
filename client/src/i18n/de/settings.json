@@ -1,253 +1,45 @@
 {
-  "profile": {
-    "pageTitle": "Profil",
-    "loading": "Profil wird geladen...",
-    "errorTitle": "Fehler",
-    "info": {
-      "sectionTitle": "Profilinformationen",
-      "emailLabel": "E-Mail",
-      "roleLabel": "Rolle",
-      "authLabel": "Authentifizierung",
-      "memberSinceLabel": "Mitglied seit",
-      "roleAdmin": "Administrator",
-      "roleMember": "Mitglied",
-      "authLocal": "Lokales Konto",
-      "authOidc": "Single Sign-On (OIDC)"
-    },
-    "displayName": {
-      "sectionTitle": "Anzeigename",
-      "description": "Dieser Name wird in der gesamten Anwendung angezeigt.",
-      "label": "Anzeigename",
-      "required": "Anzeigename ist erforderlich",
-      "tooLong": "Anzeigename darf maximal 100 Zeichen lang sein",
-      "submitIdle": "Änderungen speichern",
-      "submitPending": "Wird gespeichert...",
-      "success": "Anzeigename erfolgreich aktualisiert",
-      "failedGeneric": "Anzeigename konnte nicht aktualisiert werden. Bitte erneut versuchen."
-    },
-    "password": {
-      "sectionTitle": "Passwort ändern",
-      "description": "Aktualisieren Sie Ihr Passwort für mehr Kontosicherheit. Das Passwort muss mindestens 12 Zeichen lang sein.",
-      "oidcSectionTitle": "Passwort",
-      "oidcMessage": "Ihre Anmeldedaten werden von Ihrem Identitätsanbieter verwaltet.",
-      "currentLabel": "Aktuelles Passwort",
-      "currentRequired": "Aktuelles Passwort ist erforderlich",
-      "newLabel": "Neues Passwort",
-      "newRequired": "Neues Passwort ist erforderlich",
-      "newMinLength": "Neues Passwort muss mindestens 12 Zeichen lang sein",
-      "confirmLabel": "Neues Passwort bestätigen",
-      "confirmRequired": "Bitte neues Passwort bestätigen",
-      "mismatch": "Passwörter stimmen nicht überein",
-      "submitIdle": "Passwort ändern",
-      "submitPending": "Passwort wird geändert...",
-      "success": "Passwort erfolgreich geändert",
-      "failedGeneric": "Passwort konnte nicht geändert werden. Bitte erneut versuchen."
-    },
-    "preferences": {
-      "sectionTitle": "Einstellungen",
-      "languageLabel": "Sprache",
-      "languageEn": "Englisch",
-      "languageDe": "Deutsch",
-      "languageSystem": "System"
-    }
+  "dav": {
+    "heading": "DAV-Zugang (Kalender & Kontakte)",
+    "description": "Verbinden Sie Ihre Kalender- und Kontakte-App über CalDAV und CardDAV. Generieren Sie ein Token zur Authentifizierung.",
+    "generateToken": "Token generieren",
+    "regenerateToken": "Token neu generieren",
+    "revokeToken": "Token widerrufen",
+    "revokeConfirm": "Möchten Sie das DAV-Token wirklich widerrufen? Verbundene Apps werden nicht mehr synchronisiert.",
+    "tokenActive": "Token aktiv seit {{date}}",
+    "tokenWarning": "Kopieren Sie dieses Token jetzt – es wird nicht erneut angezeigt.",
+    "copyToken": "Kopieren",
+    "tokenCopied": "Kopiert!",
+    "downloadProfile": "iOS/macOS-Profil herunterladen",
+    "serverUrl": "Server-URL für manuelle Einrichtung",
+    "noTokenInfo": "Noch kein Token generiert.",
+    "loading": "DAV-Zugang wird geladen...",
+    "generating": "Wird generiert...",
+    "revoking": "Wird widerrufen..."
   },
-  "manage": {
-    "pageTitle": "Verwalten",
-    "tabs": {
-      "tags": "Tags",
-      "budgetCategories": "Budgetkategorien",
-      "hiCategories": "Haushaltsgegenstands-Kategorien"
-    },
-    "error": {
-      "title": "Fehler",
-      "retry": "Erneut versuchen"
-    },
-    "tags": {
-      "loadingTags": "Tags werden geladen...",
-      "createSection": "Neuen Tag erstellen",
-      "createDescription": "Tags helfen Ihnen, Arbeitsaufgaben zu organisieren und zu kategorisieren. Wählen Sie einen Namen und eine Farbe.",
-      "nameLabel": "Tag-Name",
-      "namePlaceholder": "z. B. Sanitär, Elektrik, Küche",
-      "colorLabel": "Farbe",
-      "previewLabel": "Vorschau:",
-      "previewDefault": "Tag-Name",
-      "submitIdle": "Tag erstellen",
-      "submitPending": "Wird erstellt...",
-      "existingTitle": "Vorhandene Tags ({{count}})",
-      "empty": "Noch keine Tags. Erstellen Sie Ihren ersten Tag, um Arbeitsaufgaben zu organisieren.",
-      "edit": "Bearbeiten",
-      "delete": "Löschen",
-      "saveIdle": "Speichern",
-      "savePending": "Wird gespeichert...",
-      "cancel": "Abbrechen",
-      "validation": {
-        "nameRequired": "Tag-Name ist erforderlich",
-        "nameTooLong": "Tag-Name darf maximal 50 Zeichen lang sein"
-      },
-      "error": {
-        "load": "Tags konnten nicht geladen werden. Bitte erneut versuchen.",
-        "create": "Tag konnte nicht erstellt werden. Bitte erneut versuchen.",
-        "update": "Tag konnte nicht aktualisiert werden. Bitte erneut versuchen.",
-        "delete": "Tag konnte nicht gelöscht werden. Bitte erneut versuchen."
-      },
-      "toast": {
-        "created": "Tag \"{{name}}\" erfolgreich erstellt",
-        "updated": "Tag \"{{name}}\" erfolgreich aktualisiert",
-        "deleted": "Tag \"{{name}}\" erfolgreich gelöscht"
-      },
-      "deleteModal": {
-        "title": "Tag löschen",
-        "text": "Möchten Sie den Tag \"{{name}}\" wirklich löschen?",
-        "warning": "Dieser Tag wird von allen Arbeitsaufgaben entfernt, die ihn referenzieren.",
-        "cancel": "Abbrechen",
-        "submitIdle": "Tag löschen",
-        "submitPending": "Wird gelöscht..."
-      }
-    },
-    "budgetCategories": {
-      "loadingCategories": "Budgetkategorien werden geladen...",
-      "newSection": "Neue Budgetkategorie",
-      "newDescription": "Budgetkategorien gruppieren Ihre Baukosten (z. B. Materialien, Arbeit, Genehmigungen).",
-      "nameLabel": "Name",
-      "colorLabel": "Farbe",
-      "sortOrderLabel": "Sortierreihenfolge",
-      "descriptionLabel": "Beschreibung",
-      "descriptionPlaceholder": "Optionale Beschreibung",
-      "namePlaceholder": "z. B. Materialien, Arbeit, Genehmigungen",
-      "createIdle": "Kategorie erstellen",
-      "createPending": "Wird erstellt...",
-      "cancel": "Abbrechen",
-      "listTitle": "Kategorien ({{count}})",
-      "addButton": "Kategorie hinzufügen",
-      "empty": "Noch keine Budgetkategorien. Fügen Sie Ihre erste Kategorie hinzu, um Ihr Projektbudget zu organisieren.",
-      "saveIdle": "Speichern",
-      "savePending": "Wird gespeichert...",
-      "edit": "Bearbeiten",
-      "delete": "Löschen",
-      "validation": {
-        "nameRequired": "Kategoriename ist erforderlich",
-        "nameTooLong": "Kategoriename darf maximal 100 Zeichen lang sein"
-      },
-      "error": {
-        "load": "Budgetkategorien konnten nicht geladen werden. Bitte erneut versuchen.",
-        "create": "Kategorie konnte nicht erstellt werden. Bitte erneut versuchen.",
-        "update": "Kategorie konnte nicht aktualisiert werden. Bitte erneut versuchen.",
-        "delete": "Kategorie konnte nicht gelöscht werden. Bitte erneut versuchen."
-      },
-      "toast": {
-        "created": "Kategorie \"{{name}}\" erfolgreich erstellt",
-        "updated": "Kategorie \"{{name}}\" erfolgreich aktualisiert",
-        "deleted": "Kategorie \"{{name}}\" erfolgreich gelöscht"
-      },
-      "inUseError": "Diese Kategorie kann nicht gelöscht werden, da sie von einem oder mehreren Budgeteinträgen verwendet wird.",
-      "deleteModal": {
-        "title": "Kategorie löschen",
-        "text": "Möchten Sie die Kategorie \"{{name}}\" wirklich löschen?",
-        "warning": "Diese Aktion kann nicht rückgängig gemacht werden. Die Kategorie wird dauerhaft entfernt.",
-        "cancel": "Abbrechen",
-        "submitIdle": "Kategorie löschen",
-        "submitPending": "Wird gelöscht..."
-      }
-    },
-    "hiCategories": {
-      "loadingCategories": "Haushaltsgegenstands-Kategorien werden geladen...",
-      "newSection": "Neue Haushaltsgegenstands-Kategorie",
-      "newDescription": "Kategorien organisieren Ihre Haushaltsgegenstände und Möbelkäufe (z. B. Möbel, Geräte, Einrichtung).",
-      "nameLabel": "Name",
-      "colorLabel": "Farbe",
-      "sortOrderLabel": "Sortierreihenfolge",
-      "namePlaceholder": "z. B. Möbel, Geräte, Einrichtung",
-      "createIdle": "Kategorie erstellen",
-      "createPending": "Wird erstellt...",
-      "cancel": "Abbrechen",
-      "listTitle": "Kategorien ({{count}})",
-      "addButton": "Kategorie hinzufügen",
-      "empty": "Noch keine Haushaltsgegenstands-Kategorien. Fügen Sie Ihre erste Kategorie hinzu, um Ihre Möbel und Geräte zu organisieren.",
-      "saveIdle": "Speichern",
-      "savePending": "Wird gespeichert...",
-      "edit": "Bearbeiten",
-      "delete": "Löschen",
-      "validation": {
-        "nameRequired": "Kategoriename ist erforderlich",
-        "nameTooLong": "Kategoriename darf maximal 100 Zeichen lang sein"
-      },
-      "error": {
-        "load": "Haushaltsgegenstands-Kategorien konnten nicht geladen werden. Bitte erneut versuchen.",
-        "create": "Kategorie konnte nicht erstellt werden. Bitte erneut versuchen.",
-        "update": "Kategorie konnte nicht aktualisiert werden. Bitte erneut versuchen.",
-        "delete": "Kategorie konnte nicht gelöscht werden. Bitte erneut versuchen."
-      },
-      "toast": {
-        "created": "Kategorie \"{{name}}\" erfolgreich erstellt",
-        "updated": "Kategorie \"{{name}}\" erfolgreich aktualisiert",
-        "deleted": "Kategorie \"{{name}}\" erfolgreich gelöscht"
-      },
-      "inUseError": "Diese Kategorie kann nicht gelöscht werden, da sie von einem oder mehreren Haushaltsgegenständen verwendet wird.",
-      "deleteModal": {
-        "title": "Kategorie löschen",
-        "text": "Möchten Sie die Kategorie \"{{name}}\" wirklich löschen?",
-        "warning": "Diese Aktion kann nicht rückgängig gemacht werden. Die Kategorie wird dauerhaft entfernt.",
-        "cancel": "Abbrechen",
-        "submitIdle": "Kategorie löschen",
-        "submitPending": "Wird gelöscht..."
-      }
-    }
-  },
-  "userManagement": {
-    "pageTitle": "Benutzerverwaltung",
-    "loading": "Benutzer werden geladen...",
-    "errorTitle": "Fehler",
-    "searchPlaceholder": "Nach Name oder E-Mail suchen...",
-    "noUsersFound": "Keine Benutzer gefunden.",
-    "noUsersFoundSearch": "Keine Benutzer gefunden, die Ihrer Suche entsprechen.",
-    "table": {
+  "vendors": {
+    "contacts": {
+      "heading": "Kontakte",
+      "addContact": "Kontakt hinzufügen",
+      "editContact": "Kontakt bearbeiten",
+      "deleteContact": "Kontakt löschen",
+      "deleteConfirm": "Möchten Sie diesen Kontakt wirklich löschen?",
+      "empty": "Noch keine Kontakte hinzugefügt.",
+      "emptyAction": "Ersten Kontakt hinzufügen",
       "name": "Name",
+      "role": "Rolle / Titel",
+      "phone": "Telefon",
       "email": "E-Mail",
-      "role": "Rolle",
-      "authProvider": "Authentifizierungsanbieter",
-      "status": "Status",
-      "actions": "Aktionen"
-    },
-    "role": {
-      "admin": "Administrator",
-      "member": "Mitglied"
-    },
-    "authProvider": {
-      "local": "Lokal",
-      "oidc": "OIDC"
-    },
-    "status": {
-      "active": "Aktiv",
-      "deactivated": "Deaktiviert"
-    },
-    "editButton": "Bearbeiten",
-    "deactivateButton": "Deaktivieren",
-    "failedLoad": "Benutzer konnten nicht geladen werden. Bitte erneut versuchen.",
-    "editModal": {
-      "title": "Benutzer bearbeiten",
-      "close": "Schließen",
-      "displayNameLabel": "Anzeigename",
-      "displayNameRequired": "Anzeigename ist erforderlich",
-      "displayNameTooLong": "Anzeigename darf maximal 100 Zeichen lang sein",
-      "emailLabel": "E-Mail",
-      "emailRequired": "E-Mail ist erforderlich",
-      "emailInvalid": "Bitte geben Sie eine gültige E-Mail-Adresse ein",
-      "roleLabel": "Rolle",
-      "roleMember": "Mitglied",
-      "roleAdmin": "Administrator",
+      "notes": "Notizen",
+      "nameRequired": "Name ist erforderlich.",
+      "saveError": "Kontakt konnte nicht gespeichert werden. Bitte erneut versuchen.",
+      "deleteError": "Kontakt konnte nicht gelöscht werden. Bitte erneut versuchen.",
       "cancel": "Abbrechen",
-      "saveIdle": "Änderungen speichern",
-      "savePending": "Wird gespeichert...",
-      "failedUpdate": "Benutzer konnte nicht aktualisiert werden. Bitte erneut versuchen."
-    },
-    "deactivateModal": {
-      "title": "Benutzer deaktivieren",
-      "close": "Schließen",
-      "text": "Möchten Sie {{name}} wirklich deaktivieren? Ihre Sitzungen werden sofort beendet.",
-      "cancel": "Abbrechen",
-      "submitIdle": "Deaktivieren",
-      "submitPending": "Wird deaktiviert...",
-      "failedDeactivate": "Benutzer konnte nicht deaktiviert werden. Bitte erneut versuchen."
+      "creating": "Erstellen...",
+      "createContactSubmit": "Kontakt erstellen",
+      "saving": "Speichern...",
+      "saveChanges": "Änderungen speichern",
+      "loading": "Kontakte werden geladen..."
     }
   }
 }

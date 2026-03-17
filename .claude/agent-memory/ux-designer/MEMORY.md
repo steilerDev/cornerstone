@@ -197,6 +197,19 @@ HI Gantt: amber circle marker (r=7px). Add Dep modal: 36rem wide.
 `role="listbox"` requires arrow-key nav — use `role="list"` + `role="button"` items instead.
 `--color-primary-text` on `--color-primary-bg` chip = contrast failure; use `var(--color-primary)` for text.
 
+## PR #936 Review Findings — DAV Access Card + Vendor Contacts
+
+Recurring misses to watch for in settings-card and sub-entity-list PRs:
+
+- Both CSS modules used hardcoded literals for ALL spacing/font/radius/transition — zero token usage
+- `--color-danger-active` misused as text color; correct token is `--color-danger-text-on-light` or `--color-danger`
+- `--color-border` as hover bg (recurring from PR #398) — always use `var(--color-bg-hover)`
+- Edit/Delete action buttons missing `aria-label` with entity name ("Edit contact {name}") — screen reader blocker
+- Missing `aria-live` announcement region for CRUD mutations
+- Missing `prefers-reduced-motion` guard in both CSS modules
+- Token reveal panel missing `role="status" aria-atomic="true"`
+- `copyButton` (primary surface) used `--shadow-focus-subtle` — primary buttons need `--shadow-focus`
+
 ## Story 4.11 — HI Detail Inline Edit (Issue #467)
 
 See `story-4-11-hi-detail-inline-edit.md` for full spec.
@@ -230,6 +243,10 @@ Key decisions:
 ## Story 9.2 — Dashboard Layout & Data Shell (Issue #471)
 
 See `story-9-2-dashboard.md`. Key: 3/2/1 col grid, card = `<article>`, skeleton replaces body only (header+footer always visible), Customize button only when ≥1 hidden card, no new tokens needed.
+
+## Issue #933 — DAV Access Card + Vendor Contacts
+
+See `story-933-dav-vendor-contacts.md`. Token-once reveal panel: `role="status" aria-atomic="true"`. ContactCard is a new shared component. VendorContacts section placed between Vendor Info card and Invoices card.
 
 ## i18n Infrastructure (Story 17.1, Issue #916)
 

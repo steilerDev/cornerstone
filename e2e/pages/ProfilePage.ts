@@ -36,6 +36,14 @@ export class ProfilePage {
   // OIDC message
   readonly oidcMessage: Locator;
 
+  // DAV Access Card
+  readonly davSection: Locator;
+  readonly generateTokenButton: Locator;
+  readonly regenerateTokenButton: Locator;
+  readonly revokeTokenButton: Locator;
+  readonly tokenDisplay: Locator;
+  readonly downloadProfileLink: Locator;
+
   constructor(page: Page) {
     this.page = page;
     this.heading = page.getByRole('heading', { level: 1, name: 'Profile' });
@@ -75,6 +83,23 @@ export class ProfilePage {
 
     // OIDC message
     this.oidcMessage = page.getByText('Your credentials are managed by your identity provider.');
+
+    // DAV Access Card — rendered by DavAccessCard component
+    this.davSection = page
+      .getByRole('heading', { level: 2, name: 'DAV Access (Calendar & Contacts)' })
+      .locator('..');
+    this.generateTokenButton = page.getByRole('button', { name: 'Generate Token', exact: true });
+    this.regenerateTokenButton = page.getByRole('button', {
+      name: 'Regenerate Token',
+      exact: true,
+    });
+    this.revokeTokenButton = page.getByRole('button', { name: 'Revoke Token', exact: true });
+    // The token is shown in a <code> element inside the token display box
+    this.tokenDisplay = page.locator('[class*="tokenValue"]');
+    this.downloadProfileLink = page.getByRole('link', {
+      name: 'Download iOS/macOS Profile',
+      exact: true,
+    });
   }
 
   async goto(): Promise<void> {
@@ -164,5 +189,70 @@ export class ProfilePage {
   async getOidcMessage(): Promise<string | null> {
     const isVisible = await this.oidcMessage.isVisible();
     return isVisible ? await this.oidcMessage.textContent() : null;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // DAV helpers
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Generate a new DAV token by clicking the "Generate Token" button.
+   * Waits for the POST /api/users/me/dav/token response, then returns the
+   * token text shown in the token display code element.
+   */
+  async generateToken(): Promise<string> {
+    const responsePromise = this.page.waitForResponse(
+      (r) =>
+        r.url().includes('/api/users/me/dav/token') && r.request().method() === 'POST',
+    );
+    await this.generateTokenButton.click();
+    await responsePromise;
+    await this.tokenDisplay.waitFor({ state: 'visible' });
+    return (await this.tokenDisplay.textContent()) ?? '';
+  }
+
+  /**
+   * Regenerate the DAV token by clicking "Regenerate Token".
+   * Waits for the API response and returns the new token text.
+   */
+  async regenerateToken(): Promise<string> {
+    const responsePromise = this.page.waitForResponse(
+      (r) =>
+        r.url().includes('/api/users/me/dav/token') && r.request().method() === 'POST',
+    );
+    await this.regenerateTokenButton.click();
+    await responsePromise;
+    await this.tokenDisplay.waitFor({ state: 'visible' });
+    return (await this.tokenDisplay.textContent()) ?? '';
+  }
+
+  /**
+   * Revoke the DAV token by clicking "Revoke Token" and accepting the confirm dialog.
+   * Waits for the DELETE /api/users/me/dav/token response.
+   */
+  async revokeToken(): Promise<void> {
+    this.page.once('dialog', (dialog) => void dialog.accept());
+    const responsePromise = this.page.waitForResponse(
+      (r) =>
+        r.url().includes('/api/users/me/dav/token') && r.request().method() === 'DELETE',
+    );
+    await this.revokeTokenButton.click();
+    await responsePromise;
+  }
+
+  /**
+   * Returns true if the DAV token is currently active (the "Regenerate Token"
+   * button is visible, meaning status.hasToken is true).
+   */
+  async isDavTokenActive(): Promise<boolean> {
+    return await this.regenerateTokenButton.isVisible();
+  }
+
+  /**
+   * Ensure no DAV token is active for the authenticated user.
+   * Calls DELETE /api/users/me/dav/token directly via the API — used in test setup.
+   */
+  async clearDavTokenViaApi(): Promise<void> {
+    await this.page.request.delete('/api/users/me/dav/token');
   }
 }

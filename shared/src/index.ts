@@ -88,6 +88,18 @@ export type {
   VendorDetailResponse,
 } from './types/vendor.js';
 
+// Vendor Contacts
+export type {
+  VendorContact,
+  CreateVendorContactRequest,
+  UpdateVendorContactRequest,
+  VendorContactListResponse,
+  VendorContactResponse,
+} from './types/vendorContact.js';
+
+// DAV Token
+export type { DavTokenStatus, DavTokenResponse } from './types/dav.js';
+
 // Invoices
 export type {
   Invoice,

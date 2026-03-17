@@ -36,6 +36,7 @@ export const users = sqliteTable(
     deactivatedAt: text('deactivated_at'),
     failedLoginAttempts: integer('failed_login_attempts').notNull().default(0),
     lockedUntil: text('locked_until'),
+    davToken: text('dav_token'),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
   },
@@ -43,6 +44,9 @@ export const users = sqliteTable(
     oidcLookupIdx: uniqueIndex('idx_users_oidc_lookup')
       .on(table.authProvider, table.oidcSubject)
       .where(isNotNull(table.oidcSubject)),
+    davTokenIdx: uniqueIndex('idx_users_dav_token')
+      .on(table.davToken)
+      .where(isNotNull(table.davToken)),
   }),
 );
 
@@ -238,6 +242,30 @@ export const vendors = sqliteTable(
   },
   (table) => ({
     nameIdx: index('idx_vendors_name').on(table.name),
+  }),
+);
+
+/**
+ * Vendor contacts table - tracks individual contacts at vendor organizations.
+ * EPIC-17 Story #752: CalDAV/CardDAV DAV integration with vendor contacts.
+ */
+export const vendorContacts = sqliteTable(
+  'vendor_contacts',
+  {
+    id: text('id').primaryKey(),
+    vendorId: text('vendor_id')
+      .notNull()
+      .references(() => vendors.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    role: text('role'),
+    phone: text('phone'),
+    email: text('email'),
+    notes: text('notes'),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => ({
+    vendorIdIdx: index('idx_vendor_contacts_vendor_id').on(table.vendorId),
   }),
 );
 
