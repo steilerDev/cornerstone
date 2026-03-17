@@ -1,11 +1,76 @@
 /**
  * @jest-environment jsdom
  */
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { screen, render } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { DiaryEntrySummary } from '@cornerstone/shared';
-import { DiaryEntryCard } from './DiaryEntryCard.js';
+import type { DiaryEntryCard as DiaryEntryCardType } from './DiaryEntryCard.js';
+
+// ─── Mock: formatters — provides useFormatters() hook used by this component ──
+
+jest.unstable_mockModule('../../../lib/formatters.js', () => {
+  const fmtDate = (d: string | null | undefined, fallback = '—') => {
+    if (!d) return fallback;
+    const [year, month, day] = d.slice(0, 10).split('-').map(Number);
+    if (!year || !month || !day) return fallback;
+    return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+  const fmtCurrency = (n: number) =>
+    new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'EUR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(n);
+  const fmtTime = (ts: string | null | undefined, fallback = '—') => {
+    if (!ts) return fallback;
+    try {
+      return new Date(ts).toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      });
+    } catch {
+      return fallback;
+    }
+  };
+  const fmtDateTime = (ts: string | null | undefined, fallback = '—') => {
+    if (!ts) return fallback;
+    try {
+      const d = new Date(ts);
+      return (
+        d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) +
+        ' at ' +
+        d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+      );
+    } catch {
+      return fallback;
+    }
+  };
+  return {
+    formatCurrency: fmtCurrency,
+    formatDate: fmtDate,
+    formatTime: fmtTime,
+    formatDateTime: fmtDateTime,
+    formatPercent: (n: number) => `${n.toFixed(2)}%`,
+    computeActualDuration: () => null,
+    useFormatters: () => ({
+      formatCurrency: fmtCurrency,
+      formatDate: fmtDate,
+      formatTime: fmtTime,
+      formatDateTime: fmtDateTime,
+      formatPercent: (n: number) => `${n.toFixed(2)}%`,
+    }),
+  };
+});
+
+// Dynamic import — must happen after jest.unstable_mockModule calls.
+let DiaryEntryCard: typeof DiaryEntryCardType;
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -50,7 +115,11 @@ const automaticEntry: DiaryEntrySummary = {
 };
 
 describe('DiaryEntryCard', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    if (!DiaryEntryCard) {
+      const module = await import('./DiaryEntryCard.js');
+      DiaryEntryCard = module.DiaryEntryCard;
+    }
     localStorage.setItem('theme', 'light');
   });
 

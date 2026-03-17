@@ -6,11 +6,51 @@
  * EPIC-13: Construction Diary — UAT Fixes
  * Tests loading, error, empty, and populated states, plus navigation links.
  */
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { screen, render } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { DiaryEntrySummary } from '@cornerstone/shared';
-import { RecentDiaryCard } from './RecentDiaryCard.js';
+import type { RecentDiaryCard as RecentDiaryCardType } from './RecentDiaryCard.js';
+
+// ─── Mock: formatters — provides useFormatters() hook used by this component ──
+
+jest.unstable_mockModule('../../lib/formatters.js', () => {
+  const fmtDate = (d: string | null | undefined, fallback = '—') => {
+    if (!d) return fallback;
+    const [year, month, day] = d.slice(0, 10).split('-').map(Number);
+    if (!year || !month || !day) return fallback;
+    return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+  const fmtCurrency = (n: number) =>
+    new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'EUR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(n);
+  return {
+    formatCurrency: fmtCurrency,
+    formatDate: fmtDate,
+    formatTime: (ts: string | null | undefined, fallback = '—') => ts ?? fallback,
+    formatDateTime: (ts: string | null | undefined, fallback = '—') => ts ?? fallback,
+    formatPercent: (n: number) => `${n.toFixed(2)}%`,
+    computeActualDuration: () => null,
+    useFormatters: () => ({
+      formatCurrency: fmtCurrency,
+      formatDate: fmtDate,
+      formatTime: (ts: string | null | undefined, fallback = '—') => ts ?? fallback,
+      formatDateTime: (ts: string | null | undefined, fallback = '—') => ts ?? fallback,
+      formatPercent: (n: number) => `${n.toFixed(2)}%`,
+    }),
+  };
+});
+
+// Dynamic import — must happen after jest.unstable_mockModule calls.
+let RecentDiaryCard: typeof RecentDiaryCardType;
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -36,7 +76,11 @@ function makeEntry(id: string, overrides: Partial<DiaryEntrySummary> = {}): Diar
 }
 
 describe('RecentDiaryCard', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    if (!RecentDiaryCard) {
+      const module = await import('./RecentDiaryCard.js');
+      RecentDiaryCard = module.RecentDiaryCard;
+    }
     localStorage.setItem('theme', 'light');
   });
 

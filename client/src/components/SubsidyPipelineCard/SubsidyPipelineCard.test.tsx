@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  */
-import { describe, it, expect, beforeEach } from '@jest/globals';
+import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { screen } from '@testing-library/react';
 import { renderWithRouter } from '../../test/testUtils.js';
 import type * as CardTypes from './SubsidyPipelineCard.js';
@@ -9,8 +9,25 @@ import type { SubsidyProgram } from '@cornerstone/shared';
 
 // CSS modules mocked via identity-obj-proxy
 
+// ─── Mock: formatters — provides useFormatters() hook used by this component ──
+
+jest.unstable_mockModule('../../lib/formatters.js', () => ({
+  formatDate: (d: string | null | undefined) => d ?? '—',
+  formatCurrency: (n: number) => `$${n.toFixed(2)}`,
+  formatTime: (d: string | null | undefined) => d ?? '—',
+  formatDateTime: (d: string | null | undefined) => d ?? '—',
+  formatPercent: (n: number) => `${n.toFixed(2)}%`,
+  computeActualDuration: () => null,
+  useFormatters: () => ({
+    formatCurrency: (n: number) => `$${n.toFixed(2)}`,
+    formatDate: (d: string | null | undefined) => d ?? '—',
+    formatTime: (d: string | null | undefined) => d ?? '—',
+    formatDateTime: (d: string | null | undefined) => d ?? '—',
+    formatPercent: (n: number) => `${n.toFixed(2)}%`,
+  }),
+}));
+
 // Dynamic import — must happen after any jest.unstable_mockModule calls.
-// SubsidyPipelineCard has no context deps so no mocks are needed before the import.
 let SubsidyPipelineCard: typeof CardTypes.SubsidyPipelineCard;
 
 beforeEach(async () => {

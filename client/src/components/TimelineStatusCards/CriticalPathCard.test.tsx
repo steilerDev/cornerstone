@@ -8,8 +8,44 @@ import type { TimelineWorkItem } from '@cornerstone/shared';
 
 // CSS modules mocked via identity-obj-proxy
 
-// Dynamic import — must happen after any jest.unstable_mockModule calls.
-// CriticalPathCard has no context deps so no mocks are needed before the import.
+// ─── Mock: formatters — provides useFormatters() hook used by this component ──
+
+jest.unstable_mockModule('../../lib/formatters.js', () => {
+  const fmtDate = (d: string | null | undefined, fallback = '—') => {
+    if (!d) return fallback;
+    const [year, month, day] = d.slice(0, 10).split('-').map(Number);
+    if (!year || !month || !day) return fallback;
+    return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+  const fmtCurrency = (n: number) =>
+    new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'EUR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(n);
+  return {
+    formatCurrency: fmtCurrency,
+    formatDate: fmtDate,
+    formatTime: (ts: string | null | undefined, fallback = '—') => ts ?? fallback,
+    formatDateTime: (ts: string | null | undefined, fallback = '—') => ts ?? fallback,
+    formatPercent: (n: number) => `${n.toFixed(2)}%`,
+    computeActualDuration: () => null,
+    useFormatters: () => ({
+      formatCurrency: fmtCurrency,
+      formatDate: fmtDate,
+      formatTime: (ts: string | null | undefined, fallback = '—') => ts ?? fallback,
+      formatDateTime: (ts: string | null | undefined, fallback = '—') => ts ?? fallback,
+      formatPercent: (n: number) => `${n.toFixed(2)}%`,
+    }),
+  };
+});
+
+// Dynamic import — must happen after jest.unstable_mockModule calls.
 let CriticalPathCard: React.ComponentType<{
   criticalPath: string[];
   workItems: TimelineWorkItem[];
