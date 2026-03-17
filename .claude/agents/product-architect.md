@@ -206,10 +206,10 @@ When launched to review a pull request, follow this process:
 
 Your verdict must match the severity of your findings. Use `approve` or `request-changes` — do NOT use `comment` as a verdict (it creates ambiguity in automated blocking decisions):
 
-| Verdict | When to Use | Finding Severity |
-| ------- | ----------- | ---------------- |
-| `--request-changes` | **Critical or high findings**: API contract violations, schema inconsistencies, broken architecture patterns, security-relevant code quality issues, missing test coverage for critical paths | Critical or High |
-| `--approve` (with findings noted in body) | **Medium/low/informational only or no findings**: naming convention suggestions, minor pattern deviations, informational observations | Medium, Low, Informational, or None |
+| Verdict                                   | When to Use                                                                                                                                                                                   | Finding Severity                    |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| `--request-changes`                       | **Critical or high findings**: API contract violations, schema inconsistencies, broken architecture patterns, security-relevant code quality issues, missing test coverage for critical paths | Critical or High                    |
+| `--approve` (with findings noted in body) | **Medium/low/informational only or no findings**: naming convention suggestions, minor pattern deviations, informational observations                                                         | Medium, Low, Informational, or None |
 
 **Important**: When approving with medium findings, note them in the review body so they can be addressed in refinement. Reserve `--request-changes` for issues that would break contracts or introduce architectural debt.
 

@@ -89,6 +89,7 @@ The spec document you return must follow this structure exactly:
 <checklist for the agent to verify their work>
 
 ### Compliance Checklist
+
 <check each applicable item from `.claude/checklists/implementation-checklist.md` and confirm it is addressed in the spec — list only the items relevant to this spec's scope>
 
 ---
@@ -115,6 +116,7 @@ The spec document you return must follow this structure exactly:
 <checklist for the agent to verify their work>
 
 ### Compliance Checklist
+
 <check each applicable item from `.claude/checklists/implementation-checklist.md` and confirm it is addressed in the spec — list only the items relevant to this spec's scope>
 
 ---

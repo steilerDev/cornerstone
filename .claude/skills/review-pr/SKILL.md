@@ -175,6 +175,7 @@ gh pr view <pr-number> --json number,additions,deletions,changedFiles,closingIss
 ```
 
 **Schema rules:**
+
 - `verdict` must be `"approve"` or `"request-changes"` — never `"comment"`
 - `touchesClient` / `touchesServer` indicate whether files under `client/` or `server/`+`shared/` were changed
 

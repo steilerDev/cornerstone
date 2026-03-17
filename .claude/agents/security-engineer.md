@@ -156,10 +156,10 @@ After implementation, the security engineer reviews every PR diff for security i
 
 Your verdict must match the severity of your findings. Use `approve` or `request-changes` — do NOT use `comment` as a verdict:
 
-| Verdict | When to Use | Finding Severity |
-| ------- | ----------- | ---------------- |
-| `--request-changes` | **Critical or high findings**: injection vulnerabilities, authentication/authorization bypasses, sensitive data exposure, known CVEs in new dependencies | Critical or High |
-| `--approve` (with findings noted in body) | **Medium/low/informational only or no findings**: best practice suggestions, defense-in-depth improvements, minor input validation gaps | Medium, Low, Informational, or None |
+| Verdict                                   | When to Use                                                                                                                                              | Finding Severity                    |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| `--request-changes`                       | **Critical or high findings**: injection vulnerabilities, authentication/authorization bypasses, sensitive data exposure, known CVEs in new dependencies | Critical or High                    |
+| `--approve` (with findings noted in body) | **Medium/low/informational only or no findings**: best practice suggestions, defense-in-depth improvements, minor input validation gaps                  | Medium, Low, Informational, or None |
 
 ### Finding Severity in PR Reviews
 

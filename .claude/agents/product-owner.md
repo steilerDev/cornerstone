@@ -262,11 +262,11 @@ When launched to review a pull request, follow this process:
 
 Your verdict must be graduated based on the nature of the gap. This prevents unnecessary fix loops for non-functional issues:
 
-| Verdict | When to Use | Example |
-| ------- | ----------- | ------- |
-| `--request-changes` | **Functional AC not met**: the feature doesn't work, core behavior is wrong, required functionality is missing | Missing CRUD operation, wrong calculation logic, broken navigation flow |
+| Verdict                                  | When to Use                                                                                                                                  | Example                                                                                        |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `--request-changes`                      | **Functional AC not met**: the feature doesn't work, core behavior is wrong, required functionality is missing                               | Missing CRUD operation, wrong calculation logic, broken navigation flow                        |
 | `--comment` with "MUST FIX before merge" | **Non-functional AC gaps**: display/formatting issues, placeholder text, date format, minor UI polish that doesn't affect core functionality | Wrong null placeholder text, date shown as ISO instead of localized, missing "no data" message |
-| `--approve` | **All AC met**: functional and non-functional criteria are satisfied | All acceptance criteria pass |
+| `--approve`                              | **All AC met**: functional and non-functional criteria are satisfied                                                                         | All acceptance criteria pass                                                                   |
 
 **Important**: Do NOT use `--request-changes` for display-formatting issues (null placeholders, date formatting, number formatting). These should be flagged as `--comment` with "MUST FIX" — they must still be fixed, but they don't block the review loop.
 

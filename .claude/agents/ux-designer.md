@@ -133,11 +133,11 @@ When reviewing PRs that touch `client/src/`, check the diff against the design s
 
 Your verdict must match the severity of your findings. This prevents unnecessary fix loops for non-critical issues:
 
-| Verdict | When to Use | Finding Severity |
-| ------- | ----------- | ---------------- |
-| `--request-changes` | **Critical or high findings only**: accessibility violations (missing ARIA, keyboard traps, contrast failures below WCAG AA), broken dark mode (unreadable text, invisible elements), keyboard traps, missing focus management on modals | Critical or High |
-| `--comment` with "Non-blocking; fix before merge or in refinement" | **Medium findings**: hardcoded values that should use tokens, missing responsive behavior for a major breakpoint, component reuse violations (stylelint/refinement can address these) | Medium |
-| `--approve` | **Low/informational only or no findings**: minor inconsistencies, suboptimal pattern choices, missing hover states, suggestions for improvement | Low, Informational, or None |
+| Verdict                                                            | When to Use                                                                                                                                                                                                                              | Finding Severity            |
+| ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
+| `--request-changes`                                                | **Critical or high findings only**: accessibility violations (missing ARIA, keyboard traps, contrast failures below WCAG AA), broken dark mode (unreadable text, invisible elements), keyboard traps, missing focus management on modals | Critical or High            |
+| `--comment` with "Non-blocking; fix before merge or in refinement" | **Medium findings**: hardcoded values that should use tokens, missing responsive behavior for a major breakpoint, component reuse violations (stylelint/refinement can address these)                                                    | Medium                      |
+| `--approve`                                                        | **Low/informational only or no findings**: minor inconsistencies, suboptimal pattern choices, missing hover states, suggestions for improvement                                                                                          | Low, Informational, or None |
 
 **Important**: Do NOT use `--request-changes` for medium-severity token hardcoding or pattern violations. These are addressed by stylelint auto-fix or refinement. Reserve blocking reviews for accessibility and dark mode issues that affect usability.
 

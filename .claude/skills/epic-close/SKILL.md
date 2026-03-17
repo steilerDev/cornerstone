@@ -321,6 +321,7 @@ After user approval and before merging, update the implementation checklist with
 2. Read `.claude/metrics/review-metrics.jsonl` filtered for this epic's PRs
 3. Identify any new recurring patterns from this epic's fix loops that are NOT yet in `.claude/checklists/implementation-checklist.md`
 4. If new patterns found, add them to the checklist and commit:
+
    ```bash
    git add .claude/checklists/implementation-checklist.md
    git commit -m "chore: update implementation checklist with lessons from epic #<epic-number>
@@ -328,6 +329,7 @@ After user approval and before merging, update the implementation checklist with
    Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
    git push
    ```
+
 5. If no new patterns, skip the commit
 
 This creates a flywheel: each epic's review findings reduce fix loops in subsequent epics.
