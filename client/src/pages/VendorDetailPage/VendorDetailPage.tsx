@@ -19,17 +19,6 @@ import { useFormatters } from '../../lib/formatters.js';
 import { VendorContactsSection } from '../../components/VendorContacts/VendorContactsSection.js';
 import styles from './VendorDetailPage.module.css';
 
-// TODO: use i18n currency format (EPIC-17) - should use formatCurrency from lib/formatters.ts with locale and currency from i18n context
-function formatCurrency(amount: number): string {
-  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
-}
-
 // INVOICE_STATUS_LABELS will be dynamically generated from i18n
 
 /** Invoice form state used for both create and edit. */
@@ -53,6 +42,7 @@ const EMPTY_INVOICE_FORM: InvoiceFormState = {
 
 export function VendorDetailPage() {
   const { t } = useTranslation('budget');
+  const { formatCurrency, formatDate } = useFormatters();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 

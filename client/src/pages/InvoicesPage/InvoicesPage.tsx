@@ -37,7 +37,6 @@ const EMPTY_FORM: InvoiceFormState = {
 };
 
 function getAttributionLabel(invoice: Invoice): string {
-  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
   if (invoice.budgetLines.length === 0) return '\u2014';
   const totalItemized = invoice.budgetLines.reduce((sum, bl) => sum + bl.itemizedAmount, 0);
   if (invoice.amount === 0) return `${invoice.budgetLines.length} lines`;
@@ -47,6 +46,7 @@ function getAttributionLabel(invoice: Invoice): string {
 
 export function InvoicesPage() {
   const { t } = useTranslation('budget');
+  const { formatCurrency, formatDate } = useFormatters();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [invoices, setInvoices] = useState<Invoice[]>([]);
