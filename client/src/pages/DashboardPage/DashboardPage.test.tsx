@@ -10,6 +10,7 @@ import type * as BudgetSourcesApiTypes from '../../lib/budgetSourcesApi.js';
 import type * as SubsidyProgramsApiTypes from '../../lib/subsidyProgramsApi.js';
 import type * as TimelineApiTypes from '../../lib/timelineApi.js';
 import type * as InvoicesApiTypes from '../../lib/invoicesApi.js';
+import type * as DiaryApiTypes from '../../lib/diaryApi.js';
 import type * as UsePreferencesTypes from '../../hooks/usePreferences.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import type {
@@ -27,6 +28,7 @@ const mockFetchBudgetSources = jest.fn<typeof BudgetSourcesApiTypes.fetchBudgetS
 const mockFetchSubsidyPrograms = jest.fn<typeof SubsidyProgramsApiTypes.fetchSubsidyPrograms>();
 const mockGetTimeline = jest.fn<typeof TimelineApiTypes.getTimeline>();
 const mockFetchAllInvoices = jest.fn<typeof InvoicesApiTypes.fetchAllInvoices>();
+const mockListDiaryEntries = jest.fn<typeof DiaryApiTypes.listDiaryEntries>();
 const mockUpsertPreference = jest.fn<(key: string, value: string) => Promise<void>>();
 const mockUsePreferences = jest.fn<typeof UsePreferencesTypes.usePreferences>();
 
@@ -62,6 +64,14 @@ jest.unstable_mockModule('../../lib/invoicesApi.js', () => ({
   updateInvoice: jest.fn(),
   deleteInvoice: jest.fn(),
   fetchInvoiceById: jest.fn(),
+}));
+
+jest.unstable_mockModule('../../lib/diaryApi.js', () => ({
+  listDiaryEntries: mockListDiaryEntries,
+  createDiaryEntry: jest.fn(),
+  updateDiaryEntry: jest.fn(),
+  deleteDiaryEntry: jest.fn(),
+  getDiaryEntry: jest.fn(),
 }));
 
 jest.unstable_mockModule('../../hooks/usePreferences.js', () => ({
@@ -139,6 +149,7 @@ const ALL_CARD_TITLES = [
   'Mini Gantt',
   'Invoice Pipeline',
   'Subsidy Pipeline',
+  'Recent Diary',
   'Quick Actions',
 ] as const;
 
@@ -156,6 +167,7 @@ describe('DashboardPage', () => {
     mockFetchSubsidyPrograms.mockReset();
     mockGetTimeline.mockReset();
     mockFetchAllInvoices.mockReset();
+    mockListDiaryEntries.mockReset();
     mockUpsertPreference.mockReset();
     mockUsePreferences.mockReset();
 
@@ -165,6 +177,7 @@ describe('DashboardPage', () => {
     mockFetchSubsidyPrograms.mockResolvedValue(emptySubsidyResponse);
     mockGetTimeline.mockResolvedValue(emptyTimelineResponse);
     mockFetchAllInvoices.mockResolvedValue(emptyInvoicesResponse);
+    mockListDiaryEntries.mockResolvedValue({ items: [], pagination: { page: 1, pageSize: 5, totalItems: 0, totalPages: 0 } });
     mockUpsertPreference.mockResolvedValue(undefined);
     mockUsePreferences.mockReturnValue(buildPreferencesMock());
   });
@@ -192,9 +205,9 @@ describe('DashboardPage', () => {
     expect(screen.getByRole('navigation')).toBeInTheDocument();
   });
 
-  // ─── Test 13: All 9 cards render after data loads ───────────────────────
+  // ─── Test 13: All 10 cards render after data loads ───────────────────────
 
-  it('renders all 9 card titles after data loads', async () => {
+  it('renders all 10 card titles after data loads', async () => {
     renderPage();
 
     for (const title of ALL_CARD_TITLES) {
@@ -213,20 +226,21 @@ describe('DashboardPage', () => {
     mockFetchSubsidyPrograms.mockReturnValue(new Promise(() => {}));
     mockGetTimeline.mockReturnValue(new Promise(() => {}));
     mockFetchAllInvoices.mockReturnValue(new Promise(() => {}));
+    mockListDiaryEntries.mockReturnValue(new Promise(() => {}));
 
     renderPage();
 
-    // 5 data sources map to 8 cards with loading state:
+    // 6 data sources map to 9 cards with loading state:
     //   budgetOverview → Budget Summary (1)
     //   budgetSources  → Source Utilization (1)
     //   timeline       → Upcoming Milestones + Work Item Progress + Critical Path + Mini Gantt (4)
     //   invoices       → Invoice Pipeline (1)
     //   subsidyPrograms→ Subsidy Pipeline (1)
-    //   diary          → Recent Diary (1)
+    //   diaryEntries   → Recent Diary (1)
     // Quick Actions has no dataSource — renders children immediately, no skeleton
-    // Each card appears in both desktop grid and mobile section = 9 × 2 = 18
+    // Each card appears in both desktop grid and mobile section = 10 × 2 = 20
     const loadingEls = screen.getAllByRole('status', { name: /^Loading .+ data$/ });
-    expect(loadingEls.length).toBe(18);
+    expect(loadingEls.length).toBe(20);
   });
 
   // ─── Test 15: Error state when API fails ────────────────────────────────
@@ -707,7 +721,7 @@ describe('DashboardPage', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: 'Project' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Customize' })).not.toBeInTheDocument();
-    // All 9 cards still visible
+    // All 10 cards still visible
     expect(screen.getAllByRole('heading', { name: 'Budget Summary' })[0]).toBeInTheDocument();
     expect(screen.getAllByRole('heading', { name: 'Quick Actions' })[0]).toBeInTheDocument();
   });

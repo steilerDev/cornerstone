@@ -408,8 +408,8 @@ export function DashboardPage() {
         error={dataState?.error}
         onRetry={() => void loadAllData()}
         isEmpty={dataState?.isEmpty}
-        emptyMessage={card.emptyMessage ?? t('cards.common.emptyDefault')}
-        emptyAction={card.emptyAction}
+        emptyMessage={'emptyMessage' in card ? card.emptyMessage : t('cards.common.emptyDefault')}
+        emptyAction={'emptyAction' in card ? card.emptyAction : undefined}
       >
         {card.id === 'budget-summary' && budgetOverview ? (
           <BudgetSummaryCard overview={budgetOverview} />
