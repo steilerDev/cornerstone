@@ -67,6 +67,18 @@ jest.unstable_mockModule('../../lib/formatters.js', () => {
   };
 });
 
+// Mock LocaleContext — ProfilePage uses useLocale() for the language selector
+jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
+  useLocale: jest.fn(() => ({
+    locale: 'en' as const,
+    resolvedLocale: 'en' as const,
+    currency: 'EUR',
+    setLocale: jest.fn(),
+    syncWithServer: jest.fn(),
+  })),
+  LocaleProvider: ({ children }: { children: ReactNode }) => children,
+}));
+
 describe('ProfilePage', () => {
   let ProfilePage: typeof ProfilePageTypes.ProfilePage;
 
