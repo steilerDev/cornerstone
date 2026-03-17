@@ -38,6 +38,7 @@ export function InvoiceGroup<T extends BaseBudgetLine>({
   isUnlinking,
   confidenceLabels,
 }: InvoiceGroupProps<T>) {
+  const { formatCurrency } = useFormatters();
   const [isExpanded, setIsExpanded] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const toggleButtonRef = useRef<HTMLButtonElement>(null);

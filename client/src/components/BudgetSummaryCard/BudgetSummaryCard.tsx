@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { BudgetOverview } from '@cornerstone/shared';
 import { BudgetBar, type BudgetBarSegment } from '../BudgetBar/BudgetBar.js';
 import { BudgetHealthIndicator } from '../BudgetHealthIndicator/BudgetHealthIndicator.js';
-import { formatCurrency } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import styles from './BudgetSummaryCard.module.css';
 
 interface BudgetSummaryCardProps {

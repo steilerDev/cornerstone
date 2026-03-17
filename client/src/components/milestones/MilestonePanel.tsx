@@ -17,7 +17,7 @@ import { ApiClientError } from '../../lib/apiClient.js';
 import type { UseMilestonesResult } from '../../hooks/useMilestones.js';
 import { MilestoneForm } from './MilestoneForm.js';
 import { MilestoneWorkItemLinker } from './MilestoneWorkItemLinker.js';
-import { formatDate } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import styles from './MilestonePanel.module.css';
 
 // ---------------------------------------------------------------------------
@@ -56,7 +56,6 @@ interface MilestonePanelProps {
 // ---------------------------------------------------------------------------
 
 function SmallDiamond({ completed, late }: { completed: boolean; late?: boolean }) {
-  const { formatDate } = useFormatters();
   let className: string;
   if (completed) {
     className = styles.diamondComplete;
@@ -156,6 +155,7 @@ export function MilestonePanel({
   projectedDates,
   initialMilestoneId,
 }: MilestonePanelProps) {
+  const { formatDate } = useFormatters();
   const [view, setView] = useState<PanelView>('list');
   const [editingMilestone, setEditingMilestone] = useState<MilestoneSummary | null>(null);
   const [detailData, setDetailData] = useState<MilestoneDetail | null>(null);
