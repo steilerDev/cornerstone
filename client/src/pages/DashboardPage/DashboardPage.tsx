@@ -397,7 +397,7 @@ export function DashboardPage() {
 
   // Helper to render a card
   const renderCard = (card: (typeof visibleCards)[number]) => {
-    const dataState = card.dataSource ? dataStates[card.dataSource] : undefined;
+    const dataState = 'dataSource' in card ? dataStates[card.dataSource] : undefined;
     return (
       <DashboardCard
         key={card.id}
