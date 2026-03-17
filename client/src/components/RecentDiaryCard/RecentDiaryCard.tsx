@@ -49,7 +49,9 @@ export function RecentDiaryCard({ entries, isLoading, error }: RecentDiaryCardPr
           >
             <div className={styles.entryHeader}>
               <DiaryEntryTypeBadge entryType={entry.entryType} size="sm" />
-              <div className={styles.entryTitle}>{entry.title || t('cards.recentDiary.untitled')}</div>
+              <div className={styles.entryTitle}>
+                {entry.title || t('cards.recentDiary.untitled')}
+              </div>
             </div>
             <div className={styles.entryPreview}>{entry.body.substring(0, 100)}</div>
             <div className={styles.entryMeta}>

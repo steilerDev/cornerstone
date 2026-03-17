@@ -213,7 +213,8 @@ export default function WorkItemCreatePage() {
       <form className={styles.form} onSubmit={handleSubmit}>
         <div className={styles.formGroup}>
           <label htmlFor="title" className={styles.label}>
-            {t('create.fields.title')} <span className={styles.required}>{t('create.fields.titleRequired')}</span>
+            {t('create.fields.title')}{' '}
+            <span className={styles.required}>{t('create.fields.titleRequired')}</span>
           </label>
           <input
             type="text"
@@ -362,7 +363,10 @@ export default function WorkItemCreatePage() {
 
             {/* Pending dependencies list */}
             {pendingDependencies.length > 0 && (
-              <ul className={styles.pendingDependenciesList} aria-label={t('create.pendingDeps.ariaLabel')}>
+              <ul
+                className={styles.pendingDependenciesList}
+                aria-label={t('create.pendingDeps.ariaLabel')}
+              >
                 {pendingDependencies.map((dep) => {
                   const { predecessorVerb, successorVerb } = dependencyTypeToVerbs(
                     dep.dependencyType,

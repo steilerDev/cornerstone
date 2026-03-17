@@ -102,7 +102,8 @@ export function SubsidyPipelineCard({ subsidyPrograms }: SubsidyPipelineCardProp
               {group.label}
             </span>
             <span data-testid="group-count" className={styles.groupCount}>
-              {group.count} {t(`cards.subsidyPipeline.program_${group.count === 1 ? 'one' : 'other'}`)}
+              {group.count}{' '}
+              {t(`cards.subsidyPipeline.program_${group.count === 1 ? 'one' : 'other'}`)}
             </span>
             {group.totalFixedReduction > 0 && (
               <span data-testid="group-reduction" className={styles.groupReduction}>

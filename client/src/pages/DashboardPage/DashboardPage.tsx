@@ -48,7 +48,6 @@ interface DataSourceState {
   isEmpty: boolean;
 }
 
-
 export function DashboardPage() {
   const { t } = useTranslation('dashboard');
 
@@ -519,7 +518,9 @@ export function DashboardPage() {
                   ? '…'
                   : timelineData?.workItems.length === 0
                     ? t('sections.timeline.summaryNoItems')
-                    : t('sections.timeline.summaryItems', { count: timelineData?.workItems.length ?? 0 })}
+                    : t('sections.timeline.summaryItems', {
+                        count: timelineData?.workItems.length ?? 0,
+                      })}
               </span>
               <span className={styles.sectionChevron} aria-hidden="true">
                 ›
@@ -535,7 +536,9 @@ export function DashboardPage() {
         {visibleCards.some((c) => c.section === 'budget-details') && (
           <details className={styles.sectionDetails}>
             <summary className={styles.sectionSummary}>
-              <span className={styles.sectionSummaryTitle}>{t('sections.budgetDetails.title')}</span>
+              <span className={styles.sectionSummaryTitle}>
+                {t('sections.budgetDetails.title')}
+              </span>
               <span className={styles.sectionSummaryText}>
                 {dataStates.budgetSources.isLoading
                   ? '…'

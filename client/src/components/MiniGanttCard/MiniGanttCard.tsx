@@ -171,8 +171,14 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
         aria-label={
           visibleMilestones.length > 0
             ? filteredWorkItems.length === 1
-              ? t('cards.miniGantt.ariaChartWithMilestones_one', { count: 1, milestones: visibleMilestones.length })
-              : t('cards.miniGantt.ariaChartWithMilestones_other', { count: filteredWorkItems.length, milestones: visibleMilestones.length })
+              ? t('cards.miniGantt.ariaChartWithMilestones_one', {
+                  count: 1,
+                  milestones: visibleMilestones.length,
+                })
+              : t('cards.miniGantt.ariaChartWithMilestones_other', {
+                  count: filteredWorkItems.length,
+                  milestones: visibleMilestones.length,
+                })
             : filteredWorkItems.length === 1
               ? t('cards.miniGantt.ariaChartItems_one', { count: 1 })
               : t('cards.miniGantt.ariaChartItems_other', { count: filteredWorkItems.length })

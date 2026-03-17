@@ -64,9 +64,10 @@ export function SourceUtilizationCard({ sources }: SourceUtilizationCardProps) {
 
             <span className={styles.srOnly}>
               {t('cards.sourceUtilization.utilized', {
-                percent: source.totalAmount > 0
-                  ? ((source.usedAmount / source.totalAmount) * 100).toFixed(0)
-                  : '0'
+                percent:
+                  source.totalAmount > 0
+                    ? ((source.usedAmount / source.totalAmount) * 100).toFixed(0)
+                    : '0',
               })}
             </span>
 

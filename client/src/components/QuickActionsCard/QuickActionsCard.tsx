@@ -19,19 +19,39 @@ export function QuickActionsCard() {
 
       {/* Quick navigation links grid */}
       <div className={styles.linksGrid}>
-        <Link to="/project/work-items" className={styles.quickLink} aria-label={t('cards.quickActions.workItems')}>
+        <Link
+          to="/project/work-items"
+          className={styles.quickLink}
+          aria-label={t('cards.quickActions.workItems')}
+        >
           {t('cards.quickActions.workItems')}
         </Link>
-        <Link to="/schedule" className={styles.quickLink} aria-label={t('cards.quickActions.timeline')}>
+        <Link
+          to="/schedule"
+          className={styles.quickLink}
+          aria-label={t('cards.quickActions.timeline')}
+        >
           {t('cards.quickActions.timeline')}
         </Link>
-        <Link to="/budget/overview" className={styles.quickLink} aria-label={t('cards.quickActions.budget')}>
+        <Link
+          to="/budget/overview"
+          className={styles.quickLink}
+          aria-label={t('cards.quickActions.budget')}
+        >
           {t('cards.quickActions.budget')}
         </Link>
-        <Link to="/budget/invoices" className={styles.quickLink} aria-label={t('cards.quickActions.invoices')}>
+        <Link
+          to="/budget/invoices"
+          className={styles.quickLink}
+          aria-label={t('cards.quickActions.invoices')}
+        >
           {t('cards.quickActions.invoices')}
         </Link>
-        <Link to="/budget/vendors" className={styles.quickLink} aria-label={t('cards.quickActions.vendors')}>
+        <Link
+          to="/budget/vendors"
+          className={styles.quickLink}
+          aria-label={t('cards.quickActions.vendors')}
+        >
           {t('cards.quickActions.vendors')}
         </Link>
       </div>

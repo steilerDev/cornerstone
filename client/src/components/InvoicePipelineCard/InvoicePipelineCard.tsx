@@ -68,7 +68,8 @@ export function InvoicePipelineCard({ invoices, summary }: InvoicePipelineCardPr
 
       <div className={styles.footer}>
         <div data-testid="pending-total" className={styles.footerTotal}>
-          {t('cards.invoicePipeline.pendingTotal')} <strong>{formatCurrency(summary.pending.totalAmount)}</strong>
+          {t('cards.invoicePipeline.pendingTotal')}{' '}
+          <strong>{formatCurrency(summary.pending.totalAmount)}</strong>
         </div>
         <Link to="/budget/invoices" className={styles.link}>
           {t('cards.invoicePipeline.viewAllInvoices')}

@@ -177,7 +177,10 @@ describe('DashboardPage', () => {
     mockFetchSubsidyPrograms.mockResolvedValue(emptySubsidyResponse);
     mockGetTimeline.mockResolvedValue(emptyTimelineResponse);
     mockFetchAllInvoices.mockResolvedValue(emptyInvoicesResponse);
-    mockListDiaryEntries.mockResolvedValue({ items: [], pagination: { page: 1, pageSize: 5, totalItems: 0, totalPages: 0 } });
+    mockListDiaryEntries.mockResolvedValue({
+      items: [],
+      pagination: { page: 1, pageSize: 5, totalItems: 0, totalPages: 0 },
+    });
     mockUpsertPreference.mockResolvedValue(undefined);
     mockUsePreferences.mockReturnValue(buildPreferencesMock());
   });

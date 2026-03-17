@@ -359,9 +359,18 @@ export function WorkItemsPage() {
 
   const WORK_ITEM_STATUS_VARIANTS = useMemo(
     () => ({
-      not_started: { label: t('create.fields.statusOptions.notStarted'), className: badgeStyles.not_started },
-      in_progress: { label: t('create.fields.statusOptions.inProgress'), className: badgeStyles.in_progress },
-      completed: { label: t('create.fields.statusOptions.completed'), className: badgeStyles.completed },
+      not_started: {
+        label: t('create.fields.statusOptions.notStarted'),
+        className: badgeStyles.not_started,
+      },
+      in_progress: {
+        label: t('create.fields.statusOptions.inProgress'),
+        className: badgeStyles.in_progress,
+      },
+      completed: {
+        label: t('create.fields.statusOptions.completed'),
+        className: badgeStyles.completed,
+      },
     }),
     [t],
   );
@@ -502,7 +511,9 @@ export function WorkItemsPage() {
             onClick={() => handleSortChange(sortBy)}
             aria-label={t('list.filters.toggleSortOrder')}
           >
-            {sortOrder === 'asc' ? t('list.filters.sortAscending') : t('list.filters.sortDescending')}
+            {sortOrder === 'asc'
+              ? t('list.filters.sortAscending')
+              : t('list.filters.sortDescending')}
           </button>
         </div>
       </div>
@@ -547,23 +558,27 @@ export function WorkItemsPage() {
               <thead>
                 <tr>
                   <th className={styles.sortableHeader} onClick={() => handleSortChange('title')}>
-                    {t('list.table.title')}{renderSortIcon('title')}
+                    {t('list.table.title')}
+                    {renderSortIcon('title')}
                   </th>
                   <th className={styles.sortableHeader} onClick={() => handleSortChange('status')}>
-                    {t('list.table.status')}{renderSortIcon('status')}
+                    {t('list.table.status')}
+                    {renderSortIcon('status')}
                   </th>
                   <th>{t('list.table.assignedTo')}</th>
                   <th
                     className={styles.sortableHeader}
                     onClick={() => handleSortChange('start_date')}
                   >
-                    {t('list.table.startDate')}{renderSortIcon('start_date')}
+                    {t('list.table.startDate')}
+                    {renderSortIcon('start_date')}
                   </th>
                   <th
                     className={styles.sortableHeader}
                     onClick={() => handleSortChange('end_date')}
                   >
-                    {t('list.table.endDate')}{renderSortIcon('end_date')}
+                    {t('list.table.endDate')}
+                    {renderSortIcon('end_date')}
                   </th>
                   <th>{t('list.table.tags')}</th>
                   <th className={styles.actionsColumn}>{t('list.table.actions')}</th>
@@ -770,9 +785,7 @@ export function WorkItemsPage() {
             <p className={styles.modalText}>
               {t('list.deleteModal.confirmation', { title: deletingWorkItem.title })}
             </p>
-            <p className={styles.modalWarning}>
-              {t('list.deleteModal.warning')}
-            </p>
+            <p className={styles.modalWarning}>{t('list.deleteModal.warning')}</p>
             <div className={styles.modalActions}>
               <button
                 type="button"
@@ -788,7 +801,9 @@ export function WorkItemsPage() {
                 onClick={confirmDelete}
                 disabled={isDeleting}
               >
-                {isDeleting ? t('list.deleteModal.deletingLabel') : t('list.deleteModal.deleteLabel')}
+                {isDeleting
+                  ? t('list.deleteModal.deletingLabel')
+                  : t('list.deleteModal.deleteLabel')}
               </button>
             </div>
           </div>
