@@ -100,16 +100,17 @@ describe('DAV Routes', () => {
   // ─── PROPFIND authentication ──────────────────────────────────────────────
 
   describe('PROPFIND /dav/ authentication', () => {
-    it('returns 401 without auth header', async () => {
+    it('returns 401 with WWW-Authenticate header without auth header', async () => {
       const response = await (app.inject({
         method: 'PROPFIND' as any,
         url: '/dav/',
       }) as any);
 
       expect(response.statusCode).toBe(401);
+      expect(response.headers['www-authenticate']).toBe('Basic realm="Cornerstone DAV"');
     });
 
-    it('returns 401 with invalid token', async () => {
+    it('returns 401 with WWW-Authenticate header with invalid token', async () => {
       const credentials = Buffer.from('user:not-a-valid-token').toString('base64');
       const response = await (app.inject({
         method: 'PROPFIND' as any,
@@ -120,6 +121,7 @@ describe('DAV Routes', () => {
       }) as any);
 
       expect(response.statusCode).toBe(401);
+      expect(response.headers['www-authenticate']).toBe('Basic realm="Cornerstone DAV"');
     });
 
     it('returns 207 with valid DAV token', async () => {
@@ -152,7 +154,7 @@ describe('DAV Routes', () => {
   // ─── PROPFIND /dav/ ──────────────────────────────────────────────────────
 
   describe('PROPFIND /dav/', () => {
-    it('returns 207 multistatus with root collection', async () => {
+    it('returns 207 multistatus with root collection and current-user-principal', async () => {
       const { basicAuth } = await createUserWithToken();
 
       const response = await (app.inject({
@@ -165,6 +167,25 @@ describe('DAV Routes', () => {
       expect(response.headers['content-type']).toContain('application/xml');
       expect(response.payload).toContain('<D:multistatus');
       expect(response.payload).toContain('Cornerstone');
+      // Must include current-user-principal for iOS discovery
+      expect(response.payload).toContain('<D:current-user-principal>');
+      expect(response.payload).toContain('<D:href>/dav/principals/default/</D:href>');
+    });
+
+    it('returns hrefs with /dav prefix at depth 1', async () => {
+      const { basicAuth } = await createUserWithToken();
+
+      const response = await (app.inject({
+        method: 'PROPFIND' as any,
+        url: '/dav/',
+        headers: { Authorization: basicAuth, depth: '1' },
+      }) as any);
+
+      expect(response.statusCode).toBe(207);
+      expect(response.payload).toContain('<D:href>/dav/</D:href>');
+      expect(response.payload).toContain('<D:href>/dav/principals/</D:href>');
+      expect(response.payload).toContain('<D:href>/dav/calendars/</D:href>');
+      expect(response.payload).toContain('<D:href>/dav/addressbooks/</D:href>');
     });
   });
 
@@ -372,7 +393,7 @@ describe('DAV Routes', () => {
     <D:getetag/>
     <A:address-data/>
   </D:prop>
-  <D:href>/addressbooks/default/vendor-${vendorId}.vcf</D:href>
+  <D:href>/dav/addressbooks/default/vendor-${vendorId}.vcf</D:href>
 </A:addressbook-multiget>`;
 
       const response = await (app.inject({

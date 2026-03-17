@@ -260,6 +260,72 @@ describe('DAV Token Routes', () => {
       expect(body).toContain('<plist');
     });
 
+    it('profile uses bare hostname (not full URL) and path-only principalURL', async () => {
+      const { cookie } = await createUserWithSession('bare@test.com');
+
+      await app.inject({
+        method: 'POST',
+        url: '/api/users/me/dav/token',
+        headers: { cookie },
+      });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/users/me/dav/profile',
+        headers: { cookie },
+      });
+
+      const body = response.payload;
+
+      // CalDAVHostName and CardDAVHostName must be bare hostname, not full URL
+      expect(body).toContain('<key>CalDAVHostName</key>');
+      expect(body).toContain('<key>CardDAVHostName</key>');
+      // Should NOT contain protocol:// in hostname fields
+      expect(body).not.toMatch(/<key>CalDAVHostName<\/key>\s*<string>https?:\/\//);
+      expect(body).not.toMatch(/<key>CardDAVHostName<\/key>\s*<string>https?:\/\//);
+
+      // PrincipalURL must be path-only
+      expect(body).toContain('<key>CalDAVPrincipalURL</key>');
+      expect(body).toContain('<string>/dav/principals/default/</string>');
+      expect(body).toContain('<key>CardDAVPrincipalURL</key>');
+
+      // Account description fields
+      expect(body).toContain('<key>CalDAVAccountDescription</key>');
+      expect(body).toContain('<string>Cornerstone Calendar</string>');
+      expect(body).toContain('<key>CardDAVAccountDescription</key>');
+      expect(body).toContain('<string>Cornerstone Contacts</string>');
+    });
+
+    it('profile uses EXTERNAL_URL when configured', async () => {
+      // Close the current app and recreate with EXTERNAL_URL
+      await app.close();
+      process.env.EXTERNAL_URL = 'https://myhouse.example.com';
+      app = await buildApp();
+
+      const { cookie } = await createUserWithSession('ext@test.com');
+
+      await app.inject({
+        method: 'POST',
+        url: '/api/users/me/dav/token',
+        headers: { cookie },
+      });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/users/me/dav/profile',
+        headers: { cookie },
+      });
+
+      const body = response.payload;
+      // HostName should be the external hostname
+      expect(body).toContain('<string>myhouse.example.com</string>');
+      // Port should be 443 for https
+      expect(body).toContain('<integer>443</integer>');
+      // UseSSL should be true
+      expect(body).toContain('<key>CalDAVUseSSL</key>');
+      expect(body).toContain('<true/>');
+    });
+
     it('returns 401 without session', async () => {
       const response = await app.inject({
         method: 'GET',

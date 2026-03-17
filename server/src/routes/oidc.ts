@@ -41,10 +41,8 @@ export default async function oidcRoutes(fastify: FastifyInstance) {
       fastify.config.oidcClientSecret!,
     );
 
-    // Derive redirect URI from config or from the incoming request
-    const redirectUri =
-      fastify.config.oidcRedirectUri ||
-      `${request.protocol}://${request.host}/api/auth/oidc/callback`;
+    // Derive redirect URI from EXTERNAL_URL or from the incoming request
+    const redirectUri = `${fastify.config.externalUrl || `${request.protocol}://${request.host}`}/api/auth/oidc/callback`;
 
     // Build authorization URL
     const { authorizationUrl } = oidcService.buildAuthorizationUrl(

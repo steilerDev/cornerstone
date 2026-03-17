@@ -33,8 +33,9 @@ All configuration is done through environment variables. The defaults are suitab
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `TRUST_PROXY` | `false` | Set to `true` when running behind a reverse proxy (nginx, Caddy, Traefik, etc.) |
+| `EXTERNAL_URL` | -- | Public-facing base URL (e.g., `https://myhouse.example.com`). Used for OIDC callback, CalDAV/CardDAV discovery, and `.mobileconfig` generation. |
 
-When deploying behind a reverse proxy, set `TRUST_PROXY=true` so the server correctly reads forwarded headers (`X-Forwarded-For`, `X-Forwarded-Proto`, etc.). This is required for secure cookies and OIDC redirects to work properly.
+When deploying behind a reverse proxy, set `TRUST_PROXY=true` so the server correctly reads forwarded headers (`X-Forwarded-For`, `X-Forwarded-Proto`, etc.). Set `EXTERNAL_URL` to the public URL users access your instance at -- this ensures OIDC callbacks, CalDAV/CardDAV discovery, and Apple configuration profiles work correctly regardless of internal networking.
 
 ## OIDC (Single Sign-On)
 
@@ -45,9 +46,8 @@ OIDC is automatically enabled when `OIDC_ISSUER`, `OIDC_CLIENT_ID`, and `OIDC_CL
 | `OIDC_ISSUER` | -- | Your OIDC provider's issuer URL (e.g., `https://auth.example.com/realms/main`) |
 | `OIDC_CLIENT_ID` | -- | Client ID registered with your OIDC provider |
 | `OIDC_CLIENT_SECRET` | -- | Client secret for the OIDC client |
-| `OIDC_REDIRECT_URI` | -- | Callback URL (optional -- auto-derived from the request if not set) |
 
-For detailed OIDC setup instructions, see [OIDC Setup](../guides/users/oidc-setup).
+The OIDC callback URL is automatically derived as `<EXTERNAL_URL>/api/auth/oidc/callback`. If `EXTERNAL_URL` is not set, it falls back to the request's protocol and host. See [OIDC Setup](../guides/users/oidc-setup) for details on registering this URL with your identity provider.
 
 ## Paperless-ngx (Document Integration)
 

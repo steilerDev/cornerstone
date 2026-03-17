@@ -25,15 +25,19 @@ function generateDeterministicUUID(seed: string): string {
 
 /**
  * Build an Apple Configuration Profile (.mobileconfig) XML for CalDAV/CardDAV.
+ * Apple requires bare hostnames (not full URLs) for HostName fields,
+ * and path-only values for PrincipalURL fields.
  */
-function buildMobileConfig(
-  userName: string,
-  davToken: string,
-  principalUrl: string,
-  calendarUrl: string,
-  addressbookUrl: string,
-  port: number = 443,
-): string {
+function buildMobileConfig(opts: {
+  userName: string;
+  davToken: string;
+  hostname: string;
+  port: number;
+  useSSL: boolean;
+  principalPath: string;
+  accountDescription: string;
+}): string {
+  const { userName, davToken, hostname, port, useSSL, principalPath, accountDescription } = opts;
   const caldavUUID = generateDeterministicUUID(`caldav-${userName}`);
   const carddavUUID = generateDeterministicUUID(`carddav-${userName}`);
 
@@ -44,20 +48,22 @@ function buildMobileConfig(
   <key>PayloadContent</key>
   <array>
     <dict>
+      <key>CalDAVAccountDescription</key>
+      <string>Cornerstone Calendar</string>
       <key>CalDAVHostName</key>
-      <string>${principalUrl}</string>
+      <string>${hostname}</string>
       <key>CalDAVPassword</key>
       <string>${davToken}</string>
       <key>CalDAVPort</key>
       <integer>${port}</integer>
       <key>CalDAVPrincipalURL</key>
-      <string>${principalUrl}</string>
+      <string>${principalPath}</string>
       <key>CalDAVUseSSL</key>
-      <true/>
+      <${useSSL}/>
       <key>CalDAVUsername</key>
       <string>${userName}</string>
       <key>PayloadDescription</key>
-      <string>Cornerstone CalDAV calendar</string>
+      <string>${accountDescription} CalDAV calendar</string>
       <key>PayloadDisplayName</key>
       <string>Cornerstone Calendar</string>
       <key>PayloadIdentifier</key>
@@ -74,20 +80,22 @@ function buildMobileConfig(
       <false/>
     </dict>
     <dict>
+      <key>CardDAVAccountDescription</key>
+      <string>Cornerstone Contacts</string>
       <key>CardDAVHostName</key>
-      <string>${principalUrl}</string>
+      <string>${hostname}</string>
       <key>CardDAVPassword</key>
       <string>${davToken}</string>
       <key>CardDAVPort</key>
       <integer>${port}</integer>
       <key>CardDAVPrincipalURL</key>
-      <string>${principalUrl}</string>
+      <string>${principalPath}</string>
       <key>CardDAVUseSSL</key>
-      <true/>
+      <${useSSL}/>
       <key>CardDAVUsername</key>
       <string>${userName}</string>
       <key>PayloadDescription</key>
-      <string>Cornerstone CardDAV contacts</string>
+      <string>${accountDescription} CardDAV contacts</string>
       <key>PayloadDisplayName</key>
       <string>Cornerstone Contacts</string>
       <key>PayloadIdentifier</key>
@@ -215,21 +223,38 @@ export default async function davTokenRoutes(fastify: FastifyInstance) {
         });
       }
 
-      // Build the mobileconfig
-      const protocol = request.protocol === 'https' ? 'https' : 'http';
-      const hostParts = request.hostname.split(':');
-      const host = hostParts[0];
-      const port = hostParts[1] ? parseInt(hostParts[1], 10) : protocol === 'https' ? 443 : 80;
-      const principalUrl = `${protocol}://${host}/dav/principals/default/`;
+      // Derive hostname, port, and SSL from EXTERNAL_URL or request
+      let hostname: string;
+      let port: number;
+      let useSSL: boolean;
+      let accountDescription: string;
 
-      const mobileconfig = buildMobileConfig(
-        user.email,
-        user.davToken,
-        principalUrl,
-        `${protocol}://${host}/dav/calendars/default/`,
-        `${protocol}://${host}/dav/addressbooks/default/`,
+      if (fastify.config.externalUrl) {
+        const parsed = new URL(fastify.config.externalUrl);
+        hostname = parsed.hostname;
+        useSSL = parsed.protocol === 'https:';
+        port = parsed.port ? parseInt(parsed.port, 10) : useSSL ? 443 : 80;
+        accountDescription = `Cornerstone (${hostname})`;
+      } else {
+        const protocol = request.protocol === 'https' ? 'https' : 'http';
+        const hostParts = request.hostname.split(':');
+        hostname = hostParts[0];
+        useSSL = protocol === 'https';
+        port = hostParts[1] ? parseInt(hostParts[1], 10) : useSSL ? 443 : 80;
+        accountDescription = `Cornerstone (${hostname})`;
+      }
+
+      const principalPath = '/dav/principals/default/';
+
+      const mobileconfig = buildMobileConfig({
+        userName: user.email,
+        davToken: user.davToken,
+        hostname,
         port,
-      );
+        useSSL,
+        principalPath,
+        accountDescription,
+      });
 
       return reply
         .type('application/x-apple-aspen-config')

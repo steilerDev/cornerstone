@@ -47,7 +47,17 @@ async function davAuth(request: any): Promise<void> {
   (request as any).davUser = validated;
 }
 
+const DAV_PREFIX = '/dav';
+
 export default async function davRoutes(fastify: FastifyInstance) {
+  // ─── WWW-Authenticate on 401 (RFC 7235 — required for iOS) ──────────────
+
+  fastify.addHook('onError', async (_request, reply, error) => {
+    if ((error as any).statusCode === 401) {
+      reply.header('WWW-Authenticate', 'Basic realm="Cornerstone DAV"');
+    }
+  });
+
   // ─── OPTIONS (DAV capabilities) ──────────────────────────────────────────
 
   /**
@@ -77,12 +87,13 @@ export default async function davRoutes(fastify: FastifyInstance) {
     async (request, reply) => {
       const depth = davXml.parseDepth(request.headers as any);
 
+      const rootProps = `<D:resourcetype><D:collection/></D:resourcetype>
+<D:displayname>Cornerstone</D:displayname>
+<D:current-user-principal><D:href>${DAV_PREFIX}/principals/default/</D:href></D:current-user-principal>`;
+
       if (depth === 0) {
         // Return root collection properties only
-        const rootProps = davXml.propstat(`<D:resourcetype><D:collection/></D:resourcetype>
-<D:displayname>Cornerstone</D:displayname>`);
-
-        const resp = davXml.response('/', rootProps);
+        const resp = davXml.response(`${DAV_PREFIX}/`, davXml.propstat(rootProps));
         return reply
           .type('application/xml; charset=utf-8')
           .status(207)
@@ -93,20 +104,12 @@ export default async function davRoutes(fastify: FastifyInstance) {
       const responses: string[] = [];
 
       // Root
-      responses.push(
-        davXml.response(
-          '/',
-          davXml.propstat(
-            `<D:resourcetype><D:collection/></D:resourcetype>
-<D:displayname>Cornerstone</D:displayname>`,
-          ),
-        ),
-      );
+      responses.push(davXml.response(`${DAV_PREFIX}/`, davXml.propstat(rootProps)));
 
       // Children: principals, calendars, addressbooks
       responses.push(
         davXml.response(
-          '/principals/',
+          `${DAV_PREFIX}/principals/`,
           davXml.propstat(
             `<D:resourcetype><D:collection/></D:resourcetype>
 <D:displayname>Principals</D:displayname>`,
@@ -115,7 +118,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
       );
       responses.push(
         davXml.response(
-          '/calendars/',
+          `${DAV_PREFIX}/calendars/`,
           davXml.propstat(
             `<D:resourcetype><D:collection/></D:resourcetype>
 <D:displayname>Calendars</D:displayname>`,
@@ -124,7 +127,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
       );
       responses.push(
         davXml.response(
-          '/addressbooks/',
+          `${DAV_PREFIX}/addressbooks/`,
           davXml.propstat(
             `<D:resourcetype><D:collection/></D:resourcetype>
 <D:displayname>Address Books</D:displayname>`,
@@ -149,12 +152,12 @@ export default async function davRoutes(fastify: FastifyInstance) {
     '/principals/default/',
     { preHandler: davAuth },
     async (request, reply) => {
-      const href = '/principals/default/';
+      const href = `${DAV_PREFIX}/principals/default/`;
       const props = `<D:resourcetype><D:principal/></D:resourcetype>
 <D:displayname>${(request as any).davUser.email}</D:displayname>
 <D:principal-URL><D:href>${href}</D:href></D:principal-URL>
-<C:calendar-home-set xmlns:C="urn:ietf:params:xml:ns:caldav"><D:href>/calendars/default/</D:href></C:calendar-home-set>
-<A:addressbook-home-set xmlns:A="urn:ietf:params:xml:ns:carddav"><D:href>/addressbooks/default/</D:href></A:addressbook-home-set>`;
+<C:calendar-home-set xmlns:C="urn:ietf:params:xml:ns:caldav"><D:href>${DAV_PREFIX}/calendars/default/</D:href></C:calendar-home-set>
+<A:addressbook-home-set xmlns:A="urn:ietf:params:xml:ns:carddav"><D:href>${DAV_PREFIX}/addressbooks/default/</D:href></A:addressbook-home-set>`;
 
       const resp = davXml.response(href, davXml.propstat(props));
       return reply
@@ -185,7 +188,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
       // Collection itself
       responses.push(
         davXml.response(
-          '/calendars/default/',
+          `${DAV_PREFIX}/calendars/default/`,
           davXml.propstat(davXml.CALENDAR_COLLECTION_PROPS.replace('"calendar-etag"', `"${etag}"`)),
         ),
       );
@@ -194,7 +197,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
         // depth 1: list all event hrefs
         for (const wi of timeline.workItems as any[]) {
           if (!wi.startDate || !wi.endDate) continue;
-          const href = `/calendars/default/wi-${wi.id}.ics`;
+          const href = `${DAV_PREFIX}/calendars/default/wi-${wi.id}.ics`;
           const props = `<D:getetag>"wi-${etag}"</D:getetag>
 <D:resourcetype/>
 <D:displayname>${escapeXml(wi.title)}</D:displayname>`;
@@ -203,7 +206,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
 
         for (const milestone of timeline.milestones as any[]) {
           if (!milestone.targetDate && !milestone.completedAt) continue;
-          const href = `/calendars/default/milestone-${milestone.id}.ics`;
+          const href = `${DAV_PREFIX}/calendars/default/milestone-${milestone.id}.ics`;
           const props = `<D:getetag>"milestone-${etag}"</D:getetag>
 <D:resourcetype/>
 <D:displayname>${escapeXml(milestone.title)}</D:displayname>`;
@@ -212,7 +215,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
 
         for (const hi of timeline.householdItems as any[]) {
           if (!hi.targetDeliveryDate && !hi.actualDeliveryDate) continue;
-          const href = `/calendars/default/hi-${hi.id}.ics`;
+          const href = `${DAV_PREFIX}/calendars/default/hi-${hi.id}.ics`;
           const props = `<D:getetag>"hi-${etag}"</D:getetag>
 <D:resourcetype/>
 <D:displayname>${escapeXml(hi.name)} (Delivery)</D:displayname>`;
@@ -303,7 +306,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
       const responses: string[] = [];
 
       for (const href of hrefs) {
-        // Parse href like /calendars/default/wi-xxx.ics
+        // Parse href like /dav/calendars/default/wi-xxx.ics (or legacy /calendars/default/...)
         const match = href.match(/\/calendars\/default\/([^/]+)\.ics$/);
         if (!match) continue;
 
@@ -372,7 +375,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
       // Collection itself
       responses.push(
         davXml.response(
-          '/addressbooks/default/',
+          `${DAV_PREFIX}/addressbooks/default/`,
           davXml.propstat(davXml.ADDRESSBOOK_COLLECTION_PROPS.replace('"addressbook-etag"', `"${etag}"`)),
         ),
       );
@@ -382,7 +385,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
         const allVendors = fastify.db.select().from(vendors).all();
 
         for (const vendor of allVendors as any[]) {
-          const href = `/addressbooks/default/vendor-${vendor.id}.vcf`;
+          const href = `${DAV_PREFIX}/addressbooks/default/vendor-${vendor.id}.vcf`;
           const props = `<D:getetag>"vendor-${etag}"</D:getetag>
 <D:resourcetype/>
 <D:displayname>${escapeXml(vendor.name)}</D:displayname>`;
@@ -393,7 +396,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
         const allContacts = fastify.db.select().from(vendorContacts).all();
         for (const contact of allContacts as any[]) {
           const vendor = (allVendors as any[]).find((v: any) => v.id === contact.vendorId);
-          const href = `/addressbooks/default/contact-${contact.id}.vcf`;
+          const href = `${DAV_PREFIX}/addressbooks/default/contact-${contact.id}.vcf`;
           const props = `<D:getetag>"contact-${etag}"</D:getetag>
 <D:resourcetype/>
 <D:displayname>${escapeXml(contact.name)}</D:displayname>`;
@@ -500,7 +503,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
       const responses: string[] = [];
 
       for (const href of hrefs) {
-        // Parse href like /addressbooks/default/vendor-xxx.vcf
+        // Parse href like /dav/addressbooks/default/vendor-xxx.vcf (or legacy /addressbooks/default/...)
         const match = href.match(/\/addressbooks\/default\/([^/]+)\.vcf$/);
         if (!match) continue;
 
