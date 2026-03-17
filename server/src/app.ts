@@ -68,6 +68,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   // Add custom HTTP methods for WebDAV (CalDAV/CardDAV)
   app.addHttpMethod('PROPFIND', { hasBody: true });
   app.addHttpMethod('REPORT', { hasBody: true });
+  app.addHttpMethod('PROPPATCH', { hasBody: true });
 
   // Configuration (must be first)
   await app.register(configPlugin);

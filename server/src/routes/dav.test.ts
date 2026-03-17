@@ -512,6 +512,142 @@ describe('DAV Routes', () => {
     });
   });
 
+  // ─── PROPPATCH /dav/calendars/default/ ──────────────────────────────────
+
+  describe('PROPPATCH /dav/calendars/default/', () => {
+    it('returns 207 multistatus acknowledging properties', async () => {
+      const { basicAuth } = await createUserWithToken();
+
+      const proppatchBody = `<?xml version="1.0" encoding="utf-8"?>
+<D:propertyupdate xmlns:D="DAV:" xmlns:A="http://apple.com/ns/ical/">
+  <D:set>
+    <D:prop>
+      <A:calendar-color>#FF5733FF</A:calendar-color>
+    </D:prop>
+  </D:set>
+</D:propertyupdate>`;
+
+      const response = await (app.inject({
+        method: 'PROPPATCH' as any,
+        url: '/dav/calendars/default/',
+        headers: {
+          Authorization: basicAuth,
+          'content-type': 'application/xml',
+        },
+        payload: proppatchBody,
+      }) as any);
+
+      expect(response.statusCode).toBe(207);
+      expect(response.headers['content-type']).toContain('application/xml');
+      expect(response.payload).toContain('<D:multistatus');
+      expect(response.payload).toContain('/dav/calendars/default/');
+      expect(response.payload).toContain('200 OK');
+    });
+
+    it('returns 401 without auth', async () => {
+      const response = await (app.inject({
+        method: 'PROPPATCH' as any,
+        url: '/dav/calendars/default/',
+        headers: { 'content-type': 'application/xml' },
+        payload: '<propertyupdate/>',
+      }) as any);
+
+      expect(response.statusCode).toBe(401);
+    });
+  });
+
+  // ─── PROPPATCH /dav/addressbooks/default/ ─────────────────────────────
+
+  describe('PROPPATCH /dav/addressbooks/default/', () => {
+    it('returns 207 multistatus acknowledging properties', async () => {
+      const { basicAuth } = await createUserWithToken();
+
+      const proppatchBody = `<?xml version="1.0" encoding="utf-8"?>
+<D:propertyupdate xmlns:D="DAV:">
+  <D:set>
+    <D:prop>
+      <D:displayname>My Contacts</D:displayname>
+    </D:prop>
+  </D:set>
+</D:propertyupdate>`;
+
+      const response = await (app.inject({
+        method: 'PROPPATCH' as any,
+        url: '/dav/addressbooks/default/',
+        headers: {
+          Authorization: basicAuth,
+          'content-type': 'application/xml',
+        },
+        payload: proppatchBody,
+      }) as any);
+
+      expect(response.statusCode).toBe(207);
+      expect(response.payload).toContain('<D:multistatus');
+      expect(response.payload).toContain('/dav/addressbooks/default/');
+    });
+  });
+
+  // ─── ETag consistency ──────────────────────────────────────────────────
+
+  describe('ETag consistency', () => {
+    it('PROPFIND depth 1 and REPORT return same ETags for calendar events', async () => {
+      const { basicAuth } = await createUserWithToken();
+      createTestWorkItem('ETag Test Item');
+
+      // PROPFIND depth 1
+      const propfindRes = await (app.inject({
+        method: 'PROPFIND' as any,
+        url: '/dav/calendars/default/',
+        headers: { Authorization: basicAuth, depth: '1' },
+      }) as any);
+
+      // REPORT calendar-query
+      const reportBody = `<?xml version="1.0" encoding="utf-8"?>
+<C:calendar-query xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+  <D:prop><D:getetag/><C:calendar-data/></D:prop>
+  <C:filter><C:comp-filter name="VCALENDAR"><C:comp-filter name="VEVENT"/></C:comp-filter></C:filter>
+</C:calendar-query>`;
+
+      const reportRes = await (app.inject({
+        method: 'REPORT' as any,
+        url: '/dav/calendars/default/',
+        headers: {
+          Authorization: basicAuth,
+          'content-type': 'application/xml',
+        },
+        payload: reportBody,
+      }) as any);
+
+      // Extract ETags from both responses — they should both use "wi-<hash>" format
+      const propfindEtags = propfindRes.payload.match(/<D:getetag>"(wi-[^"]+)"<\/D:getetag>/g) || [];
+      const reportEtags = reportRes.payload.match(/<D:getetag>"(wi-[^"]+)"<\/D:getetag>/g) || [];
+
+      expect(propfindEtags.length).toBeGreaterThan(0);
+      expect(reportEtags.length).toBeGreaterThan(0);
+      // Both should use the same wi-prefixed format
+      expect(propfindEtags[0]).toBe(reportEtags[0]);
+    });
+  });
+
+  // ─── Namespace declarations ────────────────────────────────────────────
+
+  describe('XML namespace declarations', () => {
+    it('multistatus root declares all namespaces', async () => {
+      const { basicAuth } = await createUserWithToken();
+
+      const response = await (app.inject({
+        method: 'PROPFIND' as any,
+        url: '/dav/calendars/default/',
+        headers: { Authorization: basicAuth },
+      }) as any);
+
+      expect(response.payload).toContain('xmlns:D="DAV:"');
+      expect(response.payload).toContain('xmlns:C="urn:ietf:params:xml:ns:caldav"');
+      expect(response.payload).toContain('xmlns:A="urn:ietf:params:xml:ns:carddav"');
+      expect(response.payload).toContain('xmlns:CS="http://calendarserver.org/ns/"');
+    });
+  });
+
   // ─── Well-known redirects ─────────────────────────────────────────────────
 
   describe('Well-known redirects', () => {

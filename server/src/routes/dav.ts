@@ -58,6 +58,15 @@ export default async function davRoutes(fastify: FastifyInstance) {
     }
   });
 
+  // ─── Debug logging for DAV request bodies ────────────────────────────────
+
+  fastify.addHook('onRequest', async (request) => {
+    const method = request.method;
+    if (method === 'PROPFIND' || method === 'REPORT' || method === 'PROPPATCH') {
+      request.log.debug({ method, url: request.url, body: request.body }, 'DAV request body');
+    }
+  });
+
   // ─── OPTIONS (DAV capabilities) ──────────────────────────────────────────
 
   /**
@@ -69,7 +78,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
     async (request, reply) => {
       return reply
         .header('DAV', '1, 2, 3, calendar-access, addressbook')
-        .header('Allow', 'OPTIONS, GET, HEAD, PROPFIND, REPORT, PUT, DELETE, POST')
+        .header('Allow', 'OPTIONS, GET, HEAD, PROPFIND, REPORT, PROPPATCH, PUT, DELETE, POST')
         .status(200)
         .send();
     },
@@ -156,8 +165,8 @@ export default async function davRoutes(fastify: FastifyInstance) {
       const props = `<D:resourcetype><D:principal/></D:resourcetype>
 <D:displayname>${(request as any).davUser.email}</D:displayname>
 <D:principal-URL><D:href>${href}</D:href></D:principal-URL>
-<C:calendar-home-set xmlns:C="urn:ietf:params:xml:ns:caldav"><D:href>${DAV_PREFIX}/calendars/default/</D:href></C:calendar-home-set>
-<A:addressbook-home-set xmlns:A="urn:ietf:params:xml:ns:carddav"><D:href>${DAV_PREFIX}/addressbooks/default/</D:href></A:addressbook-home-set>`;
+<C:calendar-home-set><D:href>${DAV_PREFIX}/calendars/default/</D:href></C:calendar-home-set>
+<A:addressbook-home-set><D:href>${DAV_PREFIX}/addressbooks/default/</D:href></A:addressbook-home-set>`;
 
       const resp = davXml.response(href, davXml.propstat(props));
       return reply
@@ -275,7 +284,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
       const etag = calendarIcal.computeCalendarETag(fastify.db);
       return reply
         .type('text/calendar; charset=utf-8')
-        .header('ETag', `"${etag}"`)
+        .header('ETag', `"${type}-${etag}"`)
         .send(calendar);
     },
   );
@@ -297,12 +306,14 @@ export default async function davRoutes(fastify: FastifyInstance) {
       householdItems: type === 'hi' ? [event] : [],
     });
 
-    const props = `<D:getetag>"${etag}"</D:getetag>
+    // Use type-prefixed ETag to match PROPFIND depth 1 responses
+    const typedEtag = `${type}-${etag}`;
+    const props = `<D:getetag>"${typedEtag}"</D:getetag>
 <D:resourcetype/>
 <D:displayname>${escapeXml(event.title || event.name)}</D:displayname>
 <D:getcontentlength>${calendar.length}</D:getcontentlength>
 <D:getcontenttype>text/calendar; charset=utf-8</D:getcontenttype>
-<C:calendar-data xmlns:C="urn:ietf:params:xml:ns:caldav">${escapeXml(calendar)}</C:calendar-data>`;
+<C:calendar-data>${escapeXml(calendar)}</C:calendar-data>`;
 
     return davXml.response(href, davXml.propstat(props));
   }
@@ -511,16 +522,19 @@ export default async function davRoutes(fastify: FastifyInstance) {
    */
   function buildVcardResponse(
     href: string,
+    type: string,
     vcf: string,
     displayName: string,
     etag: string,
   ): string {
-    const props = `<D:getetag>"${etag}"</D:getetag>
+    // Use type-prefixed ETag to match PROPFIND depth 1 responses
+    const typedEtag = `${type}-${etag}`;
+    const props = `<D:getetag>"${typedEtag}"</D:getetag>
 <D:resourcetype/>
 <D:displayname>${escapeXml(displayName)}</D:displayname>
 <D:getcontentlength>${vcf.length}</D:getcontentlength>
 <D:getcontenttype>text/vcard; charset=utf-8</D:getcontenttype>
-<A:address-data xmlns:A="urn:ietf:params:xml:ns:carddav">${escapeXml(vcf)}</A:address-data>`;
+<A:address-data>${escapeXml(vcf)}</A:address-data>`;
 
     return davXml.response(href, davXml.propstat(props));
   }
@@ -546,7 +560,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
         for (const vendor of allVendors as any[]) {
           const href = `${DAV_PREFIX}/addressbooks/default/vendor-${vendor.id}.vcf`;
           const vcf = vendorVcard.buildVendorVcard(vendor);
-          responses.push(buildVcardResponse(href, vcf, vendor.name, etag));
+          responses.push(buildVcardResponse(href, 'vendor', vcf, vendor.name, etag));
         }
 
         const allContacts = fastify.db.select().from(vendorContacts).all();
@@ -555,7 +569,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
           if (!vendor) continue;
           const href = `${DAV_PREFIX}/addressbooks/default/contact-${contact.id}.vcf`;
           const vcf = vendorVcard.buildContactVcard(contact, vendor.name);
-          responses.push(buildVcardResponse(href, vcf, contact.name, etag));
+          responses.push(buildVcardResponse(href, 'contact', vcf, contact.name, etag));
         }
       } else {
         // addressbook-multiget: fetch specific contacts by href
@@ -611,7 +625,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
             continue;
           }
 
-          responses.push(buildVcardResponse(href, vcf, displayName || '', etag));
+          responses.push(buildVcardResponse(href, type, vcf, displayName || '', etag));
         }
       }
 
@@ -619,6 +633,79 @@ export default async function davRoutes(fastify: FastifyInstance) {
         .type('application/xml; charset=utf-8')
         .status(207)
         .send(davXml.multistatus(responses));
+    },
+  );
+
+  // ─── PROPPATCH: Calendar & Address Book Collections ─────────────────────
+
+  /**
+   * Parse property names from a PROPPATCH body.
+   * Returns the prop names that iOS is trying to set.
+   */
+  function parsePropPatchProps(body: string): string[] {
+    const props: string[] = [];
+    // Match <D:set><D:prop>...</D:prop></D:set> sections
+    const setPropMatch = body.match(/<(?:[a-z]+:)?set[^>]*>[\s\S]*?<(?:[a-z]+:)?prop[^>]*>([\s\S]*?)<\/(?:[a-z]+:)?prop>/gi);
+    if (setPropMatch) {
+      for (const section of setPropMatch) {
+        const innerMatch = section.match(/<(?:[a-z]+:)?prop[^>]*>([\s\S]*?)<\/(?:[a-z]+:)?prop>/i);
+        if (innerMatch) {
+          // Extract all top-level element names from the prop section
+          const tagMatches = innerMatch[1].matchAll(/<([a-z]+:)?([a-z][-a-z]*)[^>]*(?:\/>|>[\s\S]*?<\/\1?\2>)/gi);
+          for (const m of tagMatches) {
+            props.push(`<${m[1] || 'D:'}${m[2]}/>`);
+          }
+        }
+      }
+    }
+    return props;
+  }
+
+  /**
+   * PROPPATCH /calendars/default/ and /addressbooks/default/
+   * iOS sends PROPPATCH to set calendar color, display name, alerts, etc.
+   * Since we're read-only, we acknowledge all props as "set successfully" (200 OK propstat).
+   */
+  fastify.proppatch<{ Body: string }>(
+    '/calendars/default/',
+    { preHandler: davAuth },
+    async (request, reply) => {
+      const body = request.body || '';
+      const props = parsePropPatchProps(body);
+
+      // If we couldn't parse any props, return a generic acknowledgment
+      const propXml = props.length > 0 ? props.join('\n') : '<D:displayname/>';
+
+      const resp = davXml.response(
+        `${DAV_PREFIX}/calendars/default/`,
+        davXml.propstat(propXml),
+      );
+
+      return reply
+        .type('application/xml; charset=utf-8')
+        .status(207)
+        .send(davXml.multistatus([resp]));
+    },
+  );
+
+  fastify.proppatch<{ Body: string }>(
+    '/addressbooks/default/',
+    { preHandler: davAuth },
+    async (request, reply) => {
+      const body = request.body || '';
+      const props = parsePropPatchProps(body);
+
+      const propXml = props.length > 0 ? props.join('\n') : '<D:displayname/>';
+
+      const resp = davXml.response(
+        `${DAV_PREFIX}/addressbooks/default/`,
+        davXml.propstat(propXml),
+      );
+
+      return reply
+        .type('application/xml; charset=utf-8')
+        .status(207)
+        .send(davXml.multistatus([resp]));
     },
   );
 }
