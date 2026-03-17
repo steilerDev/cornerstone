@@ -107,8 +107,8 @@ function renderWithRouter(
  * Find an expand button by matching the text of its sibling span element.
  * This replaced aria-controls-based selection after aria-controls was removed from expand buttons.
  * Maps old controlsId patterns to the expected sibling text:
- *   - "wi-section-categories" → "Work items"
- *   - "hi-section-categories" → "Household items"
+ *   - "wi-section-categories" → "Work Items"
+ *   - "hi-section-categories" → "Household Items"
  *   - "avail-funds" → "Available funds"
  *   - "wi-cat-*-items" → category name (e.g., "Materials", "Labor")
  *   - "hi-cat-*-items" → HI category label (e.g., "Furniture", "Appliances")
@@ -119,9 +119,9 @@ function getButtonByControls(container: HTMLElement, controlsId: string): HTMLEl
   let expectedText: string | null = null;
 
   if (controlsId === 'wi-section-categories') {
-    expectedText = 'Work items';
+    expectedText = 'Work Items';
   } else if (controlsId === 'hi-section-categories') {
-    expectedText = 'Household items';
+    expectedText = 'Household Items';
   } else if (controlsId === 'avail-funds') {
     expectedText = 'Available funds';
   } else if (controlsId.startsWith('wi-cat-') && controlsId.endsWith('-items')) {
@@ -177,7 +177,7 @@ function getButtonByControls(container: HTMLElement, controlsId: string): HTMLEl
     for (const btn of buttons) {
       const span = btn.nextElementSibling;
       const text = span?.textContent?.trim() || '';
-      if (text === 'Work items') {
+      if (text === 'Work Items') {
         foundSection = true;
       } else if (
         foundSection &&
@@ -196,12 +196,12 @@ function getButtonByControls(container: HTMLElement, controlsId: string): HTMLEl
     for (const btn of buttons) {
       const span = btn.nextElementSibling;
       const text = span?.textContent?.trim() || '';
-      if (text === 'Household items') {
+      if (text === 'Household Items') {
         foundHISection = true;
       } else if (
         foundHISection &&
         text &&
-        text !== 'Household items' &&
+        text !== 'Household Items' &&
         !text.startsWith('Total ')
       ) {
         return btn;
@@ -559,12 +559,12 @@ describe('CostBreakdownTable', () => {
       />,
     );
 
-    // The bottom totals section has a 'Sum' row and a 'Remaining' row.
+    // The bottom totals section has a 'Sum' row and a 'Remaining Budget' row.
     expect(screen.getByText('Sum')).toBeInTheDocument();
-    expect(screen.getByText('Remaining')).toBeInTheDocument();
+    expect(screen.getByText('Remaining Budget')).toBeInTheDocument();
   });
 
-  it('shows Work items label in summary', () => {
+  it('shows Work Items label in summary', () => {
     render(
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
@@ -574,10 +574,10 @@ describe('CostBreakdownTable', () => {
       />,
     );
 
-    expect(screen.getByText('Work items')).toBeInTheDocument();
+    expect(screen.getByText('Work Items')).toBeInTheDocument();
   });
 
-  it('shows Household items label in summary', () => {
+  it('shows Household Items label in summary', () => {
     render(
       <CostBreakdownTable
         breakdown={buildBreakdownWithHI()}
@@ -587,7 +587,7 @@ describe('CostBreakdownTable', () => {
       />,
     );
 
-    expect(screen.getByText('Household items')).toBeInTheDocument();
+    expect(screen.getByText('Household Items')).toBeInTheDocument();
   });
 
   // ── 17. WI section collapsed by default ─────────────────────────────────
@@ -1035,7 +1035,7 @@ describe('CostBreakdownTable', () => {
     );
 
     // HI section should still be visible
-    expect(screen.getByText('Household items')).toBeInTheDocument();
+    expect(screen.getByText('Household Items')).toBeInTheDocument();
   });
 
   // ── 28. Remaining value positive → valuePositive CSS class ───────────────
@@ -1297,7 +1297,7 @@ describe('CostBreakdownTable', () => {
 
   // ── Level-0 Row Names (Scenario 9) ────────────────────────────────────────
 
-  it('level-0 rows are labeled "Work items", "Household items", "Sum", "Available funds", "Remaining"', () => {
+  it('level-0 rows are labeled "Work Items", "Household Items", "Sum", "Available funds", "Remaining Budget"', () => {
     const breakdown: BudgetBreakdown = {
       workItems: {
         categories: [
@@ -1360,11 +1360,11 @@ describe('CostBreakdownTable', () => {
       />,
     );
 
-    expect(screen.getByText('Work items')).toBeInTheDocument();
-    expect(screen.getByText('Household items')).toBeInTheDocument();
+    expect(screen.getByText('Work Items')).toBeInTheDocument();
+    expect(screen.getByText('Household Items')).toBeInTheDocument();
     expect(screen.getByText('Sum')).toBeInTheDocument();
     expect(screen.getByText('Available funds')).toBeInTheDocument();
-    expect(screen.getByText('Remaining')).toBeInTheDocument();
+    expect(screen.getByText('Remaining Budget')).toBeInTheDocument();
   });
 
   // ── Category sum row visibility — Bug #585 fix ────────────────────────────
@@ -2119,8 +2119,8 @@ describe('CostBreakdownTable', () => {
     expect(container.textContent).toContain('-€910.00');
   });
 
-  // Scenario 17: "Sum" label appears AND "Remaining" row also appears
-  it('"Sum" label appears in summary section and "Remaining" row is also present', () => {
+  // Scenario 17: "Sum" label appears AND "Remaining Budget" row also appears
+  it('"Sum" label appears in summary section and "Remaining Budget" row is also present', () => {
     render(
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
@@ -2131,7 +2131,7 @@ describe('CostBreakdownTable', () => {
     );
 
     expect(screen.getByText('Sum')).toBeInTheDocument();
-    expect(screen.getByText('Remaining')).toBeInTheDocument();
+    expect(screen.getByText('Remaining Budget')).toBeInTheDocument();
   });
 
   // Scenario 18: Sum row Cost = -totalRawProjected (Avg default)
@@ -2208,10 +2208,10 @@ describe('CostBreakdownTable', () => {
       />,
     );
 
-    // Remaining row Cost column shows "€6,000.00" (positive, so valuePositive class)
+    // Remaining Budget row Cost column shows "€6,000.00" (positive, so valuePositive class)
     const positiveSpan = container.querySelector('.valuePositive');
     expect(positiveSpan).not.toBeNull();
-    expect(screen.getByText('Remaining')).toBeInTheDocument();
+    expect(screen.getByText('Remaining Budget')).toBeInTheDocument();
     expect(screen.getAllByText('€6,000.00').length).toBeGreaterThanOrEqual(1);
   });
 
@@ -2234,7 +2234,7 @@ describe('CostBreakdownTable', () => {
 
     const negativeSpan = container.querySelector('.valueNegative');
     expect(negativeSpan).not.toBeNull();
-    expect(screen.getByText('Remaining')).toBeInTheDocument();
+    expect(screen.getByText('Remaining Budget')).toBeInTheDocument();
   });
 
   // ── Invoiced Badge (Issue #575) ────────────────────────────────────────────
