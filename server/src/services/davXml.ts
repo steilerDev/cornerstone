@@ -52,7 +52,7 @@ export function parsePropfindProps(body: string): string[] {
  */
 export function parseReportHrefs(body: string): string[] {
   const hrefs: string[] = [];
-  const hrefMatches = body.matchAll(/<(?:[a-z]+:)?href>([\s\S]*?)<\/(?:[a-z]+:)?href>/gi);
+  const hrefMatches = body.matchAll(/<(?:[a-z]+:)?href[^>]*>([\s\S]*?)<\/(?:[a-z]+:)?href>/gi);
   for (const match of hrefMatches) {
     hrefs.push(match[1].trim());
   }

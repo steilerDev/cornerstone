@@ -443,6 +443,66 @@ describe('DAV Routes', () => {
     });
   });
 
+  // ─── REPORT calendar-multiget /dav/calendars/default/ ───────────────────
+
+  describe('REPORT calendar-multiget /dav/calendars/default/', () => {
+    it('returns events for multiget with iOS-style inline xmlns hrefs', async () => {
+      const { basicAuth } = await createUserWithToken();
+      const wiId = createTestWorkItem('iOS Calendar Test');
+
+      const reportBody = `<?xml version="1.0" encoding="utf-8"?>
+<A:calendar-multiget xmlns:A="urn:ietf:params:xml:ns:caldav" xmlns:B="DAV:">
+  <B:prop>
+    <B:getetag/>
+    <A:calendar-data/>
+  </B:prop>
+  <A:href xmlns:A="DAV:">/dav/calendars/default/wi-${wiId}.ics</A:href>
+</A:calendar-multiget>`;
+
+      const response = await (app.inject({
+        method: 'REPORT' as any,
+        url: '/dav/calendars/default/',
+        headers: {
+          Authorization: basicAuth,
+          'content-type': 'application/xml',
+        },
+        payload: reportBody,
+      }) as any);
+
+      expect(response.statusCode).toBe(207);
+      expect(response.payload).toContain('<D:multistatus');
+      expect(response.payload).toContain('iOS Calendar Test');
+      expect(response.payload).toContain('calendar-data');
+    });
+
+    it('returns events for multiget with standard D:href format', async () => {
+      const { basicAuth } = await createUserWithToken();
+      const wiId = createTestWorkItem('Standard Multiget Test');
+
+      const reportBody = `<?xml version="1.0" encoding="utf-8"?>
+<C:calendar-multiget xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+  <D:prop>
+    <D:getetag/>
+    <C:calendar-data/>
+  </D:prop>
+  <D:href>/dav/calendars/default/wi-${wiId}.ics</D:href>
+</C:calendar-multiget>`;
+
+      const response = await (app.inject({
+        method: 'REPORT' as any,
+        url: '/dav/calendars/default/',
+        headers: {
+          Authorization: basicAuth,
+          'content-type': 'application/xml',
+        },
+        payload: reportBody,
+      }) as any);
+
+      expect(response.statusCode).toBe(207);
+      expect(response.payload).toContain('Standard Multiget Test');
+    });
+  });
+
   // ─── REPORT calendar-query /dav/calendars/default/ ──────────────────────
 
   describe('REPORT calendar-query /dav/calendars/default/', () => {
@@ -508,6 +568,39 @@ describe('DAV Routes', () => {
       expect(response.statusCode).toBe(207);
       expect(response.payload).toContain('<D:multistatus');
       expect(response.payload).toContain('Query Vendor');
+      expect(response.payload).toContain('address-data');
+    });
+  });
+
+  // ─── REPORT addressbook-multiget with iOS-style hrefs ──────────────────
+
+  describe('REPORT addressbook-multiget with iOS-style hrefs', () => {
+    it('returns vCards for multiget with iOS-style inline xmlns hrefs', async () => {
+      const { basicAuth } = await createUserWithToken();
+      const vendorId = createTestVendor('iOS Contacts Test');
+
+      const reportBody = `<?xml version="1.0" encoding="utf-8"?>
+<A:addressbook-multiget xmlns:A="urn:ietf:params:xml:ns:carddav" xmlns:B="DAV:">
+  <B:prop>
+    <B:getetag/>
+    <A:address-data/>
+  </B:prop>
+  <A:href xmlns:A="DAV:">/dav/addressbooks/default/vendor-${vendorId}.vcf</A:href>
+</A:addressbook-multiget>`;
+
+      const response = await (app.inject({
+        method: 'REPORT' as any,
+        url: '/dav/addressbooks/default/',
+        headers: {
+          Authorization: basicAuth,
+          'content-type': 'application/xml',
+        },
+        payload: reportBody,
+      }) as any);
+
+      expect(response.statusCode).toBe(207);
+      expect(response.payload).toContain('<D:multistatus');
+      expect(response.payload).toContain('iOS Contacts Test');
       expect(response.payload).toContain('address-data');
     });
   });

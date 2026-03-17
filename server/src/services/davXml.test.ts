@@ -122,6 +122,31 @@ describe('davXml', () => {
       const body = `<report><HREF>/calendars/default/wi-abc.ics</HREF></report>`;
       expect(parseReportHrefs(body)).toEqual(['/calendars/default/wi-abc.ics']);
     });
+
+    it('extracts hrefs with inline xmlns declarations (iOS format)', () => {
+      const body = `<A:calendar-multiget xmlns:A="urn:ietf:params:xml:ns:caldav" xmlns:B="DAV:">
+<B:prop><B:getetag/><A:calendar-data/></B:prop>
+<A:href xmlns:A="DAV:">/dav/calendars/default/wi-56fcc578.ics</A:href>
+<A:href xmlns:A="DAV:">/dav/calendars/default/milestone-3.ics</A:href>
+</A:calendar-multiget>`;
+      const hrefs = parseReportHrefs(body);
+      expect(hrefs).toHaveLength(2);
+      expect(hrefs[0]).toBe('/dav/calendars/default/wi-56fcc578.ics');
+      expect(hrefs[1]).toBe('/dav/calendars/default/milestone-3.ics');
+    });
+
+    it('handles mixed hrefs with and without xmlns attributes', () => {
+      const body = `<report>
+<D:href>/dav/addressbooks/default/vendor-1.vcf</D:href>
+<A:href xmlns:A="DAV:">/dav/addressbooks/default/vendor-2.vcf</A:href>
+<href>/dav/addressbooks/default/contact-3.vcf</href>
+</report>`;
+      const hrefs = parseReportHrefs(body);
+      expect(hrefs).toHaveLength(3);
+      expect(hrefs[0]).toBe('/dav/addressbooks/default/vendor-1.vcf');
+      expect(hrefs[1]).toBe('/dav/addressbooks/default/vendor-2.vcf');
+      expect(hrefs[2]).toBe('/dav/addressbooks/default/contact-3.vcf');
+    });
   });
 
   // ─── multistatus ────────────────────────────────────────────────────────────

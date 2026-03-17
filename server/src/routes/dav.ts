@@ -58,33 +58,6 @@ export default async function davRoutes(fastify: FastifyInstance) {
     }
   });
 
-  // ─── Temporary DAV debug logging (info level) ──────────────────────────
-  // TODO: Remove or downgrade to debug level after iOS calendar issue is resolved
-
-  fastify.addHook('preHandler', async (request) => {
-    const method = request.method;
-    if (method === 'PROPFIND' || method === 'REPORT' || method === 'PROPPATCH') {
-      request.log.info(
-        { davMethod: method, davUrl: request.url, depth: request.headers.depth, davRequestBody: request.body },
-        'DAV request',
-      );
-    }
-  });
-
-  fastify.addHook('onSend', async (request, reply, payload) => {
-    const method = request.method;
-    if (method === 'PROPFIND' || method === 'REPORT' || method === 'PROPPATCH') {
-      // Truncate large payloads to avoid flooding logs
-      const body = typeof payload === 'string' ? payload : String(payload);
-      const truncated = body.length > 4000 ? body.slice(0, 4000) + `\n... [truncated, total ${body.length} chars]` : body;
-      request.log.info(
-        { davMethod: method, davUrl: request.url, statusCode: reply.statusCode, davResponseBody: truncated },
-        'DAV response',
-      );
-    }
-    return payload;
-  });
-
   // ─── OPTIONS (DAV capabilities) ──────────────────────────────────────────
 
   /**
